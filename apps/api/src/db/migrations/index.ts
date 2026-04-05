@@ -64,6 +64,7 @@ import * as m058 from "./058-drop-promo-type-sort-order.js";
 import * as m059 from "./059-backfill-keywords-from-printings.js";
 import * as m060 from "./060-fix-updated-at-trigger.js";
 import * as m061 from "./061-rules.js";
+import * as m062 from "./062-reference-tables.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -127,4 +128,5 @@ export const migrations: Record<string, Migration> = {
   "059-backfill-keywords-from-printings": m059,
   "060-fix-updated-at-trigger": m060,
   "061-rules": m061,
+  "062-reference-tables": m062,
 };

@@ -14,6 +14,7 @@ import {
   refreshCardtraderPrices,
   refreshTcgplayerPrices,
 } from "./services/price-refresh/index.js";
+import { validateWellKnownSlugs } from "./services/validate-well-known.js";
 
 // ── Composition root ──────────────────────────────────────────────────────────
 
@@ -33,7 +34,12 @@ log.info("Starting API server");
 log.info("Running migrations");
 await migrate(db, log.child({ service: "migrate" }));
 
-// ── 2. Register cron jobs (non-blocking timers) ─────────────────────────────
+// ── 2. Validate well-known reference data ──────────────────────────────────
+
+log.info("Validating well-known slugs");
+await validateWellKnownSlugs(db);
+
+// ── 3. Register cron jobs (non-blocking timers) ─────────────────────────────
 
 if (config.cron.enabled) {
   const repos = createRepos(db);
@@ -82,7 +88,7 @@ if (config.cron.enabled) {
   }
 }
 
-// ── 3. Start server ─────────────────────────────────────────────────────────
+// ── 4. Start server ─────────────────────────────────────────────────────────
 
 const app = createApp({ db, auth, config, log });
 

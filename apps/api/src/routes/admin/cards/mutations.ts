@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type { CandidateCardUploadResponse } from "@openrift/shared";
+import type { CandidateCardUploadResponse, CardType, Domain, SuperType } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
 import { RARITY_ORDER } from "@openrift/shared/types";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
@@ -598,8 +598,8 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, `Invalid field: ${field}`);
     }
 
-    // Normalize null to empty array for array-typed fields (DB stores NOT NULL DEFAULT '{}')
-    const arrayFields = new Set(["superTypes", "tags"]);
+    // Normalize null to empty array for array-typed fields
+    const arrayFields = new Set(["superTypes", "domains", "tags"]);
     const normalized = value === null && arrayFields.has(field) ? [] : value;
 
     const validator = cardFieldRules[field as keyof typeof cardFieldRules];
@@ -620,6 +620,16 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       source === "provider" && textFields.has(field) && typeof normalized === "string"
         ? fixTypography(normalized)
         : normalized;
+
+    // Domains and superTypes are stored in junction tables, not on the cards row
+    if (field === "domains") {
+      await mut.replaceCardDomains(cardSlug, finalValue as string[]);
+      return c.body(null, 204);
+    }
+    if (field === "superTypes") {
+      await mut.replaceCardSuperTypes(cardSlug, finalValue as string[]);
+      return c.body(null, 204);
+    }
 
     const updates: Record<string, unknown> = { [field]: finalValue };
 
@@ -769,7 +779,15 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     }
 
     await c.get("transact")(async (trxRepos) => {
-      await trxRepos.candidateMutations.acceptNewCardFromSources(cardFields, normalizedName);
+      // FK constraints validate values at DB level — safe to cast from z.string()
+      await trxRepos.candidateMutations.acceptNewCardFromSources(
+        cardFields as typeof cardFields & {
+          type: CardType;
+          domains: Domain[];
+          superTypes?: SuperType[];
+        },
+        normalizedName,
+      );
     });
 
     return c.body(null, 204);

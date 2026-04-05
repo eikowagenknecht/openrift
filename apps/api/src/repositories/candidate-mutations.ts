@@ -396,6 +396,50 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       await db.updateTable("cards").set(updates).where("id", "=", id).execute();
     },
 
+    /** Replace all domains for a card (delete + insert). */
+    async replaceCardDomains(cardSlug: string, domains: string[]): Promise<void> {
+      const card = await db
+        .selectFrom("cards")
+        .select("id")
+        .where("slug", "=", cardSlug)
+        .executeTakeFirst();
+      if (!card) {
+        return;
+      }
+      await db.deleteFrom("cardDomains").where("cardId", "=", card.id).execute();
+      if (domains.length > 0) {
+        await db
+          .insertInto("cardDomains")
+          .values(
+            domains.map((domain, index) => ({
+              cardId: card.id,
+              domainSlug: domain,
+              ordinal: index,
+            })),
+          )
+          .execute();
+      }
+    },
+
+    /** Replace all super types for a card (delete + insert). */
+    async replaceCardSuperTypes(cardSlug: string, superTypes: string[]): Promise<void> {
+      const card = await db
+        .selectFrom("cards")
+        .select("id")
+        .where("slug", "=", cardSlug)
+        .executeTakeFirst();
+      if (!card) {
+        return;
+      }
+      await db.deleteFrom("cardSuperTypes").where("cardId", "=", card.id).execute();
+      if (superTypes.length > 0) {
+        await db
+          .insertInto("cardSuperTypes")
+          .values(superTypes.map((superType) => ({ cardId: card.id, superTypeSlug: superType })))
+          .execute();
+      }
+    },
+
     // ── Printing mutations ────────────────────────────────────────────────────
 
     /**
@@ -655,8 +699,6 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
           slug: cardFields.id,
           name: cardFields.name,
           type: cardFields.type,
-          superTypes: cardFields.superTypes ?? [],
-          domains: cardFields.domains,
           might: cardFields.might ?? null,
           energy: cardFields.energy ?? null,
           power: cardFields.power ?? null,
@@ -668,6 +710,29 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         })
         .returning("id")
         .executeTakeFirstOrThrow();
+
+      // Write domains to junction table
+      if (cardFields.domains.length > 0) {
+        await db
+          .insertInto("cardDomains")
+          .values(
+            cardFields.domains.map((domain, index) => ({
+              cardId: cardUuid,
+              domainSlug: domain,
+              ordinal: index,
+            })),
+          )
+          .execute();
+      }
+
+      // Write super types to junction table
+      const superTypes = cardFields.superTypes ?? [];
+      if (superTypes.length > 0) {
+        await db
+          .insertInto("cardSuperTypes")
+          .values(superTypes.map((superType) => ({ cardId: cardUuid, superTypeSlug: superType })))
+          .execute();
+      }
 
       await db
         .insertInto("cardNameAliases")

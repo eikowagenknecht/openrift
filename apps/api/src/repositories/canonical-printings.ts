@@ -2,6 +2,7 @@ import type { CardType, Domain, SuperType } from "@openrift/shared/types";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { domainsArray, superTypesArray } from "./query-helpers.js";
 
 interface CanonicalShortCode {
   cardId: string;
@@ -114,19 +115,17 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
         return [];
       }
 
-      const cardColumns = [
-        "p.shortCode",
-        "p.cardId",
-        "c.name as cardName",
-        "c.type as cardType",
-        "c.superTypes",
-        "c.domains",
-      ] as const;
-
       // Strict canonical pass
       const strict = await canonical()
         .innerJoin("cards as c", "c.id", "p.cardId")
-        .select(cardColumns)
+        .select([
+          "p.shortCode",
+          "p.cardId",
+          "c.name as cardName",
+          "c.type as cardType",
+          domainsArray("c.id").as("domains"),
+          superTypesArray("c.id").as("superTypes"),
+        ])
         .where("p.shortCode", "in", shortCodes)
         .distinctOn("p.shortCode")
         .orderBy("p.shortCode")
@@ -134,7 +133,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
 
       const resolved = new Map<string, ResolvedCard>();
       for (const row of strict) {
-        resolved.set(row.shortCode, row);
+        resolved.set(row.shortCode, row as ResolvedCard);
       }
 
       // Relaxed fallback
@@ -142,14 +141,21 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
       if (missing.length > 0) {
         const fallback = await relaxed()
           .innerJoin("cards as c", "c.id", "p.cardId")
-          .select(cardColumns)
+          .select([
+            "p.shortCode",
+            "p.cardId",
+            "c.name as cardName",
+            "c.type as cardType",
+            domainsArray("c.id").as("domains"),
+            superTypesArray("c.id").as("superTypes"),
+          ])
           .where("p.shortCode", "in", missing)
           .distinctOn("p.shortCode")
           .orderBy("p.shortCode")
           .execute();
 
         for (const row of fallback) {
-          resolved.set(row.shortCode, row);
+          resolved.set(row.shortCode, row as ResolvedCard);
         }
       }
 
@@ -182,8 +188,8 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
           "c.id as cardId",
           "c.name as cardName",
           "c.type as cardType",
-          "c.superTypes",
-          "c.domains",
+          domainsArray("c.id").as("domains"),
+          superTypesArray("c.id").as("superTypes"),
         ])
         .where((eb) => eb.fn("lower", ["c.name"]), "in", lowerNames)
         .where("p.artVariant", "=", CANONICAL_FILTERS.artVariant)
@@ -197,7 +203,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
         .orderBy("p.shortCode", "asc")
         .execute();
 
-      return rows;
+      return rows as ResolvedCard[];
     },
   };
 }

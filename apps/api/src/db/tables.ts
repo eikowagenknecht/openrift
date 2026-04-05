@@ -5,10 +5,8 @@ import type {
   CardType,
   DeckFormat,
   DeckZone,
-  Domain,
   Finish,
   Rarity,
-  SuperType,
   UserPreferencesResponse,
 } from "@openrift/shared/types";
 import type { ColumnType, Generated } from "kysely";
@@ -51,11 +49,8 @@ export interface CardsTable {
   /** CHECK: <> '' */
   name: string;
   normName: Generated<string>;
+  /** FK → card_types(slug) */
   type: CardType;
-  /** CHECK: values in ('Basic','Champion','Signature','Token') */
-  superTypes: SuperType[];
-  /** CHECK: array_length > 0; values in ('Fury','Calm','Mind','Body','Chaos','Order','Colorless') */
-  domains: Domain[];
   /** CHECK: >= 0 */
   might: number | null;
   /** CHECK: >= 0 */
@@ -89,10 +84,13 @@ export interface PrintingsTable {
   shortCode: string;
   /** CHECK: > 0 */
   collectorNumber: number;
+  /** FK → rarities(slug) */
   rarity: Rarity;
+  /** FK → art_variants(slug) */
   artVariant: ArtVariant;
   isSigned: boolean;
   promoTypeId: string | null;
+  /** FK → finishes(slug) */
   finish: Finish;
   /** CHECK: <> '' */
   artist: string;
@@ -318,6 +316,7 @@ export interface DecksTable {
   /** CHECK: <> '' */
   name: string;
   description: string | null;
+  /** FK → deck_formats(slug) */
   format: DeckFormat;
   isWanted: boolean;
   isPublic: boolean;
@@ -331,6 +330,7 @@ export interface DeckCardsTable {
   id: Generated<string>;
   deckId: string;
   cardId: string;
+  /** FK → deck_zones(slug) */
   zone: DeckZone;
   /** CHECK: > 0 */
   quantity: number;
@@ -654,6 +654,37 @@ export interface RulesTable {
   createdAt: CreatedAt;
 }
 
+// ─── Reference tables (migration 062) ────────────────────────────────────────
+
+export interface ReferenceTable {
+  slug: string;
+  label: string;
+  sortOrder: number;
+  isWellKnown: boolean;
+}
+
+export type CardTypesTable = ReferenceTable;
+export type RaritiesTable = ReferenceTable;
+export type DomainsTable = ReferenceTable;
+export type SuperTypesTable = ReferenceTable;
+export type FinishesTable = ReferenceTable;
+export type ArtVariantsTable = ReferenceTable;
+export type DeckFormatsTable = ReferenceTable;
+export type DeckZonesTable = ReferenceTable;
+
+// ─── Junction tables (migration 059) ─────────────────────────────────────────
+
+export interface CardDomainsTable {
+  cardId: string;
+  domainSlug: string;
+  ordinal: number;
+}
+
+export interface CardSuperTypesTable {
+  cardId: string;
+  superTypeSlug: string;
+}
+
 // ─── Database ────────────────────────────────────────────────────────────────
 
 export interface Database {
@@ -739,4 +770,18 @@ export interface Database {
   // Rules (migration 060)
   ruleVersions: RuleVersionsTable;
   rules: RulesTable;
+
+  // Reference tables (migration 062)
+  cardTypes: CardTypesTable;
+  rarities: RaritiesTable;
+  domains: DomainsTable;
+  superTypes: SuperTypesTable;
+  finishes: FinishesTable;
+  artVariants: ArtVariantsTable;
+  deckFormats: DeckFormatsTable;
+  deckZones: DeckZonesTable;
+
+  // Junction tables (migration 062)
+  cardDomains: CardDomainsTable;
+  cardSuperTypes: CardSuperTypesTable;
 }

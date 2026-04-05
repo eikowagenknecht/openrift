@@ -1,5 +1,5 @@
 import type { Domain, Rarity } from "@openrift/shared";
-import { COLORLESS_DOMAIN } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { useId } from "react";
 
 import { CardText } from "@/components/cards/card-text";
@@ -44,7 +44,7 @@ export function CardPlaceholderImage({
   artist,
   className,
 }: CardPlaceholderImageProps) {
-  const primaryDomain = domain[0] ?? COLORLESS_DOMAIN;
+  const primaryDomain = domain[0] ?? WellKnown.domain.COLORLESS;
   const domainIconPath = getFilterIconPath("domains", primaryDomain);
   const bgStyle = getDomainGradientStyle(domain);
   const noiseId = useId();
@@ -79,9 +79,9 @@ export function CardPlaceholderImage({
           </div>
         )}
         {type === "Legend" &&
-          domain.some((d) => d !== COLORLESS_DOMAIN) &&
+          domain.some((d) => d !== WellKnown.domain.COLORLESS) &&
           domain
-            .filter((d) => d !== COLORLESS_DOMAIN)
+            .filter((d) => d !== WellKnown.domain.COLORLESS)
             .map((d) => (
               <span
                 key={d}
@@ -236,7 +236,7 @@ export function CardPlaceholderImage({
                 </>
               )}
               {domain
-                .filter((d) => d !== COLORLESS_DOMAIN)
+                .filter((d) => d !== WellKnown.domain.COLORLESS)
                 .map((d) => (
                   <span
                     key={d}

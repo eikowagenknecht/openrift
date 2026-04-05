@@ -1,5 +1,6 @@
 import type { ArtVariant, CardType, Finish, Rarity } from "./types/index.js";
 import { ART_VARIANT_ORDER, FINISH_ORDER, RARITY_ORDER } from "./types/index.js";
+import { WellKnown } from "./well-known.js";
 
 /**
  * Deduplicates an array, preserving insertion order.
@@ -62,7 +63,7 @@ interface ComparablePrinting {
  * @returns Negative if a comes first, positive if b comes first, 0 if equal.
  */
 export function comparePrintings(a: ComparablePrinting, b: ComparablePrinting): number {
-  const av = (v: ArtVariant | null): ArtVariant => v || "normal";
+  const av = (v: ArtVariant | null): ArtVariant => v || WellKnown.artVariant.NORMAL;
   const promoA = a.promoTypeSlug ?? "";
   const promoB = b.promoTypeSlug ?? "";
   const setCompare =
@@ -137,7 +138,7 @@ export function boundsOf(vals: number[]): { min: number; max: number } {
 }
 
 export function getOrientation(type: CardType): "portrait" | "landscape" {
-  return type === "Battlefield" ? "landscape" : "portrait";
+  return type === WellKnown.cardType.BATTLEFIELD ? "landscape" : "portrait";
 }
 
 /**

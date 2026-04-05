@@ -1,5 +1,4 @@
-import type { CardType, SuperType } from "@openrift/shared";
-import { COLORLESS_DOMAIN } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 
 type FilterCategory =
   | "sets"
@@ -10,7 +9,7 @@ type FilterCategory =
   | "artVariants"
   | "finishes";
 
-const SUPERTYPE_ICONS = new Set(["Champion" satisfies SuperType]);
+const SUPERTYPE_ICONS = new Set<string>([WellKnown.superType.CHAMPION]);
 
 /**
  * Icon for a card's type row — uses the champion icon for Champion/Signature
@@ -19,9 +18,9 @@ const SUPERTYPE_ICONS = new Set(["Champion" satisfies SuperType]);
  */
 export function getTypeIconPath(type: string, superTypes: string[]): string {
   if (
-    type === ("Unit" satisfies CardType) &&
-    (superTypes.includes("Champion" satisfies SuperType) ||
-      superTypes.includes("Signature" satisfies SuperType))
+    type === WellKnown.cardType.UNIT &&
+    (superTypes.includes(WellKnown.superType.CHAMPION) ||
+      superTypes.includes(WellKnown.superType.SIGNATURE))
   ) {
     return "/images/supertypes/champion.svg";
   }
@@ -32,7 +31,7 @@ export function getFilterIconPath(category: FilterCategory, value: string): stri
   const lower = value.toLowerCase();
   switch (category) {
     case "domains": {
-      return `/images/domains/${lower}.${value === COLORLESS_DOMAIN ? "svg" : "webp"}`;
+      return `/images/domains/${lower}.${value === WellKnown.domain.COLORLESS ? "svg" : "webp"}`;
     }
     case "types": {
       return `/images/types/${lower}.svg`;

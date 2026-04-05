@@ -1,5 +1,5 @@
 import type { Domain } from "@openrift/shared";
-import { COLORLESS_DOMAIN } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 
 export const DOMAIN_COLORS: Record<string, string> = {
   Fury: "#CB212D",
@@ -30,12 +30,12 @@ export function getDomainTintStyle(domains: string[]): React.CSSProperties {
 }
 
 export function formatDomainDisplay(domains: string[]): string {
-  if (domains.length === 1 && domains[0] === COLORLESS_DOMAIN) {
+  if (domains.length === 1 && domains[0] === WellKnown.domain.COLORLESS) {
     return "No Domain";
   }
   return domains.join(" / ");
 }
 
 export function formatDomainFilterLabel(value: string): string {
-  return value === COLORLESS_DOMAIN ? "None" : value;
+  return value === WellKnown.domain.COLORLESS ? "None" : value;
 }

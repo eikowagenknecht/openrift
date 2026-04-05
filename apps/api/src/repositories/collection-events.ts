@@ -2,7 +2,7 @@ import type { ActivityAction, CardType } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 
 import type { CollectionEventsTable, Database, PrintingsTable } from "../db/index.js";
-import { imageUrl } from "./query-helpers.js";
+import { imageUrl, superTypesArray } from "./query-helpers.js";
 
 /** Collection event row with printing, card, and image details. */
 type CollectionEventRow = Pick<
@@ -62,7 +62,7 @@ export function collectionEventsRepo(db: Kysely<Database>) {
           "p.rarity",
           "card.name as cardName",
           "card.type as cardType",
-          "card.superTypes as cardSuperTypes",
+          superTypesArray("card.id").as("cardSuperTypes"),
         ])
         .where("ce.userId", "=", userId)
         .orderBy("ce.createdAt", "desc")

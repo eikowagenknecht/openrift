@@ -1,4 +1,5 @@
 import type { ActivityAction, CollectionEventResponse, Printing } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeftRightIcon,
@@ -110,7 +111,11 @@ function groupEvents(events: CollectionEventResponse[]): GroupedEvent[] {
 }
 
 function getTypeIconPath(type: string, superTypes: string[]): string {
-  if (type === "Unit" && (superTypes.includes("Champion") || superTypes.includes("Signature"))) {
+  if (
+    type === WellKnown.cardType.UNIT &&
+    (superTypes.includes(WellKnown.superType.CHAMPION) ||
+      superTypes.includes(WellKnown.superType.SIGNATURE))
+  ) {
     return "/images/supertypes/champion.svg";
   }
   return `/images/types/${type.toLowerCase()}.svg`;

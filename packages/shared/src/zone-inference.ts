@@ -1,4 +1,5 @@
 import type { CardType, DeckZone, SuperType } from "./types/enums.js";
+import { WellKnown } from "./well-known.js";
 
 /** The source slot a card occupied in the external format being imported. */
 export type SourceSlot = "mainDeck" | "sideboard" | "chosenChampion";
@@ -18,22 +19,22 @@ export function inferZone(
   sourceSlot: SourceSlot,
 ): DeckZone {
   if (sourceSlot === "chosenChampion") {
-    return "champion";
+    return WellKnown.deckZone.CHAMPION;
   }
   if (sourceSlot === "sideboard") {
-    return "sideboard";
+    return WellKnown.deckZone.SIDEBOARD;
   }
 
   // mainDeck — infer from card type
-  if (cardType === "Legend") {
-    return "legend";
+  if (cardType === WellKnown.cardType.LEGEND) {
+    return WellKnown.deckZone.LEGEND;
   }
-  if (cardType === "Rune") {
-    return "runes";
+  if (cardType === WellKnown.cardType.RUNE) {
+    return WellKnown.deckZone.RUNES;
   }
-  if (cardType === "Battlefield") {
-    return "battlefield";
+  if (cardType === WellKnown.cardType.BATTLEFIELD) {
+    return WellKnown.deckZone.BATTLEFIELD;
   }
 
-  return "main";
+  return WellKnown.deckZone.MAIN;
 }

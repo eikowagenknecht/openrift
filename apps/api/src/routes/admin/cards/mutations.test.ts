@@ -70,6 +70,8 @@ const mockMut = {
   createNameAliases: vi.fn(),
   checkByProvider: vi.fn(),
   deleteByProvider: vi.fn(),
+  replaceCardDomains: vi.fn(),
+  replaceCardSuperTypes: vi.fn(),
 };
 
 const mockCandidateCards = {};
@@ -584,8 +586,8 @@ describe("POST /api/v1/:cardId/accept-field", () => {
     expect(json.error).toContain("Invalid field");
   });
 
-  it("normalizes null to empty array for array fields", async () => {
-    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+  it("normalizes null to empty array for superTypes (junction table)", async () => {
+    mockMut.replaceCardSuperTypes.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/fire-dragon/accept-field", {
       method: "POST",
@@ -593,7 +595,7 @@ describe("POST /api/v1/:cardId/accept-field", () => {
       body: JSON.stringify({ field: "superTypes", value: null }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.updateCardBySlug).toHaveBeenCalledWith("fire-dragon", { superTypes: [] });
+    expect(mockMut.replaceCardSuperTypes).toHaveBeenCalledWith("fire-dragon", []);
   });
 
   it("normalizes null to empty array for tags field", async () => {

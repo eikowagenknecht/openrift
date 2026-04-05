@@ -9,10 +9,10 @@ const collectionFieldRules = {
 };
 const deckFieldRules = {
   name: z.string().min(1).max(200),
-  format: z.enum(["standard", "freeform"]),
+  format: z.string().min(1),
 };
 const deckCardFieldRules = {
-  zone: z.enum(["main", "sideboard", "legend", "champion", "runes", "battlefield", "overflow"]),
+  zone: z.string().min(1),
   quantity: z.number().int().positive(),
 };
 const wishListItemFieldRules = {

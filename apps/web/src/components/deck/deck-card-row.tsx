@@ -1,5 +1,6 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { AlertTriangleIcon, MinusIcon, PlusIcon, XIcon } from "lucide-react";
 
 import type { DeckCardDragData } from "@/components/deck/deck-dnd-context";
@@ -33,7 +34,7 @@ interface DeckCardRowProps {
 function PowerDomainIcon({ domains }: { domains: string[] }) {
   if (domains.length === 1) {
     const lower = domains[0].toLowerCase();
-    const ext = domains[0] === "Colorless" ? "svg" : "webp";
+    const ext = domains[0] === WellKnown.domain.COLORLESS ? "svg" : "webp";
     return (
       <img src={`/images/domains/${lower}.${ext}`} alt={domains[0]} className="inline size-3" />
     );

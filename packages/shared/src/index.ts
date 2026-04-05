@@ -125,7 +125,6 @@ export {
   ART_VARIANT_ORDER,
   CARD_TYPE_ORDER,
   DEFAULT_SEARCH_SCOPE,
-  COLORLESS_DOMAIN,
   DOMAIN_ORDER,
   FINISH_ORDER,
   RARITY_ORDER,
@@ -158,6 +157,8 @@ export { extractKeywords, KEYWORD_LOOKUP } from "./keywords.js";
 
 export type { SourceSlot } from "./zone-inference.js";
 export { inferZone } from "./zone-inference.js";
+
+export { WellKnown } from "./well-known.js";
 
 export type { DeckCard, DeckState, DeckViolation, DeckRule } from "./deck-rules.js";
 export {

@@ -198,7 +198,7 @@ export function DeckExportDialog({
                     <Textarea
                       readOnly
                       value={exportDeck.data.code}
-                      className="font-mono text-xs break-all [field-sizing:fixed]"
+                      className="[field-sizing:fixed] font-mono text-xs break-all"
                       rows={tab === "piltover" ? 3 : 12}
                       onClick={(event) => (event.target as HTMLTextAreaElement).select()}
                     />

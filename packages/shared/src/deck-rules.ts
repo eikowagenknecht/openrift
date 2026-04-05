@@ -1,4 +1,5 @@
 import type { CardType, DeckFormat, DeckZone, Domain, SuperType } from "./types/enums.js";
+import { WellKnown } from "./well-known.js";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -255,7 +256,7 @@ export const mainDeckDomainMatch: DeckRule = (state) => {
     return [];
   }
 
-  const allowedDomains = new Set([...legends[0].domains, "Colorless"]);
+  const allowedDomains = new Set([...legends[0].domains, WellKnown.domain.COLORLESS]);
   const violations: DeckViolation[] = [];
 
   for (const card of [
@@ -435,7 +436,7 @@ export const STANDARD_RULES: DeckRule[] = [
  * @returns An array of violations. Empty means the deck is valid.
  */
 export function validateDeck(state: DeckState): DeckViolation[] {
-  if (state.format === "freeform") {
+  if (state.format === WellKnown.deckFormat.FREEFORM) {
     return [];
   }
 

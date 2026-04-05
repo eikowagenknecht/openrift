@@ -11,7 +11,7 @@ import type {
   CandidatePrintingsTable,
   PrintingsTable,
 } from "../db/index.js";
-import { resolveCardId } from "./query-helpers.js";
+import { domainsArray, resolveCardId, superTypesArray } from "./query-helpers.js";
 
 /**
  * Reusable WHERE filter: exclude candidate_cards that appear in ignored_candidate_cards.
@@ -451,15 +451,13 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     cardForDetail(
       slug: string,
     ): Promise<
-      | Pick<
+      | (Pick<
           Selectable<CardsTable>,
           | "id"
           | "slug"
           | "name"
           | "normName"
           | "type"
-          | "superTypes"
-          | "domains"
           | "might"
           | "energy"
           | "power"
@@ -469,7 +467,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           | "effectText"
           | "tags"
           | "comment"
-        >
+        > & { domains: string[]; superTypes: string[] })
       | undefined
     > {
       return db
@@ -480,8 +478,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "name",
           "normName",
           "type",
-          "superTypes",
-          "domains",
           "might",
           "energy",
           "power",
@@ -491,9 +487,11 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "effectText",
           "tags",
           "comment",
+          domainsArray("cards.id").as("domains"),
+          superTypesArray("cards.id").as("superTypes"),
         ])
         .where("slug", "=", slug)
-        .executeTakeFirst();
+        .executeTakeFirst() as Promise<any>;
     },
 
     /** @returns Name aliases for a card. */
@@ -898,8 +896,18 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     // ── GET /export ───────────────────────────────────────────────────────
 
     /** @returns All cards with all columns, ordered by name. */
-    exportCards(): Promise<Selectable<CardsTable>[]> {
-      return db.selectFrom("cards").selectAll().orderBy("name").execute();
+    exportCards(): Promise<
+      (Selectable<CardsTable> & { domains: string[]; superTypes: string[] })[]
+    > {
+      return db
+        .selectFrom("cards")
+        .selectAll()
+        .select([
+          domainsArray("cards.id").as("domains"),
+          superTypesArray("cards.id").as("superTypes"),
+        ])
+        .orderBy("name")
+        .execute() as any;
     },
 
     /** @returns All printings with set slug/name and active front image URLs. */

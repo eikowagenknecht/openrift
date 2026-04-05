@@ -12,6 +12,9 @@ export const queryKeys = {
   catalog: {
     all: ["catalog"] as const,
   },
+  enums: {
+    all: ["enums"] as const,
+  },
   keywordStyles: {
     all: ["keyword-styles"] as const,
   },
