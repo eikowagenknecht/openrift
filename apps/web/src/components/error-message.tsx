@@ -145,17 +145,31 @@ export function RouteErrorFallback({ error }: { error?: unknown }) {
   );
 }
 
+/**
+ * Not-found fallback without Header/Footer — used as the router-level default.
+ * @returns Not-found UI
+ */
+export function NotFoundFallback() {
+  return (
+    <ErrorMessageLayout
+      emoji={pick(NOT_FOUND_EMOJIS)}
+      heading={pick(NOT_FOUND_HEADINGS)}
+      subtext={pick(NOT_FOUND_SUBTEXTS)}
+      className="flex-1"
+      goHome
+    />
+  );
+}
+
+/**
+ * Not-found fallback with Header/Footer — used on the root route.
+ * @returns Not-found page
+ */
 export function RouteNotFoundFallback() {
   return (
     <>
       <Header />
-      <ErrorMessageLayout
-        emoji={pick(NOT_FOUND_EMOJIS)}
-        heading={pick(NOT_FOUND_HEADINGS)}
-        subtext={pick(NOT_FOUND_SUBTEXTS)}
-        className="flex-1"
-        goHome
-      />
+      <NotFoundFallback />
       <Footer className="p-3" />
     </>
   );
