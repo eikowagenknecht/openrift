@@ -184,12 +184,19 @@ export function DeckZoneSection({
       }
       onDecrement={(event) => {
         if (event.shiftKey) {
+          onHoverCard?.(null);
           setQuantity(card.cardId, zone, 0);
+        } else if (card.quantity <= 1) {
+          onHoverCard?.(null);
+          removeCard(card.cardId, zone);
         } else {
           removeCard(card.cardId, zone);
         }
       }}
-      onRemove={() => removeCard(card.cardId, zone)}
+      onRemove={() => {
+        onHoverCard?.(null);
+        removeCard(card.cardId, zone);
+      }}
       onClick={() => handleCardClick(card)}
       onHover={onHoverCard}
     />
