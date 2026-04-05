@@ -12,7 +12,13 @@ const TOKEN_PATTERN = /:rb_(\w+):|\[([^\]]+)\]|\(([^)]+)\)|_((?::rb_\w+:|[^_])+)
 export type CardTextToken =
   | { type: "text"; value: string }
   | { type: "glyph"; name: string }
-  | { type: "keyword"; name: string; children: CardTextToken[]; pointed?: boolean }
+  | {
+      type: "keyword";
+      name: string;
+      children: CardTextToken[];
+      pointedRight?: boolean;
+      pointedLeft?: boolean;
+    }
   | { type: "paren"; children: CardTextToken[] }
   | { type: "italic"; children: CardTextToken[] }
   | { type: "newline" };
@@ -48,16 +54,55 @@ export function tokenizeCardText(text: string): CardTextToken[] {
   }
 
   // Merge [>] into the preceding keyword as a shape modifier (pointed right edge).
-  for (let i = tokens.length - 1; i > 0; i--) {
+  // Merge [>>] into the following keyword as a shape modifier (pointed left edge).
+  for (let i = tokens.length - 1; i >= 0; i--) {
     const tok = tokens[i];
-    const prev = tokens[i - 1];
-    if (tok.type === "keyword" && tok.name === ">" && prev.type === "keyword") {
-      prev.pointed = true;
+    if (tok.type !== "keyword") {
+      continue;
+    }
+    if (tok.name === ">" && i > 0 && tokens[i - 1].type === "keyword") {
+      (tokens[i - 1] as Extract<CardTextToken, { type: "keyword" }>).pointedRight = true;
+      tokens.splice(i, 1);
+    } else if (tok.name === ">>" && i < tokens.length - 1 && tokens[i + 1].type === "keyword") {
+      (tokens[i + 1] as Extract<CardTextToken, { type: "keyword" }>).pointedLeft = true;
       tokens.splice(i, 1);
     }
   }
 
   return tokens;
+}
+
+// Default shape: slanted parallelogram (left edge angled right, right edge angled left).
+// pointedRight: right edge becomes an arrow pointing right.
+// pointedLeft: left edge becomes an arrow pointing right (upgrade marker).
+// Clip paths traced clockwise from top-left:
+//
+// Default (parallelogram):
+//   polygon(0.3em 0%, 100% 0%, calc(100% - 0.3em) 100%, 0% 100%)
+//   TL shifted right, TR at corner, BR shifted left, BL at corner → / / shape
+//
+// pointedRight (arrow on right):
+//   ...same left, but right edge becomes: TR → tip at mid-right → BR
+//   polygon(0.3em 0%, calc(100% - 0.3em) 0%, 100% 50%, calc(100% - 0.3em) 100%, 0% 100%)
+//
+// pointedLeft (arrow on left, upgrade marker):
+//   Left edge becomes: TL at 0,0 → tip at 0.3em,50% → BL at 0,100%
+//   polygon(0% 0%, ...right..., 0% 100%, 0.3em 50%)
+function keywordClipPath(pointedRight?: boolean, pointedLeft?: boolean): string {
+  if (pointedLeft && pointedRight) {
+    // Both arrows: > shape on left, > shape on right
+    return "polygon(0% 0%, calc(100% - 0.3em) 0%, 100% 50%, calc(100% - 0.3em) 100%, 0% 100%, 0.3em 50%)";
+  }
+  if (pointedLeft) {
+    // Arrow on left, slanted right
+    return "polygon(0% 0%, 100% 0%, calc(100% - 0.3em) 100%, 0% 100%, 0.3em 50%)";
+  }
+  if (pointedRight) {
+    // Slanted left, arrow on right
+    return "polygon(0.3em 0%, calc(100% - 0.3em) 0%, 100% 50%, calc(100% - 0.3em) 100%, 0% 100%)";
+  }
+  // Default parallelogram
+  return "polygon(0.3em 0%, 100% 0%, calc(100% - 0.3em) 100%, 0% 100%)";
 }
 
 interface CardTextProps {
@@ -120,9 +165,7 @@ function renderTokens(
               className="absolute inset-0"
               style={{
                 backgroundColor: kw.bg,
-                clipPath: token.pointed
-                  ? "polygon(0.3em 0%, calc(100% - 0.3em) 0%, 100% 50%, calc(100% - 0.3em) 100%, 0% 100%)"
-                  : "polygon(0.3em 0%, 100% 0%, calc(100% - 0.3em) 100%, 0% 100%)",
+                clipPath: keywordClipPath(token.pointedRight, token.pointedLeft),
               }}
             />
             <span

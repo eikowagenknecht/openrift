@@ -123,8 +123,10 @@ describe("tokenizeCardText", () => {
     ]);
   });
 
-  it("merges [>] into preceding keyword as pointed modifier", () => {
-    expect(tokenizeCardText("[Level 3][>]")).toEqual([{ ...keyword("Level 3"), pointed: true }]);
+  it("merges [>] into preceding keyword as pointedRight modifier", () => {
+    expect(tokenizeCardText("[Level 3][>]")).toEqual([
+      { ...keyword("Level 3"), pointedRight: true },
+    ]);
   });
 
   it("does not merge [>] without a preceding keyword", () => {

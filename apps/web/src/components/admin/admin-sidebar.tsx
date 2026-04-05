@@ -8,6 +8,7 @@ import {
   DatabaseIcon,
   FlagIcon,
   GlobeIcon,
+  HashIcon,
   ImageIcon,
   LanguagesIcon,
   LayoutDashboardIcon,
@@ -39,6 +40,7 @@ const catalogPages = [
   { to: "/admin/ignored-sources" as const, icon: BanIcon, title: "Ignored Sources" },
   { to: "/admin/promo-types" as const, icon: TagIcon, title: "Promo Types" },
   { to: "/admin/languages" as const, icon: LanguagesIcon, title: "Languages" },
+  { to: "/admin/keywords" as const, icon: HashIcon, title: "Keywords" },
   { to: "/admin/typography-review" as const, icon: SpellCheckIcon, title: "Typography" },
   { to: "/admin/rules" as const, icon: BookOpenIcon, title: "Rules" },
 ];

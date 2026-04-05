@@ -153,7 +153,7 @@ export {
   normalizeNameForMatching,
 } from "./utils.js";
 
-export { extractKeywords, KEYWORD_LOOKUP } from "./keywords.js";
+export { extractKeywords } from "./keywords.js";
 
 export type { SourceSlot } from "./zone-inference.js";
 export { inferZone } from "./zone-inference.js";

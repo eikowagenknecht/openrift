@@ -1,39 +1,10 @@
-export const KEYWORD_LOOKUP = new Map(
-  [
-    "Accelerate",
-    "Action",
-    "Add",
-    "Ambush",
-    "Assault",
-    "Backline",
-    "Buff",
-    "Deathknell",
-    "Deflect",
-    "Equip",
-    "Ganking",
-    "Hidden",
-    "Hunt",
-    "Legion",
-    "Level",
-    "Mighty",
-    "Predict",
-    "Quick-Draw",
-    "Reaction",
-    "Repeat",
-    "Shield",
-    "Stun",
-    "Tank",
-    "Temporary",
-    "Unique",
-    "Vision",
-    "Weaponmaster",
-  ].map((k) => [k.toLowerCase(), k]),
-);
-
 /**
- * Extracts unique keywords from rules/effect text by matching bracketed terms
- * against the known keyword list. Returns canonical Title Case keywords.
- * @returns Array of unique canonical keywords found in the text.
+ * Extracts unique keywords from rules/effect text by finding bracketed terms
+ * like `[Shield]` or `[Equip :rb_rune_mind:]`. Strips resource glyphs and
+ * numeric parameters, returning only the base keyword name.
+ *
+ * Only use on English text — non-EN printings may use brackets differently.
+ * @returns Array of unique keyword names found in the text.
  */
 export function extractKeywords(text: string): string[] {
   if (!text) {
@@ -45,11 +16,16 @@ export function extractKeywords(text: string): string[] {
   while ((match = re.exec(text)) !== null) {
     const stripped = match[1].replaceAll(/:rb_\w+:/g, "").trim();
     const parts = stripped.split(/\s+/).filter(Boolean);
-    const canonical = KEYWORD_LOOKUP.get(parts[0].toLowerCase());
-    if (canonical) {
-      const rest = parts.slice(1).join(" ");
-      found.add(rest ? `${canonical} ${rest}` : canonical);
+    if (parts.length === 0) {
+      continue;
     }
+    // Take only the first word as the keyword name (drop numeric params like "2" in "Shield 2")
+    const keyword = parts[0];
+    // Skip pure numbers, short tokens, and symbol-only content like ">>"
+    if (/^\d+$/.test(keyword) || keyword.length < 2 || !/[a-zA-Z]/.test(keyword)) {
+      continue;
+    }
+    found.add(keyword);
   }
   return [...found];
 }

@@ -374,7 +374,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns All printing-level rules/effect texts for a card identified by slug. */
+    /** @returns EN printing-level rules/effect texts for a card identified by slug. */
     getPrintingTextsForCardSlug(
       slug: string,
     ): Promise<Pick<Selectable<PrintingsTable>, "printedRulesText" | "printedEffectText">[]> {
@@ -383,6 +383,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .innerJoin("cards", "cards.id", "printings.cardId")
         .select(["printings.printedRulesText", "printings.printedEffectText"])
         .where("cards.slug", "=", slug)
+        .where("printings.language", "=", "EN")
         .execute();
     },
 
@@ -511,6 +512,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .selectFrom("printings")
         .select(["printedRulesText", "printedEffectText"])
         .where("cardId", "=", row.cardId)
+        .where("language", "=", "EN")
         .execute();
 
       const keywords = [
@@ -523,6 +525,52 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       ].filter((v, i, a) => a.indexOf(v) === i);
 
       await db.updateTable("cards").set({ keywords }).where("id", "=", row.cardId).execute();
+    },
+
+    /**
+     * Recompute keywords for all cards by scanning card-level and printing-level
+     * text fields. Only updates cards whose computed keywords differ.
+     * @returns Count of total cards scanned and cards actually updated.
+     */
+    async recomputeAllKeywords(): Promise<{ totalCards: number; updated: number }> {
+      const cards = await db
+        .selectFrom("cards")
+        .select(["id", "rulesText", "effectText", "keywords"])
+        .execute();
+
+      const printings = await db
+        .selectFrom("printings")
+        .select(["cardId", "printedRulesText", "printedEffectText"])
+        .where("language", "=", "EN")
+        .execute();
+
+      const printingsByCard = Map.groupBy(printings, (row) => row.cardId);
+
+      let updated = 0;
+
+      for (const card of cards) {
+        const cardPrintings = printingsByCard.get(card.id) ?? [];
+
+        const keywords = [
+          ...extractKeywords(card.rulesText ?? ""),
+          ...extractKeywords(card.effectText ?? ""),
+          ...cardPrintings.flatMap((p) => [
+            ...extractKeywords(p.printedRulesText ?? ""),
+            ...extractKeywords(p.printedEffectText ?? ""),
+          ]),
+        ].filter((v, i, a) => a.indexOf(v) === i);
+
+        const existing = card.keywords as string[];
+        const changed =
+          keywords.length !== existing.length || keywords.some((kw) => !existing.includes(kw));
+
+        if (changed) {
+          await db.updateTable("cards").set({ keywords }).where("id", "=", card.id).execute();
+          updated++;
+        }
+      }
+
+      return { totalCards: cards.length, updated };
     },
 
     // ── Accept printing ───────────────────────────────────────────────────────
