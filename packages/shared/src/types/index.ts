@@ -98,6 +98,13 @@ export type {
 export { PREFERENCE_DEFAULTS } from "./api/index.js";
 
 export type {
+  RuleResponse,
+  RulesListResponse,
+  RuleVersionResponse,
+  RuleVersionsListResponse,
+} from "./api/index.js";
+
+export type {
   CollectionEventListResponse,
   CollectionEventResponse,
   CollectionListResponse,

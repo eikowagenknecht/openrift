@@ -40,6 +40,13 @@ export type {
 
 export type { FeatureFlagsResponse } from "./feature-flags.js";
 
+export type {
+  RuleResponse,
+  RulesListResponse,
+  RuleVersionResponse,
+  RuleVersionsListResponse,
+} from "./rules.js";
+
 export type { SiteSettingsResponse } from "./site-settings.js";
 
 export type { AcquisitionSourceListResponse, AcquisitionSourceResponse } from "./source.js";

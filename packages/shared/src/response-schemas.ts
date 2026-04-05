@@ -523,3 +523,35 @@ const shoppingListItemResponseSchema = z.object({
 export const shoppingListResponseSchema = z
   .object({ items: z.array(shoppingListItemResponseSchema) })
   .openapi("ShoppingListResponse");
+
+// ── Rules ───────────────────────────────────────────────────────────────────
+
+const ruleResponseSchema = z.object({
+  id: z.string(),
+  version: z.string(),
+  ruleNumber: z.string(),
+  sortOrder: z.number(),
+  depth: z.number(),
+  ruleType: z.enum(["title", "subtitle", "text"]),
+  content: z.string(),
+  changeType: z.enum(["added", "modified", "removed"]),
+});
+
+const ruleVersionResponseSchema = z.object({
+  version: z.string(),
+  sourceType: z.string(),
+  sourceUrl: z.string().nullable(),
+  publishedAt: z.string().nullable(),
+  importedAt: z.string(),
+});
+
+export const rulesListResponseSchema = z
+  .object({
+    rules: z.array(ruleResponseSchema),
+    version: z.string(),
+  })
+  .openapi("RulesListResponse");
+
+export const ruleVersionsListResponseSchema = z
+  .object({ versions: z.array(ruleVersionResponseSchema) })
+  .openapi("RuleVersionsListResponse");
