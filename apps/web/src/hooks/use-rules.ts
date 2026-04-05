@@ -26,15 +26,6 @@ export const rulesQueryOptions = queryOptions({
   refetchOnWindowFocus: false,
 });
 
-export function rulesAtVersionQueryOptions(version: string) {
-  return queryOptions({
-    queryKey: queryKeys.rules.byVersion(version),
-    queryFn: () => fetchRules(version),
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
-}
-
 export const ruleVersionsQueryOptions = queryOptions({
   queryKey: queryKeys.rules.versions,
   queryFn: fetchVersions,
