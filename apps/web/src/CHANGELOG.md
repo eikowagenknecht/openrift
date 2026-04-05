@@ -2,6 +2,7 @@
 
 ## 2026-04-05
 
+- fix: Deck export now uses the correct base card variant instead of sometimes picking alt-art versions
 - fix: Importing a deck code no longer duplicates the chosen champion across zones
 - feat: Upgraded keyword abilities now render with the correct arrow shape on their left edge
 - fix: Deck zones sidebar no longer scrolls out of view when scrolling through cards in the deck editor

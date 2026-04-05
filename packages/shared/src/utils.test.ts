@@ -1,6 +1,5 @@
 import { describe, expect, it } from "bun:test";
 
-import type { ArtVariant, Finish, Rarity } from "./types/index";
 import {
   boundsOf,
   formatPrintingLabel,
@@ -136,10 +135,6 @@ describe("comparePrintings", () => {
   const base = {
     setId: "SET-A",
     shortCode: "SET-A-001",
-    artVariant: "normal" as ArtVariant,
-    rarity: "Common" as Rarity,
-    finish: "normal" as Finish,
-    isSigned: false,
   };
 
   it("returns 0 for identical printings", () => {
@@ -174,36 +169,11 @@ describe("comparePrintings", () => {
     expect(comparePrintings(b, a)).toBeGreaterThan(0);
   });
 
-  it("sorts by artVariant order (null treated as normal)", () => {
-    const a = { ...base, artVariant: null };
-    const normalExplicit = { ...base, artVariant: "normal" as ArtVariant };
-    // null and "normal" should be equivalent
-    expect(comparePrintings(a, normalExplicit)).toBe(0);
-
-    const altart = { ...base, artVariant: "altart" as ArtVariant };
-    expect(comparePrintings(a, altart)).toBeLessThan(0);
-    expect(comparePrintings(altart, a)).toBeGreaterThan(0);
-  });
-
-  it("sorts by rarity order", () => {
-    const common = { ...base, rarity: "Common" as Rarity };
-    const epic = { ...base, rarity: "Epic" as Rarity };
-    expect(comparePrintings(common, epic)).toBeLessThan(0);
-    expect(comparePrintings(epic, common)).toBeGreaterThan(0);
-  });
-
-  it("sorts by finish order (normal before foil)", () => {
-    const normal = { ...base, finish: "normal" as Finish };
-    const foil = { ...base, finish: "foil" as Finish };
-    expect(comparePrintings(normal, foil)).toBeLessThan(0);
-    expect(comparePrintings(foil, normal)).toBeGreaterThan(0);
-  });
-
-  it("sorts unsigned before signed", () => {
-    const unsigned = { ...base, isSigned: false };
-    const signed = { ...base, isSigned: true };
-    expect(comparePrintings(unsigned, signed)).toBeLessThan(0);
-    expect(comparePrintings(signed, unsigned)).toBeGreaterThan(0);
+  it("sorts base variant before alt-art by short code", () => {
+    const normal = { ...base, shortCode: "OGN-240" };
+    const altart = { ...base, shortCode: "OGN-240a" };
+    expect(comparePrintings(normal, altart)).toBeLessThan(0);
+    expect(comparePrintings(altart, normal)).toBeGreaterThan(0);
   });
 
   it("sorts non-promo before promo", () => {
@@ -219,11 +189,11 @@ describe("comparePrintings", () => {
     expect(comparePrintings(noPromo, promo)).toBeLessThan(0);
   });
 
-  it("sorts promo types alphabetically", () => {
-    const a = { ...base, promoTypeSlug: "alpha" };
-    const b = { ...base, promoTypeSlug: "beta" };
-    expect(comparePrintings(a, b)).toBeLessThan(0);
-    expect(comparePrintings(b, a)).toBeGreaterThan(0);
+  it("sorts normal finish before foil", () => {
+    const normal = { ...base, finish: "normal" };
+    const foil = { ...base, finish: "foil" };
+    expect(comparePrintings(normal, foil)).toBeLessThan(0);
+    expect(comparePrintings(foil, normal)).toBeGreaterThan(0);
   });
 
   it("handles null setId by treating it as empty string", () => {
@@ -239,10 +209,9 @@ describe("comparePrintings", () => {
   });
 
   it("applies tiebreakers in correct priority order", () => {
-    // Same set and shortCode, but different art variant and rarity
-    const a = { ...base, artVariant: "normal" as ArtVariant, rarity: "Epic" as Rarity };
-    const b = { ...base, artVariant: "altart" as ArtVariant, rarity: "Common" as Rarity };
-    // artVariant should decide before rarity: normal(0) < altart(1)
+    // Same set and shortCode — promo status decides before finish
+    const a = { ...base, promoTypeSlug: null, finish: "foil" };
+    const b = { ...base, promoTypeSlug: "promo", finish: "normal" };
     expect(comparePrintings(a, b)).toBeLessThan(0);
   });
 });

@@ -75,6 +75,7 @@ docker exec openrift-db-1 pg_dump -U openrift --schema-only --no-owner --no-priv
 - **Naming:** Use descriptive variable names. Never use single-letter or ultra-short names like `f`, `h`, `s`.
 - **Function signatures:** Prefer `?` optional params over `| undefined` to avoid oxfmt conflicts.
 - **Async code:** Use `async`/`await` instead of `.then(() => {})` for void promises. Always use braces after `if` — oxlint's `curly` rule requires it.
+- **Database access:** All database queries must go through repository functions (`apps/api/src/repositories/`). Never use raw `db` / `Kysely` instances directly in routes or services — add a method to the appropriate repository instead. Route handlers access repos via `c.get("repos")`.
 - **Dev servers:** Never suggest restarting dev servers as a debugging step — they always serve current code. Find the actual bug.
 - `@/` alias in the web app maps to `apps/web/src/`
 
