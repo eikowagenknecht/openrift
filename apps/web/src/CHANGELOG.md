@@ -2,6 +2,7 @@
 
 ## 2026-04-05
 
+- fix: Deck zones sidebar no longer scrolls out of view when scrolling through cards in the deck editor
 - fix: Card hover preview no longer stays stuck on screen after removing a card from the deck sidebar
 - fix: Deck export no longer overflows its container on iOS, and copied text preserves line breaks
 

@@ -438,10 +438,7 @@ function DeckEditorContent({ deckId }: { deckId: string }) {
       <DeckEditorHeader deckId={deckId} isDirty={isDirty} />
       <DeckValidationBanner isDirty={isDirty} isSaving={saveDeckCards.isPending} />
       <DeckDndContext>
-        <div
-          ref={containerRef}
-          className={cn(CONTAINER_WIDTH, "relative flex items-start gap-4 px-3 py-3")}
-        >
+        <div ref={containerRef} className={cn(CONTAINER_WIDTH, "relative flex gap-4 px-3 py-3")}>
           <NestedSidebar
             className="w-(--sidebar-width)!"
             style={{ "--sidebar-width": "18rem" } as React.CSSProperties}
