@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-05
+
+- fix: Deck export copy now preserves line breaks when pasting on iOS Safari
+
 ## 2026-04-02
 
 - feat: You can now download a printable tournament deck registration sheet PDF from the export dialog
