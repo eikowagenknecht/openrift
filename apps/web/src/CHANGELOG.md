@@ -2,7 +2,7 @@
 
 ## 2026-04-05
 
-- fix: Deck export copy now preserves line breaks when pasting on iOS Safari
+- fix: Deck export no longer overflows its container on iOS, and copied text preserves line breaks
 
 ## 2026-04-02
 
