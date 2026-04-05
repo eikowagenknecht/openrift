@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/react";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import type { ErrorInfo, ReactNode } from "react";
 import { Component } from "react";
@@ -6,10 +7,9 @@ import { createPortal } from "react-dom";
 import { EMOJIS, ErrorMessageLayout, HEADINGS, SUBTEXTS, pick } from "@/components/error-message";
 
 export function RouterErrorFallback({ error }: ErrorComponentProps) {
-  return createPortal(
-    <ErrorFallback error={error instanceof Error ? error : new Error(String(error))} />,
-    document.body,
-  );
+  const normalizedError = error instanceof Error ? error : new Error(String(error));
+  Sentry.captureException(normalizedError);
+  return createPortal(<ErrorFallback error={normalizedError} />, document.body);
 }
 
 /** Top-level React error boundary — catches anything that escapes the router. */
@@ -24,6 +24,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
   }
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
+    Sentry.captureException(error, { extra: { componentStack: info.componentStack } });
     console.error("Uncaught error:", error, info);
   }
 

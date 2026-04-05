@@ -6,11 +6,13 @@ import { createRoot } from "react-dom/client";
 import { ErrorBoundary } from "./components/error-fallback";
 import { preventIOSOverscroll } from "./lib/ios-overscroll-prevention";
 import { createQueryClient } from "./lib/query-client";
+import { initSentry } from "./lib/sentry";
 import { createAppRouter } from "./router";
 
 // oxlint-disable-next-line import/no-unassigned-import -- CSS side-effect import
 import "./index.css";
 
+initSentry();
 preventIOSOverscroll();
 
 const queryClient = createQueryClient();

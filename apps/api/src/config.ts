@@ -32,6 +32,8 @@ export function createConfig(env: Record<string, string | undefined>) {
       from: env.SMTP_FROM,
     },
 
+    sentryDsn: env.SENTRY_DSN ?? "",
+
     cardtraderApiToken: env.CARDTRADER_API_TOKEN ?? "",
 
     cron: {

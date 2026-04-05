@@ -2,6 +2,7 @@ import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { ApiErrorResponse } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
+import * as Sentry from "@sentry/bun";
 import { rateLimiter } from "hono-rate-limiter";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
@@ -76,6 +77,7 @@ export function createApp(deps: AppDeps) {
   app.onError((err, c) => {
     if (err instanceof AppError) {
       if (err.status >= 500) {
+        Sentry.captureException(err, { extra: { method: c.req.method, path: c.req.path } });
         log.error({ err, method: c.req.method, path: c.req.path }, "AppError 5xx");
       }
       const body: ApiErrorResponse = { error: err.message, code: err.code };
@@ -103,6 +105,7 @@ export function createApp(deps: AppDeps) {
       return c.json({ error: "Invalid JSON in request body", code: ERROR_CODES.BAD_REQUEST }, 400);
     }
 
+    Sentry.captureException(err, { extra: { method: c.req.method, path: c.req.path } });
     log.error({ err, method: c.req.method, path: c.req.path }, "Unhandled error");
     const body: ApiErrorResponse = {
       error: "Internal server error",

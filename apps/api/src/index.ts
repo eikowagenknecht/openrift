@@ -1,4 +1,5 @@
 import { createLogger } from "@openrift/shared/logger";
+import * as Sentry from "@sentry/bun";
 import { Cron } from "croner";
 
 import { createApp } from "./app.js";
@@ -21,6 +22,14 @@ import { validateWellKnownSlugs } from "./services/validate-well-known.js";
 const env = process.env as Record<string, string | undefined>;
 validateConfig(env);
 const config = createConfig(env);
+
+if (config.sentryDsn) {
+  Sentry.init({
+    dsn: config.sentryDsn,
+    environment: config.isDev ? "development" : "production",
+    tracesSampleRate: 0.2,
+  });
+}
 
 const { db, dialect } = createDb(config.databaseUrl);
 const sendEmail = createEmailSender(config.smtp);
