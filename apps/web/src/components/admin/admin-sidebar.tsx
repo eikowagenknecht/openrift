@@ -1,6 +1,7 @@
 import { Link, useMatches } from "@tanstack/react-router";
 import {
   BanIcon,
+  BookOpenIcon,
   CameraIcon,
   GalleryVerticalIcon,
   DatabaseIcon,
@@ -38,6 +39,7 @@ const catalogPages = [
   { to: "/admin/promo-types" as const, icon: TagIcon, title: "Promo Types" },
   { to: "/admin/languages" as const, icon: LanguagesIcon, title: "Languages" },
   { to: "/admin/typography-review" as const, icon: SpellCheckIcon, title: "Typography" },
+  { to: "/admin/rules" as const, icon: BookOpenIcon, title: "Rules" },
 ];
 
 const marketplacePages = [

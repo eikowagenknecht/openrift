@@ -44,6 +44,12 @@ export const queryKeys = {
     detail: (id: string) => ["decks", id] as const,
     availability: (id: string) => ["decks", id, "availability"] as const,
   },
+  rules: {
+    all: ["rules"] as const,
+    versions: ["rules", "versions"] as const,
+    byVersion: (version: string) => ["rules", version] as const,
+    search: (query: string) => ["rules", "search", query] as const,
+  },
   admin: {
     me: ["admin", "me"] as const,
     sets: ["admin", "sets"] as const,
@@ -86,6 +92,9 @@ export const queryKeys = {
       prefix: ["admin", "card-bans"] as const,
     }),
     typographyReview: ["admin", "typography-review"] as const,
+    rules: {
+      versions: ["admin", "rules", "versions"] as const,
+    },
     users: ["admin", "users"] as const,
   },
 } as const;

@@ -3,6 +3,7 @@ import { Link, useMatch, useRouter } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   CircleHelpIcon,
+  GavelIcon,
   EllipsisVerticalIcon,
   HeartIcon,
   LayersIcon,
@@ -105,6 +106,17 @@ function DesktopNav({
             )}
           >
             Cards
+          </NavigationMenuLink>
+        </NavigationMenuItem>
+        <NavigationMenuItem>
+          <NavigationMenuLink
+            render={<Link to="/rules" />}
+            className={cn(
+              navigationMenuTriggerStyle(),
+              "data-[status=active]:bg-muted data-[status=active]:font-semibold",
+            )}
+          >
+            Rules
           </NavigationMenuLink>
         </NavigationMenuItem>
         {showCollection && (
@@ -302,6 +314,9 @@ function MobileNav({
         <nav className="flex flex-col gap-1 px-2">
           <MobileNavLink to="/cards" icon={<LayersIcon className="text-muted-foreground size-5" />}>
             Cards
+          </MobileNavLink>
+          <MobileNavLink to="/rules" icon={<GavelIcon className="text-muted-foreground size-5" />}>
+            Rules
           </MobileNavLink>
           {showCollection && (
             <MobileNavLink

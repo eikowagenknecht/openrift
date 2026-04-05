@@ -28,4 +28,6 @@ export type {
   UserPreferencesTable,
   WishListItemsTable,
   WishListsTable,
+  RulesTable,
+  RuleVersionsTable,
 } from "./tables.js";
