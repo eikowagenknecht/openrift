@@ -26,6 +26,7 @@ function DomainBar({ data, total }: { data: DomainCount[]; total: number }) {
             <Tooltip key={entry.domain}>
               <TooltipTrigger
                 className="h-full"
+                render={<span />}
                 style={{
                   width: `${percentage}%`,
                   backgroundColor: DOMAIN_COLORS[entry.domain] ?? "#737373",
