@@ -67,7 +67,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`
     INSERT INTO card_types (slug, label, sort_order, is_well_known) VALUES
       ('Legend',      'Legend',      0, TRUE),
-      ('Unit',        'Unit',        1, FALSE),
+      ('Unit',        'Unit',        1, TRUE),
       ('Rune',        'Rune',        2, TRUE),
       ('Spell',       'Spell',       3, FALSE),
       ('Gear',        'Gear',        4, FALSE),
@@ -102,8 +102,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
     INSERT INTO art_variants (slug, label, sort_order, is_well_known) VALUES
       ('normal',       'Normal',       0, TRUE),
-      ('altart',       'Alt Art',      1, FALSE),
-      ('overnumbered', 'Overnumbered', 2, FALSE);
+      ('altart',       'Alt Art',      1, TRUE),
+      ('overnumbered', 'Overnumbered', 2, TRUE);
 
     INSERT INTO deck_formats (slug, label, sort_order, is_well_known) VALUES
       ('standard', 'Standard', 0, TRUE),
@@ -111,7 +111,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
     INSERT INTO deck_zones (slug, label, sort_order, is_well_known) VALUES
       ('main',        'Main',        0, TRUE),
-      ('sideboard',   'Sideboard',   1, FALSE),
+      ('sideboard',   'Sideboard',   1, TRUE),
       ('legend',      'Legend',      2, TRUE),
       ('champion',    'Champion',    3, TRUE),
       ('runes',       'Runes',       4, TRUE),
@@ -165,6 +165,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       ADD CONSTRAINT fk_printings_art_variant FOREIGN KEY (art_variant) REFERENCES art_variants(slug);
 
     ALTER TABLE decks
+      DROP CONSTRAINT decks_format_fkey;
+
+    ALTER TABLE decks
       ADD CONSTRAINT fk_decks_format FOREIGN KEY (format) REFERENCES deck_formats(slug);
 
     ALTER TABLE deck_cards
@@ -184,9 +187,6 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       DROP CONSTRAINT chk_printings_rarity,
       DROP CONSTRAINT chk_printings_finish,
       DROP CONSTRAINT chk_printings_art_variant;
-
-    ALTER TABLE decks
-      DROP CONSTRAINT chk_decks_format;
 
     ALTER TABLE deck_cards
       DROP CONSTRAINT chk_deck_cards_zone
@@ -293,9 +293,6 @@ export async function down(db: Kysely<unknown>): Promise<void> {
       ADD CONSTRAINT chk_printings_finish CHECK (finish = ANY(ARRAY['normal','foil'])),
       ADD CONSTRAINT chk_printings_art_variant CHECK (art_variant = ANY(ARRAY['normal','altart','overnumbered']));
 
-    ALTER TABLE decks
-      ADD CONSTRAINT chk_decks_format CHECK (format IN ('standard','freeform'));
-
     ALTER TABLE deck_cards
       ADD CONSTRAINT chk_deck_cards_zone CHECK (zone = ANY(ARRAY['main','sideboard','legend','champion','runes','battlefield','overflow']))
   `.execute(db);
@@ -307,6 +304,8 @@ export async function down(db: Kysely<unknown>): Promise<void> {
     ALTER TABLE printings DROP CONSTRAINT fk_printings_finish;
     ALTER TABLE printings DROP CONSTRAINT fk_printings_art_variant;
     ALTER TABLE decks DROP CONSTRAINT fk_decks_format;
+    ALTER TABLE decks
+      ADD CONSTRAINT decks_format_fkey FOREIGN KEY (format) REFERENCES formats(id);
     ALTER TABLE deck_cards DROP CONSTRAINT fk_deck_cards_zone
   `.execute(db);
 

@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict AHCspje6El61r1HTuJTAQ5rEemeoliLXxrn8kj1X9p31gvA1eKfy6EOT1Sb9bxR
+\restrict qbMxh05BmLQy1wTUgbIcs8hrlGmnmIhiEpYVge49fikmM2uaRPlqqsjW9Rt3k2R
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -100,6 +100,30 @@ CREATE FUNCTION public.prevent_nonempty_collection_delete() RETURNS trigger
 
 
 --
+-- Name: protect_well_known(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.protect_well_known() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      IF TG_OP = 'DELETE' AND OLD.is_well_known THEN
+        RAISE EXCEPTION 'Cannot delete well-known row "%"', OLD.slug;
+      END IF;
+      IF TG_OP = 'UPDATE' THEN
+        IF OLD.is_well_known AND NEW.slug != OLD.slug THEN
+          RAISE EXCEPTION 'Cannot rename well-known row "%"', OLD.slug;
+        END IF;
+        IF OLD.is_well_known AND NOT NEW.is_well_known THEN
+          RAISE EXCEPTION 'Cannot unmark well-known row "%"', OLD.slug;
+        END IF;
+      END IF;
+      RETURN COALESCE(NEW, OLD);
+    END;
+    $$;
+
+
+--
 -- Name: set_updated_at(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -107,7 +131,9 @@ CREATE FUNCTION public.set_updated_at() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
     BEGIN
-      NEW.updated_at := now();
+      IF NEW IS DISTINCT FROM OLD THEN
+        NEW.updated_at := now();
+      END IF;
       RETURN NEW;
     END;
     $$;
@@ -160,6 +186,18 @@ CREATE TABLE public.admins (
     user_id text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: art_variants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.art_variants (
+    slug text NOT NULL,
+    label text NOT NULL,
+    sort_order smallint NOT NULL,
+    is_well_known boolean DEFAULT false NOT NULL
 );
 
 
@@ -270,6 +308,18 @@ CREATE TABLE public.card_bans (
 
 
 --
+-- Name: card_domains; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_domains (
+    card_id uuid NOT NULL,
+    domain_slug text NOT NULL,
+    ordinal smallint NOT NULL,
+    CONSTRAINT card_domains_ordinal_check CHECK ((ordinal >= 0))
+);
+
+
+--
 -- Name: card_name_aliases; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -280,14 +330,34 @@ CREATE TABLE public.card_name_aliases (
 
 
 --
+-- Name: card_super_types; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_super_types (
+    card_id uuid NOT NULL,
+    super_type_slug text NOT NULL
+);
+
+
+--
+-- Name: card_types; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_types (
+    slug text NOT NULL,
+    label text NOT NULL,
+    sort_order smallint NOT NULL,
+    is_well_known boolean DEFAULT false NOT NULL
+);
+
+
+--
 -- Name: cards; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.cards (
     name text NOT NULL,
     type text NOT NULL,
-    super_types text[] DEFAULT '{}'::text[] NOT NULL,
-    domains text[] NOT NULL,
     might integer,
     energy integer,
     power integer,
@@ -302,8 +372,6 @@ CREATE TABLE public.cards (
     id uuid DEFAULT uuidv7() CONSTRAINT cards_new_id_not_null NOT NULL,
     norm_name text NOT NULL,
     comment text,
-    CONSTRAINT chk_cards_domains_not_empty CHECK ((array_length(domains, 1) > 0)),
-    CONSTRAINT chk_cards_domains_values CHECK ((domains <@ ARRAY['Fury'::text, 'Calm'::text, 'Mind'::text, 'Body'::text, 'Chaos'::text, 'Order'::text, 'Colorless'::text])),
     CONSTRAINT chk_cards_energy_non_negative CHECK ((energy >= 0)),
     CONSTRAINT chk_cards_might_bonus_non_negative CHECK ((might_bonus >= 0)),
     CONSTRAINT chk_cards_might_non_negative CHECK ((might >= 0)),
@@ -312,9 +380,7 @@ CREATE TABLE public.cards (
     CONSTRAINT chk_cards_no_empty_effect_text CHECK ((effect_text <> ''::text)),
     CONSTRAINT chk_cards_no_empty_rules_text CHECK ((rules_text <> ''::text)),
     CONSTRAINT chk_cards_power_non_negative CHECK ((power >= 0)),
-    CONSTRAINT chk_cards_slug_not_empty CHECK ((slug <> ''::text)),
-    CONSTRAINT chk_cards_super_types_values CHECK ((super_types <@ ARRAY['Basic'::text, 'Champion'::text, 'Signature'::text, 'Token'::text])),
-    CONSTRAINT chk_cards_type CHECK ((type = ANY (ARRAY['Legend'::text, 'Unit'::text, 'Rune'::text, 'Spell'::text, 'Gear'::text, 'Battlefield'::text, 'Other'::text])))
+    CONSTRAINT chk_cards_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -382,8 +448,31 @@ CREATE TABLE public.deck_cards (
     zone text NOT NULL,
     quantity integer DEFAULT 1 NOT NULL,
     card_id uuid CONSTRAINT deck_cards_new_card_id_not_null NOT NULL,
-    CONSTRAINT chk_deck_cards_quantity CHECK ((quantity > 0)),
-    CONSTRAINT chk_deck_cards_zone CHECK ((zone = ANY (ARRAY['main'::text, 'sideboard'::text, 'legend'::text, 'champion'::text, 'runes'::text, 'battlefield'::text, 'overflow'::text])))
+    CONSTRAINT chk_deck_cards_quantity CHECK ((quantity > 0))
+);
+
+
+--
+-- Name: deck_formats; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.deck_formats (
+    slug text NOT NULL,
+    label text NOT NULL,
+    sort_order smallint NOT NULL,
+    is_well_known boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: deck_zones; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.deck_zones (
+    slug text NOT NULL,
+    label text NOT NULL,
+    sort_order smallint NOT NULL,
+    is_well_known boolean DEFAULT false NOT NULL
 );
 
 
@@ -407,6 +496,18 @@ CREATE TABLE public.decks (
 
 
 --
+-- Name: domains; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.domains (
+    slug text NOT NULL,
+    label text NOT NULL,
+    sort_order smallint NOT NULL,
+    is_well_known boolean DEFAULT false NOT NULL
+);
+
+
+--
 -- Name: feature_flags; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -416,6 +517,18 @@ CREATE TABLE public.feature_flags (
     description text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: finishes; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.finishes (
+    slug text NOT NULL,
+    label text NOT NULL,
+    sort_order smallint NOT NULL,
+    is_well_known boolean DEFAULT false NOT NULL
 );
 
 
@@ -685,17 +798,14 @@ CREATE TABLE public.printings (
     promo_type_id uuid,
     language text DEFAULT 'EN'::text NOT NULL,
     printed_name text,
-    CONSTRAINT chk_printings_art_variant CHECK ((art_variant = ANY (ARRAY['normal'::text, 'altart'::text, 'overnumbered'::text]))),
     CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
     CONSTRAINT chk_printings_collector_number_positive CHECK ((collector_number > 0)),
-    CONSTRAINT chk_printings_finish CHECK ((finish = ANY (ARRAY['normal'::text, 'foil'::text]))),
     CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
     CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
     CONSTRAINT chk_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
     CONSTRAINT chk_printings_no_empty_printed_name CHECK ((printed_name <> ''::text)),
     CONSTRAINT chk_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
     CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
-    CONSTRAINT chk_printings_rarity CHECK ((rarity = ANY (ARRAY['Common'::text, 'Uncommon'::text, 'Rare'::text, 'Epic'::text, 'Showcase'::text]))),
     CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text))
 );
 
@@ -726,6 +836,53 @@ CREATE TABLE public.provider_settings (
     created_at timestamp with time zone DEFAULT now() CONSTRAINT source_settings_created_at_not_null NOT NULL,
     updated_at timestamp with time zone DEFAULT now() CONSTRAINT source_settings_updated_at_not_null NOT NULL,
     CONSTRAINT provider_settings_provider_check CHECK ((provider <> ''::text))
+);
+
+
+--
+-- Name: rarities; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.rarities (
+    slug text NOT NULL,
+    label text NOT NULL,
+    sort_order smallint NOT NULL,
+    is_well_known boolean DEFAULT false NOT NULL
+);
+
+
+--
+-- Name: rule_versions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.rule_versions (
+    version text NOT NULL,
+    source_type text NOT NULL,
+    source_url text,
+    published_at date,
+    imported_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT rule_versions_source_type_check CHECK ((source_type = ANY (ARRAY['pdf'::text, 'text'::text, 'html'::text, 'manual'::text])))
+);
+
+
+--
+-- Name: rules; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.rules (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    version text NOT NULL,
+    rule_number text NOT NULL,
+    sort_order integer NOT NULL,
+    depth smallint NOT NULL,
+    rule_type text NOT NULL,
+    content text NOT NULL,
+    change_type text DEFAULT 'added'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT rules_change_type_check CHECK ((change_type = ANY (ARRAY['added'::text, 'modified'::text, 'removed'::text]))),
+    CONSTRAINT rules_depth_check CHECK (((depth >= 0) AND (depth <= 3))),
+    CONSTRAINT rules_rule_number_check CHECK ((rule_number <> ''::text)),
+    CONSTRAINT rules_rule_type_check CHECK ((rule_type = ANY (ARRAY['title'::text, 'subtitle'::text, 'text'::text])))
 );
 
 
@@ -776,6 +933,18 @@ CREATE TABLE public.site_settings (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT site_settings_key_check CHECK ((key <> ''::text)),
     CONSTRAINT site_settings_scope_check CHECK ((scope = ANY (ARRAY['web'::text, 'api'::text])))
+);
+
+
+--
+-- Name: super_types; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.super_types (
+    slug text NOT NULL,
+    label text NOT NULL,
+    sort_order smallint NOT NULL,
+    is_well_known boolean DEFAULT false NOT NULL
 );
 
 
@@ -911,6 +1080,14 @@ ALTER TABLE ONLY public.admins
 
 
 --
+-- Name: art_variants art_variants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.art_variants
+    ADD CONSTRAINT art_variants_pkey PRIMARY KEY (slug);
+
+
+--
 -- Name: candidate_cards candidate_cards_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -935,11 +1112,43 @@ ALTER TABLE ONLY public.card_bans
 
 
 --
+-- Name: card_domains card_domains_card_id_ordinal_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_domains
+    ADD CONSTRAINT card_domains_card_id_ordinal_key UNIQUE (card_id, ordinal);
+
+
+--
+-- Name: card_domains card_domains_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_domains
+    ADD CONSTRAINT card_domains_pkey PRIMARY KEY (card_id, domain_slug);
+
+
+--
 -- Name: card_name_aliases card_name_aliases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.card_name_aliases
     ADD CONSTRAINT card_name_aliases_pkey PRIMARY KEY (norm_name);
+
+
+--
+-- Name: card_super_types card_super_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_super_types
+    ADD CONSTRAINT card_super_types_pkey PRIMARY KEY (card_id, super_type_slug);
+
+
+--
+-- Name: card_types card_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_types
+    ADD CONSTRAINT card_types_pkey PRIMARY KEY (slug);
 
 
 --
@@ -999,6 +1208,22 @@ ALTER TABLE ONLY public.deck_cards
 
 
 --
+-- Name: deck_formats deck_formats_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_formats
+    ADD CONSTRAINT deck_formats_pkey PRIMARY KEY (slug);
+
+
+--
+-- Name: deck_zones deck_zones_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_zones
+    ADD CONSTRAINT deck_zones_pkey PRIMARY KEY (slug);
+
+
+--
 -- Name: decks decks_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1015,11 +1240,27 @@ ALTER TABLE ONLY public.decks
 
 
 --
+-- Name: domains domains_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.domains
+    ADD CONSTRAINT domains_pkey PRIMARY KEY (slug);
+
+
+--
 -- Name: feature_flags feature_flags_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.feature_flags
     ADD CONSTRAINT feature_flags_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: finishes finishes_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.finishes
+    ADD CONSTRAINT finishes_pkey PRIMARY KEY (slug);
 
 
 --
@@ -1207,6 +1448,38 @@ ALTER TABLE ONLY public.provider_settings
 
 
 --
+-- Name: rarities rarities_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rarities
+    ADD CONSTRAINT rarities_pkey PRIMARY KEY (slug);
+
+
+--
+-- Name: rule_versions rule_versions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rule_versions
+    ADD CONSTRAINT rule_versions_pkey PRIMARY KEY (version);
+
+
+--
+-- Name: rules rules_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rules
+    ADD CONSTRAINT rules_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: rules rules_version_rule_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rules
+    ADD CONSTRAINT rules_version_rule_number_key UNIQUE (version, rule_number);
+
+
+--
 -- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1244,6 +1517,14 @@ ALTER TABLE ONLY public.site_settings
 
 ALTER TABLE ONLY public.acquisition_sources
     ADD CONSTRAINT sources_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: super_types super_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.super_types
+    ADD CONSTRAINT super_types_pkey PRIMARY KEY (slug);
 
 
 --
@@ -1470,6 +1751,13 @@ CREATE UNIQUE INDEX idx_candidate_printings_card_external_id ON public.candidate
 
 
 --
+-- Name: idx_card_domains_domain_slug; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_card_domains_domain_slug ON public.card_domains USING btree (domain_slug);
+
+
+--
 -- Name: idx_cards_norm_name; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1617,6 +1905,20 @@ CREATE INDEX idx_printings_set_id ON public.printings USING btree (set_id);
 
 
 --
+-- Name: idx_rules_search; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rules_search ON public.rules USING gin (to_tsvector('english'::regconfig, content));
+
+
+--
+-- Name: idx_rules_version_sort; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rules_version_sort ON public.rules USING btree (version, sort_order);
+
+
+--
 -- Name: idx_sessions_token; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1715,10 +2017,24 @@ CREATE TRIGGER site_settings_set_updated_at BEFORE UPDATE ON public.site_setting
 
 
 --
+-- Name: art_variants trg_art_variants_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_art_variants_protect_well_known BEFORE DELETE OR UPDATE ON public.art_variants FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
+
+
+--
 -- Name: candidate_cards trg_candidate_cards_norm_name; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER trg_candidate_cards_norm_name BEFORE INSERT OR UPDATE OF name ON public.candidate_cards FOR EACH ROW EXECUTE FUNCTION public.candidate_cards_set_norm_name();
+
+
+--
+-- Name: card_types trg_card_types_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_card_types_protect_well_known BEFORE DELETE OR UPDATE ON public.card_types FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
 
 
 --
@@ -1729,10 +2045,45 @@ CREATE TRIGGER trg_cards_norm_name BEFORE INSERT OR UPDATE OF name ON public.car
 
 
 --
+-- Name: deck_formats trg_deck_formats_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_deck_formats_protect_well_known BEFORE DELETE OR UPDATE ON public.deck_formats FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
+
+
+--
+-- Name: deck_zones trg_deck_zones_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_deck_zones_protect_well_known BEFORE DELETE OR UPDATE ON public.deck_zones FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
+
+
+--
+-- Name: domains trg_domains_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_domains_protect_well_known BEFORE DELETE OR UPDATE ON public.domains FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
+
+
+--
+-- Name: finishes trg_finishes_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_finishes_protect_well_known BEFORE DELETE OR UPDATE ON public.finishes FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
+
+
+--
 -- Name: collections trg_prevent_nonempty_collection_delete; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER trg_prevent_nonempty_collection_delete BEFORE DELETE ON public.collections FOR EACH ROW EXECUTE FUNCTION public.prevent_nonempty_collection_delete();
+
+
+--
+-- Name: rarities trg_rarities_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_rarities_protect_well_known BEFORE DELETE OR UPDATE ON public.rarities FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
 
 
 --
@@ -1932,6 +2283,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.wish_lists FOR EACH RO
 
 
 --
+-- Name: super_types trg_super_types_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_super_types_protect_well_known BEFORE DELETE OR UPDATE ON public.super_types FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
+
+
+--
 -- Name: user_preferences user_preferences_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -1979,11 +2337,43 @@ ALTER TABLE ONLY public.card_bans
 
 
 --
+-- Name: card_domains card_domains_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_domains
+    ADD CONSTRAINT card_domains_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: card_domains card_domains_domain_slug_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_domains
+    ADD CONSTRAINT card_domains_domain_slug_fkey FOREIGN KEY (domain_slug) REFERENCES public.domains(slug);
+
+
+--
 -- Name: card_name_aliases card_name_aliases_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.card_name_aliases
     ADD CONSTRAINT card_name_aliases_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: card_super_types card_super_types_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_super_types
+    ADD CONSTRAINT card_super_types_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
+-- Name: card_super_types card_super_types_super_type_slug_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_super_types
+    ADD CONSTRAINT card_super_types_super_type_slug_fkey FOREIGN KEY (super_type_slug) REFERENCES public.super_types(slug);
 
 
 --
@@ -2043,19 +2433,19 @@ ALTER TABLE ONLY public.deck_cards
 
 
 --
--- Name: decks decks_format_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.decks
-    ADD CONSTRAINT decks_format_fkey FOREIGN KEY (format) REFERENCES public.formats(id);
-
-
---
 -- Name: decks decks_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.decks
     ADD CONSTRAINT decks_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: cards fk_cards_type; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.cards
+    ADD CONSTRAINT fk_cards_type FOREIGN KEY (type) REFERENCES public.card_types(slug);
 
 
 --
@@ -2099,11 +2489,51 @@ ALTER TABLE ONLY public.copies
 
 
 --
+-- Name: deck_cards fk_deck_cards_zone; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_cards
+    ADD CONSTRAINT fk_deck_cards_zone FOREIGN KEY (zone) REFERENCES public.deck_zones(slug);
+
+
+--
+-- Name: decks fk_decks_format; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.decks
+    ADD CONSTRAINT fk_decks_format FOREIGN KEY (format) REFERENCES public.deck_formats(slug);
+
+
+--
 -- Name: printing_link_overrides fk_plo_printing_id; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.printing_link_overrides
     ADD CONSTRAINT fk_plo_printing_id FOREIGN KEY (printing_id) REFERENCES public.printings(id) ON DELETE CASCADE;
+
+
+--
+-- Name: printings fk_printings_art_variant; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printings
+    ADD CONSTRAINT fk_printings_art_variant FOREIGN KEY (art_variant) REFERENCES public.art_variants(slug);
+
+
+--
+-- Name: printings fk_printings_finish; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printings
+    ADD CONSTRAINT fk_printings_finish FOREIGN KEY (finish) REFERENCES public.finishes(slug);
+
+
+--
+-- Name: printings fk_printings_rarity; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printings
+    ADD CONSTRAINT fk_printings_rarity FOREIGN KEY (rarity) REFERENCES public.rarities(slug);
 
 
 --
@@ -2219,6 +2649,14 @@ ALTER TABLE ONLY public.printings
 
 
 --
+-- Name: rules rules_version_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rules
+    ADD CONSTRAINT rules_version_fkey FOREIGN KEY (version) REFERENCES public.rule_versions(version) ON DELETE CASCADE;
+
+
+--
 -- Name: sessions sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2294,5 +2732,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict AHCspje6El61r1HTuJTAQ5rEemeoliLXxrn8kj1X9p31gvA1eKfy6EOT1Sb9bxR
+\unrestrict qbMxh05BmLQy1wTUgbIcs8hrlGmnmIhiEpYVge49fikmM2uaRPlqqsjW9Rt3k2R
 
