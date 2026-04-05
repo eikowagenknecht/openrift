@@ -1,17 +1,19 @@
-import type { CardType, DeckFormat, DeckZone, SuperType } from "@openrift/shared/types";
+import type { CardType, DeckFormat, DeckZone, Domain, SuperType } from "@openrift/shared/types";
 import type { DeleteResult, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/index.js";
+import { domainsArray, superTypesArray } from "./query-helpers.js";
 
 /** Deck card row with card details. */
 type DeckCardRow = Pick<
   Selectable<DeckCardsTable>,
   "id" | "deckId" | "cardId" | "zone" | "quantity"
 > &
-  Pick<Selectable<CardsTable>, "domains" | "energy" | "might" | "power"> & {
+  Pick<Selectable<CardsTable>, "energy" | "might" | "power"> & {
     cardName: string;
     cardType: CardType;
+    domains: Domain[];
     superTypes: SuperType[];
     tags: string[];
     keywords: string[];
@@ -117,13 +119,13 @@ export function decksRepo(db: Kysely<Database>) {
           "dc.quantity",
           "c.name as cardName",
           "c.type as cardType",
-          "c.superTypes",
-          "c.domains",
           "c.tags",
           "c.keywords",
           "c.energy",
           "c.might",
           "c.power",
+          domainsArray("dc.cardId").as("domains"),
+          superTypesArray("dc.cardId").as("superTypes"),
           sql<string | null>`(
             SELECT COALESCE(pi.rehosted_url, pi.original_url)
             FROM printings p
@@ -145,7 +147,7 @@ export function decksRepo(db: Kysely<Database>) {
         .where("d.userId", "=", userId)
         .orderBy("dc.zone")
         .orderBy("c.name")
-        .execute();
+        .execute() as Promise<DeckCardRow[]>;
     },
 
     /** @returns All deck cards with card details for every deck owned by a user. Image URLs are only resolved for legend/champion zones. */
@@ -162,8 +164,8 @@ export function decksRepo(db: Kysely<Database>) {
           "dc.quantity",
           "c.name as cardName",
           "c.type as cardType",
-          "c.superTypes",
-          "c.domains",
+          domainsArray("c.id").as("domains"),
+          superTypesArray("c.id").as("superTypes"),
           "c.tags",
           "c.keywords",
           "c.energy",
@@ -192,7 +194,7 @@ export function decksRepo(db: Kysely<Database>) {
         .orderBy("dc.deckId")
         .orderBy("dc.zone")
         .orderBy("c.name")
-        .execute();
+        .execute() as Promise<DeckCardRow[]>;
     },
 
     /** @returns Card requirements for a deck (cardId, zone, quantity). */

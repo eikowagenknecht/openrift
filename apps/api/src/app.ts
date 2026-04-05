@@ -27,6 +27,7 @@ import { shoppingListRoute } from "./routes/authenticated/shopping-list.js";
 import { tradeListsRoute } from "./routes/authenticated/trade-lists.js";
 import { wishListsRoute } from "./routes/authenticated/wish-lists.js";
 import { catalogRoute } from "./routes/public/catalog.js";
+import { enumsRoute } from "./routes/public/enums.js";
 import { featureFlagsRoute } from "./routes/public/feature-flags.js";
 import { healthRoute } from "./routes/public/health.js";
 import { keywordStylesRoute } from "./routes/public/keyword-styles.js";
@@ -179,6 +180,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", keywordStylesRoute)
       .route("/api/v1", siteSettingsRoute)
       .route("/api/v1", rulesRoute)
+      .route("/api/v1", enumsRoute)
 
       // ── Authenticated routes (require a valid session) ──────────────────
       .route("/api/v1", collectionsRoute)

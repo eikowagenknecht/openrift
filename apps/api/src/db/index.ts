@@ -27,4 +27,5 @@ export type {
   UserPreferencesTable,
   WishListItemsTable,
   WishListsTable,
+  ReferenceTable,
 } from "./types.js";

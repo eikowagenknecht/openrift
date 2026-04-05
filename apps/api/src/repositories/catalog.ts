@@ -1,3 +1,4 @@
+import type { Domain, SuperType } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -9,10 +10,13 @@ import type {
   PrintingsTable,
   SetsTable,
 } from "../db/index.js";
-import { imageUrl } from "./query-helpers.js";
+import { domainsArray, imageUrl, superTypesArray } from "./query-helpers.js";
 
 /** Card columns returned by the catalog (excludes normName and timestamps). */
-type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "updatedAt">;
+type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "updatedAt"> & {
+  domains: Domain[];
+  superTypes: SuperType[];
+};
 
 /** Active ban row returned by the catalog. */
 type CatalogCardBanRow = Pick<
@@ -68,8 +72,6 @@ export function catalogRepo(db: Kysely<Database>) {
           "slug",
           "name",
           "type",
-          "superTypes",
-          "domains",
           "might",
           "energy",
           "power",
@@ -79,9 +81,11 @@ export function catalogRepo(db: Kysely<Database>) {
           "effectText",
           "tags",
           "comment",
+          domainsArray("cards.id").as("domains"),
+          superTypesArray("cards.id").as("superTypes"),
         ])
         .orderBy("name")
-        .execute();
+        .execute() as Promise<CatalogCardRow[]>;
     },
 
     /** @returns All active card bans (not yet unbanned), with format display name. */

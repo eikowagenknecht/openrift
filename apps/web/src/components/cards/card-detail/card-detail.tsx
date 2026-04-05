@@ -1,5 +1,5 @@
 import type { Finish, Printing } from "@openrift/shared";
-import { COLORLESS_DOMAIN, getOrientation } from "@openrift/shared";
+import { WellKnown, getOrientation } from "@openrift/shared";
 import { useDrag } from "@use-gesture/react";
 import { ArrowLeftIcon, SparkleIcon, XIcon } from "lucide-react";
 import { useRef } from "react";
@@ -179,7 +179,7 @@ export function CardDetail({
           {card.might !== null && (
             <StatChip label="Might" value={card.might} icon="/images/might.svg" />
           )}
-          {!card.domains.includes(COLORLESS_DOMAIN) &&
+          {!card.domains.includes(WellKnown.domain.COLORLESS) &&
             card.domains.map((d) => (
               <Tooltip key={d}>
                 <TooltipTrigger>

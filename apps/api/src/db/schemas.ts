@@ -27,25 +27,26 @@ const noEmptyJsonb = z
   );
 
 // ---------------------------------------------------------------------------
-// Field rules — mirror DB CHECK constraints, single source of truth
+// Field rules — mirror DB constraints (FKs for ref-table-backed fields,
+// CHECK constraints for everything else). Single source of truth.
 // ---------------------------------------------------------------------------
 
 // ── Card data ─────────────────────────────────────────────────────────────
 
-/** Mirrors DB CHECK constraints on the `sets` table. @see {@link SetsTable} */
+/** Mirrors DB constraints on the `sets` table. @see {@link SetsTable} */
 export const setFieldRules = {
   slug: z.string().min(1),
   name: z.string().min(1),
   printedTotal: z.number().int().min(0).nullable(),
 } satisfies Record<string, z.ZodType>;
 
-/** Mirrors DB CHECK constraints on the `cards` table. @see {@link CardsTable} */
+/** Mirrors DB constraints on the `cards` table. @see {@link CardsTable} */
 export const cardFieldRules = {
   slug: z.string().min(1),
   name: z.string().min(1),
-  type: z.enum(["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield"]),
-  superTypes: z.array(z.enum(["Basic", "Champion", "Signature", "Token"])),
-  domains: z.array(z.enum(["Fury", "Calm", "Mind", "Body", "Chaos", "Order", "Colorless"])).min(1),
+  type: z.string().min(1),
+  superTypes: z.array(z.string().min(1)),
+  domains: z.array(z.string().min(1)).min(1),
   might: z.number().min(0).nullable(),
   energy: z.number().min(0).nullable(),
   power: z.number().min(0).nullable(),
@@ -56,15 +57,15 @@ export const cardFieldRules = {
   comment: z.string().min(1).nullable(),
 } satisfies Record<string, z.ZodType>;
 
-/** Mirrors DB CHECK constraints on the `printings` table. @see {@link PrintingsTable} */
+/** Mirrors DB constraints on the `printings` table. @see {@link PrintingsTable} */
 export const printingFieldRules = {
   slug: z.string().min(1),
   shortCode: z.string().min(1),
   setId: z.string().min(1),
   collectorNumber: z.number().int().positive(),
-  rarity: z.enum(["Common", "Uncommon", "Rare", "Epic", "Showcase"]),
-  artVariant: z.enum(["normal", "altart", "overnumbered"]),
-  finish: z.enum(["normal", "foil"]),
+  rarity: z.string().min(1),
+  artVariant: z.string().min(1),
+  finish: z.string().min(1),
   artist: z.string().min(1),
   publicCode: z.string().min(1),
   printedRulesText: z.string().min(1).nullable(),

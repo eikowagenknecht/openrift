@@ -55,6 +55,7 @@
         "@fontsource-variable/inter": "5.2.8",
         "@hookform/resolvers": "5.2.2",
         "@openrift/shared": "workspace:*",
+        "@piltoverarchive/riftbound-deck-codes": "1.2.0",
         "@tailwindcss/vite": "4.2.2",
         "@tanstack/react-hotkeys": "0.9.1",
         "@tanstack/react-query": "5.96.1",

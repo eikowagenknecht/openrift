@@ -2,7 +2,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
-import { imageUrl } from "./query-helpers.js";
+import { domainsArray, imageUrl, superTypesArray } from "./query-helpers.js";
 
 type Db = Kysely<Database>;
 
@@ -63,8 +63,8 @@ export function marketplaceMappingRepo(db: Db) {
           "c.slug as cardSlug",
           "c.name as cardName",
           "c.type as cardType",
-          "c.superTypes",
-          "c.domains",
+          domainsArray("c.id").as("domains"),
+          superTypesArray("c.id").as("superTypes"),
           "c.energy",
           "c.might",
           "p.id as printingId",

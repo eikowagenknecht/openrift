@@ -1,5 +1,5 @@
 import type { DeckListItemResponse, DeckResponse, Domain } from "@openrift/shared";
-import { COLORLESS_DOMAIN } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -46,7 +46,7 @@ import { ProxyExportDialog } from "./proxy-export-dialog";
 
 function DomainIcon({ domain }: { domain: string }) {
   const lower = domain.toLowerCase();
-  const ext = domain === COLORLESS_DOMAIN ? "svg" : "webp";
+  const ext = domain === WellKnown.domain.COLORLESS ? "svg" : "webp";
   return (
     <Tooltip>
       <TooltipTrigger>

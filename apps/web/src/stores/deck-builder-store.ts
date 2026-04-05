@@ -8,7 +8,7 @@ import type {
   Domain,
   SuperType,
 } from "@openrift/shared";
-import { validateDeck } from "@openrift/shared";
+import { WellKnown, validateDeck } from "@openrift/shared";
 import { create } from "zustand";
 
 export interface DeckBuilderCard {
@@ -58,23 +58,28 @@ export function isCardAllowedInZone(
   zone: DeckZone,
 ): boolean {
   switch (zone) {
-    case "legend": {
-      return card.cardType === "Legend";
+    case WellKnown.deckZone.LEGEND: {
+      return card.cardType === WellKnown.cardType.LEGEND;
     }
-    case "champion": {
-      return card.superTypes.includes("Champion") && card.cardType !== "Legend";
-    }
-    case "runes": {
-      return card.cardType === "Rune";
-    }
-    case "battlefield": {
-      return card.cardType === "Battlefield";
-    }
-    case "main":
-    case "sideboard":
-    case "overflow": {
+    case WellKnown.deckZone.CHAMPION: {
       return (
-        card.cardType !== "Legend" && card.cardType !== "Rune" && card.cardType !== "Battlefield"
+        card.superTypes.includes(WellKnown.superType.CHAMPION) &&
+        card.cardType !== WellKnown.cardType.LEGEND
+      );
+    }
+    case WellKnown.deckZone.RUNES: {
+      return card.cardType === WellKnown.cardType.RUNE;
+    }
+    case WellKnown.deckZone.BATTLEFIELD: {
+      return card.cardType === WellKnown.cardType.BATTLEFIELD;
+    }
+    case WellKnown.deckZone.MAIN:
+    case WellKnown.deckZone.SIDEBOARD:
+    case WellKnown.deckZone.OVERFLOW: {
+      return (
+        card.cardType !== WellKnown.cardType.LEGEND &&
+        card.cardType !== WellKnown.cardType.RUNE &&
+        card.cardType !== WellKnown.cardType.BATTLEFIELD
       );
     }
     default: {

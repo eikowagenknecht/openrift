@@ -204,8 +204,8 @@ describe("createDeckSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects invalid format", () => {
-    expect(createDeckSchema.safeParse({ name: "D", format: "legacy" }).success).toBe(false);
+  it("accepts any string format (FK validates at DB level)", () => {
+    expect(createDeckSchema.safeParse({ name: "D", format: "legacy" }).success).toBe(true);
   });
 });
 
@@ -242,12 +242,12 @@ describe("updateDeckCardsSchema", () => {
     ).toBe(false);
   });
 
-  it("rejects invalid zone", () => {
+  it("accepts any string zone (FK validates at DB level)", () => {
     expect(
       updateDeckCardsSchema.safeParse({
         cards: [{ cardId: "SET1-001", zone: "exile", quantity: 1 }],
       }).success,
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 

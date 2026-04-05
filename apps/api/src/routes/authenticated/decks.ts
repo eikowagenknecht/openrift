@@ -5,6 +5,7 @@ import type {
   DeckAvailabilityResponse,
   DeckDetailResponse,
   DeckExportResponse,
+  DeckFormat,
   DeckImportPreviewResponse,
   DeckListItemResponse,
   DeckListResponse,
@@ -311,7 +312,7 @@ export const decksRoute = decksApp
       userId,
       name: body.name,
       description: body.description ?? null,
-      format: body.format,
+      format: body.format as DeckFormat,
       isWanted: body.isWanted ?? false,
       isPublic: body.isPublic ?? false,
     });
@@ -377,7 +378,10 @@ export const decksRoute = decksApp
     assertFound(deck, "Not found");
 
     // Save the cards first, then validate the full deck with card details
-    await decks.replaceCards(id, body.cards);
+    await decks.replaceCards(
+      id,
+      body.cards.map((card) => ({ ...card, zone: card.zone as DeckZone })),
+    );
 
     const cardRows = await decks.cardsWithDetails(id, userId);
 

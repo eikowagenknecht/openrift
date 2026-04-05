@@ -30,6 +30,34 @@ export function imageUrl(alias: string): RawBuilder<string | null> {
 }
 
 /**
+ * Scalar subquery that assembles a card's domains from the junction table,
+ * ordered by `ordinal`, as a Postgres text array.
+ *
+ * @param cardIdRef — SQL reference to the card ID column (e.g. "c.id", "cards.id")
+ * @returns A raw SQL expression resolving to text[] (never NULL — empty cards shouldn't exist).
+ */
+export function domainsArray(cardIdRef: string): RawBuilder<string[]> {
+  return sql<string[]>`(
+    SELECT COALESCE(array_agg(cd.domain_slug ORDER BY cd.ordinal), '{}')
+    FROM card_domains cd WHERE cd.card_id = ${sql.ref(cardIdRef)}
+  )`;
+}
+
+/**
+ * Scalar subquery that assembles a card's super types from the junction table
+ * as a Postgres text array.
+ *
+ * @param cardIdRef — SQL reference to the card ID column (e.g. "c.id", "cards.id")
+ * @returns A raw SQL expression resolving to text[].
+ */
+export function superTypesArray(cardIdRef: string): RawBuilder<string[]> {
+  return sql<string[]>`(
+    SELECT COALESCE(array_agg(cst.super_type_slug), '{}')
+    FROM card_super_types cst WHERE cst.card_id = ${sql.ref(cardIdRef)}
+  )`;
+}
+
+/**
  * Base query: copies → printings → cards → front-face printing images (aliases: cp, p, c, pi).
  * @returns A Kysely SelectQueryBuilder with the four tables joined.
  */
