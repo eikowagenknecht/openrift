@@ -19,10 +19,10 @@ import {
   moveCopiesSchema,
 } from "@openrift/shared/schemas";
 
-import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import type { Variables } from "../../types.js";
+import { assertFound } from "../../utils/assertions.js";
 import { toCopy } from "../../utils/mappers.js";
 
 const listCopies = createRoute({
@@ -199,8 +199,6 @@ export const copiesRoute = copiesApp
     const { copies } = c.get("repos");
     const { id } = c.req.valid("param");
     const copy = await copies.getByIdForUser(id, getUserId(c));
-    if (!copy) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
-    }
+    assertFound(copy, "Not found");
     return c.json(toCopy(copy));
   });

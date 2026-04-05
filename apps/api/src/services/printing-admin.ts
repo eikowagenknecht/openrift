@@ -7,6 +7,7 @@ import type { Io } from "../io.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import type { promoTypesRepo } from "../repositories/promo-types.js";
+import { assertFound } from "../utils/assertions.js";
 import { appendSetTotal, fixTypography } from "./fix-typography.js";
 import { deleteRehostFiles } from "./image-rehost.js";
 
@@ -29,10 +30,7 @@ export async function updatePrintingPromoType(
   newPromoTypeId: string | null,
 ): Promise<void> {
   const printing = await repos.candidateMutations.getPrintingById(printingId);
-
-  if (!printing) {
-    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing not found");
-  }
+  assertFound(printing, "Printing not found");
 
   if (newPromoTypeId) {
     const pt = await repos.promoTypes.getById(newPromoTypeId);
@@ -69,10 +67,7 @@ export async function deletePrinting(
 
   // Validate outside the transaction
   const printing = await mut.getPrintingById(printingId);
-
-  if (!printing) {
-    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Printing not found");
-  }
+  assertFound(printing, "Printing not found");
 
   const deletedImages = await transact(async (trxRepos) => {
     const trxMut = trxRepos.candidateMutations;
@@ -151,9 +146,7 @@ export async function acceptPrinting(
   const mut = repos.candidateMutations;
 
   const card = await mut.getCardIdBySlug(cardSlug);
-  if (!card) {
-    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
-  }
+  assertFound(card, "Card not found");
 
   if (printingFields.promoTypeId) {
     const pt = await repos.promoTypes.getById(printingFields.promoTypeId);

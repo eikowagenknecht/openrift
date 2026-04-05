@@ -47,6 +47,7 @@ import {
 } from "../../services/deck-codecs/index.js";
 import type { TextCodecCard } from "../../services/deck-codecs/index.js";
 import type { Variables } from "../../types.js";
+import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { toDeck, toDeckAvailabilityItem, toDeckCard } from "../../utils/mappers.js";
 
 const patchFields: FieldMapping = {
@@ -328,9 +329,7 @@ export const decksRoute = decksApp
       decks.cardsWithDetails(id, userId),
       userPreferences.getByUserId(userId),
     ]);
-    if (!deck) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
-    }
+    assertFound(deck, "Not found");
 
     const favMarketplace =
       prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
@@ -352,9 +351,7 @@ export const decksRoute = decksApp
     const body = c.req.valid("json");
     const updates = buildPatchUpdates(body, patchFields);
     const row = await decks.update(id, userId, updates);
-    if (!row) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
-    }
+    assertFound(row, "Not found");
     return c.json(toDeck(row));
   })
 
@@ -363,9 +360,7 @@ export const decksRoute = decksApp
     const { decks } = c.get("repos");
     const { id } = c.req.valid("param");
     const result = await decks.deleteByIdForUser(id, getUserId(c));
-    if (result.numDeletedRows === 0n) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
-    }
+    assertDeleted(result, "Not found");
     return c.body(null, 204);
   })
 
@@ -379,9 +374,7 @@ export const decksRoute = decksApp
 
     // Verify deck belongs to user
     const deck = await decks.getIdAndFormat(id, userId);
-    if (!deck) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
-    }
+    assertFound(deck, "Not found");
 
     // Save the cards first, then validate the full deck with card details
     await decks.replaceCards(id, body.cards);
@@ -398,9 +391,7 @@ export const decksRoute = decksApp
     const { id } = c.req.valid("param");
 
     const newDeck = await decks.cloneDeck(id, userId);
-    if (!newDeck) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
-    }
+    assertFound(newDeck, "Not found");
 
     return c.json(toDeck(newDeck), 201);
   })
@@ -413,9 +404,7 @@ export const decksRoute = decksApp
     const { id } = c.req.valid("param");
 
     const deck = await decks.exists(id, userId);
-    if (!deck) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
-    }
+    assertFound(deck, "Not found");
 
     const deckCards = await decks.cardRequirements(id);
     const cardIds = deckCards.map((dc) => dc.cardId);
@@ -452,9 +441,7 @@ export const decksRoute = decksApp
       decks.getByIdForUser(id, userId),
       decks.cardsWithDetails(id, userId),
     ]);
-    if (!deck) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
-    }
+    assertFound(deck, "Not found");
 
     const cardIds = [...new Set(cardRows.map((row) => row.cardId))];
     const shortCodes = await canonicalPrintings.canonicalShortCodesByCardIds(cardIds);

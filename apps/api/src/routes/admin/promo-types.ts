@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
+import { assertFound } from "../../utils/assertions.js";
 import { createPromoTypeSchema, updatePromoTypeSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -132,9 +133,7 @@ export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const body = c.req.valid("json");
 
     const existing = await repo.getById(id);
-    if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Promo type not found`);
-    }
+    assertFound(existing, `Promo type not found`);
 
     if (body.slug !== undefined && body.slug !== existing.slug) {
       const conflict = await repo.getBySlug(body.slug);
@@ -155,9 +154,7 @@ export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { id } = c.req.valid("param");
 
     const existing = await repo.getById(id);
-    if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Promo type not found`);
-    }
+    assertFound(existing, `Promo type not found`);
 
     const inUse = await repo.isInUse(id);
     if (inUse) {

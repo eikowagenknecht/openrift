@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
+import { assertDeleted } from "../../utils/assertions.js";
 import { upsertOverrideSchema, userIdParamSchema, userKeyParamSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -122,13 +123,7 @@ export const adminUserFeatureFlagsRoute = new OpenAPIHono<{ Variables: Variables
     const { id, key } = c.req.valid("param");
 
     const result = await userFeatureFlags.delete(id, key);
-    if (result.numDeletedRows === 0n) {
-      throw new AppError(
-        404,
-        ERROR_CODES.NOT_FOUND,
-        `Override for flag "${key}" not found for this user`,
-      );
-    }
+    assertDeleted(result, `Override for flag "${key}" not found for this user`);
 
     return c.body(null, 204);
   });

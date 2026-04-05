@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
+import { assertDeleted, assertFound } from "../../utils/assertions.js";
 import { createSettingSchema, updateSettingSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -114,9 +115,7 @@ export const adminSiteSettingsRoute = new OpenAPIHono<{ Variables: Variables }>(
     const body = c.req.valid("json");
 
     const updated = await siteSettings.update(key, body);
-    if (!updated) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Setting "${key}" not found`);
-    }
+    assertFound(updated, `Setting "${key}" not found`);
 
     return c.body(null, 204);
   })
@@ -126,9 +125,7 @@ export const adminSiteSettingsRoute = new OpenAPIHono<{ Variables: Variables }>(
     const { key } = c.req.valid("param");
 
     const result = await siteSettings.deleteByKey(key);
-    if (result.numDeletedRows === 0n) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Setting "${key}" not found`);
-    }
+    assertDeleted(result, `Setting "${key}" not found`);
 
     return c.body(null, 204);
   });

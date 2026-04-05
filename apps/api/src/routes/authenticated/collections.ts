@@ -18,6 +18,7 @@ import { requireAuth } from "../../middleware/require-auth.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
 import type { Variables } from "../../types.js";
+import { assertFound } from "../../utils/assertions.js";
 import { toCollection, toCopy } from "../../utils/mappers.js";
 import { getFavoriteMarketplace } from "../../utils/preferences.js";
 
@@ -152,9 +153,7 @@ export const collectionsRoute = collectionsApp
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
     const row = await repos.collections.getByIdForUser(id, userId);
-    if (!row) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
-    }
+    assertFound(row, "Not found");
     const favMarketplace = await getFavoriteMarketplace(repos, userId);
     const value = await repos.marketplace.singleCollectionValue(row.id, favMarketplace);
     return c.json(toCollection(row, value));
@@ -168,9 +167,7 @@ export const collectionsRoute = collectionsApp
     const body = c.req.valid("json");
     const updates = buildPatchUpdates(body, patchFields);
     const row = await collections.update(id, userId, updates);
-    if (!row) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
-    }
+    assertFound(row, "Not found");
     return c.json(toCollection(row));
   })
 
@@ -184,10 +181,7 @@ export const collectionsRoute = collectionsApp
     const { id } = c.req.valid("param");
 
     const collection = await repos.collections.getByIdForUser(id, userId);
-
-    if (!collection) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
-    }
+    assertFound(collection, "Not found");
 
     if (collection.isInbox) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Cannot delete inbox collection");
@@ -215,9 +209,7 @@ export const collectionsRoute = collectionsApp
 
     // Verify collection belongs to user
     const collection = await collections.exists(id, userId);
-    if (!collection) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, "Not found");
-    }
+    assertFound(collection, "Not found");
 
     const rows = await copies.listForCollection(id, limit, cursor);
     const hasMore = limit !== undefined && rows.length > limit;
