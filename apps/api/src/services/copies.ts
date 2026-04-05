@@ -18,8 +18,8 @@ interface AddCopyResult {
 }
 
 /**
- * Batch-add copies (acquisition). Inserts copies into the given collections
- * (or the user's inbox) and logs an acquisition activity.
+ * Batch-add copies. Inserts copies into the given collections
+ * (or the user's inbox) and logs collection events.
  * @returns The created copies with their IDs
  */
 export async function addCopies(
@@ -53,7 +53,7 @@ export async function addCopies(
 
     const copyRows = await trxRepos.copies.insertBatch(copyValues);
 
-    // Look up collection names for activity items
+    // Look up collection names for event logging
     const collectionIds = [...new Set(copyRows.map((r) => r.collectionId))];
     const collectionRows = await trxRepos.collections.listIdAndNameByIds(collectionIds);
     const collectionNames = new Map(collectionRows.map((col) => [col.id, col.name]));
@@ -82,8 +82,8 @@ export async function addCopies(
 }
 
 /**
- * Move copies between collections (reorganization).
- * Verifies the target collection, moves copies, and logs a reorganization activity.
+ * Move copies between collections.
+ * Verifies the target collection, moves copies, and logs collection events.
  */
 export async function moveCopies(
   repos: Repos,
@@ -129,8 +129,8 @@ export async function moveCopies(
 }
 
 /**
- * Dispose copies (disposal) — hard-deletes with metadata snapshot.
- * Logs a disposal activity before deleting.
+ * Dispose copies — hard-deletes from the collection.
+ * Logs removal events before deleting.
  */
 export async function disposeCopies(
   transact: Transact,
@@ -158,7 +158,7 @@ export async function disposeCopies(
       })),
     );
 
-    // Hard-delete copies (activity_items.copy_id → SET NULL via FK)
+    // Hard-delete copies (collection_events.copy_id → SET NULL via FK)
     await trxRepos.copies.deleteBatch(
       copies.map((row) => row.id),
       userId,

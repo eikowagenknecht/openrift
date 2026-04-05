@@ -110,7 +110,7 @@ describe("addCopies", () => {
     expect(result[0].acquisitionSourceId).toBe("src-1");
   });
 
-  it("completes the full flow including activity logging", async () => {
+  it("completes the full flow including event logging", async () => {
     const repos = createMockRepos({
       insertedCopies: [
         { id: "copy-1", printingId: "p-1", collectionId: "inbox-id", acquisitionSourceId: null },
@@ -181,7 +181,7 @@ describe("disposeCopies", () => {
     );
   });
 
-  it("completes disposal flow including activity logging", async () => {
+  it("completes disposal flow including event logging", async () => {
     const repos = createMockRepos({
       fetchedCopies: [
         {
