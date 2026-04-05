@@ -62,6 +62,7 @@ import * as m056 from "./056-deck-zones.js";
 import * as m057 from "./057-user-feature-flags.js";
 import * as m058 from "./058-drop-promo-type-sort-order.js";
 import * as m059 from "./059-backfill-keywords-from-printings.js";
+import * as m060 from "./060-fix-updated-at-trigger.js";
 
 export const migrations: Record<string, Migration> = {
   "001-core-schema": m001,
@@ -123,4 +124,5 @@ export const migrations: Record<string, Migration> = {
   "057-user-feature-flags": m057,
   "058-drop-promo-type-sort-order": m058,
   "059-backfill-keywords-from-printings": m059,
+  "060-fix-updated-at-trigger": m060,
 };
