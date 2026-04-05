@@ -26,6 +26,7 @@ import { priceRefreshRepo } from "./repositories/price-refresh.js";
 import { printingImagesRepo } from "./repositories/printing-images.js";
 import { promoTypesRepo } from "./repositories/promo-types.js";
 import { providerSettingsRepo } from "./repositories/provider-settings.js";
+import { rulesRepo } from "./repositories/rules.js";
 import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
 import { tradeListsRepo } from "./repositories/trade-lists.js";
@@ -62,6 +63,7 @@ export interface Repos {
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
   promoTypes: ReturnType<typeof promoTypesRepo>;
+  rules: ReturnType<typeof rulesRepo>;
   sets: ReturnType<typeof setsRepo>;
   providerSettings: ReturnType<typeof providerSettingsRepo>;
   siteSettings: ReturnType<typeof siteSettingsRepo>;
@@ -110,6 +112,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     marketplaceAdmin: marketplaceAdminRepo(db),
     printingImages: printingImagesRepo(db),
     promoTypes: promoTypesRepo(db),
+    rules: rulesRepo(db),
     sets: setsRepo(db),
     providerSettings: providerSettingsRepo(db),
     siteSettings: siteSettingsRepo(db),

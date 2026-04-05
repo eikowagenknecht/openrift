@@ -628,6 +628,32 @@ export interface CardBansTable {
   createdAt: CreatedAt;
 }
 
+// ─── Rules (migration 060) ──────────────────────────────────────────────────
+
+export interface RuleVersionsTable {
+  version: string;
+  sourceType: string;
+  sourceUrl: string | null;
+  publishedAt: string | null;
+  importedAt: ColumnType<Date, Date | undefined, Date>;
+}
+
+export interface RulesTable {
+  id: Generated<string>;
+  version: string;
+  /** CHECK: <> '' */
+  ruleNumber: string;
+  sortOrder: number;
+  /** CHECK: 0–3 */
+  depth: number;
+  /** CHECK: IN ('title', 'subtitle', 'text') */
+  ruleType: string;
+  content: string;
+  /** CHECK: IN ('added', 'modified', 'removed') */
+  changeType: string;
+  createdAt: CreatedAt;
+}
+
 // ─── Database ────────────────────────────────────────────────────────────────
 
 export interface Database {
@@ -709,4 +735,8 @@ export interface Database {
 
   // Card bans (migration 054)
   cardBans: CardBansTable;
+
+  // Rules (migration 060)
+  ruleVersions: RuleVersionsTable;
+  rules: RulesTable;
 }
