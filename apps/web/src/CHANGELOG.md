@@ -2,6 +2,7 @@
 
 ## 2026-04-06
 
+- fix: Plus icon in the deck editor card grid is now always visible, even when a card has reached its copy limit
 - feat: Deck text import now recognizes "Character, Title" names (e.g. "Sett, The Boss") even when the card is stored under just the title
 
 ## 2026-04-05
