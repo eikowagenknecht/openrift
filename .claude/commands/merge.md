@@ -35,9 +35,9 @@ Must be on the `main` branch. If on a worktree branch, abort and tell the user t
 
    Do not proceed until the user confirms.
 
-6. **Rebase the branch on local main** before merging. This ensures the squash applies cleanly:
+6. **Rebase the branch on local main** before merging. This ensures the squash applies cleanly. Skip this step when called inline from `/done` (the rebase was already done in the worktree).
    - `git rebase main <branch>` — always rebase on **local `main`**, never on `origin/main`. Do not `git fetch` or `git pull`.
-   - If the rebase has conflicts, abort (`git rebase --abort`), tell the user, and stop.
+   - If the rebase has conflicts, resolve them and continue. If you truly cannot resolve a conflict, abort (`git rebase --abort`) and tell the user.
 
 7. **Execute the merge:**
    - `git merge --squash <branch>`
