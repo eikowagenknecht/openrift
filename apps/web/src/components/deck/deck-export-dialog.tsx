@@ -10,6 +10,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -21,7 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useExportDeck } from "@/hooks/use-decks";
-import type { RegistrationPageSize } from "@/lib/registration-pdf";
+import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
 import { generateRegistrationPdf } from "@/lib/registration-pdf";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDeckBuilderStore } from "@/stores/deck-builder-store";
@@ -117,6 +118,15 @@ export function DeckExportDialog({
   const [registrationPageSize, setRegistrationPageSize] = useState<RegistrationPageSize>("a4");
   const [generating, setGenerating] = useState(false);
 
+  // Registration form fields
+  const [regDeckName, setRegDeckName] = useState(deckName ?? "");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [riotId, setRiotId] = useState("");
+  const [eventDate, setEventDate] = useState("");
+  const [eventName, setEventName] = useState("");
+  const [eventLocation, setEventLocation] = useState("");
+
   useEffect(() => {
     if (open && tab !== "registration") {
       exportDeck.mutate({ deckId, format: tab });
@@ -125,6 +135,9 @@ export function DeckExportDialog({
     if (!open) {
       exportDeck.reset();
       setTab("piltover");
+    }
+    if (open) {
+      setRegDeckName(deckName ?? "");
     }
   }, [open]); // oxlint-disable-line react-hooks/exhaustive-deps -- only trigger on open/close
 
@@ -153,8 +166,17 @@ export function DeckExportDialog({
       return;
     }
     setGenerating(true);
+    const fields: RegistrationFields = {
+      deckName: regDeckName,
+      firstName,
+      lastName,
+      riotId,
+      eventDate,
+      eventName,
+      eventLocation,
+    };
     try {
-      await generateRegistrationPdf(deckName ?? "Untitled Deck", cards, registrationPageSize);
+      await generateRegistrationPdf(fields, cards, registrationPageSize);
     } finally {
       setGenerating(false);
     }
@@ -194,26 +216,87 @@ export function DeckExportDialog({
           {tab === "registration" ? (
             <TabsContent value="registration">
               <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-2">
-                  <Label htmlFor="registration-page-size">Page size</Label>
-                  <Select
-                    value={registrationPageSize}
-                    onValueChange={(value) =>
-                      setRegistrationPageSize(value as RegistrationPageSize)
-                    }
-                  >
-                    <SelectTrigger id="registration-page-size">
-                      <SelectValue>
-                        {(value: string) =>
-                          PAGE_SIZE_LABELS[value as RegistrationPageSize] ?? value
-                        }
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="a4">A4</SelectItem>
-                      <SelectItem value="letter">US Letter</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2 flex flex-col gap-1.5">
+                    <Label htmlFor="reg-deck-name">Deck Name</Label>
+                    <Input
+                      id="reg-deck-name"
+                      value={regDeckName}
+                      onChange={(event) => setRegDeckName(event.target.value)}
+                      placeholder="Untitled Deck"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="reg-first-name">First Name</Label>
+                    <Input
+                      id="reg-first-name"
+                      value={firstName}
+                      onChange={(event) => setFirstName(event.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="reg-last-name">Last Name</Label>
+                    <Input
+                      id="reg-last-name"
+                      value={lastName}
+                      onChange={(event) => setLastName(event.target.value)}
+                    />
+                  </div>
+                  <div className="col-span-2 flex flex-col gap-1.5">
+                    <Label htmlFor="reg-riot-id">Riot ID</Label>
+                    <Input
+                      id="reg-riot-id"
+                      value={riotId}
+                      onChange={(event) => setRiotId(event.target.value)}
+                      placeholder="Name#TAG"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="reg-event-date">Event Date</Label>
+                    <Input
+                      id="reg-event-date"
+                      type="date"
+                      value={eventDate}
+                      onChange={(event) => setEventDate(event.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="reg-event-name">Event Name</Label>
+                    <Input
+                      id="reg-event-name"
+                      value={eventName}
+                      onChange={(event) => setEventName(event.target.value)}
+                    />
+                  </div>
+                  <div className="col-span-2 flex flex-col gap-1.5">
+                    <Label htmlFor="reg-event-location">Event Location</Label>
+                    <Input
+                      id="reg-event-location"
+                      value={eventLocation}
+                      onChange={(event) => setEventLocation(event.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="registration-page-size">Page Size</Label>
+                    <Select
+                      value={registrationPageSize}
+                      onValueChange={(value) =>
+                        setRegistrationPageSize(value as RegistrationPageSize)
+                      }
+                    >
+                      <SelectTrigger id="registration-page-size">
+                        <SelectValue>
+                          {(value: string) =>
+                            PAGE_SIZE_LABELS[value as RegistrationPageSize] ?? value
+                          }
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="a4">A4</SelectItem>
+                        <SelectItem value="letter">US Letter</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <Button onClick={handleGenerateRegistration} disabled={generating}>
