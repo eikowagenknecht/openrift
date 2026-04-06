@@ -29,10 +29,58 @@ import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 type ExportFormat = "piltover" | "text" | "tts";
 type ExportTab = ExportFormat | "registration";
 
-const FORMAT_DESCRIPTIONS: Record<ExportTab, string> = {
-  piltover: "Copy this code to share your deck or import it into Piltover Archive.",
-  text: "Human-readable list grouped by zone, for sharing in chat or forums.",
-  tts: "Space-separated short codes for Tabletop Simulator.",
+const FORMAT_DESCRIPTIONS: Record<ExportTab, React.ReactNode> = {
+  piltover: (
+    <>
+      A compact code that can be imported into{" "}
+      <a
+        href="https://piltoverarchive.com"
+        target="_blank"
+        rel="noreferrer"
+        className="text-foreground underline"
+      >
+        Piltover Archive
+      </a>
+      .
+    </>
+  ),
+  text: (
+    <>
+      A human-readable list grouped by zone. Used by many deck builders, including{" "}
+      <a
+        href="https://piltoverarchive.com"
+        target="_blank"
+        rel="noreferrer"
+        className="text-foreground underline"
+      >
+        Piltover Archive
+      </a>{" "}
+      and{" "}
+      <a
+        href="https://tcg-arena.fr/decks"
+        target="_blank"
+        rel="noreferrer"
+        className="text-foreground underline"
+      >
+        TCG Arena
+      </a>
+      .
+    </>
+  ),
+  tts: (
+    <>
+      Space-separated short codes for the{" "}
+      <a
+        href="https://steamcommunity.com/sharedfiles/filedetails/?id=3606647746"
+        target="_blank"
+        rel="noreferrer"
+        className="text-foreground underline"
+      >
+        Tabletop Simulator mod
+      </a>
+      .
+    </>
+  ),
   registration: "Generate a printable tournament deck registration sheet.",
 };
 
@@ -121,28 +169,27 @@ export function DeckExportDialog({
         </DialogTrigger>
       )}
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Export deck</DialogTitle>
-          <DialogDescription>{FORMAT_DESCRIPTIONS[tab]}</DialogDescription>
-        </DialogHeader>
-
-        {isDirty && tab !== "registration" && (
-          <p className="text-muted-foreground text-sm">
-            You have unsaved changes. The exported code reflects the last saved state.
-          </p>
-        )}
-
         <Tabs
           defaultValue="piltover"
           value={tab}
           onValueChange={(value) => handleTabChange(value as ExportTab)}
         >
-          <TabsList>
-            <TabsTrigger value="piltover">Deck Code</TabsTrigger>
-            <TabsTrigger value="text">Text</TabsTrigger>
-            <TabsTrigger value="tts">TTS</TabsTrigger>
-            <TabsTrigger value="registration">Registration</TabsTrigger>
-          </TabsList>
+          <DialogHeader>
+            <DialogTitle>Export deck</DialogTitle>
+            <TabsList>
+              <TabsTrigger value="piltover">Deck Code</TabsTrigger>
+              <TabsTrigger value="text">Text</TabsTrigger>
+              <TabsTrigger value="tts">TTS</TabsTrigger>
+              <TabsTrigger value="registration">Registration</TabsTrigger>
+            </TabsList>
+            <DialogDescription>{FORMAT_DESCRIPTIONS[tab]}</DialogDescription>
+          </DialogHeader>
+
+          {isDirty && tab !== "registration" && (
+            <p className="text-muted-foreground text-sm">
+              You have unsaved changes. The exported code reflects the last saved state.
+            </p>
+          )}
 
           {tab === "registration" ? (
             <TabsContent value="registration">
@@ -186,9 +233,9 @@ export function DeckExportDialog({
             </TabsContent>
           ) : (
             <TabsContent value={tab}>
-              <div className="flex min-w-0 flex-col gap-3">
+              <div className="flex min-h-[252px] min-w-0 flex-col gap-3">
                 {exportDeck.isPending ? (
-                  <div className="flex items-center justify-center py-8">
+                  <div className="flex flex-1 items-center justify-center">
                     <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
                   </div>
                 ) : exportDeck.isError ? (
@@ -199,7 +246,7 @@ export function DeckExportDialog({
                       readOnly
                       value={exportDeck.data.code}
                       className="[field-sizing:fixed] font-mono text-xs break-all"
-                      rows={tab === "piltover" ? 3 : 12}
+                      rows={8}
                       onClick={(event) => (event.target as HTMLTextAreaElement).select()}
                     />
 
