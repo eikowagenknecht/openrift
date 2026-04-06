@@ -672,7 +672,7 @@ function NestedSidebar({ className, ...props }: React.ComponentProps<typeof Side
         // h-[calc(...)]: fill remaining viewport height below header + border
         // overflow-hidden!: prevent sidebar from scrolling externally (SidebarContent scrolls internally)
         // w-0!: collapse width when offcanvas — sticky elements can't slide off-screen like fixed ones
-        "sticky! top-[calc(3.5rem+1px)] h-[calc(100svh-3.5rem-1px)]! overflow-hidden! group-data-[collapsible=offcanvas]:w-0!",
+        "sticky! top-[calc(3.5rem+1px)] h-[calc(100svh-3.5rem-1px)]! overflow-hidden! border-0! group-data-[collapsible=offcanvas]:w-0!",
         className,
       )}
       {...props}
