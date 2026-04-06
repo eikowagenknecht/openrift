@@ -12,7 +12,7 @@ export default function ProxyPrintingArticle() {
   return (
     <div className="space-y-8">
       <p className="text-muted-foreground">
-        Proxy printing lets you generate a printable PDF of cards from any deck &mdash; perfect for
+        Proxy printing lets you generate a printable PDF of cards from any deck, perfect for
         playtesting before you buy. Cards are laid out at standard size (63&times;88&nbsp;mm), nine
         per page, ready to cut and sleeve.
       </p>
@@ -33,7 +33,7 @@ export default function ProxyPrintingArticle() {
           ))}
         </div>
         <p className="text-muted-foreground mt-2 text-center text-xs">
-          3&times;3 grid &mdash; 9 cards per page, centered on A4 or US Letter
+          3&times;3 grid, 9 cards per page, centered on A4 or US Letter
         </p>
       </div>
 
@@ -113,9 +113,9 @@ export default function ProxyPrintingArticle() {
           <code className="bg-muted rounded px-1.5 py-0.5 text-xs">proxies.pdf</code>.
         </p>
         <p className="text-muted-foreground mt-2">
-          Cards with multiple copies in your deck appear the correct number of times in the PDF
-          &mdash; a 3&times; card takes up three slots. Each unique card is only rendered once and
-          then reused, so even large decks generate quickly.
+          Cards with multiple copies in your deck appear the correct number of times in the PDF (a
+          3&times; card takes up three slots). Each unique card is only rendered once and then
+          reused, so even large decks generate quickly.
         </p>
       </section>
 

@@ -129,9 +129,9 @@ export function NewPrintingGroupCard({
             <ChevronRightIcon className="size-4" />
           )}
           <span>
-            New: <span className="text-muted-foreground">{printingLabel || guessedId}</span> &mdash;{" "}
+            New: <span className="text-muted-foreground">{printingLabel || guessedId}</span> (
             {group.candidates.length} source
-            {group.candidates.length === 1 ? "" : "s"}
+            {group.candidates.length === 1 ? "" : "s"})
           </span>
         </span>
         {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- stopPropagation wrapper, not interactive */}

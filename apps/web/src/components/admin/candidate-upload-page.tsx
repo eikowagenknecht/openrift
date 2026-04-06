@@ -123,7 +123,7 @@ export function CandidateUploadPage() {
             />
             {fileName && fileData && (
               <p className="text-muted-foreground text-sm">
-                {fileName} &mdash; {fileData.length} card{fileData.length === 1 ? "" : "s"}
+                {fileName} ({fileData.length} card{fileData.length === 1 ? "" : "s"})
               </p>
             )}
             {parseError && (

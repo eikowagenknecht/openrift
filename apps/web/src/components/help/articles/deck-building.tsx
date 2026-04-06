@@ -69,7 +69,7 @@ export default function DeckBuildingArticle() {
         <h2 className="mb-2 text-lg font-semibold">Getting started</h2>
         <p className="text-muted-foreground">
           Open <strong className="text-foreground">Decks</strong> from the top navigation and click{" "}
-          <strong className="text-foreground">New Deck</strong>. Choose a name and a format &mdash;{" "}
+          <strong className="text-foreground">New Deck</strong>. Choose a name and a format:{" "}
           <strong className="text-foreground">Standard</strong> enforces all deck-building rules,
           while <strong className="text-foreground">Freeform</strong> removes all restrictions so
           you can experiment freely.
@@ -193,8 +193,8 @@ export default function DeckBuildingArticle() {
         </div>
 
         <p className="text-muted-foreground mt-3 text-sm">
-          In Freeform format, none of these rules are enforced &mdash; you can build however you
-          like. You can switch to Freeform to theorycraft freely, then switch back to Standard to
+          In Freeform format, none of these rules are enforced, so you can build however you like.
+          You can switch to Freeform to theorycraft freely, then switch back to Standard to
           validate. The zone sidebar highlights violations per zone, so you can quickly see what
           still needs attention.
         </p>
@@ -231,20 +231,19 @@ export default function DeckBuildingArticle() {
         </p>
         <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1">
           <li>
-            <strong className="text-foreground">Domain distribution</strong> &mdash; how many cards
-            per domain in main vs. sideboard
+            <strong className="text-foreground">Domain distribution:</strong> how many cards per
+            domain in main vs. sideboard
           </li>
           <li>
-            <strong className="text-foreground">Energy curve</strong> &mdash; distribution of energy
-            costs across your deck
+            <strong className="text-foreground">Energy curve:</strong> distribution of energy costs
+            across your deck
           </li>
           <li>
-            <strong className="text-foreground">Power curve</strong> &mdash; distribution of power
-            values
+            <strong className="text-foreground">Power curve:</strong> distribution of power values
           </li>
           <li>
-            <strong className="text-foreground">Type breakdown</strong> &mdash; count of units,
-            spells, gear, and other card types
+            <strong className="text-foreground">Type breakdown:</strong> count of units, spells,
+            gear, and other card types
           </li>
         </ul>
       </section>
@@ -274,7 +273,7 @@ export default function DeckBuildingArticle() {
         <h2 className="mb-2 text-lg font-semibold">Auto-save</h2>
         <p className="text-muted-foreground">
           Changes are saved automatically as you edit. If you try to leave with unsaved changes,
-          you&apos;ll see a warning. There&apos;s no manual save button &mdash; just build and go.
+          you&apos;ll see a warning. There&apos;s no manual save button, just build and go.
         </p>
       </section>
     </div>

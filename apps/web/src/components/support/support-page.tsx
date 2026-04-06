@@ -131,16 +131,16 @@ export function SupportPage() {
     <div className={`mx-auto flex w-full max-w-2xl flex-1 flex-col ${PAGE_PADDING}`}>
       {/* Hero */}
       <div className="mb-10">
-        <h1 className="mb-4 text-2xl font-bold">Fund the Rift</h1>
+        <h1 className="mb-4 text-2xl font-bold">Support the Rift</h1>
         <div className="text-muted-foreground space-y-3 text-sm leading-relaxed">
           <p>
-            Every day, our servers burn Energy to keep the Rift open &mdash; so you can browse cards
-            instead of whatever you were supposed to be doing.
+            Every day, our servers burn Energy to keep the Rift open so you can browse cards instead
+            of whatever you were supposed to be doing.
           </p>
           <p>
             This site has no ads, no trackers, and no venture capital guys asking about our
             &ldquo;growth metrics.&rdquo; Just me, a database, and an alarming hosting bill. (Just
-            kidding &mdash; this is running on a Hetzner CX22 found in a Falkenstein scrapyard. But
+            kidding, this is running on a Hetzner CX22 found in a Falkenstein scrapyard. But
             upgrading it would be nice.)
           </p>
           <p>
@@ -164,24 +164,27 @@ export function SupportPage() {
         </p>
         <div className="mt-4 flex justify-center gap-3">
           <a
-            href={GITHUB_SPONSORS_URL}
+            href={KOFI_URL}
             target="_blank"
             rel="noreferrer"
             className={cn(buttonVariants(), "gap-2")}
           >
-            <SimpleIcon icon={siGithubsponsors} className="size-4" />
-            Sponsor on GitHub
+            <SimpleIcon icon={siKofi} className="size-4" />
+            Support on Ko-fi
           </a>
           <a
-            href={KOFI_URL}
+            href={GITHUB_SPONSORS_URL}
             target="_blank"
             rel="noreferrer"
             className={cn(buttonVariants({ variant: "outline" }), "gap-2")}
           >
-            <SimpleIcon icon={siKofi} className="size-4" />
-            Support on Ko-fi
+            <SimpleIcon icon={siGithubsponsors} className="size-4" />
+            Sponsor on GitHub
           </a>
         </div>
+        <p className="text-muted-foreground mt-2 text-center text-sm">
+          Recurring or one-time, every contribution helps keep the Rift open.
+        </p>
       </section>
 
       {/* Share */}
@@ -239,8 +242,8 @@ export function SupportPage() {
       {/* Sign-off */}
       <section className="text-muted-foreground mt-auto border-t pt-6 text-center text-sm">
         <p>
-          OpenRift is a free, open-source project. No one here is getting rich &mdash; well, except
-          in Power, and you can&apos;t pay hosting bills with Power.
+          OpenRift is a free, open-source project. No one here is getting rich (well, except in
+          Power), and you can&apos;t pay hosting bills with Power.
         </p>
         <p className="mt-2 font-medium">
           Built with Fury. Maintained with Calm. Funded by people like you.
