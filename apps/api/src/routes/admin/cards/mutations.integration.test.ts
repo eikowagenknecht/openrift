@@ -920,7 +920,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       const res = await app.fetch(
         req("POST", `${P}/new/csmanotherunmatched/link`, {
-          cardId: cardSlug,
+          cardId: cardId,
         }),
       );
       expect(res.status).toBe(204);
@@ -939,7 +939,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("returns 404 for non-existent target card", async () => {
       const res = await app.fetch(
         req("POST", `${P}/new/csmanotherunmatched/link`, {
-          cardId: "NONEXISTENT-SLUG",
+          cardId: "00000000-0000-4000-a000-000000000000",
         }),
       );
       expect(res.status).toBe(404);
