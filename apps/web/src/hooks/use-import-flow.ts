@@ -53,9 +53,13 @@ export function useImportFlow() {
     }
 
     const matched = matchEntries(entries, allPrintings);
-    const sorted = matched.toSorted(
-      (entryA, entryB) => STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status],
-    );
+    const sorted = matched.toSorted((entryA, entryB) => {
+      const statusDiff = STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status];
+      if (statusDiff !== 0) {
+        return statusDiff;
+      }
+      return entryA.entry.sourceCode.localeCompare(entryB.entry.sourceCode);
+    });
     setMatchedEntries(sorted);
     setSkippedIndices(new Set());
 
