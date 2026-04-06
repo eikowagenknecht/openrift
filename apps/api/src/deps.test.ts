@@ -31,7 +31,6 @@ describe("createRepos", () => {
       "sets",
       "providerSettings",
       "siteSettings",
-      "acquisitionSources",
       "tradeLists",
       "userPreferences",
       "wishLists",

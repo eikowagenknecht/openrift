@@ -1,7 +1,6 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "./db/index.js";
-import { acquisitionSourcesRepo } from "./repositories/acquisition-sources.js";
 import { adminsRepo } from "./repositories/admins.js";
 import { candidateCardsRepo } from "./repositories/candidate-cards.js";
 import { candidateMutationsRepo } from "./repositories/candidate-mutations.js";
@@ -75,7 +74,6 @@ export interface Repos {
   status: ReturnType<typeof statusRepo>;
   providerSettings: ReturnType<typeof providerSettingsRepo>;
   siteSettings: ReturnType<typeof siteSettingsRepo>;
-  acquisitionSources: ReturnType<typeof acquisitionSourcesRepo>;
   tradeLists: ReturnType<typeof tradeListsRepo>;
   userPreferences: ReturnType<typeof userPreferencesRepo>;
   users: ReturnType<typeof usersRepo>;
@@ -128,7 +126,6 @@ export function createRepos(db: Kysely<Database>): Repos {
     status: statusRepo(db),
     providerSettings: providerSettingsRepo(db),
     siteSettings: siteSettingsRepo(db),
-    acquisitionSources: acquisitionSourcesRepo(db),
     tradeLists: tradeListsRepo(db),
     userPreferences: userPreferencesRepo(db),
     users: usersRepo(db),

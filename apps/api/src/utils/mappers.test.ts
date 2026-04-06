@@ -7,7 +7,6 @@ import {
   toDeck,
   toDeckAvailabilityItem,
   toDeckCard,
-  toSource,
   toTradeList,
   toTradeListItem,
   toTradeListItemDetail,
@@ -99,30 +98,6 @@ describe("toDeck", () => {
       isWanted: false,
       isPublic: true,
       shareToken: null,
-      createdAt: "2025-06-15T12:00:00.000Z",
-      updatedAt: "2025-06-16T08:30:00.000Z",
-    });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// toSource
-// ---------------------------------------------------------------------------
-
-describe("toSource", () => {
-  it("maps a source row", () => {
-    const result = toSource({
-      id: "src-1",
-      userId: "user-1",
-      name: "Booster Pack",
-      description: "A pack",
-      createdAt: NOW,
-      updatedAt: LATER,
-    });
-    expect(result).toEqual({
-      id: "src-1",
-      name: "Booster Pack",
-      description: "A pack",
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });

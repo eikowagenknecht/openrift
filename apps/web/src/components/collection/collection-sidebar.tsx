@@ -7,7 +7,6 @@ import {
   InboxIcon,
   LayersIcon,
   PlusIcon,
-  StoreIcon,
   XIcon,
 } from "lucide-react";
 import { parseAsBoolean, useQueryState } from "nuqs";
@@ -28,7 +27,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 
 import type { CardDragData } from "./dnd-types";
 import { DroppableCollection } from "./droppable-collection";
@@ -62,7 +60,6 @@ export function CollectionSidebar() {
     }
   }, [currentPath, collectionId, isMobile, setOpenMobile]);
   const createCollection = useCreateCollection();
-  const sourcesEnabled = useFeatureEnabled("acquisition-sources");
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");
 
@@ -204,18 +201,6 @@ export function CollectionSidebar() {
                 <span>Activity</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
-            {sourcesEnabled && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={currentPath === "/collections/sources"}
-                  render={<Link to="/collections/sources" />}
-                  size="sm"
-                >
-                  <StoreIcon />
-                  <span>Sources</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>

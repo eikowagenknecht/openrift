@@ -313,22 +313,6 @@ export const copyCollectionBreakdownResponseSchema = z
   .object({ items: z.array(copyCollectionBreakdownEntrySchema) })
   .openapi("CopyCollectionBreakdownResponse");
 
-// ── Acquisition Sources ──────────────────────────────────────────────────────
-
-export const acquisitionSourceResponseSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-    description: z.string().nullable(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
-  })
-  .openapi("AcquisitionSourceResponse");
-
-export const acquisitionSourceListResponseSchema = z
-  .object({ items: z.array(acquisitionSourceResponseSchema) })
-  .openapi("AcquisitionSourceListResponse");
-
 // ── Collection Events ────────────────────────────────────────────────────────
 
 const collectionEventResponseSchema = z

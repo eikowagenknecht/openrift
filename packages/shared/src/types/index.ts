@@ -36,8 +36,6 @@ export type { Marketplace, TimeRange } from "./pricing.js";
 export { ALL_MARKETPLACES, EUR_MARKETPLACES, TIME_RANGE_DAYS } from "./pricing.js";
 
 export type {
-  AcquisitionSourceListResponse,
-  AcquisitionSourceResponse,
   AdminCardDetailResponse,
   AdminCardResponse,
   AdminPrintingImageResponse,

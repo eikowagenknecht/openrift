@@ -32,10 +32,6 @@ describe("queryKeys", () => {
     expect(queryKeys.copies.byCollection("abc")).toEqual(["copies", "abc"]);
   });
 
-  it("acquisitionSources.all", () => {
-    expect(queryKeys.acquisitionSources.all).toEqual(["acquisition-sources"]);
-  });
-
   it("ownedCount.all", () => {
     expect(queryKeys.ownedCount.all).toEqual(["ownedCount"]);
   });

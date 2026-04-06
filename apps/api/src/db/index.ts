@@ -1,5 +1,4 @@
 export type {
-  AcquisitionSourcesTable,
   CollectionEventsTable,
   CandidateCardsTable,
   CandidatePrintingsTable,

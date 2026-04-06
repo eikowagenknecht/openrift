@@ -168,19 +168,6 @@ Individual physical copies of printings owned by a user. Each copy lives in exac
 
 Indexes: `collection_id`, `(user_id, printing_id)`, `acquisition_source_id`.
 
-### `acquisition_sources`
-
-User-defined labels for where cards were acquired (e.g. "LGS", "TCGPlayer order #123").
-
-| Column        | Type        | Constraints                                 |
-| ------------- | ----------- | ------------------------------------------- |
-| `id`          | uuid        | primary key, default uuidv7()               |
-| `user_id`     | text        | not null, FK → users.id (on delete cascade) |
-| `name`        | text        | not null                                    |
-| `description` | text        | nullable                                    |
-| `created_at`  | timestamptz | not null, default now()                     |
-| `updated_at`  | timestamptz | not null, default now()                     |
-
 ## Deck Tables
 
 ### `decks`
@@ -672,11 +659,6 @@ Source-specific secondary price columns:
 | POST   | `/api/copies/dispose`                | Dispose copies                                       |
 | GET    | `/api/copies/count`                  | Owned copy count per printing                        |
 | GET    | `/api/copies/:id`                    | Get single copy                                      |
-| GET    | `/api/acquisition-sources`           | List acquisition sources                             |
-| POST   | `/api/acquisition-sources`           | Create acquisition source                            |
-| GET    | `/api/acquisition-sources/:id`       | Get single acquisition source                        |
-| PATCH  | `/api/acquisition-sources/:id`       | Update acquisition source                            |
-| DELETE | `/api/acquisition-sources/:id`       | Delete acquisition source                            |
 | GET    | `/api/decks`                         | List user's decks                                    |
 | POST   | `/api/decks`                         | Create deck                                          |
 | GET    | `/api/decks/:id`                     | Get deck with cards                                  |

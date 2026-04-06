@@ -287,15 +287,6 @@ export interface CollectionsTable {
   updatedAt: UpdatedAt;
 }
 
-export interface AcquisitionSourcesTable {
-  id: Generated<string>;
-  userId: string;
-  name: string;
-  description: string | null;
-  createdAt: CreatedAt;
-  updatedAt: UpdatedAt;
-}
-
 export interface CopiesTable {
   id: Generated<string>;
   userId: string;
@@ -729,7 +720,6 @@ export interface Database {
 
   // Collection tracking (migration 009)
   collections: CollectionsTable;
-  acquisitionSources: AcquisitionSourcesTable;
   copies: CopiesTable;
   collectionEvents: CollectionEventsTable;
   decks: DecksTable;

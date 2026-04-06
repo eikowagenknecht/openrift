@@ -1,6 +1,4 @@
 export type {
-  AcquisitionSourceListResponse,
-  AcquisitionSourceResponse,
   ActivityAction,
   CollectionEventListResponse,
   CollectionEventResponse,

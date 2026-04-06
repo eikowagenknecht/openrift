@@ -73,16 +73,6 @@ export const updateCollectionSchema = z.object({
   sortOrder: z.number().int().optional(),
 });
 
-export const createAcquisitionSourceSchema = z.object({
-  name: z.string().min(1).max(200),
-  description: z.string().max(1000).nullish(),
-});
-
-export const updateAcquisitionSourceSchema = z.object({
-  name: z.string().min(1).max(200).optional(),
-  description: z.string().max(1000).nullish(),
-});
-
 export const addCopiesSchema = z.object({
   copies: z
     .array(

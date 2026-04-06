@@ -44,10 +44,12 @@ if (flag?.enabled) {
 
 ## Active flags
 
-| Key                   | Description                                            | Gated areas                                                                                     |
-| --------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| `collection`          | Collection feature (browse, manage, add cards)         | Header nav link, `/collections` route tree                                                      |
-| `acquisition-sources` | Track where cards were acquired (stores, trades, etc.) | Source selector in add-to-collection flow, "Sources" sidebar link, `/collections/sources` route |
+| Key          | Description                                    | Gated areas                                |
+| ------------ | ---------------------------------------------- | ------------------------------------------ |
+| `collection` | Collection feature (browse, manage, add cards) | Header nav link, `/collections` route tree |
+| `decks`      | Deck builder feature                           | Header nav link, `/decks` route tree       |
+| `rules`      | Game rules page                                | Header nav link, `/rules` route            |
+| `unfinished` | Show unfinished/draft help articles            | Help index page, help article pages        |
 
 Keep this table up to date when adding or removing flags.
 
