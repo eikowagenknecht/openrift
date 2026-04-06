@@ -15,6 +15,7 @@ import { deckZonesRepo } from "./repositories/deck-zones.js";
 import { decksRepo } from "./repositories/decks.js";
 import { enumsRepo } from "./repositories/enums.js";
 import { featureFlagsRepo } from "./repositories/feature-flags.js";
+import { finishesRepo } from "./repositories/finishes.js";
 import { healthRepo } from "./repositories/health.js";
 import { ignoredCandidatesRepo } from "./repositories/ignored-candidates.js";
 import { ingestRepo } from "./repositories/ingest.js";
@@ -59,6 +60,7 @@ export interface Repos {
   decks: ReturnType<typeof decksRepo>;
   enums: ReturnType<typeof enumsRepo>;
   featureFlags: ReturnType<typeof featureFlagsRepo>;
+  finishes: ReturnType<typeof finishesRepo>;
   userFeatureFlags: ReturnType<typeof userFeatureFlagsRepo>;
   health: ReturnType<typeof healthRepo>;
   keywordStyles: ReturnType<typeof keywordStylesRepo>;
@@ -111,6 +113,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     decks: decksRepo(db),
     enums: enumsRepo(db),
     featureFlags: featureFlagsRepo(db),
+    finishes: finishesRepo(db),
     userFeatureFlags: userFeatureFlagsRepo(db),
     health: healthRepo(db),
     keywordStyles: keywordStylesRepo(db),

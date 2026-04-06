@@ -8,6 +8,7 @@ import { adminCardsRoute } from "./cards/index.js";
 import { catalogRoute } from "./catalog.js";
 import { adminDeckZonesRoute } from "./deck-zones.js";
 import { adminFeatureFlagsRoute } from "./feature-flags.js";
+import { adminFinishesRoute } from "./finishes.js";
 import { adminFormatsRoute } from "./formats.js";
 import { ignoredCandidatesRoute } from "./ignored-candidates.js";
 import { ignoredProductsRoute } from "./ignored-products.js";
@@ -114,4 +115,5 @@ export const adminRoute = app
   .route("/admin", adminUserFeatureFlagsRoute)
   .route("/admin", adminRulesRoute)
   .route("/admin", adminStatusRoute)
-  .route("/admin", adminKeywordsRoute);
+  .route("/admin", adminKeywordsRoute)
+  .route("/admin", adminFinishesRoute);
