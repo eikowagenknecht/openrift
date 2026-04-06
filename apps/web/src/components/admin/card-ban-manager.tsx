@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -81,7 +82,7 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
       </div>
 
       {isLoading ? (
-        <p className="text-muted-foreground text-sm">Loading…</p>
+        <p className="text-muted-foreground">Loading…</p>
       ) : hasBans ? (
         <div className="space-y-1.5">
           {bans.map((ban) =>
@@ -90,31 +91,28 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
                 key={ban.id}
                 className="flex flex-wrap items-end gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-1.5"
               >
-                <Badge variant="destructive" className="self-center text-xs">
+                <Badge variant="destructive" className="self-center">
                   {ban.formatName}
                 </Badge>
                 <div className="space-y-1">
-                  <Label className="text-xs">Banned at</Label>
-                  <Input
-                    type="date"
-                    value={editBannedAt}
-                    onChange={(event) => setEditBannedAt(event.target.value)}
-                    className="h-7 w-36 text-xs"
+                  <Label>Banned at</Label>
+                  <DatePicker
+                    value={editBannedAt || null}
+                    onChange={setEditBannedAt}
+                    className="w-44"
                   />
                 </div>
                 <div className="min-w-0 flex-1 space-y-1">
-                  <Label className="text-xs">Reason (optional)</Label>
+                  <Label>Reason (optional)</Label>
                   <Input
                     value={editReason}
                     onChange={(event) => setEditReason(event.target.value)}
                     placeholder="e.g. Enables degenerate combo…"
-                    className="h-7 text-xs"
                   />
                 </div>
                 <Button
                   variant="ghost"
-                  size="icon-sm"
-                  className="size-5"
+                  size="icon"
                   onClick={() => {
                     updateBan.mutate(
                       {
@@ -128,15 +126,10 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
                   }}
                   disabled={updateBan.isPending}
                 >
-                  <CheckIcon className="size-3" />
+                  <CheckIcon />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="size-5"
-                  onClick={() => setEditingBanId(null)}
-                >
-                  <XIcon className="size-3" />
+                <Button variant="ghost" size="icon" onClick={() => setEditingBanId(null)}>
+                  <XIcon />
                 </Button>
               </div>
             ) : (
@@ -144,35 +137,28 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
                 key={ban.id}
                 className="flex items-center gap-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-1.5"
               >
-                <Badge variant="destructive" className="text-xs">
-                  {ban.formatName}
-                </Badge>
-                <span className="text-muted-foreground text-xs">since {ban.bannedAt}</span>
-                {ban.reason && (
-                  <span className="text-muted-foreground truncate text-xs italic">
-                    {ban.reason}
-                  </span>
-                )}
+                <Badge variant="destructive">{ban.formatName}</Badge>
+                <span className="text-muted-foreground">since {ban.bannedAt}</span>
+                {ban.reason && <span className="text-muted-foreground italic">{ban.reason}</span>}
                 <Button
                   variant="ghost"
-                  size="icon-sm"
-                  className="ml-auto size-5"
+                  size="icon"
+                  className="ml-auto"
                   onClick={() => {
                     setEditingBanId(ban.id);
                     setEditBannedAt(ban.bannedAt);
                     setEditReason(ban.reason ?? "");
                   }}
                 >
-                  <PencilIcon className="size-3" />
+                  <PencilIcon />
                 </Button>
                 <Button
                   variant="ghost"
-                  size="icon-sm"
-                  className="size-5"
+                  size="icon"
                   onClick={() => removeBan.mutate({ cardId, formatId: ban.formatId })}
                   disabled={removeBan.isPending}
                 >
-                  <XIcon className="size-3" />
+                  <XIcon />
                 </Button>
               </div>
             ),
@@ -183,12 +169,12 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
       {showForm ? (
         <div className="flex flex-wrap items-end gap-2 rounded-md border p-3">
           <div className="space-y-1">
-            <Label className="text-xs">Format</Label>
+            <Label>Format</Label>
             <Select
               value={effectiveFormatId}
               onValueChange={(value) => value && setFormatId(value)}
             >
-              <SelectTrigger size="sm" className="w-32 text-xs">
+              <SelectTrigger className="w-32">
                 <SelectValue>{(value: string) => formatNameById.get(value) ?? value}</SelectValue>
               </SelectTrigger>
               <SelectContent>
@@ -201,48 +187,27 @@ export function CardBanManager({ cardId, showForm, onShowFormChange }: CardBanMa
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Banned at</Label>
-            <Input
-              type="date"
-              value={bannedAt}
-              onChange={(e) => setBannedAt(e.target.value)}
-              className="h-7 w-36 text-xs"
-            />
+            <Label>Banned at</Label>
+            <DatePicker value={bannedAt || null} onChange={setBannedAt} className="w-44" />
           </div>
           <div className="min-w-0 flex-1 space-y-1">
-            <Label className="text-xs">Reason (optional)</Label>
+            <Label>Reason (optional)</Label>
             <Input
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. Enables degenerate combo…"
-              className="h-7 text-xs"
             />
           </div>
-          <Button
-            size="sm"
-            className="h-7 text-xs"
-            onClick={handleCreate}
-            disabled={createBan.isPending || !effectiveFormatId}
-          >
+          <Button onClick={handleCreate} disabled={createBan.isPending || !effectiveFormatId}>
             Ban
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => onShowFormChange?.(false)}
-          >
+          <Button variant="ghost" onClick={() => onShowFormChange?.(false)}>
             Cancel
           </Button>
         </div>
       ) : hasBans ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-6 text-xs"
-          onClick={() => onShowFormChange?.(true)}
-        >
-          <PlusIcon className="mr-1 size-3" />
+        <Button variant="outline" onClick={() => onShowFormChange?.(true)}>
+          <PlusIcon className="mr-1" />
           Add ban
         </Button>
       ) : null}

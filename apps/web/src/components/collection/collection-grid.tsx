@@ -80,7 +80,7 @@ function AddedPill({
       type="button"
       onClick={() => useAddModeStore.getState().toggleAddedList()}
       className={cn(
-        "rounded-full font-medium whitespace-nowrap transition-colors",
+        "rounded-lg font-medium whitespace-nowrap transition-colors",
         size === "desktop" ? "h-8 px-3 text-sm" : "px-2 py-0.5 text-xs",
         active
           ? "bg-primary text-primary-foreground"
@@ -599,9 +599,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         {mode === "add" && (
           <div className="hidden items-center gap-3 md:flex">
             {addedPillDesktop}
-            <Button className="h-8" size="sm" onClick={handleCloseBrowsing}>
-              Done
-            </Button>
+            <Button onClick={handleCloseBrowsing}>Done</Button>
           </div>
         )}
         {mode !== "add" && (

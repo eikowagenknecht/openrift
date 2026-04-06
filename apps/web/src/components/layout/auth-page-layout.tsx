@@ -10,11 +10,11 @@ export function AuthPageLayout({
   size = "md",
 }: {
   children: ReactNode;
-  size?: "md" | "4xl";
+  size?: "md" | "2xl";
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center p-3">
-      <div className={`w-full max-w-sm ${size === "4xl" ? "md:max-w-4xl" : "md:max-w-md"}`}>
+      <div className={`w-full max-w-sm ${size === "2xl" ? "md:max-w-2xl" : "md:max-w-md"}`}>
         {children}
       </div>
     </div>

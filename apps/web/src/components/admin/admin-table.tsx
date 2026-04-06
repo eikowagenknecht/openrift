@@ -325,7 +325,7 @@ export function AdminTable<TData, TDraft = TData>({
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1">{toolbar}</div>
           {add && !adding && (
-            <Button variant="outline" size="sm" onClick={startAdding}>
+            <Button variant="outline" onClick={startAdding}>
               {add.label ?? "Add"}
             </Button>
           )}
@@ -544,11 +544,11 @@ function DeleteButton<TData>({
     return (
       <AlertDialog>
         <AlertDialogTrigger
-          render={<Button variant="ghost" size="icon" className="text-destructive h-8 w-8" />}
+          render={<Button variant="ghost" size="icon" className="text-destructive" />}
         >
           <Trash2Icon className="h-4 w-4" />
         </AlertDialogTrigger>
-        <AlertDialogContent size="sm">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{title}</AlertDialogTitle>
             <AlertDialogDescription>{description}</AlertDialogDescription>
@@ -578,7 +578,6 @@ function DeleteButton<TData>({
   return (
     <Button
       variant="ghost"
-      size="sm"
       className="text-destructive hover:text-destructive"
       onClick={async () => {
         try {
