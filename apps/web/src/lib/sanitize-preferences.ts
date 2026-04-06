@@ -124,7 +124,7 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
     fancyFan,
     foilEffect,
     cardTilt,
-    marketplaceOrder: safeOrder && safeOrder.length > 0 ? safeOrder : null,
+    marketplaceOrder: safeOrder,
     languages: safeLanguages,
   };
 }
