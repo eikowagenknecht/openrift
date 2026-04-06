@@ -30,9 +30,7 @@ export function useCopies(collectionId?: string) {
 
 export function useAddCopies() {
   return useMutationWithInvalidation({
-    mutationFn: async (body: {
-      copies: { printingId: string; collectionId?: string; acquisitionSourceId?: string }[];
-    }) => {
+    mutationFn: async (body: { copies: { printingId: string; collectionId?: string }[] }) => {
       const res = await client.api.v1.copies.$post({ json: body });
       assertOk(res);
       return await res.json();

@@ -7,7 +7,7 @@ const COPY_ROW = {
   id: "cp-1",
   printingId: "p-1",
   collectionId: "col-1",
-  acquisitionSourceId: null,
+
   createdAt: new Date(),
   updatedAt: new Date(),
   cardId: "c-1",
@@ -73,9 +73,7 @@ describe("copiesRepo", () => {
   });
 
   it("insertBatch returns inserted copies", async () => {
-    const db = createMockDb([
-      { id: "cp-1", printingId: "p-1", collectionId: "col-1", acquisitionSourceId: null },
-    ]);
+    const db = createMockDb([{ id: "cp-1", printingId: "p-1", collectionId: "col-1" }]);
     const repo = copiesRepo(db);
     const result = await repo.insertBatch([
       { userId: "u1", printingId: "p-1", collectionId: "col-1" } as any,
@@ -89,7 +87,7 @@ describe("copiesRepo", () => {
         id: "cp-1",
         printingId: "p-1",
         collectionId: "col-1",
-        acquisitionSourceId: null,
+
         collectionName: "Main",
       },
     ]);

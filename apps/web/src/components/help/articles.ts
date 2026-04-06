@@ -29,7 +29,7 @@ export const helpArticles = new Map<string, HelpArticle>([
         "A transparent comparison with other Riftbound card browsers — what we do well and where we're still catching up.",
       icon: ScaleIcon,
       component: () => import("./articles/why-openrift"),
-      featureFlag: "unfinished",
+      featureFlag: "help",
     },
   ],
   [

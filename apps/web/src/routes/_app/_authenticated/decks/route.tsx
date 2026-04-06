@@ -1,18 +1,8 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import type { FeatureFlags } from "@/lib/feature-flags";
-import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 
 export const Route = createFileRoute("/_app/_authenticated/decks")({
-  beforeLoad: async ({ context }) => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
-    if (!featureEnabled(flags, "decks")) {
-      throw redirect({ to: "/cards" });
-    }
-  },
   component: DecksLayout,
   errorComponent: RouteErrorFallback,
 });

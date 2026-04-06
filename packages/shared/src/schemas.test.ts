@@ -90,13 +90,12 @@ describe("addCopiesSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts copies with optional collectionId and acquisitionSourceId", () => {
+  it("accepts copies with optional collectionId", () => {
     const result = addCopiesSchema.safeParse({
       copies: [
         {
           printingId: "550e8400-e29b-41d4-a716-446655440000",
           collectionId: "550e8400-e29b-41d4-a716-446655440001",
-          acquisitionSourceId: "550e8400-e29b-41d4-a716-446655440002",
         },
       ],
     });

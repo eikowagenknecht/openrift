@@ -360,12 +360,10 @@ export function Header() {
   const { data: session, isPending } = useSession();
   const gravatarUrl = useGravatarUrl(session?.user?.email);
   const rulesEnabled = useFeatureEnabled("rules");
-  const collectionEnabled = useFeatureEnabled("collection");
-  const decksEnabled = useFeatureEnabled("decks");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const showRules = rulesEnabled;
-  const showCollection = Boolean(session?.user) && collectionEnabled;
-  const showDecks = Boolean(session?.user) && decksEnabled;
+  const showCollection = Boolean(session?.user);
+  const showDecks = Boolean(session?.user);
 
   return (
     <header className="bg-background/80 sticky top-0 z-50 border-b backdrop-blur-lg">

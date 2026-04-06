@@ -7,14 +7,12 @@ import { ensureInbox } from "./inbox.js";
 interface AddCopyInput {
   printingId: string;
   collectionId?: string;
-  acquisitionSourceId?: string;
 }
 
 interface AddCopyResult {
   id: string;
   printingId: string;
   collectionId: string;
-  acquisitionSourceId: string | null;
 }
 
 /**
@@ -48,7 +46,6 @@ export async function addCopies(
       userId: userId,
       printingId: item.printingId,
       collectionId: item.collectionId ?? inboxId,
-      acquisitionSourceId: item.acquisitionSourceId ?? null,
     }));
 
     const copyRows = await trxRepos.copies.insertBatch(copyValues);
@@ -77,7 +74,6 @@ export async function addCopies(
     id: r.id,
     printingId: r.printingId,
     collectionId: r.collectionId,
-    acquisitionSourceId: r.acquisitionSourceId ?? null,
   }));
 }
 

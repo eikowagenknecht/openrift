@@ -23,7 +23,6 @@ function createMockRepos(overrides: {
     id: string;
     printingId: string;
     collectionId: string;
-    acquisitionSourceId: string | null;
   }[];
   collections?: { id: string; name: string }[];
   targetCollection?: { id: string; name: string } | undefined;
@@ -32,7 +31,6 @@ function createMockRepos(overrides: {
     printingId: string;
     collectionId: string;
     collectionName: string;
-    acquisitionSourceId?: string | null;
   }[];
 }) {
   const repos = {
@@ -63,9 +61,7 @@ function createMockRepos(overrides: {
 describe("addCopies", () => {
   it("creates copies in the inbox when no collectionId specified", async () => {
     const repos = createMockRepos({
-      insertedCopies: [
-        { id: "copy-1", printingId: "p-1", collectionId: "inbox-id", acquisitionSourceId: null },
-      ],
+      insertedCopies: [{ id: "copy-1", printingId: "p-1", collectionId: "inbox-id" }],
       collections: [{ id: "inbox-id", name: "Inbox" }],
     });
     const transact = mockTransact(repos);
@@ -75,7 +71,6 @@ describe("addCopies", () => {
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("copy-1");
     expect(result[0].collectionId).toBe("inbox-id");
-    expect(result[0].acquisitionSourceId).toBeNull();
   });
 
   it("validates that explicit collections belong to the user", async () => {
@@ -93,28 +88,24 @@ describe("addCopies", () => {
     ).rejects.toThrow(AppError);
   });
 
-  it("creates copies with explicit collection and source", async () => {
+  it("creates copies with explicit collection", async () => {
     const repos = createMockRepos({
       ownedCollections: [{ id: "col-1" }],
-      insertedCopies: [
-        { id: "copy-1", printingId: "p-1", collectionId: "col-1", acquisitionSourceId: "src-1" },
-      ],
+      insertedCopies: [{ id: "copy-1", printingId: "p-1", collectionId: "col-1" }],
       collections: [{ id: "col-1", name: "Main" }],
     });
     const transact = mockTransact(repos);
 
     const result = await addCopies(repos, transact, "user-1", [
-      { printingId: "p-1", collectionId: "col-1", acquisitionSourceId: "src-1" },
+      { printingId: "p-1", collectionId: "col-1" },
     ]);
 
-    expect(result[0].acquisitionSourceId).toBe("src-1");
+    expect(result[0].collectionId).toBe("col-1");
   });
 
   it("completes the full flow including event logging", async () => {
     const repos = createMockRepos({
-      insertedCopies: [
-        { id: "copy-1", printingId: "p-1", collectionId: "inbox-id", acquisitionSourceId: null },
-      ],
+      insertedCopies: [{ id: "copy-1", printingId: "p-1", collectionId: "inbox-id" }],
       collections: [{ id: "inbox-id", name: "Inbox" }],
     });
     const transact = mockTransact(repos);
@@ -170,7 +161,6 @@ describe("disposeCopies", () => {
           printingId: "p-1",
           collectionId: "col-1",
           collectionName: "Main",
-          acquisitionSourceId: "src-1",
         },
       ],
     });
@@ -189,7 +179,6 @@ describe("disposeCopies", () => {
           printingId: "p-1",
           collectionId: "col-1",
           collectionName: "Main",
-          acquisitionSourceId: "src-1",
         },
       ],
     });
@@ -206,14 +195,12 @@ describe("disposeCopies", () => {
           printingId: "p-1",
           collectionId: "col-1",
           collectionName: "Main",
-          acquisitionSourceId: "src-1",
         },
         {
           id: "copy-2",
           printingId: "p-2",
           collectionId: "col-1",
           collectionName: "Main",
-          acquisitionSourceId: null,
         },
       ],
     });
@@ -228,8 +215,8 @@ describe("addCopies — additional branches", () => {
     const repos = createMockRepos({
       ownedCollections: [{ id: "col-1" }],
       insertedCopies: [
-        { id: "copy-1", printingId: "p-1", collectionId: "col-1", acquisitionSourceId: null },
-        { id: "copy-2", printingId: "p-2", collectionId: "col-1", acquisitionSourceId: null },
+        { id: "copy-1", printingId: "p-1", collectionId: "col-1" },
+        { id: "copy-2", printingId: "p-2", collectionId: "col-1" },
       ],
       collections: [{ id: "col-1", name: "Main" }],
     });
@@ -243,18 +230,16 @@ describe("addCopies — additional branches", () => {
     expect(result).toHaveLength(2);
   });
 
-  it("maps acquisitionSourceId to null when not provided", async () => {
+  it("uses inbox when no collectionId provided", async () => {
     const repos = createMockRepos({
-      insertedCopies: [
-        { id: "copy-1", printingId: "p-1", collectionId: "inbox-id", acquisitionSourceId: null },
-      ],
+      insertedCopies: [{ id: "copy-1", printingId: "p-1", collectionId: "inbox-id" }],
       collections: [{ id: "inbox-id", name: "Inbox" }],
     });
     const transact = mockTransact(repos);
 
     const result = await addCopies(repos, transact, "user-1", [{ printingId: "p-1" }]);
 
-    expect(result[0].acquisitionSourceId).toBeNull();
+    expect(result[0].collectionId).toBe("inbox-id");
   });
 });
 
