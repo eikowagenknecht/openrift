@@ -165,7 +165,6 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
       <div className="flex flex-wrap items-center gap-2">
         <Button
           variant={activeStatus === "unchecked" ? "default" : "outline"}
-          size="sm"
           onClick={() => toggleStatus("unchecked")}
         >
           Review ({uncheckedCount})

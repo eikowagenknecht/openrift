@@ -272,7 +272,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
                 {groups.length > 1 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger
-                      render={<Button variant="ghost" size="icon" className="size-7 shrink-0" />}
+                      render={<Button variant="ghost" size="icon" className="shrink-0" />}
                     >
                       <EllipsisVerticalIcon className="size-3.5" />
                     </DropdownMenuTrigger>

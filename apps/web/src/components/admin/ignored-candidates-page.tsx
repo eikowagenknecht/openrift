@@ -103,8 +103,6 @@ export function IgnoredCandidatesPage() {
           actions={(r) => (
             <Button
               variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
               onClick={() =>
                 unignoreCard.mutate({ provider: r.provider, externalId: r.externalId })
               }

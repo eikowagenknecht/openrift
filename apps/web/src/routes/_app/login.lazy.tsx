@@ -11,7 +11,7 @@ function LoginPage() {
   const { redirect: redirectTo = "/", email } = Route.useSearch();
 
   return (
-    <AuthPageLayout size="4xl">
+    <AuthPageLayout size="2xl">
       <LoginForm redirectTo={redirectTo} initialEmail={email} />
     </AuthPageLayout>
   );

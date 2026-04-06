@@ -291,7 +291,6 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
             <Button
               variant="ghost"
               size="icon"
-              className="size-7"
               disabled={!prevNextCards.prev}
               onClick={() =>
                 prevNextCards.prev &&
@@ -301,12 +300,11 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                 })
               }
             >
-              <ChevronLeftIcon className="size-4" />
+              <ChevronLeftIcon />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              className="size-7"
               disabled={!prevNextCards.next}
               onClick={() =>
                 prevNextCards.next &&
@@ -316,38 +314,33 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                 })
               }
             >
-              <ChevronRightIcon className="size-4" />
+              <ChevronRightIcon />
             </Button>
           </div>
           <h2 className="text-lg font-semibold">{canonicalName}</h2>
           <Button
             variant={hasUnchecked ? "default" : "outline"}
-            size="sm"
-            className="h-7 gap-1.5 text-xs"
+            className="gap-1.5"
             disabled={isCheckingAll}
             onClick={() => void handleCheckAllAndNext()}
           >
-            {isCheckingAll ? (
-              <LoaderIcon className="size-3.5 animate-spin" />
-            ) : (
-              <CheckCheckIcon className="size-3.5" />
-            )}
+            {isCheckingAll ? <LoaderIcon className="animate-spin" /> : <CheckCheckIcon />}
             {isCheckingAll ? "Checking…" : "Check all & next"}
             <Kbd className="bg-background/20 pointer-events-none ml-1 leading-none text-inherit opacity-60">
               Ctrl ↵
             </Kbd>
           </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" className="size-7" />}>
-              <EllipsisVerticalIcon className="size-4" />
+            <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
+              <EllipsisVerticalIcon />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setShowBanForm(true)}>
-                <BanIcon className="mr-2 size-3.5" />
+                <BanIcon className="mr-2" />
                 Add ban
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowErrataForm(true)}>
-                <FileWarningIcon className="mr-2 size-3.5" />
+                <FileWarningIcon className="mr-2" />
                 {card.errata ? "Edit errata" : "Add errata"}
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -360,8 +353,6 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
               <span>&rarr; {expectedCardId}</span>
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-5 text-xs"
                 disabled={renameCard.isPending}
                 onClick={() =>
                   renameCard.mutate(
@@ -377,7 +368,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                   )
                 }
               >
-                <RefreshCwIcon className="mr-1 size-3" />
+                <RefreshCwIcon className="mr-1" />
                 Regenerate
               </Button>
             </>
@@ -395,12 +386,10 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
           {sources.some((s) => !s.checkedAt) && (
             <Button
               variant="outline"
-              size="sm"
-              className="h-6 text-xs"
               disabled={checkAllCardSources.isPending}
               onClick={() => checkAllCardSources.mutate(card.id)}
             >
-              <CheckCheckIcon className="mr-1 size-3" />
+              <CheckCheckIcon className="mr-1" />
               Check {sources.filter((s) => !s.checkedAt).length} unchecked
             </Button>
           )}
@@ -482,7 +471,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                   }
                 }}
               >
-                <CopyCheckIcon className="mr-2 size-3.5" />
+                <CopyCheckIcon className="mr-2" />
                 Accept all fields
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -493,7 +482,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                   })
                 }
               >
-                <BanIcon className="mr-2 size-3.5" />
+                <BanIcon className="mr-2" />
                 Ignore permanently
               </DropdownMenuItem>
             </>
@@ -518,8 +507,6 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
           <h3 className="font-medium">Printings</h3>
           <Button
             variant="outline"
-            size="sm"
-            className="h-6 text-xs"
             onClick={() => {
               setCollapsedPrintings(allExpanded ? new Set(allPrintingKeys) : new Set());
             }}
@@ -566,42 +553,31 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                 onClick={() => togglePrinting(printingId)}
               >
                 <span className="flex items-center gap-2">
-                  {isExpanded ? (
-                    <ChevronDownIcon className="size-4" />
-                  ) : (
-                    <ChevronRightIcon className="size-4" />
-                  )}
+                  {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
                   <span>{printingLabel}</span>
                   <span className="text-muted-foreground font-normal">
                     ({allSources.length} source
                     {allSources.length === 1 ? "" : "s"})
                   </span>
-                  {allChecked && <CheckCheckIcon className="size-3.5 text-green-600" />}
-                  {!activeImage && (
-                    <Badge variant="destructive" className="text-xs">
-                      no image
-                    </Badge>
-                  )}
+                  {allChecked && <CheckCheckIcon className="text-green-600" />}
+                  {!activeImage && <Badge variant="destructive">no image</Badge>}
                 </span>
                 {allSources.some((ps) => !ps.checkedAt) && (
                   <Button
                     variant="outline"
-                    size="sm"
-                    className="h-6 text-xs"
                     disabled={checkAllCandidatePrintings.isPending}
                     onClick={(e) => {
                       e.stopPropagation();
                       checkAllCandidatePrintings.mutate({ printingId });
                     }}
                   >
-                    <CheckCheckIcon className="mr-1 size-3" />
+                    <CheckCheckIcon className="mr-1" />
                     Check {allSources.filter((ps) => !ps.checkedAt).length} unchecked
                   </Button>
                 )}
                 <Button
                   variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive ml-auto h-6 text-xs"
+                  className="text-destructive hover:text-destructive ml-auto"
                   disabled={deletePrintingMutation.isPending}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -614,7 +590,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                     }
                   }}
                 >
-                  <Trash2Icon className="mr-1 size-3" />
+                  <Trash2Icon className="mr-1" />
                   Delete
                 </Button>
               </div>
@@ -707,7 +683,6 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
             return (
               <div className="flex items-center">
                 <Button
-                  size="sm"
                   variant="default"
                   disabled={linkPrintingSources.isPending}
                   onClick={() => {
@@ -726,7 +701,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                     }
                   }}
                 >
-                  <ArrowRightIcon className="mr-1 size-3.5" />
+                  <ArrowRightIcon className="mr-1" />
                   Assign all {matchable.length} groups to existing
                 </Button>
               </div>

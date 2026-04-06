@@ -177,7 +177,7 @@ export function CollectionSidebar() {
         </SidebarGroup>
         <SidebarGroup>
           <SidebarGroupLabel>Manage</SidebarGroupLabel>
-          <SidebarMenu>
+          <SidebarMenu className="gap-1">
             <SidebarMenuItem>
               <SidebarMenuButton
                 isActive={currentPath === "/collections/import"}

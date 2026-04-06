@@ -43,7 +43,6 @@ export function CardNameCell({
       {!row.cardSlug && row.suggestedCardSlug && (
         <Button
           variant="outline"
-          size="sm"
           className="ml-2 h-5 text-xs"
           disabled={linkCard.isPending}
           onClick={() => {
@@ -60,7 +59,6 @@ export function CardNameCell({
       {!row.cardSlug && row.hasGallery && (
         <Button
           variant="outline"
-          size="sm"
           className="ml-2 h-5 text-xs"
           disabled={acceptGallery.isPending}
           onClick={() => acceptGallery.mutate(row.normalizedName)}

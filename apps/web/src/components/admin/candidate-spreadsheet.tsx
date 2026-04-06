@@ -419,9 +419,7 @@ export function CandidateSpreadsheet({
                   )}
                   <DropdownMenu>
                     <DropdownMenuTrigger
-                      render={
-                        <Button variant="ghost" size="icon" className="ml-auto size-6 shrink-0" />
-                      }
+                      render={<Button variant="ghost" size="icon" className="ml-auto shrink-0" />}
                     >
                       <EllipsisVerticalIcon className="size-3.5" />
                     </DropdownMenuTrigger>
@@ -568,7 +566,6 @@ export function CandidateSpreadsheet({
                       }}
                     >
                       <SelectTrigger
-                        size="sm"
                         className="h-6 w-full gap-1 rounded border-none px-1 text-sm shadow-none"
                         onClick={(e: React.MouseEvent) => e.stopPropagation()}
                       >

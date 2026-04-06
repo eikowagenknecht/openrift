@@ -573,7 +573,6 @@ function ManageProvidersCard({
           }}
           actions={(r) => (
             <Button
-              size="sm"
               variant="ghost"
               disabled={checkProvider.isPending}
               onClick={() => checkProvider.mutate(r.name)}

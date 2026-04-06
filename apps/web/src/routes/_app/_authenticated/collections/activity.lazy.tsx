@@ -168,23 +168,6 @@ function Toolbar({
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
-      {/* Action filter */}
-      <div className="flex gap-0.5">
-        {actionOptions.map((opt) => (
-          <Button
-            key={opt.value}
-            variant={actionFilter === opt.value ? "default" : "ghost"}
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={() => onActionChange(opt.value)}
-          >
-            {opt.label}
-          </Button>
-        ))}
-      </div>
-
-      <div className="bg-border hidden h-5 w-px sm:block" />
-
       {/* Collection filter */}
       <Select
         value={collectionFilter}
@@ -194,7 +177,7 @@ function Toolbar({
           ...Object.fromEntries(collections?.map((c) => [c.id, c.name]) ?? []),
         }}
       >
-        <SelectTrigger size="sm" className="h-7 w-auto text-xs" aria-label="Collection">
+        <SelectTrigger className="w-auto" aria-label="Collection">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -207,16 +190,27 @@ function Toolbar({
         </SelectContent>
       </Select>
 
-      <div className="bg-border hidden h-5 w-px sm:block" />
+      {/* Action filter */}
+      <div className="flex gap-0.5">
+        {actionOptions.map((opt) => (
+          <Button
+            key={opt.value}
+            variant={actionFilter === opt.value ? "default" : "ghost"}
+            className="px-2"
+            onClick={() => onActionChange(opt.value)}
+          >
+            {opt.label}
+          </Button>
+        ))}
+      </div>
 
       {/* Date filter */}
-      <div className="flex gap-0.5">
+      <div className="ml-auto flex gap-0.5">
         {dateOptions.map((opt) => (
           <Button
             key={opt.value}
             variant={datePreset === opt.value ? "default" : "ghost"}
-            size="sm"
-            className="h-7 px-2 text-xs"
+            className="px-2"
             onClick={() => onDateChange(opt.value)}
           >
             {opt.label}
@@ -508,7 +502,7 @@ function ActivityPage() {
   const byDate = Map.groupBy(filtered, (e) => dateKey(e.createdAt));
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="mx-auto w-full max-w-4xl">
       <Toolbar
         actionFilter={actionFilter}
         onActionChange={setActionFilter}

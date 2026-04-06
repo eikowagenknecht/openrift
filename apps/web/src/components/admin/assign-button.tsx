@@ -35,12 +35,7 @@ export function AssignButton({
 
   if (!open) {
     return (
-      <Button
-        variant="outline"
-        size="sm"
-        className="ml-2 h-5 text-xs"
-        onClick={() => setOpen(true)}
-      >
+      <Button variant="outline" className="ml-2 h-5 text-xs" onClick={() => setOpen(true)}>
         <LinkIcon className="size-3" />
         Assign
       </Button>
@@ -64,7 +59,6 @@ export function AssignButton({
       />
       <Button
         variant="ghost"
-        size="sm"
         className="ml-1 h-5 text-xs"
         aria-label="Close search"
         onClick={() => {
