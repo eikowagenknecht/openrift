@@ -79,7 +79,7 @@ function ResetButton({ onClick, label }: { onClick: () => void; label: string })
           <button
             type="button"
             onClick={onClick}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            className="text-muted-foreground hover:text-foreground relative z-10 p-1 transition-colors"
             aria-label={label}
           />
         }
