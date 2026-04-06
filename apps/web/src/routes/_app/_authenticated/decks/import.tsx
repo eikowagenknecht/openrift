@@ -405,7 +405,7 @@ function InputStep({
             value={deckFormat}
             onValueChange={(value) => onDeckFormatChange(value as DeckFormat)}
           >
-            <SelectTrigger id="import-deck-format" className="w-[160px]">
+            <SelectTrigger id="import-deck-format" className="mb-0 w-[160px]">
               <SelectValue>{(value: string) => DECK_FORMAT_LABELS[value] ?? value}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -577,7 +577,7 @@ function PreviewStep({
               value={deckFormat}
               onValueChange={(value) => onDeckFormatChange(value as DeckFormat)}
             >
-              <SelectTrigger id="preview-deck-format" className="w-[140px]">
+              <SelectTrigger id="preview-deck-format" className="mb-0 w-[140px]">
                 <SelectValue>{(value: string) => DECK_FORMAT_LABELS[value] ?? value}</SelectValue>
               </SelectTrigger>
               <SelectContent>
