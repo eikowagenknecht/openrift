@@ -276,35 +276,75 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
     code = code.slice(0, -5);
   }
 
-  // Try standard format: SET-NNN[a-z]?
-  const standardMatch = code.match(/^([A-Z]{2,4})-(\d+)([a-z]?)$/);
+  // Try standard format: SET-CCC[modifier]? (e.g. "OGN-001", "SFD-T01", "SFD-R04a", "OGN-123*")
+  const standardMatch = code.match(/^([A-Z]{3})-([A-Z0-9]{3})([a-z*]?)$/);
   if (standardMatch) {
-    const letterSuffix = standardMatch[3];
+    const { collectorNumber, artVariant, shortCode } = resolveCardModifier(
+      standardMatch[1],
+      standardMatch[2],
+      standardMatch[3],
+    );
     return {
       setPrefix: standardMatch[1],
-      collectorNumber: Number.parseInt(standardMatch[2], 10),
-      artVariant: letterSuffix ? "altart" : "normal",
+      collectorNumber,
+      artVariant,
       hasFoilSuffix,
-      shortCode: code,
+      shortCode,
     };
   }
 
-  // Try suffixed format: SET-NNN[a-z]?-PromoSuffix (e.g. "OGN-001-Nexus", "OGN-027a-Release")
-  const suffixMatch = code.match(/^([A-Z]{2,4})-(\d+)([a-z]?)-([A-Za-z]+)$/);
+  // Try suffixed format: SET-CCC[modifier]?-PromoSuffix (e.g. "OGN-001-Nexus", "OGN-027a-Release")
+  const suffixMatch = code.match(/^([A-Z]{3})-([A-Z0-9]{3})([a-z*]?)-([A-Za-z]+)$/);
   if (suffixMatch) {
-    const letterSuffix = suffixMatch[3];
-    const baseCode = `${suffixMatch[1]}-${suffixMatch[2]}${letterSuffix}`;
+    const { collectorNumber, artVariant, shortCode } = resolveCardModifier(
+      suffixMatch[1],
+      suffixMatch[2],
+      suffixMatch[3],
+    );
     return {
       setPrefix: suffixMatch[1],
-      collectorNumber: Number.parseInt(suffixMatch[2], 10),
-      artVariant: letterSuffix ? "altart" : "normal",
+      collectorNumber,
+      artVariant,
       hasFoilSuffix,
-      shortCode: baseCode,
+      shortCode,
       promoSuffix: suffixMatch[4],
     };
   }
 
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Shared card code helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Extracts collector number, art variant, and normalized short code from a
+ * parsed card code. The card number part is 3 alphanumeric chars (e.g. "001",
+ * "T01", "R04") and the modifier is an optional suffix ("a"/"b" = altart,
+ * "*" = signed/overnumbered).
+ * @returns Resolved card parts.
+ */
+function resolveCardModifier(
+  setPrefix: string,
+  cardNumber: string,
+  modifier: string,
+): { collectorNumber: number; artVariant: ArtVariant; shortCode: string } {
+  // Extract the numeric portion from the card number (e.g. "T01" → 1, "001" → 1)
+  const digits = cardNumber.replaceAll(/[A-Za-z]/g, "");
+  const collectorNumber = Number.parseInt(digits, 10);
+
+  let artVariant: ArtVariant;
+  if (modifier === "*") {
+    artVariant = "overnumbered";
+  } else if (modifier) {
+    artVariant = "altart";
+  } else {
+    artVariant = "normal";
+  }
+
+  const shortCode = `${setPrefix}-${cardNumber}${modifier}`;
+  return { collectorNumber, artVariant, shortCode };
 }
 
 // ---------------------------------------------------------------------------
@@ -375,7 +415,7 @@ function parseRiftCore(text: string): ParseResult {
       standardQtyCol === -1 ? 0 : Number.parseInt(row[standardQtyCol]?.trim() ?? "0", 10);
     const foilQty = foilQtyCol === -1 ? 0 : Number.parseInt(row[foilQtyCol]?.trim() ?? "0", 10);
 
-    if (!cardId) {
+    if (!cardId || cardId.startsWith("Exported from")) {
       continue;
     }
 
@@ -440,22 +480,21 @@ interface RiftCoreCardParts {
 }
 
 /**
- * Parses a RiftCore Card ID like "OGN-001" or "OGN-030A".
- * Normalizes the letter suffix to lowercase for matching.
+ * Parses a RiftCore Card ID like "OGN-001", "OGN-030A", "SFD-T01", or "OGN-123s".
+ * Normalizes letter suffixes to lowercase and "s" to "*" for matching.
  * @returns Parsed parts, or null if the format is unrecognized.
  */
 function parseRiftCoreCardId(cardId: string): RiftCoreCardParts | null {
-  // Match: SET-NUMBER with optional uppercase letter suffix
-  const match = cardId.match(/^([A-Z]{2,4})-(\d+)([A-Za-z]?)$/);
+  // Match: SET-CCC[modifier]? where CCC is 3 alphanumeric chars (e.g. "001", "T01", "R04")
+  // Modifier is an optional letter or * suffix (RiftCore uses uppercase, e.g. "A", "S")
+  const match = cardId.match(/^([A-Z]{3})-([A-Z0-9]{3})([A-Za-z*]?)$/);
   if (!match) {
     return null;
   }
 
-  const setPrefix = match[1];
-  const collectorNumber = Number.parseInt(match[2], 10);
-  const letterSuffix = match[3]?.toLowerCase() ?? "";
-  const artVariant: ArtVariant = letterSuffix ? "altart" : "normal";
-  const shortCode = `${setPrefix}-${match[2]}${letterSuffix}`;
+  // Normalize modifier to lowercase; RiftCore uses "S" where we use "*"
+  const rawModifier = match[3]?.toLowerCase() ?? "";
+  const modifier = rawModifier === "s" ? "*" : rawModifier;
 
-  return { setPrefix, collectorNumber, artVariant, shortCode };
+  return { setPrefix: match[1], ...resolveCardModifier(match[1], match[2], modifier) };
 }
