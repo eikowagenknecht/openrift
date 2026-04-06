@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { DeckCardBrowser } from "@/components/deck/deck-card-browser";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
+import { DeckRenameDialog } from "@/components/deck/deck-rename-dialog";
 import { DeckValidationBanner } from "@/components/deck/deck-validation-banner";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { ProxyExportDialog } from "@/components/deck/proxy-export-dialog";
@@ -22,9 +23,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import {
   NestedSidebar,
   SidebarContent,
@@ -32,7 +33,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useCards } from "@/hooks/use-cards";
-import { useDeckDetail, useSaveDeckCards, useUpdateDeck } from "@/hooks/use-decks";
+import { useDeckDetail, useSaveDeckCards } from "@/hooks/use-decks";
 import { getCardImageUrl } from "@/lib/images";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
@@ -44,34 +45,9 @@ interface DeckEditorPageProps {
 
 function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolean }) {
   const { data } = useDeckDetail(deckId);
-  const updateDeck = useUpdateDeck();
-  const [isEditing, setIsEditing] = useState(false);
-  const [draft, setDraft] = useState(data.deck.name);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [exportOpen, setExportOpen] = useState(false); // custom: controlled export dialog for mobile dropdown
-  const [proxyOpen, setProxyOpen] = useState(false); // custom: controlled proxy dialog for mobile dropdown
-
-  const commitRename = () => {
-    const trimmed = draft.trim();
-    if (trimmed && trimmed !== data.deck.name) {
-      updateDeck.mutate({ deckId, name: trimmed });
-    } else {
-      setDraft(data.deck.name);
-    }
-    setIsEditing(false);
-  };
-
-  const startEditing = () => {
-    setDraft(data.deck.name);
-    setIsEditing(true);
-  };
-
-  // Focus input when entering edit mode
-  useEffect(() => {
-    if (isEditing) {
-      inputRef.current?.select();
-    }
-  }, [isEditing]);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [proxyOpen, setProxyOpen] = useState(false);
 
   return (
     <div>
@@ -80,35 +56,9 @@ function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolea
           <ArrowLeftIcon className="size-5" />
         </Link>
 
-        {isEditing ? (
-          <Input
-            ref={inputRef}
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onBlur={commitRename}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                commitRename();
-              } else if (event.key === "Escape") {
-                setDraft(data.deck.name);
-                setIsEditing(false);
-              }
-            }}
-            className="min-w-0 flex-1 text-lg font-semibold"
-            maxLength={200}
-            // oxlint-disable-next-line jsx-a11y/no-autofocus -- intentional: inline editor should grab focus immediately
-            autoFocus
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={startEditing}
-            className="hover:bg-muted group flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1 text-left"
-          >
-            <h1 className="min-w-0 flex-1 truncate text-lg font-semibold">{data.deck.name}</h1>
-            <PencilIcon className="text-muted-foreground size-3.5 shrink-0 opacity-0 group-hover:opacity-100" />
-          </button>
-        )}
+        <h1 className="min-w-0 flex-1 truncate px-2 py-1 text-lg font-semibold">
+          {data.deck.name}
+        </h1>
 
         {/* custom: desktop — inline export buttons */}
         <div className="hidden md:flex md:items-center md:gap-2">
@@ -116,13 +66,18 @@ function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolea
           <ProxyExportDialog />
         </div>
 
-        {/* custom: mobile — overflow menu with export actions */}
-        <div className="md:hidden">
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
-              <EllipsisVerticalIcon className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+            <EllipsisVerticalIcon className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setRenameOpen(true)}>
+              <PencilIcon className="size-4" />
+              Rename
+            </DropdownMenuItem>
+            {/* custom: mobile-only export actions (desktop shows inline buttons) */}
+            <div className="md:hidden">
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setExportOpen(true)}>
                 <Share2Icon className="size-4" />
                 Export
@@ -131,17 +86,24 @@ function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolea
                 <PrinterIcon className="size-4" />
                 Proxies
               </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DeckExportDialog
-            deckId={deckId}
-            deckName={data.deck.name}
-            isDirty={isDirty}
-            open={exportOpen}
-            onOpenChange={setExportOpen}
-          />
-          <ProxyExportDialog open={proxyOpen} onOpenChange={setProxyOpen} />
-        </div>
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <DeckRenameDialog
+          deckId={deckId}
+          currentName={data.deck.name}
+          open={renameOpen}
+          onOpenChange={setRenameOpen}
+        />
+        <DeckExportDialog
+          deckId={deckId}
+          deckName={data.deck.name}
+          isDirty={isDirty}
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+        />
+        <ProxyExportDialog open={proxyOpen} onOpenChange={setProxyOpen} />
       </div>
     </div>
   );
