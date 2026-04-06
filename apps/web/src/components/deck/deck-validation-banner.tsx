@@ -66,7 +66,7 @@ function ViolationBadge({
 
       {/* Mobile: tap popover */}
       <Popover>
-        <PopoverTrigger className="flex md:hidden" render={<span />}>
+        <PopoverTrigger className="flex md:hidden" nativeButton={false} render={<span />}>
           {badge}
         </PopoverTrigger>
         <PopoverContent side="bottom" align="start" className="w-auto max-w-80 p-2">
