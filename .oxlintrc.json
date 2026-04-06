@@ -137,12 +137,6 @@
         "promise/prefer-await-to-callbacks": "off",
         "unicorn/no-useless-undefined": "off"
       }
-    },
-    {
-      "files": ["apps/api/**"],
-      "rules": {
-        "no-restricted-imports": "off"
-      }
     }
   ]
 }
