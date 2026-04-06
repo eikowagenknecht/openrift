@@ -8,7 +8,9 @@ export const Route = createLazyFileRoute("/_app/privacy-policy")({
 
 function PrivacyPolicyPage() {
   return (
-    <article className={`prose dark:prose-invert mx-auto max-w-2xl ${PAGE_PADDING}`}>
+    <article
+      className={`prose dark:prose-invert prose-headings:font-semibold prose-h1:text-2xl prose-h2:text-lg prose-h3:text-base mx-auto max-w-2xl ${PAGE_PADDING}`}
+    >
       <h1>Privacy Policy</h1>
 
       <h2>1. Controller</h2>
