@@ -25,14 +25,15 @@ interface ResolvedCard {
  *   1. Earliest set release date
  *   2. Short code (alphabetical — picks base variant over alt-art/overnumbered)
  *   3. Non-promo first
+ *   4. Normal finish before foil
  * Only EN-language printings are considered.
  *
  * @returns An object with resolver methods bound to the given `db`.
  */
 export function canonicalPrintingsRepo(db: Kysely<Database>) {
   /**
-   * Base query: EN-language printings joined to sets, sorted in canonical order.
-   * @returns A query builder with the canonical sort applied.
+   * Base query: EN-language printings joined to sets.
+   * @returns A query builder ready for further chaining.
    */
   function baseQuery() {
     return db
@@ -42,10 +43,12 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
   }
 
   /**
-   * Applies canonical sort order to a query.
-   * @returns The query with ordering applied.
+   * Appends canonical sort order to a query. Must be called AFTER the
+   * DISTINCT ON column's leading ORDER BY (PostgreSQL requires the
+   * DISTINCT ON expression to match the first ORDER BY expression).
+   * @returns The query with canonical ordering appended.
    */
-  function canonicalOrder<T extends ReturnType<typeof baseQuery>>(query: T): T {
+  function appendCanonicalOrder<T extends ReturnType<typeof baseQuery>>(query: T): T {
     return (
       query
         .orderBy("s.releasedAt", "asc")
@@ -72,12 +75,13 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
         return [];
       }
 
-      const rows = await canonicalOrder(baseQuery())
-        .select(["p.cardId", "p.shortCode"])
-        .where("p.cardId", "in", cardIds)
-        .distinctOn("p.cardId")
-        .orderBy("p.cardId")
-        .execute();
+      const rows = await appendCanonicalOrder(
+        baseQuery()
+          .select(["p.cardId", "p.shortCode"])
+          .where("p.cardId", "in", cardIds)
+          .distinctOn("p.cardId")
+          .orderBy("p.cardId"),
+      ).execute();
 
       return rows;
     },
@@ -92,20 +96,21 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
         return [];
       }
 
-      const rows = await baseQuery()
-        .innerJoin("cards as c", "c.id", "p.cardId")
-        .select([
-          "p.shortCode",
-          "p.cardId",
-          "c.name as cardName",
-          "c.type as cardType",
-          domainsArray("c.id").as("domains"),
-          superTypesArray("c.id").as("superTypes"),
-        ])
-        .where("p.shortCode", "in", shortCodes)
-        .distinctOn("p.shortCode")
-        .orderBy("p.shortCode")
-        .execute();
+      const rows = await appendCanonicalOrder(
+        baseQuery()
+          .innerJoin("cards as c", "c.id", "p.cardId")
+          .select([
+            "p.shortCode",
+            "p.cardId",
+            "c.name as cardName",
+            "c.type as cardType",
+            domainsArray("c.id").as("domains"),
+            superTypesArray("c.id").as("superTypes"),
+          ])
+          .where("p.shortCode", "in", shortCodes)
+          .distinctOn("p.shortCode")
+          .orderBy("p.shortCode"),
+      ).execute();
 
       return rows as ResolvedCard[];
     },
@@ -125,19 +130,21 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
       const uniqueNames = [...new Set(names)];
       const lowerNames = uniqueNames.map((name) => name.toLowerCase());
 
-      const rows = await canonicalOrder(baseQuery().innerJoin("cards as c", "c.id", "p.cardId"))
-        .select([
-          "p.shortCode",
-          "c.id as cardId",
-          "c.name as cardName",
-          "c.type as cardType",
-          domainsArray("c.id").as("domains"),
-          superTypesArray("c.id").as("superTypes"),
-        ])
-        .where((eb) => eb.fn("lower", ["c.name"]), "in", lowerNames)
-        .distinctOn((eb) => eb.fn("lower", ["c.name"]))
-        .orderBy((eb) => eb.fn("lower", ["c.name"]))
-        .execute();
+      const rows = await appendCanonicalOrder(
+        baseQuery()
+          .innerJoin("cards as c", "c.id", "p.cardId")
+          .select([
+            "p.shortCode",
+            "c.id as cardId",
+            "c.name as cardName",
+            "c.type as cardType",
+            domainsArray("c.id").as("domains"),
+            superTypesArray("c.id").as("superTypes"),
+          ])
+          .where((eb) => eb.fn("lower", ["c.name"]), "in", lowerNames)
+          .distinctOn((eb) => eb.fn("lower", ["c.name"]))
+          .orderBy((eb) => eb.fn("lower", ["c.name"])),
+      ).execute();
 
       return rows as ResolvedCard[];
     },
