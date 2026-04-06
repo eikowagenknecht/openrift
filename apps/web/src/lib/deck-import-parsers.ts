@@ -192,23 +192,72 @@ function parseTextFormat(code: string): DeckParseResult {
 // TTS format (space-separated short codes)
 // ---------------------------------------------------------------------------
 
+/**
+ * Strips the trailing art-variant suffix (e.g. "-1") from a TTS short code.
+ * TTS exports codes like "OGN-269-1" but the catalog uses "OGN-269".
+ * @returns The short code without the variant suffix.
+ */
+function stripTTSVariant(token: string): string {
+  // Match SET-NNN-V where V is the variant number
+  const match = token.match(/^([A-Z]+-\d+)-\d+$/);
+  return match ? match[1] : token;
+}
+
+/** TTS positional boundaries (standard deck: 1+1+39+3+12 = 56 before sideboard). */
+const TTS_SIDEBOARD_START = 56;
+
+/**
+ * Infers the TTS source slot from positional index.
+ * Order: legend (0), chosen champion (1), main deck (2-40),
+ * battlefields (41-43), runes (44-55), sideboard (56+).
+ * @returns The inferred source slot.
+ */
+function ttsSourceSlot(index: number): SourceSlot {
+  if (index === 1) {
+    return "chosenChampion";
+  }
+  if (index >= TTS_SIDEBOARD_START) {
+    return "sideboard";
+  }
+  return "mainDeck";
+}
+
+const TTS_SLOT_LABELS: Record<SourceSlot, string> = {
+  mainDeck: "Main Deck",
+  chosenChampion: "Chosen Champion",
+  sideboard: "Sideboard",
+};
+
 function parseTTSFormat(code: string): DeckParseResult {
   const warnings: string[] = [];
-  const counts = new Map<string, number>();
+  const tokens = code.split(/\s+/).filter((token) => token !== "");
 
-  for (const token of code.split(/\s+/)) {
-    if (token === "") {
-      continue;
+  // Build entries preserving positional source slot, then group by shortCode + slot
+  const grouped = new Map<
+    string,
+    { shortCode: string; sourceSlot: SourceSlot; quantity: number }
+  >();
+
+  for (let index = 0; index < tokens.length; index++) {
+    const shortCode = stripTTSVariant(tokens[index]);
+    const sourceSlot = ttsSourceSlot(index);
+    const key = `${shortCode}::${sourceSlot}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.quantity += 1;
+    } else {
+      grouped.set(key, { shortCode, sourceSlot, quantity: 1 });
     }
-    counts.set(token, (counts.get(token) ?? 0) + 1);
   }
 
-  const entries: DeckImportEntry[] = [...counts.entries()].map(([shortCode, count]) => ({
-    shortCode,
-    quantity: count,
-    sourceSlot: "mainDeck" as const,
-    rawFields: { "Source Code": shortCode, Slot: "Main Deck" },
-  }));
+  const entries: DeckImportEntry[] = [...grouped.values()].map(
+    ({ shortCode, sourceSlot, quantity }) => ({
+      shortCode,
+      quantity,
+      sourceSlot,
+      rawFields: { "Source Code": shortCode, Slot: TTS_SLOT_LABELS[sourceSlot] },
+    }),
+  );
 
   return { entries, warnings };
 }

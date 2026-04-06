@@ -108,6 +108,55 @@ describe("parseDeckImportData — piltover format", () => {
   });
 });
 
+describe("parseDeckImportData — tts format", () => {
+  it("strips the art-variant suffix from short codes", () => {
+    const input = "OGN-269-1 OGN-240-1 OGN-240-1 OGN-240-1";
+    const { entries } = parseDeckImportData(input, "tts");
+
+    const ogn269 = entries.find((entry) => entry.shortCode === "OGN-269");
+    const ogn240 = entries.find(
+      (entry) => entry.shortCode === "OGN-240" && entry.sourceSlot === "mainDeck",
+    );
+    expect(ogn269?.quantity).toBe(1);
+    expect(ogn240?.quantity).toBe(2);
+  });
+
+  it("handles codes without a variant suffix", () => {
+    const input = "OGN-001 OGN-002 OGN-002";
+    const { entries } = parseDeckImportData(input, "tts");
+
+    expect(entries.find((entry) => entry.shortCode === "OGN-001")?.quantity).toBe(1);
+    expect(
+      entries.find((entry) => entry.shortCode === "OGN-002" && entry.sourceSlot === "mainDeck"),
+    ).toBeDefined();
+  });
+
+  it("assigns position 1 as chosenChampion", () => {
+    const input = "OGN-001-1 OGN-002-1 OGN-003-1";
+    const { entries } = parseDeckImportData(input, "tts");
+
+    const champion = entries.find((entry) => entry.sourceSlot === "chosenChampion");
+    expect(champion?.shortCode).toBe("OGN-002");
+    expect(champion?.quantity).toBe(1);
+  });
+
+  it("assigns positions 56+ as sideboard", () => {
+    const mainTokens = Array.from(
+      { length: 56 },
+      (_, index) => `TST-${String(index).padStart(3, "0")}-1`,
+    );
+    const sideboardTokens = ["SB-001-1", "SB-002-1"];
+    const input = [...mainTokens, ...sideboardTokens].join(" ");
+
+    const { entries } = parseDeckImportData(input, "tts");
+
+    const sideboardEntries = entries.filter((entry) => entry.sourceSlot === "sideboard");
+    expect(sideboardEntries).toHaveLength(2);
+    expect(sideboardEntries.find((entry) => entry.shortCode === "SB-001")).toBeDefined();
+    expect(sideboardEntries.find((entry) => entry.shortCode === "SB-002")).toBeDefined();
+  });
+});
+
 describe("parseDeckImportData — text format", () => {
   it("does not set explicitZone when no zone headers are present", () => {
     const input = "3 Iron Ballista\n2 Fury Rune";
