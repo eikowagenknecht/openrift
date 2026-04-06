@@ -42,9 +42,7 @@ export function LandingPage() {
           <img src="/logo.webp" alt="" className={cn("size-36", spinning && "animate-logo-spin")} />
         </button>
         <h1 className="text-4xl font-bold md:text-5xl">OpenRift</h1>
-        <p className="text-muted-foreground text-center">
-          Fast. Open. Ad-free. A Riftbound companion.
-        </p>
+        <p className="text-muted-foreground text-center">Built with Fury. Maintained with Calm.</p>
 
         <div className="my-3 flex items-center gap-3">
           <Link to="/cards" className={buttonVariants({ size: "lg" })}>
