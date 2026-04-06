@@ -18,8 +18,8 @@ import { useDisplayStore } from "@/stores/display-store";
 import { CardDetailHeading } from "./card-detail-heading";
 import { CardFooter } from "./card-footer";
 import { CardImage } from "./card-image";
+import { ErrataNotice } from "./errata-notice";
 import { OwnedCollectionsPopover } from "./owned-collections-popover";
-import { PrintedTextWarning } from "./printed-text-warning";
 import { PrintingPicker } from "./printing-picker";
 import { StatChip } from "./stat-chip";
 
@@ -224,11 +224,20 @@ export function CardDetail({
           {printing.printedRulesText && (
             <div className="border-border/50 bg-muted/30 rounded-lg border px-3 py-2.5">
               <p className="text-muted-foreground text-sm">
-                <CardText text={printing.printedRulesText} onKeywordClick={onKeywordClick} />
+                <CardText
+                  text={card.errata?.correctedRulesText ?? printing.printedRulesText}
+                  onKeywordClick={onKeywordClick}
+                />
               </p>
               {card.errata?.correctedRulesText &&
                 card.errata.correctedRulesText !== printing.printedRulesText && (
-                  <PrintedTextWarning />
+                  <ErrataNotice
+                    printedText={printing.printedRulesText}
+                    source={card.errata.source}
+                    sourceUrl={card.errata.sourceUrl}
+                    effectiveDate={card.errata.effectiveDate}
+                    onKeywordClick={onKeywordClick}
+                  />
                 )}
             </div>
           )}
@@ -240,12 +249,22 @@ export function CardDetail({
             >
               {printing.printedEffectText && (
                 <p className="text-muted-foreground text-sm">
-                  <CardText text={printing.printedEffectText} onKeywordClick={onKeywordClick} />
+                  <CardText
+                    text={card.errata?.correctedEffectText ?? printing.printedEffectText}
+                    onKeywordClick={onKeywordClick}
+                  />
                 </p>
               )}
               {card.errata?.correctedEffectText &&
+                printing.printedEffectText &&
                 card.errata.correctedEffectText !== printing.printedEffectText && (
-                  <PrintedTextWarning />
+                  <ErrataNotice
+                    printedText={printing.printedEffectText}
+                    source={card.errata.source}
+                    sourceUrl={card.errata.sourceUrl}
+                    effectiveDate={card.errata.effectiveDate}
+                    onKeywordClick={onKeywordClick}
+                  />
                 )}
               {card.mightBonus !== null && card.mightBonus > 0 && (
                 <div className={cn(printing.printedEffectText && "mt-2")}>

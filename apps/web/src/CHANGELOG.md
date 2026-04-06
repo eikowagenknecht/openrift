@@ -2,6 +2,7 @@
 
 ## 2026-04-06
 
+- feat: Cards with errata now show the corrected text by default, with the original printed text available via an expandable disclosure
 - feat: Deck zones in the builder and import view are now sorted by the order configured in the database, and the import preview groups cards by zone
 - fix: Plus icon in the deck editor card grid is now always visible, even when a card has reached its copy limit
 - feat: Deck text import now recognizes "Character, Title" names (e.g. "Sett, The Boss") even when the card is stored under just the title
