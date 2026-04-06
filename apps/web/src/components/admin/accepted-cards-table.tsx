@@ -110,7 +110,7 @@ export function AcceptedCardsTable({ data }: { data: Row[] }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground">
           {rows.length} of {data.length} cards
         </p>
 

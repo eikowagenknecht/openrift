@@ -318,7 +318,7 @@ function SuggestionCombobox({
         }}
       />
       <CommandList>
-        <CommandEmpty className="px-2 py-1.5 text-xs">No matches</CommandEmpty>
+        <CommandEmpty className="px-2 py-1.5">No matches</CommandEmpty>
         {suggestions.map((suggestion) => (
           <CommandItem key={suggestion} value={suggestion} onSelect={(value) => onCommit(value)}>
             {suggestion}
@@ -511,7 +511,7 @@ export function CandidateSpreadsheet({
                         render={
                           <button
                             type="button"
-                            className="flex h-6 w-full items-center gap-1 rounded px-1 text-sm"
+                            className="flex w-full items-center gap-1 rounded px-1 text-sm"
                             onClick={(e) => e.stopPropagation()}
                           />
                         }
@@ -566,7 +566,7 @@ export function CandidateSpreadsheet({
                       }}
                     >
                       <SelectTrigger
-                        className="h-6 w-full gap-1 rounded border-none px-1 text-sm shadow-none"
+                        className="w-full gap-1 rounded border-none px-1 text-sm shadow-none"
                         onClick={(e: React.MouseEvent) => e.stopPropagation()}
                       >
                         <SelectValue placeholder="— select —" />
@@ -790,7 +790,7 @@ export function CandidateSpreadsheet({
                   onClick={() => setCollapsed((c) => !c)}
                 >
                   <td
-                    className="bg-muted/30 text-muted-foreground sticky left-0 z-10 px-3 py-1 text-xs font-medium"
+                    className="bg-muted/30 text-muted-foreground sticky left-0 z-10 px-3 py-1 font-medium"
                     colSpan={2 + sortedRows.length}
                   >
                     <span className="inline-flex items-center gap-1">

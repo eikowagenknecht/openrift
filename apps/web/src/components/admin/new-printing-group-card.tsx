@@ -139,8 +139,6 @@ export function NewPrintingGroupCard({
           {group.candidates.some((s) => !s.checkedAt) && (
             <Button
               variant="outline"
-              size="sm"
-              className="h-6 text-xs"
               disabled={checkAllCandidatePrintings.isPending}
               onClick={(e) => {
                 e.stopPropagation();
@@ -156,7 +154,6 @@ export function NewPrintingGroupCard({
           {/* custom: quick-assign all candidates to matching existing printing */}
           {matchingExisting && (
             <Button
-              size="sm"
               variant="default"
               disabled={isLinking}
               onClick={() =>
@@ -171,7 +168,6 @@ export function NewPrintingGroupCard({
             </Button>
           )}
           <Button
-            size="sm"
             variant="outline"
             disabled={!hasRequired || isAccepting}
             onClick={() =>
@@ -189,7 +185,7 @@ export function NewPrintingGroupCard({
       {isExpanded && (
         <>
           {!hasRequired && (
-            <p className="text-muted-foreground px-3 pb-2 text-xs">
+            <p className="text-muted-foreground px-3 pb-2">
               Click cells to fill all required fields (marked with *).
             </p>
           )}

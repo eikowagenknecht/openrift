@@ -41,16 +41,14 @@ export function IgnoredCandidatesPage() {
     {
       header: "External ID",
       sortValue: (r) => r.externalId,
-      cell: (r) => <span className="font-mono text-xs">{r.externalId}</span>,
+      cell: (r) => <span className="font-mono">{r.externalId}</span>,
     },
     {
       header: "Ignored At",
       width: "w-36",
       sortValue: (r) => r.createdAt,
       cell: (r) => (
-        <span className="text-muted-foreground text-xs">
-          {r.createdAt.slice(0, 16).replace("T", " ")}
-        </span>
+        <span className="text-muted-foreground">{r.createdAt.slice(0, 16).replace("T", " ")}</span>
       ),
     },
   ];
@@ -65,7 +63,7 @@ export function IgnoredCandidatesPage() {
     {
       header: "External ID",
       sortValue: (r) => r.externalId,
-      cell: (r) => <span className="font-mono text-xs">{r.externalId}</span>,
+      cell: (r) => <span className="font-mono">{r.externalId}</span>,
     },
     {
       header: "Finish",
@@ -83,9 +81,7 @@ export function IgnoredCandidatesPage() {
       width: "w-36",
       sortValue: (r) => r.createdAt,
       cell: (r) => (
-        <span className="text-muted-foreground text-xs">
-          {r.createdAt.slice(0, 16).replace("T", " ")}
-        </span>
+        <span className="text-muted-foreground">{r.createdAt.slice(0, 16).replace("T", " ")}</span>
       ),
     },
   ];
@@ -126,8 +122,6 @@ export function IgnoredCandidatesPage() {
           actions={(r) => (
             <Button
               variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
               onClick={() =>
                 unignorePrinting.mutate({
                   provider: r.provider,

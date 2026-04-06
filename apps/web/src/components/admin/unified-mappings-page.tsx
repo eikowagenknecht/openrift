@@ -261,7 +261,7 @@ function MarketplaceProductColumn({
             />
           );
         })}
-        {allProducts.length === 0 && <p className="text-muted-foreground text-xs">No products</p>}
+        {allProducts.length === 0 && <p className="text-muted-foreground">No products</p>}
       </div>
     </div>
   );
@@ -288,7 +288,7 @@ function SuggestionButton({
     <button
       type="button"
       className={cn(
-        "flex w-full items-center rounded-md px-2 py-1.5 text-xs disabled:opacity-50",
+        "flex w-full items-center rounded-md px-2 py-1.5 disabled:opacity-50",
         isStrong
           ? "border border-solid border-green-600/50 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400"
           : "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 border border-dashed",
@@ -302,7 +302,7 @@ function SuggestionButton({
           <span className="text-muted-foreground mr-1">{label}</span>
           {sp.productName}
         </span>
-        <span className="block truncate pl-4 text-xs opacity-80">
+        <span className="block truncate pl-4 opacity-80">
           {sp.finish} ·{" "}
           <ProductLink config={config} externalId={sp.externalId}>
             #{sp.externalId}
@@ -373,14 +373,12 @@ function UnifiedExpandedDetail({
       {/* Printings */}
       <div className="min-w-0 flex-1">
         <div className="mb-3 flex items-center gap-3">
-          <h4 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-            Printings
-          </h4>
+          <h4 className="text-muted-foreground font-semibold tracking-wide uppercase">Printings</h4>
           {totalSuggestions > 0 && (
             <button
               type="button"
               className={cn(
-                "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium disabled:opacity-50",
+                "flex items-center gap-1.5 rounded-md px-2 py-1 font-medium disabled:opacity-50",
                 "border border-solid border-green-600/50 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400",
               )}
               disabled={isSaving}
@@ -413,7 +411,7 @@ function UnifiedExpandedDetail({
               >
                 <CardThumbnail printing={toPrinting(group, p)} onClick={NOOP} showImages />
                 <div className="space-y-1.5 px-2.5 pb-2">
-                  <div className="text-muted-foreground flex flex-wrap items-center gap-1 text-xs">
+                  <div className="text-muted-foreground flex flex-wrap items-center gap-1">
                     <span>
                       {p.finish}
                       {p.artVariant === ("altart" satisfies ArtVariant) ? " · Alt Art" : ""}
@@ -429,9 +427,9 @@ function UnifiedExpandedDetail({
                   {p.tcgExternalId !== null &&
                   p.cmExternalId !== null &&
                   p.ctExternalId !== null ? (
-                    <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                    <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
                       <span className="flex items-center gap-1">
-                        <Badge variant="outline" className="px-1 py-0 text-[10px]">
+                        <Badge variant="outline" className="px-1 py-0">
                           TCG
                         </Badge>
                         <ProductLink config={TCG_CONFIG} externalId={p.tcgExternalId}>
@@ -448,7 +446,7 @@ function UnifiedExpandedDetail({
                         </button>
                       </span>
                       <span className="flex items-center gap-1">
-                        <Badge variant="outline" className="px-1 py-0 text-[10px]">
+                        <Badge variant="outline" className="px-1 py-0">
                           CM
                         </Badge>
                         <ProductLink config={CM_CONFIG} externalId={p.cmExternalId}>
@@ -465,7 +463,7 @@ function UnifiedExpandedDetail({
                         </button>
                       </span>
                       <span className="flex items-center gap-1">
-                        <Badge variant="outline" className="px-1 py-0 text-[10px]">
+                        <Badge variant="outline" className="px-1 py-0">
                           CT
                         </Badge>
                         <ProductLink config={CT_CONFIG} externalId={p.ctExternalId}>
@@ -520,8 +518,8 @@ function UnifiedExpandedDetail({
                             />
                           </>
                         ) : (
-                          <div className="text-muted-foreground flex items-center gap-1 text-xs">
-                            <Badge variant="outline" className="px-1 py-0 text-[10px]">
+                          <div className="text-muted-foreground flex items-center gap-1">
+                            <Badge variant="outline" className="px-1 py-0">
                               TCG
                             </Badge>
                             <ProductLink config={TCG_CONFIG} externalId={p.tcgExternalId}>
@@ -576,8 +574,8 @@ function UnifiedExpandedDetail({
                             />
                           </>
                         ) : (
-                          <div className="text-muted-foreground flex items-center gap-1 text-xs">
-                            <Badge variant="outline" className="px-1 py-0 text-[10px]">
+                          <div className="text-muted-foreground flex items-center gap-1">
+                            <Badge variant="outline" className="px-1 py-0">
                               CM
                             </Badge>
                             <ProductLink config={CM_CONFIG} externalId={p.cmExternalId}>
@@ -632,8 +630,8 @@ function UnifiedExpandedDetail({
                             />
                           </>
                         ) : (
-                          <div className="text-muted-foreground flex items-center gap-1 text-xs">
-                            <Badge variant="outline" className="px-1 py-0 text-[10px]">
+                          <div className="text-muted-foreground flex items-center gap-1">
+                            <Badge variant="outline" className="px-1 py-0">
                               CT
                             </Badge>
                             <ProductLink config={CT_CONFIG} externalId={p.ctExternalId}>
@@ -987,7 +985,6 @@ export function UnifiedMappingsPage() {
           {safeGroupCount > 0 && (
             <Button
               variant="outline"
-              size="sm"
               className="border-green-600/50 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400"
               onClick={handleAcceptAllSafe}
               disabled={isSaving}
@@ -996,18 +993,14 @@ export function UnifiedMappingsPage() {
               Accept {safeGroupCount} safe
             </Button>
           )}
-          <Button
-            variant={showAll ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowAll((v) => !v)}
-          >
+          <Button variant={showAll ? "default" : "outline"} onClick={() => setShowAll((v) => !v)}>
             <EyeIcon />
             {showAll ? "Showing all" : "Show all"}
           </Button>
         </div>
       </div>
 
-      {isSaving && <p className="text-muted-foreground text-xs">Saving…</p>}
+      {isSaving && <p className="text-muted-foreground">Saving…</p>}
 
       {groups.length > 0 && (
         <div className="overflow-x-auto">

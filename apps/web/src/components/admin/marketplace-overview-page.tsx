@@ -25,7 +25,7 @@ function PriceRefreshResult({ result }: { result: PriceRefreshResponse }) {
   ].filter(Boolean);
 
   return (
-    <div className="text-muted-foreground space-y-0.5 text-xs">
+    <div className="text-muted-foreground space-y-0.5">
       <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
         <CheckIcon className="size-4" />
         Fetched {transformed.groups} groups, {transformed.products} products, {transformed.prices}{" "}
@@ -78,7 +78,7 @@ function PriceSection({
               disabled={anyPending}
               isPending={clearMutation.isPending}
             />
-            <Button size="sm" disabled={anyPending} onClick={() => refreshMutation.mutate()}>
+            <Button disabled={anyPending} onClick={() => refreshMutation.mutate()}>
               {refreshMutation.isPending ? (
                 <LoaderIcon className="size-4 animate-spin" />
               ) : (

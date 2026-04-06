@@ -193,7 +193,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
           </Button>
         </div>
         {!hasRequiredFields && (
-          <p className="text-muted-foreground text-xs">Select name, type, and domains first.</p>
+          <p className="text-muted-foreground">Select name, type, and domains first.</p>
         )}
       </section>
 

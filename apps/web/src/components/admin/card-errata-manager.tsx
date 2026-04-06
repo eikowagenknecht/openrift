@@ -106,7 +106,7 @@ export function CardErrataManager({
 
       {/* Display existing errata */}
       {errata && !isEditing && (
-        <div className="relative space-y-1.5 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-sm">
+        <div className="relative space-y-1.5 rounded-md border border-amber-500/20 bg-amber-500/5 px-3 py-2">
           <div className="absolute top-1.5 right-1.5 flex gap-1">
             <Button
               variant="ghost"

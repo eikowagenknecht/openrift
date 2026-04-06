@@ -28,7 +28,7 @@ export function ConfirmClearButton({
 }) {
   return (
     <AlertDialog>
-      <AlertDialogTrigger disabled={disabled} render={<Button size="sm" variant="destructive" />}>
+      <AlertDialogTrigger disabled={disabled} render={<Button variant="destructive" />}>
         {isPending ? <LoaderIcon className="size-4 animate-spin" /> : "Clear"}
       </AlertDialogTrigger>
       <AlertDialogContent size="sm">

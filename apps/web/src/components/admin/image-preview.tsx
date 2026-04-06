@@ -45,17 +45,17 @@ export function ImagePreview({
           href={url}
           target="_blank"
           rel="noreferrer"
-          className="bg-muted/30 text-muted-foreground hover:bg-muted/50 flex aspect-[5/7] w-full items-center justify-center rounded border text-xs"
+          className="bg-muted/30 text-muted-foreground hover:bg-muted/50 flex aspect-[5/7] w-full items-center justify-center rounded border"
         >
           Failed to load — click to open
         </a>
       ) : (
-        <div className="text-muted-foreground flex aspect-[5/7] w-full items-center justify-center rounded border text-xs">
+        <div className="text-muted-foreground flex aspect-[5/7] w-full items-center justify-center rounded border">
           No image
         </div>
       )}
       {resolution && url && !imgError && (
-        <span className="absolute right-1.5 bottom-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+        <span className="absolute right-1.5 bottom-1.5 rounded bg-black/60 px-1.5 py-0.5 text-white">
           {resolution}
         </span>
       )}
@@ -100,7 +100,7 @@ export function GroupImagePreview({
           <button
             key={si.candidatePrintingId}
             type="button"
-            className={`rounded border border-dashed px-1.5 py-0.5 text-[10px] ${
+            className={`rounded border border-dashed px-1.5 py-0.5 ${
               selected.candidatePrintingId === si.candidatePrintingId
                 ? "border-primary bg-primary/10"
                 : "text-muted-foreground"
@@ -128,7 +128,7 @@ export function GroupImagePreview({
         href={selected.url}
         target="_blank"
         rel="noreferrer"
-        className="text-muted-foreground hover:text-foreground block truncate text-[10px]"
+        className="text-muted-foreground hover:text-foreground block truncate"
         title={selected.url}
       >
         {selected.url}

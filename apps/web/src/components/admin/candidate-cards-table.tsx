@@ -67,7 +67,7 @@ function makeColumns(meta: CardNameCellMeta): ColumnDef<Row>[] {
         const total = r.uncheckedCardCount + r.uncheckedPrintingCount;
         return (
           <div className="flex items-center gap-1">
-            {r.hasGallery && <Badge className="text-xs">gallery</Badge>}
+            {r.hasGallery && <Badge>gallery</Badge>}
             {total > 0 && <Badge variant="destructive">Review</Badge>}
           </div>
         );
@@ -181,7 +181,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
         </div>
       </div>
 
-      <p className="text-muted-foreground text-xs">
+      <p className="text-muted-foreground">
         Showing {rows.length} of {data.length} candidates
       </p>
 

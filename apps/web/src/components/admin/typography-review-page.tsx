@@ -96,14 +96,14 @@ function DiffComparison({ current, proposed }: { current: string; proposed: stri
   return (
     <div className="grid grid-cols-2 gap-3 text-sm">
       <div className="space-y-1">
-        <span className="text-muted-foreground text-xs font-medium">Current</span>
-        <pre className="bg-destructive/10 rounded-md p-2 font-mono text-xs whitespace-pre-wrap">
+        <span className="text-muted-foreground font-medium">Current</span>
+        <pre className="bg-destructive/10 rounded-md p-2 font-mono whitespace-pre-wrap">
           {renderDiffSide(segments, "current")}
         </pre>
       </div>
       <div className="space-y-1">
-        <span className="text-muted-foreground text-xs font-medium">Proposed</span>
-        <pre className="bg-chart-2/10 rounded-md p-2 font-mono text-xs whitespace-pre-wrap">
+        <span className="text-muted-foreground font-medium">Proposed</span>
+        <pre className="bg-chart-2/10 rounded-md p-2 font-mono whitespace-pre-wrap">
           {renderDiffSide(segments, "proposed")}
         </pre>
       </div>
@@ -151,7 +151,6 @@ export function TypographyReviewPage() {
                   <Badge variant="secondary">{diff.entity}</Badge>
                 </div>
                 <Button
-                  size="sm"
                   variant="outline"
                   disabled={accept.isPending}
                   onClick={() =>

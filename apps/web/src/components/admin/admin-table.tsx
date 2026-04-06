@@ -519,7 +519,7 @@ function SaveCancelButtons({
           Cancel
         </Button>
       </div>
-      {error && <p className="text-destructive mt-1 text-xs">{error}</p>}
+      {error && <p className="text-destructive mt-1">{error}</p>}
     </>
   );
 }

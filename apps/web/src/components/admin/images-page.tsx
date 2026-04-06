@@ -75,7 +75,7 @@ function MutationStatus({
           {verb} {count} / {total} images
         </p>
         {errors.length > 0 && (
-          <ul className="mt-1 ml-5 list-disc text-xs text-red-600 dark:text-red-400">
+          <ul className="mt-1 ml-5 list-disc text-red-600 dark:text-red-400">
             {errors.slice(0, MAX_DISPLAYED_ERRORS).map((err) => (
               <li key={err}>{err}</li>
             ))}
@@ -129,7 +129,7 @@ function ErrorsList({ errors }: { errors: string[] }) {
     return null;
   }
   return (
-    <ul className="mt-1 ml-5 list-disc text-xs text-red-600 dark:text-red-400">
+    <ul className="mt-1 ml-5 list-disc text-red-600 dark:text-red-400">
       {errors.slice(0, MAX_DISPLAYED_ERRORS).map((err) => (
         <li key={err}>{err}</li>
       ))}
@@ -191,7 +191,6 @@ function ManageSection() {
         {/* ── Action buttons ────────────────────────────────────────────── */}
         <div className="flex flex-wrap gap-2">
           <Button
-            size="sm"
             variant="outline"
             disabled={anyPending || !preview?.misnamed}
             onClick={() => renameMutation.mutate()}
@@ -203,7 +202,6 @@ function ManageSection() {
             )}
           </Button>
           <Button
-            size="sm"
             variant="outline"
             disabled={anyPending || !status.disk.totalBytes}
             onClick={() =>
@@ -218,11 +216,7 @@ function ManageSection() {
               "Regenerate resolutions"
             )}
           </Button>
-          <Button
-            size="sm"
-            disabled={anyPending || allDone}
-            onClick={() => rehostMutation.mutate()}
-          >
+          <Button disabled={anyPending || allDone} onClick={() => rehostMutation.mutate()}>
             {rehostMutation.isPending ? (
               <LoaderIcon className="size-4 animate-spin" />
             ) : (
@@ -230,7 +224,6 @@ function ManageSection() {
             )}
           </Button>
           <Button
-            size="sm"
             variant="outline"
             disabled={anyPending || !status.orphanedFiles}
             onClick={() => cleanupMutation.mutate()}
@@ -329,7 +322,7 @@ function RestoreUrlsSection() {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Select value={selectedSource} onValueChange={(v) => setSelectedSource(v ?? "")}>
-              <SelectTrigger className="w-40" size="sm">
+              <SelectTrigger className="w-40">
                 <SelectValue placeholder="Select source" />
               </SelectTrigger>
               <SelectContent>
@@ -341,7 +334,6 @@ function RestoreUrlsSection() {
               </SelectContent>
             </Select>
             <Button
-              size="sm"
               variant="outline"
               disabled={!selectedSource || restoreMutation.isPending}
               onClick={() => restoreMutation.mutate(selectedSource)}
@@ -420,7 +412,7 @@ function BrokenImagesSection() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Broken Images</CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setEnabled(true)}>
+            <Button variant="outline" onClick={() => setEnabled(true)}>
               Check
             </Button>
           </div>
@@ -473,7 +465,7 @@ function BrokenImagesSection() {
         <div className="space-y-3">
           {[...bySet.entries()].map(([setSlug, entries]) => (
             <div key={setSlug}>
-              <p className="text-muted-foreground mb-1 text-xs font-medium uppercase">{setSlug}</p>
+              <p className="text-muted-foreground mb-1 font-medium uppercase">{setSlug}</p>
               <ul className="space-y-1 text-sm">
                 {entries.map((entry) => (
                   <li key={entry.imageId} className="flex items-baseline gap-2">
@@ -485,9 +477,7 @@ function BrokenImagesSection() {
                       <span className="text-muted-foreground/60">{entry.printingShortCode}</span>{" "}
                       {entry.cardName}
                     </Link>
-                    <span className="text-muted-foreground truncate text-xs">
-                      {entry.rehostedUrl}
-                    </span>
+                    <span className="text-muted-foreground truncate">{entry.rehostedUrl}</span>
                   </li>
                 ))}
               </ul>
@@ -511,7 +501,7 @@ function LowResImagesSection() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-base">Low-Resolution Images</CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setEnabled(true)}>
+            <Button variant="outline" onClick={() => setEnabled(true)}>
               Check
             </Button>
           </div>
@@ -567,7 +557,7 @@ function LowResImagesSection() {
         <div className="space-y-3">
           {[...bySet.entries()].map(([setSlug, entries]) => (
             <div key={setSlug}>
-              <p className="text-muted-foreground mb-1 text-xs font-medium uppercase">{setSlug}</p>
+              <p className="text-muted-foreground mb-1 font-medium uppercase">{setSlug}</p>
               <ul className="space-y-1 text-sm">
                 {entries.map((entry) => (
                   <li key={entry.imageId} className="flex items-baseline gap-2">
@@ -579,7 +569,7 @@ function LowResImagesSection() {
                       <span className="text-muted-foreground/60">{entry.printingShortCode}</span>{" "}
                       {entry.cardName}
                     </Link>
-                    <span className="text-muted-foreground text-xs">
+                    <span className="text-muted-foreground">
                       {entry.width}×{entry.height}
                     </span>
                   </li>

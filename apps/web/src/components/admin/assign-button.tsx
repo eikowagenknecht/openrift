@@ -35,7 +35,7 @@ export function AssignButton({
 
   if (!open) {
     return (
-      <Button variant="outline" className="ml-2 h-5 text-xs" onClick={() => setOpen(true)}>
+      <Button variant="outline" className="ml-2" onClick={() => setOpen(true)}>
         <LinkIcon className="size-3" />
         Assign
       </Button>
@@ -53,13 +53,13 @@ export function AssignButton({
           setSearch("");
         }}
         placeholder="Search by name…"
-        className="ml-2 inline-flex w-48 [&_input]:h-5 [&_input]:py-0 [&_input]:text-xs"
+        className="ml-2 inline-flex w-48"
         // oxlint-disable-next-line jsx-a11y/no-autofocus -- admin-only UI, autofocus is intentional
         autoFocus
       />
       <Button
         variant="ghost"
-        className="ml-1 h-5 text-xs"
+        className="ml-1"
         aria-label="Close search"
         onClick={() => {
           setOpen(false);

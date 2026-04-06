@@ -65,9 +65,7 @@ export function IgnoredProductsPage() {
       width: "w-36",
       sortValue: (p) => p.createdAt,
       cell: (p) => (
-        <span className="text-muted-foreground text-xs">
-          {p.createdAt.slice(0, 16).replace("T", " ")}
-        </span>
+        <span className="text-muted-foreground">{p.createdAt.slice(0, 16).replace("T", " ")}</span>
       ),
     },
   ];
@@ -90,8 +88,6 @@ export function IgnoredProductsPage() {
       actions={(p) => (
         <Button
           variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs"
           onClick={() =>
             unignoreMutation.mutate({
               marketplace: p.marketplace as "tcgplayer" | "cardmarket" | "cardtrader",

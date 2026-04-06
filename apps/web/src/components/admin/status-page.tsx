@@ -84,7 +84,7 @@ export function StatusPage() {
         <p className="text-muted-foreground text-sm">
           Auto-refreshes every 30 seconds. Last updated {new Date().toLocaleTimeString()}.
         </p>
-        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+        <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
           Refresh
         </Button>
@@ -92,7 +92,7 @@ export function StatusPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {/* Server */}
-        <Card size="sm">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ServerIcon className="text-muted-foreground size-4" />
@@ -107,7 +107,7 @@ export function StatusPage() {
         </Card>
 
         {/* Memory */}
-        <Card size="sm">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CpuIcon className="text-muted-foreground size-4" />
@@ -122,7 +122,7 @@ export function StatusPage() {
         </Card>
 
         {/* Database */}
-        <Card size="sm">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <DatabaseIcon className="text-muted-foreground size-4" />
@@ -144,7 +144,7 @@ export function StatusPage() {
             {database.latestMigration && (
               <div className="flex items-center justify-between gap-2 py-1.5">
                 <span className="text-muted-foreground shrink-0 text-sm">Latest</span>
-                <span className="truncate font-mono text-xs" title={database.latestMigration}>
+                <span className="truncate font-mono" title={database.latestMigration}>
                   {database.latestMigration}
                 </span>
               </div>
@@ -153,7 +153,7 @@ export function StatusPage() {
         </Card>
 
         {/* Cron Jobs */}
-        <Card size="sm">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ClockIcon className="text-muted-foreground size-4" />
@@ -171,7 +171,7 @@ export function StatusPage() {
               <div key={name} className="flex items-center justify-between py-1.5">
                 <span className="text-muted-foreground text-sm">{name}</span>
                 {job.enabled ? (
-                  <span className="font-mono text-xs">
+                  <span className="font-mono">
                     {job.nextRun ? formatRelativeTime(job.nextRun) : "idle"}
                   </span>
                 ) : (
@@ -185,7 +185,7 @@ export function StatusPage() {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {/* App Stats */}
-        <Card size="sm">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ActivityIcon className="text-muted-foreground size-4" />
@@ -205,7 +205,7 @@ export function StatusPage() {
         </Card>
 
         {/* Pricing */}
-        <Card size="sm">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TagIcon className="text-muted-foreground size-4" />

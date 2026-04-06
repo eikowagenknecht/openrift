@@ -206,7 +206,7 @@ export function ScanTestPage() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <p className="text-muted-foreground mb-2 text-xs font-medium">Live Feed</p>
+              <p className="text-muted-foreground mb-2 font-medium">Live Feed</p>
               <div className="relative overflow-hidden rounded-md">
                 <video
                   ref={videoRef}
@@ -224,7 +224,7 @@ export function ScanTestPage() {
               )}
             </div>
             <div>
-              <p className="text-muted-foreground mb-2 text-xs font-medium">Captured Frame</p>
+              <p className="text-muted-foreground mb-2 font-medium">Captured Frame</p>
               {capturedImage ? (
                 <img src={capturedImage} alt="Captured" className="w-full rounded-md border" />
               ) : (
@@ -269,10 +269,10 @@ export function ScanTestPage() {
                 {ocrResult && (
                   <div className="space-y-4">
                     <div>
-                      <p className="text-muted-foreground text-xs font-medium">
+                      <p className="text-muted-foreground font-medium">
                         Raw OCR Text ({ocrResult.elapsed}ms)
                       </p>
-                      <pre className="bg-muted mt-1 max-h-40 overflow-auto rounded-md border p-3 text-xs">
+                      <pre className="bg-muted mt-1 max-h-40 overflow-auto rounded-md border p-3">
                         {ocrResult.rawText || "(no text detected)"}
                       </pre>
                     </div>
@@ -360,7 +360,7 @@ export function ScanTestPage() {
                   />
                 </div>
                 {!configMatchesIndex && phashIndex && (
-                  <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
+                  <p className="mt-3 text-amber-600 dark:text-amber-400">
                     Parameters changed since last index build — rebuild to apply.
                   </p>
                 )}
@@ -403,7 +403,7 @@ export function ScanTestPage() {
                           : 0
                       }
                     />
-                    <p className="text-muted-foreground text-xs">
+                    <p className="text-muted-foreground">
                       Hashed {phashProgress.done} / {phashProgress.total} card images
                     </p>
                   </div>
@@ -411,7 +411,7 @@ export function ScanTestPage() {
 
                 {phashResult && (
                   <div className="space-y-4">
-                    <p className="text-muted-foreground text-xs">
+                    <p className="text-muted-foreground">
                       Hash: <code className="font-mono">{phashResult.hashComputed}</code> | Matched
                       in {phashResult.elapsed}ms
                     </p>
@@ -419,12 +419,10 @@ export function ScanTestPage() {
                     {/* Debug pipeline visualization */}
                     {phashResult.debug && (
                       <div>
-                        <p className="text-muted-foreground mb-2 text-xs font-medium">
-                          Pipeline Debug
-                        </p>
+                        <p className="text-muted-foreground mb-2 font-medium">Pipeline Debug</p>
                         <div className="grid grid-cols-3 gap-3">
                           <div>
-                            <p className="text-muted-foreground mb-1 text-xs">
+                            <p className="text-muted-foreground mb-1">
                               1. Cropped ({Math.round((1 - 2 * phashConfig.borderInset) * 100)}%)
                             </p>
                             <img
@@ -434,7 +432,7 @@ export function ScanTestPage() {
                             />
                           </div>
                           <div>
-                            <p className="text-muted-foreground mb-1 text-xs">
+                            <p className="text-muted-foreground mb-1">
                               2. Grid {phashResult.debug.gridW}&times;
                               {phashResult.debug.gridH} &rarr; {hashBitCount(phashConfig)} bits
                             </p>
@@ -446,7 +444,7 @@ export function ScanTestPage() {
                             />
                           </div>
                           <div>
-                            <p className="text-muted-foreground mb-1 text-xs">3. Hash bits</p>
+                            <p className="text-muted-foreground mb-1">3. Hash bits</p>
                             <HashBitsViz hash={phashResult.hashComputed} />
                           </div>
                         </div>
@@ -532,8 +530,8 @@ function ParamSlider({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <Label className="text-xs">{label}</Label>
-        <span className="text-muted-foreground font-mono text-xs">{value}</span>
+        <Label>{label}</Label>
+        <span className="text-muted-foreground font-mono">{value}</span>
       </div>
       <Slider
         value={[value]}
@@ -560,7 +558,7 @@ function ParamSelect({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs">{label}</Label>
+      <Label>{label}</Label>
       <Select
         value={value}
         onValueChange={(v) => {
@@ -611,9 +609,7 @@ function MatchResults({
 
   return (
     <div>
-      <p className="text-muted-foreground mb-2 text-xs font-medium">
-        Top Matches ({matches.length})
-      </p>
+      <p className="text-muted-foreground mb-2 font-medium">Top Matches ({matches.length})</p>
       <div className="space-y-2">
         {matches.map((match, i) => (
           <div
@@ -629,7 +625,7 @@ function MatchResults({
             )}
             <div className="flex-1">
               <p className="text-sm font-medium">{match.printing.card.name}</p>
-              <p className="text-muted-foreground text-xs">
+              <p className="text-muted-foreground">
                 {match.printing.setSlug} #{match.printing.collectorNumber} &middot;{" "}
                 {match.printing.rarity} &middot; {match.printing.publicCode}
               </p>
@@ -638,7 +634,7 @@ function MatchResults({
               <Badge variant={match.score > 0.8 ? "default" : "secondary"}>
                 {(match.score * 100).toFixed(1)}%
               </Badge>
-              <p className="text-muted-foreground mt-1 text-xs">{match.detail}</p>
+              <p className="text-muted-foreground mt-1">{match.detail}</p>
             </div>
           </div>
         ))}

@@ -165,7 +165,6 @@ export function RulesImportPage() {
                 </div>
                 <Button
                   variant="destructive"
-                  size="sm"
                   onClick={() => handleDelete(v.version)}
                   disabled={deleteMutation.isPending}
                 >

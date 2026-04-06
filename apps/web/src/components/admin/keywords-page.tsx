@@ -85,7 +85,7 @@ export function KeywordsPage() {
             <span className="font-mono text-sm">{row.color}</span>
           </div>
         ) : (
-          <span className="text-muted-foreground text-xs">-</span>
+          <span className="text-muted-foreground">-</span>
         ),
       editCell: (draft, set) => (
         <Input
@@ -163,25 +163,24 @@ export function KeywordsPage() {
 
   return (
     <div className="space-y-4">
-      <Card size="sm">
+      <Card>
         <CardContent className="flex items-center justify-between pt-5">
           <div>
             <p className="text-sm font-medium">Recompute keywords</p>
-            <p className="text-muted-foreground text-xs">
+            <p className="text-muted-foreground">
               Re-extract keywords from all card and printing text fields
             </p>
           </div>
           <div className="flex items-center gap-3">
             {recomputeKeywords.isSuccess && (
-              <p className="text-muted-foreground text-xs">
+              <p className="text-muted-foreground">
                 Updated {recomputeKeywords.data.updated} of {recomputeKeywords.data.totalCards}{" "}
                 cards
               </p>
             )}
-            {recomputeKeywords.isError && <p className="text-destructive text-xs">Failed</p>}
+            {recomputeKeywords.isError && <p className="text-destructive">Failed</p>}
             <Button
               variant="outline"
-              size="sm"
               onClick={() => recomputeKeywords.mutate()}
               disabled={recomputeKeywords.isPending}
             >

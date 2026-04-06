@@ -71,7 +71,7 @@ export function StagedProductCard({
         </Badge>
       </div>
       {sp.groupName && (
-        <p className="text-muted-foreground truncate text-xs" title={sp.groupName}>
+        <p className="text-muted-foreground truncate" title={sp.groupName}>
           {sp.groupName}
         </p>
       )}
@@ -90,7 +90,7 @@ export function StagedProductCard({
       <div className="mt-1.5 flex flex-wrap items-end justify-between gap-x-2 gap-y-1">
         <p
           className={cn(
-            "w-fit rounded px-1.5 py-0.5 text-xs",
+            "w-fit rounded px-1.5 py-0.5",
             Date.now() - new Date(sp.recordedAt).getTime() > 48 * 60 * 60 * 1000 // 48 hours
               ? "bg-destructive/10 text-destructive"
               : "bg-muted text-muted-foreground",
@@ -102,8 +102,7 @@ export function StagedProductCard({
           {onAssignToCard && allCards && (
             <Button
               variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-primary h-6 px-1.5 text-xs"
+              className="text-muted-foreground hover:text-primary"
               onClick={() => setShowAssign((v) => !v)}
               title={`${assignLabel} to a card`}
             >
@@ -114,8 +113,7 @@ export function StagedProductCard({
           {onIgnore && (
             <Button
               variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-destructive h-6 px-1.5 text-xs"
+              className="text-muted-foreground hover:text-destructive"
               onClick={onIgnore}
               disabled={isIgnoring}
               title="Ignore this product"
@@ -127,8 +125,7 @@ export function StagedProductCard({
           {onUnignore && (
             <Button
               variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground h-6 px-1.5 text-xs"
+              className="text-muted-foreground hover:text-foreground"
               onClick={onUnignore}
               disabled={isUnignoring}
               title="Unignore — product will reappear on next refresh"
@@ -140,8 +137,7 @@ export function StagedProductCard({
           {sp.isOverride && onUnassign && (
             <Button
               variant="ghost"
-              size="sm"
-              className="text-muted-foreground hover:text-destructive h-6 px-1.5 text-xs"
+              className="text-muted-foreground hover:text-destructive"
               onClick={onUnassign}
               disabled={isUnassigning}
               title="Unassign — remove manual card assignment"

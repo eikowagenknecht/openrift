@@ -146,12 +146,10 @@ export function CardSearchDropdown({
             >
               <span className="truncate font-medium">{item.label}</span>
               {item.sublabel && (
-                <span className="text-muted-foreground shrink-0 text-xs">{item.sublabel}</span>
+                <span className="text-muted-foreground shrink-0">{item.sublabel}</span>
               )}
               {item.detail && (
-                <span className="text-muted-foreground ml-auto shrink-0 text-xs">
-                  {item.detail}
-                </span>
+                <span className="text-muted-foreground ml-auto shrink-0">{item.detail}</span>
               )}
             </button>
           ))}
@@ -163,7 +161,7 @@ export function CardSearchDropdown({
           role="listbox"
           className="bg-popover absolute top-full z-50 mt-1 w-full rounded-md border px-3 py-2 shadow-md"
         >
-          <p className="text-muted-foreground text-xs">No matching cards</p>
+          <p className="text-muted-foreground">No matching cards</p>
         </div>
       )}
     </div>

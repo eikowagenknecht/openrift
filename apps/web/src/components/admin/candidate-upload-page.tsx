@@ -209,7 +209,7 @@ export function CandidateUploadPage() {
                 </Command>
               </PopoverContent>
             </Popover>
-            <p className="text-muted-foreground text-xs">
+            <p className="text-muted-foreground">
               A unique label identifying where this data came from.
             </p>
           </div>
@@ -253,7 +253,7 @@ export function CandidateUploadPage() {
                 </div>
               </div>
               {upload.data.errors.length > 0 && (
-                <ul className="ml-5 list-disc text-xs text-red-600 dark:text-red-400">
+                <ul className="ml-5 list-disc text-red-600 dark:text-red-400">
                   {upload.data.errors.slice(0, 10).map((err, i) => (
                     <li key={i}>{err}</li>
                   ))}
@@ -309,7 +309,7 @@ function ItemList({
   return (
     <div className="space-y-1">
       <p className="text-muted-foreground text-sm font-medium">{label}:</p>
-      <div className="max-h-64 overflow-y-auto rounded-md border text-xs">
+      <div className="max-h-64 overflow-y-auto rounded-md border">
         <table className="w-full">
           <thead className="bg-muted sticky top-0">
             <tr className="text-left">
@@ -345,7 +345,7 @@ function DiffTable({
   return (
     <div className="space-y-1">
       <p className="text-muted-foreground text-sm font-medium">{label}:</p>
-      <div className="max-h-64 overflow-y-auto rounded-md border text-xs">
+      <div className="max-h-64 overflow-y-auto rounded-md border">
         <table className="w-full">
           <thead className="bg-muted sticky top-0">
             <tr className="text-left">

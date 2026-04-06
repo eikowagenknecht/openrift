@@ -86,7 +86,7 @@ export function PrintingImageSwitcher({
             <button
               key={img.id}
               type="button"
-              className={`rounded px-1.5 py-0.5 text-[10px] ${
+              className={`rounded px-1.5 py-0.5 ${
                 isSelected
                   ? "bg-primary text-primary-foreground"
                   : img.isActive
@@ -108,7 +108,7 @@ export function PrintingImageSwitcher({
           <button
             key={si.candidatePrintingId}
             type="button"
-            className={`rounded border border-dashed px-1.5 py-0.5 text-[10px] ${
+            className={`rounded border border-dashed px-1.5 py-0.5 ${
               effectiveSource?.candidatePrintingId === si.candidatePrintingId
                 ? "border-primary bg-primary/10"
                 : "text-muted-foreground"
@@ -163,7 +163,7 @@ export function PrintingImageSwitcher({
               href={effectiveImage.originalUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-muted-foreground hover:text-foreground block truncate text-[10px]"
+              className="text-muted-foreground hover:text-foreground block truncate"
               title={effectiveImage.originalUrl}
             >
               {effectiveImage.originalUrl}
@@ -174,7 +174,7 @@ export function PrintingImageSwitcher({
               href={`${effectiveImage.rehostedUrl}-full.webp`}
               target="_blank"
               rel="noreferrer"
-              className="block truncate text-[10px] text-green-600 hover:text-green-500"
+              className="block truncate text-green-600 hover:text-green-500"
               title={`${effectiveImage.rehostedUrl}-full.webp`}
             >
               {effectiveImage.rehostedUrl.split("/").pop()}-full.webp
@@ -185,7 +185,7 @@ export function PrintingImageSwitcher({
               href={effectiveSource.url}
               target="_blank"
               rel="noreferrer"
-              className="text-muted-foreground hover:text-foreground block truncate text-[10px]"
+              className="text-muted-foreground hover:text-foreground block truncate"
               title={effectiveSource.url}
             >
               {effectiveSource.url}
@@ -198,24 +198,20 @@ export function PrintingImageSwitcher({
       {effectiveImage && (
         <div className="flex items-center gap-1">
           {effectiveImage.isActive ? (
-            <Badge variant="default" className="h-4 text-[10px] leading-none">
-              Active
-            </Badge>
+            <Badge variant="default">Active</Badge>
           ) : (
-            <Badge variant="secondary" className="h-4 text-[10px] leading-none">
-              Inactive
-            </Badge>
+            <Badge variant="secondary">Inactive</Badge>
           )}
           {effectiveImage.rehostedUrl ? (
-            <Badge variant="outline" className="h-4 text-[10px] leading-none text-green-600">
+            <Badge variant="outline" className="text-green-600">
               Rehosted
             </Badge>
           ) : (
-            <Badge variant="outline" className="h-4 text-[10px] leading-none text-orange-600">
+            <Badge variant="outline" className="text-orange-600">
               External
             </Badge>
           )}
-          <span className="text-muted-foreground text-[10px]">{effectiveImage.provider}</span>
+          <span className="text-muted-foreground">{effectiveImage.provider}</span>
           <div className="ml-auto flex items-center gap-0.5">
             {effectiveImage.isActive ? (
               <Button
@@ -283,15 +279,11 @@ export function PrintingImageSwitcher({
       )}
       {!effectiveImage && effectiveSource && (
         <div className="flex items-center gap-1">
-          <Badge variant="outline" className="h-4 text-[10px] leading-none">
-            Source
-          </Badge>
-          <span className="text-muted-foreground text-[10px]">{effectiveSource.source}</span>
+          <Badge variant="outline">Source</Badge>
+          <span className="text-muted-foreground">{effectiveSource.source}</span>
           <div className="ml-auto flex items-center gap-0.5">
             <Button
               variant="ghost"
-              size="sm"
-              className="h-6 text-[10px]"
               disabled={setPrintingSourceImage.isPending}
               onClick={() =>
                 setPrintingSourceImage.mutate(
@@ -305,8 +297,6 @@ export function PrintingImageSwitcher({
             </Button>
             <Button
               variant="ghost"
-              size="sm"
-              className="h-6 text-[10px]"
               disabled={setPrintingSourceImage.isPending}
               onClick={() =>
                 setPrintingSourceImage.mutate(
@@ -341,19 +331,16 @@ export function PrintingImageSwitcher({
             placeholder="Image URL…"
             value={urlValue}
             onChange={(e) => setUrlValue(e.target.value)}
-            className="h-7 text-xs"
           />
           <div className="flex gap-1">
             <Input
               placeholder="Source name"
               value={urlSource}
               onChange={(e) => setUrlSource(e.target.value)}
-              className="h-7 flex-1 text-xs"
+              className="flex-1"
             />
             <Button
               variant="outline"
-              size="sm"
-              className="h-7 text-xs"
               disabled={!urlValue.trim() || addImageFromUrl.isPending}
               onClick={() => {
                 addImageFromUrl.mutate(
@@ -377,8 +364,6 @@ export function PrintingImageSwitcher({
             </Button>
             <Button
               variant="ghost"
-              size="sm"
-              className="h-7 text-xs"
               onClick={() => {
                 setShowUrlInput(false);
                 setUrlValue("");
