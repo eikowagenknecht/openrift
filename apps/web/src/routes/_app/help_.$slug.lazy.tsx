@@ -11,9 +11,9 @@ export const Route = createLazyFileRoute("/_app/help_/$slug")({
 function HelpArticleRoute() {
   const { slug } = Route.useParams();
   const article = helpArticles.get(slug);
-  const unfinishedEnabled = useFeatureEnabled("unfinished");
+  const helpEnabled = useFeatureEnabled("help");
 
-  if (!article || (article.featureFlag === "unfinished" && !unfinishedEnabled)) {
+  if (!article || (article.featureFlag === "help" && !helpEnabled)) {
     throw notFound();
   }
 

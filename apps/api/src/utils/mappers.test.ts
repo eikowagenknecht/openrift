@@ -251,7 +251,7 @@ describe("toCopy", () => {
       id: "copy-1",
       printingId: "p-1",
       collectionId: "col-1",
-      acquisitionSourceId: null,
+
       cardId: "card-1",
       setId: "set-1",
       collectorNumber: 27,
@@ -270,7 +270,7 @@ describe("toCopy", () => {
       id: "copy-1",
       printingId: "p-1",
       collectionId: "col-1",
-      acquisitionSourceId: null,
+
       cardId: "card-1",
       setId: "set-1",
       collectorNumber: 27,

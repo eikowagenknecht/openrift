@@ -40,7 +40,6 @@ export interface CopyResponse {
   id: string;
   printingId: string;
   collectionId: string;
-  acquisitionSourceId: string | null;
   cardId: string;
   setId: string;
   collectorNumber: number;

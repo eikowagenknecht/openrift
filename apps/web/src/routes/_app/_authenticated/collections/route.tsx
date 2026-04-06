@@ -7,7 +7,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { ChevronDownIcon } from "lucide-react";
 import { createContext, use, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -19,8 +19,6 @@ import { Button } from "@/components/ui/button";
 import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-import type { FeatureFlags } from "@/lib/feature-flags";
-import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { getCardImageUrl } from "@/lib/images";
 
 type SetTitle = (title: string) => void;
@@ -41,14 +39,6 @@ export const AddModeSlotContext = createContext<HTMLDivElement | null>(null);
 
 export const Route = createFileRoute("/_app/_authenticated/collections")({
   staticData: { hideFooter: true },
-  beforeLoad: async ({ context }) => {
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
-    if (!featureEnabled(flags, "collection")) {
-      throw redirect({ to: "/cards" });
-    }
-  },
   component: CollectionLayout,
 });
 

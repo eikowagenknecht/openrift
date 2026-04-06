@@ -79,7 +79,6 @@ export const addCopiesSchema = z.object({
       z.object({
         printingId: z.uuid(),
         collectionId: z.uuid().optional(),
-        acquisitionSourceId: z.uuid().optional(),
       }),
     )
     .min(1)

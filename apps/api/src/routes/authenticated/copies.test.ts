@@ -56,7 +56,6 @@ const dbCopy = {
   id: "a0000000-0001-4000-a000-000000000020",
   printingId: "OGS-001:rare:normal:",
   collectionId: "a0000000-0001-4000-a000-000000000010",
-  acquisitionSourceId: null,
   createdAt: now,
   updatedAt: now,
   cardId: "OGS-001",
@@ -147,7 +146,6 @@ describe("POST /api/v1/copies", () => {
         id: COPY_ID,
         printingId: PRINTING_ID,
         collectionId: COLLECTION_ID,
-        acquisitionSourceId: null,
       },
     ];
     mockAddCopies.mockResolvedValue(created);
@@ -245,7 +243,6 @@ describe("GET /api/v1/copies/:id", () => {
     const json = await res.json();
     expect(json.printingId).toBe(dbCopy.printingId);
     expect(json.collectionId).toBe(dbCopy.collectionId);
-    expect(json.acquisitionSourceId).toBeNull();
     expect(json.cardId).toBe("OGS-001");
     expect(json.setId).toBe("OGS");
     expect(json.collectorNumber).toBe(1);

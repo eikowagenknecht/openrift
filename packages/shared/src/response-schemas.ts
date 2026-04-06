@@ -275,7 +275,6 @@ export const copyResponseSchema = z
     id: z.string(),
     printingId: z.string(),
     collectionId: z.string(),
-    acquisitionSourceId: z.string().nullable(),
     cardId: z.string(),
     setId: z.string(),
     collectorNumber: z.number(),

@@ -1,0 +1,22 @@
+import type { ReactNode } from "react";
+
+/**
+ * Centered layout wrapper for auth pages (login, signup, verify-email, reset-password).
+ *
+ * @returns The centered layout with children.
+ */
+export function AuthPageLayout({
+  children,
+  size = "md",
+}: {
+  children: ReactNode;
+  size?: "md" | "4xl";
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center p-3">
+      <div className={`w-full max-w-sm ${size === "4xl" ? "md:max-w-4xl" : "md:max-w-md"}`}>
+        {children}
+      </div>
+    </div>
+  );
+}

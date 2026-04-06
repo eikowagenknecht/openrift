@@ -149,7 +149,6 @@ export function toCopy(row: {
   id: string;
   printingId: string;
   collectionId: string;
-  acquisitionSourceId: string | null;
   cardId: string;
   setId: string;
   collectorNumber: number;
@@ -168,7 +167,6 @@ export function toCopy(row: {
     id: row.id,
     printingId: row.printingId,
     collectionId: row.collectionId,
-    acquisitionSourceId: row.acquisitionSourceId,
     cardId: row.cardId,
     setId: row.setId,
     collectorNumber: row.collectorNumber,

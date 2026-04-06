@@ -292,7 +292,6 @@ export interface CopiesTable {
   userId: string;
   printingId: string;
   collectionId: string;
-  acquisitionSourceId: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

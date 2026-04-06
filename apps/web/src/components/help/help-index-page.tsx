@@ -8,11 +8,10 @@ import type { HelpArticle } from "./articles";
 import { helpArticleList } from "./articles";
 
 function useVisibleArticles(): HelpArticle[] {
-  const unfinishedEnabled = useFeatureEnabled("unfinished");
+  const helpEnabled = useFeatureEnabled("help");
 
   return helpArticleList.filter(
-    (article) =>
-      !article.featureFlag || (article.featureFlag === "unfinished" && unfinishedEnabled),
+    (article) => !article.featureFlag || (article.featureFlag === "help" && helpEnabled),
   );
 }
 
