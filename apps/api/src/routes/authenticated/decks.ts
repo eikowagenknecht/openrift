@@ -530,6 +530,17 @@ export const decksRoute = decksApp
         decoded.cards.map((card) => card.cardName),
       );
       resolvedMap = new Map(resolved.map((row) => [row.cardName.toLowerCase(), row]));
+
+      // Tag+name fallback for unresolved entries (e.g. "Sett, The Boss" → tag "Sett" + name "The Boss")
+      const unresolvedNames = decoded.cards
+        .filter((card) => !resolvedMap.has(card.cardName.toLowerCase()))
+        .map((card) => card.cardName);
+      if (unresolvedNames.length > 0) {
+        const tagResolved = await canonicalPrintings.cardIdsByTagAndName(unresolvedNames);
+        for (const row of tagResolved) {
+          resolvedMap.set(row.originalName.toLowerCase(), row);
+        }
+      }
     } else {
       let decoded;
       try {
