@@ -1,5 +1,6 @@
 import type { CardType, Domain, SuperType } from "@openrift/shared/types";
-import type { Kysely } from "kysely";
+import type { Kysely, SqlBool } from "kysely";
+import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 import { domainsArray, superTypesArray } from "./query-helpers.js";
@@ -113,6 +114,66 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
       ).execute();
 
       return rows as ResolvedCard[];
+    },
+
+    /**
+     * Maps "tag, name" pairs to card IDs for text import fallback.
+     *
+     * Handles cases like "Sett, The Boss" where the DB card name is "The Boss"
+     * with tag "Sett". Splits each input on the first comma to extract tag and name.
+     *
+     * @returns One entry per resolved pair, keyed by the original input name.
+     */
+    async cardIdsByTagAndName(
+      names: string[],
+    ): Promise<(ResolvedCard & { originalName: string })[]> {
+      // Split each name into tag + card name on the first comma
+      const pairs: { original: string; tag: string; name: string }[] = [];
+      for (const name of names) {
+        const commaIndex = name.indexOf(",");
+        if (commaIndex === -1) {
+          continue;
+        }
+        const tag = name.slice(0, commaIndex).trim();
+        const cardName = name.slice(commaIndex + 1).trim();
+        if (tag.length > 0 && cardName.length > 0) {
+          pairs.push({ original: name, tag, name: cardName });
+        }
+      }
+
+      if (pairs.length === 0) {
+        return [];
+      }
+
+      const results: (ResolvedCard & { originalName: string })[] = [];
+
+      // Query each pair individually — there are typically very few unresolved names
+      for (const pair of pairs) {
+        const rows = await appendCanonicalOrder(
+          baseQuery()
+            .innerJoin("cards as c", "c.id", "p.cardId")
+            .select([
+              "p.shortCode",
+              "c.id as cardId",
+              "c.name as cardName",
+              "c.type as cardType",
+              domainsArray("c.id").as("domains"),
+              superTypesArray("c.id").as("superTypes"),
+            ])
+            .where((eb) => eb.fn("lower", ["c.name"]), "=", pair.name.toLowerCase())
+            .where(sql<SqlBool>`c.tags @> ARRAY[${pair.tag}]::text[]`)
+            .limit(1),
+        ).execute();
+
+        if (rows.length > 0) {
+          results.push({
+            ...(rows[0] as ResolvedCard),
+            originalName: pair.original,
+          });
+        }
+      }
+
+      return results;
     },
 
     /**

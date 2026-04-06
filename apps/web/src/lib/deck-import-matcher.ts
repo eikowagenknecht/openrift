@@ -40,34 +40,44 @@ class CardIndex {
   private byShortCode = new Map<string, ResolvedCard>();
   /** normalized card name → ResolvedCard */
   private byNormalizedName = new Map<string, ResolvedCard>();
+  /** "normalizedTag:normalizedName" → ResolvedCard (for "Character, Title" lookups) */
+  private byTagAndName = new Map<string, ResolvedCard>();
   /** All unique resolved cards for iteration during fuzzy search. */
   private allCards: ResolvedCard[] = [];
 
   constructor(allPrintings: Printing[]) {
     // Deduplicate printings to cards: pick the first printing per card as representative
-    const cardMap = new Map<string, ResolvedCard>();
+    const cardMap = new Map<string, { resolved: ResolvedCard; tags: string[] }>();
 
     for (const printing of allPrintings) {
       if (cardMap.has(printing.card.id)) {
         // Still index additional short codes for this card
         const existing = cardMap.get(printing.card.id);
         if (existing) {
-          this.byShortCode.set(printing.shortCode.toLowerCase(), existing);
+          this.byShortCode.set(printing.shortCode.toLowerCase(), existing.resolved);
         }
         continue;
       }
 
       const resolved = cardFromPrinting(printing);
-      cardMap.set(printing.card.id, resolved);
+      cardMap.set(printing.card.id, { resolved, tags: printing.card.tags });
       this.byShortCode.set(printing.shortCode.toLowerCase(), resolved);
     }
 
-    this.allCards = [...cardMap.values()];
+    this.allCards = [...cardMap.values()].map((entry) => entry.resolved);
 
-    for (const card of this.allCards) {
-      const normalized = normalizeNameForMatching(card.cardName);
+    for (const { resolved, tags } of cardMap.values()) {
+      const normalized = normalizeNameForMatching(resolved.cardName);
       if (normalized.length > 0) {
-        this.byNormalizedName.set(normalized, card);
+        this.byNormalizedName.set(normalized, resolved);
+      }
+
+      // Index each tag + card name combination for "Character, Title" lookups
+      for (const tag of tags) {
+        const normalizedTag = normalizeNameForMatching(tag);
+        if (normalizedTag.length > 0 && normalized.length > 0) {
+          this.byTagAndName.set(`${normalizedTag}:${normalized}`, resolved);
+        }
       }
     }
   }
@@ -90,6 +100,24 @@ class CardIndex {
       return null;
     }
     return this.byNormalizedName.get(normalized) ?? null;
+  }
+
+  /**
+   * Looks up a card by splitting "Tag, Name" and matching tag + card name.
+   * Handles import formats like "Sett, The Boss" where DB stores name "The Boss" with tag "Sett".
+   * @returns The resolved card, or null if not found.
+   */
+  lookupByTagAndName(cardName: string): ResolvedCard | null {
+    const commaIndex = cardName.indexOf(",");
+    if (commaIndex === -1) {
+      return null;
+    }
+    const tag = normalizeNameForMatching(cardName.slice(0, commaIndex));
+    const name = normalizeNameForMatching(cardName.slice(commaIndex + 1));
+    if (tag.length === 0 || name.length === 0) {
+      return null;
+    }
+    return this.byTagAndName.get(`${tag}:${name}`) ?? null;
   }
 
   /**
@@ -232,7 +260,19 @@ function matchSingleDeckEntry(entry: DeckImportEntry, index: CardIndex): DeckMat
       };
     }
 
-    // Strategy 3: Fuzzy name match
+    // Strategy 3: Tag + name match (e.g. "Sett, The Boss" → tag "Sett" + name "The Boss")
+    const tagMatch = index.lookupByTagAndName(entry.cardName);
+    if (tagMatch) {
+      return {
+        entry,
+        status: "exact",
+        resolvedCard: tagMatch,
+        candidates: [tagMatch],
+        zone: inferEntryZone(entry, tagMatch),
+      };
+    }
+
+    // Strategy 4: Fuzzy name match
     const fuzzy = index.fuzzyMatchByName(entry.cardName);
     if (fuzzy) {
       return {
@@ -246,7 +286,7 @@ function matchSingleDeckEntry(entry: DeckImportEntry, index: CardIndex): DeckMat
     }
   }
 
-  // Strategy 4: Unresolved
+  // Strategy 5: Unresolved
   return {
     entry,
     status: "unresolved",
