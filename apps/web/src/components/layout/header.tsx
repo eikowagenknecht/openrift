@@ -347,9 +347,7 @@ function MobileNav({
           )}
         </nav>
         <SheetFooter className="border-t px-4 pt-4">
-          <p className="text-muted-foreground text-xs">
-            Fast. Open. Ad-free. A Riftbound companion.
-          </p>
+          <p className="text-muted-foreground text-xs">Built with Fury. Maintained with Calm.</p>
         </SheetFooter>
       </SheetContent>
     </Sheet>

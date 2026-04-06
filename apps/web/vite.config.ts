@@ -66,7 +66,7 @@ export default defineConfig({
         id: "/",
         name: "OpenRift — A Riftbound Companion",
         short_name: "OpenRift",
-        description: "Fast. Open. Ad-free. A Riftbound companion.",
+        description: "Built with Fury. Maintained with Calm.",
         theme_color: "#1d1538",
         background_color: "#0a0a0a",
         display: "standalone",
