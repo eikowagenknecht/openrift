@@ -79,11 +79,14 @@ export function useSaveDeckCards() {
 }
 
 export function useUpdateDeck() {
-  return useMutationWithInvalidation<unknown, { deckId: string; name: string }>({
-    mutationFn: async ({ deckId, name }) => {
+  return useMutationWithInvalidation<
+    unknown,
+    { deckId: string; name?: string; format?: DeckFormat }
+  >({
+    mutationFn: async ({ deckId, ...fields }) => {
       const res = await client.api.v1.decks[":id"].$patch({
         param: { id: deckId },
-        json: { name },
+        json: fields,
       });
       assertOk(res);
       return await res.json();

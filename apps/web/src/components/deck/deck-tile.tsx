@@ -1,4 +1,4 @@
-import type { DeckListItemResponse, DeckResponse, Domain } from "@openrift/shared";
+import type { DeckFormat, DeckListItemResponse, DeckResponse, Domain } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -7,7 +7,9 @@ import {
   CircleAlertIcon,
   CopyIcon,
   EllipsisVerticalIcon,
+  PencilIcon,
   PrinterIcon,
+  RefreshCwIcon,
   Share2Icon,
   SwordsIcon,
   Trash2Icon,
@@ -27,13 +29,28 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { deckDetailQueryOptions, useCloneDeck, useDeleteDeck } from "@/hooks/use-decks";
+import {
+  deckDetailQueryOptions,
+  useCloneDeck,
+  useDeleteDeck,
+  useUpdateDeck,
+} from "@/hooks/use-decks";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
 import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
@@ -166,10 +183,13 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   } = item;
   const navigate = useNavigate();
   const cloneDeck = useCloneDeck();
+  const updateDeck = useUpdateDeck();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameName, setRenameName] = useState(deck.name);
   const deleteDeck = useDeleteDeck();
 
   // Lazy-fetch full card detail only when export/proxy dialogs are open
@@ -200,6 +220,21 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const handleDelete = () => {
     deleteDeck.mutate(deck.id);
     setDeleteOpen(false);
+  };
+
+  const handleRename = () => {
+    const trimmed = renameName.trim();
+    if (trimmed && trimmed !== deck.name) {
+      updateDeck.mutate({ deckId: deck.id, name: trimmed });
+    }
+    setRenameOpen(false);
+  };
+
+  const handleFormatToggle = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const newFormat: DeckFormat = deck.format === "standard" ? "freeform" : "standard";
+    updateDeck.mutate({ deckId: deck.id, format: newFormat });
   };
 
   const legendDomains = legend?.domains;
@@ -326,6 +361,21 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
                   <PrinterIcon className="size-4" />
                   Proxies
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(event: React.MouseEvent) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setRenameName(deck.name);
+                    setRenameOpen(true);
+                  }}
+                >
+                  <PencilIcon className="size-4" />
+                  Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleFormatToggle}>
+                  <RefreshCwIcon className="size-4" />
+                  {deck.format === "standard" ? "Change to freeform" : "Change to standard"}
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleClone}>
                   <CopyIcon className="size-4" />
                   Clone
@@ -368,6 +418,44 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog
+        open={renameOpen}
+        onOpenChange={(open) => {
+          setRenameOpen(open);
+          if (!open) {
+            setRenameName(deck.name);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename deck</DialogTitle>
+            <DialogDescription>Enter a new name for your deck.</DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              handleRename();
+            }}
+          >
+            <Input
+              ref={(node) => {
+                node?.focus();
+              }}
+              value={renameName}
+              onChange={(event) => setRenameName(event.target.value)}
+              maxLength={100}
+            />
+            <DialogFooter className="mt-4">
+              <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+              <Button type="submit" disabled={!renameName.trim()}>
+                Rename
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
