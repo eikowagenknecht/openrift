@@ -1,12 +1,14 @@
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 
+import { PAGE_PADDING } from "@/lib/utils";
+
 export const Route = createLazyFileRoute("/_app/legal-notice")({
   component: LegalNoticePage,
 });
 
 function LegalNoticePage() {
   return (
-    <article className="prose dark:prose-invert mx-auto max-w-2xl px-3 py-3">
+    <article className={`prose dark:prose-invert mx-auto max-w-2xl ${PAGE_PADDING}`}>
       <h1>Legal Notice</h1>
 
       <h2>Responsible for this site</h2>

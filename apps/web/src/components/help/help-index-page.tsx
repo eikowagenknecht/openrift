@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
+import { PAGE_PADDING } from "@/lib/utils";
 
 import type { HelpArticle } from "./articles";
 import { helpArticleList } from "./articles";
@@ -19,7 +20,7 @@ export function HelpIndexPage() {
   const articles = useVisibleArticles();
 
   return (
-    <div className="mx-auto w-full max-w-2xl flex-1 px-3 py-3">
+    <div className={`mx-auto w-full max-w-2xl flex-1 ${PAGE_PADDING}`}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Help Center</h1>
         <p className="text-muted-foreground mt-1 text-sm">

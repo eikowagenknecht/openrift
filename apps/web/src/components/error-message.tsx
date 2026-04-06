@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, FOOTER_PADDING_NO_TOP } from "@/lib/utils";
 
 export const HEADINGS = [
   "The Rift collapsed",
@@ -170,7 +170,7 @@ export function RouteNotFoundFallback() {
     <>
       <Header />
       <NotFoundFallback />
-      <Footer className="p-3" />
+      <Footer className={FOOTER_PADDING_NO_TOP} />
     </>
   );
 }

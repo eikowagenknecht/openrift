@@ -13,8 +13,17 @@ export function cn(...inputs: ClassValue[]) {
 export const CONTAINER_WIDTH =
   "w-full mx-auto max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide)";
 
+/** Horizontal page padding — shared axis constant for one-off compositions. */
+export const PAGE_X = "px-3";
+
 /** Standard page padding applied by leaf routes that want the default inset. */
-export const PAGE_PADDING = "px-3 py-3";
+export const PAGE_PADDING = `${PAGE_X} py-3`;
+
+/** Page padding without top — for pages whose sticky toolbar already provides top spacing. */
+export const PAGE_PADDING_NO_TOP = `${PAGE_X} pb-3`;
+
+/** Footer padding — horizontal + bottom only. */
+export const FOOTER_PADDING_NO_TOP = `${PAGE_X} pb-3`;
 
 /** Returns a safe relative redirect path, or `undefined` if the input is missing or unsafe.
  * @returns The sanitized path, or `undefined` if invalid.

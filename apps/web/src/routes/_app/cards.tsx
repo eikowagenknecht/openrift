@@ -5,7 +5,7 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
-import { PAGE_PADDING } from "@/lib/utils";
+import { PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/cards")({
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQueryOptions),
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/_app/cards")({
 function CardsPage() {
   useHideScrollbar();
   return (
-    <div className={`flex flex-1 flex-col ${PAGE_PADDING}`}>
+    <div className={`flex flex-1 flex-col ${PAGE_PADDING_NO_TOP}`}>
       <CardBrowser />
     </div>
   );

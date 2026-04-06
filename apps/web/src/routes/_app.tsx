@@ -4,7 +4,7 @@ import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { usePreferencesSync } from "@/hooks/use-preferences-sync";
 import { useSession } from "@/lib/auth-client";
-import { CONTAINER_WIDTH } from "@/lib/utils";
+import { CONTAINER_WIDTH, FOOTER_PADDING_NO_TOP } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app")({
   component: AppLayout,
@@ -22,7 +22,7 @@ function AppLayout() {
       <main className={`flex flex-1 flex-col ${CONTAINER_WIDTH}`}>
         <Outlet />
       </main>
-      {!hideFooter && <Footer className="p-3" />}
+      {!hideFooter && <Footer className={FOOTER_PADDING_NO_TOP} />}
     </>
   );
 }

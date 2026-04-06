@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import changelogMd from "@/CHANGELOG.md?raw";
 import { parseChangelog } from "@/lib/changelog";
 import { formatRelativeDate } from "@/lib/format-relative-date";
+import { PAGE_PADDING } from "@/lib/utils";
 
 const changelogGroups = parseChangelog(changelogMd);
 
@@ -19,7 +20,7 @@ function SkewedBadge({ text, color }: { text: string; color: string }) {
 
 export function ChangelogPage() {
   return (
-    <div className="mx-auto max-w-2xl px-3 py-3">
+    <div className={`mx-auto max-w-2xl ${PAGE_PADDING}`}>
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold">What&apos;s new</h1>
         <Link to="/roadmap" className="text-muted-foreground hover:text-foreground text-sm">

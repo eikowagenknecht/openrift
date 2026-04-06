@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { useRules, useRuleVersions } from "@/hooks/use-rules";
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
-import { cn } from "@/lib/utils";
+import { cn, PAGE_PADDING } from "@/lib/utils";
 
 /**
  * Formats a rule number for display by stripping trailing dots.
@@ -159,7 +159,7 @@ export function RulesPage() {
   const isEmpty = rules.length === 0 && !searchQuery;
 
   return (
-    <div className="mx-auto max-w-6xl px-3 py-3">
+    <div className={`mx-auto max-w-6xl ${PAGE_PADDING}`}>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Riftbound Rules</h1>
         {selectedVersion && (

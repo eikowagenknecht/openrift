@@ -5,7 +5,7 @@ import { siGithubsponsors, siKofi, siReddit, siX } from "simple-icons";
 import { CardText } from "@/components/cards/card-text";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, PAGE_PADDING } from "@/lib/utils";
 
 const GITHUB_SPONSORS_URL = "https://github.com/sponsors/eikowagenknecht";
 const KOFI_URL = "https://ko-fi.com/eikowagenknecht";
@@ -128,7 +128,7 @@ export function SupportPage() {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col px-3 py-3">
+    <div className={`mx-auto flex w-full max-w-2xl flex-1 flex-col ${PAGE_PADDING}`}>
       {/* Hero */}
       <div className="mb-10">
         <h1 className="mb-4 text-2xl font-bold">Fund the Rift</h1>

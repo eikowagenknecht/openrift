@@ -11,6 +11,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { useCards } from "@/hooks/use-cards";
 import { useSession } from "@/lib/auth-client";
 import { useGravatarUrl } from "@/lib/gravatar";
+import { PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/profile")({
   component: ProfilePage,
@@ -41,7 +42,7 @@ function ProfilePage() {
     : null;
 
   return (
-    <div className="flex justify-center px-3 py-3">
+    <div className={`flex justify-center ${PAGE_PADDING}`}>
       <div className="flex w-full max-w-2xl flex-col gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center gap-4">

@@ -34,7 +34,7 @@ import {
 import { useCards } from "@/hooks/use-cards";
 import { useDeckDetail, useSaveDeckCards, useUpdateDeck } from "@/hooks/use-decks";
 import { getCardImageUrl } from "@/lib/images";
-import { cn, CONTAINER_WIDTH } from "@/lib/utils";
+import { cn, CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { toDeckBuilderCard, useDeckBuilderStore } from "@/stores/deck-builder-store";
 
@@ -442,7 +442,10 @@ function DeckEditorContent({ deckId }: { deckId: string }) {
       <DeckEditorHeader deckId={deckId} isDirty={isDirty} />
       <DeckValidationBanner isDirty={isDirty} isSaving={saveDeckCards.isPending} />
       <DeckDndContext>
-        <div ref={containerRef} className={cn(CONTAINER_WIDTH, "relative flex gap-4 px-3 py-3")}>
+        <div
+          ref={containerRef}
+          className={cn(CONTAINER_WIDTH, PAGE_PADDING, "relative flex gap-4")}
+        >
           <NestedSidebar
             className="w-(--sidebar-width)!"
             style={{ "--sidebar-width": "18rem" } as React.CSSProperties}

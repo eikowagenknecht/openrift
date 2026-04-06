@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { cn, PAGE_PADDING } from "@/lib/utils";
 
 interface RoadmapItem {
   title: string;
@@ -109,7 +109,7 @@ const roadmapItems: RoadmapItem[] = [
 
 export function RoadmapPage() {
   return (
-    <div className="mx-auto w-full max-w-2xl px-3 py-3">
+    <div className={`mx-auto w-full max-w-2xl ${PAGE_PADDING}`}>
       <div className="mb-6 flex items-baseline justify-between">
         <h1 className="text-2xl font-bold">Roadmap</h1>
         <Link to="/changelog" className="text-muted-foreground hover:text-foreground text-sm">
