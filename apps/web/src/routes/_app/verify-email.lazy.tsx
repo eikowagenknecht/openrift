@@ -1,6 +1,7 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { AuthPageLayout } from "@/components/layout/auth-page-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldError, FieldGroup } from "@/components/ui/field";
@@ -50,63 +51,61 @@ function VerifyEmailPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm md:max-w-md">
-        <Card className="overflow-hidden p-0">
-          <CardContent className="flex flex-col items-center gap-4 p-6 text-center md:p-8">
-            <img src="/logo.webp" alt="OpenRift" className="size-12" />
-            <h1 className="text-2xl font-bold">Verify your email</h1>
-            <p className="text-muted-foreground text-balance">
-              We sent a 6-digit code to <strong>{email}</strong>. Enter it below to verify your
-              account.
-            </p>
-            <FieldGroup className="items-center">
-              {error && <FieldError>{error}</FieldError>}
-              <InputOTP
-                maxLength={6}
-                value={otp}
-                onChange={setOtp}
-                onComplete={handleVerify}
-                // oxlint-disable-next-line jsx-a11y/no-autofocus -- OTP input is the sole action on this page
-                autoFocus
-              >
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                  <InputOTPSlot index={4} />
-                  <InputOTPSlot index={5} />
-                </InputOTPGroup>
-              </InputOTP>
-              <Button
-                className="w-full"
-                disabled={otp.length < 6 || verifying}
-                onClick={() => handleVerify(otp)}
-              >
-                {verifying ? "Verifying..." : "Verify"}
-              </Button>
-              <button
-                type="button"
-                className="text-muted-foreground text-sm underline underline-offset-2"
-                disabled={resending}
-                onClick={handleResend}
-              >
-                {resending ? "Sending..." : "Resend code"}
-              </button>
-            </FieldGroup>
-            <p className="text-muted-foreground text-sm">
-              <Link
-                to="/login"
-                search={{ redirect: undefined, email: undefined }}
-                className="underline underline-offset-2"
-              >
-                Back to login
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+    <AuthPageLayout>
+      <Card className="overflow-hidden p-0">
+        <CardContent className="flex flex-col items-center gap-4 p-6 text-center md:p-8">
+          <img src="/logo.webp" alt="OpenRift" className="size-12" />
+          <h1 className="text-2xl font-bold">Verify your email</h1>
+          <p className="text-muted-foreground text-balance">
+            We sent a 6-digit code to <strong>{email}</strong>. Enter it below to verify your
+            account.
+          </p>
+          <FieldGroup className="items-center">
+            {error && <FieldError>{error}</FieldError>}
+            <InputOTP
+              maxLength={6}
+              value={otp}
+              onChange={setOtp}
+              onComplete={handleVerify}
+              // oxlint-disable-next-line jsx-a11y/no-autofocus -- OTP input is the sole action on this page
+              autoFocus
+            >
+              <InputOTPGroup>
+                <InputOTPSlot index={0} />
+                <InputOTPSlot index={1} />
+                <InputOTPSlot index={2} />
+                <InputOTPSlot index={3} />
+                <InputOTPSlot index={4} />
+                <InputOTPSlot index={5} />
+              </InputOTPGroup>
+            </InputOTP>
+            <Button
+              className="w-full"
+              disabled={otp.length < 6 || verifying}
+              onClick={() => handleVerify(otp)}
+            >
+              {verifying ? "Verifying..." : "Verify"}
+            </Button>
+            <button
+              type="button"
+              className="text-muted-foreground text-sm underline underline-offset-2"
+              disabled={resending}
+              onClick={handleResend}
+            >
+              {resending ? "Sending..." : "Resend code"}
+            </button>
+          </FieldGroup>
+          <p className="text-muted-foreground text-sm">
+            <Link
+              to="/login"
+              search={{ redirect: undefined, email: undefined }}
+              className="underline underline-offset-2"
+            >
+              Back to login
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
+    </AuthPageLayout>
   );
 }

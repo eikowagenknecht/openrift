@@ -1,6 +1,7 @@
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
+import { AuthPageLayout } from "@/components/layout/auth-page-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -82,105 +83,103 @@ function ResetPasswordPage() {
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm md:max-w-md">
-        <Card className="overflow-hidden p-0">
-          <CardContent className="flex flex-col items-center gap-4 p-6 text-center md:p-8">
-            <img src="/logo.webp" alt="OpenRift" className="size-12" />
-            <h1 className="text-2xl font-bold">Reset your password</h1>
+    <AuthPageLayout>
+      <Card className="overflow-hidden p-0">
+        <CardContent className="flex flex-col items-center gap-4 p-6 text-center md:p-8">
+          <img src="/logo.webp" alt="OpenRift" className="size-12" />
+          <h1 className="text-2xl font-bold">Reset your password</h1>
 
-            {step === "email" ? (
-              <>
-                <p className="text-muted-foreground text-balance">
-                  Enter your email and we&apos;ll send you a code to reset your password.
-                </p>
-                <FieldGroup className="w-full">
-                  {emailError && <FieldError>{emailError}</FieldError>}
-                  <Field>
-                    <FieldLabel htmlFor="reset-email">Email</FieldLabel>
-                    <Input
-                      id="reset-email"
-                      type="email"
-                      placeholder={emailPlaceholder}
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      aria-invalid={Boolean(emailError)}
-                    />
-                  </Field>
-                  <Field>
-                    <Button className="w-full" disabled={loading} onClick={handleSendCode}>
-                      {loading ? "Sending..." : "Send code"}
-                    </Button>
-                  </Field>
-                </FieldGroup>
-              </>
-            ) : (
-              <>
-                <p className="text-muted-foreground text-balance">
-                  Enter the 6-digit code sent to <strong>{email.trim()}</strong> and your new
-                  password.
-                </p>
-                <FieldGroup className="w-full items-center">
-                  {error && <FieldError>{error}</FieldError>}
-                  <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
-                  <Field className="w-full">
-                    <FieldLabel htmlFor="new-password">New password</FieldLabel>
-                    <Input
-                      id="new-password"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                    />
-                  </Field>
-                  <Field className="w-full">
-                    <FieldLabel htmlFor="confirm-password">Confirm password</FieldLabel>
-                    <Input
-                      id="confirm-password"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                    />
-                  </Field>
-                  <Button
-                    className="w-full"
-                    disabled={otp.length < 6 || !newPassword || loading}
-                    onClick={handleReset}
-                  >
-                    {loading ? "Resetting..." : "Reset password"}
+          {step === "email" ? (
+            <>
+              <p className="text-muted-foreground text-balance">
+                Enter your email and we&apos;ll send you a code to reset your password.
+              </p>
+              <FieldGroup className="w-full">
+                {emailError && <FieldError>{emailError}</FieldError>}
+                <Field>
+                  <FieldLabel htmlFor="reset-email">Email</FieldLabel>
+                  <Input
+                    id="reset-email"
+                    type="email"
+                    placeholder={emailPlaceholder}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    aria-invalid={Boolean(emailError)}
+                  />
+                </Field>
+                <Field>
+                  <Button className="w-full" disabled={loading} onClick={handleSendCode}>
+                    {loading ? "Sending..." : "Send code"}
                   </Button>
-                  <button
-                    type="button"
-                    className="text-muted-foreground text-sm underline underline-offset-2"
-                    disabled={resending}
-                    onClick={handleResend}
-                  >
-                    {resending ? "Sending..." : "Resend code"}
-                  </button>
-                </FieldGroup>
-              </>
-            )}
+                </Field>
+              </FieldGroup>
+            </>
+          ) : (
+            <>
+              <p className="text-muted-foreground text-balance">
+                Enter the 6-digit code sent to <strong>{email.trim()}</strong> and your new
+                password.
+              </p>
+              <FieldGroup className="w-full items-center">
+                {error && <FieldError>{error}</FieldError>}
+                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+                <Field className="w-full">
+                  <FieldLabel htmlFor="new-password">New password</FieldLabel>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </Field>
+                <Field className="w-full">
+                  <FieldLabel htmlFor="confirm-password">Confirm password</FieldLabel>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </Field>
+                <Button
+                  className="w-full"
+                  disabled={otp.length < 6 || !newPassword || loading}
+                  onClick={handleReset}
+                >
+                  {loading ? "Resetting..." : "Reset password"}
+                </Button>
+                <button
+                  type="button"
+                  className="text-muted-foreground text-sm underline underline-offset-2"
+                  disabled={resending}
+                  onClick={handleResend}
+                >
+                  {resending ? "Sending..." : "Resend code"}
+                </button>
+              </FieldGroup>
+            </>
+          )}
 
-            <p className="text-muted-foreground text-sm">
-              <Link
-                to="/login"
-                search={{ redirect: undefined, email: email.trim() || undefined }}
-                className="underline underline-offset-2"
-              >
-                Back to login
-              </Link>
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+          <p className="text-muted-foreground text-sm">
+            <Link
+              to="/login"
+              search={{ redirect: undefined, email: email.trim() || undefined }}
+              className="underline underline-offset-2"
+            >
+              Back to login
+            </Link>
+          </p>
+        </CardContent>
+      </Card>
+    </AuthPageLayout>
   );
 }

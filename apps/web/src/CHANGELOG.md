@@ -2,22 +2,22 @@
 
 ## 2026-04-06
 
-- fix: Decks are now sorted alphabetically regardless of capitalization
 - feat: Decks can now be renamed and have their format changed directly from the deck list via the three-dot menu
 - feat: Export dialog now shows where each format is used, with links to Piltover Archive, TCG Arena, and the Tabletop Simulator mod
 - feat: Cards with errata now show the corrected text by default, with the original printed text available via an expandable disclosure
 - feat: Deck zones in the builder and import view are now sorted by the order configured in the database, and the import preview groups cards by zone
-- fix: Plus icon in the deck editor card grid is now always visible, even when a card has reached its copy limit
 - feat: Deck text import now recognizes "Character, Title" names (e.g. "Sett, The Boss") even when the card is stored under just the title
-- fix: Importing from RiftCore now correctly recognizes token, rune, and signed card IDs instead of skipping them
 - feat: Collection import preview now sorts entries by card ID within each match status group
+- fix: Decks are now sorted alphabetically regardless of capitalization
+- fix: Plus icon in the deck editor card grid is now always visible, even when a card has reached its copy limit
+- fix: Importing from RiftCore now correctly recognizes token, rune, and signed card IDs instead of skipping them
 - fix: Importing a deck in text format without zone headers now correctly places legends, runes, battlefields, and the first champion into their proper zones instead of putting everything in main
 
 ## 2026-04-05
 
+- feat: Upgraded keyword abilities now render with the correct arrow shape on their left edge
 - fix: Deck export now uses the correct base card variant instead of sometimes picking alt-art versions
 - fix: Importing a deck code no longer duplicates the chosen champion across zones
-- feat: Upgraded keyword abilities now render with the correct arrow shape on their left edge
 - fix: Deck zones sidebar no longer scrolls out of view when scrolling through cards in the deck editor
 - fix: Card hover preview no longer stays stuck on screen after removing a card from the deck sidebar
 - fix: Deck export no longer overflows its container on iOS, and copied text preserves line breaks
@@ -26,28 +26,28 @@
 
 - feat: You can now download a printable tournament deck registration sheet PDF from the export dialog
 - feat: Deck import and export now support three formats — Deck Code, Text (human-readable list), and TTS (Tabletop Simulator) — switchable via tabs
-- fix: Dual-color cards are no longer double-counted in the deck stats type breakdown labels
 - feat: Deck overview tiles now show the estimated deck value based on cheapest available printing
 - feat: You can now export proxy PDFs directly from the deck overview without opening the editor
 - feat: Deck stats panel is more compact — domain colors are shown as a bar in the header, and energy and power curves are merged into a single butterfly chart
 - feat: Deck overview tiles now show a domain color bar and type counts at a glance
-- fix: Deck editor now shows amber for invalid decks instead of gray, matching the deck overview colors
-- fix: The minus button in the deck editor card grid no longer jumps position when a card reaches its copy limit
 - feat: Deck zones are now ordered Legend, Champion, Main Deck, then Battlefield and Runes at the bottom
 - feat: Power curve and card type charts in deck stats are now colored by domain
-- fix: Empty "reset filters" bar no longer appears in deck zones where the card type is forced (e.g. Legend zone)
 - feat: Search now checks all fields by default (name, card text, keywords, tags, artist, flavor text, type, and ID) with an "All" toggle to quickly reset scope
 - feat: Flavor text and card type are now searchable fields, with prefix shortcuts f: and ty:
 - feat: Cards in the deck builder now show a "Switch" button when the Legend, Champion, or Battlefield slot is already filled, making it easy to swap without removing first
+- fix: Dual-color cards are no longer double-counted in the deck stats type breakdown labels
+- fix: Deck editor now shows amber for invalid decks instead of gray, matching the deck overview colors
+- fix: The minus button in the deck editor card grid no longer jumps position when a card reaches its copy limit
+- fix: Empty "reset filters" bar no longer appears in deck zones where the card type is forced (e.g. Legend zone)
 
 ## 2026-04-01
 
-- fix: Removing a rune in the deck builder now correctly adds a replacement from the other domain to keep the total at 12
-- fix: Group-by setting in the deck builder now works correctly instead of always grouping by set
 - feat: Export any deck as a printable proxy PDF with card images or text placeholders, optional cut lines and watermark
 - feat: Buttons now have a subtle press-down effect, and keyboard shortcut hints in tooltips look sharper
 - feat: Deck overview now shows a visual card grid with legend and champion art previews, domain icons, card type breakdown, and validity badges
 - feat: Sort and group direction can now be toggled with a small arrow icon next to each section header in the sort/group popover
+- fix: Removing a rune in the deck builder now correctly adds a replacement from the other domain to keep the total at 12
+- fix: Group-by setting in the deck builder now works correctly instead of always grouping by set
 
 ## 2026-03-31
 
@@ -66,20 +66,17 @@
 ## 2026-03-30
 
 - feat: Cards that are banned in a format now show a red "Banned" badge in the grid and a banner with the reason in the detail panel
-- fix: Filtering by set no longer shows card variants from other sets in the sibling fan, price ranges, and detail pane
 - feat: The active page is now highlighted in the navigation menu so you can see where you are at a glance
 - feat: Cards can now have different language printings (English, French, Chinese) — your preferences control which languages appear in the card browser, defaulting to English only
 - feat: Energy, might, and power range filters now have a "None" option so you can find cards without a stat (e.g. spells with no energy cost)
 - feat: Cards can now be grouped by set, type, supertype, domain, rarity, art variant, or shown ungrouped — choose from the new Sort & Group popover
 - feat: Clicking a collection name in the "In your collections" popover now opens that collection filtered to the card you're viewing
-- fix: The owned count badge in cards view now shows the total across all printings of a card, not just the displayed variant
 - feat: You can now export any collection (or all cards) as a CSV file from the Import / Export page
 - feat: On mobile, the collection sidebar now opens from a tappable title instead of a separate sidebar icon, reducing visual clutter near the menu button
 - feat: Drag and drop cards from the grid onto a collection in the sidebar to move them — works with multi-select too
 - feat: Each collection now shows its total market value based on your preferred trading platform, with an indicator for cards that don't have price data yet
 - feat: The app now shows a "Beta" badge next to the logo so it's clear this is an early release
 - feat: Import preview now shows all parsed CSV fields (set, rarity, finish, condition, etc.) in an expandable detail row so you can sanity-check each entry before importing
-- fix: Clicking the card name or price below the image no longer selects the card — only clicking the image does
 - feat: Quick add palette (⌘K) now lets you undo cards added by mistake — each printing row shows a minus button, or press Shift+Enter to undo the selected printing
 - feat: Quick add palette now always expands to show printings before adding, making the flow consistent for all cards
 - feat: Clicking a card in the Activity page opens it in the card browser with full details
@@ -87,6 +84,9 @@
 - feat: Selection checkboxes are hidden by default and appear when you click "Select" or Ctrl+click a card, keeping the default view clean
 - feat: Unowned cards are dimmed in add mode so you can instantly see what you already have
 - feat: Foil cards now show a sparkle icon next to the rarity badge in the card grid and detail view, so you can tell them apart even with the foil effect turned off
+- fix: Filtering by set no longer shows card variants from other sets in the sibling fan, price ranges, and detail pane
+- fix: The owned count badge in cards view now shows the total across all printings of a card, not just the displayed variant
+- fix: Clicking the card name or price below the image no longer selects the card — only clicking the image does
 - fix: Owned count is now shown consistently above every card instead of as a small badge in the corner
 - fix: Rapidly clicking the add button no longer loses count — all clicks are now tracked immediately and show up in the "added this session" panel
 - fix: Set header pill no longer briefly shows when jumping to a section
@@ -109,17 +109,17 @@
 
 - feat: "Browse & add" now opens the full card browser inline within the collection page — the sidebar stays visible so you always know which collection you're adding to
 - feat: Press ⌘K in any collection to open a quick-add palette — type a card name, pick a printing, and add it without leaving the page
+- feat: Clicking a stacked variant in the card grid now swaps it to the front of the stack
 - fix: Owned count now shows consistently for all cards in add mode, not just cards with multiple printings
 - fix: Clicking above or below a card in add mode no longer accidentally opens the detail pane — only the card image is clickable
-- feat: Clicking a stacked variant in the card grid now swaps it to the front of the stack
 
 ## 2026-03-27
 
+- feat: You can now choose which marketplaces to show and in what order — the first one appears on card thumbnails in the grid
+- feat: Cards without images now show a full placeholder with card type, tags, rules text, effect text, and flavor text — like a mini text-only version of the real card
 - fix: Dark theme no longer resets to light on page refresh for signed-in users
 - fix: Marketplace preferences no longer show blank rows when stored settings get out of sync
-- feat: You can now choose which marketplaces to show and in what order — the first one appears on card thumbnails in the grid
 - fix: EUR prices (Cardmarket, CardTrader) now display as 1,23 € instead of €1.23
-- feat: Cards without images now show a full placeholder with card type, tags, rules text, effect text, and flavor text — like a mini text-only version of the real card
 
 ## 2026-03-26
 
