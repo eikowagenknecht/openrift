@@ -41,6 +41,7 @@ function getPrefsSnapshot(): UserPreferencesResponse & { theme?: string | null }
 export function usePreferencesSync(enabled: boolean) {
   const queryClient = useQueryClient();
   const hydrating = useRef(false);
+  const saving = useRef(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   const { data } = useQuery({
@@ -53,9 +54,10 @@ export function usePreferencesSync(enabled: boolean) {
     enabled,
   });
 
-  // Hydrate stores when server data arrives
+  // Hydrate stores when server data arrives (skip if we just saved)
   useEffect(() => {
-    if (!data) {
+    if (!data || saving.current) {
+      saving.current = false;
       return;
     }
 
@@ -93,6 +95,7 @@ export function usePreferencesSync(enabled: boolean) {
         const prefs = getPrefsSnapshot();
         const res = await client.api.v1.preferences.$patch({ json: prefs });
         assertOk(res);
+        saving.current = true;
         queryClient.setQueryData(queryKeys.preferences.all, prefs);
       }, 1000);
     }
