@@ -48,6 +48,7 @@ const mockMut = {
   checkCandidatePrinting: vi.fn(),
   uncheckCandidatePrinting: vi.fn(),
   getCardBySlug: vi.fn(),
+  getCardById: vi.fn(),
   getCardAliases: vi.fn(),
   checkAllCandidateCards: vi.fn(),
   patchCandidatePrinting: vi.fn(),
@@ -58,24 +59,25 @@ const mockMut = {
   linkCandidatePrintings: vi.fn(),
   upsertPrintingLinkOverrides: vi.fn(),
   removePrintingLinkOverrides: vi.fn(),
-  renameCardSlug: vi.fn(),
+  renameCardSlugById: vi.fn(),
   updateCardBySlug: vi.fn(),
+  updateCardById: vi.fn(),
   getCardTexts: vi.fn(),
+  getCardTextsById: vi.fn(),
   updatePrintingFieldById: vi.fn(),
   recomputeKeywordsForPrintingCard: vi.fn(),
   getPrintingTextsForCardSlug: vi.fn(),
   getPrintingTextsForCardId: vi.fn(),
   upsertCardErrata: vi.fn(),
   deleteCardErrata: vi.fn(),
-  updateCardById: vi.fn(),
   getSetPrintedTotalForPrinting: vi.fn(),
   getCardIdBySlug: vi.fn(),
   acceptNewCardFromSources: vi.fn(),
   createNameAliases: vi.fn(),
   checkByProvider: vi.fn(),
   deleteByProvider: vi.fn(),
-  replaceCardDomains: vi.fn(),
-  replaceCardSuperTypes: vi.fn(),
+  replaceCardDomainsById: vi.fn(),
+  replaceCardSuperTypesById: vi.fn(),
 };
 
 const mockCandidateCards = {};
@@ -285,11 +287,15 @@ describe("POST /api/v1/:cardId/check-all", () => {
   });
 
   it("returns 200 with updated count", async () => {
-    mockMut.getCardBySlug.mockResolvedValue({ id: "card-uuid", name: "Fire Dragon" });
+    mockMut.getCardById.mockResolvedValue({
+      id: "card-uuid",
+      name: "Fire Dragon",
+      slug: "fire-dragon",
+    });
     mockMut.getCardAliases.mockResolvedValue([{ normName: "fire-dragon-alt" }]);
     mockMut.checkAllCandidateCards.mockResolvedValue(3);
 
-    const res = await app.request("/api/v1/fire-dragon/check-all", { method: "POST" });
+    const res = await app.request("/api/v1/card-uuid/check-all", { method: "POST" });
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual({ updated: 3 });
@@ -300,18 +306,22 @@ describe("POST /api/v1/:cardId/check-all", () => {
   });
 
   it("returns 404 when card not found", async () => {
-    mockMut.getCardBySlug.mockResolvedValue(null);
+    mockMut.getCardById.mockResolvedValue(null);
 
     const res = await app.request("/api/v1/unknown-card/check-all", { method: "POST" });
     expect(res.status).toBe(404);
   });
 
   it("deduplicates normalized name variants", async () => {
-    mockMut.getCardBySlug.mockResolvedValue({ id: "card-uuid", name: "Fire Dragon" });
+    mockMut.getCardById.mockResolvedValue({
+      id: "card-uuid",
+      name: "Fire Dragon",
+      slug: "fire-dragon",
+    });
     mockMut.getCardAliases.mockResolvedValue([]);
     mockMut.checkAllCandidateCards.mockResolvedValue(1);
 
-    await app.request("/api/v1/fire-dragon/check-all", { method: "POST" });
+    await app.request("/api/v1/card-uuid/check-all", { method: "POST" });
     const callArgs = mockMut.checkAllCandidateCards.mock.calls[0];
     const uniqueVariants = new Set(callArgs[0]);
     expect(uniqueVariants.size).toBe(callArgs[0].length);
@@ -517,29 +527,51 @@ describe("POST /api/v1/:cardId/rename", () => {
   });
 
   it("returns 204 on successful rename", async () => {
-    mockMut.renameCardSlug.mockResolvedValue(undefined);
+    mockMut.getCardById.mockResolvedValue({
+      id: "card-uuid",
+      name: "Fire Dragon",
+      slug: "fire-dragon",
+    });
+    mockMut.renameCardSlugById.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/fire-dragon/rename", {
+    const res = await app.request("/api/v1/card-uuid/rename", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ newId: "flame-drake" }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.renameCardSlug).toHaveBeenCalledWith("fire-dragon", "flame-drake");
+    expect(mockMut.renameCardSlugById).toHaveBeenCalledWith("card-uuid", "flame-drake");
   });
 
   it("returns 204 without renaming when newId matches current slug", async () => {
-    const res = await app.request("/api/v1/fire-dragon/rename", {
+    mockMut.getCardById.mockResolvedValue({
+      id: "card-uuid",
+      name: "Fire Dragon",
+      slug: "fire-dragon",
+    });
+
+    const res = await app.request("/api/v1/card-uuid/rename", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ newId: "fire-dragon" }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.renameCardSlug).not.toHaveBeenCalled();
+    expect(mockMut.renameCardSlugById).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when card not found", async () => {
+    mockMut.getCardById.mockResolvedValue(null);
+
+    const res = await app.request("/api/v1/unknown-uuid/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newId: "flame-drake" }),
+    });
+    expect(res.status).toBe(404);
   });
 
   it("returns 400 when newId is empty", async () => {
-    const res = await app.request("/api/v1/fire-dragon/rename", {
+    const res = await app.request("/api/v1/card-uuid/rename", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ newId: "  " }),
@@ -554,24 +586,24 @@ describe("POST /api/v1/:cardId/accept-field", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockFixTypography.mockImplementation((text: string) => text);
-    mockMut.getPrintingTextsForCardSlug.mockResolvedValue([]);
+    mockMut.getPrintingTextsForCardId.mockResolvedValue([]);
     mockMut.recomputeKeywordsForPrintingCard.mockResolvedValue(undefined);
   });
 
   it("returns 204 and updates card field", async () => {
-    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+    mockMut.updateCardById.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+    const res = await app.request("/api/v1/card-uuid/accept-field", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field: "name", value: "Flame Drake" }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.updateCardBySlug).toHaveBeenCalledWith("fire-dragon", { name: "Flame Drake" });
+    expect(mockMut.updateCardById).toHaveBeenCalledWith("card-uuid", { name: "Flame Drake" });
   });
 
   it("returns 400 when field is not provided", async () => {
-    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+    const res = await app.request("/api/v1/card-uuid/accept-field", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field: "", value: "test" }),
@@ -580,7 +612,7 @@ describe("POST /api/v1/:cardId/accept-field", () => {
   });
 
   it("returns 400 when field is not allowed", async () => {
-    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+    const res = await app.request("/api/v1/card-uuid/accept-field", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field: "notAllowed", value: "test" }),
@@ -591,31 +623,31 @@ describe("POST /api/v1/:cardId/accept-field", () => {
   });
 
   it("normalizes null to empty array for superTypes (junction table)", async () => {
-    mockMut.replaceCardSuperTypes.mockResolvedValue(undefined);
+    mockMut.replaceCardSuperTypesById.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+    const res = await app.request("/api/v1/card-uuid/accept-field", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field: "superTypes", value: null }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.replaceCardSuperTypes).toHaveBeenCalledWith("fire-dragon", []);
+    expect(mockMut.replaceCardSuperTypesById).toHaveBeenCalledWith("card-uuid", []);
   });
 
   it("normalizes null to empty array for tags field", async () => {
-    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+    mockMut.updateCardById.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+    const res = await app.request("/api/v1/card-uuid/accept-field", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field: "tags", value: null }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.updateCardBySlug).toHaveBeenCalledWith("fire-dragon", { tags: [] });
+    expect(mockMut.updateCardById).toHaveBeenCalledWith("card-uuid", { tags: [] });
   });
 
   it("returns 400 when field is rulesText (removed from allowed fields)", async () => {
-    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+    const res = await app.request("/api/v1/card-uuid/accept-field", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field: "rulesText", value: "text" }),
@@ -626,7 +658,7 @@ describe("POST /api/v1/:cardId/accept-field", () => {
   });
 
   it("returns 400 when field is effectText (removed from allowed fields)", async () => {
-    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+    const res = await app.request("/api/v1/card-uuid/accept-field", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field: "effectText", value: "text" }),
@@ -637,19 +669,19 @@ describe("POST /api/v1/:cardId/accept-field", () => {
   });
 
   it("accepts might field with numeric value", async () => {
-    mockMut.updateCardBySlug.mockResolvedValue(undefined);
+    mockMut.updateCardById.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+    const res = await app.request("/api/v1/card-uuid/accept-field", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field: "might", value: 3 }),
     });
     expect(res.status).toBe(204);
-    expect(mockMut.updateCardBySlug).toHaveBeenCalledWith("fire-dragon", { might: 3 });
+    expect(mockMut.updateCardById).toHaveBeenCalledWith("card-uuid", { might: 3 });
   });
 
   it("returns 400 when card field value fails validation", async () => {
-    const res = await app.request("/api/v1/fire-dragon/accept-field", {
+    const res = await app.request("/api/v1/card-uuid/accept-field", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field: "might", value: -5 }),
@@ -973,7 +1005,7 @@ describe("POST /api/v1/:cardId/accept-printing", () => {
   it("returns 200 with printingId", async () => {
     mockAcceptPrinting.mockResolvedValue("printing-uuid");
 
-    const res = await app.request("/api/v1/fire-dragon/accept-printing", {
+    const res = await app.request("/api/v1/card-uuid/accept-printing", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -992,7 +1024,7 @@ describe("POST /api/v1/:cardId/accept-printing", () => {
     expect(mockAcceptPrinting).toHaveBeenCalledWith(
       mockTransact,
       expect.objectContaining({ candidateMutations: mockMut }),
-      "fire-dragon",
+      "card-uuid",
       expect.objectContaining({ shortCode: "FD" }),
       ["cp-1", "cp-2"],
     );

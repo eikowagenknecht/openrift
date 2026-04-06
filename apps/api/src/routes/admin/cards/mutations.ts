@@ -472,10 +472,9 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // Mark all candidate_cards for a given card as checked
   .openapi(checkAllForCard, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const cardSlug = c.req.valid("param").cardId;
+    const cardId = c.req.valid("param").cardId;
 
-    // Resolve slug -> card, then find candidates by name/alias
-    const card = await mut.getCardBySlug(cardSlug);
+    const card = await mut.getCardById(cardId);
     assertFound(card, "Card not found");
 
     const cardNormName = normalizeNameForMatching(card.name);
@@ -578,19 +577,22 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // ── POST /:cardId/rename ──────────────────────────────────────────────────
   .openapi(renameCard, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const cardSlug = c.req.valid("param").cardId;
+    const cardId = c.req.valid("param").cardId;
     const { newId } = c.req.valid("json");
 
     if (!newId?.trim()) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "newId is required");
     }
 
-    if (newId === cardSlug) {
+    const card = await mut.getCardById(cardId);
+    assertFound(card, "Card not found");
+
+    if (newId === card.slug) {
       return c.body(null, 204);
     }
 
     // UUID PK is immutable -- only the slug changes
-    await mut.renameCardSlug(cardSlug, newId.trim());
+    await mut.renameCardSlugById(card.id, newId.trim());
 
     return c.body(null, 204);
   })
@@ -598,7 +600,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // ── POST /:cardId/accept-field ────────────────────────────────────────────
   .openapi(acceptField, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const cardSlug = c.req.valid("param").cardId;
+    const cardId = c.req.valid("param").cardId;
     const { field, value } = c.req.valid("json");
 
     if (!field) {
@@ -642,17 +644,17 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     // Domains and superTypes are stored in junction tables, not on the cards row
     if (field === "domains") {
-      await mut.replaceCardDomains(cardSlug, finalValue as string[]);
+      await mut.replaceCardDomainsById(cardId, finalValue as string[]);
       return c.body(null, 204);
     }
     if (field === "superTypes") {
-      await mut.replaceCardSuperTypes(cardSlug, finalValue as string[]);
+      await mut.replaceCardSuperTypesById(cardId, finalValue as string[]);
       return c.body(null, 204);
     }
 
     const updates: Record<string, unknown> = { [field]: finalValue };
 
-    await mut.updateCardBySlug(cardSlug, updates);
+    await mut.updateCardById(cardId, updates);
 
     return c.body(null, 204);
   })
@@ -836,13 +838,13 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // Create a new printing from admin-selected fields, link all candidates in the group
   .openapi(acceptPrintingRoute, async (c) => {
     const { candidateMutations, printingImages, promoTypes } = c.get("repos");
-    const cardSlug = c.req.valid("param").cardId;
+    const cardId = c.req.valid("param").cardId;
     const { printingFields, candidatePrintingIds } = c.req.valid("json");
 
     const printingId = await acceptPrinting(
       c.get("transact"),
       { candidateMutations, printingImages, promoTypes },
-      cardSlug,
+      cardId,
       printingFields,
       candidatePrintingIds,
     );

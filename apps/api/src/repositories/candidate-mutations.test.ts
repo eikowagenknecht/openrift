@@ -235,9 +235,11 @@ describe("candidateMutationsRepo", () => {
     expect(await candidateMutationsRepo(db).getCardAliases("c-1")).toEqual([{ normName: "annie" }]);
   });
 
-  it("renameCardSlug renames a card", async () => {
+  it("renameCardSlugById renames a card by UUID", async () => {
     const db = createMockDb([]);
-    await expect(candidateMutationsRepo(db).renameCardSlug("old", "new")).resolves.toBeUndefined();
+    await expect(
+      candidateMutationsRepo(db).renameCardSlugById("card-uuid", "new"),
+    ).resolves.toBeUndefined();
   });
 
   it("getCardTexts returns text fields", async () => {

@@ -188,7 +188,7 @@ describe("acceptPrinting", () => {
       acceptPrinting(
         transact,
         repos as any,
-        "card-slug",
+        "card-uuid",
         { shortCode: "OGN-001", collectorNumber: 1, artist: "A", publicCode: "001" },
         [],
       ),
@@ -203,39 +203,16 @@ describe("acceptPrinting", () => {
       acceptPrinting(
         transact,
         repos as any,
-        "card-slug",
+        "card-uuid",
         { shortCode: "OGN-001", collectorNumber: 1, artist: "A", publicCode: "001" },
         ["cp-1"],
       ),
     ).rejects.toThrow("printingFields.setId is required");
   });
 
-  it("throws NOT_FOUND when card does not exist", async () => {
-    const repos = {
-      candidateMutations: {
-        getCardIdBySlug: vi.fn(async () => null),
-      },
-      printingImages: {},
-      promoTypes: {},
-    };
-    const transact = mockTransact(repos);
-
-    await expect(
-      acceptPrinting(
-        transact,
-        repos as any,
-        "missing-card",
-        { shortCode: "OGN-001", setId: "ogn", collectorNumber: 1, artist: "A", publicCode: "001" },
-        ["cp-1"],
-      ),
-    ).rejects.toThrow("Card not found");
-  });
-
   it("throws BAD_REQUEST when promoTypeId is invalid", async () => {
     const repos = {
-      candidateMutations: {
-        getCardIdBySlug: vi.fn(async () => ({ id: "card-uuid" })),
-      },
+      candidateMutations: {},
       printingImages: {},
       promoTypes: {
         getById: vi.fn(async () => null),
@@ -247,7 +224,7 @@ describe("acceptPrinting", () => {
       acceptPrinting(
         transact,
         repos as any,
-        "card-slug",
+        "card-uuid",
         {
           shortCode: "OGN-001",
           setId: "ogn",
@@ -264,7 +241,6 @@ describe("acceptPrinting", () => {
   it("throws CONFLICT when printing identity belongs to a different card", async () => {
     const repos = {
       candidateMutations: {
-        getCardIdBySlug: vi.fn(async () => ({ id: "card-uuid" })),
         getPrintingCardIdByComposite: vi.fn(async () => ({ cardId: "other-card-uuid" })),
       },
       printingImages: {},
@@ -276,7 +252,7 @@ describe("acceptPrinting", () => {
       acceptPrinting(
         transact,
         repos as any,
-        "card-slug",
+        "card-uuid",
         { shortCode: "OGN-001", setId: "ogn", collectorNumber: 1, artist: "A", publicCode: "001" },
         ["cp-1"],
       ),
@@ -290,7 +266,6 @@ describe("acceptPrinting", () => {
 
     const repos = {
       candidateMutations: {
-        getCardIdBySlug: vi.fn(async () => ({ id: "card-uuid" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
         upsertPrinting,
@@ -342,7 +317,6 @@ describe("acceptPrinting", () => {
   it("throws BAD_REQUEST for invalid rarity", async () => {
     const repos = {
       candidateMutations: {
-        getCardIdBySlug: vi.fn(async () => ({ id: "card-uuid" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
         getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
@@ -360,7 +334,7 @@ describe("acceptPrinting", () => {
       acceptPrinting(
         transact,
         repos as any,
-        "card-slug",
+        "card-uuid",
         {
           shortCode: "OGN-001",
           setId: "ogn",
@@ -381,7 +355,6 @@ describe("acceptPrinting", () => {
 
     const repos = {
       candidateMutations: {
-        getCardIdBySlug: vi.fn(async () => ({ id: "card-uuid" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
         upsertPrinting,
@@ -436,7 +409,6 @@ describe("acceptPrinting", () => {
 
     const repos = {
       candidateMutations: {
-        getCardIdBySlug: vi.fn(async () => ({ id: "card-uuid" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => null),
         upsertPrinting,

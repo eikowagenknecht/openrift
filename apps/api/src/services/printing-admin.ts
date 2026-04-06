@@ -128,7 +128,7 @@ export async function acceptPrinting(
     printingImages: PrintingImagesRepo;
     promoTypes: PromoTypesRepo;
   },
-  cardSlug: string,
+  cardId: string,
   printingFields: AcceptPrintingFields,
   candidatePrintingIds: string[],
 ): Promise<string> {
@@ -145,9 +145,6 @@ export async function acceptPrinting(
 
   const mut = repos.candidateMutations;
 
-  const card = await mut.getCardIdBySlug(cardSlug);
-  assertFound(card, "Card not found");
-
   if (printingFields.promoTypeId) {
     const pt = await repos.promoTypes.getById(printingFields.promoTypeId);
     if (!pt) {
@@ -163,7 +160,7 @@ export async function acceptPrinting(
     finish,
     printingFields.promoTypeId ?? null,
   );
-  if (existing && existing.cardId !== card.id) {
+  if (existing && existing.cardId !== cardId) {
     throw new AppError(
       409,
       "CONFLICT",
@@ -205,7 +202,7 @@ export async function acceptPrinting(
     }
 
     insertedId = await trxRepos.candidateMutations.upsertPrinting({
-      cardId: card.id,
+      cardId,
       setId: setUuid,
       shortCode: printingFields.shortCode,
       collectorNumber: printingFields.collectorNumber,

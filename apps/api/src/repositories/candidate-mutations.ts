@@ -344,6 +344,17 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    /** @returns A card's ID and name by UUID. */
+    getCardById(
+      id: string,
+    ): Promise<Pick<Selectable<CardsTable>, "id" | "name" | "slug"> | undefined> {
+      return db
+        .selectFrom("cards")
+        .select(["id", "name", "slug"])
+        .where("id", "=", id)
+        .executeTakeFirst();
+    },
+
     /** @returns A card's ID by slug. */
     getCardIdBySlug(slug: string): Promise<Pick<Selectable<CardsTable>, "id"> | undefined> {
       return db.selectFrom("cards").select("id").where("slug", "=", slug).executeTakeFirst();
@@ -358,9 +369,9 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Rename a card's slug. */
-    async renameCardSlug(oldSlug: string, newSlug: string): Promise<void> {
-      await db.updateTable("cards").set({ slug: newSlug }).where("slug", "=", oldSlug).execute();
+    /** Rename a card's slug by card UUID. */
+    async renameCardSlugById(cardId: string, newSlug: string): Promise<void> {
+      await db.updateTable("cards").set({ slug: newSlug }).where("id", "=", cardId).execute();
     },
 
     /**
@@ -413,23 +424,15 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       await db.updateTable("cards").set(updates).where("id", "=", id).execute();
     },
 
-    /** Replace all domains for a card (delete + insert). */
-    async replaceCardDomains(cardSlug: string, domains: string[]): Promise<void> {
-      const card = await db
-        .selectFrom("cards")
-        .select("id")
-        .where("slug", "=", cardSlug)
-        .executeTakeFirst();
-      if (!card) {
-        return;
-      }
-      await db.deleteFrom("cardDomains").where("cardId", "=", card.id).execute();
+    /** Replace all domains for a card by UUID (delete + insert). */
+    async replaceCardDomainsById(cardId: string, domains: string[]): Promise<void> {
+      await db.deleteFrom("cardDomains").where("cardId", "=", cardId).execute();
       if (domains.length > 0) {
         await db
           .insertInto("cardDomains")
           .values(
             domains.map((domain, index) => ({
-              cardId: card.id,
+              cardId,
               domainSlug: domain,
               ordinal: index,
             })),
@@ -438,21 +441,13 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       }
     },
 
-    /** Replace all super types for a card (delete + insert). */
-    async replaceCardSuperTypes(cardSlug: string, superTypes: string[]): Promise<void> {
-      const card = await db
-        .selectFrom("cards")
-        .select("id")
-        .where("slug", "=", cardSlug)
-        .executeTakeFirst();
-      if (!card) {
-        return;
-      }
-      await db.deleteFrom("cardSuperTypes").where("cardId", "=", card.id).execute();
+    /** Replace all super types for a card by UUID (delete + insert). */
+    async replaceCardSuperTypesById(cardId: string, superTypes: string[]): Promise<void> {
+      await db.deleteFrom("cardSuperTypes").where("cardId", "=", cardId).execute();
       if (superTypes.length > 0) {
         await db
           .insertInto("cardSuperTypes")
-          .values(superTypes.map((superType) => ({ cardId: card.id, superTypeSlug: superType })))
+          .values(superTypes.map((superType) => ({ cardId, superTypeSlug: superType })))
           .execute();
       }
     },
@@ -550,10 +545,14 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
      * @returns Count of total cards scanned and cards actually updated.
      */
     async recomputeAllKeywords(): Promise<{ totalCards: number; updated: number }> {
-      const cards = await db
-        .selectFrom("cards")
-        .select(["id", "rulesText", "effectText", "keywords"])
+      const cards = await db.selectFrom("cards").select(["id", "keywords"]).execute();
+
+      const errata = await db
+        .selectFrom("cardErrata")
+        .select(["cardId", "correctedRulesText", "correctedEffectText"])
         .execute();
+
+      const errataByCard = new Map(errata.map((e) => [e.cardId, e]));
 
       const printings = await db
         .selectFrom("printings")
@@ -566,11 +565,12 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       let updated = 0;
 
       for (const card of cards) {
+        const cardErrata = errataByCard.get(card.id);
         const cardPrintings = printingsByCard.get(card.id) ?? [];
 
         const keywords = [
-          ...extractKeywords(card.rulesText ?? ""),
-          ...extractKeywords(card.effectText ?? ""),
+          ...extractKeywords(cardErrata?.correctedRulesText ?? ""),
+          ...extractKeywords(cardErrata?.correctedEffectText ?? ""),
           ...cardPrintings.flatMap((p) => [
             ...extractKeywords(p.printedRulesText ?? ""),
             ...extractKeywords(p.printedEffectText ?? ""),

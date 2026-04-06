@@ -216,7 +216,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
     sources.some((s) => !s.checkedAt) || candidatePrintings.some((ps) => !ps.checkedAt);
 
   async function handleCheckAllAndNext() {
-    if (isCheckingAll) {
+    if (isCheckingAll || !card) {
       return;
     }
     setIsCheckingAll(true);
@@ -224,7 +224,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
       const promises: Promise<unknown>[] = [];
 
       if (sources.some((s) => !s.checkedAt)) {
-        promises.push(checkAllCardSources.mutateAsync(cardId));
+        promises.push(checkAllCardSources.mutateAsync(card.id));
       }
 
       for (const printing of printings) {
@@ -365,7 +365,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                 disabled={renameCard.isPending}
                 onClick={() =>
                   renameCard.mutate(
-                    { cardId, newId: expectedCardId },
+                    { cardId: card.id, newId: expectedCardId },
                     {
                       onSuccess: () => {
                         void navigate({
@@ -398,7 +398,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
               size="sm"
               className="h-6 text-xs"
               disabled={checkAllCardSources.isPending}
-              onClick={() => checkAllCardSources.mutate(cardId)}
+              onClick={() => checkAllCardSources.mutate(card.id)}
             >
               <CheckCheckIcon className="mr-1 size-3" />
               Check {sources.filter((s) => !s.checkedAt).length} unchecked
@@ -421,7 +421,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
               const newId = String(value).trim();
               if (newId && newId !== cardId) {
                 renameCard.mutate(
-                  { cardId, newId },
+                  { cardId: card.id, newId },
                   {
                     onSuccess: () => {
                       void navigate({
@@ -434,7 +434,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
               }
               return;
             }
-            acceptCardField.mutate({ cardId, field, value, source: "provider" });
+            acceptCardField.mutate({ cardId: card.id, field, value, source: "provider" });
           }}
           onActiveChange={(field, value) => {
             if (value === undefined) {
@@ -444,7 +444,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
               const newId = String(value).trim();
               if (newId && newId !== cardId) {
                 renameCard.mutate(
-                  { cardId, newId },
+                  { cardId: card.id, newId },
                   {
                     onSuccess: () => {
                       void navigate({
@@ -457,7 +457,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
               }
               return;
             }
-            acceptCardField.mutate({ cardId, field, value });
+            acceptCardField.mutate({ cardId: card.id, field, value });
           }}
           onCheck={(candidateId) => checkCandidateCard.mutate(candidateId)}
           onUncheck={(candidateId) => uncheckCandidateCard.mutate(candidateId)}
@@ -473,7 +473,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                     const val = record[field.key];
                     if (val !== null && val !== undefined && val !== "") {
                       acceptCardField.mutate({
-                        cardId,
+                        cardId: card.id,
                         field: field.key,
                         value: val,
                         source: "provider",
@@ -749,7 +749,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
             onAccept={(printingFields, candidatePrintingIds) => {
               acceptPrintingGroup.mutate(
                 {
-                  cardId,
+                  cardId: card.id,
                   printingFields: printingFields as AcceptPrintingBody["printingFields"],
                   candidatePrintingIds,
                 },
