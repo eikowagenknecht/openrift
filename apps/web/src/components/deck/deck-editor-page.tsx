@@ -452,7 +452,7 @@ function DeckEditorContent({ deckId }: { deckId: string }) {
           >
             <MobileSidebarHeader />
             <SidebarContent>
-              <div className="p-2">
+              <div className="p-3">
                 <DeckZonePanel onZoneClick={handleZoneClick} onHoverCard={setHoveredCardId} />
               </div>
             </SidebarContent>
