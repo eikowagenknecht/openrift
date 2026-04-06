@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict IPa19KHhipGGOlWDFprLJW896ZwmHQFfcQTOan7kgQdQGPutoLrmcWfrmiOwYQD
+\restrict 8YuHTc7LB0gu2SthPuaeXBjj9Hp6USYGkU8M0gADcTmpnB20m560tOrfkj4zLTr
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -161,20 +161,6 @@ CREATE TABLE public.accounts (
     password text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: acquisition_sources; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.acquisition_sources (
-    id uuid DEFAULT uuidv7() CONSTRAINT sources_id_not_null NOT NULL,
-    user_id text CONSTRAINT sources_user_id_not_null NOT NULL,
-    name text CONSTRAINT sources_name_not_null NOT NULL,
-    description text,
-    created_at timestamp with time zone DEFAULT now() CONSTRAINT sources_created_at_not_null NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() CONSTRAINT sources_updated_at_not_null NOT NULL
 );
 
 
@@ -448,7 +434,6 @@ CREATE TABLE public.copies (
     id uuid DEFAULT uuidv7() NOT NULL,
     user_id text NOT NULL,
     collection_id uuid NOT NULL,
-    acquisition_source_id uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid CONSTRAINT copies_new_printing_id_not_null NOT NULL
@@ -1549,14 +1534,6 @@ ALTER TABLE ONLY public.site_settings
 
 
 --
--- Name: acquisition_sources sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.acquisition_sources
-    ADD CONSTRAINT sources_pkey PRIMARY KEY (id);
-
-
---
 -- Name: super_types super_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1626,14 +1603,6 @@ ALTER TABLE ONLY public.printings
 
 ALTER TABLE ONLY public.printings
     ADD CONSTRAINT uq_printings_variant UNIQUE (short_code, art_variant, is_signed, promo_type_id, rarity, finish);
-
-
---
--- Name: acquisition_sources uq_sources_id_user; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.acquisition_sources
-    ADD CONSTRAINT uq_sources_id_user UNIQUE (id, user_id);
 
 
 --
@@ -1732,13 +1701,6 @@ CREATE INDEX idx_accounts_user_id ON public.accounts USING btree (user_id);
 
 
 --
--- Name: idx_acquisition_sources_user_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_acquisition_sources_user_id ON public.acquisition_sources USING btree (user_id);
-
-
---
 -- Name: idx_candidate_cards_norm_name; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1820,13 +1782,6 @@ CREATE INDEX idx_collection_events_user_created ON public.collection_events USIN
 --
 
 CREATE INDEX idx_collections_user_id ON public.collections USING btree (user_id);
-
-
---
--- Name: idx_copies_acquisition_source; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_copies_acquisition_source ON public.copies USING btree (acquisition_source_id);
 
 
 --
@@ -2128,13 +2083,6 @@ CREATE TRIGGER trg_rarities_protect_well_known BEFORE DELETE OR UPDATE ON public
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.accounts FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
--- Name: acquisition_sources trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.acquisition_sources FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -2518,14 +2466,6 @@ ALTER TABLE ONLY public.collection_events
 
 
 --
--- Name: copies fk_copies_acquisition_source_user; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.copies
-    ADD CONSTRAINT fk_copies_acquisition_source_user FOREIGN KEY (acquisition_source_id, user_id) REFERENCES public.acquisition_sources(id, user_id) ON DELETE SET NULL (acquisition_source_id);
-
-
---
 -- Name: copies fk_copies_collection_user; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2710,14 +2650,6 @@ ALTER TABLE ONLY public.sessions
 
 
 --
--- Name: acquisition_sources sources_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.acquisition_sources
-    ADD CONSTRAINT sources_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
-
-
---
 -- Name: trade_lists trade_lists_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2777,5 +2709,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict IPa19KHhipGGOlWDFprLJW896ZwmHQFfcQTOan7kgQdQGPutoLrmcWfrmiOwYQD
+\unrestrict 8YuHTc7LB0gu2SthPuaeXBjj9Hp6USYGkU8M0gADcTmpnB20m560tOrfkj4zLTr
 

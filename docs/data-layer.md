@@ -156,17 +156,16 @@ Unique partial index ensures at most one inbox per user. A trigger prevents dele
 
 Individual physical copies of printings owned by a user. Each copy lives in exactly one collection.
 
-| Column                  | Type        | Constraints                                                          |
-| ----------------------- | ----------- | -------------------------------------------------------------------- |
-| `id`                    | uuid        | primary key, default uuidv7()                                        |
-| `user_id`               | text        | not null, FK → users.id (on delete cascade)                          |
-| `collection_id`         | uuid        | not null, FK → collections(id, user_id) (on delete cascade)          |
-| `printing_id`           | uuid        | not null, FK → printings.id                                          |
-| `acquisition_source_id` | uuid        | nullable, FK → acquisition_sources(id, user_id) (on delete set null) |
-| `created_at`            | timestamptz | not null, default now()                                              |
-| `updated_at`            | timestamptz | not null, default now()                                              |
+| Column          | Type        | Constraints                                                 |
+| --------------- | ----------- | ----------------------------------------------------------- |
+| `id`            | uuid        | primary key, default uuidv7()                               |
+| `user_id`       | text        | not null, FK → users.id (on delete cascade)                 |
+| `collection_id` | uuid        | not null, FK → collections(id, user_id) (on delete cascade) |
+| `printing_id`   | uuid        | not null, FK → printings.id                                 |
+| `created_at`    | timestamptz | not null, default now()                                     |
+| `updated_at`    | timestamptz | not null, default now()                                     |
 
-Indexes: `collection_id`, `(user_id, printing_id)`, `acquisition_source_id`.
+Indexes: `collection_id`, `(user_id, printing_id)`.
 
 ## Deck Tables
 
