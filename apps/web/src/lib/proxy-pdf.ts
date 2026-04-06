@@ -70,9 +70,9 @@ export function resolveProxyCards(
     const printing = printingByCardId.get(deckCard.cardId);
     const imageUrl = printing?.images[0]?.url ?? null;
     const flavorText = printing?.flavorText ?? null;
-    // Use printing-level text (falls back to card-level if available)
-    const rulesText = printing?.printedRulesText ?? card.rulesText;
-    const effectText = printing?.printedEffectText ?? card.effectText;
+    // Use printing-level text (falls back to errata if available)
+    const rulesText = printing?.printedRulesText ?? card.errata?.correctedRulesText ?? null;
+    const effectText = printing?.printedEffectText ?? card.errata?.correctedEffectText ?? null;
 
     for (let copy = 0; copy < deckCard.quantity; copy++) {
       result.push({

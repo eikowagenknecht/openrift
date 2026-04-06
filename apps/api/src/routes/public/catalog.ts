@@ -36,17 +36,27 @@ export const catalogRoute = catalogApp
   .openapi(getCatalog, async (c) => {
     const { catalog, marketplace } = c.get("repos");
 
-    const [sets, cardRows, printingRows, imageRows, priceRows, banRows, totalCopies, languages] =
-      await Promise.all([
-        catalog.sets(),
-        catalog.cards(),
-        catalog.printings(),
-        catalog.printingImages(),
-        marketplace.latestPrices(),
-        catalog.cardBans(),
-        catalog.totalCopies(),
-        catalog.languages(),
-      ]);
+    const [
+      sets,
+      cardRows,
+      printingRows,
+      imageRows,
+      priceRows,
+      banRows,
+      errataRows,
+      totalCopies,
+      languages,
+    ] = await Promise.all([
+      catalog.sets(),
+      catalog.cards(),
+      catalog.printings(),
+      catalog.printingImages(),
+      marketplace.latestPrices(),
+      catalog.cardBans(),
+      catalog.cardErrata(),
+      catalog.totalCopies(),
+      catalog.languages(),
+    ]);
 
     // Build per-printing, per-marketplace price map
     const pricesByPrinting = new Map<string, Partial<Record<Marketplace, number>>>();
@@ -62,11 +72,26 @@ export const catalogRoute = catalogApp
     // Group active bans by card
     const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
 
+    // Build errata lookup (one per card at most)
+    const errataByCard = new Map(
+      errataRows.map((r) => [
+        r.cardId,
+        {
+          correctedRulesText: r.correctedRulesText,
+          correctedEffectText: r.correctedEffectText,
+          source: r.source,
+          sourceUrl: r.sourceUrl,
+          effectiveDate: r.effectiveDate ? String(r.effectiveDate) : null,
+        },
+      ]),
+    );
+
     const cards: Record<string, CatalogCardResponse> = Object.fromEntries(
       cardRows.map((r) => [
         r.id,
         {
           ...r,
+          errata: errataByCard.get(r.id) ?? null,
           bans: (bansByCard.get(r.id) ?? []).map((b) => ({
             formatId: b.formatId,
             formatName: b.formatName,

@@ -13,6 +13,7 @@ const mockCatalogRepo = {
   printings: vi.fn(() => Promise.resolve([])),
   printingImages: vi.fn(() => Promise.resolve([])),
   cardBans: vi.fn(() => Promise.resolve([])),
+  cardErrata: vi.fn(() => Promise.resolve([])),
   totalCopies: vi.fn(() => Promise.resolve(0)),
   languages: vi.fn(() => Promise.resolve([])),
 };
@@ -50,8 +51,6 @@ const dbCard = {
   power: 6,
   mightBonus: 1,
   keywords: ["Shield"],
-  rulesText: "A fiery beast",
-  effectText: "Deal 3 damage",
   tags: ["Dragon"],
 };
 
@@ -103,6 +102,7 @@ function seedDefaults(overrides?: {
   mockCatalogRepo.printings.mockResolvedValue(overrides?.printings ?? [dbPrintingRow]);
   mockCatalogRepo.printingImages.mockResolvedValue(overrides?.printingImages ?? [dbImage]);
   mockCatalogRepo.cardBans.mockResolvedValue([]);
+  mockCatalogRepo.cardErrata.mockResolvedValue([]);
   mockCatalogRepo.totalCopies.mockResolvedValue(overrides?.totalCopies ?? 42);
   mockCatalogRepo.languages.mockResolvedValue(
     overrides?.languages ?? [{ code: "EN", name: "English" }],
@@ -121,6 +121,7 @@ describe("GET /api/v1/catalog", () => {
     mockCatalogRepo.printings.mockReset();
     mockCatalogRepo.printingImages.mockReset();
     mockCatalogRepo.cardBans.mockReset();
+    mockCatalogRepo.cardErrata.mockReset();
     mockCatalogRepo.totalCopies.mockReset();
     mockCatalogRepo.languages.mockReset();
     mockMarketplaceRepo.latestPrices.mockReset();
@@ -164,8 +165,6 @@ describe("GET /api/v1/catalog", () => {
           energy: null,
           power: null,
           mightBonus: null,
-          rulesText: null,
-          effectText: null,
           superTypes: [],
           keywords: [],
           tags: [],
@@ -179,8 +178,7 @@ describe("GET /api/v1/catalog", () => {
     expect(card.energy).toBeNull();
     expect(card.power).toBeNull();
     expect(card.mightBonus).toBeNull();
-    expect(card.rulesText).toBeNull();
-    expect(card.effectText).toBeNull();
+    expect(card.errata).toBeNull();
     expect(card.superTypes).toEqual([]);
     expect(card.keywords).toEqual([]);
     expect(card.tags).toEqual([]);
@@ -235,12 +233,11 @@ describe("GET /api/v1/catalog", () => {
     expect(json.printings[0].setId).toBe("OGS");
   });
 
-  it("uses rulesText as card.rulesText", async () => {
+  it("returns errata as null when no errata exists", async () => {
     const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     const card = json.cards["OGS-001"];
-    expect(card.rulesText).toBe("A fiery beast");
-    expect(card.effectText).toBe("Deal 3 damage");
+    expect(card.errata).toBeNull();
   });
 
   it("includes latest market price on printing", async () => {

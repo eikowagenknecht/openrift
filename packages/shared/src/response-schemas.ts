@@ -196,8 +196,15 @@ const catalogCardResponseSchema = z.object({
   keywords: z.array(z.string()),
   tags: z.array(z.string()),
   mightBonus: z.number().nullable(),
-  rulesText: z.string().nullable(),
-  effectText: z.string().nullable(),
+  errata: z
+    .object({
+      correctedRulesText: z.string().nullable(),
+      correctedEffectText: z.string().nullable(),
+      source: z.string(),
+      sourceUrl: z.string().nullable(),
+      effectiveDate: z.string().nullable(),
+    })
+    .nullable(),
   bans: z.array(cardBanSchema),
 });
 

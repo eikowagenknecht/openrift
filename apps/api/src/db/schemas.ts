@@ -4,6 +4,7 @@ import { z } from "zod";
 import type {
   CandidateCardsTable,
   CandidatePrintingsTable,
+  CardErrataTable,
   CardsTable,
   PrintingsTable,
   SetsTable,
@@ -51,10 +52,17 @@ export const cardFieldRules = {
   energy: z.number().min(0).nullable(),
   power: z.number().min(0).nullable(),
   mightBonus: z.number().min(0).nullable(),
-  rulesText: z.string().min(1).nullable(),
-  effectText: z.string().min(1).nullable(),
   tags: z.array(z.string()),
   comment: z.string().min(1).nullable(),
+} satisfies Record<string, z.ZodType>;
+
+/** Mirrors DB constraints on the `card_errata` table. @see {@link CardErrataTable} */
+export const cardErrataFieldRules = {
+  correctedRulesText: z.string().min(1).nullable(),
+  correctedEffectText: z.string().min(1).nullable(),
+  source: z.string().min(1),
+  sourceUrl: z.string().min(1).nullable(),
+  effectiveDate: z.string().nullable(),
 } satisfies Record<string, z.ZodType>;
 
 /** Mirrors DB constraints on the `printings` table. @see {@link PrintingsTable} */

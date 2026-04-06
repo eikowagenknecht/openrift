@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   cardFieldRules,
+  cardErrataFieldRules,
   candidateCardFieldRules,
   printingFieldRules,
   candidatePrintingFieldRules,
@@ -55,10 +56,16 @@ export const acceptNewCardSchema = z.object({
     energy: cardFieldRules.energy.optional(),
     power: cardFieldRules.power.optional(),
     mightBonus: cardFieldRules.mightBonus.optional(),
-    rulesText: cardFieldRules.rulesText.optional(),
-    effectText: cardFieldRules.effectText.optional(),
     tags: cardFieldRules.tags.optional(),
   }),
+});
+
+export const upsertErrataSchema = z.object({
+  correctedRulesText: cardErrataFieldRules.correctedRulesText,
+  correctedEffectText: cardErrataFieldRules.correctedEffectText,
+  source: cardErrataFieldRules.source,
+  sourceUrl: cardErrataFieldRules.sourceUrl.optional().default(null),
+  effectiveDate: cardErrataFieldRules.effectiveDate.optional().default(null),
 });
 
 export const linkUnmatchedSchema = z.object({

@@ -28,6 +28,7 @@ import {
   printingFieldRules,
   renameSchema,
   uploadCandidatesSchema,
+  upsertErrataSchema,
 } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -383,6 +384,31 @@ const deleteByProvider = createRoute({
   },
 });
 
+const upsertErrata = createRoute({
+  method: "post",
+  path: "/{cardId}/errata",
+  tags: ["Admin - Cards"],
+  request: {
+    params: z.object({ cardId: z.string() }),
+    body: { content: { "application/json": { schema: upsertErrataSchema } } },
+  },
+  responses: {
+    204: { description: "Errata upserted" },
+  },
+});
+
+const deleteErrata = createRoute({
+  method: "delete",
+  path: "/{cardId}/errata",
+  tags: ["Admin - Cards"],
+  request: {
+    params: z.object({ cardId: z.string() }),
+  },
+  responses: {
+    204: { description: "Errata deleted" },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
@@ -573,7 +599,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   .openapi(acceptField, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
     const cardSlug = c.req.valid("param").cardId;
-    const { field, value, source } = c.req.valid("json");
+    const { field, value } = c.req.valid("json");
 
     if (!field) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "field is required");
@@ -588,8 +614,6 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       "energy",
       "power",
       "mightBonus",
-      "rulesText",
-      "effectText",
       "tags",
       "comment",
     ]);
@@ -614,12 +638,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       }
     }
 
-    // Apply typography fixes to text fields only when accepting from a provider
-    const textFields = new Set(["rulesText", "effectText"]);
-    const finalValue =
-      source === "provider" && textFields.has(field) && typeof normalized === "string"
-        ? fixTypography(normalized)
-        : normalized;
+    const finalValue = normalized;
 
     // Domains and superTypes are stored in junction tables, not on the cards row
     if (field === "domains") {
@@ -632,23 +651,6 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     }
 
     const updates: Record<string, unknown> = { [field]: finalValue };
-
-    // Recompute keywords when rulesText or effectText changes
-    if (field === "rulesText" || field === "effectText") {
-      const card = await mut.getCardTexts(cardSlug);
-      assertFound(card, "Card not found");
-      const rulesText = field === "rulesText" ? (finalValue as string) : card.rulesText;
-      const effectText = field === "effectText" ? (finalValue as string) : card.effectText;
-      const printingTexts = await mut.getPrintingTextsForCardSlug(cardSlug);
-      updates.keywords = [
-        ...extractKeywords(rulesText ?? ""),
-        ...extractKeywords(effectText ?? ""),
-        ...printingTexts.flatMap((pt) => [
-          ...extractKeywords(pt.printedRulesText ?? ""),
-          ...extractKeywords(pt.printedEffectText ?? ""),
-        ]),
-      ].filter((v, i, a) => a.indexOf(v) === i);
-    }
 
     await mut.updateCardBySlug(cardSlug, updates);
 
@@ -899,4 +901,63 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const deleted = await mut.deleteByProvider(provider.trim());
     return c.json({ provider, deleted });
+  })
+
+  // ── POST /:cardId/errata ─────────────────────────────────────────────────
+  // Upsert card errata (corrected rules/effect text from official errata)
+  .openapi(upsertErrata, async (c) => {
+    const { candidateMutations: mut } = c.get("repos");
+    const cardSlug = c.req.valid("param").cardId;
+    const body = c.req.valid("json");
+
+    const card = await mut.getCardIdBySlug(cardSlug);
+    assertFound(card, "Card not found");
+
+    await mut.upsertCardErrata(card.id, {
+      correctedRulesText: body.correctedRulesText,
+      correctedEffectText: body.correctedEffectText,
+      source: body.source,
+      sourceUrl: body.sourceUrl,
+      effectiveDate: body.effectiveDate,
+    });
+
+    // Recompute keywords to include errata text
+    const printingTexts = await mut.getPrintingTextsForCardSlug(cardSlug);
+    const keywords = [
+      ...extractKeywords(body.correctedRulesText ?? ""),
+      ...extractKeywords(body.correctedEffectText ?? ""),
+      ...printingTexts.flatMap((pt) => [
+        ...extractKeywords(pt.printedRulesText ?? ""),
+        ...extractKeywords(pt.printedEffectText ?? ""),
+      ]),
+    ].filter((v, i, a) => a.indexOf(v) === i);
+
+    await mut.updateCardById(card.id, { keywords });
+
+    return c.body(null, 204);
+  })
+
+  // ── DELETE /:cardId/errata ────────────────────────────────────────────────
+  // Delete card errata and recompute keywords
+  .openapi(deleteErrata, async (c) => {
+    const { candidateMutations: mut } = c.get("repos");
+    const cardSlug = c.req.valid("param").cardId;
+
+    const card = await mut.getCardIdBySlug(cardSlug);
+    assertFound(card, "Card not found");
+
+    await mut.deleteCardErrata(card.id);
+
+    // Recompute keywords from printing text only (no errata anymore)
+    const printingTexts = await mut.getPrintingTextsForCardSlug(cardSlug);
+    const keywords = printingTexts
+      .flatMap((pt) => [
+        ...extractKeywords(pt.printedRulesText ?? ""),
+        ...extractKeywords(pt.printedEffectText ?? ""),
+      ])
+      .filter((v, i, a) => a.indexOf(v) === i);
+
+    await mut.updateCardById(card.id, { keywords });
+
+    return c.body(null, 204);
   });

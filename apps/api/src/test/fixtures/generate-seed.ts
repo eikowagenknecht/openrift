@@ -74,7 +74,7 @@ const sets = await sql<Record<string, unknown>[]>`
 const cards = await sql<Record<string, unknown>[]>`
   SELECT DISTINCT c.id, c.slug, c.name, c.type, c.super_types, c.domains,
     c.might, c.energy, c.power, c.might_bonus, c.keywords,
-    c.rules_text, c.effect_text, c.tags, c.norm_name
+    c.tags, c.norm_name
   FROM cards c
   JOIN printings p ON p.card_id = c.id
   JOIN sets s ON s.id = p.set_id

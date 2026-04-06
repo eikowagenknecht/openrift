@@ -463,8 +463,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           | "power"
           | "mightBonus"
           | "keywords"
-          | "rulesText"
-          | "effectText"
           | "tags"
           | "comment"
         > & { domains: string[]; superTypes: string[] })
@@ -483,8 +481,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "power",
           "mightBonus",
           "keywords",
-          "rulesText",
-          "effectText",
           "tags",
           "comment",
           domainsArray("cards.id").as("domains"),
@@ -501,6 +497,23 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .select("normName")
         .where("cardId", "=", cardId)
         .execute();
+    },
+
+    /** @returns Card errata for a card, or null. */
+    async cardErrataForDetail(cardId: string) {
+      return (
+        (await db
+          .selectFrom("cardErrata")
+          .select([
+            "correctedRulesText",
+            "correctedEffectText",
+            "source",
+            "sourceUrl",
+            "effectiveDate",
+          ])
+          .where("cardId", "=", cardId)
+          .executeTakeFirst()) ?? null
+      );
     },
 
     /** @returns Printing shortCodes for a card. */
@@ -908,6 +921,16 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         ])
         .orderBy("name")
         .execute() as any;
+    },
+
+    /** @returns All card errata keyed by cardId for export. */
+    exportCardErrata(): Promise<
+      { cardId: string; correctedRulesText: string | null; correctedEffectText: string | null }[]
+    > {
+      return db
+        .selectFrom("cardErrata")
+        .select(["cardId", "correctedRulesText", "correctedEffectText"])
+        .execute();
     },
 
     /** @returns All printings with set slug/name and active front image URLs. */

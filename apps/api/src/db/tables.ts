@@ -60,15 +60,27 @@ export interface CardsTable {
   /** CHECK: >= 0 */
   mightBonus: number | null;
   keywords: string[];
-  /** CHECK: <> '' */
-  rulesText: string | null;
-  /** CHECK: <> '' */
-  effectText: string | null;
   tags: string[];
   /** CHECK: <> '' */
   comment: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
+}
+
+/** @see cardErrataFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+export interface CardErrataTable {
+  id: Generated<string>;
+  cardId: string;
+  /** CHECK: <> '' */
+  correctedRulesText: string | null;
+  /** CHECK: <> '' */
+  correctedEffectText: string | null;
+  /** CHECK: <> '' */
+  source: string;
+  /** CHECK: <> '' */
+  sourceUrl: string | null;
+  effectiveDate: Date | null;
+  createdAt: CreatedAt;
 }
 
 /**
@@ -695,6 +707,7 @@ export interface Database {
   // Card data (migration 001, restructured in 007)
   sets: SetsTable;
   cards: CardsTable;
+  cardErrata: CardErrataTable;
   printings: PrintingsTable;
 
   // Unified marketplace pricing (migration 022)

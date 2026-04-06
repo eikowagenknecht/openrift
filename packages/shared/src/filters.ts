@@ -88,8 +88,8 @@ function printingMatchesField(printing: Printing, field: SearchField, text: stri
   }
   if (field === "cardText") {
     return (
-      (card.rulesText?.toLowerCase().includes(lower) ?? false) ||
-      (card.effectText?.toLowerCase().includes(lower) ?? false) ||
+      (card.errata?.correctedRulesText?.toLowerCase().includes(lower) ?? false) ||
+      (card.errata?.correctedEffectText?.toLowerCase().includes(lower) ?? false) ||
       (printing.printedRulesText?.toLowerCase().includes(lower) ?? false) ||
       (printing.printedEffectText?.toLowerCase().includes(lower) ?? false)
     );
@@ -269,13 +269,7 @@ export function filterCards(printings: Printing[], filters: CardFilters): Printi
       matchesRange(card.power, filters.power) &&
       matchesRange(printing.marketPrice ?? null, filters.price) &&
       matchesFlag(filters.isBanned, card.bans.length > 0) &&
-      matchesFlag(
-        filters.hasErrata,
-        card.rulesText !== null &&
-          printing.printedRulesText !== null &&
-          printing.printedRulesText !== undefined &&
-          printing.printedRulesText !== card.rulesText,
-      )
+      matchesFlag(filters.hasErrata, card.errata !== null)
     );
   });
 }
@@ -352,13 +346,7 @@ export function getAvailableFilters(printings: Printing[]): AvailableFilters {
     hasSigned: printings.some((p) => p.isSigned),
     hasPromo: printings.some((p) => p.promoType !== null),
     hasBanned: printings.some((p) => p.card.bans.length > 0),
-    hasErrata: printings.some(
-      (p) =>
-        p.card.rulesText !== null &&
-        p.printedRulesText !== null &&
-        p.printedRulesText !== undefined &&
-        p.printedRulesText !== p.card.rulesText,
-    ),
+    hasErrata: printings.some((p) => p.card.errata !== null),
     hasNullEnergy: printings.some((p) => p.card.energy === null),
     hasNullMight: printings.some((p) => p.card.might === null),
     hasNullPower: printings.some((p) => p.card.power === null),

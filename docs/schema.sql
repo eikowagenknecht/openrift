@@ -363,8 +363,6 @@ CREATE TABLE public.cards (
     power integer,
     might_bonus integer,
     keywords text[] DEFAULT '{}'::text[] NOT NULL,
-    rules_text text,
-    effect_text text,
     tags text[] DEFAULT '{}'::text[] NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
@@ -377,10 +375,29 @@ CREATE TABLE public.cards (
     CONSTRAINT chk_cards_might_non_negative CHECK ((might >= 0)),
     CONSTRAINT chk_cards_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT chk_cards_no_empty_comment CHECK ((comment <> ''::text)),
-    CONSTRAINT chk_cards_no_empty_effect_text CHECK ((effect_text <> ''::text)),
-    CONSTRAINT chk_cards_no_empty_rules_text CHECK ((rules_text <> ''::text)),
     CONSTRAINT chk_cards_power_non_negative CHECK ((power >= 0)),
     CONSTRAINT chk_cards_slug_not_empty CHECK ((slug <> ''::text))
+);
+
+
+--
+-- Name: card_errata; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_errata (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    card_id uuid NOT NULL,
+    corrected_rules_text text,
+    corrected_effect_text text,
+    source text NOT NULL,
+    source_url text,
+    effective_date date,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_card_errata_has_text CHECK (((corrected_rules_text IS NOT NULL) OR (corrected_effect_text IS NOT NULL))),
+    CONSTRAINT chk_card_errata_no_empty_corrected_effect_text CHECK ((corrected_effect_text <> ''::text)),
+    CONSTRAINT chk_card_errata_no_empty_corrected_rules_text CHECK ((corrected_rules_text <> ''::text)),
+    CONSTRAINT chk_card_errata_no_empty_source CHECK ((source <> ''::text)),
+    CONSTRAINT chk_card_errata_no_empty_source_url CHECK ((source_url <> ''::text))
 );
 
 

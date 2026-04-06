@@ -131,8 +131,7 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
       keywords: [],
       tags: [],
       mightBonus: null,
-      rulesText: "",
-      effectText: "",
+      errata: null,
       bans: [],
     },
   };

@@ -9,6 +9,7 @@ import * as m060 from "./060-fix-updated-at-trigger.js";
 import * as m061 from "./061-rules.js";
 import * as m062 from "./062-reference-tables.js";
 import * as m063 from "./063-marketplace-language.js";
+import * as m064 from "./064-card-errata-table.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -77,4 +78,5 @@ export const migrations: Record<string, Migration> = {
   "061-rules": m061,
   "062-reference-tables": m062,
   "063-marketplace-language": m063,
+  "064-card-errata-table": m064,
 };

@@ -46,8 +46,7 @@ function makePrinting(
       keywords: ["Shield"],
       tags: ["Warrior"],
       mightBonus: 0,
-      rulesText: "A test card",
-      effectText: "Deal 2 damage",
+      errata: null,
       bans: [],
       ...cardOverrides,
     },
@@ -214,8 +213,13 @@ describe("filterCards", () => {
         keywords: ["Shield", "Burn"],
         tags: ["Dragon", "Warrior"],
         mightBonus: 0,
-        rulesText: "A fiery beast",
-        effectText: "Deal 3 damage",
+        errata: {
+          correctedRulesText: "A fiery beast",
+          correctedEffectText: "Deal 3 damage",
+          source: "Test",
+          sourceUrl: null,
+          effectiveDate: null,
+        },
       },
     }),
     makePrinting({
@@ -239,8 +243,13 @@ describe("filterCards", () => {
         keywords: ["Freeze"],
         tags: ["Golem"],
         mightBonus: 0,
-        rulesText: "A frozen construct",
-        effectText: "Freeze target",
+        errata: {
+          correctedRulesText: "A frozen construct",
+          correctedEffectText: "Freeze target",
+          source: "Test",
+          sourceUrl: null,
+          effectiveDate: null,
+        },
       },
     }),
     makePrinting({
@@ -264,8 +273,13 @@ describe("filterCards", () => {
         keywords: [],
         tags: ["Psychic"],
         mightBonus: 0,
-        rulesText: "Manipulate thoughts",
-        effectText: "Draw 2 cards",
+        errata: {
+          correctedRulesText: "Manipulate thoughts",
+          correctedEffectText: "Draw 2 cards",
+          source: "Test",
+          sourceUrl: null,
+          effectiveDate: null,
+        },
       },
     }),
   ];
@@ -494,8 +508,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
       makePrinting({
@@ -512,8 +525,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
     ];
@@ -540,8 +552,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
       makePrinting({
@@ -558,8 +569,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
     ];
@@ -592,8 +602,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
       makePrinting({
@@ -610,8 +619,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
       makePrinting({
@@ -627,8 +635,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
     ];
@@ -678,9 +685,9 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Null Art Card");
   });
 
-  // -- Edge cases: card text search with null rulesText/effectText --
+  // -- Edge cases: card text search with null errata --
 
-  it("card text search handles null rulesText and effectText", () => {
+  it("card text search handles null errata", () => {
     const nullTextCard = [
       makePrinting({
         card: {
@@ -695,8 +702,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: null,
-          effectText: null,
+          errata: null,
         },
       }),
     ];
@@ -765,8 +771,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
     ];
@@ -789,8 +794,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
     ];
@@ -813,8 +817,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
     ];
@@ -899,7 +902,7 @@ describe("filterCards", () => {
 
   // -- Edge case: search with effect text match only --
 
-  it("card text search matches effectText only (not rulesText)", () => {
+  it("card text search matches errata effectText only (not rulesText)", () => {
     const cards = [
       makePrinting({
         card: {
@@ -914,8 +917,13 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: null,
-          effectText: "Unique effect text here",
+          errata: {
+            correctedRulesText: null,
+            correctedEffectText: "Unique effect text here",
+            source: "Test",
+            sourceUrl: null,
+            effectiveDate: null,
+          },
         },
       }),
     ];
@@ -1023,8 +1031,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
     ];
@@ -1049,8 +1056,7 @@ describe("filterCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
     ];
@@ -1082,8 +1088,7 @@ describe("getAvailableFilters", () => {
         keywords: [],
         tags: [],
         mightBonus: null,
-        rulesText: "",
-        effectText: "",
+        errata: null,
       },
     }),
     makePrinting({
@@ -1103,8 +1108,7 @@ describe("getAvailableFilters", () => {
         keywords: [],
         tags: [],
         mightBonus: null,
-        rulesText: "",
-        effectText: "",
+        errata: null,
       },
     }),
     makePrinting({
@@ -1124,8 +1128,7 @@ describe("getAvailableFilters", () => {
         keywords: [],
         tags: [],
         mightBonus: null,
-        rulesText: "",
-        effectText: "",
+        errata: null,
       },
     }),
   ];
@@ -1248,8 +1251,7 @@ describe("getAvailableFilters", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
     ]);
@@ -1290,8 +1292,7 @@ describe("getAvailableFilters", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
       makePrinting({
@@ -1307,8 +1308,7 @@ describe("getAvailableFilters", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
     ]);
@@ -1340,8 +1340,7 @@ describe("sortCards", () => {
         keywords: [],
         tags: [],
         mightBonus: null,
-        rulesText: "",
-        effectText: "",
+        errata: null,
       },
     }),
     makePrinting({
@@ -1360,8 +1359,7 @@ describe("sortCards", () => {
         keywords: [],
         tags: [],
         mightBonus: null,
-        rulesText: "",
-        effectText: "",
+        errata: null,
       },
     }),
     makePrinting({
@@ -1380,8 +1378,7 @@ describe("sortCards", () => {
         keywords: [],
         tags: [],
         mightBonus: null,
-        rulesText: "",
-        effectText: "",
+        errata: null,
       },
     }),
   ];
@@ -1430,8 +1427,7 @@ describe("sortCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
       makePrinting({
@@ -1449,8 +1445,7 @@ describe("sortCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
       makePrinting({
@@ -1468,8 +1463,7 @@ describe("sortCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
     ];
@@ -1494,8 +1488,7 @@ describe("sortCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
       makePrinting({
@@ -1511,8 +1504,7 @@ describe("sortCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
       makePrinting({
@@ -1529,8 +1521,7 @@ describe("sortCards", () => {
           keywords: [],
           tags: [],
           mightBonus: null,
-          rulesText: "",
-          effectText: "",
+          errata: null,
         },
       }),
     ];
@@ -1557,8 +1548,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
         makePrinting({
@@ -1576,8 +1566,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
       ];
@@ -1601,8 +1590,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
         makePrinting({
@@ -1619,8 +1607,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
       ];
@@ -1644,8 +1631,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
         makePrinting({
@@ -1663,8 +1649,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
         makePrinting({
@@ -1682,8 +1667,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
       ];
@@ -1707,8 +1691,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
         makePrinting({
@@ -1725,8 +1708,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
         makePrinting({
@@ -1743,8 +1725,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
       ];
@@ -1769,8 +1750,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
         makePrinting({
@@ -1788,8 +1768,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
       ];
@@ -1818,8 +1797,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
         makePrinting({
@@ -1835,8 +1813,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
       ];
@@ -1860,8 +1837,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
         makePrinting({
@@ -1878,8 +1854,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
         makePrinting({
@@ -1895,8 +1870,7 @@ describe("sortCards", () => {
             keywords: [],
             tags: [],
             mightBonus: null,
-            rulesText: "",
-            effectText: "",
+            errata: null,
           },
         }),
       ];

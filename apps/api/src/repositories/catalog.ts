@@ -4,6 +4,7 @@ import { sql } from "kysely";
 
 import type {
   CardBansTable,
+  CardErrataTable,
   CardsTable,
   Database,
   PrintingImagesTable,
@@ -23,6 +24,12 @@ type CatalogCardBanRow = Pick<
   Selectable<CardBansTable>,
   "cardId" | "formatId" | "bannedAt" | "reason"
 > & { formatName: string };
+
+/** Card errata row returned by the catalog. */
+type CatalogCardErrataRow = Pick<
+  Selectable<CardErrataTable>,
+  "cardId" | "correctedRulesText" | "correctedEffectText" | "source" | "sourceUrl" | "effectiveDate"
+>;
 
 /** Set columns returned by the catalog (id, slug, name only). */
 type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name">;
@@ -77,8 +84,6 @@ export function catalogRepo(db: Kysely<Database>) {
           "power",
           "mightBonus",
           "keywords",
-          "rulesText",
-          "effectText",
           "tags",
           "comment",
           domainsArray("cards.id").as("domains"),
@@ -101,6 +106,21 @@ export function catalogRepo(db: Kysely<Database>) {
           "formats.name as formatName",
         ])
         .where("unbannedAt", "is", null)
+        .execute();
+    },
+
+    /** @returns All card errata (one per card at most). */
+    cardErrata(): Promise<CatalogCardErrataRow[]> {
+      return db
+        .selectFrom("cardErrata")
+        .select([
+          "cardId",
+          "correctedRulesText",
+          "correctedEffectText",
+          "source",
+          "sourceUrl",
+          "effectiveDate",
+        ])
         .execute();
     },
 

@@ -40,8 +40,7 @@ export function stubCard(overrides: Partial<Card> = {}): Card {
     keywords: [],
     tags: [],
     mightBonus: 0,
-    rulesText: "",
-    effectText: "",
+    errata: null,
     bans: [],
     ...overrides,
   };

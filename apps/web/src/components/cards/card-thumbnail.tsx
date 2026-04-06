@@ -364,12 +364,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         rarity={printing.rarity}
         isFoil={isFoilCard}
         bans={showBanOverlay ? undefined : printing.card.bans}
-        hasRulesDeviation={
-          printing.card.rulesText !== null &&
-          printing.printedRulesText !== null &&
-          printing.printedRulesText !== undefined &&
-          printing.printedRulesText !== printing.card.rulesText
-        }
+        hasRulesDeviation={printing.card.errata !== null}
         price={priceNode}
       />
     </div>

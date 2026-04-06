@@ -95,6 +95,9 @@ export const queryKeys = {
     cardBans: Object.assign((cardId: string) => ["admin", "card-bans", cardId] as const, {
       prefix: ["admin", "card-bans"] as const,
     }),
+    cardErrata: Object.assign((cardId: string) => ["admin", "card-errata", cardId] as const, {
+      prefix: ["admin", "card-errata"] as const,
+    }),
     keywordStats: ["admin", "keyword-stats"] as const,
     typographyReview: ["admin", "typography-review"] as const,
     rules: {

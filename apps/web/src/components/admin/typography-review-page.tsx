@@ -112,8 +112,8 @@ function DiffComparison({ current, proposed }: { current: string; proposed: stri
 }
 
 const fieldLabels: Record<string, string> = {
-  rulesText: "Rules Text",
-  effectText: "Effect Text",
+  correctedRulesText: "Errata Rules",
+  correctedEffectText: "Errata Effect",
   printedRulesText: "Printed Rules",
   printedEffectText: "Printed Effect",
   flavorText: "Flavor Text",

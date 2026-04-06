@@ -8,6 +8,7 @@ import { formatPrintingLabel, mostCommonValue } from "@openrift/shared/utils";
 import type { Selectable } from "kysely";
 
 import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";
+// oxlint-disable-next-line no-restricted-imports -- API has no @/ alias
 import { AppError } from "../errors.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 
@@ -345,7 +346,11 @@ export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardS
  * @returns Export-format card + printing objects.
  */
 export async function buildExport(repo: Repo) {
-  const [cards, printings] = await Promise.all([repo.exportCards(), repo.exportPrintings()]);
+  const [cards, printings, errataRows] = await Promise.all([
+    repo.exportCards(),
+    repo.exportPrintings(),
+    repo.exportCardErrata(),
+  ]);
 
   const printingsByCardId = new Map<string, typeof printings>();
   for (const p of printings) {
@@ -354,42 +359,47 @@ export async function buildExport(repo: Repo) {
     printingsByCardId.set(p.cardId, list);
   }
 
-  return cards.map((card) => ({
-    card: {
-      name: card.name,
-      type: card.type,
-      super_types: card.superTypes,
-      domains: card.domains,
-      might: card.might,
-      energy: card.energy,
-      power: card.power,
-      might_bonus: card.mightBonus,
-      rules_text: card.rulesText ?? null,
-      effect_text: card.effectText ?? null,
-      tags: card.tags,
-      short_code: card.slug,
-      external_id: card.id,
-      extra_data: null,
-    },
-    printings: (printingsByCardId.get(card.id) ?? []).map((p) => ({
-      short_code: p.shortCode,
-      set_id: p.setSlug,
-      set_name: p.setName,
-      collector_number: p.collectorNumber,
-      rarity: p.rarity,
-      art_variant: p.artVariant,
-      is_signed: p.isSigned,
-      finish: p.finish,
-      artist: p.artist,
-      public_code: p.publicCode,
-      printed_rules_text: p.printedRulesText,
-      printed_effect_text: p.printedEffectText,
-      image_url: p.originalUrl ?? p.rehostedUrl ?? null,
-      flavor_text: p.flavorText,
-      external_id: p.id,
-      extra_data: p.imageId ? { image_id: p.imageId } : null,
-    })),
-  }));
+  const errataByCardId = new Map(errataRows.map((e) => [e.cardId, e]));
+
+  return cards.map((card) => {
+    const errata = errataByCardId.get(card.id);
+    return {
+      card: {
+        name: card.name,
+        type: card.type,
+        super_types: card.superTypes,
+        domains: card.domains,
+        might: card.might,
+        energy: card.energy,
+        power: card.power,
+        might_bonus: card.mightBonus,
+        rules_text: errata?.correctedRulesText ?? null,
+        effect_text: errata?.correctedEffectText ?? null,
+        tags: card.tags,
+        short_code: card.slug,
+        external_id: card.id,
+        extra_data: null,
+      },
+      printings: (printingsByCardId.get(card.id) ?? []).map((p) => ({
+        short_code: p.shortCode,
+        set_id: p.setSlug,
+        set_name: p.setName,
+        collector_number: p.collectorNumber,
+        rarity: p.rarity,
+        art_variant: p.artVariant,
+        is_signed: p.isSigned,
+        finish: p.finish,
+        artist: p.artist,
+        public_code: p.publicCode,
+        printed_rules_text: p.printedRulesText,
+        printed_effect_text: p.printedEffectText,
+        image_url: p.originalUrl ?? p.rehostedUrl ?? null,
+        flavor_text: p.flavorText,
+        external_id: p.id,
+        extra_data: p.imageId ? { image_id: p.imageId } : null,
+      })),
+    };
+  });
 }
 
 // ── GET /:cardId — card detail ──────────────────────────────────────────────
@@ -401,6 +411,9 @@ export async function buildExport(repo: Repo) {
  */
 export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
   const card = await repo.cardForDetail(identifier);
+
+  // Fetch errata for matched cards
+  const errata = card ? await repo.cardErrataForDetail(card.id) : null;
 
   // If matched, look up by card's normName + aliases; otherwise treat identifier as normName
   const aliases = card ? await repo.cardNameAliases(card.id) : [];
@@ -525,8 +538,19 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
           power: card.power,
           mightBonus: card.mightBonus,
           keywords: card.keywords,
-          rulesText: card.rulesText,
-          effectText: card.effectText,
+          errata: errata
+            ? {
+                correctedRulesText: errata.correctedRulesText,
+                correctedEffectText: errata.correctedEffectText,
+                source: errata.source,
+                sourceUrl: errata.sourceUrl,
+                effectiveDate: errata.effectiveDate
+                  ? typeof errata.effectiveDate === "string"
+                    ? errata.effectiveDate
+                    : (errata.effectiveDate as Date).toISOString().slice(0, 10)
+                  : null,
+              }
+            : null,
           tags: card.tags,
           comment: card.comment,
         }

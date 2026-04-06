@@ -14,6 +14,14 @@ export interface CardBan {
   reason: string | null;
 }
 
+export interface CardErrata {
+  correctedRulesText: string | null;
+  correctedEffectText: string | null;
+  source: string;
+  sourceUrl: string | null;
+  effectiveDate: string | null;
+}
+
 export interface Card {
   id: string;
   slug: string;
@@ -27,8 +35,7 @@ export interface Card {
   keywords: string[];
   tags: string[];
   mightBonus: number | null;
-  rulesText: string | null;
-  effectText: string | null;
+  errata: CardErrata | null;
   bans: CardBan[];
 }
 

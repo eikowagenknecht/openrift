@@ -226,9 +226,10 @@ export function CardDetail({
               <p className="text-muted-foreground text-sm">
                 <CardText text={printing.printedRulesText} onKeywordClick={onKeywordClick} />
               </p>
-              {card.rulesText && card.rulesText !== printing.printedRulesText && (
-                <PrintedTextWarning />
-              )}
+              {card.errata?.correctedRulesText &&
+                card.errata.correctedRulesText !== printing.printedRulesText && (
+                  <PrintedTextWarning />
+                )}
             </div>
           )}
 
@@ -242,9 +243,10 @@ export function CardDetail({
                   <CardText text={printing.printedEffectText} onKeywordClick={onKeywordClick} />
                 </p>
               )}
-              {card.effectText && card.effectText !== printing.printedEffectText && (
-                <PrintedTextWarning />
-              )}
+              {card.errata?.correctedEffectText &&
+                card.errata.correctedEffectText !== printing.printedEffectText && (
+                  <PrintedTextWarning />
+                )}
               {card.mightBonus !== null && card.mightBonus > 0 && (
                 <div className={cn(printing.printedEffectText && "mt-2")}>
                   <StatChip

@@ -40,7 +40,10 @@ interface TextFieldConfig {
   options?: { italicParens?: boolean; keywordGlyphs?: boolean };
 }
 
-const cardTextFields: TextFieldConfig[] = [{ field: "rulesText" }, { field: "effectText" }];
+const errataTextFields: TextFieldConfig[] = [
+  { field: "correctedRulesText" },
+  { field: "correctedEffectText" },
+];
 
 const printingTextFields: TextFieldConfig[] = [
   { field: "printedRulesText" },
@@ -57,9 +60,14 @@ export const typographyReviewRoute = new OpenAPIHono<{ Variables: Variables }>()
     const diffs: z.infer<typeof typographyDiffItemSchema>[] = [];
 
     const cards = await catalog.cards();
-    for (const card of cards) {
-      for (const { field, options } of cardTextFields) {
-        const current = card[field as keyof typeof card] as string | null;
+    const cardNameById = new Map(cards.map((card) => [card.id, card.name]));
+
+    // Check errata text fields for typography issues
+    const errataRows = await catalog.cardErrata();
+    for (const errata of errataRows) {
+      const cardName = cardNameById.get(errata.cardId) ?? "unknown";
+      for (const { field, options } of errataTextFields) {
+        const current = errata[field as keyof typeof errata] as string | null;
         if (current === null) {
           continue;
         }
@@ -67,8 +75,8 @@ export const typographyReviewRoute = new OpenAPIHono<{ Variables: Variables }>()
         if (proposed !== current) {
           diffs.push({
             entity: "card",
-            id: card.id,
-            name: card.name,
+            id: errata.cardId,
+            name: cardName,
             field,
             current,
             proposed,
@@ -78,8 +86,6 @@ export const typographyReviewRoute = new OpenAPIHono<{ Variables: Variables }>()
     }
 
     const printings = await catalog.printings();
-    // Build a card name lookup for display
-    const cardNameById = new Map(cards.map((card) => [card.id, card.name]));
     for (const printing of printings) {
       for (const { field, options } of printingTextFields) {
         const current = printing[field as keyof typeof printing] as string | null;
@@ -108,11 +114,19 @@ export const typographyReviewRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { entity, id, field, proposed } = c.req.valid("json");
 
     if (entity === "card") {
-      const card = await catalog.cardById(id);
-      if (!card) {
+      // "card" entity for typography review means errata text (correctedRulesText/correctedEffectText)
+      const errata = await mut.getCardErrata(id);
+      if (!errata) {
         return c.body(null, 404);
       }
-      await mut.updateCardById(id, { [field]: proposed });
+      // Update the errata record with the corrected typography
+      await mut.upsertCardErrata(id, {
+        ...errata,
+        effectiveDate: errata.effectiveDate
+          ? errata.effectiveDate.toISOString().slice(0, 10)
+          : null,
+        [field]: proposed,
+      });
     } else {
       const printing = await catalog.printingById(id);
       if (!printing) {

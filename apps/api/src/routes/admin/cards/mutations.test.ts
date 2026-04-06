@@ -610,77 +610,26 @@ describe("POST /api/v1/:cardId/accept-field", () => {
     expect(mockMut.updateCardBySlug).toHaveBeenCalledWith("fire-dragon", { tags: [] });
   });
 
-  it("applies fixTypography when source is provider and field is rulesText", async () => {
-    mockFixTypography.mockReturnValue("Fixed rules text");
-    mockMut.getCardTexts.mockResolvedValue({ rulesText: "old", effectText: "effect" });
-    mockMut.updateCardBySlug.mockResolvedValue(undefined);
-
+  it("returns 400 when field is rulesText (removed from allowed fields)", async () => {
     const res = await app.request("/api/v1/fire-dragon/accept-field", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        field: "rulesText",
-        value: "Raw rules text",
-        source: "provider",
-      }),
-    });
-    expect(res.status).toBe(204);
-    expect(mockFixTypography).toHaveBeenCalledWith("Raw rules text");
-  });
-
-  it("recomputes keywords when rulesText changes", async () => {
-    mockMut.getCardTexts.mockResolvedValue({ rulesText: "old", effectText: "effect" });
-    mockMut.updateCardBySlug.mockResolvedValue(undefined);
-
-    const res = await app.request("/api/v1/fire-dragon/accept-field", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ field: "rulesText", value: "new rules" }),
-    });
-    expect(res.status).toBe(204);
-    expect(mockMut.getCardTexts).toHaveBeenCalledWith("fire-dragon");
-    expect(mockMut.updateCardBySlug).toHaveBeenCalledWith(
-      "fire-dragon",
-      expect.objectContaining({ rulesText: "new rules", keywords: expect.any(Array) }),
-    );
-  });
-
-  it("recomputes keywords when effectText changes", async () => {
-    mockMut.getCardTexts.mockResolvedValue({ rulesText: "rules", effectText: "old" });
-    mockMut.updateCardBySlug.mockResolvedValue(undefined);
-
-    const res = await app.request("/api/v1/fire-dragon/accept-field", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ field: "effectText", value: "new effect" }),
-    });
-    expect(res.status).toBe(204);
-    expect(mockMut.getCardTexts).toHaveBeenCalledWith("fire-dragon");
-  });
-
-  it("returns 404 when card not found during keyword recompute", async () => {
-    mockMut.getCardTexts.mockResolvedValue(null);
-
-    const res = await app.request("/api/v1/unknown/accept-field", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ field: "rulesText", value: "text" }),
     });
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(400);
     const json = await res.json();
-    expect(json.error).toContain("Card not found");
+    expect(json.error).toContain("Invalid field");
   });
 
-  it("does not apply fixTypography when source is manual", async () => {
-    mockMut.getCardTexts.mockResolvedValue({ rulesText: "old", effectText: "effect" });
-    mockMut.updateCardBySlug.mockResolvedValue(undefined);
-
-    await app.request("/api/v1/fire-dragon/accept-field", {
+  it("returns 400 when field is effectText (removed from allowed fields)", async () => {
+    const res = await app.request("/api/v1/fire-dragon/accept-field", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ field: "rulesText", value: "Raw text", source: "manual" }),
+      body: JSON.stringify({ field: "effectText", value: "text" }),
     });
-    expect(mockFixTypography).not.toHaveBeenCalled();
+    expect(res.status).toBe(400);
+    const json = await res.json();
+    expect(json.error).toContain("Invalid field");
   });
 
   it("accepts might field with numeric value", async () => {
@@ -705,26 +654,6 @@ describe("POST /api/v1/:cardId/accept-field", () => {
     const json = await res.json();
     expect(json.code).toBe("VALIDATION_ERROR");
     expect(json.error).toContain("Invalid value for might");
-  });
-
-  it("deduplicates keywords when recomputing for rulesText", async () => {
-    mockMut.getCardTexts.mockResolvedValue({
-      rulesText: "[Shield] old text",
-      effectText: "[Shield] effect",
-    });
-    mockMut.updateCardBySlug.mockResolvedValue(undefined);
-
-    const res = await app.request("/api/v1/fire-dragon/accept-field", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ field: "rulesText", value: "[Shield] new text [Shield]" }),
-    });
-    expect(res.status).toBe(204);
-    // Keywords should be deduplicated
-    const updateArgs = mockMut.updateCardBySlug.mock.calls[0][1];
-    expect(updateArgs.keywords).toBeDefined();
-    const uniqueKeywords = new Set(updateArgs.keywords);
-    expect(uniqueKeywords.size).toBe(updateArgs.keywords.length);
   });
 });
 

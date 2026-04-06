@@ -1,3 +1,4 @@
+import type { CardErrata } from "../catalog.js";
 import type { CardFace } from "../enums.js";
 
 export interface CandidateCardResponse {
@@ -127,8 +128,7 @@ export interface AdminCardResponse {
   power: number | null;
   mightBonus: number | null;
   keywords: string[];
-  rulesText: string | null;
-  effectText: string | null;
+  errata: CardErrata | null;
   tags: string[];
   comment: string | null;
 }

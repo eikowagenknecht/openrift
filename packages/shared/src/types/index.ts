@@ -19,7 +19,7 @@ export {
   SUPER_TYPE_ORDER,
 } from "./enums.js";
 
-export type { Card, CardBan, Printing, PrintingImage, PromoType } from "./catalog.js";
+export type { Card, CardBan, CardErrata, Printing, PrintingImage, PromoType } from "./catalog.js";
 
 export type {
   CardFilters,

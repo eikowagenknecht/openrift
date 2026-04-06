@@ -5,40 +5,31 @@
 INSERT INTO sets (id, slug, name, printed_total, sort_order, released_at) VALUES
   ('019cf052-e002-78ef-b032-cc585ba33eb3', 'OGS', 'Proving Grounds', 24, 1, NULL);
 
-INSERT INTO cards (id, slug, name, type, might, energy, power, might_bonus, keywords, rules_text, effect_text, tags, norm_name) VALUES
-  ('019cf052-e00a-7256-ab8d-6e39b367029d', 'OGS-001', 'Annie, Fiery', 'Unit', 4, 5, 1, NULL, '{}', 'Your spells and abilities deal 1 Bonus Damage. (Each instance of damage the spell deals is increased by 1.)', NULL, '{"Annie","Noxus"}', 'anniefiery'),
-  ('019cf052-e00a-72b3-9ad6-76b7a7937ed9', 'OGS-002', 'Firestorm', 'Spell', NULL, 6, 1, NULL, '{}', 'Deal 3 to all enemy units at a battlefield.', NULL, '{}', 'firestorm'),
-  ('019cf052-e009-7e7a-8ef3-3d7af480b233', 'OGS-003', 'Incinerate', 'Spell', NULL, 2, NULL, NULL, '{"Action"}', '[Action] (Play on your turn or in showdowns.)
-Deal 2 to a unit at a battlefield.', NULL, '{}', 'incinerate'),
-  ('019cf052-e00a-725a-af1a-96c66acfa59f', 'OGS-004', 'Yi, Meditative', 'Unit', 4, 5, 1, NULL, '{}', 'While you have 8+ runes, I have +4 :rb_might:.', NULL, '{"Master Yi","Ionia"}', 'yimeditative'),
-  ('019cf052-e00a-72b7-84bf-56a562e24ace', 'OGS-005', 'Zephyr Sage', 'Unit', 6, 6, 1, NULL, '{"Shield"}', '[Shield] (+1 :rb_might: while I''m a defender.)', NULL, '{"Ionia","Bird"}', 'zephyrsage'),
-  ('019cf052-e00a-71e8-a89f-b0ba7ccc7bcf', 'OGS-006', 'Lux, Illuminated', 'Unit', 5, 6, 1, NULL, '{}', 'When you play a spell that costs :rb_energy_5: or more, give me +3 :rb_might: this turn.', NULL, '{"Lux","Demacia"}', 'luxilluminated'),
-  ('019cf052-e00a-725d-9893-e1661bf5d66b', 'OGS-007', 'Garen, Rugged', 'Unit', 5, 6, 1, NULL, '{"Assault 2","Shield 2"}', '[Assault 2], [Shield 2] (+2 :rb_might: while I''m an attacker or defender.)', NULL, '{"Elite","Garen","Demacia"}', 'garenrugged'),
-  ('019cf052-e00a-72bb-b0ae-c30d1a778a6c', 'OGS-008', 'Gentlemen''s Duel', 'Spell', NULL, 6, 1, NULL, '{"Action"}', '[Action] (Play on your turn or in showdowns.)
-Give a friendly unit +3 :rb_might: this turn. Then choose an enemy unit. They deal damage equal to their Mights to each other.', NULL, '{}', 'gentlemensduel'),
-  ('019cf052-e00a-71ee-9e47-e8d173da9445', 'OGS-009', 'Yi, Honed', 'Unit', 6, 7, 1, NULL, '{"Ganking"}', '[Ganking] (I can move from battlefield to battlefield.)
-I enter ready.', NULL, '{"Master Yi","Ionia"}', 'yihoned'),
-  ('019cf052-e00a-7261-8a14-4251647a9001', 'OGS-010', 'Annie, Stubborn', 'Unit', 3, 4, 1, NULL, '{}', 'When you play me, return a spell from your trash to your hand.', NULL, '{"Annie","Noxus"}', 'anniestubborn'),
-  ('019cf052-e00a-72bf-9b5a-3f26d58d905b', 'OGS-011', 'Flash', 'Spell', NULL, 2, NULL, NULL, '{"Reaction"}', '[Reaction] (Play any time, even before spells and abilities resolve.)
-Move up to 2 friendly units to base.', NULL, '{}', 'flash'),
-  ('019cf052-e00a-71f4-816a-f90d301eb3e0', 'OGS-012', 'Blast of Power', 'Spell', NULL, 6, 1, NULL, '{"Action"}', '[Action] (Play on your turn or in showdowns.)
-Kill a unit at a battlefield.', NULL, '{}', 'blastofpower'),
-  ('019cf052-e00a-7265-bbe5-fca1516a3fea', 'OGS-013', 'Garen, Commander', 'Unit', 5, 6, 1, NULL, '{}', 'Other friendly units have +1 :rb_might: here.', NULL, '{"Elite","Garen","Demacia"}', 'garencommander'),
-  ('019cf052-e00a-72c2-928f-ecb5b16295ff', 'OGS-014', 'Lux, Crownguard', 'Unit', 2, 4, NULL, NULL, '{"Reaction","Add"}', ':rb_exhaust:: [Reaction] — [Add] :rb_energy_2:. Use only to play spells. (Abilities that add resources can''t be reacted to.)', NULL, '{"Lux","Demacia"}', 'luxcrownguard'),
-  ('019cf052-e00a-71fa-922b-b2f3d4e9825e', 'OGS-015', 'Recruit the Vanguard', 'Spell', NULL, 6, NULL, NULL, '{"Action"}', '[Action] (Play on your turn or in showdowns.)
-Play four 1 :rb_might: Recruit unit tokens. (They can be played to your base or to battlefields you control.)', NULL, '{}', 'recruitthevanguard'),
-  ('019cf052-e00a-7268-b4a4-ef652da2b35c', 'OGS-016', 'Vanguard Attendant', 'Unit', 5, 6, 1, NULL, '{}', 'I enter ready.', NULL, '{"Elite","Demacia"}', 'vanguardattendant'),
-  ('019cf052-e00a-72c6-ace9-ec2fc4fccb63', 'OGS-017', 'Dark Child - Starter', 'Legend', NULL, NULL, NULL, NULL, '{}', 'At the end of your turn, ready up to 2 runes.', NULL, '{"Annie"}', 'darkchildstarter'),
-  ('019cf052-e00a-71fe-aafc-9e401d229a9d', 'OGS-018', 'Tibbers', 'Unit', 7, 8, 2, NULL, '{}', 'When you play me, deal 3 to all units at battlefields.', NULL, '{"Annie"}', 'tibbers'),
-  ('019cf052-e00a-726f-953a-9d8e4b960185', 'OGS-019', 'Wuju Bladesman - Starter', 'Legend', NULL, NULL, NULL, NULL, '{}', 'While a friendly unit defends alone, it gets +2 :rb_might:.', NULL, '{"Master Yi"}', 'wujubladesmanstarter'),
-  ('019cf052-e00a-72ca-8947-eb08feda6df5', 'OGS-020', 'Highlander', 'Spell', NULL, 4, NULL, NULL, '{"Reaction"}', '[Reaction] (Play any time, even before spells and abilities resolve.)
-Choose a friendly unit. The next time it would die this turn, heal it, exhaust it, and recall it instead. (Send it to base. This isn''t a move.)', NULL, '{"Master Yi"}', 'highlander'),
-  ('019cf052-e00a-7204-a83d-fb19eb0fe551', 'OGS-021', 'Lady of Luminosity - Starter', 'Legend', NULL, NULL, NULL, NULL, '{}', 'When you play a spell that costs :rb_energy_5: or more, draw 1.', NULL, '{"Lux"}', 'ladyofluminositystarter'),
-  ('019cf052-e00a-7273-ac23-c25c9631f0ce', 'OGS-022', 'Final Spark', 'Spell', NULL, 8, NULL, NULL, '{"Action"}', '[Action] (Play on your turn or in showdowns.)
-Deal 8 to a unit.', NULL, '{"Lux"}', 'finalspark'),
-  ('019cf052-e00a-72cd-a297-1a50d6a513f2', 'OGS-023', 'Might of Demacia - Starter', 'Legend', NULL, NULL, NULL, NULL, '{}', 'When you conquer, if you have 4+ units at that battlefield, draw 2.', NULL, '{"Garen"}', 'mightofdemaciastarter'),
-  ('019cf052-e00a-7394-af87-5b5f926f4b8d', 'OGS-024', 'Decisive Strike', 'Spell', NULL, 5, 1, NULL, '{"Action"}', '[Action] (Play on your turn or in showdowns.)
-Give friendly units +2 :rb_might: this turn.', NULL, '{"Garen"}', 'decisivestrike');
+INSERT INTO cards (id, slug, name, type, might, energy, power, might_bonus, keywords, tags, norm_name) VALUES
+  ('019cf052-e00a-7256-ab8d-6e39b367029d', 'OGS-001', 'Annie, Fiery', 'Unit', 4, 5, 1, NULL, '{}', '{"Annie","Noxus"}', 'anniefiery'),
+  ('019cf052-e00a-72b3-9ad6-76b7a7937ed9', 'OGS-002', 'Firestorm', 'Spell', NULL, 6, 1, NULL, '{}', '{}', 'firestorm'),
+  ('019cf052-e009-7e7a-8ef3-3d7af480b233', 'OGS-003', 'Incinerate', 'Spell', NULL, 2, NULL, NULL, '{"Action"}', '{}', 'incinerate'),
+  ('019cf052-e00a-725a-af1a-96c66acfa59f', 'OGS-004', 'Yi, Meditative', 'Unit', 4, 5, 1, NULL, '{}', '{"Master Yi","Ionia"}', 'yimeditative'),
+  ('019cf052-e00a-72b7-84bf-56a562e24ace', 'OGS-005', 'Zephyr Sage', 'Unit', 6, 6, 1, NULL, '{"Shield"}', '{"Ionia","Bird"}', 'zephyrsage'),
+  ('019cf052-e00a-71e8-a89f-b0ba7ccc7bcf', 'OGS-006', 'Lux, Illuminated', 'Unit', 5, 6, 1, NULL, '{}', '{"Lux","Demacia"}', 'luxilluminated'),
+  ('019cf052-e00a-725d-9893-e1661bf5d66b', 'OGS-007', 'Garen, Rugged', 'Unit', 5, 6, 1, NULL, '{"Assault 2","Shield 2"}', '{"Elite","Garen","Demacia"}', 'garenrugged'),
+  ('019cf052-e00a-72bb-b0ae-c30d1a778a6c', 'OGS-008', 'Gentlemen''s Duel', 'Spell', NULL, 6, 1, NULL, '{"Action"}', '{}', 'gentlemensduel'),
+  ('019cf052-e00a-71ee-9e47-e8d173da9445', 'OGS-009', 'Yi, Honed', 'Unit', 6, 7, 1, NULL, '{"Ganking"}', '{"Master Yi","Ionia"}', 'yihoned'),
+  ('019cf052-e00a-7261-8a14-4251647a9001', 'OGS-010', 'Annie, Stubborn', 'Unit', 3, 4, 1, NULL, '{}', '{"Annie","Noxus"}', 'anniestubborn'),
+  ('019cf052-e00a-72bf-9b5a-3f26d58d905b', 'OGS-011', 'Flash', 'Spell', NULL, 2, NULL, NULL, '{"Reaction"}', '{}', 'flash'),
+  ('019cf052-e00a-71f4-816a-f90d301eb3e0', 'OGS-012', 'Blast of Power', 'Spell', NULL, 6, 1, NULL, '{"Action"}', '{}', 'blastofpower'),
+  ('019cf052-e00a-7265-bbe5-fca1516a3fea', 'OGS-013', 'Garen, Commander', 'Unit', 5, 6, 1, NULL, '{}', '{"Elite","Garen","Demacia"}', 'garencommander'),
+  ('019cf052-e00a-72c2-928f-ecb5b16295ff', 'OGS-014', 'Lux, Crownguard', 'Unit', 2, 4, NULL, NULL, '{"Reaction","Add"}', '{"Lux","Demacia"}', 'luxcrownguard'),
+  ('019cf052-e00a-71fa-922b-b2f3d4e9825e', 'OGS-015', 'Recruit the Vanguard', 'Spell', NULL, 6, NULL, NULL, '{"Action"}', '{}', 'recruitthevanguard'),
+  ('019cf052-e00a-7268-b4a4-ef652da2b35c', 'OGS-016', 'Vanguard Attendant', 'Unit', 5, 6, 1, NULL, '{}', '{"Elite","Demacia"}', 'vanguardattendant'),
+  ('019cf052-e00a-72c6-ace9-ec2fc4fccb63', 'OGS-017', 'Dark Child - Starter', 'Legend', NULL, NULL, NULL, NULL, '{}', '{"Annie"}', 'darkchildstarter'),
+  ('019cf052-e00a-71fe-aafc-9e401d229a9d', 'OGS-018', 'Tibbers', 'Unit', 7, 8, 2, NULL, '{}', '{"Annie"}', 'tibbers'),
+  ('019cf052-e00a-726f-953a-9d8e4b960185', 'OGS-019', 'Wuju Bladesman - Starter', 'Legend', NULL, NULL, NULL, NULL, '{}', '{"Master Yi"}', 'wujubladesmanstarter'),
+  ('019cf052-e00a-72ca-8947-eb08feda6df5', 'OGS-020', 'Highlander', 'Spell', NULL, 4, NULL, NULL, '{"Reaction"}', '{"Master Yi"}', 'highlander'),
+  ('019cf052-e00a-7204-a83d-fb19eb0fe551', 'OGS-021', 'Lady of Luminosity - Starter', 'Legend', NULL, NULL, NULL, NULL, '{}', '{"Lux"}', 'ladyofluminositystarter'),
+  ('019cf052-e00a-7273-ac23-c25c9631f0ce', 'OGS-022', 'Final Spark', 'Spell', NULL, 8, NULL, NULL, '{"Action"}', '{"Lux"}', 'finalspark'),
+  ('019cf052-e00a-72cd-a297-1a50d6a513f2', 'OGS-023', 'Might of Demacia - Starter', 'Legend', NULL, NULL, NULL, NULL, '{}', '{"Garen"}', 'mightofdemaciastarter'),
+  ('019cf052-e00a-7394-af87-5b5f926f4b8d', 'OGS-024', 'Decisive Strike', 'Spell', NULL, 5, 1, NULL, '{"Action"}', '{"Garen"}', 'decisivestrike');
 
 INSERT INTO card_domains (card_id, domain_slug, ordinal) VALUES
   ('019cf052-e00a-7256-ab8d-6e39b367029d', 'Fury', 0),

@@ -22,8 +22,7 @@ const stubCard: Card = {
   keywords: [],
   tags: [],
   mightBonus: 0,
-  rulesText: "",
-  effectText: "",
+  errata: null,
   bans: [],
 };
 

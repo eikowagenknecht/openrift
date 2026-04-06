@@ -9,6 +9,7 @@ import {
   ArrowRightIcon,
   BanIcon,
   CheckCheckIcon,
+  FileWarningIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -32,6 +33,7 @@ import {
   deduplicateSourceImages,
   useCardDetailData,
 } from "@/components/admin/card-detail-shared";
+import { CardErrataManager } from "@/components/admin/card-errata-manager";
 import { NewPrintingGroupCard } from "@/components/admin/new-printing-group-card";
 import { PrintingImageSwitcher } from "@/components/admin/printing-image-switcher";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
@@ -108,6 +110,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
   // --- State ---
   const [collapsedPrintings, setCollapsedPrintings] = useState<Set<string>>(new Set());
   const [showBanForm, setShowBanForm] = useState(false);
+  const [showErrataForm, setShowErrataForm] = useState(false);
   const pendingScrollTarget = useRef<string | null>(null);
 
   // --- Check all & next card ---
@@ -190,10 +193,6 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
   const canonicalName = card.name;
 
   const { labels: sourceLabels, names: sourceNames } = buildSourceLabels(sources, canonicalName);
-
-  // Collect printed rules/effect texts from accepted printings for mismatch warnings
-  const printedRulesTexts = new Set(printings.map((p) => p.printedRulesText).filter(Boolean));
-  const printedEffectTexts = new Set(printings.map((p) => p.printedEffectText).filter(Boolean));
 
   // Build printing groups for ambiguous/unmatched sources
   const ambiguousGroups = buildPrintingGroups(
@@ -347,6 +346,10 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                 <BanIcon className="mr-2 size-3.5" />
                 Add ban
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setShowErrataForm(true)}>
+                <FileWarningIcon className="mr-2 size-3.5" />
+                {card.errata ? "Edit errata" : "Add errata"}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -403,9 +406,9 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
           )}
         </div>
         <CandidateSpreadsheet
-          fields={CANDIDATE_CARD_FIELDS.map((f) =>
-            f.key === "shortCode" ? { ...f, readOnly: false } : f,
-          )}
+          fields={CANDIDATE_CARD_FIELDS.filter(
+            (f) => f.key !== "rulesText" && f.key !== "effectText",
+          ).map((f) => (f.key === "shortCode" ? { ...f, readOnly: false } : f))}
           requiredKeys={["shortCode", "name", "type", "domains"]}
           activeRow={{
             ...card,
@@ -413,29 +416,6 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
           }}
           candidateRows={sources}
           providerSettings={providerSettings}
-          cellWarning={
-            printings.length > 0
-              ? (fieldKey, value) => {
-                  if (
-                    fieldKey === "rulesText" &&
-                    typeof value === "string" &&
-                    printedRulesTexts.size > 0 &&
-                    !printedRulesTexts.has(value)
-                  ) {
-                    return "This rules text doesn\u2019t match any printing\u2019s printed rules";
-                  }
-                  if (
-                    fieldKey === "effectText" &&
-                    typeof value === "string" &&
-                    printedEffectTexts.size > 0 &&
-                    !printedEffectTexts.has(value)
-                  ) {
-                    return "This effect text doesn\u2019t match any printing\u2019s printed effect";
-                  }
-                  return null;
-                }
-              : undefined
-          }
           onCellClick={(field, value) => {
             if (field === "shortCode") {
               const newId = String(value).trim();
@@ -523,6 +503,14 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
 
       {/* ── Bans ─────────────────────────────────────────────────────────────── */}
       <CardBanManager cardId={card.id} showForm={showBanForm} onShowFormChange={setShowBanForm} />
+
+      {/* ── Errata ────────────────────────────────────────────────────────── */}
+      <CardErrataManager
+        cardId={card.id}
+        errata={card.errata}
+        showForm={showErrataForm}
+        onShowFormChange={setShowErrataForm}
+      />
 
       {/* ── Printings ──────────────────────────────────────────────────────── */}
       <section className="space-y-3">

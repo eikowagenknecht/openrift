@@ -363,15 +363,19 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       await db.updateTable("cards").set({ slug: newSlug }).where("slug", "=", oldSlug).execute();
     },
 
-    /** @returns A card's rulesText and effectText by slug. */
-    getCardTexts(
-      slug: string,
-    ): Promise<Pick<Selectable<CardsTable>, "rulesText" | "effectText"> | undefined> {
-      return db
-        .selectFrom("cards")
-        .select(["rulesText", "effectText"])
-        .where("slug", "=", slug)
-        .executeTakeFirst();
+    /**
+     * Get errata text for a card by slug.
+     * @returns Errata correctedRulesText and correctedEffectText, or null if no errata exists.
+     */
+    async getCardTexts(slug: string) {
+      return (
+        (await db
+          .selectFrom("cardErrata")
+          .innerJoin("cards", "cards.id", "cardErrata.cardId")
+          .select(["cardErrata.correctedRulesText", "cardErrata.correctedEffectText"])
+          .where("cards.slug", "=", slug)
+          .executeTakeFirst()) ?? null
+      );
     },
 
     /** @returns EN printing-level rules/effect texts for a card identified by slug. */
@@ -495,18 +499,19 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
     async recomputeKeywordsForPrintingCard(printingId: string): Promise<void> {
       const row = await db
         .selectFrom("printings")
-        .innerJoin("cards", "cards.id", "printings.cardId")
-        .select([
-          "cards.id as cardId",
-          "cards.rulesText as cardRulesText",
-          "cards.effectText as cardEffectText",
-        ])
+        .select(["printings.cardId"])
         .where("printings.id", "=", printingId)
         .executeTakeFirst();
 
       if (!row) {
         return;
       }
+
+      const errata = await db
+        .selectFrom("cardErrata")
+        .select(["correctedRulesText", "correctedEffectText"])
+        .where("cardId", "=", row.cardId)
+        .executeTakeFirst();
 
       const siblings = await db
         .selectFrom("printings")
@@ -516,8 +521,8 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .execute();
 
       const keywords = [
-        ...extractKeywords(row.cardRulesText ?? ""),
-        ...extractKeywords(row.cardEffectText ?? ""),
+        ...extractKeywords(errata?.correctedRulesText ?? ""),
+        ...extractKeywords(errata?.correctedEffectText ?? ""),
         ...siblings.flatMap((s) => [
           ...extractKeywords(s.printedRulesText ?? ""),
           ...extractKeywords(s.printedEffectText ?? ""),
@@ -730,17 +735,10 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         energy?: number | null;
         power?: number | null;
         mightBonus?: number | null;
-        rulesText?: string | null;
-        effectText?: string | null;
         tags?: string[];
       },
       normalizedName: string,
     ): Promise<void> {
-      const keywords = [
-        ...extractKeywords(cardFields.rulesText ?? ""),
-        ...extractKeywords(cardFields.effectText ?? ""),
-      ].filter((v, i, a) => a.indexOf(v) === i);
-
       const { id: cardUuid } = await db
         .insertInto("cards")
         .values({
@@ -751,9 +749,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
           energy: cardFields.energy ?? null,
           power: cardFields.power ?? null,
           mightBonus: cardFields.mightBonus ?? null,
-          keywords,
-          rulesText: cardFields.rulesText ?? null,
-          effectText: cardFields.effectText ?? null,
+          keywords: [],
           tags: cardFields.tags ?? [],
         })
         .returning("id")
@@ -799,6 +795,70 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .values({ normName: normalizedName, cardId: cardId })
         .onConflict((oc) => oc.column("normName").doUpdateSet({ cardId: cardId }))
         .execute();
+    },
+
+    // ── Card errata ──────────────────────────────────────────────────────────
+
+    /**
+     * Upsert card errata (insert or update on conflict by cardId).
+     */
+    async upsertCardErrata(
+      cardId: string,
+      data: {
+        correctedRulesText: string | null;
+        correctedEffectText: string | null;
+        source: string;
+        sourceUrl: string | null;
+        effectiveDate: string | null;
+      },
+    ): Promise<void> {
+      await db
+        .insertInto("cardErrata")
+        .values({
+          cardId,
+          correctedRulesText: data.correctedRulesText,
+          correctedEffectText: data.correctedEffectText,
+          source: data.source,
+          sourceUrl: data.sourceUrl,
+          effectiveDate: data.effectiveDate ? new Date(data.effectiveDate) : null,
+        })
+        .onConflict((oc) =>
+          oc.column("cardId").doUpdateSet({
+            correctedRulesText: data.correctedRulesText,
+            correctedEffectText: data.correctedEffectText,
+            source: data.source,
+            sourceUrl: data.sourceUrl,
+            effectiveDate: data.effectiveDate ? new Date(data.effectiveDate) : null,
+          }),
+        )
+        .execute();
+    },
+
+    /**
+     * Delete card errata by card ID.
+     */
+    async deleteCardErrata(cardId: string): Promise<void> {
+      await db.deleteFrom("cardErrata").where("cardId", "=", cardId).execute();
+    },
+
+    /**
+     * Get card errata by card ID.
+     * @returns Errata fields, or null if no errata exists.
+     */
+    async getCardErrata(cardId: string) {
+      return (
+        (await db
+          .selectFrom("cardErrata")
+          .select([
+            "correctedRulesText",
+            "correctedEffectText",
+            "source",
+            "sourceUrl",
+            "effectiveDate",
+          ])
+          .where("cardId", "=", cardId)
+          .executeTakeFirst()) ?? null
+      );
     },
   };
 }
