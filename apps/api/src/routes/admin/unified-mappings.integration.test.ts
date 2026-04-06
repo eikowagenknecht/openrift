@@ -40,20 +40,21 @@ if (ctx) {
       slug: "UNM-001",
       name: "UNM Alpha Card",
       type: "Unit",
-      superTypes: [],
-      domains: ["Mind"],
       might: null,
       energy: 3,
       power: null,
       mightBonus: null,
       keywords: [],
-      rulesText: null,
-      effectText: null,
       tags: [],
     })
     .returning("id")
     .execute();
   cardId = cardRow.id;
+
+  await db
+    .insertInto("cardDomains")
+    .values({ cardId: cardId, domainSlug: "Mind", ordinal: 0 })
+    .execute();
 
   // Seed first printing
   const [printingRow] = await db
@@ -86,20 +87,21 @@ if (ctx) {
       slug: "UNM-002",
       name: "UNM Beta Card",
       type: "Spell",
-      superTypes: [],
-      domains: ["Chaos"],
       might: null,
       energy: 1,
       power: null,
       mightBonus: null,
       keywords: [],
-      rulesText: null,
-      effectText: null,
       tags: [],
     })
     .returning("id")
     .execute();
   secondCardId = secondCardRow.id;
+
+  await db
+    .insertInto("cardDomains")
+    .values({ cardId: secondCardId, domainSlug: "Chaos", ordinal: 0 })
+    .execute();
 
   // Seed second printing
   const [secondPrintingRow] = await db
@@ -148,6 +150,7 @@ if (ctx) {
       groupId: 10_300,
       productName: "UNM Alpha Card Normal",
       finish: "normal",
+      language: "EN",
       recordedAt: new Date("2026-02-01T10:00:00Z"),
       marketCents: 200,
       lowCents: 120,
@@ -169,6 +172,7 @@ if (ctx) {
       groupId: 10_301,
       productName: "UNM Alpha Card Normal",
       finish: "normal",
+      language: "EN",
       recordedAt: new Date("2026-02-01T10:00:00Z"),
       marketCents: 180,
       lowCents: 100,
@@ -190,6 +194,7 @@ if (ctx) {
       groupId: 10_300,
       productName: "UNM Beta Card Normal",
       finish: "normal",
+      language: "EN",
       recordedAt: new Date("2026-02-01T10:00:00Z"),
       marketCents: 500,
       lowCents: 400,
@@ -211,6 +216,7 @@ if (ctx) {
       groupId: 10_302,
       productName: "UNM Alpha Card Normal",
       finish: "normal",
+      language: "EN",
       recordedAt: new Date("2026-02-01T10:00:00Z"),
       marketCents: 150,
       lowCents: 90,
@@ -419,6 +425,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           groupId: 10_300,
           productName: "UNM Alpha Card Normal",
           finish: "normal",
+          language: "EN",
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 200,
           lowCents: 120,
@@ -430,7 +437,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           avg30Cents: null,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
         )
         .execute();
 
@@ -470,6 +477,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           groupId: 10_301,
           productName: "UNM Alpha Card Normal",
           finish: "normal",
+          language: "EN",
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 180,
           lowCents: 100,
@@ -481,7 +489,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           avg30Cents: 160,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
         )
         .execute();
 
@@ -522,6 +530,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           groupId: 10_300,
           productName: "UNM Alpha Card Normal",
           finish: "normal",
+          language: "EN",
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 200,
           lowCents: 120,
@@ -533,7 +542,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           avg30Cents: null,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
         )
         .execute();
 
@@ -545,6 +554,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           groupId: 10_301,
           productName: "UNM Alpha Card Normal",
           finish: "normal",
+          language: "EN",
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 180,
           lowCents: 100,
@@ -556,7 +566,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           avg30Cents: 160,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
         )
         .execute();
 
@@ -691,6 +701,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           groupId: 10_300,
           productName: "UNM Alpha Card Normal",
           finish: "normal",
+          language: "EN",
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 200,
           lowCents: 120,
@@ -702,7 +713,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           avg30Cents: null,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
         )
         .execute();
 
@@ -714,6 +725,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           groupId: 10_301,
           productName: "UNM Alpha Card Normal",
           finish: "normal",
+          language: "EN",
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 180,
           lowCents: 100,
@@ -725,7 +737,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           avg30Cents: 160,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
         )
         .execute();
 

@@ -69,18 +69,19 @@ if (ctx) {
       slug: "IMG-001",
       name: "IMG Test Card",
       type: "Unit",
-      superTypes: [],
-      domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
       mightBonus: null,
       keywords: [],
-      rulesText: null,
-      effectText: null,
       tags: [],
     })
     .returning("id")
+    .execute();
+
+  await db
+    .insertInto("cardDomains")
+    .values({ cardId: card.id, domainSlug: "Mind", ordinal: 0 })
     .execute();
 
   const [printing] = await db

@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
+import { CARD_FURY_UNIT, PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { decksRepo } from "./decks.js";
 
@@ -20,7 +21,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
   });
 
   // Use the first seed card for deck card tests
-  const seedCardId = "019cf052-e00a-7256-ab8d-6e39b367029d"; // Annie, Fiery
+  const seedCardId = CARD_FURY_UNIT.id; // Annie, Fiery
 
   // ---------------------------------------------------------------------------
   // create
@@ -311,7 +312,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
       .executeTakeFirstOrThrow();
 
     // Insert a copy using seed data
-    const seedPrintingId = "019cf052-e020-7222-b8bf-3c9fc2151abc";
+    const seedPrintingId = PRINTING_1.id;
     await db
       .insertInto("copies")
       .values({ userId, printingId: seedPrintingId, collectionId: col.id })

@@ -57,20 +57,21 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         slug: cardSlug,
         name: "UPS Test Card",
         type: "Unit",
-        superTypes: [],
-        domains: ["Fury"],
         might: 2,
         energy: 3,
         power: 4,
         mightBonus: null,
         keywords: [],
-        rulesText: "Test rules",
-        effectText: null,
         tags: [],
       })
       .returning("id")
       .executeTakeFirstOrThrow();
     cardId = insertedCard.id;
+
+    await db
+      .insertInto("cardDomains")
+      .values({ cardId: cardId, domainSlug: "Mind", ordinal: 0 })
+      .execute();
 
     // Seed group for cardmarket marketplace
     await db
@@ -130,6 +131,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
           externalId: 94_101,
           groupId: 94_001,
           productName: "UPS Test Product",
+          language: "EN",
         },
         {
           marketplace: "cardmarket",
@@ -137,6 +139,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
           externalId: 94_201,
           groupId: 94_001,
           productName: "UPS Test Product Foil",
+          language: "EN",
         },
       ])
       .execute();
@@ -206,6 +209,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         groupId: 94_001,
         productName: "UPS Test Product",
         finish,
+        language: "EN",
         recordedAt: recordedAt,
         marketCents: 0,
         lowCents: null,

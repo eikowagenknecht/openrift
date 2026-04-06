@@ -298,18 +298,19 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           slug: "CAT-PRINT-001",
           name: "CAT Print Card",
           type: "Unit",
-          superTypes: [],
-          domains: ["Mind"],
           might: null,
           energy: 1,
           power: null,
           mightBonus: null,
           keywords: [],
-          rulesText: null,
-          effectText: null,
           tags: [],
         })
         .returning("id")
+        .execute();
+
+      await testDb
+        .insertInto("cardDomains")
+        .values({ cardId: tempCard.id, domainSlug: "Mind", ordinal: 0 })
         .execute();
 
       await testDb
@@ -341,6 +342,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
 
       // Clean up
       await testDb.deleteFrom("printings").where("shortCode", "=", "CAT-PRINT-001").execute();
+      await testDb.deleteFrom("cardDomains").where("cardId", "=", tempCard.id).execute();
       await testDb.deleteFrom("cards").where("slug", "=", "CAT-PRINT-001").execute();
       await app.fetch(req("DELETE", `/admin/sets/${tempSetId}`));
     });

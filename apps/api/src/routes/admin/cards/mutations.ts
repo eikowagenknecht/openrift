@@ -654,7 +654,18 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const updates: Record<string, unknown> = { [field]: finalValue };
 
-    await mut.updateCardById(cardId, updates);
+    try {
+      await mut.updateCardById(cardId, updates);
+    } catch (error: unknown) {
+      if (error instanceof Error && "code" in error && error.code === "23503") {
+        throw new AppError(
+          400,
+          "VALIDATION_ERROR",
+          `Invalid value for ${field}: ${String(finalValue)}`,
+        );
+      }
+      throw error;
+    }
 
     return c.body(null, 204);
   })
@@ -751,7 +762,18 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       normalizedValue = setRow.id;
     }
 
-    await mut.updatePrintingFieldById(printingId, field, normalizedValue);
+    try {
+      await mut.updatePrintingFieldById(printingId, field, normalizedValue);
+    } catch (error: unknown) {
+      if (error instanceof Error && "code" in error && error.code === "23503") {
+        throw new AppError(
+          400,
+          "VALIDATION_ERROR",
+          `Invalid value for ${field}: ${String(normalizedValue)}`,
+        );
+      }
+      throw error;
+    }
 
     // Recompute card-level keywords when printing text changes
     if (field === "printedRulesText" || field === "printedEffectText") {

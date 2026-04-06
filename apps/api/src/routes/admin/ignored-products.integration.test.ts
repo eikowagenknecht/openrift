@@ -40,6 +40,7 @@ if (ctx) {
       groupId: 10_400,
       productName: "IGP Stageable Product",
       finish: "normal",
+      language: "EN",
       recordedAt: new Date(),
       marketCents: 100,
       lowCents: 50,
@@ -72,7 +73,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
           marketplace: "tcgplayer",
-          products: [{ externalId: 10_401, finish: "normal" }],
+          products: [{ externalId: 10_401, finish: "normal", language: "" }],
         }),
       );
       expect(res.status).toBe(200);
@@ -85,7 +86,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
           marketplace: "tcgplayer",
-          products: [{ externalId: 99_999, finish: "normal" }],
+          products: [{ externalId: 99_999, finish: "normal", language: "" }],
         }),
       );
       expect(res.status).toBe(200);
@@ -106,7 +107,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
           marketplace: "invalid",
-          products: [{ externalId: 10_401, finish: "normal" }],
+          products: [{ externalId: 10_401, finish: "normal", language: "" }],
         }),
       );
       expect(res.status).toBe(400);
@@ -138,7 +139,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       const res = await app.fetch(
         req("DELETE", "/admin/ignored-products", {
           marketplace: "tcgplayer",
-          products: [{ externalId: 10_401, finish: "normal" }],
+          products: [{ externalId: 10_401, finish: "normal", language: "" }],
         }),
       );
       expect(res.status).toBe(200);
@@ -166,6 +167,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
           marketplace: "tcgplayer",
           externalId: 10_401,
           finish: "normal",
+          language: "EN",
           cardId,
         }),
       );
@@ -193,6 +195,7 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
           marketplace: "tcgplayer",
           externalId: 10_401,
           finish: "normal",
+          language: "EN",
         }),
       );
       expect(res.status).toBe(204);

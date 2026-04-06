@@ -30,15 +30,27 @@ describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
 
   it("insertIgnoredProducts inserts and deleteIgnoredProduct removes", async () => {
     await repo.insertIgnoredProducts([
-      { marketplace, externalId: 88_001, finish: "normal", productName: "Test Ignored" },
-      { marketplace, externalId: 88_002, finish: "foil", productName: "Test Ignored 2" },
+      {
+        marketplace,
+        externalId: 88_001,
+        finish: "normal",
+        language: "",
+        productName: "Test Ignored",
+      },
+      {
+        marketplace,
+        externalId: 88_002,
+        finish: "foil",
+        language: "",
+        productName: "Test Ignored 2",
+      },
     ]);
 
     const list = await repo.listIgnoredProducts();
     const ours = list.filter((p) => p.marketplace === marketplace);
     expect(ours.length).toBe(2);
 
-    await repo.deleteIgnoredProduct(marketplace, 88_001, "normal");
+    await repo.deleteIgnoredProduct(marketplace, 88_001, "normal", "");
 
     const after = await repo.listIgnoredProducts();
     const remaining = after.filter((p) => p.marketplace === marketplace);
@@ -47,7 +59,7 @@ describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
 
   it("deleteIgnoredProducts bulk deletes", async () => {
     const count = await repo.deleteIgnoredProducts(marketplace, [
-      { externalId: 88_002, finish: "foil" },
+      { externalId: 88_002, finish: "foil", language: "" },
     ]);
     expect(count).toBe(1);
   });

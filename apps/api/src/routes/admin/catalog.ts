@@ -5,7 +5,6 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
-import { assertFound } from "../../utils/assertions.js";
 import { createSetSchema, reorderSetsSchema, updateSetSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -131,7 +130,9 @@ export const catalogRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { name, printedTotal, releasedAt } = c.req.valid("json");
 
     const updated = await setsRepo.update(id, { name, printedTotal, releasedAt });
-    assertFound(updated, `Set "${id}" not found`);
+    if (!updated) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Set "${id}" not found`);
+    }
 
     return c.body(null, 204);
   })

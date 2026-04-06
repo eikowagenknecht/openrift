@@ -212,7 +212,9 @@ describe("acceptPrinting", () => {
 
   it("throws BAD_REQUEST when promoTypeId is invalid", async () => {
     const repos = {
-      candidateMutations: {},
+      candidateMutations: {
+        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
+      },
       printingImages: {},
       promoTypes: {
         getById: vi.fn(async () => null),
@@ -241,6 +243,7 @@ describe("acceptPrinting", () => {
   it("throws CONFLICT when printing identity belongs to a different card", async () => {
     const repos = {
       candidateMutations: {
+        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => ({ cardId: "other-card-uuid" })),
       },
       printingImages: {},
@@ -266,6 +269,7 @@ describe("acceptPrinting", () => {
 
     const repos = {
       candidateMutations: {
+        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
         upsertPrinting,
@@ -317,6 +321,7 @@ describe("acceptPrinting", () => {
   it("throws BAD_REQUEST for invalid rarity", async () => {
     const repos = {
       candidateMutations: {
+        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
         getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
@@ -355,6 +360,7 @@ describe("acceptPrinting", () => {
 
     const repos = {
       candidateMutations: {
+        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
         upsertPrinting,
@@ -409,6 +415,7 @@ describe("acceptPrinting", () => {
 
     const repos = {
       candidateMutations: {
+        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => null),
         upsertPrinting,

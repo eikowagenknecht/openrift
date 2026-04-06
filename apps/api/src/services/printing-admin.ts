@@ -152,6 +152,12 @@ export async function acceptPrinting(
     }
   }
 
+  // Guard: card must exist
+  const card = await mut.getCardById(cardId);
+  if (!card) {
+    throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
+  }
+
   const finish = (printingFields.finish ?? "normal") as Finish;
 
   // Guard: reject if this identity already belongs to a different card

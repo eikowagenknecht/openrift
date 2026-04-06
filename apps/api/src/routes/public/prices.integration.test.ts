@@ -41,20 +41,21 @@ if (ctx) {
       slug: "PRC-001",
       name: "PRC Price Card",
       type: "Unit",
-      superTypes: [],
-      domains: ["Mind"],
       might: null,
       energy: 3,
       power: null,
       mightBonus: null,
       keywords: [],
-      rulesText: null,
-      effectText: null,
       tags: [],
     })
     .returning("id")
     .execute();
   cardId = cardRow.id;
+
+  await db
+    .insertInto("cardDomains")
+    .values({ cardId: cardId, domainSlug: "Mind", ordinal: 0 })
+    .execute();
 
   // Seed printing with marketplace sources
   const [printingRow] = await db
@@ -113,6 +114,7 @@ if (ctx) {
       groupId: 24_439,
       productName: "PRC Price Card Normal",
       printingId,
+      language: "EN",
     })
     .returning("id")
     .execute();
@@ -127,6 +129,7 @@ if (ctx) {
       groupId: 6289,
       productName: "PRC Price Card Normal",
       printingId,
+      language: "EN",
     })
     .returning("id")
     .execute();

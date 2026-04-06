@@ -38,20 +38,21 @@ if (ctx) {
       slug: "MKM-001",
       name: "MKM Test Card",
       type: "Unit",
-      superTypes: [],
-      domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
       mightBonus: null,
       keywords: [],
-      rulesText: null,
-      effectText: null,
       tags: [],
     })
     .returning("id")
     .execute();
   cardId = cardRow.id;
+
+  await db
+    .insertInto("cardDomains")
+    .values({ cardId: cardId, domainSlug: "Mind", ordinal: 0 })
+    .execute();
 
   // Seed printing (normal finish)
   const [printingRow] = await db
@@ -122,6 +123,7 @@ if (ctx) {
       groupId: 10_200,
       productName: "MKM Test Card Normal",
       finish: "normal",
+      language: "EN",
       recordedAt: new Date("2026-01-15T12:00:00Z"),
       marketCents: 100,
       lowCents: 50,
@@ -143,6 +145,7 @@ if (ctx) {
       groupId: 10_201,
       productName: "MKM Test Card Normal",
       finish: "normal",
+      language: "EN",
       recordedAt: new Date("2026-01-15T12:00:00Z"),
       marketCents: 80,
       lowCents: 40,
@@ -394,6 +397,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           groupId: 10_201,
           productName: "MKM Test Card Normal",
           finish: "normal",
+          language: "EN",
           recordedAt: new Date("2026-01-15T12:00:00Z"),
           marketCents: 80,
           lowCents: 40,
@@ -405,7 +409,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           avg30Cents: 75,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
         )
         .execute();
 
@@ -442,6 +446,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           groupId: 10_200,
           productName: "MKM Ignored Product",
           finish: "normal",
+          language: "EN",
           recordedAt: new Date("2026-01-17T12:00:00Z"),
           marketCents: 200,
           lowCents: 100,
@@ -453,7 +458,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           avg30Cents: null,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
         )
         .execute();
 
@@ -464,9 +469,12 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           marketplace: "tcgplayer",
           externalId: 99_001,
           finish: "normal",
+          language: "EN",
           productName: "MKM Ignored Product",
         })
-        .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish"]).doNothing())
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
         .execute();
 
       const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
@@ -507,6 +515,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           groupId: 10_200,
           productName: "ZZZ Totally Unrelated Product Name",
           finish: "normal",
+          language: "EN",
           recordedAt: new Date("2026-01-18T12:00:00Z"),
           marketCents: 300,
           lowCents: 150,
@@ -518,7 +527,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           avg30Cents: null,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
         )
         .execute();
 
@@ -529,9 +538,12 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           marketplace: "tcgplayer",
           externalId: 99_002,
           finish: "normal",
+          language: "EN",
           cardId: cardId,
         })
-        .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish"]).doNothing())
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
         .execute();
 
       const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
@@ -574,6 +586,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           groupId: 10_200,
           productName: "Champion Annie, Fiery Special",
           finish: "normal",
+          language: "EN",
           recordedAt: new Date("2026-01-19T12:00:00Z"),
           marketCents: 400,
           lowCents: 200,
@@ -585,7 +598,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           avg30Cents: null,
         })
         .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "recordedAt"]).doNothing(),
+          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
         )
         .execute();
 

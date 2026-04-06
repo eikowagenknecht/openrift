@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
+import { PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { printingImagesRepo } from "./printing-images.js";
 
@@ -10,7 +11,7 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
   const repo = printingImagesRepo(db);
 
   // Seed data: first printing from OGS set
-  const seedPrintingId = "019cf052-e020-7222-b8bf-3c9fc2151abc";
+  const seedPrintingId = PRINTING_1.id;
   const createdImageIds: string[] = [];
 
   afterAll(async () => {

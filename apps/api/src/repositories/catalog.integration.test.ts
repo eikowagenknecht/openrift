@@ -28,7 +28,6 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(first).toHaveProperty("superTypes");
     expect(first).toHaveProperty("domains");
     expect(first).toHaveProperty("keywords");
-    expect(first).toHaveProperty("rulesText");
     // Should not include normName or timestamps
     expect(first).not.toHaveProperty("normName");
     expect(first).not.toHaveProperty("createdAt");

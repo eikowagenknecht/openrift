@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict OWd6pEcMuRrwmkg9xv8k6SGrC5cv0mDQEch5F65fPiysSGL8zy9ZHBer9pxL0uj
+\restrict IPa19KHhipGGOlWDFprLJW896ZwmHQFfcQTOan7kgQdQGPutoLrmcWfrmiOwYQD
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -320,6 +320,27 @@ CREATE TABLE public.card_domains (
 
 
 --
+-- Name: card_errata; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_errata (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    card_id uuid NOT NULL,
+    corrected_rules_text text,
+    corrected_effect_text text,
+    source text NOT NULL,
+    source_url text,
+    effective_date date,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_card_errata_has_text CHECK (((corrected_rules_text IS NOT NULL) OR (corrected_effect_text IS NOT NULL))),
+    CONSTRAINT chk_card_errata_no_empty_corrected_effect_text CHECK ((corrected_effect_text <> ''::text)),
+    CONSTRAINT chk_card_errata_no_empty_corrected_rules_text CHECK ((corrected_rules_text <> ''::text)),
+    CONSTRAINT chk_card_errata_no_empty_source CHECK ((source <> ''::text)),
+    CONSTRAINT chk_card_errata_no_empty_source_url CHECK ((source_url <> ''::text))
+);
+
+
+--
 -- Name: card_name_aliases; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -377,27 +398,6 @@ CREATE TABLE public.cards (
     CONSTRAINT chk_cards_no_empty_comment CHECK ((comment <> ''::text)),
     CONSTRAINT chk_cards_power_non_negative CHECK ((power >= 0)),
     CONSTRAINT chk_cards_slug_not_empty CHECK ((slug <> ''::text))
-);
-
-
---
--- Name: card_errata; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.card_errata (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    card_id uuid NOT NULL,
-    corrected_rules_text text,
-    corrected_effect_text text,
-    source text NOT NULL,
-    source_url text,
-    effective_date date,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_card_errata_has_text CHECK (((corrected_rules_text IS NOT NULL) OR (corrected_effect_text IS NOT NULL))),
-    CONSTRAINT chk_card_errata_no_empty_corrected_effect_text CHECK ((corrected_effect_text <> ''::text)),
-    CONSTRAINT chk_card_errata_no_empty_corrected_rules_text CHECK ((corrected_rules_text <> ''::text)),
-    CONSTRAINT chk_card_errata_no_empty_source CHECK ((source <> ''::text)),
-    CONSTRAINT chk_card_errata_no_empty_source_url CHECK ((source_url <> ''::text))
 );
 
 
@@ -1146,6 +1146,22 @@ ALTER TABLE ONLY public.card_domains
 
 ALTER TABLE ONLY public.card_domains
     ADD CONSTRAINT card_domains_pkey PRIMARY KEY (card_id, domain_slug);
+
+
+--
+-- Name: card_errata card_errata_card_id_unique; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_errata
+    ADD CONSTRAINT card_errata_card_id_unique UNIQUE (card_id);
+
+
+--
+-- Name: card_errata card_errata_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_errata
+    ADD CONSTRAINT card_errata_pkey PRIMARY KEY (id);
 
 
 --
@@ -2374,6 +2390,14 @@ ALTER TABLE ONLY public.card_domains
 
 
 --
+-- Name: card_errata card_errata_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_errata
+    ADD CONSTRAINT card_errata_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id) ON DELETE CASCADE;
+
+
+--
 -- Name: card_name_aliases card_name_aliases_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2753,5 +2777,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict OWd6pEcMuRrwmkg9xv8k6SGrC5cv0mDQEch5F65fPiysSGL8zy9ZHBer9pxL0uj
+\unrestrict IPa19KHhipGGOlWDFprLJW896ZwmHQFfcQTOan7kgQdQGPutoLrmcWfrmiOwYQD
 

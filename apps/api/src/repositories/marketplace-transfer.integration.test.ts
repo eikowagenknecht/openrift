@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
+import { PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { marketplaceTransferRepo } from "./marketplace-transfer.js";
 
@@ -8,7 +9,7 @@ const ctx = createDbContext("a0000000-0034-4000-a000-000000000001");
 describe.skipIf(!ctx)("marketplaceTransferRepo (integration)", () => {
   const { db } = ctx!;
   const repo = marketplaceTransferRepo(db);
-  const seedPrintingId = "019cf052-e020-7222-b8bf-3c9fc2151abc";
+  const seedPrintingId = PRINTING_1.id;
   const marketplace = "test-mp-transfer";
   let productId = "";
 
@@ -37,6 +38,7 @@ describe.skipIf(!ctx)("marketplaceTransferRepo (integration)", () => {
         groupId: 99_001,
         productName: "Test Transfer Product",
         printingId: seedPrintingId,
+        language: "EN",
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -67,6 +69,7 @@ describe.skipIf(!ctx)("marketplaceTransferRepo (integration)", () => {
       marketplace,
       { externalId: 99_001, groupId: 99_001, productName: "Test Transfer Product" },
       "normal",
+      "",
       {
         recordedAt: now,
         marketCents: 500,
