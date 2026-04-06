@@ -8,7 +8,6 @@ import { CardText } from "@/components/cards/card-text";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCardTilt } from "@/hooks/use-card-tilt";
-import { useFoilGyroscope } from "@/hooks/use-foil-gyroscope";
 import { getDomainGradientStyle, getDomainTintStyle } from "@/lib/domain";
 import { formatPublicCode } from "@/lib/format";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
@@ -82,23 +81,16 @@ export function CardDetail({
   const foilEffect = useDisplayStore((s) => s.foilEffect);
   const cardTilt = useDisplayStore((s) => s.cardTilt);
 
-  const gyro = useFoilGyroscope();
-
-  const tiltMode = IS_COARSE_POINTER
-    ? gyro.available && gyro.permissionState === "granted"
-      ? ("gyro" as const)
-      : ("none" as const)
-    : ("pointer" as const);
+  const tiltMode = IS_COARSE_POINTER ? ("none" as const) : ("pointer" as const);
 
   const tilt = useCardTilt({
     mode: tiltMode,
     enabled: cardTilt && (!IS_COARSE_POINTER || isFoil),
-    gyro,
   });
 
   const showFoil = isFoil && foilEffect;
   // Detail pane always uses animated foil — shimmers when tilt unavailable.
-  const showShimmer = showFoil && (!cardTilt || (IS_COARSE_POINTER && tiltMode === "none"));
+  const showShimmer = showFoil && (!cardTilt || IS_COARSE_POINTER);
 
   return (
     <div

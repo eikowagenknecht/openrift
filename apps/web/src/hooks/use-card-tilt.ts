@@ -1,13 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { GyroState } from "@/hooks/use-foil-gyroscope";
-
 interface CardTiltOptions {
-  mode: "pointer" | "gyro" | "none";
+  mode: "pointer" | "none";
   enabled: boolean;
   maxTilt?: number;
-  /** Required when mode is "gyro". Pass the result of useFoilGyroscope(). */
-  gyro?: GyroState;
 }
 
 interface CardTiltResult {
@@ -17,11 +13,11 @@ interface CardTiltResult {
   active: boolean;
 }
 
-export function useCardTilt({ mode, enabled, maxTilt = 8, gyro }: CardTiltOptions): CardTiltResult {
+export function useCardTilt({ mode, enabled, maxTilt = 8 }: CardTiltOptions): CardTiltResult {
   const containerElRef = useRef<HTMLElement | null>(null);
   const innerElRef = useRef<HTMLElement | null>(null);
   const rafRef = useRef(0);
-  const [active, setActive] = useState(mode === "none" || mode === "gyro");
+  const [active, setActive] = useState(mode === "none");
 
   const containerRef = (node: HTMLElement | null) => {
     containerElRef.current = node;
@@ -112,32 +108,6 @@ export function useCardTilt({ mode, enabled, maxTilt = 8, gyro }: CardTiltOption
       el.removeEventListener("pointerleave", onLeave);
     };
   }, [enabled, mode, maxTilt]);
-
-  // Gyro mode: map device orientation to CSS vars
-  useEffect(() => {
-    if (!enabled || mode !== "gyro" || !gyro?.available || gyro.permissionState !== "granted") {
-      return;
-    }
-    const el = containerElRef.current;
-    if (!el) {
-      return;
-    }
-
-    // beta: front-back tilt (-180..180), gamma: left-right tilt (-90..90)
-    // Clamp to a reasonable range and map to rotation
-    const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
-
-    const rotateX = clamp(gyro.beta, -maxTilt, maxTilt);
-    const rotateY = clamp(gyro.gamma, -maxTilt, maxTilt);
-
-    const bgX = ((rotateY + maxTilt) / (maxTilt * 2)) * 100;
-    const bgY = ((rotateX + maxTilt) / (maxTilt * 2)) * 100;
-
-    el.style.setProperty("--foil-rotate-x", `${rotateX}deg`);
-    el.style.setProperty("--foil-rotate-y", `${rotateY}deg`);
-    el.style.setProperty("--foil-bg-x", `${bgX}%`);
-    el.style.setProperty("--foil-bg-y", `${bgY}%`);
-  }, [enabled, mode, maxTilt, gyro]);
 
   const isActive = enabled && (mode === "none" ? true : active);
 
