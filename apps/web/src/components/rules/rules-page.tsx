@@ -159,7 +159,7 @@ export function RulesPage() {
   const isEmpty = rules.length === 0 && !searchQuery;
 
   return (
-    <div className={`mx-auto max-w-6xl ${PAGE_PADDING}`}>
+    <div className={`mx-auto w-full max-w-6xl ${PAGE_PADDING}`}>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Riftbound Rules</h1>
         {selectedVersion && (
