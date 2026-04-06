@@ -94,7 +94,6 @@ export function CollectionSidebar() {
             <SidebarMenuButton
               isActive={currentPath === "/collections/" && !collectionId}
               render={<Link to="/collections" />}
-              size="sm"
             >
               <LayersIcon />
               <span className="flex-1">All Cards</span>
@@ -123,7 +122,6 @@ export function CollectionSidebar() {
                     render={
                       <Link to="/collections/$collectionId" params={{ collectionId: col.id }} />
                     }
-                    size="sm"
                   >
                     {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
                     <span className="flex-1 truncate">{col.name}</span>
@@ -167,7 +165,6 @@ export function CollectionSidebar() {
                 </form>
               ) : (
                 <SidebarMenuButton
-                  size="sm"
                   className="text-muted-foreground"
                   onClick={() => setIsCreating(true)}
                 >
@@ -185,7 +182,6 @@ export function CollectionSidebar() {
               <SidebarMenuButton
                 isActive={currentPath === "/collections/import"}
                 render={<Link to="/collections/import" />}
-                size="sm"
               >
                 <ArrowLeftRightIcon />
                 <span>Import / Export</span>
@@ -195,7 +191,6 @@ export function CollectionSidebar() {
               <SidebarMenuButton
                 isActive={currentPath === "/collections/activity"}
                 render={<Link to="/collections/activity" />}
-                size="sm"
               >
                 <HistoryIcon />
                 <span>Activity</span>
