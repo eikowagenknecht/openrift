@@ -8,6 +8,7 @@
 - feat: Deck zones in the builder and import view are now sorted by the order configured in the database, and the import preview groups cards by zone
 - feat: Deck text import now recognizes "Character, Title" names (e.g. "Sett, The Boss") even when the card is stored under just the title
 - feat: Collection import preview now sorts entries by card ID within each match status group
+- fix: Footer on the decks page is no longer pushed off screen when there are only a few decks
 - fix: Disabling all languages on the profile page no longer snaps back to English after a moment
 - fix: Decks are now sorted alphabetically regardless of capitalization
 - fix: Plus icon in the deck editor card grid is now always visible, even when a card has reached its copy limit

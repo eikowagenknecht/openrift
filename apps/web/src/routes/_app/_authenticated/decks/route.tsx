@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_app/_authenticated/decks")({
 
 function DecksLayout() {
   return (
-    <div className="flex min-h-[calc(100vh-var(--header-height))] flex-col">
+    <div className="flex flex-1 flex-col">
       <div className="flex-1">
         <Outlet />
       </div>
