@@ -391,6 +391,18 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /** @returns EN printing-level rules/effect texts for a card identified by UUID. */
+    getPrintingTextsForCardId(
+      cardId: string,
+    ): Promise<Pick<Selectable<PrintingsTable>, "printedRulesText" | "printedEffectText">[]> {
+      return db
+        .selectFrom("printings")
+        .select(["printings.printedRulesText", "printings.printedEffectText"])
+        .where("printings.cardId", "=", cardId)
+        .where("printings.language", "=", "EN")
+        .execute();
+    },
+
     /** Update arbitrary fields on a card by slug. */
     async updateCardBySlug(slug: string, updates: Record<string, unknown>): Promise<void> {
       await db.updateTable("cards").set(updates).where("slug", "=", slug).execute();

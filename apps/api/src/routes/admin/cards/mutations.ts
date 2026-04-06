@@ -907,13 +907,10 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // Upsert card errata (corrected rules/effect text from official errata)
   .openapi(upsertErrata, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const cardSlug = c.req.valid("param").cardId;
+    const cardId = c.req.valid("param").cardId;
     const body = c.req.valid("json");
 
-    const card = await mut.getCardIdBySlug(cardSlug);
-    assertFound(card, "Card not found");
-
-    await mut.upsertCardErrata(card.id, {
+    await mut.upsertCardErrata(cardId, {
       correctedRulesText: body.correctedRulesText,
       correctedEffectText: body.correctedEffectText,
       source: body.source,
@@ -922,7 +919,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     });
 
     // Recompute keywords to include errata text
-    const printingTexts = await mut.getPrintingTextsForCardSlug(cardSlug);
+    const printingTexts = await mut.getPrintingTextsForCardId(cardId);
     const keywords = [
       ...extractKeywords(body.correctedRulesText ?? ""),
       ...extractKeywords(body.correctedEffectText ?? ""),
@@ -932,7 +929,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       ]),
     ].filter((v, i, a) => a.indexOf(v) === i);
 
-    await mut.updateCardById(card.id, { keywords });
+    await mut.updateCardById(cardId, { keywords });
 
     return c.body(null, 204);
   })
@@ -941,15 +938,12 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // Delete card errata and recompute keywords
   .openapi(deleteErrata, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
-    const cardSlug = c.req.valid("param").cardId;
+    const cardId = c.req.valid("param").cardId;
 
-    const card = await mut.getCardIdBySlug(cardSlug);
-    assertFound(card, "Card not found");
-
-    await mut.deleteCardErrata(card.id);
+    await mut.deleteCardErrata(cardId);
 
     // Recompute keywords from printing text only (no errata anymore)
-    const printingTexts = await mut.getPrintingTextsForCardSlug(cardSlug);
+    const printingTexts = await mut.getPrintingTextsForCardId(cardId);
     const keywords = printingTexts
       .flatMap((pt) => [
         ...extractKeywords(pt.printedRulesText ?? ""),
@@ -957,7 +951,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       ])
       .filter((v, i, a) => a.indexOf(v) === i);
 
-    await mut.updateCardById(card.id, { keywords });
+    await mut.updateCardById(cardId, { keywords });
 
     return c.body(null, 204);
   });
