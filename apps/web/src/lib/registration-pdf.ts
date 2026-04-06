@@ -24,7 +24,7 @@ const PAGE_SIZES = {
 // ── Layout constants (mm) ──────────────────────────────────────────────────
 
 const MARGIN_TOP = 8;
-const LEFT_MARGIN_WIDTH = 22;
+const LEFT_MARGIN_WIDTH = 18;
 const RIGHT_MARGIN = 10;
 const ROW_HEIGHT = 5.5;
 const BODY_FONT_SIZE = 9;
@@ -69,80 +69,43 @@ function drawLeftMargin(
 
   // Draw thin separator lines between zones
   const marginLeft = 15; // 1.5cm from page edge
-  const centerX = marginLeft;
+  const textX = marginLeft;
   doc.setDrawColor(180, 180, 180);
   doc.setLineWidth(0.3);
-  doc.line(marginLeft, firstZoneTop, marginX, firstZoneTop);
-  doc.line(marginLeft, lastZoneTop, marginX, lastZoneTop);
+  doc.line(10, firstZoneTop, marginX, firstZoneTop);
+  doc.line(10, lastZoneTop, marginX, lastZoneTop);
   doc.setLineWidth(0.2);
 
-  // Parse Riot ID into name and tag parts
-  const riotParts = fields.riotId.split("#");
-  const riotName = riotParts[0]?.trim() ?? "";
-  const riotTag = riotParts.length > 1 ? (riotParts[1]?.trim() ?? "") : "";
+  // Each zone has a small label and a larger value, both rotated 90 degrees.
+  // With angle: 90, text reads bottom-to-top. All anchored at the same bottom
+  // edge of each zone so they align vertically. The value is offset upward by
+  // the measured label width.
+  const anchorOffset = 3; // mm from zone bottom edge
+  const labelFontSize = 7;
+  const valueFontSize = 14;
 
-  // Riot ID zone (top third)
-  if (riotTag) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-    doc.text(riotTag, centerX, riotZoneTop + 8, { align: "center", angle: 90 });
+  function drawZoneLabel(label: string, value: string, zoneTop: number) {
+    const anchorY = zoneTop + zoneHeight - anchorOffset;
+
+    // Label (small, gray)
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(labelFontSize);
+    doc.setTextColor(100, 100, 100);
+    doc.text(label, textX, anchorY, { angle: 90 });
+    const labelWidth = doc.getTextWidth(label);
+
+    // Value (larger, bold, black) — offset upward by label width + gap
+    if (value) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(valueFontSize);
+      doc.setTextColor(0, 0, 0);
+      doc.text(value, textX, anchorY - labelWidth - 2, { angle: 90 });
+    }
   }
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(0, 0, 0);
-  doc.text("#", centerX, riotZoneTop + zoneHeight * 0.4, { align: "center", angle: 90 });
-
-  if (riotName) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
-    doc.text(riotName, centerX, riotZoneTop + zoneHeight * 0.65, {
-      align: "center",
-      angle: 90,
-    });
-  }
-
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(SMALL_FONT_SIZE);
-  doc.setTextColor(100, 100, 100);
-  doc.text("Riot ID:", centerX, riotZoneTop + zoneHeight - 3, { align: "center", angle: 90 });
-
-  // First Name zone (middle third)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(0, 0, 0);
-  if (fields.firstName) {
-    doc.text(fields.firstName, centerX, firstZoneTop + zoneHeight / 2, {
-      align: "center",
-      angle: 90,
-    });
-  }
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(SMALL_FONT_SIZE);
-  doc.setTextColor(100, 100, 100);
-  doc.text("First Name:", centerX, firstZoneTop + zoneHeight - 3, {
-    align: "center",
-    angle: 90,
-  });
-
-  // Last Name zone (bottom third)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
-  doc.setTextColor(0, 0, 0);
-  if (fields.lastName) {
-    doc.text(fields.lastName, centerX, lastZoneTop + zoneHeight / 2, {
-      align: "center",
-      angle: 90,
-    });
-  }
-  doc.setFont("helvetica", "italic");
-  doc.setFontSize(SMALL_FONT_SIZE);
-  doc.setTextColor(100, 100, 100);
-  doc.text("Last Name:", centerX, lastZoneTop + zoneHeight - 3, {
-    align: "center",
-    angle: 90,
-  });
+  drawZoneLabel("Riot ID:", fields.riotId, riotZoneTop);
+  drawZoneLabel("First Name:", fields.firstName, firstZoneTop);
+  drawZoneLabel("Last Name:", fields.lastName, lastZoneTop);
 
   doc.setTextColor(0, 0, 0);
 }
@@ -160,49 +123,58 @@ function drawHeader(
   const contentLeft = LEFT_MARGIN_WIDTH;
   const contentRight = pageWidth - RIGHT_MARGIN;
 
-  // Logo (top-left of content area)
+  // Logo (top-left, equal distance from left and top edges)
+  const logoX = MARGIN_TOP;
   if (logoDataUrl) {
     try {
-      doc.addImage(logoDataUrl, "PNG", contentLeft, currentY, LOGO_SIZE, LOGO_SIZE);
+      doc.addImage(logoDataUrl, "PNG", logoX, currentY, LOGO_SIZE, LOGO_SIZE);
     } catch {
       // Skip logo if loading fails
     }
   }
 
-  // "openrift.app" centered below logo
+  // "Generated with openrift.app" centered below logo, linked
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(5.5);
+  doc.setFontSize(5);
   doc.setTextColor(100, 100, 100);
-  doc.text("openrift.app", contentLeft + LOGO_SIZE / 2, currentY + LOGO_SIZE + 3, {
-    align: "center",
-  });
+  const brandText = "Generated with openrift.app";
+  const brandTextWidth = doc.getTextWidth(brandText);
+  const brandX = logoX + LOGO_SIZE / 2 - brandTextWidth / 2;
+  const brandY = currentY + LOGO_SIZE + 3;
+  doc.text(brandText, brandX, brandY);
+  doc.link(brandX, brandY - 2, brandTextWidth, 3, { url: "https://openrift.app" });
   doc.setTextColor(0, 0, 0);
 
   // Title "DECK REGISTRATION SHEET"
   doc.setFont("helvetica", "bold");
   doc.setFontSize(TITLE_FONT_SIZE);
   doc.setTextColor(0, 0, 0);
-  const titleX = contentLeft + LOGO_SIZE + 4;
+  const titleX = logoX + LOGO_SIZE + 4;
   doc.text("DECK REGISTRATION SHEET", titleX, currentY + 8);
 
-  // "First Letter of Last Name" box (top-right)
+  // "First Letter of Last Name" box (top-right, bottom-aligned with info table)
   const boxX = contentRight - FIRST_LETTER_BOX_SIZE;
-  const boxY = currentY;
+  const boxY = currentY + 14 - FIRST_LETTER_BOX_SIZE; // bottom edge aligns with table top
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5);
+  doc.setFontSize(6);
   doc.setTextColor(0, 0, 0);
-  doc.text("First Letter of", boxX - 1, boxY + 3, { align: "right" });
-  doc.text("Last Name", boxX - 1, boxY + 6, { align: "right" });
+  const flMargin = 1.5;
+  doc.text("First Letter of", boxX - flMargin, boxY + FIRST_LETTER_BOX_SIZE - flMargin - 3, {
+    align: "right",
+  });
+  doc.text("Last Name", boxX - flMargin, boxY + FIRST_LETTER_BOX_SIZE - flMargin, {
+    align: "right",
+  });
 
   doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.6);
+  doc.setLineWidth(0.3);
   doc.rect(boxX, boxY, FIRST_LETTER_BOX_SIZE, FIRST_LETTER_BOX_SIZE);
   doc.setLineWidth(0.2);
 
   // First letter
   if (fields.lastName) {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
+    doc.setFontSize(20);
     doc.text(
       fields.lastName.charAt(0).toUpperCase(),
       boxX + FIRST_LETTER_BOX_SIZE / 2,
@@ -214,8 +186,8 @@ function drawHeader(
   // ── Info fields table (below title) ─────────────────────────────────────
 
   const infoY = currentY + 14;
-  const infoLeft = contentLeft + LOGO_SIZE + 4;
-  const infoRight = contentRight - FIRST_LETTER_BOX_SIZE - 4;
+  const infoLeft = logoX + LOGO_SIZE + 4;
+  const infoRight = contentRight;
   const infoWidth = infoRight - infoLeft;
   const halfInfoWidth = infoWidth / 2;
   const infoRowHeight = 8;
@@ -232,8 +204,8 @@ function drawHeader(
   doc.rect(infoLeft, infoY + infoRowHeight, halfInfoWidth, infoRowHeight);
   doc.rect(infoLeft + halfInfoWidth, infoY + infoRowHeight, halfInfoWidth, infoRowHeight);
 
-  // Row 3: Deck Designer (full width)
-  doc.rect(infoLeft, infoY + 2 * infoRowHeight, infoWidth, infoRowHeight);
+  // Row 3: Deck Designer (right column only)
+  doc.rect(infoLeft + halfInfoWidth, infoY + 2 * infoRowHeight, halfInfoWidth, infoRowHeight);
 
   doc.setLineWidth(0.2);
 
@@ -279,16 +251,18 @@ function drawHeader(
     doc.text(fields.deckName, infoLeft + halfInfoWidth + labelColWidth + 2, textY2);
   }
 
-  // Deck Designer (full-width third row)
+  // Deck Designer (right column third row)
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 100, 100);
-  doc.text("Deck Designer:", infoLeft + labelColWidth + 8, textY3, { align: "right" });
+  doc.text("Deck Designer:", infoLeft + halfInfoWidth + labelColWidth - 1, textY3, {
+    align: "right",
+  });
   doc.setTextColor(0, 0, 0);
   if (fields.deckDesigner) {
-    doc.text(fields.deckDesigner, infoLeft + labelColWidth + 11, textY3);
+    doc.text(fields.deckDesigner, infoLeft + halfInfoWidth + labelColWidth + 2, textY3);
   }
 
-  currentY = infoY + 3 * infoRowHeight + 2;
+  currentY = infoY + 2 * infoRowHeight + 2;
 
   // ── "PRINT CLEARLY..." banner ──────────────────────────────────────────
 
@@ -304,11 +278,25 @@ function drawHeader(
 
 // ── Section drawing helpers ───────────────────────────────────────────────
 
-function drawSectionLabel(doc: jsPDF, label: string, startX: number, startY: number): number {
+function drawSectionLabel(
+  doc: jsPDF,
+  label: string,
+  startX: number,
+  startY: number,
+  subtitle?: string,
+): number {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(SECTION_HEADER_FONT_SIZE);
   doc.setTextColor(0, 0, 0);
   doc.text(`${label}:`, startX, startY + 4);
+  if (subtitle) {
+    const labelWidth = doc.getTextWidth(`${label}:  `);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(6.5);
+    doc.setTextColor(100, 100, 100);
+    doc.text(subtitle, startX + labelWidth, startY + 4);
+    doc.setTextColor(0, 0, 0);
+  }
   return startY + 6;
 }
 
@@ -410,9 +398,12 @@ function drawFooter(doc: jsPDF, startX: number, startY: number, width: number): 
   doc.text("FOR OFFICAL USE ONLY", startX + 2, startY + 3.5);
 
   // Main/SB on right side of header
-  doc.text("Main/SB:", startX + halfWidth + 2, startY + 3.5);
+  const mainSbX = startX + halfWidth + 2;
+  doc.text("Main/SB:", mainSbX, startY + 3.5);
+  const mainSbLabelEnd = mainSbX + doc.getTextWidth("Main/SB:");
+  const slashCenterX = mainSbLabelEnd + (startX + boxWidth - mainSbLabelEnd) / 2;
   doc.setFont("helvetica", "normal");
-  doc.text("/", startX + boxWidth - 8, startY + 3.5);
+  doc.text("/", slashCenterX, startY + 3.5, { align: "center" });
 
   // Separator line after header
   doc.line(startX, startY + 5, startX + boxWidth, startY + 5);
@@ -540,7 +531,7 @@ export async function generateRegistrationPdf(
   // ── LEFT COLUMN ─────────────────────────────────────────────────────────
 
   // Legend
-  leftY = drawSectionLabel(doc, "Legend", innerLeft, leftY);
+  leftY = drawSectionLabel(doc, "Legend", innerLeft, leftY, "(1 card)");
   leftY = drawNameOnlyHeader(doc, innerLeft, leftY);
   leftY = drawNameOnlyRows(
     doc,
@@ -553,33 +544,36 @@ export async function generateRegistrationPdf(
   leftY += 3;
 
   // Battlefields
-  leftY = drawSectionLabel(doc, "Battlefields", innerLeft, leftY);
+  leftY = drawSectionLabel(doc, "Battlefields", innerLeft, leftY, "(3 cards)");
   leftY = drawNameOnlyHeader(doc, innerLeft, leftY);
   leftY = drawNameOnlyRows(doc, battlefieldCards, 3, innerLeft, leftY, colWidth);
   leftY += 3;
 
   // Main Deck
-  leftY = drawSectionLabel(doc, "Main Deck", innerLeft, leftY);
+  leftY = drawSectionLabel(doc, "Main Deck", innerLeft, leftY, "(40 cards)");
   leftY = drawQtyNameHeader(doc, innerLeft, leftY);
 
-  // Merge champion into main deck as a single combined entry
-  const allMainCards = [...mainCards];
+  // Merge champion into main deck: champion always first, rest sorted alphabetically
+  const championNames = new Set(championCards.map((card) => card.name));
+  const nonChampionCards = mainCards
+    .filter((card) => !championNames.has(card.name))
+    .toSorted((first, second) => first.name.localeCompare(second.name));
+  const mergedChampionCards: RegistrationCard[] = [];
   for (const champ of championCards) {
-    const existing = allMainCards.find((card) => card.name === champ.name);
-    if (existing) {
-      existing.quantity += champ.quantity;
-    } else {
-      allMainCards.unshift(champ);
-    }
+    const mainCopy = mainCards.find((card) => card.name === champ.name);
+    mergedChampionCards.push({
+      name: champ.name,
+      quantity: champ.quantity + (mainCopy?.quantity ?? 0),
+    });
   }
-  allMainCards.sort((first, second) => first.name.localeCompare(second.name));
+  const allMainCards = [...mergedChampionCards, ...nonChampionCards];
 
   // Draw "Chosen Champion" label on the first row (single line, beside the header)
   if (championCards.length > 0) {
     doc.setFont("helvetica", "italic");
     doc.setFontSize(7);
     doc.setTextColor(100, 100, 100);
-    doc.text("Chosen Champion", innerLeft + colWidth - 28, leftY + 3.5);
+    doc.text("Chosen Champion", innerLeft + colWidth, leftY + 3.5, { align: "right" });
     doc.setTextColor(0, 0, 0);
   }
 
@@ -605,30 +599,21 @@ export async function generateRegistrationPdf(
 
   // Runes
   const runeRowCount = Math.max(runeCards.length, 2);
-  rightY = drawSectionLabel(doc, "Runes", rightColX, rightY);
+  rightY = drawSectionLabel(doc, "Runes", rightColX, rightY, "(12 cards)");
   rightY = drawQtyNameHeader(doc, rightColX, rightY);
   rightY = drawQtyNameRows(doc, runeCards, runeRowCount, rightColX, rightY, colWidth);
   rightY += 3;
 
   // Sideboard (exactly 8 rows)
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(SECTION_HEADER_FONT_SIZE);
-  doc.setTextColor(0, 0, 0);
-  doc.text("Sideboard:", rightColX, rightY + 4);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(6.5);
-  doc.setTextColor(100, 100, 100);
-  doc.text("(0-8 cards)", rightColX + doc.getTextWidth("Sideboard:  ") + 6, rightY + 4);
-  doc.setTextColor(0, 0, 0);
-  rightY += 6;
+  rightY = drawSectionLabel(doc, "Sideboard", rightColX, rightY, "(0-8 cards)");
 
   rightY = drawQtyNameHeader(doc, rightColX, rightY);
   rightY = drawQtyNameRows(doc, sideboardCards, 8, rightColX, rightY, colWidth);
-  rightY += 5;
 
-  // ── Footer ──────────────────────────────────────────────────────────────
+  // ── Footer (bottom-aligned to card area) ────────────────────────────────
 
-  drawFooter(doc, rightColX, rightY, colWidth);
+  const footerBoxHeight = 22;
+  drawFooter(doc, rightColX, cardAreaBottom - footerBoxHeight - padding, colWidth);
 
   // ── Download ────────────────────────────────────────────────────────────
 

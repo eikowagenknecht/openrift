@@ -196,7 +196,7 @@ export function DeckExportDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!isControlled && (
-        <DialogTrigger render={<Button variant="outline" size="sm" />}>
+        <DialogTrigger render={<Button variant="ghost" size="sm" />}>
           <Share2Icon className="size-4" />
           Export
         </DialogTrigger>
