@@ -2,6 +2,7 @@ import { CheckIcon, CopyIcon, FileTextIcon, Loader2Icon, Share2Icon } from "luci
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useExportDeck } from "@/hooks/use-decks";
+import { useSession } from "@/lib/auth-client";
 import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
 import { generateRegistrationPdf } from "@/lib/registration-pdf";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
@@ -113,6 +115,7 @@ export function DeckExportDialog({
   const setOpen = controlledOnOpenChange ?? setInternalOpen;
   const isControlled = controlledOpen !== undefined;
   const exportDeck = useExportDeck();
+  const { data: session } = useSession();
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<ExportTab>("piltover");
   const [registrationPageSize, setRegistrationPageSize] = useState<RegistrationPageSize>("a4");
@@ -126,6 +129,7 @@ export function DeckExportDialog({
   const [eventDate, setEventDate] = useState("");
   const [eventName, setEventName] = useState("");
   const [eventLocation, setEventLocation] = useState("");
+  const [deckDesigner, setDeckDesigner] = useState("");
 
   useEffect(() => {
     if (open && tab !== "registration") {
@@ -138,6 +142,12 @@ export function DeckExportDialog({
     }
     if (open) {
       setRegDeckName(deckName ?? "");
+      // Prefill first/last name from user profile if not already filled
+      if (!firstName && !lastName && session?.user?.name) {
+        const parts = session.user.name.trim().split(/\s+/);
+        setFirstName(parts[0] ?? "");
+        setLastName(parts.slice(1).join(" "));
+      }
     }
   }, [open]); // oxlint-disable-line react-hooks/exhaustive-deps -- only trigger on open/close
 
@@ -168,6 +178,7 @@ export function DeckExportDialog({
     setGenerating(true);
     const fields: RegistrationFields = {
       deckName: regDeckName,
+      deckDesigner,
       firstName,
       lastName,
       riotId,
@@ -252,13 +263,8 @@ export function DeckExportDialog({
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="reg-event-date">Event Date</Label>
-                    <Input
-                      id="reg-event-date"
-                      type="date"
-                      value={eventDate}
-                      onChange={(event) => setEventDate(event.target.value)}
-                    />
+                    <Label>Event Date</Label>
+                    <DatePicker value={eventDate || null} onChange={setEventDate} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <Label htmlFor="reg-event-name">Event Name</Label>
@@ -274,6 +280,14 @@ export function DeckExportDialog({
                       id="reg-event-location"
                       value={eventLocation}
                       onChange={(event) => setEventLocation(event.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="reg-deck-designer">Deck Designer</Label>
+                    <Input
+                      id="reg-deck-designer"
+                      value={deckDesigner}
+                      onChange={(event) => setDeckDesigner(event.target.value)}
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">

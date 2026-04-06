@@ -7,6 +7,7 @@ export type RegistrationPageSize = "a4" | "letter";
 
 export interface RegistrationFields {
   deckName: string;
+  deckDesigner: string;
   firstName: string;
   lastName: string;
   riotId: string;
@@ -23,16 +24,16 @@ const PAGE_SIZES = {
 // ── Layout constants (mm) ──────────────────────────────────────────────────
 
 const MARGIN_TOP = 8;
-const LEFT_MARGIN_WIDTH = 18;
+const LEFT_MARGIN_WIDTH = 22;
 const RIGHT_MARGIN = 10;
-const ROW_HEIGHT = 5;
-const BODY_FONT_SIZE = 7.5;
-const SMALL_FONT_SIZE = 6;
-const SECTION_HEADER_FONT_SIZE = 9;
+const ROW_HEIGHT = 5.5;
+const BODY_FONT_SIZE = 9;
+const SMALL_FONT_SIZE = 7;
+const SECTION_HEADER_FONT_SIZE = 10;
 const TITLE_FONT_SIZE = 16;
 const COL_GAP = 4;
 const LOGO_SIZE = 24;
-const FIRST_LETTER_BOX_SIZE = 14;
+const FIRST_LETTER_BOX_SIZE = 10;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -67,10 +68,12 @@ function drawLeftMargin(
   const lastZoneTop = cardAreaTop + 2 * zoneHeight;
 
   // Draw thin separator lines between zones
+  const marginLeft = 15; // 1.5cm from page edge
+  const centerX = marginLeft;
   doc.setDrawColor(180, 180, 180);
   doc.setLineWidth(0.3);
-  doc.line(2, firstZoneTop, marginX, firstZoneTop);
-  doc.line(2, lastZoneTop, marginX, lastZoneTop);
+  doc.line(marginLeft, firstZoneTop, marginX, firstZoneTop);
+  doc.line(marginLeft, lastZoneTop, marginX, lastZoneTop);
   doc.setLineWidth(0.2);
 
   // Parse Riot ID into name and tag parts
@@ -81,20 +84,20 @@ function drawLeftMargin(
   // Riot ID zone (top third)
   if (riotTag) {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
+    doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
-    doc.text(riotTag, marginX / 2, riotZoneTop + 8, { align: "center", angle: 90 });
+    doc.text(riotTag, centerX, riotZoneTop + 8, { align: "center", angle: 90 });
   }
 
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(14);
+  doc.setFontSize(16);
   doc.setTextColor(0, 0, 0);
-  doc.text("#", marginX / 2, riotZoneTop + zoneHeight * 0.4, { align: "center", angle: 90 });
+  doc.text("#", centerX, riotZoneTop + zoneHeight * 0.4, { align: "center", angle: 90 });
 
   if (riotName) {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.text(riotName, marginX / 2, riotZoneTop + zoneHeight * 0.65, {
+    doc.setFontSize(12);
+    doc.text(riotName, centerX, riotZoneTop + zoneHeight * 0.65, {
       align: "center",
       angle: 90,
     });
@@ -103,14 +106,14 @@ function drawLeftMargin(
   doc.setFont("helvetica", "italic");
   doc.setFontSize(SMALL_FONT_SIZE);
   doc.setTextColor(100, 100, 100);
-  doc.text("Riot ID:", marginX / 2, riotZoneTop + zoneHeight - 3, { align: "center", angle: 90 });
+  doc.text("Riot ID:", centerX, riotZoneTop + zoneHeight - 3, { align: "center", angle: 90 });
 
   // First Name zone (middle third)
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(14);
   doc.setTextColor(0, 0, 0);
   if (fields.firstName) {
-    doc.text(fields.firstName, marginX / 2, firstZoneTop + zoneHeight / 2, {
+    doc.text(fields.firstName, centerX, firstZoneTop + zoneHeight / 2, {
       align: "center",
       angle: 90,
     });
@@ -118,17 +121,17 @@ function drawLeftMargin(
   doc.setFont("helvetica", "italic");
   doc.setFontSize(SMALL_FONT_SIZE);
   doc.setTextColor(100, 100, 100);
-  doc.text("First Name:", marginX / 2, firstZoneTop + zoneHeight - 3, {
+  doc.text("First Name:", centerX, firstZoneTop + zoneHeight - 3, {
     align: "center",
     angle: 90,
   });
 
   // Last Name zone (bottom third)
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(12);
+  doc.setFontSize(14);
   doc.setTextColor(0, 0, 0);
   if (fields.lastName) {
-    doc.text(fields.lastName, marginX / 2, lastZoneTop + zoneHeight / 2, {
+    doc.text(fields.lastName, centerX, lastZoneTop + zoneHeight / 2, {
       align: "center",
       angle: 90,
     });
@@ -136,7 +139,7 @@ function drawLeftMargin(
   doc.setFont("helvetica", "italic");
   doc.setFontSize(SMALL_FONT_SIZE);
   doc.setTextColor(100, 100, 100);
-  doc.text("Last Name:", marginX / 2, lastZoneTop + zoneHeight - 3, {
+  doc.text("Last Name:", centerX, lastZoneTop + zoneHeight - 3, {
     align: "center",
     angle: 90,
   });
@@ -156,7 +159,6 @@ function drawHeader(
 
   const contentLeft = LEFT_MARGIN_WIDTH;
   const contentRight = pageWidth - RIGHT_MARGIN;
-  const contentWidth = contentRight - contentLeft;
 
   // Logo (top-left of content area)
   if (logoDataUrl) {
@@ -166,6 +168,15 @@ function drawHeader(
       // Skip logo if loading fails
     }
   }
+
+  // "openrift.app" centered below logo
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(5.5);
+  doc.setTextColor(100, 100, 100);
+  doc.text("openrift.app", contentLeft + LOGO_SIZE / 2, currentY + LOGO_SIZE + 3, {
+    align: "center",
+  });
+  doc.setTextColor(0, 0, 0);
 
   // Title "DECK REGISTRATION SHEET"
   doc.setFont("helvetica", "bold");
@@ -178,12 +189,10 @@ function drawHeader(
   const boxX = contentRight - FIRST_LETTER_BOX_SIZE;
   const boxY = currentY;
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(5.5);
+  doc.setFontSize(5);
   doc.setTextColor(0, 0, 0);
-  doc.text("First Letter of", contentRight - FIRST_LETTER_BOX_SIZE - 2, boxY + 4, {
-    align: "right",
-  });
-  doc.text("Last Name", contentRight - FIRST_LETTER_BOX_SIZE - 2, boxY + 7.5, { align: "right" });
+  doc.text("First Letter of", boxX - 1, boxY + 3, { align: "right" });
+  doc.text("Last Name", boxX - 1, boxY + 6, { align: "right" });
 
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.6);
@@ -193,22 +202,24 @@ function drawHeader(
   // First letter
   if (fields.lastName) {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
+    doc.setFontSize(14);
     doc.text(
       fields.lastName.charAt(0).toUpperCase(),
       boxX + FIRST_LETTER_BOX_SIZE / 2,
-      boxY + FIRST_LETTER_BOX_SIZE / 2 + 3,
+      boxY + FIRST_LETTER_BOX_SIZE / 2 + 2,
       { align: "center" },
     );
   }
 
-  // ── Info fields table (below logo) ──────────────────────────────────────
+  // ── Info fields table (below title) ─────────────────────────────────────
 
   const infoY = currentY + 14;
   const infoLeft = contentLeft + LOGO_SIZE + 4;
-  const infoWidth = contentRight - FIRST_LETTER_BOX_SIZE - 6 - infoLeft;
+  const infoRight = contentRight - FIRST_LETTER_BOX_SIZE - 4;
+  const infoWidth = infoRight - infoLeft;
   const halfInfoWidth = infoWidth / 2;
   const infoRowHeight = 8;
+  const labelColWidth = 22;
 
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.3);
@@ -221,72 +232,72 @@ function drawHeader(
   doc.rect(infoLeft, infoY + infoRowHeight, halfInfoWidth, infoRowHeight);
   doc.rect(infoLeft + halfInfoWidth, infoY + infoRowHeight, halfInfoWidth, infoRowHeight);
 
+  // Row 3: Deck Designer (full width)
+  doc.rect(infoLeft, infoY + 2 * infoRowHeight, infoWidth, infoRowHeight);
+
   doc.setLineWidth(0.2);
 
-  // Field labels and values
-  const labelOffset = 3;
-  const valueOffset = 18;
   const textY1 = infoY + 5.5;
   const textY2 = infoY + infoRowHeight + 5.5;
+  const textY3 = infoY + 2 * infoRowHeight + 5.5;
 
+  doc.setFontSize(8);
+
+  // Date — label right-aligned, value left-aligned after label column
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(BODY_FONT_SIZE);
-
-  // Date
   doc.setTextColor(100, 100, 100);
-  doc.text("Date:", infoLeft + labelOffset, textY1);
+  doc.text("Date:", infoLeft + labelColWidth - 1, textY1, { align: "right" });
   doc.setTextColor(0, 0, 0);
   if (fields.eventDate) {
-    doc.text(fields.eventDate, infoLeft + valueOffset, textY1);
+    doc.text(fields.eventDate, infoLeft + labelColWidth + 2, textY1);
   }
 
   // Event
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 100, 100);
-  doc.text("Event:", infoLeft + halfInfoWidth + labelOffset, textY1);
+  doc.text("Event:", infoLeft + halfInfoWidth + labelColWidth - 1, textY1, { align: "right" });
   doc.setTextColor(0, 0, 0);
   if (fields.eventName) {
-    doc.text(fields.eventName, infoLeft + halfInfoWidth + valueOffset, textY1);
+    doc.text(fields.eventName, infoLeft + halfInfoWidth + labelColWidth + 2, textY1);
   }
 
   // Location
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 100, 100);
-  doc.text("Location:", infoLeft + labelOffset, textY2);
+  doc.text("Location:", infoLeft + labelColWidth - 1, textY2, { align: "right" });
   doc.setTextColor(0, 0, 0);
   if (fields.eventLocation) {
-    doc.text(fields.eventLocation, infoLeft + valueOffset + 4, textY2);
+    doc.text(fields.eventLocation, infoLeft + labelColWidth + 2, textY2);
   }
 
   // Deck Name
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 100, 100);
-  doc.text("Deck Name:", infoLeft + halfInfoWidth + labelOffset, textY2);
+  doc.text("Deck Name:", infoLeft + halfInfoWidth + labelColWidth - 1, textY2, { align: "right" });
   doc.setTextColor(0, 0, 0);
   if (fields.deckName) {
-    doc.text(fields.deckName, infoLeft + halfInfoWidth + valueOffset + 6, textY2);
+    doc.text(fields.deckName, infoLeft + halfInfoWidth + labelColWidth + 2, textY2);
   }
 
-  currentY = infoY + 2 * infoRowHeight + 2;
+  // Deck Designer (full-width third row)
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100);
+  doc.text("Deck Designer:", infoLeft + labelColWidth + 8, textY3, { align: "right" });
+  doc.setTextColor(0, 0, 0);
+  if (fields.deckDesigner) {
+    doc.text(fields.deckDesigner, infoLeft + labelColWidth + 11, textY3);
+  }
 
-  // ── "PRINT CLEARLY..." banner and Deck Designer ────────────────────────
+  currentY = infoY + 3 * infoRowHeight + 2;
+
+  // ── "PRINT CLEARLY..." banner ──────────────────────────────────────────
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
   doc.text("PRINT CLEARLY USING ENGLISH CARD NAMES", contentLeft, currentY + 5);
 
-  // Deck Designer field (right side of banner)
-  const designerBoxX = contentLeft + contentWidth * 0.6;
-  const designerBoxWidth = contentWidth * 0.4;
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.3);
-  doc.rect(designerBoxX, currentY + 0.5, designerBoxWidth, 7);
-  doc.setLineWidth(0.2);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(BODY_FONT_SIZE);
-  doc.setTextColor(100, 100, 100);
-  doc.text("Deck Designer:", designerBoxX + 2, currentY + 5);
-  doc.setTextColor(0, 0, 0);
-
-  currentY += 10;
+  currentY += 8;
 
   return currentY;
 }
@@ -534,7 +545,7 @@ export async function generateRegistrationPdf(
   leftY = drawNameOnlyRows(
     doc,
     legendCards,
-    Math.max(legendCards.length, 1) + 2,
+    Math.max(legendCards.length, 1),
     innerLeft,
     leftY,
     colWidth,
@@ -544,73 +555,62 @@ export async function generateRegistrationPdf(
   // Battlefields
   leftY = drawSectionLabel(doc, "Battlefields", innerLeft, leftY);
   leftY = drawNameOnlyHeader(doc, innerLeft, leftY);
-  leftY = drawNameOnlyRows(
-    doc,
-    battlefieldCards,
-    Math.max(battlefieldCards.length, 3) + 1,
-    innerLeft,
-    leftY,
-    colWidth,
-  );
+  leftY = drawNameOnlyRows(doc, battlefieldCards, 3, innerLeft, leftY, colWidth);
   leftY += 3;
 
   // Main Deck
   leftY = drawSectionLabel(doc, "Main Deck", innerLeft, leftY);
   leftY = drawQtyNameHeader(doc, innerLeft, leftY);
 
-  // Merge champion into main deck: champion goes first with "Chosen Champion" label
-  const mainWithChampion = [...championCards, ...mainCards];
+  // Merge champion into main deck as a single combined entry
+  const allMainCards = [...mainCards];
+  for (const champ of championCards) {
+    const existing = allMainCards.find((card) => card.name === champ.name);
+    if (existing) {
+      existing.quantity += champ.quantity;
+    } else {
+      allMainCards.unshift(champ);
+    }
+  }
+  allMainCards.sort((first, second) => first.name.localeCompare(second.name));
 
-  // Draw "Chosen Champion" icon/label on the first row area
+  // Draw "Chosen Champion" label on the first row (single line, beside the header)
   if (championCards.length > 0) {
     doc.setFont("helvetica", "italic");
-    doc.setFontSize(5.5);
+    doc.setFontSize(7);
     doc.setTextColor(100, 100, 100);
-    doc.text("Chosen", innerLeft + colWidth - 16, leftY + 2.5);
-    doc.text("Champion", innerLeft + colWidth - 16, leftY + 5);
+    doc.text("Chosen Champion", innerLeft + colWidth - 28, leftY + 3.5);
     doc.setTextColor(0, 0, 0);
   }
 
-  // Calculate how many main deck rows we can fit in the left column
+  // Fixed 40 main deck rows split across both columns.
+  // Left column gets as many as fit; right column gets the remainder.
+  const TOTAL_MAIN_ROWS = 40;
   const remainingLeftSpace = cardAreaBottom - leftY - padding;
-  const maxLeftMainRows = Math.floor(remainingLeftSpace / ROW_HEIGHT);
-  const leftMainRowCount = Math.min(mainWithChampion.length, maxLeftMainRows);
-  const leftMainTotalRows = maxLeftMainRows;
-  const leftMainCards = mainWithChampion.slice(0, leftMainRowCount);
+  const leftMainTotalRows = Math.floor(remainingLeftSpace / ROW_HEIGHT);
+  const rightMainTotalRows = TOTAL_MAIN_ROWS - leftMainTotalRows;
 
+  const leftMainCards = allMainCards.slice(0, leftMainTotalRows);
   leftY = drawQtyNameRows(doc, leftMainCards, leftMainTotalRows, innerLeft, leftY, colWidth);
 
   // ── RIGHT COLUMN ────────────────────────────────────────────────────────
 
   // Main Deck Continued
-  const rightMainCards = mainWithChampion.slice(leftMainRowCount);
+  const rightMainCards = allMainCards.slice(leftMainTotalRows);
   rightY = drawSectionLabel(doc, "Main Deck Continued", rightColX, rightY);
   rightY = drawQtyNameHeader(doc, rightColX, rightY);
-
-  // Calculate space needed for Runes and Sideboard at bottom of right column
-  const runeRowCount = Math.max(runeCards.length, 2);
-  const sideboardRowCount = Math.max(sideboardCards.length, 4) + 2;
-  const runesHeight = 6 + 5 + runeRowCount * ROW_HEIGHT + 3;
-  const sideboardHeight = 6 + 5 + sideboardRowCount * ROW_HEIGHT;
-  const footerHeight = 28;
-  const bottomReserved = runesHeight + sideboardHeight + footerHeight;
-
-  const remainingRightForMain = cardAreaBottom - rightY - bottomReserved - padding;
-  const rightMainTotalRows = Math.max(
-    Math.floor(remainingRightForMain / ROW_HEIGHT),
-    rightMainCards.length + 2,
-  );
 
   rightY = drawQtyNameRows(doc, rightMainCards, rightMainTotalRows, rightColX, rightY, colWidth);
   rightY += 3;
 
   // Runes
+  const runeRowCount = Math.max(runeCards.length, 2);
   rightY = drawSectionLabel(doc, "Runes", rightColX, rightY);
   rightY = drawQtyNameHeader(doc, rightColX, rightY);
   rightY = drawQtyNameRows(doc, runeCards, runeRowCount, rightColX, rightY, colWidth);
   rightY += 3;
 
-  // Sideboard
+  // Sideboard (exactly 8 rows)
   doc.setFont("helvetica", "bold");
   doc.setFontSize(SECTION_HEADER_FONT_SIZE);
   doc.setTextColor(0, 0, 0);
@@ -623,22 +623,12 @@ export async function generateRegistrationPdf(
   rightY += 6;
 
   rightY = drawQtyNameHeader(doc, rightColX, rightY);
-  rightY = drawQtyNameRows(doc, sideboardCards, sideboardRowCount, rightColX, rightY, colWidth);
+  rightY = drawQtyNameRows(doc, sideboardCards, 8, rightColX, rightY, colWidth);
   rightY += 5;
 
   // ── Footer ──────────────────────────────────────────────────────────────
 
   drawFooter(doc, rightColX, rightY, colWidth);
-
-  // ── Branding bar ────────────────────────────────────────────────────────
-
-  const barY = page.height - 5;
-  doc.setFillColor(30, 30, 30);
-  doc.rect(0, barY, page.width, 5, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(6);
-  doc.setTextColor(255, 255, 255);
-  doc.text("openrift.app", page.width / 2, barY + 3.5, { align: "center" });
 
   // ── Download ────────────────────────────────────────────────────────────
 
