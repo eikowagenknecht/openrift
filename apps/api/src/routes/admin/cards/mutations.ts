@@ -818,13 +818,13 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   .openapi(linkUnmatched, async (c) => {
     const { candidateMutations: mut } = c.get("repos");
     const normalizedName = decodeURIComponent(c.req.valid("param").name);
-    const { cardId: cardSlug } = c.req.valid("json");
+    const { cardId } = c.req.valid("json");
 
-    if (!cardSlug) {
+    if (!cardId) {
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "cardId required");
     }
 
-    const card = await mut.getCardIdBySlug(cardSlug);
+    const card = await mut.getCardById(cardId);
     assertFound(card, "Target card not found");
 
     await c.get("transact")(async (trxRepos) => {

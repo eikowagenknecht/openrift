@@ -960,13 +960,17 @@ describe("POST /api/v1/new/:name/link", () => {
   });
 
   it("returns 204 on successful link", async () => {
-    mockMut.getCardIdBySlug.mockResolvedValue({ id: "card-uuid" });
+    mockMut.getCardById.mockResolvedValue({
+      id: "card-uuid",
+      name: "Fire Dragon",
+      slug: "fire-dragon",
+    });
     mockTrxMut.createNameAliases.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/new/Fire%20Dragon/link", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardId: "fire-dragon" }),
+      body: JSON.stringify({ cardId: "card-uuid" }),
     });
     expect(res.status).toBe(204);
     expect(mockTrxMut.createNameAliases).toHaveBeenCalledWith("Fire Dragon", "card-uuid");
@@ -984,7 +988,7 @@ describe("POST /api/v1/new/:name/link", () => {
   });
 
   it("returns 404 when target card not found", async () => {
-    mockMut.getCardIdBySlug.mockResolvedValue(null);
+    mockMut.getCardById.mockResolvedValue(null);
 
     const res = await app.request("/api/v1/new/Fire%20Dragon/link", {
       method: "POST",

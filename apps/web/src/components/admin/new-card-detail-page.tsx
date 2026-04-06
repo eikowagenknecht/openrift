@@ -100,7 +100,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
       ? allCards
           .filter((c) => c.name.toLowerCase().includes(linkSearch.toLowerCase()))
           .slice(0, 20)
-          .map((c) => ({ id: c.slug, label: c.name, sublabel: c.slug, detail: c.type }))
+          .map((c) => ({ id: c.id, label: c.name, sublabel: c.slug, detail: c.type }))
       : [];
 
   function handleAcceptAsNew() {
@@ -126,11 +126,12 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
       return;
     }
     const targetId = linkCardId.trim();
+    const targetSlug = allCards?.find((c) => c.id === targetId)?.slug ?? targetId;
     linkCard.mutate(
       { name: identifier, cardId: targetId },
       {
         onSuccess: () => {
-          void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: targetId } });
+          void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: targetSlug } });
         },
       },
     );

@@ -13,7 +13,7 @@ export function AssignButton({
   linkCard,
 }: {
   normalizedName: string;
-  allCards: { slug: string; name: string; type: string }[];
+  allCards: { id: string; slug: string; name: string; type: string }[];
   linkCard: ReturnType<typeof useLinkCard>;
 }) {
   const [open, setOpen] = useState(false);
@@ -26,7 +26,7 @@ export function AssignButton({
           .filter((card) => card.name.toLowerCase().includes(debouncedSearch.toLowerCase()))
           .slice(0, 20)
           .map((card) => ({
-            id: card.slug,
+            id: card.id,
             label: card.name,
             sublabel: card.slug,
             detail: card.type,

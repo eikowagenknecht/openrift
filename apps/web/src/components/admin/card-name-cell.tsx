@@ -10,7 +10,7 @@ import type { useAcceptGallery, useLinkCard } from "@/hooks/use-admin-card-mutat
 export interface CardNameCellMeta {
   linkCard: ReturnType<typeof useLinkCard>;
   acceptGallery: ReturnType<typeof useAcceptGallery>;
-  allCards: { slug: string; name: string; type: string }[];
+  allCards: { id: string; slug: string; name: string; type: string }[];
 }
 
 export function CardNameCell({
@@ -47,9 +47,9 @@ export function CardNameCell({
           className="ml-2 h-5 text-xs"
           disabled={linkCard.isPending}
           onClick={() => {
-            const slug = row.suggestedCardSlug;
-            if (slug) {
-              linkCard.mutate({ name: row.normalizedName, cardId: slug });
+            const match = allCards.find((c) => c.slug === row.suggestedCardSlug);
+            if (match) {
+              linkCard.mutate({ name: row.normalizedName, cardId: match.id });
             }
           }}
         >
