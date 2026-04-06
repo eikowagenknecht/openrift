@@ -73,7 +73,7 @@ export function AdminSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Catalog</SidebarGroupLabel>
-          <SidebarMenu>
+          <SidebarMenu className="gap-1">
             {catalogPages.map((page) => (
               <SidebarMenuItem key={page.to}>
                 <SidebarMenuButton
@@ -90,7 +90,7 @@ export function AdminSidebar() {
 
         <SidebarGroup>
           <SidebarGroupLabel>Marketplaces</SidebarGroupLabel>
-          <SidebarMenu>
+          <SidebarMenu className="gap-1">
             {marketplacePages.map((page) => (
               <SidebarMenuItem key={page.to}>
                 <SidebarMenuButton
@@ -107,7 +107,7 @@ export function AdminSidebar() {
 
         <SidebarGroup>
           <SidebarGroupLabel>System</SidebarGroupLabel>
-          <SidebarMenu>
+          <SidebarMenu className="gap-1">
             {systemPages.map((page) => (
               <SidebarMenuItem key={page.to}>
                 <SidebarMenuButton
@@ -124,7 +124,7 @@ export function AdminSidebar() {
       </SidebarContent>
       <SidebarFooter>
         <SidebarSeparator />
-        <SidebarMenu>
+        <SidebarMenu className="gap-1">
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={currentPath === "/admin/site-settings"}
