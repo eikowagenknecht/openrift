@@ -30,8 +30,8 @@ export default function WhyOpenRiftArticle() {
     <div className="space-y-8">
       <p className="text-muted-foreground">
         A transparent look at how OpenRift compares to other Riftbound card browsers. This is based
-        on our honest assessment as of early 2026 &mdash; not marketing. If you run one of these
-        sites and feel misrepresented, please{" "}
+        on our honest assessment as of early 2026, not marketing. If you run one of these sites and
+        feel misrepresented, please{" "}
         <a
           href="mailto:openrift@eiko.dev"
           className="text-primary hover:underline"
@@ -551,7 +551,7 @@ export default function WhyOpenRiftArticle() {
       <section>
         <h2 className="mb-3 text-lg font-semibold">Our tech stack</h2>
         <p className="text-muted-foreground mb-3">
-          For the technically curious &mdash; or if you&apos;re thinking about contributing:
+          For the technically curious, or if you&apos;re thinking about contributing:
         </p>
         <div className="border-border divide-border divide-y rounded-lg border text-sm">
           <TechRow label="Runtime" value="Bun" />
@@ -605,7 +605,7 @@ export default function WhyOpenRiftArticle() {
             >
               reach out
             </a>{" "}
-            &mdash; we&apos;ll happily correct it or include your response.
+            and we&apos;ll happily correct it or include your response.
           </span>
         </p>
       </div>

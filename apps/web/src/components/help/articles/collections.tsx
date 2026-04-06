@@ -18,7 +18,7 @@ export default function CollectionsArticle() {
     <div className="space-y-8">
       <p className="text-muted-foreground">
         Collections let you organize the cards you own. You can create as many collections as you
-        like &mdash; for example, one per deck, one for trades, and one for everything else.
+        like: one per deck, one for trades, and one for everything else.
       </p>
 
       {/* Overview diagram */}
@@ -78,9 +78,9 @@ export default function CollectionsArticle() {
         <h2 className="mb-2 text-lg font-semibold">Getting started</h2>
         <p className="text-muted-foreground">
           Open <strong className="text-foreground">Collections</strong> from the top navigation.
-          Your first collection is the <strong className="text-foreground">Inbox</strong> &mdash; a
-          default collection that&apos;s always there. It&apos;s where quick-added cards land unless
-          you choose a different target.
+          Your first collection is the <strong className="text-foreground">Inbox</strong>, a default
+          collection that&apos;s always there. It&apos;s where quick-added cards land unless you
+          choose a different target.
         </p>
         <p className="text-muted-foreground mt-2">
           To create a new collection, click{" "}

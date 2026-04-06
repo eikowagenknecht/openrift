@@ -383,7 +383,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
             </>
           )}
           <span>
-            &mdash; {sources.length} source{sources.length === 1 ? "" : "s"}
+            ({sources.length} source{sources.length === 1 ? "" : "s"})
           </span>
         </p>
       </div>
@@ -573,8 +573,8 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                   )}
                   <span>{printingLabel}</span>
                   <span className="text-muted-foreground font-normal">
-                    &mdash; {allSources.length} source
-                    {allSources.length === 1 ? "" : "s"}
+                    ({allSources.length} source
+                    {allSources.length === 1 ? "" : "s"})
                   </span>
                   {allChecked && <CheckCheckIcon className="size-3.5 text-green-600" />}
                   {!activeImage && (

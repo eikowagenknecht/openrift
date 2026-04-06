@@ -143,8 +143,8 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
       <div>
         <h2 className="text-lg font-semibold">{unmatchedData.displayName}</h2>
         <p className="text-muted-foreground text-sm">
-          Candidate card &mdash; {sources.length} source
-          {sources.length === 1 ? "" : "s"}
+          Candidate card ({sources.length} source
+          {sources.length === 1 ? "" : "s"})
         </p>
       </div>
 
@@ -266,8 +266,8 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
             <div key={group.groupKey} className="rounded-md border border-dashed">
               <div className="flex items-center justify-between px-3 py-2">
                 <span className="text-sm font-medium">
-                  {guessedId} &mdash; {group.candidates.length} source
-                  {group.candidates.length === 1 ? "" : "s"}
+                  {guessedId} ({group.candidates.length} source
+                  {group.candidates.length === 1 ? "" : "s"})
                 </span>
                 {groups.length > 1 && (
                   <DropdownMenu>

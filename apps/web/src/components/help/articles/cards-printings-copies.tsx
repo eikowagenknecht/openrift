@@ -15,7 +15,7 @@ export default function CardsPrintingsCopiesArticle() {
       <div className="border-border bg-muted/30 rounded-lg border p-4">
         <div className="flex flex-col items-center gap-3 text-sm">
           <div className="bg-primary/10 text-primary w-full rounded-md px-4 py-2.5 text-center font-semibold">
-            Card &mdash; &quot;Fury Rune&quot;
+            Card: &quot;Fury Rune&quot;
           </div>
           <Arrow />
           <div className="bg-primary/10 w-full rounded-md p-3">
@@ -118,10 +118,10 @@ export default function CardsPrintingsCopiesArticle() {
       <section>
         <h2 className="mb-2 text-lg font-semibold">Cards</h2>
         <p className="text-muted-foreground">
-          A <strong className="text-foreground">card</strong> is the game concept itself &mdash; the
-          name, rules text, type, domains, stats, and keywords. It exists independent of any
-          particular set or art treatment. &quot;Fury Rune&quot; is a card no matter how many times
-          it has been printed.
+          A <strong className="text-foreground">card</strong> is the game concept itself: the name,
+          rules text, type, domains, stats, and keywords. It exists independent of any particular
+          set or art treatment. &quot;Fury Rune&quot; is a card no matter how many times it has been
+          printed.
         </p>
         <p className="text-muted-foreground mt-2">
           If a card appears in multiple sets, it is still one card. The detail panel shows all
@@ -177,20 +177,20 @@ export default function CardsPrintingsCopiesArticle() {
         <h2 className="mb-2 text-lg font-semibold">Printings</h2>
         <p className="text-muted-foreground">
           A <strong className="text-foreground">printing</strong> is a specific physical version of
-          a card &mdash; tied to a set, with its own collector number, rarity, finish (normal or
-          foil), art variant, and artist. The same card can have many printings across different
-          sets, and each printing has its own image and market price.
+          a card, tied to a set, with its own collector number, rarity, finish (normal or foil), art
+          variant, and artist. The same card can have many printings across different sets, and each
+          printing has its own image and market price.
         </p>
         <p className="text-muted-foreground mt-2">
           Every printing has a collector code visible at the bottom left of the physical card, like{" "}
           <code className="bg-muted rounded px-1.5 py-0.5 text-xs">SFD-R01b</code>. But two
-          printings can share the same collector code and still be different &mdash; for example, a
-          normal finish and a foil finish of a Common card, or a special promo edition (often marked
-          at the bottom center of the card or with other visual differences). OpenRift treats each
-          unique combination of set, collector code, finish, art variant, and promo type as its own
-          printing. Different printings can also have different printed text &mdash; some alt art
-          cards omit the reminder text in parentheses, and newer printings may have updated wording
-          if there was an errata. Flavor text can also vary between printings.
+          printings can share the same collector code and still be different (for example, a normal
+          finish and a foil finish of a Common card, or a special promo edition (often marked at the
+          bottom center of the card or with other visual differences). OpenRift treats each unique
+          combination of set, collector code, finish, art variant, and promo type as its own
+          printing). Different printings can also have different printed text: some alt art cards
+          omit the reminder text in parentheses, and newer printings may have updated wording if
+          there was an errata. Flavor text can also vary between printings.
         </p>
         <ExampleTable
           rows={[
@@ -217,8 +217,8 @@ export default function CardsPrintingsCopiesArticle() {
           A <strong className="text-foreground">copy</strong> is a single physical card you own.
           When you add a card to your collection, you are adding a copy of a specific printing. If
           you own three of the same foil printing, that is three copies. In the real world, each
-          copy could have its own condition details &mdash; like a PSA grading or a coffee stain
-          &mdash; but we don&apos;t track those yet.
+          copy could have its own condition details (like a PSA grading or a coffee stain), but we
+          don&apos;t track those yet.
         </p>
         <ExampleTable
           rows={[
@@ -257,13 +257,13 @@ export default function CardsPrintingsCopiesArticle() {
         <p className="text-muted-foreground mt-2">
           <strong className="text-foreground">Printings</strong> shows every version separately.
           Each entry has its own image, rarity, and price. The owned count is per printing. Use this
-          when you care about specific editions &mdash; for example, comparing the price of a
-          regular printing versus a foil promo.
+          when you care about specific editions, for example comparing the price of a regular
+          printing versus a foil promo.
         </p>
         <p className="text-muted-foreground mt-2">
           <strong className="text-foreground">Copies</strong> is available inside collections and
-          shows every individual copy as its own entry &mdash; no stacking. Where the other views
-          show a count badge like <strong className="text-foreground">&times;3</strong>, Copies view
+          shows every individual copy as its own entry, with no stacking. Where the other views show
+          a count badge like <strong className="text-foreground">&times;3</strong>, Copies view
           shows three separate cards on the grid.
         </p>
       </section>

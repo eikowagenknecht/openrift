@@ -208,7 +208,7 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
   return (
     <FieldGroup>
       <FieldLabel>
-        Email <span className="text-muted-foreground font-normal">&mdash; {currentEmail}</span>
+        Email <span className="text-muted-foreground font-normal">({currentEmail})</span>
       </FieldLabel>
       {error && <FieldError>{error}</FieldError>}
       {success && (

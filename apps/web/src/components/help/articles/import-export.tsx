@@ -27,7 +27,7 @@ export default function ImportExportArticle() {
 
       {/* Step 1 */}
       <section>
-        <h3 className="mb-2 font-semibold">Step 1 &mdash; Provide your data</h3>
+        <h3 className="mb-2 font-semibold">Step 1: Provide your data</h3>
         <p className="text-muted-foreground">
           Paste a CSV into the text area, or click the upload button to pick a{" "}
           <code className="bg-muted rounded px-1.5 py-0.5 text-xs">.csv</code> file. Then click{" "}
@@ -49,15 +49,14 @@ export default function ImportExportArticle() {
         </div>
 
         <p className="text-muted-foreground mt-3 text-sm">
-          Using a different tool? Export it as CSV and try importing &mdash; if the format
-          isn&apos;t recognized, OpenRift will tell you. You can request support for new formats on
-          GitHub.
+          Using a different tool? Export it as CSV and try importing. If the format isn&apos;t
+          recognized, OpenRift will tell you. You can request support for new formats on GitHub.
         </p>
       </section>
 
       {/* Step 2 */}
       <section>
-        <h3 className="mb-2 font-semibold">Step 2 &mdash; Review matches</h3>
+        <h3 className="mb-2 font-semibold">Step 2: Review matches</h3>
         <p className="text-muted-foreground">
           OpenRift tries to match each row to a printing in the catalog. Every entry gets a match
           status so you can see what needs attention before importing.
@@ -131,8 +130,8 @@ export default function ImportExportArticle() {
           Finally, pick a target collection (or create a new one), and click{" "}
           <strong className="text-foreground">Import</strong>. A summary at the bottom shows how
           many copies are ready and how many need attention. Be careful not to import the same file
-          twice &mdash; OpenRift tracks individual copies, so a second import adds duplicates rather
-          than updating totals.
+          twice: OpenRift tracks individual copies, so a second import adds duplicates rather than
+          updating totals.
         </p>
       </section>
 
@@ -209,18 +208,18 @@ export default function ImportExportArticle() {
         </p>
         <ol className="text-muted-foreground mt-2 list-inside list-decimal space-y-2">
           <li>
-            <strong className="text-foreground">Code lookup</strong> &mdash; looks up the short code
-            (e.g. <code className="bg-muted rounded px-1.5 py-0.5 text-xs">OGN-007</code>) directly
-            in the catalog, then narrows by finish and art variant.
+            <strong className="text-foreground">Code lookup:</strong> looks up the short code (e.g.{" "}
+            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">OGN-007</code>) directly in the
+            catalog, then narrows by finish and art variant.
           </li>
           <li>
-            <strong className="text-foreground">Name matching</strong> &mdash; if the code
-            doesn&apos;t match, falls back to fuzzy name comparison. Cards with a name similarity
-            above 70% are offered as suggestions.
+            <strong className="text-foreground">Name matching:</strong> if the code doesn&apos;t
+            match, falls back to fuzzy name comparison. Cards with a name similarity above 70% are
+            offered as suggestions.
           </li>
           <li>
-            <strong className="text-foreground">Manual resolution</strong> &mdash; anything still
-            unmatched is marked as unresolved. You can skip these entries or look them up manually.
+            <strong className="text-foreground">Manual resolution:</strong> anything still unmatched
+            is marked as unresolved. You can skip these entries or look them up manually.
           </li>
         </ol>
       </section>
