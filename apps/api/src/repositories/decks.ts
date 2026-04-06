@@ -29,7 +29,11 @@ export function decksRepo(db: Kysely<Database>) {
   return {
     /** @returns All decks for a user, optionally filtered to wanted-only, ordered by name. */
     listForUser(userId: string, wantedOnly?: boolean): Promise<Selectable<DecksTable>[]> {
-      let query = db.selectFrom("decks").selectAll().where("userId", "=", userId).orderBy("name");
+      let query = db
+        .selectFrom("decks")
+        .selectAll()
+        .where("userId", "=", userId)
+        .orderBy((eb) => eb.fn("lower", ["name"]));
       if (wantedOnly) {
         query = query.where("isWanted", "=", true);
       }
