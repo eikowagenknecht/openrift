@@ -143,7 +143,8 @@ const ZONE_DISPLAY_LABELS: Record<DeckZone, string> = {
 function parseTextFormat(code: string): DeckParseResult {
   const warnings: string[] = [];
   const entries: DeckImportEntry[] = [];
-  let currentZone: DeckZone = "main";
+  // undefined until the user provides an explicit zone header
+  let currentZone: DeckZone | undefined;
 
   for (const rawLine of code.split("\n")) {
     const line = rawLine.trim();
@@ -170,14 +171,17 @@ function parseTextFormat(code: string): DeckParseResult {
       continue;
     }
 
+    const effectiveZone = currentZone ?? "main";
     const quantity = Number(match[1]);
     const cardName = match[2].trim();
     entries.push({
       cardName,
       quantity,
-      sourceSlot: ZONE_TO_SOURCE_SLOT[currentZone],
+      sourceSlot: ZONE_TO_SOURCE_SLOT[effectiveZone],
+      // Only set explicitZone when a zone header was provided by the user.
+      // Without it, inferZone() assigns the correct zone based on card type.
       explicitZone: currentZone,
-      rawFields: { Name: cardName, Zone: ZONE_DISPLAY_LABELS[currentZone] },
+      rawFields: { Name: cardName, Zone: ZONE_DISPLAY_LABELS[effectiveZone] },
     });
   }
 

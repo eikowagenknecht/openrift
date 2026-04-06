@@ -107,3 +107,44 @@ describe("parseDeckImportData — piltover format", () => {
     expect(entries[1]?.sourceSlot).toBe("sideboard");
   });
 });
+
+describe("parseDeckImportData — text format", () => {
+  it("does not set explicitZone when no zone headers are present", () => {
+    const input = "3 Iron Ballista\n2 Fury Rune";
+    const { entries } = parseDeckImportData(input, "text");
+
+    expect(entries).toHaveLength(2);
+    expect(entries[0].explicitZone).toBeUndefined();
+    expect(entries[1].explicitZone).toBeUndefined();
+    expect(entries[0].sourceSlot).toBe("mainDeck");
+    expect(entries[1].sourceSlot).toBe("mainDeck");
+  });
+
+  it("sets explicitZone when zone headers are present", () => {
+    const input = "Legend:\n1 Kai'Sa\n\nRunes:\n5 Fury Rune";
+    const { entries } = parseDeckImportData(input, "text");
+
+    expect(entries).toHaveLength(2);
+    expect(entries[0].explicitZone).toBe("legend");
+    expect(entries[1].explicitZone).toBe("runes");
+  });
+
+  it("sets explicitZone only after a zone header is seen", () => {
+    const input = "3 Iron Ballista\n\nSideboard:\n2 Cleave";
+    const { entries } = parseDeckImportData(input, "text");
+
+    expect(entries).toHaveLength(2);
+    expect(entries[0].explicitZone).toBeUndefined();
+    expect(entries[0].sourceSlot).toBe("mainDeck");
+    expect(entries[1].explicitZone).toBe("sideboard");
+    expect(entries[1].sourceSlot).toBe("sideboard");
+  });
+
+  it("uses correct sourceSlot for explicit zones", () => {
+    const input = "Champion:\n1 Ekko";
+    const { entries } = parseDeckImportData(input, "text");
+
+    expect(entries[0].sourceSlot).toBe("chosenChampion");
+    expect(entries[0].explicitZone).toBe("champion");
+  });
+});

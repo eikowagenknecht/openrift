@@ -1,5 +1,5 @@
 import type { CardType, DeckZone, Domain, Printing, SuperType } from "@openrift/shared";
-import { inferZone, normalizeNameForMatching } from "@openrift/shared";
+import { WellKnown, inferZone, normalizeNameForMatching } from "@openrift/shared";
 
 import type { DeckImportEntry } from "@/lib/deck-import-parsers";
 
@@ -226,7 +226,41 @@ export function matchDeckEntries(
   allPrintings: Printing[],
 ): DeckMatchedEntry[] {
   const index = new CardIndex(allPrintings);
-  return entries.map((entry) => matchSingleDeckEntry(entry, index));
+  const matched = entries.map((entry) => matchSingleDeckEntry(entry, index));
+
+  // Auto-assign the first Champion card to the champion zone when no entry
+  // already has an explicit champion zone assignment.
+  const hasExplicitChampion = matched.some((m) => m.entry.explicitZone === "champion");
+  if (!hasExplicitChampion) {
+    const firstChampion = matched.find(
+      (m) =>
+        m.resolvedCard?.superTypes.includes(WellKnown.superType.CHAMPION) && m.zone !== "sideboard",
+    );
+    if (firstChampion) {
+      firstChampion.zone = "champion";
+      if (firstChampion.entry.quantity > 1) {
+        // Split: 1 copy goes to champion zone, rest stay in main
+        const originalEntry = firstChampion.entry;
+        const remainingQuantity = originalEntry.quantity - 1;
+        firstChampion.entry = { ...originalEntry, quantity: 1 };
+        const remainingEntry = {
+          ...originalEntry,
+          quantity: remainingQuantity,
+          explicitZone: undefined,
+        };
+        matched.splice(matched.indexOf(firstChampion) + 1, 0, {
+          entry: remainingEntry,
+          status: firstChampion.status,
+          resolvedCard: firstChampion.resolvedCard,
+          candidates: firstChampion.candidates,
+          suggestedName: firstChampion.suggestedName,
+          zone: inferEntryZone(remainingEntry, firstChampion.resolvedCard),
+        });
+      }
+    }
+  }
+
+  return matched;
 }
 
 function matchSingleDeckEntry(entry: DeckImportEntry, index: CardIndex): DeckMatchedEntry {

@@ -8,6 +8,7 @@
 - feat: Deck text import now recognizes "Character, Title" names (e.g. "Sett, The Boss") even when the card is stored under just the title
 - fix: Importing from RiftCore now correctly recognizes token, rune, and signed card IDs instead of skipping them
 - feat: Collection import preview now sorts entries by card ID within each match status group
+- fix: Importing a deck in text format without zone headers now correctly places legends, runes, battlefields, and the first champion into their proper zones instead of putting everything in main
 
 ## 2026-04-05
 
