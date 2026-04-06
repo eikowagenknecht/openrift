@@ -89,6 +89,7 @@ export const queryKeys = {
     ignoredCandidates: ["admin", "ignored-candidates"] as const,
     deckZones: ["admin", "deck-zones"] as const,
     languages: ["admin", "languages"] as const,
+    finishes: ["admin", "finishes"] as const,
     formats: ["admin", "formats"] as const,
     promoTypes: ["admin", "promo-types"] as const,
     distinctArtists: ["admin", "distinct-artists"] as const,
