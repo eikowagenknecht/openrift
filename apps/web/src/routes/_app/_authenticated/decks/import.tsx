@@ -249,10 +249,6 @@ function DeckImportPage() {
         onTextChange={setRawText}
         importFormat={importFormat}
         onImportFormatChange={setImportFormat}
-        deckName={deckName}
-        onDeckNameChange={setDeckName}
-        deckFormat={deckFormat}
-        onDeckFormatChange={setDeckFormat}
         onParse={handleParse}
         onFileUpload={handleFileUpload}
         fileRef={fileRef}
@@ -299,10 +295,6 @@ function InputStep({
   onTextChange,
   importFormat,
   onImportFormatChange,
-  deckName,
-  onDeckNameChange,
-  deckFormat,
-  onDeckFormatChange,
   onParse,
   onFileUpload,
   fileRef,
@@ -312,10 +304,6 @@ function InputStep({
   onTextChange: (text: string) => void;
   importFormat: DeckImportFormat;
   onImportFormatChange: (format: DeckImportFormat) => void;
-  deckName: string;
-  onDeckNameChange: (name: string) => void;
-  deckFormat: DeckFormat;
-  onDeckFormatChange: (format: DeckFormat) => void;
   onParse: (text: string) => void;
   onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   fileRef: React.RefObject<HTMLInputElement | null>;
@@ -388,33 +376,6 @@ function InputStep({
           </div>
         </TabsContent>
       </Tabs>
-
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="space-y-1.5">
-          <Label htmlFor="import-deck-name">Deck name</Label>
-          <Input
-            id="import-deck-name"
-            value={deckName}
-            onChange={(event) => onDeckNameChange(event.target.value)}
-            className="w-[240px]"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="import-deck-format">Format</Label>
-          <Select
-            value={deckFormat}
-            onValueChange={(value) => onDeckFormatChange(value as DeckFormat)}
-          >
-            <SelectTrigger id="import-deck-format" className="mb-0 w-[160px]">
-              <SelectValue>{(value: string) => DECK_FORMAT_LABELS[value] ?? value}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="standard">Standard</SelectItem>
-              <SelectItem value="freeform">Freeform</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
 
       {parseWarnings.length > 0 && (
         <div className="rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950">
