@@ -28,9 +28,6 @@ export const queryKeys = {
     all: ["copies"] as const,
     byCollection: (id: string) => ["copies", id] as const,
   },
-  acquisitionSources: {
-    all: ["acquisition-sources"] as const,
-  },
   collectionEvents: {
     all: ["collection-events"] as const,
   },

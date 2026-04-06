@@ -14,7 +14,6 @@ const ctx = createTestContext("a0000000-0001-4000-a000-000000000001");
 
 const COL_ID = "c0000000-0000-4000-a000-0000000000c1";
 const DECK_ID = "e0000000-0000-4000-a000-00000000de01";
-const SRC_ID = "f0000000-0000-4000-a000-0000000000a1";
 const WL_ID = "f1000000-0000-4000-a000-000000000f01";
 const TL_ID = "e1000000-0000-4000-a000-000000000e01";
 
@@ -42,10 +41,6 @@ describe.skipIf(!ctx)("Authorization: user isolation — CRUD factory (integrati
     it("GET /collections/:id returns 404 for another user's collection", async () => {
       await expectStatus("GET", `/collections/${COL_ID}`, 404);
     });
-
-    it("GET /acquisition-sources/:id returns 404 for another user's source", async () => {
-      await expectStatus("GET", `/acquisition-sources/${SRC_ID}`, 404);
-    });
   });
 
   describe("update", () => {
@@ -56,26 +51,9 @@ describe.skipIf(!ctx)("Authorization: user isolation — CRUD factory (integrati
     it("PATCH /decks/:id returns 404 for another user's deck", async () => {
       await expectStatus("PATCH", `/decks/${DECK_ID}`, 404, { name: "Hijacked" });
     });
-
-    it("PATCH /acquisition-sources/:id returns 404 for another user's source", async () => {
-      await expectStatus("PATCH", `/acquisition-sources/${SRC_ID}`, 404, { name: "Hijacked" });
-    });
-  });
-
-  describe("delete", () => {
-    it("DELETE /acquisition-sources/:id returns 404 for another user's source", async () => {
-      await expectStatus("DELETE", `/acquisition-sources/${SRC_ID}`, 404);
-    });
   });
 
   describe("list only returns own resources", () => {
-    it("GET /sources returns empty array (user has no sources)", async () => {
-      const res = await app.fetch(req("GET", "/acquisition-sources"));
-      expect(res.status).toBe(200);
-      const json = await res.json();
-      expect(json).toEqual({ items: [] });
-    });
-
     it("GET /decks returns empty array (user has no decks)", async () => {
       const res = await app.fetch(req("GET", "/decks"));
       expect(res.status).toBe(200);

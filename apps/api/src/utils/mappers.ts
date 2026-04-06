@@ -5,7 +5,6 @@ import type {
   DeckAvailabilityItemResponse,
   DeckCardResponse,
   DeckResponse,
-  AcquisitionSourceResponse,
   TradeListItemDetailResponse,
   TradeListItemResponse,
   TradeListResponse,
@@ -17,7 +16,6 @@ import type { Selectable } from "kysely";
 import type {
   CollectionsTable,
   DecksTable,
-  AcquisitionSourcesTable,
   TradeListItemsTable,
   TradeListsTable,
   WishListItemsTable,
@@ -56,16 +54,6 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
     isWanted: row.isWanted,
     isPublic: row.isPublic,
     shareToken: row.shareToken,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-  };
-}
-
-export function toSource(row: Selectable<AcquisitionSourcesTable>): AcquisitionSourceResponse {
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

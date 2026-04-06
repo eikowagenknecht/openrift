@@ -6,7 +6,6 @@ import {
   copiesQuerySchema,
   createCollectionSchema,
   createDeckSchema,
-  createAcquisitionSourceSchema,
   createTradeListItemSchema,
   createTradeListSchema,
   createWishListItemSchema,
@@ -21,7 +20,6 @@ import {
   updateCollectionSchema,
   updateDeckCardsSchema,
   updateDeckSchema,
-  updateAcquisitionSourceSchema,
   updateTradeListSchema,
   updateWishListItemSchema,
   updateWishListSchema,
@@ -81,28 +79,6 @@ describe("updateCollectionSchema", () => {
 
   it("rejects non-integer sortOrder", () => {
     expect(updateCollectionSchema.safeParse({ sortOrder: 1.5 }).success).toBe(false);
-  });
-});
-
-describe("createAcquisitionSourceSchema", () => {
-  it("accepts valid source", () => {
-    expect(createAcquisitionSourceSchema.safeParse({ name: "LGS" }).success).toBe(true);
-  });
-
-  it("accepts description", () => {
-    expect(
-      createAcquisitionSourceSchema.safeParse({ name: "LGS", description: "Local store" }).success,
-    ).toBe(true);
-  });
-
-  it("rejects empty name", () => {
-    expect(createAcquisitionSourceSchema.safeParse({ name: "" }).success).toBe(false);
-  });
-});
-
-describe("updateAcquisitionSourceSchema", () => {
-  it("accepts partial update", () => {
-    expect(updateAcquisitionSourceSchema.safeParse({ description: "Updated" }).success).toBe(true);
   });
 });
 

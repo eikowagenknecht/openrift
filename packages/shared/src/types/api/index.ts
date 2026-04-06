@@ -49,8 +49,6 @@ export type {
 
 export type { SiteSettingsResponse } from "./site-settings.js";
 
-export type { AcquisitionSourceListResponse, AcquisitionSourceResponse } from "./source.js";
-
 export type {
   TradeListDetailResponse,
   TradeListItemDetailResponse,
