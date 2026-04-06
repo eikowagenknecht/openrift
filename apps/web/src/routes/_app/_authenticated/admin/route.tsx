@@ -41,10 +41,10 @@ function AdminContent() {
         <Separator orientation="vertical" className="mx-1 h-4! self-center!" />
         <h1 className="text-sm font-medium">{title}</h1>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col p-3">
+      <div className="flex min-h-0 flex-1 flex-col p-3 pb-6">
         <Outlet />
       </div>
-      <Footer className="pt-3" />
+      <Footer />
     </div>
   );
 }

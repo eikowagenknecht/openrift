@@ -746,7 +746,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   // ── Empty state ─────────────────────────────────────────────────────
   if (!isAddMode && stacks.length === 0 && !hasActiveFilters) {
     return (
-      <div className="text-muted-foreground flex flex-col items-center justify-center gap-3 py-20">
+      <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3">
         <PackageIcon className="size-10 opacity-50" />
         <p>No cards yet</p>
         <p className="text-xs">

@@ -20,9 +20,11 @@ function AppLayout() {
     <>
       <Header />
       <main className={`flex flex-1 flex-col ${CONTAINER_WIDTH}`}>
-        <Outlet />
+        <div className="flex flex-1 flex-col">
+          <Outlet />
+        </div>
+        {!hideFooter && <Footer className={FOOTER_PADDING_NO_TOP} />}
       </main>
-      {!hideFooter && <Footer className={FOOTER_PADDING_NO_TOP} />}
     </>
   );
 }
