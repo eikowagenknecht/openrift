@@ -46,20 +46,21 @@ if (ctx) {
       slug: "CSQ-001",
       name: "CSQ Test Card",
       type: "Unit",
-      superTypes: [],
-      domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
       mightBonus: null,
       keywords: ["Flash"],
-      rulesText: "Flash",
-      effectText: null,
       tags: [],
     })
     .returning("id")
     .execute();
   card1Id = card1.id;
+
+  await db
+    .insertInto("cardDomains")
+    .values({ cardId: card1Id, domainSlug: "Mind", ordinal: 0 })
+    .execute();
 
   const [card2] = await db
     .insertInto("cards")
@@ -67,20 +68,21 @@ if (ctx) {
       slug: "CSQ-002",
       name: "CSQ Another Card",
       type: "Spell",
-      superTypes: [],
-      domains: ["Calm"],
       might: null,
       energy: 1,
       power: null,
       mightBonus: null,
       keywords: [],
-      rulesText: null,
-      effectText: null,
       tags: [],
     })
     .returning("id")
     .execute();
   _card2Id = card2.id;
+
+  await db
+    .insertInto("cardDomains")
+    .values({ cardId: card2.id, domainSlug: "Calm", ordinal: 0 })
+    .execute();
 
   // Card 3: has a printing with NO active front image (covers listCardsWithMissingImages)
   const [card3] = await db
@@ -89,20 +91,21 @@ if (ctx) {
       slug: "CSQ-003",
       name: "CSQ No Image Card",
       type: "Unit",
-      superTypes: [],
-      domains: ["Fury"],
       might: 3,
       energy: 4,
       power: 1,
       mightBonus: null,
       keywords: [],
-      rulesText: null,
-      effectText: null,
       tags: [],
     })
     .returning("id")
     .execute();
   card3Id = card3.id;
+
+  await db
+    .insertInto("cardDomains")
+    .values({ cardId: card3Id, domainSlug: "Fury", ordinal: 0 })
+    .execute();
 
   // Create name aliases (every card must have at least its own normName as an alias)
   await db
@@ -545,7 +548,6 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.card.domains).toEqual(["Mind"]);
       expect(json.card.energy).toBe(2);
       expect(json.card.keywords).toEqual(["Flash"]);
-      expect(json.card.rulesText).toBe("Flash");
 
       // Sources
       expect(json.sources).toEqual(expect.any(Array));

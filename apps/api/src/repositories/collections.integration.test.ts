@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
+import { PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { collectionsRepo } from "./collections.js";
 
@@ -288,7 +289,7 @@ describe.skipIf(!ctx)("collectionsRepo (integration)", () => {
     createdCollectionIds.push(colB.id);
 
     // Insert a copy into colA using a seed printing
-    const printingId = "019cf052-e020-7222-b8bf-3c9fc2151abc";
+    const printingId = PRINTING_1.id;
     await db.insertInto("copies").values({ userId, printingId, collectionId: colA.id }).execute();
 
     // List copies in colA

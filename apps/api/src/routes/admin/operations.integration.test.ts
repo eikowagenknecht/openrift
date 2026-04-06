@@ -76,18 +76,19 @@ async function seedMarketplaceData(marketplace: string) {
       slug: `OPS-${marketplace}-${suffix}`,
       name: `OPS ${marketplace} Card ${suffix}`,
       type: "Unit",
-      superTypes: [],
-      domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
       mightBonus: null,
       keywords: [],
-      rulesText: null,
-      effectText: null,
       tags: [],
     })
     .returning("id")
+    .execute();
+
+  await db
+    .insertInto("cardDomains")
+    .values({ cardId: card.id, domainSlug: "Mind", ordinal: 0 })
     .execute();
 
   const [printing] = await db
@@ -137,6 +138,7 @@ async function seedMarketplaceData(marketplace: string) {
       externalId: baseExtId,
       groupId: baseGroupId,
       productName: `OPS ${marketplace} Test ${suffix}`,
+      language: "EN",
     })
     .returning("id")
     .execute();
@@ -161,6 +163,7 @@ async function seedMarketplaceData(marketplace: string) {
       groupId: baseGroupId,
       productName: `OPS ${marketplace} Staged ${suffix}`,
       finish: "normal",
+      language: "EN",
       recordedAt: new Date(),
       marketCents: 200,
       lowCents: 100,

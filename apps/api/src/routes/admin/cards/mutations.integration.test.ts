@@ -53,20 +53,21 @@ if (ctx) {
       slug: "CSM-001",
       name: "CSM Test Card",
       type: "Unit",
-      superTypes: [],
-      domains: ["Mind"],
       might: null,
       energy: 2,
       power: null,
       mightBonus: null,
       keywords: ["Flash"],
-      rulesText: "Flash",
-      effectText: null,
       tags: [],
     })
     .returning("id")
     .execute();
   cardId = cardRow.id;
+
+  await db
+    .insertInto("cardDomains")
+    .values({ cardId: cardId, domainSlug: "Mind", ordinal: 0 })
+    .execute();
 
   // Printing 1
   const [printingRow] = await db
@@ -384,7 +385,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .where("id", "=", cardShortCode)
         .execute();
 
-      const res = await app.fetch(req("POST", `${P}/${cardSlug}/check-all`));
+      const res = await app.fetch(req("POST", `${P}/${cardId}/check-all`));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -392,7 +393,9 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
 
     it("returns 404 for non-existent card slug", async () => {
-      const res = await app.fetch(req("POST", `${P}/NONEXISTENT-SLUG/check-all`));
+      const res = await app.fetch(
+        req("POST", `${P}/00000000-0000-4000-a000-000000000000/check-all`),
+      );
       expect(res.status).toBe(404);
     });
   });
@@ -585,7 +588,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /:cardId/rename", () => {
     it("renames a card slug", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/rename`, { newId: "CSM-001-RENAMED" }),
+        req("POST", `${P}/${cardId}/rename`, { newId: "CSM-001-RENAMED" }),
       );
       expect(res.status).toBe(204);
 
@@ -599,17 +602,17 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     });
 
     it("rename back for subsequent tests", async () => {
-      const res = await app.fetch(req("POST", `${P}/CSM-001-RENAMED/rename`, { newId: "CSM-001" }));
+      const res = await app.fetch(req("POST", `${P}/${cardId}/rename`, { newId: "CSM-001" }));
       expect(res.status).toBe(204);
     });
 
     it("same name is a no-op", async () => {
-      const res = await app.fetch(req("POST", `${P}/${cardSlug}/rename`, { newId: cardSlug }));
+      const res = await app.fetch(req("POST", `${P}/${cardId}/rename`, { newId: cardSlug }));
       expect(res.status).toBe(204);
     });
 
     it("returns 400 for empty newId", async () => {
-      const res = await app.fetch(req("POST", `${P}/${cardSlug}/rename`, { newId: "" }));
+      const res = await app.fetch(req("POST", `${P}/${cardId}/rename`, { newId: "" }));
       expect(res.status).toBe(400);
     });
   });
@@ -619,7 +622,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /:cardId/accept-field", () => {
     it("updates card name", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-field`, {
+        req("POST", `${P}/${cardId}/accept-field`, {
           field: "name",
           value: "CSM Test Card Updated",
         }),
@@ -637,7 +640,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("restore original name for subsequent tests", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-field`, {
+        req("POST", `${P}/${cardId}/accept-field`, {
           field: "name",
           value: "CSM Test Card",
         }),
@@ -645,56 +648,29 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(204);
     });
 
-    it("updates rulesText and recomputes keywords", async () => {
+    it("returns 400 when updating rulesText (no longer an allowed field)", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-field`, {
+        req("POST", `${P}/${cardId}/accept-field`, {
           field: "rulesText",
           value: "[Shield]. [Tank]",
         }),
       );
-      expect(res.status).toBe(204);
-
-      const row = await db
-        .selectFrom("cards")
-        .select(["rulesText", "keywords"])
-        .where("slug", "=", cardSlug)
-        .executeTakeFirstOrThrow();
-      expect(row.rulesText).toBe("[Shield]. [Tank]");
-      expect(row.keywords).toContain("Shield");
-      expect(row.keywords).toContain("Tank");
+      expect(res.status).toBe(400);
     });
 
-    it("updates effectText and recomputes keywords", async () => {
+    it("returns 400 when updating effectText (no longer an allowed field)", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-field`, {
+        req("POST", `${P}/${cardId}/accept-field`, {
           field: "effectText",
           value: "[Vision]",
         }),
       );
-      expect(res.status).toBe(204);
-
-      const row = await db
-        .selectFrom("cards")
-        .select(["effectText", "keywords"])
-        .where("slug", "=", cardSlug)
-        .executeTakeFirstOrThrow();
-      expect(row.effectText).toBe("[Vision]");
-      expect(row.keywords).toContain("Vision");
-      // rulesText keywords should also be preserved
-      expect(row.keywords).toContain("Shield");
-      expect(row.keywords).toContain("Tank");
-
-      // Restore
-      await db
-        .updateTable("cards")
-        .set({ rulesText: "Flash", effectText: null, keywords: ["Flash"] })
-        .where("slug", "=", cardSlug)
-        .execute();
+      expect(res.status).toBe(400);
     });
 
     it("updates energy field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-field`, {
+        req("POST", `${P}/${cardId}/accept-field`, {
           field: "energy",
           value: 5,
         }),
@@ -714,7 +690,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("updates type field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-field`, {
+        req("POST", `${P}/${cardId}/accept-field`, {
           field: "type",
           value: "Spell",
         }),
@@ -734,7 +710,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for validation error on type", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-field`, {
+        req("POST", `${P}/${cardId}/accept-field`, {
           field: "type",
           value: "InvalidType",
         }),
@@ -744,7 +720,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for invalid field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-field`, {
+        req("POST", `${P}/${cardId}/accept-field`, {
           field: "nonexistent",
           value: "foo",
         }),
@@ -1002,7 +978,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-printing`, {
+        req("POST", `${P}/${cardId}/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-001",
             setId: "CSM-TEST",
@@ -1074,7 +1050,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-printing`, {
+        req("POST", `${P}/${cardId}/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-FOIL",
             setId: "CSM-TEST",
@@ -1121,7 +1097,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-printing`, {
+        req("POST", `${P}/${cardId}/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-PROMO",
             setId: "CSM-TEST",
@@ -1153,7 +1129,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for empty candidatePrintingIds", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-printing`, {
+        req("POST", `${P}/${cardId}/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-X",
             collectorNumber: 70,
@@ -1168,7 +1144,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 404 for non-existent card", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/NONEXISTENT-CARD/accept-printing`, {
+        req("POST", `${P}/00000000-0000-4000-a000-000000000000/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-X",
             setId: "CSM",
@@ -1210,7 +1186,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .execute();
 
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-printing`, {
+        req("POST", `${P}/${cardId}/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-NEWSET",
             setId: "CSM-NEW-SET",
@@ -1403,9 +1379,9 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("POST /:cardId/accept-field (provider source)", () => {
     it("applies typography fixes when source is provider", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-field`, {
-          field: "rulesText",
-          value: 'Some "quoted" text',
+        req("POST", `${P}/${cardId}/accept-field`, {
+          field: "name",
+          value: 'Some "quoted" name',
           source: "provider",
         }),
       );
@@ -1413,40 +1389,40 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       const row = await db
         .selectFrom("cards")
-        .select("rulesText")
+        .select("name")
         .where("slug", "=", cardSlug)
         .executeTakeFirstOrThrow();
       // fixTypography converts straight quotes to curly quotes
-      expect(row.rulesText).toBeDefined();
+      expect(row.name).toBeDefined();
 
       // Restore
       await db
         .updateTable("cards")
-        .set({ rulesText: "Flash", keywords: ["Flash"] })
+        .set({ name: "CSM Test Card" })
         .where("slug", "=", cardSlug)
         .execute();
     });
 
     it("normalizes null to empty array for array fields like superTypes", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-field`, {
+        req("POST", `${P}/${cardId}/accept-field`, {
           field: "superTypes",
           value: null,
         }),
       );
       expect(res.status).toBe(204);
 
-      const row = await db
-        .selectFrom("cards")
-        .select("superTypes")
-        .where("slug", "=", cardSlug)
-        .executeTakeFirstOrThrow();
-      expect(row.superTypes).toEqual([]);
+      const rows = await db
+        .selectFrom("cardSuperTypes")
+        .select("superTypeSlug")
+        .where("cardId", "=", cardId)
+        .execute();
+      expect(rows).toEqual([]);
     });
 
     it("normalizes null to empty array for tags field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-field`, {
+        req("POST", `${P}/${cardId}/accept-field`, {
           field: "tags",
           value: null,
         }),
@@ -1463,7 +1439,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
     it("returns 400 for missing field", async () => {
       const res = await app.fetch(
-        req("POST", `${P}/${cardSlug}/accept-field`, {
+        req("POST", `${P}/${cardId}/accept-field`, {
           field: "",
           value: "foo",
         }),
@@ -1471,14 +1447,14 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(400);
     });
 
-    it("returns 404 when updating rulesText on non-existent card", async () => {
+    it("returns 400 when updating rulesText on non-existent card (field rejected before lookup)", async () => {
       const res = await app.fetch(
         req("POST", `${P}/NONEXISTENT-SLUG/accept-field`, {
           field: "rulesText",
           value: "test",
         }),
       );
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(400);
     });
   });
 

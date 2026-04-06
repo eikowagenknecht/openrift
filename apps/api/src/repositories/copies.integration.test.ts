@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
+import { PRINTING_1, PRINTING_2, PRINTING_3 } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { collectionsRepo } from "./collections.js";
 import { copiesRepo } from "./copies.js";
@@ -12,9 +13,9 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   const collections = collectionsRepo(db);
 
   // Seed printing IDs from the OGS set
-  const printingId1 = "019cf052-e020-7222-b8bf-3c9fc2151abc"; // OGS-001
-  const printingId2 = "019cf052-e01f-7f65-8d7a-a28fddcf5d61"; // OGS-002
-  const printingId3 = "019cf052-e020-7228-9093-13d47b91b4d9"; // OGS-003
+  const printingId1 = PRINTING_1.id; // OGS-001
+  const printingId2 = PRINTING_2.id; // OGS-002
+  const printingId3 = PRINTING_3.id; // OGS-003
 
   let collectionId: string;
   let secondCollectionId: string;

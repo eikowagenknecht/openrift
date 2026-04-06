@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { marketplaceRepo } from "./marketplace.js";
 
@@ -11,7 +12,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
 
   // Use the seed printing but create our own marketplace data with unique
   // marketplace names so other tests' cleanup never deletes them.
-  const anniePrintingId = "019cf052-e020-7222-b8bf-3c9fc2151abc";
+  const anniePrintingId = PRINTING_1.id;
   const mpTcg = "mp-repo-test-tcg";
   const mpCm = "mp-repo-test-cm";
 
@@ -40,6 +41,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
         externalId: 653_136,
         productName: "Annie Fiery (Test TCG)",
         printingId: anniePrintingId,
+        language: "EN",
       })
       .returning("id")
       .execute();
@@ -53,6 +55,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
         externalId: 847_523,
         productName: "Annie, Fiery (Test CM)",
         printingId: anniePrintingId,
+        language: "EN",
       })
       .execute();
   });

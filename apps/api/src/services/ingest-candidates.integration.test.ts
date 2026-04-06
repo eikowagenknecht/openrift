@@ -91,21 +91,23 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
         slug: "IGT-001",
         name: "Ingest Alpha",
         type: "Unit",
-        superTypes: [],
-        domains: ["Fury"],
         might: 3,
         energy: 2,
         power: 1,
         mightBonus: null,
         keywords: [],
-        rulesText: null,
-        effectText: null,
         tags: [],
       })
       .onConflict((oc) => oc.column("slug").doUpdateSet({ name: "Ingest Alpha" }))
       .returning("id")
       .executeTakeFirstOrThrow();
     seedCardId = insertedCard.id;
+
+    await db
+      .insertInto("cardDomains")
+      .values({ cardId: seedCardId, domainSlug: "Fury", ordinal: 0 })
+      .onConflict((oc) => oc.columns(["cardId", "domainSlug"]).doNothing())
+      .execute();
 
     const insertedPrinting = await db
       .insertInto("printings")
@@ -141,21 +143,23 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
         slug: "IGT-002",
         name: "Ingest Beta Original",
         type: "Spell",
-        superTypes: [],
-        domains: ["Calm"],
         might: null,
         energy: 4,
         power: null,
         mightBonus: null,
         keywords: [],
-        rulesText: "Deal 2 damage.",
-        effectText: null,
         tags: [],
       })
       .onConflict((oc) => oc.column("slug").doUpdateSet({ name: "Ingest Beta Original" }))
       .returning("id")
       .executeTakeFirstOrThrow();
     aliasCardId = insertedAliasCard.id;
+
+    await db
+      .insertInto("cardDomains")
+      .values({ cardId: aliasCardId, domainSlug: "Mind", ordinal: 0 })
+      .onConflict((oc) => oc.columns(["cardId", "domainSlug"]).doNothing())
+      .execute();
 
     // Create an alias so "ingestbetaalias" → aliasCardId
     await db

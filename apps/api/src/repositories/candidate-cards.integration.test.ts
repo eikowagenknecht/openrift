@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
+import { CARD_FURY_UNIT, OGS_SET, PRINTING_1, PRINTING_2 } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { candidateCardsRepo } from "./candidate-cards.js";
 
@@ -9,11 +10,11 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
   const { db } = ctx!;
   const repo = candidateCardsRepo(db);
 
-  // ── Seed IDs from fixtures/seed.sql ───────────────────────────────────────
-  const SEED_SET_ID = "019cf052-e002-78ef-b032-cc585ba33eb3"; // OGS (Proving Grounds)
-  const SEED_CARD_ANNIE_ID = "019cf052-e00a-7256-ab8d-6e39b367029d"; // Annie, Fiery
-  const SEED_PRINTING_ANNIE_ID = "019cf052-e020-7222-b8bf-3c9fc2151abc";
-  const SEED_PRINTING_FIRESTORM_ID = "019cf052-e01f-7f65-8d7a-a28fddcf5d61";
+  // ── Seed IDs from fixtures/constants.ts ──────────────────────────────────
+  const SEED_SET_ID = OGS_SET.id;
+  const SEED_CARD_ANNIE_ID = CARD_FURY_UNIT.id;
+  const SEED_PRINTING_ANNIE_ID = PRINTING_1.id;
+  const SEED_PRINTING_FIRESTORM_ID = PRINTING_2.id;
 
   // ── Test candidate card + printing IDs (deterministic UUIDs) ──────────────
   const CC_ID_1 = "cc000034-0001-4000-a000-000000000001"; // matches 'anniefiery' normName

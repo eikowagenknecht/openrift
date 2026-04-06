@@ -1,12 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { CARD_FURY_UNIT, OGS_SET, PRINTING_1 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 
 const USER_ID = "a0000000-0024-4000-a000-000000000001";
 const ctx = createTestContext(USER_ID);
 
-const SEED_SET_ID = "019cf052-e002-78ef-b032-cc585ba33eb3";
-const SEED_PRINTING_ID = "019cf052-e020-7222-b8bf-3c9fc2151abc";
+const SEED_SET_ID = OGS_SET.id;
+const SEED_PRINTING_ID = PRINTING_1.id;
 
 // Must use "tcgplayer" because the catalog route checks `prices?.tcgplayer`
 // to populate the `marketPrice` field.
@@ -71,6 +72,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
           externalId: 999_001,
           productName: "Annie Fiery (Cat Test)",
           printingId: SEED_PRINTING_ID,
+          language: "EN",
         })
         .returning("id")
         .execute();
@@ -131,7 +133,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       const res = await app.fetch(req("GET", "/catalog"));
       const json = await res.json();
 
-      const annieCardId = "019cf052-e00a-7256-ab8d-6e39b367029d";
+      const annieCardId = CARD_FURY_UNIT.id;
       const annie = json.cards[annieCardId];
       expect(annie).toBeDefined();
       expect(annie.name).toBe("Annie, Fiery");
@@ -146,7 +148,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
 
       const printing = json.printings.find((p: { id: string }) => p.id === SEED_PRINTING_ID);
       expect(printing).toBeDefined();
-      expect(printing.cardId).toBe("019cf052-e00a-7256-ab8d-6e39b367029d");
+      expect(printing.cardId).toBe(CARD_FURY_UNIT.id);
       expect(printing.setId).toBe(SEED_SET_ID);
       expect(printing.shortCode).toBe("OGS-001");
       expect(printing.rarity).toBe("Epic");

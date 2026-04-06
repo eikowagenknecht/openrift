@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
 
+import { PRINTING_1 } from "../test/fixtures/constants.js";
 import { createDbContext } from "../test/integration-context.js";
 import { priceRefreshRepo } from "./price-refresh.js";
 
@@ -8,7 +9,7 @@ const ctx = createDbContext("a0000000-0034-4000-a000-000000000001");
 describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
   const { db } = ctx!;
   const repo = priceRefreshRepo(db);
-  const seedPrintingId = "019cf052-e020-7222-b8bf-3c9fc2151abc";
+  const seedPrintingId = PRINTING_1.id;
 
   afterAll(async () => {
     // Clean up test marketplace data
