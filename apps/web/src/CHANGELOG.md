@@ -2,6 +2,7 @@
 
 ## 2026-04-06
 
+- fix: Decks are now sorted alphabetically regardless of capitalization
 - feat: Decks can now be renamed and have their format changed directly from the deck list via the three-dot menu
 - feat: Export dialog now shows where each format is used, with links to Piltover Archive, TCG Arena, and the Tabletop Simulator mod
 - feat: Cards with errata now show the corrected text by default, with the original printed text available via an expandable disclosure
