@@ -3,17 +3,8 @@ import { useEffect, useState } from "react";
 
 import { DeckStatsPanel } from "@/components/deck/deck-stats-panel";
 import { DeckZoneSection } from "@/components/deck/deck-zone-section";
+import { useZoneOrder } from "@/hooks/use-enums";
 import { useDeckBuilderStore } from "@/stores/deck-builder-store";
-
-const ZONE_ORDER: DeckZone[] = [
-  "legend",
-  "champion",
-  "main",
-  "battlefield",
-  "runes",
-  "sideboard",
-  "overflow",
-];
 
 interface DeckZonePanelProps {
   onZoneClick?: (zone: DeckZone) => void;
@@ -21,6 +12,7 @@ interface DeckZonePanelProps {
 }
 
 export function DeckZonePanel({ onZoneClick, onHoverCard }: DeckZonePanelProps) {
+  const { zoneOrder } = useZoneOrder();
   const cards = useDeckBuilderStore((state) => state.cards);
   const violations = useDeckBuilderStore((state) => state.violations);
   const activeZone = useDeckBuilderStore((state) => state.activeZone);
@@ -47,7 +39,7 @@ export function DeckZonePanel({ onZoneClick, onHoverCard }: DeckZonePanelProps) 
 
   return (
     <div className="flex flex-col gap-2">
-      {ZONE_ORDER.map((zone) => (
+      {zoneOrder.map((zone) => (
         <DeckZoneSection
           key={zone}
           zone={zone}

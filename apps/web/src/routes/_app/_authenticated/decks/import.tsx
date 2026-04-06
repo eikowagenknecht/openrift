@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { catalogQueryOptions, useCards } from "@/hooks/use-cards";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
+import { enumsQueryOptions, useZoneOrder } from "@/hooks/use-enums";
 import type { DeckMatchStatus, DeckMatchedEntry, ResolvedCard } from "@/lib/deck-import-matcher";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
 import type { DeckImportFormat } from "@/lib/deck-import-parsers";
@@ -46,7 +47,10 @@ const STATUS_SORT_ORDER: Record<DeckMatchStatus, number> = {
 
 export const Route = createFileRoute("/_app/_authenticated/decks/import")({
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(catalogQueryOptions);
+    await Promise.all([
+      context.queryClient.ensureQueryData(catalogQueryOptions),
+      context.queryClient.ensureQueryData(enumsQueryOptions),
+    ]);
   },
   component: DeckImportPage,
 });
@@ -58,16 +62,6 @@ const DECK_FORMAT_LABELS: Record<string, string> = {
   freeform: "Freeform",
 };
 
-const ZONE_LABELS: Record<DeckZone, string> = {
-  legend: "Legend",
-  champion: "Champion",
-  runes: "Runes",
-  battlefield: "Battlefield",
-  main: "Main Deck",
-  sideboard: "Sideboard",
-  overflow: "Overflow",
-};
-
 const IMPORT_PLACEHOLDERS: Record<DeckImportFormat, string> = {
   piltover: "Paste a Piltover Archive deck code...",
   text: "Legend:\n1 Card Name\n\nMainDeck:\n3 Card Name\n...",
@@ -76,6 +70,7 @@ const IMPORT_PLACEHOLDERS: Record<DeckImportFormat, string> = {
 
 function DeckImportPage() {
   const { allPrintings } = useCards();
+  const { zoneOrder, zoneLabels } = useZoneOrder();
   const createDeck = useCreateDeck();
   const saveDeckCards = useSaveDeckCards();
   const navigate = useNavigate();
@@ -101,9 +96,14 @@ function DeckImportPage() {
     }
 
     const matched = matchDeckEntries(entries, allPrintings);
-    const sorted = matched.toSorted(
-      (entryA, entryB) => STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status],
-    );
+    const zoneIndex = Object.fromEntries(zoneOrder.map((slug, index) => [slug, index]));
+    const sorted = matched.toSorted((entryA, entryB) => {
+      const zoneDiff = (zoneIndex[entryA.zone] ?? 99) - (zoneIndex[entryB.zone] ?? 99);
+      if (zoneDiff !== 0) {
+        return zoneDiff;
+      }
+      return STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status];
+    });
     setMatchedEntries(sorted);
     setSkippedIndices(new Set());
 
@@ -270,6 +270,8 @@ function DeckImportPage() {
       expandedIndices={expandedIndices}
       deckName={deckName}
       deckFormat={deckFormat}
+      zoneOrder={zoneOrder}
+      zoneLabels={zoneLabels}
       readyCount={readyEntries.length}
       needsAttentionCount={needsAttention.length}
       skippedCount={skippedCount}
@@ -439,6 +441,8 @@ function PreviewStep({
   expandedIndices,
   deckName,
   deckFormat,
+  zoneOrder,
+  zoneLabels,
   readyCount,
   needsAttentionCount,
   skippedCount,
@@ -461,6 +465,8 @@ function PreviewStep({
   expandedIndices: Set<number>;
   deckName: string;
   deckFormat: DeckFormat;
+  zoneOrder: DeckZone[];
+  zoneLabels: Record<DeckZone, string>;
   readyCount: number;
   needsAttentionCount: number;
   skippedCount: number;
@@ -500,6 +506,8 @@ function PreviewStep({
             entry={entry}
             allPrintings={allPrintings}
             index={index}
+            zoneOrder={zoneOrder}
+            zoneLabels={zoneLabels}
             isSkipped={skippedIndices.has(index)}
             isExpanded={expandedIndices.has(index)}
             onResolve={onResolve}
@@ -617,6 +625,8 @@ function DeckImportEntryRow({
   entry,
   allPrintings,
   index,
+  zoneOrder,
+  zoneLabels,
   isSkipped,
   isExpanded,
   onResolve,
@@ -628,6 +638,8 @@ function DeckImportEntryRow({
   entry: DeckMatchedEntry;
   allPrintings: Printing[];
   index: number;
+  zoneOrder: DeckZone[];
+  zoneLabels: Record<DeckZone, string>;
   isSkipped: boolean;
   isExpanded: boolean;
   onResolve: (index: number, card: ResolvedCard) => void;
@@ -667,7 +679,7 @@ function DeckImportEntryRow({
         <span className="min-w-0 flex-1 truncate font-medium">
           {displayName}
           <span className="text-muted-foreground ml-1.5 text-xs font-normal">
-            {ZONE_LABELS[entry.zone]}
+            {zoneLabels[entry.zone]}
           </span>
         </span>
 
@@ -701,7 +713,12 @@ function DeckImportEntryRow({
             )}
           </Button>
 
-          <ZonePicker zone={entry.zone} onZoneChange={(zone) => onZoneChange(index, zone)} />
+          <ZonePicker
+            zone={entry.zone}
+            zoneOrder={zoneOrder}
+            zoneLabels={zoneLabels}
+            onZoneChange={(zone) => onZoneChange(index, zone)}
+          />
 
           {isSkipped ? (
             <Button variant="ghost" size="xs" onClick={() => onUnskip(index)}>
@@ -735,35 +752,33 @@ function DeckImportEntryRow({
 // Zone picker
 // ---------------------------------------------------------------------------
 
-const ASSIGNABLE_ZONES: DeckZone[] = [
-  "legend",
-  "champion",
-  "main",
-  "battlefield",
-  "runes",
-  "sideboard",
-];
-
 function ZonePicker({
   zone,
+  zoneOrder,
+  zoneLabels,
   onZoneChange,
 }: {
   zone: DeckZone;
+  zoneOrder: DeckZone[];
+  zoneLabels: Record<DeckZone, string>;
   onZoneChange: (zone: DeckZone) => void;
 }) {
+  // Overflow is not user-assignable
+  const assignableZones = zoneOrder.filter((zoneSlug) => zoneSlug !== "overflow");
+
   return (
     <Select
       value={zone}
       onValueChange={(value) => onZoneChange(value as DeckZone)}
-      items={Object.fromEntries(ASSIGNABLE_ZONES.map((zoneKey) => [zoneKey, ZONE_LABELS[zoneKey]]))}
+      items={Object.fromEntries(assignableZones.map((zoneKey) => [zoneKey, zoneLabels[zoneKey]]))}
     >
       <SelectTrigger size="sm" className="h-7 w-auto text-xs">
         <SelectValue />
       </SelectTrigger>
       <SelectContent className="w-auto">
-        {ASSIGNABLE_ZONES.map((zoneKey) => (
+        {assignableZones.map((zoneKey) => (
           <SelectItem key={zoneKey} value={zoneKey} className="py-1.5">
-            {ZONE_LABELS[zoneKey]}
+            {zoneLabels[zoneKey]}
           </SelectItem>
         ))}
       </SelectContent>

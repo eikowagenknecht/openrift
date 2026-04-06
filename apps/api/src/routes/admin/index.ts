@@ -6,6 +6,7 @@ import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
 import { adminCardsRoute } from "./cards/index.js";
 import { catalogRoute } from "./catalog.js";
+import { adminDeckZonesRoute } from "./deck-zones.js";
 import { adminFeatureFlagsRoute } from "./feature-flags.js";
 import { adminFormatsRoute } from "./formats.js";
 import { ignoredCandidatesRoute } from "./ignored-candidates.js";
@@ -107,6 +108,7 @@ export const adminRoute = app
   .route("/admin", adminSiteSettingsRoute)
   .route("/admin", stagingCardOverridesRoute)
   .route("/admin", typographyReviewRoute)
+  .route("/admin", adminDeckZonesRoute)
   .route("/admin", adminCardsRoute)
   .route("/admin", adminUsersRoute)
   .route("/admin", adminUserFeatureFlagsRoute)
