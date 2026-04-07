@@ -267,7 +267,12 @@ export function DeckZoneSection({
         <button
           type="button"
           className="flex flex-1 items-center gap-2 px-1.5 py-1 text-left text-sm"
-          onClick={onActivate}
+          onClick={() => {
+            if (!open) {
+              setOpen(true);
+            }
+            onActivate();
+          }}
         >
           <span className={cn("flex items-center gap-1", isActive && "font-bold")}>
             {ZONE_LABELS[zone]}

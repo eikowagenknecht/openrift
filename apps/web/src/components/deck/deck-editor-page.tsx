@@ -340,7 +340,7 @@ function DeckEditorContent({
   }, [hoveredCardId]);
 
   const { allPrintings } = useCards();
-  const hoveredImageUrl = (() => {
+  const hoveredCard = (() => {
     if (!hoveredCardId || isMobile) {
       return null;
     }
@@ -355,7 +355,13 @@ function DeckEditorContent({
       );
     const printing = candidates[0];
     const frontImage = printing?.images.find((img) => img.face === "front");
-    return frontImage ? getCardImageUrl(frontImage.url, "thumbnail") : null;
+    if (!frontImage) {
+      return null;
+    }
+    return {
+      url: getCardImageUrl(frontImage.url, "full"),
+      landscape: printing.card.type === "Battlefield",
+    };
   })();
 
   const zoneCount = deckCards
@@ -443,12 +449,15 @@ function DeckEditorContent({
             </SidebarContent>
           </NestedSidebar>
 
-          {hoveredImageUrl && (
+          {hoveredCard && (
             <div
-              className="pointer-events-none absolute left-[19.5rem] z-50 w-64"
+              className={cn(
+                "pointer-events-none absolute left-[19.5rem] z-50",
+                hoveredCard.landscape ? "w-[560px]" : "w-[400px]",
+              )}
               style={{ top: Math.max(0, mouseY - 96) }}
             >
-              <img src={hoveredImageUrl} alt="" className="w-full rounded-lg shadow-lg" />
+              <img src={hoveredCard.url} alt="" className="w-full rounded-lg shadow-lg" />
             </div>
           )}
 
