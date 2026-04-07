@@ -53,6 +53,8 @@ docker exec openrift-db-1 pg_dump -U openrift --schema-only --no-owner --no-priv
 
 The database is shared across all worktrees. **Ask the user before running `bun db:migrate`** — another agent may be mid-migration or relying on the current schema.
 
+**When creating a new migration**, you must also register it in `apps/api/src/db/migrations/index.ts` (the migration barrel). Add an import and an entry in the `migrations` record. Without this, `bun db:migrate` will silently skip the migration.
+
 After any migration is applied, regenerate the schema snapshot and include it in the same commit:
 
 ```bash
