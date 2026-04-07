@@ -68,6 +68,7 @@ export function DangerZoneSection() {
             <div className="grid gap-2">
               <Input
                 type="password"
+                autoComplete="current-password"
                 placeholder="Your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
