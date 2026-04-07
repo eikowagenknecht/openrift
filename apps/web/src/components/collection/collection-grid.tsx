@@ -41,7 +41,6 @@ import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/lay
 import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useCardData } from "@/hooks/use-card-data";
@@ -605,12 +604,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       title={title}
       onToggleSidebar={toggleSidebar}
       mode={mode}
-      selectedCount={selected.size}
       valueCents={valueCents}
       unpricedCount={unpricedCount}
       formatValue={formatValue}
       addTarget={addTarget}
       addedPillMobile={addedPillMobile}
+      addedPillDesktop={addedPillDesktop}
       onQuickAdd={() => setQuickAddOpen(true)}
       onBrowse={startBrowsing}
       onCloseBrowsing={handleCloseBrowsing}
@@ -641,12 +640,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         />
         <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <DesktopOptionsBar className="hidden sm:flex" showCopies={mode !== "add"} />
-        {mode === "add" && (
-          <div className="hidden items-center gap-3 md:flex">
-            {addedPillDesktop}
-            <Button onClick={handleCloseBrowsing}>Done</Button>
-          </div>
-        )}
         <MobileOptionsDrawer
           doneLabel={
             hasActiveFilters
@@ -862,12 +855,12 @@ interface CollectionTopBarProps {
   title: string;
   onToggleSidebar: () => void;
   mode: "browse" | "select" | "add";
-  selectedCount: number;
   valueCents: number | null | undefined;
   unpricedCount: number | null | undefined;
   formatValue: (value: number) => string;
   addTarget?: string;
   addedPillMobile: React.ReactNode;
+  addedPillDesktop: React.ReactNode;
   onQuickAdd: () => void;
   onBrowse: () => void;
   onCloseBrowsing: () => void;
@@ -882,12 +875,12 @@ function CollectionTopBar({
   title,
   onToggleSidebar,
   mode,
-  selectedCount,
   valueCents,
   unpricedCount,
   formatValue,
   addTarget,
   addedPillMobile,
+  addedPillDesktop,
   onQuickAdd,
   onBrowse,
   onCloseBrowsing,
@@ -904,12 +897,6 @@ function CollectionTopBar({
       {/* Browse/select: card count + value */}
       {mode !== "add" && (
         <span className="text-muted-foreground hidden shrink-0 items-center gap-x-1.5 text-xs sm:flex">
-          {mode === "select" && selectedCount > 0 && (
-            <Badge variant="secondary" className="gap-1">
-              <CheckIcon className="size-3" />
-              {selectedCount}
-            </Badge>
-          )}
           {valueCents !== null && valueCents !== undefined && (
             <span>
               {formatValue(valueCents / 100)}
@@ -928,25 +915,26 @@ function CollectionTopBar({
 
       <PageTopBarActions>
         {mode === "add" ? (
-          <div className="flex items-center gap-2 sm:hidden">
-            {addedPillMobile}
+          <div className="flex items-center gap-2">
+            <span className="sm:hidden">{addedPillMobile}</span>
+            <span className="hidden md:flex md:items-center md:gap-2">{addedPillDesktop}</span>
             <Button onClick={onCloseBrowsing}>Done</Button>
           </div>
         ) : (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             {addTarget && (
               <>
                 <Button variant="ghost" size="icon" onClick={onQuickAdd} className="sm:hidden">
                   <PackagePlusIcon className="size-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={onQuickAdd} className="hidden sm:flex">
+                <Button variant="ghost" onClick={onQuickAdd} className="hidden sm:flex">
                   <PackagePlusIcon className="size-4" />
                   Quick add
                 </Button>
                 <Button variant="ghost" size="icon" onClick={onBrowse} className="sm:hidden">
                   <LibraryBigIcon className="size-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={onBrowse} className="hidden sm:flex">
+                <Button variant="ghost" onClick={onBrowse} className="hidden sm:flex">
                   <LibraryBigIcon className="size-4" />
                   Browse & add
                 </Button>
@@ -957,15 +945,14 @@ function CollectionTopBar({
                 <Button variant="ghost" size="icon" onClick={onSelectAll} className="sm:hidden">
                   <CheckIcon className="size-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={onSelectAll} className="hidden sm:flex">
+                <Button variant="ghost" onClick={onSelectAll} className="hidden sm:flex">
                   <CheckIcon className="size-4" />
                   {isAllSelected ? "Deselect all" : "Select all"}
                 </Button>
                 <Button variant="ghost" size="icon" onClick={onExitSelect} className="sm:hidden">
                   <XIcon className="size-4" />
                 </Button>
-                <Button variant="ghost" size="sm" onClick={onExitSelect} className="hidden sm:flex">
-                  <XIcon className="size-4" />
+                <Button variant="default" onClick={onExitSelect} className="hidden sm:flex">
                   Done
                 </Button>
               </>
@@ -974,12 +961,7 @@ function CollectionTopBar({
                 <Button variant="ghost" size="icon" onClick={onEnterSelect} className="sm:hidden">
                   <CheckSquareIcon className="size-4" />
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onEnterSelect}
-                  className="hidden sm:flex"
-                >
+                <Button variant="ghost" onClick={onEnterSelect} className="hidden sm:flex">
                   <CheckSquareIcon className="size-4" />
                   Select {view}
                 </Button>

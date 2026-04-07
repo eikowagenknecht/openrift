@@ -10,16 +10,12 @@ interface PageTopBarProps {
 }
 
 /**
- * Unified top bar with consistent `bg-muted/50` styling, used by both deck and collection pages.
+ * Unified top bar, used by both deck and collection pages.
  * @returns The top bar container element.
  */
 export function PageTopBar({ children, className }: PageTopBarProps) {
   return (
-    <div
-      className={cn("bg-muted/50 flex items-center gap-3 rounded-lg px-3 py-2 text-sm", className)}
-    >
-      {children}
-    </div>
+    <div className={cn("flex h-8 items-center rounded-lg text-sm", className)}>{children}</div>
   );
 }
 
@@ -29,7 +25,7 @@ export function PageTopBar({ children, className }: PageTopBarProps) {
  */
 export function PageTopBarBack({ to }: { to: string }) {
   return (
-    <Link to={to} className="hover:bg-muted -ml-1 rounded-md p-1.5 transition-colors">
+    <Link to={to} className="hover:bg-muted rounded-md p-1.5">
       <ArrowLeftIcon className="size-4" />
     </Link>
   );
@@ -51,18 +47,19 @@ export function PageTopBarTitle({ onToggleSidebar, children }: PageTopBarTitlePr
       <>
         <Button
           variant="ghost"
-          size="sm"
-          className="-ml-1 gap-1 text-sm font-medium md:hidden"
+          className="mr-2 gap-1 text-sm font-medium md:hidden"
           onClick={onToggleSidebar}
         >
           {children}
           <ChevronDownIcon className="text-muted-foreground size-4" />
         </Button>
-        <span className="hidden min-w-0 truncate text-sm font-semibold md:block">{children}</span>
+        <span className="mr-2 hidden min-w-0 truncate px-3 text-lg font-semibold md:block">
+          {children}
+        </span>
       </>
     );
   }
-  return <span className="min-w-0 truncate text-sm font-semibold">{children}</span>;
+  return <span className="mr-2 min-w-0 truncate text-lg font-semibold">{children}</span>;
 }
 
 /**

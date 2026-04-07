@@ -516,7 +516,7 @@ function ActivityPage() {
   const byDate = Map.groupBy(filtered, (e) => dateKey(e.createdAt));
 
   return (
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="mx-auto w-full max-w-4xl pt-3">
       {topBarPortal}
       <Toolbar
         actionFilter={actionFilter}

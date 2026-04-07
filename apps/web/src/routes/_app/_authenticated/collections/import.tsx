@@ -192,7 +192,7 @@ function ExportSection() {
   const copyCount = copies?.length ?? 0;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6 pt-3">
       <div>
         <h2 className="text-lg font-semibold">Export Collection</h2>
         <p className="text-muted-foreground text-sm">Download your collection as a CSV file.</p>
