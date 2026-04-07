@@ -246,23 +246,11 @@ describe("toWishListItem", () => {
 // ---------------------------------------------------------------------------
 
 describe("toCopy", () => {
-  it("maps a denormalized copy row with card details", () => {
+  it("maps a copy row to a slim response", () => {
     const result = toCopy({
       id: "copy-1",
       printingId: "p-1",
       collectionId: "col-1",
-
-      cardId: "card-1",
-      setId: "set-1",
-      collectorNumber: 27,
-      rarity: "Common",
-      artVariant: "normal",
-      isSigned: false,
-      finish: "normal",
-      imageUrl: null,
-      artist: "Jane Doe",
-      cardName: "Fire Bolt",
-      cardType: "Spell",
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -270,18 +258,6 @@ describe("toCopy", () => {
       id: "copy-1",
       printingId: "p-1",
       collectionId: "col-1",
-
-      cardId: "card-1",
-      setId: "set-1",
-      collectorNumber: 27,
-      rarity: "Common",
-      artVariant: "normal",
-      isSigned: false,
-      finish: "normal",
-      imageUrl: null,
-      artist: "Jane Doe",
-      cardName: "Fire Bolt",
-      cardType: "Spell",
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });

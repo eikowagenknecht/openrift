@@ -98,17 +98,6 @@ const dbCopy = {
   collectionId: dbCollection.id,
   createdAt: now,
   updatedAt: now,
-  cardId: "OGS-001",
-  setId: "OGS",
-  collectorNumber: 1,
-  rarity: "Rare",
-  artVariant: "normal",
-  isSigned: false,
-  finish: "normal",
-  artist: "Alice",
-  imageUrl: "https://example.com/img.jpg",
-  cardName: "Fire Dragon",
-  cardType: "Unit",
 };
 
 // ---------------------------------------------------------------------------

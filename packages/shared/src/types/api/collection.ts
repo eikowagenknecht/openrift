@@ -40,17 +40,6 @@ export interface CopyResponse {
   id: string;
   printingId: string;
   collectionId: string;
-  cardId: string;
-  setId: string;
-  collectorNumber: number;
-  rarity: string;
-  artVariant: string;
-  isSigned: boolean;
-  finish: string;
-  imageUrl: string | null;
-  artist: string | null;
-  cardName: string;
-  cardType: string;
   createdAt: string;
   updatedAt: string;
 }

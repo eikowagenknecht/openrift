@@ -1,48 +1,12 @@
-import type { CardType } from "@openrift/shared/types";
 import type { Insertable, Kysely, Selectable } from "kysely";
 
-import type { CopiesTable, Database, PrintingsTable } from "../db/index.js";
-import { imageUrl, selectCopyWithCard } from "./query-helpers.js";
+import type { CopiesTable, Database } from "../db/index.js";
 
-/** Denormalized copy row with printing, card, and image details. */
+/** Slim copy row — printing details are resolved client-side from the catalog. */
 type CopyRow = Pick<
   Selectable<CopiesTable>,
   "id" | "printingId" | "collectionId" | "createdAt" | "updatedAt"
-> &
-  Pick<
-    Selectable<PrintingsTable>,
-    | "cardId"
-    | "setId"
-    | "collectorNumber"
-    | "rarity"
-    | "artVariant"
-    | "isSigned"
-    | "finish"
-    | "artist"
-  > & {
-    imageUrl: string | null;
-    cardName: string;
-    cardType: CardType;
-  };
-
-const COPY_SELECT = [
-  "cp.id",
-  "cp.printingId",
-  "cp.collectionId",
-  "cp.createdAt",
-  "cp.updatedAt",
-  "p.cardId",
-  "p.setId",
-  "p.collectorNumber",
-  "p.rarity",
-  "p.artVariant",
-  "p.isSigned",
-  "p.finish",
-  imageUrl("pi").as("imageUrl"),
-  "p.artist",
-  "c.name as cardName",
-  "c.type as cardType",
-] as const;
+>;
 
 /**
  * Read-only queries for user copy data.
@@ -51,40 +15,40 @@ const COPY_SELECT = [
  */
 export function copiesRepo(db: Kysely<Database>) {
   return {
-    /** @returns Copies for a user, ordered by card name then collector number. When `limit` is provided, fetches `limit + 1` rows to detect `hasMore`. */
+    /** @returns Copies for a user. When `limit` is provided, fetches `limit + 1` rows to detect `hasMore`. */
     listForUser(userId: string, limit?: number, cursor?: string): Promise<CopyRow[]> {
-      let query = selectCopyWithCard(db)
-        .select([...COPY_SELECT])
-        .where("cp.userId", "=", userId)
-        .orderBy("c.name")
-        .orderBy("p.collectorNumber")
-        .orderBy("cp.id");
+      let query = db
+        .selectFrom("copies")
+        .select(["id", "printingId", "collectionId", "createdAt", "updatedAt"])
+        .where("userId", "=", userId)
+        .orderBy("createdAt", "desc")
+        .orderBy("id");
       if (limit !== undefined) {
         query = query.limit(limit + 1);
       }
       if (cursor) {
-        query = query.where("cp.createdAt", "<", new Date(cursor));
+        query = query.where("createdAt", "<", new Date(cursor));
       }
       return query.execute();
     },
 
     /** @returns A single copy by ID scoped to a user, or `undefined`. */
     getByIdForUser(id: string, userId: string): Promise<CopyRow | undefined> {
-      return selectCopyWithCard(db)
-        .select([...COPY_SELECT])
-        .where("cp.id", "=", id)
-        .where("cp.userId", "=", userId)
+      return db
+        .selectFrom("copies")
+        .select(["id", "printingId", "collectionId", "createdAt", "updatedAt"])
+        .where("id", "=", id)
+        .where("userId", "=", userId)
         .executeTakeFirst();
     },
 
-    /** @returns Multiple copies by IDs scoped to a user, ordered by card name then collector number. */
+    /** @returns Multiple copies by IDs scoped to a user. */
     listByIdsForUser(ids: string[], userId: string): Promise<CopyRow[]> {
-      return selectCopyWithCard(db)
-        .select([...COPY_SELECT])
-        .where("cp.id", "in", ids)
-        .where("cp.userId", "=", userId)
-        .orderBy("c.name")
-        .orderBy("p.collectorNumber")
+      return db
+        .selectFrom("copies")
+        .select(["id", "printingId", "collectionId", "createdAt", "updatedAt"])
+        .where("id", "in", ids)
+        .where("userId", "=", userId)
         .execute();
     },
 
@@ -134,19 +98,19 @@ export function copiesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Copies in a specific collection, ordered by card name then collector number. When `limit` is provided, fetches `limit + 1` rows to detect `hasMore`. */
+    /** @returns Copies in a specific collection. When `limit` is provided, fetches `limit + 1` rows to detect `hasMore`. */
     listForCollection(collectionId: string, limit?: number, cursor?: string): Promise<CopyRow[]> {
-      let query = selectCopyWithCard(db)
-        .select([...COPY_SELECT])
-        .where("cp.collectionId", "=", collectionId)
-        .orderBy("c.name")
-        .orderBy("p.collectorNumber")
-        .orderBy("cp.id");
+      let query = db
+        .selectFrom("copies")
+        .select(["id", "printingId", "collectionId", "createdAt", "updatedAt"])
+        .where("collectionId", "=", collectionId)
+        .orderBy("createdAt", "desc")
+        .orderBy("id");
       if (limit !== undefined) {
         query = query.limit(limit + 1);
       }
       if (cursor) {
-        query = query.where("cp.createdAt", "<", new Date(cursor));
+        query = query.where("createdAt", "<", new Date(cursor));
       }
       return query.execute();
     },

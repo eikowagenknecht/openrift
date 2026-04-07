@@ -142,24 +142,13 @@ export function toCollectionEvent(row: {
 // ── Composite / detail mappers ─────────────────────────────────────────────
 
 /**
- * Maps a denormalized copy row (from joins) to CopyResponse.
+ * Maps a copy row to CopyResponse.
  * @returns The serialized copy response.
  */
 export function toCopy(row: {
   id: string;
   printingId: string;
   collectionId: string;
-  cardId: string;
-  setId: string;
-  collectorNumber: number;
-  rarity: string;
-  artVariant: string;
-  isSigned: boolean;
-  finish: string;
-  imageUrl: string | null;
-  artist: string | null;
-  cardName: string;
-  cardType: string;
   createdAt: Date;
   updatedAt: Date;
 }): CopyResponse {
@@ -167,17 +156,6 @@ export function toCopy(row: {
     id: row.id,
     printingId: row.printingId,
     collectionId: row.collectionId,
-    cardId: row.cardId,
-    setId: row.setId,
-    collectorNumber: row.collectorNumber,
-    rarity: row.rarity,
-    artVariant: row.artVariant,
-    isSigned: row.isSigned,
-    finish: row.finish,
-    imageUrl: row.imageUrl,
-    artist: row.artist,
-    cardName: row.cardName,
-    cardType: row.cardType,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
