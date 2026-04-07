@@ -10,7 +10,7 @@ export const Route = createFileRoute("/")({
       throw redirect({ to: "/cards" });
     }
   },
-  loader: ({ context }) => {
-    context.queryClient.ensureQueryData(catalogQueryOptions);
+  loader: async ({ context }) => {
+    await context.queryClient.ensureQueryData(catalogQueryOptions);
   },
 });
