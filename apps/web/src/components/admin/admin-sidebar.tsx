@@ -41,12 +41,18 @@ const catalogPages = [
   { to: "/admin/sources" as const, icon: DatabaseIcon, title: "Sources" },
   { to: "/admin/images" as const, icon: ImageIcon, title: "Images" },
   { to: "/admin/ignored-sources" as const, icon: BanIcon, title: "Ignored Sources" },
+];
+
+const taxonomyPages = [
   { to: "/admin/promo-types" as const, icon: TagIcon, title: "Promo Types" },
   { to: "/admin/domains" as const, icon: PaletteIcon, title: "Domains" },
   { to: "/admin/deck-zones" as const, icon: LayoutListIcon, title: "Deck Zones" },
   { to: "/admin/finishes" as const, icon: PaintbrushIcon, title: "Finishes" },
   { to: "/admin/languages" as const, icon: LanguagesIcon, title: "Languages" },
   { to: "/admin/keywords" as const, icon: HashIcon, title: "Keywords" },
+];
+
+const contentPages = [
   { to: "/admin/typography-review" as const, icon: SpellCheckIcon, title: "Typography" },
   { to: "/admin/rules" as const, icon: BookOpenIcon, title: "Rules" },
 ];
@@ -77,6 +83,40 @@ export function AdminSidebar() {
           <SidebarGroupLabel>Catalog</SidebarGroupLabel>
           <SidebarMenu className="gap-1">
             {catalogPages.map((page) => (
+              <SidebarMenuItem key={page.to}>
+                <SidebarMenuButton
+                  isActive={currentPath === page.to}
+                  render={<Link to={page.to} />}
+                >
+                  <page.icon />
+                  <span>{page.title}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Taxonomy</SidebarGroupLabel>
+          <SidebarMenu className="gap-1">
+            {taxonomyPages.map((page) => (
+              <SidebarMenuItem key={page.to}>
+                <SidebarMenuButton
+                  isActive={currentPath === page.to}
+                  render={<Link to={page.to} />}
+                >
+                  <page.icon />
+                  <span>{page.title}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Content</SidebarGroupLabel>
+          <SidebarMenu className="gap-1">
+            {contentPages.map((page) => (
               <SidebarMenuItem key={page.to}>
                 <SidebarMenuButton
                   isActive={currentPath === page.to}
