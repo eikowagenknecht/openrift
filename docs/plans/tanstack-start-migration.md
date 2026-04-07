@@ -583,6 +583,25 @@ doesn't carry the user's cookies. Server functions access the incoming request
 via `getRequest()` and forward cookies explicitly. This is the correct pattern
 for all authenticated data fetching during SSR.
 
+**Why not better-auth's official TanStack Start integration?** Better-auth
+provides `tanstackStartCookies()` (server plugin) and `auth.api.getSession({
+headers })` for direct in-process session access. Both require the `betterAuth()`
+instance to run inside the TanStack Start process. Our architecture splits auth
+into a separate Hono API server (`apps/api`) because auth is tightly coupled to
+the API layer (session middleware on every route, repository access, admin
+checks). Moving `betterAuth()` into the web app would require duplicating the
+database connection and auth config across two services.
+
+Instead, server functions forward cookies via HTTP to the API's
+`/api/auth/get-session` endpoint. The trade-off is one extra localhost HTTP hop
+per call (sub-millisecond), which is negligible. One caveat: if better-auth ever
+needs to **set** cookies during `getSession` (e.g. session token refresh), those
+`Set-Cookie` headers from the API response won't propagate back through our
+server function. In the monolith pattern, `tanstackStartCookies()` handles this
+automatically. In practice, session reads rarely set cookies, and the client-side
+auth client handles token refresh independently, so this is unlikely to cause
+issues. Worth monitoring after deployment.
+
 **Verify:** Auth redirects work without a flash. Protected pages render
 server-side with user data. Login/logout still work. Client-side navigation to
 protected routes calls the server function via automatic RPC bridging.
