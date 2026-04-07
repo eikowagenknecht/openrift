@@ -346,22 +346,21 @@ export const deckResponseSchema = z
   })
   .openapi("DeckResponse");
 
+const deckSummaryResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    format: deckFormatSchema,
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("DeckSummaryResponse");
+
 const deckListItemResponseSchema = z
   .object({
-    deck: deckResponseSchema,
-    legend: z
-      .object({
-        cardName: z.string(),
-        imageUrl: z.string().nullable(),
-        domains: z.array(domainSchema),
-      })
-      .nullable(),
-    champion: z
-      .object({
-        cardName: z.string(),
-        imageUrl: z.string().nullable(),
-      })
-      .nullable(),
+    deck: deckSummaryResponseSchema,
+    legendCardId: z.string().nullable(),
+    championCardId: z.string().nullable(),
     totalCards: z.number(),
     typeCounts: z.array(z.object({ cardType: cardTypeSchema, count: z.number() })),
     domainDistribution: z.array(z.object({ domain: domainSchema, count: z.number() })),

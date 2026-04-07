@@ -49,7 +49,7 @@ import {
 import type { TextCodecCard } from "../../services/deck-codecs/index.js";
 import type { Variables } from "../../types.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
-import { toDeck, toDeckAvailabilityItem, toDeckCard } from "../../utils/mappers.js";
+import { toDeck, toDeckAvailabilityItem, toDeckCard, toDeckSummary } from "../../utils/mappers.js";
 
 const patchFields: FieldMapping = {
   name: "name",
@@ -285,15 +285,9 @@ export const decksRoute = decksApp
           : true;
 
       return {
-        deck: toDeck(row),
-        legend: legend
-          ? {
-              cardName: legend.cardName,
-              imageUrl: legend.imageUrl,
-              domains: legend.domains as Domain[],
-            }
-          : null,
-        champion: champion ? { cardName: champion.cardName, imageUrl: champion.imageUrl } : null,
+        deck: toDeckSummary(row),
+        legendCardId: legend?.cardId ?? null,
+        championCardId: champion?.cardId ?? null,
         totalCards,
         typeCounts,
         domainDistribution,

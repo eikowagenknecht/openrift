@@ -1,4 +1,4 @@
-import type { DeckFormat, DeckListItemResponse, DeckResponse, Domain } from "@openrift/shared";
+import type { DeckFormat, DeckListItemResponse, DeckResponse } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useCards } from "@/hooks/use-cards";
 import {
   deckDetailQueryOptions,
   useCloneDeck,
@@ -104,19 +105,12 @@ function CardPreviewImage({
 function FannedPreview({
   legendImage,
   championImage,
-  legendDomains,
-  domainColors,
+  gradientStyle,
 }: {
   legendImage?: string | null;
   championImage?: string | null;
-  legendDomains?: Domain[];
-  domainColors: Record<string, string>;
+  gradientStyle?: React.CSSProperties;
 }) {
-  const gradientStyle =
-    legendDomains && legendDomains.length > 0
-      ? getDomainGradientStyle(legendDomains, "40", domainColors)
-      : undefined;
-
   const singleImage = legendImage ?? championImage;
 
   if (legendImage && championImage) {
@@ -170,14 +164,35 @@ function FannedPreview({
 }
 
 /**
+ * Resolves the front image URL for a card from the catalog printings.
+ * Picks the canonical printing: normal art variant, non-promo, non-signed, normal finish.
+ * @returns The front image URL, or null if not found.
+ */
+function resolveCardImage(
+  allPrintings: ReturnType<typeof useCards>["allPrintings"],
+  cardId: string,
+): string | null {
+  const candidates = allPrintings
+    .filter((entry) => entry.card.id === cardId)
+    .toSorted(
+      (a, b) =>
+        a.shortCode.localeCompare(b.shortCode) ||
+        Number(Boolean(a.promoType)) - Number(Boolean(b.promoType)) ||
+        Number(a.finish !== "normal") - Number(b.finish !== "normal"),
+    );
+  const frontImage = candidates[0]?.images.find((img) => img.face === "front");
+  return frontImage?.url ?? null;
+}
+
+/**
  * Visual tile for a single deck in the deck grid.
  * @returns The deck tile element.
  */
 export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const {
     deck,
-    legend,
-    champion,
+    legendCardId,
+    championCardId,
     totalCards,
     typeCounts,
     domainDistribution,
@@ -187,6 +202,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const navigate = useNavigate();
   const cloneDeck = useCloneDeck();
   const updateDeck = useUpdateDeck();
+  const { allPrintings } = useCards();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -194,6 +210,16 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameName, setRenameName] = useState(deck.name);
   const deleteDeck = useDeleteDeck();
+
+  // Resolve legend/champion card details from catalog
+  const legendCard = legendCardId
+    ? allPrintings.find((entry) => entry.card.id === legendCardId)?.card
+    : undefined;
+  const championCard = championCardId
+    ? allPrintings.find((entry) => entry.card.id === championCardId)?.card
+    : undefined;
+  const legendImage = legendCardId ? resolveCardImage(allPrintings, legendCardId) : null;
+  const championImage = championCardId ? resolveCardImage(allPrintings, championCardId) : null;
 
   // Lazy-fetch full card detail only when export/proxy dialogs are open
   const needsDetail = exportOpen || proxyOpen;
@@ -241,7 +267,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   };
 
   const domainColors = useDomainColors();
-  const legendDomains = legend?.domains;
+  const legendDomains = legendCard?.domains;
   const createdDate = new Date(deck.createdAt).toISOString().slice(0, 10);
   const updatedDate = new Date(deck.updatedAt).toISOString().slice(0, 10);
 
@@ -263,19 +289,22 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
         style={gradientStyle}
       >
         <FannedPreview
-          legendImage={legend?.imageUrl}
-          championImage={champion?.imageUrl}
-          legendDomains={legendDomains}
-          domainColors={domainColors}
+          legendImage={legendImage}
+          championImage={championImage}
+          gradientStyle={
+            legendDomains && legendDomains.length > 0
+              ? getDomainGradientStyle(legendDomains, "40", domainColors)
+              : undefined
+          }
         />
 
         <div className="flex flex-1 flex-col gap-2 p-3">
           {/* Name */}
           <div className="min-w-0">
             <h3 className="truncate leading-tight font-semibold">{deck.name}</h3>
-            {(legend || champion) && (
+            {(legendCard || championCard) && (
               <p className="text-muted-foreground mt-0.5 truncate text-xs">
-                {[legend?.cardName, champion?.cardName].filter(Boolean).join(" / ")}
+                {[legendCard?.name, championCard?.name].filter(Boolean).join(" / ")}
               </p>
             )}
           </div>

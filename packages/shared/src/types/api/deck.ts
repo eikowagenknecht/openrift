@@ -4,10 +4,19 @@ export interface DeckListResponse {
   items: DeckListItemResponse[];
 }
 
+/** Slimmed-down deck fields for the list view (no isWanted/isPublic/shareToken/description). */
+export interface DeckSummaryResponse {
+  id: string;
+  name: string;
+  format: "standard" | "freeform";
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface DeckListItemResponse {
-  deck: DeckResponse;
-  legend: { cardName: string; imageUrl: string | null; domains: Domain[] } | null;
-  champion: { cardName: string; imageUrl: string | null } | null;
+  deck: DeckSummaryResponse;
+  legendCardId: string | null;
+  championCardId: string | null;
   totalCards: number;
   typeCounts: { cardType: CardType; count: number }[];
   domainDistribution: { domain: Domain; count: number }[];

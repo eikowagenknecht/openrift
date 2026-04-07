@@ -36,6 +36,7 @@ export type {
   DeckListItemResponse,
   DeckListResponse,
   DeckResponse,
+  DeckSummaryResponse,
 } from "./deck.js";
 
 export type { FeatureFlagsResponse } from "./feature-flags.js";

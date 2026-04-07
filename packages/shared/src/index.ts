@@ -54,6 +54,7 @@ export type {
   DeckListItemResponse,
   DeckListResponse,
   DeckResponse,
+  DeckSummaryResponse,
   DeckZone,
   Domain,
   FeatureFlagResponse,

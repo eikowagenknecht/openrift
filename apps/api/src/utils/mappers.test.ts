@@ -5,6 +5,7 @@ import {
   toCollection,
   toCopy,
   toDeck,
+  toDeckSummary,
   toDeckAvailabilityItem,
   toDeckCard,
   toTradeList,
@@ -98,6 +99,34 @@ describe("toDeck", () => {
       isWanted: false,
       isPublic: true,
       shareToken: null,
+      createdAt: "2025-06-15T12:00:00.000Z",
+      updatedAt: "2025-06-16T08:30:00.000Z",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toDeckSummary
+// ---------------------------------------------------------------------------
+
+describe("toDeckSummary", () => {
+  it("maps only the summary fields, excluding description/isWanted/isPublic/shareToken", () => {
+    const result = toDeckSummary({
+      id: "deck-1",
+      userId: "user-1",
+      name: "Aggro",
+      description: "A fast deck",
+      format: "standard",
+      isWanted: true,
+      isPublic: true,
+      shareToken: "abc123",
+      createdAt: NOW,
+      updatedAt: LATER,
+    });
+    expect(result).toEqual({
+      id: "deck-1",
+      name: "Aggro",
+      format: "standard",
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });

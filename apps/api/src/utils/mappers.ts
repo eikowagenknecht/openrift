@@ -5,6 +5,7 @@ import type {
   DeckAvailabilityItemResponse,
   DeckCardResponse,
   DeckResponse,
+  DeckSummaryResponse,
   TradeListItemDetailResponse,
   TradeListItemResponse,
   TradeListResponse,
@@ -54,6 +55,17 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
     isWanted: row.isWanted,
     isPublic: row.isPublic,
     shareToken: row.shareToken,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+/** @returns Slimmed-down deck fields for the list view. */
+export function toDeckSummary(row: Selectable<DecksTable>): DeckSummaryResponse {
+  return {
+    id: row.id,
+    name: row.name,
+    format: row.format,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

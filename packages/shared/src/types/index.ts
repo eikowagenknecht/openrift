@@ -115,6 +115,7 @@ export type {
   DeckListItemResponse,
   DeckListResponse,
   DeckResponse,
+  DeckSummaryResponse,
   ShoppingListItemResponse,
   ShoppingListResponse,
   ShoppingListSourceResponse,
