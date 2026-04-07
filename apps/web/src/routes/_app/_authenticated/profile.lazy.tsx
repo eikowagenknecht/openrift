@@ -11,7 +11,7 @@ import { PasswordSection } from "@/components/profile/password-section";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCards } from "@/hooks/use-cards";
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-session";
 import { useGravatarUrl } from "@/lib/gravatar";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 

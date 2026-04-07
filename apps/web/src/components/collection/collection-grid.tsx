@@ -53,7 +53,7 @@ import { useBatchedAddCopies, useDisposeCopies, useMoveCopies } from "@/hooks/us
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-session";
 import { formatterForMarketplace } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";

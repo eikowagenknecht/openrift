@@ -25,7 +25,7 @@ import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useOwnedCount } from "@/hooks/use-owned-count";
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { catalogCardToDeckBuilderCard, useDeckBuilderStore } from "@/stores/deck-builder-store";
 import { useDisplayStore } from "@/stores/display-store";

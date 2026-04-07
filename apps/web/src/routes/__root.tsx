@@ -1,5 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+import { getCookie } from "@tanstack/react-start/server";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { lazy } from "react";
 
@@ -20,10 +22,33 @@ const TanStackRouterDevtools = PROD
       return { default: mod.TanStackRouterDevtools };
     });
 
-// Blocking inline script that reads the Zustand-persist theme cookie and
-// applies the correct class to <html> before any CSS is evaluated.
+// Server function that reads the theme cookie and resolves it to "light" or
+// "dark". Returns the resolved theme so `shellComponent` can apply the correct
+// class to <html> on the very first byte (no FOUC).
+const getServerTheme = createServerFn({ method: "GET" }).handler((): "light" | "dark" => {
+  const raw = getCookie("theme");
+  if (!raw) {
+    return "light";
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    const preference: string | undefined = parsed?.state?.preference;
+    if (preference === "dark") {
+      return "dark";
+    }
+    // "auto" or missing preference — server can't check matchMedia, default
+    // to "light". The client-side blocking script below corrects this if the
+    // user's OS prefers dark mode.
+    return "light";
+  } catch {
+    return "light";
+  }
+});
+
+// Blocking inline script (fallback) that corrects the "auto" theme on the
+// client when the user's OS prefers dark mode. The server resolves "auto" as
+// "light" since it can't check matchMedia; this script fixes it before paint.
 // Must stay in sync with the cookie format in theme-store.ts / cookie-storage.ts.
-// Handles "auto" by checking matchMedia for system preference.
 const THEME_SCRIPT = [
   "(function(){try{",
   String.raw`var m=document.cookie.match(/(?:^|;\s*)theme=([^;]*)/);`,
@@ -55,18 +80,26 @@ export const Route = createRootRouteWithContext<{
     ],
   }),
   beforeLoad: async ({ context }) => {
-    try {
-      await context.queryClient.ensureQueryData(featureFlagsQueryOptions);
-    } catch {
-      // Feature flags are non-critical — seed cache with empty defaults so
-      // useSuspenseQuery in components doesn't re-throw the cached error.
-      context.queryClient.setQueryData(featureFlagsQueryOptions.queryKey, {});
-    }
-    try {
-      await context.queryClient.ensureQueryData(siteSettingsQueryOptions);
-    } catch {
-      context.queryClient.setQueryData(siteSettingsQueryOptions.queryKey, {});
-    }
+    const [resolvedTheme] = await Promise.all([
+      getServerTheme(),
+      (async () => {
+        try {
+          await context.queryClient.ensureQueryData(featureFlagsQueryOptions);
+        } catch {
+          // Feature flags are non-critical — seed cache with empty defaults so
+          // useSuspenseQuery in components doesn't re-throw the cached error.
+          context.queryClient.setQueryData(featureFlagsQueryOptions.queryKey, {});
+        }
+      })(),
+      (async () => {
+        try {
+          await context.queryClient.ensureQueryData(siteSettingsQueryOptions);
+        } catch {
+          context.queryClient.setQueryData(siteSettingsQueryOptions.queryKey, {});
+        }
+      })(),
+    ]);
+    return { resolvedTheme };
   },
   component: RootComponent,
   notFoundComponent: RouteNotFoundFallback,
@@ -74,10 +107,13 @@ export const Route = createRootRouteWithContext<{
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const { resolvedTheme } = Route.useRouteContext();
+
   return (
-    // suppressHydrationWarning: the blocking script below may modify the class
-    // before React hydrates, which is intentional and expected.
-    <html lang="en" suppressHydrationWarning>
+    // suppressHydrationWarning: the blocking script below may adjust the class
+    // for "auto" theme users whose OS prefers dark mode. The server defaults
+    // "auto" to "light" since it can't check matchMedia.
+    <html lang="en" className={resolvedTheme === "dark" ? "dark" : ""} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <HeadContent />
