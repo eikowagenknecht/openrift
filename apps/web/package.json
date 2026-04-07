@@ -9,7 +9,7 @@
     "test:watch": "vitest",
     "dev": "vite dev --clearScreen false",
     "build": "tsr generate && tsc -b && vite build",
-    "start": "bun run .output/server/index.mjs",
+    "start": "bun --env-file=../../.env .output/server/index.mjs",
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "routes:generate": "tsr generate"
