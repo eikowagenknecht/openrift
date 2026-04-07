@@ -1,7 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
-import { sessionQueryOptions } from "@/lib/auth-client";
+import { sessionQueryOptions } from "@/lib/auth-session";
 
 export const Route = createFileRoute("/_app/_authenticated")({
   errorComponent: RouteErrorFallback,

@@ -1,20 +1,27 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { client } from "@/lib/rpc-client";
+import { withCookies } from "@/lib/server-fns/middleware";
 
-async function fetchIsAdmin(): Promise<boolean> {
-  const res = await client.api.v1.admin.me.$get();
-  if (!res.ok) {
-    return false;
-  }
-  const data = await res.json();
-  return data.isAdmin;
-}
+const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
+
+const fetchIsAdmin = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<boolean> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/me`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      return false;
+    }
+    const data = await res.json();
+    return data.isAdmin;
+  });
 
 export const isAdminQueryOptions = queryOptions({
   queryKey: queryKeys.admin.me,
-  queryFn: fetchIsAdmin,
+  queryFn: () => fetchIsAdmin(),
   staleTime: 5 * 60 * 1000, // 5 minutes
 });
 

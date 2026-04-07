@@ -11,8 +11,9 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { authClient, sessionQueryOptions, signIn } from "@/lib/auth-client";
+import { authClient, signIn } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
+import { sessionQueryOptions } from "@/lib/auth-session";
 import { randomEmailPlaceholder } from "@/lib/placeholders";
 import { queryKeys } from "@/lib/query-keys";
 

@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { catalogQueryOptions } from "@/hooks/use-cards";
-import { sessionQueryOptions } from "@/lib/auth-client";
+import { sessionQueryOptions } from "@/lib/auth-session";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async ({ context }) => {

@@ -3,10 +3,16 @@ import { createFileRoute, Outlet, useMatches } from "@tanstack/react-router";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { usePreferencesSync } from "@/hooks/use-preferences-sync";
-import { useSession } from "@/lib/auth-client";
+import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { CONTAINER_WIDTH, FOOTER_PADDING_NO_TOP } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app")({
+  beforeLoad: async ({ context }) => {
+    // Preload session so the Header can render auth-dependent UI during SSR
+    // (profile icon, gated menu entries). Non-critical: if it fails, the
+    // client-side useQuery will retry.
+    await context.queryClient.ensureQueryData(sessionQueryOptions()).catch(() => null);
+  },
   component: AppLayout,
 });
 

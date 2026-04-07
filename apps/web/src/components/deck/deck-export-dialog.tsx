@@ -23,7 +23,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useExportDeck } from "@/hooks/use-decks";
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-session";
 import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
 import { generateRegistrationPdf } from "@/lib/registration-pdf";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";

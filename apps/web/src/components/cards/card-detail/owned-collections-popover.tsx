@@ -5,7 +5,7 @@ import { PackageIcon } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFilterValues } from "@/hooks/use-card-filters";
 import { useOwnedCollections, useOwnedCount } from "@/hooks/use-owned-count";
-import { useSession } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-session";
 import { cn } from "@/lib/utils";
 
 interface OwnedCollectionsPopoverProps {
