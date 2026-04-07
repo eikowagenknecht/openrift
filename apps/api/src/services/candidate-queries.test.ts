@@ -178,7 +178,9 @@ describe("buildCandidateCardList", () => {
 
     const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
-    expect(result[0].uncheckedPrintingCount).toBe(1);
+    // OGN-001 (unchecked, unlinked) + OGN-003 (unchecked, linked) = 2
+    expect(result[0].uncheckedPrintingCount).toBe(2);
+    // stagingShortCodes still only includes unlinked printings
     expect(result[0].stagingShortCodes).toEqual(["OGN-001"]);
   });
 
