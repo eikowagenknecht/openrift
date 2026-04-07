@@ -14,7 +14,7 @@ import { nitro } from "nitro/vite";
 import { defineConfig, loadEnv } from "vite";
 
 const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
-const proxy = { "/api": "http://localhost:3000" };
+const apiTarget = "http://localhost:3000";
 const cardImagesDir = path.resolve(__dirname, "../../card-images");
 
 const repoRoot = path.resolve(__dirname, "../..");
@@ -57,7 +57,12 @@ export default defineConfig(({ mode }) => {
         },
       },
       tanstackStart({ srcDirectory: "src" }),
-      nitro({ preset: "bun" }),
+      nitro({
+        preset: "bun",
+        devProxy: {
+          "/api/**": { target: apiTarget },
+        },
+      }),
       tailwindcss(),
       react(),
       babel({
@@ -118,8 +123,8 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    server: { port: 5173, proxy, forwardConsole: true },
-    preview: { proxy },
+    server: { port: 5173, forwardConsole: true },
+    preview: {},
     resolve: {
       tsconfigPaths: true,
     },
