@@ -42,6 +42,7 @@ type AnyDragData = DeckCardDragData | BrowserCardDragData;
 const DRAG_ACTIVATION = { distance: 8 };
 const DRAG_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow"]);
 const MODIFIERS = [snapCenterToCursor];
+const NO_SENSORS: ReturnType<typeof useSensors> = [];
 const EDGE_SIZE = 40;
 const SCROLL_SPEED = 15;
 
@@ -306,7 +307,7 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
 
   return (
     <DndContext
-      sensors={isMobile ? undefined : sensors}
+      sensors={isMobile ? NO_SENSORS : sensors}
       collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}

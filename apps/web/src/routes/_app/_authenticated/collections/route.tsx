@@ -28,6 +28,7 @@ export const Route = createFileRoute("/_app/_authenticated/collections")({
 });
 
 const DRAG_ACTIVATION = { distance: 8 };
+const NO_SENSORS: ReturnType<typeof useSensors> = [];
 
 // Center the drag overlay under the cursor regardless of where the user grabbed.
 const snapCenterToCursor: Modifier = ({
@@ -94,7 +95,7 @@ function CollectionLayout() {
       <div ref={setTopBarSlot} className="px-3 pt-3" />
       <SidebarProvider className="flex-1">
         <DndContext
-          sensors={isMobile ? undefined : sensors}
+          sensors={isMobile ? NO_SENSORS : sensors}
           collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
