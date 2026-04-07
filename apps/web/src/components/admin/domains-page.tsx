@@ -45,6 +45,7 @@ export function DomainsPage() {
   const columns: AdminColumnDef<DomainRow, DomainDraft>[] = [
     {
       header: "Slug",
+      width: "w-40",
       sortValue: (domain) => domain.slug,
       cell: (domain) => <span className="font-mono text-sm">{domain.slug}</span>,
       addCell: (draft, set) => (
@@ -58,6 +59,7 @@ export function DomainsPage() {
     },
     {
       header: "Label",
+      width: "w-40",
       sortValue: (domain) => domain.label,
       cell: (domain) => <span className="text-sm">{domain.label}</span>,
       editCell: (draft, set) => (
@@ -78,6 +80,7 @@ export function DomainsPage() {
     },
     {
       header: "Color",
+      width: "w-36",
       cell: (domain) =>
         domain.color ? (
           <div className="flex items-center gap-2">
@@ -109,6 +112,7 @@ export function DomainsPage() {
     },
     {
       header: "Preview",
+      width: "w-28",
       cell: (domain) => (
         <Badge
           style={domain.color ? { backgroundColor: domain.color, color: "#ffffff" } : undefined}
@@ -120,6 +124,7 @@ export function DomainsPage() {
     },
     {
       header: "Well-known",
+      width: "w-24",
       cell: (domain) => (
         <span className="text-muted-foreground text-sm">{domain.isWellKnown ? "Yes" : "No"}</span>
       ),
