@@ -10,6 +10,11 @@ import { PROD } from "@/lib/env";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
 
+// CSS side-effect import — TanStack Start's entries don't go through main.tsx,
+// so the stylesheet must be imported from the route tree.
+// oxlint-disable-next-line import/no-unassigned-import -- CSS side-effect import
+import "@/index.css";
+
 const TanStackRouterDevtools = PROD
   ? () => null
   : lazy(async () => {

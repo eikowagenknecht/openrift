@@ -9,6 +9,9 @@ import { EMOJIS, ErrorMessageLayout, HEADINGS, SUBTEXTS, pick } from "@/componen
 export function RouterErrorFallback({ error }: ErrorComponentProps) {
   const normalizedError = error instanceof Error ? error : new Error(String(error));
   Sentry.captureException(normalizedError);
+  if (typeof document === "undefined") {
+    return <ErrorFallback error={normalizedError} />;
+  }
   return createPortal(<ErrorFallback error={normalizedError} />, document.body);
 }
 

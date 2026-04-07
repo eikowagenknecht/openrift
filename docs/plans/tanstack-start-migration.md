@@ -474,6 +474,15 @@ still render client-only initially.
 
 - Delete `apps/web/src/main.tsx` (replaced by `client.tsx`)
 
+- Add **UA-based mobile detection** for SSR. Components that use
+  `useSyncExternalStore` with `matchMedia` (e.g. `useIsMobile` in
+  `card-scatter.tsx`) crash during SSR because there's no viewport on the server.
+  Parse `User-Agent` from the request in `server.ts` (or in `__root.tsx`'s
+  `beforeLoad`), pass an `isMobile` flag through the router context, and expose a
+  `useIsMobile()` hook that reads context on the server and `matchMedia` on the
+  client. This will be needed in multiple places as more components are
+  SSR-rendered.
+
 **Verify:** App builds and hydrates on client. `view-source` shows the HTML
 document shell with `<HeadContent />` rendered meta tags.
 
