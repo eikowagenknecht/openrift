@@ -1,6 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
-import { createIsomorphicFn } from "@tanstack/react-start";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { lazy } from "react";
 
@@ -10,7 +9,6 @@ import { Toaster } from "@/components/ui/sonner";
 import { PROD } from "@/lib/env";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
-import { getRequestCookieHeader } from "@/lib/theme-ssr.server";
 
 // Import CSS as a URL for the head() function (Vite resolves this at build time)
 import indexCss from "@/index.css?url";
@@ -22,37 +20,20 @@ const TanStackRouterDevtools = PROD
       return { default: mod.TanStackRouterDevtools };
     });
 
-/**
- * Parses the theme preference from a cookie header string.
- * The cookie value is JSON-encoded by Zustand persist: {"state":{"preference":"dark"},...}
- *
- * @returns "dark" if the user has an explicit dark preference, "" otherwise.
- */
-function parseThemeCookie(cookieHeader: string): string {
-  try {
-    const match = cookieHeader.match(/(?:^|;\s*)theme=([^;]*)/);
-    if (!match) {
-      return "";
-    }
-    const decoded = decodeURIComponent(match[1]);
-    const parsed = JSON.parse(decoded);
-    const pref = parsed?.state?.preference ?? "auto";
-    // "auto" → "light" (no matchMedia on server, acceptable on client initial render)
-    return pref === "dark" ? "dark" : "";
-  } catch {
-    return "";
-  }
-}
-
-/**
- * Returns the theme class ("dark" or "") to prevent flash of wrong theme.
- * Both client and server read the theme cookie so the hydration output matches.
- *
- * @returns The CSS class to apply to the `<html>` element.
- */
-const getThemeClass = createIsomorphicFn()
-  .client(() => parseThemeCookie(document.cookie))
-  .server(() => parseThemeCookie(getRequestCookieHeader()));
+// Blocking inline script that reads the Zustand-persist theme cookie and
+// applies the correct class to <html> before any CSS is evaluated.
+// Must stay in sync with the cookie format in theme-store.ts / cookie-storage.ts.
+// Handles "auto" by checking matchMedia for system preference.
+const THEME_SCRIPT = [
+  "(function(){try{",
+  String.raw`var m=document.cookie.match(/(?:^|;\s*)theme=([^;]*)/);`,
+  "if(!m)return;",
+  "var p=JSON.parse(decodeURIComponent(m[1]));",
+  "var pref=p&&p.state&&p.state.preference;",
+  'if(pref==="dark"||(pref==="auto"||!pref)&&matchMedia("(prefers-color-scheme:dark)").matches)',
+  'document.documentElement.classList.add("dark")',
+  "}catch(e){}})()",
+].join("");
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
@@ -93,11 +74,12 @@ export const Route = createRootRouteWithContext<{
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const themeClass = getThemeClass();
-
   return (
-    <html lang="en" className={themeClass}>
+    // suppressHydrationWarning: the blocking script below may modify the class
+    // before React hydrates, which is intentional and expected.
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <HeadContent />
       </head>
       <body>
