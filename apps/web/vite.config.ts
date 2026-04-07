@@ -62,6 +62,13 @@ export default defineConfig(({ mode }) => {
         devProxy: {
           "/api/**": { target: apiTarget },
         },
+        publicAssets: [
+          {
+            baseURL: "card-images",
+            dir: "../../card-images",
+            maxAge: 3600,
+          },
+        ],
       }),
       tailwindcss(),
       react(),
