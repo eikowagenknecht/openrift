@@ -62,6 +62,9 @@ export default defineConfig(({ mode }) => {
         devProxy: {
           "/api/**": { target: apiTarget },
         },
+        routeRules: {
+          "/api/**": { proxy: `${apiTarget}/api/**` },
+        },
         publicAssets: [
           {
             baseURL: "card-images",
