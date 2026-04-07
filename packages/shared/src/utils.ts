@@ -181,7 +181,7 @@ export function mostCommonValue(items: string[]): string {
 }
 
 /**
- * Deduplicate and alpha-sort short codes as "OGN-027, OGN-027a ×2" entries.
+ * Deduplicate short codes as "OGN-027, OGN-027a ×2" entries, preserving input order.
  * @returns An array of formatted entries, or `[]` if the input is empty.
  */
 export function formatShortCodesArray(ids: string[]): string[] {
@@ -192,13 +192,11 @@ export function formatShortCodesArray(ids: string[]): string[] {
   for (const id of ids) {
     counts.set(id, (counts.get(id) ?? 0) + 1);
   }
-  return [...counts.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([id, n]) => (n > 1 ? `${id} ×${n}` : id));
+  return [...counts.entries()].map(([id, n]) => (n > 1 ? `${id} ×${n}` : id));
 }
 
 /**
- * Format short codes as "OGN-027, OGN-027a ×2" (counted + alpha-sorted).
+ * Format short codes as "OGN-027, OGN-027a ×2" (counted, input order preserved).
  * @returns A formatted string, or `""` if the array is empty.
  */
 export function formatShortCodes(ids: string[]): string {

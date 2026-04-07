@@ -140,11 +140,25 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All printings with fields needed for the card source list. */
+    /** @returns All printings with fields needed for the card source list, sorted deterministically. */
     listPrintingsForSourceList(): Promise<
       Pick<Selectable<PrintingsTable>, "cardId" | "shortCode" | "language">[]
     > {
-      return db.selectFrom("printings").select(["cardId", "shortCode", "language"]).execute();
+      return (
+        db
+          .selectFrom("printings as p")
+          .innerJoin("finishes as f", "f.slug", "p.finish")
+          .leftJoin("promoTypes as pt", "pt.id", "p.promoTypeId")
+          .innerJoin("languages as l", "l.code", "p.language")
+          .select(["p.cardId", "p.shortCode", "p.language"])
+          .orderBy("p.shortCode")
+          .orderBy("f.sortOrder")
+          // oxlint-disable-next-line promise/prefer-await-to-then -- Kysely CASE/WHEN/THEN, not Promise.then
+          .orderBy((eb) => eb.case().when("pt.slug", "is", null).then(0).else(1).end())
+          .orderBy("pt.slug")
+          .orderBy("l.sortOrder")
+          .execute()
+      );
     },
 
     /** @returns Cards where at least one printing has no active front-face image. */
@@ -170,26 +184,37 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All candidate printings with fields needed for the card source list. */
+    /** @returns All candidate printings with fields needed for the card source list, sorted deterministically. */
     listCandidatePrintingsForSourceList(): Promise<
       Pick<
         Selectable<CandidatePrintingsTable>,
         "candidateCardId" | "shortCode" | "checkedAt" | "printingId" | "language"
       >[]
     > {
-      return db
-        .selectFrom("candidatePrintings as ps")
-        .innerJoin("candidateCards as cs", "cs.id", "ps.candidateCardId")
-        .select([
-          "ps.candidateCardId",
-          "ps.shortCode",
-          "ps.checkedAt",
-          "ps.printingId",
-          "ps.language",
-        ])
-        .where(notIgnoredPrinting("ps", "cs"))
-        .where(notHiddenSource("cs"))
-        .execute();
+      return (
+        db
+          .selectFrom("candidatePrintings as ps")
+          .innerJoin("candidateCards as cs", "cs.id", "ps.candidateCardId")
+          .leftJoin("finishes as f", "f.slug", "ps.finish")
+          .leftJoin("promoTypes as pt", "pt.id", "ps.promoTypeId")
+          .leftJoin("languages as l", "l.code", "ps.language")
+          .select([
+            "ps.candidateCardId",
+            "ps.shortCode",
+            "ps.checkedAt",
+            "ps.printingId",
+            "ps.language",
+          ])
+          .where(notIgnoredPrinting("ps", "cs"))
+          .where(notHiddenSource("cs"))
+          .orderBy("ps.shortCode")
+          .orderBy("f.sortOrder")
+          // oxlint-disable-next-line promise/prefer-await-to-then -- Kysely CASE/WHEN/THEN, not Promise.then
+          .orderBy((eb) => eb.case().when("pt.slug", "is", null).then(0).else(1).end())
+          .orderBy("pt.slug")
+          .orderBy("l.sortOrder")
+          .execute()
+      );
     },
 
     /** @returns Distinct artist names from published printings, ordered alphabetically. */
