@@ -4,7 +4,7 @@ import { EUR_MARKETPLACES } from "@openrift/shared";
 import type { EnumLabels } from "@/hooks/use-enums";
 
 /** Fallback labels for when DB-derived labels are not available. */
-export const DEFAULT_ENUM_LABELS: EnumLabels = {
+const DEFAULT_ENUM_LABELS: EnumLabels = {
   finishes: { normal: "Normal", foil: "Foil" },
   rarities: {
     Common: "Common",
