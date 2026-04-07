@@ -462,32 +462,27 @@ function PreviewStep({
         )}
 
         <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium" htmlFor="target-collection">
-              Target collection
-            </label>
-            <Select
-              value={collectionId}
-              onValueChange={(value) => onCollectionChange(value ?? "")}
-              items={{
-                ...Object.fromEntries(collections.map((col) => [col.id, col.name])),
-                __new__: "+ Create new collection",
-              }}
-            >
-              <SelectTrigger className="w-[240px]" id="target-collection">
-                <SelectValue placeholder="Select collection..." />
-              </SelectTrigger>
-              <SelectContent>
-                {collections.map((col) => (
-                  <SelectItem key={col.id} value={col.id}>
-                    {col.name}
-                  </SelectItem>
-                ))}
-                <SelectSeparator />
-                <SelectItem value="__new__">+ Create new collection</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <Select
+            value={collectionId}
+            onValueChange={(value) => onCollectionChange(value ?? "")}
+            items={{
+              ...Object.fromEntries(collections.map((col) => [col.id, col.name])),
+              __new__: "+ Create new collection",
+            }}
+          >
+            <SelectTrigger className="mb-0 w-[240px]">
+              <SelectValue placeholder="Target collection..." />
+            </SelectTrigger>
+            <SelectContent>
+              {collections.map((col) => (
+                <SelectItem key={col.id} value={col.id}>
+                  {col.name}
+                </SelectItem>
+              ))}
+              <SelectSeparator />
+              <SelectItem value="__new__">+ Create new collection</SelectItem>
+            </SelectContent>
+          </Select>
 
           {collectionId === "__new__" && (
             <div className="space-y-1.5">
