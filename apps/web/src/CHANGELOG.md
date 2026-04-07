@@ -7,6 +7,7 @@
 - feat: Providers can now be marked as favorites, and the Review badge on the cards page only counts unchecked candidates from favorite providers
 - feat: Search bar placeholder now shows which fields are being searched when the scope is narrowed (e.g. "Search by name, artist...")
 - fix: Search bar in copies view now shows the total number of copies instead of unique printings
+- fix: Deleting or moving more than 500 cards at once no longer fails with a validation error
 
 ## 2026-04-06
 
