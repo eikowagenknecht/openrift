@@ -1,5 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
+import { HeadContent, Scripts, createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { lazy } from "react";
 
@@ -20,6 +20,7 @@ const TanStackRouterDevtools = PROD
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
 }>()({
+  shellComponent: RootShell,
   beforeLoad: async ({ context }) => {
     try {
       await context.queryClient.ensureQueryData(featureFlagsQueryOptions);
@@ -37,6 +38,28 @@ export const Route = createRootRouteWithContext<{
   component: RootComponent,
   notFoundComponent: RouteNotFoundFallback,
 });
+
+function RootShell({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="description" content="Built with Fury. Maintained with Calm." />
+        <meta name="theme-color" content="#1d1538" />
+        <meta name="impact-site-verification" content="5a360cf2-9e98-4886-8c05-4e2e1a39ce0e" />
+        <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64x64.png" />
+        <link rel="icon" type="image/webp" href="/logo.webp" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
+    </html>
+  );
+}
 
 function RootComponent() {
   return (

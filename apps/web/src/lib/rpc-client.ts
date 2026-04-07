@@ -17,7 +17,22 @@ function createRpcClient(baseUrl: string) {
   return hc<AppType>(baseUrl, { init: { credentials: "include" } });
 }
 
-export const client = createRpcClient(getBaseUrl());
+let _client: ReturnType<typeof createRpcClient> | null = null;
+
+export function getClient() {
+  if (!_client) {
+    _client = createRpcClient(getBaseUrl());
+  }
+  return _client;
+}
+
+// Re-export as `client` for backward compatibility. Uses a getter so the
+// singleton is created lazily (avoids crashing when imported during SSR).
+export const client = new Proxy({} as ReturnType<typeof createRpcClient>, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getClient(), prop, receiver);
+  },
+});
 
 /** Throw an ApiError if the response is not ok. */
 export function assertOk(res: { ok: boolean; status: number }) {

@@ -5,9 +5,8 @@ import { createRoot } from "react-dom/client";
 
 import { ErrorBoundary } from "./components/error-fallback";
 import { preventIOSOverscroll } from "./lib/ios-overscroll-prevention";
-import { createQueryClient } from "./lib/query-client";
 import { initSentry } from "./lib/sentry";
-import { createAppRouter } from "./router";
+import { getRouter } from "./router";
 
 // oxlint-disable-next-line import/no-unassigned-import -- CSS side-effect import
 import "./index.css";
@@ -15,9 +14,7 @@ import "./index.css";
 initSentry();
 preventIOSOverscroll();
 
-const queryClient = createQueryClient();
-
-const router = createAppRouter(queryClient);
+const router = getRouter();
 
 const root = document.querySelector<HTMLElement>("#root");
 if (!root) {
@@ -27,7 +24,7 @@ if (!root) {
 createRoot(root).render(
   <StrictMode>
     <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={router.options.context.queryClient}>
         <RouterProvider router={router} />
       </QueryClientProvider>
     </ErrorBoundary>
