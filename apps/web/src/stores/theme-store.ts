@@ -65,7 +65,7 @@ export const useThemeStore = create<ThemeState>()(
       // on state changes, so without this the cookie would be missing until the
       // user explicitly changes the theme or signs in.
       onRehydrateStorage: () => (state) => {
-        if (typeof document !== "undefined" && state) {
+        if (typeof document !== "undefined" && state && cookieStorage) {
           cookieStorage.setItem("theme", { state: { preference: state.preference } });
         }
       },
