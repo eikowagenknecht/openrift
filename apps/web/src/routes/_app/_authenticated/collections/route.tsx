@@ -8,34 +8,19 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { ChevronDownIcon } from "lucide-react";
-import { createContext, use, useEffect, useState } from "react";
+import { createContext, useState } from "react";
 import { toast } from "sonner";
 
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
 import type { CardDragData } from "@/components/collection/dnd-types";
 import { Footer } from "@/components/layout/footer";
-import { Button } from "@/components/ui/button";
-import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { getCardImageUrl } from "@/lib/images";
 
-type SetTitle = (title: string) => void;
-
-// oxlint-disable-next-line no-empty-function -- default is a no-op before the provider mounts
-const CollectionTitleContext = createContext<SetTitle>(() => {});
-
-/** Call from a child route to set the collection layout header title. */
-export function useCollectionTitle(title: string) {
-  const setTitle = use(CollectionTitleContext);
-  useEffect(() => {
-    setTitle(title);
-  }, [setTitle, title]);
-}
-
-/** Portal slot for mobile header actions (add-mode controls and collection action buttons). */
-export const AddModeSlotContext = createContext<HTMLDivElement | null>(null);
+/** Portal slot for the full-width top bar rendered above the sidebar + content row. */
+export const TopBarSlotContext = createContext<HTMLDivElement | null>(null);
 
 export const Route = createFileRoute("/_app/_authenticated/collections")({
   staticData: { hideFooter: true },
@@ -65,7 +50,7 @@ const snapCenterToCursor: Modifier = ({
 
 function CollectionLayout() {
   const isMobile = useIsMobile();
-  const [title, setTitle] = useState("Collection");
+  const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const [activeDrag, setActiveDrag] = useState<CardDragData | null>(null);
   const moveCopies = useMoveCopies();
 
@@ -105,60 +90,37 @@ function CollectionLayout() {
   };
 
   return (
-    <SidebarProvider>
-      <DndContext
-        sensors={isMobile ? undefined : sensors}
-        collisionDetection={pointerWithin}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={() => setActiveDrag(null)}
-      >
-        <CollectionSidebar />
-        <CollectionTitleContext value={setTitle}>
-          <CollectionContent title={title} />
-        </CollectionTitleContext>
-        <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
-          {activeDrag && <DragPreview drag={activeDrag} />}
-        </DragOverlay>
-      </DndContext>
-    </SidebarProvider>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div ref={setTopBarSlot} className="px-3 pt-3" />
+      <SidebarProvider>
+        <DndContext
+          sensors={isMobile ? undefined : sensors}
+          collisionDetection={pointerWithin}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => setActiveDrag(null)}
+        >
+          <TopBarSlotContext value={topBarSlot}>
+            <CollectionSidebar />
+            <CollectionContent />
+          </TopBarSlotContext>
+          <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
+            {activeDrag && <DragPreview drag={activeDrag} />}
+          </DragOverlay>
+        </DndContext>
+      </SidebarProvider>
+    </div>
   );
 }
 
-function CollectionTitleButton({ title }: { title: string }) {
-  const { toggleSidebar } = useSidebar();
-
+function CollectionContent() {
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="-ml-2 gap-1 text-sm font-medium"
-      onClick={toggleSidebar}
-    >
-      {title}
-      <ChevronDownIcon className="text-muted-foreground size-4" />
-    </Button>
-  );
-}
-
-function CollectionContent({ title }: { title: string }) {
-  const [addModeSlot, setAddModeSlot] = useState<HTMLDivElement | null>(null);
-
-  return (
-    <AddModeSlotContext value={addModeSlot}>
-      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip p-3">
-        {/* Header only for mobile */}
-        <header className="flex h-12 items-center gap-2 px-4 md:hidden">
-          <CollectionTitleButton title={title} />
-          <div ref={setAddModeSlot} className="flex flex-1 items-center gap-2" />
-        </header>
-        {/* Main content */}
-        <div className="flex flex-1 flex-col pb-3">
-          <Outlet />
-        </div>
-        <Footer />
+    <div className="flex min-w-0 flex-1 flex-col overflow-x-clip px-3 pb-3">
+      <div className="flex flex-1 flex-col pb-3">
+        <Outlet />
       </div>
-    </AddModeSlotContext>
+      <Footer />
+    </div>
   );
 }
 

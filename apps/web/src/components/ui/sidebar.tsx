@@ -665,6 +665,20 @@ function SidebarMenuSubButton({
 
 // custom: wrapper for sidebars nested below the app header
 function NestedSidebar({ className, ...props }: React.ComponentProps<typeof Sidebar>) {
+  const [isStuck, setIsStuck] = React.useState(false);
+
+  // custom: detect when the sidebar is in its sticky position (scrolled past its natural offset)
+  React.useEffect(() => {
+    const handleScroll = () => {
+      // Sticky top is calc(3.5rem + 1px) ≈ 57px. Any scroll means the top bar area
+      // has started scrolling away, so the sidebar is stuck or about to be.
+      setIsStuck(globalThis.scrollY > 0);
+    };
+    globalThis.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => globalThis.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <Sidebar
       className={cn(
@@ -673,6 +687,8 @@ function NestedSidebar({ className, ...props }: React.ComponentProps<typeof Side
         // overflow-hidden!: prevent sidebar from scrolling externally (SidebarContent scrolls internally)
         // w-0!: collapse width when offcanvas — sticky elements can't slide off-screen like fixed ones
         "sticky! top-[calc(3.5rem+1px)] h-[calc(100svh-3.5rem-1px)]! overflow-hidden! border-0! group-data-[collapsible=offcanvas]:w-0!",
+        // custom: round top corners when not in sticky position
+        !isStuck && "rounded-t-lg!",
         className,
       )}
       {...props}

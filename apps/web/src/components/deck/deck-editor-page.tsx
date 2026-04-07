@@ -1,23 +1,23 @@
 import type { DeckZone } from "@openrift/shared";
-import { Link } from "@tanstack/react-router";
-import {
-  ArrowLeftIcon,
-  EllipsisVerticalIcon,
-  PencilIcon,
-  PrinterIcon,
-  Share2Icon,
-  XIcon,
-} from "lucide-react";
+import { EllipsisVerticalIcon, PencilIcon, PrinterIcon, Share2Icon, XIcon } from "lucide-react";
 import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { DeckCardBrowser } from "@/components/deck/deck-card-browser";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckRenameDialog } from "@/components/deck/deck-rename-dialog";
-import { DeckValidationBanner } from "@/components/deck/deck-validation-banner";
+import { DeckFormatBadge, DeckSaveStatus } from "@/components/deck/deck-validation-banner";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { ProxyExportDialog } from "@/components/deck/proxy-export-dialog";
+import { Footer } from "@/components/layout/footer";
+import {
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarBack,
+  PageTopBarTitle,
+} from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -35,78 +35,22 @@ import {
 import { useCards } from "@/hooks/use-cards";
 import { useDeckDetail, useSaveDeckCards } from "@/hooks/use-decks";
 import { getCardImageUrl } from "@/lib/images";
-import { cn, CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
+import { cn, CONTAINER_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { toDeckBuilderCard, useDeckBuilderStore } from "@/stores/deck-builder-store";
 
+const ZONE_LABELS: Record<DeckZone, string> = {
+  legend: "Legend",
+  champion: "Chosen Champion",
+  runes: "Runes",
+  battlefield: "Battlefields",
+  main: "Main Deck",
+  sideboard: "Sideboard",
+  overflow: "Overflow",
+};
+
 interface DeckEditorPageProps {
   deckId: string;
-}
-
-function DeckEditorHeader({ deckId, isDirty }: { deckId: string; isDirty: boolean }) {
-  const { data } = useDeckDetail(deckId);
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
-  const [proxyOpen, setProxyOpen] = useState(false);
-
-  return (
-    <div>
-      <div className={cn(CONTAINER_WIDTH, "flex items-center gap-3 px-3 py-2")}>
-        <Link to="/decks" className="hover:bg-muted rounded-md p-1">
-          <ArrowLeftIcon className="size-5" />
-        </Link>
-
-        <h1 className="min-w-0 flex-1 truncate px-2 py-1 text-lg font-semibold">
-          {data.deck.name}
-        </h1>
-
-        {/* custom: desktop — inline export buttons */}
-        <div className="hidden md:flex md:items-center md:gap-2">
-          <DeckExportDialog deckId={deckId} deckName={data.deck.name} isDirty={isDirty} />
-          <ProxyExportDialog />
-        </div>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
-            <EllipsisVerticalIcon className="size-4" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setRenameOpen(true)}>
-              <PencilIcon className="size-4" />
-              Rename
-            </DropdownMenuItem>
-            {/* custom: mobile-only export actions (desktop shows inline buttons) */}
-            <div className="md:hidden">
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setExportOpen(true)}>
-                <Share2Icon className="size-4" />
-                Export
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setProxyOpen(true)}>
-                <PrinterIcon className="size-4" />
-                Proxies
-              </DropdownMenuItem>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DeckRenameDialog
-          deckId={deckId}
-          currentName={data.deck.name}
-          open={renameOpen}
-          onOpenChange={setRenameOpen}
-        />
-        <DeckExportDialog
-          deckId={deckId}
-          deckName={data.deck.name}
-          isDirty={isDirty}
-          open={exportOpen}
-          onOpenChange={setExportOpen}
-        />
-        <ProxyExportDialog open={proxyOpen} onOpenChange={setProxyOpen} />
-      </div>
-    </div>
-  );
 }
 
 function MobileSidebarHeader() {
@@ -218,14 +162,25 @@ function buildZoneFilterUpdate(
 const AUTO_SAVE_DELAY = 1000;
 
 export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
+  const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
+
   return (
-    <SidebarProvider defaultOpen>
-      <DeckEditorContent deckId={deckId} />
-    </SidebarProvider>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div ref={setTopBarSlot} className="px-3 pt-3" />
+      <SidebarProvider defaultOpen>
+        <DeckEditorContent deckId={deckId} topBarSlot={topBarSlot} />
+      </SidebarProvider>
+    </div>
   );
 }
 
-function DeckEditorContent({ deckId }: { deckId: string }) {
+function DeckEditorContent({
+  deckId,
+  topBarSlot,
+}: {
+  deckId: string;
+  topBarSlot: HTMLDivElement | null;
+}) {
   const { data } = useDeckDetail(deckId);
   const init = useDeckBuilderStore((state) => state.init);
   const reset = useDeckBuilderStore((state) => state.reset);
@@ -239,7 +194,11 @@ function DeckEditorContent({ deckId }: { deckId: string }) {
   const lastSuggestedZone = useRef<DeckZone | null>(null);
   const saveDeckCards = useSaveDeckCards();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
+  const activeZone = useDeckBuilderStore((state) => state.activeZone);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [proxyOpen, setProxyOpen] = useState(false);
 
   // Initialize store when deck data loads or changes
   useEffect(() => {
@@ -395,21 +354,81 @@ function DeckEditorContent({ deckId }: { deckId: string }) {
     return frontImage ? getCardImageUrl(frontImage.url, "thumbnail") : null;
   })();
 
+  const zoneCount = deckCards
+    .filter((card) => card.zone === activeZone)
+    .reduce((sum, card) => sum + card.quantity, 0);
+
   if (storeId !== deckId) {
     return null;
   }
 
   return (
     <div className="flex min-w-0 flex-1 flex-col">
-      <DeckEditorHeader deckId={deckId} isDirty={isDirty} />
-      <DeckValidationBanner isDirty={isDirty} isSaving={saveDeckCards.isPending} />
+      {topBarSlot &&
+        createPortal(
+          <PageTopBar>
+            <PageTopBarBack to="/decks" />
+            <PageTopBarTitle onToggleSidebar={toggleSidebar}>
+              <span className="md:hidden">
+                {ZONE_LABELS[activeZone]}
+                <span className="text-muted-foreground ml-1">({zoneCount})</span>
+              </span>
+              <span className="hidden md:inline">{data.deck.name}</span>
+            </PageTopBarTitle>
+            <DeckFormatBadge />
+            <PageTopBarActions>
+              <DeckSaveStatus isDirty={isDirty} isSaving={saveDeckCards.isPending} />
+              <div className="hidden md:flex md:items-center md:gap-1">
+                <DeckExportDialog deckId={deckId} deckName={data.deck.name} isDirty={isDirty} />
+                <ProxyExportDialog />
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+                  <EllipsisVerticalIcon className="size-4" />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setRenameOpen(true)}>
+                    <PencilIcon className="size-4" />
+                    Rename
+                  </DropdownMenuItem>
+                  <div className="md:hidden">
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setExportOpen(true)}>
+                      <Share2Icon className="size-4" />
+                      Export
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setProxyOpen(true)}>
+                      <PrinterIcon className="size-4" />
+                      Proxies
+                    </DropdownMenuItem>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </PageTopBarActions>
+          </PageTopBar>,
+          topBarSlot,
+        )}
+      <DeckRenameDialog
+        deckId={deckId}
+        currentName={data.deck.name}
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+      />
+      <DeckExportDialog
+        deckId={deckId}
+        deckName={data.deck.name}
+        isDirty={isDirty}
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+      />
+      <ProxyExportDialog open={proxyOpen} onOpenChange={setProxyOpen} />
       <DeckDndContext>
         <div
           ref={containerRef}
-          className={cn(CONTAINER_WIDTH, PAGE_PADDING, "relative flex gap-4")}
+          className={cn(CONTAINER_WIDTH, PAGE_PADDING_NO_TOP, "relative flex gap-4")}
         >
           <NestedSidebar
-            className="w-(--sidebar-width)!"
+            className="mt-3 w-(--sidebar-width)!"
             style={{ "--sidebar-width": "18rem" } as React.CSSProperties}
           >
             <MobileSidebarHeader />
@@ -434,6 +453,7 @@ function DeckEditorContent({ deckId }: { deckId: string }) {
           </div>
         </div>
       </DeckDndContext>
+      <Footer className="px-3 pb-3" />
     </div>
   );
 }

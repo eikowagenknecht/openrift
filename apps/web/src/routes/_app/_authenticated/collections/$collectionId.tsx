@@ -7,8 +7,6 @@ import { catalogQueryOptions } from "@/hooks/use-cards";
 import { collectionsQueryOptions, useCollectionsMap } from "@/hooks/use-collections";
 import { copiesQueryOptions } from "@/hooks/use-copies";
 
-import { useCollectionTitle } from "./route";
-
 export const Route = createFileRoute("/_app/_authenticated/collections/$collectionId")({
   loader: async ({ context, params }) => {
     const [collections] = await Promise.all([
@@ -29,6 +27,5 @@ function CollectionDetail() {
   const { collectionId } = Route.useParams();
   const collectionsMap = useCollectionsMap();
   const collection = collectionsMap.get(collectionId);
-  useCollectionTitle(collection?.name ?? "Collection");
-  return <CollectionGrid collectionId={collectionId} />;
+  return <CollectionGrid collectionId={collectionId} title={collection?.name ?? "Collection"} />;
 }
