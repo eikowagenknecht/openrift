@@ -14,7 +14,7 @@ export const CONTAINER_WIDTH =
   "w-full mx-auto max-w-7xl wide:max-w-(--container-max-wide) xwide:max-w-(--container-max-xwide) xxwide:max-w-(--container-max-xxwide)";
 
 /** Horizontal page padding — shared axis constant for one-off compositions. */
-export const PAGE_X = "px-3";
+const PAGE_X = "px-3";
 
 /** Standard page padding applied by leaf routes that want the default inset. */
 export const PAGE_PADDING = `${PAGE_X} py-3`;
