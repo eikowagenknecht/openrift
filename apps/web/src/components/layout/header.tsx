@@ -110,19 +110,6 @@ function DesktopNav({
             Cards
           </NavigationMenuLink>
         </NavigationMenuItem>
-        {showRules && (
-          <NavigationMenuItem>
-            <NavigationMenuLink
-              render={<Link to="/rules" />}
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "data-[status=active]:bg-muted data-[status=active]:font-semibold",
-              )}
-            >
-              Rules
-            </NavigationMenuLink>
-          </NavigationMenuItem>
-        )}
         {showCollection && (
           <NavigationMenuItem>
             <NavigationMenuLink
@@ -132,7 +119,7 @@ function DesktopNav({
                 "data-[status=active]:bg-muted data-[status=active]:font-semibold",
               )}
             >
-              Collections
+              Collection
             </NavigationMenuLink>
           </NavigationMenuItem>
         )}
@@ -143,6 +130,19 @@ function DesktopNav({
               className={navigationMenuTriggerStyle()}
             >
               Decks
+            </NavigationMenuLink>
+          </NavigationMenuItem>
+        )}
+        {showRules && (
+          <NavigationMenuItem>
+            <NavigationMenuLink
+              render={<Link to="/rules" />}
+              className={cn(
+                navigationMenuTriggerStyle(),
+                "data-[status=active]:bg-muted data-[status=active]:font-semibold",
+              )}
+            >
+              Rules
             </NavigationMenuLink>
           </NavigationMenuItem>
         )}
