@@ -288,6 +288,21 @@ export function useCheckProvider() {
   });
 }
 
+export function useAcceptFavoritePrintings() {
+  return useMutationWithInvalidation({
+    mutationFn: async (cardSlug: string) => {
+      const res = await client.api.v1.admin["cards"][":cardSlug"][
+        "accept-favorite-printings"
+      ].$post({
+        param: { cardSlug },
+      });
+      assertOk(res);
+      return await res.json();
+    },
+    invalidates: [queryKeys.admin.cards.all],
+  });
+}
+
 export function useDeleteProvider() {
   return useMutationWithInvalidation({
     mutationFn: async (provider: string) => {

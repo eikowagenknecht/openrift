@@ -9,12 +9,14 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { SearchIcon } from "lucide-react";
+import { LoaderIcon, SearchIcon, StarIcon } from "lucide-react";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { PrintingsCell } from "@/components/admin/printings-cell";
 import { SortableHeader } from "@/components/admin/sortable-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -24,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAcceptFavoritePrintings } from "@/hooks/use-admin-card-mutations";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -31,6 +34,53 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 type Row = CandidateCardSummaryResponse;
+
+// ---------------------------------------------------------------------------
+// Accept button component (needs hooks)
+// ---------------------------------------------------------------------------
+
+function AcceptFavoriteButton({ cardSlug }: { cardSlug: string }) {
+  const acceptFavorite = useAcceptFavoritePrintings();
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="h-6 gap-1 px-2 text-xs"
+      disabled={acceptFavorite.isPending}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        acceptFavorite.mutate(cardSlug, {
+          onSuccess: (data) => {
+            const result = data as {
+              printingsCreated: number;
+              skipped: { shortCode: string; reason: string }[];
+            };
+            if (result.printingsCreated > 0 && result.skipped.length === 0) {
+              toast.success(
+                `Accepted ${result.printingsCreated} printing${result.printingsCreated === 1 ? "" : "s"}`,
+              );
+            } else if (result.printingsCreated > 0 && result.skipped.length > 0) {
+              toast.warning(
+                `Accepted ${result.printingsCreated}, skipped ${result.skipped.length}: ${result.skipped.map((s) => `${s.shortCode} (${s.reason})`).join(", ")}`,
+              );
+            } else if (result.skipped.length > 0) {
+              toast.error(
+                `All skipped: ${result.skipped.map((s) => `${s.shortCode} (${s.reason})`).join(", ")}`,
+              );
+            } else {
+              toast.info("No printings to accept");
+            }
+          },
+        });
+      }}
+    >
+      {acceptFavorite.isPending ? <LoaderIcon className="animate-spin" /> : <StarIcon />}
+      Accept
+    </Button>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Column definitions
@@ -65,7 +115,16 @@ const columns: ColumnDef<Row>[] = [
     header: "Printings",
     enableSorting: false,
     enableGlobalFilter: false,
-    cell: ({ row }) => <PrintingsCell row={row.original} />,
+    cell: ({ row }) => (
+      <span className="flex items-center gap-2">
+        <PrintingsCell row={row.original} />
+        {row.original.cardSlug &&
+          row.original.hasFavorite &&
+          row.original.stagingShortCodes.length > 0 && (
+            <AcceptFavoriteButton cardSlug={row.original.cardSlug} />
+          )}
+      </span>
+    ),
   },
 ];
 
@@ -99,6 +158,11 @@ export function AcceptedCardsTable({ data }: { data: Row[] }) {
 
   const rows = table.getRowModel().rows;
 
+  // Count cards that have the accept button
+  const acceptableCount = data.filter(
+    (r) => r.cardSlug && r.hasFavorite && r.stagingShortCodes.length > 0,
+  ).length;
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -112,6 +176,11 @@ export function AcceptedCardsTable({ data }: { data: Row[] }) {
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-muted-foreground">
           {rows.length} of {data.length} cards
+          {acceptableCount > 0 && (
+            <span className="ml-2 text-orange-600">
+              ({acceptableCount} with pending ★ printings)
+            </span>
+          )}
         </p>
 
         <div className="relative ml-auto">

@@ -7,6 +7,7 @@ import { normalizeNameForMatching } from "@openrift/shared/utils";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../../errors.js";
+import { acceptFavoritePrintingsForCard } from "../../../services/accept-favorite-printings.js";
 import { acceptGalleryForNewCard } from "../../../services/accept-gallery.js";
 import {
   acceptPrinting,
@@ -248,6 +249,29 @@ const acceptGallery = createRoute({
         },
       },
       description: "Gallery accepted",
+    },
+  },
+});
+
+const acceptFavoritePrintings = createRoute({
+  method: "post",
+  path: "/{cardSlug}/accept-favorite-printings",
+  tags: ["Admin - Cards"],
+  request: {
+    params: z.object({ cardSlug: z.string() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            printingsCreated: z.number(),
+            imagesRehosted: z.number(),
+            skipped: z.array(z.object({ shortCode: z.string(), reason: z.string() })),
+          }),
+        },
+      },
+      description: "Favorite printings accepted",
     },
   },
 });
@@ -831,6 +855,26 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       c.get("io"),
       { candidateCards, candidateMutations, printingImages, promoTypes },
       normalizedName,
+    );
+
+    return c.json(result);
+  })
+
+  // ── POST /:cardSlug/accept-favorite-printings ─────────────────────────────
+  // Accept all unlinked candidate printings from favorite providers for an existing card
+  .openapi(acceptFavoritePrintings, async (c) => {
+    const { candidateCards, candidateMutations, printingImages, promoTypes, providerSettings } =
+      c.get("repos");
+    const cardSlug = c.req.valid("param").cardSlug;
+
+    const favoriteProviders = await providerSettings.favoriteProviders();
+
+    const result = await acceptFavoritePrintingsForCard(
+      c.get("transact"),
+      c.get("io"),
+      { candidateCards, candidateMutations, printingImages, promoTypes },
+      cardSlug,
+      favoriteProviders,
     );
 
     return c.json(result);
