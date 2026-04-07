@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 8YuHTc7LB0gu2SthPuaeXBjj9Hp6USYGkU8M0gADcTmpnB20m560tOrfkj4zLTr
+\restrict zdrtypmRrYhoybPEz0cq9nLB3lJFOvfHJzAsBYr5hrANzbStcHE82tnaJLV8iR8
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -505,7 +505,9 @@ CREATE TABLE public.domains (
     slug text NOT NULL,
     label text NOT NULL,
     sort_order smallint NOT NULL,
-    is_well_known boolean DEFAULT false NOT NULL
+    is_well_known boolean DEFAULT false NOT NULL,
+    color text,
+    CONSTRAINT chk_domains_color CHECK ((color ~ '^#[0-9a-fA-F]{6}$'::text))
 );
 
 
@@ -841,6 +843,7 @@ CREATE TABLE public.provider_settings (
     is_hidden boolean DEFAULT false CONSTRAINT source_settings_is_hidden_not_null NOT NULL,
     created_at timestamp with time zone DEFAULT now() CONSTRAINT source_settings_created_at_not_null NOT NULL,
     updated_at timestamp with time zone DEFAULT now() CONSTRAINT source_settings_updated_at_not_null NOT NULL,
+    is_favorite boolean DEFAULT false NOT NULL,
     CONSTRAINT provider_settings_provider_check CHECK ((provider <> ''::text))
 );
 
@@ -2709,5 +2712,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 8YuHTc7LB0gu2SthPuaeXBjj9Hp6USYGkU8M0gADcTmpnB20m560tOrfkj4zLTr
+\unrestrict zdrtypmRrYhoybPEz0cq9nLB3lJFOvfHJzAsBYr5hrANzbStcHE82tnaJLV8iR8
 
