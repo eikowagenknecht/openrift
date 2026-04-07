@@ -155,6 +155,8 @@ export { inferZone } from "./zone-inference.js";
 
 export { WellKnown } from "./well-known.js";
 
+export { appendSetTotal, fixTypography } from "./fix-typography.js";
+
 export type { DeckCard, DeckState, DeckViolation, DeckRule } from "./deck-rules.js";
 export {
   STANDARD_RULES,

@@ -26,6 +26,7 @@ import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
 import { CardBanManager } from "@/components/admin/card-ban-manager";
 import {
   buildPrintingGroups,
+  buildPrintingNormalizer,
   buildSourceLabels,
   deduplicateSourceImages,
   useCardDetailData,
@@ -610,6 +611,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                       providerLabels={sourceLabels}
                       providerNames={sourceNames}
                       providerSettings={providerSettings}
+                      normalizeCandidate={buildPrintingNormalizer(setTotals, printing.setSlug)}
                       onCellClick={(field, value) => {
                         acceptPrintingField.mutate({
                           printingId,

@@ -4,6 +4,7 @@ import type {
   CandidatePrintingResponse,
   ProviderSettingResponse,
 } from "@openrift/shared";
+import { appendSetTotal, fixTypography } from "@openrift/shared";
 
 import type { FieldDef, PrintingGroup } from "@/components/admin/candidate-spreadsheet";
 import {
@@ -176,5 +177,41 @@ export function sortByProviderOrder(providerSettings: ProviderSettingResponse[])
       return aOrder - bOrder;
     }
     return aLabel.localeCompare(bLabel);
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Utility: normalize candidate printing values for comparison
+// ---------------------------------------------------------------------------
+
+/** Fields where `fixTypography()` is applied with default options on accept. */
+const TYPOGRAPHY_FIELDS = new Set(["printedRulesText", "printedEffectText"]);
+
+/**
+ * Build a normalizer that mirrors the server-side transformations applied when
+ * accepting a printing field from a provider. This lets the comparison in
+ * CandidateSpreadsheet treat formatting-only differences as equal.
+ *
+ * @returns A normalizeCandidate callback suitable for the CandidateSpreadsheet prop.
+ */
+export function buildPrintingNormalizer(
+  setTotals: Record<string, number>,
+  candidateSetSlug?: string | null,
+): (fieldKey: string, value: unknown) => unknown {
+  const printedTotal = candidateSetSlug ? (setTotals[candidateSetSlug] ?? null) : null;
+  return (fieldKey: string, value: unknown): unknown => {
+    if (typeof value !== "string") {
+      return value;
+    }
+    if (TYPOGRAPHY_FIELDS.has(fieldKey)) {
+      return fixTypography(value);
+    }
+    if (fieldKey === "flavorText") {
+      return fixTypography(value, { italicParens: false, keywordGlyphs: false });
+    }
+    if (fieldKey === "publicCode") {
+      return appendSetTotal(value, printedTotal);
+    }
+    return value;
   };
 }

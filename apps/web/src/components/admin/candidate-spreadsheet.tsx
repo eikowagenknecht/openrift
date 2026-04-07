@@ -156,6 +156,10 @@ interface CandidateSpreadsheetProps {
   columnClassName?: (row: CandidateCardResponse | CandidatePrintingResponse) => string | undefined;
   /** Return a warning tooltip for a candidate cell; shown as a small icon. */
   cellWarning?: (fieldKey: string, candidateValue: unknown) => string | null;
+  /** Normalize a candidate value before comparing it to the active value.
+   * Used to account for server-side transformations (e.g. typography fixes)
+   * so that accepted-but-reformatted values no longer highlight as different. */
+  normalizeCandidate?: (fieldKey: string, value: unknown) => unknown;
 }
 
 /** Field keys where word-level diff highlighting is applied. */
@@ -339,6 +343,7 @@ export function CandidateSpreadsheet({
   columnActions,
   columnClassName,
   cellWarning,
+  normalizeCandidate,
 }: CandidateSpreadsheetProps) {
   const settingsMap = new Map(providerSettings?.map((s) => [s.provider, s]));
   const topProvider = providerSettings?.toSorted((a, b) => a.sortOrder - b.sortOrder)[0]?.provider;
@@ -681,6 +686,9 @@ export function CandidateSpreadsheet({
                 </td>
                 {sortedRows.map((row) => {
                   const candidateValue = (row as unknown as Record<string, unknown>)[field.key];
+                  const normalizedCandidate = normalizeCandidate
+                    ? normalizeCandidate(field.key, candidateValue)
+                    : candidateValue;
                   const invalidOption =
                     hasDropdown(field) &&
                     hasValue(candidateValue) &&
@@ -690,7 +698,7 @@ export function CandidateSpreadsheet({
                     !invalidOption &&
                     hasValue(candidateValue) &&
                     (activeRow === null ||
-                      JSON.stringify(candidateValue) !== JSON.stringify(activeValue));
+                      JSON.stringify(normalizedCandidate) !== JSON.stringify(activeValue));
                   const isDifferent = isClickable && activeRow !== null;
                   const warningText =
                     cellWarning && hasValue(candidateValue)
@@ -753,9 +761,9 @@ export function CandidateSpreadsheet({
                         </HoverCard>
                       ) : isDifferent &&
                         DIFF_FIELDS.has(field.key) &&
-                        typeof candidateValue === "string" &&
+                        typeof normalizedCandidate === "string" &&
                         typeof activeValue === "string" ? (
-                        <DiffText segments={wordDiff(activeValue, String(candidateValue))} />
+                        <DiffText segments={wordDiff(activeValue, normalizedCandidate)} />
                       ) : field.labeledOptions ? (
                         resolveLabel(field, candidateValue)
                       ) : (

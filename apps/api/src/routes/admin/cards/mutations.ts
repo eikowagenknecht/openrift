@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { CandidateCardUploadResponse, CardType, Domain, SuperType } from "@openrift/shared";
+import { appendSetTotal, fixTypography } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
 import { DEFAULT_ENUM_ORDERS } from "@openrift/shared/types";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
@@ -7,7 +8,6 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../../errors.js";
 import { acceptGalleryForNewCard } from "../../../services/accept-gallery.js";
-import { appendSetTotal, fixTypography } from "../../../services/fix-typography.js";
 import {
   acceptPrinting,
   deletePrinting,
