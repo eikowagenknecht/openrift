@@ -58,17 +58,6 @@ const dbCopy = {
   collectionId: "a0000000-0001-4000-a000-000000000010",
   createdAt: now,
   updatedAt: now,
-  cardId: "OGS-001",
-  setId: "OGS",
-  collectorNumber: 1,
-  rarity: "Rare",
-  artVariant: "normal",
-  isSigned: false,
-  finish: "normal",
-  artist: "Alice",
-  imageUrl: "https://example.com/img.jpg",
-  cardName: "Fire Dragon",
-  cardType: "Unit",
 };
 
 const COPY_ID = "a0000000-0001-4000-a000-000000000020";
@@ -228,7 +217,7 @@ describe("GET /api/v1/copies/:id", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.id).toBe(dbCopy.id);
-    expect(json.cardName).toBe("Fire Dragon");
+    expect(json.printingId).toBe(dbCopy.printingId);
   });
 
   it("returns 404 when copy not found", async () => {
@@ -241,17 +230,9 @@ describe("GET /api/v1/copies/:id", () => {
     mockRepo.getByIdForUser.mockResolvedValue(dbCopy);
     const res = await app.request(`/api/v1/copies/${dbCopy.id}`);
     const json = await res.json();
+    expect(json.id).toBe(dbCopy.id);
     expect(json.printingId).toBe(dbCopy.printingId);
     expect(json.collectionId).toBe(dbCopy.collectionId);
-    expect(json.cardId).toBe("OGS-001");
-    expect(json.setId).toBe("OGS");
-    expect(json.collectorNumber).toBe(1);
-    expect(json.rarity).toBe("Rare");
-    expect(json.artVariant).toBe("normal");
-    expect(json.isSigned).toBe(false);
-    expect(json.finish).toBe("normal");
-    expect(json.artist).toBe("Alice");
-    expect(json.imageUrl).toBe("https://example.com/img.jpg");
     expect(json.createdAt).toBe(now.toISOString());
     expect(json.updatedAt).toBe(now.toISOString());
   });
