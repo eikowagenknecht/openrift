@@ -3,7 +3,8 @@ import { Bar, BarChart, Rectangle, XAxis } from "recharts";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import type { DomainCombo, EnergyCostCount, PowerCount } from "@/hooks/use-deck-stats";
-import { DOMAIN_COLORS } from "@/lib/domain";
+import { useDomainColors } from "@/hooks/use-domain-colors";
+import { getDomainColor } from "@/lib/domain";
 
 interface EnergyPowerChartProps {
   energyData: EnergyCostCount[];
@@ -46,13 +47,16 @@ function RoundedTopBarActive({
   return <Rectangle {...props} radius={radius} opacity={0.8} />;
 }
 
-function buildChartConfig(stacks: DomainCombo[], prefix: string): ChartConfig {
+function buildChartConfig(
+  stacks: DomainCombo[],
+  prefix: string,
+  colors: Record<string, string>,
+): ChartConfig {
   const config: ChartConfig = {};
   for (const stack of stacks) {
     config[`${prefix}_${stack.key}`] = {
       label: stack.domains.join(" + "),
-      color:
-        stack.domains.length === 1 ? (DOMAIN_COLORS[stack.domains[0]] ?? "#737373") : "#737373",
+      color: stack.domains.length === 1 ? getDomainColor(stack.domains[0], colors) : "#737373",
     };
   }
   return config;
@@ -63,9 +67,9 @@ function buildChartConfig(stacks: DomainCombo[], prefix: string): ChartConfig {
  * gradient URL reference for multi-domain combos.
  * @returns A CSS fill string.
  */
-function comboFill(stack: DomainCombo): string {
+function comboFill(stack: DomainCombo, colors: Record<string, string>): string {
   if (stack.domains.length === 1) {
-    return DOMAIN_COLORS[stack.domains[0]] ?? "#737373";
+    return getDomainColor(stack.domains[0], colors);
   }
   return `url(#gradient-${stack.key})`;
 }
@@ -75,7 +79,13 @@ function comboFill(stack: DomainCombo): string {
  * Each gradient transitions vertically between the constituent domain colors.
  * @returns An SVG defs element with gradient definitions.
  */
-function GradientDefs({ stacks }: { stacks: DomainCombo[] }) {
+function GradientDefs({
+  stacks,
+  colors,
+}: {
+  stacks: DomainCombo[];
+  colors: Record<string, string>;
+}) {
   const multiDomain = stacks.filter((stack) => stack.domains.length > 1);
   if (multiDomain.length === 0) {
     return null;
@@ -90,7 +100,7 @@ function GradientDefs({ stacks }: { stacks: DomainCombo[] }) {
               <stop
                 key={domain}
                 offset={`${((index + 0.5) / count) * 100}%`}
-                stopColor={DOMAIN_COLORS[domain] ?? "#737373"}
+                stopColor={getDomainColor(domain, colors)}
               />
             );
           })}
@@ -108,6 +118,8 @@ export function EnergyPowerChart({
   powerStacks,
   averagePower,
 }: EnergyPowerChartProps) {
+  const domainColors = useDomainColors();
+
   if (energyData.length === 0 && powerData.length === 0) {
     return null;
   }
@@ -134,8 +146,8 @@ export function EnergyPowerChart({
     return row;
   });
 
-  const energyConfig = buildChartConfig(energyStacks, "energy");
-  const powerConfig = buildChartConfig(powerStacks, "power");
+  const energyConfig = buildChartConfig(energyStacks, "energy", domainColors);
+  const powerConfig = buildChartConfig(powerStacks, "power", domainColors);
 
   // Reversed for stacking: first rendered = bottom, last = top (outermost)
   const energyReversed = energyStacks.toReversed();
@@ -153,7 +165,7 @@ export function EnergyPowerChart({
           </div>
           <ChartContainer config={energyConfig} className="aspect-auto h-20 w-full">
             <BarChart data={energyChartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-              <GradientDefs stacks={energyStacks} />
+              <GradientDefs stacks={energyStacks} colors={domainColors} />
               <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
               <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
               {energyReversed.map((stack, index) => {
@@ -163,7 +175,7 @@ export function EnergyPowerChart({
                     key={`energy_${stack.key}`}
                     dataKey={`energy_${stack.key}`}
                     stackId="a"
-                    fill={comboFill(stack)}
+                    fill={comboFill(stack, domainColors)}
                     activeBar={<RoundedTopBarActive aboveKeys={aboveKeys} prefix="energy" />}
                     shape={<RoundedTopBar aboveKeys={aboveKeys} prefix="energy" />}
                   />
@@ -184,7 +196,7 @@ export function EnergyPowerChart({
           </div>
           <ChartContainer config={powerConfig} className="aspect-auto h-20 w-full">
             <BarChart data={powerChartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-              <GradientDefs stacks={powerStacks} />
+              <GradientDefs stacks={powerStacks} colors={domainColors} />
               <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
               <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
               {powerReversed.map((stack, index) => {
@@ -194,7 +206,7 @@ export function EnergyPowerChart({
                     key={`power_${stack.key}`}
                     dataKey={`power_${stack.key}`}
                     stackId="a"
-                    fill={comboFill(stack)}
+                    fill={comboFill(stack, domainColors)}
                     activeBar={<RoundedTopBarActive aboveKeys={aboveKeys} prefix="power" />}
                     shape={<RoundedTopBar aboveKeys={aboveKeys} prefix="power" />}
                   />

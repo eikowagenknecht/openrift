@@ -672,7 +672,9 @@ export interface ReferenceTable {
 
 export type CardTypesTable = ReferenceTable;
 export type RaritiesTable = ReferenceTable;
-export type DomainsTable = ReferenceTable;
+export interface DomainsTable extends ReferenceTable {
+  color: string | null;
+}
 export type SuperTypesTable = ReferenceTable;
 export type FinishesTable = ReferenceTable;
 export type ArtVariantsTable = ReferenceTable;

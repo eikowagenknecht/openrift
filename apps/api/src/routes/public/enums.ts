@@ -8,7 +8,14 @@ const enumRowSchema = z.object({
   sortOrder: z.number(),
 });
 
-const enumsResponseSchema = z.record(z.string(), z.array(enumRowSchema));
+const domainEnumRowSchema = enumRowSchema.extend({
+  color: z.string().nullable(),
+});
+
+const enumsResponseSchema = z.record(
+  z.string(),
+  z.array(z.union([enumRowSchema, domainEnumRowSchema])),
+);
 
 const getEnums = createRoute({
   method: "get",

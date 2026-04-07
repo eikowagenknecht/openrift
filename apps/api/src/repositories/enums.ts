@@ -1,8 +1,9 @@
 import type { Kysely, Selectable } from "kysely";
 
-import type { Database, ReferenceTable } from "../db/index.js";
+import type { Database, DomainsTable, ReferenceTable } from "../db/index.js";
 
 type EnumRow = Selectable<ReferenceTable>;
+type DomainRow = Selectable<DomainsTable>;
 
 /**
  * Read-only queries for reference tables (enums backed by DB rows).
@@ -15,7 +16,6 @@ export function enumsRepo(db: Kysely<Database>) {
       Database,
       | "cardTypes"
       | "rarities"
-      | "domains"
       | "superTypes"
       | "finishes"
       | "artVariants"
@@ -28,7 +28,7 @@ export function enumsRepo(db: Kysely<Database>) {
 
   return {
     /** @returns All rows from every reference table, keyed by table name. */
-    async all(): Promise<Record<string, EnumRow[]>> {
+    async all(): Promise<Record<string, (EnumRow | DomainRow)[]>> {
       const [
         cardTypes,
         rarities,
@@ -41,7 +41,7 @@ export function enumsRepo(db: Kysely<Database>) {
       ] = await Promise.all([
         list("cardTypes"),
         list("rarities"),
-        list("domains"),
+        db.selectFrom("domains").selectAll().orderBy("sortOrder").execute(),
         list("superTypes"),
         list("finishes"),
         list("artVariants"),

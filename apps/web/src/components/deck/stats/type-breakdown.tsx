@@ -4,27 +4,30 @@ import { Bar, BarChart, XAxis } from "recharts";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import type { TypeCount } from "@/hooks/use-deck-stats";
-import { DOMAIN_COLORS } from "@/lib/domain";
+import { useDomainColors } from "@/hooks/use-domain-colors";
+import { getDomainColor } from "@/lib/domain";
 
 interface TypeBreakdownProps {
   data: TypeCount[];
   domains: Domain[];
 }
 
-function buildChartConfig(domains: Domain[]): ChartConfig {
+function buildChartConfig(domains: Domain[], colors: Record<string, string>): ChartConfig {
   const config: ChartConfig = {};
   for (const domain of domains) {
-    config[domain] = { label: domain, color: DOMAIN_COLORS[domain] ?? "#737373" };
+    config[domain] = { label: domain, color: getDomainColor(domain, colors) };
   }
   return config;
 }
 
 export function TypeBreakdown({ data, domains }: TypeBreakdownProps) {
+  const domainColors = useDomainColors();
+
   if (data.length === 0) {
     return null;
   }
 
-  const chartConfig = buildChartConfig(domains);
+  const chartConfig = buildChartConfig(domains, domainColors);
 
   // Add a label with count + pluralized type name
   const labeledData = data.map((entry) => ({
@@ -44,7 +47,7 @@ export function TypeBreakdown({ data, domains }: TypeBreakdownProps) {
               key={domain}
               dataKey={domain}
               stackId="type"
-              fill={DOMAIN_COLORS[domain] ?? "#737373"}
+              fill={getDomainColor(domain, domainColors)}
               activeBar={{ opacity: 0.8 }}
               radius={index === domains.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]}
             />
