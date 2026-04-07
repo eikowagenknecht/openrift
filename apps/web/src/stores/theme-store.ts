@@ -60,6 +60,15 @@ export const useThemeStore = create<ThemeState>()(
       name: "theme",
       storage: cookieStorage,
       partialize: (state) => ({ preference: state.preference }),
+      // Ensure the cookie exists after first visit so the server can read the
+      // theme preference on subsequent SSR requests. Zustand persist only writes
+      // on state changes, so without this the cookie would be missing until the
+      // user explicitly changes the theme or signs in.
+      onRehydrateStorage: () => (state) => {
+        if (typeof document !== "undefined" && state) {
+          cookieStorage.setItem("theme", { state: { preference: state.preference } });
+        }
+      },
       merge: (persisted, current) => {
         const record =
           typeof persisted === "object" && persisted !== null

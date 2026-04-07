@@ -45,16 +45,17 @@ const getServerTheme = createServerFn({ method: "GET" }).handler((): "light" | "
   }
 });
 
-// Blocking inline script (fallback) that corrects the "auto" theme on the
-// client when the user's OS prefers dark mode. The server resolves "auto" as
-// "light" since it can't check matchMedia; this script fixes it before paint.
-// Must stay in sync with the cookie format in theme-store.ts / cookie-storage.ts.
+// Blocking inline script that applies the correct theme before first paint.
+// The server resolves "auto" as "light" since it can't check matchMedia; this
+// script corrects it using the browser's actual preference. When there is no
+// cookie (first-time visitors), the default preference is "auto", so we still
+// need to check matchMedia. Must stay in sync with the cookie format in
+// theme-store.ts / cookie-storage.ts.
 const THEME_SCRIPT = [
   "(function(){try{",
+  'var pref="auto";',
   String.raw`var m=document.cookie.match(/(?:^|;\s*)theme=([^;]*)/);`,
-  "if(!m)return;",
-  "var p=JSON.parse(decodeURIComponent(m[1]));",
-  "var pref=p&&p.state&&p.state.preference;",
+  "if(m){var p=JSON.parse(decodeURIComponent(m[1]));pref=p&&p.state&&p.state.preference||pref}",
   'if(pref==="dark"||(pref==="auto"||!pref)&&matchMedia("(prefers-color-scheme:dark)").matches)',
   'document.documentElement.classList.add("dark")',
   "}catch(e){}})()",
