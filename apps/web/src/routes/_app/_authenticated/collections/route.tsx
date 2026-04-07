@@ -92,7 +92,7 @@ function CollectionLayout() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div ref={setTopBarSlot} className="px-3 pt-3" />
-      <SidebarProvider>
+      <SidebarProvider className="flex-1">
         <DndContext
           sensors={isMobile ? undefined : sensors}
           collisionDetection={pointerWithin}
