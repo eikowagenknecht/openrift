@@ -177,6 +177,7 @@ export function LoginForm({
                       id={field.name}
                       tabIndex={1}
                       type="email"
+                      autoComplete="email"
                       placeholder={emailPlaceholder}
                       aria-invalid={fieldState.invalid}
                     />
@@ -209,6 +210,7 @@ export function LoginForm({
                       id={field.name}
                       tabIndex={2}
                       type="password"
+                      autoComplete="current-password"
                       aria-invalid={fieldState.invalid}
                     />
                     {/* oxlint-enable jsx-a11y/tabindex-no-positive */}
@@ -247,6 +249,7 @@ export function LoginForm({
                     <Input
                       id="otp-email"
                       type="email"
+                      autoComplete="email"
                       placeholder={emailPlaceholder}
                       value={otpEmail}
                       onChange={(e) => setOtpEmail(e.target.value)}

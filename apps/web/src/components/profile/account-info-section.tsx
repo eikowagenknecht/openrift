@@ -224,6 +224,7 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
             <Input
               id="new-email"
               type="email"
+              autoComplete="email"
               placeholder={currentEmail}
               value={newEmail}
               onChange={(e) => {

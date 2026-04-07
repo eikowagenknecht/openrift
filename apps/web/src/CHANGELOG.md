@@ -10,6 +10,7 @@
 - feat: Search bar placeholder now shows which fields are being searched when the scope is narrowed (e.g. "Search by name, artist...")
 - fix: Search bar in copies view now shows the total number of copies instead of unique printings
 - fix: Deleting or moving more than 500 cards at once no longer fails with a validation error
+- fix: Password and email inputs now have proper autocomplete attributes, so browser password managers work correctly
 - fix: Footer on the collections page is no longer hidden below the viewport when a collection is empty
 
 ## 2026-04-06

@@ -72,6 +72,7 @@ export function PasswordSection() {
                     {...field}
                     id={field.name}
                     type="password"
+                    autoComplete="current-password"
                     aria-invalid={fieldState.invalid}
                   />
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -88,6 +89,7 @@ export function PasswordSection() {
                     {...field}
                     id={field.name}
                     type="password"
+                    autoComplete="new-password"
                     aria-invalid={fieldState.invalid}
                   />
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -104,6 +106,7 @@ export function PasswordSection() {
                     {...field}
                     id={field.name}
                     type="password"
+                    autoComplete="new-password"
                     aria-invalid={fieldState.invalid}
                   />
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}

@@ -84,6 +84,7 @@ export function SignupForm({
                   {...field}
                   id={field.name}
                   type="email"
+                  autoComplete="email"
                   placeholder={emailPlaceholder}
                   aria-invalid={fieldState.invalid}
                 />
@@ -101,6 +102,7 @@ export function SignupForm({
                   {...field}
                   id={field.name}
                   type="password"
+                  autoComplete="new-password"
                   aria-invalid={fieldState.invalid}
                 />
                 {fieldState.invalid && <FieldError errors={[fieldState.error]} />}

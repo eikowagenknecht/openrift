@@ -101,6 +101,7 @@ function ResetPasswordPage() {
                   <Input
                     id="reset-email"
                     type="email"
+                    autoComplete="email"
                     placeholder={emailPlaceholder}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -137,6 +138,7 @@ function ResetPasswordPage() {
                   <Input
                     id="new-password"
                     type="password"
+                    autoComplete="new-password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                   />
@@ -146,6 +148,7 @@ function ResetPasswordPage() {
                   <Input
                     id="confirm-password"
                     type="password"
+                    autoComplete="new-password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                   />
