@@ -268,15 +268,41 @@ function InputStep({
       <div>
         <h2 className="text-lg font-semibold">Import Collection</h2>
         <p className="text-muted-foreground text-sm">
-          Paste or upload a CSV export from Piltover Archive or RiftCore. Want another source
-          supported?{" "}
+          Paste or upload a CSV export from{" "}
+          <a
+            href="https://piltoverarchive.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground underline"
+          >
+            Piltover Archive
+          </a>
+          ,{" "}
+          <a
+            href="https://riftcore.app"
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground underline"
+          >
+            RiftCore
+          </a>
+          , or OpenRift itself. Having trouble or need support for another source? Let us know on{" "}
+          <a
+            href="https://discord.gg/Qb6RcjXq6z"
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground underline"
+          >
+            Discord
+          </a>{" "}
+          or{" "}
           <a
             href="https://github.com/eikowagenknecht/openrift/issues"
             target="_blank"
             rel="noreferrer"
             className="text-foreground underline"
           >
-            Open a GitHub issue
+            GitHub
           </a>
           .
         </p>

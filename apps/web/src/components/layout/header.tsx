@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { siDiscord } from "simple-icons";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -369,8 +370,21 @@ export function Header() {
       <div
         className={`${CONTAINER_WIDTH} grid h-14 grid-cols-[1fr_auto_1fr] items-center px-3 md:grid-cols-[1fr_auto]`}
       >
-        {/* Left: Hamburger on mobile */}
-        <MenuButton className="md:hidden" onClick={() => setMobileMenuOpen(true)} />
+        {/* Left: Hamburger + Discord on mobile */}
+        <div className="flex items-center gap-1 md:hidden">
+          <MenuButton onClick={() => setMobileMenuOpen(true)} />
+          <a
+            href="https://discord.gg/Qb6RcjXq6z"
+            target="_blank"
+            rel="noreferrer"
+            className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+            aria-label="Join our Discord"
+          >
+            <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+              <path d={siDiscord.path} fill="currentColor" />
+            </svg>
+          </a>
+        </div>
 
         {/* Left: logo + expanded menu on desktop */}
         <div className="hidden gap-4 md:flex">
@@ -383,12 +397,23 @@ export function Header() {
 
         {/* Right: Support + UserIcon menu */}
         <div className="flex items-center gap-1 justify-self-end">
-          <Link
-            to="/support"
-            className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-            aria-label="Support us"
+          <a
+            href="https://discord.gg/Qb6RcjXq6z"
+            target="_blank"
+            rel="noreferrer"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "hidden md:inline-flex",
+            )}
           >
+            <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+              <path d={siDiscord.path} fill="currentColor" />
+            </svg>
+            Discord
+          </a>
+          <Link to="/support" className={buttonVariants({ variant: "ghost", size: "sm" })}>
             <HeartIcon className="size-4" />
+            <span className="hidden md:inline">Support</span>
           </Link>
           <UserMenu session={session} isPending={isPending} gravatarUrl={gravatarUrl} />
         </div>
