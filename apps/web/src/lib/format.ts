@@ -5,15 +5,34 @@ import type { EnumLabels } from "@/hooks/use-enums";
 
 /** Fallback labels for when DB-derived labels are not available. */
 export const DEFAULT_ENUM_LABELS: EnumLabels = {
-  artVariants: {
-    normal: "Normal",
-    altart: "Alt Art",
-    overnumbered: "Overnumbered",
+  finishes: { normal: "Normal", foil: "Foil" },
+  rarities: {
+    Common: "Common",
+    Uncommon: "Uncommon",
+    Rare: "Rare",
+    Epic: "Epic",
+    Showcase: "Showcase",
   },
-  finishes: {
-    normal: "Normal",
-    foil: "Foil",
+  domains: {
+    Fury: "Fury",
+    Calm: "Calm",
+    Mind: "Mind",
+    Body: "Body",
+    Chaos: "Chaos",
+    Order: "Order",
+    Colorless: "Colorless",
   },
+  cardTypes: {
+    Legend: "Legend",
+    Unit: "Unit",
+    Rune: "Rune",
+    Spell: "Spell",
+    Gear: "Gear",
+    Battlefield: "Battlefield",
+    Other: "Other",
+  },
+  superTypes: { Basic: "Basic", Champion: "Champion", Signature: "Signature", Token: "Token" },
+  artVariants: { normal: "Normal", altart: "Alt Art", overnumbered: "Overnumbered" },
 };
 
 const LANGUAGE_LABELS: Record<string, string> = {

@@ -30,7 +30,7 @@ import { useProviderSettings } from "@/hooks/use-provider-settings";
 // ---------------------------------------------------------------------------
 
 export function useCardDetailData() {
-  const { orders } = useEnumOrders();
+  const { orders, labels } = useEnumOrders();
 
   const { data: providerSettingsData } = useProviderSettings();
   const providerSettings = providerSettingsData?.providerSettings ?? [];
@@ -45,6 +45,7 @@ export function useCardDetailData() {
 
   const printingSourceFields: FieldDef[] = buildCandidatePrintingFields(
     orders,
+    labels,
     promoTypes
       .map((pt: { id: string; label: string }) => ({
         value: pt.id,
@@ -58,7 +59,7 @@ export function useCardDetailData() {
     })),
   );
 
-  const candidateCardFields: FieldDef[] = buildCandidateCardFields(orders);
+  const candidateCardFields: FieldDef[] = buildCandidateCardFields(orders, labels);
 
   const checkCandidateCard = useCheckCandidateCard();
   const uncheckCandidateCard = useUncheckCandidateCard();

@@ -37,9 +37,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { EnumLabels } from "@/hooks/use-enums";
 import { cn } from "@/lib/utils";
 import type { DiffSegment } from "@/lib/word-diff";
 import { wordDiff } from "@/lib/word-diff";
+
+function toLabeledOptions(
+  slugs: readonly string[],
+  labels: Record<string, string>,
+): { value: string; label: string }[] {
+  return slugs.map((slug) => ({ value: slug, label: labels[slug] ?? slug }));
+}
 
 export interface FieldDef {
   key: string;
@@ -63,17 +71,31 @@ export interface FieldDef {
 
 /** Build candidate card fields with enum options populated from the database.
  * @returns The field definitions for candidate cards. */
-export function buildCandidateCardFields(orders: EnumOrders): FieldDef[] {
+export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels): FieldDef[] {
   return [
     { key: "externalId", label: "External ID", readOnly: true },
     { key: "shortCode", label: "Short Code", readOnly: true },
     { key: "energy", label: "Energy" },
     { key: "power", label: "Power" },
     { key: "might", label: "Might" },
-    { key: "superTypes", label: "Super Types", options: orders.superTypes, array: true },
-    { key: "type", label: "Type", options: orders.cardTypes },
+    {
+      key: "superTypes",
+      label: "Super Types",
+      labeledOptions: toLabeledOptions(orders.superTypes, labels.superTypes),
+      array: true,
+    },
+    {
+      key: "type",
+      label: "Type",
+      labeledOptions: toLabeledOptions(orders.cardTypes, labels.cardTypes),
+    },
     { key: "name", label: "Name" },
-    { key: "domains", label: "Domains", options: orders.domains, array: true },
+    {
+      key: "domains",
+      label: "Domains",
+      labeledOptions: toLabeledOptions(orders.domains, labels.domains),
+      array: true,
+    },
     { key: "rulesText", label: "Rules Text", multiline: true },
     { key: "effectText", label: "Effect Text", multiline: true },
     { key: "mightBonus", label: "Might Bonus" },
@@ -87,6 +109,7 @@ export function buildCandidateCardFields(orders: EnumOrders): FieldDef[] {
  * @returns The field definitions for candidate printings. */
 export function buildCandidatePrintingFields(
   orders: EnumOrders,
+  labels: EnumLabels,
   promoTypes: readonly { value: string; label: string }[],
   artistSuggestions?: readonly string[],
   languages?: readonly { value: string; label: string }[],
@@ -97,9 +120,21 @@ export function buildCandidatePrintingFields(
     { key: "shortCode", label: "Short Code" },
     { key: "publicCode", label: "Public Code" },
     { key: "collectorNumber", label: "Collector #" },
-    { key: "rarity", label: "Rarity", options: orders.rarities },
-    { key: "finish", label: "Finish", options: orders.finishes },
-    { key: "artVariant", label: "Art Variant", options: orders.artVariants },
+    {
+      key: "rarity",
+      label: "Rarity",
+      labeledOptions: toLabeledOptions(orders.rarities, labels.rarities),
+    },
+    {
+      key: "finish",
+      label: "Finish",
+      labeledOptions: toLabeledOptions(orders.finishes, labels.finishes),
+    },
+    {
+      key: "artVariant",
+      label: "Art Variant",
+      labeledOptions: toLabeledOptions(orders.artVariants, labels.artVariants),
+    },
     { key: "isSigned", label: "Signed", type: "boolean" },
     {
       key: "promoTypeId",

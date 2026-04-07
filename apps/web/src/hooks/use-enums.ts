@@ -14,6 +14,10 @@ interface EnumRow {
 /** Label lookup maps for enums that need display labels in the UI. */
 export interface EnumLabels {
   finishes: Record<string, string>;
+  rarities: Record<string, string>;
+  domains: Record<string, string>;
+  cardTypes: Record<string, string>;
+  superTypes: Record<string, string>;
   artVariants: Record<string, string>;
 }
 
@@ -89,6 +93,10 @@ export function useEnumOrders(): {
     },
     labels: {
       finishes: labelMap(d.finishes ?? []),
+      rarities: labelMap(d.rarities ?? []),
+      domains: labelMap(d.domains ?? []),
+      cardTypes: labelMap(d.cardTypes ?? []),
+      superTypes: labelMap(d.superTypes ?? []),
       artVariants: labelMap(d.artVariants ?? []),
     },
   };
