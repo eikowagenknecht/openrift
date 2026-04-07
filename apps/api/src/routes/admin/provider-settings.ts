@@ -23,6 +23,7 @@ const listProviderSettings = createRoute({
                 provider: z.string(),
                 sortOrder: z.number(),
                 isHidden: z.boolean(),
+                isFavorite: z.boolean(),
               }),
             ),
           }),
@@ -73,6 +74,7 @@ export const adminProviderSettingsRoute = new OpenAPIHono<{ Variables: Variables
           provider: r.provider,
           sortOrder: r.sortOrder,
           isHidden: r.isHidden,
+          isFavorite: r.isFavorite,
         }),
       ),
     });

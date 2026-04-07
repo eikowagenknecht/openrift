@@ -172,8 +172,9 @@ export const queriesRoute = new OpenAPIHono<{ Variables: Variables }>()
   })
 
   .openapi(listCandidates, async (c) => {
-    const { candidateCards } = c.get("repos");
-    return c.json(await buildCandidateCardList(candidateCards));
+    const { candidateCards, providerSettings } = c.get("repos");
+    const favoriteProviders = await providerSettings.favoriteProviders();
+    return c.json(await buildCandidateCardList(candidateCards, favoriteProviders));
   })
 
   .openapi(exportCandidates, async (c) => {

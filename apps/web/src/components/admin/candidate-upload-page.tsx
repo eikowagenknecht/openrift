@@ -7,6 +7,7 @@ import {
   EyeOffIcon,
   ListChecksIcon,
   LoaderIcon,
+  StarIcon,
   Trash2Icon,
   UploadIcon,
   XIcon,
@@ -453,6 +454,7 @@ interface ProviderRow {
   name: string;
   stats: ProviderStatsResponse | undefined;
   isHidden: boolean;
+  isFavorite: boolean;
 }
 
 function ManageProvidersCard({
@@ -484,6 +486,7 @@ function ManageProvidersCard({
       name,
       stats: statsByProvider.get(name),
       isHidden: settingsMap.get(name)?.isHidden ?? false,
+      isFavorite: settingsMap.get(name)?.isFavorite ?? false,
     }));
 
   function moveProvider(index: number, direction: -1 | 1) {
@@ -511,6 +514,23 @@ function ManageProvidersCard({
           </button>
           <span className="text-sm font-medium">{r.name}</span>
         </span>
+      ),
+    },
+    {
+      header: "Favorite",
+      width: "w-20",
+      cell: (r) => (
+        <button
+          type="button"
+          className={cn(
+            "hover:text-foreground",
+            r.isFavorite ? "text-yellow-500" : "text-muted-foreground",
+          )}
+          onClick={() => updateSetting.mutate({ provider: r.name, isFavorite: !r.isFavorite })}
+          title={r.isFavorite ? "Remove from favorites" : "Add to favorites"}
+        >
+          <StarIcon className="size-4" fill={r.isFavorite ? "currentColor" : "none"} />
+        </button>
       ),
     },
     {

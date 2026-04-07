@@ -556,6 +556,7 @@ export interface ProviderSettingsTable {
   provider: string;
   sortOrder: number;
   isHidden: boolean;
+  isFavorite: boolean;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

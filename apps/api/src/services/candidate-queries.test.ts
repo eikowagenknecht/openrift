@@ -52,7 +52,7 @@ describe("buildCandidateCardList", () => {
 
   it("returns empty array when no cards or candidates exist", async () => {
     const repo = createMockRepo();
-    const result = await buildCandidateCardList(repo);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
     expect(result).toEqual([]);
   });
 
@@ -79,14 +79,14 @@ describe("buildCandidateCardList", () => {
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCandidateCardList(repo);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result).toHaveLength(1);
     expect(result[0].cardSlug).toBe("fireball");
     expect(result[0].name).toBe("Fireball");
     expect(result[0].shortCodes).toEqual(["OGN-001"]);
     expect(result[0].candidateCount).toBe(1);
-    expect(result[0].hasGallery).toBe(true);
+    expect(result[0].hasFavorite).toBe(true);
     expect(result[0].uncheckedCardCount).toBe(1);
   });
 
@@ -109,7 +109,7 @@ describe("buildCandidateCardList", () => {
         .mockResolvedValue([{ normName: "firebal", cardId: "card-1" }]),
     });
 
-    const result = await buildCandidateCardList(repo);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result).toHaveLength(1);
     expect(result[0].cardSlug).toBe("fireball");
@@ -133,7 +133,7 @@ describe("buildCandidateCardList", () => {
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCandidateCardList(repo);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result).toHaveLength(1);
     expect(result[0].cardSlug).toBeNull();
@@ -176,7 +176,7 @@ describe("buildCandidateCardList", () => {
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCandidateCardList(repo);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result[0].uncheckedPrintingCount).toBe(1);
     expect(result[0].stagingShortCodes).toEqual(["OGN-001"]);
@@ -206,7 +206,7 @@ describe("buildCandidateCardList", () => {
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCandidateCardList(repo);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result[0].stagingShortCodes).toEqual(["SFD-100", "SFD-101"]);
   });
@@ -235,7 +235,7 @@ describe("buildCandidateCardList", () => {
         .mockResolvedValue([{ normName: "firebal", cardId: "card-1" }]),
     });
 
-    const result = await buildCandidateCardList(repo);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result).toHaveLength(1);
     expect(result[0].candidateCount).toBe(2);
@@ -262,7 +262,7 @@ describe("buildCandidateCardList", () => {
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCandidateCardList(repo);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result).toHaveLength(2);
     const unmatched = result.find((r) => r.cardSlug === null);
@@ -290,7 +290,7 @@ describe("buildCandidateCardList", () => {
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCandidateCardList(repo);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
     const unmatched = result.find((r) => r.cardSlug === null);
     expect(unmatched?.suggestedCardSlug).toBeNull();
   });
@@ -315,7 +315,7 @@ describe("buildCandidateCardList", () => {
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCandidateCardList(repo);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
     const unmatched = result.find((r) => r.cardSlug === null);
     expect(unmatched?.suggestedCardSlug).toBe("fireball");
   });
@@ -334,14 +334,14 @@ describe("buildCandidateCardList", () => {
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCandidateCardList(repo);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result[0].shortCodes).toEqual(["OGN-001", "OGN-002"]);
     expect(result[0].candidateCount).toBe(0);
-    expect(result[0].hasGallery).toBe(false);
+    expect(result[0].hasFavorite).toBe(false);
   });
 
-  it("reports hasGallery false when no gallery provider", async () => {
+  it("reports hasFavorite false when no favorite provider", async () => {
     const repo = createMockRepo({
       listCardsForSourceList: vi
         .fn()
@@ -356,11 +356,11 @@ describe("buildCandidateCardList", () => {
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCandidateCardList(repo);
-    expect(result[0].hasGallery).toBe(false);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+    expect(result[0].hasFavorite).toBe(false);
   });
 
-  it("counts checked candidate cards correctly", async () => {
+  it("counts unchecked candidate cards only from favorite providers", async () => {
     const repo = createMockRepo({
       listCardsForSourceList: vi
         .fn()
@@ -374,8 +374,13 @@ describe("buildCandidateCardList", () => {
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCandidateCardList(repo);
-    expect(result[0].uncheckedCardCount).toBe(1);
+    // "gallery" is checked, "ocr" is not a favorite, so unchecked count is 0
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+    expect(result[0].uncheckedCardCount).toBe(0);
+
+    // With both as favorites, "ocr" is unchecked so count is 1
+    const result2 = await buildCandidateCardList(repo, new Set(["gallery", "ocr"]));
+    expect(result2[0].uncheckedCardCount).toBe(1);
   });
 
   it("handles card with no candidate group (null group)", async () => {
@@ -389,13 +394,13 @@ describe("buildCandidateCardList", () => {
       listAliasesForSourceList: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCandidateCardList(repo);
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
 
     expect(result[0].candidateCount).toBe(0);
     expect(result[0].stagingShortCodes).toEqual([]);
     expect(result[0].uncheckedCardCount).toBe(0);
     expect(result[0].uncheckedPrintingCount).toBe(0);
-    expect(result[0].hasGallery).toBe(false);
+    expect(result[0].hasFavorite).toBe(false);
     expect(result[0].suggestedCardSlug).toBeNull();
   });
 });

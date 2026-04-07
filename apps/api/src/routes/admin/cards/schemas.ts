@@ -211,7 +211,7 @@ export const candidateCardSummarySchema = z.object({
   candidateCount: z.number(),
   uncheckedCardCount: z.number(),
   uncheckedPrintingCount: z.number(),
-  hasGallery: z.boolean(),
+  hasFavorite: z.boolean(),
   suggestedCardSlug: z.string().nullable(),
 });
 

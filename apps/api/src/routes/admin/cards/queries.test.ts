@@ -40,6 +40,10 @@ const mockCandidateCards = {
   providerStats: vi.fn(),
 };
 
+const mockProviderSettings = {
+  favoriteProviders: vi.fn().mockResolvedValue(new Set(["gallery"])),
+};
+
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -49,7 +53,10 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("user", { id: USER_ID });
-    c.set("repos", { candidateCards: mockCandidateCards } as never);
+    c.set("repos", {
+      candidateCards: mockCandidateCards,
+      providerSettings: mockProviderSettings,
+    } as never);
     await next();
   })
   .route("/api/v1", queriesRoute);
@@ -149,6 +156,7 @@ describe("GET /api/v1/", () => {
   });
 
   it("returns 200 with candidate card list", async () => {
+    mockProviderSettings.favoriteProviders.mockResolvedValue(new Set(["gallery"]));
     const candidates = [
       {
         cardSlug: "fireball",
@@ -159,7 +167,7 @@ describe("GET /api/v1/", () => {
         candidateCount: 1,
         uncheckedCardCount: 0,
         uncheckedPrintingCount: 0,
-        hasGallery: true,
+        hasFavorite: true,
         suggestedCardSlug: null,
       },
     ];
@@ -169,7 +177,7 @@ describe("GET /api/v1/", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(candidates);
-    expect(mockBuildCandidateCardList).toHaveBeenCalledWith(mockCandidateCards);
+    expect(mockBuildCandidateCardList).toHaveBeenCalledWith(mockCandidateCards, expect.any(Set));
   });
 });
 

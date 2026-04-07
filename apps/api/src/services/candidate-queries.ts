@@ -184,7 +184,10 @@ function resolveFinish(finish: string | null, rarity: string | null): string {
   return rarity === "Common" || rarity === "Uncommon" ? "normal" : "foil";
 }
 
-export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardSummaryResponse[]> {
+export async function buildCandidateCardList(
+  repo: Repo,
+  favoriteProviders: Set<string>,
+): Promise<CandidateCardSummaryResponse[]> {
   const [cards, candidateCards, printings, candidatePrintings, aliases] = await Promise.all([
     repo.listCardsForSourceList(),
     repo.listCandidateCardsForSourceList(),
@@ -249,10 +252,17 @@ export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardS
     return ids;
   }
 
-  // Count unlinked candidate printings without checkedAt across a normName group
-  function uncheckedPrintingCountForGroup(group: typeof candidateCards): number {
+  // Count unlinked candidate printings without checkedAt across a normName group,
+  // optionally filtering to only favorite providers
+  function uncheckedPrintingCountForGroup(
+    group: typeof candidateCards,
+    onlyFavorites?: boolean,
+  ): number {
     let count = 0;
     for (const cc of group) {
+      if (onlyFavorites && !favoriteProviders.has(cc.provider)) {
+        continue;
+      }
       for (const cp of cpByCandidateCardId.get(cc.id) ?? []) {
         if (!cp.checkedAt && !cp.printingId) {
           count++;
@@ -299,9 +309,10 @@ export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardS
       shortCodes: shortCodesByCardId.get(card.id) ?? [],
       stagingShortCodes: group ? stagingIdsForGroup(group) : [],
       candidateCount: group?.length ?? 0,
-      uncheckedCardCount: group?.filter((cc) => !cc.checkedAt).length ?? 0,
-      uncheckedPrintingCount: group ? uncheckedPrintingCountForGroup(group) : 0,
-      hasGallery: group?.some((cc) => cc.provider === "gallery") ?? false,
+      uncheckedCardCount:
+        group?.filter((cc) => !cc.checkedAt && favoriteProviders.has(cc.provider)).length ?? 0,
+      uncheckedPrintingCount: group ? uncheckedPrintingCountForGroup(group, true) : 0,
+      hasFavorite: group?.some((cc) => favoriteProviders.has(cc.provider)) ?? false,
       suggestedCardSlug: null,
     };
   });
@@ -329,9 +340,10 @@ export async function buildCandidateCardList(repo: Repo): Promise<CandidateCardS
       shortCodes: [],
       stagingShortCodes: stagingIdsForGroup(group),
       candidateCount: group.length,
-      uncheckedCardCount: group.filter((cc) => !cc.checkedAt).length,
-      uncheckedPrintingCount: uncheckedPrintingCountForGroup(group),
-      hasGallery: group.some((cc) => cc.provider === "gallery"),
+      uncheckedCardCount: group.filter((cc) => !cc.checkedAt && favoriteProviders.has(cc.provider))
+        .length,
+      uncheckedPrintingCount: uncheckedPrintingCountForGroup(group, true),
+      hasFavorite: group.some((cc) => favoriteProviders.has(cc.provider)),
       suggestedCardSlug: findSuggestedCard(normName),
     });
   }

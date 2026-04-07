@@ -56,7 +56,7 @@ export function CardNameCell({
           {row.suggestedCardSlug}
         </Button>
       )}
-      {!row.cardSlug && row.hasGallery && (
+      {!row.cardSlug && row.hasFavorite && (
         <Button
           variant="outline"
           className="ml-2"

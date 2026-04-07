@@ -75,7 +75,7 @@ export interface CandidateCardSummaryResponse {
   candidateCount: number;
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;
-  hasGallery: boolean;
+  hasFavorite: boolean;
   suggestedCardSlug: string | null;
 }
 
@@ -236,6 +236,7 @@ export interface ProviderSettingResponse {
   provider: string;
   sortOrder: number;
   isHidden: boolean;
+  isFavorite: boolean;
 }
 
 export interface IgnoredProductResponse {

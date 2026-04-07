@@ -104,6 +104,7 @@ export const updatePromoTypeSchema = z.object({
 export const updateProviderSettingSchema = z.object({
   sortOrder: z.number().int().optional(),
   isHidden: z.boolean().optional(),
+  isFavorite: z.boolean().optional(),
 });
 
 export const reorderProvidersSchema = z.object({

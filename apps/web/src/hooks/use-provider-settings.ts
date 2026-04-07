@@ -31,13 +31,18 @@ export function useReorderProviderSettings() {
 
 export function useUpdateProviderSetting() {
   return useMutationWithInvalidation({
-    mutationFn: async (vars: { provider: string; sortOrder?: number; isHidden?: boolean }) => {
+    mutationFn: async (vars: {
+      provider: string;
+      sortOrder?: number;
+      isHidden?: boolean;
+      isFavorite?: boolean;
+    }) => {
       const res = await client.api.v1.admin["provider-settings"][":provider"].$patch({
         param: { provider: vars.provider },
-        json: { sortOrder: vars.sortOrder, isHidden: vars.isHidden },
+        json: { sortOrder: vars.sortOrder, isHidden: vars.isHidden, isFavorite: vars.isFavorite },
       });
       assertOk(res);
     },
-    invalidates: [queryKeys.admin.providerSettings],
+    invalidates: [queryKeys.admin.providerSettings, queryKeys.admin.cards.list],
   });
 }
