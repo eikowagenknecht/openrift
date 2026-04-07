@@ -184,59 +184,12 @@ localStorage after mount. The visual difference is negligible because:
 - Theme is the only flash-sensitive preference, and it's already SSR-safe via
   cookie storage
 
-### 0f. Fix theme flash during SSR
+### ~~0f. Fix theme flash during SSR~~ → moved to Step 2
 
-The theme store uses cookie storage, but Zustand's persist middleware skips
-hydration on the server (`typeof window` guard). This means the server always
-renders with the default theme ("light") regardless of the user's cookie. When
-the client hydrates and reads the cookie, the theme switches, causing a flash.
-
-**Fix:** Read the `theme` cookie directly in the `shellComponent` (Step 2) and
-apply the `dark` class to `<html>` server-side. This bypasses Zustand entirely
-for the initial render:
-
-```tsx
-import { getRequest } from "@tanstack/react-start/server";
-
-function RootDocument({ children }: { children: React.ReactNode }) {
-  // Read theme preference from the cookie set by the theme store.
-  // The cookie value is JSON-encoded by Zustand persist: {"state":{"preference":"dark"},...}
-  let darkClass = "";
-  if (typeof window === "undefined") {
-    try {
-      const request = getRequest();
-      const cookieHeader = request.headers.get("cookie") ?? "";
-      const match = cookieHeader.match(/(?:^|;\s*)theme=([^;]*)/);
-      if (match) {
-        const decoded = decodeURIComponent(match[1]);
-        const parsed = JSON.parse(decoded);
-        const pref = parsed?.state?.preference ?? "auto";
-        // On the server we can't detect system preference, so "auto" → "light"
-        darkClass = pref === "dark" ? "dark" : "";
-      }
-    } catch {
-      // Cookie missing or malformed — render light theme
-    }
-  }
-
-  return (
-    <html lang="en" className={darkClass}>
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  );
-}
-```
-
-This eliminates theme flash for users with an explicit light/dark preference.
-Users with "auto" (system preference) still get "light" from the server, then
-the client applies the correct theme on hydration. This is an acceptable
-tradeoff since detecting system preference requires `matchMedia` (browser-only).
+Requires `getRequest()` from `@tanstack/react-start/server`, which is not
+available until TanStack Start is installed in Step 1. The fix (reading the
+`theme` cookie in the `shellComponent`) is applied in Step 2 when the server
+entry point is created.
 
 ### 0g. Audit Sentry initialization
 

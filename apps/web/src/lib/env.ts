@@ -1,9 +1,12 @@
 /**
- * Centralized environment access.
+ * Centralized environment access (client-safe).
  *
- * Vite exposes `import.meta.env.*` at compile-time. TanStack Start (via Vinxi)
- * will use a different mechanism on the server. Centralizing access here makes
- * it trivial to swap the source later without hunting through the codebase.
+ * Vite exposes `import.meta.env.*` at compile-time. Only `VITE_*`-prefixed vars
+ * are included in the client bundle. This file is imported client-side, so it
+ * must only reference `VITE_*` vars or Vite built-ins like `import.meta.env.PROD`.
+ *
+ * For server-only vars (e.g. `API_INTERNAL_URL`), use `process.env.*` directly
+ * in server functions. Do not add them here.
  */
 
 /** true when running the production build. */
