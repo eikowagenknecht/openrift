@@ -340,8 +340,8 @@ export function DeckCardBrowser() {
     <>
       <div className="mb-3 flex items-start gap-3">
         <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
-        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <DesktopOptionsBar className="hidden sm:flex" hideViewToggle />
+        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <MobileOptionsDrawer
           doneLabel={hasActiveFilters ? `Show ${sortedCards.length} cards` : undefined}
           className="sm:hidden"

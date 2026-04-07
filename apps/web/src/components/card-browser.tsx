@@ -151,8 +151,8 @@ export function CardBrowser() {
     <>
       <div className="mb-1.5 flex items-start gap-3 sm:mb-3">
         <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
-        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <DesktopOptionsBar className="hidden sm:flex" />
+        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <MobileOptionsDrawer
           doneLabel={
             hasActiveFilters

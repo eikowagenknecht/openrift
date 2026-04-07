@@ -638,8 +638,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               : sortedCards.length
           }
         />
-        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <DesktopOptionsBar className="hidden sm:flex" showCopies={mode !== "add"} />
+        <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <MobileOptionsDrawer
           doneLabel={
             hasActiveFilters
