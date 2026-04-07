@@ -1,5 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { HeadContent, Scripts, createRootRouteWithContext, Outlet } from "@tanstack/react-router";
+import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { createIsomorphicFn } from "@tanstack/react-start";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { lazy } from "react";
 
@@ -9,11 +10,10 @@ import { Toaster } from "@/components/ui/sonner";
 import { PROD } from "@/lib/env";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
+import { getServerThemeClass } from "@/lib/theme-ssr.server";
 
-// CSS side-effect import — TanStack Start's entries don't go through main.tsx,
-// so the stylesheet must be imported from the route tree.
-// oxlint-disable-next-line import/no-unassigned-import -- CSS side-effect import
-import "@/index.css";
+// Import CSS as a URL for the head() function (Vite resolves this at build time)
+import indexCss from "@/index.css?url";
 
 const TanStackRouterDevtools = PROD
   ? () => null
@@ -22,10 +22,36 @@ const TanStackRouterDevtools = PROD
       return { default: mod.TanStackRouterDevtools };
     });
 
+/**
+ * Returns the SSR theme class ("dark" or "") to prevent flash of wrong theme.
+ * On the client, returns "" (Zustand hydrates the theme from the cookie).
+ * On the server, reads the theme cookie from the incoming request.
+ *
+ * @returns The CSS class to apply to the `<html>` element.
+ */
+const getThemeClass = createIsomorphicFn()
+  .client(() => "")
+  .server(() => getServerThemeClass());
+
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
 }>()({
-  shellComponent: RootShell,
+  head: () => ({
+    meta: [
+      // oxlint-disable-next-line unicorn/text-encoding-identifier-case -- HTML charset attribute requires "utf-8"
+      { charSet: "utf-8" },
+      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "description", content: "Built with Fury. Maintained with Calm." },
+      { name: "theme-color", content: "#1d1538" },
+      { name: "impact-site-verification", content: "5a360cf2-9e98-4886-8c05-4e2e1a39ce0e" },
+    ],
+    links: [
+      { rel: "icon", type: "image/png", sizes: "64x64", href: "/favicon-64x64.png" },
+      { rel: "icon", type: "image/webp", href: "/logo.webp" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon-180x180.png" },
+      { rel: "stylesheet", href: indexCss },
+    ],
+  }),
   beforeLoad: async ({ context }) => {
     try {
       await context.queryClient.ensureQueryData(featureFlagsQueryOptions);
@@ -42,20 +68,15 @@ export const Route = createRootRouteWithContext<{
   },
   component: RootComponent,
   notFoundComponent: RouteNotFoundFallback,
+  shellComponent: RootDocument,
 });
 
-function RootShell({ children }: { children: React.ReactNode }) {
+function RootDocument({ children }: { children: React.ReactNode }) {
+  const themeClass = getThemeClass();
+
   return (
-    <html lang="en">
+    <html lang="en" className={themeClass}>
       <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="description" content="Built with Fury. Maintained with Calm." />
-        <meta name="theme-color" content="#1d1538" />
-        <meta name="impact-site-verification" content="5a360cf2-9e98-4886-8c05-4e2e1a39ce0e" />
-        <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64x64.png" />
-        <link rel="icon" type="image/webp" href="/logo.webp" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
         <HeadContent />
       </head>
       <body>
