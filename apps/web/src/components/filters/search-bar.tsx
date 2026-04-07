@@ -32,7 +32,7 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
 
   const allSelected = searchScope.length === ALL_SEARCH_FIELDS.length;
 
-  const unitLabel = view === "cards" ? "cards" : "printings";
+  const unitLabel = view === "cards" ? "cards" : view === "copies" ? "copies" : "printings";
 
   const [localSearch, setLocalSearch] = useState(filterState.search);
   const [searchFocused, setSearchFocused] = useState(false);

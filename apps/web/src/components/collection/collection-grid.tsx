@@ -628,7 +628,17 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     <>
       {/* Search bar */}
       <div className="mb-3 flex items-start gap-3">
-        <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
+        <SearchBar
+          totalCards={view === "copies" ? totalCopies : totalUniqueCards}
+          filteredCount={
+            view === "copies"
+              ? sortedCards.reduce(
+                  (sum, card) => sum + (stackByPrintingId.get(card.id)?.copyIds.length ?? 0),
+                  0,
+                )
+              : sortedCards.length
+          }
+        />
         <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <DesktopOptionsBar className="hidden sm:flex" showCopies={mode !== "add"} />
         {mode === "add" && (

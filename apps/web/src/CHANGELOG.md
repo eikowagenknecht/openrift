@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-07
+
+- fix: Search bar in copies view now shows the total number of copies instead of unique printings
+
 ## 2026-04-06
 
 - feat: Deck registration PDF now matches the official Piltover Archive format, and you can fill in your name, Riot ID, and event details before downloading
