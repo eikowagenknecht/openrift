@@ -7,6 +7,7 @@ import type { Variables } from "../../types.js";
 import { adminCardsRoute } from "./cards/index.js";
 import { catalogRoute } from "./catalog.js";
 import { adminDeckZonesRoute } from "./deck-zones.js";
+import { adminDomainsRoute } from "./domains.js";
 import { adminFeatureFlagsRoute } from "./feature-flags.js";
 import { adminFinishesRoute } from "./finishes.js";
 import { adminFormatsRoute } from "./formats.js";
@@ -116,4 +117,5 @@ export const adminRoute = app
   .route("/admin", adminRulesRoute)
   .route("/admin", adminStatusRoute)
   .route("/admin", adminKeywordsRoute)
-  .route("/admin", adminFinishesRoute);
+  .route("/admin", adminFinishesRoute)
+  .route("/admin", adminDomainsRoute);

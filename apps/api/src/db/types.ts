@@ -29,5 +29,6 @@ export type {
   WishListItemsTable,
   WishListsTable,
   // Reference tables (migration 062)
+  DomainsTable,
   ReferenceTable,
 } from "./tables.js";

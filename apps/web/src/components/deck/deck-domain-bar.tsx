@@ -1,6 +1,7 @@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders } from "@/hooks/use-enums";
-import { DOMAIN_COLORS } from "@/lib/domain";
+import { getDomainColor } from "@/lib/domain";
 
 /**
  * Thin stacked bar showing domain color distribution for a deck.
@@ -12,6 +13,7 @@ export function DeckDomainBar({
   distribution: { domain: string; count: number }[];
 }) {
   const { orders } = useEnumOrders();
+  const domainColors = useDomainColors();
 
   const total = distribution.reduce((sum, entry) => sum + entry.count, 0);
   if (total === 0) {
@@ -34,7 +36,7 @@ export function DeckDomainBar({
               className="h-full"
               style={{
                 flexBasis: `${percent}%`,
-                backgroundColor: DOMAIN_COLORS[segment.domain] ?? "#737373",
+                backgroundColor: getDomainColor(segment.domain, domainColors),
               }}
             />
             <TooltipContent side="bottom">

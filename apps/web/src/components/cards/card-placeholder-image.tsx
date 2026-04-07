@@ -3,6 +3,7 @@ import { WellKnown } from "@openrift/shared";
 import { useId } from "react";
 
 import { CardText } from "@/components/cards/card-text";
+import { useDomainColors } from "@/hooks/use-domain-colors";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -44,9 +45,10 @@ export function CardPlaceholderImage({
   artist,
   className,
 }: CardPlaceholderImageProps) {
+  const domainColors = useDomainColors();
   const primaryDomain = domain[0] ?? WellKnown.domain.COLORLESS;
   const domainIconPath = getFilterIconPath("domains", primaryDomain);
-  const bgStyle = getDomainGradientStyle(domain);
+  const bgStyle = getDomainGradientStyle(domain, "", domainColors);
   const noiseId = useId();
 
   return (
@@ -86,7 +88,7 @@ export function CardPlaceholderImage({
               <span
                 key={d}
                 className="flex size-[10cqw] items-center justify-center rounded-full"
-                style={getDomainGradientStyle([d])}
+                style={getDomainGradientStyle([d], "", domainColors)}
               >
                 <img
                   src={getFilterIconPath("domains", d)}
@@ -184,7 +186,7 @@ export function CardPlaceholderImage({
           {(effectText || (mightBonus !== null && mightBonus !== undefined)) && (
             <div
               className="mt-[2cqw] flex items-start gap-[2cqw] rounded-[1.5cqw] px-[2cqw] py-[1cqw]"
-              style={getDomainGradientStyle(domain, "30")}
+              style={getDomainGradientStyle(domain, "30", domainColors)}
             >
               <div className="flex-1">
                 {effectText ? (
@@ -241,7 +243,7 @@ export function CardPlaceholderImage({
                   <span
                     key={d}
                     className="flex size-[4cqw] items-center justify-center rounded-full"
-                    style={getDomainGradientStyle([d])}
+                    style={getDomainGradientStyle([d], "", domainColors)}
                   >
                     <img
                       src={getFilterIconPath("domains", d)}

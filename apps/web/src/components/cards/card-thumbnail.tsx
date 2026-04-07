@@ -10,6 +10,7 @@ import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image"
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { resolvePrice } from "@/hooks/use-card-data";
 import { useCardTilt } from "@/hooks/use-card-tilt";
+import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
@@ -197,6 +198,7 @@ export const CardThumbnail = memo(function CardThumbnail({
     effectText: printing.printedEffectText,
     flavorText: printing.flavorText,
   };
+  const domainColors = useDomainColors();
   const imageUrl = printing.images[0]?.url ?? null;
   const orientation = getOrientation(card.type);
   const thumbnailUrl = showImages && imageUrl ? getCardImageUrl(imageUrl, "thumbnail") : null;
@@ -374,7 +376,7 @@ export const CardThumbnail = memo(function CardThumbnail({
     <div
       className="pointer-events-none absolute inset-0 rounded-lg"
       style={{
-        ...getDomainGradientStyle(card.domains, "C0"),
+        ...getDomainGradientStyle(card.domains, "C0", domainColors),
         animation: "selection-flash 800ms ease-out forwards",
       }}
     />
@@ -422,7 +424,11 @@ export const CardThumbnail = memo(function CardThumbnail({
           otherPrintings.length > 0 && "hover:[--fan:1]",
           isDragging && "opacity-40",
         )}
-        style={isSelected || highlighted ? getDomainGradientStyle(card.domains, "38") : undefined}
+        style={
+          isSelected || highlighted
+            ? getDomainGradientStyle(card.domains, "38", domainColors)
+            : undefined
+        }
         onMouseEnter={fanMouseEnter}
         onMouseLeave={fanMouseLeave}
         {...(enableDrag ? { ...dragListeners, ...dragAttributes } : {})}
@@ -451,7 +457,11 @@ export const CardThumbnail = memo(function CardThumbnail({
       )}
       onMouseEnter={fanMouseEnter}
       onMouseLeave={fanMouseLeave}
-      style={isSelected || highlighted ? getDomainGradientStyle(card.domains, "38") : undefined}
+      style={
+        isSelected || highlighted
+          ? getDomainGradientStyle(card.domains, "38", domainColors)
+          : undefined
+      }
     >
       {flashOverlay}
       {aboveCard}

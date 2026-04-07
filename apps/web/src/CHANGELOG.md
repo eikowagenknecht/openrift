@@ -2,6 +2,7 @@
 
 ## 2026-04-07
 
+- feat: Domain colors are now stored in the database and can be customized by admins under Catalog > Domains
 - feat: Collection import now supports re-importing your own OpenRift CSV exports
 - feat: CSV exports now include a Promo column so promo variants can be imported back without ambiguity
 - feat: Providers can now be marked as favorites, and the Review badge on the cards page only counts unchecked candidates from favorite providers

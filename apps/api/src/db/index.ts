@@ -11,6 +11,7 @@ export type {
   Database,
   DeckCardsTable,
   DecksTable,
+  DomainsTable,
   FeatureFlagsTable,
   UserFeatureFlagsTable,
   SiteSettingsTable,

@@ -6,9 +6,18 @@ import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DomainCount } from "@/hooks/use-deck-stats";
 import { useDeckStats } from "@/hooks/use-deck-stats";
-import { DOMAIN_COLORS } from "@/lib/domain";
+import { useDomainColors } from "@/hooks/use-domain-colors";
+import { getDomainColor } from "@/lib/domain";
 
-function DomainBar({ data, total }: { data: DomainCount[]; total: number }) {
+function DomainBar({
+  data,
+  total,
+  colors,
+}: {
+  data: DomainCount[];
+  total: number;
+  colors: Record<string, string>;
+}) {
   if (data.length === 0 || total === 0) {
     return null;
   }
@@ -29,7 +38,7 @@ function DomainBar({ data, total }: { data: DomainCount[]; total: number }) {
                 render={<span />}
                 style={{
                   width: `${percentage}%`,
-                  backgroundColor: DOMAIN_COLORS[entry.domain] ?? "#737373",
+                  backgroundColor: getDomainColor(entry.domain, colors),
                 }}
               />
               <TooltipContent side="bottom">
@@ -46,6 +55,7 @@ function DomainBar({ data, total }: { data: DomainCount[]; total: number }) {
 export function DeckStatsPanel() {
   const [open, setOpen] = useState(true);
   const stats = useDeckStats();
+  const domainColors = useDomainColors();
 
   return (
     <div className="rounded-lg border">
@@ -60,7 +70,7 @@ export function DeckStatsPanel() {
           <ChevronRightIcon className="size-3.5" />
         )}
         <span>Stats</span>
-        <DomainBar data={stats.domainDistribution} total={stats.totalCards} />
+        <DomainBar data={stats.domainDistribution} total={stats.totalCards} colors={domainColors} />
         <span className="text-muted-foreground text-xs">{stats.totalCards} cards</span>
       </button>
 

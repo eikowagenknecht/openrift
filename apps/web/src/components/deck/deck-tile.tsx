@@ -51,6 +51,7 @@ import {
   useDeleteDeck,
   useUpdateDeck,
 } from "@/hooks/use-decks";
+import { useDomainColors } from "@/hooks/use-domain-colors";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
 import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
@@ -104,14 +105,16 @@ function FannedPreview({
   legendImage,
   championImage,
   legendDomains,
+  domainColors,
 }: {
   legendImage?: string | null;
   championImage?: string | null;
   legendDomains?: Domain[];
+  domainColors: Record<string, string>;
 }) {
   const gradientStyle =
     legendDomains && legendDomains.length > 0
-      ? getDomainGradientStyle(legendDomains, "40")
+      ? getDomainGradientStyle(legendDomains, "40", domainColors)
       : undefined;
 
   const singleImage = legendImage ?? championImage;
@@ -237,6 +240,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
     updateDeck.mutate({ deckId: deck.id, format: newFormat });
   };
 
+  const domainColors = useDomainColors();
   const legendDomains = legend?.domains;
   const createdDate = new Date(deck.createdAt).toISOString().slice(0, 10);
   const updatedDate = new Date(deck.updatedAt).toISOString().slice(0, 10);
@@ -247,7 +251,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
 
   const gradientStyle =
     legendDomains && legendDomains.length > 0
-      ? getDomainGradientStyle(legendDomains, "18")
+      ? getDomainGradientStyle(legendDomains, "18", domainColors)
       : undefined;
 
   return (
@@ -262,6 +266,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
           legendImage={legend?.imageUrl}
           championImage={champion?.imageUrl}
           legendDomains={legendDomains}
+          domainColors={domainColors}
         />
 
         <div className="flex flex-1 flex-col gap-2 p-3">

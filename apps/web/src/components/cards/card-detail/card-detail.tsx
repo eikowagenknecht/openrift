@@ -8,6 +8,7 @@ import { CardText } from "@/components/cards/card-text";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCardTilt } from "@/hooks/use-card-tilt";
+import { useDomainColors } from "@/hooks/use-domain-colors";
 import { getDomainGradientStyle, getDomainTintStyle } from "@/lib/domain";
 import { formatPublicCode } from "@/lib/format";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
@@ -46,6 +47,7 @@ export function CardDetail({
   onSelectPrinting,
 }: CardDetailProps) {
   const { card } = printing;
+  const domainColors = useDomainColors();
   const setNumber = formatPublicCode(printing);
   const imageSwipeRef = useRef<HTMLDivElement>(null);
   const orientation = getOrientation(card.type);
@@ -95,7 +97,7 @@ export function CardDetail({
   return (
     <div
       className="bg-background overflow-y-auto rounded-lg px-3"
-      style={getDomainTintStyle(card.domains)}
+      style={getDomainTintStyle(card.domains, domainColors)}
     >
       {/* Mobile header */}
       <div className="border-border/30 sticky top-0 z-10 border-b p-4 backdrop-blur md:hidden">
@@ -237,7 +239,7 @@ export function CardDetail({
           {(printing.printedEffectText || (card.mightBonus !== null && card.mightBonus > 0)) && (
             <div
               className="border-border/50 rounded-lg border px-3 py-2.5"
-              style={getDomainGradientStyle(card.domains, "18")}
+              style={getDomainGradientStyle(card.domains, "18", domainColors)}
             >
               {printing.printedEffectText && (
                 <p className="text-muted-foreground text-sm">
