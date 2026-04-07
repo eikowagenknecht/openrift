@@ -12,7 +12,6 @@
     "start": "bun run .output/server/index.mjs",
     "typecheck": "tsc -b",
     "lint": "eslint .",
-    "preview": "vite preview",
     "routes:generate": "tsr generate"
   },
   "dependencies": {
