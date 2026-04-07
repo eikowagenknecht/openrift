@@ -13,6 +13,7 @@ import * as m064 from "./064-card-errata-table.js";
 import * as m065 from "./065-deck-zone-sort-order.js";
 import * as m066 from "./066-drop-acquisition-sources.js";
 import * as m067 from "./067-provider-favorite.js";
+import * as m068 from "./068-domain-color.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -85,4 +86,5 @@ export const migrations: Record<string, Migration> = {
   "065-deck-zone-sort-order": m065,
   "066-drop-acquisition-sources": m066,
   "067-provider-favorite": m067,
+  "068-domain-color": m068,
 };
