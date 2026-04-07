@@ -315,27 +315,21 @@ export const decksRoute = decksApp
     return c.json(toDeck(row), 201);
   })
 
-  // ── GET ONE (custom: returns deck with deck_cards joined) ───────────────────
+  // ── GET ONE ────────────────────────────────────────────────────────────────
   .openapi(getDeck, async (c) => {
-    const { decks, marketplace, userPreferences } = c.get("repos");
+    const { decks } = c.get("repos");
     const userId = getUserId(c);
     const { id } = c.req.valid("param");
 
-    const [deck, cardRows, prefs] = await Promise.all([
+    const [deck, cardRows] = await Promise.all([
       decks.getByIdForUser(id, userId),
-      decks.cardsWithDetails(id, userId),
-      userPreferences.getByUserId(userId),
+      decks.cardsForDeck(id, userId),
     ]);
     assertFound(deck, "Not found");
-
-    const favMarketplace =
-      prefs?.data?.marketplaceOrder?.[0] ?? PREFERENCE_DEFAULTS.marketplaceOrder[0];
-    const deckValueMap = await marketplace.deckValues(userId, favMarketplace);
 
     const detail: DeckDetailResponse = {
       deck: toDeck(deck),
       cards: cardRows.map((r) => toDeckCard(r)),
-      totalValueCents: deckValueMap.get(id) ?? null,
     };
     return c.json(detail);
   })
@@ -373,13 +367,12 @@ export const decksRoute = decksApp
     const deck = await decks.getIdAndFormat(id, userId);
     assertFound(deck, "Not found");
 
-    // Save the cards first, then validate the full deck with card details
     await decks.replaceCards(
       id,
       body.cards.map((card) => ({ ...card, zone: card.zone as DeckZone })),
     );
 
-    const cardRows = await decks.cardsWithDetails(id, userId);
+    const cardRows = await decks.cardsForDeck(id, userId);
 
     return c.json({ cards: cardRows.map((r) => toDeckCard(r)) });
   })

@@ -15,6 +15,7 @@ const mockRepo = {
   getByIdForUser: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   update: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   deleteByIdForUser: vi.fn(() => Promise.resolve({ numDeletedRows: 0n })),
+  cardsForDeck: vi.fn(() => Promise.resolve([] as object[])),
   cardsWithDetails: vi.fn(() => Promise.resolve([] as object[])),
   getIdAndFormat: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   exists: vi.fn(() => Promise.resolve(undefined as object | undefined)),
@@ -77,7 +78,15 @@ const dbDeck = {
   updatedAt: now,
 };
 
+/** Slim deck card row (for cardsForDeck — detail/PUT endpoints). */
 const dbDeckCard = {
+  cardId: "OGS-001",
+  zone: "main",
+  quantity: 4,
+};
+
+/** Full deck card row (for cardsWithDetails — export, allCardsForUser — list). */
+const dbDeckCardFull = {
   id: "a0000000-0001-4000-a000-000000000020",
   deckId: DECK_ID,
   cardId: "OGS-001",
@@ -106,7 +115,7 @@ describe("GET /api/v1/decks", () => {
 
   it("returns 200 with list of decks", async () => {
     mockRepo.listForUser.mockResolvedValue([dbDeck]);
-    mockRepo.allCardsForUser.mockResolvedValue([dbDeckCard]);
+    mockRepo.allCardsForUser.mockResolvedValue([dbDeckCardFull]);
     const res = await app.request("/api/v1/decks");
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -161,12 +170,12 @@ describe("POST /api/v1/decks", () => {
 describe("GET /api/v1/decks/:id", () => {
   beforeEach(() => {
     mockRepo.getByIdForUser.mockReset();
-    mockRepo.cardsWithDetails.mockReset();
+    mockRepo.cardsForDeck.mockReset();
   });
 
   it("returns 200 with deck and cards", async () => {
     mockRepo.getByIdForUser.mockResolvedValue(dbDeck);
-    mockRepo.cardsWithDetails.mockResolvedValue([dbDeckCard]);
+    mockRepo.cardsForDeck.mockResolvedValue([dbDeckCard]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}`);
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -239,7 +248,7 @@ describe("PUT /api/v1/decks/:id/cards", () => {
 
   it("returns 200 with updated cards when replaced successfully", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "freeform" });
-    mockRepo.cardsWithDetails.mockResolvedValue([]);
+    mockRepo.cardsForDeck.mockResolvedValue([]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -254,7 +263,7 @@ describe("PUT /api/v1/decks/:id/cards", () => {
 
   it("returns 200 with empty cards array", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "freeform" });
-    mockRepo.cardsWithDetails.mockResolvedValue([]);
+    mockRepo.cardsForDeck.mockResolvedValue([]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -275,25 +284,7 @@ describe("PUT /api/v1/decks/:id/cards", () => {
 
   it("saves incomplete standard deck without validation error", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "standard" });
-    mockRepo.cardsWithDetails.mockResolvedValue([
-      {
-        id: "dc-1",
-        deckId: DECK_ID,
-        cardId: "OGS-001",
-        zone: "main",
-        quantity: 10,
-        cardName: "Test Unit",
-        cardType: "Unit",
-        superTypes: [],
-        domains: ["Fury"],
-        tags: [],
-        keywords: [],
-        energy: 1,
-        might: null,
-        power: 2,
-        imageUrl: null,
-      },
-    ]);
+    mockRepo.cardsForDeck.mockResolvedValue([{ cardId: "OGS-001", zone: "main", quantity: 10 }]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -306,25 +297,7 @@ describe("PUT /api/v1/decks/:id/cards", () => {
 
   it("allows freeform deck without validation", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "freeform" });
-    mockRepo.cardsWithDetails.mockResolvedValue([
-      {
-        id: "dc-1",
-        deckId: DECK_ID,
-        cardId: "OGS-001",
-        zone: "main",
-        quantity: 4,
-        cardName: "Test Unit",
-        cardType: "Unit",
-        superTypes: [],
-        domains: ["Fury"],
-        tags: [],
-        keywords: [],
-        energy: 1,
-        might: null,
-        power: 2,
-        imageUrl: null,
-      },
-    ]);
+    mockRepo.cardsForDeck.mockResolvedValue([{ cardId: "OGS-001", zone: "main", quantity: 4 }]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -490,8 +463,7 @@ describe("PATCH /api/v1/decks/:id — field updates", () => {
       body: JSON.stringify({ isWanted: true }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.isWanted).toBe(true);
+    expect(mockRepo.update).toHaveBeenCalledWith(DECK_ID, USER_ID, { isWanted: true });
   });
 
   it("updates isPublic field", async () => {
@@ -503,8 +475,7 @@ describe("PATCH /api/v1/decks/:id — field updates", () => {
       body: JSON.stringify({ isPublic: true }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.isPublic).toBe(true);
+    expect(mockRepo.update).toHaveBeenCalledWith(DECK_ID, USER_ID, { isPublic: true });
   });
 
   it("updates description field", async () => {
@@ -516,8 +487,7 @@ describe("PATCH /api/v1/decks/:id — field updates", () => {
       body: JSON.stringify({ description: "Aggro build" }),
     });
     expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.description).toBe("Aggro build");
+    expect(mockRepo.update).toHaveBeenCalledWith(DECK_ID, USER_ID, { description: "Aggro build" });
   });
 });
 
@@ -525,13 +495,13 @@ describe("PUT /api/v1/decks/:id/cards — returned cards", () => {
   beforeEach(() => {
     mockRepo.getIdAndFormat.mockReset();
     mockRepo.replaceCards.mockReset();
-    mockRepo.cardsWithDetails.mockReset();
+    mockRepo.cardsForDeck.mockReset();
   });
 
-  it("returns the replaced cards from cardsWithDetails", async () => {
+  it("returns the replaced cards from cardsForDeck", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "freeform" });
     mockRepo.replaceCards.mockResolvedValue(undefined);
-    mockRepo.cardsWithDetails.mockResolvedValue([dbDeckCard]);
+    mockRepo.cardsForDeck.mockResolvedValue([dbDeckCard]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -544,13 +514,12 @@ describe("PUT /api/v1/decks/:id/cards — returned cards", () => {
     expect(json.cards).toHaveLength(1);
     expect(json.cards[0].cardId).toBe("OGS-001");
     expect(json.cards[0].quantity).toBe(4);
-    expect(json.cards[0].domains).toEqual(["Fury"]);
   });
 
   it("calls replaceCards with the card data", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "freeform" });
     mockRepo.replaceCards.mockResolvedValue(undefined);
-    mockRepo.cardsWithDetails.mockResolvedValue([]);
+    mockRepo.cardsForDeck.mockResolvedValue([]);
     const cards = [
       { cardId: "OGS-001", zone: "main", quantity: 4 },
       { cardId: "OGS-002", zone: "sideboard", quantity: 2 },
@@ -567,12 +536,12 @@ describe("PUT /api/v1/decks/:id/cards — returned cards", () => {
 describe("GET /api/v1/decks/:id — card details", () => {
   beforeEach(() => {
     mockRepo.getByIdForUser.mockReset();
-    mockRepo.cardsWithDetails.mockReset();
+    mockRepo.cardsForDeck.mockReset();
   });
 
   it("returns empty cards array when deck has no cards", async () => {
     mockRepo.getByIdForUser.mockResolvedValue(dbDeck);
-    mockRepo.cardsWithDetails.mockResolvedValue([]);
+    mockRepo.cardsForDeck.mockResolvedValue([]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}`);
     expect(res.status).toBe(200);
     const json = await res.json();

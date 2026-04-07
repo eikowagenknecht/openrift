@@ -50,13 +50,7 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
   return {
     id: row.id,
     name: row.name,
-    description: row.description,
     format: row.format,
-    isWanted: row.isWanted,
-    isPublic: row.isPublic,
-    shareToken: row.shareToken,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
   };
 }
 
@@ -178,38 +172,14 @@ export function toCopy(row: {
  * @returns The serialized deck card response.
  */
 export function toDeckCard(row: {
-  id: string;
-  deckId: string;
   cardId: string;
   zone: string;
   quantity: number;
-  cardName: string;
-  cardType: string;
-  superTypes: string[];
-  domains: string[];
-  tags: string[];
-  keywords: string[];
-  energy: number | null;
-  might: number | null;
-  power: number | null;
-  imageUrl: string | null;
 }): DeckCardResponse {
   return {
-    id: row.id,
-    deckId: row.deckId,
     cardId: row.cardId,
     zone: row.zone as DeckCardResponse["zone"],
     quantity: row.quantity,
-    cardName: row.cardName,
-    cardType: row.cardType as DeckCardResponse["cardType"],
-    superTypes: row.superTypes as DeckCardResponse["superTypes"],
-    domains: row.domains as DeckCardResponse["domains"],
-    tags: row.tags,
-    keywords: row.keywords,
-    energy: row.energy,
-    might: row.might,
-    power: row.power,
-    imageUrl: row.imageUrl,
   };
 }
 

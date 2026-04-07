@@ -56,6 +56,7 @@ import { useDomainColors } from "@/hooks/use-domain-colors";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
 import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
+import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { toDeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -227,7 +228,12 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
     ...deckDetailQueryOptions(deck.id),
     enabled: needsDetail,
   });
-  const detailCards = detail ? detail.cards.map((card) => toDeckBuilderCard(card)) : undefined;
+  const { cardsById } = useCards();
+  const detailCards = detail
+    ? detail.cards
+        .map((card) => toDeckBuilderCard(card, cardsById))
+        .filter((card): card is DeckBuilderCard => card !== null)
+    : undefined;
 
   const handleClone = (event: React.MouseEvent) => {
     event.preventDefault();

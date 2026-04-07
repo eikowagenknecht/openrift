@@ -140,14 +140,14 @@ export function useUpdateDeck() {
         },
       );
 
-      // Update the deck list entry if it exists
+      // Update the deck list entry if it exists (spread to preserve summary-only fields)
       queryClient.setQueryData<DeckListResponse>(queryKeys.decks.all, (old) => {
         if (!old) {
           return old;
         }
         return {
           items: old.items.map((item) =>
-            item.deck.id === variables.deckId ? { ...item, deck: data } : item,
+            item.deck.id === variables.deckId ? { ...item, deck: { ...item.deck, ...data } } : item,
           ),
         };
       });

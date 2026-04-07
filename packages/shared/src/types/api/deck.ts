@@ -31,37 +31,18 @@ export interface DeckAvailabilityResponse {
 export interface DeckResponse {
   id: string;
   name: string;
-  description: string | null;
   format: "standard" | "freeform";
-  isWanted: boolean;
-  isPublic: boolean;
-  shareToken: string | null;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface DeckCardResponse {
-  id: string;
-  deckId: string;
   cardId: string;
   zone: DeckZone;
   quantity: number;
-  cardName: string;
-  cardType: CardType;
-  superTypes: SuperType[];
-  domains: Domain[];
-  tags: string[];
-  keywords: string[];
-  energy: number | null;
-  might: number | null;
-  power: number | null;
-  imageUrl: string | null;
 }
 
 export interface DeckDetailResponse {
   deck: DeckResponse;
   cards: DeckCardResponse[];
-  totalValueCents: number | null;
 }
 
 export interface DeckAvailabilityItemResponse {

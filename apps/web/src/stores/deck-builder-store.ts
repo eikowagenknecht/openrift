@@ -11,6 +11,8 @@ import type {
 import { WellKnown, validateDeck } from "@openrift/shared";
 import { create } from "zustand";
 
+const EMPTY_ARRAY: string[] = [];
+
 export interface DeckBuilderCard {
   cardId: string;
   zone: DeckZone;
@@ -486,18 +488,29 @@ export function catalogCardToDeckBuilderCard(card: Card): DeckBuilderCard {
   };
 }
 
-// Converts an API DeckCardResponse to a DeckBuilderCard (for loading saved decks).
-export function toDeckBuilderCard(card: DeckCardResponse): DeckBuilderCard {
+/**
+ * Converts an API DeckCardResponse to a DeckBuilderCard by resolving card
+ * metadata from the catalog.
+ * @returns A DeckBuilderCard with full card data, or null if card not found.
+ */
+export function toDeckBuilderCard(
+  deckCard: DeckCardResponse,
+  cardsById: Record<string, Card>,
+): DeckBuilderCard | null {
+  const card = cardsById[deckCard.cardId];
+  if (!card) {
+    return null;
+  }
   return {
-    cardId: card.cardId,
-    zone: card.zone,
-    quantity: card.quantity,
-    cardName: card.cardName,
-    cardType: card.cardType,
+    cardId: deckCard.cardId,
+    zone: deckCard.zone,
+    quantity: deckCard.quantity,
+    cardName: card.name,
+    cardType: card.type,
     superTypes: card.superTypes,
     domains: card.domains,
-    tags: card.tags,
-    keywords: card.keywords,
+    tags: card.tags ?? EMPTY_ARRAY,
+    keywords: card.keywords ?? EMPTY_ARRAY,
     energy: card.energy,
     might: card.might,
     power: card.power,

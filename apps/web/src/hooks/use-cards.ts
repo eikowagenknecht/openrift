@@ -1,4 +1,4 @@
-import type { Printing, CatalogResponse } from "@openrift/shared";
+import type { Card, Printing, CatalogResponse } from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import type { SetInfo } from "@/components/cards/card-grid";
@@ -12,6 +12,7 @@ export interface CatalogLanguage {
 
 interface UseCardsResult {
   allPrintings: Printing[];
+  cardsById: Record<string, Card>;
   sets: SetInfo[];
   totalCopies: number;
   languages: CatalogLanguage[];
@@ -35,6 +36,7 @@ function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
   }
   return {
     allPrintings,
+    cardsById: catalog.cards,
     sets: catalog.sets,
     totalCopies: catalog.totalCopies,
     languages: catalog.languages,

@@ -78,7 +78,7 @@ describe("toCollection", () => {
 // ---------------------------------------------------------------------------
 
 describe("toDeck", () => {
-  it("maps a deck row with date serialization", () => {
+  it("maps a deck row to slim response", () => {
     const result = toDeck({
       id: "deck-1",
       userId: "user-1",
@@ -94,13 +94,7 @@ describe("toDeck", () => {
     expect(result).toEqual({
       id: "deck-1",
       name: "Aggro",
-      description: null,
       format: "standard",
-      isWanted: false,
-      isPublic: true,
-      shareToken: null,
-      createdAt: "2025-06-15T12:00:00.000Z",
-      updatedAt: "2025-06-16T08:30:00.000Z",
     });
   });
 });
@@ -341,40 +335,16 @@ describe("toCollectionEvent", () => {
 // ---------------------------------------------------------------------------
 
 describe("toDeckCard", () => {
-  it("maps a denormalized deck card row", () => {
+  it("maps a deck card row to slim response", () => {
     const result = toDeckCard({
-      id: "dc-1",
-      deckId: "deck-1",
       cardId: "card-1",
       zone: "main",
       quantity: 4,
-      cardName: "Fire Bolt",
-      cardType: "Spell",
-      superTypes: [],
-      domains: ["Fury"],
-      tags: [],
-      keywords: [],
-      energy: 2,
-      might: null,
-      power: null,
-      imageUrl: null,
     });
     expect(result).toEqual({
-      id: "dc-1",
-      deckId: "deck-1",
       cardId: "card-1",
       zone: "main",
       quantity: 4,
-      cardName: "Fire Bolt",
-      cardType: "Spell",
-      superTypes: [],
-      domains: ["Fury"],
-      tags: [],
-      keywords: [],
-      energy: 2,
-      might: null,
-      power: null,
-      imageUrl: null,
     });
   });
 });

@@ -37,7 +37,7 @@ import { useDeckDetail, useSaveDeckCards } from "@/hooks/use-decks";
 import { getCardImageUrl } from "@/lib/images";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
-import { toDeckBuilderCard, useDeckBuilderStore } from "@/stores/deck-builder-store";
+import { useDeckBuilderStore, toDeckBuilderCard } from "@/stores/deck-builder-store";
 
 const ZONE_LABELS: Record<DeckZone, string> = {
   legend: "Legend",
@@ -182,6 +182,7 @@ function DeckEditorContent({
   topBarSlot: HTMLDivElement | null;
 }) {
   const { data } = useDeckDetail(deckId);
+  const { cardsById } = useCards();
   const init = useDeckBuilderStore((state) => state.init);
   const reset = useDeckBuilderStore((state) => state.reset);
   const storeId = useDeckBuilderStore((state) => state.deckId);
@@ -203,10 +204,13 @@ function DeckEditorContent({
   // Initialize store when deck data loads or changes
   useEffect(() => {
     if (data && storeId !== deckId) {
-      init(deckId, data.deck.format, data.cards.map(toDeckBuilderCard));
+      const builderCards = data.cards
+        .map((card) => toDeckBuilderCard(card, cardsById))
+        .filter((card): card is DeckBuilderCard => card !== null);
+      init(deckId, data.deck.format, builderCards);
       lastSuggestedZone.current = null;
     }
-  }, [data, deckId, storeId, init]);
+  }, [data, deckId, storeId, init, cardsById]);
 
   // Auto-save: debounce saves so every change is persisted
   useEffect(() => {

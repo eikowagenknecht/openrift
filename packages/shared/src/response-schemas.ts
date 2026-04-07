@@ -336,13 +336,7 @@ export const deckResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),
-    description: z.string().nullable(),
     format: deckFormatSchema,
-    isWanted: z.boolean(),
-    isPublic: z.boolean(),
-    shareToken: z.string().nullable(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
   })
   .openapi("DeckResponse");
 
@@ -375,21 +369,9 @@ export const deckListResponseSchema = z
 
 const deckCardResponseSchema = z
   .object({
-    id: z.string(),
-    deckId: z.string(),
     cardId: z.string(),
     zone: deckZoneSchema,
     quantity: z.number(),
-    cardName: z.string(),
-    cardType: cardTypeSchema,
-    superTypes: z.array(superTypeSchema),
-    domains: z.array(domainSchema),
-    tags: z.array(z.string()),
-    keywords: z.array(z.string()),
-    energy: z.number().nullable(),
-    might: z.number().nullable(),
-    power: z.number().nullable(),
-    imageUrl: z.string().nullable(),
   })
   .openapi("DeckCardResponse");
 
@@ -397,7 +379,6 @@ export const deckDetailResponseSchema = z
   .object({
     deck: deckResponseSchema,
     cards: z.array(deckCardResponseSchema),
-    totalValueCents: z.number().nullable(),
   })
   .openapi("DeckDetailResponse");
 

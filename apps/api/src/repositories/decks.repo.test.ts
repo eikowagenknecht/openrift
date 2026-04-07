@@ -73,6 +73,13 @@ describe("decksRepo", () => {
     expect(result).toEqual({ numDeletedRows: 1n });
   });
 
+  it("cardsForDeck returns slim deck card rows", async () => {
+    const rows = [{ cardId: "c-1", zone: "main", quantity: 4 }];
+    const db = createMockDb(rows);
+    const repo = decksRepo(db);
+    expect(await repo.cardsForDeck("d-1", "u1")).toEqual(rows);
+  });
+
   it("cardsWithDetails returns deck cards with card info", async () => {
     const rows = [
       {

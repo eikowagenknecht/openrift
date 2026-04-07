@@ -5,8 +5,11 @@ import { sql } from "kysely";
 import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/index.js";
 import { domainsArray, superTypesArray } from "./query-helpers.js";
 
-/** Deck card row with card details. */
-type DeckCardRow = Pick<
+/** Slim deck card row — card metadata is resolved client-side from the catalog. */
+type DeckCardRow = Pick<Selectable<DeckCardsTable>, "cardId" | "zone" | "quantity">;
+
+/** Full deck card row with card details, used for list-page aggregation (type counts, domains, validation). */
+type DeckCardDetailRow = Pick<
   Selectable<DeckCardsTable>,
   "id" | "deckId" | "cardId" | "zone" | "quantity"
 > &
@@ -109,8 +112,19 @@ export function decksRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Deck cards joined with card details, ordered by zone then name. Scoped to the owning user for defense-in-depth. */
-    cardsWithDetails(deckId: string, userId: string): Promise<DeckCardRow[]> {
+    /** @returns Deck cards for a deck, scoped to the owning user for defense-in-depth. */
+    cardsForDeck(deckId: string, userId: string): Promise<DeckCardRow[]> {
+      return db
+        .selectFrom("deckCards as dc")
+        .innerJoin("decks as d", "d.id", "dc.deckId")
+        .select(["dc.cardId", "dc.zone", "dc.quantity"])
+        .where("dc.deckId", "=", deckId)
+        .where("d.userId", "=", userId)
+        .execute();
+    },
+
+    /** @returns Deck cards with full card details for a single deck (used by export). */
+    cardsWithDetails(deckId: string, userId: string): Promise<DeckCardDetailRow[]> {
       return db
         .selectFrom("deckCards as dc")
         .innerJoin("decks as d", "d.id", "dc.deckId")
@@ -151,11 +165,11 @@ export function decksRepo(db: Kysely<Database>) {
         .where("d.userId", "=", userId)
         .orderBy("dc.zone")
         .orderBy("c.name")
-        .execute() as Promise<DeckCardRow[]>;
+        .execute() as Promise<DeckCardDetailRow[]>;
     },
 
     /** @returns All deck cards with card details for every deck owned by a user. */
-    allCardsForUser(userId: string): Promise<DeckCardRow[]> {
+    allCardsForUser(userId: string): Promise<DeckCardDetailRow[]> {
       return db
         .selectFrom("deckCards as dc")
         .innerJoin("decks as d", "d.id", "dc.deckId")
@@ -181,7 +195,7 @@ export function decksRepo(db: Kysely<Database>) {
         .orderBy("dc.deckId")
         .orderBy("dc.zone")
         .orderBy("c.name")
-        .execute() as Promise<DeckCardRow[]>;
+        .execute() as Promise<DeckCardDetailRow[]>;
     },
 
     /** @returns Card requirements for a deck (cardId, zone, quantity). */
