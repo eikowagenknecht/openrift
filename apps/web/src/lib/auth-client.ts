@@ -2,15 +2,15 @@ import { queryOptions } from "@tanstack/react-query";
 import { emailOTPClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
-// SSR migration note:
-// This is a browser-only auth client. When migrating to TanStack Start,
-// server-side session checks should use createServerFn + auth.api.getSession()
-// with forwarded request headers (see https://better-auth.com/docs/integrations/tanstack).
-// The sessionQueryOptions pattern below would be replaced by server functions
-// that read cookies from the request directly — no browser fetch during SSR.
+// On the client, use the browser origin. On the server (SSR), route auth
+// requests through the internal API URL (same network as the RPC client).
+const baseURL =
+  "location" in globalThis
+    ? globalThis.location.origin
+    : (process.env.API_INTERNAL_URL ?? "http://localhost:3000");
 
 export const authClient = createAuthClient({
-  baseURL: globalThis.location.origin,
+  baseURL,
   plugins: [emailOTPClient()],
 });
 
