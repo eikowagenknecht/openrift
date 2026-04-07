@@ -5,10 +5,11 @@ import { ApiError } from "./api-client";
 
 function getBaseUrl() {
   if (!("location" in globalThis)) {
-    if (!process.env.API_INTERNAL_URL) {
+    const url = process.env.API_INTERNAL_URL;
+    if (!url) {
       throw new Error("API_INTERNAL_URL must be set on the server");
     }
-    return process.env.API_INTERNAL_URL;
+    return url;
   }
   return "/";
 }
