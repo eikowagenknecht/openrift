@@ -43,6 +43,10 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
   const showScopeChips = searchFocused;
   const hasPrefixes = parseSearchTerms(localSearch).some((t) => t.field !== null);
 
+  const placeholder = allSelected
+    ? "Search cards..."
+    : `Search by ${searchScope.map((f) => SEARCH_FIELD_LABELS[f].label.toLowerCase()).join(", ")}...`;
+
   useEffect(() => {
     // External change (e.g. clear all, clear search badge): sync local state
     if (prevFilterSearch.current !== filterState.search) {
@@ -65,7 +69,7 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
       <div className="relative">
         <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
         <Input
-          placeholder="Search cards..."
+          placeholder={placeholder}
           value={localSearch}
           onChange={(e) => setLocalSearch(e.target.value)}
           onFocus={() => setSearchFocused(true)}

@@ -2,6 +2,7 @@
 
 ## 2026-04-07
 
+- feat: Search bar placeholder now shows which fields are being searched when the scope is narrowed (e.g. "Search by name, artist...")
 - fix: Search bar in copies view now shows the total number of copies instead of unique printings
 
 ## 2026-04-06
