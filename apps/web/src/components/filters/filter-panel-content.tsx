@@ -6,8 +6,8 @@ import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { formatDomainFilterLabel } from "@/lib/domain";
-import { ART_VARIANT_LABELS, FINISH_LABELS } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 
 /** Number of discrete positions on the slider track in logarithmic mode. */
@@ -80,6 +80,7 @@ export function FilterBadgeSections({
   setDisplayLabel,
   hiddenSections,
 }: FilterPanelContentProps) {
+  const { labels } = useEnumOrders();
   const { filterState } = useFilterValues();
   const { toggleArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
     useFilterActions();
@@ -133,7 +134,7 @@ export function FilterBadgeSections({
           options={availableFilters.artVariants}
           selected={filterState.artVariants}
           onToggle={(v) => toggleArrayFilter("artVariants", v)}
-          displayLabel={(v) => ART_VARIANT_LABELS[v] ?? v}
+          displayLabel={(v) => labels.artVariants[v] ?? v}
         />
       )}
       {availableFilters.finishes.length > 1 && (
@@ -142,7 +143,7 @@ export function FilterBadgeSections({
           options={availableFilters.finishes}
           selected={filterState.finishes}
           onToggle={(v) => toggleArrayFilter("finishes", v)}
-          displayLabel={(v) => FINISH_LABELS[v] ?? v}
+          displayLabel={(v) => labels.finishes[v] ?? v}
         />
       )}
       {(availableFilters.hasSigned ||

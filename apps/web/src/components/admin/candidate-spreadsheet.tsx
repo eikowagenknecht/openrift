@@ -1,15 +1,8 @@
 import type {
   CandidateCardResponse,
   CandidatePrintingResponse,
+  EnumOrders,
   ProviderSettingResponse,
-} from "@openrift/shared";
-import {
-  ART_VARIANT_ORDER,
-  CARD_TYPE_ORDER,
-  DOMAIN_ORDER,
-  FINISH_ORDER,
-  RARITY_ORDER,
-  SUPER_TYPE_ORDER,
 } from "@openrift/shared";
 import {
   CheckIcon,
@@ -68,30 +61,32 @@ export interface FieldDef {
   suggestions?: readonly string[];
 }
 
-const CARD_TYPE_OPTIONS = CARD_TYPE_ORDER;
-const SUPER_TYPE_OPTIONS = SUPER_TYPE_ORDER;
-
-export const CANDIDATE_CARD_FIELDS: FieldDef[] = [
-  { key: "externalId", label: "External ID", readOnly: true },
-  { key: "shortCode", label: "Short Code", readOnly: true },
-  { key: "energy", label: "Energy" },
-  { key: "power", label: "Power" },
-  { key: "might", label: "Might" },
-  { key: "superTypes", label: "Super Types", options: SUPER_TYPE_OPTIONS, array: true },
-  { key: "type", label: "Type", options: CARD_TYPE_OPTIONS },
-  { key: "name", label: "Name" },
-  { key: "domains", label: "Domains", options: DOMAIN_ORDER, array: true },
-  { key: "rulesText", label: "Rules Text", multiline: true },
-  { key: "effectText", label: "Effect Text", multiline: true },
-  { key: "mightBonus", label: "Might Bonus" },
-  { key: "tags", label: "Tags", array: true },
-  { key: "comment", label: "Comment" },
-  { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
-];
+/** Build candidate card fields with enum options populated from the database.
+ * @returns The field definitions for candidate cards. */
+export function buildCandidateCardFields(orders: EnumOrders): FieldDef[] {
+  return [
+    { key: "externalId", label: "External ID", readOnly: true },
+    { key: "shortCode", label: "Short Code", readOnly: true },
+    { key: "energy", label: "Energy" },
+    { key: "power", label: "Power" },
+    { key: "might", label: "Might" },
+    { key: "superTypes", label: "Super Types", options: orders.superTypes, array: true },
+    { key: "type", label: "Type", options: orders.cardTypes },
+    { key: "name", label: "Name" },
+    { key: "domains", label: "Domains", options: orders.domains, array: true },
+    { key: "rulesText", label: "Rules Text", multiline: true },
+    { key: "effectText", label: "Effect Text", multiline: true },
+    { key: "mightBonus", label: "Might Bonus" },
+    { key: "tags", label: "Tags", array: true },
+    { key: "comment", label: "Comment" },
+    { key: "extraData", label: "Extra Data", readOnly: true, collapsible: true },
+  ];
+}
 
 /** Build candidate printing fields with promo type options populated from the database.
  * @returns The field definitions for candidate printings. */
 export function buildCandidatePrintingFields(
+  orders: EnumOrders,
   promoTypes: readonly { value: string; label: string }[],
   artistSuggestions?: readonly string[],
   languages?: readonly { value: string; label: string }[],
@@ -102,9 +97,9 @@ export function buildCandidatePrintingFields(
     { key: "shortCode", label: "Short Code" },
     { key: "publicCode", label: "Public Code" },
     { key: "collectorNumber", label: "Collector #" },
-    { key: "rarity", label: "Rarity", options: RARITY_ORDER },
-    { key: "finish", label: "Finish", options: FINISH_ORDER },
-    { key: "artVariant", label: "Art Variant", options: ART_VARIANT_ORDER },
+    { key: "rarity", label: "Rarity", options: orders.rarities },
+    { key: "finish", label: "Finish", options: orders.finishes },
+    { key: "artVariant", label: "Art Variant", options: orders.artVariants },
     { key: "isSigned", label: "Signed", type: "boolean" },
     {
       key: "promoTypeId",

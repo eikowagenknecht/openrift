@@ -4,12 +4,12 @@ import { z } from "zod";
 
 // ── Enums ────────────────────────────────────────────────────────────────────
 
-const cardTypeSchema = z.enum(["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield", "Other"]);
-const raritySchema = z.enum(["Common", "Uncommon", "Rare", "Epic", "Showcase"]);
-const domainSchema = z.enum(["Fury", "Calm", "Mind", "Body", "Chaos", "Order", "Colorless"]);
-const superTypeSchema = z.enum(["Basic", "Champion", "Signature", "Token"]);
-const artVariantSchema = z.enum(["normal", "altart", "overnumbered"]);
-const finishSchema = z.enum(["normal", "foil"]);
+const cardTypeSchema = z.string();
+const raritySchema = z.string();
+const domainSchema = z.string();
+const superTypeSchema = z.string();
+const artVariantSchema = z.string();
+const finishSchema = z.string();
 const activityActionSchema = z.enum(["added", "removed", "moved"]);
 const deckFormatSchema = z.enum(["standard", "freeform"]);
 const deckZoneSchema = z.enum([

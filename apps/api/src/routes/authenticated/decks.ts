@@ -13,7 +13,7 @@ import type {
   Domain,
   SuperType,
 } from "@openrift/shared";
-import { CARD_TYPE_ORDER, DOMAIN_ORDER, inferZone, validateDeck } from "@openrift/shared";
+import { DEFAULT_ENUM_ORDERS, inferZone, validateDeck } from "@openrift/shared";
 import {
   deckAvailabilityResponseSchema,
   deckCardsResponseSchema,
@@ -242,10 +242,12 @@ export const decksRoute = decksApp
           (typeCountMap.get(card.cardType as CardType) ?? 0) + card.quantity,
         );
       }
-      const typeCounts = CARD_TYPE_ORDER.filter((type) => typeCountMap.has(type)).map((type) => ({
-        cardType: type,
-        count: typeCountMap.get(type) ?? 0,
-      }));
+      const typeCounts = DEFAULT_ENUM_ORDERS.cardTypes
+        .filter((type) => typeCountMap.has(type as CardType))
+        .map((type) => ({
+          cardType: type as CardType,
+          count: typeCountMap.get(type as CardType) ?? 0,
+        }));
 
       // Domain distribution (from main+champion zones)
       const domainCountMap = new Map<Domain, number>();
@@ -257,12 +259,12 @@ export const decksRoute = decksApp
           domainCountMap.set(domain, (domainCountMap.get(domain) ?? 0) + card.quantity);
         }
       }
-      const domainDistribution = DOMAIN_ORDER.filter((domain) => domainCountMap.has(domain)).map(
-        (domain) => ({
-          domain,
-          count: domainCountMap.get(domain) ?? 0,
-        }),
-      );
+      const domainDistribution = DEFAULT_ENUM_ORDERS.domains
+        .filter((domain) => domainCountMap.has(domain as Domain))
+        .map((domain) => ({
+          domain: domain as Domain,
+          count: domainCountMap.get(domain as Domain) ?? 0,
+        }));
 
       // Validation
       const isValid =

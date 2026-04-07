@@ -1,4 +1,4 @@
-import type { Finish, Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared";
 import { WellKnown, getOrientation } from "@openrift/shared";
 import { useDrag } from "@use-gesture/react";
 import { ArrowLeftIcon, SparkleIcon, XIcon } from "lucide-react";
@@ -49,7 +49,7 @@ export function CardDetail({
   const setNumber = formatPublicCode(printing);
   const imageSwipeRef = useRef<HTMLDivElement>(null);
   const orientation = getOrientation(card.type);
-  const isFoil = printing.finish === ("foil" satisfies Finish);
+  const isFoil = printing.finish === WellKnown.finish.FOIL;
 
   useDrag(
     ({ last, movement: [dx, dy], swipe: [swipeX] }) => {

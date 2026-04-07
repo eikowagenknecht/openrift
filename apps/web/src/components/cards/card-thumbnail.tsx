@@ -1,6 +1,6 @@
 import { useDraggable } from "@dnd-kit/core";
-import type { Domain, Finish, Printing, Rarity } from "@openrift/shared";
-import { getOrientation } from "@openrift/shared";
+import type { Domain, Printing, Rarity } from "@openrift/shared";
+import { WellKnown, getOrientation } from "@openrift/shared";
 import { SparkleIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { memo, useRef, useState } from "react";
@@ -212,7 +212,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   const favoriteMarketplace = marketplaceOrder[0] ?? "tcgplayer";
   const favoritePrice = resolvePrice(printing, favoriteMarketplace);
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
-  const isFoilCard = printing.finish === ("foil" satisfies Finish);
+  const isFoilCard = printing.finish === WellKnown.finish.FOIL;
   const tilt = useCardTilt({ mode: "pointer", enabled: cardTilt && !IS_COARSE_POINTER });
   const otherPrintings = siblings ? siblings.filter((s) => s.id !== printing.id).toReversed() : [];
   const fanStep = cardWidth === undefined ? 2 : Math.max(1, cardWidth * 0.01);
@@ -273,8 +273,8 @@ export const CardThumbnail = memo(function CardThumbnail({
               ) : (
                 <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
               ))}
-            {sibling.finish === ("foil" satisfies Finish) && gridFoil && <FoilOverlay active dim />}
-            {sibling.finish === ("foil" satisfies Finish) && (
+            {sibling.finish === WellKnown.finish.FOIL && gridFoil && <FoilOverlay active dim />}
+            {sibling.finish === WellKnown.finish.FOIL && (
               <SparkleIcon className="absolute top-1.5 right-1.5 z-20 size-4 fill-amber-400 text-amber-400 drop-shadow" />
             )}
           </div>

@@ -6,7 +6,10 @@ import type {
 } from "@openrift/shared";
 
 import type { FieldDef, PrintingGroup } from "@/components/admin/candidate-spreadsheet";
-import { buildCandidatePrintingFields } from "@/components/admin/candidate-spreadsheet";
+import {
+  buildCandidateCardFields,
+  buildCandidatePrintingFields,
+} from "@/components/admin/candidate-spreadsheet";
 import {
   useCheckAllCandidatePrintings,
   useCheckCandidateCard,
@@ -15,6 +18,7 @@ import {
   useUncheckCandidatePrinting,
 } from "@/hooks/use-admin-card-mutations";
 import { useDistinctArtists } from "@/hooks/use-distinct-artists";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useIgnoreCandidateCard, useIgnoreCandidatePrinting } from "@/hooks/use-ignored-candidates";
 import { useLanguages } from "@/hooks/use-languages";
 import { usePromoTypes } from "@/hooks/use-promo-types";
@@ -25,6 +29,8 @@ import { useProviderSettings } from "@/hooks/use-provider-settings";
 // ---------------------------------------------------------------------------
 
 export function useCardDetailData() {
+  const { orders } = useEnumOrders();
+
   const { data: providerSettingsData } = useProviderSettings();
   const providerSettings = providerSettingsData?.providerSettings ?? [];
 
@@ -37,6 +43,7 @@ export function useCardDetailData() {
   const { data: artistSuggestions } = useDistinctArtists();
 
   const printingSourceFields: FieldDef[] = buildCandidatePrintingFields(
+    orders,
     promoTypes
       .map((pt: { id: string; label: string }) => ({
         value: pt.id,
@@ -50,6 +57,8 @@ export function useCardDetailData() {
     })),
   );
 
+  const candidateCardFields: FieldDef[] = buildCandidateCardFields(orders);
+
   const checkCandidateCard = useCheckCandidateCard();
   const uncheckCandidateCard = useUncheckCandidateCard();
   const checkPrintingSource = useCheckCandidatePrinting();
@@ -61,6 +70,7 @@ export function useCardDetailData() {
   return {
     providerSettings,
     promoTypes,
+    candidateCardFields,
     printingSourceFields,
     checkCandidateCard,
     uncheckCandidateCard,

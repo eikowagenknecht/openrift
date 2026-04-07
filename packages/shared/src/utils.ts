@@ -1,5 +1,5 @@
-import type { CardType, Finish } from "./types/index.js";
-import { FINISH_ORDER } from "./types/index.js";
+import type { CardType } from "./types/index.js";
+import { DEFAULT_ENUM_ORDERS } from "./types/index.js";
 import { WellKnown } from "./well-known.js";
 
 /**
@@ -46,7 +46,7 @@ export interface ComparablePrinting {
   setOrder?: number;
   shortCode: string;
   promoTypeSlug?: string | null;
-  finish?: Finish | string;
+  finish?: string;
 }
 
 /**
@@ -60,16 +60,31 @@ export interface ComparablePrinting {
  *
  * @returns Negative if a comes first, positive if b comes first, 0 if equal.
  */
-export function comparePrintings(a: ComparablePrinting, b: ComparablePrinting): number {
+export function comparePrintings(
+  a: ComparablePrinting,
+  b: ComparablePrinting,
+  finishOrder: readonly string[] = DEFAULT_ENUM_ORDERS.finishes,
+): number {
+  const aFinishIdx = finishOrder.indexOf(a.finish ?? "");
+  const bFinishIdx = finishOrder.indexOf(b.finish ?? "");
   const setCompare =
     a.setOrder !== undefined && b.setOrder !== undefined
       ? a.setOrder - b.setOrder
       : (a.setId ?? "").localeCompare(b.setId ?? "");
+  // Unknown finishes (not in order) sort after known ones; two unknowns are equal.
+  const finishCompare =
+    aFinishIdx === -1 && bFinishIdx === -1
+      ? 0
+      : aFinishIdx === -1
+        ? 1
+        : bFinishIdx === -1
+          ? -1
+          : aFinishIdx - bFinishIdx;
   return (
     setCompare ||
     a.shortCode.localeCompare(b.shortCode) ||
     Number(Boolean(a.promoTypeSlug)) - Number(Boolean(b.promoTypeSlug)) ||
-    FINISH_ORDER.indexOf(a.finish as Finish) - FINISH_ORDER.indexOf(b.finish as Finish)
+    finishCompare
   );
 }
 

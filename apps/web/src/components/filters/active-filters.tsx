@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { formatDomainFilterLabel } from "@/lib/domain";
-import { ART_VARIANT_LABELS, FINISH_LABELS } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
 
 const RANGE_BADGE_SECTIONS: {
@@ -33,6 +33,7 @@ export function ActiveFilters({
   setDisplayLabel,
   hiddenSections,
 }: ActiveFiltersProps) {
+  const { labels } = useEnumOrders();
   const { filterState, ranges } = useFilterValues();
   const {
     toggleArrayFilter,
@@ -68,13 +69,13 @@ export function ActiveFilters({
       key: "artVariants",
       label: "Art Variant",
       values: filterState.artVariants,
-      displayLabel: (v: string) => ART_VARIANT_LABELS[v] ?? v,
+      displayLabel: (v: string) => labels.artVariants[v] ?? v,
     },
     {
       key: "finishes",
       label: "Finish",
       values: filterState.finishes,
-      displayLabel: (v: string) => FINISH_LABELS[v] ?? v,
+      displayLabel: (v: string) => labels.finishes[v] ?? v,
     },
   ].filter(
     (

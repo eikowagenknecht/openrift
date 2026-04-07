@@ -1,5 +1,5 @@
-import type { GroupByField, Printing } from "@openrift/shared";
-import { CARD_TYPE_ORDER, DOMAIN_ORDER, RARITY_ORDER, SUPER_TYPE_ORDER } from "@openrift/shared";
+import type { EnumOrders, GroupByField, Printing } from "@openrift/shared";
+import { DEFAULT_ENUM_ORDERS } from "@openrift/shared";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { SearchXIcon, WifiOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -7,6 +7,7 @@ import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "re
 
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { useAdminSettings } from "@/hooks/use-admin-settings";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -54,6 +55,7 @@ interface OrderEntry {
 function groupItemsByField(
   items: CardViewerItem[],
   groupBy: Exclude<GroupByField, "none" | "set">,
+  orders: EnumOrders = DEFAULT_ENUM_ORDERS,
 ): CardGroup[] {
   interface FieldConfig {
     order: readonly string[];
@@ -63,11 +65,11 @@ function groupItemsByField(
 
   const config: Record<typeof groupBy, FieldConfig> = {
     type: {
-      order: CARD_TYPE_ORDER,
+      order: orders.cardTypes,
       getKeysAndItems: (item) => [{ key: item.printing.card.type, mapped: item }],
     },
     superType: {
-      order: SUPER_TYPE_ORDER,
+      order: orders.superTypes,
       getKeysAndItems: (item) => {
         const supers = item.printing.card.superTypes;
         const keys = supers.length > 0 ? supers : ["(None)"];
@@ -75,7 +77,7 @@ function groupItemsByField(
       },
     },
     domain: {
-      order: DOMAIN_ORDER,
+      order: orders.domains,
       getKeysAndItems: (item) => {
         const doms = item.printing.card.domains;
         const keys = doms.length > 0 ? doms : ["Colorless"];
@@ -83,7 +85,7 @@ function groupItemsByField(
       },
     },
     rarity: {
-      order: RARITY_ORDER,
+      order: orders.rarities,
       getKeysAndItems: (item) => [{ key: item.printing.rarity, mapped: item }],
     },
   };
@@ -128,6 +130,7 @@ function buildGroups(
   groupBy: GroupByField,
   setOrder?: GroupInfo[],
   groupDir: "asc" | "desc" = "asc",
+  orders?: EnumOrders,
 ): CardGroup[] {
   if (groupBy === "none") {
     return [{ group: { id: "_all", slug: "", name: "" }, items }];
@@ -138,7 +141,7 @@ function buildGroups(
       ? groupItemsBySet(items, setOrder)
       : [{ group: { id: "_all", slug: "", name: "" }, items }];
   } else {
-    groups = groupItemsByField(items, groupBy);
+    groups = groupItemsByField(items, groupBy, orders);
   }
   if (groupDir === "desc") {
     groups = groups.toReversed();
@@ -354,6 +357,8 @@ export function CardGrid({
   addStripHeight = 0,
   stickyOffset = APP_HEADER_HEIGHT,
 }: CardGridProps) {
+  const { orders } = useEnumOrders();
+
   const maxColumns = useDisplayStore((s) => s.maxColumns);
   const setPhysicalMax = useDisplayStore((s) => s.setPhysicalMax);
   const setPhysicalMin = useDisplayStore((s) => s.setPhysicalMin);
@@ -377,7 +382,7 @@ export function CardGrid({
   const thumbWidth = (containerWidth - GAP * (columns - 1)) / columns;
 
   // ── Group items, then flatten into virtual rows ──────────────────
-  const groups = buildGroups(items, groupBy, setOrder, groupDir);
+  const groups = buildGroups(items, groupBy, setOrder, groupDir, orders);
   const multipleGroups = groups.length > 1;
   const virtualRowsCacheRef = useRef<{
     items: CardViewerItem[];

@@ -2,14 +2,12 @@ import { describe, expect, it } from "bun:test";
 
 import {
   ALL_SEARCH_FIELDS,
-  ART_VARIANT_ORDER,
+  DEFAULT_ENUM_ORDERS,
   DEFAULT_SEARCH_SCOPE,
-  DOMAIN_ORDER,
-  FINISH_ORDER,
-  RARITY_ORDER,
   SEARCH_PREFIX_MAP,
 } from "./types";
 import { getOrientation } from "./utils";
+import { WellKnown } from "./well-known";
 
 describe("getOrientation", () => {
   it("returns landscape for Battlefield", () => {
@@ -38,23 +36,20 @@ describe("getOrientation", () => {
 });
 
 describe("constants", () => {
-  it("DOMAIN_ORDER has 7 domains with Colorless last", () => {
-    expect(DOMAIN_ORDER).toHaveLength(7);
-    expect(DOMAIN_ORDER.at(-1)).toBe("Colorless");
+  it("DEFAULT_ENUM_ORDERS contains all 6 enum keys", () => {
+    expect(DEFAULT_ENUM_ORDERS).toHaveProperty("domains");
+    expect(DEFAULT_ENUM_ORDERS).toHaveProperty("rarities");
+    expect(DEFAULT_ENUM_ORDERS).toHaveProperty("artVariants");
+    expect(DEFAULT_ENUM_ORDERS).toHaveProperty("finishes");
+    expect(DEFAULT_ENUM_ORDERS).toHaveProperty("cardTypes");
+    expect(DEFAULT_ENUM_ORDERS).toHaveProperty("superTypes");
   });
 
-  it("RARITY_ORDER has 5 rarities", () => {
-    expect(RARITY_ORDER).toHaveLength(5);
-    expect(RARITY_ORDER[0]).toBe("Common");
-    expect(RARITY_ORDER.at(-1)).toBe("Showcase");
-  });
-
-  it("ART_VARIANT_ORDER has 3 variants", () => {
-    expect(ART_VARIANT_ORDER).toEqual(["normal", "altart", "overnumbered"]);
-  });
-
-  it("FINISH_ORDER has 2 finishes", () => {
-    expect(FINISH_ORDER).toEqual(["normal", "foil"]);
+  it("DEFAULT_ENUM_ORDERS contains well-known values", () => {
+    expect(DEFAULT_ENUM_ORDERS.domains).toContain(WellKnown.domain.COLORLESS);
+    expect(DEFAULT_ENUM_ORDERS.finishes).toContain(WellKnown.finish.NORMAL);
+    expect(DEFAULT_ENUM_ORDERS.finishes).toContain(WellKnown.finish.FOIL);
+    expect(DEFAULT_ENUM_ORDERS.artVariants).toContain(WellKnown.artVariant.NORMAL);
   });
 
   it("ALL_SEARCH_FIELDS includes all 8 fields", () => {

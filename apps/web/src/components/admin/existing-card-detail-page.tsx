@@ -22,10 +22,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  CANDIDATE_CARD_FIELDS,
-  CandidateSpreadsheet,
-} from "@/components/admin/candidate-spreadsheet";
+import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
 import { CardBanManager } from "@/components/admin/card-ban-manager";
 import {
   buildPrintingGroups,
@@ -85,6 +82,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
   const {
     providerSettings,
     promoTypes,
+    candidateCardFields,
     printingSourceFields,
     checkCandidateCard,
     uncheckCandidateCard,
@@ -395,9 +393,9 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
           )}
         </div>
         <CandidateSpreadsheet
-          fields={CANDIDATE_CARD_FIELDS.filter(
-            (f) => f.key !== "rulesText" && f.key !== "effectText",
-          ).map((f) => (f.key === "shortCode" ? { ...f, readOnly: false } : f))}
+          fields={candidateCardFields
+            .filter((f) => f.key !== "rulesText" && f.key !== "effectText")
+            .map((f) => (f.key === "shortCode" ? { ...f, readOnly: false } : f))}
           requiredKeys={["shortCode", "name", "type", "domains"]}
           activeRow={{
             ...card,
@@ -455,7 +453,7 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
               <DropdownMenuItem
                 onClick={() => {
                   const record = row as unknown as Record<string, unknown>;
-                  for (const field of CANDIDATE_CARD_FIELDS) {
+                  for (const field of candidateCardFields) {
                     if (field.readOnly) {
                       continue;
                     }

@@ -119,17 +119,13 @@ export type {
   WishListListResponse,
   WishListResponse,
 } from "./types/index.js";
+export type { EnumOrders } from "./types/index.js";
 export {
   ALL_SEARCH_FIELDS,
-  ART_VARIANT_ORDER,
-  CARD_TYPE_ORDER,
+  DEFAULT_ENUM_ORDERS,
   DEFAULT_SEARCH_SCOPE,
-  DOMAIN_ORDER,
-  FINISH_ORDER,
-  RARITY_ORDER,
   NONE,
   SEARCH_PREFIX_MAP,
-  SUPER_TYPE_ORDER,
   ALL_MARKETPLACES,
   PREFERENCE_DEFAULTS,
   EUR_MARKETPLACES,

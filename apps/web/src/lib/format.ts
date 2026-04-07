@@ -1,16 +1,20 @@
-import type { ArtVariant, Finish, Marketplace, Printing } from "@openrift/shared";
+import type { Marketplace, Printing } from "@openrift/shared";
 import { EUR_MARKETPLACES } from "@openrift/shared";
 
-export const ART_VARIANT_LABELS: Record<string, string> = {
-  normal: "Normal",
-  altart: "Alt Art",
-  overnumbered: "Overnumbered",
-} satisfies Record<ArtVariant, string>;
+import type { EnumLabels } from "@/hooks/use-enums";
 
-export const FINISH_LABELS: Record<string, string> = {
-  normal: "Normal",
-  foil: "Foil",
-} satisfies Record<Finish, string>;
+/** Fallback labels for when DB-derived labels are not available. */
+export const DEFAULT_ENUM_LABELS: EnumLabels = {
+  artVariants: {
+    normal: "Normal",
+    altart: "Alt Art",
+    overnumbered: "Overnumbered",
+  },
+  finishes: {
+    normal: "Normal",
+    foil: "Foil",
+  },
+};
 
 const LANGUAGE_LABELS: Record<string, string> = {
   EN: "English",
@@ -30,16 +34,20 @@ const LANGUAGE_LABELS: Record<string, string> = {
  * E.g. "Alt Art · Signed" (omitting "Foil" when every sibling is foil).
  * @returns A label like "Alt Art · Signed", or "Standard" when no distinguishing attributes.
  */
-export function formatPrintingLabel(printing: Printing, siblings?: Printing[]): string {
+export function formatPrintingLabel(
+  printing: Printing,
+  siblings?: Printing[],
+  labels: EnumLabels = DEFAULT_ENUM_LABELS,
+): string {
   const allSame = (fn: (c: Printing) => unknown) =>
     siblings ? siblings.every((s) => fn(s) === fn(printing)) : false;
 
   const parts: string[] = [];
-  if (printing.artVariant !== ("normal" satisfies ArtVariant) && !allSame((c) => c.artVariant)) {
-    parts.push(ART_VARIANT_LABELS[printing.artVariant] ?? printing.artVariant);
+  if (printing.artVariant !== "normal" && !allSame((c) => c.artVariant)) {
+    parts.push(labels.artVariants[printing.artVariant] ?? printing.artVariant);
   }
-  if (printing.finish !== ("normal" satisfies Finish) && !allSame((c) => c.finish)) {
-    parts.push(FINISH_LABELS[printing.finish] ?? printing.finish);
+  if (printing.finish !== "normal" && !allSame((c) => c.finish)) {
+    parts.push(labels.finishes[printing.finish] ?? printing.finish);
   }
   if (printing.isSigned && !allSame((c) => c.isSigned)) {
     parts.push("Signed");

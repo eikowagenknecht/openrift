@@ -10,10 +10,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import {
-  CANDIDATE_CARD_FIELDS,
-  CandidateSpreadsheet,
-} from "@/components/admin/candidate-spreadsheet";
+import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
 import {
   buildPrintingGroups,
   buildSourceLabels,
@@ -52,6 +49,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
   // --- Shared hooks ---
   const {
     providerSettings,
+    candidateCardFields,
     printingSourceFields,
     checkCandidateCard,
     uncheckCandidateCard,
@@ -204,7 +202,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
           Click a cell to select it for the new card. The Active column shows your selections.
         </p>
         <CandidateSpreadsheet
-          fields={CANDIDATE_CARD_FIELDS}
+          fields={candidateCardFields}
           requiredKeys={["shortCode", "name", "type", "domains"]}
           activeRow={Object.keys(activeCard).length > 0 ? activeCard : null}
           candidateRows={sources}
@@ -226,7 +224,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
               <DropdownMenuItem
                 onClick={() => {
                   const record = row as unknown as Record<string, unknown>;
-                  for (const field of CANDIDATE_CARD_FIELDS) {
+                  for (const field of candidateCardFields) {
                     if (field.readOnly) {
                       continue;
                     }

@@ -1,27 +1,14 @@
 import type {
-  ArtVariant,
   CardFilters,
-  CardType,
-  Domain,
-  Finish,
+  EnumOrders,
   FilterRange,
   Printing,
   PromoType,
-  Rarity,
   SearchField,
   SortDirection,
   SortOption,
-  SuperType,
 } from "./types/index.js";
-import {
-  ALL_SEARCH_FIELDS,
-  ART_VARIANT_ORDER,
-  DOMAIN_ORDER,
-  FINISH_ORDER,
-  NONE,
-  RARITY_ORDER,
-  SEARCH_PREFIX_MAP,
-} from "./types/index.js";
+import { ALL_SEARCH_FIELDS, DEFAULT_ENUM_ORDERS, NONE, SEARCH_PREFIX_MAP } from "./types/index.js";
 import { boundsOf, unique } from "./utils.js";
 
 export interface ParsedSearchTerm {
@@ -274,14 +261,23 @@ export function filterCards(printings: Printing[], filters: CardFilters): Printi
   });
 }
 
+/**
+ * Returns the index of `value` in `order`, or `Infinity` for unknown values (sorts to end).
+ * @returns The index, or `Infinity` if not found.
+ */
+function orderIndex(order: readonly string[], value: string): number {
+  const idx = order.indexOf(value);
+  return idx === -1 ? Infinity : idx;
+}
+
 export interface AvailableFilters {
   sets: string[];
-  domains: Domain[];
-  types: CardType[];
-  superTypes: SuperType[];
-  rarities: Rarity[];
-  artVariants: ArtVariant[];
-  finishes: Finish[];
+  domains: string[];
+  types: string[];
+  superTypes: string[];
+  rarities: string[];
+  artVariants: string[];
+  finishes: string[];
   hasSigned: boolean;
   hasPromo: boolean;
   hasBanned: boolean;
@@ -310,24 +306,27 @@ export interface AvailableFilters {
  * // available.rarities => ["common", "uncommon", "rare", "mythic"]
  * ```
  */
-export function getAvailableFilters(printings: Printing[]): AvailableFilters {
+export function getAvailableFilters(
+  printings: Printing[],
+  orders: EnumOrders = DEFAULT_ENUM_ORDERS,
+): AvailableFilters {
   // Sets are not sorted but shown in insertion order.
   const sets = unique(printings.map((p) => p.setSlug));
   const domains = unique(printings.flatMap((p) => p.card.domains)).sort(
-    (a, b) => DOMAIN_ORDER.indexOf(a) - DOMAIN_ORDER.indexOf(b),
+    (a, b) => orderIndex(orders.domains, a) - orderIndex(orders.domains, b),
   );
   const types = unique(printings.map((p) => p.card.type)).sort();
   const superTypes = unique(printings.flatMap((p) => p.card.superTypes))
     .filter((st) => st !== "Basic")
     .sort();
   const rarities = unique(printings.map((p) => p.rarity)).sort(
-    (a, b) => RARITY_ORDER.indexOf(a) - RARITY_ORDER.indexOf(b),
-  ) as Rarity[];
+    (a, b) => orderIndex(orders.rarities, a) - orderIndex(orders.rarities, b),
+  );
   const artVariants = unique(printings.map((p) => p.artVariant || "normal")).sort(
-    (a, b) => ART_VARIANT_ORDER.indexOf(a) - ART_VARIANT_ORDER.indexOf(b),
+    (a, b) => orderIndex(orders.artVariants, a) - orderIndex(orders.artVariants, b),
   );
   const finishes = unique(printings.map((p) => p.finish)).sort(
-    (a, b) => FINISH_ORDER.indexOf(a) - FINISH_ORDER.indexOf(b),
+    (a, b) => orderIndex(orders.finishes, a) - orderIndex(orders.finishes, b),
   );
 
   const energies = printings.flatMap((p) => p.card.energy ?? []);
@@ -371,6 +370,8 @@ export interface SortCardsOptions {
   sortDir?: SortDirection;
   /** Override the price used for sorting (e.g. stack min/max in cards view). */
   getPrice?: (p: Printing) => number | null | undefined;
+  /** Override the default enum sort orders. */
+  orders?: EnumOrders;
 }
 
 /**
@@ -404,9 +405,10 @@ export function sortCards(
     return printings.toSorted((a, b) => compareWithFallback(a, b, (p) => p.card.energy, dir));
   }
   if (sortBy === "rarity") {
+    const rarityOrder = options.orders?.rarities ?? DEFAULT_ENUM_ORDERS.rarities;
     return printings.toSorted(
       (a, b) =>
-        dir * (RARITY_ORDER.indexOf(a.rarity) - RARITY_ORDER.indexOf(b.rarity)) ||
+        dir * (orderIndex(rarityOrder, a.rarity) - orderIndex(rarityOrder, b.rarity)) ||
         a.shortCode.localeCompare(b.shortCode),
     );
   }

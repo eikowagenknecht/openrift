@@ -1,79 +1,60 @@
 // ── Game data enums ─────────────────────────────────────────────────────────
-// These types are backed by reference tables in the database. The valid values
-// are managed via the admin UI — these string unions represent the currently
-// known set. When adding a value, INSERT a row in the reference table (no
-// migration needed). See WellKnown in well-known.ts for values that have
-// special application logic.
+// These types are backed by reference tables in the database. Valid values are
+// managed via the admin UI — adding a value requires only an INSERT into the
+// reference table (no code change). See WellKnown in well-known.ts for values
+// that have special application logic (compile-time safety).
 
 /** Backed by `card_types` reference table. */
-export type CardType = "Legend" | "Unit" | "Rune" | "Spell" | "Gear" | "Battlefield" | "Other";
+// oxlint-disable-next-line typescript-eslint/ban-types -- open string type for DB-driven enum values
+export type CardType = string & Record<never, never>;
 
 /** Backed by `rarities` reference table. */
-export type Rarity = "Common" | "Uncommon" | "Rare" | "Epic" | "Showcase";
+// oxlint-disable-next-line typescript-eslint/ban-types -- open string type for DB-driven enum values
+export type Rarity = string & Record<never, never>;
 
 /** Backed by `domains` reference table. */
-export type Domain = "Fury" | "Calm" | "Mind" | "Body" | "Chaos" | "Order" | "Colorless";
+// oxlint-disable-next-line typescript-eslint/ban-types -- open string type for DB-driven enum values
+export type Domain = string & Record<never, never>;
 
 /** Backed by `super_types` reference table. */
-export type SuperType = "Basic" | "Champion" | "Signature" | "Token";
+// oxlint-disable-next-line typescript-eslint/ban-types -- open string type for DB-driven enum values
+export type SuperType = string & Record<never, never>;
 
 export type CardFace = "front" | "back";
 
 /** Backed by `art_variants` reference table. */
-export type ArtVariant = "normal" | "altart" | "overnumbered";
+// oxlint-disable-next-line typescript-eslint/ban-types -- open string type for DB-driven enum values
+export type ArtVariant = string & Record<never, never>;
 
 /** Backed by `finishes` reference table. */
-export type Finish = "normal" | "foil";
+// oxlint-disable-next-line typescript-eslint/ban-types -- open string type for DB-driven enum values
+export type Finish = string & Record<never, never>;
 
-// ── Display-order arrays ────────────────────────────────────────────────────
-// These define the canonical client-side sort order. They mirror the
-// `sort_order` column in each reference table and are used as fallback
-// ordering for comparePrintings() and filter UIs. The /api/enums endpoint
-// is the authoritative source; these are kept for shared code that runs
-// without an API connection (e.g. import parsers, offline sorting).
+// ── Enum orders ─────────────────────────────────────────────────────────────
+// Sort orders for reference-table enums. The /api/enums endpoint is the
+// authoritative source at runtime; DEFAULT_ENUM_ORDERS provides fallback
+// ordering for shared code that runs without an API connection (e.g. import
+// parsers, offline sorting).
 
-export const DOMAIN_ORDER: readonly Domain[] = [
-  "Fury",
-  "Calm",
-  "Mind",
-  "Body",
-  "Chaos",
-  "Order",
-  "Colorless",
-] as const;
+/** Sort-order configuration for all reference-table enums. */
+export interface EnumOrders {
+  finishes: readonly string[];
+  rarities: readonly string[];
+  domains: readonly string[];
+  cardTypes: readonly string[];
+  superTypes: readonly string[];
+  artVariants: readonly string[];
+}
 
-export const RARITY_ORDER: readonly Rarity[] = [
-  "Common",
-  "Uncommon",
-  "Rare",
-  "Epic",
-  "Showcase",
-] as const;
-
-export const ART_VARIANT_ORDER: readonly ArtVariant[] = [
-  "normal",
-  "altart",
-  "overnumbered",
-] as const;
-
-export const FINISH_ORDER: readonly Finish[] = ["normal", "foil"] as const;
-
-export const CARD_TYPE_ORDER: readonly CardType[] = [
-  "Legend",
-  "Unit",
-  "Rune",
-  "Spell",
-  "Gear",
-  "Battlefield",
-  "Other",
-] as const;
-
-export const SUPER_TYPE_ORDER: readonly SuperType[] = [
-  "Basic",
-  "Champion",
-  "Signature",
-  "Token",
-] as const;
+/** Fallback sort orders matching the initial database seed. */
+export const DEFAULT_ENUM_ORDERS: EnumOrders = {
+  domains: ["Fury", "Calm", "Mind", "Body", "Chaos", "Order", "Colorless"],
+  rarities: ["Common", "Uncommon", "Rare", "Epic", "Showcase"],
+  artVariants: ["normal", "altart", "overnumbered"],
+  finishes: ["normal", "foil"],
+  cardTypes: ["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield", "Other"],
+  superTypes: ["Basic", "Champion", "Signature", "Token"],
+};
 
 // ── Application-level enums ─────────────────────────────────────────────────
 // These are structural to the app and stay hardcoded — adding a value always

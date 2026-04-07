@@ -10,14 +10,8 @@ export type {
   Rarity,
   SuperType,
 } from "./enums.js";
-export {
-  ART_VARIANT_ORDER,
-  CARD_TYPE_ORDER,
-  DOMAIN_ORDER,
-  FINISH_ORDER,
-  RARITY_ORDER,
-  SUPER_TYPE_ORDER,
-} from "./enums.js";
+export type { EnumOrders } from "./enums.js";
+export { DEFAULT_ENUM_ORDERS } from "./enums.js";
 
 export type { Card, CardBan, CardErrata, Printing, PrintingImage, PromoType } from "./catalog.js";
 

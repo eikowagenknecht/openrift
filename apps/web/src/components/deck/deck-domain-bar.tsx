@@ -1,7 +1,5 @@
-import type { Domain } from "@openrift/shared";
-import { DOMAIN_ORDER } from "@openrift/shared";
-
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { DOMAIN_COLORS } from "@/lib/domain";
 
 /**
@@ -11,15 +9,17 @@ import { DOMAIN_COLORS } from "@/lib/domain";
 export function DeckDomainBar({
   distribution,
 }: {
-  distribution: { domain: Domain; count: number }[];
+  distribution: { domain: string; count: number }[];
 }) {
+  const { orders } = useEnumOrders();
+
   const total = distribution.reduce((sum, entry) => sum + entry.count, 0);
   if (total === 0) {
     return null;
   }
 
-  // Re-sort by canonical DOMAIN_ORDER (API already does this, but be safe)
-  const orderIndex = new Map(DOMAIN_ORDER.map((domain, index) => [domain, index]));
+  // Re-sort by canonical domain order from the database
+  const orderIndex = new Map(orders.domains.map((domain, index) => [domain, index]));
   const segments = distribution.toSorted(
     (first, second) => (orderIndex.get(first.domain) ?? 99) - (orderIndex.get(second.domain) ?? 99),
   );
