@@ -36,14 +36,14 @@ export function CollapsibleFilterPanel({
       className="@wide:hidden hidden sm:block"
     >
       <CollapsibleContent className="h-(--collapsible-panel-height) space-y-3 overflow-hidden pt-2 pb-2 transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-3 lg:grid-cols-2">
           <FilterBadgeSections
             availableFilters={availableFilters}
             setDisplayLabel={setDisplayLabel}
             hiddenSections={hiddenSections}
           />
         </div>
-        <div className="grid grid-cols-4 gap-x-6 gap-y-3">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 lg:grid-cols-4">
           <FilterRangeSections availableFilters={availableFilters} />
         </div>
       </CollapsibleContent>
