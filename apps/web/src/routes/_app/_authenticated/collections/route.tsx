@@ -16,7 +16,6 @@ import type { CardDragData } from "@/components/collection/dnd-types";
 import { Footer } from "@/components/layout/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
-import { useIsMobile } from "@/hooks/use-is-mobile";
 import { getCardImageUrl } from "@/lib/images";
 
 /** Portal slot for the full-width top bar rendered above the sidebar + content row. */
@@ -28,8 +27,6 @@ export const Route = createFileRoute("/_app/_authenticated/collections")({
 });
 
 const DRAG_ACTIVATION = { distance: 8 };
-const NO_SENSORS: ReturnType<typeof useSensors> = [];
-
 // Center the drag overlay under the cursor regardless of where the user grabbed.
 const snapCenterToCursor: Modifier = ({
   activatorEvent,
@@ -50,7 +47,6 @@ const snapCenterToCursor: Modifier = ({
 };
 
 function CollectionLayout() {
-  const isMobile = useIsMobile();
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const [activeDrag, setActiveDrag] = useState<CardDragData | null>(null);
   const moveCopies = useMoveCopies();
@@ -95,7 +91,7 @@ function CollectionLayout() {
       <div ref={setTopBarSlot} className="px-3 pt-3" />
       <SidebarProvider className="flex-1">
         <DndContext
-          sensors={isMobile ? NO_SENSORS : sensors}
+          sensors={sensors}
           collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
