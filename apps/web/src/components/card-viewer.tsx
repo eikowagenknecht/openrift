@@ -6,6 +6,7 @@ import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer
 import { CardGrid } from "@/components/cards/card-grid";
 import { APP_HEADER_HEIGHT } from "@/components/cards/card-grid-constants";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
 interface CardViewerProps {
@@ -57,6 +58,7 @@ export function CardViewer({
   addStripHeight,
   children,
 }: CardViewerProps) {
+  const hydrated = useHydrated();
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [toolbarHeight, setToolbarHeight] = useState(0);
 
@@ -96,24 +98,43 @@ export function CardViewer({
           )}
         >
           {aboveGrid}
-          <CardGrid
-            items={items}
-            totalItems={totalItems}
-            renderCard={renderCard}
-            setOrder={setOrder}
-            groupBy={groupBy}
-            groupDir={groupDir}
-            selectedItemId={selectedItemId}
-            keyboardNavItemId={keyboardNavItemId}
-            onItemClick={onItemClick}
-            siblingPrintings={siblingPrintings}
-            addStripHeight={addStripHeight}
-            stickyOffset={stickyOffset}
-          />
+          {hydrated ? (
+            <CardGrid
+              items={items}
+              totalItems={totalItems}
+              renderCard={renderCard}
+              setOrder={setOrder}
+              groupBy={groupBy}
+              groupDir={groupDir}
+              selectedItemId={selectedItemId}
+              keyboardNavItemId={keyboardNavItemId}
+              onItemClick={onItemClick}
+              siblingPrintings={siblingPrintings}
+              addStripHeight={addStripHeight}
+              stickyOffset={stickyOffset}
+            />
+          ) : (
+            <CardGridSkeleton />
+          )}
         </div>
         {rightPane}
       </div>
       {children}
+    </div>
+  );
+}
+
+/**
+ * Placeholder grid shown during SSR while the virtualizer is not yet mounted.
+ *
+ * @returns A CSS grid of animated placeholder cards.
+ */
+function CardGridSkeleton() {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
+      {Array.from({ length: 20 }, (_, i) => (
+        <div key={i} className="bg-muted aspect-card animate-pulse rounded-lg" />
+      ))}
     </div>
   );
 }
