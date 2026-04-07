@@ -20,7 +20,6 @@ import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { AddedCardsList } from "@/components/collection/added-cards-list";
 import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
-import { CollectionInfoStrip } from "@/components/collection/collection-info-strip";
 import { FloatingActionBar } from "@/components/collection/floating-action-bar";
 import { SelectionCheckbox } from "@/components/collection/selection-checkbox";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
@@ -38,12 +37,13 @@ import {
 } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { MobileDetailOverlay } from "@/components/layout/mobile-detail-overlay";
+import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useSidebar } from "@/components/ui/sidebar";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCardSelection } from "@/hooks/use-card-selection";
@@ -55,8 +55,9 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-client";
+import { formatterForMarketplace } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { AddModeSlotContext } from "@/routes/_app/_authenticated/collections/route";
+import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -81,7 +82,7 @@ function AddedPill({
       onClick={() => useAddModeStore.getState().toggleAddedList()}
       className={cn(
         "rounded-lg font-medium whitespace-nowrap transition-colors",
-        size === "desktop" ? "h-8 px-3 text-sm" : "px-2 py-0.5 text-xs",
+        size === "desktop" ? "h-8 px-3 text-sm" : "h-8 px-2 text-sm",
         active
           ? "bg-primary text-primary-foreground"
           : "bg-primary/10 text-primary hover:bg-primary/20",
@@ -94,6 +95,7 @@ function AddedPill({
 
 interface CollectionGridProps {
   collectionId?: string;
+  title: string;
 }
 
 function buildCopyCountByCardId(stacks: StackedEntry[]): Map<string, number> {
@@ -105,8 +107,10 @@ function buildCopyCountByCardId(stacks: StackedEntry[]): Map<string, number> {
   return map;
 }
 
-export function CollectionGrid({ collectionId }: CollectionGridProps) {
+export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const isMobile = useIsMobile();
+  const { toggleSidebar } = useSidebar();
+  const topBarSlot = use(TopBarSlotContext);
   const { data: collections } = useCollections();
   const collectionsMap = useCollectionsMap();
   const showImages = useDisplayStore((state) => state.showImages);
@@ -197,7 +201,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   const navigate = useNavigate();
 
   // ── Add mode state ──────────────────────────────────────────────────
-  const addModeSlot = use(AddModeSlotContext);
   const addedItems = useAddModeStore((s) => s.addedItems);
   const showAddedList = useAddModeStore((s) => s.showAddedList);
   const variantPopover = useAddModeStore((s) => s.variantPopover);
@@ -589,6 +592,40 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
     <AddedPill count={totalAdded} active={showAddedList} size="mobile" />
   );
 
+  const formatValue = formatterForMarketplace(favoriteMarketplace as Marketplace);
+  const valueCents = currentCollection
+    ? currentCollection.totalValueCents
+    : collections.reduce((sum, col) => sum + (col.totalValueCents ?? 0), 0);
+  const unpricedCount = currentCollection
+    ? currentCollection.unpricedCopyCount
+    : collections.reduce((sum, col) => sum + (col.unpricedCopyCount ?? 0), 0);
+
+  const collectionTopBar = (
+    <CollectionTopBar
+      title={title}
+      onToggleSidebar={toggleSidebar}
+      mode={mode}
+      totalCopies={totalCopies}
+      uniqueCount={stacks.length}
+      selectedCount={selected.size}
+      valueCents={valueCents}
+      unpricedCount={unpricedCount}
+      formatValue={formatValue}
+      addTarget={addTarget}
+      addedPillMobile={addedPillMobile}
+      onQuickAdd={() => setQuickAddOpen(true)}
+      onBrowse={startBrowsing}
+      onCloseBrowsing={handleCloseBrowsing}
+      onSelectAll={() => toggleSelectAll(stacks.flatMap((stack) => stack.copyIds))}
+      onEnterSelect={enterSelectMode}
+      onExitSelect={exitSelectMode}
+      isAllSelected={selected.size === totalCopies}
+      view={view}
+    />
+  );
+
+  const topBarPortal = topBarSlot && createPortal(collectionTopBar, topBarSlot);
+
   const toolbar = (
     <>
       {/* Search bar */}
@@ -600,73 +637,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           <div className="hidden items-center gap-3 md:flex">
             {addedPillDesktop}
             <Button onClick={handleCloseBrowsing}>Done</Button>
-          </div>
-        )}
-        {mode !== "add" && (
-          <div className="hidden items-center gap-3 sm:flex">
-            {addTarget && (
-              <ButtonGroup aria-label="Collection actions">
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button variant="outline" size="icon" onClick={() => setQuickAddOpen(true)} />
-                    }
-                  >
-                    <PackagePlusIcon className="size-4" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    Quick add ({navigator.platform.startsWith("Mac") ? "⌘K" : "Ctrl+K"})
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<Button variant="outline" size="icon" onClick={startBrowsing} />}
-                  >
-                    <LibraryBigIcon className="size-4" />
-                  </TooltipTrigger>
-                  <TooltipContent>Browse & add</TooltipContent>
-                </Tooltip>
-              </ButtonGroup>
-            )}
-            {mode === "select" ? (
-              <ButtonGroup aria-label="Selection actions">
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        onClick={() => toggleSelectAll(stacks.flatMap((stack) => stack.copyIds))}
-                      />
-                    }
-                  >
-                    <CheckIcon className="size-4" />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {selected.size === totalCopies ? "Deselect all" : "Select all"}
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<Button variant="outline" size="icon" onClick={exitSelectMode} />}
-                  >
-                    <XIcon className="size-4" />
-                  </TooltipTrigger>
-                  <TooltipContent>Done selecting</TooltipContent>
-                </Tooltip>
-              </ButtonGroup>
-            ) : (
-              <ButtonGroup aria-label="Selection actions">
-                <Tooltip>
-                  <TooltipTrigger
-                    render={<Button variant="outline" size="icon" onClick={enterSelectMode} />}
-                  >
-                    <CheckSquareIcon className="size-4" />
-                  </TooltipTrigger>
-                  <TooltipContent>Select {view}</TooltipContent>
-                </Tooltip>
-              </ButtonGroup>
-            )}
           </div>
         )}
         <MobileOptionsDrawer
@@ -688,18 +658,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         availableFilters={availableFilters}
         setDisplayLabel={setDisplayLabel}
       />
-      {/* Info strip with card count, collection value, and mobile actions */}
-      {mode !== "add" && (
-        <CollectionInfoStrip
-          totalCopies={totalCopies}
-          uniqueCount={stacks.length}
-          selectedCount={selected.size}
-          isSelectMode={mode === "select"}
-          favoriteMarketplace={favoriteMarketplace as Marketplace}
-          currentCollection={currentCollection}
-          collections={collections}
-        />
-      )}
     </>
   );
 
@@ -744,27 +702,28 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   // ── Empty state ─────────────────────────────────────────────────────
   if (!isAddMode && stacks.length === 0 && !hasActiveFilters) {
     return (
-      <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3">
-        <PackageIcon className="size-10 opacity-50" />
+      <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-4">
+        {topBarPortal}
+        <PackageIcon className="size-16 opacity-50" />
         <p>No cards yet</p>
-        <p className="text-xs">
+        <p>
           Browse the card catalog and add cards to{" "}
           {currentCollection ? `"${currentCollection.name}"` : "your collection"}.
         </p>
         <Link
           to="/help/$slug"
           params={{ slug: "cards-printings-copies" }}
-          className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
+          className="text-muted-foreground hover:text-foreground underline"
         >
           Learn about cards, printings &amp; copies
         </Link>
         {addTarget && (
           <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={() => setQuickAddOpen(true)}>
+            <Button variant="outline" onClick={() => setQuickAddOpen(true)}>
               <PackagePlusIcon className="mr-1 size-3.5" />
               Quick add
             </Button>
-            <Button size="sm" onClick={startBrowsing}>
+            <Button onClick={startBrowsing}>
               <LibraryBigIcon className="mr-1 size-3.5" />
               Browse & add
             </Button>
@@ -787,6 +746,7 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
   // ── Main render ─────────────────────────────────────────────────────
   return (
     <>
+      {topBarPortal}
       <BrowserCardViewer
         items={items}
         totalItems={isAddMode ? allPrintings.length : totalCopies}
@@ -875,96 +835,6 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
           document.body,
         )}
 
-      {/* Mobile header: pulsing dot + pill + Done (portaled into layout header slot) */}
-      {isAddMode &&
-        isMobile &&
-        addModeSlot &&
-        createPortal(
-          <>
-            <span className="size-2 animate-pulse rounded-full bg-red-500" />
-            <div className="flex-1" />
-            {addedPillMobile}
-            <Button size="sm" onClick={handleCloseBrowsing}>
-              Done
-            </Button>
-          </>,
-          addModeSlot,
-        )}
-
-      {/* Mobile header: action buttons (portaled into layout header slot) */}
-      {!isAddMode &&
-        isMobile &&
-        addModeSlot &&
-        createPortal(
-          <>
-            <div className="flex-1" />
-            <div className="flex items-center gap-1 sm:hidden">
-              {addTarget && (
-                <ButtonGroup aria-label="Collection actions">
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Button variant="ghost" size="icon" onClick={() => setQuickAddOpen(true)} />
-                      }
-                    >
-                      <PackagePlusIcon className="size-4" />
-                    </TooltipTrigger>
-                    <TooltipContent>Quick add</TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={<Button variant="ghost" size="icon" onClick={startBrowsing} />}
-                    >
-                      <LibraryBigIcon className="size-4" />
-                    </TooltipTrigger>
-                    <TooltipContent>Browse & add</TooltipContent>
-                  </Tooltip>
-                </ButtonGroup>
-              )}
-              {mode === "select" ? (
-                <ButtonGroup aria-label="Selection actions">
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => toggleSelectAll(stacks.flatMap((stack) => stack.copyIds))}
-                        />
-                      }
-                    >
-                      <CheckIcon className="size-4" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {selected.size === totalCopies ? "Deselect all" : "Select all"}
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={<Button variant="ghost" size="icon" onClick={exitSelectMode} />}
-                    >
-                      <XIcon className="size-4" />
-                    </TooltipTrigger>
-                    <TooltipContent>Done selecting</TooltipContent>
-                  </Tooltip>
-                </ButtonGroup>
-              ) : (
-                <ButtonGroup aria-label="Selection actions">
-                  <Tooltip>
-                    <TooltipTrigger
-                      render={<Button variant="ghost" size="icon" onClick={enterSelectMode} />}
-                    >
-                      <CheckSquareIcon className="size-4" />
-                    </TooltipTrigger>
-                    <TooltipContent>Select {view}</TooltipContent>
-                  </Tooltip>
-                </ButtonGroup>
-              )}
-            </div>
-          </>,
-          addModeSlot,
-        )}
-
       {/* Quick-add palette (browse/select modes) */}
       {!isAddMode && addTarget && (
         <QuickAddPalette
@@ -977,5 +847,150 @@ export function CollectionGrid({ collectionId }: CollectionGridProps) {
         />
       )}
     </>
+  );
+}
+
+interface CollectionTopBarProps {
+  title: string;
+  onToggleSidebar: () => void;
+  mode: "browse" | "select" | "add";
+  totalCopies: number;
+  uniqueCount: number;
+  selectedCount: number;
+  valueCents: number | null | undefined;
+  unpricedCount: number | null | undefined;
+  formatValue: (value: number) => string;
+  addTarget?: string;
+  addedPillMobile: React.ReactNode;
+  onQuickAdd: () => void;
+  onBrowse: () => void;
+  onCloseBrowsing: () => void;
+  onSelectAll: () => void;
+  onEnterSelect: () => void;
+  onExitSelect: () => void;
+  isAllSelected: boolean;
+  view: string;
+}
+
+function CollectionTopBar({
+  title,
+  onToggleSidebar,
+  mode,
+  totalCopies,
+  uniqueCount,
+  selectedCount,
+  valueCents,
+  unpricedCount,
+  formatValue,
+  addTarget,
+  addedPillMobile,
+  onQuickAdd,
+  onBrowse,
+  onCloseBrowsing,
+  onSelectAll,
+  onEnterSelect,
+  onExitSelect,
+  isAllSelected,
+  view,
+}: CollectionTopBarProps) {
+  return (
+    <PageTopBar>
+      <PageTopBarTitle onToggleSidebar={onToggleSidebar}>{title}</PageTopBarTitle>
+
+      {/* Browse/select: card count + value */}
+      {mode !== "add" && (
+        <span className="text-muted-foreground flex shrink-0 flex-wrap items-center gap-x-1.5 text-xs">
+          <span>
+            {totalCopies} card{totalCopies === 1 ? "" : "s"}
+            {uniqueCount !== totalCopies && ` (${uniqueCount} unique)`}
+          </span>
+          {mode === "select" && selectedCount > 0 && (
+            <Badge variant="secondary" className="gap-1">
+              <CheckIcon className="size-3" />
+              {selectedCount}
+            </Badge>
+          )}
+          {valueCents !== null && valueCents !== undefined && (
+            <>
+              <span>·</span>
+              <span>
+                {formatValue(valueCents / 100)}
+                {unpricedCount ? (
+                  <span className="text-muted-foreground/60 ml-1">({unpricedCount} unpriced)</span>
+                ) : null}
+              </span>
+            </>
+          )}
+        </span>
+      )}
+
+      {/* Add mode: pulsing dot (mobile indicator) */}
+      {mode === "add" && (
+        <span className="size-2 animate-pulse rounded-full bg-red-500 sm:hidden" />
+      )}
+
+      <PageTopBarActions>
+        {mode === "add" ? (
+          <div className="flex items-center gap-2 sm:hidden">
+            {addedPillMobile}
+            <Button onClick={onCloseBrowsing}>Done</Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1">
+            {addTarget && (
+              <>
+                <Button variant="ghost" size="icon" onClick={onQuickAdd} className="sm:hidden">
+                  <PackagePlusIcon className="size-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onQuickAdd} className="hidden sm:flex">
+                  <PackagePlusIcon className="size-4" />
+                  Quick add
+                </Button>
+                <Button variant="ghost" size="icon" onClick={onBrowse} className="sm:hidden">
+                  <LibraryBigIcon className="size-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onBrowse} className="hidden sm:flex">
+                  <LibraryBigIcon className="size-4" />
+                  Browse & add
+                </Button>
+              </>
+            )}
+            {mode === "select" ? (
+              <>
+                <Button variant="ghost" size="icon" onClick={onSelectAll} className="sm:hidden">
+                  <CheckIcon className="size-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onSelectAll} className="hidden sm:flex">
+                  <CheckIcon className="size-4" />
+                  {isAllSelected ? "Deselect all" : "Select all"}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={onExitSelect} className="sm:hidden">
+                  <XIcon className="size-4" />
+                </Button>
+                <Button variant="ghost" size="sm" onClick={onExitSelect} className="hidden sm:flex">
+                  <XIcon className="size-4" />
+                  Done
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" size="icon" onClick={onEnterSelect} className="sm:hidden">
+                  <CheckSquareIcon className="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onEnterSelect}
+                  className="hidden sm:flex"
+                >
+                  <CheckSquareIcon className="size-4" />
+                  Select {view}
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+      </PageTopBarActions>
+    </PageTopBar>
   );
 }

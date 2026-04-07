@@ -7,8 +7,6 @@ import { catalogQueryOptions } from "@/hooks/use-cards";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
 import { copiesQueryOptions } from "@/hooks/use-copies";
 
-import { useCollectionTitle } from "./route";
-
 export const Route = createFileRoute("/_app/_authenticated/collections/")({
   loader: async ({ context }) => {
     await Promise.all([
@@ -23,6 +21,5 @@ export const Route = createFileRoute("/_app/_authenticated/collections/")({
 });
 
 function CollectionIndex() {
-  useCollectionTitle("All Cards");
-  return <CollectionGrid />;
+  return <CollectionGrid title="All Cards" />;
 }

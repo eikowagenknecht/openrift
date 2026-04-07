@@ -15,9 +15,11 @@ import {
   UploadIcon,
   XCircleIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { use, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
+import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { PrintingSearch, formatImportPrintingLabel } from "@/components/printing-search";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +32,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useSidebar } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { catalogQueryOptions, useCards } from "@/hooks/use-cards";
 import { collectionsQueryOptions, useCollections } from "@/hooks/use-collections";
@@ -38,8 +41,7 @@ import { useImportFlow } from "@/hooks/use-import-flow";
 import { downloadCSV, generateExportCSV } from "@/lib/csv-export";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
 import { cn } from "@/lib/utils";
-
-import { useCollectionTitle } from "./route";
+import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 
 export const Route = createFileRoute("/_app/_authenticated/collections/import")({
   loader: async ({ context }) => {
@@ -52,14 +54,24 @@ export const Route = createFileRoute("/_app/_authenticated/collections/import")(
 });
 
 function ImportExportPage() {
-  useCollectionTitle("Import / Export");
-
+  const { toggleSidebar } = useSidebar();
+  const topBarSlot = use(TopBarSlotContext);
   const { data: collections } = useCollections();
   const flow = useImportFlow();
+
+  const topBarPortal =
+    topBarSlot &&
+    createPortal(
+      <PageTopBar>
+        <PageTopBarTitle onToggleSidebar={toggleSidebar}>Import / Export</PageTopBarTitle>
+      </PageTopBar>,
+      topBarSlot,
+    );
 
   if (flow.step === "input") {
     return (
       <div className="space-y-10">
+        {topBarPortal}
         <ExportSection />
         <InputStep
           rawText={flow.rawText}
@@ -74,30 +86,33 @@ function ImportExportPage() {
   }
 
   return (
-    <PreviewStep
-      matchedEntries={flow.matchedEntries}
-      allPrintings={flow.allPrintings}
-      rowCount={flow.rowCount}
-      parseErrors={flow.parseErrors}
-      skippedIndices={flow.skippedIndices}
-      expandedIndices={flow.expandedIndices}
-      collections={collections ?? []}
-      collectionId={flow.collectionId}
-      newCollectionName={flow.newCollectionName}
-      readyCount={flow.readyCount}
-      needsAttentionCount={flow.needsAttentionCount}
-      skippedCount={flow.skippedCount}
-      totalCards={flow.totalCards}
-      isImporting={flow.isImporting}
-      onResolve={flow.handleResolve}
-      onSkip={flow.handleSkip}
-      onUnskip={flow.handleUnskip}
-      onToggleExpand={flow.handleToggleExpand}
-      onCollectionChange={flow.handleCollectionChange}
-      onNewCollectionNameChange={flow.handleNewCollectionNameChange}
-      onImport={flow.handleImport}
-      onBack={flow.handleBack}
-    />
+    <>
+      {topBarPortal}
+      <PreviewStep
+        matchedEntries={flow.matchedEntries}
+        allPrintings={flow.allPrintings}
+        rowCount={flow.rowCount}
+        parseErrors={flow.parseErrors}
+        skippedIndices={flow.skippedIndices}
+        expandedIndices={flow.expandedIndices}
+        collections={collections ?? []}
+        collectionId={flow.collectionId}
+        newCollectionName={flow.newCollectionName}
+        readyCount={flow.readyCount}
+        needsAttentionCount={flow.needsAttentionCount}
+        skippedCount={flow.skippedCount}
+        totalCards={flow.totalCards}
+        isImporting={flow.isImporting}
+        onResolve={flow.handleResolve}
+        onSkip={flow.handleSkip}
+        onUnskip={flow.handleUnskip}
+        onToggleExpand={flow.handleToggleExpand}
+        onCollectionChange={flow.handleCollectionChange}
+        onNewCollectionNameChange={flow.handleNewCollectionNameChange}
+        onImport={flow.handleImport}
+        onBack={flow.handleBack}
+      />
+    </>
   );
 }
 

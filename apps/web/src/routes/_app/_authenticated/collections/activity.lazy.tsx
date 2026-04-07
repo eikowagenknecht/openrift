@@ -11,8 +11,10 @@ import {
   PlusIcon,
   SearchIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
+import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useSidebar } from "@/components/ui/sidebar";
 import { resolvePrice } from "@/hooks/use-card-data";
 import { useCards } from "@/hooks/use-cards";
 import { useCollectionEvents } from "@/hooks/use-collection-events";
@@ -29,7 +32,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { getCardImageUrl } from "@/lib/images";
 import { cn } from "@/lib/utils";
-import { useCollectionTitle } from "@/routes/_app/_authenticated/collections/route";
+import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useDisplayStore } from "@/stores/display-store";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/collections/activity")({
@@ -457,7 +460,8 @@ function FilteredEmptyState() {
 // ── Page ────────────────────────────────────────────────────────────────────
 
 function ActivityPage() {
-  useCollectionTitle("Activity");
+  const { toggleSidebar } = useSidebar();
+  const topBarSlot = use(TopBarSlotContext);
   const { data, hasNextPage, fetchNextPage, isFetchingNextPage } = useCollectionEvents();
   const { allPrintings } = useCards();
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
@@ -472,9 +476,19 @@ function ActivityPage() {
 
   const allEvents = data.pages.flatMap((page) => page.items);
 
+  const topBarPortal =
+    topBarSlot &&
+    createPortal(
+      <PageTopBar>
+        <PageTopBarTitle onToggleSidebar={toggleSidebar}>Activity</PageTopBarTitle>
+      </PageTopBar>,
+      topBarSlot,
+    );
+
   if (allEvents.length === 0 && !hasNextPage) {
     return (
       <div className="mx-auto w-full max-w-2xl">
+        {topBarPortal}
         <EmptyState />
       </div>
     );
@@ -503,6 +517,7 @@ function ActivityPage() {
 
   return (
     <div className="mx-auto w-full max-w-4xl">
+      {topBarPortal}
       <Toolbar
         actionFilter={actionFilter}
         onActionChange={setActionFilter}
