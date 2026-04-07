@@ -1,9 +1,9 @@
+import { appendSetTotal, fixTypography } from "@openrift/shared";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../../errors.js";
 import { acceptGalleryForNewCard } from "../../../services/accept-gallery.js";
-import { appendSetTotal, fixTypography } from "../../../services/fix-typography.js";
 import {
   acceptPrinting,
   deletePrinting,
@@ -25,7 +25,8 @@ vi.mock("../../../services/accept-gallery.js", () => ({
   acceptGalleryForNewCard: vi.fn(),
 }));
 
-vi.mock("../../../services/fix-typography.js", () => ({
+vi.mock("@openrift/shared", async (importOriginal) => ({
+  ...(await importOriginal()),
   fixTypography: vi.fn((text: string) => text),
   appendSetTotal: vi.fn((code: string) => code),
 }));

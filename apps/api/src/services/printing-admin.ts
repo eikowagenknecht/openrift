@@ -1,3 +1,4 @@
+import { appendSetTotal, fixTypography } from "@openrift/shared";
 import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
 import { DEFAULT_ENUM_ORDERS } from "@openrift/shared/types";
 
@@ -8,7 +9,6 @@ import type { candidateMutationsRepo } from "../repositories/candidate-mutations
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import type { promoTypesRepo } from "../repositories/promo-types.js";
 import { assertFound } from "../utils/assertions.js";
-import { appendSetTotal, fixTypography } from "./fix-typography.js";
 import { deleteRehostFiles } from "./image-rehost.js";
 
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;

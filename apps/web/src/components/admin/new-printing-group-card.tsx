@@ -11,7 +11,7 @@ import { useState } from "react";
 
 import type { FieldDef, PrintingGroup } from "@/components/admin/candidate-spreadsheet";
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
-import { useCardDetailData } from "@/components/admin/card-detail-shared";
+import { buildPrintingNormalizer, useCardDetailData } from "@/components/admin/card-detail-shared";
 import { GroupImagePreview } from "@/components/admin/image-preview";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
 import { Button } from "@/components/ui/button";
@@ -205,6 +205,7 @@ export function NewPrintingGroupCard({
                 providerLabels={providerLabels}
                 providerNames={providerNames}
                 providerSettings={providerSettings}
+                normalizeCandidate={buildPrintingNormalizer(setTotals, group.candidates[0]?.setId)}
                 onCellClick={(field, value) => {
                   setActivePrinting((prev) => withSetTotal({ ...prev, [field]: value }));
                 }}

@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { fixTypography } from "@openrift/shared";
 import { z } from "zod";
 
-import { fixTypography } from "../../services/fix-typography.js";
 import type { Variables } from "../../types.js";
 import { acceptTypographyFixSchema, typographyDiffItemSchema } from "./schemas.js";
 
