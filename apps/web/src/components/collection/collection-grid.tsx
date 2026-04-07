@@ -605,8 +605,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       title={title}
       onToggleSidebar={toggleSidebar}
       mode={mode}
-      totalCopies={totalCopies}
-      uniqueCount={stacks.length}
       selectedCount={selected.size}
       valueCents={valueCents}
       unpricedCount={unpricedCount}
@@ -854,8 +852,6 @@ interface CollectionTopBarProps {
   title: string;
   onToggleSidebar: () => void;
   mode: "browse" | "select" | "add";
-  totalCopies: number;
-  uniqueCount: number;
   selectedCount: number;
   valueCents: number | null | undefined;
   unpricedCount: number | null | undefined;
@@ -876,8 +872,6 @@ function CollectionTopBar({
   title,
   onToggleSidebar,
   mode,
-  totalCopies,
-  uniqueCount,
   selectedCount,
   valueCents,
   unpricedCount,
@@ -899,11 +893,7 @@ function CollectionTopBar({
 
       {/* Browse/select: card count + value */}
       {mode !== "add" && (
-        <span className="text-muted-foreground flex shrink-0 flex-wrap items-center gap-x-1.5 text-xs">
-          <span>
-            {totalCopies} card{totalCopies === 1 ? "" : "s"}
-            {uniqueCount !== totalCopies && ` (${uniqueCount} unique)`}
-          </span>
+        <span className="text-muted-foreground hidden shrink-0 items-center gap-x-1.5 text-xs sm:flex">
           {mode === "select" && selectedCount > 0 && (
             <Badge variant="secondary" className="gap-1">
               <CheckIcon className="size-3" />
@@ -911,15 +901,12 @@ function CollectionTopBar({
             </Badge>
           )}
           {valueCents !== null && valueCents !== undefined && (
-            <>
-              <span>·</span>
-              <span>
-                {formatValue(valueCents / 100)}
-                {unpricedCount ? (
-                  <span className="text-muted-foreground/60 ml-1">({unpricedCount} unpriced)</span>
-                ) : null}
-              </span>
-            </>
+            <span>
+              {formatValue(valueCents / 100)}
+              {unpricedCount ? (
+                <span className="text-muted-foreground/60 ml-1">({unpricedCount} unpriced)</span>
+              ) : null}
+            </span>
           )}
         </span>
       )}

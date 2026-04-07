@@ -267,7 +267,7 @@ export function ProxyExportDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {!isControlled && (
-        <DialogTrigger render={<Button variant="outline" size="sm" />}>
+        <DialogTrigger render={<Button variant="ghost" size="sm" />}>
           <PrinterIcon className="size-4" />
           Proxies
         </DialogTrigger>
