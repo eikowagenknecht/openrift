@@ -252,8 +252,9 @@ export async function buildCandidateCardList(
     return ids;
   }
 
-  // Count unlinked candidate printings without checkedAt across a normName group,
-  // optionally filtering to only favorite providers
+  // Count candidate printings without checkedAt across a normName group,
+  // optionally filtering to only favorite providers.
+  // Includes linked printings (printingId set) — they still need review.
   function uncheckedPrintingCountForGroup(
     group: typeof candidateCards,
     onlyFavorites?: boolean,
@@ -264,7 +265,7 @@ export async function buildCandidateCardList(
         continue;
       }
       for (const cp of cpByCandidateCardId.get(cc.id) ?? []) {
-        if (!cp.checkedAt && !cp.printingId) {
+        if (!cp.checkedAt) {
           count++;
         }
       }
