@@ -1,5 +1,6 @@
 import type { CollectionListResponse, CopyListResponse, CopyResponse } from "@openrift/shared";
 import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useCallback, useRef } from "react";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
@@ -232,6 +233,76 @@ export function useMoveCopies() {
       }
     },
   });
+}
+
+// ── Batched add ─────────────────────────────────────────────────────────────
+
+const BATCH_DELAY = 300;
+
+interface PendingAdd {
+  printingId: string;
+  collectionId?: string;
+  resolve: (result: AddCopyResult) => void;
+  reject: (error: unknown) => void;
+}
+
+/**
+ * Batches rapid add-copy calls into a single POST request.
+ * Each call returns a promise that resolves with the individual copy result.
+ * Calls within a 300ms window are combined into one batch POST.
+ * @returns An `add` function and `isPending` flag.
+ */
+export function useBatchedAddCopies() {
+  const addCopies = useAddCopies();
+  const pendingRef = useRef<PendingAdd[]>([]);
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  const flush = useCallback(() => {
+    const pending = pendingRef.current;
+    pendingRef.current = [];
+    timerRef.current = null;
+
+    if (pending.length === 0) {
+      return;
+    }
+
+    addCopies.mutate(
+      {
+        copies: pending.map((entry) => ({
+          printingId: entry.printingId,
+          collectionId: entry.collectionId,
+        })),
+      },
+      {
+        onSuccess: (data) => {
+          for (let i = 0; i < pending.length; i++) {
+            pending[i].resolve(data[i]);
+          }
+        },
+        onError: (error) => {
+          for (const entry of pending) {
+            entry.reject(error);
+          }
+        },
+      },
+    );
+  }, [addCopies]);
+
+  const add = useCallback(
+    (printingId: string, collectionId?: string): Promise<AddCopyResult> =>
+      // oxlint-disable-next-line promise/avoid-new -- deferred pattern needed to batch individual calls into one POST
+      new Promise<AddCopyResult>((resolve, reject) => {
+        pendingRef.current.push({ printingId, collectionId, resolve, reject });
+
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+        }
+        timerRef.current = setTimeout(flush, BATCH_DELAY);
+      }),
+    [flush],
+  );
+
+  return { add, isPending: addCopies.isPending };
 }
 
 export function useDisposeCopies() {

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Kbd } from "@/components/ui/kbd";
-import { useAddCopies, useDisposeCopies } from "@/hooks/use-copies";
+import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { searchCards } from "@/hooks/use-quick-add-search";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
@@ -90,7 +90,7 @@ function PaletteInner({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const scrollOnChange = useRef(false);
-  const addCopies = useAddCopies();
+  const batchedAdd = useBatchedAddCopies();
   const disposeCopies = useDisposeCopies();
   const addedItems = useAddModeStore((s) => s.addedItems);
 
@@ -127,23 +127,15 @@ function PaletteInner({
     }
   }, [selectedIndex, expandedCardId, expandedIndex]);
 
-  const handleAdd = (printing: Printing) => {
-    addCopies.mutate(
-      {
-        copies: [{ printingId: printing.id, collectionId }],
-      },
-      {
-        onSuccess: (data) => {
-          const copyId = (data as { id: string }[])[0].id;
-          useAddModeStore.getState().recordAdd(printing, copyId);
-          toast.success(`Added 1× ${printing.card.name}`);
-          inputRef.current?.focus();
-        },
-        onError: () => {
-          toast.error(`Failed to add ${printing.card.name}`);
-        },
-      },
-    );
+  const handleAdd = async (printing: Printing) => {
+    try {
+      const result = await batchedAdd.add(printing.id, collectionId);
+      useAddModeStore.getState().recordAdd(printing, result.id);
+      toast.success(`Added 1× ${printing.card.name}`);
+      inputRef.current?.focus();
+    } catch {
+      toast.error(`Failed to add ${printing.card.name}`);
+    }
   };
 
   const handleUndo = (printing: Printing) => {

@@ -1,5 +1,13 @@
-import type { DeckExportResponse, DeckFormat, DeckZone } from "@openrift/shared";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import type {
+  DeckCardResponse,
+  DeckDetailResponse,
+  DeckExportResponse,
+  DeckFormat,
+  DeckListResponse,
+  DeckResponse,
+  DeckZone,
+} from "@openrift/shared";
+import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
@@ -62,36 +70,88 @@ export function useDeleteDeck() {
 }
 
 export function useSaveDeckCards() {
-  return useMutationWithInvalidation<
-    unknown,
-    { deckId: string; cards: { cardId: string; zone: DeckZone; quantity: number }[] }
-  >({
-    mutationFn: async ({ deckId, cards }) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      deckId,
+      cards,
+    }: {
+      deckId: string;
+      cards: { cardId: string; zone: DeckZone; quantity: number }[];
+    }): Promise<{ cards: DeckCardResponse[] }> => {
       const res = await client.api.v1.decks[":id"].cards.$put({
         param: { id: deckId },
         json: { cards },
       });
       assertOk(res);
-      return await res.json();
+      return (await res.json()) as { cards: DeckCardResponse[] };
     },
-    invalidates: [queryKeys.decks.all],
+    onSuccess: (data, variables) => {
+      // Update deck detail cache with the returned cards
+      queryClient.setQueryData<DeckDetailResponse>(
+        queryKeys.decks.detail(variables.deckId),
+        (old) => {
+          if (!old) {
+            return old;
+          }
+          return { ...old, cards: data.cards };
+        },
+      );
+
+      // Invalidate the deck list (for aggregate stats like type counts, domain distribution)
+      // but don't refetch the detail since we just updated it
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.decks.all,
+        exact: true,
+      });
+    },
   });
 }
 
 export function useUpdateDeck() {
-  return useMutationWithInvalidation<
-    unknown,
-    { deckId: string; name?: string; format?: DeckFormat }
-  >({
-    mutationFn: async ({ deckId, ...fields }) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      deckId,
+      ...fields
+    }: {
+      deckId: string;
+      name?: string;
+      format?: DeckFormat;
+    }): Promise<DeckResponse> => {
       const res = await client.api.v1.decks[":id"].$patch({
         param: { id: deckId },
         json: fields,
       });
       assertOk(res);
-      return await res.json();
+      return (await res.json()) as DeckResponse;
     },
-    invalidates: [queryKeys.decks.all],
+    onSuccess: (data, variables) => {
+      // Update deck detail cache with the returned metadata
+      queryClient.setQueryData<DeckDetailResponse>(
+        queryKeys.decks.detail(variables.deckId),
+        (old) => {
+          if (!old) {
+            return old;
+          }
+          return { ...old, deck: data };
+        },
+      );
+
+      // Update the deck list entry if it exists
+      queryClient.setQueryData<DeckListResponse>(queryKeys.decks.all, (old) => {
+        if (!old) {
+          return old;
+        }
+        return {
+          items: old.items.map((item) =>
+            item.deck.id === variables.deckId ? { ...item, deck: data } : item,
+          ),
+        };
+      });
+    },
   });
 }
 

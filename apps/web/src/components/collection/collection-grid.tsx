@@ -49,7 +49,7 @@ import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCards } from "@/hooks/use-cards";
 import { useCollectionCardData } from "@/hooks/use-collection-card-data";
 import { useCollections, useCollectionsMap } from "@/hooks/use-collections";
-import { useAddCopies, useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
+import { useBatchedAddCopies, useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
@@ -203,7 +203,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const addedItems = useAddModeStore((s) => s.addedItems);
   const showAddedList = useAddModeStore((s) => s.showAddedList);
   const variantPopover = useAddModeStore((s) => s.variantPopover);
-  const addCopies = useAddCopies();
+  const batchedAdd = useBatchedAddCopies();
   const addModeDisposeCopies = useDisposeCopies();
 
   // Fan-card sibling overrides (cards view, add mode)
@@ -305,11 +305,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     ? async (printing: Printing) => {
         useAddModeStore.getState().incrementPending(printing);
         try {
-          const data = await addCopies.mutateAsync({
-            copies: [{ printingId: printing.id, collectionId: addTarget }],
-          });
-          const copyId = (data as { id: string }[])[0].id;
-          useAddModeStore.getState().recordAdd(printing, copyId);
+          const result = await batchedAdd.add(printing.id, addTarget);
+          useAddModeStore.getState().recordAdd(printing, result.id);
         } catch {
           // Server-side add failed — pending count is the only thing to clean up
         } finally {
