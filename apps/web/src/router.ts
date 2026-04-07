@@ -1,22 +1,31 @@
-import type { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 
 import { RouterErrorFallback } from "./components/error-fallback";
 import { NotFoundFallback } from "./components/error-message";
+import { createQueryClient } from "./lib/query-client";
 import { routeTree } from "./routeTree.gen";
 
-export function createAppRouter(queryClient: QueryClient) {
-  return createRouter({
+export function getRouter() {
+  const queryClient = createQueryClient();
+
+  const router = createRouter({
     routeTree,
     context: { queryClient },
+    defaultPreload: "intent",
     defaultErrorComponent: RouterErrorFallback,
     defaultNotFoundComponent: NotFoundFallback,
+    scrollRestoration: true,
   });
+
+  setupRouterSsrQueryIntegration({ router, queryClient, wrapQueryClient: true });
+
+  return router;
 }
 
 declare module "@tanstack/react-router" {
   interface Register {
-    router: ReturnType<typeof createAppRouter>;
+    router: ReturnType<typeof getRouter>;
   }
 
   interface StaticDataRouteOption {

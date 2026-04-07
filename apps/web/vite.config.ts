@@ -8,10 +8,10 @@ import path from "node:path";
 import babel from "@rolldown/plugin-babel";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
-import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
-import { VitePWA } from "vite-plugin-pwa";
 
 const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
 const proxy = { "/api": "http://localhost:3000" };
@@ -44,7 +44,8 @@ export default defineConfig({
         });
       },
     },
-    tanstackRouter(),
+    tanstackStart({ srcDirectory: "src" }),
+    nitro({ preset: "bun" }),
     tailwindcss(),
     react(),
     babel({
@@ -57,41 +58,13 @@ export default defineConfig({
       project: process.env.SENTRY_PROJECT,
       authToken: process.env.SENTRY_AUTH_TOKEN,
       release: { name: commitHash },
-      sourcemaps: { filesToDeleteAfterUpload: ["./dist/**/*.map"] },
+      sourcemaps: { filesToDeleteAfterUpload: ["./.output/**/*.map"] },
       disable: !process.env.SENTRY_AUTH_TOKEN,
     }),
-    VitePWA({
-      selfDestroying: true,
-      manifest: {
-        id: "/",
-        name: "OpenRift — A Riftbound Companion",
-        short_name: "OpenRift",
-        description: "Built with Fury. Maintained with Calm.",
-        theme_color: "#1d1538",
-        background_color: "#0a0a0a",
-        display: "standalone",
-        scope: "/",
-        start_url: "/",
-        icons: [
-          {
-            src: "pwa-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "pwa-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-          },
-          {
-            src: "pwa-maskable-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable",
-          },
-        ],
-      },
-    }),
+    // VitePWA disabled — the self-destroying SW was only needed to clean up
+    // the old PWA. TanStack Start outputs to .output/ which VitePWA doesn't
+    // support. Re-enable if PWA is needed again.
+    // VitePWA({ selfDestroying: true, ... }),
   ],
   build: {
     sourcemap: true,
