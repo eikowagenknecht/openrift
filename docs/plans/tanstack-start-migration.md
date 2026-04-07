@@ -31,19 +31,24 @@ Vite SPA to a TanStack Start app with streaming SSR.
    `nitro/vite`) is an optional Vite plugin for production server presets (Node,
    Bun, etc.). It is not in the critical build path.
 
-3. **Keep the API boundary.** Server functions call the Hono API over HTTP (via
-   an internal URL), not by importing Kysely repositories directly. This keeps
-   the web and API packages decoupled.
+3. **Bun runtime.** The Start server runs on Bun (matching the API server). The
+   Nitro preset is `"bun"`, the Docker image is `oven/bun`, and memory is
+   managed via `BUN_JSC_maxHeapSize` (JavaScriptCore, Bun's engine).
 
-4. **Streaming SSR by default.** TanStack Start uses `defaultStreamHandler`,
+4. **Keep the API boundary.** Server functions call the Hono API over HTTP (via
+   an internal URL), not by importing Kysely repositories directly. This keeps
+   the web and API packages decoupled. The `/api/*` endpoints remain available
+   for direct access (e.g., a future mobile app).
+
+5. **Streaming SSR by default.** TanStack Start uses `defaultStreamHandler`,
    which streams HTML using `<Suspense>` boundaries. Existing `useSuspenseQuery`
    calls already define the streaming slots. No extra work needed for basic
    streaming.
 
-5. **Drop Cloudflare Workers preview.** Everything runs on the VPS now. Remove
+6. **Drop Cloudflare Workers preview.** Everything runs on the VPS now. Remove
    `worker.ts` and CF-specific code.
 
-6. **Display preferences stay in localStorage.** Only the theme (light/dark) is
+7. **Display preferences stay in localStorage.** Only the theme (light/dark) is
    in cookies (already the case). Display preferences like `showImages`,
    `fancyFan`, `maxColumns` are not worth putting in cookies because: (a)
    they're large (arrays of languages, marketplace order), (b) they'd bloat every
