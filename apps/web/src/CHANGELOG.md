@@ -2,6 +2,8 @@
 
 ## 2026-04-07
 
+- feat: Collection import now supports re-importing your own OpenRift CSV exports
+- feat: CSV exports now include a Promo column so promo variants can be imported back without ambiguity
 - feat: Providers can now be marked as favorites, and the Review badge on the cards page only counts unchecked candidates from favorite providers
 - feat: Search bar placeholder now shows which fields are being searched when the scope is narrowed (e.g. "Search by name, artist...")
 - fix: Search bar in copies view now shows the total number of copies instead of unique printings

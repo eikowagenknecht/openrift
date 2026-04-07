@@ -43,7 +43,7 @@ function buildRawFields(fields: Record<string, string | undefined>): Record<stri
 interface ParseResult {
   entries: ImportEntry[];
   errors: string[];
-  source: "piltover-archive" | "riftcore";
+  source: "openrift" | "piltover-archive" | "riftcore";
   /** Number of data rows in the source CSV (before deduplication). */
   rowCount: number;
 }
@@ -67,10 +67,14 @@ export function parseImportData(text: string): ParseResult {
     return parsePiltoverArchive(trimmed);
   }
 
+  if (firstLine.includes("Art Variant")) {
+    return parseOpenRift(trimmed);
+  }
+
   return {
     entries: [],
     errors: [
-      "Couldn't recognize this format. We currently support Piltover Archive and RiftCore CSV exports.",
+      "Couldn't recognize this format. We currently support OpenRift, Piltover Archive, and RiftCore CSV exports.",
     ],
     source: "piltover-archive",
     rowCount: 0,
@@ -312,6 +316,105 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
   }
 
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// OpenRift
+// ---------------------------------------------------------------------------
+
+/**
+ * Parses an OpenRift CSV export (the format produced by our own export).
+ *
+ * Columns: Card ID, Card Name, Rarity, Type, Domain, Finish, Art Variant, Promo, Quantity
+ *
+ * All fields map directly to internal types, so no translation is needed.
+ * The Promo column may be empty (non-promo) or contain a promo slug like "nexus".
+ * Older exports without the Promo column are also supported.
+ * @returns Parsed entries and any parse errors.
+ */
+function parseOpenRift(text: string): ParseResult {
+  const records = parseCSVWithHeaders(text);
+  const errors: string[] = [];
+
+  if (records.length === 0) {
+    return { entries: [], errors: ["No data rows found."], source: "openrift", rowCount: 0 };
+  }
+
+  const required = ["Card ID", "Card Name", "Quantity"];
+  const firstRecord = records[0];
+  for (const col of required) {
+    if (!(col in firstRecord)) {
+      errors.push(`Missing required column: "${col}".`);
+    }
+  }
+  if (errors.length > 0) {
+    return { entries: [], errors, source: "openrift", rowCount: 0 };
+  }
+
+  const entries: ImportEntry[] = [];
+  let rowCount = 0;
+
+  for (const record of records) {
+    const cardId = record["Card ID"]?.trim() ?? "";
+    const cardName = record["Card Name"]?.trim() ?? "";
+    const quantity = Number.parseInt(record["Quantity"] ?? "0", 10);
+
+    if (!cardId || quantity <= 0) {
+      continue;
+    }
+
+    rowCount++;
+
+    const parsed = parseOpenRiftCardId(cardId);
+    if (!parsed) {
+      errors.push(`Could not parse Card ID: "${cardId}"`);
+      continue;
+    }
+
+    const finish: Finish = record["Finish"]?.trim() === "foil" ? "foil" : "normal";
+    const artVariantRaw = record["Art Variant"]?.trim();
+    const artVariant: ArtVariant =
+      artVariantRaw === "altart" || artVariantRaw === "overnumbered" ? artVariantRaw : "normal";
+    const promoSlug = record["Promo"]?.trim() || undefined;
+
+    entries.push({
+      setPrefix: parsed.setPrefix,
+      collectorNumber: parsed.collectorNumber,
+      finish,
+      artVariant,
+      quantity,
+      cardName,
+      sourceCode: cardId,
+      promoSlug,
+      rawFields: buildRawFields({
+        "Source Code": cardId,
+        Rarity: record["Rarity"],
+        Type: record["Type"],
+        Domain: record["Domain"],
+        Finish: record["Finish"],
+        "Art Variant": record["Art Variant"],
+        Promo: record["Promo"],
+      }),
+    });
+  }
+
+  return { entries, errors, source: "openrift", rowCount };
+}
+
+/**
+ * Parses an OpenRift Card ID like "OGN-001", "OGN-079a", "OGN-123*", or "SFD-T01".
+ * Uses the same format as our short codes.
+ * @returns Parsed parts, or null if the format is unrecognized.
+ */
+function parseOpenRiftCardId(
+  cardId: string,
+): { setPrefix: string; collectorNumber: number } | null {
+  const match = cardId.match(/^([A-Z]{3})-([A-Z0-9]{3})[a-z*]?$/);
+  if (!match) {
+    return null;
+  }
+  const digits = match[2].replaceAll(/[A-Za-z]/g, "");
+  return { setPrefix: match[1], collectorNumber: Number.parseInt(digits, 10) };
 }
 
 // ---------------------------------------------------------------------------

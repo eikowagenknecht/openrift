@@ -8,6 +8,7 @@ const HEADERS = [
   "Domain",
   "Finish",
   "Art Variant",
+  "Promo",
   "Quantity",
 ] as const;
 
@@ -35,6 +36,7 @@ export function generateExportCSV(stacks: StackedEntry[]): string {
       printing.card.domains.join(" / "),
       printing.finish,
       printing.artVariant,
+      printing.promoType?.slug ?? "",
       String(stack.copyIds.length),
     ].map((field) => escapeField(field));
     lines.push(row.join(","));
