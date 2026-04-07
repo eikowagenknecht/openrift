@@ -6,7 +6,6 @@ const enumRowSchema = z.object({
   slug: z.string(),
   label: z.string(),
   sortOrder: z.number(),
-  isWellKnown: z.boolean(),
 });
 
 const enumsResponseSchema = z.record(z.string(), z.array(enumRowSchema));
@@ -29,7 +28,13 @@ export const enumsRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(
   async (c) => {
     const { enums } = c.get("repos");
     const data = await enums.all();
+    const stripped = Object.fromEntries(
+      Object.entries(data).map(([key, rows]) => [
+        key,
+        rows.map(({ isWellKnown: _, ...rest }) => rest),
+      ]),
+    );
     c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
-    return c.json(data);
+    return c.json(stripped);
   },
 );

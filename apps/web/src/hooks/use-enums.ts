@@ -8,7 +8,6 @@ interface EnumRow {
   slug: string;
   label: string;
   sortOrder: number;
-  isWellKnown: boolean;
 }
 
 /** Label lookup maps for enums that need display labels in the UI. */
