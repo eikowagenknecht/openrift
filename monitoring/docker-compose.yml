@@ -67,7 +67,7 @@ services:
       - "127.0.0.1:9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
+      - ./data/prometheus:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -101,7 +101,7 @@ services:
       GF_UNIFIED_ALERTING_ENABLED: "true"
       GF_ALERTING_ENABLED: "false"
     volumes:
-      - grafana-data:/var/lib/grafana
+      - ./data/grafana:/var/lib/grafana
       - ./provisioning:/etc/grafana/provisioning:ro
       - ./alerting:/etc/grafana/provisioning/alerting:ro
     depends_on:
@@ -112,10 +112,6 @@ services:
         max-size: "5m"
         max-file: "3"
     restart: unless-stopped
-
-volumes:
-  prometheus-data:
-  grafana-data:
 
 networks:
   openrift:
