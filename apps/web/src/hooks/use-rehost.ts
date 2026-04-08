@@ -153,6 +153,19 @@ const cleanupOrphanedFn = createServerFn({ method: "POST" })
     return res.json();
   });
 
+const migrateDirectoriesFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .handler(async ({ context }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/migrate-directories`, {
+      method: "POST",
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Migrate directories failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
 const restoreImageUrlsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { provider: string }) => input)
   .middleware([withCookies])
@@ -291,6 +304,16 @@ export function useCleanupOrphaned() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => cleanupOrphanedFn(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
+    },
+  });
+}
+
+export function useMigrateDirectories() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => migrateDirectoriesFn(),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
     },

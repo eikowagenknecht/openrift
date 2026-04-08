@@ -599,3 +599,65 @@ export async function findLowResImages(
 
   return { total: images.length, lowRes };
 }
+
+/**
+ * Migrate files from old set-slug directory structure to UUID-prefix structure.
+ * Moves files from `card-images/{setSlug}/{uuid}-*` to `card-images/{last2chars}/{uuid}-*`.
+ * Only processes directories that are NOT 2-char hex prefixes (i.e., old set-slug dirs).
+ * @returns Counts of scanned, moved, skipped, and failed files.
+ */
+export async function migrateImageDirectories(io: Io): Promise<{
+  scanned: number;
+  moved: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+}> {
+  const progress = { scanned: 0, moved: 0, skipped: 0, failed: 0, errors: [] as string[] };
+
+  let entries: { name: string; isDirectory: () => boolean }[];
+  try {
+    entries = await io.fs.readdir(CARD_IMAGES_DIR, { withFileTypes: true });
+  } catch {
+    return progress;
+  }
+
+  const isHexPrefix = (name: string) => /^[0-9a-f]{2}$/i.test(name);
+  const oldDirs = entries.filter((e) => e.isDirectory() && !isHexPrefix(e.name));
+
+  for (const dir of oldDirs) {
+    const oldDir = join(CARD_IMAGES_DIR, dir.name);
+    let files: string[];
+    try {
+      files = await io.fs.readdir(oldDir);
+    } catch {
+      continue;
+    }
+
+    for (const file of files) {
+      progress.scanned++;
+      const uuidMatch = file.match(
+        /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-/i,
+      );
+      if (!uuidMatch) {
+        progress.skipped++;
+        continue;
+      }
+
+      const newPrefix = uuidMatch[1].slice(-2);
+      const newDir = join(CARD_IMAGES_DIR, newPrefix);
+
+      try {
+        await io.fs.mkdir(newDir, { recursive: true });
+        await io.fs.rename(join(oldDir, file), join(newDir, file));
+        progress.moved++;
+      } catch (error) {
+        progress.failed++;
+        const message = error instanceof Error ? error.message : String(error);
+        progress.errors.push(`${dir.name}/${file}: ${message}`);
+      }
+    }
+  }
+
+  return progress;
+}

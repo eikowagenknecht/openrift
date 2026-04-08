@@ -22,6 +22,7 @@ import {
   useCleanupOrphaned,
   useClearRehosted,
   useLowResImages,
+  useMigrateDirectories,
   useMissingImages,
   useRegenerateImages,
   useRehostImages,
@@ -158,6 +159,7 @@ function ManageSection() {
   const clearMutation = useClearRehosted();
   const renameMutation = useRenameImages();
   const cleanupMutation = useCleanupOrphaned();
+  const migrateMutation = useMigrateDirectories();
 
   if (!status) {
     return null;
@@ -171,7 +173,8 @@ function ManageSection() {
     regenMutation.isPending ||
     clearMutation.isPending ||
     renameMutation.isPending ||
-    cleanupMutation.isPending;
+    cleanupMutation.isPending ||
+    migrateMutation.isPending;
 
   return (
     <Card>
@@ -190,6 +193,17 @@ function ManageSection() {
       <CardContent className="space-y-3 pt-0">
         {/* ── Action buttons ────────────────────────────────────────────── */}
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={anyPending || migrateMutation.isSuccess}
+            onClick={() => migrateMutation.mutate()}
+          >
+            {migrateMutation.isPending ? (
+              <LoaderIcon className="size-4 animate-spin" />
+            ) : (
+              "Migrate directories"
+            )}
+          </Button>
           <Button
             variant="outline"
             disabled={anyPending || !preview?.misnamed}
@@ -256,6 +270,24 @@ function ManageSection() {
             </div>
             <Progress value={(regenProgress.processed / regenProgress.totalFiles) * 100} />
           </div>
+        )}
+
+        {migrateMutation.isSuccess && migrateMutation.data && (
+          <div>
+            <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+              <CheckIcon className="size-4" />
+              Scanned {migrateMutation.data.scanned} files: {migrateMutation.data.moved} moved,{" "}
+              {migrateMutation.data.skipped} skipped
+              {migrateMutation.data.failed > 0 && `, ${migrateMutation.data.failed} failed`}
+            </p>
+            <ErrorsList errors={migrateMutation.data.errors} />
+          </div>
+        )}
+        {migrateMutation.isError && (
+          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <XIcon className="size-4" />
+            {migrateMutation.error?.message}
+          </p>
         )}
 
         <MutationStatus mutation={rehostMutation} label="rehost" />

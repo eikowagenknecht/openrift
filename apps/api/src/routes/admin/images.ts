@@ -9,6 +9,7 @@ import {
   findBrokenImages,
   findLowResImages,
   getRehostStatus,
+  migrateImageDirectories,
   regenerateImages,
   rehostImages,
   renameStaleImages,
@@ -266,6 +267,28 @@ const missingImages = createRoute({
   },
 });
 
+const migrateDirectories = createRoute({
+  method: "post",
+  path: "/migrate-directories",
+  tags: ["Admin - Images"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            scanned: z.number(),
+            moved: z.number(),
+            skipped: z.number(),
+            failed: z.number(),
+            errors: z.array(z.string()),
+          }),
+        },
+      },
+      description: "Migrate image files from old set-slug directories to UUID-prefix directories",
+    },
+  },
+});
+
 const restoreImageUrls = createRoute({
   method: "post",
   path: "/restore-image-urls",
@@ -351,6 +374,11 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
   .openapi(missingImages, async (c) => {
     const { candidateCards } = c.get("repos");
     return c.json(await candidateCards.listCardsWithMissingImages());
+  })
+
+  .openapi(migrateDirectories, async (c) => {
+    const result = await migrateImageDirectories(c.get("io"));
+    return c.json(result);
   })
 
   .openapi(restoreImageUrls, async (c) => {
