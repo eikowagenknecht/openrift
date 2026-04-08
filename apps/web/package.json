@@ -62,6 +62,7 @@
     "@rolldown/plugin-babel": "0.2.2",
     "@tailwindcss/typography": "0.5.19",
     "@tanstack/react-router-devtools": "1.166.11",
+    "@tanstack/router-cli": "1.166.25",
     "@tanstack/router-plugin": "1.167.12",
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.2",
