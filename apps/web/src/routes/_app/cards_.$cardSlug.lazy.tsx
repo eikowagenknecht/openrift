@@ -39,14 +39,6 @@ function CardDetailPage() {
 
   const frontImage = selectedPrinting.images.find((i) => i.face === "front");
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Thing",
-    name: card.name,
-    description: `${card.name} is a ${card.type} card from Riftbound.`,
-    image: frontImage?.url,
-  };
-
   return (
     <div className={`${PAGE_PADDING} flex flex-col gap-4`}>
       <div>
@@ -203,11 +195,6 @@ function CardDetailPage() {
           </div>
         </div>
       )}
-
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
     </div>
   );
 }
