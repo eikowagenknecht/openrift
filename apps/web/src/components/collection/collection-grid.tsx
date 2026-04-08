@@ -51,6 +51,7 @@ import { useCollectionCardData } from "@/hooks/use-collection-card-data";
 import { useCollections, useCollectionsMap } from "@/hooks/use-collections";
 import { useBatchedAddCopies, useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
@@ -130,6 +131,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   // "copies" is a collection-only UI concept — at the data level it behaves like "printings"
   const dataView = view === "copies" ? "printings" : view;
+  const keywordReverseMap = useKeywordReverseMap();
 
   // ── Collection data (browse/select modes) ───────────────────────────
   const {
@@ -149,6 +151,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     view: dataView,
     sets,
     favoriteMarketplace,
+    keywordReverseMap,
   });
 
   // ── Catalog data (add mode — skip expensive computation in browse/select) ──
@@ -171,6 +174,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     ownedCountByPrinting,
     favoriteMarketplace,
     enabled: isAddMode,
+    keywordReverseMap,
   });
 
   // ── Pick active data set based on mode ──────────────────────────────

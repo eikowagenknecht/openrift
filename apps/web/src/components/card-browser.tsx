@@ -25,6 +25,7 @@ import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
 import { useDisplayStore } from "@/stores/display-store";
@@ -58,6 +59,7 @@ export function CardBrowser() {
 
   // "copies" is a collection-only view — clamp to "printings" in the catalog browser
   const view = rawView === "copies" ? "printings" : rawView;
+  const keywordReverseMap = useKeywordReverseMap();
 
   const {
     availableFilters,
@@ -76,6 +78,7 @@ export function CardBrowser() {
     view,
     ownedCountByPrinting,
     favoriteMarketplace: marketplaceOrder[0] ?? "tcgplayer",
+    keywordReverseMap,
   });
 
   const deferredSortedCards = useDeferredValue(sortedCards);

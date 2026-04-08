@@ -20,6 +20,8 @@ interface UseCardDataParams {
   ownedCountByPrinting: Record<string, number> | undefined;
   favoriteMarketplace: Marketplace;
   enabled?: boolean;
+  /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
+  keywordReverseMap?: Map<string, string>;
 }
 
 function toComparable(p: Printing, setOrderMap: Map<string, number>) {
@@ -164,6 +166,7 @@ export function useCardData({
   ownedCountByPrinting,
   favoriteMarketplace,
   enabled = true,
+  keywordReverseMap,
 }: UseCardDataParams) {
   "use memo";
 
@@ -190,7 +193,7 @@ export function useCardData({
       : allPrintings;
 
   const availableFilters = getAvailableFilters(langFiltered);
-  const filteredCards = filterCards(langFiltered, filters);
+  const filteredCards = filterCards(langFiltered, filters, keywordReverseMap);
 
   const displayCards =
     view === "cards" ? deduplicateByCard(filteredCards, setOrderMap) : filteredCards;

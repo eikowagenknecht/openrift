@@ -64,7 +64,12 @@ export function parseSearchTerms(raw: string): ParsedSearchTerm[] {
  * printingMatchesField(printing, "name", "dragon") // true if card name contains "dragon"
  * ```
  */
-function printingMatchesField(printing: Printing, field: SearchField, text: string): boolean {
+function printingMatchesField(
+  printing: Printing,
+  field: SearchField,
+  text: string,
+  keywordReverseMap?: Map<string, string>,
+): boolean {
   const { card } = printing;
   const lower = text.toLowerCase();
   if (field === "name") {
@@ -82,7 +87,18 @@ function printingMatchesField(printing: Printing, field: SearchField, text: stri
     );
   }
   if (field === "keywords") {
-    return card.keywords.some((kw) => kw.toLowerCase().includes(lower));
+    // Match against canonical keywords directly
+    if (card.keywords.some((kw) => kw.toLowerCase().includes(lower))) {
+      return true;
+    }
+    // Also try resolving the search term via the translation reverse map
+    if (keywordReverseMap) {
+      const canonical = keywordReverseMap.get(lower);
+      if (canonical) {
+        return card.keywords.some((kw) => kw.toLowerCase() === canonical.toLowerCase());
+      }
+    }
+    return false;
   }
   if (field === "tags") {
     return card.tags.some((tag) => tag.toLowerCase().includes(lower));
@@ -207,18 +223,19 @@ function matchesSearch(
   terms: ParsedSearchTerm[],
   hasPrefixes: boolean,
   searchScope: SearchField[],
+  keywordReverseMap?: Map<string, string>,
 ): boolean {
   if (terms.length === 0) {
     return true;
   }
   return terms.every((term) => {
     if (term.field) {
-      return printingMatchesField(printing, term.field, term.text);
+      return printingMatchesField(printing, term.field, term.text, keywordReverseMap);
     }
     // Un-prefixed terms widen to all fields when any prefix is present (e.g. "n:Dragon fire"
     // searches "fire" everywhere), but respect the user's search scope when no prefixes are used.
     const fields = hasPrefixes ? ALL_SEARCH_FIELDS : searchScope;
-    return fields.some((f) => printingMatchesField(printing, f, term.text));
+    return fields.some((f) => printingMatchesField(printing, f, term.text, keywordReverseMap));
   });
 }
 
@@ -234,14 +251,18 @@ function matchesSearch(
  * const results = filterCards(allPrintings, { ...defaultFilters, sets: ["Origins"], rarities: ["Rare"] });
  * ```
  */
-export function filterCards(printings: Printing[], filters: CardFilters): Printing[] {
+export function filterCards(
+  printings: Printing[],
+  filters: CardFilters,
+  keywordReverseMap?: Map<string, string>,
+): Printing[] {
   const terms = filters.search ? parseSearchTerms(filters.search) : [];
   const hasPrefixes = terms.some((t) => t.field !== null);
 
   return printings.filter((printing) => {
     const { card } = printing;
     return (
-      matchesSearch(printing, terms, hasPrefixes, filters.searchScope) &&
+      matchesSearch(printing, terms, hasPrefixes, filters.searchScope, keywordReverseMap) &&
       includes(filters.sets, printing.setSlug) &&
       overlaps(filters.domains, card.domains) &&
       includes(filters.types, card.type) &&

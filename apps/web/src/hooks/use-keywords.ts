@@ -131,3 +131,91 @@ export function useDeleteKeywordStyle() {
     },
   });
 }
+
+// ── Translation mutations ───────────────────────────────────────────────────
+
+const discoverTranslationsFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .handler(async ({ context }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/discover-keyword-translations`, {
+      method: "POST",
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Discover translations failed: ${res.status}`);
+    }
+    return res.json() as Promise<{
+      candidatesExamined: number;
+      discovered: { keyword: string; language: string; label: string }[];
+      inserted: number;
+      conflicts: { keyword: string; language: string; labels: string[] }[];
+    }>;
+  });
+
+export function useDiscoverTranslations() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => discoverTranslationsFn(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
+      queryClient.invalidateQueries({ queryKey: queryKeys.keywordStyles.all });
+    },
+  });
+}
+
+const upsertTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { keywordName: string; language: string; label: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/keyword-translations/${encodeURIComponent(data.keywordName)}/${encodeURIComponent(data.language)}`,
+      {
+        method: "PUT",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ label: data.label }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Upsert translation failed: ${res.status}`);
+    }
+  });
+
+export function useUpsertTranslation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { keywordName: string; language: string; label: string }) =>
+      upsertTranslationFn({ data: params }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
+      queryClient.invalidateQueries({ queryKey: queryKeys.keywordStyles.all });
+    },
+  });
+}
+
+const deleteTranslationFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { keywordName: string; language: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/keyword-translations/${encodeURIComponent(data.keywordName)}/${encodeURIComponent(data.language)}`,
+      {
+        method: "DELETE",
+        headers: { cookie: context.cookie },
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Delete translation failed: ${res.status}`);
+    }
+  });
+
+export function useDeleteTranslation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { keywordName: string; language: string }) =>
+      deleteTranslationFn({ data: params }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
+      queryClient.invalidateQueries({ queryKey: queryKeys.keywordStyles.all });
+    },
+  });
+}

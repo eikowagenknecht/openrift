@@ -19,6 +19,8 @@ interface UseCollectionCardDataParams {
   view: "cards" | "printings";
   sets: SetInfo[];
   favoriteMarketplace: Marketplace;
+  /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
+  keywordReverseMap?: Map<string, string>;
 }
 
 function toComparable(printing: Printing, setOrderMap: Map<string, number>) {
@@ -43,6 +45,7 @@ export function useCollectionCardData({
   view,
   sets,
   favoriteMarketplace,
+  keywordReverseMap,
 }: UseCollectionCardDataParams) {
   "use memo";
   const { stacks, totalCopies } = useStackedCopies(collectionId);
@@ -53,7 +56,7 @@ export function useCollectionCardData({
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
 
   const availableFilters = getAvailableFilters(collectionPrintings);
-  const filteredCards = filterCards(collectionPrintings, filters);
+  const filteredCards = filterCards(collectionPrintings, filters, keywordReverseMap);
 
   // In "cards" view, deduplicate by cardId (keep canonical printing)
   const displayCards =

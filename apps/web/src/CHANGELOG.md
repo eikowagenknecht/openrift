@@ -2,6 +2,7 @@
 
 ## 2026-04-08
 
+- feat: Keyword badges on Chinese cards now show the correct colors, and searching for a keyword in any language finds all matching cards
 - feat: Each card now has its own dedicated page at /cards/{name} with full details, shareable links, and search engine visibility
 - feat: Card sets now have browsable pages at /sets and /sets/{name} showing all cards in each set
 - feat: The card detail pane now has a "View full page" link to open the card's dedicated page

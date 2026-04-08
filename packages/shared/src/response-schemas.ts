@@ -98,6 +98,7 @@ export const featureFlagsResponseSchema = z
 const keywordStyleEntrySchema = z.object({
   color: z.string(),
   darkText: z.boolean(),
+  translations: z.record(z.string(), z.string()).optional(),
 });
 
 export const keywordStylesResponseSchema = z

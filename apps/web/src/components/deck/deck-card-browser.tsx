@@ -24,6 +24,7 @@ import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
+import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
@@ -151,6 +152,7 @@ export function DeckCardBrowser() {
 
   // Always use "cards" view in deckbuilder — printings/copies modes don't apply
   const view = "cards" as const;
+  const keywordReverseMap = useKeywordReverseMap();
 
   const {
     availableFilters,
@@ -169,6 +171,7 @@ export function DeckCardBrowser() {
     view,
     ownedCountByPrinting,
     favoriteMarketplace: marketplaceOrder[0] ?? "tcgplayer",
+    keywordReverseMap,
   });
 
   // Client-side filtering for zones where the URL filter can't express the constraint:

@@ -1,6 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
+import { discoverKeywordTranslations } from "../../services/keyword-translation-discovery.js";
 import type { Variables } from "../../types.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
@@ -22,10 +23,17 @@ const getKeywordStats = createRoute({
                 darkText: z.boolean(),
               }),
             ),
+            translations: z.array(
+              z.object({
+                keywordName: z.string(),
+                language: z.string(),
+                label: z.string(),
+              }),
+            ),
           }),
         },
       },
-      description: "Keyword usage counts and styles",
+      description: "Keyword usage counts, styles, and translations",
     },
   },
 });
@@ -94,18 +102,75 @@ const recomputeKeywords = createRoute({
   },
 });
 
+const discoverTranslations = createRoute({
+  method: "post",
+  path: "/discover-keyword-translations",
+  tags: ["Admin - Keywords"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            candidatesExamined: z.number(),
+            discovered: z.array(
+              z.object({ keyword: z.string(), language: z.string(), label: z.string() }),
+            ),
+            inserted: z.number(),
+            conflicts: z.array(
+              z.object({
+                keyword: z.string(),
+                language: z.string(),
+                labels: z.array(z.string()),
+              }),
+            ),
+          }),
+        },
+      },
+      description: "Auto-discovered keyword translations from card printings",
+    },
+  },
+});
+
+const upsertTranslation = createRoute({
+  method: "put",
+  path: "/keyword-translations/{keywordName}/{language}",
+  tags: ["Admin - Keywords"],
+  request: {
+    params: z.object({ keywordName: z.string(), language: z.string() }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({ label: z.string().min(1) }),
+        },
+      },
+    },
+  },
+  responses: { 204: { description: "Translation upserted" } },
+});
+
+const deleteTranslation = createRoute({
+  method: "delete",
+  path: "/keyword-translations/{keywordName}/{language}",
+  tags: ["Admin - Keywords"],
+  request: {
+    params: z.object({ keywordName: z.string(), language: z.string() }),
+  },
+  responses: { 204: { description: "Translation deleted" } },
+});
+
 // ── Router ──────────────────────────────────────────────────────────────────
 
 export const adminKeywordsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   .openapi(getKeywordStats, async (c) => {
     const { keywordStyles } = c.get("repos");
-    const [counts, allStyles] = await Promise.all([
+    const [counts, allStyles, translations] = await Promise.all([
       keywordStyles.getKeywordCounts(),
       keywordStyles.listAll(),
+      keywordStyles.listAllTranslations(),
     ]);
     const styles = allStyles.map((s) => ({ name: s.name, color: s.color, darkText: s.darkText }));
-    return c.json({ counts, styles });
+    return c.json({ counts, styles, translations });
   })
 
   .openapi(updateKeywordStyle, async (c) => {
@@ -131,4 +196,23 @@ export const adminKeywordsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { candidateMutations } = c.get("repos");
     const result = await candidateMutations.recomputeAllKeywords();
     return c.json(result);
+  })
+
+  .openapi(discoverTranslations, async (c) => {
+    const repos = c.get("repos");
+    const result = await discoverKeywordTranslations(repos);
+    return c.json(result);
+  })
+
+  .openapi(upsertTranslation, async (c) => {
+    const { keywordName, language } = c.req.valid("param");
+    const { label } = c.req.valid("json");
+    await c.get("repos").keywordStyles.upsertTranslation({ keywordName, language, label });
+    return c.body(null, 204);
+  })
+
+  .openapi(deleteTranslation, async (c) => {
+    const { keywordName, language } = c.req.valid("param");
+    await c.get("repos").keywordStyles.deleteTranslation(keywordName, language);
+    return c.body(null, 204);
   });
