@@ -581,6 +581,19 @@ export interface KeywordStylesTable {
   updatedAt: UpdatedAt;
 }
 
+// ─── Keyword translations (migration 071) ───────────────────────────────────
+
+export interface KeywordTranslationsTable {
+  /** FK → keyword_styles(name) ON UPDATE CASCADE */
+  keywordName: string;
+  /** FK → languages(code) ON UPDATE CASCADE */
+  language: string;
+  /** CHECK: <> '' */
+  label: string;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
 // ─── Feature flags (migration 014) ───────────────────────────────────────────
 
 export interface FeatureFlagsTable {
@@ -772,6 +785,9 @@ export interface Database {
 
   // Keyword styles (migration 043)
   keywordStyles: KeywordStylesTable;
+
+  // Keyword translations (migration 071)
+  keywordTranslations: KeywordTranslationsTable;
 
   // Site settings (migration 048)
   siteSettings: SiteSettingsTable;

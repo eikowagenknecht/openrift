@@ -18,6 +18,7 @@ export type {
   IgnoredCandidateCardsTable,
   IgnoredCandidatePrintingsTable,
   KeywordStylesTable,
+  KeywordTranslationsTable,
   MarketplaceProductsTable,
   MarketplaceSnapshotsTable,
   PrintingImagesTable,

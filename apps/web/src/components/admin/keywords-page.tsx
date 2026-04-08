@@ -1,4 +1,5 @@
-import { LoaderIcon } from "lucide-react";
+import { LoaderIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminColumnDef } from "@/components/admin/admin-table";
@@ -7,11 +8,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   useCreateKeywordStyle,
   useDeleteKeywordStyle,
+  useDeleteTranslation,
+  useDiscoverTranslations,
   useKeywordStats,
   useRecomputeKeywords,
   useUpdateKeywordStyle,
+  useUpsertTranslation,
 } from "@/hooks/use-keywords";
 
 interface KeywordRow {
@@ -19,6 +31,7 @@ interface KeywordRow {
   count: number;
   color: string | null;
   darkText: boolean;
+  translations: { language: string; label: string }[];
 }
 
 interface KeywordDraft {
@@ -27,14 +40,22 @@ interface KeywordDraft {
   darkText: boolean;
 }
 
+interface TranslationRow {
+  keywordName: string;
+  language: string;
+  label: string;
+}
+
 export function KeywordsPage() {
   const { data } = useKeywordStats();
   const recomputeKeywords = useRecomputeKeywords();
+  const discoverTranslations = useDiscoverTranslations();
   const updateStyle = useUpdateKeywordStyle();
   const deleteStyle = useDeleteKeywordStyle();
   const createStyle = useCreateKeywordStyle();
 
   const styleMap = new Map(data.styles.map((s) => [s.name, s]));
+  const translationsByKeyword = Map.groupBy(data.translations, (t) => t.keywordName);
 
   // Merge keyword counts with styles — show all keywords that exist in cards,
   // plus any styles that don't have matching cards
@@ -46,11 +67,18 @@ export function KeywordsPage() {
         count: c.count,
         color: style?.color ?? null,
         darkText: style?.darkText ?? false,
+        translations: translationsByKeyword.get(c.keyword) ?? [],
       };
     }),
     ...data.styles
       .filter((s) => !data.counts.some((c) => c.keyword === s.name))
-      .map((s) => ({ keyword: s.name, count: 0, color: s.color, darkText: s.darkText })),
+      .map((s) => ({
+        keyword: s.name,
+        count: 0,
+        color: s.color,
+        darkText: s.darkText,
+        translations: translationsByKeyword.get(s.name) ?? [],
+      })),
   ];
 
   const columns: AdminColumnDef<KeywordRow, KeywordDraft>[] = [
@@ -142,6 +170,21 @@ export function KeywordsPage() {
       ),
     },
     {
+      header: "Translations",
+      cell: (row) =>
+        row.translations.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {row.translations.map((t) => (
+              <span key={t.language} className="text-muted-foreground text-xs">
+                {t.language}: {t.label}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        ),
+    },
+    {
       header: "Preview",
       cell: (row) => (
         <Badge
@@ -164,31 +207,84 @@ export function KeywordsPage() {
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="flex items-center justify-between pt-5">
-          <div>
-            <p className="text-sm font-medium">Recompute keywords</p>
-            <p className="text-muted-foreground">
-              Re-extract keywords from all card and printing text fields
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {recomputeKeywords.isSuccess && (
-              <p className="text-muted-foreground">
-                Updated {recomputeKeywords.data.updated} of {recomputeKeywords.data.totalCards}{" "}
-                cards
+        <CardContent className="space-y-4 pt-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Recompute keywords</p>
+              <p className="text-muted-foreground text-sm">
+                Re-extract keywords from all card and printing text fields
               </p>
-            )}
-            {recomputeKeywords.isError && <p className="text-destructive">Failed</p>}
-            <Button
-              variant="outline"
-              onClick={() => recomputeKeywords.mutate()}
-              disabled={recomputeKeywords.isPending}
-            >
-              {recomputeKeywords.isPending ? <LoaderIcon className="animate-spin" /> : "Recompute"}
-            </Button>
+            </div>
+            <div className="flex items-center gap-3">
+              {recomputeKeywords.isSuccess && (
+                <p className="text-muted-foreground text-sm">
+                  Updated {recomputeKeywords.data.updated} of {recomputeKeywords.data.totalCards}{" "}
+                  cards
+                </p>
+              )}
+              {recomputeKeywords.isError && <p className="text-destructive text-sm">Failed</p>}
+              <Button
+                variant="outline"
+                onClick={() => recomputeKeywords.mutate()}
+                disabled={recomputeKeywords.isPending}
+              >
+                {recomputeKeywords.isPending ? (
+                  <LoaderIcon className="animate-spin" />
+                ) : (
+                  "Recompute"
+                )}
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Auto-discover translations</p>
+              <p className="text-muted-foreground text-sm">
+                Correlate EN and non-EN printings to find keyword translations
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {discoverTranslations.isSuccess && (
+                <p className="text-muted-foreground text-sm">
+                  Found {discoverTranslations.data.discovered.length}, inserted{" "}
+                  {discoverTranslations.data.inserted}
+                  {discoverTranslations.data.conflicts.length > 0 &&
+                    `, ${discoverTranslations.data.conflicts.length} conflicts`}
+                </p>
+              )}
+              {discoverTranslations.isError && <p className="text-destructive text-sm">Failed</p>}
+              <Button
+                variant="outline"
+                onClick={() => discoverTranslations.mutate()}
+                disabled={discoverTranslations.isPending}
+              >
+                {discoverTranslations.isPending ? (
+                  <LoaderIcon className="animate-spin" />
+                ) : (
+                  "Discover"
+                )}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
+
+      {discoverTranslations.isSuccess && discoverTranslations.data.conflicts.length > 0 && (
+        <Card>
+          <CardContent className="pt-5">
+            <p className="mb-2 text-sm font-medium">Translation conflicts (needs manual review)</p>
+            <div className="space-y-1">
+              {discoverTranslations.data.conflicts.map((conflict) => (
+                <p key={`${conflict.keyword}-${conflict.language}`} className="text-sm">
+                  <span className="font-medium">{conflict.keyword}</span> ({conflict.language}):{" "}
+                  {conflict.labels.join(" / ")}
+                </p>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <AdminTable
         columns={columns}
@@ -243,6 +339,186 @@ export function KeywordsPage() {
           }),
         }}
       />
+
+      <TranslationsTable
+        translations={data.translations}
+        keywordNames={data.styles.map((s) => s.name)}
+      />
     </div>
+  );
+}
+
+function TranslationsTable({
+  translations,
+  keywordNames,
+}: {
+  translations: TranslationRow[];
+  keywordNames: string[];
+}) {
+  const upsertTranslation = useUpsertTranslation();
+  const deleteTranslation = useDeleteTranslation();
+  const [addKeyword, setAddKeyword] = useState("");
+  const [addLanguage, setAddLanguage] = useState("");
+  const [addLabel, setAddLabel] = useState("");
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editLabel, setEditLabel] = useState("");
+
+  return (
+    <Card>
+      <CardContent className="pt-5">
+        <p className="mb-3 text-sm font-medium">Keyword Translations</p>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Keyword</TableHead>
+              <TableHead>Language</TableHead>
+              <TableHead>Translation</TableHead>
+              <TableHead className="w-32" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {translations.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-muted-foreground text-center">
+                  No translations yet. Try running auto-discover.
+                </TableCell>
+              </TableRow>
+            )}
+            {translations.map((t) => {
+              const key = `${t.keywordName}-${t.language}`;
+              const isEditing = editingKey === key;
+              return (
+                <TableRow key={key}>
+                  <TableCell className="font-medium">{t.keywordName}</TableCell>
+                  <TableCell>{t.language}</TableCell>
+                  <TableCell>
+                    {isEditing ? (
+                      <Input
+                        value={editLabel}
+                        onChange={(event) => setEditLabel(event.target.value)}
+                        className="h-7 w-40 text-sm"
+                      />
+                    ) : (
+                      t.label
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {isEditing ? (
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={async () => {
+                            if (editLabel.trim()) {
+                              await upsertTranslation.mutateAsync({
+                                keywordName: t.keywordName,
+                                language: t.language,
+                                label: editLabel.trim(),
+                              });
+                              setEditingKey(null);
+                            }
+                          }}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setEditingKey(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            setEditingKey(key);
+                            setEditLabel(t.label);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive h-7 text-xs"
+                          onClick={() =>
+                            deleteTranslation.mutateAsync({
+                              keywordName: t.keywordName,
+                              language: t.language,
+                            })
+                          }
+                        >
+                          <Trash2Icon className="size-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            <TableRow>
+              <TableCell>
+                <Input
+                  value={addKeyword}
+                  onChange={(event) => setAddKeyword(event.target.value)}
+                  placeholder="Keyword"
+                  className="h-7 w-32 text-sm"
+                  list="keyword-names"
+                />
+                <datalist id="keyword-names">
+                  {keywordNames.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              </TableCell>
+              <TableCell>
+                <Input
+                  value={addLanguage}
+                  onChange={(event) => setAddLanguage(event.target.value.toUpperCase())}
+                  placeholder="ZH"
+                  className="h-7 w-16 text-sm"
+                  maxLength={5}
+                />
+              </TableCell>
+              <TableCell>
+                <Input
+                  value={addLabel}
+                  onChange={(event) => setAddLabel(event.target.value)}
+                  placeholder="Translation"
+                  className="h-7 w-40 text-sm"
+                />
+              </TableCell>
+              <TableCell>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={!addKeyword.trim() || !addLanguage.trim() || !addLabel.trim()}
+                  onClick={async () => {
+                    await upsertTranslation.mutateAsync({
+                      keywordName: addKeyword.trim(),
+                      language: addLanguage.trim(),
+                      label: addLabel.trim(),
+                    });
+                    setAddKeyword("");
+                    setAddLanguage("");
+                    setAddLabel("");
+                  }}
+                >
+                  <PlusIcon className="size-3" /> Add
+                </Button>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
   );
 }

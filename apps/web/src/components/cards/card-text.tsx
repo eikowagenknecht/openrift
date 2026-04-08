@@ -1,5 +1,6 @@
 import type { KeywordStylesResponse } from "@openrift/shared";
 
+import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
 import { getKeywordStyle } from "@/lib/keywords";
 import { cn } from "@/lib/utils";
@@ -113,11 +114,13 @@ interface CardTextProps {
 
 export function CardText({ text, onKeywordClick, interactive = true }: CardTextProps) {
   const styles = useKeywordStyles();
+  const reverseMap = useKeywordReverseMap();
   return renderTokens(
     tokenizeCardText(text),
     styles,
     interactive ? onKeywordClick : undefined,
     interactive,
+    reverseMap,
   );
 }
 
@@ -126,6 +129,7 @@ function renderTokens(
   styles: KeywordStylesResponse["items"],
   onKeywordClick?: (keyword: string) => void,
   interactive = true,
+  reverseMap?: Map<string, string>,
 ): React.ReactNode[] {
   return tokens.map((token, i) => {
     switch (token.type) {
@@ -146,7 +150,7 @@ function renderTokens(
         );
       }
       case "keyword": {
-        const kw = getKeywordStyle(token.name, styles);
+        const kw = getKeywordStyle(token.name, styles, reverseMap);
         const Tag = interactive ? "button" : "span";
         return (
           <Tag
@@ -174,7 +178,7 @@ function renderTokens(
                 kw.dark ? "text-black" : "text-white",
               )}
             >
-              {renderTokens(token.children, styles, onKeywordClick, interactive)}
+              {renderTokens(token.children, styles, onKeywordClick, interactive, reverseMap)}
             </span>
           </Tag>
         );
@@ -182,14 +186,14 @@ function renderTokens(
       case "paren": {
         return (
           <span key={`${i}-paren`} className="italic">
-            ({renderTokens(token.children, styles, onKeywordClick, interactive)})
+            ({renderTokens(token.children, styles, onKeywordClick, interactive, reverseMap)})
           </span>
         );
       }
       case "italic": {
         return (
           <span key={`${i}-italic`} className="italic">
-            {renderTokens(token.children, styles, onKeywordClick, interactive)}
+            {renderTokens(token.children, styles, onKeywordClick, interactive, reverseMap)}
           </span>
         );
       }

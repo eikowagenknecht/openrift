@@ -154,7 +154,7 @@ export {
   slugifyName,
 } from "./utils.js";
 
-export { extractKeywords } from "./keywords.js";
+export { extractBracketedTerms, extractKeywords } from "./keywords.js";
 
 export type { SourceSlot } from "./zone-inference.js";
 export { inferZone } from "./zone-inference.js";

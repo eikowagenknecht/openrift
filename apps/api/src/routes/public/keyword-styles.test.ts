@@ -9,6 +9,9 @@ import { keywordStylesRoute } from "./keyword-styles";
 
 const mockKeywordStylesRepo = {
   listAll: vi.fn(() => Promise.resolve([] as { name: string; color: string; darkText: boolean }[])),
+  listAllTranslations: vi.fn(() =>
+    Promise.resolve([] as { keywordName: string; language: string; label: string }[]),
+  ),
 };
 
 const app = new Hono()
@@ -25,6 +28,8 @@ const app = new Hono()
 describe("GET /api/v1/keyword-styles", () => {
   beforeEach(() => {
     mockKeywordStylesRepo.listAll.mockReset();
+    mockKeywordStylesRepo.listAllTranslations.mockReset();
+    mockKeywordStylesRepo.listAllTranslations.mockResolvedValue([]);
   });
 
   it("returns 200 with items map", async () => {
@@ -91,5 +96,26 @@ describe("GET /api/v1/keyword-styles", () => {
     const res = await app.request("/api/v1/keyword-styles");
     const json = await res.json();
     expect(json.items.Glow.darkText).toBe(true);
+  });
+
+  it("includes translations when available", async () => {
+    mockKeywordStylesRepo.listAll.mockResolvedValue([
+      { name: "Shield", color: "#4488ff", darkText: false },
+    ]);
+    mockKeywordStylesRepo.listAllTranslations.mockResolvedValue([
+      { keywordName: "Shield", language: "ZH", label: "护盾" },
+    ]);
+    const res = await app.request("/api/v1/keyword-styles");
+    const json = await res.json();
+    expect(json.items.Shield.translations).toEqual({ ZH: "护盾" });
+  });
+
+  it("omits translations key when keyword has none", async () => {
+    mockKeywordStylesRepo.listAll.mockResolvedValue([
+      { name: "Shield", color: "#4488ff", darkText: false },
+    ]);
+    const res = await app.request("/api/v1/keyword-styles");
+    const json = await res.json();
+    expect(json.items.Shield.translations).toBeUndefined();
   });
 });
