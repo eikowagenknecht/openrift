@@ -69,13 +69,13 @@ export async function deletePrinting(
   const printing = await mut.getPrintingById(printingId);
   assertFound(printing, "Printing not found");
 
-  const deletedImages = await transact(async (trxRepos) => {
+  const deletedCardImageIds = await transact(async (trxRepos) => {
     const trxMut = trxRepos.candidateMutations;
 
     // Unlink candidate_printings so they become "unmatched" again
     await trxMut.unlinkCandidatePrintingsByPrintingId(printing.id);
 
-    // Delete printing_images rows and collect rehostedUrls for disk cleanup
+    // Delete printing_images rows and collect cardImageIds for cleanup
     const images = await trxMut.deletePrintingImagesByPrintingId(printing.id);
 
     // Delete link overrides
@@ -84,13 +84,23 @@ export async function deletePrinting(
     // Delete the printing itself (will throw if FK-constrained by copies, etc.)
     await trxMut.deletePrintingById(printing.id);
 
-    return images;
+    return images.map((img) => img.cardImageId);
   });
 
-  // Clean up rehosted files on disk (outside transaction, best-effort)
-  for (const img of deletedImages) {
-    if (img.rehostedUrl) {
-      await deleteRehostFiles(io, img.rehostedUrl);
+  // Clean up orphaned card_images and their disk files (outside transaction, best-effort)
+  for (const cardImageId of deletedCardImageIds) {
+    // Look up the card_image to get its rehostedUrl before potentially deleting it
+    const cardImage = await repos.candidateMutations.getCardImageById(cardImageId);
+    if (!cardImage) {
+      continue;
+    }
+    // Check if any other printing_images still reference this card_image
+    const stillReferenced = await repos.candidateMutations.isCardImageReferenced(cardImageId);
+    if (!stillReferenced) {
+      if (cardImage.rehostedUrl) {
+        await deleteRehostFiles(io, cardImage.rehostedUrl);
+      }
+      await repos.candidateMutations.deleteCardImageById(cardImageId);
     }
   }
 }

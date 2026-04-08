@@ -47,6 +47,7 @@ export function collectionEventsRepo(db: Kysely<Database>) {
             .on("pi.face", "=", "front")
             .on("pi.isActive", "=", true),
         )
+        .leftJoin("cardImages as ci", "ci.id", "pi.cardImageId")
         .select([
           "ce.id",
           "ce.action",
@@ -57,7 +58,7 @@ export function collectionEventsRepo(db: Kysely<Database>) {
           "ce.toCollectionId",
           "ce.toCollectionName",
           "ce.createdAt",
-          imageUrl("pi").as("imageUrl"),
+          imageUrl("ci").as("imageUrl"),
           "p.shortCode",
           "p.rarity",
           "card.name as cardName",

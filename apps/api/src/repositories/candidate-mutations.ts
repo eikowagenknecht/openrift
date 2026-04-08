@@ -475,16 +475,40 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
 
     /**
      * Delete all printing_images for a printing UUID.
-     * @returns rehostedUrls for cleanup.
+     * @returns cardImageIds for cleanup.
      */
-    deletePrintingImagesByPrintingId(
-      printingId: string,
-    ): Promise<{ rehostedUrl: string | null }[]> {
+    deletePrintingImagesByPrintingId(printingId: string): Promise<{ cardImageId: string }[]> {
       return db
         .deleteFrom("printingImages")
         .where("printingId", "=", printingId)
-        .returning("rehostedUrl")
+        .returning("cardImageId")
         .execute();
+    },
+
+    /** @returns A card_image row by ID (rehostedUrl for disk cleanup). */
+    getCardImageById(
+      cardImageId: string,
+    ): Promise<{ id: string; rehostedUrl: string | null } | undefined> {
+      return db
+        .selectFrom("cardImages")
+        .select(["id", "rehostedUrl"])
+        .where("id", "=", cardImageId)
+        .executeTakeFirst();
+    },
+
+    /** @returns Whether any printing_images row still references the given card_image. */
+    async isCardImageReferenced(cardImageId: string): Promise<boolean> {
+      const result = await db
+        .selectFrom("printingImages")
+        .select((eb) => eb.fn.countAll<number>().as("count"))
+        .where("cardImageId", "=", cardImageId)
+        .executeTakeFirstOrThrow();
+      return Number(result.count) > 0;
+    },
+
+    /** Delete a card_images row by ID. */
+    async deleteCardImageById(cardImageId: string): Promise<void> {
+      await db.deleteFrom("cardImages").where("id", "=", cardImageId).execute();
     },
 
     /** Delete printing_link_overrides that reference a printing ID. */

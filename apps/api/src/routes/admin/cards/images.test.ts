@@ -42,8 +42,10 @@ const mockPrintingImages = {
   getCandidatePrintingById: vi.fn(),
   getCandidateCardProvider: vi.fn(),
   getIdAndRehostedUrl: vi.fn(),
-  countOthersByRehostedUrl: vi.fn(),
+  getCardImageId: vi.fn(),
+  countOthersByCardImageId: vi.fn(),
   deleteById: vi.fn(),
+  deleteOrphanedCardImages: vi.fn(),
   getForActivate: vi.fn(),
   getIdAndUrls: vi.fn(),
   updateRehostedUrl: vi.fn(),
@@ -218,8 +220,10 @@ describe("DELETE /api/v1/printing-images/:imageId", () => {
     mockPrintingImages.getIdAndRehostedUrl.mockResolvedValue({
       rehostedUrl: "/cards/origin/img-1.avif",
     });
-    mockPrintingImages.countOthersByRehostedUrl.mockResolvedValue(0);
+    mockPrintingImages.getCardImageId.mockResolvedValue("ci-1");
+    mockPrintingImages.countOthersByCardImageId.mockResolvedValue(0);
     mockPrintingImages.deleteById.mockResolvedValue(undefined);
+    mockPrintingImages.deleteOrphanedCardImages.mockResolvedValue(0);
     mockDeleteRehostFiles.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/printing-images/img-1", { method: "DELETE" });
@@ -228,11 +232,12 @@ describe("DELETE /api/v1/printing-images/:imageId", () => {
     expect(mockDeleteRehostFiles).toHaveBeenCalledWith(mockIo, "/cards/origin/img-1.avif");
   });
 
-  it("skips file deletion when other images share rehosted url", async () => {
+  it("skips file deletion when other images share card_image", async () => {
     mockPrintingImages.getIdAndRehostedUrl.mockResolvedValue({
       rehostedUrl: "/cards/origin/img-1.avif",
     });
-    mockPrintingImages.countOthersByRehostedUrl.mockResolvedValue(2);
+    mockPrintingImages.getCardImageId.mockResolvedValue("ci-1");
+    mockPrintingImages.countOthersByCardImageId.mockResolvedValue(2);
     mockPrintingImages.deleteById.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/printing-images/img-1", { method: "DELETE" });
@@ -244,6 +249,7 @@ describe("DELETE /api/v1/printing-images/:imageId", () => {
     mockPrintingImages.getIdAndRehostedUrl.mockResolvedValue({
       rehostedUrl: null,
     });
+    mockPrintingImages.getCardImageId.mockResolvedValue(null);
     mockPrintingImages.deleteById.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/printing-images/img-1", { method: "DELETE" });
@@ -316,28 +322,30 @@ describe("POST /api/v1/printing-images/:imageId/unrehost", () => {
       rehostedUrl: "/cards/origin/img-1.avif",
       originalUrl: "https://example.com/img.png",
     });
-    mockPrintingImages.countOthersByRehostedUrl.mockResolvedValue(0);
+    mockPrintingImages.getCardImageId.mockResolvedValue("ci-1");
+    mockPrintingImages.countOthersByCardImageId.mockResolvedValue(0);
     mockDeleteRehostFiles.mockResolvedValue(undefined);
     mockPrintingImages.updateRehostedUrl.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/printing-images/img-1/unrehost", { method: "POST" });
     expect(res.status).toBe(204);
     expect(mockDeleteRehostFiles).toHaveBeenCalledWith(mockIo, "/cards/origin/img-1.avif");
-    expect(mockPrintingImages.updateRehostedUrl).toHaveBeenCalledWith("img-1", null);
+    expect(mockPrintingImages.updateRehostedUrl).toHaveBeenCalledWith("ci-1", null);
   });
 
-  it("skips file deletion when others share rehosted url", async () => {
+  it("skips file deletion when others share card_image", async () => {
     mockPrintingImages.getIdAndUrls.mockResolvedValue({
       rehostedUrl: "/cards/origin/img-1.avif",
       originalUrl: "https://example.com/img.png",
     });
-    mockPrintingImages.countOthersByRehostedUrl.mockResolvedValue(1);
+    mockPrintingImages.getCardImageId.mockResolvedValue("ci-1");
+    mockPrintingImages.countOthersByCardImageId.mockResolvedValue(1);
     mockPrintingImages.updateRehostedUrl.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/printing-images/img-1/unrehost", { method: "POST" });
     expect(res.status).toBe(204);
     expect(mockDeleteRehostFiles).not.toHaveBeenCalled();
-    expect(mockPrintingImages.updateRehostedUrl).toHaveBeenCalledWith("img-1", null);
+    expect(mockPrintingImages.updateRehostedUrl).toHaveBeenCalledWith("ci-1", null);
   });
 
   it("returns 404 when image not found", async () => {
@@ -381,27 +389,28 @@ describe("POST /api/v1/printing-images/:imageId/rehost", () => {
     mockPrintingImages.getForRehost.mockResolvedValue({
       originalUrl: "https://example.com/img.png",
       setSlug: "origin",
+      cardImageId: "ci-1",
     });
     mockDownloadImage.mockResolvedValue({ buffer: Buffer.from("image"), ext: ".png" });
     mockProcessAndSave.mockResolvedValue(undefined);
-    mockImageRehostedUrl.mockReturnValue("/cards/origin/img-1.avif");
+    mockImageRehostedUrl.mockReturnValue("/cards/origin/ci-1.avif");
     mockPrintingImages.updateRehostedUrl.mockResolvedValue(undefined);
 
     const res = await app.request("/api/v1/printing-images/img-1/rehost", { method: "POST" });
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({ rehostedUrl: "/cards/origin/img-1.avif" });
+    expect(json).toEqual({ rehostedUrl: "/cards/origin/ci-1.avif" });
     expect(mockDownloadImage).toHaveBeenCalledWith(mockIo, "https://example.com/img.png");
     expect(mockProcessAndSave).toHaveBeenCalledWith(
       mockIo,
       expect.any(Buffer),
       ".png",
       "/mock/card-images/origin",
-      "img-1",
+      "ci-1",
     );
     expect(mockPrintingImages.updateRehostedUrl).toHaveBeenCalledWith(
-      "img-1",
-      "/cards/origin/img-1.avif",
+      "ci-1",
+      "/cards/origin/ci-1.avif",
     );
   });
 

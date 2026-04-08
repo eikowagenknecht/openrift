@@ -20,7 +20,7 @@ export const resolveCardId = (alias: string): RawBuilder<string | null> =>
   )`;
 
 /**
- * Resolves the best available image URL for a printing (prefers rehosted).
+ * Resolves the best available image URL from a card_images alias (prefers rehosted).
  * @returns A raw SQL expression: COALESCE(alias.rehosted_url, alias.original_url)
  */
 export function imageUrl(alias: string): RawBuilder<string | null> {
@@ -58,8 +58,9 @@ export function superTypesArray(cardIdRef: string): RawBuilder<string[]> {
 }
 
 /**
- * Base query: copies → printings → cards → front-face printing images (aliases: cp, p, c, pi).
- * @returns A Kysely SelectQueryBuilder with the four tables joined.
+ * Base query: copies → printings → cards → front-face printing images → card images
+ * (aliases: cp, p, c, pi, ci).
+ * @returns A Kysely SelectQueryBuilder with the five tables joined.
  */
 export function selectCopyWithCard(db: Kysely<Database>) {
   return db
@@ -71,5 +72,6 @@ export function selectCopyWithCard(db: Kysely<Database>) {
         .onRef("pi.printingId", "=", "p.id")
         .on("pi.face", "=", "front")
         .on("pi.isActive", "=", true),
-    );
+    )
+    .leftJoin("cardImages as ci", "ci.id", "pi.cardImageId");
 }

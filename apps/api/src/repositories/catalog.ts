@@ -182,9 +182,10 @@ export function catalogRepo(db: Kysely<Database>) {
     printingImages(): Promise<CatalogPrintingImageRow[]> {
       return db
         .selectFrom("printingImages")
-        .select(["printingId", "face", imageUrl("printingImages").as("url")])
+        .innerJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
+        .select(["printingId", "face", imageUrl("ci").as("url")])
         .where("isActive", "=", true)
-        .where(sql`${imageUrl("printingImages")}`, "is not", null)
+        .where(sql`${imageUrl("ci")}`, "is not", null)
         .orderBy("printingId")
         .orderBy("face")
         .execute() as Promise<CatalogPrintingImageRow[]>;

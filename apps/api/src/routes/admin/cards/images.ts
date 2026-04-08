@@ -174,15 +174,19 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const image = await printingImages.getIdAndRehostedUrl(imageId);
     assertFound(image, "Printing image not found");
 
-    // Check if another image shares the same rehosted files before deleting
-    const othersUsingFiles = image.rehostedUrl
-      ? await printingImages.countOthersByRehostedUrl(image.rehostedUrl, imageId)
+    const cardImageId = await printingImages.getCardImageId(imageId);
+
+    // Check if another printing_image shares the same card_image before deleting files
+    const othersUsingFiles = cardImageId
+      ? await printingImages.countOthersByCardImageId(cardImageId, imageId)
       : 0;
 
     await printingImages.deleteById(imageId);
 
     if (image.rehostedUrl && othersUsingFiles === 0) {
       await deleteRehostFiles(c.get("io"), image.rehostedUrl);
+      // Clean up the orphaned card_images row
+      await printingImages.deleteOrphanedCardImages();
     }
 
     return c.body(null, 204);
@@ -230,16 +234,18 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
       );
     }
 
-    // Only delete files if no other image shares the same rehosted URL
-    const othersUsingFiles = await printingImages.countOthersByRehostedUrl(
-      image.rehostedUrl,
-      imageId,
-    );
+    const cardImageId = await printingImages.getCardImageId(imageId);
+    if (!cardImageId) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Image has no associated card image");
+    }
+
+    // Only delete files if no other printing_image shares the same card_image
+    const othersUsingFiles = await printingImages.countOthersByCardImageId(cardImageId, imageId);
     if (othersUsingFiles === 0) {
       await deleteRehostFiles(c.get("io"), image.rehostedUrl);
     }
 
-    await printingImages.updateRehostedUrl(imageId, null);
+    await printingImages.updateRehostedUrl(cardImageId, null);
 
     return c.body(null, 204);
   })
@@ -259,11 +265,11 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { buffer, ext } = await downloadImage(c.get("io"), image.originalUrl);
     const outputDir = join(CARD_IMAGES_DIR, image.setSlug);
 
-    await processAndSave(c.get("io"), buffer, ext, outputDir, imageId);
+    await processAndSave(c.get("io"), buffer, ext, outputDir, image.cardImageId);
 
-    const rehostedUrl = imageRehostedUrl(image.setSlug, imageId);
+    const rehostedUrl = imageRehostedUrl(image.setSlug, image.cardImageId);
 
-    await printingImages.updateRehostedUrl(imageId, rehostedUrl);
+    await printingImages.updateRehostedUrl(image.cardImageId, rehostedUrl);
 
     return c.json({ rehostedUrl });
   })
@@ -314,7 +320,6 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const outputDir = join(CARD_IMAGES_DIR, printing.setSlug);
 
     // Pre-compute paths so rehostedUrl can be included in the INSERT
-    // (chk_printing_images_has_url requires at least one URL at insert time)
     const imageId = uuidv7();
     const rehostedUrl = imageRehostedUrl(printing.setSlug, imageId);
 

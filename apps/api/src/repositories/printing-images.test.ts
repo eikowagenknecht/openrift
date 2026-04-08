@@ -86,7 +86,7 @@ describe("printingImagesRepo", () => {
   });
 
   it("insertUploadedImage main mode deactivates and inserts", async () => {
-    const db = createMockDb([]);
+    const db = createMockDb([{ id: "ci-1" }]);
     await expect(
       printingImagesRepo(db).insertUploadedImage({
         id: "pi-new",
@@ -99,7 +99,7 @@ describe("printingImagesRepo", () => {
   });
 
   it("insertUploadedImage additional mode inserts without deactivating", async () => {
-    const db = createMockDb([]);
+    const db = createMockDb([{ id: "ci-1" }]);
     await expect(
       printingImagesRepo(db).insertUploadedImage({
         id: "pi-new",
@@ -138,14 +138,9 @@ describe("printingImagesRepo", () => {
     expect(await printingImagesRepo(db).listAllRehosted()).toHaveLength(1);
   });
 
-  it("countOthersByRehostedUrl returns count", async () => {
+  it("countOthersByCardImageId returns count", async () => {
     const db = createMockDb([{ count: 2 }]);
-    expect(
-      await printingImagesRepo(db).countOthersByRehostedUrl(
-        "https://cdn.example.com/img.jpg",
-        "pi-1",
-      ),
-    ).toBe(2);
+    expect(await printingImagesRepo(db).countOthersByCardImageId("ci-1", "pi-1")).toBe(2);
   });
 
   it("listAllRehostedWithContext returns images with context", async () => {

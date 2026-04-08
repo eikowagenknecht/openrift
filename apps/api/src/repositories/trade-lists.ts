@@ -105,13 +105,14 @@ export function tradeListsRepo(db: Kysely<Database>) {
             .on("pi.face", "=", "front")
             .on("pi.isActive", "=", true),
         )
+        .leftJoin("cardImages as ci", "ci.id", "pi.cardImageId")
         .select([
           "tli.id",
           "tli.tradeListId",
           "tli.copyId",
           "cp.printingId",
           "cp.collectionId",
-          imageUrl("pi").as("imageUrl"),
+          imageUrl("ci").as("imageUrl"),
           "p.setId",
           "p.collectorNumber",
           "p.rarity",

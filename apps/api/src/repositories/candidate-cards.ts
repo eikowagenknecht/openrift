@@ -1,4 +1,4 @@
-import type { ProviderStatsResponse } from "@openrift/shared";
+import type { CardFace, ProviderStatsResponse } from "@openrift/shared";
 import type { ExpressionBuilder, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
@@ -754,22 +754,34 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     },
 
     /** @returns Printing images for detail page, only fields the frontend needs. */
-    printingImagesForDetail(
-      printingIds: string[],
-    ): Promise<
-      Pick<
-        Selectable<PrintingImagesTable>,
-        "id" | "printingId" | "face" | "provider" | "originalUrl" | "rehostedUrl" | "isActive"
-      >[]
+    printingImagesForDetail(printingIds: string[]): Promise<
+      {
+        id: string;
+        printingId: string;
+        face: CardFace;
+        provider: string;
+        originalUrl: string | null;
+        rehostedUrl: string | null;
+        isActive: boolean;
+      }[]
     > {
       if (printingIds.length === 0) {
         return Promise.resolve([]);
       }
       return db
         .selectFrom("printingImages")
-        .select(["id", "printingId", "face", "provider", "originalUrl", "rehostedUrl", "isActive"])
-        .where("printingId", "in", printingIds)
-        .orderBy("createdAt", "asc")
+        .innerJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
+        .select([
+          "printingImages.id",
+          "printingImages.printingId",
+          "printingImages.face",
+          "printingImages.provider",
+          "ci.originalUrl",
+          "ci.rehostedUrl",
+          "printingImages.isActive",
+        ])
+        .where("printingImages.printingId", "in", printingIds)
+        .orderBy("printingImages.createdAt", "asc")
         .execute();
     },
 
@@ -969,13 +981,14 @@ export function candidateCardsRepo(db: Kysely<Database>) {
             .on("printingImages.face", "=", "front")
             .on("printingImages.isActive", "=", true),
         )
+        .leftJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
         .selectAll("printings")
         .select([
           "sets.slug as setSlug",
           "sets.name as setName",
           "printingImages.id as imageId",
-          "printingImages.rehostedUrl",
-          "printingImages.originalUrl",
+          "ci.rehostedUrl",
+          "ci.originalUrl",
         ])
         .orderBy("printings.setId")
         .orderBy("printings.collectorNumber")

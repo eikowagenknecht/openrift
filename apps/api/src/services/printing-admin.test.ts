@@ -157,11 +157,18 @@ describe("deletePrinting", () => {
         getPrintingById: vi.fn(async () => ({ id: "p-uuid" })),
         unlinkCandidatePrintingsByPrintingId: vi.fn(async () => {}),
         deletePrintingImagesByPrintingId: vi.fn(async () => [
-          { rehostedUrl: "/card-images/set1/img-1" },
-          { rehostedUrl: null },
+          { cardImageId: "ci-1" },
+          { cardImageId: "ci-2" },
         ]),
         deletePrintingLinkOverridesById: vi.fn(async () => {}),
         deletePrintingById: vi.fn(async () => {}),
+        getCardImageById: vi.fn(async (id: string) =>
+          id === "ci-1"
+            ? { id: "ci-1", rehostedUrl: "/card-images/set1/img-1" }
+            : { id: "ci-2", rehostedUrl: null },
+        ),
+        isCardImageReferenced: vi.fn(async () => false),
+        deleteCardImageById: vi.fn(async () => {}),
       },
     };
     const transact = mockTransact(repos);

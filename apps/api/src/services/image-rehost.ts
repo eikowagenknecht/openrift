@@ -190,7 +190,8 @@ export async function renameRehostFiles(
 }
 
 /**
- * Rehost a single image by ID: download, process variants, and update the DB.
+ * Rehost a single image by its printing_image ID: download, process variants, and update the DB.
+ * Updates the card_images row so all printings sharing this image benefit.
  * Silently swallows errors so callers can treat this as best-effort.
  */
 export async function rehostSingleImage(
@@ -206,9 +207,9 @@ export async function rehostSingleImage(
   try {
     const { buffer, ext } = await downloadImage(io, image.originalUrl);
     const outputDir = join(CARD_IMAGES_DIR, image.setSlug);
-    await processAndSave(io, buffer, ext, outputDir, imageId, true);
-    const rehostedUrl = imageRehostedUrl(image.setSlug, imageId);
-    await repo.updateRehostedUrl(imageId, rehostedUrl);
+    await processAndSave(io, buffer, ext, outputDir, image.cardImageId, true);
+    const rehostedUrl = imageRehostedUrl(image.setSlug, image.cardImageId);
+    await repo.updateRehostedUrl(image.cardImageId, rehostedUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[rehost] Auto-rehost failed for ${imageId}:`, message);
@@ -340,8 +341,8 @@ export async function clearAllRehosted(
 }
 
 /**
- * Collect all rehosted images whose path doesn't match the UUID-based convention.
- * Expected URL: `/card-images/{setSlug}/{imageId}`
+ * Collect all rehosted card images whose path doesn't match the UUID-based convention.
+ * Expected URL: `/card-images/{setSlug}/{cardImageId}`
  * @returns The total rehosted count and the list of mismatched entries.
  */
 export async function collectStaleImages(
@@ -505,7 +506,7 @@ export async function cleanupOrphanedFiles(
 }
 
 /**
- * Find all rehosted images whose files are missing on disk.
+ * Find all rehosted card images whose files are missing on disk.
  * Checks for the presence of at least one variant file per rehosted URL.
  * @returns The total rehosted count and the list of entries with missing files.
  */
@@ -540,7 +541,7 @@ export async function findBrokenImages(
 const LOW_RES_WIDTH_THRESHOLD = 600;
 
 /**
- * Find all rehosted images whose full-resolution variant is below a width threshold.
+ * Find all rehosted card images whose full-resolution variant is below a width threshold.
  * Reads the `-full.webp` file for each rehosted image and checks its dimensions.
  * @returns The total rehosted count and the list of low-resolution entries.
  */

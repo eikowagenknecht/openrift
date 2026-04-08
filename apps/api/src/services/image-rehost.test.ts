@@ -673,6 +673,7 @@ describe("rehostSingleImage", () => {
       getForRehost: vi.fn(async () => ({
         originalUrl: "https://example.com/img.png",
         setSlug: "set-a",
+        cardImageId: "ci-uuid",
       })),
       updateRehostedUrl: vi.fn(async () => {}),
     } as any;
@@ -681,7 +682,7 @@ describe("rehostSingleImage", () => {
 
     expect(mockFetch).toHaveBeenCalled();
     expect(mockWriteFile).toHaveBeenCalled();
-    expect(repo.updateRehostedUrl).toHaveBeenCalledWith("img-uuid", "/card-images/set-a/img-uuid");
+    expect(repo.updateRehostedUrl).toHaveBeenCalledWith("ci-uuid", "/card-images/set-a/ci-uuid");
   });
 
   it("swallows download errors silently", async () => {
@@ -690,6 +691,7 @@ describe("rehostSingleImage", () => {
       getForRehost: vi.fn(async () => ({
         originalUrl: "https://example.com/img.png",
         setSlug: "set-a",
+        cardImageId: "ci-uuid",
       })),
       updateRehostedUrl: vi.fn(async () => {}),
     } as any;

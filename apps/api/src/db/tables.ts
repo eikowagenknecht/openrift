@@ -503,7 +503,21 @@ export interface PrintingLinkOverridesTable {
 }
 
 /**
- * CHECK: face IN ('front', 'back'); at least one URL must be non-NULL
+ * Deduplicated image storage. Multiple printing_images rows can reference the
+ * same card_images row, avoiding duplicate files on disk.
+ */
+export interface CardImagesTable {
+  id: Generated<string>;
+  /** CHECK: <> '' */
+  originalUrl: string | null;
+  /** CHECK: <> '' */
+  rehostedUrl: string | null;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/**
+ * CHECK: face IN ('front', 'back')
  * @see printingImageFieldRules in `schemas.ts` for Zod validation of CHECK constraints
  */
 export interface PrintingImagesTable {
@@ -512,10 +526,8 @@ export interface PrintingImagesTable {
   face: CardFace;
   /** CHECK: <> '' */
   provider: string;
-  /** CHECK: <> '' */
-  originalUrl: string | null;
-  /** CHECK: <> '' */
-  rehostedUrl: string | null;
+  /** FK: card_images(id) */
+  cardImageId: string;
   isActive: boolean;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -743,7 +755,8 @@ export interface Database {
   // Printing link overrides (migration 033)
   printingLinkOverrides: PrintingLinkOverridesTable;
 
-  // Image archive (migration 013)
+  // Image archive (migration 013, deduplicated in 069)
+  cardImages: CardImagesTable;
   printingImages: PrintingImagesTable;
 
   // Languages (migration 054)
