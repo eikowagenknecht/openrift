@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict UIhXbC8BipfidbzibvO9sqh0K08OZddxgSiKxYFyYlt6DepbyDGTPoLCHYSdEfE
+\restrict F3b7mZ6AI5uZ9sMIEp46H6L11HbQQeNAn18bTYSFxYfyLhqUWYtZVYgyX3ufEB9
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -605,6 +605,20 @@ CREATE TABLE public.keyword_styles (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT keyword_styles_color_check CHECK ((color ~ '^#[0-9a-fA-F]{6}$'::text)),
     CONSTRAINT keyword_styles_name_check CHECK ((name <> ''::text))
+);
+
+
+--
+-- Name: keyword_translations; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.keyword_translations (
+    keyword_name text NOT NULL,
+    language text NOT NULL,
+    label text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_keyword_translations_label_not_empty CHECK ((label <> ''::text))
 );
 
 
@@ -1609,6 +1623,14 @@ ALTER TABLE ONLY public.decks
 
 
 --
+-- Name: keyword_translations uq_keyword_translations_keyword_language; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.keyword_translations
+    ADD CONSTRAINT uq_keyword_translations_keyword_language UNIQUE (keyword_name, language);
+
+
+--
 -- Name: printings uq_printings_identity; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2182,6 +2204,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.image_files FOR EACH R
 
 
 --
+-- Name: keyword_translations trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.keyword_translations FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: languages trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2587,6 +2616,22 @@ ALTER TABLE ONLY public.wish_list_items
 
 
 --
+-- Name: keyword_translations keyword_translations_keyword_name_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.keyword_translations
+    ADD CONSTRAINT keyword_translations_keyword_name_fkey FOREIGN KEY (keyword_name) REFERENCES public.keyword_styles(name) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: keyword_translations keyword_translations_language_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.keyword_translations
+    ADD CONSTRAINT keyword_translations_language_fkey FOREIGN KEY (language) REFERENCES public.languages(code) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
 -- Name: marketplace_snapshots marketplace_snapshots_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2750,5 +2795,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict UIhXbC8BipfidbzibvO9sqh0K08OZddxgSiKxYFyYlt6DepbyDGTPoLCHYSdEfE
+\unrestrict F3b7mZ6AI5uZ9sMIEp46H6L11HbQQeNAn18bTYSFxYfyLhqUWYtZVYgyX3ufEB9
 
