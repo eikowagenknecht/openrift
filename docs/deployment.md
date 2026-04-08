@@ -7,16 +7,15 @@ OpenRift runs on a VPS with Docker Compose behind Cloudflare. Two instances shar
 
 Docker images are built in GitHub Actions and pushed to GHCR. The VPS only pulls pre-built images — no building on prod, no git clone needed.
 
-PR preview builds are also deployed to **Cloudflare Workers** (`*.openrift-web.workers.dev`). The Workers script proxies `/api/*` to the preview backend, so auth cookies stay same-origin and work on all browsers (including mobile Safari with ITP). See `apps/web/wrangler.json` and `apps/web/src/worker.ts`.
-
 ## Architecture
 
-| Container | Image                                  | Role                                                                  |
-| --------- | -------------------------------------- | --------------------------------------------------------------------- |
-| `db`      | `postgres:18-alpine`                   | Database (unchanged across deploys)                                   |
-| `api`     | `ghcr.io/eikowagenknecht/openrift-api` | API + migrations on startup + cron jobs (distroless, compiled binary) |
-| `web`     | `ghcr.io/eikowagenknecht/openrift-web` | SPA + API proxy (nginx)                                               |
-| `backup`  | `siemens/postgres-backup-s3:18`        | Scheduled pg_dump to Cloudflare R2                                    |
+| Container | Image                                    | Role                                                   |
+| --------- | ---------------------------------------- | ------------------------------------------------------ |
+| `db`      | `postgres:18-alpine`                     | Database (unchanged across deploys)                    |
+| `api`     | `ghcr.io/eikowagenknecht/openrift-api`   | API + migrations on startup + cron jobs (Bun)          |
+| `web`     | `ghcr.io/eikowagenknecht/openrift-web`   | TanStack Start SSR server (Bun, internal only)         |
+| `proxy`   | `ghcr.io/eikowagenknecht/openrift-proxy` | Nginx reverse proxy + static assets (exposed on :8080) |
+| `backup`  | `siemens/postgres-backup-s3:18`          | Scheduled pg_dump to Cloudflare R2                     |
 
 The `api` container:
 
@@ -36,8 +35,8 @@ Incomplete features can be pushed to `main` behind feature flags, tested on prev
 
 ### CI/CD Pipeline
 
-1. **Push to `main`** → `preview.yml` builds both images with `:preview` tag, pushes to GHCR, then SSHes to VPS and runs `./deploy.sh`
-2. **Manual release** → `release.yml` (triggered via `workflow_dispatch`) runs semantic-release to determine the next version, builds both images with `:vX.Y.Z` + `:latest` tags, pushes to GHCR, then SSHes to VPS and runs `./deploy.sh`
+1. **Push to `main`** → `preview.yml` builds all three images (api, web, proxy) with `:preview` tag, pushes to GHCR, then SSHes to VPS and runs `./deploy.sh`
+2. **Manual release** → `release.yml` (triggered via `workflow_dispatch`) runs semantic-release to determine the next version, builds all three images with `:vX.Y.Z` + `:latest` tags, pushes to GHCR, then SSHes to VPS and runs `./deploy.sh`
 
 ### Deploy Script
 
@@ -177,12 +176,13 @@ docker compose logs --since "2025-01-15T10:00:00" api
 
 ### Where logs are stored
 
-| Source                            | Location                                                | Notes                         |
-| --------------------------------- | ------------------------------------------------------- | ----------------------------- |
-| **API** (`api` container)         | Docker json-file log                                    | API + migration + cron output |
-| **Web / nginx** (`web` container) | Docker json-file log                                    | nginx access + error logs     |
-| **PostgreSQL** (`db` container)   | Docker json-file log                                    | Postgres server logs          |
-| **Host nginx**                    | `/var/log/nginx/access.log`, `/var/log/nginx/error.log` | TLS-terminating reverse proxy |
+| Source                          | Location                                                | Notes                         |
+| ------------------------------- | ------------------------------------------------------- | ----------------------------- |
+| **API** (`api` container)       | Docker json-file log                                    | API + migration + cron output |
+| **Web / SSR** (`web` container) | Docker json-file log                                    | SSR server output             |
+| **Proxy / nginx** (`proxy`)     | Docker json-file log                                    | nginx access + error logs     |
+| **PostgreSQL** (`db` container) | Docker json-file log                                    | Postgres server logs          |
+| **Host nginx**                  | `/var/log/nginx/access.log`, `/var/log/nginx/error.log` | TLS-terminating reverse proxy |
 
 Docker stores container logs under `/var/lib/docker/containers/<id>/<id>-json.log`. You rarely need to access these files directly — use `docker compose logs` instead.
 
@@ -204,20 +204,23 @@ This caps each container's log at 5 × 20 MB (100 MB total per container). Exist
 
 **Host nginx logs** (`/var/log/nginx/`) are rotated automatically by the system's logrotate (installed with nginx, typically daily with 14-day retention).
 
-### Health check
+### Health checks
 
-The API exposes a `/api/health` endpoint that returns:
+**API** (`/api/health`) returns:
 
 - `200 { "status": "ok" }` — healthy
 - `503 { "status": "db_unreachable" }` — can't connect to PostgreSQL
 - `503 { "status": "db_empty" }` — connected but no data
 - `503 { "status": "db_not_migrated" }` — migrations haven't run
 
-```bash
-# Production (Docker-mapped port)
-curl -s localhost:3001/api/health | jq .
+**Web SSR** (`/health`) returns `200 ok` (plain text). This is handled in `server.ts` before the router, so it doesn't render React.
 
-# Local dev (Hono runs natively)
+```bash
+# Production (through proxy)
+curl -s localhost:8080/api/health | jq .
+curl -s localhost:8080/health
+
+# Local dev
 curl -s localhost:3000/api/health | jq .
 ```
 
@@ -379,13 +382,13 @@ Verify:
 ```bash
 # Stable
 cd ~/openrift && docker compose ps
-curl -s localhost:8080    # Should return HTML
-curl -s localhost:3001/api/health | jq .
+curl -s localhost:8080/health    # Should return "ok" (SSR server via proxy)
+curl -s localhost:8080/api/health | jq .
 
 # Preview
 cd ~/openrift-preview && docker compose ps
-curl -s localhost:8081    # Should return HTML
-curl -s localhost:3002/api/health | jq .
+curl -s localhost:8081/health    # Should return "ok"
+curl -s localhost:8082/api/health | jq .
 ```
 
 ### Directory Layout

@@ -6,31 +6,32 @@ OpenRift is a Turborepo monorepo with a React frontend, a Hono API server, and a
 openrift/
 ├── apps/
 │   ├── api/              # Hono API server (Bun)
-│   └── web/              # Vite + React 19 SPA
+│   └── web/              # TanStack Start SSR app (Bun)
 ├── nginx/                # Nginx configs (container + host)
 ├── packages/
 │   └── shared/           # Types, schemas, filters, DB migrations
 ├── docker-compose.yml    # Dev: just Postgres. Prod: all services.
-└── Dockerfile            # Multi-stage build (api, web)
+└── Dockerfile            # Multi-stage build (api, web, proxy)
 ```
 
 ## Packages
 
 ### `apps/web` — Frontend
 
-Vite + React 19 single-page app with TanStack Router. Filter/sort state is synced to URL query parameters via nuqs. The app is installable as a PWA with offline image caching.
+TanStack Start app with streaming SSR, built on React 19 and TanStack Router. Data fetching uses server functions that call the API over HTTP internally. Filter/sort state is synced to URL query parameters via nuqs.
 
-For PR previews, the built SPA is deployed to Cloudflare Workers. A thin Worker script (`src/worker.ts`) proxies `/api/*` requests to the preview backend, keeping all requests same-origin so auth cookies work on mobile browsers without cross-site tracking exceptions.
+In production, the Start server runs on Bun and streams HTML using `<Suspense>` boundaries. An nginx reverse proxy (`proxy` container) sits in front, serving static assets directly and proxying everything else to the SSR server.
 
 **Key libraries:**
 
+- [TanStack Start](https://tanstack.com/start) — SSR framework with streaming and server functions
 - [shadcn/ui](https://ui.shadcn.com/) (base-nova style) — component primitives, built on [Base UI](https://base-ui.com/), [Tailwind CSS 4](https://tailwindcss.com/) and [Lucide](https://lucide.dev/) icons
 - [React Compiler](https://react.dev/learn/react-compiler) — auto-memoizes components and hooks
 - [TanStack Router](https://tanstack.com/router) — file-based routing with type-safe search params
-- [React Query](https://tanstack.com/query) — data fetching and caching for API calls
+- [React Query](https://tanstack.com/query) — data fetching and caching
 - [nuqs](https://nuqs.47ng.com/) — syncs filter/sort state to URL query params (every view is a shareable link)
 - [TanStack Virtual](https://tanstack.com/virtual) — virtualized scrolling for the card grid
-- [Vite PWA](https://vite-pwa-org.netlify.app/) — service worker generation, offline support, install prompt
+- [Nitro](https://nitro.build/) — production server preset (Bun)
 
 ### `apps/api` — Backend
 
@@ -51,10 +52,11 @@ Consumed by both `apps/web` and `apps/api`. Contains shared TypeScript types, Zo
 │  Local machine                                         │
 │                                                        │
 │  ┌─────────────────────────┐                           │
-│  │ Vite dev server         │  apps/web (HMR)           │
+│  │ TanStack Start (Vite)   │  apps/web (HMR + SSR)    │
 │  │ :5173                   │                           │
 │  └──┬──────────────────────┘                           │
-│     │ /api/*                                           │
+│     │ /api/auth/* (proxy)                              │
+│     │ server fns call API internally                   │
 │     ▼                                                  │
 │  ┌─────────────────────────┐                           │
 │  │ Hono (bun --watch)      │  apps/api (live reload)   │
@@ -66,14 +68,14 @@ Consumed by both `apps/web` and `apps/api`. Contains shared TypeScript types, Zo
 │  │ Docker Compose                                   │  │
 │  │                                                  │  │
 │  │  ┌─────────────────────────┐                     │  │
-│  │  │ db (postgres:16-alpine) │  PostgreSQL         │  │
+│  │  │ db (postgres:18-alpine) │  PostgreSQL         │  │
 │  │  │ :5432                   │  Persistent volume  │  │
 │  │  └─────────────────────────┘                     │  │
 │  └──────────────────────────────────────────────────┘  │
 └────────────────────────────────────────────────────────┘
 ```
 
-Only the database runs in Docker (`docker compose up db`). The API and frontend run natively via `bun dev`.
+Only the database runs in Docker (`docker compose up db`). The API and frontend run natively via `bun dev`. In dev, server functions call the API at `localhost:3000` directly. Only `/api/auth/*` is proxied through Vite (needed for OAuth redirects and cookie setting).
 
 ### Production — Docker Compose (`openrift.app` / `preview.openrift.app`)
 
@@ -96,20 +98,23 @@ Only the database runs in Docker (`docker compose up db`). The API and frontend 
 │  │ Docker Compose                                             │  │
 │  │                                                            │  │
 │  │  ┌─────────────────────────┐                               │  │
-│  │  │ web (nginx:alpine)      │  Nginx - reverse proxy        │  │
-│  │  │ :8080                   │  SPA static files (apps/web)  │  │
-│  │  └──┬──────────────────────┘                               │  │
-│  │     │ /api/*                                               │  │
-│  │     ▼                                                      │  │
+│  │  │ proxy (nginx:alpine)    │  Nginx - reverse proxy        │  │
+│  │  │ :8080                   │  Static assets + card images  │  │
+│  │  └──┬──────────┬───────────┘                               │  │
+│  │     │ /*       │ /api/*                                    │  │
+│  │     ▼          ▼                                           │  │
+│  │  ┌────────────────────┐  ┌─────────────────────────┐       │  │
+│  │  │ web (bun:alpine)   │  │ api (bun:alpine)        │       │  │
+│  │  │ :3001 (internal)   │  │ :3000                   │       │  │
+│  │  │ TanStack Start SSR │  │ Hono API + migrations + │       │  │
+│  │  └────────┬───────────┘  │ cron                    │       │  │
+│  │           │ server fns   └──┬──────────────────────┘       │  │
+│  │           └──────────────▶──┘                              │  │
+│  │                          │                                 │  │
+│  │                          ▼                                 │  │
 │  │  ┌─────────────────────────┐                               │  │
-│  │  │ api (distroless)        │  Hono API + migrations +      │  │
-│  │  │ :3000                   │  cron (compiled binary)       │  │
-│  │  └──┬──────────────────────┘                               │  │
-│  │     │                                                      │  │
-│  │     ▼                                                      │  │
-│  │  ┌─────────────────────────┐                               │  │
-│  │  │ db (postgres:16-alpine) │  PostgreSQL - Database        │  │
-│  │  │ :5432                   │  Persistent volume (pg_data)  │  │
+│  │  │ db (postgres:18-alpine) │  PostgreSQL - Database        │  │
+│  │  │ :5432                   │  Persistent volume            │  │
 │  │  └─────────────────────────┘                               │  │
 │  └────────────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────┘
@@ -118,4 +123,4 @@ Only the database runs in Docker (`docker compose up db`). The API and frontend 
 Images are pre-built in GitHub Actions and pulled from GHCR.
 The `api` container runs migrations on startup and schedules price refresh cron jobs in-process.
 
-**Request flow:** Cloudflare terminates the public TLS connection and forwards traffic to host nginx, which terminates a second TLS hop using a Cloudflare Origin Certificate. Host nginx proxies everything to the `web` container on `:8080`. The `web` container serves static SPA files for all routes and reverse-proxies `/api/*` to the `api` container via Docker DNS.
+**Request flow:** Cloudflare terminates the public TLS connection and forwards traffic to host nginx, which terminates a second TLS hop using a Cloudflare Origin Certificate. Host nginx proxies everything to the `proxy` container on `:8080`. The `proxy` container serves static assets (hashed JS/CSS, card images) directly and proxies all other requests to the `web` container (TanStack Start SSR on `:3001`). The `web` container renders pages server-side using server functions that call the `api` container over HTTP. `/api/*` requests are proxied directly from `proxy` to `api`.

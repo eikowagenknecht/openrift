@@ -24,7 +24,7 @@ bun db:migrate
 bun dev
 ```
 
-The frontend is available at `http://localhost:5173`. The API runs at `http://localhost:3000`. Vite proxies `/api/*` requests to the API server automatically.
+The frontend is available at `http://localhost:5173` (TanStack Start dev server with SSR). The API runs at `http://localhost:3000`. Server functions call the API directly at `localhost:3000`. Only `/api/auth/*` is proxied through the dev server (needed for OAuth redirects and cookie setting).
 
 ## Running Individual Apps
 
