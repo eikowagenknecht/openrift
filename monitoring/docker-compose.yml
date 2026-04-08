@@ -103,7 +103,6 @@ services:
     volumes:
       - ./data/grafana:/var/lib/grafana
       - ./provisioning:/etc/grafana/provisioning:ro
-      - ./alerting:/etc/grafana/provisioning/alerting:ro
     depends_on:
       - prometheus
     logging:
