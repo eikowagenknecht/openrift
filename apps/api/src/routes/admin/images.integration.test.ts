@@ -250,36 +250,6 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
     });
   });
 
-  // ── GET /admin/rename-preview ───────────────────────────────────────────
-
-  describe("GET /admin/rename-preview", () => {
-    it("returns total and misnamed counts", async () => {
-      const res = await app.fetch(req("GET", "/admin/rename-preview"));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(typeof json.total).toBe("number");
-      expect(typeof json.misnamed).toBe("number");
-    });
-  });
-
-  // ── POST /admin/rename-images ─────────────────────────────────────────
-
-  describe("POST /admin/rename-images", () => {
-    it("returns rename result shape", async () => {
-      const res = await app.fetch(req("POST", "/admin/rename-images"));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(typeof json.scanned).toBe("number");
-      expect(typeof json.renamed).toBe("number");
-      expect(typeof json.alreadyCorrect).toBe("number");
-      expect(typeof json.failed).toBe("number");
-      expect(json.errors).toEqual(expect.any(Array));
-      expect(typeof json.hasMore).toBe("boolean");
-    });
-  });
-
   // ── POST /admin/cleanup-orphaned ──────────────────────────────────────
 
   describe("POST /admin/cleanup-orphaned", () => {

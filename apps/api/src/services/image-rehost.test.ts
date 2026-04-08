@@ -14,7 +14,6 @@ import {
   CARD_IMAGES_DIR,
   cleanupOrphanedFiles,
   clearAllRehosted,
-  collectStaleImages,
   deleteRehostFiles,
   downloadImage,
   findBrokenImages,
@@ -26,8 +25,6 @@ import {
   rehostFilesExist,
   rehostImages,
   rehostSingleImage,
-  renameRehostFiles,
-  renameStaleImages,
 } from "./image-rehost.js";
 
 // ─── Mock fs functions (provided via io parameter) ──────────────────────
@@ -235,30 +232,6 @@ describe("deleteRehostFiles", () => {
     mockReaddir.mockResolvedValue(["base-orig.png"]);
     mockUnlink.mockRejectedValue(new Error("EPERM"));
     await deleteRehostFiles(mockIo, "/card-images/set1/base"); // should not throw
-  });
-});
-
-describe("renameRehostFiles", () => {
-  it("renames matching files", async () => {
-    mockReaddir.mockResolvedValue(["old-orig.png", "old-300w.webp", "other.webp"]);
-    await renameRehostFiles(mockIo, "/card-images/set1/old", "/card-images/set1/new");
-
-    const dir = join(CARD_IMAGES_DIR, "set1");
-    expect(mockRename).toHaveBeenCalledTimes(2);
-    expect(mockRename).toHaveBeenCalledWith(join(dir, "old-orig.png"), join(dir, "new-orig.png"));
-    expect(mockRename).toHaveBeenCalledWith(join(dir, "old-300w.webp"), join(dir, "new-300w.webp"));
-  });
-
-  it("handles missing directory", async () => {
-    mockReaddir.mockRejectedValue(new Error("ENOENT"));
-    await renameRehostFiles(mockIo, "/card-images/set1/old", "/card-images/set1/new");
-    expect(mockRename).not.toHaveBeenCalled();
-  });
-
-  it("swallows rename errors", async () => {
-    mockReaddir.mockResolvedValue(["old-orig.png"]);
-    mockRename.mockRejectedValue(new Error("EPERM"));
-    await renameRehostFiles(mockIo, "/card-images/set1/old", "/card-images/set1/new"); // no throw
   });
 });
 
@@ -700,85 +673,6 @@ describe("rehostSingleImage", () => {
     await rehostSingleImage(mockIo, repo, "img-uuid");
 
     expect(repo.updateRehostedUrl).not.toHaveBeenCalled();
-  });
-});
-
-describe("collectStaleImages", () => {
-  it("returns empty stale list when all images match", async () => {
-    const repo = {
-      listAllRehosted: vi.fn(async () => [
-        {
-          imageId: "00594247-a18a-4efd-8998-105449a4cf40",
-          rehostedUrl: "/card-images/40/00594247-a18a-4efd-8998-105449a4cf40",
-        },
-      ]),
-    } as any;
-
-    const result = await collectStaleImages(repo);
-
-    expect(result.total).toBe(1);
-    expect(result.stale).toHaveLength(0);
-  });
-
-  it("identifies stale images with mismatched URLs", async () => {
-    const repo = {
-      listAllRehosted: vi.fn(async () => [
-        {
-          imageId: "00594247-a18a-4efd-8998-105449a4cf40",
-          rehostedUrl: "/card-images/old-set/old-name",
-        },
-      ]),
-    } as any;
-
-    const result = await collectStaleImages(repo);
-
-    expect(result.stale).toHaveLength(1);
-    expect(result.stale[0].oldUrl).toBe("/card-images/old-set/old-name");
-    expect(result.stale[0].newUrl).toBe("/card-images/40/00594247-a18a-4efd-8998-105449a4cf40");
-  });
-});
-
-describe("renameStaleImages", () => {
-  it("renames stale images and updates DB", async () => {
-    const repo = {
-      listAllRehosted: vi.fn(async () => [
-        {
-          imageId: "00594247-a18a-4efd-8998-105449a4cf40",
-          rehostedUrl: "/card-images/old-set/old-name",
-        },
-      ]),
-      updateRehostedUrl: vi.fn(async () => {}),
-    } as any;
-    mockReaddir.mockResolvedValue(["old-name-orig.png", "old-name-300w.webp"]);
-
-    const result = await renameStaleImages(mockIo, repo);
-
-    expect(result.renamed).toBe(1);
-    expect(result.alreadyCorrect).toBe(0);
-    expect(repo.updateRehostedUrl).toHaveBeenCalledWith(
-      "00594247-a18a-4efd-8998-105449a4cf40",
-      "/card-images/40/00594247-a18a-4efd-8998-105449a4cf40",
-    );
-  });
-
-  it("counts rename failures", async () => {
-    const repo = {
-      listAllRehosted: vi.fn(async () => [
-        {
-          imageId: "00594247-a18a-4efd-8998-105449a4cf40",
-          rehostedUrl: "/card-images/old-set/old-name",
-        },
-      ]),
-      updateRehostedUrl: vi.fn(async () => {
-        throw new Error("DB error");
-      }),
-    } as any;
-    mockReaddir.mockResolvedValue(["old-name-orig.png"]);
-
-    const result = await renameStaleImages(mockIo, repo);
-
-    expect(result.failed).toBe(1);
-    expect(result.errors).toHaveLength(1);
   });
 });
 

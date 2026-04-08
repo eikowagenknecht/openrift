@@ -27,8 +27,6 @@ import {
   useRegenerateImages,
   useRehostImages,
   useRehostStatus,
-  useRenameImages,
-  useRenamePreview,
   useRestoreImageUrls,
 } from "@/hooks/use-rehost";
 
@@ -145,7 +143,6 @@ function ErrorsList({ errors }: { errors: string[] }) {
 
 function ManageSection() {
   const { data: status, refetch } = useRehostStatus();
-  const { data: preview } = useRenamePreview();
 
   const [regenProgress, setRegenProgress] = useState<{
     processed: number;
@@ -157,7 +154,6 @@ function ManageSection() {
     setRegenProgress({ processed, totalFiles });
   });
   const clearMutation = useClearRehosted();
-  const renameMutation = useRenameImages();
   const cleanupMutation = useCleanupOrphaned();
   const migrateMutation = useMigrateDirectories();
 
@@ -172,7 +168,6 @@ function ManageSection() {
     rehostMutation.isPending ||
     regenMutation.isPending ||
     clearMutation.isPending ||
-    renameMutation.isPending ||
     cleanupMutation.isPending ||
     migrateMutation.isPending;
 
@@ -184,7 +179,6 @@ function ManageSection() {
           {status.rehosted} / {status.total} images rehosted
           {status.disk.totalBytes > 0 &&
             ` · ${totalFiles} files · ${formatBytes(status.disk.totalBytes)}`}
-          {preview && preview.misnamed > 0 && ` · ${preview.misnamed} stale`}
           {status.orphanedFiles > 0 && ` · ${status.orphanedFiles} orphaned`}
         </CardDescription>
         <Progress value={pct} className="h-1.5" />
@@ -202,17 +196,6 @@ function ManageSection() {
               <LoaderIcon className="size-4 animate-spin" />
             ) : (
               "Migrate directories"
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            disabled={anyPending || !preview?.misnamed}
-            onClick={() => renameMutation.mutate()}
-          >
-            {renameMutation.isPending ? (
-              <LoaderIcon className="size-4 animate-spin" />
-            ) : (
-              "Rename stale"
             )}
           </Button>
           <Button
@@ -292,24 +275,6 @@ function ManageSection() {
 
         <MutationStatus mutation={rehostMutation} label="rehost" />
         <MutationStatus mutation={regenMutation} label="regenerate" />
-
-        {renameMutation.isSuccess && renameMutation.data && (
-          <div>
-            <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
-              <CheckIcon className="size-4" />
-              Scanned {renameMutation.data.scanned} images: {renameMutation.data.renamed} renamed,{" "}
-              {renameMutation.data.alreadyCorrect} already correct
-              {renameMutation.data.failed > 0 && `, ${renameMutation.data.failed} failed`}
-            </p>
-            <ErrorsList errors={renameMutation.data.errors} />
-          </div>
-        )}
-        {renameMutation.isError && (
-          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
-            <XIcon className="size-4" />
-            {renameMutation.error?.message}
-          </p>
-        )}
 
         {cleanupMutation.isSuccess && cleanupMutation.data && (
           <div>
