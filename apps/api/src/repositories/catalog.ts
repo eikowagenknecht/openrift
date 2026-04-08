@@ -448,6 +448,23 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute() as Promise<CatalogPrintingImageRow[]>;
     },
 
+    /** @returns A cover image URL per set (first available printing image). */
+    async setCoverImages(): Promise<Map<string, string>> {
+      const rows = await db
+        .selectFrom("printings")
+        .innerJoin("printingImages", "printingImages.printingId", "printings.id")
+        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+        .select(["printings.setId", imageUrl("ci").as("url")])
+        .where("printingImages.isActive", "=", true)
+        .where("printingImages.face", "=", "front")
+        .where(sql`${imageUrl("ci")}`, "is not", null)
+        .distinctOn("printings.setId")
+        .orderBy("printings.setId")
+        .orderBy("printings.shortCode")
+        .execute();
+      return new Map(rows.filter((r) => r.url !== null).map((r) => [r.setId, r.url as string]));
+    },
+
     /** @returns Distinct card count in a set. */
     async setCardCount(setId: string): Promise<number> {
       const result = await db

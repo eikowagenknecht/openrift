@@ -52,13 +52,14 @@ export const setsRoute = setsApp
     const { catalog } = c.get("repos");
 
     const allSets = await catalog.sets();
+    const coverImages = await catalog.setCoverImages();
     const entries = await Promise.all(
       allSets.map(async (set) => {
         const [cardCount, printingCount] = await Promise.all([
           catalog.setCardCount(set.id),
           catalog.setPrintingCount(set.id),
         ]);
-        return { ...set, cardCount, printingCount };
+        return { ...set, cardCount, printingCount, coverImageUrl: coverImages.get(set.id) ?? null };
       }),
     );
 
