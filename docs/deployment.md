@@ -455,8 +455,8 @@ docker compose up -d
 apt install -y apache2-utils
 htpasswd -c /home/openrift/openrift/certs/.htpasswd admin
 
-# Copy nginx config and enable it
-cp ~/openrift/monitoring.openrift.conf /etc/nginx/sites-enabled/monitoring.openrift.app
+# Symlink nginx config and enable it
+ln -s /home/openrift/openrift/monitoring.openrift.conf /etc/nginx/sites-enabled/monitoring.openrift.app
 nginx -t && systemctl reload nginx
 ```
 
