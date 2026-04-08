@@ -157,18 +157,18 @@ describe("deletePrinting", () => {
         getPrintingById: vi.fn(async () => ({ id: "p-uuid" })),
         unlinkCandidatePrintingsByPrintingId: vi.fn(async () => {}),
         deletePrintingImagesByPrintingId: vi.fn(async () => [
-          { cardImageId: "ci-1" },
-          { cardImageId: "ci-2" },
+          { imageFileId: "ci-1" },
+          { imageFileId: "ci-2" },
         ]),
         deletePrintingLinkOverridesById: vi.fn(async () => {}),
         deletePrintingById: vi.fn(async () => {}),
-        getCardImageById: vi.fn(async (id: string) =>
+        getImageFileById: vi.fn(async (id: string) =>
           id === "ci-1"
-            ? { id: "ci-1", rehostedUrl: "/card-images/set1/img-1" }
+            ? { id: "ci-1", rehostedUrl: "/card-images/g1/img-1" }
             : { id: "ci-2", rehostedUrl: null },
         ),
-        isCardImageReferenced: vi.fn(async () => false),
-        deleteCardImageById: vi.fn(async () => {}),
+        isImageFileReferenced: vi.fn(async () => false),
+        deleteImageFileById: vi.fn(async () => {}),
       },
     };
     const transact = mockTransact(repos);
@@ -176,7 +176,7 @@ describe("deletePrinting", () => {
     await deletePrinting(transact, {} as Io, repos as any, "p-uuid");
 
     expect(deleteRehostFiles).toHaveBeenCalledTimes(1);
-    expect(deleteRehostFiles).toHaveBeenCalledWith({}, "/card-images/set1/img-1");
+    expect(deleteRehostFiles).toHaveBeenCalledWith({}, "/card-images/g1/img-1");
   });
 });
 

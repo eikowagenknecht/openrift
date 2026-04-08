@@ -31,13 +31,16 @@ describe("getCardImageUrl", () => {
   });
 
   it("returns -300w.webp for self-hosted thumbnail", () => {
-    const url = getCardImageUrl("/card-images/OGN/OGN-027-normal-n-n-foil", "thumbnail");
-    expect(url).toBe("/card-images/OGN/OGN-027-normal-n-n-foil-300w.webp");
+    const url = getCardImageUrl(
+      "/card-images/40/00594247-a18a-4efd-8998-105449a4cf40",
+      "thumbnail",
+    );
+    expect(url).toBe("/card-images/40/00594247-a18a-4efd-8998-105449a4cf40-300w.webp");
   });
 
   it("returns -full.webp for self-hosted full size", () => {
-    const url = getCardImageUrl("/card-images/OGN/OGN-027-normal-n-n-foil", "full");
-    expect(url).toBe("/card-images/OGN/OGN-027-normal-n-n-foil-full.webp");
+    const url = getCardImageUrl("/card-images/40/00594247-a18a-4efd-8998-105449a4cf40", "full");
+    expect(url).toBe("/card-images/40/00594247-a18a-4efd-8998-105449a4cf40-full.webp");
   });
 
   it("never includes or=270 (CSS handles rotation)", () => {
@@ -79,7 +82,7 @@ describe("getCardImageSrcSet", () => {
   });
 
   it("returns 300w and 400w webp variants for self-hosted URLs", () => {
-    const base = "/card-images/OGN/OGN-027-normal-n-n-foil";
+    const base = "/card-images/40/00594247-a18a-4efd-8998-105449a4cf40";
     const srcSet = getCardImageSrcSet(base);
     expect(srcSet).toBe(`${base}-300w.webp 300w, ${base}-400w.webp 400w`);
   });

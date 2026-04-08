@@ -767,7 +767,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       }
       return db
         .selectFrom("printingImages")
-        .innerJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
+        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
         .select([
           "printingImages.id",
           "printingImages.printingId",
@@ -977,7 +977,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
             .on("printingImages.face", "=", "front")
             .on("printingImages.isActive", "=", true),
         )
-        .leftJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
+        .leftJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
         .selectAll("printings")
         .select([
           "sets.slug as setSlug",

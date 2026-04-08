@@ -21,11 +21,12 @@ import type { printingImagesRepo } from "../repositories/printing-images.js";
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 
 /**
- * Build the canonical rehosted URL for an image by its UUID and set slug.
- * @returns The URL path like `/card-images/{setSlug}/{imageId}`
+ * Build the canonical rehosted URL for an image by its UUID.
+ * Uses the last 2 hex characters of the UUID as a directory prefix for even distribution.
+ * @returns The URL path like `/card-images/{prefix}/{imageId}`
  */
-export function imageRehostedUrl(setSlug: string, imageId: string): string {
-  return `/card-images/${setSlug}/${imageId}`;
+export function imageRehostedUrl(imageId: string): string {
+  return `/card-images/${imageId.slice(-2)}/${imageId}`;
 }
 
 function findProjectRoot(): string {
@@ -194,7 +195,7 @@ export async function renameRehostFiles(
 
 /**
  * Rehost a single image by its printing_image ID: download, process variants, and update the DB.
- * Updates the card_images row so all printings sharing this image benefit.
+ * Updates the image_files row so all printings sharing this image benefit.
  * Silently swallows errors so callers can treat this as best-effort.
  */
 export async function rehostSingleImage(
@@ -209,10 +210,10 @@ export async function rehostSingleImage(
 
   try {
     const { buffer, ext } = await downloadImage(io, image.originalUrl);
-    const outputDir = join(CARD_IMAGES_DIR, image.setSlug);
-    await processAndSave(io, buffer, ext, outputDir, image.cardImageId, true);
-    const rehostedUrl = imageRehostedUrl(image.setSlug, image.cardImageId);
-    await repo.updateRehostedUrl(image.cardImageId, rehostedUrl);
+    const rehostedUrl = imageRehostedUrl(image.imageFileId);
+    const outputDir = join(CARD_IMAGES_DIR, image.imageFileId.slice(-2));
+    await processAndSave(io, buffer, ext, outputDir, image.imageFileId, true);
+    await repo.updateRehostedUrl(image.imageFileId, rehostedUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(`[rehost] Auto-rehost failed for ${imageId}:`, message);
@@ -243,9 +244,9 @@ export async function rehostImages(
       }
 
       const { buffer, ext } = await downloadImage(io, img.originalUrl);
-      const outputDir = join(CARD_IMAGES_DIR, img.setSlug);
+      const selfHostedPath = imageRehostedUrl(img.imageId);
+      const outputDir = join(CARD_IMAGES_DIR, img.imageId.slice(-2));
       await processAndSave(io, buffer, ext, outputDir, img.imageId, true);
-      const selfHostedPath = imageRehostedUrl(img.setSlug, img.imageId);
       await repo.updateRehostedUrl(img.imageId, selfHostedPath);
       return "rehosted" as const;
     }),
@@ -281,20 +282,20 @@ export async function regenerateImages(io: Io, offset: number): Promise<Regenera
     totalFiles: 0,
   };
 
-  // Collect all orig files across all sets
-  const allOrigFiles: { setDir: string; setId: string; file: string }[] = [];
+  // Collect all orig files across all prefix directories
+  const allOrigFiles: { prefixDir: string; prefix: string; file: string }[] = [];
   try {
     const entries = await io.fs.readdir(CARD_IMAGES_DIR, { withFileTypes: true });
-    const setDirs = entries
+    const prefixDirs = entries
       .filter((e) => e.isDirectory())
       .map((e) => e.name)
       .sort();
-    for (const setId of setDirs) {
-      const setDir = join(CARD_IMAGES_DIR, setId);
-      const files = await io.fs.readdir(setDir);
+    for (const prefix of prefixDirs) {
+      const prefixDir = join(CARD_IMAGES_DIR, prefix);
+      const files = await io.fs.readdir(prefixDir);
       for (const file of files) {
         if (file.includes("-orig.")) {
-          allOrigFiles.push({ setDir, setId, file });
+          allOrigFiles.push({ prefixDir, prefix, file });
         }
       }
     }
@@ -308,10 +309,10 @@ export async function regenerateImages(io: Io, offset: number): Promise<Regenera
   progress.hasMore = offset + BATCH_SIZE < allOrigFiles.length;
 
   const results = await Promise.allSettled(
-    batch.map(async ({ setDir, file }) => {
+    batch.map(async ({ prefixDir, file }) => {
       const fileBase = file.replace(/-orig\.[^.]+$/, "");
-      const buffer = await io.fs.readFile(join(setDir, file));
-      await generateWebpVariants(io, buffer, setDir, fileBase);
+      const buffer = await io.fs.readFile(join(prefixDir, file));
+      await generateWebpVariants(io, buffer, prefixDir, fileBase);
     }),
   );
 
@@ -321,11 +322,11 @@ export async function regenerateImages(io: Io, offset: number): Promise<Regenera
       progress.regenerated++;
     } else {
       progress.failed++;
-      const { setId, file } = batch[idx];
+      const { prefix, file } = batch[idx];
       const message =
         result.reason instanceof Error ? result.reason.message : String(result.reason);
-      progress.errors.push(`${setId}/${file}: ${message}`);
-      console.error(`[regenerate] Failed for ${setId}/${file}:`, message);
+      progress.errors.push(`${prefix}/${file}: ${message}`);
+      console.error(`[regenerate] Failed for ${prefix}/${file}:`, message);
     }
   }
 
@@ -345,10 +346,10 @@ export async function clearAllRehosted(
       if (!entry.isDirectory()) {
         continue;
       }
-      const setDir = join(CARD_IMAGES_DIR, entry.name);
-      const files = await io.fs.readdir(setDir);
+      const prefixDir = join(CARD_IMAGES_DIR, entry.name);
+      const files = await io.fs.readdir(prefixDir);
       for (const file of files) {
-        await io.fs.unlink(join(setDir, file));
+        await io.fs.unlink(join(prefixDir, file));
       }
     }
   } catch {
@@ -359,8 +360,8 @@ export async function clearAllRehosted(
 }
 
 /**
- * Collect all rehosted card images whose path doesn't match the UUID-based convention.
- * Expected URL: `/card-images/{setSlug}/{cardImageId}`
+ * Collect all rehosted images whose path doesn't match the UUID-prefix convention.
+ * Expected URL: `/card-images/{last2chars}/{imageId}`
  * @returns The total rehosted count and the list of mismatched entries.
  */
 export async function collectStaleImages(
@@ -369,7 +370,7 @@ export async function collectStaleImages(
   const images = await repo.listAllRehosted();
   const stale: { imageId: string; oldUrl: string; newUrl: string }[] = [];
   for (const img of images) {
-    const expectedUrl = imageRehostedUrl(img.setSlug, img.imageId);
+    const expectedUrl = imageRehostedUrl(img.imageId);
     if (img.rehostedUrl !== expectedUrl) {
       stale.push({ imageId: img.imageId, oldUrl: img.rehostedUrl, newUrl: expectedUrl });
     }
@@ -413,22 +414,22 @@ export async function renameStaleImages(
 
 /**
  * Strip the variant suffix from a disk filename to get the rehostedUrl prefix.
- * @returns The `/card-images/{set}/{base}` prefix without the variant suffix.
+ * @returns The `/card-images/{prefix}/{base}` prefix without the variant suffix.
  */
-function diskFileToPrefix(setSlug: string, file: string): string {
-  return `/card-images/${setSlug}/${file.replace(/-(orig\.[^.]+|300w\.webp|400w\.webp|full\.webp)$/, "")}`;
+function diskFileToPrefix(dirPrefix: string, file: string): string {
+  return `/card-images/${dirPrefix}/${file.replace(/-(orig\.[^.]+|300w\.webp|400w\.webp|full\.webp)$/, "")}`;
 }
 
 /**
- * Scan the card-images directory and return per-set stats + all file paths grouped by set.
- * @returns Disk stats and file listings per set directory.
+ * Scan the card-images directory and return per-prefix stats + all file paths grouped by prefix.
+ * @returns Disk stats and file listings per prefix directory.
  */
 async function scanDisk(io: Io): Promise<{
   stats: RehostStatusDiskStats;
-  filesBySet: { setSlug: string; files: string[] }[];
+  filesByPrefix: { prefix: string; files: string[] }[];
 }> {
   const sets: RehostStatusDiskStats["sets"] = [];
-  const filesBySet: { setSlug: string; files: string[] }[] = [];
+  const filesByPrefix: { prefix: string; files: string[] }[] = [];
   let totalBytes = 0;
 
   try {
@@ -437,29 +438,29 @@ async function scanDisk(io: Io): Promise<{
       if (!entry.isDirectory()) {
         continue;
       }
-      const setDir = join(CARD_IMAGES_DIR, entry.name);
-      const files = await io.fs.readdir(setDir);
-      let setBytes = 0;
+      const prefixDir = join(CARD_IMAGES_DIR, entry.name);
+      const files = await io.fs.readdir(prefixDir);
+      let dirBytes = 0;
       for (const file of files) {
-        const info = await io.fs.stat(join(setDir, file));
-        setBytes += info.size;
+        const info = await io.fs.stat(join(prefixDir, file));
+        dirBytes += info.size;
       }
-      sets.push({ setId: entry.name, bytes: setBytes, fileCount: files.length });
-      filesBySet.push({ setSlug: entry.name, files });
-      totalBytes += setBytes;
+      sets.push({ setId: entry.name, bytes: dirBytes, fileCount: files.length });
+      filesByPrefix.push({ prefix: entry.name, files });
+      totalBytes += dirBytes;
     }
   } catch {
     // Directory doesn't exist yet
   }
 
-  return { stats: { totalBytes, sets }, filesBySet };
+  return { stats: { totalBytes, sets }, filesByPrefix };
 }
 
 export async function getRehostStatus(
   io: Io,
   repo: PrintingImagesRepo,
 ): Promise<RehostStatusResponse> {
-  const [perSet, { stats: disk, filesBySet }, knownUrls] = await Promise.all([
+  const [perSet, { stats: disk, filesByPrefix }, knownUrls] = await Promise.all([
     repo.rehostStatusBySet(),
     scanDisk(io),
     repo.allRehostedUrls(),
@@ -478,9 +479,9 @@ export async function getRehostStatus(
   // Count orphaned files (on disk but no matching DB entry)
   const knownPrefixes = new Set(knownUrls);
   let orphanedFiles = 0;
-  for (const { setSlug, files } of filesBySet) {
+  for (const { prefix, files } of filesByPrefix) {
     for (const file of files) {
-      if (!knownPrefixes.has(diskFileToPrefix(setSlug, file))) {
+      if (!knownPrefixes.has(diskFileToPrefix(prefix, file))) {
         orphanedFiles++;
       }
     }
@@ -501,20 +502,20 @@ export async function cleanupOrphanedFiles(
 ): Promise<CleanupOrphanedResponse> {
   const progress: CleanupOrphanedResponse = { scanned: 0, deleted: 0, errors: [] };
 
-  const [knownUrls, { filesBySet }] = await Promise.all([repo.allRehostedUrls(), scanDisk(io)]);
+  const [knownUrls, { filesByPrefix }] = await Promise.all([repo.allRehostedUrls(), scanDisk(io)]);
   const knownPrefixes = new Set(knownUrls);
 
-  for (const { setSlug, files } of filesBySet) {
-    const setDir = join(CARD_IMAGES_DIR, setSlug);
+  for (const { prefix, files } of filesByPrefix) {
+    const prefixDir = join(CARD_IMAGES_DIR, prefix);
     for (const file of files) {
       progress.scanned++;
-      if (!knownPrefixes.has(diskFileToPrefix(setSlug, file))) {
+      if (!knownPrefixes.has(diskFileToPrefix(prefix, file))) {
         try {
-          await io.fs.unlink(join(setDir, file));
+          await io.fs.unlink(join(prefixDir, file));
           progress.deleted++;
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          progress.errors.push(`${setSlug}/${file}: ${message}`);
+          progress.errors.push(`${prefix}/${file}: ${message}`);
         }
       }
     }
@@ -597,4 +598,73 @@ export async function findLowResImages(
   }
 
   return { total: images.length, lowRes };
+}
+
+/**
+ * Migrate files from old set-slug directory structure to UUID-prefix structure.
+ * Moves files from `card-images/{setSlug}/{uuid}-*` to `card-images/{last2chars}/{uuid}-*`.
+ * Old directories that look like set slugs (not 2-char hex prefixes) are scanned.
+ * @returns Counts of scanned, moved, and failed files.
+ */
+export async function migrateImageDirectories(io: Io): Promise<{
+  scanned: number;
+  moved: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+}> {
+  const progress = { scanned: 0, moved: 0, skipped: 0, failed: 0, errors: [] as string[] };
+
+  let entries: { name: string; isDirectory: () => boolean }[];
+  try {
+    entries = await io.fs.readdir(CARD_IMAGES_DIR, { withFileTypes: true });
+  } catch {
+    return progress;
+  }
+
+  // A 2-char hex prefix directory matches /^[0-9a-f]{2}$/i
+  const isHexPrefix = (name: string) => /^[0-9a-f]{2}$/i.test(name);
+
+  // Only process directories that are NOT already hex prefixes (i.e., old set-slug dirs)
+  const oldDirs = entries.filter((e) => e.isDirectory() && !isHexPrefix(e.name));
+
+  for (const dir of oldDirs) {
+    const oldDir = join(CARD_IMAGES_DIR, dir.name);
+    let files: string[];
+    try {
+      files = await io.fs.readdir(oldDir);
+    } catch {
+      continue;
+    }
+
+    for (const file of files) {
+      progress.scanned++;
+      // Extract the UUID base from the filename (everything before the first dash-suffix)
+      const uuidMatch = file.match(
+        /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-/i,
+      );
+      if (!uuidMatch) {
+        progress.skipped++;
+        continue;
+      }
+
+      const uuid = uuidMatch[1];
+      const newPrefix = uuid.slice(-2);
+      const newDir = join(CARD_IMAGES_DIR, newPrefix);
+
+      try {
+        await io.fs.mkdir(newDir, { recursive: true });
+        const oldPath = join(oldDir, file);
+        const newPath = join(newDir, file);
+        await io.fs.rename(oldPath, newPath);
+        progress.moved++;
+      } catch (error) {
+        progress.failed++;
+        const message = error instanceof Error ? error.message : String(error);
+        progress.errors.push(`${dir.name}/${file}: ${message}`);
+      }
+    }
+  }
+
+  return progress;
 }

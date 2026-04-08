@@ -132,15 +132,13 @@ describe("printingImagesRepo", () => {
   });
 
   it("listAllRehosted returns rehosted images", async () => {
-    const db = createMockDb([
-      { imageId: "pi-1", rehostedUrl: "https://cdn.example.com/img.jpg", setSlug: "OGS" },
-    ]);
+    const db = createMockDb([{ imageId: "pi-1", rehostedUrl: "https://cdn.example.com/img.jpg" }]);
     expect(await printingImagesRepo(db).listAllRehosted()).toHaveLength(1);
   });
 
-  it("countOthersByCardImageId returns count", async () => {
+  it("countOthersByImageFileId returns count", async () => {
     const db = createMockDb([{ count: 2 }]);
-    expect(await printingImagesRepo(db).countOthersByCardImageId("ci-1", "pi-1")).toBe(2);
+    expect(await printingImagesRepo(db).countOthersByImageFileId("ci-1", "pi-1")).toBe(2);
   });
 
   it("listAllRehostedWithContext returns images with context", async () => {

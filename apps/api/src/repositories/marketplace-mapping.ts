@@ -57,7 +57,7 @@ export function marketplaceMappingRepo(db: Db) {
             .on("pi.face", "=", "front")
             .on("pi.isActive", "=", true),
         )
-        .leftJoin("cardImages as ci", "ci.id", "pi.cardImageId")
+        .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
         .leftJoin("promoTypes as pt", "pt.id", "p.promoTypeId")
         .select([
           "c.id as cardId",

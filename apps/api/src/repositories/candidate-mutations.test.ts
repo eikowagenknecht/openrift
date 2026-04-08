@@ -274,8 +274,8 @@ describe("candidateMutationsRepo", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("deletePrintingImagesByPrintingId returns card image IDs", async () => {
-    const db = createMockDb([{ cardImageId: "ci-1" }]);
+  it("deletePrintingImagesByPrintingId returns image file IDs", async () => {
+    const db = createMockDb([{ imageFileId: "ci-1" }]);
     expect(await candidateMutationsRepo(db).deletePrintingImagesByPrintingId("p-1")).toHaveLength(
       1,
     );

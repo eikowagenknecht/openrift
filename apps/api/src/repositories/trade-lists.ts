@@ -105,7 +105,7 @@ export function tradeListsRepo(db: Kysely<Database>) {
             .on("pi.face", "=", "front")
             .on("pi.isActive", "=", true),
         )
-        .leftJoin("cardImages as ci", "ci.id", "pi.cardImageId")
+        .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
         .select([
           "tli.id",
           "tli.tradeListId",
