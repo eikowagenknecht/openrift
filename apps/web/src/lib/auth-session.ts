@@ -21,7 +21,7 @@ interface SessionUser {
 }
 
 /** Session data returned by better-auth's get-session endpoint. */
-export type SessionData = {
+type SessionData = {
   session: { id: string; userId: string; expiresAt: string; token: string };
   user: SessionUser;
 } | null;

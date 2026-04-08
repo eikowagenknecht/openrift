@@ -12,7 +12,7 @@ export interface UploadCandidatesBody {
 
 // Defined locally to avoid `unknown` vs `{}` mismatch with server function JSON serialization.
 // Fields use JSON-safe types that match what the API actually returns.
-export interface UploadCandidatesResponse {
+interface UploadCandidatesResponse {
   provider: string;
   newCards: number;
   removedCards: number;

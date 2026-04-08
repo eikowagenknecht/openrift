@@ -41,7 +41,7 @@ export function normalizeNameForMatching(name: string): string {
   return name.toLowerCase().replaceAll(/[^a-z0-9]/g, "");
 }
 
-export interface ComparablePrinting {
+interface ComparablePrinting {
   setId?: string | null;
   setOrder?: number;
   shortCode: string;
