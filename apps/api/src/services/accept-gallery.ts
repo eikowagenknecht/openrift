@@ -1,3 +1,4 @@
+import { slugifyName } from "@openrift/shared";
 import type { CardType, Domain, SuperType } from "@openrift/shared/types";
 
 import type { Transact } from "../deps.js";
@@ -13,12 +14,6 @@ type CandidateCardsRepo = ReturnType<typeof candidateCardsRepo>;
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 type PromoTypesRepo = ReturnType<typeof promoTypesRepo>;
-
-/** Strip variant suffix from a short code — e.g. "OGN-001a" → "OGN-001"
- * @returns The short code with trailing letters/asterisks removed. */
-function stripVariantSuffix(shortCode: string): string {
-  return shortCode.replace(/(?<=\d)[a-z*]+$/, "");
-}
 
 /**
  * Accept a new card from favorite-provider candidate data: create the card,
@@ -52,10 +47,8 @@ export async function acceptFavoriteNewCard(
 
   const primaryCandidate = favoriteCandidates[0];
 
-  // 2. Derive card slug and create the card
-  const cardSlug = primaryCandidate.shortCode
-    ? stripVariantSuffix(primaryCandidate.shortCode)
-    : normalizedName;
+  // 2. Derive card slug from the display name for SEO-friendly URLs
+  const cardSlug = slugifyName(primaryCandidate.name);
 
   // Check for existing card with this slug (shouldn't exist for "new" rows, but be safe)
   const existing = await mut.getCardIdBySlug(cardSlug);

@@ -285,6 +285,11 @@ export function CardDetail({
         {/* Footer */}
         <CardFooter printing={printing} />
 
+        {/* Printings */}
+        {printings && printings.length > 1 && onSelectPrinting && (
+          <PrintingPicker current={printing} printings={printings} onSelect={onSelectPrinting} />
+        )}
+
         {/* View full page link (only in side pane, not on standalone page) */}
         {onClose && (
           <Link
@@ -295,11 +300,6 @@ export function CardDetail({
             <ExternalLinkIcon className="size-3" />
             View full page
           </Link>
-        )}
-
-        {/* Printings */}
-        {printings && printings.length > 1 && onSelectPrinting && (
-          <PrintingPicker current={printing} printings={printings} onSelect={onSelectPrinting} />
         )}
       </div>
     </div>

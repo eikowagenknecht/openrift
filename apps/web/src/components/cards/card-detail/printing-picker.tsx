@@ -1,4 +1,5 @@
 import type { Marketplace, Printing } from "@openrift/shared";
+import { Link } from "@tanstack/react-router";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { resolvePrice } from "@/hooks/use-card-data";
@@ -43,9 +44,14 @@ export function PrintingPicker({
               )}
             >
               <span className="min-w-0 flex-1 truncate">
-                <span className="text-muted-foreground mr-1.5 font-mono text-xs">
+                <Link
+                  to="/sets/$setSlug"
+                  params={{ setSlug: p.setSlug }}
+                  className="text-muted-foreground hover:text-foreground mr-1.5 font-mono text-xs"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   {formatCardId(p)}
-                </span>
+                </Link>
                 {label}
                 {hasMixedRarities && (
                   <Tooltip>

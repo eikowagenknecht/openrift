@@ -152,6 +152,7 @@ export {
   getOrientation,
   mostCommonValue,
   normalizeNameForMatching,
+  slugifyName,
 } from "./utils.js";
 
 export { extractKeywords } from "./keywords.js";
