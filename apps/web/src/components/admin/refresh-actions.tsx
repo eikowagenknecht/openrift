@@ -1,4 +1,7 @@
-import { client } from "@/lib/rpc-client";
+import { createServerFn } from "@tanstack/react-start";
+
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -23,6 +26,47 @@ export function formatRelativeTime(iso: string): string {
   return `in ${minutes}m`;
 }
 
+// ── Server functions for refresh actions ───────────────────────────────────
+
+const refreshTcgplayerPricesFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .handler(async ({ context }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/refresh-tcgplayer-prices`, {
+      method: "POST",
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Refresh TCGPlayer prices failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
+const refreshCardmarketPricesFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .handler(async ({ context }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/refresh-cardmarket-prices`, {
+      method: "POST",
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Refresh Cardmarket prices failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
+const refreshCardtraderPricesFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .handler(async ({ context }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/refresh-cardtrader-prices`, {
+      method: "POST",
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Refresh CardTrader prices failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
 // ── Action configs ──────────────────────────────────────────────────────────
 
 export const refreshActions = {
@@ -30,21 +74,21 @@ export const refreshActions = {
     key: "tcgplayer",
     title: "Refresh TCGPlayer Prices",
     description: "Fetch latest prices from TCGPlayer",
-    post: () => client.api.v1.admin["refresh-tcgplayer-prices"].$post(),
+    post: refreshTcgplayerPricesFn,
     cronKey: "tcgplayer" as const,
   },
   cardmarket: {
     key: "cardmarket",
     title: "Refresh Cardmarket Prices",
     description: "Fetch latest prices from Cardmarket",
-    post: () => client.api.v1.admin["refresh-cardmarket-prices"].$post(),
+    post: refreshCardmarketPricesFn,
     cronKey: "cardmarket" as const,
   },
   cardtrader: {
     key: "cardtrader",
     title: "Refresh CardTrader Prices",
     description: "Fetch latest prices from CardTrader",
-    post: () => client.api.v1.admin["refresh-cardtrader-prices"].$post(),
+    post: refreshCardtraderPricesFn,
     cronKey: "cardtrader" as const,
   },
 } as const;

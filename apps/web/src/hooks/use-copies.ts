@@ -4,7 +4,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { useCallback, useRef } from "react";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import type { CopiesResponse } from "@/lib/server-fns/api-types";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -114,17 +113,28 @@ interface AddCopyResult {
   collectionId: string;
 }
 
+const addCopiesFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { copies: { printingId: string; collectionId?: string }[] }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/copies`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      throw new Error(`Add copies failed: ${res.status}`);
+    }
+    return res.json() as Promise<AddCopyResult[]>;
+  });
+
 export function useAddCopies() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (body: {
+    mutationFn: (body: {
       copies: { printingId: string; collectionId?: string }[];
-    }): Promise<AddCopyResult[]> => {
-      const res = await client.api.v1.copies.$post({ json: body });
-      assertOk(res);
-      return (await res.json()) as AddCopyResult[];
-    },
+    }): Promise<AddCopyResult[]> => addCopiesFn({ data: body }),
     onSuccess: (data) => {
       const now = new Date().toISOString();
       const newCopies: CopyResponse[] = data.map((item) => ({
@@ -165,16 +175,27 @@ export function useAddCopies() {
   });
 }
 
+const moveCopiesFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { copyIds: string[]; toCollectionId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/copies/move`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      throw new Error(`Move copies failed: ${res.status}`);
+    }
+  });
+
 export function useMoveCopies() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (body: { copyIds: string[]; toCollectionId: string }) => {
       for (const batch of chunks(body.copyIds, BATCH_SIZE)) {
-        const res = await client.api.v1.copies.move.$post({
-          json: { copyIds: batch, toCollectionId: body.toCollectionId },
-        });
-        assertOk(res);
+        await moveCopiesFn({ data: { copyIds: batch, toCollectionId: body.toCollectionId } });
       }
     },
     onMutate: async (variables) => {
@@ -313,14 +334,27 @@ export function useBatchedAddCopies() {
   return { add, isPending: addCopies.isPending };
 }
 
+const disposeCopiesFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { copyIds: string[] }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/copies/dispose`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      throw new Error(`Dispose copies failed: ${res.status}`);
+    }
+  });
+
 export function useDisposeCopies() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (body: { copyIds: string[] }) => {
       for (const batch of chunks(body.copyIds, BATCH_SIZE)) {
-        const res = await client.api.v1.copies.dispose.$post({ json: { copyIds: batch } });
-        assertOk(res);
+        await disposeCopiesFn({ data: { copyIds: batch } });
       }
     },
     onMutate: async (variables) => {

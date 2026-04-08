@@ -2,7 +2,6 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import type { ProviderSettingsResponse } from "@/lib/server-fns/api-types";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -29,17 +28,52 @@ export function useProviderSettings() {
   return useSuspenseQuery(providerSettingsQueryOptions);
 }
 
+const reorderProviderSettingsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { providers: string[] }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/provider-settings/reorder`, {
+      method: "PUT",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify({ providers: data.providers }),
+    });
+    if (!res.ok) {
+      throw new Error(`Reorder provider settings failed: ${res.status}`);
+    }
+  });
+
 export function useReorderProviderSettings() {
   return useMutationWithInvalidation({
     mutationFn: async (providers: string[]) => {
-      const res = await client.api.v1.admin["provider-settings"].reorder.$put({
-        json: { providers },
-      });
-      assertOk(res);
+      await reorderProviderSettingsFn({ data: { providers } });
     },
     invalidates: [queryKeys.admin.providerSettings],
   });
 }
+
+const updateProviderSettingFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { provider: string; sortOrder?: number; isHidden?: boolean; isFavorite?: boolean }) =>
+      input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/provider-settings/${encodeURIComponent(data.provider)}`,
+      {
+        method: "PATCH",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({
+          sortOrder: data.sortOrder,
+          isHidden: data.isHidden,
+          isFavorite: data.isFavorite,
+        }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Update provider setting failed: ${res.status}`);
+    }
+  });
 
 export function useUpdateProviderSetting() {
   return useMutationWithInvalidation({
@@ -49,11 +83,7 @@ export function useUpdateProviderSetting() {
       isHidden?: boolean;
       isFavorite?: boolean;
     }) => {
-      const res = await client.api.v1.admin["provider-settings"][":provider"].$patch({
-        param: { provider: vars.provider },
-        json: { sortOrder: vars.sortOrder, isHidden: vars.isHidden, isFavorite: vars.isFavorite },
-      });
-      assertOk(res);
+      await updateProviderSettingFn({ data: vars });
     },
     invalidates: [queryKeys.admin.providerSettings, queryKeys.admin.cards.list],
   });

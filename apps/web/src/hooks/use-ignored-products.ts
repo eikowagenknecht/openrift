@@ -2,7 +2,6 @@ import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import type { IgnoredProductsResponse } from "@/lib/server-fns/api-types";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -28,25 +27,39 @@ export function useIgnoredProducts() {
   return useSuspenseQuery(ignoredProductsQueryOptions);
 }
 
-export function useUnignoreProduct() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (product: {
+const unignoreProductFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
       marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       externalId: number;
       finish: string;
       language: string;
-    }) => {
-      const res = await client.api.v1.admin["ignored-products"].$delete({
-        json: {
-          marketplace: product.marketplace,
-          products: [
-            { externalId: product.externalId, finish: product.finish, language: product.language },
-          ],
-        },
-      });
-      assertOk(res);
-    },
+    }) => input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/ignored-products`, {
+      method: "DELETE",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify({
+        marketplace: data.marketplace,
+        products: [{ externalId: data.externalId, finish: data.finish, language: data.language }],
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`Unignore product failed: ${res.status}`);
+    }
+  });
+
+export function useUnignoreProduct() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (product: {
+      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
+      externalId: number;
+      finish: string;
+      language: string;
+    }) => unignoreProductFn({ data: product }),
     onSuccess: () => {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.admin.ignoredProducts,

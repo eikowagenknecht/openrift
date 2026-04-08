@@ -1,16 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
+
+const fetchCronStatusFn = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cron-status`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Cron status fetch failed: ${res.status}`);
+    }
+    return res.json();
+  });
 
 export function useCronStatus() {
   return useQuery({
     queryKey: queryKeys.admin.cronStatus,
-    queryFn: async () => {
-      const res = await client.api.v1.admin["cron-status"].$get();
-      assertOk(res);
-      return await res.json();
-    },
+    queryFn: () => fetchCronStatusFn(),
     refetchInterval: 1 * 60 * 1000, // 1 minute
   });
 }

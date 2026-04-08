@@ -2,7 +2,6 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import type { AdminSiteSettingsResponse } from "@/lib/server-fns/api-types";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -40,36 +39,75 @@ export function useSiteSettings() {
   return useSuspenseQuery(adminSiteSettingsQueryOptions);
 }
 
+const updateSiteSettingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { key: string; value?: string; scope?: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/site-settings/${encodeURIComponent(data.key)}`,
+      {
+        method: "PATCH",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ value: data.value, scope: data.scope }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Update site setting failed: ${res.status}`);
+    }
+  });
+
 export function useUpdateSiteSetting() {
   return useMutationWithInvalidation({
     mutationFn: async (vars: { key: string; value?: string; scope?: string }) => {
-      const res = await client.api.v1.admin["site-settings"][":key"].$patch({
-        param: { key: vars.key },
-        json: { value: vars.value, scope: vars.scope as "web" | "api" },
-      });
-      assertOk(res);
+      await updateSiteSettingFn({ data: vars });
     },
     invalidates: [queryKeys.admin.siteSettings, queryKeys.siteSettings.all],
   });
 }
+
+const createSiteSettingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { key: string; value: string; scope?: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/site-settings`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify({ key: data.key, value: data.value, scope: data.scope }),
+    });
+    if (!res.ok) {
+      throw new Error(`Create site setting failed: ${res.status}`);
+    }
+  });
 
 export function useCreateSiteSetting() {
   return useMutationWithInvalidation({
     mutationFn: async (vars: { key: string; value: string; scope?: string }) => {
-      const res = await client.api.v1.admin["site-settings"].$post({
-        json: { key: vars.key, value: vars.value, scope: vars.scope as "web" | "api" },
-      });
-      assertOk(res);
+      await createSiteSettingFn({ data: vars });
     },
     invalidates: [queryKeys.admin.siteSettings, queryKeys.siteSettings.all],
   });
 }
 
+const deleteSiteSettingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { key: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/site-settings/${encodeURIComponent(data.key)}`,
+      {
+        method: "DELETE",
+        headers: { cookie: context.cookie },
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Delete site setting failed: ${res.status}`);
+    }
+  });
+
 export function useDeleteSiteSetting() {
   return useMutationWithInvalidation({
     mutationFn: async (key: string) => {
-      const res = await client.api.v1.admin["site-settings"][":key"].$delete({ param: { key } });
-      assertOk(res);
+      await deleteSiteSettingFn({ data: { key } });
     },
     invalidates: [queryKeys.admin.siteSettings, queryKeys.siteSettings.all],
   });

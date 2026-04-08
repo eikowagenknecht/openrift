@@ -4,7 +4,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
 
@@ -64,14 +63,32 @@ interface SaveMappingsBody {
   mappings: { printingId: string; externalId: number }[];
 }
 
+const saveMappingsFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { marketplace: string; mappings: { printingId: string; externalId: number }[] }) =>
+      input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ mappings: data.mappings }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Save mappings failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
 export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(marketplace, async (body: SaveMappingsBody) => {
-    const res = await client.api.v1.admin["marketplace-mappings"].$post({
-      query: { marketplace },
-      json: body,
+    const result = await saveMappingsFn({
+      data: { marketplace, mappings: body.mappings },
     });
-    assertOk(res);
-    const result = await res.json();
     const typed = result as { saved: number; skipped?: { externalId: number; reason: string }[] };
     if (typed.skipped && typed.skipped.length > 0) {
       for (const s of typed.skipped) {
@@ -82,48 +99,109 @@ export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" |
   });
 }
 
+const unmapPrintingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { marketplace: string; printingId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
+      {
+        method: "DELETE",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ printingId: data.printingId }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Unmap printing failed: ${res.status}`);
+    }
+  });
+
 export function useUnifiedUnmapPrinting(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(marketplace, async (printingId: string) => {
-    const res = await client.api.v1.admin["marketplace-mappings"].$delete({
-      query: { marketplace },
-      json: { printingId },
-    });
-    assertOk(res);
+    await unmapPrintingFn({ data: { marketplace, printingId } });
   });
 }
+
+const ignoreProductsFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      marketplace: string;
+      products: { externalId: number; finish: string; language: string }[];
+    }) => input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/ignored-products`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify({ marketplace: data.marketplace, products: data.products }),
+    });
+    if (!res.ok) {
+      throw new Error(`Ignore products failed: ${res.status}`);
+    }
+  });
 
 export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(
     marketplace,
     async (products: { externalId: number; finish: string; language: string }[]) => {
-      const res = await client.api.v1.admin["ignored-products"].$post({
-        json: { marketplace, products },
-      });
-      assertOk(res);
+      await ignoreProductsFn({ data: { marketplace, products } });
     },
   );
 }
+
+const assignToCardFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      marketplace: string;
+      externalId: number;
+      finish: string;
+      language: string;
+      cardId: string;
+    }) => input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/staging-card-overrides`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      throw new Error(`Assign to card failed: ${res.status}`);
+    }
+  });
 
 export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(
     marketplace,
     async (override: { externalId: number; finish: string; language: string; cardId: string }) => {
-      const res = await client.api.v1.admin["staging-card-overrides"].$post({
-        json: { marketplace, ...override },
-      });
-      assertOk(res);
+      await assignToCardFn({ data: { marketplace, ...override } });
     },
   );
 }
+
+const unassignFromCardFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { marketplace: string; externalId: number; finish: string; language: string }) => input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/staging-card-overrides`, {
+      method: "DELETE",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      throw new Error(`Unassign from card failed: ${res.status}`);
+    }
+  });
 
 export function useUnifiedUnassignFromCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(
     marketplace,
     async (params: { externalId: number; finish: string; language: string }) => {
-      const res = await client.api.v1.admin["staging-card-overrides"].$delete({
-        json: { marketplace, ...params },
-      });
-      assertOk(res);
+      await unassignFromCardFn({ data: { marketplace, ...params } });
     },
   );
 }

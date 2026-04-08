@@ -4,7 +4,6 @@ import { createServerFn } from "@tanstack/react-start";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import type {
   AdminFeatureFlagOverridesResponse,
   AdminFeatureFlagsResponse,
@@ -43,35 +42,71 @@ export function useFeatureFlags() {
   return useSuspenseQuery(adminFeatureFlagsQueryOptions);
 }
 
+const toggleFeatureFlagFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { key: string; enabled: boolean }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/feature-flags/${encodeURIComponent(data.key)}`,
+      {
+        method: "PATCH",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ enabled: data.enabled }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Toggle feature flag failed: ${res.status}`);
+    }
+  });
+
 export function useToggleFeatureFlag() {
   return useMutationWithInvalidation({
-    mutationFn: async (vars: { key: string; enabled: boolean }) => {
-      const res = await client.api.v1.admin["feature-flags"][":key"].$patch({
-        param: { key: vars.key },
-        json: { enabled: vars.enabled },
-      });
-      assertOk(res);
-    },
+    mutationFn: (vars: { key: string; enabled: boolean }) => toggleFeatureFlagFn({ data: vars }),
     invalidates: [queryKeys.admin.featureFlags, queryKeys.featureFlags.all],
   });
 }
+
+const createFeatureFlagFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { key: string; description?: string | null; enabled?: boolean }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/feature-flags`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      throw new Error(`Create feature flag failed: ${res.status}`);
+    }
+  });
 
 export function useCreateFeatureFlag() {
   return useMutationWithInvalidation({
-    mutationFn: async (vars: { key: string; description?: string | null; enabled?: boolean }) => {
-      const res = await client.api.v1.admin["feature-flags"].$post({ json: vars });
-      assertOk(res);
-    },
+    mutationFn: (vars: { key: string; description?: string | null; enabled?: boolean }) =>
+      createFeatureFlagFn({ data: vars }),
     invalidates: [queryKeys.admin.featureFlags, queryKeys.featureFlags.all],
   });
 }
 
+const deleteFeatureFlagFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { key: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/feature-flags/${encodeURIComponent(data.key)}`,
+      {
+        method: "DELETE",
+        headers: { cookie: context.cookie },
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Delete feature flag failed: ${res.status}`);
+    }
+  });
+
 export function useDeleteFeatureFlag() {
   return useMutationWithInvalidation({
-    mutationFn: async (key: string) => {
-      const res = await client.api.v1.admin["feature-flags"][":key"].$delete({ param: { key } });
-      assertOk(res);
-    },
+    mutationFn: (key: string) => deleteFeatureFlagFn({ data: { key } }),
     invalidates: [queryKeys.admin.featureFlags, queryKeys.featureFlags.all],
   });
 }
@@ -101,27 +136,51 @@ export function useFeatureFlagOverrides() {
   return useSuspenseQuery(adminFeatureFlagOverridesQueryOptions);
 }
 
+const upsertFeatureFlagOverrideFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { userId: string; flagKey: string; enabled: boolean }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/users/${encodeURIComponent(data.userId)}/feature-flags/${encodeURIComponent(data.flagKey)}`,
+      {
+        method: "PUT",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ enabled: data.enabled }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Upsert feature flag override failed: ${res.status}`);
+    }
+  });
+
 export function useUpsertFeatureFlagOverride() {
   return useMutationWithInvalidation({
-    mutationFn: async (vars: { userId: string; flagKey: string; enabled: boolean }) => {
-      const res = await client.api.v1.admin.users[":id"]["feature-flags"][":key"].$put({
-        param: { id: vars.userId, key: vars.flagKey },
-        json: { enabled: vars.enabled },
-      });
-      assertOk(res);
-    },
+    mutationFn: (vars: { userId: string; flagKey: string; enabled: boolean }) =>
+      upsertFeatureFlagOverrideFn({ data: vars }),
     invalidates: [queryKeys.admin.featureFlagOverrides, queryKeys.featureFlags.all],
   });
 }
 
+const deleteFeatureFlagOverrideFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { userId: string; flagKey: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/users/${encodeURIComponent(data.userId)}/feature-flags/${encodeURIComponent(data.flagKey)}`,
+      {
+        method: "DELETE",
+        headers: { cookie: context.cookie },
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Delete feature flag override failed: ${res.status}`);
+    }
+  });
+
 export function useDeleteFeatureFlagOverride() {
   return useMutationWithInvalidation({
-    mutationFn: async (vars: { userId: string; flagKey: string }) => {
-      const res = await client.api.v1.admin.users[":id"]["feature-flags"][":key"].$delete({
-        param: { id: vars.userId, key: vars.flagKey },
-      });
-      assertOk(res);
-    },
+    mutationFn: (vars: { userId: string; flagKey: string }) =>
+      deleteFeatureFlagOverrideFn({ data: vars }),
     invalidates: [queryKeys.admin.featureFlagOverrides, queryKeys.featureFlags.all],
   });
 }

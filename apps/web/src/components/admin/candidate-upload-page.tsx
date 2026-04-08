@@ -1,4 +1,5 @@
 import type { ProviderSettingResponse, ProviderStatsResponse } from "@openrift/shared";
+import { createServerFn } from "@tanstack/react-start";
 import {
   CheckIcon,
   ChevronsUpDownIcon,
@@ -38,8 +39,22 @@ import {
   useProviderSettings,
   useUpdateProviderSetting,
 } from "@/hooks/use-provider-settings";
-import { client } from "@/lib/rpc-client";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
 import { cn } from "@/lib/utils";
+
+const exportCardsFn = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards/export`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => null);
+      throw new Error((body as { error?: string } | null)?.error ?? `Export failed: ${res.status}`);
+    }
+    return res.json();
+  });
 
 export function CandidateUploadPage() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -394,14 +409,7 @@ function ExportCardsCard() {
     setExporting(true);
     setError(null);
     try {
-      const res = await client.api.v1.admin["cards"].export.$get();
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(
-          (body as { error?: string } | null)?.error ?? `Export failed: ${res.status}`,
-        );
-      }
-      const data = await res.json();
+      const data = await exportCardsFn();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

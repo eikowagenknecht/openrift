@@ -3,7 +3,6 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -41,17 +40,31 @@ export function useCollectionsMap(): Map<string, CollectionResponse> {
   return new Map(collections.map((col) => [col.id, col]));
 }
 
+const createCollectionFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { name: string; description?: string | null; availableForDeckbuilding?: boolean }) =>
+      input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/collections`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      throw new Error(`Create collection failed: ${res.status}`);
+    }
+    return res.json() as Promise<CollectionsResponse["items"][number]>;
+  });
+
 export function useCreateCollection() {
   return useMutationWithInvalidation({
-    mutationFn: async (body: {
+    mutationFn: (body: {
       name: string;
       description?: string | null;
       availableForDeckbuilding?: boolean;
-    }) => {
-      const res = await client.api.v1.collections.$post({ json: body });
-      assertOk(res);
-      return await res.json();
-    },
+    }) => createCollectionFn({ data: body }),
     invalidates: [queryKeys.collections.all],
   });
 }

@@ -1,24 +1,351 @@
-import type { InferRequestType } from "hono/client";
+import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-export type AcceptNewCardBody = InferRequestType<
-  (typeof client.api.v1.admin.cards.new)[":name"]["accept"]["$post"]
->["json"];
+export interface AcceptNewCardBody {
+  cardFields: Record<string, unknown>;
+}
 
-export type AcceptPrintingBody = InferRequestType<
-  (typeof client.api.v1.admin.cards)[":cardId"]["accept-printing"]["$post"]
->["json"];
+export interface AcceptPrintingBody {
+  printingFields: Record<string, unknown>;
+  candidatePrintingIds: string[];
+}
+
+// ── Server functions ─────────────────────────────────────────────────────────
+
+const checkCandidateCardFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { candidateCardId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.candidateCardId)}/check`,
+      { method: "POST", headers: { cookie: context.cookie } },
+    );
+    if (!res.ok) {
+      throw new Error(`Check candidate card failed: ${res.status}`);
+    }
+  });
+
+const uncheckCandidateCardFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { candidateCardId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.candidateCardId)}/uncheck`,
+      { method: "POST", headers: { cookie: context.cookie } },
+    );
+    if (!res.ok) {
+      throw new Error(`Uncheck candidate card failed: ${res.status}`);
+    }
+  });
+
+const checkAllCandidateCardsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { cardId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/check-all`,
+      { method: "POST", headers: { cookie: context.cookie } },
+    );
+    if (!res.ok) {
+      throw new Error(`Check all candidate cards failed: ${res.status}`);
+    }
+  });
+
+const checkCandidatePrintingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}/check`,
+      { method: "POST", headers: { cookie: context.cookie } },
+    );
+    if (!res.ok) {
+      throw new Error(`Check candidate printing failed: ${res.status}`);
+    }
+  });
+
+const uncheckCandidatePrintingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}/uncheck`,
+      { method: "POST", headers: { cookie: context.cookie } },
+    );
+    if (!res.ok) {
+      throw new Error(`Uncheck candidate printing failed: ${res.status}`);
+    }
+  });
+
+const checkAllCandidatePrintingsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { printingId?: string; extraIds?: string[] }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards/candidate-printings/check-all`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify({ printingId: data.printingId, extraIds: data.extraIds }),
+    });
+    if (!res.ok) {
+      throw new Error(`Check all candidate printings failed: ${res.status}`);
+    }
+  });
+
+const renameCardFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { cardId: string; newId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/rename`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ newId: data.newId }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Rename card failed: ${res.status}`);
+    }
+  });
+
+const acceptCardFieldFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { cardId: string; field: string; value: unknown; source?: string }) => input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/accept-field`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ field: data.field, value: data.value, source: data.source }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Accept card field failed: ${res.status}`);
+    }
+  });
+
+const acceptPrintingFieldFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { printingId: string; field: string; value: unknown; source?: string }) => input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}/accept-field`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ field: data.field, value: data.value, source: data.source }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Accept printing field failed: ${res.status}`);
+    }
+  });
+
+const acceptNewCardFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { name: string; cardFields: Record<string, unknown> }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/new/${encodeURIComponent(data.name)}/accept`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ cardFields: data.cardFields }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Accept new card failed: ${res.status}`);
+    }
+  });
+
+const acceptFavoritesFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { name: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/new/${encodeURIComponent(data.name)}/accept-favorites`,
+      { method: "POST", headers: { cookie: context.cookie } },
+    );
+    if (!res.ok) {
+      throw new Error(`Accept favorites failed: ${res.status}`);
+    }
+  });
+
+const acceptFavoritePrintingsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { cardSlug: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.cardSlug)}/accept-favorite-printings`,
+      { method: "POST", headers: { cookie: context.cookie } },
+    );
+    if (!res.ok) {
+      throw new Error(`Accept favorite printings failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
+const linkCardFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { name: string; cardId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/new/${encodeURIComponent(data.name)}/link`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ cardId: data.cardId }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Link card failed: ${res.status}`);
+    }
+  });
+
+const reassignCandidatePrintingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { id: string; fields: Record<string, unknown> }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}`,
+      {
+        method: "PATCH",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify(data.fields),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Reassign candidate printing failed: ${res.status}`);
+    }
+  });
+
+const deleteCandidatePrintingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}`,
+      { method: "DELETE", headers: { cookie: context.cookie } },
+    );
+    if (!res.ok) {
+      throw new Error(`Delete candidate printing failed: ${res.status}`);
+    }
+  });
+
+const copyCandidatePrintingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { id: string; printingId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}/copy`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ printingId: data.printingId }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Copy candidate printing failed: ${res.status}`);
+    }
+  });
+
+const linkCandidatePrintingsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { candidatePrintingIds: string[]; printingId: string | null }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards/candidate-printings/link`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      throw new Error(`Link candidate printings failed: ${res.status}`);
+    }
+  });
+
+const deletePrintingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { printingId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}`,
+      { method: "DELETE", headers: { cookie: context.cookie } },
+    );
+    if (!res.ok) {
+      throw new Error(`Delete printing failed: ${res.status}`);
+    }
+  });
+
+const acceptPrintingGroupFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      cardId: string;
+      printingFields: Record<string, unknown>;
+      candidatePrintingIds: string[];
+    }) => input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/accept-printing`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({
+          printingFields: data.printingFields,
+          candidatePrintingIds: data.candidatePrintingIds,
+        }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Accept printing group failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
+const checkProviderFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { provider: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/by-provider/${encodeURIComponent(data.provider)}/check`,
+      { method: "POST", headers: { cookie: context.cookie } },
+    );
+    if (!res.ok) {
+      throw new Error(`Check provider failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
+const deleteProviderFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { provider: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/by-provider/${encodeURIComponent(data.provider)}`,
+      { method: "DELETE", headers: { cookie: context.cookie } },
+    );
+    if (!res.ok) {
+      throw new Error(`Delete provider failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
+// ── Hook exports ─────────────────────────────────────────────────────────────
 
 export function useCheckCandidateCard() {
   return useMutationWithInvalidation({
     mutationFn: async (candidateCardId: string) => {
-      const res = await client.api.v1.admin["cards"][":candidateCardId"].check.$post({
-        param: { candidateCardId },
-      });
-      assertOk(res);
+      await checkCandidateCardFn({ data: { candidateCardId } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -27,10 +354,7 @@ export function useCheckCandidateCard() {
 export function useUncheckCandidateCard() {
   return useMutationWithInvalidation({
     mutationFn: async (candidateCardId: string) => {
-      const res = await client.api.v1.admin["cards"][":candidateCardId"].uncheck.$post({
-        param: { candidateCardId },
-      });
-      assertOk(res);
+      await uncheckCandidateCardFn({ data: { candidateCardId } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -39,10 +363,7 @@ export function useUncheckCandidateCard() {
 export function useCheckAllCandidateCards() {
   return useMutationWithInvalidation({
     mutationFn: async (cardId: string) => {
-      const res = await client.api.v1.admin["cards"][":cardId"]["check-all"].$post({
-        param: { cardId },
-      });
-      assertOk(res);
+      await checkAllCandidateCardsFn({ data: { cardId } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -51,10 +372,7 @@ export function useCheckAllCandidateCards() {
 export function useCheckCandidatePrinting() {
   return useMutationWithInvalidation({
     mutationFn: async (id: string) => {
-      const res = await client.api.v1.admin["cards"]["candidate-printings"][":id"].check.$post({
-        param: { id },
-      });
-      assertOk(res);
+      await checkCandidatePrintingFn({ data: { id } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -63,10 +381,7 @@ export function useCheckCandidatePrinting() {
 export function useUncheckCandidatePrinting() {
   return useMutationWithInvalidation({
     mutationFn: async (id: string) => {
-      const res = await client.api.v1.admin["cards"]["candidate-printings"][":id"].uncheck.$post({
-        param: { id },
-      });
-      assertOk(res);
+      await uncheckCandidatePrintingFn({ data: { id } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -75,10 +390,7 @@ export function useUncheckCandidatePrinting() {
 export function useCheckAllCandidatePrintings() {
   return useMutationWithInvalidation({
     mutationFn: async ({ printingId, extraIds }: { printingId?: string; extraIds?: string[] }) => {
-      const res = await client.api.v1.admin["cards"]["candidate-printings"]["check-all"].$post({
-        json: { printingId, extraIds },
-      });
-      assertOk(res);
+      await checkAllCandidatePrintingsFn({ data: { printingId, extraIds } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -87,11 +399,7 @@ export function useCheckAllCandidatePrintings() {
 export function useRenameCard() {
   return useMutationWithInvalidation({
     mutationFn: async ({ cardId, newId }: { cardId: string; newId: string }) => {
-      const res = await client.api.v1.admin["cards"][":cardId"].rename.$post({
-        param: { cardId },
-        json: { newId },
-      });
-      assertOk(res);
+      await renameCardFn({ data: { cardId, newId } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -110,11 +418,7 @@ export function useAcceptCardField() {
       value: unknown;
       source?: "provider" | "manual";
     }) => {
-      const res = await client.api.v1.admin["cards"][":cardId"]["accept-field"].$post({
-        param: { cardId },
-        json: { field, value, source },
-      });
-      assertOk(res);
+      await acceptCardFieldFn({ data: { cardId, field, value, source } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -133,11 +437,7 @@ export function useAcceptPrintingField() {
       value: unknown;
       source?: "provider" | "manual";
     }) => {
-      const res = await client.api.v1.admin["cards"].printing[":printingId"]["accept-field"].$post({
-        param: { printingId },
-        json: { field, value, source },
-      });
-      assertOk(res);
+      await acceptPrintingFieldFn({ data: { printingId, field, value, source } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -152,11 +452,7 @@ export function useAcceptNewCard() {
       name: string;
       cardFields: AcceptNewCardBody["cardFields"];
     }) => {
-      const res = await client.api.v1.admin["cards"].new[":name"].accept.$post({
-        param: { name },
-        json: { cardFields },
-      });
-      assertOk(res);
+      await acceptNewCardFn({ data: { name, cardFields } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -165,10 +461,7 @@ export function useAcceptNewCard() {
 export function useAcceptFavoriteNewCard() {
   return useMutationWithInvalidation({
     mutationFn: async (name: string) => {
-      const res = await client.api.v1.admin["cards"].new[":name"]["accept-favorites"].$post({
-        param: { name },
-      });
-      assertOk(res);
+      await acceptFavoritesFn({ data: { name } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -177,11 +470,7 @@ export function useAcceptFavoriteNewCard() {
 export function useLinkCard() {
   return useMutationWithInvalidation({
     mutationFn: async ({ name, cardId }: { name: string; cardId: string }) => {
-      const res = await client.api.v1.admin["cards"].new[":name"].link.$post({
-        param: { name },
-        json: { cardId },
-      });
-      assertOk(res);
+      await linkCardFn({ data: { name, cardId } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -190,11 +479,7 @@ export function useLinkCard() {
 export function useReassignCandidatePrinting() {
   return useMutationWithInvalidation({
     mutationFn: async ({ id, fields }: { id: string; fields: Record<string, unknown> }) => {
-      const res = await client.api.v1.admin["cards"]["candidate-printings"][":id"].$patch({
-        param: { id },
-        json: fields,
-      });
-      assertOk(res);
+      await reassignCandidatePrintingFn({ data: { id, fields } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -203,10 +488,7 @@ export function useReassignCandidatePrinting() {
 export function useDeleteCandidatePrinting() {
   return useMutationWithInvalidation({
     mutationFn: async (id: string) => {
-      const res = await client.api.v1.admin["cards"]["candidate-printings"][":id"].$delete({
-        param: { id },
-      });
-      assertOk(res);
+      await deleteCandidatePrintingFn({ data: { id } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -215,11 +497,7 @@ export function useDeleteCandidatePrinting() {
 export function useCopyCandidatePrinting() {
   return useMutationWithInvalidation({
     mutationFn: async ({ id, printingId }: { id: string; printingId: string }) => {
-      const res = await client.api.v1.admin["cards"]["candidate-printings"][":id"].copy.$post({
-        param: { id },
-        json: { printingId },
-      });
-      assertOk(res);
+      await copyCandidatePrintingFn({ data: { id, printingId } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -228,10 +506,7 @@ export function useCopyCandidatePrinting() {
 export function useLinkCandidatePrintings() {
   return useMutationWithInvalidation({
     mutationFn: async (payload: { candidatePrintingIds: string[]; printingId: string | null }) => {
-      const res = await client.api.v1.admin["cards"]["candidate-printings"].link.$post({
-        json: payload,
-      });
-      assertOk(res);
+      await linkCandidatePrintingsFn({ data: payload });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -240,10 +515,7 @@ export function useLinkCandidatePrintings() {
 export function useDeletePrinting() {
   return useMutationWithInvalidation({
     mutationFn: async (printingId: string) => {
-      const res = await client.api.v1.admin["cards"].printing[":printingId"].$delete({
-        param: { printingId },
-      });
-      assertOk(res);
+      await deletePrintingFn({ data: { printingId } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -260,12 +532,9 @@ export function useAcceptPrintingGroup() {
       printingFields: AcceptPrintingBody["printingFields"];
       candidatePrintingIds: string[];
     }) => {
-      const res = await client.api.v1.admin["cards"][":cardId"]["accept-printing"].$post({
-        param: { cardId },
-        json: { printingFields, candidatePrintingIds },
+      return await acceptPrintingGroupFn({
+        data: { cardId, printingFields, candidatePrintingIds },
       });
-      assertOk(res);
-      return await res.json();
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -273,13 +542,7 @@ export function useAcceptPrintingGroup() {
 
 export function useCheckProvider() {
   return useMutationWithInvalidation({
-    mutationFn: async (provider: string) => {
-      const res = await client.api.v1.admin["cards"]["by-provider"][":provider"].check.$post({
-        param: { provider },
-      });
-      assertOk(res);
-      return await res.json();
-    },
+    mutationFn: (provider: string) => checkProviderFn({ data: { provider } }),
     invalidates: [queryKeys.admin.cards.all],
   });
 }
@@ -287,13 +550,7 @@ export function useCheckProvider() {
 export function useAcceptFavoritePrintings() {
   return useMutationWithInvalidation({
     mutationFn: async (cardSlug: string) => {
-      const res = await client.api.v1.admin["cards"][":cardSlug"][
-        "accept-favorite-printings"
-      ].$post({
-        param: { cardSlug },
-      });
-      assertOk(res);
-      return await res.json();
+      return await acceptFavoritePrintingsFn({ data: { cardSlug } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });
@@ -301,13 +558,7 @@ export function useAcceptFavoritePrintings() {
 
 export function useDeleteProvider() {
   return useMutationWithInvalidation({
-    mutationFn: async (provider: string) => {
-      const res = await client.api.v1.admin["cards"]["by-provider"][":provider"].$delete({
-        param: { provider },
-      });
-      assertOk(res);
-      return await res.json();
-    },
+    mutationFn: (provider: string) => deleteProviderFn({ data: { provider } }),
     invalidates: [queryKeys.admin.cards.all],
   });
 }

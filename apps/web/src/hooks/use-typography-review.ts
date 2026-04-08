@@ -2,7 +2,6 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import type { TypographyReviewResponse } from "@/lib/server-fns/api-types";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -29,16 +28,29 @@ export function useTypographyReview() {
   return useSuspenseQuery(typographyReviewQueryOptions);
 }
 
+const acceptTypographyFixFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { entity: "card" | "printing"; id: string; field: string; proposed: string }) => input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/typography-review/accept`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      throw new Error(`Accept typography fix failed: ${res.status}`);
+    }
+  });
+
 export function useAcceptTypographyFix() {
   return useMutationWithInvalidation<
     void,
     { entity: "card" | "printing"; id: string; field: string; proposed: string }
   >({
     mutationFn: async (variables) => {
-      const res = await client.api.v1.admin["typography-review"].accept.$post({
-        json: variables,
-      });
-      assertOk(res);
+      await acceptTypographyFixFn({ data: variables });
     },
     invalidates: [queryKeys.admin.typographyReview],
   });

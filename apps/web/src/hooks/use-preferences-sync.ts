@@ -1,13 +1,41 @@
 import type { UserPreferencesResponse } from "@openrift/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useRef } from "react";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import { sanitizeServerResponse, sanitizeTheme } from "@/lib/sanitize-preferences";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
 import type { DisplayOverrides } from "@/stores/display-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
+
+const fetchPreferencesFn = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }) => {
+    const res = await fetch(`${API_URL}/api/v1/preferences`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Preferences fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<UserPreferencesResponse>;
+  });
+
+const patchPreferencesFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { prefs: UserPreferencesResponse }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/preferences`, {
+      method: "PATCH",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data.prefs),
+    });
+    if (!res.ok) {
+      throw new Error(`Patch preferences failed: ${res.status}`);
+    }
+  });
 
 /**
  * Build the PATCH body from current store state.
@@ -46,11 +74,7 @@ export function usePreferencesSync(enabled: boolean) {
 
   const { data } = useQuery({
     queryKey: queryKeys.preferences.all,
-    queryFn: async () => {
-      const res = await client.api.v1.preferences.$get();
-      assertOk(res);
-      return (await res.json()) as UserPreferencesResponse;
-    },
+    queryFn: () => fetchPreferencesFn(),
     enabled,
   });
 
@@ -93,8 +117,7 @@ export function usePreferencesSync(enabled: boolean) {
       }
       debounceTimer.current = setTimeout(async () => {
         const prefs = getPrefsSnapshot();
-        const res = await client.api.v1.preferences.$patch({ json: prefs });
-        assertOk(res);
+        await patchPreferencesFn({ data: { prefs } });
         saving.current = true;
         queryClient.setQueryData(queryKeys.preferences.all, prefs);
       }, 1000);

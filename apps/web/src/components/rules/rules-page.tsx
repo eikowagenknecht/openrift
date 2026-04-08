@@ -1,5 +1,6 @@
-import type { RuleResponse, RuleVersionResponse } from "@openrift/shared";
+import type { RuleResponse, RuleVersionResponse, RulesListResponse } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 import { SearchIcon } from "lucide-react";
 import { useRef, useState } from "react";
 
@@ -7,8 +8,32 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { useRules, useRuleVersions } from "@/hooks/use-rules";
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
+import { API_URL } from "@/lib/server-fns/api-url";
 import { cn, PAGE_PADDING } from "@/lib/utils";
+
+// ── Server functions (public, no auth) ───────────────────────────────────────
+
+const fetchRulesByVersionFn = createServerFn({ method: "GET" })
+  .inputValidator((input: { version: string }) => input)
+  .handler(async ({ data }): Promise<RulesListResponse> => {
+    const params = new URLSearchParams({ version: data.version });
+    const res = await fetch(`${API_URL}/api/v1/rules?${params.toString()}`);
+    if (!res.ok) {
+      throw new Error(`Rules fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<RulesListResponse>;
+  });
+
+const searchRulesFn = createServerFn({ method: "GET" })
+  .inputValidator((input: { query: string }) => input)
+  .handler(async ({ data }): Promise<RulesListResponse> => {
+    const params = new URLSearchParams({ q: data.query });
+    const res = await fetch(`${API_URL}/api/v1/rules?${params.toString()}`);
+    if (!res.ok) {
+      throw new Error(`Rules search failed: ${res.status}`);
+    }
+    return res.json() as Promise<RulesListResponse>;
+  });
 
 /**
  * Formats a rule number for display by stripping trailing dots.
@@ -128,26 +153,14 @@ export function RulesPage() {
 
   const versionedQuery = useQuery({
     queryKey: queryKeys.rules.byVersion(selectedVersion ?? ""),
-    queryFn: async () => {
-      const res = await client.api.v1.rules.$get({
-        query: { version: selectedVersion },
-      });
-      assertOk(res);
-      return await res.json();
-    },
+    queryFn: () => fetchRulesByVersionFn({ data: { version: selectedVersion ?? "" } }),
     enabled: !isLatest && Boolean(selectedVersion),
     staleTime: 5 * 60 * 1000,
   });
 
   const searchResultsQuery = useQuery({
     queryKey: queryKeys.rules.search(searchQuery),
-    queryFn: async () => {
-      const res = await client.api.v1.rules.$get({
-        query: { q: searchQuery },
-      });
-      assertOk(res);
-      return await res.json();
-    },
+    queryFn: () => searchRulesFn({ data: { query: searchQuery } }),
     enabled: searchQuery.length >= 2,
     staleTime: 60 * 1000,
   });

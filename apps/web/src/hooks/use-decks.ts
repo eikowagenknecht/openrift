@@ -11,7 +11,6 @@ import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -62,51 +61,91 @@ export function useDeckDetail(deckId: string) {
   return useSuspenseQuery(deckDetailQueryOptions(deckId));
 }
 
-export function useCreateDeck() {
-  return useMutationWithInvalidation({
-    mutationFn: async (body: {
+const createDeckFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
       name: string;
       description?: string | null;
       format: DeckFormat;
       isWanted?: boolean;
       isPublic?: boolean;
-    }) => {
-      const res = await client.api.v1.decks.$post({ json: body });
-      assertOk(res);
-      return await res.json();
-    },
+    }) => input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/decks`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      throw new Error(`Create deck failed: ${res.status}`);
+    }
+    return res.json() as Promise<DeckResponse>;
+  });
+
+export function useCreateDeck() {
+  return useMutationWithInvalidation({
+    mutationFn: (body: {
+      name: string;
+      description?: string | null;
+      format: DeckFormat;
+      isWanted?: boolean;
+      isPublic?: boolean;
+    }) => createDeckFn({ data: body }),
     invalidates: [queryKeys.decks.all],
   });
 }
 
+const deleteDeckFn = createServerFn({ method: "POST" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: deckId }) => {
+    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(deckId)}`, {
+      method: "DELETE",
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Delete deck failed: ${res.status}`);
+    }
+  });
+
 export function useDeleteDeck() {
   return useMutationWithInvalidation<unknown, string>({
-    mutationFn: async (deckId) => {
-      const res = await client.api.v1.decks[":id"].$delete({ param: { id: deckId } });
-      assertOk(res);
-    },
+    mutationFn: (deckId) => deleteDeckFn({ data: deckId }),
     invalidates: [queryKeys.decks.all],
   });
 }
+
+const saveDeckCardsFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: { deckId: string; cards: { cardId: string; zone: DeckZone; quantity: number }[] }) =>
+      input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(data.deckId)}/cards`, {
+      method: "PUT",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify({ cards: data.cards }),
+    });
+    if (!res.ok) {
+      throw new Error(`Save deck cards failed: ${res.status}`);
+    }
+    return res.json() as Promise<{ cards: DeckCardResponse[] }>;
+  });
 
 export function useSaveDeckCards() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       deckId,
       cards,
     }: {
       deckId: string;
       cards: { cardId: string; zone: DeckZone; quantity: number }[];
-    }): Promise<{ cards: DeckCardResponse[] }> => {
-      const res = await client.api.v1.decks[":id"].cards.$put({
-        param: { id: deckId },
-        json: { cards },
-      });
-      assertOk(res);
-      return (await res.json()) as { cards: DeckCardResponse[] };
-    },
+    }): Promise<{ cards: DeckCardResponse[] }> => saveDeckCardsFn({ data: { deckId, cards } }),
     onSuccess: (data, variables) => {
       // Update deck detail cache with the returned cards
       queryClient.setQueryData<DeckDetailResponse>(
@@ -129,25 +168,34 @@ export function useSaveDeckCards() {
   });
 }
 
+const updateDeckFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { deckId: string; name?: string; format?: DeckFormat }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const { deckId, ...fields } = data;
+    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(deckId)}`, {
+      method: "PATCH",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(fields),
+    });
+    if (!res.ok) {
+      throw new Error(`Update deck failed: ${res.status}`);
+    }
+    return res.json() as Promise<DeckResponse>;
+  });
+
 export function useUpdateDeck() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       deckId,
       ...fields
     }: {
       deckId: string;
       name?: string;
       format?: DeckFormat;
-    }): Promise<DeckResponse> => {
-      const res = await client.api.v1.decks[":id"].$patch({
-        param: { id: deckId },
-        json: fields,
-      });
-      assertOk(res);
-      return (await res.json()) as DeckResponse;
-    },
+    }): Promise<DeckResponse> => updateDeckFn({ data: { deckId, ...fields } }),
     onSuccess: (data, variables) => {
       // Update deck detail cache with the returned metadata
       queryClient.setQueryData<DeckDetailResponse>(
@@ -175,30 +223,52 @@ export function useUpdateDeck() {
   });
 }
 
+const cloneDeckFn = createServerFn({ method: "POST" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: deckId }) => {
+    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(deckId)}/clone`, {
+      method: "POST",
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Clone deck failed: ${res.status}`);
+    }
+    return res.json() as Promise<DeckResponse>;
+  });
+
 export function useCloneDeck() {
   return useMutationWithInvalidation({
-    mutationFn: async (deckId: string) => {
-      const res = await client.api.v1.decks[":id"].clone.$post({ param: { id: deckId } });
-      assertOk(res);
-      return await res.json();
-    },
+    mutationFn: (deckId: string) => cloneDeckFn({ data: deckId }),
     invalidates: [queryKeys.decks.all],
   });
 }
 
 type ExportFormat = "piltover" | "text" | "tts";
 
+const exportDeckFn = createServerFn({ method: "GET" })
+  .inputValidator((input: { deckId: string; format?: ExportFormat }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const params = new URLSearchParams();
+    if (data.format) {
+      params.set("format", data.format);
+    }
+    const query = params.toString();
+    const url = `${API_URL}/api/v1/decks/${encodeURIComponent(data.deckId)}/export${query ? `?${query}` : ""}`;
+    const res = await fetch(url, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Export deck failed: ${res.status}`);
+    }
+    return res.json() as Promise<DeckExportResponse>;
+  });
+
 export function useExportDeck() {
   return useMutationWithInvalidation<DeckExportResponse, { deckId: string; format?: ExportFormat }>(
     {
-      mutationFn: async ({ deckId, format }) => {
-        const res = await client.api.v1.decks[":id"].export.$get({
-          param: { id: deckId },
-          query: { format },
-        });
-        assertOk(res);
-        return await res.json();
-      },
+      mutationFn: ({ deckId, format }) => exportDeckFn({ data: { deckId, format } }),
       invalidates: [],
     },
   );

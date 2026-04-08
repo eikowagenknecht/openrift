@@ -2,7 +2,6 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import type { AdminLanguagesResponse } from "@/lib/server-fns/api-types";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -29,46 +28,88 @@ export function useLanguages() {
   return useSuspenseQuery(adminLanguagesQueryOptions);
 }
 
+const createLanguageFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { code: string; name: string; sortOrder?: number }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/languages`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      throw new Error(`Create language failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
 export function useCreateLanguage() {
   return useMutationWithInvalidation({
-    mutationFn: async (vars: { code: string; name: string; sortOrder?: number }) => {
-      const res = await client.api.v1.admin.languages.$post({ json: vars });
-      assertOk(res);
-      return await res.json();
-    },
+    mutationFn: (vars: { code: string; name: string; sortOrder?: number }) =>
+      createLanguageFn({ data: vars }),
     invalidates: [queryKeys.admin.languages],
   });
 }
+
+const updateLanguageFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { code: string; name?: string; sortOrder?: number }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/languages/${encodeURIComponent(data.code)}`, {
+      method: "PATCH",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify({ name: data.name, sortOrder: data.sortOrder }),
+    });
+    if (!res.ok) {
+      throw new Error(`Update language failed: ${res.status}`);
+    }
+  });
 
 export function useUpdateLanguage() {
   return useMutationWithInvalidation({
-    mutationFn: async (vars: { code: string; name?: string; sortOrder?: number }) => {
-      const res = await client.api.v1.admin.languages[":code"].$patch({
-        param: { code: vars.code },
-        json: { name: vars.name, sortOrder: vars.sortOrder },
-      });
-      assertOk(res);
-    },
+    mutationFn: (vars: { code: string; name?: string; sortOrder?: number }) =>
+      updateLanguageFn({ data: vars }),
     invalidates: [queryKeys.admin.languages],
   });
 }
+
+const reorderLanguagesFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { codes: string[] }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/languages/reorder`, {
+      method: "PUT",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify({ codes: data.codes }),
+    });
+    if (!res.ok) {
+      throw new Error(`Reorder languages failed: ${res.status}`);
+    }
+  });
 
 export function useReorderLanguages() {
   return useMutationWithInvalidation({
-    mutationFn: async (codes: string[]) => {
-      const res = await client.api.v1.admin.languages.reorder.$put({ json: { codes } });
-      assertOk(res);
-    },
+    mutationFn: (codes: string[]) => reorderLanguagesFn({ data: { codes } }),
     invalidates: [queryKeys.admin.languages],
   });
 }
 
+const deleteLanguageFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { code: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/languages/${encodeURIComponent(data.code)}`, {
+      method: "DELETE",
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Delete language failed: ${res.status}`);
+    }
+  });
+
 export function useDeleteLanguage() {
   return useMutationWithInvalidation({
-    mutationFn: async (code: string) => {
-      const res = await client.api.v1.admin.languages[":code"].$delete({ param: { code } });
-      assertOk(res);
-    },
+    mutationFn: (code: string) => deleteLanguageFn({ data: { code } }),
     invalidates: [queryKeys.admin.languages],
   });
 }
