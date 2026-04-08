@@ -28,17 +28,14 @@ export async function up(db: Kysely<any>): Promise<void> {
   );
 
   // 5. Rename the FK constraint on printing_images
-  await sql`ALTER TABLE printing_images RENAME CONSTRAINT printing_images_card_image_id_fkey TO printing_images_image_file_id_fkey`.execute(
+  await sql`ALTER TABLE printing_images RENAME CONSTRAINT fk_printing_images_card_image TO fk_printing_images_image_file`.execute(
     db,
   );
 
   // 6. Rename the unique index on printing_images that includes the old column name
   // (The unique index on (printing_id, face, provider) doesn't reference the column name, so no rename needed.)
 
-  // 7. Rename trigger (updated_at trigger references old table name)
-  await sql`ALTER TRIGGER set_updated_at ON image_files RENAME TO set_updated_at`.execute(db);
-
-  // 8. Update rehosted_url paths: /card-images/{setSlug}/{uuid} → /card-images/{last2chars}/{uuid}
+  // 7. Update rehosted_url paths: /card-images/{setSlug}/{uuid} → /card-images/{last2chars}/{uuid}
   // Extract the UUID (last path segment) and compute the new prefix from its last 2 chars
   await sql`
     UPDATE image_files
@@ -69,7 +66,7 @@ export async function down(db: Kysely<any>): Promise<void> {
   await sql`ALTER INDEX idx_image_files_original_url RENAME TO idx_card_images_original_url`.execute(
     db,
   );
-  await sql`ALTER TABLE printing_images RENAME CONSTRAINT printing_images_image_file_id_fkey TO printing_images_card_image_id_fkey`.execute(
+  await sql`ALTER TABLE printing_images RENAME CONSTRAINT fk_printing_images_image_file TO fk_printing_images_card_image`.execute(
     db,
   );
 }
