@@ -1,7 +1,8 @@
 import type { Printing } from "@openrift/shared";
 import { WellKnown, getOrientation } from "@openrift/shared";
+import { Link } from "@tanstack/react-router";
 import { useDrag } from "@use-gesture/react";
-import { ArrowLeftIcon, SparkleIcon, XIcon } from "lucide-react";
+import { ArrowLeftIcon, ExternalLinkIcon, SparkleIcon, XIcon } from "lucide-react";
 import { useRef } from "react";
 
 import { CardText } from "@/components/cards/card-text";
@@ -25,7 +26,7 @@ import { StatChip } from "./stat-chip";
 
 interface CardDetailProps {
   printing: Printing;
-  onClose: () => void;
+  onClose?: () => void;
   showImages?: boolean;
   onPrevCard?: () => void;
   onNextCard?: () => void;
@@ -100,24 +101,26 @@ export function CardDetail({
       style={getDomainTintStyle(card.domains, domainColors)}
     >
       {/* Mobile header */}
-      <div className="border-border/30 sticky top-0 z-10 border-b p-4 backdrop-blur md:hidden">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon-sm" onClick={onClose}>
-            <ArrowLeftIcon className="size-4" />
-          </Button>
-          <CardDetailHeading
-            printing={printing}
-            setNumber={setNumber}
-            onTagClick={onTagClick}
-            truncate
-          />
-          <OwnedCollectionsPopover
-            printingId={printing.id}
-            cardName={card.name}
-            shortCode={printing.shortCode}
-          />
+      {onClose && (
+        <div className="border-border/30 sticky top-0 z-10 border-b p-4 backdrop-blur md:hidden">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon-sm" onClick={onClose}>
+              <ArrowLeftIcon className="size-4" />
+            </Button>
+            <CardDetailHeading
+              printing={printing}
+              setNumber={setNumber}
+              onTagClick={onTagClick}
+              truncate
+            />
+            <OwnedCollectionsPopover
+              printingId={printing.id}
+              cardName={card.name}
+              shortCode={printing.shortCode}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Desktop header */}
       <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pt-4 md:pb-4">
@@ -128,9 +131,11 @@ export function CardDetail({
             cardName={card.name}
             shortCode={printing.shortCode}
           />
-          <Button variant="ghost" size="icon-sm" onClick={onClose}>
-            <XIcon className="size-4" />
-          </Button>
+          {onClose && (
+            <Button variant="ghost" size="icon-sm" onClick={onClose}>
+              <XIcon className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -279,6 +284,18 @@ export function CardDetail({
 
         {/* Footer */}
         <CardFooter printing={printing} />
+
+        {/* View full page link (only in side pane, not on standalone page) */}
+        {onClose && (
+          <Link
+            to="/cards/$cardSlug"
+            params={{ cardSlug: card.slug }}
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+          >
+            <ExternalLinkIcon className="size-3" />
+            View full page
+          </Link>
+        )}
 
         {/* Printings */}
         {printings && printings.length > 1 && onSelectPrinting && (

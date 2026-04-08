@@ -1,0 +1,120 @@
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { centsToDollars } from "@openrift/shared";
+import type {
+  CatalogCardResponse,
+  CatalogPrintingResponse,
+  CardDetailResponse,
+  Marketplace,
+} from "@openrift/shared";
+import { cardDetailResponseSchema } from "@openrift/shared/response-schemas";
+import { etag } from "hono/etag";
+import { z } from "zod";
+
+import { AppError, ERROR_CODES } from "../../errors.js";
+import type { Variables } from "../../types.js";
+
+const cardSlugParamSchema = z.object({ cardSlug: z.string() });
+
+const getCardDetail = createRoute({
+  method: "get",
+  path: "/cards/{cardSlug}",
+  tags: ["Cards"],
+  request: { params: cardSlugParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: cardDetailResponseSchema } },
+      description: "Card detail with all printings",
+    },
+  },
+});
+
+const cardsApp = new OpenAPIHono<{ Variables: Variables }>();
+cardsApp.use("/cards/:cardSlug", etag());
+export const cardsRoute = cardsApp
+  /**
+   * `GET /cards/:cardSlug` — Returns a single card with all its printings.
+   *
+   * Lightweight alternative to the full catalog endpoint, designed for SSR
+   * card detail pages. Includes card data, all printings with images and
+   * prices, and the sets those printings belong to.
+   */
+  .openapi(getCardDetail, async (c) => {
+    const { cardSlug } = c.req.valid("param");
+    const { catalog, marketplace } = c.get("repos");
+
+    const card = await catalog.cardBySlug(cardSlug);
+    if (!card) {
+      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Card not found: ${cardSlug}`);
+    }
+
+    const [printingRows, imageRows, priceRows, banRows, errataRow] = await Promise.all([
+      catalog.printingsByCardId(card.id),
+      catalog.printingImagesByCardId(card.id),
+      marketplace.latestPrices(),
+      catalog.cardBansByCardId(card.id),
+      catalog.cardErrataByCardId(card.id),
+    ]);
+
+    // Collect unique set IDs from printings
+    const setIds = [...new Set(printingRows.map((p) => p.setId))];
+    const sets = await catalog.setsByIds(setIds);
+
+    // Build per-printing price map (scoped to this card's printings)
+    const printingIdSet = new Set(printingRows.map((p) => p.id));
+    const pricesByPrinting = new Map<string, Partial<Record<Marketplace, number>>>();
+    for (const row of priceRows) {
+      if (!printingIdSet.has(row.printingId)) {
+        continue;
+      }
+      let entry = pricesByPrinting.get(row.printingId);
+      if (!entry) {
+        entry = {};
+        pricesByPrinting.set(row.printingId, entry);
+      }
+      entry[row.marketplace as Marketplace] = centsToDollars(row.marketCents);
+    }
+
+    // Build images lookup
+    const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
+
+    // Build errata
+    const errata = errataRow
+      ? {
+          correctedRulesText: errataRow.correctedRulesText,
+          correctedEffectText: errataRow.correctedEffectText,
+          source: errataRow.source,
+          sourceUrl: errataRow.sourceUrl,
+          effectiveDate: errataRow.effectiveDate ? String(errataRow.effectiveDate) : null,
+        }
+      : null;
+
+    const cardResponse: CatalogCardResponse = {
+      ...card,
+      errata,
+      bans: banRows.map((b) => ({
+        formatId: b.formatId,
+        formatName: b.formatName,
+        bannedAt: b.bannedAt,
+        reason: b.reason,
+      })),
+    };
+
+    const printings: CatalogPrintingResponse[] = printingRows.map((row) => {
+      const prices = pricesByPrinting.get(row.id);
+      return {
+        ...row,
+        images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
+        ...(prices?.tcgplayer !== undefined && { marketPrice: prices.tcgplayer }),
+        ...(prices && { marketPrices: prices }),
+      };
+    });
+
+    const content: CardDetailResponse = {
+      card: cardResponse,
+      printings,
+      sets,
+    };
+
+    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    return c.json(content);
+  });

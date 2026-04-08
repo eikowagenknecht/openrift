@@ -12,6 +12,13 @@ export const queryKeys = {
   catalog: {
     all: ["catalog"] as const,
   },
+  cards: {
+    detail: (slug: string) => ["card-detail", slug] as const,
+  },
+  sets: {
+    all: ["sets"] as const,
+    detail: (slug: string) => ["sets", slug] as const,
+  },
   enums: {
     all: ["enums"] as const,
   },

@@ -27,6 +27,7 @@ import { preferencesRoute } from "./routes/authenticated/preferences.js";
 import { shoppingListRoute } from "./routes/authenticated/shopping-list.js";
 import { tradeListsRoute } from "./routes/authenticated/trade-lists.js";
 import { wishListsRoute } from "./routes/authenticated/wish-lists.js";
+import { cardsRoute } from "./routes/public/cards.js";
 import { catalogRoute } from "./routes/public/catalog.js";
 import { enumsRoute } from "./routes/public/enums.js";
 import { featureFlagsRoute } from "./routes/public/feature-flags.js";
@@ -34,7 +35,9 @@ import { healthRoute } from "./routes/public/health.js";
 import { keywordStylesRoute } from "./routes/public/keyword-styles.js";
 import { pricesRoute } from "./routes/public/prices.js";
 import { rulesRoute } from "./routes/public/rules.js";
+import { setsRoute } from "./routes/public/sets.js";
 import { siteSettingsRoute } from "./routes/public/site-settings.js";
+import { sitemapDataRoute } from "./routes/public/sitemap.js";
 import type { Auth, Config, Variables } from "./types.js";
 
 export interface AppDeps {
@@ -182,6 +185,9 @@ export function createApp(deps: AppDeps) {
 
       // ── Public routes (no auth required) ─────────────────────────────────
       .route("/api/v1", catalogRoute)
+      .route("/api/v1", cardsRoute)
+      .route("/api/v1", setsRoute)
+      .route("/api/v1", sitemapDataRoute)
       .route("/api/v1", pricesRoute)
       .route("/api/v1", featureFlagsRoute)
       .route("/api/v1", keywordStylesRoute)

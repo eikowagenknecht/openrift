@@ -207,5 +207,277 @@ export function catalogRepo(db: Kysely<Database>) {
     printingById(id: string): Promise<Pick<Selectable<PrintingsTable>, "id"> | undefined> {
       return db.selectFrom("printings").select("id").where("id", "=", id).executeTakeFirst();
     },
+
+    /** @returns A single card by slug, or `undefined` if not found. */
+    cardBySlug(slug: string): Promise<CatalogCardRow | undefined> {
+      return db
+        .selectFrom("cards")
+        .select([
+          "id",
+          "slug",
+          "name",
+          "type",
+          "might",
+          "energy",
+          "power",
+          "mightBonus",
+          "keywords",
+          "tags",
+          "comment",
+          domainsArray("cards.id").as("domains"),
+          superTypesArray("cards.id").as("superTypes"),
+        ])
+        .where("slug", "=", slug)
+        .executeTakeFirst() as Promise<CatalogCardRow | undefined>;
+    },
+
+    /** @returns All printings for a given card ID. */
+    async printingsByCardId(cardId: string): Promise<CatalogPrintingRow[]> {
+      const rows = await db
+        .selectFrom("printings")
+        .leftJoin("promoTypes", "promoTypes.id", "printings.promoTypeId")
+        .select([
+          "printings.id",
+          "printings.cardId",
+          "printings.setId",
+          "printings.shortCode",
+          "printings.rarity",
+          "printings.artVariant",
+          "printings.isSigned",
+          "printings.finish",
+          "printings.artist",
+          "printings.publicCode",
+          "printings.printedRulesText",
+          "printings.printedEffectText",
+          "printings.flavorText",
+          "printings.printedName",
+          "printings.language",
+          "promoTypes.id as promoTypeId",
+          "promoTypes.slug as promoTypeSlug",
+          "promoTypes.label as promoTypeLabel",
+        ])
+        .where("printings.cardId", "=", cardId)
+        .orderBy("printings.setId")
+        .orderBy("printings.shortCode")
+        .orderBy("printings.finish", "desc")
+        .execute();
+
+      return rows.map((row) => ({
+        id: row.id,
+        cardId: row.cardId,
+        setId: row.setId,
+        shortCode: row.shortCode,
+        rarity: row.rarity,
+        artVariant: row.artVariant,
+        isSigned: row.isSigned,
+        finish: row.finish,
+        artist: row.artist,
+        publicCode: row.publicCode,
+        printedRulesText: row.printedRulesText,
+        printedEffectText: row.printedEffectText,
+        flavorText: row.flavorText,
+        printedName: row.printedName,
+        language: row.language,
+        promoType: row.promoTypeId
+          ? { id: row.promoTypeId, slug: row.promoTypeSlug ?? "", label: row.promoTypeLabel ?? "" }
+          : null,
+      }));
+    },
+
+    /** @returns Printing images for a given card's printings. */
+    printingImagesByCardId(cardId: string): Promise<CatalogPrintingImageRow[]> {
+      return db
+        .selectFrom("printingImages")
+        .innerJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
+        .innerJoin("printings", "printings.id", "printingImages.printingId")
+        .select(["printingImages.printingId", "printingImages.face", imageUrl("ci").as("url")])
+        .where("printings.cardId", "=", cardId)
+        .where("printingImages.isActive", "=", true)
+        .where(sql`${imageUrl("ci")}`, "is not", null)
+        .orderBy("printingImages.printingId")
+        .orderBy("printingImages.face")
+        .execute() as Promise<CatalogPrintingImageRow[]>;
+    },
+
+    /** @returns Active bans for a single card. */
+    cardBansByCardId(cardId: string): Promise<CatalogCardBanRow[]> {
+      return db
+        .selectFrom("cardBans")
+        .innerJoin("formats", "formats.id", "cardBans.formatId")
+        .select([
+          "cardBans.cardId",
+          "cardBans.formatId",
+          "cardBans.bannedAt",
+          "cardBans.reason",
+          "formats.name as formatName",
+        ])
+        .where("cardBans.cardId", "=", cardId)
+        .where("unbannedAt", "is", null)
+        .execute();
+    },
+
+    /** @returns Errata for a single card, or `undefined`. */
+    cardErrataByCardId(cardId: string): Promise<CatalogCardErrataRow | undefined> {
+      return db
+        .selectFrom("cardErrata")
+        .select([
+          "cardId",
+          "correctedRulesText",
+          "correctedEffectText",
+          "source",
+          "sourceUrl",
+          "effectiveDate",
+        ])
+        .where("cardId", "=", cardId)
+        .executeTakeFirst();
+    },
+
+    /** @returns Sets matching the given IDs. */
+    setsByIds(ids: string[]): Promise<CatalogSetRow[]> {
+      if (ids.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("sets")
+        .select(["id", "slug", "name"])
+        .where("id", "in", ids)
+        .orderBy("sortOrder")
+        .execute();
+    },
+
+    /** @returns A single set by slug, or `undefined`. */
+    setBySlug(slug: string): Promise<CatalogSetRow | undefined> {
+      return db
+        .selectFrom("sets")
+        .select(["id", "slug", "name"])
+        .where("slug", "=", slug)
+        .executeTakeFirst();
+    },
+
+    /** @returns All printings for a given set ID. */
+    async printingsBySetId(setId: string): Promise<CatalogPrintingRow[]> {
+      const rows = await db
+        .selectFrom("printings")
+        .leftJoin("promoTypes", "promoTypes.id", "printings.promoTypeId")
+        .select([
+          "printings.id",
+          "printings.cardId",
+          "printings.setId",
+          "printings.shortCode",
+          "printings.rarity",
+          "printings.artVariant",
+          "printings.isSigned",
+          "printings.finish",
+          "printings.artist",
+          "printings.publicCode",
+          "printings.printedRulesText",
+          "printings.printedEffectText",
+          "printings.flavorText",
+          "printings.printedName",
+          "printings.language",
+          "promoTypes.id as promoTypeId",
+          "promoTypes.slug as promoTypeSlug",
+          "promoTypes.label as promoTypeLabel",
+        ])
+        .where("printings.setId", "=", setId)
+        .orderBy("printings.shortCode")
+        .orderBy("printings.finish", "desc")
+        .execute();
+
+      return rows.map((row) => ({
+        id: row.id,
+        cardId: row.cardId,
+        setId: row.setId,
+        shortCode: row.shortCode,
+        rarity: row.rarity,
+        artVariant: row.artVariant,
+        isSigned: row.isSigned,
+        finish: row.finish,
+        artist: row.artist,
+        publicCode: row.publicCode,
+        printedRulesText: row.printedRulesText,
+        printedEffectText: row.printedEffectText,
+        flavorText: row.flavorText,
+        printedName: row.printedName,
+        language: row.language,
+        promoType: row.promoTypeId
+          ? { id: row.promoTypeId, slug: row.promoTypeSlug ?? "", label: row.promoTypeLabel ?? "" }
+          : null,
+      }));
+    },
+
+    /** @returns Cards matching the given IDs. */
+    cardsByIds(ids: string[]): Promise<CatalogCardRow[]> {
+      if (ids.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("cards")
+        .select([
+          "id",
+          "slug",
+          "name",
+          "type",
+          "might",
+          "energy",
+          "power",
+          "mightBonus",
+          "keywords",
+          "tags",
+          "comment",
+          domainsArray("cards.id").as("domains"),
+          superTypesArray("cards.id").as("superTypes"),
+        ])
+        .where("id", "in", ids)
+        .orderBy("name")
+        .execute() as Promise<CatalogCardRow[]>;
+    },
+
+    /** @returns Printing images for a given set's printings. */
+    printingImagesBySetId(setId: string): Promise<CatalogPrintingImageRow[]> {
+      return db
+        .selectFrom("printingImages")
+        .innerJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
+        .innerJoin("printings", "printings.id", "printingImages.printingId")
+        .select(["printingImages.printingId", "printingImages.face", imageUrl("ci").as("url")])
+        .where("printings.setId", "=", setId)
+        .where("printingImages.isActive", "=", true)
+        .where(sql`${imageUrl("ci")}`, "is not", null)
+        .orderBy("printingImages.printingId")
+        .orderBy("printingImages.face")
+        .execute() as Promise<CatalogPrintingImageRow[]>;
+    },
+
+    /** @returns Distinct card count in a set. */
+    async setCardCount(setId: string): Promise<number> {
+      const result = await db
+        .selectFrom("printings")
+        .select(sql<string>`COUNT(DISTINCT "cardId")`.as("count"))
+        .where("setId", "=", setId)
+        .executeTakeFirstOrThrow();
+      return Number(result.count);
+    },
+
+    /** @returns Total printing count in a set. */
+    async setPrintingCount(setId: string): Promise<number> {
+      const result = await db
+        .selectFrom("printings")
+        .select(sql<string>`COUNT(*)`.as("count"))
+        .where("setId", "=", setId)
+        .executeTakeFirstOrThrow();
+      return Number(result.count);
+    },
+
+    /** @returns All card slugs, for sitemap generation. */
+    async allCardSlugs(): Promise<string[]> {
+      const rows = await db.selectFrom("cards").select("slug").orderBy("name").execute();
+      return rows.map((r) => r.slug);
+    },
+
+    /** @returns All set slugs, for sitemap generation. */
+    async allSetSlugs(): Promise<string[]> {
+      const rows = await db.selectFrom("sets").select("slug").orderBy("sortOrder").execute();
+      return rows.map((r) => r.slug);
+    },
   };
 }

@@ -2,6 +2,9 @@
 
 ## 2026-04-08
 
+- feat: Each card now has its own dedicated page at /cards/{name} with full details, shareable links, and search engine visibility
+- feat: Card sets now have browsable pages at /sets and /sets/{name} showing all cards in each set
+- feat: The card detail pane now has a "View full page" link to open the card's dedicated page
 - feat: Every page now has a descriptive browser tab title instead of a blank one
 
 ## 2026-04-07
