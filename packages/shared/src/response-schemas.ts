@@ -260,6 +260,7 @@ export const cardDetailResponseSchema = z
 const setListEntrySchema = catalogSetResponseSchema.extend({
   cardCount: z.number(),
   printingCount: z.number(),
+  coverImageUrl: z.string().nullable(),
 });
 
 export const setListResponseSchema = z

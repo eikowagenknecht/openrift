@@ -5,6 +5,7 @@
 - feat: Card pages can now show prices and breadcrumb trails in Google search results
 - feat: Keyword badges on Chinese cards now show the correct colors, and searching for a keyword in any language finds all matching cards
 - feat: Each card now has its own dedicated page at /cards/{name} with full details, shareable links, and search engine visibility
+- feat: The sets page now shows card images in a responsive grid instead of a plain list
 - feat: Card sets now have browsable pages at /sets and /sets/{name} showing all cards in each set
 - feat: The card detail pane now has a "View full page" link to open the card's dedicated page
 - feat: Every page now has a descriptive browser tab title instead of a blank one

@@ -55,6 +55,7 @@ export interface CardDetailResponse {
 export interface SetListEntry extends CatalogSetResponse {
   cardCount: number;
   printingCount: number;
+  coverImageUrl: string | null;
 }
 
 export interface SetListResponse {
