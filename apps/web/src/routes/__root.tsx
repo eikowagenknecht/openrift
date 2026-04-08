@@ -71,7 +71,6 @@ export const Route = createRootRouteWithContext<{
       // oxlint-disable-next-line unicorn/text-encoding-identifier-case -- HTML charset attribute requires "utf-8"
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { name: "description", content: "Built with Fury. Maintained with Calm." },
       { name: "theme-color", content: "#1d1538" },
       { name: "impact-site-verification", content: "5a360cf2-9e98-4886-8c05-4e2e1a39ce0e" },
     ],
@@ -80,6 +79,7 @@ export const Route = createRootRouteWithContext<{
       { rel: "icon", type: "image/webp", href: "/logo.webp" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon-180x180.png" },
       { rel: "stylesheet", href: indexCss },
+      { rel: "preconnect", href: "https://openrift.app" },
     ],
   }),
   beforeLoad: async ({ context }) => {

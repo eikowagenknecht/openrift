@@ -5,9 +5,10 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { deckDetailQueryOptions } from "@/hooks/use-decks";
 import { enumsQueryOptions } from "@/hooks/use-enums";
+import { seoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/decks/$deckId")({
-  head: () => ({ meta: [{ title: "Deck Editor — OpenRift" }] }),
+  head: () => seoHead({ title: "Deck Editor", noIndex: true }),
   staticData: { hideFooter: true },
   loader: async ({ context, params }) => {
     await Promise.all([

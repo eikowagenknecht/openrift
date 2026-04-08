@@ -6,6 +6,8 @@
 - feat: Card sets now have browsable pages at /sets and /sets/{name} showing all cards in each set
 - feat: The card detail pane now has a "View full page" link to open the card's dedicated page
 - feat: Every page now has a descriptive browser tab title instead of a blank one
+- feat: Sharing links on social media, Discord, or Slack now shows a rich preview with title, description, and image
+- feat: Help articles now show breadcrumb navigation for easier orientation
 
 ## 2026-04-07
 

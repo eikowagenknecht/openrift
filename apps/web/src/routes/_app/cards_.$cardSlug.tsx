@@ -3,8 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
-
-const SITE_URL = "https://openrift.app";
+import { seoHead } from "@/lib/seo";
 
 function buildDescription(
   card: CardDetailResponse["card"],
@@ -44,29 +43,15 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
   head: ({ loaderData }) => {
     const data = loaderData as CardDetailResponse | undefined;
     if (!data) {
-      return { meta: [{ title: "Card — OpenRift" }] };
+      return seoHead({ title: "Card" });
     }
 
-    const description = buildDescription(data.card, data.printings);
-    const imageUrl = getFrontImageUrl(data.printings);
-    const canonicalUrl = `${SITE_URL}/cards/${data.card.slug}`;
-
-    return {
-      meta: [
-        { title: `${data.card.name} — Riftbound Card | OpenRift` },
-        { name: "description", content: description },
-        { property: "og:title", content: `${data.card.name} — Riftbound Card` },
-        { property: "og:description", content: description },
-        ...(imageUrl ? [{ property: "og:image", content: imageUrl }] : []),
-        { property: "og:type", content: "website" },
-        { property: "og:url", content: canonicalUrl },
-        { name: "twitter:card", content: "summary_large_image" },
-        { name: "twitter:title", content: `${data.card.name} — Riftbound Card` },
-        { name: "twitter:description", content: description },
-        ...(imageUrl ? [{ name: "twitter:image", content: imageUrl }] : []),
-      ],
-      links: [{ rel: "canonical", href: canonicalUrl }],
-    };
+    return seoHead({
+      title: `${data.card.name} — Riftbound Card`,
+      description: buildDescription(data.card, data.printings),
+      path: `/cards/${data.card.slug}`,
+      ogImage: getFrontImageUrl(data.printings) || undefined,
+    });
   },
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug)),

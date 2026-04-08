@@ -1,8 +1,7 @@
-import { createLazyFileRoute, notFound } from "@tanstack/react-router";
+import { createLazyFileRoute } from "@tanstack/react-router";
 
 import { helpArticles } from "@/components/help/articles";
 import { HelpArticlePage } from "@/components/help/help-article-page";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 
 export const Route = createLazyFileRoute("/_app/help_/$slug")({
   component: HelpArticleRoute,
@@ -10,11 +9,10 @@ export const Route = createLazyFileRoute("/_app/help_/$slug")({
 
 function HelpArticleRoute() {
   const { slug } = Route.useParams();
+  // Loader already validates the slug and throws notFound(), so this is always defined
   const article = helpArticles.get(slug);
-  const helpEnabled = useFeatureEnabled("help");
-
-  if (!article || (article.featureFlag === "help" && !helpEnabled)) {
-    throw notFound();
+  if (!article) {
+    return null;
   }
 
   return <HelpArticlePage article={article} />;

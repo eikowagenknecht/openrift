@@ -6,9 +6,10 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
 import { copiesQueryOptions } from "@/hooks/use-copies";
+import { seoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/collections/")({
-  head: () => ({ meta: [{ title: "Collections — OpenRift" }] }),
+  head: () => seoHead({ title: "Collections", noIndex: true }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(collectionsQueryOptions),

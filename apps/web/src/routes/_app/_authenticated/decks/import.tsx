@@ -35,6 +35,7 @@ import type { DeckMatchStatus, DeckMatchedEntry, ResolvedCard } from "@/lib/deck
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
 import type { DeckImportFormat } from "@/lib/deck-import-parsers";
 import { parseDeckImportData } from "@/lib/deck-import-parsers";
+import { seoHead } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
 const STATUS_SORT_ORDER: Record<DeckMatchStatus, number> = {
@@ -45,7 +46,7 @@ const STATUS_SORT_ORDER: Record<DeckMatchStatus, number> = {
 };
 
 export const Route = createFileRoute("/_app/_authenticated/decks/import")({
-  head: () => ({ meta: [{ title: "Import Deck — OpenRift" }] }),
+  head: () => seoHead({ title: "Import Deck", noIndex: true }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(catalogQueryOptions),

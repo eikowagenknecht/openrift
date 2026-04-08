@@ -6,9 +6,10 @@ import { Footer } from "@/components/layout/footer";
 import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { isAdminQueryOptions } from "@/hooks/use-admin";
+import { seoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin")({
-  head: () => ({ meta: [{ title: "Admin — OpenRift" }] }),
+  head: () => seoHead({ title: "Admin", noIndex: true }),
   staticData: { hideFooter: true },
   errorComponent: RouteErrorFallback,
   beforeLoad: async ({ context }) => {
