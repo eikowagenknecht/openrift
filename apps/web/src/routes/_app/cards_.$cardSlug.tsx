@@ -46,12 +46,29 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       return seoHead({ title: "Card" });
     }
 
-    return seoHead({
+    const imageUrl = getFrontImageUrl(data.printings) || undefined;
+    const head = seoHead({
       title: `${data.card.name} — Riftbound Card`,
       description: buildDescription(data.card, data.printings),
       path: `/cards/${data.card.slug}`,
-      ogImage: getFrontImageUrl(data.printings) || undefined,
+      ogImage: imageUrl,
     });
+
+    return {
+      ...head,
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Thing",
+            name: data.card.name,
+            description: `${data.card.name} is a ${data.card.type} card from Riftbound.`,
+            image: imageUrl,
+          }),
+        },
+      ],
+    };
   },
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug)),
