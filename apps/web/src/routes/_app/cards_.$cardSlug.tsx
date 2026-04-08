@@ -3,7 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
-import { seoHead } from "@/lib/seo";
+import { breadcrumbJsonLd, productJsonLd, seoHead } from "@/lib/seo";
 
 function buildDescription(
   card: CardDetailResponse["card"],
@@ -47,26 +47,36 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     }
 
     const imageUrl = getFrontImageUrl(data.printings) || undefined;
+    const description = buildDescription(data.card, data.printings);
+    const cardPath = `/cards/${data.card.slug}`;
     const head = seoHead({
       title: `${data.card.name} — Riftbound Card`,
-      description: buildDescription(data.card, data.printings),
-      path: `/cards/${data.card.slug}`,
+      description,
+      path: cardPath,
       ogImage: imageUrl,
     });
+
+    const prices = data.printings
+      .map((p) => p.marketPrice)
+      .filter((p): p is number => p !== undefined && p > 0);
+    const priceLow = prices.length > 0 ? Math.min(...prices) : undefined;
+    const priceHigh = prices.length > 0 ? Math.max(...prices) : undefined;
 
     return {
       ...head,
       scripts: [
-        {
-          type: "application/ld+json",
-          children: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Thing",
-            name: data.card.name,
-            description: `${data.card.name} is a ${data.card.type} card from Riftbound.`,
-            image: imageUrl,
-          }),
-        },
+        productJsonLd({
+          name: data.card.name,
+          description: `${data.card.name} is a ${data.card.type} card from Riftbound.`,
+          image: imageUrl,
+          url: cardPath,
+          priceLow,
+          priceHigh,
+        }),
+        breadcrumbJsonLd([
+          { name: "Cards", path: "/cards" },
+          { name: data.card.name, path: cardPath },
+        ]),
       ],
     };
   },

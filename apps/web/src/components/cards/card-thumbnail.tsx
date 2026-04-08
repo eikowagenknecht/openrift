@@ -25,6 +25,9 @@ import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 const CARD_BORDER_RADIUS = "5% / 3.6%";
+/** Intrinsic dimensions matching the standard card aspect ratio (63×88mm). */
+const CARD_WIDTH = 630;
+const CARD_HEIGHT = 880;
 
 const TILT_STYLE = {
   transform:
@@ -95,6 +98,8 @@ function CardImageContent({
                 srcSet={srcSet}
                 sizes={sizes}
                 alt={alt}
+                width={CARD_HEIGHT}
+                height={CARD_WIDTH}
                 loading={priority ? "eager" : "lazy"}
                 fetchPriority={priority ? "high" : undefined}
                 className="size-full object-cover"
@@ -107,6 +112,8 @@ function CardImageContent({
               srcSet={srcSet}
               sizes={sizes}
               alt={alt}
+              width={CARD_WIDTH}
+              height={CARD_HEIGHT}
               loading={priority ? "eager" : "lazy"}
               fetchPriority={priority ? "high" : undefined}
               className={cn(

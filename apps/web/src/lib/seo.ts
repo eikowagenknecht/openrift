@@ -9,6 +9,7 @@ const SITE_URL = "https://openrift.app";
 const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`;
 const DEFAULT_DESCRIPTION =
   "Browse, collect, and build decks for the Riftbound trading card game. Search cards, track your collection, compare prices, and share decks.";
+const TWITTER_SITE = "@eikowagenknecht";
 
 interface SeoOptions {
   /** Page title (without site suffix). */
@@ -61,6 +62,7 @@ export function seoHead(options: SeoOptions) {
     // Twitter Card
     meta.push(
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:site", content: TWITTER_SITE },
       { name: "twitter:title", content: fullTitle },
       { name: "twitter:description", content: description },
       { name: "twitter:image", content: ogImage },
@@ -98,6 +100,111 @@ export function websiteJsonLd() {
         },
         "query-input": "required name=search_term_string",
       },
+    }),
+  };
+}
+
+interface BreadcrumbItem {
+  name: string;
+  path: string;
+}
+
+/**
+ * Schema.org BreadcrumbList JSON-LD for hierarchical pages.
+ *
+ * @returns A script descriptor for TanStack Start's `head.scripts`.
+ */
+export function breadcrumbJsonLd(items: BreadcrumbItem[]) {
+  return {
+    type: "application/ld+json",
+    children: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: items.map((item, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: item.name,
+        item: `${SITE_URL}${item.path}`,
+      })),
+    }),
+  };
+}
+
+interface ProductJsonLdOptions {
+  name: string;
+  description: string;
+  image?: string;
+  url: string;
+  /** Lowest market price in USD across all printings. */
+  priceLow?: number;
+  /** Highest market price in USD across all printings. */
+  priceHigh?: number;
+}
+
+/**
+ * Schema.org Product JSON-LD for card detail pages. Enables price/availability
+ * rich results in Google.
+ *
+ * @returns A script descriptor for TanStack Start's `head.scripts`.
+ */
+export function productJsonLd(options: ProductJsonLdOptions) {
+  const offer =
+    options.priceLow === undefined
+      ? undefined
+      : options.priceLow === options.priceHigh || options.priceHigh === undefined
+        ? {
+            "@type": "Offer",
+            priceCurrency: "USD",
+            price: options.priceLow,
+            availability: "https://schema.org/InStock",
+          }
+        : {
+            "@type": "AggregateOffer",
+            priceCurrency: "USD",
+            lowPrice: options.priceLow,
+            highPrice: options.priceHigh,
+            availability: "https://schema.org/InStock",
+          };
+
+  return {
+    type: "application/ld+json",
+    children: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: options.name,
+      description: options.description,
+      image: options.image,
+      url: `${SITE_URL}${options.url}`,
+      brand: { "@type": "Brand", name: "Riftbound" },
+      ...(offer ? { offers: offer } : {}),
+    }),
+  };
+}
+
+interface FaqEntry {
+  question: string;
+  answer: string;
+}
+
+/**
+ * Schema.org FAQPage JSON-LD. Can trigger FAQ rich results in Google.
+ *
+ * @returns A script descriptor for TanStack Start's `head.scripts`.
+ */
+export function faqPageJsonLd(entries: FaqEntry[]) {
+  return {
+    type: "application/ld+json",
+    children: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: entries.map((entry) => ({
+        "@type": "Question",
+        name: entry.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: entry.answer,
+        },
+      })),
     }),
   };
 }
