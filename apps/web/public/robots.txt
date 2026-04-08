@@ -1,4 +1,16 @@
 User-agent: *
 Allow: /
 
+# Authenticated-only routes (not useful to crawlers)
+Disallow: /collections
+Disallow: /decks
+Disallow: /profile
+Disallow: /admin
+
+# Auth flows
+Disallow: /login
+Disallow: /signup
+Disallow: /reset-password
+Disallow: /verify-email
+
 Sitemap: https://openrift.app/sitemap.xml

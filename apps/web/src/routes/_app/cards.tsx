@@ -5,10 +5,17 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
+import { seoHead } from "@/lib/seo";
 import { PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/cards")({
-  head: () => ({ meta: [{ title: "Cards — OpenRift" }] }),
+  head: () =>
+    seoHead({
+      title: "Cards",
+      description:
+        "Browse all Riftbound cards with filters for set, domain, rarity, cost, and more. View card art, stats, and pricing.",
+      path: "/cards",
+    }),
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQueryOptions),
   component: CardsPage,
   pendingComponent: CardsPending,

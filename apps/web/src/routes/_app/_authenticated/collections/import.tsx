@@ -40,11 +40,12 @@ import { copiesQueryOptions } from "@/hooks/use-copies";
 import { useImportFlow } from "@/hooks/use-import-flow";
 import { downloadCSV, generateExportCSV } from "@/lib/csv-export";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
+import { seoHead } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 
 export const Route = createFileRoute("/_app/_authenticated/collections/import")({
-  head: () => ({ meta: [{ title: "Import / Export — OpenRift" }] }),
+  head: () => seoHead({ title: "Import / Export", noIndex: true }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(catalogQueryOptions),

@@ -4,9 +4,15 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { ruleVersionsQueryOptions, rulesQueryOptions } from "@/hooks/use-rules";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
+import { seoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/rules")({
-  head: () => ({ meta: [{ title: "Rules — OpenRift" }] }),
+  head: () =>
+    seoHead({
+      title: "Rules",
+      description: "Read the official Riftbound rules, with version history and keyword reference.",
+      path: "/rules",
+    }),
   beforeLoad: async ({ context }) => {
     const flags = (await context.queryClient.ensureQueryData(
       featureFlagsQueryOptions,
