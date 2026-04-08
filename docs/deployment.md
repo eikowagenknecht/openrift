@@ -441,14 +441,20 @@ cp .env.example .env
 # Edit .env: set GRAFANA_ADMIN_PASSWORD, SMTP credentials, POSTGRES_CONNECTION, ALERT_EMAIL_TO
 ```
 
-3. Start the monitoring stack:
+3. Create data directories (must exist before first start):
+
+```bash
+mkdir -p ~/openrift/monitoring/data/prometheus ~/openrift/monitoring/data/grafana
+```
+
+4. Start the monitoring stack:
 
 ```bash
 cd ~/openrift/monitoring
 docker compose up -d
 ```
 
-4. Set up Grafana access via nginx (optional, for browser access):
+5. Set up Grafana access via nginx (optional, for browser access):
 
 ```bash
 # Generate basic auth credentials
@@ -460,11 +466,11 @@ ln -s /home/openrift/openrift/monitoring.openrift.conf /etc/nginx/sites-enabled/
 nginx -t && systemctl reload nginx
 ```
 
-5. Add a DNS record in Cloudflare: `monitoring.openrift.app` (A record, proxied, same IP as main site).
+6. Add a DNS record in Cloudflare: `monitoring.openrift.app` (A record, proxied, same IP as main site).
 
-6. Open `https://monitoring.openrift.app`, log in with the basic auth credentials, then with the Grafana admin password. Three dashboards are pre-provisioned: Host Metrics, Container Metrics, and PostgreSQL.
+7. Open `https://monitoring.openrift.app`, log in with the basic auth credentials, then with the Grafana admin password. Three dashboards are pre-provisioned: Host Metrics, Container Metrics, and PostgreSQL.
 
-7. Verify email alerting: go to Alerting > Contact points > Test in Grafana.
+8. Verify email alerting: go to Alerting > Contact points > Test in Grafana.
 
 ### Management
 
