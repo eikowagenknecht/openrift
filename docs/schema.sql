@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict zdrtypmRrYhoybPEz0cq9nLB3lJFOvfHJzAsBYr5hrANzbStcHE82tnaJLV8iR8
+\restrict OiHufG93pAdo6imN3ZqSDS7AvGQVL2kTVMGrlLMutotI0yuknwgrGRWWjQOxIaO
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -237,7 +237,6 @@ CREATE TABLE public.candidate_printings (
     short_code text CONSTRAINT printing_sources_source_id_not_null NOT NULL,
     set_id text,
     set_name text,
-    collector_number integer,
     rarity text,
     art_variant text,
     is_signed boolean,
@@ -257,7 +256,6 @@ CREATE TABLE public.candidate_printings (
     promo_type_id uuid,
     language text,
     printed_name text,
-    CONSTRAINT chk_candidate_printings_collector_number_positive CHECK ((collector_number > 0)),
     CONSTRAINT chk_candidate_printings_no_empty_art_variant CHECK ((art_variant <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_artist CHECK ((artist <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_external_id CHECK ((external_id <> ''::text)),
@@ -323,6 +321,22 @@ CREATE TABLE public.card_errata (
     CONSTRAINT chk_card_errata_no_empty_corrected_rules_text CHECK ((corrected_rules_text <> ''::text)),
     CONSTRAINT chk_card_errata_no_empty_source CHECK ((source <> ''::text)),
     CONSTRAINT chk_card_errata_no_empty_source_url CHECK ((source_url <> ''::text))
+);
+
+
+--
+-- Name: card_images; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.card_images (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    original_url text,
+    rehosted_url text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_card_images_has_url CHECK (((original_url IS NOT NULL) OR (rehosted_url IS NOT NULL))),
+    CONSTRAINT chk_card_images_original_url CHECK ((original_url <> ''::text)),
+    CONSTRAINT chk_card_images_rehosted_url CHECK ((rehosted_url <> ''::text))
 );
 
 
@@ -754,16 +768,12 @@ CREATE TABLE public.printing_images (
     id uuid DEFAULT uuidv7() NOT NULL,
     face text DEFAULT 'front'::text NOT NULL,
     provider text CONSTRAINT printing_images_source_not_null NOT NULL,
-    original_url text,
-    rehosted_url text,
     is_active boolean DEFAULT false NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid CONSTRAINT printing_images_new_printing_id_not_null NOT NULL,
+    card_image_id uuid NOT NULL,
     CONSTRAINT chk_printing_images_face CHECK ((face = ANY (ARRAY['front'::text, 'back'::text]))),
-    CONSTRAINT chk_printing_images_has_url CHECK (((original_url IS NOT NULL) OR (rehosted_url IS NOT NULL))),
-    CONSTRAINT chk_printing_images_no_empty_original_url CHECK ((original_url <> ''::text)),
-    CONSTRAINT chk_printing_images_no_empty_rehosted_url CHECK ((rehosted_url <> ''::text)),
     CONSTRAINT chk_printing_images_provider_not_empty CHECK ((provider <> ''::text))
 );
 
@@ -787,7 +797,6 @@ CREATE TABLE public.printing_link_overrides (
 
 CREATE TABLE public.printings (
     short_code text CONSTRAINT printings_source_id_not_null NOT NULL,
-    collector_number integer NOT NULL,
     rarity text NOT NULL,
     art_variant text NOT NULL,
     is_signed boolean DEFAULT false NOT NULL,
@@ -807,7 +816,6 @@ CREATE TABLE public.printings (
     language text DEFAULT 'EN'::text NOT NULL,
     printed_name text,
     CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
-    CONSTRAINT chk_printings_collector_number_positive CHECK ((collector_number > 0)),
     CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
     CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
     CONSTRAINT chk_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
@@ -1150,6 +1158,14 @@ ALTER TABLE ONLY public.card_errata
 
 ALTER TABLE ONLY public.card_errata
     ADD CONSTRAINT card_errata_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: card_images card_images_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.card_images
+    ADD CONSTRAINT card_images_pkey PRIMARY KEY (id);
 
 
 --
@@ -1760,6 +1776,13 @@ CREATE INDEX idx_card_domains_domain_slug ON public.card_domains USING btree (do
 
 
 --
+-- Name: idx_card_images_original_url; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_card_images_original_url ON public.card_images USING btree (original_url) WHERE (original_url IS NOT NULL);
+
+
+--
 -- Name: idx_cards_norm_name; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2107,6 +2130,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.candidate_cards FOR EA
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.candidate_printings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: card_images trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.card_images FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -2501,6 +2531,14 @@ ALTER TABLE ONLY public.printing_link_overrides
 
 
 --
+-- Name: printing_images fk_printing_images_card_image; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_images
+    ADD CONSTRAINT fk_printing_images_card_image FOREIGN KEY (card_image_id) REFERENCES public.card_images(id);
+
+
+--
 -- Name: printings fk_printings_art_variant; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2712,5 +2750,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict zdrtypmRrYhoybPEz0cq9nLB3lJFOvfHJzAsBYr5hrANzbStcHE82tnaJLV8iR8
+\unrestrict OiHufG93pAdo6imN3ZqSDS7AvGQVL2kTVMGrlLMutotI0yuknwgrGRWWjQOxIaO
 
