@@ -1,18 +1,30 @@
 import type { CollectionResponse } from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
+import type { CollectionsResponse } from "@/lib/server-fns/api-types";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
+
+const fetchCollections = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<CollectionsResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/collections`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Collections fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<CollectionsResponse>;
+  });
 
 export const collectionsQueryOptions = queryOptions({
   queryKey: queryKeys.collections.all,
-  queryFn: async () => {
-    const res = await client.api.v1.collections.$get();
-    assertOk(res);
-    return await res.json();
-  },
-  select: (data) => data.items,
+  queryFn: () => fetchCollections(),
+  select: (data: CollectionsResponse) => data.items,
 });
 
 export function useCollections() {

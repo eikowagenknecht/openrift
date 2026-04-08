@@ -1,15 +1,27 @@
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
+import type { IgnoredProductsResponse } from "@/lib/server-fns/api-types";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
+
+const fetchIgnoredProducts = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<IgnoredProductsResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/ignored-products`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Ignored products fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<IgnoredProductsResponse>;
+  });
 
 export const ignoredProductsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.ignoredProducts,
-  queryFn: async () => {
-    const res = await client.api.v1.admin["ignored-products"].$get();
-    assertOk(res);
-    return await res.json();
-  },
+  queryFn: () => fetchIgnoredProducts(),
 });
 
 export function useIgnoredProducts() {

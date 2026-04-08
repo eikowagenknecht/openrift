@@ -1,16 +1,28 @@
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
+import type { AdminLanguagesResponse } from "@/lib/server-fns/api-types";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
+
+const fetchLanguages = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<AdminLanguagesResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/languages`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Languages fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<AdminLanguagesResponse>;
+  });
 
 export const adminLanguagesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.languages,
-  queryFn: async () => {
-    const res = await client.api.v1.admin.languages.$get();
-    assertOk(res);
-    return await res.json();
-  },
+  queryFn: () => fetchLanguages(),
 });
 
 export function useLanguages() {

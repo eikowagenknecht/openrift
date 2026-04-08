@@ -1,21 +1,36 @@
 import type { UnifiedMappingsResponse } from "@openrift/shared";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
+
+const fetchUnifiedMappings = createServerFn({ method: "GET" })
+  .inputValidator((input: { showAll: boolean }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }): Promise<UnifiedMappingsResponse> => {
+    const params = new URLSearchParams();
+    if (data.showAll) {
+      params.set("all", "true");
+    }
+    const qs = params.toString();
+    const url = `${API_URL}/api/v1/admin/marketplace-mappings${qs ? `?${qs}` : ""}`;
+    const res = await fetch(url, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Unified mappings fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<UnifiedMappingsResponse>;
+  });
 
 export function unifiedMappingsQueryOptions(showAll = false) {
   return queryOptions({
     queryKey: queryKeys.admin.unifiedMappings.byFilter(showAll),
-    queryFn: async () => {
-      const res = await client.api.v1.admin["marketplace-mappings"].$get({
-        query: { all: showAll ? "true" : undefined },
-      });
-      assertOk(res);
-      // Server uses unknown[] for stagedProducts — cast to local types
-      return (await res.json()) as unknown as UnifiedMappingsResponse;
-    },
+    queryFn: () => fetchUnifiedMappings({ data: { showAll } }),
   });
 }
 

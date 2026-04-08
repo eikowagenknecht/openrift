@@ -1,17 +1,27 @@
 import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
+import type { KeywordStatsResponse } from "@/lib/server-fns/api-types";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
 
-async function fetchKeywordStats() {
-  const res = await client.api.v1.admin["keyword-stats"].$get();
-  assertOk(res);
-  return await res.json();
-}
+const fetchKeywordStats = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<KeywordStatsResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/keyword-stats`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Keyword stats fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<KeywordStatsResponse>;
+  });
 
 export const keywordStatsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.keywordStats,
-  queryFn: fetchKeywordStats,
+  queryFn: () => fetchKeywordStats(),
 });
 
 export function useKeywordStats() {

@@ -1,16 +1,28 @@
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
+import type { AdminDeckZonesResponse } from "@/lib/server-fns/api-types";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
+
+const fetchDeckZones = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<AdminDeckZonesResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/deck-zones`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Deck zones fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<AdminDeckZonesResponse>;
+  });
 
 export const adminDeckZonesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.deckZones,
-  queryFn: async () => {
-    const res = await client.api.v1.admin["deck-zones"].$get();
-    assertOk(res);
-    return await res.json();
-  },
+  queryFn: () => fetchDeckZones(),
 });
 
 export function useDeckZones() {

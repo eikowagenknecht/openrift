@@ -1,23 +1,31 @@
 import type { RulesListResponse, RuleVersionsListResponse } from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
+import { API_URL } from "@/lib/server-fns/api-url";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-async function fetchRules(version?: string, query?: string): Promise<RulesListResponse> {
-  const res = await client.api.v1.rules.$get({
-    query: { version, q: query },
-  });
-  assertOk(res);
-  return await res.json();
-}
+const fetchRules = createServerFn({ method: "GET" }).handler(
+  async (): Promise<RulesListResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/rules`);
+    if (!res.ok) {
+      throw new Error(`Rules fetch failed: ${res.status}`);
+    }
+    return res.json();
+  },
+);
 
-async function fetchVersions(): Promise<RuleVersionsListResponse> {
-  const res = await client.api.v1.rules.versions.$get();
-  assertOk(res);
-  return await res.json();
-}
+const fetchVersions = createServerFn({ method: "GET" }).handler(
+  async (): Promise<RuleVersionsListResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/rules/versions`);
+    if (!res.ok) {
+      throw new Error(`Rule versions fetch failed: ${res.status}`);
+    }
+    return res.json();
+  },
+);
 
 export const rulesQueryOptions = queryOptions({
   queryKey: queryKeys.rules.all,
@@ -28,7 +36,7 @@ export const rulesQueryOptions = queryOptions({
 
 export const ruleVersionsQueryOptions = queryOptions({
   queryKey: queryKeys.rules.versions,
-  queryFn: fetchVersions,
+  queryFn: () => fetchVersions(),
   staleTime: 5 * 60 * 1000,
   refetchOnWindowFocus: false,
 });

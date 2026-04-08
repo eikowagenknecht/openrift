@@ -1,8 +1,10 @@
 import type { DeckZone, EnumOrders } from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
+import type { EnumsResponse } from "@/lib/server-fns/api-types";
+import { API_URL } from "@/lib/server-fns/api-url";
 
 interface EnumRow {
   slug: string;
@@ -24,13 +26,17 @@ export interface EnumLabels {
   artVariants: Record<string, string>;
 }
 
+const fetchEnums = createServerFn({ method: "GET" }).handler(async (): Promise<EnumsResponse> => {
+  const res = await fetch(`${API_URL}/api/v1/enums`);
+  if (!res.ok) {
+    throw new Error(`Enums fetch failed: ${res.status}`);
+  }
+  return res.json() as Promise<EnumsResponse>;
+});
+
 export const enumsQueryOptions = queryOptions({
   queryKey: queryKeys.enums.all,
-  queryFn: async () => {
-    const res = await client.api.v1.enums.$get();
-    assertOk(res);
-    return await res.json();
-  },
+  queryFn: () => fetchEnums(),
   staleTime: 5 * 60 * 1000,
   refetchOnWindowFocus: false,
 });
