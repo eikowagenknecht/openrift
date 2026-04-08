@@ -22,9 +22,9 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
   // Auto-update updated_at trigger (same pattern as other tables)
   await sql`
-    CREATE TRIGGER trg_card_images_updated_at
+    CREATE TRIGGER trg_set_updated_at
       BEFORE UPDATE ON card_images
-      FOR EACH ROW EXECUTE FUNCTION update_updated_at()
+      FOR EACH ROW EXECUTE FUNCTION set_updated_at()
   `.execute(db);
 
   // 2. Populate card_images from printing_images, deduplicating by original_url
