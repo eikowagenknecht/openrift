@@ -96,6 +96,7 @@ services:
       GF_SMTP_PASSWORD: ${SMTP_PASSWORD}
       GF_SMTP_FROM_ADDRESS: ${SMTP_FROM}
       GF_SMTP_FROM_NAME: "OpenRift Monitoring"
+      GF_SMTP_STARTTLS_POLICY: "MandatoryStartTLS"
       GF_SERVER_ROOT_URL: "https://${GRAFANA_DOMAIN:-monitoring.openrift.app}"
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_UNIFIED_ALERTING_ENABLED: "true"
