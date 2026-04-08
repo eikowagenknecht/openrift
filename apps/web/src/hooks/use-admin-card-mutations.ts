@@ -167,7 +167,7 @@ const acceptNewCardFn = createServerFn({ method: "POST" })
     }
   });
 
-const acceptFavoritesFn = createServerFn({ method: "POST" })
+export const acceptFavoritesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
@@ -179,7 +179,6 @@ const acceptFavoritesFn = createServerFn({ method: "POST" })
       throw new Error(`Accept favorites failed: ${res.status}`);
     }
   });
-
 
 const linkCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string; cardId: string }) => input)
@@ -510,7 +509,7 @@ export function useDeletePrinting() {
 
 export function useAcceptPrintingGroup() {
   return useMutationWithInvalidation({
-    mutationFn: async ({
+    mutationFn: ({
       cardId,
       printingFields,
       candidatePrintingIds,
@@ -518,11 +517,10 @@ export function useAcceptPrintingGroup() {
       cardId: string;
       printingFields: AcceptPrintingBody["printingFields"];
       candidatePrintingIds: string[];
-    }) => {
-      return await acceptPrintingGroupFn({
+    }) =>
+      acceptPrintingGroupFn({
         data: { cardId, printingFields, candidatePrintingIds },
-      });
-    },
+      }),
     invalidates: [queryKeys.admin.cards.all],
   });
 }
@@ -534,7 +532,7 @@ export function useCheckProvider() {
   });
 }
 
-const acceptFavoritePrintingsFn = createServerFn({ method: "POST" })
+export const acceptFavoritePrintingsFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: cardSlug }) => {

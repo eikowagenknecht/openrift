@@ -28,10 +28,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAcceptFavoriteNewCard, useLinkCard } from "@/hooks/use-admin-card-mutations";
+import {
+  acceptFavoritesFn,
+  useAcceptFavoriteNewCard,
+  useLinkCard,
+} from "@/hooks/use-admin-card-mutations";
 import { useAllCards } from "@/hooks/use-admin-card-queries";
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -130,10 +133,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
 
       for (const name of names) {
         try {
-          const res = await client.api.v1.admin["cards"].new[":name"]["accept-favorites"].$post({
-            param: { name },
-          });
-          assertOk(res);
+          await acceptFavoritesFn({ data: { name } });
         } catch {
           failed++;
         }

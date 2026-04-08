@@ -27,9 +27,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAcceptFavoritePrintings } from "@/hooks/use-admin-card-mutations";
+import {
+  acceptFavoritePrintingsFn,
+  useAcceptFavoritePrintings,
+} from "@/hooks/use-admin-card-mutations";
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -155,10 +157,7 @@ export function AcceptedCardsTable({ data }: { data: Row[] }) {
 
       for (const slug of slugs) {
         try {
-          const res = await client.api.v1.admin["cards"][":cardSlug"][
-            "accept-favorite-printings"
-          ].$post({ param: { cardSlug: slug } });
-          assertOk(res);
+          await acceptFavoritePrintingsFn({ data: slug });
         } catch {
           failed++;
         }

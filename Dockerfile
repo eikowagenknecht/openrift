@@ -43,9 +43,6 @@ WORKDIR /app
 COPY --from=build /app/apps/web/.output .output
 EXPOSE 3001
 
-# Bun memory limit (default is 4GB, constrain for the VPS)
-ENV BUN_JSC_maxHeapSize=512
-
 CMD ["bun", "run", ".output/server/index.mjs"]
 
 # ─── Stage 4: Proxy (nginx — reverse proxy + static asset serving) ──────────
