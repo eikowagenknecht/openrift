@@ -5,11 +5,11 @@ import { ImagePlusIcon, LinkIcon, LoaderIcon } from "lucide-react";
 
 import { AssignButton } from "@/components/admin/assign-button";
 import { Button } from "@/components/ui/button";
-import type { useAcceptGallery, useLinkCard } from "@/hooks/use-admin-card-mutations";
+import type { useAcceptFavoriteNewCard, useLinkCard } from "@/hooks/use-admin-card-mutations";
 
 export interface CardNameCellMeta {
   linkCard: ReturnType<typeof useLinkCard>;
-  acceptGallery: ReturnType<typeof useAcceptGallery>;
+  acceptFavorite: ReturnType<typeof useAcceptFavoriteNewCard>;
   allCards: { id: string; slug: string; name: string; type: string }[];
 }
 
@@ -20,7 +20,7 @@ export function CardNameCell({
   row: CandidateCardSummaryResponse;
   meta: CardNameCellMeta;
 }) {
-  const { linkCard, acceptGallery, allCards } = meta;
+  const { linkCard, acceptFavorite, allCards } = meta;
   const suggestedCardId =
     !row.cardSlug && row.stagingShortCodes.length > 0
       ? extractCardIdFromShortCode(row.stagingShortCodes[0])
@@ -60,15 +60,15 @@ export function CardNameCell({
         <Button
           variant="outline"
           className="ml-2"
-          disabled={acceptGallery.isPending}
-          onClick={() => acceptGallery.mutate(row.normalizedName)}
+          disabled={acceptFavorite.isPending}
+          onClick={() => acceptFavorite.mutate(row.normalizedName)}
         >
-          {acceptGallery.isPending ? (
+          {acceptFavorite.isPending ? (
             <LoaderIcon className="size-3 animate-spin" />
           ) : (
             <ImagePlusIcon className="size-3" />
           )}
-          Accept gallery
+          Accept
         </Button>
       )}
       {!row.cardSlug && allCards && (

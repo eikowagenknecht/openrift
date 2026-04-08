@@ -21,13 +21,14 @@ function stripVariantSuffix(shortCode: string): string {
 }
 
 /**
- * Accept a new card from gallery source data: create the card, create all
- * gallery printings, set images as main, and rehost them.
+ * Accept a new card from favorite-provider candidate data: create the card,
+ * create all printings from favorite providers, set images, and rehost them.
  *
  * @param normalizedName — the card's normalized name (used to find candidates)
- * @returns The new card slug, number of printings created, and rehost count.
+ * @param favoriteProviders — set of provider slugs marked as favorites
+ * @returns The new card slug and number of printings created.
  */
-export async function acceptGalleryForNewCard(
+export async function acceptFavoriteNewCard(
   transact: Transact,
   io: Io,
   repos: {
@@ -37,24 +38,23 @@ export async function acceptGalleryForNewCard(
     promoTypes: PromoTypesRepo;
   },
   normalizedName: string,
-): Promise<{ cardSlug: string; printingsCreated: number; imagesRehosted: number }> {
+  favoriteProviders: Set<string>,
+): Promise<{ cardSlug: string; printingsCreated: number }> {
   const mut = repos.candidateMutations;
 
-  // 1. Find the gallery candidate card for this name
-  const allCandidates = await repos.candidateCards.candidateCardsByNormNameAndProvider(
-    normalizedName,
-    "gallery",
-  );
+  // 1. Find candidate cards for this name, filtered to favorite providers
+  const allCandidates = await repos.candidateCards.candidateCardsByNormName(normalizedName);
+  const favoriteCandidates = allCandidates.filter((cc) => favoriteProviders.has(cc.provider));
 
-  if (allCandidates.length === 0) {
-    throw new Error("No gallery source found for this card");
+  if (favoriteCandidates.length === 0) {
+    throw new Error("No favorite-provider source found for this card");
   }
 
-  const galleryCard = allCandidates[0];
+  const primaryCandidate = favoriteCandidates[0];
 
   // 2. Derive card slug and create the card
-  const cardSlug = galleryCard.shortCode
-    ? stripVariantSuffix(galleryCard.shortCode)
+  const cardSlug = primaryCandidate.shortCode
+    ? stripVariantSuffix(primaryCandidate.shortCode)
     : normalizedName;
 
   // Check for existing card with this slug (shouldn't exist for "new" rows, but be safe)
@@ -70,25 +70,25 @@ export async function acceptGalleryForNewCard(
       await trxRepos.candidateMutations.acceptNewCardFromSources(
         {
           id: cardSlug,
-          name: galleryCard.name,
-          type: galleryCard.type as CardType,
-          superTypes: (galleryCard.superTypes ?? []) as SuperType[],
-          domains: (galleryCard.domains ?? []) as Domain[],
-          might: galleryCard.might,
-          energy: galleryCard.energy,
-          power: galleryCard.power,
-          mightBonus: galleryCard.mightBonus,
-          tags: galleryCard.tags ?? [],
+          name: primaryCandidate.name,
+          type: primaryCandidate.type as CardType,
+          superTypes: (primaryCandidate.superTypes ?? []) as SuperType[],
+          domains: (primaryCandidate.domains ?? []) as Domain[],
+          might: primaryCandidate.might,
+          energy: primaryCandidate.energy,
+          power: primaryCandidate.power,
+          mightBonus: primaryCandidate.mightBonus,
+          tags: primaryCandidate.tags ?? [],
         },
         normalizedName,
       );
     });
   }
 
-  // 3. Find all gallery candidate printings for these candidate cards
-  const galleryCandidateIds = allCandidates.map((cc) => cc.id);
+  // 3. Find all candidate printings for favorite candidates
+  const favCandidateIds = favoriteCandidates.map((cc) => cc.id);
   const candidatePrintings =
-    await repos.candidateCards.allCandidatePrintingsForCandidateCards(galleryCandidateIds);
+    await repos.candidateCards.allCandidatePrintingsForCandidateCards(favCandidateIds);
 
   // 4. Group by shortCode + finish + promoTypeId + language and create each printing
   const groupMap = new Map<string, typeof candidatePrintings>();
@@ -147,21 +147,20 @@ export async function acceptGalleryForNewCard(
     }
   }
 
-  // 5. Mark gallery candidates as checked
-  for (const cc of allCandidates) {
+  // 5. Mark favorite candidates as checked
+  for (const cc of favoriteCandidates) {
     await mut.checkCandidateCard(cc.id);
   }
 
-  // 6. Rehost newly inserted images
-  let imagesRehosted = 0;
+  // 6. Rehost newly inserted images (fire-and-forget to avoid blocking the response
+  //    with slow external image downloads)
   if (imagesInserted > 0) {
-    try {
-      const result = await rehostImages(io, repos.printingImages, imagesInserted + 5);
-      imagesRehosted = result.rehosted;
-    } catch {
-      // Rehost failure is non-fatal; images will be picked up by the next batch
-    }
+    // oxlint-disable-next-line promise/prefer-await-to-then -- intentionally fire-and-forget to avoid blocking the response
+    rehostImages(io, repos.printingImages, imagesInserted + 5).catch(() => {
+      // Non-fatal; unrehosted images fall back to the external URL and will be
+      // picked up by the next rehost batch.
+    });
   }
 
-  return { cardSlug, printingsCreated, imagesRehosted };
+  return { cardSlug, printingsCreated };
 }

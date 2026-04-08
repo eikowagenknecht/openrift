@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppError } from "../../../errors.js";
-import { acceptGalleryForNewCard } from "../../../services/accept-gallery.js";
+import { acceptFavoriteNewCard } from "../../../services/accept-gallery.js";
 import {
   acceptPrinting,
   deletePrinting,
@@ -22,7 +22,7 @@ vi.mock("../../../services/printing-admin.js", () => ({
 }));
 
 vi.mock("../../../services/accept-gallery.js", () => ({
-  acceptGalleryForNewCard: vi.fn(),
+  acceptFavoriteNewCard: vi.fn(),
 }));
 
 vi.mock("@openrift/shared", async (importOriginal) => ({
@@ -34,7 +34,7 @@ vi.mock("@openrift/shared", async (importOriginal) => ({
 const mockAcceptPrinting = vi.mocked(acceptPrinting);
 const mockDeletePrinting = vi.mocked(deletePrinting);
 const mockUpdatePrintingPromoType = vi.mocked(updatePrintingPromoType);
-const mockAcceptGalleryForNewCard = vi.mocked(acceptGalleryForNewCard);
+const mockAcceptFavoriteNewCard = vi.mocked(acceptFavoriteNewCard);
 const mockFixTypography = vi.mocked(fixTypography);
 const mockAppendSetTotal = vi.mocked(appendSetTotal);
 
@@ -121,6 +121,7 @@ const app = new Hono()
       candidateCards: mockCandidateCards,
       printingImages: mockPrintingImages,
       promoTypes: mockPromoTypes,
+      providerSettings: { favoriteProviders: vi.fn().mockResolvedValue(new Set(["gallery"])) },
       sets: mockSets,
     } as never);
     c.set("services", {
@@ -930,20 +931,20 @@ describe("POST /api/v1/new/:name/accept", () => {
   });
 });
 
-describe("POST /api/v1/new/:name/accept-gallery", () => {
+describe("POST /api/v1/new/:name/accept-favorites", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("returns 200 with gallery accept result", async () => {
-    const result = { cardSlug: "fire-dragon", printingsCreated: 3, imagesRehosted: 3 };
-    mockAcceptGalleryForNewCard.mockResolvedValue(result);
+  it("returns 200 with accept result", async () => {
+    const result = { cardSlug: "fire-dragon", printingsCreated: 3 };
+    mockAcceptFavoriteNewCard.mockResolvedValue(result);
 
-    const res = await app.request("/api/v1/new/Fire%20Dragon/accept-gallery", { method: "POST" });
+    const res = await app.request("/api/v1/new/Fire%20Dragon/accept-favorites", { method: "POST" });
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(result);
-    expect(mockAcceptGalleryForNewCard).toHaveBeenCalledWith(
+    expect(mockAcceptFavoriteNewCard).toHaveBeenCalledWith(
       mockTransact,
       mockIo,
       expect.objectContaining({
@@ -951,6 +952,7 @@ describe("POST /api/v1/new/:name/accept-gallery", () => {
         candidateMutations: mockMut,
       }),
       "Fire Dragon",
+      expect.any(Set),
     );
   });
 });

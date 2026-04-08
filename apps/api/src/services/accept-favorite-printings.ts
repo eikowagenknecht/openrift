@@ -36,7 +36,7 @@ export async function acceptFavoritePrintingsForCard(
   },
   cardSlug: string,
   favoriteProviders: Set<string>,
-): Promise<{ printingsCreated: number; imagesRehosted: number; skipped: SkippedGroup[] }> {
+): Promise<{ printingsCreated: number; skipped: SkippedGroup[] }> {
   const mut = repos.candidateMutations;
 
   // 1. Resolve card by slug
@@ -56,7 +56,7 @@ export async function acceptFavoritePrintingsForCard(
   // 3. Filter to favorite providers only
   const favoriteCandidates = allCandidates.filter((cc) => favoriteProviders.has(cc.provider));
   if (favoriteCandidates.length === 0) {
-    return { printingsCreated: 0, imagesRehosted: 0, skipped: [] };
+    return { printingsCreated: 0, skipped: [] };
   }
 
   // 4. Get their candidate printings, filter to unlinked only
@@ -66,7 +66,7 @@ export async function acceptFavoritePrintingsForCard(
   const unlinkedPrintings = allCandidatePrintings.filter((cp) => !cp.printingId);
 
   if (unlinkedPrintings.length === 0) {
-    return { printingsCreated: 0, imagesRehosted: 0, skipped: [] };
+    return { printingsCreated: 0, skipped: [] };
   }
 
   // 5. Group by shortCode|finish|promoTypeId|language
@@ -171,16 +171,15 @@ export async function acceptFavoritePrintingsForCard(
     await mut.checkCandidateCard(cc.id);
   }
 
-  // 8. Rehost newly inserted images
-  let imagesRehosted = 0;
+  // 8. Rehost newly inserted images (fire-and-forget to avoid blocking the response
+  //    with slow external image downloads)
   if (imagesInserted > 0) {
-    try {
-      const result = await rehostImages(io, repos.printingImages, imagesInserted + 5);
-      imagesRehosted = result.rehosted;
-    } catch {
-      // Rehost failure is non-fatal; images will be picked up by the next batch
-    }
+    // oxlint-disable-next-line promise/prefer-await-to-then -- intentionally fire-and-forget to avoid blocking the response
+    rehostImages(io, repos.printingImages, imagesInserted + 5).catch(() => {
+      // Non-fatal; unrehosted images fall back to the external URL and will be
+      // picked up by the next rehost batch.
+    });
   }
 
-  return { printingsCreated, imagesRehosted, skipped };
+  return { printingsCreated, skipped };
 }
