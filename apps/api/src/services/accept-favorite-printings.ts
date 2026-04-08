@@ -39,8 +39,8 @@ export async function acceptFavoritePrintingsForCard(
 ): Promise<{ printingsCreated: number; imagesRehosted: number; skipped: SkippedGroup[] }> {
   const mut = repos.candidateMutations;
 
-  // 1. Resolve card
-  const card = await mut.getCardById(cardSlug);
+  // 1. Resolve card by slug
+  const card = await mut.getCardBySlug(cardSlug);
   if (!card) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, `Card not found: ${cardSlug}`);
   }
@@ -133,7 +133,7 @@ export async function acceptFavoritePrintingsForCard(
       await acceptPrinting(
         transact,
         repos,
-        cardSlug,
+        card.id,
         {
           shortCode,
           setId,

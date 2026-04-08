@@ -212,6 +212,7 @@ export const candidateCardSummarySchema = z.object({
   uncheckedCardCount: z.number(),
   uncheckedPrintingCount: z.number(),
   hasFavorite: z.boolean(),
+  hasFavoriteStagingPrintings: z.boolean(),
   suggestedCardSlug: z.string().nullable(),
 });
 

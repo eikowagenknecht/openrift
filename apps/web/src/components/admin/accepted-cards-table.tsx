@@ -118,11 +118,9 @@ const columns: ColumnDef<Row>[] = [
     cell: ({ row }) => (
       <span className="flex items-center gap-2">
         <PrintingsCell row={row.original} />
-        {row.original.cardSlug &&
-          row.original.hasFavorite &&
-          row.original.stagingShortCodes.length > 0 && (
-            <AcceptFavoriteButton cardSlug={row.original.cardSlug} />
-          )}
+        {row.original.cardSlug && row.original.hasFavoriteStagingPrintings && (
+          <AcceptFavoriteButton cardSlug={row.original.cardSlug} />
+        )}
       </span>
     ),
   },
@@ -159,9 +157,7 @@ export function AcceptedCardsTable({ data }: { data: Row[] }) {
   const rows = table.getRowModel().rows;
 
   // Count cards that have the accept button
-  const acceptableCount = data.filter(
-    (r) => r.cardSlug && r.hasFavorite && r.stagingShortCodes.length > 0,
-  ).length;
+  const acceptableCount = data.filter((r) => r.cardSlug && r.hasFavoriteStagingPrintings).length;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({

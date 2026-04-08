@@ -2,11 +2,8 @@
 
 ## 2026-04-07
 
-- feat: New printings from favorite providers can now be accepted with one click from the card overview, without opening each card individually
-- feat: Domain colors are now stored in the database and can be customized by admins under Catalog > Domains
 - feat: Collection import now supports re-importing your own OpenRift CSV exports
 - feat: CSV exports now include a Promo column so promo variants can be imported back without ambiguity
-- feat: Providers can now be marked as favorites, and the Review badge on the cards page only counts unchecked candidates from favorite providers
 - feat: Search bar placeholder now shows which fields are being searched when the scope is narrowed (e.g. "Search by name, artist...")
 - fix: Search bar in copies view now shows the total number of copies instead of unique printings
 - fix: Deleting or moving more than 500 cards at once no longer fails with a validation error

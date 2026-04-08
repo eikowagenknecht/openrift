@@ -236,9 +236,12 @@ export async function buildCandidateCardList(
   // Collects all staging short codes across a normName group —
   // duplicates are kept so the frontend can show counts (e.g. "OGN-001a* ×2")
   // Skip linked candidate printings — they're already resolved to an accepted printing
-  function stagingIdsForGroup(group: typeof candidateCards): string[] {
+  function stagingIdsForGroup(group: typeof candidateCards, onlyFavorites?: boolean): string[] {
     const ids: string[] = [];
     for (const cc of group) {
+      if (onlyFavorites && !favoriteProviders.has(cc.provider)) {
+        continue;
+      }
       for (const cp of cpByCandidateCardId.get(cc.id) ?? []) {
         if (!cp.checkedAt && !cp.printingId) {
           const label =
@@ -314,6 +317,7 @@ export async function buildCandidateCardList(
         group?.filter((cc) => !cc.checkedAt && favoriteProviders.has(cc.provider)).length ?? 0,
       uncheckedPrintingCount: group ? uncheckedPrintingCountForGroup(group, true) : 0,
       hasFavorite: group?.some((cc) => favoriteProviders.has(cc.provider)) ?? false,
+      hasFavoriteStagingPrintings: group ? stagingIdsForGroup(group, true).length > 0 : false,
       suggestedCardSlug: null,
     };
   });
@@ -345,6 +349,7 @@ export async function buildCandidateCardList(
         .length,
       uncheckedPrintingCount: uncheckedPrintingCountForGroup(group, true),
       hasFavorite: group.some((cc) => favoriteProviders.has(cc.provider)),
+      hasFavoriteStagingPrintings: stagingIdsForGroup(group, true).length > 0,
       suggestedCardSlug: findSuggestedCard(normName),
     });
   }
