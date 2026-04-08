@@ -283,6 +283,7 @@ describe("rehostImages", () => {
     expect(result).toEqual({ total: 1, rehosted: 1, skipped: 0, failed: 0, errors: [] });
     expect(mockFetch).toHaveBeenCalledWith("https://example.com/img.png", {
       headers: { Referer: "https://example.com/" },
+      signal: expect.any(AbortSignal),
     });
     expect(mockWriteFile).toHaveBeenCalled();
   });

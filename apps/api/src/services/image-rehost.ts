@@ -66,10 +66,13 @@ function guessExtension(contentType: string | null, url: string): string {
   return ext || ".png";
 }
 
+const DOWNLOAD_TIMEOUT_MS = 15_000;
+
 export async function downloadImage(io: Io, url: string): Promise<{ buffer: Buffer; ext: string }> {
   const { origin } = new URL(url);
   const res = await io.fetch(url, {
     headers: { Referer: `${origin}/` },
+    signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
   });
   if (!res.ok) {
     throw new Error(`Download failed (${res.status}): ${url}`);
@@ -233,28 +236,35 @@ export async function rehostImages(
     errors: [],
   };
 
-  for (const img of images) {
-    if (!img.originalUrl) {
-      progress.skipped++;
-      continue;
-    }
+  const results = await Promise.allSettled(
+    images.map(async (img) => {
+      if (!img.originalUrl) {
+        return "skipped" as const;
+      }
 
-    try {
       const { buffer, ext } = await downloadImage(io, img.originalUrl);
       const outputDir = join(CARD_IMAGES_DIR, img.setSlug);
-
       await processAndSave(io, buffer, ext, outputDir, img.imageId, true);
-
       const selfHostedPath = imageRehostedUrl(img.setSlug, img.imageId);
-
       await repo.updateRehostedUrl(img.imageId, selfHostedPath);
+      return "rehosted" as const;
+    }),
+  );
 
-      progress.rehosted++;
-    } catch (error) {
+  for (let idx = 0; idx < results.length; idx++) {
+    const result = results[idx];
+    if (result.status === "fulfilled") {
+      if (result.value === "skipped") {
+        progress.skipped++;
+      } else {
+        progress.rehosted++;
+      }
+    } else {
       progress.failed++;
-      const message = error instanceof Error ? error.message : String(error);
-      progress.errors.push(`${img.imageId}: ${message}`);
-      console.error(`[rehost] Failed for ${img.imageId}:`, message);
+      const message =
+        result.reason instanceof Error ? result.reason.message : String(result.reason);
+      progress.errors.push(`${images[idx].imageId}: ${message}`);
+      console.error(`[rehost] Failed for ${images[idx].imageId}:`, message);
     }
   }
 
@@ -297,15 +307,23 @@ export async function regenerateImages(io: Io, offset: number): Promise<Regenera
   progress.total = batch.length;
   progress.hasMore = offset + BATCH_SIZE < allOrigFiles.length;
 
-  for (const { setDir, setId, file } of batch) {
-    const fileBase = file.replace(/-orig\.[^.]+$/, "");
-    try {
+  const results = await Promise.allSettled(
+    batch.map(async ({ setDir, file }) => {
+      const fileBase = file.replace(/-orig\.[^.]+$/, "");
       const buffer = await io.fs.readFile(join(setDir, file));
       await generateWebpVariants(io, buffer, setDir, fileBase);
+    }),
+  );
+
+  for (let idx = 0; idx < results.length; idx++) {
+    const result = results[idx];
+    if (result.status === "fulfilled") {
       progress.regenerated++;
-    } catch (error) {
+    } else {
       progress.failed++;
-      const message = error instanceof Error ? error.message : String(error);
+      const { setId, file } = batch[idx];
+      const message =
+        result.reason instanceof Error ? result.reason.message : String(result.reason);
       progress.errors.push(`${setId}/${file}: ${message}`);
       console.error(`[regenerate] Failed for ${setId}/${file}:`, message);
     }
