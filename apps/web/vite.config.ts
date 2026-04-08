@@ -133,6 +133,13 @@ export default defineConfig(({ mode, command }) => {
     server: {
       port: 5173,
       forwardConsole: true,
+      // Proxy only /api/auth to the API server. better-auth's browser client
+      // makes direct HTTP calls for OAuth redirects, cookie setting, OTP, etc.
+      // These can't go through server functions. In production, nginx handles
+      // this proxy (see nginx/web.conf location /api/).
+      proxy: {
+        "/api/auth": { target: "http://localhost:3000" },
+      },
     },
     resolve: {
       tsconfigPaths: true,

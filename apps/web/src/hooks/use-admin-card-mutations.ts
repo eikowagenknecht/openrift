@@ -180,19 +180,6 @@ const acceptFavoritesFn = createServerFn({ method: "POST" })
     }
   });
 
-const acceptFavoritePrintingsFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { cardSlug: string }) => input)
-  .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.cardSlug)}/accept-favorite-printings`,
-      { method: "POST", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Accept favorite printings failed: ${res.status}`);
-    }
-    return res.json();
-  });
 
 const linkCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string; cardId: string }) => input)
@@ -547,11 +534,23 @@ export function useCheckProvider() {
   });
 }
 
+const acceptFavoritePrintingsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: cardSlug }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(cardSlug)}/accept-favorite-printings`,
+      { method: "POST", headers: { cookie: context.cookie } },
+    );
+    if (!res.ok) {
+      throw new Error(`Accept favorite printings failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
 export function useAcceptFavoritePrintings() {
   return useMutationWithInvalidation({
-    mutationFn: async (cardSlug: string) => {
-      return await acceptFavoritePrintingsFn({ data: { cardSlug } });
-    },
+    mutationFn: (cardSlug: string) => acceptFavoritePrintingsFn({ data: cardSlug }),
     invalidates: [queryKeys.admin.cards.all],
   });
 }
