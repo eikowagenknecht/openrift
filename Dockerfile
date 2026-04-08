@@ -36,10 +36,23 @@ COPY --from=build /app/apps/api ./apps/api
 EXPOSE 3000
 CMD ["bun", "run", "apps/api/src/index.ts"]
 
-# ─── Stage 3: Web (nginx serves the SPA + proxies /api to the api container) ─
-FROM nginx:alpine AS web
+# ─── Stage 3: Web (TanStack Start SSR server) ───────────────────────────────
+FROM oven/bun:1-alpine AS web
+
+WORKDIR /app
+COPY --from=build /app/apps/web/.output .output
+EXPOSE 3001
+
+# Bun memory limit (default is 4GB, constrain for the VPS)
+ENV BUN_JSC_maxHeapSize=512
+
+CMD ["bun", "run", ".output/server/index.mjs"]
+
+# ─── Stage 4: Proxy (nginx — reverse proxy + static asset serving) ──────────
+FROM nginx:alpine AS proxy
 
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx/web.conf /etc/nginx/conf.d/web.conf
-COPY --from=build /app/apps/web/dist /usr/share/nginx/html
+# Built client assets (JS/CSS with content hashes) served directly by nginx
+COPY --from=build /app/apps/web/.output/public /srv/static
 EXPOSE 8080

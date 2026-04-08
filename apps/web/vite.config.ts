@@ -59,17 +59,7 @@ export default defineConfig(({ mode, command }) => {
       // Only enable Nitro for production builds — in dev it caches stale SSR
       // HTML after HMR updates, causing hydration mismatches.
       // See https://github.com/TanStack/router/issues/6556
-      command === "build" &&
-        nitro({
-          preset: "bun",
-          publicAssets: [
-            {
-              baseURL: "card-images",
-              dir: "../../card-images",
-              maxAge: 3600,
-            },
-          ],
-        }),
+      command === "build" && nitro({ preset: "bun" }),
       tailwindcss(),
       react(),
       babel({

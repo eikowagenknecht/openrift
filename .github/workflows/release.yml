@@ -87,6 +87,18 @@ jobs:
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
+      - name: Build and push proxy image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: proxy
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/openrift-proxy:v${{ needs.release.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/openrift-proxy:latest
+          cache-from: type=gha,scope=proxy
+          cache-to: type=gha,mode=max,scope=proxy
+
   deploy:
     runs-on: ubuntu-latest
     needs: [release, build]

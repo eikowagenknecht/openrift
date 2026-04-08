@@ -43,18 +43,40 @@ services:
         max-file: "10"
     restart: unless-stopped
 
-  # Nginx: serves the SPA and proxies /api to the api container.
+  # TanStack Start SSR server (internal only — not exposed to host).
   web:
     image: ghcr.io/eikowagenknecht/openrift-web:${IMAGE_TAG:-latest}
     depends_on:
       - api
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    environment:
+      PORT: "3001"
+      API_INTERNAL_URL: "http://api:3000"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "10"
+    restart: unless-stopped
+    stop_grace_period: 15s
+
+  # Nginx reverse proxy + static asset serving (exposed to host).
+  proxy:
+    image: ghcr.io/eikowagenknecht/openrift-proxy:${IMAGE_TAG:-latest}
+    depends_on:
+      - web
+      - api
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 3
     volumes:
-      - ./card-images:/usr/share/nginx/html/card-images:ro
+      - ./card-images:/srv/static/card-images:ro
     ports:
       - "127.0.0.1:${WEB_PORT:-8080}:8080"
     logging:
