@@ -162,10 +162,10 @@ export function useAcceptNewCard() {
   });
 }
 
-export function useAcceptGallery() {
+export function useAcceptFavoriteNewCard() {
   return useMutationWithInvalidation({
     mutationFn: async (name: string) => {
-      const res = await client.api.v1.admin["cards"].new[":name"]["accept-gallery"].$post({
+      const res = await client.api.v1.admin["cards"].new[":name"]["accept-favorites"].$post({
         param: { name },
       });
       assertOk(res);

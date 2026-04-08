@@ -1,4 +1,5 @@
 import type { CandidateCardSummaryResponse } from "@openrift/shared";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
 import {
@@ -27,6 +28,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAcceptFavoritePrintings } from "@/hooks/use-admin-card-mutations";
+import { queryKeys } from "@/lib/query-keys";
+import { assertOk, client } from "@/lib/rpc-client";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -138,6 +141,44 @@ const OVERSCAN = 20;
 // ---------------------------------------------------------------------------
 
 export function AcceptedCardsTable({ data }: { data: Row[] }) {
+  const queryClient = useQueryClient();
+  const [acceptAllProgress, setAcceptAllProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+
+  const acceptAll = useMutation({
+    mutationFn: async (slugs: string[]) => {
+      let done = 0;
+      let failed = 0;
+      setAcceptAllProgress({ done: 0, total: slugs.length });
+
+      for (const slug of slugs) {
+        try {
+          const res = await client.api.v1.admin["cards"][":cardSlug"][
+            "accept-favorite-printings"
+          ].$post({ param: { cardSlug: slug } });
+          assertOk(res);
+        } catch {
+          failed++;
+        }
+        done++;
+        setAcceptAllProgress({ done, total: slugs.length });
+      }
+
+      setAcceptAllProgress(null);
+      return { accepted: done - failed, failed };
+    },
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.admin.cards.all] });
+      if (result.failed === 0) {
+        toast.success(`Accepted printings for ${result.accepted} cards`);
+      } else {
+        toast.warning(`Accepted ${result.accepted}, failed ${result.failed}`);
+      }
+    },
+  });
+
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
 
@@ -178,6 +219,33 @@ export function AcceptedCardsTable({ data }: { data: Row[] }) {
             </span>
           )}
         </p>
+
+        {acceptableCount > 0 && (
+          <Button
+            variant="outline"
+            disabled={acceptAll.isPending}
+            onClick={() => {
+              const slugs = data
+                .filter((r): r is Row & { cardSlug: string } =>
+                  Boolean(r.cardSlug && r.hasFavoriteStagingPrintings),
+                )
+                .map((r) => r.cardSlug);
+              acceptAll.mutate(slugs);
+            }}
+          >
+            {acceptAll.isPending ? (
+              <>
+                <LoaderIcon className="size-3 animate-spin" />
+                {acceptAllProgress ? `${acceptAllProgress.done}/${acceptAllProgress.total}` : "..."}
+              </>
+            ) : (
+              <>
+                <StarIcon className="size-3" />
+                Accept all ({acceptableCount})
+              </>
+            )}
+          </Button>
+        )}
 
         <div className="relative ml-auto">
           <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />

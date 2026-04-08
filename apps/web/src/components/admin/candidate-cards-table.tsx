@@ -1,4 +1,5 @@
 import type { CandidateCardSummaryResponse } from "@openrift/shared";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ColumnDef, ColumnFiltersState, FilterFn, SortingState } from "@tanstack/react-table";
 import {
   flexRender,
@@ -8,8 +9,9 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { SearchIcon } from "lucide-react";
+import { ImagePlusIcon, LoaderIcon, SearchIcon } from "lucide-react";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 
 import type { CardNameCellMeta } from "@/components/admin/card-name-cell";
 import { CardNameCell } from "@/components/admin/card-name-cell";
@@ -26,8 +28,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAcceptGallery, useLinkCard } from "@/hooks/use-admin-card-mutations";
+import { useAcceptFavoriteNewCard, useLinkCard } from "@/hooks/use-admin-card-mutations";
 import { useAllCards } from "@/hooks/use-admin-card-queries";
+import { queryKeys } from "@/lib/query-keys";
+import { assertOk, client } from "@/lib/rpc-client";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -110,8 +114,45 @@ const OVERSCAN = 20;
 
 export function CandidateCardsTable({ data }: { data: Row[] }) {
   const linkCard = useLinkCard();
-  const acceptGallery = useAcceptGallery();
+  const acceptFavorite = useAcceptFavoriteNewCard();
   const { data: allCards } = useAllCards();
+  const queryClient = useQueryClient();
+  const [acceptAllProgress, setAcceptAllProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
+
+  const acceptAll = useMutation({
+    mutationFn: async (names: string[]) => {
+      let done = 0;
+      let failed = 0;
+      setAcceptAllProgress({ done: 0, total: names.length });
+
+      for (const name of names) {
+        try {
+          const res = await client.api.v1.admin["cards"].new[":name"]["accept-favorites"].$post({
+            param: { name },
+          });
+          assertOk(res);
+        } catch {
+          failed++;
+        }
+        done++;
+        setAcceptAllProgress({ done, total: names.length });
+      }
+
+      setAcceptAllProgress(null);
+      return { accepted: done - failed, failed };
+    },
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: [...queryKeys.admin.cards.all] });
+      if (result.failed === 0) {
+        toast.success(`Accepted ${result.accepted} new cards`);
+      } else {
+        toast.warning(`Accepted ${result.accepted}, failed ${result.failed}`);
+      }
+    },
+  });
 
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -120,6 +161,8 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
   const uncheckedCount = data.filter(
     (r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
   ).length;
+
+  const acceptableCount = data.filter((r) => !r.cardSlug && r.hasFavorite).length;
 
   const activeStatus = (columnFilters.find((f) => f.id === "status")?.value ??
     null) as StatusFilter | null;
@@ -134,7 +177,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
     });
   }
 
-  const columns = makeColumns({ linkCard, acceptGallery, allCards });
+  const columns = makeColumns({ linkCard, acceptFavorite, allCards });
 
   const table = useReactTable({
     data,
@@ -169,6 +212,31 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
         >
           Review ({uncheckedCount})
         </Button>
+
+        {acceptableCount > 0 && (
+          <Button
+            variant="outline"
+            disabled={acceptAll.isPending}
+            onClick={() => {
+              const names = data
+                .filter((r) => !r.cardSlug && r.hasFavorite)
+                .map((r) => r.normalizedName);
+              acceptAll.mutate(names);
+            }}
+          >
+            {acceptAll.isPending ? (
+              <>
+                <LoaderIcon className="size-3 animate-spin" />
+                {acceptAllProgress ? `${acceptAllProgress.done}/${acceptAllProgress.total}` : "..."}
+              </>
+            ) : (
+              <>
+                <ImagePlusIcon className="size-3" />
+                Accept all ({acceptableCount})
+              </>
+            )}
+          </Button>
+        )}
 
         <div className="relative ml-auto">
           <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />

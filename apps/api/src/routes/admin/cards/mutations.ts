@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../../errors.js";
 import { acceptFavoritePrintingsForCard } from "../../../services/accept-favorite-printings.js";
-import { acceptGalleryForNewCard } from "../../../services/accept-gallery.js";
+import { acceptFavoriteNewCard } from "../../../services/accept-gallery.js";
 import {
   acceptPrinting,
   deletePrinting,
@@ -230,9 +230,9 @@ const acceptNewCard = createRoute({
   },
 });
 
-const acceptGallery = createRoute({
+const acceptFavoriteNewCardRoute = createRoute({
   method: "post",
-  path: "/new/{name}/accept-gallery",
+  path: "/new/{name}/accept-favorites",
   tags: ["Admin - Cards"],
   request: {
     params: z.object({ name: z.string() }),
@@ -244,11 +244,10 @@ const acceptGallery = createRoute({
           schema: z.object({
             cardSlug: z.string(),
             printingsCreated: z.number(),
-            imagesRehosted: z.number(),
           }),
         },
       },
-      description: "Gallery accepted",
+      description: "New card accepted from favorite providers",
     },
   },
 });
@@ -266,7 +265,6 @@ const acceptFavoritePrintings = createRoute({
         "application/json": {
           schema: z.object({
             printingsCreated: z.number(),
-            imagesRehosted: z.number(),
             skipped: z.array(z.object({ shortCode: z.string(), reason: z.string() })),
           }),
         },
@@ -844,17 +842,20 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     return c.body(null, 204);
   })
 
-  // ── POST /new/:name/accept-gallery ───────────────────────────────────────
-  // Create card + printings from gallery source, set images, and rehost
-  .openapi(acceptGallery, async (c) => {
-    const { candidateCards, candidateMutations, printingImages, promoTypes } = c.get("repos");
+  // ── POST /new/:name/accept-favorites ─────────────────────────────────────
+  // Create card + printings from favorite-provider sources
+  .openapi(acceptFavoriteNewCardRoute, async (c) => {
+    const { candidateCards, candidateMutations, printingImages, promoTypes, providerSettings } =
+      c.get("repos");
     const normalizedName = decodeURIComponent(c.req.valid("param").name);
+    const favoriteProviders = await providerSettings.favoriteProviders();
 
-    const result = await acceptGalleryForNewCard(
+    const result = await acceptFavoriteNewCard(
       c.get("transact"),
       c.get("io"),
       { candidateCards, candidateMutations, printingImages, promoTypes },
       normalizedName,
+      favoriteProviders,
     );
 
     return c.json(result);

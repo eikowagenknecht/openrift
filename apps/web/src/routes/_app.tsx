@@ -19,8 +19,8 @@ function AppLayout() {
   return (
     <>
       <Header />
-      <main className={`flex flex-1 flex-col ${CONTAINER_WIDTH}`}>
-        <div className="flex flex-1 flex-col">
+      <main className={`flex min-h-0 flex-1 flex-col ${CONTAINER_WIDTH}`}>
+        <div className="flex min-h-0 flex-1 flex-col">
           <Outlet />
         </div>
         {!hideFooter && <Footer className={FOOTER_PADDING_NO_TOP} />}
