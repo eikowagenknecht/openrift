@@ -14,7 +14,6 @@ import { nitro } from "nitro/vite";
 import { defineConfig, loadEnv } from "vite";
 
 const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
-const apiTarget = "http://localhost:3000";
 const cardImagesDir = path.resolve(__dirname, "../../card-images");
 
 const repoRoot = path.resolve(__dirname, "../..");
@@ -63,9 +62,6 @@ export default defineConfig(({ mode, command }) => {
       command === "build" &&
         nitro({
           preset: "bun",
-          routeRules: {
-            "/api/**": { proxy: `${apiTarget}/api/**` },
-          },
           publicAssets: [
             {
               baseURL: "card-images",
@@ -137,9 +133,6 @@ export default defineConfig(({ mode, command }) => {
     server: {
       port: 5173,
       forwardConsole: true,
-      proxy: {
-        "/api": { target: apiTarget },
-      },
     },
     resolve: {
       tsconfigPaths: true,
