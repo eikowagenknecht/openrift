@@ -7,7 +7,7 @@ export interface OcrMatch {
   printing: Printing;
   confidence: number;
   rawText: string;
-  matchedOn: "name" | "collectorNumber" | "publicCode";
+  matchedOn: "name" | "shortCode" | "publicCode";
 }
 
 export interface OcrResult {
@@ -82,20 +82,24 @@ function matchOcrText(rawText: string, printings: Printing[]): OcrMatch[] {
       }
     }
 
-    // Try matching collector number with set code (e.g. "OGN 027" or "27/150")
+    // Try matching short code with set code (e.g. "OGN 027" or "OGN-027")
     for (const line of lines) {
-      const numStr = String(printing.collectorNumber);
-      const setPattern = `${printing.setSlug}[\\s\\-#]*0*${numStr}`;
-      const regex = new RegExp(setPattern, "i");
-      if (regex.test(line)) {
-        const match: OcrMatch = {
-          printing,
-          confidence: 0.9,
-          rawText,
-          matchedOn: "collectorNumber",
-        };
-        if (!best || match.confidence > best.confidence) {
-          best = match;
+      // Extract numeric part from short code (e.g. "OGN-027" → "027")
+      const codeMatch = printing.shortCode.match(/^[A-Z]{3}-(.+)$/);
+      if (codeMatch) {
+        const numPart = codeMatch[1];
+        const setPattern = `${printing.setSlug}[\\s\\-#]*0*${numPart}`;
+        const regex = new RegExp(setPattern, "i");
+        if (regex.test(line)) {
+          const match: OcrMatch = {
+            printing,
+            confidence: 0.9,
+            rawText,
+            matchedOn: "shortCode",
+          };
+          if (!best || match.confidence > best.confidence) {
+            best = match;
+          }
         }
       }
     }

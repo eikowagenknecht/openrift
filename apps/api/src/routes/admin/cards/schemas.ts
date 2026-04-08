@@ -20,7 +20,6 @@ export const patchCandidatePrintingSchema = z.object({
   artVariant: candidatePrintingFieldRules.artVariant.optional(),
   isSigned: z.boolean().optional(),
   finish: candidatePrintingFieldRules.finish.optional(),
-  collectorNumber: candidatePrintingFieldRules.collectorNumber.optional(),
   setId: candidatePrintingFieldRules.setId.optional(),
   shortCode: candidatePrintingFieldRules.shortCode.optional(),
   rarity: candidatePrintingFieldRules.rarity.optional(),
@@ -78,7 +77,6 @@ export const acceptPrintingSchema = z.object({
     shortCode: printingFieldRules.shortCode,
     setId: setFieldRules.slug.optional(),
     setName: setFieldRules.name.optional().nullable(),
-    collectorNumber: printingFieldRules.collectorNumber,
     rarity: printingFieldRules.rarity.optional().nullable(),
     artVariant: printingFieldRules.artVariant.optional(),
     isSigned: z.boolean().optional(),
@@ -125,14 +123,11 @@ export const uploadImageFormSchema = z.object({
 
 /** Nullable string that defaults to null when missing from JSON. */
 const nullStr = z.string().nullable().optional().default(null);
-/** Nullable number that defaults to null when missing from JSON. */
-const nullNum = z.number().nullable().optional().default(null);
 
 const ingestPrintingSchema = z.object({
   short_code: z.string(),
   set_id: nullStr,
   set_name: nullStr,
-  collector_number: nullNum,
   rarity: nullStr,
   art_variant: nullStr,
   is_signed: z.boolean().optional().default(false),

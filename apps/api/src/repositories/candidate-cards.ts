@@ -614,7 +614,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "cardId",
           "setId",
           "shortCode",
-          "collectorNumber",
           "rarity",
           "artVariant",
           "isSigned",
@@ -672,7 +671,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         | "shortCode"
         | "setId"
         | "setName"
-        | "collectorNumber"
         | "rarity"
         | "artVariant"
         | "isSigned"
@@ -704,7 +702,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "ps.shortCode",
           "ps.setId",
           "ps.setName",
-          "ps.collectorNumber",
           "ps.rarity",
           "ps.artVariant",
           "ps.isSigned",
@@ -924,7 +921,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
 
     /**
      * @returns Candidate printings for unmatched detail, excluding ignored.
-     * Ordered by collectorNumber, shortCode.
+     * Ordered by shortCode.
      */
     candidatePrintingsForUnmatched(
       candidateCardIds: string[],
@@ -938,7 +935,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .selectAll("ps")
         .where("ps.candidateCardId", "in", candidateCardIds)
         .where(notIgnoredPrinting("ps", "cs_parent"))
-        .orderBy("ps.collectorNumber")
         .orderBy("ps.shortCode")
         .execute();
     },
@@ -991,7 +987,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "ci.originalUrl",
         ])
         .orderBy("printings.setId")
-        .orderBy("printings.collectorNumber")
+        .orderBy("printings.shortCode")
         .orderBy("printings.artVariant")
         .orderBy("printings.finish")
         .execute() as Promise<ExportPrintingRow[]>;

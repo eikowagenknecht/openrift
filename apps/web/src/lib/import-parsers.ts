@@ -6,8 +6,6 @@ import { parseCSV, parseCSVWithHeaders } from "@/lib/csv";
 export interface ImportEntry {
   /** Set prefix, e.g. "OGN". */
   setPrefix: string;
-  /** Collector number, e.g. 1. */
-  collectorNumber: number;
   /** Card finish. */
   finish: Finish;
   /** Art variant. */
@@ -229,7 +227,6 @@ function parsePiltoverArchive(text: string): ParseResult {
 
     const entry: ImportEntry = {
       setPrefix: parsed?.setPrefix ?? record["Set Prefix"]?.trim() ?? "",
-      collectorNumber: parsed?.collectorNumber ?? 0,
       finish,
       artVariant: parsed?.artVariant ?? "normal",
       quantity,
@@ -256,7 +253,6 @@ function parsePiltoverArchive(text: string): ParseResult {
 
 interface PiltoverVariantParts {
   setPrefix: string;
-  collectorNumber: number;
   artVariant: ArtVariant;
   hasFoilSuffix: boolean;
   /** The base short code without -Foil or promo suffix, e.g. "OGN-079a". */
@@ -283,14 +279,13 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
   // Try standard format: SET-CCC[modifier]? (e.g. "OGN-001", "SFD-T01", "SFD-R04a", "OGN-123*")
   const standardMatch = code.match(/^([A-Z]{3})-([A-Z0-9]{3})([a-z*]?)$/);
   if (standardMatch) {
-    const { collectorNumber, artVariant, shortCode } = resolveCardModifier(
+    const { artVariant, shortCode } = resolveCardModifier(
       standardMatch[1],
       standardMatch[2],
       standardMatch[3],
     );
     return {
       setPrefix: standardMatch[1],
-      collectorNumber,
       artVariant,
       hasFoilSuffix,
       shortCode,
@@ -300,14 +295,13 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
   // Try suffixed format: SET-CCC[modifier]?-PromoSuffix (e.g. "OGN-001-Nexus", "OGN-027a-Release")
   const suffixMatch = code.match(/^([A-Z]{3})-([A-Z0-9]{3})([a-z*]?)-([A-Za-z]+)$/);
   if (suffixMatch) {
-    const { collectorNumber, artVariant, shortCode } = resolveCardModifier(
+    const { artVariant, shortCode } = resolveCardModifier(
       suffixMatch[1],
       suffixMatch[2],
       suffixMatch[3],
     );
     return {
       setPrefix: suffixMatch[1],
-      collectorNumber,
       artVariant,
       hasFoilSuffix,
       shortCode,
@@ -379,7 +373,6 @@ function parseOpenRift(text: string): ParseResult {
 
     entries.push({
       setPrefix: parsed.setPrefix,
-      collectorNumber: parsed.collectorNumber,
       finish,
       artVariant,
       quantity,
@@ -406,15 +399,12 @@ function parseOpenRift(text: string): ParseResult {
  * Uses the same format as our short codes.
  * @returns Parsed parts, or null if the format is unrecognized.
  */
-function parseOpenRiftCardId(
-  cardId: string,
-): { setPrefix: string; collectorNumber: number } | null {
+function parseOpenRiftCardId(cardId: string): { setPrefix: string } | null {
   const match = cardId.match(/^([A-Z]{3})-([A-Z0-9]{3})[a-z*]?$/);
   if (!match) {
     return null;
   }
-  const digits = match[2].replaceAll(/[A-Za-z]/g, "");
-  return { setPrefix: match[1], collectorNumber: Number.parseInt(digits, 10) };
+  return { setPrefix: match[1] };
 }
 
 // ---------------------------------------------------------------------------
@@ -432,11 +422,7 @@ function resolveCardModifier(
   setPrefix: string,
   cardNumber: string,
   modifier: string,
-): { collectorNumber: number; artVariant: ArtVariant; shortCode: string } {
-  // Extract the numeric portion from the card number (e.g. "T01" → 1, "001" → 1)
-  const digits = cardNumber.replaceAll(/[A-Za-z]/g, "");
-  const collectorNumber = Number.parseInt(digits, 10);
-
+): { artVariant: ArtVariant; shortCode: string } {
   let artVariant: ArtVariant;
   if (modifier === "*") {
     artVariant = "overnumbered";
@@ -447,7 +433,7 @@ function resolveCardModifier(
   }
 
   const shortCode = `${setPrefix}-${cardNumber}${modifier}`;
-  return { collectorNumber, artVariant, shortCode };
+  return { artVariant, shortCode };
 }
 
 // ---------------------------------------------------------------------------
@@ -544,7 +530,6 @@ function parseRiftCore(text: string): ParseResult {
       const finish: Finish = alwaysFoil ? "foil" : "normal";
       entries.push({
         setPrefix: parsed.setPrefix,
-        collectorNumber: parsed.collectorNumber,
         finish,
         artVariant: parsed.artVariant,
         quantity: standardQty,
@@ -560,7 +545,6 @@ function parseRiftCore(text: string): ParseResult {
     if (foilQty > 0) {
       entries.push({
         setPrefix: parsed.setPrefix,
-        collectorNumber: parsed.collectorNumber,
         finish: "foil",
         artVariant: parsed.artVariant,
         quantity: foilQty,
@@ -576,7 +560,6 @@ function parseRiftCore(text: string): ParseResult {
 
 interface RiftCoreCardParts {
   setPrefix: string;
-  collectorNumber: number;
   artVariant: ArtVariant;
   /** Normalized short code, e.g. "OGN-030a" (lowercase suffix). */
   shortCode: string;

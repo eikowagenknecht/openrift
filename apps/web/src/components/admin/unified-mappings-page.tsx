@@ -104,7 +104,6 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
     shortCode: p.shortCode,
     setId: group.setName,
     setSlug: group.setName,
-    collectorNumber: p.collectorNumber,
     rarity: p.rarity as Rarity,
     artVariant: p.artVariant as ArtVariant,
     isSigned: p.isSigned,

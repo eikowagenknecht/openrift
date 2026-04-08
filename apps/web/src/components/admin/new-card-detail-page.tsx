@@ -290,7 +290,6 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
                                     id: s.id,
                                     fields: {
                                       setId: t.setId,
-                                      collectorNumber: t.collectorNumber,
                                       artVariant: t.artVariant,
                                       isSigned: t.isSigned,
                                       promoTypeId: t.promoTypeId,

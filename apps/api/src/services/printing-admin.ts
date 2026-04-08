@@ -111,7 +111,6 @@ interface AcceptPrintingFields {
   shortCode: string;
   setId?: string;
   setName?: string | null;
-  collectorNumber: number;
   rarity?: string | null;
   artVariant?: string;
   isSigned?: boolean;
@@ -225,7 +224,6 @@ export async function acceptPrinting(
       cardId,
       setId: setUuid,
       shortCode: printingFields.shortCode,
-      collectorNumber: printingFields.collectorNumber,
       rarity: normalizedRarity as Rarity,
       artVariant: (printingFields.artVariant ?? "normal") as ArtVariant,
       isSigned: printingFields.isSigned ?? false,

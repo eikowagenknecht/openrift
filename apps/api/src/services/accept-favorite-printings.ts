@@ -91,16 +91,13 @@ export async function acceptFavoritePrintingsForCard(
     const label = first.shortCode || "(unknown)";
 
     // Validate required fields — fail early instead of defaulting to wrong values
-    const { shortCode, setId, collectorNumber, rarity, finish } = first;
+    const { shortCode, setId, rarity, finish } = first;
     const missingFields: string[] = [];
     if (!shortCode) {
       missingFields.push("shortCode");
     }
     if (!setId) {
       missingFields.push("setId");
-    }
-    if (collectorNumber === null || collectorNumber === undefined) {
-      missingFields.push("collectorNumber");
     }
     if (!rarity) {
       missingFields.push("rarity");
@@ -113,10 +110,6 @@ export async function acceptFavoritePrintingsForCard(
       skipped.push({ shortCode: label, reason: `missing: ${missingFields.join(", ")}` });
       continue;
     }
-
-    // Narrowed: shortCode, setId, rarity, finish are all non-null strings;
-    // collectorNumber is a number (validated above)
-    const validCollectorNumber = collectorNumber ?? 0;
 
     // Check if printing with this identity already exists
     const existing = await mut.getPrintingCardIdByComposite(
@@ -139,7 +132,6 @@ export async function acceptFavoritePrintingsForCard(
           shortCode,
           setId,
           setName: first.setName,
-          collectorNumber: validCollectorNumber,
           rarity,
           artVariant: first.artVariant ?? "normal",
           isSigned: first.isSigned ?? false,

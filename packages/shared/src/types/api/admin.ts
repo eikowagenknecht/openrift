@@ -28,7 +28,6 @@ export interface CandidatePrintingResponse {
   shortCode: string;
   setId: string | null;
   setName: string | null;
-  collectorNumber: number | null;
   rarity: string | null;
   artVariant: string | null;
   isSigned: boolean | null;
@@ -141,7 +140,6 @@ export interface AdminPrintingResponse {
   setName: string | null;
   setSlug: string;
   shortCode: string;
-  collectorNumber: number;
   rarity: string;
   artVariant: string;
   isSigned: boolean;
@@ -383,7 +381,6 @@ export interface MappingPrintingResponse {
   promoTypeSlug: string | null;
   finish: string;
   language: string;
-  collectorNumber: number;
   imageUrl: string | null;
   externalId: number | null;
 }
@@ -455,7 +452,6 @@ export interface AssignableCardResponse {
     shortCode: string;
     finish: string;
     language: string;
-    collectorNumber: number;
     isSigned: boolean;
     externalId: number | null;
   }[];

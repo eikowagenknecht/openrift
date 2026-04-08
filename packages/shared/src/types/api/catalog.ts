@@ -15,7 +15,6 @@ export interface CatalogPrintingResponse {
   id: string;
   shortCode: string;
   setId: string;
-  collectorNumber: number;
   rarity: Rarity;
   artVariant: ArtVariant;
   isSigned: boolean;

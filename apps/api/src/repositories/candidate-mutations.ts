@@ -199,7 +199,6 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
           shortCode: ps.shortCode,
           setId: ps.setId,
           setName: ps.setName,
-          collectorNumber: ps.collectorNumber,
           rarity: target.rarity as Rarity | null,
           artVariant: target.artVariant as ArtVariant | null,
           isSigned: target.isSigned,
@@ -644,7 +643,6 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       cardId: string;
       setId: string;
       shortCode: string;
-      collectorNumber: number;
       rarity: Rarity;
       artVariant: ArtVariant;
       isSigned: boolean;

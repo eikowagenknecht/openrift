@@ -44,7 +44,6 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(first).toHaveProperty("id");
     expect(first).toHaveProperty("cardId");
     expect(first).toHaveProperty("setId");
-    expect(first).toHaveProperty("collectorNumber");
     expect(first).toHaveProperty("rarity");
     expect(first).toHaveProperty("finish");
     expect(first).toHaveProperty("promoType");

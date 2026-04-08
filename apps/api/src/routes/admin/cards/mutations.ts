@@ -519,7 +519,6 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       "isSigned",
       "promoTypeId",
       "finish",
-      "collectorNumber",
       "setId",
       "shortCode",
       "rarity",
@@ -705,7 +704,6 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const allowedFields = new Set([
       "shortCode",
       "setId",
-      "collectorNumber",
       "rarity",
       "artVariant",
       "isSigned",

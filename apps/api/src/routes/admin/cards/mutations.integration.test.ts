@@ -76,7 +76,6 @@ if (ctx) {
       cardId: cardId,
       setId: setId,
       shortCode: "CSM-001",
-      collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
@@ -100,7 +99,6 @@ if (ctx) {
       cardId: cardId,
       setId: setId,
       shortCode: "CSM-002",
-      collectorNumber: 2,
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
@@ -174,7 +172,6 @@ if (ctx) {
       shortCode: "CSM-001",
       setId: "CSM-TEST",
       setName: "CSM Test Set",
-      collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
@@ -202,7 +199,6 @@ if (ctx) {
       shortCode: "CSM-NEW-001",
       setId: "CSM-TEST",
       setName: "CSM Test Set",
-      collectorNumber: 99,
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
@@ -254,7 +250,6 @@ if (ctx) {
       shortCode: "CSM-ACCEPT-001",
       setId: "CSM-TEST",
       setName: "CSM Test Set",
-      collectorNumber: 50,
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
@@ -424,7 +419,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           artVariant: "altart",
           finish: "foil",
           isSigned: true,
-          collectorNumber: 42,
           setId: "CSM-TEST",
           shortCode: "CSM-PATCHED",
         }),
@@ -433,13 +427,12 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       const row = await db
         .selectFrom("candidatePrintings")
-        .select(["artVariant", "finish", "isSigned", "collectorNumber", "setId", "shortCode"])
+        .select(["artVariant", "finish", "isSigned", "setId", "shortCode"])
         .where("id", "=", psId)
         .executeTakeFirstOrThrow();
       expect(row.artVariant).toBe("altart");
       expect(row.finish).toBe("foil");
       expect(row.isSigned).toBe(true);
-      expect(row.collectorNumber).toBe(42);
       expect(row.shortCode).toBe("CSM-PATCHED");
 
       // Restore for subsequent tests
@@ -449,7 +442,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           artVariant: "normal",
           finish: "normal",
           isSigned: false,
-          collectorNumber: 1,
           shortCode: "CSM-001",
           rarity: "Common",
         })
@@ -959,7 +951,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           shortCode: "CSM-AP-001",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
-          collectorNumber: 60,
           rarity: "Uncommon",
           artVariant: "normal",
           isSigned: false,
@@ -983,7 +974,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             shortCode: "CSM-AP-001",
             setId: "CSM-TEST",
             setName: "CSM Test Set",
-            collectorNumber: 60,
             rarity: "Uncommon",
             artVariant: "normal",
             finish: "normal",
@@ -1031,7 +1021,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           shortCode: "CSM-AP-FOIL",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
-          collectorNumber: 61,
           rarity: "Epic",
           artVariant: "normal",
           isSigned: false,
@@ -1054,7 +1043,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printingFields: {
             shortCode: "CSM-AP-FOIL",
             setId: "CSM-TEST",
-            collectorNumber: 61,
             rarity: "Epic",
             finish: "foil",
             artist: "Custom Artist",
@@ -1078,7 +1066,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           shortCode: "CSM-AP-PROMO",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
-          collectorNumber: 62,
           rarity: "Common",
           artVariant: "normal",
           isSigned: true,
@@ -1101,7 +1088,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printingFields: {
             shortCode: "CSM-AP-PROMO",
             setId: "CSM-TEST",
-            collectorNumber: 62,
             rarity: "Common",
             finish: "foil",
             isSigned: true,
@@ -1132,7 +1118,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         req("POST", `${P}/${cardId}/accept-printing`, {
           printingFields: {
             shortCode: "CSM-AP-X",
-            collectorNumber: 70,
             artist: "X",
             publicCode: "X",
           },
@@ -1148,7 +1133,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printingFields: {
             shortCode: "CSM-AP-X",
             setId: "CSM",
-            collectorNumber: 70,
             artist: "X",
             publicCode: "X",
           },
@@ -1167,7 +1151,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           shortCode: "CSM-AP-NEWSET",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
-          collectorNumber: 71,
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
@@ -1191,7 +1174,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             shortCode: "CSM-AP-NEWSET",
             setId: "CSM-NEW-SET",
             setName: "CSM Brand New Set",
-            collectorNumber: 71,
             rarity: "Common",
             finish: "normal",
             artist: "A",
@@ -1244,7 +1226,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
                   external_id: "CSM-UPLOAD-001",
                   set_id: "CSM-TEST",
                   set_name: "CSM Test Set",
-                  collector_number: 10,
                   rarity: "Common",
                   art_variant: "normal",
                   is_signed: false,
@@ -1615,7 +1596,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           cardId: cardId,
           setId: setId,
           shortCode: "CSM-DELETE-TEST",
-          collectorNumber: 80,
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
@@ -1653,7 +1633,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           shortCode: "CSM-DELETE-TEST",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
-          collectorNumber: 80,
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,

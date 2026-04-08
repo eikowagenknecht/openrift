@@ -19,7 +19,6 @@ function makePrinting(
     shortCode: "SET1-001",
     setId: "00000000-0000-0000-0000-0000000000a1",
     setSlug: "Set Alpha",
-    collectorNumber: 1,
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,

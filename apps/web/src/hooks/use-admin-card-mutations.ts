@@ -260,13 +260,9 @@ export function useAcceptPrintingGroup() {
       printingFields: AcceptPrintingBody["printingFields"];
       candidatePrintingIds: string[];
     }) => {
-      const fields = { ...printingFields };
-      if (typeof fields.collectorNumber === "string") {
-        fields.collectorNumber = Number(fields.collectorNumber);
-      }
       const res = await client.api.v1.admin["cards"][":cardId"]["accept-printing"].$post({
         param: { cardId },
-        json: { printingFields: fields, candidatePrintingIds },
+        json: { printingFields, candidatePrintingIds },
       });
       assertOk(res);
       return await res.json();

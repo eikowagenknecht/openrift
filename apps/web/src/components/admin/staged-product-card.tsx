@@ -48,9 +48,9 @@ export function StagedProductCard({
           .filter((g) => g.cardName.toLowerCase().includes(cardSearchQuery.toLowerCase()))
           .slice(0, 10)
           .map((g) => {
-            const firstId = g.printings.reduce((best, p) =>
-              p.collectorNumber < best.collectorNumber ? p : best,
-            ).shortCode;
+            const firstId = g.printings.toSorted((a, b) =>
+              a.shortCode.localeCompare(b.shortCode),
+            )[0].shortCode;
             return { id: g.cardId, label: g.cardName, sublabel: firstId, detail: g.setName };
           })
       : [];

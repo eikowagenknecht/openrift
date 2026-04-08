@@ -32,7 +32,7 @@ The Card ID is the printing's `shortCode`. The general structure is:
 ```
 
 - **SET**: Uppercase set prefix (e.g., `OGN`, `ALP`)
-- **NUMBER**: Three-digit collector number (e.g., `001`, `030`)
+- **NUMBER**: Three-digit card number (e.g., `001`, `030`)
 - **variant suffix**: Lowercase letter for alt art (`a`, `b`, etc.)
 - **finish suffix**: `f` for foil printings
 
@@ -57,6 +57,6 @@ Fields containing commas, double quotes, or newlines are wrapped in double quote
 
 ## Notes for parser authors
 
-- Rows are sorted by Card ID (set prefix, then collector number).
+- Rows are sorted by Card ID (set prefix, then short code).
 - The Domain column may contain `/` as a separator for multi-domain cards. Split on `/` to get individual domains.
 - Quantity is always a positive integer. Each row is a unique printing — the same card may appear multiple times with different finishes or art variants.

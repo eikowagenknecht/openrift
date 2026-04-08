@@ -124,7 +124,6 @@ if (ctx) {
       cardId: card1Id,
       setId: setId,
       shortCode: "CSQ-001",
-      collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
@@ -148,7 +147,6 @@ if (ctx) {
       cardId: card3Id,
       setId: setId,
       shortCode: "CSQ-003",
-      collectorNumber: 3,
       rarity: "Uncommon",
       artVariant: "normal",
       isSigned: false,
@@ -259,7 +257,6 @@ if (ctx) {
       shortCode: "CSQ-001",
       setId: "CSQ-TEST",
       setName: "CSQ Test Set",
-      collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
@@ -285,7 +282,6 @@ if (ctx) {
       shortCode: "CSQ-UNK-001",
       setId: "CSQ-TEST",
       setName: "CSQ Test Set",
-      collectorNumber: 99,
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
@@ -311,7 +307,6 @@ if (ctx) {
       shortCode: "CSQ-003",
       setId: "CSQ-TEST",
       setName: "CSQ Test Set",
-      collectorNumber: 3,
       rarity: "Uncommon",
       artVariant: "normal",
       isSigned: false,
@@ -337,7 +332,6 @@ if (ctx) {
       shortCode: "CSQ-003",
       setId: "CSQ-TEST",
       setName: "CSQ Test Set",
-      collectorNumber: 3,
       rarity: "Uncommon",
       artVariant: "altart",
       isSigned: false,
@@ -726,7 +720,6 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.candidatePrintings).toHaveLength(1);
       expect(json.candidatePrintings[0].shortCode).toBe("CSQ-UNK-001");
       expect(json.candidatePrintings[0].rarity).toBe("Rare");
-      expect(json.candidatePrintings[0].collectorNumber).toBe(99);
     });
 
     it("returns 200 with empty sources for non-existent normalized name", async () => {

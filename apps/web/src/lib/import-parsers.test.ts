@@ -19,7 +19,6 @@ describe("parseImportData — OpenRift format", () => {
 
     const entry = result.entries[0];
     expect(entry.setPrefix).toBe("OGN");
-    expect(entry.collectorNumber).toBe(42);
     expect(entry.finish).toBe("foil");
     expect(entry.artVariant).toBe("normal");
     expect(entry.quantity).toBe(3);
@@ -55,7 +54,6 @@ describe("parseImportData — OpenRift format", () => {
     const result = parseImportData(csv);
     const entry = result.entries[0];
     expect(entry.setPrefix).toBe("SFD");
-    expect(entry.collectorNumber).toBe(1);
   });
 
   it("skips rows with zero quantity", () => {

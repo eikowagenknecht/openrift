@@ -28,7 +28,6 @@ interface MappingOverviewResult {
       promoTypeSlug: string | null;
       finish: string;
       language: string;
-      collectorNumber: number;
       imageUrl: string | null;
       externalId: number | null;
     }[];
@@ -46,7 +45,6 @@ interface MappingOverviewResult {
       shortCode: string;
       finish: string;
       language: string;
-      collectorNumber: number;
       isSigned: boolean;
       externalId: number | null;
     }[];
@@ -98,7 +96,6 @@ export async function buildUnifiedMappingsResponse(
         promoTypeSlug: p.promoTypeSlug,
         finish: p.finish,
         language: p.language,
-        collectorNumber: p.collectorNumber,
         imageUrl: p.imageUrl,
         tcgExternalId: p.externalId,
         cmExternalId: null,
@@ -147,7 +144,6 @@ export async function buildUnifiedMappingsResponse(
           promoTypeSlug: p.promoTypeSlug,
           finish: p.finish,
           language: p.language,
-          collectorNumber: p.collectorNumber,
           imageUrl: p.imageUrl,
           tcgExternalId: null,
           cmExternalId: p.externalId,
@@ -196,7 +192,6 @@ export async function buildUnifiedMappingsResponse(
           promoTypeSlug: p.promoTypeSlug,
           finish: p.finish,
           language: p.language,
-          collectorNumber: p.collectorNumber,
           imageUrl: p.imageUrl,
           tcgExternalId: null,
           cmExternalId: null,

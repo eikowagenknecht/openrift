@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 const REQUIRED_PRINTING_KEYS = [
   "shortCode",
   "setId",
-  "collectorNumber",
   "rarity",
   "artVariant",
   "isSigned",

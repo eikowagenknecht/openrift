@@ -121,7 +121,6 @@ export async function acceptFavoriteNewCard(
           shortCode: first.shortCode,
           setId: first.setId,
           setName: first.setName,
-          collectorNumber: first.collectorNumber ?? 0,
           rarity: first.rarity,
           artVariant: first.artVariant ?? "normal",
           isSigned: first.isSigned ?? false,

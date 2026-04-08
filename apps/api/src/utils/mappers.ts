@@ -195,7 +195,6 @@ export function toTradeListItemDetail(row: {
   collectionId: string;
   imageUrl: string | null;
   setId: string;
-  collectorNumber: number;
   rarity: string;
   finish: string;
   cardName: string;
@@ -209,7 +208,6 @@ export function toTradeListItemDetail(row: {
     collectionId: row.collectionId,
     imageUrl: row.imageUrl,
     setId: row.setId,
-    collectorNumber: row.collectorNumber,
     rarity: row.rarity as TradeListItemDetailResponse["rarity"],
     finish: row.finish as TradeListItemDetailResponse["finish"],
     cardName: row.cardName,

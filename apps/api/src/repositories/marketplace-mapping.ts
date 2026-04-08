@@ -78,7 +78,6 @@ export function marketplaceMappingRepo(db: Db) {
           "pt.slug as promoTypeSlug",
           "p.finish",
           "p.language",
-          "p.collectorNumber",
           imageUrl("ci").as("imageUrl"),
           "ps.externalId",
           "ps.groupId as sourceGroupId",

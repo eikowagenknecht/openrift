@@ -63,7 +63,6 @@ if (ctx) {
       cardId: cardId,
       setId: setId,
       shortCode: "UNM-001",
-      collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
@@ -110,7 +109,6 @@ if (ctx) {
       cardId: secondCardId,
       setId: setId,
       shortCode: "UNM-002",
-      collectorNumber: 2,
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
@@ -627,7 +625,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(printing.isSigned).toBe(false);
       expect(printing.promoTypeSlug).toBeNull();
       expect(printing.finish).toBe("normal");
-      expect(printing.collectorNumber).toBe(1);
     });
 
     it("merged group includes superTypes and might fields", async () => {
@@ -670,7 +667,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(printing.printingId).toBeTypeOf("string");
       expect(printing.shortCode).toBeTypeOf("string");
       expect(printing.finish).toBeTypeOf("string");
-      expect(typeof printing.collectorNumber).toBe("number");
       expect(typeof printing.isSigned).toBe("boolean");
     });
   });

@@ -74,7 +74,6 @@ const dbTradeListItem = {
   collectionId: "a0000000-0001-4000-a000-000000000040",
   imageUrl: "https://example.com/img.jpg",
   setId: "OGS",
-  collectorNumber: 1,
   rarity: "Rare",
   finish: "normal",
   cardName: "Fire Dragon",

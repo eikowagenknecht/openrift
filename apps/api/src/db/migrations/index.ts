@@ -15,6 +15,7 @@ import * as m066 from "./066-drop-acquisition-sources.js";
 import * as m067 from "./067-provider-favorite.js";
 import * as m068 from "./068-domain-color.js";
 import * as m069 from "./069-card-images.js";
+import * as m070 from "./070-drop-collector-number.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -89,4 +90,5 @@ export const migrations: Record<string, Migration> = {
   "067-provider-favorite": m067,
   "068-domain-color": m068,
   "069-card-images": m069,
+  "070-drop-collector-number": m070,
 };

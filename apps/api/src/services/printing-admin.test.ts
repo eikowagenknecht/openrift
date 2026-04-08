@@ -196,7 +196,7 @@ describe("acceptPrinting", () => {
         transact,
         repos as any,
         "card-uuid",
-        { shortCode: "OGN-001", collectorNumber: 1, artist: "A", publicCode: "001" },
+        { shortCode: "OGN-001", artist: "A", publicCode: "001" },
         [],
       ),
     ).rejects.toThrow("printingFields and candidatePrintingIds[] required");
@@ -211,7 +211,7 @@ describe("acceptPrinting", () => {
         transact,
         repos as any,
         "card-uuid",
-        { shortCode: "OGN-001", collectorNumber: 1, artist: "A", publicCode: "001" },
+        { shortCode: "OGN-001", artist: "A", publicCode: "001" },
         ["cp-1"],
       ),
     ).rejects.toThrow("printingFields.setId is required");
@@ -237,7 +237,6 @@ describe("acceptPrinting", () => {
         {
           shortCode: "OGN-001",
           setId: "ogn",
-          collectorNumber: 1,
           artist: "A",
           publicCode: "001",
           promoTypeId: "bad-promo",
@@ -263,7 +262,7 @@ describe("acceptPrinting", () => {
         transact,
         repos as any,
         "card-uuid",
-        { shortCode: "OGN-001", setId: "ogn", collectorNumber: 1, artist: "A", publicCode: "001" },
+        { shortCode: "OGN-001", setId: "ogn", artist: "A", publicCode: "001" },
         ["cp-1"],
       ),
     ).rejects.toThrow("already belongs to a different card");
@@ -310,7 +309,6 @@ describe("acceptPrinting", () => {
         shortCode: "OGN-001",
         setId: "ogn",
         setName: "Origins",
-        collectorNumber: 1,
         rarity: "Common",
         artist: "Artist A",
         publicCode: "001",
@@ -350,7 +348,6 @@ describe("acceptPrinting", () => {
         {
           shortCode: "OGN-001",
           setId: "ogn",
-          collectorNumber: 1,
           rarity: "SuperDuperRare",
           artist: "A",
           publicCode: "001",
@@ -402,7 +399,6 @@ describe("acceptPrinting", () => {
         shortCode: "OGN-001",
         setId: "ogn",
         setName: "Origins",
-        collectorNumber: 1,
         rarity: "Common",
         artist: "Artist A",
         publicCode: "001",
@@ -446,7 +442,6 @@ describe("acceptPrinting", () => {
       {
         shortCode: "OGN-001",
         setId: "ogn",
-        collectorNumber: 1,
         artist: "A",
         publicCode: "001",
       },

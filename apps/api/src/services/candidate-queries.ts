@@ -53,7 +53,6 @@ function formatCandidatePrinting(
     | "shortCode"
     | "setId"
     | "setName"
-    | "collectorNumber"
     | "rarity"
     | "artVariant"
     | "isSigned"
@@ -402,7 +401,6 @@ export async function buildExport(repo: Repo) {
         short_code: p.shortCode,
         set_id: p.setSlug,
         set_name: p.setName,
-        collector_number: p.collectorNumber,
         rarity: p.rarity,
         art_variant: p.artVariant,
         is_signed: p.isSigned,

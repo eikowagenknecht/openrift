@@ -109,7 +109,6 @@ function makeCardPrintingRow(overrides: Record<string, unknown> = {}) {
     promoTypeSlug: null,
     finish: "normal",
     language: "EN",
-    collectorNumber: 1,
     imageUrl: null,
     externalId: null,
     sourceGroupId: null,

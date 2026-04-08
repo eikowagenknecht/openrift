@@ -20,7 +20,6 @@ interface PrintingRow {
   promoTypeSlug: string | null;
   finish: string;
   language: string;
-  collectorNumber: number;
   imageUrl: string | null;
   externalId: number | null;
   sourceGroupId: number | null;
@@ -68,7 +67,6 @@ function buildCardIndex(
     promoTypeSlug: string | null;
     finish: string;
     language: string;
-    collectorNumber: number;
     imageUrl: string | null;
     externalId: number | null;
     sourceGroupId: number | null;
@@ -105,7 +103,6 @@ function buildCardIndex(
       promoTypeSlug: row.promoTypeSlug,
       finish: row.finish,
       language: row.language,
-      collectorNumber: row.collectorNumber,
       imageUrl: row.imageUrl,
       externalId: row.externalId,
       sourceGroupId: row.sourceGroupId,
@@ -429,7 +426,6 @@ export async function getMappingOverview(repos: Repos, config: MarketplaceConfig
       shortCode: p.shortCode,
       finish: p.finish,
       language: p.language,
-      collectorNumber: p.collectorNumber,
       isSigned: p.isSigned,
       externalId: p.externalId,
     })),

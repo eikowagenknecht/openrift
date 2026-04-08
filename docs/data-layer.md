@@ -4,17 +4,17 @@ PostgreSQL database managed by Kysely migrations in `packages/shared/src/db/migr
 
 ## Naming Conventions
 
-| Element         | Convention                         | Example                      |
-| --------------- | ---------------------------------- | ---------------------------- |
-| Tables          | `snake_case`, plural               | `cards`, `deck_cards`        |
-| Columns         | `snake_case`                       | `collector_number`, `set_id` |
-| Primary keys    | `id` column, uuid (uuidv7)         | `id uuid default uuidv7()`   |
-| Foreign keys    | `{referenced_table_singular}_id`   | `card_id`, `user_id`         |
-| Indexes         | `idx_{table}_{columns}`            | `idx_printings_set_id`       |
-| Timestamps      | `timestamptz`, `_at` suffix        | `created_at`, `expires_at`   |
-| Monetary values | integer cents, `_cents` suffix     | `market_cents`, `low_cents`  |
-| Boolean columns | Descriptive prefix (`is_`, `has_`) | `is_signed`                  |
-| Slugs           | URL-safe identifier, unique        | `slug text not null unique`  |
+| Element         | Convention                         | Example                     |
+| --------------- | ---------------------------------- | --------------------------- |
+| Tables          | `snake_case`, plural               | `cards`, `deck_cards`       |
+| Columns         | `snake_case`                       | `short_code`, `set_id`      |
+| Primary keys    | `id` column, uuid (uuidv7)         | `id uuid default uuidv7()`  |
+| Foreign keys    | `{referenced_table_singular}_id`   | `card_id`, `user_id`        |
+| Indexes         | `idx_{table}_{columns}`            | `idx_printings_set_id`      |
+| Timestamps      | `timestamptz`, `_at` suffix        | `created_at`, `expires_at`  |
+| Monetary values | integer cents, `_cents` suffix     | `market_cents`, `low_cents` |
+| Boolean columns | Descriptive prefix (`is_`, `has_`) | `is_signed`                 |
+| Slugs           | URL-safe identifier, unique        | `slug text not null unique` |
 
 **Rationale:** PostgreSQL folds unquoted identifiers to lowercase, so `snake_case` avoids the need for quoting. Plural table names are used consistently throughout — including join tables (e.g. `deck_cards`). All core tables use `uuidv7()` primary keys for sortable, globally unique IDs. Auth tables (managed by better-auth) still use text IDs.
 
@@ -72,7 +72,6 @@ Physical product variations of a game card (art, rarity, finish, etc.). One card
 | `set_id`              | uuid        | not null, FK → sets.id                            |
 | `slug`                | text        | not null, unique                                  |
 | `short_code`          | text        | not null                                          |
-| `collector_number`    | integer     | not null (> 0)                                    |
 | `rarity`              | text        | not null (Common, Uncommon, Rare, Epic, Showcase) |
 | `art_variant`         | text        | not null (normal, altart, overnumbered)           |
 | `is_signed`           | boolean     | not null, default false                           |
@@ -447,7 +446,6 @@ Staged printing data from providers, linked to a candidate card. Can optionally 
 | `short_code`          | text        | not null                                              |
 | `set_id`              | text        | nullable                                              |
 | `set_name`            | text        | nullable                                              |
-| `collector_number`    | integer     | nullable (> 0)                                        |
 | `rarity`              | text        | nullable                                              |
 | `art_variant`         | text        | nullable                                              |
 | `is_signed`           | boolean     | nullable                                              |

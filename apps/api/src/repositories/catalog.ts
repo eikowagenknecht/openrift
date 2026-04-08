@@ -134,7 +134,6 @@ export function catalogRepo(db: Kysely<Database>) {
           "printings.cardId",
           "printings.setId",
           "printings.shortCode",
-          "printings.collectorNumber",
           "printings.rarity",
           "printings.artVariant",
           "printings.isSigned",
@@ -151,7 +150,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "promoTypes.label as promoTypeLabel",
         ])
         .orderBy("printings.setId")
-        .orderBy("printings.collectorNumber")
+        .orderBy("printings.shortCode")
         .orderBy("printings.finish", "desc")
         .execute();
 
@@ -160,7 +159,6 @@ export function catalogRepo(db: Kysely<Database>) {
         cardId: row.cardId,
         setId: row.setId,
         shortCode: row.shortCode,
-        collectorNumber: row.collectorNumber,
         rarity: row.rarity,
         artVariant: row.artVariant,
         isSigned: row.isSigned,

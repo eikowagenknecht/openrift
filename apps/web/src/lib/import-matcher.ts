@@ -61,19 +61,19 @@ class PrintingIndex {
    * Tries exact match first, then tries constructing the code from set prefix + collector number.
    * @returns Matching printings, or an empty array if none found.
    */
-  lookupByCode(sourceCode: string, setPrefix: string, collectorNumber: number): Printing[] {
+  lookupByCode(sourceCode: string): Printing[] {
     // Try the source code directly
     const direct = this.byShortCode.get(sourceCode.toLowerCase());
     if (direct && direct.length > 0) {
       return direct;
     }
 
-    // Try constructing the code with zero-padded number
-    const padded = `${setPrefix}-${String(collectorNumber).padStart(3, "0")}`.toLowerCase();
-    if (padded !== sourceCode.toLowerCase()) {
-      const constructed = this.byShortCode.get(padded);
-      if (constructed && constructed.length > 0) {
-        return constructed;
+    // Try stripping variant suffix (e.g. "OGN-001a" → "OGN-001")
+    const baseMatch = sourceCode.match(/^([A-Z]{3}-[A-Z0-9]{3})[a-z*]$/i);
+    if (baseMatch) {
+      const base = this.byShortCode.get(baseMatch[1].toLowerCase());
+      if (base && base.length > 0) {
+        return base;
       }
     }
 
@@ -150,7 +150,7 @@ export function matchEntries(entries: ImportEntry[], allPrintings: Printing[]): 
 
 function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntry {
   // Step 1: Look up by short code
-  const codeMatches = index.lookupByCode(entry.sourceCode, entry.setPrefix, entry.collectorNumber);
+  const codeMatches = index.lookupByCode(entry.sourceCode);
 
   if (codeMatches.length > 0) {
     // Narrow by finish

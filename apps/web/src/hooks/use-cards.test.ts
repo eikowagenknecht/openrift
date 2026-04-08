@@ -33,7 +33,6 @@ function stubCatalogPrintingResponse(
     id: "00000000-0000-0000-0000-000000000011",
     shortCode: "RB1-001",
     setId: "00000000-0000-0000-0000-000000000099",
-    collectorNumber: 1,
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,

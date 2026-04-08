@@ -866,12 +866,12 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
     const res = await app.request("/api/v1/printing/OGS-001/accept-field", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ field: "collectorNumber", value: -1 }),
+      body: JSON.stringify({ field: "rarity", value: "" }),
     });
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.code).toBe("VALIDATION_ERROR");
-    expect(json.error).toContain("Invalid value for collectorNumber");
+    expect(json.error).toContain("Invalid value for rarity");
   });
 });
 
@@ -1018,7 +1018,6 @@ describe("POST /api/v1/:cardId/accept-printing", () => {
       body: JSON.stringify({
         printingFields: {
           shortCode: "FD",
-          collectorNumber: 1,
           artist: "Alice",
           publicCode: "OGS-001",
         },

@@ -12,7 +12,6 @@ const COPY_ROW = {
   updatedAt: new Date(),
   cardId: "c-1",
   setId: "s-1",
-  collectorNumber: 1,
   rarity: "Rare",
   artVariant: "normal",
   isSigned: false,

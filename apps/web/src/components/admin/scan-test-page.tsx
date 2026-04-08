@@ -626,8 +626,8 @@ function MatchResults({
             <div className="flex-1">
               <p className="text-sm font-medium">{match.printing.card.name}</p>
               <p className="text-muted-foreground">
-                {match.printing.setSlug} #{match.printing.collectorNumber} &middot;{" "}
-                {match.printing.rarity} &middot; {match.printing.publicCode}
+                {match.printing.shortCode} &middot; {match.printing.rarity} &middot;{" "}
+                {match.printing.publicCode}
               </p>
             </div>
             <div className="text-right">

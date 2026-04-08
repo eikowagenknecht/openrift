@@ -118,7 +118,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
         shortCode: "OGS-001",
         setId: SEED_SET_ID,
         setName: "Proving Grounds",
-        collectorNumber: 1,
         rarity: "Epic",
         artVariant: "normal",
         isSigned: false,
@@ -140,7 +139,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
         shortCode: "OGS-002",
         setId: SEED_SET_ID,
         setName: "Proving Grounds",
-        collectorNumber: 2,
         rarity: "Uncommon",
         artVariant: "normal",
         isSigned: false,
@@ -162,7 +160,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
         shortCode: "OGS-099",
         setId: SEED_SET_ID,
         setName: "Proving Grounds",
-        collectorNumber: 99,
         rarity: "Common",
         artVariant: null,
         isSigned: null,
@@ -184,7 +181,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
         shortCode: "ZZZ-001",
         setId: null,
         setName: null,
-        collectorNumber: null,
         rarity: null,
         artVariant: null,
         isSigned: null,
@@ -470,7 +466,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result[0]).toHaveProperty("shortCode");
     expect(result[0]).toHaveProperty("setId");
     expect(result[0]).toHaveProperty("setName");
-    expect(result[0]).toHaveProperty("collectorNumber");
     expect(result[0]).toHaveProperty("rarity");
     expect(result[0]).toHaveProperty("imageUrl");
     expect(result[0]).toHaveProperty("externalId");
@@ -604,14 +599,12 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
 
   // ── candidatePrintingsForUnmatched (lines 870-883) ────────────────────────
 
-  it("candidatePrintingsForUnmatched returns printings ordered by collectorNumber", async () => {
+  it("candidatePrintingsForUnmatched returns printings ordered by shortCode", async () => {
     const result = await repo.candidatePrintingsForUnmatched([CC_ID_1]);
     expect(result.length).toBeGreaterThanOrEqual(1);
-    // Verify ordering: collectorNumbers should be ascending
+    // Verify ordering: shortCodes should be ascending
     for (let idx = 1; idx < result.length; idx++) {
-      const prev = result[idx - 1].collectorNumber ?? 0;
-      const curr = result[idx].collectorNumber ?? 0;
-      expect(curr).toBeGreaterThanOrEqual(prev);
+      expect(result[idx].shortCode >= result[idx - 1].shortCode).toBe(true);
     }
   });
 
@@ -655,7 +648,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result[0]).toHaveProperty("cardId");
     expect(result[0]).toHaveProperty("setId");
     expect(result[0]).toHaveProperty("shortCode");
-    expect(result[0]).toHaveProperty("collectorNumber");
     expect(result[0]).toHaveProperty("rarity");
     expect(result[0]).toHaveProperty("finish");
     expect(result[0]).not.toHaveProperty("createdAt");

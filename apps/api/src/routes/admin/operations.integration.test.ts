@@ -97,7 +97,6 @@ async function seedMarketplaceData(marketplace: string) {
       cardId: card.id,
       setId: set.id,
       shortCode: `OPS-${marketplace}-${suffix}`,
-      collectorNumber: 1,
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,

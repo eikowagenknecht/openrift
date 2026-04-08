@@ -319,7 +319,6 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           cardId: tempCard.id,
           setId: tempSetId,
           shortCode: "CAT-PRINT-001",
-          collectorNumber: 1,
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,

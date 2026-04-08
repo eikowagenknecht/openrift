@@ -61,7 +61,6 @@ describe("tradeListsRepo", () => {
       printingId: "p-1",
       collectionId: "col-1",
       setId: "s-1",
-      collectorNumber: 1,
       rarity: "Rare",
       finish: "normal",
       imageUrl: null,

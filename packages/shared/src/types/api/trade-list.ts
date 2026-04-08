@@ -24,7 +24,6 @@ export interface TradeListItemDetailResponse extends TradeListItemResponse {
   collectionId: string;
   imageUrl: string | null;
   setId: string;
-  collectorNumber: number;
   rarity: Rarity;
   finish: Finish;
   cardName: string;

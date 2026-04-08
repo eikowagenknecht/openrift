@@ -88,7 +88,6 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
       expect(copy.cardType).toBeDefined();
       expect(copy.setId).toBeDefined();
       expect(copy.rarity).toBeDefined();
-      expect(copy.collectorNumber).toBeDefined();
     }
   });
 

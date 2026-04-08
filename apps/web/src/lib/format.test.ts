@@ -19,7 +19,6 @@ function stub(overrides: Partial<Printing> = {}): Printing {
     shortCode: "OGS-001",
     setId: "",
     setSlug: "",
-    collectorNumber: 1,
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,

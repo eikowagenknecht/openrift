@@ -60,7 +60,6 @@ const dbPrintingRow = {
   cardId: "OGS-001",
   setId: "OGS",
   shortCode: "OGS-001",
-  collectorNumber: 1,
   rarity: "Rare",
   artVariant: "normal",
   isSigned: false,
@@ -208,7 +207,6 @@ describe("GET /api/v1/catalog", () => {
 
     expect(printing.id).toBe("OGS-001:rare:normal:");
     expect(printing.shortCode).toBe("OGS-001");
-    expect(printing.collectorNumber).toBe(1);
     expect(printing.publicCode).toBe("ABCD");
     expect(printing.artVariant).toBe("normal");
     expect(printing.isSigned).toBe(false);

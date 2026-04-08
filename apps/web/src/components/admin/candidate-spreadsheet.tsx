@@ -119,7 +119,7 @@ export function buildCandidatePrintingFields(
     { key: "setId", label: "Set", suffixKey: "setName" },
     { key: "shortCode", label: "Short Code" },
     { key: "publicCode", label: "Public Code" },
-    { key: "collectorNumber", label: "Collector #" },
+
     {
       key: "rarity",
       label: "Rarity",

@@ -53,7 +53,6 @@ function makeCandidatePrinting(overrides: Record<string, unknown> = {}) {
     shortCode: "OGN-001",
     setId: "ogn",
     setName: "Origins",
-    collectorNumber: 1,
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,

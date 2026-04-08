@@ -118,14 +118,14 @@ const cardDomains = await sql<Record<string, unknown>[]>`
 `;
 
 const printings = await sql<Record<string, unknown>[]>`
-  SELECT p.id, p.card_id, p.set_id, p.short_code, p.collector_number, p.rarity,
+  SELECT p.id, p.card_id, p.set_id, p.short_code, p.rarity,
     p.art_variant, p.is_signed, p.finish, p.artist, p.public_code,
     p.printed_rules_text, p.printed_effect_text, p.flavor_text, p.comment,
     p.promo_type_id, p.language, p.printed_name
   FROM printings p
   JOIN sets s ON s.id = p.set_id
   WHERE s.slug = ${SET_SLUG}
-  ORDER BY p.collector_number
+  ORDER BY p.short_code
 `;
 
 const marketplaceGroups = await sql<Record<string, unknown>[]>`
@@ -199,7 +199,6 @@ interface PrintingRow {
   id: string;
   card_id: string;
   short_code: string;
-  collector_number: number;
   rarity: string;
   finish: string;
   promo_type_id: string | null;

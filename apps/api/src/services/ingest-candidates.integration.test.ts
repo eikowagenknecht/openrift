@@ -115,7 +115,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
         cardId: seedCardId,
         setId: seedSetId,
         shortCode: "IGT-001",
-        collectorNumber: 1,
         rarity: "Common",
         artVariant: "normal",
         isSigned: false,
@@ -260,7 +259,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "CWP-001-P1",
             set_id: "SET-A",
-            collector_number: 1,
             rarity: "Common",
             art_variant: "normal",
             is_signed: false,
@@ -476,7 +474,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "",
             set_id: "SET-X",
-            collector_number: 1,
             rarity: "Common",
             art_variant: "normal",
             is_signed: false,
@@ -519,7 +516,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "PU-001-P1",
             set_id: "SET-PU",
-            collector_number: 5,
             rarity: "Uncommon",
             art_variant: "normal",
             is_signed: false,
@@ -567,7 +563,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "PU-001-P1",
             set_id: "SET-PU",
-            collector_number: 5,
             rarity: "Uncommon",
             art_variant: "normal",
             is_signed: false,
@@ -611,7 +606,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "PS-001-P1",
             set_id: "SET-PS",
-            collector_number: 10,
             rarity: "Rare",
             art_variant: "normal",
             is_signed: false,
@@ -657,7 +651,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "PS-001-P1",
             set_id: "SET-PS",
-            collector_number: 10,
             rarity: "Rare",
             art_variant: "normal",
             is_signed: false,
@@ -704,7 +697,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "IGT-001",
             set_id: "IGT",
-            collector_number: 1,
             rarity: "Common",
             art_variant: "normal",
             is_signed: false,
@@ -1106,7 +1098,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "UNK-001-P1",
             set_id: "SET-UNK",
-            collector_number: 1,
             rarity: "Common",
             art_variant: "normal",
             is_signed: false,
@@ -1160,7 +1151,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "ENTITY-001-P1",
             set_id: "SET-E",
-            collector_number: 1,
             rarity: "Common",
             art_variant: "normal",
             is_signed: false,
@@ -1216,7 +1206,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
             short_code: "FP-001-P1",
             set_id: "SET-FP",
             set_name: "Full Print Set",
-            collector_number: 7,
             rarity: "Rare",
             art_variant: "altart",
             is_signed: true,
@@ -1255,62 +1244,5 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(ps.promoTypeId).not.toBeNull();
     expect(ps.finish).toBe("foil");
     expect(ps.artVariant).toBe("altart");
-  });
-
-  // ── Validation: printing with collector_number=0 is caught by Zod ─────
-
-  it("records printing validation error for collector_number=0", async () => {
-    const result = await ingestCandidates(transact, SOURCE, [
-      card({
-        name: "Zero Collector Card",
-        type: "Unit",
-        super_types: [],
-        domains: ["Fury"],
-        might: 1,
-        energy: 1,
-        power: 1,
-        might_bonus: null,
-        rules_text: null,
-        effect_text: null,
-        tags: [],
-        short_code: "ZEROCOL-001",
-        printings: [
-          {
-            short_code: "ZEROCOL-001-P1",
-            set_id: "SET-ZC",
-            collector_number: 0,
-            rarity: "Common",
-            art_variant: "normal",
-            is_signed: false,
-            is_promo: false,
-            finish: "normal",
-            artist: "ZC Artist",
-            public_code: "ZC-001/100",
-            printed_rules_text: null,
-            printed_effect_text: null,
-          },
-        ],
-      }),
-    ]);
-
-    // Card is inserted, but printing fails Zod validation
-    expect(result.newCards).toBe(1);
-    expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain("ZEROCOL-001-P1");
-    expect(result.errors[0]).toContain("collector_number");
-
-    // Verify no candidate_printing was created
-    const cs = await db
-      .selectFrom("candidateCards")
-      .select("id")
-      .where("provider", "=", SOURCE)
-      .where("shortCode", "=", "ZEROCOL-001")
-      .executeTakeFirstOrThrow();
-    const ps = await db
-      .selectFrom("candidatePrintings")
-      .where("candidateCardId", "=", cs.id)
-      .selectAll()
-      .execute();
-    expect(ps).toHaveLength(0);
   });
 });

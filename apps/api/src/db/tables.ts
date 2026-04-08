@@ -94,8 +94,6 @@ export interface PrintingsTable {
   setId: string;
   /** CHECK: <> '' */
   shortCode: string;
-  /** CHECK: > 0 */
-  collectorNumber: number;
   /** FK → rarities(slug) */
   rarity: Rarity;
   /** FK → art_variants(slug) */
@@ -436,8 +434,6 @@ export interface CandidatePrintingsTable {
   setId: string | null;
   /** CHECK: <> '' */
   setName: string | null;
-  /** CHECK: > 0 */
-  collectorNumber: number | null;
   /** CHECK: <> '' */
   rarity: string | null;
   /** CHECK: <> '' */

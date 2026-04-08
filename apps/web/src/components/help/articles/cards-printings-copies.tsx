@@ -177,26 +177,25 @@ export default function CardsPrintingsCopiesArticle() {
         <h2 className="mb-2 text-lg font-semibold">Printings</h2>
         <p className="text-muted-foreground">
           A <strong className="text-foreground">printing</strong> is a specific physical version of
-          a card, tied to a set, with its own collector number, rarity, finish (normal or foil), art
+          a card, tied to a set, with its own short code, rarity, finish (normal or foil), art
           variant, and artist. The same card can have many printings across different sets, and each
           printing has its own image and market price.
         </p>
         <p className="text-muted-foreground mt-2">
-          Every printing has a collector code visible at the bottom left of the physical card, like{" "}
+          Every printing has a short code visible at the bottom left of the physical card, like{" "}
           <code className="bg-muted rounded px-1.5 py-0.5 text-xs">SFD-R01b</code>. But two
-          printings can share the same collector code and still be different (for example, a normal
+          printings can share the same short code and still be different (for example, a normal
           finish and a foil finish of a Common card, or a special promo edition (often marked at the
           bottom center of the card or with other visual differences). OpenRift treats each unique
-          combination of set, collector code, finish, art variant, and promo type as its own
-          printing). Different printings can also have different printed text: some alt art cards
-          omit the reminder text in parentheses, and newer printings may have updated wording if
-          there was an errata. Flavor text can also vary between printings.
+          combination of set, short code, finish, art variant, and promo type as its own printing).
+          Different printings can also have different printed text: some alt art cards omit the
+          reminder text in parentheses, and newer printings may have updated wording if there was an
+          errata. Flavor text can also vary between printings.
         </p>
         <ExampleTable
           rows={[
             ["Code", "OGN-007", "OGN-007a", "SFD-R01b"],
             ["Set", "Origins", "Origins", "Spiritforged"],
-            ["Collector Number", "7", "7", "1"],
             ["Rarity", "Common", "Showcase", "Showcase"],
             ["Finish", "Normal", "Foil", "Foil"],
             ["Art Variant", "Normal", "Alt Art", "Alt Art"],
