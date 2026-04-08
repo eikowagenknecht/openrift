@@ -4,13 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cleanupOrphanedFiles,
   clearAllRehosted,
-  collectStaleImages,
   findBrokenImages,
   findLowResImages,
   getRehostStatus,
   regenerateImages,
   rehostImages,
-  renameStaleImages,
 } from "../../services/image-rehost.js";
 import { imagesRoute } from "./images";
 
@@ -21,8 +19,6 @@ import { imagesRoute } from "./images";
 vi.mock("../../services/image-rehost.js", () => ({
   rehostImages: vi.fn(),
   regenerateImages: vi.fn(),
-  collectStaleImages: vi.fn(),
-  renameStaleImages: vi.fn(),
   cleanupOrphanedFiles: vi.fn(),
   clearAllRehosted: vi.fn(),
   getRehostStatus: vi.fn(),
@@ -32,8 +28,6 @@ vi.mock("../../services/image-rehost.js", () => ({
 
 const mockRehostImages = vi.mocked(rehostImages);
 const mockRegenerateImages = vi.mocked(regenerateImages);
-const mockCollectStaleImages = vi.mocked(collectStaleImages);
-const mockRenameStaleImages = vi.mocked(renameStaleImages);
 const mockCleanupOrphanedFiles = vi.mocked(cleanupOrphanedFiles);
 const mockClearAllRehosted = vi.mocked(clearAllRehosted);
 const mockGetRehostStatus = vi.mocked(getRehostStatus);
@@ -138,49 +132,6 @@ describe("POST /api/v1/regenerate-images", () => {
     const res = await app.request("/api/v1/regenerate-images?offset=50", { method: "POST" });
     expect(res.status).toBe(200);
     expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, 50);
-  });
-});
-
-describe("GET /api/v1/rename-preview", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("returns 200 with total and misnamed count", async () => {
-    mockCollectStaleImages.mockResolvedValue({
-      total: 100,
-      stale: [{ id: "1" }, { id: "2" }, { id: "3" }],
-    });
-
-    const res = await app.request("/api/v1/rename-preview");
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual({ total: 100, misnamed: 3 });
-    expect(mockCollectStaleImages).toHaveBeenCalledWith(mockPrintingImages);
-  });
-});
-
-describe("POST /api/v1/rename-images", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("returns 200 with rename result", async () => {
-    const result = {
-      scanned: 100,
-      renamed: 10,
-      alreadyCorrect: 88,
-      failed: 2,
-      errors: ["err1"],
-      hasMore: false,
-    };
-    mockRenameStaleImages.mockResolvedValue(result);
-
-    const res = await app.request("/api/v1/rename-images", { method: "POST" });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual(result);
-    expect(mockRenameStaleImages).toHaveBeenCalledWith(mockIo, mockPrintingImages);
   });
 });
 

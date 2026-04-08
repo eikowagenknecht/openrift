@@ -12,7 +12,6 @@ import type {
   RehostImageResponse,
   RehostStatusDiskStats,
   RehostStatusResponse,
-  RenameImagesResponse,
 } from "@openrift/shared";
 
 import type { Io } from "../io.js";
@@ -156,39 +155,6 @@ export async function deleteRehostFiles(io: Io, rehostedUrl: string): Promise<vo
     if (file.startsWith(`${base}-`)) {
       // oxlint-disable-next-line no-empty-function -- swallow missing-file errors
       await io.fs.unlink(join(parentDir, file)).catch(() => {});
-    }
-  }
-}
-
-/**
- * Rename all rehosted files from one base to another.
- * Handles orig, 300w, 400w, full variants.
- */
-export async function renameRehostFiles(
-  io: Io,
-  oldRehostedUrl: string,
-  newRehostedUrl: string,
-): Promise<void> {
-  const oldDir = join(CARD_IMAGES_DIR, oldRehostedUrl.replace(/^\/card-images\//, ""));
-  const newDir = join(CARD_IMAGES_DIR, newRehostedUrl.replace(/^\/card-images\//, ""));
-  const parentDir = dirname(oldDir);
-  const oldBase = oldDir.split("/").pop() as string;
-  const newBase = newDir.split("/").pop() as string;
-
-  let files: string[];
-  try {
-    files = await io.fs.readdir(parentDir);
-  } catch {
-    return;
-  }
-
-  for (const file of files) {
-    if (file.startsWith(`${oldBase}-`)) {
-      const suffix = file.slice(oldBase.length);
-      await io.fs
-        .rename(join(parentDir, file), join(parentDir, `${newBase}${suffix}`))
-        // oxlint-disable-next-line no-empty-function -- swallow missing-file errors
-        .catch(() => {});
     }
   }
 }
@@ -357,59 +323,6 @@ export async function clearAllRehosted(
   }
 
   return { cleared };
-}
-
-/**
- * Collect all rehosted images whose path doesn't match the UUID-prefix convention.
- * Expected URL: `/card-images/{last2chars}/{imageId}`
- * @returns The total rehosted count and the list of mismatched entries.
- */
-export async function collectStaleImages(
-  repo: PrintingImagesRepo,
-): Promise<{ total: number; stale: { imageId: string; oldUrl: string; newUrl: string }[] }> {
-  const images = await repo.listAllRehosted();
-  const stale: { imageId: string; oldUrl: string; newUrl: string }[] = [];
-  for (const img of images) {
-    const expectedUrl = imageRehostedUrl(img.imageId);
-    if (img.rehostedUrl !== expectedUrl) {
-      stale.push({ imageId: img.imageId, oldUrl: img.rehostedUrl, newUrl: expectedUrl });
-    }
-  }
-  return { total: images.length, stale };
-}
-
-/**
- * Collect all stale images and rename them on disk + update DB.
- * Runs the full scan + rename in a single request (no client-side batching).
- * @returns Final counts for the entire operation.
- */
-export async function renameStaleImages(
-  io: Io,
-  repo: PrintingImagesRepo,
-): Promise<RenameImagesResponse> {
-  const { total, stale } = await collectStaleImages(repo);
-  const progress: RenameImagesResponse = {
-    scanned: total,
-    renamed: 0,
-    alreadyCorrect: total - stale.length,
-    failed: 0,
-    errors: [],
-    hasMore: false,
-  };
-
-  for (const entry of stale) {
-    try {
-      await renameRehostFiles(io, entry.oldUrl, entry.newUrl);
-      await repo.updateRehostedUrl(entry.imageId, entry.newUrl);
-      progress.renamed++;
-    } catch (error) {
-      progress.failed++;
-      const message = error instanceof Error ? error.message : String(error);
-      progress.errors.push(message);
-    }
-  }
-
-  return progress;
 }
 
 /**

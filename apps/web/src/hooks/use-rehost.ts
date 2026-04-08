@@ -74,18 +74,6 @@ const fetchMissingImagesFn = createServerFn({ method: "GET" })
     return res.json() as Promise<MissingImageCard[]>;
   });
 
-const fetchRenamePreviewFn = createServerFn({ method: "GET" })
-  .middleware([withCookies])
-  .handler(async ({ context }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/rename-preview`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Rename preview fetch failed: ${res.status}`);
-    }
-    return res.json();
-  });
-
 const rehostImagesBatchFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
@@ -123,19 +111,6 @@ const clearRehostedFn = createServerFn({ method: "POST" })
     });
     if (!res.ok) {
       throw new Error(`Clear rehosted failed: ${res.status}`);
-    }
-    return res.json();
-  });
-
-const renameImagesFn = createServerFn({ method: "POST" })
-  .middleware([withCookies])
-  .handler(async ({ context }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/rename-images`, {
-      method: "POST",
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Rename images failed: ${res.status}`);
     }
     return res.json();
   });
@@ -278,24 +253,6 @@ export function useClearRehosted() {
     mutationFn: () => clearRehostedFn(),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
-    },
-  });
-}
-
-export function useRenamePreview() {
-  return useQuery({
-    queryKey: queryKeys.admin.renamePreview,
-    queryFn: () => fetchRenamePreviewFn(),
-  });
-}
-
-export function useRenameImages() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: () => renameImagesFn(),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.renamePreview });
     },
   });
 }

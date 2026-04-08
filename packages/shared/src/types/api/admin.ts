@@ -281,15 +281,6 @@ export interface CleanupOrphanedResponse {
   errors: string[];
 }
 
-export interface RenameImagesResponse {
-  scanned: number;
-  renamed: number;
-  alreadyCorrect: number;
-  failed: number;
-  errors: string[];
-  hasMore: boolean;
-}
-
 export interface RehostStatusSetStats {
   setId: string;
   setName: string;

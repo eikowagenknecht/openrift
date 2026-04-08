@@ -5,14 +5,12 @@ import { z } from "zod";
 import {
   cleanupOrphanedFiles,
   clearAllRehosted,
-  collectStaleImages,
   findBrokenImages,
   findLowResImages,
   getRehostStatus,
   migrateImageDirectories,
   regenerateImages,
   rehostImages,
-  renameStaleImages,
 } from "../../services/image-rehost.js";
 import type { Variables } from "../../types.js";
 import { restoreImageUrlsSchema } from "./schemas.js";
@@ -66,45 +64,6 @@ const regenerateImagesRoute = createRoute({
         },
       },
       description: "Regenerate images result",
-    },
-  },
-});
-
-const renamePreview = createRoute({
-  method: "get",
-  path: "/rename-preview",
-  tags: ["Admin - Images"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({ total: z.number(), misnamed: z.number() }),
-        },
-      },
-      description: "Rename preview",
-    },
-  },
-});
-
-const renameImages = createRoute({
-  method: "post",
-  path: "/rename-images",
-  tags: ["Admin - Images"],
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            scanned: z.number(),
-            renamed: z.number(),
-            alreadyCorrect: z.number(),
-            failed: z.number(),
-            errors: z.array(z.string()),
-            hasMore: z.boolean(),
-          }),
-        },
-      },
-      description: "Rename images result",
     },
   },
 });
@@ -324,18 +283,6 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
   .openapi(regenerateImagesRoute, async (c) => {
     const offset = c.req.valid("query").offset ?? 0;
     const result = await regenerateImages(c.get("io"), offset);
-    return c.json(result);
-  })
-
-  .openapi(renamePreview, async (c) => {
-    const { printingImages } = c.get("repos");
-    const { total, stale } = await collectStaleImages(printingImages);
-    return c.json({ total, misnamed: stale.length });
-  })
-
-  .openapi(renameImages, async (c) => {
-    const { printingImages } = c.get("repos");
-    const result = await renameStaleImages(c.get("io"), printingImages);
     return c.json(result);
   })
 
