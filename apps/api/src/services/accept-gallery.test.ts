@@ -148,9 +148,9 @@ describe("acceptFavoriteNewCard", () => {
       FAVORITE_PROVIDERS,
     );
 
-    expect(candidateMutations.getCardIdBySlug).toHaveBeenCalledWith("OGN-001");
+    expect(candidateMutations.getCardIdBySlug).toHaveBeenCalledWith("flame-striker");
     expect(candidateMutations.acceptNewCardFromSources).toHaveBeenCalledTimes(1);
-    expect(result.cardSlug).toBe("OGN-001");
+    expect(result.cardSlug).toBe("flame-striker");
   });
 
   it("links to existing card when slug already exists", async () => {
@@ -168,7 +168,7 @@ describe("acceptFavoriteNewCard", () => {
     expect(candidateMutations.acceptNewCardFromSources).not.toHaveBeenCalled();
   });
 
-  it("strips variant suffix from shortCode for the card slug", async () => {
+  it("derives slug from card name regardless of shortCode variant suffix", async () => {
     const { repos } = createMockRepos({
       candidates: [makeCandidate({ shortCode: "OGN-001a" })],
     });
@@ -182,7 +182,7 @@ describe("acceptFavoriteNewCard", () => {
       FAVORITE_PROVIDERS,
     );
 
-    expect(result.cardSlug).toBe("OGN-001");
+    expect(result.cardSlug).toBe("flame-striker");
   });
 
   it("uses normalizedName as slug when shortCode is missing", async () => {

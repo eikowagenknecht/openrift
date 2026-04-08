@@ -3,6 +3,19 @@ import { DEFAULT_ENUM_ORDERS } from "./types/index.js";
 import { WellKnown } from "./well-known.js";
 
 /**
+ * Converts a card name to a URL-friendly slug.
+ * Example: "Ahri, Alluring" → "ahri-alluring"
+ * @returns A lowercase, hyphen-separated slug.
+ */
+export function slugifyName(name: string): string {
+  return name
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/-{2,}/g, "-")
+    .replaceAll(/^-|-$/g, "");
+}
+
+/**
  * Deduplicates an array, preserving insertion order.
  *
  * @returns A new array with duplicates removed.
