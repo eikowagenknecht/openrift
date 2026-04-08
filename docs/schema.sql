@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict c0LtduUMTX6VHm4SkqXEYXPUkxHlJ2NIwWwtQ1l6N6JDQGj1awqI2Ycf1J1mjOn
+\restrict UIhXbC8BipfidbzibvO9sqh0K08OZddxgSiKxYFyYlt6DepbyDGTPoLCHYSdEfE
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -325,22 +325,6 @@ CREATE TABLE public.card_errata (
 
 
 --
--- Name: card_images; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.card_images (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    original_url text,
-    rehosted_url text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT chk_card_images_has_url CHECK (((original_url IS NOT NULL) OR (rehosted_url IS NOT NULL))),
-    CONSTRAINT chk_card_images_original_url CHECK ((original_url <> ''::text)),
-    CONSTRAINT chk_card_images_rehosted_url CHECK ((rehosted_url <> ''::text))
-);
-
-
---
 -- Name: card_name_aliases; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -594,6 +578,22 @@ CREATE TABLE public.ignored_candidate_printings (
 
 
 --
+-- Name: image_files; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.image_files (
+    id uuid DEFAULT uuidv7() CONSTRAINT card_images_id_not_null NOT NULL,
+    original_url text,
+    rehosted_url text,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT card_images_created_at_not_null NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() CONSTRAINT card_images_updated_at_not_null NOT NULL,
+    CONSTRAINT chk_image_files_has_url CHECK (((original_url IS NOT NULL) OR (rehosted_url IS NOT NULL))),
+    CONSTRAINT chk_image_files_original_url CHECK ((original_url <> ''::text)),
+    CONSTRAINT chk_image_files_rehosted_url CHECK ((rehosted_url <> ''::text))
+);
+
+
+--
 -- Name: keyword_styles; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -772,7 +772,7 @@ CREATE TABLE public.printing_images (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid CONSTRAINT printing_images_new_printing_id_not_null NOT NULL,
-    card_image_id uuid NOT NULL,
+    image_file_id uuid CONSTRAINT printing_images_card_image_id_not_null NOT NULL,
     CONSTRAINT chk_printing_images_face CHECK ((face = ANY (ARRAY['front'::text, 'back'::text]))),
     CONSTRAINT chk_printing_images_provider_not_empty CHECK ((provider <> ''::text))
 );
@@ -1161,14 +1161,6 @@ ALTER TABLE ONLY public.card_errata
 
 
 --
--- Name: card_images card_images_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.card_images
-    ADD CONSTRAINT card_images_pkey PRIMARY KEY (id);
-
-
---
 -- Name: card_name_aliases card_name_aliases_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1326,6 +1318,14 @@ ALTER TABLE ONLY public.ignored_candidate_cards
 
 ALTER TABLE ONLY public.ignored_candidate_printings
     ADD CONSTRAINT ignored_candidate_printings_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: image_files image_files_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.image_files
+    ADD CONSTRAINT image_files_pkey PRIMARY KEY (id);
 
 
 --
@@ -1776,13 +1776,6 @@ CREATE INDEX idx_card_domains_domain_slug ON public.card_domains USING btree (do
 
 
 --
--- Name: idx_card_images_original_url; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX idx_card_images_original_url ON public.card_images USING btree (original_url) WHERE (original_url IS NOT NULL);
-
-
---
 -- Name: idx_cards_norm_name; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1850,6 +1843,13 @@ CREATE UNIQUE INDEX idx_ignored_candidate_cards_provider_external ON public.igno
 --
 
 CREATE UNIQUE INDEX idx_ignored_candidate_printings_provider_external_finish ON public.ignored_candidate_printings USING btree (provider, external_id, COALESCE(finish, ''::text));
+
+
+--
+-- Name: idx_image_files_original_url; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_image_files_original_url ON public.image_files USING btree (original_url) WHERE (original_url IS NOT NULL);
 
 
 --
@@ -2133,13 +2133,6 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.candidate_printings FO
 
 
 --
--- Name: card_images trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.card_images FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
 -- Name: cards trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2179,6 +2172,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.decks FOR EACH ROW EXE
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.feature_flags FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: image_files trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.image_files FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -2531,11 +2531,11 @@ ALTER TABLE ONLY public.printing_link_overrides
 
 
 --
--- Name: printing_images fk_printing_images_card_image; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: printing_images fk_printing_images_image_file; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.printing_images
-    ADD CONSTRAINT fk_printing_images_card_image FOREIGN KEY (card_image_id) REFERENCES public.card_images(id);
+    ADD CONSTRAINT fk_printing_images_image_file FOREIGN KEY (image_file_id) REFERENCES public.image_files(id);
 
 
 --
@@ -2750,5 +2750,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict c0LtduUMTX6VHm4SkqXEYXPUkxHlJ2NIwWwtQ1l6N6JDQGj1awqI2Ycf1J1mjOn
+\unrestrict UIhXbC8BipfidbzibvO9sqh0K08OZddxgSiKxYFyYlt6DepbyDGTPoLCHYSdEfE
 
