@@ -5,18 +5,24 @@ import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "./query-keys";
+import { serverCache } from "./server-cache";
 import { API_URL } from "./server-fns/api-url";
 
 export type SiteSettings = Record<string, string>;
 
-const fetchSiteSettings = createServerFn({ method: "GET" }).handler(async () => {
-  const res = await fetch(`${API_URL}/api/v1/site-settings`);
-  if (!res.ok) {
-    throw new Error(`Site settings fetch failed: ${res.status}`);
-  }
-  const data = await res.json();
-  return data.items as SiteSettings;
-});
+const fetchSiteSettings = createServerFn({ method: "GET" }).handler(() =>
+  serverCache.fetchQuery({
+    queryKey: ["server-cache", "site-settings"],
+    queryFn: async () => {
+      const res = await fetch(`${API_URL}/api/v1/site-settings`);
+      if (!res.ok) {
+        throw new Error(`Site settings fetch failed: ${res.status}`);
+      }
+      const data = await res.json();
+      return data.items as SiteSettings;
+    },
+  }),
+);
 
 export const siteSettingsQueryOptions = queryOptions({
   queryKey: queryKeys.siteSettings.all,

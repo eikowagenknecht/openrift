@@ -3,6 +3,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { serverCache } from "@/lib/server-cache";
 import type { EnumsResponse } from "@/lib/server-fns/api-types";
 import { API_URL } from "@/lib/server-fns/api-url";
 
@@ -26,13 +27,19 @@ export interface EnumLabels {
   artVariants: Record<string, string>;
 }
 
-const fetchEnums = createServerFn({ method: "GET" }).handler(async (): Promise<EnumsResponse> => {
-  const res = await fetch(`${API_URL}/api/v1/enums`);
-  if (!res.ok) {
-    throw new Error(`Enums fetch failed: ${res.status}`);
-  }
-  return res.json() as Promise<EnumsResponse>;
-});
+const fetchEnums = createServerFn({ method: "GET" }).handler(
+  (): Promise<EnumsResponse> =>
+    serverCache.fetchQuery({
+      queryKey: ["server-cache", "enums"],
+      queryFn: async () => {
+        const res = await fetch(`${API_URL}/api/v1/enums`);
+        if (!res.ok) {
+          throw new Error(`Enums fetch failed: ${res.status}`);
+        }
+        return res.json() as Promise<EnumsResponse>;
+      },
+    }),
+);
 
 export const enumsQueryOptions = queryOptions({
   queryKey: queryKeys.enums.all,

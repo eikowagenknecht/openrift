@@ -16,7 +16,15 @@ vi.mock("@tanstack/react-start", () => ({
   },
 }));
 
+// Mock server-cache with a test-local QueryClient to avoid cross-test cache
+// pollution (the real serverCache is a long-lived singleton).
+vi.mock("@/lib/server-cache", async () => {
+  const { QueryClient: QC } = await import("@tanstack/react-query");
+  return { serverCache: new QC({ defaultOptions: { queries: { retry: false } } }) };
+});
+
 // Must import after the mock so the mock is applied.
+const { serverCache } = await import("@/lib/server-cache");
 const { catalogQueryOptions } = await import("./use-cards");
 
 const stubCard: Card = {
@@ -95,6 +103,7 @@ describe("useCards", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    serverCache.clear();
   });
 
   it("fetches and returns catalog data", async () => {
