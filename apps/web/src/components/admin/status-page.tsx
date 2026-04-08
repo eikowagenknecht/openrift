@@ -3,6 +3,7 @@ import {
   ClockIcon,
   CpuIcon,
   DatabaseIcon,
+  EraserIcon,
   RefreshCwIcon,
   ServerIcon,
   TagIcon,
@@ -11,7 +12,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAdminStatus } from "@/hooks/use-status";
+import { useAdminStatus, useClearSsrCache } from "@/hooks/use-status";
 
 const SECONDS_PER_DAY = 86_400;
 const SECONDS_PER_HOUR = 3600;
@@ -71,6 +72,7 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
 
 export function StatusPage() {
   const { data, refetch, isFetching } = useAdminStatus();
+  const clearCache = useClearSsrCache();
 
   if (!data) {
     return null;
@@ -84,10 +86,20 @@ export function StatusPage() {
         <p className="text-muted-foreground text-sm">
           Auto-refreshes every 30 seconds. Last updated {new Date().toLocaleTimeString()}.
         </p>
-        <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
-          <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
-          Refresh
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => clearCache.mutate()}
+            disabled={clearCache.isPending}
+          >
+            <EraserIcon />
+            {clearCache.isSuccess ? "Cache Cleared" : "Clear SSR Cache"}
+          </Button>
+          <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
+            <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
