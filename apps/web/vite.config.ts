@@ -75,10 +75,6 @@ export default defineConfig(({ mode, command }) => {
         sourcemaps: { filesToDeleteAfterUpload: ["./.output/**/*.map"] },
         disable: !process.env.SENTRY_AUTH_TOKEN,
       }),
-      // VitePWA disabled — the self-destroying SW was only needed to clean up
-      // the old PWA. TanStack Start outputs to .output/ which VitePWA doesn't
-      // support. Re-enable if PWA is needed again.
-      // VitePWA({ selfDestroying: true, ... }),
     ],
     build: {
       sourcemap: true,

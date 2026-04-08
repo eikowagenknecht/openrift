@@ -15,11 +15,7 @@
       ]
     },
     "apps/web": {
-      "entry": [
-        "src/worker.ts",
-        "src/routes/**/*.tsx",
-        "src/components/cards/card-detail/index.tsx"
-      ],
+      "entry": ["src/routes/**/*.tsx", "src/components/cards/card-detail/index.tsx"],
       "ignore": ["src/env.d.ts", "src/components/ui/**", "src/test/**"]
     },
     "packages/shared": {

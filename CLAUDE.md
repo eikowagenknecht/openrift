@@ -97,7 +97,7 @@ If you are about to use Edit, Write, or Bash to modify a file and you are NOT in
 - **Worktree** — each worktree is a full, independent copy of the repo with no file conflicts.
 - **Main repo** — only when the user explicitly says to work in main.
 
-**Worktree setup:** run `ln -s /home/eiko/repos/openrift/.env .env && ln -s /home/eiko/repos/openrift/card-images card-images && LEFTHOOK=0 bun install --frozen-lockfile; bun --cwd apps/web tsr generate` before doing anything else.
+**Worktree setup:** run `ln -s /home/eiko/repos/openrift/.env .env && ln -s /home/eiko/repos/openrift/card-images card-images && LEFTHOOK=0 bun install --frozen-lockfile` before doing anything else.
 
 **Worktree rules:** Database is shared (see Migrations). Use `docker exec` for DB access, not `docker compose`. Use a different port if you need a dev server (`PORT=5174 bun dev:web`). Never `git stash` or discard changes in the main repo. **Do not run integration tests from worktrees** — the database connection is not available there. Run unit tests and linting only; integration tests run from main after merging.
 

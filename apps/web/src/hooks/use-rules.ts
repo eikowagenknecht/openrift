@@ -3,28 +3,37 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { serverCache } from "@/lib/server-cache";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchRules = createServerFn({ method: "GET" }).handler(
-  async (): Promise<RulesListResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/rules`);
-    if (!res.ok) {
-      throw new Error(`Rules fetch failed: ${res.status}`);
-    }
-    return res.json();
-  },
+  (): Promise<RulesListResponse> =>
+    serverCache.fetchQuery({
+      queryKey: ["server-cache", "rules"],
+      queryFn: async () => {
+        const res = await fetch(`${API_URL}/api/v1/rules`);
+        if (!res.ok) {
+          throw new Error(`Rules fetch failed: ${res.status}`);
+        }
+        return res.json() as Promise<RulesListResponse>;
+      },
+    }),
 );
 
 const fetchVersions = createServerFn({ method: "GET" }).handler(
-  async (): Promise<RuleVersionsListResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/rules/versions`);
-    if (!res.ok) {
-      throw new Error(`Rule versions fetch failed: ${res.status}`);
-    }
-    return res.json();
-  },
+  (): Promise<RuleVersionsListResponse> =>
+    serverCache.fetchQuery({
+      queryKey: ["server-cache", "rules-versions"],
+      queryFn: async () => {
+        const res = await fetch(`${API_URL}/api/v1/rules/versions`);
+        if (!res.ok) {
+          throw new Error(`Rule versions fetch failed: ${res.status}`);
+        }
+        return res.json() as Promise<RuleVersionsListResponse>;
+      },
+    }),
 );
 
 export const rulesQueryOptions = queryOptions({
