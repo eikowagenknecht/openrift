@@ -6,6 +6,7 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { API_URL } from "./server-fns/api-url";
 import { withCookies } from "./server-fns/middleware";
 
 /** User shape returned by better-auth's get-session endpoint. */
@@ -24,8 +25,6 @@ export type SessionData = {
   session: { id: string; userId: string; expiresAt: string; token: string };
   user: SessionUser;
 } | null;
-
-const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
 const getServerSession = createServerFn({ method: "GET" })
   .middleware([withCookies])

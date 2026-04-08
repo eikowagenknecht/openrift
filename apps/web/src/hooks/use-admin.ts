@@ -2,9 +2,8 @@ import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
+import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
-
-const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
 const fetchIsAdmin = createServerFn({ method: "GET" })
   .middleware([withCookies])
