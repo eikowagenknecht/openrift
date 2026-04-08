@@ -664,7 +664,15 @@ function SidebarMenuSubButton({
 }
 
 // custom: wrapper for sidebars nested below the app header
-function NestedSidebar({ className, ...props }: React.ComponentProps<typeof Sidebar>) {
+function NestedSidebar({
+  className,
+  style,
+  extraOffset = "0px",
+  ...props
+}: React.ComponentProps<typeof Sidebar> & {
+  /** Extra vertical space above the sidebar (e.g. a page top bar) to subtract from the height calc. */
+  extraOffset?: string;
+}) {
   const [isStuck, setIsStuck] = React.useState(false);
 
   // custom: detect when the sidebar is in its sticky position (scrolled past its natural offset)
@@ -683,14 +691,20 @@ function NestedSidebar({ className, ...props }: React.ComponentProps<typeof Side
     <Sidebar
       className={cn(
         // sticky! top-14: sit in document flow below the 3.5rem app header (default is fixed inset-y-0)
-        // h-[calc(...)]: fill remaining viewport height below header + border
         // overflow-hidden!: prevent sidebar from scrolling externally (SidebarContent scrolls internally)
         // w-0!: collapse width when offcanvas — sticky elements can't slide off-screen like fixed ones
-        "sticky! top-[calc(3.5rem+1px)] h-[calc(100svh-3.5rem-1px)]! overflow-hidden! border-0! group-data-[collapsible=offcanvas]:w-0!",
+        "sticky! top-[calc(3.5rem+1px)] overflow-hidden! border-0! group-data-[collapsible=offcanvas]:w-0!",
         // custom: round top corners when not in sticky position
         !isStuck && "rounded-t-lg!",
         className,
       )}
+      style={{
+        // Height fills viewport below header + border, minus any extra offset (e.g. top bar).
+        // When stuck, the extra offset area has scrolled away so the sidebar is slightly
+        // taller than needed — but overflow-hidden clips it, so no visual issue.
+        height: `calc(100svh - 3.5rem - 1px - ${extraOffset})`,
+        ...style,
+      }}
       {...props}
     />
   );
