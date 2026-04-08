@@ -397,10 +397,13 @@ curl -s localhost:8082/api/health | jq .
 /home/openrift/
 ├── openrift/                        # Stable (openrift.app)
 │   ├── certs/                       # Cloudflare Origin Certificate
+│   │   └── .htpasswd               # Basic auth for monitoring (optional)
 │   ├── data/postgres/               # PostgreSQL data (bind mount)
+│   ├── monitoring/                  # Monitoring stack (optional, see below)
 │   ├── .env                         # Production secrets
 │   ├── deploy.sh                    # Deploy script
 │   ├── docker-compose.yml           # Ports: 5432, 3001, 8080
+│   ├── monitoring.openrift.conf     # nginx config for Grafana subdomain
 │   └── openrift.conf                # nginx config for host nginx
 └── openrift-preview/                # Preview (preview.openrift.app)
     ├── certs/                       # Cloudflare Origin Certificate
@@ -410,3 +413,88 @@ curl -s localhost:8082/api/health | jq .
     ├── docker-compose.yml           # Ports: 5433, 3002, 8081
     └── preview.openrift.conf        # nginx config for host nginx
 ```
+
+## Monitoring
+
+An optional Prometheus + Grafana monitoring stack lives in `monitoring/`. It runs as a separate Docker Compose project alongside the main app.
+
+### What it monitors
+
+- **Host metrics** (CPU, RAM, disk, network) via node-exporter
+- **Container metrics** (per-container CPU, memory, restarts) via cAdvisor
+- **PostgreSQL metrics** (connections, transactions, cache hit ratio, deadlocks) via postgres-exporter
+- **Alerting** via Grafana (email notifications for high RAM, disk, CPU, container restarts, DB connection saturation)
+
+### Setup
+
+1. Copy the `monitoring/` directory to the VPS:
+
+```bash
+scp -r monitoring openrift@VPS:~/openrift/monitoring
+```
+
+2. Create `.env` from the template:
+
+```bash
+cd ~/openrift/monitoring
+cp .env.example .env
+# Edit .env: set GRAFANA_ADMIN_PASSWORD, SMTP credentials, POSTGRES_CONNECTION, ALERT_EMAIL_TO
+```
+
+3. Start the monitoring stack:
+
+```bash
+cd ~/openrift/monitoring
+docker compose up -d
+```
+
+4. Set up Grafana access via nginx (optional, for browser access):
+
+```bash
+# Generate basic auth credentials
+apt install -y apache2-utils
+htpasswd -c /home/openrift/openrift/certs/.htpasswd admin
+
+# Copy nginx config and enable it
+cp ~/openrift/monitoring.openrift.conf /etc/nginx/sites-enabled/monitoring.openrift.app
+nginx -t && systemctl reload nginx
+```
+
+5. Add a DNS record in Cloudflare: `monitoring.openrift.app` (A record, proxied, same IP as main site).
+
+6. Open `https://monitoring.openrift.app`, log in with the basic auth credentials, then with the Grafana admin password. Three dashboards are pre-provisioned: Host Metrics, Container Metrics, and PostgreSQL.
+
+7. Verify email alerting: go to Alerting > Contact points > Test in Grafana.
+
+### Management
+
+```bash
+cd ~/openrift/monitoring
+
+# View status
+docker compose ps
+
+# View logs
+docker compose logs -f grafana
+docker compose logs -f prometheus
+
+# Restart
+docker compose restart
+
+# Stop (preserves data)
+docker compose down
+
+# Stop and delete all data (dashboards, metrics history)
+docker compose down -v
+```
+
+### Storage
+
+Prometheus retains metrics for 90 days by default (configurable via `PROMETHEUS_RETENTION` in `.env`). Estimated disk usage:
+
+| Retention | Storage   |
+| --------- | --------- |
+| 30 days   | ~0.5-1 GB |
+| 90 days   | ~1.5-3 GB |
+| 180 days  | ~3-6 GB   |
+| 1 year    | ~6-12 GB  |
