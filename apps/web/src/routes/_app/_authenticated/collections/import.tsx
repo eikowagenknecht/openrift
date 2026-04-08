@@ -44,6 +44,7 @@ import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 
 export const Route = createFileRoute("/_app/_authenticated/collections/import")({
+  head: () => ({ meta: [{ title: "Import / Export — OpenRift" }] }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(catalogQueryOptions),

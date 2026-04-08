@@ -8,6 +8,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { isAdminQueryOptions } from "@/hooks/use-admin";
 
 export const Route = createFileRoute("/_app/_authenticated/admin")({
+  head: () => ({ meta: [{ title: "Admin — OpenRift" }] }),
   staticData: { hideFooter: true },
   errorComponent: RouteErrorFallback,
   beforeLoad: async ({ context }) => {

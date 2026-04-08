@@ -8,6 +8,7 @@ import { collectionsQueryOptions } from "@/hooks/use-collections";
 import { copiesQueryOptions } from "@/hooks/use-copies";
 
 export const Route = createFileRoute("/_app/_authenticated/collections/")({
+  head: () => ({ meta: [{ title: "Collections — OpenRift" }] }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(collectionsQueryOptions),

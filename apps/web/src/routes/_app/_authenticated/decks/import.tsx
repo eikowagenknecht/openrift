@@ -45,6 +45,7 @@ const STATUS_SORT_ORDER: Record<DeckMatchStatus, number> = {
 };
 
 export const Route = createFileRoute("/_app/_authenticated/decks/import")({
+  head: () => ({ meta: [{ title: "Import Deck — OpenRift" }] }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(catalogQueryOptions),

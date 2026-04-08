@@ -6,6 +6,7 @@ import { catalogQueryOptions } from "@/hooks/use-cards";
 import { decksQueryOptions } from "@/hooks/use-decks";
 
 export const Route = createFileRoute("/_app/_authenticated/decks/")({
+  head: () => ({ meta: [{ title: "Decks — OpenRift" }] }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(decksQueryOptions),

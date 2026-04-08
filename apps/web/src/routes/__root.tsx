@@ -67,6 +67,7 @@ export const Route = createRootRouteWithContext<{
 }>()({
   head: () => ({
     meta: [
+      { title: "OpenRift — Riftbound Card Collection Browser" },
       // oxlint-disable-next-line unicorn/text-encoding-identifier-case -- HTML charset attribute requires "utf-8"
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },

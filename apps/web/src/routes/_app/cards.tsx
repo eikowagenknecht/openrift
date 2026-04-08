@@ -8,6 +8,7 @@ import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
 import { PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/cards")({
+  head: () => ({ meta: [{ title: "Cards — OpenRift" }] }),
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQueryOptions),
   component: CardsPage,
   pendingComponent: CardsPending,

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-08
+
+- feat: Every page now has a descriptive browser tab title instead of a blank one
+
 ## 2026-04-07
 
 - feat: Collection import now supports re-importing your own OpenRift CSV exports

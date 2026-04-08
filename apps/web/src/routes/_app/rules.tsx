@@ -6,6 +6,7 @@ import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 
 export const Route = createFileRoute("/_app/rules")({
+  head: () => ({ meta: [{ title: "Rules — OpenRift" }] }),
   beforeLoad: async ({ context }) => {
     const flags = (await context.queryClient.ensureQueryData(
       featureFlagsQueryOptions,

@@ -7,6 +7,7 @@ import { deckDetailQueryOptions } from "@/hooks/use-decks";
 import { enumsQueryOptions } from "@/hooks/use-enums";
 
 export const Route = createFileRoute("/_app/_authenticated/decks/$deckId")({
+  head: () => ({ meta: [{ title: "Deck Editor — OpenRift" }] }),
   staticData: { hideFooter: true },
   loader: async ({ context, params }) => {
     await Promise.all([

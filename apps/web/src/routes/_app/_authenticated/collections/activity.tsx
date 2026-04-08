@@ -5,6 +5,7 @@ import { collectionEventsQueryOptions } from "@/hooks/use-collection-events";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
 
 export const Route = createFileRoute("/_app/_authenticated/collections/activity")({
+  head: () => ({ meta: [{ title: "Collection Activity — OpenRift" }] }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureInfiniteQueryData(collectionEventsQueryOptions),

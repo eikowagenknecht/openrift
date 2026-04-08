@@ -1,3 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_app/_authenticated/profile")({});
+export const Route = createFileRoute("/_app/_authenticated/profile")({
+  head: () => ({ meta: [{ title: "Profile — OpenRift" }] }),
+});
