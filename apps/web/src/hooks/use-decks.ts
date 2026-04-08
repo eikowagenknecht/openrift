@@ -8,29 +8,49 @@ import type {
   DeckZone,
 } from "@openrift/shared";
 import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
+
+const fetchDecks = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<DeckListResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/decks`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Decks fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<DeckListResponse>;
+  });
+
+const fetchDeckDetail = createServerFn({ method: "GET" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: deckId }): Promise<DeckDetailResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(deckId)}`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Deck detail fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<DeckDetailResponse>;
+  });
 
 export const decksQueryOptions = queryOptions({
   queryKey: queryKeys.decks.all,
-  queryFn: async () => {
-    const res = await client.api.v1.decks.$get({ query: {} });
-    assertOk(res);
-    return await res.json();
-  },
-  select: (data) => data.items,
+  queryFn: () => fetchDecks(),
+  select: (data: DeckListResponse) => data.items,
 });
 
 export function deckDetailQueryOptions(deckId: string) {
   return queryOptions({
     queryKey: queryKeys.decks.detail(deckId),
-    queryFn: async () => {
-      const res = await client.api.v1.decks[":id"].$get({ param: { id: deckId } });
-      assertOk(res);
-      return await res.json();
-    },
+    queryFn: () => fetchDeckDetail({ data: deckId }),
   });
 }
 

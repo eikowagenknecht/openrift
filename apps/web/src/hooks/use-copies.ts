@@ -1,9 +1,13 @@
 import type { CollectionListResponse, CopyListResponse, CopyResponse } from "@openrift/shared";
 import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 import { useCallback, useRef } from "react";
 
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
+import type { CopiesResponse } from "@/lib/server-fns/api-types";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
 
 const BATCH_SIZE = 500;
 
@@ -15,23 +19,27 @@ function chunks<T>(array: T[], size: number): T[][] {
   return result;
 }
 
+const fetchCopies = createServerFn({ method: "GET" })
+  .inputValidator((input: { collectionId?: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }): Promise<CopiesResponse> => {
+    const url = data.collectionId
+      ? `${API_URL}/api/v1/collections/${encodeURIComponent(data.collectionId)}/copies`
+      : `${API_URL}/api/v1/copies`;
+    const res = await fetch(url, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Copies fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<CopiesResponse>;
+  });
+
 export function copiesQueryOptions(collectionId?: string) {
   return queryOptions({
     queryKey: collectionId ? queryKeys.copies.byCollection(collectionId) : queryKeys.copies.all,
-    queryFn: async () => {
-      if (collectionId) {
-        const res = await client.api.v1.collections[":id"].copies.$get({
-          param: { id: collectionId },
-          query: {},
-        });
-        assertOk(res);
-        return await res.json();
-      }
-      const res = await client.api.v1.copies.$get({ query: {} });
-      assertOk(res);
-      return await res.json();
-    },
-    select: (data) => data.items,
+    queryFn: () => fetchCopies({ data: { collectionId } }),
+    select: (data: CopyListResponse) => data.items,
   });
 }
 

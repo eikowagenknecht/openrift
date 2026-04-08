@@ -1,15 +1,33 @@
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
+import type {
+  AdminCardDetailResponse,
+  AdminCardListResponse,
+  AllCardsResponse,
+  ProviderNamesResponse,
+  ProviderStatsResponse,
+  UnmatchedCardDetailResponse,
+} from "@/lib/server-fns/api-types";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
+
+const fetchAdminCardList = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<AdminCardListResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Admin card list fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<AdminCardListResponse>;
+  });
 
 export const adminCardListQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cards.list,
-  queryFn: async () => {
-    const res = await client.api.v1.admin["cards"].$get();
-    assertOk(res);
-    return await res.json();
-  },
+  queryFn: () => fetchAdminCardList(),
 });
 
 export function useAdminCardList() {
@@ -41,27 +59,44 @@ export function useNextUncheckedCard(currentCardId: string) {
   return { fetchNext };
 }
 
+const fetchAllCards = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<AllCardsResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards/all-cards`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`All cards fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<AllCardsResponse>;
+  });
+
 export const allCardsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cards.allCards,
-  queryFn: async () => {
-    const res = await client.api.v1.admin["cards"]["all-cards"].$get();
-    assertOk(res);
-    return await res.json();
-  },
+  queryFn: () => fetchAllCards(),
 });
 
 export function useAllCards() {
   return useSuspenseQuery(allCardsQueryOptions);
 }
 
+const fetchAdminCardDetail = createServerFn({ method: "GET" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: cardId }): Promise<AdminCardDetailResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards/${encodeURIComponent(cardId)}`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Admin card detail fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<AdminCardDetailResponse>;
+  });
+
 export function adminCardDetailQueryOptions(cardId: string) {
   return queryOptions({
     queryKey: queryKeys.admin.cards.detail(cardId),
-    queryFn: async () => {
-      const res = await client.api.v1.admin["cards"][":cardId"].$get({ param: { cardId } });
-      assertOk(res);
-      return await res.json();
-    },
+    queryFn: () => fetchAdminCardDetail({ data: cardId }),
   });
 }
 
@@ -72,14 +107,23 @@ export function useAdminCardDetail(cardId: string) {
   });
 }
 
+const fetchUnmatchedCardDetail = createServerFn({ method: "GET" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: name }): Promise<UnmatchedCardDetailResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards/new/${encodeURIComponent(name)}`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Unmatched card detail fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<UnmatchedCardDetailResponse>;
+  });
+
 export function unmatchedCardDetailQueryOptions(name: string) {
   return queryOptions({
     queryKey: queryKeys.admin.cards.unmatched(name),
-    queryFn: async () => {
-      const res = await client.api.v1.admin["cards"].new[":name"].$get({ param: { name } });
-      assertOk(res);
-      return await res.json();
-    },
+    queryFn: () => fetchUnmatchedCardDetail({ data: name }),
   });
 }
 
@@ -90,26 +134,42 @@ export function useUnmatchedCardDetail(name: string) {
   });
 }
 
+const fetchProviderStats = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<ProviderStatsResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards/provider-stats`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Provider stats fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<ProviderStatsResponse>;
+  });
+
 export const providerStatsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cards.providerStats,
-  queryFn: async () => {
-    const res = await client.api.v1.admin["cards"]["provider-stats"].$get();
-    assertOk(res);
-    return await res.json();
-  },
+  queryFn: () => fetchProviderStats(),
 });
 
 export function useProviderStats() {
   return useSuspenseQuery(providerStatsQueryOptions);
 }
 
+const fetchProviderNames = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<ProviderNamesResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards/provider-names`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Provider names fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<ProviderNamesResponse>;
+  });
+
 const providerNamesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cards.providerNames,
-  queryFn: async () => {
-    const res = await client.api.v1.admin["cards"]["provider-names"].$get();
-    assertOk(res);
-    return await res.json();
-  },
+  queryFn: () => fetchProviderNames(),
 });
 
 export function useProviderNames() {

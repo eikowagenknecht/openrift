@@ -1,9 +1,10 @@
 import type { Card, Printing, CatalogResponse } from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import type { SetInfo } from "@/components/cards/card-grid";
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
+import { API_URL } from "@/lib/server-fns/api-url";
 
 export interface CatalogLanguage {
   code: string;
@@ -18,11 +19,15 @@ interface UseCardsResult {
   languages: CatalogLanguage[];
 }
 
-async function fetchCatalog(): Promise<CatalogResponse> {
-  const res = await client.api.v1.catalog.$get();
-  assertOk(res);
-  return await res.json();
-}
+const fetchCatalog = createServerFn({ method: "GET" }).handler(
+  async (): Promise<CatalogResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/catalog`);
+    if (!res.ok) {
+      throw new Error(`Catalog fetch failed: ${res.status}`);
+    }
+    return res.json();
+  },
+);
 
 function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
   const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
@@ -45,7 +50,7 @@ function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
 
 export const catalogQueryOptions = queryOptions({
   queryKey: queryKeys.catalog.all,
-  queryFn: fetchCatalog,
+  queryFn: () => fetchCatalog(),
   staleTime: 5 * 60 * 1000, // 5 minutes
   refetchOnWindowFocus: false,
   select: enrichCatalog,

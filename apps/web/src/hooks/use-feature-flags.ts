@@ -1,9 +1,16 @@
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { createServerFn } from "@tanstack/react-start";
 
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { queryKeys } from "@/lib/query-keys";
 import { assertOk, client } from "@/lib/rpc-client";
+import type {
+  AdminFeatureFlagOverridesResponse,
+  AdminFeatureFlagsResponse,
+} from "@/lib/server-fns/api-types";
+import { API_URL } from "@/lib/server-fns/api-url";
+import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 export function useFeatureEnabled(key: string): boolean {
@@ -15,13 +22,21 @@ export function useFeatureEnabled(key: string): boolean {
 // Admin hooks (hit the /admin/feature-flags endpoints)
 // ---------------------------------------------------------------------------
 
+const fetchAdminFeatureFlags = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<AdminFeatureFlagsResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/feature-flags`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Admin feature flags fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<AdminFeatureFlagsResponse>;
+  });
+
 export const adminFeatureFlagsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.featureFlags,
-  queryFn: async () => {
-    const res = await client.api.v1.admin["feature-flags"].$get();
-    assertOk(res);
-    return await res.json();
-  },
+  queryFn: () => fetchAdminFeatureFlags(),
 });
 
 export function useFeatureFlags() {
@@ -65,13 +80,21 @@ export function useDeleteFeatureFlag() {
 // Admin hooks for per-user feature flag overrides
 // ---------------------------------------------------------------------------
 
+const fetchAdminFeatureFlagOverrides = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(async ({ context }): Promise<AdminFeatureFlagOverridesResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/feature-flags/overrides`, {
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Feature flag overrides fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<AdminFeatureFlagOverridesResponse>;
+  });
+
 export const adminFeatureFlagOverridesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.featureFlagOverrides,
-  queryFn: async () => {
-    const res = await client.api.v1.admin["feature-flags"].overrides.$get();
-    assertOk(res);
-    return await res.json();
-  },
+  queryFn: () => fetchAdminFeatureFlagOverrides(),
 });
 
 export function useFeatureFlagOverrides() {

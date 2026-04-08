@@ -1,13 +1,23 @@
 import type { Card, CatalogResponse, CatalogPrintingResponse } from "@openrift/shared";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
-import type { ReactNode } from "react";
-import { createElement, Suspense } from "react";
+import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
-import { ApiError } from "@/lib/api-client";
+// Mock createServerFn to execute the handler directly instead of making RPC
+// calls. This is necessary because there is no TanStack Start server running
+// in the vitest/jsdom environment.
+vi.mock("@tanstack/react-start", () => ({
+  createServerFn: () => {
+    const chain = {
+      handler: (fn: (...args: unknown[]) => unknown) => fn,
+      middleware: () => chain,
+      inputValidator: () => chain,
+    };
+    return chain;
+  },
+}));
 
-import { useCards, catalogQueryOptions } from "./use-cards";
+// Must import after the mock so the mock is applied.
+const { catalogQueryOptions } = await import("./use-cards");
 
 const stubCard: Card = {
   id: "00000000-0000-0000-0000-000000000001",
@@ -78,18 +88,6 @@ const CATALOG_RESPONSE: CatalogResponse = {
   languages: [{ code: "EN", name: "English" }],
 };
 
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return ({ children }: { children: ReactNode }) =>
-    createElement(
-      QueryClientProvider,
-      { client: queryClient },
-      createElement(Suspense, { fallback: null }, children),
-    );
-}
-
 describe("useCards", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
@@ -99,39 +97,36 @@ describe("useCards", () => {
     vi.restoreAllMocks();
   });
 
-  it("returns cards and set info on success", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/catalog")) {
-        return { ok: true, json: () => CATALOG_RESPONSE };
-      }
-      return { ok: true, json: () => ({}) };
+  it("fetches and returns catalog data", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockImplementation(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve(CATALOG_RESPONSE) }),
+    );
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
     });
+    // fetchQuery returns raw data (without select), so check the raw shape
+    const raw = await queryClient.fetchQuery(catalogQueryOptions);
 
-    const { result } = renderHook(() => useCards(), { wrapper: createWrapper() });
-
-    await waitFor(() => expect(result.current.allPrintings).toHaveLength(2));
-
-    expect(result.current.sets).toEqual([
+    expect(raw.printings).toHaveLength(2);
+    expect(raw.sets).toEqual([
       { id: "00000000-0000-0000-0000-000000000099", slug: "RB1", name: "First Set" },
     ]);
+    expect(raw.totalCopies).toBe(150);
+    expect(raw.languages).toEqual([{ code: "EN", name: "English" }]);
   });
 
-  it("joins card data onto printings and includes market price", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/catalog")) {
-        return { ok: true, json: () => CATALOG_RESPONSE };
-      }
-      return { ok: true, json: () => ({}) };
-    });
+  it("enrichCatalog joins card data onto printings", () => {
+    // Test the select/enrichment function directly
+    const select = catalogQueryOptions.select!;
+    const enriched = select(CATALOG_RESPONSE);
 
-    const { result } = renderHook(() => useCards(), { wrapper: createWrapper() });
+    expect(enriched.allPrintings).toHaveLength(2);
 
-    await waitFor(() => expect(result.current.allPrintings).toHaveLength(2));
-
-    const cardA = result.current.allPrintings.find(
+    const cardA = enriched.allPrintings.find(
       (c) => c.id === "00000000-0000-0000-0000-000000000011",
     );
-    const cardB = result.current.allPrintings.find(
+    const cardB = enriched.allPrintings.find(
       (c) => c.id === "00000000-0000-0000-0000-000000000012",
     );
 
@@ -139,15 +134,15 @@ describe("useCards", () => {
     expect(cardA?.marketPrice).toBe(1);
     expect(cardB?.card.name).toBe("Card B");
     expect(cardB?.marketPrice).toBeUndefined();
+    expect(enriched.sets).toEqual([
+      { id: "00000000-0000-0000-0000-000000000099", slug: "RB1", name: "First Set" },
+    ]);
   });
 
-  it("throws an ApiError when catalog fetch fails", async () => {
-    (fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-      if (url.includes("/catalog")) {
-        return { ok: false, status: 500, json: () => ({}) };
-      }
-      return { ok: true, json: () => ({}) };
-    });
+  it("throws an Error when catalog fetch fails", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockImplementation(() =>
+      Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) }),
+    );
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -157,8 +152,8 @@ describe("useCards", () => {
       await queryClient.fetchQuery(catalogQueryOptions);
       expect.fail("should have thrown");
     } catch (error) {
-      expect(error).toBeInstanceOf(ApiError);
-      expect((error as ApiError).message).toBe("Request failed: 500");
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe("Catalog fetch failed: 500");
     }
   });
 });
