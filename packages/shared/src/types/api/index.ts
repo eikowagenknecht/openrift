@@ -6,11 +6,16 @@ export { PREFERENCE_DEFAULTS } from "./preferences.js";
 export type { KeywordStyleEntry, KeywordStylesResponse } from "./keyword-style.js";
 
 export type {
+  CardDetailResponse,
   CatalogCardResponse,
   CatalogLanguageResponse,
   CatalogPrintingResponse,
   CatalogResponse,
   CatalogSetResponse,
+  SetDetailResponse,
+  SetListEntry,
+  SetListResponse,
+  SitemapDataResponse,
 } from "./catalog.js";
 
 export type { CollectionEventListResponse, CollectionEventResponse } from "./collection-event.js";

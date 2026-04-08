@@ -45,3 +45,29 @@ export interface CatalogResponse {
   totalCopies: number;
   languages: CatalogLanguageResponse[];
 }
+
+export interface CardDetailResponse {
+  card: CatalogCardResponse;
+  printings: CatalogPrintingResponse[];
+  sets: CatalogSetResponse[];
+}
+
+export interface SetListEntry extends CatalogSetResponse {
+  cardCount: number;
+  printingCount: number;
+}
+
+export interface SetListResponse {
+  sets: SetListEntry[];
+}
+
+export interface SetDetailResponse {
+  set: CatalogSetResponse;
+  cards: Record<string, CatalogCardResponse>;
+  printings: CatalogPrintingResponse[];
+}
+
+export interface SitemapDataResponse {
+  cardSlugs: string[];
+  setSlugs: string[];
+}

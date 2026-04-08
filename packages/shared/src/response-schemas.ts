@@ -159,7 +159,7 @@ export const priceHistoryResponseSchema = z
 
 // ── Catalog ──────────────────────────────────────────────────────────────────
 
-const catalogSetResponseSchema = z.object({
+export const catalogSetResponseSchema = z.object({
   id: z.string(),
   slug: z.string(),
   name: z.string(),
@@ -183,7 +183,7 @@ const cardBanSchema = z.object({
   reason: z.string().nullable(),
 });
 
-const catalogCardResponseSchema = z.object({
+export const catalogCardResponseSchema = z.object({
   id: z.string(),
   slug: z.string(),
   name: z.string(),
@@ -208,7 +208,7 @@ const catalogCardResponseSchema = z.object({
   bans: z.array(cardBanSchema),
 });
 
-const catalogPrintingResponseSchema = z.object({
+export const catalogPrintingResponseSchema = z.object({
   id: z.string(),
   shortCode: z.string(),
   setId: z.string(),
@@ -243,6 +243,44 @@ export const catalogResponseSchema = z
     languages: z.array(catalogLanguageResponseSchema),
   })
   .openapi("CatalogResponse");
+
+// ── Card Detail ─────────────────────────────────────────────────────────────
+
+export const cardDetailResponseSchema = z
+  .object({
+    card: catalogCardResponseSchema,
+    printings: z.array(catalogPrintingResponseSchema),
+    sets: z.array(catalogSetResponseSchema),
+  })
+  .openapi("CardDetailResponse");
+
+// ── Sets ────────────────────────────────────────────────────────────────────
+
+const setListEntrySchema = catalogSetResponseSchema.extend({
+  cardCount: z.number(),
+  printingCount: z.number(),
+});
+
+export const setListResponseSchema = z
+  .object({ sets: z.array(setListEntrySchema) })
+  .openapi("SetListResponse");
+
+export const setDetailResponseSchema = z
+  .object({
+    set: catalogSetResponseSchema,
+    cards: z.record(z.string(), catalogCardResponseSchema),
+    printings: z.array(catalogPrintingResponseSchema),
+  })
+  .openapi("SetDetailResponse");
+
+// ── Sitemap Data ────────────────────────────────────────────────────────────
+
+export const sitemapDataResponseSchema = z
+  .object({
+    cardSlugs: z.array(z.string()),
+    setSlugs: z.array(z.string()),
+  })
+  .openapi("SitemapDataResponse");
 
 // ── Collections ──────────────────────────────────────────────────────────────
 
