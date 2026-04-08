@@ -79,7 +79,6 @@ export const Route = createRootRouteWithContext<{
       { rel: "icon", type: "image/webp", href: "/logo.webp" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon-180x180.png" },
       { rel: "stylesheet", href: indexCss },
-      { rel: "preconnect", href: "https://openrift.app" },
     ],
   }),
   beforeLoad: async ({ context }) => {
