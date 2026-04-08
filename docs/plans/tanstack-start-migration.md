@@ -609,6 +609,12 @@ routes).
 - Convert `featureFlagsQueryOptions` and `siteSettingsQueryOptions` to use server
   functions too (they're loaded in `__root.tsx` and benefit from server-side
   fetching without proxy hops)
+- **Upgrade theme SSR:** Replace the current blocking `<script>` +
+  `suppressHydrationWarning` approach with a server function that reads the
+  theme cookie via `getCookie` / `getRequest()`, returns it through
+  `beforeLoad` context, and applies the class in `shellComponent` via
+  `Route.useRouteContext()`. This gives correct HTML from the first byte
+  (no script needed). Keep the inline script as a fallback for edge cases.
 
 **Why server functions instead of direct RPC?** During SSR, the RPC client
 doesn't carry the user's cookies. Server functions access the incoming request
