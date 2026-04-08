@@ -439,6 +439,7 @@ function DeckEditorContent({
         >
           <NestedSidebar
             className="mt-3 w-(--sidebar-width)!"
+            extraOffset="calc(0.75rem + 2rem + 0.75rem)"
             style={{ "--sidebar-width": "18rem" } as React.CSSProperties}
           >
             <MobileSidebarHeader />
