@@ -19,7 +19,7 @@ const cardImagesDir = path.resolve(__dirname, "../../card-images");
 
 const repoRoot = path.resolve(__dirname, "../..");
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   // Load .env from the monorepo root into process.env so SSR code can access
   // server-only vars like API_INTERNAL_URL at runtime (not baked into the bundle).
   const env = loadEnv(mode, repoRoot, "");
@@ -57,22 +57,23 @@ export default defineConfig(({ mode }) => {
         },
       },
       tanstackStart({ srcDirectory: "src" }),
-      nitro({
-        preset: "bun",
-        devProxy: {
-          "/api/**": { target: apiTarget },
-        },
-        routeRules: {
-          "/api/**": { proxy: `${apiTarget}/api/**` },
-        },
-        publicAssets: [
-          {
-            baseURL: "card-images",
-            dir: "../../card-images",
-            maxAge: 3600,
+      // Only enable Nitro for production builds — in dev it caches stale SSR
+      // HTML after HMR updates, causing hydration mismatches.
+      // See https://github.com/TanStack/router/issues/6556
+      command === "build" &&
+        nitro({
+          preset: "bun",
+          routeRules: {
+            "/api/**": { proxy: `${apiTarget}/api/**` },
           },
-        ],
-      }),
+          publicAssets: [
+            {
+              baseURL: "card-images",
+              dir: "../../card-images",
+              maxAge: 3600,
+            },
+          ],
+        }),
       tailwindcss(),
       react(),
       babel({
@@ -133,8 +134,13 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    server: { port: 5173, forwardConsole: true },
-    preview: {},
+    server: {
+      port: 5173,
+      forwardConsole: true,
+      proxy: {
+        "/api": { target: apiTarget },
+      },
+    },
     resolve: {
       tsconfigPaths: true,
     },

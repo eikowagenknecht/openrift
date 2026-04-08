@@ -14,7 +14,6 @@ import { siteSettingsQueryOptions } from "@/lib/site-settings";
 
 // CSS ?url import causes a harmless hydration warning in dev (Vite appends
 // ?t=<timestamp> on the client). No effect in production.
-// See https://github.com/TanStack/router/issues/3306
 import indexCss from "@/index.css?url";
 
 const TanStackRouterDevtools = PROD
