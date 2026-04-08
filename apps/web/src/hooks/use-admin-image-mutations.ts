@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { assertOk, client } from "@/lib/rpc-client";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
@@ -203,7 +202,43 @@ export function useAddImageFromUrl() {
   });
 }
 
-// Keep using RPC client for file upload (FormData serialization through server functions is complex)
+const uploadPrintingImageFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      printingId: string;
+      fileName: string;
+      fileType: string;
+      fileBase64: string;
+      provider?: string;
+      mode?: string;
+    }) => input,
+  )
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const fileBytes = Uint8Array.from(atob(data.fileBase64), (c) => c.codePointAt(0) ?? 0);
+    const blob = new Blob([fileBytes], { type: data.fileType });
+    const formData = new FormData();
+    formData.append("file", blob, data.fileName);
+    if (data.provider) {
+      formData.append("provider", data.provider);
+    }
+    if (data.mode) {
+      formData.append("mode", data.mode);
+    }
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}/upload-image`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie },
+        body: formData,
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Upload printing image failed: ${res.status}`);
+    }
+    return res.json();
+  });
+
 export function useUploadPrintingImage() {
   return useMutationWithInvalidation({
     mutationFn: async ({
@@ -217,12 +252,11 @@ export function useUploadPrintingImage() {
       provider?: string;
       mode?: "main" | "additional";
     }) => {
-      const res = await client.api.v1.admin["cards"].printing[":printingId"]["upload-image"].$post({
-        param: { printingId },
-        form: { file, provider, mode },
+      const buffer = await file.arrayBuffer();
+      const fileBase64 = btoa(String.fromCodePoint(...new Uint8Array(buffer)));
+      return uploadPrintingImageFn({
+        data: { printingId, fileName: file.name, fileType: file.type, fileBase64, provider, mode },
       });
-      assertOk(res);
-      return await res.json();
     },
     invalidates: [queryKeys.admin.cards.all],
   });
