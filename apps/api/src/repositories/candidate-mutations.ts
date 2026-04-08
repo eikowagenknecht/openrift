@@ -235,11 +235,12 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       return db.selectFrom("printings").select("cardId").where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A printing's cardId by composite key (shortCode, finish, promoTypeId). */
+    /** @returns A printing's cardId by composite key (shortCode, finish, promoTypeId, language). */
     getPrintingCardIdByComposite(
       shortCode: string,
       finish: Finish,
       promoTypeId: string | null,
+      language: string,
     ): Promise<{ cardId: string } | undefined> {
       return db
         .selectFrom("printings")
@@ -247,6 +248,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .where("shortCode", "=", shortCode)
         .where("finish", "=", finish)
         .where("promoTypeId", promoTypeId ? "=" : "is", promoTypeId)
+        .where("language", "=", language)
         .executeTakeFirst();
     },
 

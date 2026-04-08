@@ -123,6 +123,7 @@ export async function acceptFavoritePrintingsForCard(
       shortCode,
       finish,
       first.promoTypeId ?? null,
+      first.language ?? "EN",
     );
     if (existing) {
       skipped.push({ shortCode: label, reason: "printing already exists" });

@@ -161,16 +161,18 @@ export async function acceptPrinting(
   const finish = (printingFields.finish ?? "normal") as Finish;
 
   // Guard: reject if this identity already belongs to a different card
+  const language = printingFields.language ?? "EN";
   const existing = await mut.getPrintingCardIdByComposite(
     printingFields.shortCode,
     finish,
     printingFields.promoTypeId ?? null,
+    language,
   );
   if (existing && existing.cardId !== cardId) {
     throw new AppError(
       409,
       "CONFLICT",
-      `Printing "${printingFields.shortCode}:${finish}" already belongs to a different card`,
+      `Printing "${printingFields.shortCode}:${finish}:${language}" already belongs to a different card`,
     );
   }
 

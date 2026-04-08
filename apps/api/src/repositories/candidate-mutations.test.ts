@@ -148,7 +148,12 @@ describe("candidateMutationsRepo", () => {
   it("getPrintingCardIdByComposite returns cardId", async () => {
     const db = createMockDb([{ cardId: "c-1" }]);
     expect(
-      await candidateMutationsRepo(db).getPrintingCardIdByComposite("OGS-001", "normal", null),
+      await candidateMutationsRepo(db).getPrintingCardIdByComposite(
+        "OGS-001",
+        "normal",
+        null,
+        "EN",
+      ),
     ).toEqual({ cardId: "c-1" });
   });
 
