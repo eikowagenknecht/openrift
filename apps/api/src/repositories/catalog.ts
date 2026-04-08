@@ -452,7 +452,7 @@ export function catalogRepo(db: Kysely<Database>) {
     async setCardCount(setId: string): Promise<number> {
       const result = await db
         .selectFrom("printings")
-        .select(sql<string>`COUNT(DISTINCT "cardId")`.as("count"))
+        .select(sql<string>`COUNT(DISTINCT "card_id")`.as("count"))
         .where("setId", "=", setId)
         .executeTakeFirstOrThrow();
       return Number(result.count);
