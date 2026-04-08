@@ -69,13 +69,13 @@ export async function deletePrinting(
   const printing = await mut.getPrintingById(printingId);
   assertFound(printing, "Printing not found");
 
-  const deletedCardImageIds = await transact(async (trxRepos) => {
+  const deletedImageFileIds = await transact(async (trxRepos) => {
     const trxMut = trxRepos.candidateMutations;
 
     // Unlink candidate_printings so they become "unmatched" again
     await trxMut.unlinkCandidatePrintingsByPrintingId(printing.id);
 
-    // Delete printing_images rows and collect cardImageIds for cleanup
+    // Delete printing_images rows and collect imageFileIds for cleanup
     const images = await trxMut.deletePrintingImagesByPrintingId(printing.id);
 
     // Delete link overrides
@@ -84,23 +84,23 @@ export async function deletePrinting(
     // Delete the printing itself (will throw if FK-constrained by copies, etc.)
     await trxMut.deletePrintingById(printing.id);
 
-    return images.map((img) => img.cardImageId);
+    return images.map((img) => img.imageFileId);
   });
 
-  // Clean up orphaned card_images and their disk files (outside transaction, best-effort)
-  for (const cardImageId of deletedCardImageIds) {
-    // Look up the card_image to get its rehostedUrl before potentially deleting it
-    const cardImage = await repos.candidateMutations.getCardImageById(cardImageId);
-    if (!cardImage) {
+  // Clean up orphaned image_files and their disk files (outside transaction, best-effort)
+  for (const imageFileId of deletedImageFileIds) {
+    // Look up the image_file to get its rehostedUrl before potentially deleting it
+    const imageFile = await repos.candidateMutations.getImageFileById(imageFileId);
+    if (!imageFile) {
       continue;
     }
-    // Check if any other printing_images still reference this card_image
-    const stillReferenced = await repos.candidateMutations.isCardImageReferenced(cardImageId);
+    // Check if any other printing_images still reference this image_file
+    const stillReferenced = await repos.candidateMutations.isImageFileReferenced(imageFileId);
     if (!stillReferenced) {
-      if (cardImage.rehostedUrl) {
-        await deleteRehostFiles(io, cardImage.rehostedUrl);
+      if (imageFile.rehostedUrl) {
+        await deleteRehostFiles(io, imageFile.rehostedUrl);
       }
-      await repos.candidateMutations.deleteCardImageById(cardImageId);
+      await repos.candidateMutations.deleteImageFileById(imageFileId);
     }
   }
 }

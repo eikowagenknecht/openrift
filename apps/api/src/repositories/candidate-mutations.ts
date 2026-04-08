@@ -474,40 +474,40 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
 
     /**
      * Delete all printing_images for a printing UUID.
-     * @returns cardImageIds for cleanup.
+     * @returns imageFileIds for cleanup.
      */
-    deletePrintingImagesByPrintingId(printingId: string): Promise<{ cardImageId: string }[]> {
+    deletePrintingImagesByPrintingId(printingId: string): Promise<{ imageFileId: string }[]> {
       return db
         .deleteFrom("printingImages")
         .where("printingId", "=", printingId)
-        .returning("cardImageId")
+        .returning("imageFileId")
         .execute();
     },
 
-    /** @returns A card_image row by ID (rehostedUrl for disk cleanup). */
-    getCardImageById(
-      cardImageId: string,
+    /** @returns An image_file row by ID (rehostedUrl for disk cleanup). */
+    getImageFileById(
+      imageFileId: string,
     ): Promise<{ id: string; rehostedUrl: string | null } | undefined> {
       return db
-        .selectFrom("cardImages")
+        .selectFrom("imageFiles")
         .select(["id", "rehostedUrl"])
-        .where("id", "=", cardImageId)
+        .where("id", "=", imageFileId)
         .executeTakeFirst();
     },
 
-    /** @returns Whether any printing_images row still references the given card_image. */
-    async isCardImageReferenced(cardImageId: string): Promise<boolean> {
+    /** @returns Whether any printing_images row still references the given image_file. */
+    async isImageFileReferenced(imageFileId: string): Promise<boolean> {
       const result = await db
         .selectFrom("printingImages")
         .select((eb) => eb.fn.countAll<number>().as("count"))
-        .where("cardImageId", "=", cardImageId)
+        .where("imageFileId", "=", imageFileId)
         .executeTakeFirstOrThrow();
       return Number(result.count) > 0;
     },
 
-    /** Delete a card_images row by ID. */
-    async deleteCardImageById(cardImageId: string): Promise<void> {
-      await db.deleteFrom("cardImages").where("id", "=", cardImageId).execute();
+    /** Delete an image_files row by ID. */
+    async deleteImageFileById(imageFileId: string): Promise<void> {
+      await db.deleteFrom("imageFiles").where("id", "=", imageFileId).execute();
     },
 
     /** Delete printing_link_overrides that reference a printing ID. */

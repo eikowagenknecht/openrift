@@ -500,9 +500,9 @@ export interface PrintingLinkOverridesTable {
 
 /**
  * Deduplicated image storage. Multiple printing_images rows can reference the
- * same card_images row, avoiding duplicate files on disk.
+ * same image_files row, avoiding duplicate files on disk.
  */
-export interface CardImagesTable {
+export interface ImageFilesTable {
   id: Generated<string>;
   /** CHECK: <> '' */
   originalUrl: string | null;
@@ -522,8 +522,8 @@ export interface PrintingImagesTable {
   face: CardFace;
   /** CHECK: <> '' */
   provider: string;
-  /** FK: card_images(id) */
-  cardImageId: string;
+  /** FK: image_files(id) */
+  imageFileId: string;
   isActive: boolean;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -751,8 +751,8 @@ export interface Database {
   // Printing link overrides (migration 033)
   printingLinkOverrides: PrintingLinkOverridesTable;
 
-  // Image archive (migration 013, deduplicated in 069)
-  cardImages: CardImagesTable;
+  // Image archive (migration 013, deduplicated in 069, renamed in 071)
+  imageFiles: ImageFilesTable;
   printingImages: PrintingImagesTable;
 
   // Languages (migration 054)

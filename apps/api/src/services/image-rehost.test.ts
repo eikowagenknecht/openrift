@@ -274,7 +274,6 @@ describe("rehostImages", () => {
         {
           imageId: "img-001",
           originalUrl: "https://example.com/img.png",
-          setSlug: "set1",
         },
       ],
     });
@@ -290,7 +289,7 @@ describe("rehostImages", () => {
 
   it("skips null originalUrl", async () => {
     const repo = makeMockRepo({
-      selectResult: [{ imageId: "img-1", originalUrl: null, setSlug: "s" }],
+      selectResult: [{ imageId: "img-1", originalUrl: null }],
     });
     const result = await rehostImages(mockIo, repo);
     expect(result.skipped).toBe(1);
@@ -300,7 +299,7 @@ describe("rehostImages", () => {
   it("counts download failures", async () => {
     mockFetch.mockRejectedValue(new Error("Network error"));
     const repo = makeMockRepo({
-      selectResult: [{ imageId: "img-1", originalUrl: "https://x.com/img", setSlug: "s" }],
+      selectResult: [{ imageId: "img-1", originalUrl: "https://x.com/img" }],
     });
     const result = await rehostImages(mockIo, repo);
     expect(result.failed).toBe(1);
@@ -310,7 +309,7 @@ describe("rehostImages", () => {
   it("handles non-Error thrown values", async () => {
     mockFetch.mockRejectedValue("string-error");
     const repo = makeMockRepo({
-      selectResult: [{ imageId: "img-1", originalUrl: "https://x.com/img", setSlug: "s" }],
+      selectResult: [{ imageId: "img-1", originalUrl: "https://x.com/img" }],
     });
     const result = await rehostImages(mockIo, repo);
     expect(result.failed).toBe(1);
@@ -329,13 +328,11 @@ describe("rehostImages", () => {
         {
           imageId: "img-1",
           originalUrl: "https://example.com/ok.png",
-          setSlug: "s1",
         },
-        { imageId: "img-2", originalUrl: null, setSlug: "s2" },
+        { imageId: "img-2", originalUrl: null },
         {
           imageId: "img-3",
           originalUrl: "https://example.com/fail.png",
-          setSlug: "s3",
         },
       ],
     });
@@ -355,7 +352,6 @@ describe("rehostImages", () => {
         {
           imageId: "img-1",
           originalUrl: "https://example.com/img.png",
-          setSlug: "s",
         },
       ],
     });
@@ -640,15 +636,17 @@ describe("getRehostStatus", () => {
 });
 
 describe("imageRehostedUrl", () => {
-  it("builds the canonical rehosted URL", () => {
-    expect(imageRehostedUrl("set-1", "img-uuid")).toBe("/card-images/set-1/img-uuid");
+  it("builds the canonical rehosted URL using last 2 chars of UUID", () => {
+    expect(imageRehostedUrl("00594247-a18a-4efd-8998-105449a4cf40")).toBe(
+      "/card-images/40/00594247-a18a-4efd-8998-105449a4cf40",
+    );
   });
 });
 
 describe("rehostSingleImage", () => {
   it("does nothing when image has no originalUrl", async () => {
     const repo = {
-      getForRehost: vi.fn(async () => ({ originalUrl: null, setSlug: "s" })),
+      getForRehost: vi.fn(async () => ({ originalUrl: null, imageFileId: "if-1" })),
       updateRehostedUrl: vi.fn(async () => {}),
     } as any;
 
@@ -673,8 +671,7 @@ describe("rehostSingleImage", () => {
     const repo = {
       getForRehost: vi.fn(async () => ({
         originalUrl: "https://example.com/img.png",
-        setSlug: "set-a",
-        cardImageId: "ci-uuid",
+        imageFileId: "00594247-a18a-4efd-8998-105449a4cf40",
       })),
       updateRehostedUrl: vi.fn(async () => {}),
     } as any;
@@ -683,7 +680,10 @@ describe("rehostSingleImage", () => {
 
     expect(mockFetch).toHaveBeenCalled();
     expect(mockWriteFile).toHaveBeenCalled();
-    expect(repo.updateRehostedUrl).toHaveBeenCalledWith("ci-uuid", "/card-images/set-a/ci-uuid");
+    expect(repo.updateRehostedUrl).toHaveBeenCalledWith(
+      "00594247-a18a-4efd-8998-105449a4cf40",
+      "/card-images/40/00594247-a18a-4efd-8998-105449a4cf40",
+    );
   });
 
   it("swallows download errors silently", async () => {
@@ -691,8 +691,7 @@ describe("rehostSingleImage", () => {
     const repo = {
       getForRehost: vi.fn(async () => ({
         originalUrl: "https://example.com/img.png",
-        setSlug: "set-a",
-        cardImageId: "ci-uuid",
+        imageFileId: "00594247-a18a-4efd-8998-105449a4cf40",
       })),
       updateRehostedUrl: vi.fn(async () => {}),
     } as any;
@@ -708,7 +707,10 @@ describe("collectStaleImages", () => {
   it("returns empty stale list when all images match", async () => {
     const repo = {
       listAllRehosted: vi.fn(async () => [
-        { imageId: "img-1", setSlug: "set-a", rehostedUrl: "/card-images/set-a/img-1" },
+        {
+          imageId: "00594247-a18a-4efd-8998-105449a4cf40",
+          rehostedUrl: "/card-images/40/00594247-a18a-4efd-8998-105449a4cf40",
+        },
       ]),
     } as any;
 
@@ -721,7 +723,10 @@ describe("collectStaleImages", () => {
   it("identifies stale images with mismatched URLs", async () => {
     const repo = {
       listAllRehosted: vi.fn(async () => [
-        { imageId: "img-1", setSlug: "set-a", rehostedUrl: "/card-images/old-set/old-name" },
+        {
+          imageId: "00594247-a18a-4efd-8998-105449a4cf40",
+          rehostedUrl: "/card-images/old-set/old-name",
+        },
       ]),
     } as any;
 
@@ -729,7 +734,7 @@ describe("collectStaleImages", () => {
 
     expect(result.stale).toHaveLength(1);
     expect(result.stale[0].oldUrl).toBe("/card-images/old-set/old-name");
-    expect(result.stale[0].newUrl).toBe("/card-images/set-a/img-1");
+    expect(result.stale[0].newUrl).toBe("/card-images/40/00594247-a18a-4efd-8998-105449a4cf40");
   });
 });
 
@@ -737,7 +742,10 @@ describe("renameStaleImages", () => {
   it("renames stale images and updates DB", async () => {
     const repo = {
       listAllRehosted: vi.fn(async () => [
-        { imageId: "img-1", setSlug: "set-a", rehostedUrl: "/card-images/old-set/old-name" },
+        {
+          imageId: "00594247-a18a-4efd-8998-105449a4cf40",
+          rehostedUrl: "/card-images/old-set/old-name",
+        },
       ]),
       updateRehostedUrl: vi.fn(async () => {}),
     } as any;
@@ -747,13 +755,19 @@ describe("renameStaleImages", () => {
 
     expect(result.renamed).toBe(1);
     expect(result.alreadyCorrect).toBe(0);
-    expect(repo.updateRehostedUrl).toHaveBeenCalledWith("img-1", "/card-images/set-a/img-1");
+    expect(repo.updateRehostedUrl).toHaveBeenCalledWith(
+      "00594247-a18a-4efd-8998-105449a4cf40",
+      "/card-images/40/00594247-a18a-4efd-8998-105449a4cf40",
+    );
   });
 
   it("counts rename failures", async () => {
     const repo = {
       listAllRehosted: vi.fn(async () => [
-        { imageId: "img-1", setSlug: "set-a", rehostedUrl: "/card-images/old-set/old-name" },
+        {
+          imageId: "00594247-a18a-4efd-8998-105449a4cf40",
+          rehostedUrl: "/card-images/old-set/old-name",
+        },
       ]),
       updateRehostedUrl: vi.fn(async () => {
         throw new Error("DB error");
@@ -771,11 +785,11 @@ describe("renameStaleImages", () => {
 describe("cleanupOrphanedFiles", () => {
   it("deletes files with no matching DB entry", async () => {
     const repo = {
-      allRehostedUrls: vi.fn(async () => ["/card-images/set-a/img-1"]),
+      allRehostedUrls: vi.fn(async () => ["/card-images/g1/img-1"]),
     } as any;
     mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
       if (opts?.withFileTypes) {
-        return [dirent("set-a", true)];
+        return [dirent("g1", true)];
       }
       return ["img-1-300w.webp", "orphan-300w.webp"];
     });
@@ -793,7 +807,7 @@ describe("cleanupOrphanedFiles", () => {
     } as any;
     mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
       if (opts?.withFileTypes) {
-        return [dirent("set-a", true)];
+        return [dirent("g1", true)];
       }
       return ["orphan-300w.webp"];
     });
@@ -813,7 +827,7 @@ describe("findBrokenImages", () => {
       listAllRehostedWithContext: vi.fn(async () => [
         {
           imageId: "img-1",
-          rehostedUrl: "/card-images/set-a/img-1",
+          rehostedUrl: "/card-images/g1/img-1",
           originalUrl: "https://example.com/img.png",
           cardSlug: "c-1",
           cardName: "Card",
@@ -835,7 +849,7 @@ describe("findBrokenImages", () => {
       listAllRehostedWithContext: vi.fn(async () => [
         {
           imageId: "img-1",
-          rehostedUrl: "/card-images/set-a/img-1",
+          rehostedUrl: "/card-images/g1/img-1",
           originalUrl: "https://example.com/img.png",
           cardSlug: "c-1",
           cardName: "Card",
@@ -868,7 +882,7 @@ describe("findLowResImages", () => {
       listAllRehostedWithContext: vi.fn(async () => [
         {
           imageId: "img-1",
-          rehostedUrl: "/card-images/set-a/img-1",
+          rehostedUrl: "/card-images/g1/img-1",
           originalUrl: "https://example.com/img.png",
           cardSlug: "c-1",
           cardName: "Card",
@@ -897,7 +911,7 @@ describe("findLowResImages", () => {
       listAllRehostedWithContext: vi.fn(async () => [
         {
           imageId: "img-1",
-          rehostedUrl: "/card-images/set-a/img-1",
+          rehostedUrl: "/card-images/g1/img-1",
           originalUrl: "https://example.com/img.png",
           cardSlug: "c-1",
           cardName: "Card",
@@ -920,7 +934,7 @@ describe("findLowResImages", () => {
       listAllRehostedWithContext: vi.fn(async () => [
         {
           imageId: "img-1",
-          rehostedUrl: "/card-images/set-a/img-1",
+          rehostedUrl: "/card-images/g1/img-1",
           originalUrl: "https://example.com/img.png",
           cardSlug: "c-1",
           cardName: "Card",

@@ -180,7 +180,7 @@ export function catalogRepo(db: Kysely<Database>) {
     printingImages(): Promise<CatalogPrintingImageRow[]> {
       return db
         .selectFrom("printingImages")
-        .innerJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
+        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
         .select(["printingId", "face", imageUrl("ci").as("url")])
         .where("isActive", "=", true)
         .where(sql`${imageUrl("ci")}`, "is not", null)
@@ -288,7 +288,7 @@ export function catalogRepo(db: Kysely<Database>) {
     printingImagesByCardId(cardId: string): Promise<CatalogPrintingImageRow[]> {
       return db
         .selectFrom("printingImages")
-        .innerJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
+        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
         .innerJoin("printings", "printings.id", "printingImages.printingId")
         .select(["printingImages.printingId", "printingImages.face", imageUrl("ci").as("url")])
         .where("printings.cardId", "=", cardId)
@@ -437,7 +437,7 @@ export function catalogRepo(db: Kysely<Database>) {
     printingImagesBySetId(setId: string): Promise<CatalogPrintingImageRow[]> {
       return db
         .selectFrom("printingImages")
-        .innerJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
+        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
         .innerJoin("printings", "printings.id", "printingImages.printingId")
         .select(["printingImages.printingId", "printingImages.face", imageUrl("ci").as("url")])
         .where("printings.setId", "=", setId)

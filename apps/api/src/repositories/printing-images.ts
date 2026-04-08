@@ -10,26 +10,26 @@ import type { Database } from "../db/index.js";
  */
 export function printingImagesRepo(db: Kysely<Database>) {
   return {
-    /** @returns A printing image by ID with its card_image's rehostedUrl. */
+    /** @returns A printing image by ID with its image_file's rehostedUrl. */
     getIdAndRehostedUrl(
       imageId: string,
     ): Promise<{ id: string; rehostedUrl: string | null } | undefined> {
       return db
         .selectFrom("printingImages")
-        .innerJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
-        .select(["printingImages.id", "ci.rehostedUrl"])
+        .innerJoin("imageFiles as imgf", "imgf.id", "printingImages.imageFileId")
+        .select(["printingImages.id", "imgf.rehostedUrl"])
         .where("printingImages.id", "=", imageId)
         .executeTakeFirst();
     },
 
-    /** @returns A printing image by ID with its card_image's URLs. */
+    /** @returns A printing image by ID with its image_file's URLs. */
     getIdAndUrls(
       imageId: string,
     ): Promise<{ id: string; rehostedUrl: string | null; originalUrl: string | null } | undefined> {
       return db
         .selectFrom("printingImages")
-        .innerJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
-        .select(["printingImages.id", "ci.rehostedUrl", "ci.originalUrl"])
+        .innerJoin("imageFiles as imgf", "imgf.id", "printingImages.imageFileId")
+        .select(["printingImages.id", "imgf.rehostedUrl", "imgf.originalUrl"])
         .where("printingImages.id", "=", imageId)
         .executeTakeFirst();
     },
@@ -43,19 +43,12 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns A printing image with set slug and card_image info for the rehost endpoint. */
+    /** @returns A printing image with image_file info for the rehost endpoint. */
     getForRehost(imageId: string) {
       return db
         .selectFrom("printingImages")
-        .innerJoin("printings", "printings.id", "printingImages.printingId")
-        .innerJoin("sets", "sets.id", "printings.setId")
-        .innerJoin("cardImages as ci", "ci.id", "printingImages.cardImageId")
-        .select([
-          "printingImages.id",
-          "printingImages.cardImageId",
-          "ci.originalUrl",
-          "sets.slug as setSlug",
-        ])
+        .innerJoin("imageFiles as imgf", "imgf.id", "printingImages.imageFileId")
+        .select(["printingImages.id", "printingImages.imageFileId", "imgf.originalUrl"])
         .where("printingImages.id", "=", imageId)
         .executeTakeFirst();
     },
@@ -66,24 +59,24 @@ export function printingImagesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Get the card_image_id for a printing image.
-     * @returns The card_image_id, or undefined if not found.
+     * Get the image_file_id for a printing image.
+     * @returns The image_file_id, or undefined if not found.
      */
-    async getCardImageId(imageId: string): Promise<string | undefined> {
+    async getImageFileId(imageId: string): Promise<string | undefined> {
       const row = await db
         .selectFrom("printingImages")
-        .select("cardImageId")
+        .select("imageFileId")
         .where("id", "=", imageId)
         .executeTakeFirst();
-      return row?.cardImageId;
+      return row?.imageFileId;
     },
 
-    /** Updates the rehosted URL on the card_images row. */
-    async updateRehostedUrl(cardImageId: string, rehostedUrl: string | null): Promise<void> {
+    /** Updates the rehosted URL on the image_files row. */
+    async updateRehostedUrl(imageFileId: string, rehostedUrl: string | null): Promise<void> {
       await db
-        .updateTable("cardImages")
+        .updateTable("imageFiles")
         .set({ rehostedUrl })
-        .where("id", "=", cardImageId)
+        .where("id", "=", imageFileId)
         .execute();
     },
 
@@ -117,12 +110,12 @@ export function printingImagesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Find or create a card_images row for a given original URL.
-     * @returns The card_image ID.
+     * Find or create an image_files row for a given original URL.
+     * @returns The image_file ID.
      */
-    async findOrCreateCardImage(originalUrl: string): Promise<string> {
+    async findOrCreateImageFile(originalUrl: string): Promise<string> {
       const existing = await db
-        .selectFrom("cardImages")
+        .selectFrom("imageFiles")
         .select("id")
         .where("originalUrl", "=", originalUrl)
         .executeTakeFirst();
@@ -130,7 +123,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
         return existing.id;
       }
       const row = await db
-        .insertInto("cardImages")
+        .insertInto("imageFiles")
         .values({ originalUrl })
         .returning("id")
         .executeTakeFirstOrThrow();
@@ -154,7 +147,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
         return null;
       }
 
-      const cardImageId = await this.findOrCreateCardImage(imageUrl);
+      const imageFileId = await this.findOrCreateImageFile(imageUrl);
 
       if (mode === "main") {
         await this.deactivateActiveFront(printingId);
@@ -165,12 +158,12 @@ export function printingImagesRepo(db: Kysely<Database>) {
             printingId,
             face: "front",
             provider,
-            cardImageId,
+            imageFileId,
             isActive: true,
           })
           .onConflict((oc) =>
             oc.columns(["printingId", "face", "provider"]).doUpdateSet({
-              cardImageId,
+              imageFileId,
               isActive: true,
             }),
           )
@@ -185,12 +178,12 @@ export function printingImagesRepo(db: Kysely<Database>) {
           printingId,
           face: "front",
           provider,
-          cardImageId,
+          imageFileId,
           isActive: false,
         })
         .onConflict((oc) =>
           oc.columns(["printingId", "face", "provider"]).doUpdateSet({
-            cardImageId,
+            imageFileId,
           }),
         )
         .returning("id")
@@ -200,7 +193,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
 
     /**
      * Insert an uploaded image as a printing image, with a pre-computed rehostedUrl.
-     * Creates a card_images row for the uploaded image.
+     * Creates an image_files row for the uploaded image.
      * Optionally deactivates the current active front image first (when mode=main).
      */
     async insertUploadedImage(values: {
@@ -214,9 +207,9 @@ export function printingImagesRepo(db: Kysely<Database>) {
         await this.deactivateActiveFront(values.printingId);
       }
 
-      // Create card_images row with only rehostedUrl (uploaded images have no original URL)
-      const cardImage = await db
-        .insertInto("cardImages")
+      // Create image_files row with only rehostedUrl (uploaded images have no original URL)
+      const imageFile = await db
+        .insertInto("imageFiles")
         .values({ rehostedUrl: values.rehostedUrl })
         .returning("id")
         .executeTakeFirstOrThrow();
@@ -229,24 +222,24 @@ export function printingImagesRepo(db: Kysely<Database>) {
           face: "front",
           provider: values.provider,
           isActive: values.mode === "main",
-          cardImageId: cardImage.id,
+          imageFileId: imageFile.id,
         })
         .onConflict((oc) =>
           oc.columns(["printingId", "face", "provider"]).doUpdateSet({
             isActive: values.mode === "main",
-            cardImageId: cardImage.id,
+            imageFileId: imageFile.id,
           }),
         )
         .execute();
     },
 
     /**
-     * Clears all rehosted URLs on card_images.
+     * Clears all rehosted URLs on image_files.
      * @returns The number of rows that were updated.
      */
     async clearAllRehostedUrls(): Promise<number> {
       const result = await db
-        .updateTable("cardImages")
+        .updateTable("imageFiles")
         .set({ rehostedUrl: null })
         .where("rehostedUrl", "is not", null)
         .where("originalUrl", "is not", null)
@@ -254,18 +247,16 @@ export function printingImagesRepo(db: Kysely<Database>) {
       return Number(result[0].numUpdatedRows);
     },
 
-    /** @returns Card images that need rehosting (no rehostedUrl, has originalUrl), with set slug. */
+    /** @returns Image files that need rehosting (no rehostedUrl, has originalUrl). */
     listUnrehosted(limit: number) {
       return db
         .selectFrom("printingImages as pi")
-        .innerJoin("cardImages as ci", "ci.id", "pi.cardImageId")
-        .innerJoin("printings as p", "p.id", "pi.printingId")
-        .innerJoin("sets as s", "s.id", "p.setId")
-        .select(["ci.id as imageId", "ci.originalUrl", "s.slug as setSlug"])
+        .innerJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
+        .select(["imgf.id as imageId", "imgf.originalUrl"])
         .where("pi.face", "=", "front")
-        .where("ci.rehostedUrl", "is", null)
-        .where("ci.originalUrl", "is not", null)
-        .groupBy(["ci.id", "ci.originalUrl", "s.slug"])
+        .where("imgf.rehostedUrl", "is", null)
+        .where("imgf.originalUrl", "is not", null)
+        .groupBy(["imgf.id", "imgf.originalUrl"])
         .limit(limit)
         .execute();
     },
@@ -278,7 +269,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .leftJoin("printingImages as pi", (jb) =>
           jb.onRef("pi.printingId", "=", "printings.id").on("pi.face", "=", "front"),
         )
-        .leftJoin("cardImages as ci", "ci.id", "pi.cardImageId")
+        .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
         .select([
           "sets.slug as setId",
           "sets.name as setName",
@@ -289,8 +280,8 @@ export function printingImagesRepo(db: Kysely<Database>) {
                   .count("pi.id")
                   .filterWhere((wb) =>
                     wb.or([
-                      wb("ci.originalUrl", "is not", null),
-                      wb("ci.rehostedUrl", "is not", null),
+                      wb("imgf.originalUrl", "is not", null),
+                      wb("imgf.rehostedUrl", "is not", null),
                     ]),
                   ),
                 "integer",
@@ -299,7 +290,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
           (eb) =>
             eb
               .cast<number>(
-                eb.fn.count("pi.id").filterWhere("ci.rehostedUrl", "is not", null),
+                eb.fn.count("pi.id").filterWhere("imgf.rehostedUrl", "is not", null),
                 "integer",
               )
               .as("rehosted"),
@@ -311,13 +302,13 @@ export function printingImagesRepo(db: Kysely<Database>) {
 
     /**
      * Bulk upsert printing_images from candidate_printings for a given provider.
-     * Creates missing card_images rows and links them.
+     * Creates missing image_files rows and links them.
      * @returns The number of affected rows.
      */
     async restoreFromSources(provider: string): Promise<number> {
-      // First, ensure card_images exist for all candidate image URLs
+      // First, ensure image_files exist for all candidate image URLs
       await sql`
-        INSERT INTO card_images (original_url)
+        INSERT INTO image_files (original_url)
         SELECT DISTINCT ps.image_url
         FROM candidate_printings ps
         JOIN candidate_cards cs ON cs.id = ps.candidate_card_id
@@ -327,83 +318,79 @@ export function printingImagesRepo(db: Kysely<Database>) {
         ON CONFLICT (original_url) WHERE original_url IS NOT NULL DO NOTHING
       `.execute(db);
 
-      // Then insert/update printing_images with the card_image_id
+      // Then insert/update printing_images with the image_file_id
       const result = await sql`
-        INSERT INTO printing_images (printing_id, face, provider, card_image_id, is_active)
-        SELECT ps.printing_id, 'front', cs.provider, ci.id, true
+        INSERT INTO printing_images (printing_id, face, provider, image_file_id, is_active)
+        SELECT ps.printing_id, 'front', cs.provider, imgf.id, true
         FROM candidate_printings ps
         JOIN candidate_cards cs ON cs.id = ps.candidate_card_id
-        JOIN card_images ci ON ci.original_url = ps.image_url
+        JOIN image_files imgf ON imgf.original_url = ps.image_url
         WHERE ps.printing_id IS NOT NULL
           AND ps.image_url IS NOT NULL
           AND cs.provider = ${provider}
         ON CONFLICT (printing_id, face, provider) DO UPDATE
-          SET card_image_id = EXCLUDED.card_image_id
-          WHERE printing_images.card_image_id != EXCLUDED.card_image_id
+          SET image_file_id = EXCLUDED.image_file_id
+          WHERE printing_images.image_file_id != EXCLUDED.image_file_id
       `.execute(db);
       return Number(result.numAffectedRows ?? 0);
     },
 
     /**
-     * List all rehosted card images with their set slug.
-     * @returns Images with their current rehosted URL and set slug.
+     * List all rehosted image files.
+     * @returns Images with their current rehosted URL.
      */
     listAllRehosted() {
       return db
-        .selectFrom("cardImages as ci")
-        .innerJoin("printingImages as pi", "pi.cardImageId", "ci.id")
-        .innerJoin("printings as p", "p.id", "pi.printingId")
-        .innerJoin("sets as s", "s.id", "p.setId")
-        .select(["ci.id as imageId", "ci.rehostedUrl", "s.slug as setSlug"])
-        .where("ci.rehostedUrl", "is not", null)
-        .groupBy(["ci.id", "ci.rehostedUrl", "s.slug"])
-        .orderBy("ci.id")
-        .execute() as Promise<{ imageId: string; rehostedUrl: string; setSlug: string }[]>;
+        .selectFrom("imageFiles as imgf")
+        .select(["imgf.id as imageId", "imgf.rehostedUrl"])
+        .where("imgf.rehostedUrl", "is not", null)
+        .orderBy("imgf.id")
+        .execute() as Promise<{ imageId: string; rehostedUrl: string }[]>;
     },
 
     /**
-     * Check whether any *other* printing image references the same card_image.
+     * Check whether any *other* printing image references the same image_file.
      * Used to guard file deletion: only remove disk files when no other row points to them.
-     * @returns Number of other printing images sharing the same card_image.
+     * @returns Number of other printing images sharing the same image_file.
      */
-    async countOthersByCardImageId(
-      cardImageId: string,
+    async countOthersByImageFileId(
+      imageFileId: string,
       excludePrintingImageId: string,
     ): Promise<number> {
       const result = await db
         .selectFrom("printingImages")
         .select((eb) => eb.fn.countAll<number>().as("count"))
-        .where("cardImageId", "=", cardImageId)
+        .where("imageFileId", "=", imageFileId)
         .where("id", "!=", excludePrintingImageId)
         .executeTakeFirstOrThrow();
       return Number(result.count);
     },
 
     /**
-     * List all rehosted card images with card/printing context for broken-image checking.
+     * List all rehosted image files with card/printing context for broken-image checking.
      * @returns Images with rehosted URL, original URL, and navigation context.
      */
     listAllRehostedWithContext() {
       return db
-        .selectFrom("cardImages as ci")
-        .innerJoin("printingImages as pi", "pi.cardImageId", "ci.id")
+        .selectFrom("imageFiles as imgf")
+        .innerJoin("printingImages as pi", "pi.imageFileId", "imgf.id")
         .innerJoin("printings as p", "p.id", "pi.printingId")
         .innerJoin("sets as s", "s.id", "p.setId")
         .innerJoin("cards as c", "c.id", "p.cardId")
         .select([
-          "ci.id as imageId",
-          "ci.rehostedUrl",
-          "ci.originalUrl",
+          "imgf.id as imageId",
+          "imgf.rehostedUrl",
+          "imgf.originalUrl",
           "c.slug as cardSlug",
           "c.name as cardName",
           "p.shortCode as printingShortCode",
           "s.slug as setSlug",
         ])
-        .where("ci.rehostedUrl", "is not", null)
+        .where("imgf.rehostedUrl", "is not", null)
         .groupBy([
-          "ci.id",
-          "ci.rehostedUrl",
-          "ci.originalUrl",
+          "imgf.id",
+          "imgf.rehostedUrl",
+          "imgf.originalUrl",
           "c.slug",
           "c.name",
           "p.shortCode",
@@ -424,20 +411,20 @@ export function printingImagesRepo(db: Kysely<Database>) {
       >;
     },
 
-    /** @returns All non-null rehosted URLs from card_images as a flat list. */
+    /** @returns All non-null rehosted URLs from image_files as a flat list. */
     async allRehostedUrls(): Promise<string[]> {
       const rows = await db
-        .selectFrom("cardImages")
+        .selectFrom("imageFiles")
         .select("rehostedUrl")
         .where("rehostedUrl", "is not", null)
         .execute();
       return rows.map((r) => r.rehostedUrl as string);
     },
 
-    /** @returns Total count of rehosted card images. */
+    /** @returns Total count of rehosted image files. */
     async countRehosted(): Promise<number> {
       const result = await db
-        .selectFrom("cardImages")
+        .selectFrom("imageFiles")
         .select((eb) => eb.fn.countAll<number>().as("count"))
         .where("rehostedUrl", "is not", null)
         .executeTakeFirstOrThrow();
@@ -478,14 +465,14 @@ export function printingImagesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Delete orphaned card_images rows that no printing_images reference.
+     * Delete orphaned image_files rows that no printing_images reference.
      * @returns The number of deleted rows.
      */
-    async deleteOrphanedCardImages(): Promise<number> {
+    async deleteOrphanedImageFiles(): Promise<number> {
       const result = await sql`
-        DELETE FROM card_images ci
+        DELETE FROM image_files imgf
         WHERE NOT EXISTS (
-          SELECT 1 FROM printing_images pi WHERE pi.card_image_id = ci.id
+          SELECT 1 FROM printing_images pi WHERE pi.image_file_id = imgf.id
         )
       `.execute(db);
       return Number(result.numAffectedRows ?? 0);

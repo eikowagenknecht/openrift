@@ -174,19 +174,19 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const image = await printingImages.getIdAndRehostedUrl(imageId);
     assertFound(image, "Printing image not found");
 
-    const cardImageId = await printingImages.getCardImageId(imageId);
+    const imageFileId = await printingImages.getImageFileId(imageId);
 
-    // Check if another printing_image shares the same card_image before deleting files
-    const othersUsingFiles = cardImageId
-      ? await printingImages.countOthersByCardImageId(cardImageId, imageId)
+    // Check if another printing_image shares the same image_file before deleting files
+    const othersUsingFiles = imageFileId
+      ? await printingImages.countOthersByImageFileId(imageFileId, imageId)
       : 0;
 
     await printingImages.deleteById(imageId);
 
     if (image.rehostedUrl && othersUsingFiles === 0) {
       await deleteRehostFiles(c.get("io"), image.rehostedUrl);
-      // Clean up the orphaned card_images row
-      await printingImages.deleteOrphanedCardImages();
+      // Clean up the orphaned image_files row
+      await printingImages.deleteOrphanedImageFiles();
     }
 
     return c.body(null, 204);
@@ -234,18 +234,18 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
       );
     }
 
-    const cardImageId = await printingImages.getCardImageId(imageId);
-    if (!cardImageId) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Image has no associated card image");
+    const imageFileId = await printingImages.getImageFileId(imageId);
+    if (!imageFileId) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Image has no associated image file");
     }
 
-    // Only delete files if no other printing_image shares the same card_image
-    const othersUsingFiles = await printingImages.countOthersByCardImageId(cardImageId, imageId);
+    // Only delete files if no other printing_image shares the same image_file
+    const othersUsingFiles = await printingImages.countOthersByImageFileId(imageFileId, imageId);
     if (othersUsingFiles === 0) {
       await deleteRehostFiles(c.get("io"), image.rehostedUrl);
     }
 
-    await printingImages.updateRehostedUrl(cardImageId, null);
+    await printingImages.updateRehostedUrl(imageFileId, null);
 
     return c.body(null, 204);
   })
@@ -263,13 +263,12 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     }
 
     const { buffer, ext } = await downloadImage(c.get("io"), image.originalUrl);
-    const outputDir = join(CARD_IMAGES_DIR, image.setSlug);
+    const rehostedUrl = imageRehostedUrl(image.imageFileId);
+    const outputDir = join(CARD_IMAGES_DIR, image.imageFileId.slice(-2));
 
-    await processAndSave(c.get("io"), buffer, ext, outputDir, image.cardImageId);
+    await processAndSave(c.get("io"), buffer, ext, outputDir, image.imageFileId);
 
-    const rehostedUrl = imageRehostedUrl(image.setSlug, image.cardImageId);
-
-    await printingImages.updateRehostedUrl(image.cardImageId, rehostedUrl);
+    await printingImages.updateRehostedUrl(image.imageFileId, rehostedUrl);
 
     return c.json({ rehostedUrl });
   })
@@ -302,7 +301,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { printingImages } = c.get("repos");
     const printingId = c.req.valid("param").printingId;
 
-    const printing = await printingImages.getPrintingWithSetById(printingId);
+    const printing = await printingImages.getPrintingById(printingId);
     assertFound(printing, "Printing not found");
 
     const body = c.req.valid("form");
@@ -317,11 +316,11 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const ext = file.name ? `.${file.name.split(".").pop()?.toLowerCase() ?? "png"}` : ".png";
-    const outputDir = join(CARD_IMAGES_DIR, printing.setSlug);
 
     // Pre-compute paths so rehostedUrl can be included in the INSERT
     const imageId = uuidv7();
-    const rehostedUrl = imageRehostedUrl(printing.setSlug, imageId);
+    const rehostedUrl = imageRehostedUrl(imageId);
+    const outputDir = join(CARD_IMAGES_DIR, imageId.slice(-2));
 
     await processAndSave(c.get("io"), buffer, ext, outputDir, imageId);
 
