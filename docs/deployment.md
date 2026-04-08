@@ -438,7 +438,7 @@ scp -r monitoring openrift@VPS:~/openrift/monitoring
 ```bash
 cd ~/openrift/monitoring
 cp .env.example .env
-# Edit .env: set GRAFANA_ADMIN_PASSWORD, SMTP credentials, POSTGRES_CONNECTION, ALERT_EMAIL_TO
+# Edit .env: set GRAFANA_ADMIN_PASSWORD, SMTP credentials, POSTGRES_CONNECTION
 ```
 
 3. Create data directories (must exist before first start):
@@ -470,7 +470,7 @@ nginx -t && systemctl reload nginx
 
 7. Open `https://monitoring.openrift.app`, log in with the basic auth credentials, then with the Grafana admin password. Three dashboards are pre-provisioned: Host Metrics, Container Metrics, and PostgreSQL.
 
-8. Verify email alerting: go to Alerting > Contact points > Test in Grafana.
+8. Set up email alerting: go to Alerting > Contact points, add an email contact point with your alert recipient address. Then create alert rules under Alerting > Alert rules (or import them). Send a test notification to verify SMTP works.
 
 ### Management
 
