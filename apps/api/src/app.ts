@@ -6,6 +6,7 @@ import * as Sentry from "@sentry/bun";
 import { rateLimiter } from "hono-rate-limiter";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
+import { logger } from "hono/logger";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Kysely } from "kysely";
 import { z } from "zod";
@@ -125,6 +126,10 @@ export function createApp(deps: AppDeps) {
       origin: (origin) => matchOrigin(origin, config.corsOrigin),
     }),
   );
+
+  if (config.logRequests) {
+    app.use("/api/*", logger());
+  }
 
   // Make shared dependencies (repos, services, etc.) available via c.get() in all routes.
   app.use("/api/*", async (c, next) => {

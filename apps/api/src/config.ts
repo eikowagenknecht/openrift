@@ -36,6 +36,8 @@ export function createConfig(env: Record<string, string | undefined>) {
 
     cardtraderApiToken: env.CARDTRADER_API_TOKEN ?? "",
 
+    logRequests: env.LOG_REQUESTS === "true",
+
     cron: {
       enabled: env.CRON_ENABLED === "true",
       tcgplayerSchedule: env.CRON_TCGPLAYER || "0 6 * * *",
