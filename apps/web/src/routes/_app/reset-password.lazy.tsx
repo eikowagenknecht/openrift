@@ -28,6 +28,7 @@ function ResetPasswordPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
+  // oxlint-disable-next-line react/hook-use-state -- stable random value, setter intentionally unused
   const [emailPlaceholder] = useState(randomEmailPlaceholder);
 
   async function handleSendCode() {

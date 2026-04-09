@@ -122,7 +122,7 @@ if (ctx) {
     .insertInto("printings")
     .values({
       cardId: card1Id,
-      setId: setId,
+      setId,
       shortCode: "CSQ-001",
       rarity: "Common",
       artVariant: "normal",
@@ -145,7 +145,7 @@ if (ctx) {
     .insertInto("printings")
     .values({
       cardId: card3Id,
-      setId: setId,
+      setId,
       shortCode: "CSQ-003",
       rarity: "Uncommon",
       artVariant: "normal",

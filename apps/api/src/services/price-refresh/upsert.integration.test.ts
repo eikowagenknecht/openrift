@@ -68,10 +68,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
       .executeTakeFirstOrThrow();
     cardId = insertedCard.id;
 
-    await db
-      .insertInto("cardDomains")
-      .values({ cardId: cardId, domainSlug: "Mind", ordinal: 0 })
-      .execute();
+    await db.insertInto("cardDomains").values({ cardId, domainSlug: "Mind", ordinal: 0 }).execute();
 
     // Seed group for cardmarket marketplace
     await db
@@ -208,7 +205,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         productName: "UPS Test Product",
         finish,
         language: "EN",
-        recordedAt: recordedAt,
+        recordedAt,
         marketCents: 0,
         lowCents: null,
         midCents: null,

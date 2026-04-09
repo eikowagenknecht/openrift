@@ -137,7 +137,7 @@ export const tradeListsRoute = tradeListsApp
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await tradeLists.create({
-      userId: userId,
+      userId,
       name: body.name,
       rules: body.rules ? JSON.stringify(body.rules) : null,
     });
@@ -199,8 +199,8 @@ export const tradeListsRoute = tradeListsApp
     assertFound(copy, "Copy not found");
 
     const row = await tradeLists.createItem({
-      tradeListId: tradeListId,
-      userId: userId,
+      tradeListId,
+      userId,
       copyId: body.copyId,
     });
 

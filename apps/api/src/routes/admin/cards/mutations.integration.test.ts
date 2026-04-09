@@ -64,17 +64,14 @@ if (ctx) {
     .execute();
   cardId = cardRow.id;
 
-  await db
-    .insertInto("cardDomains")
-    .values({ cardId: cardId, domainSlug: "Mind", ordinal: 0 })
-    .execute();
+  await db.insertInto("cardDomains").values({ cardId, domainSlug: "Mind", ordinal: 0 }).execute();
 
   // Printing 1
   const [printingRow] = await db
     .insertInto("printings")
     .values({
-      cardId: cardId,
-      setId: setId,
+      cardId,
+      setId,
       shortCode: "CSM-001",
       rarity: "Common",
       artVariant: "normal",
@@ -96,8 +93,8 @@ if (ctx) {
   const [printing2Row] = await db
     .insertInto("printings")
     .values({
-      cardId: cardId,
-      setId: setId,
+      cardId,
+      setId,
       shortCode: "CSM-002",
       rarity: "Rare",
       artVariant: "normal",
@@ -168,7 +165,7 @@ if (ctx) {
     .insertInto("candidatePrintings")
     .values({
       candidateCardId: cardShortCode,
-      printingId: printingId,
+      printingId,
       shortCode: "CSM-001",
       setId: "CSM-TEST",
       setName: "CSM Test Set",
@@ -912,7 +909,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       const res = await app.fetch(
         req("POST", `${P}/new/csmanotherunmatched/link`, {
-          cardId: cardId,
+          cardId,
         }),
       );
       expect(res.status).toBe(204);
@@ -1069,7 +1066,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: true,
-          promoTypeId: promoTypeId,
+          promoTypeId,
           finish: "foil",
           artist: "Promo Artist",
           publicCode: "CSM",
@@ -1091,7 +1088,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             rarity: "Common",
             finish: "foil",
             isSigned: true,
-            promoTypeId: promoTypeId,
+            promoTypeId,
             artist: "Promo Artist",
             publicCode: "CSM",
           },
@@ -1593,8 +1590,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const [disposablePrinting] = await db
         .insertInto("printings")
         .values({
-          cardId: cardId,
-          setId: setId,
+          cardId,
+          setId,
           shortCode: "CSM-DELETE-TEST",
           rarity: "Common",
           artVariant: "normal",

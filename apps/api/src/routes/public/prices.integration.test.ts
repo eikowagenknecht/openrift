@@ -52,10 +52,7 @@ if (ctx) {
     .execute();
   cardId = cardRow.id;
 
-  await db
-    .insertInto("cardDomains")
-    .values({ cardId: cardId, domainSlug: "Mind", ordinal: 0 })
-    .execute();
+  await db.insertInto("cardDomains").values({ cardId, domainSlug: "Mind", ordinal: 0 }).execute();
 
   // Seed printing with marketplace sources
   const [printingRow] = await db

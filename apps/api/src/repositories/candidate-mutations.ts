@@ -833,8 +833,8 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
     async createNameAliases(normalizedName: string, cardId: string): Promise<void> {
       await db
         .insertInto("cardNameAliases")
-        .values({ normName: normalizedName, cardId: cardId })
-        .onConflict((oc) => oc.column("normName").doUpdateSet({ cardId: cardId }))
+        .values({ normName: normalizedName, cardId })
+        .onConflict((oc) => oc.column("normName").doUpdateSet({ cardId }))
         .execute();
     },
 

@@ -135,7 +135,7 @@ if (ctx) {
     .insertInto("candidatePrintings")
     .values({
       candidateCardId: cs.id,
-      printingId: printingId,
+      printingId,
       shortCode: "CSI-001",
       setId: "CSI",
       setName: "CSI Test Set",
@@ -185,7 +185,7 @@ if (ctx) {
     .insertInto("candidatePrintings")
     .values({
       candidateCardId: cs2.id,
-      printingId: printingId,
+      printingId,
       shortCode: "CSI-001b",
       setId: "CSI",
       setName: "CSI Test Set",
@@ -302,7 +302,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .insertInto("candidatePrintings")
         .values({
           candidateCardId: cs2.id,
-          printingId: printingId,
+          printingId,
           shortCode: "CSI-001-ALT",
           setId: "CSI",
           setName: "CSI Test Set",
@@ -565,7 +565,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       const [noUrlImage] = await db
         .insertInto("printingImages")
         .values({
-          printingId: printingId,
+          printingId,
           face: "front",
           provider: "csi-no-url-source",
           originalUrl: null,

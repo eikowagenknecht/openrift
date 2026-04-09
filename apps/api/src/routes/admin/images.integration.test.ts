@@ -133,7 +133,7 @@ if (ctx) {
     .insertInto("candidatePrintings")
     .values({
       candidateCardId: cs.id,
-      printingId: printingId,
+      printingId,
       shortCode: "IMG-001",
       setId: "IMG",
       setName: "IMG Test Set",

@@ -155,7 +155,7 @@ export function collectionsRepo(db: Kysely<Database>) {
       const result = await db
         .insertInto("collections")
         .values({
-          userId: userId,
+          userId,
           name: "Inbox",
           isInbox: true,
           availableForDeckbuilding: true,

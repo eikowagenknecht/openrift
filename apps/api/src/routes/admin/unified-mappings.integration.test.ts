@@ -51,17 +51,14 @@ if (ctx) {
     .execute();
   cardId = cardRow.id;
 
-  await db
-    .insertInto("cardDomains")
-    .values({ cardId: cardId, domainSlug: "Mind", ordinal: 0 })
-    .execute();
+  await db.insertInto("cardDomains").values({ cardId, domainSlug: "Mind", ordinal: 0 }).execute();
 
   // Seed first printing
   const [printingRow] = await db
     .insertInto("printings")
     .values({
-      cardId: cardId,
-      setId: setId,
+      cardId,
+      setId,
       shortCode: "UNM-001",
       rarity: "Common",
       artVariant: "normal",
@@ -107,7 +104,7 @@ if (ctx) {
     .insertInto("printings")
     .values({
       cardId: secondCardId,
-      setId: setId,
+      setId,
       shortCode: "UNM-002",
       rarity: "Rare",
       artVariant: "normal",

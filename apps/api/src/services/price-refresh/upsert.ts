@@ -134,7 +134,7 @@ export async function upsertPriceData(
       }
       const snapKey = `${productId}|${staging.recordedAt.toISOString()}`;
       uniqueSnapshots.set(snapKey, {
-        productId: productId,
+        productId,
         recordedAt: staging.recordedAt,
         ...pickPrices(staging),
       });

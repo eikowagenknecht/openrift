@@ -545,7 +545,7 @@ export async function saveMappings(
       const rows = stagingByKey.get(stagingKey) ?? [];
       for (const row of rows) {
         snapshotRows.push({
-          productId: productId,
+          productId,
           recordedAt: row.recordedAt,
           marketCents: row.marketCents,
           lowCents: row.lowCents,

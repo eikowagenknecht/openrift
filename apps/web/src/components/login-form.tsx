@@ -32,6 +32,7 @@ export function LoginForm({
 }: React.ComponentProps<"div"> & { redirectTo?: string; initialEmail?: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  // oxlint-disable-next-line react/hook-use-state -- stable random value, setter intentionally unused
   const [emailPlaceholder] = useState(randomEmailPlaceholder);
   const [method, setMethod] = useState<"password" | "otp">("password");
   const [loading, setLoading] = useState(false);

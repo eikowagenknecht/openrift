@@ -43,7 +43,7 @@ export async function addCopies(
 
   const created = await transact(async (trxRepos) => {
     const copyValues = copies.map((item) => ({
-      userId: userId,
+      userId,
       printingId: item.printingId,
       collectionId: item.collectionId ?? inboxId,
     }));

@@ -152,7 +152,7 @@ export const wishListsRoute = wishListsApp
     const userId = getUserId(c);
     const body = c.req.valid("json");
     const row = await wishLists.create({
-      userId: userId,
+      userId,
       name: body.name,
       rules: body.rules ? JSON.stringify(body.rules) : null,
     });
@@ -210,8 +210,8 @@ export const wishListsRoute = wishListsApp
     assertFound(wishList, "Wish list not found");
 
     const row = await wishLists.createItem({
-      wishListId: wishListId,
-      userId: userId,
+      wishListId,
+      userId,
       cardId: body.cardId ?? null,
       printingId: body.printingId ?? null,
       quantityDesired: body.quantityDesired,

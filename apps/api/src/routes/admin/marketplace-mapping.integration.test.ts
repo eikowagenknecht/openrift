@@ -49,17 +49,14 @@ if (ctx) {
     .execute();
   cardId = cardRow.id;
 
-  await db
-    .insertInto("cardDomains")
-    .values({ cardId: cardId, domainSlug: "Mind", ordinal: 0 })
-    .execute();
+  await db.insertInto("cardDomains").values({ cardId, domainSlug: "Mind", ordinal: 0 }).execute();
 
   // Seed printing (normal finish)
   const [printingRow] = await db
     .insertInto("printings")
     .values({
-      cardId: cardId,
-      setId: setId,
+      cardId,
+      setId,
       shortCode: "MKM-001",
       rarity: "Common",
       artVariant: "normal",
@@ -81,8 +78,8 @@ if (ctx) {
   const [secondPrintingRow] = await db
     .insertInto("printings")
     .values({
-      cardId: cardId,
-      setId: setId,
+      cardId,
+      setId,
       shortCode: "MKM-001",
       rarity: "Common",
       artVariant: "normal",
@@ -537,7 +534,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           externalId: 99_002,
           finish: "normal",
           language: "EN",
-          cardId: cardId,
+          cardId,
         })
         .onConflict((oc) =>
           oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),

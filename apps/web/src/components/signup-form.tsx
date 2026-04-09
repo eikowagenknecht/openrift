@@ -27,6 +27,7 @@ export function SignupForm({
   ...props
 }: React.ComponentProps<"div"> & { redirectTo?: string; initialEmail?: string }) {
   const navigate = useNavigate();
+  // oxlint-disable-next-line react/hook-use-state -- stable random value, setter intentionally unused
   const [emailPlaceholder] = useState(randomEmailPlaceholder);
   const [loading, setLoading] = useState(false);
   const form = useForm<SignUpValues>({
