@@ -197,11 +197,15 @@ export function CardBrowser() {
         if (!copyIdToRemove) {
           return;
         }
-        // useDisposeCopies.onMutate handles the optimistic cache update
-        useAddModeStore.getState().recordUndo(printing.id);
+        const pid = printing.id;
+        setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) - 1 }));
+        useAddModeStore.getState().recordUndo(pid);
         try {
           await disposeCopies.mutateAsync({ copyIds: [copyIdToRemove] });
+          // No delta reset — useDisposeCopies has no onSuccess that updates owned counts,
+          // so the delta must persist until the query naturally refetches.
         } catch {
+          setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) + 1 }));
           useAddModeStore.getState().recordAdd(printing, copyIdToRemove);
         }
       }
