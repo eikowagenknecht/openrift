@@ -1,0 +1,40 @@
+name: Bug Report
+description: Something isn't working as expected
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug. What did you expect to happen, and what happened instead?
+      placeholder: |
+        Example: I clicked "Add to collection" but the card count didn't update. I expected the count to go from 0 to 1.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this? Be as specific as you can.
+      placeholder: |
+        1. Go to the Cards page
+        2. Click on a card
+        3. Click "Add to collection"
+        4. ...
+    validations:
+      required: false
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain the problem.
+    validations:
+      required: false
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and device
+      description: What browser and device are you using?
+      placeholder: "e.g. Chrome on Windows, Safari on iPhone 15"
+    validations:
+      required: false

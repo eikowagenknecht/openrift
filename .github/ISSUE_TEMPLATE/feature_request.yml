@@ -1,0 +1,20 @@
+name: Feature Request
+description: Suggest an idea or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What would you like to see?
+      description: Describe the feature or improvement you have in mind.
+      placeholder: |
+        Example: It would be great if I could filter cards by the ones I'm missing from a set.
+    validations:
+      required: true
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Why would this be useful?
+      description: How would this help you or other users?
+    validations:
+      required: false
