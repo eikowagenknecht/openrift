@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import { formatterForMarketplace } from "@/lib/format";
+import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 
 const ZONE_LABELS: Record<string, string> = {
   legend: "Legend",
@@ -40,6 +41,7 @@ export function DeckMissingCardsDialog({
 }: DeckMissingCardsDialogProps) {
   const [copied, setCopied] = useState(false);
   const fmt = formatterForMarketplace(marketplace);
+  const meta = MARKETPLACE_META[marketplace];
 
   const sorted = missingCards.toSorted((a, b) => {
     const zoneCmp = (ZONE_LABELS[a.zone] ?? a.zone).localeCompare(ZONE_LABELS[b.zone] ?? b.zone);
@@ -76,6 +78,10 @@ export function DeckMissingCardsDialog({
               </span>
             )}
           </DialogTitle>
+          <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+            <img src={meta.icon} alt="" className="h-3 invert dark:invert-0" />
+            Prices from {meta.label}
+          </div>
         </DialogHeader>
 
         <div className="max-h-80 overflow-y-auto">
@@ -91,7 +97,16 @@ export function DeckMissingCardsDialog({
             <tbody>
               {sorted.map((card) => (
                 <tr key={`${card.cardId}:${card.zone}`} className="border-t">
-                  <td className="py-1.5">{card.cardName}</td>
+                  <td className="py-1.5">
+                    <a
+                      href={meta.searchUrl(card.cardName)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hover:text-foreground underline decoration-dotted underline-offset-2"
+                    >
+                      {card.cardName}
+                    </a>
+                  </td>
                   <td className="text-muted-foreground py-1.5 text-center text-xs">
                     {ZONE_LABELS[card.zone] ?? card.zone}
                   </td>

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { formatterForMarketplace } from "@/lib/format";
+import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 
 interface DeckOwnershipPanelProps {
   data: DeckOwnershipData;
@@ -48,6 +49,14 @@ export function DeckOwnershipPanel({ data, marketplace, onViewMissing }: DeckOwn
 
           {data.deckValueCents !== undefined && (
             <div className="space-y-1 text-sm">
+              <div className="text-muted-foreground flex items-center gap-1.5 pb-0.5 text-xs">
+                <img
+                  src={MARKETPLACE_META[marketplace].icon}
+                  alt=""
+                  className="h-3 invert dark:invert-0"
+                />
+                {MARKETPLACE_META[marketplace].label} prices
+              </div>
               <Row label="Deck value" value={fmt(data.deckValueCents)} />
               <Row label="Owned value" value={fmt(data.ownedValueCents)} />
               {data.missingValueCents !== undefined && data.missingValueCents > 0 && (
