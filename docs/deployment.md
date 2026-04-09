@@ -58,14 +58,13 @@ When the `api` container starts:
 
 ### Cron Configuration
 
-| Variable          | Default      | Description                                                        |
-| ----------------- | ------------ | ------------------------------------------------------------------ |
-| `CRON_ENABLED`    | `true`       | Set to `false` to disable price refresh cron jobs (e.g. local dev) |
-| `CRON_TCGPLAYER`  | `0 6 * * *`  | Cron expression for TCGPlayer price refresh                        |
-| `CRON_CARDMARKET` | `15 6 * * *` | Cron expression for Cardmarket price refresh                       |
-| `IMAGE_TAG`       | `latest`     | GHCR image tag (`preview`, `latest`, or `v1.2.3`)                  |
-| `SMTP_PORT`       | `465`        | SMTP port for email verification                                   |
-| `SMTP_SECURE`     | `true`       | Use TLS for SMTP                                                   |
+| Variable          | Default  | Description                                                                   |
+| ----------------- | -------- | ----------------------------------------------------------------------------- |
+| `CRON_TCGPLAYER`  |          | Cron expression for TCGPlayer price refresh (e.g. `0 6 * * *`). Unset = off   |
+| `CRON_CARDMARKET` |          | Cron expression for Cardmarket price refresh (e.g. `15 6 * * *`). Unset = off |
+| `IMAGE_TAG`       | `latest` | GHCR image tag (`preview`, `latest`, or `v1.2.3`)                             |
+| `SMTP_PORT`       | `465`    | SMTP port for email verification                                              |
+| `SMTP_SECURE`     | `true`   | Use TLS for SMTP                                                              |
 
 ## Regular Deploys
 

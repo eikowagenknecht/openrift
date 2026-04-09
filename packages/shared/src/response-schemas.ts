@@ -54,7 +54,6 @@ export const adminStatusResponseSchema = z
       totalMigrations: z.number(),
     }),
     cron: z.object({
-      enabled: z.boolean(),
       jobs: z.object({
         tcgplayer: cronJobStatusSchema,
         cardmarket: cronJobStatusSchema,

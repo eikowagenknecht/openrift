@@ -92,7 +92,8 @@ See `.env.example` for all required variables:
 | `API_PORT`              | Host-side API port                     | `3001`                                                 |
 | `WEB_PORT`              | Host-side web port                     | `8080`                                                 |
 | `IMAGE_TAG`             | GHCR image tag                         | `latest`                                               |
-| `CRON_ENABLED`          | Enable price refresh cron jobs         | `true`                                                 |
+| `CRON_TCGPLAYER`        | TCGPlayer price refresh schedule       | _(unset = disabled)_                                   |
+| `CRON_CARDMARKET`       | Cardmarket price refresh schedule      | _(unset = disabled)_                                   |
 | `CORS_ORIGIN`           | Allowed CORS origins (comma-separated) | `https://openrift.app,https://preview.openrift.app`    |
 | `BETTER_AUTH_SECRET`    | Auth secret key                        | _(generate with `openssl rand -base64 32`)_            |
 | `BETTER_AUTH_URL`       | Auth base URL                          | `http://localhost:5173`                                |
