@@ -60,7 +60,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       slug: "import-export",
       title: "Importing & Exporting",
       description:
-        "Bring cards in from other tools via CSV, review how matching works, and export your collection.",
+        "Bring cards in from other tools via CSV, see how matching works, and export your collection.",
       icon: ArrowRightLeftIcon,
       component: () => import("./articles/import-export"),
     },

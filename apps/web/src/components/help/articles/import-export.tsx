@@ -1,8 +1,9 @@
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
-  CircleHelpIcon,
+  ChevronDownIcon,
   FileUpIcon,
+  SearchIcon,
   XCircleIcon,
 } from "lucide-react";
 
@@ -12,7 +13,11 @@ export default function ImportExportArticle() {
       <p className="text-muted-foreground">
         OpenRift can import cards from other collection tools and export your collection as a CSV
         file. You&apos;ll find both under{" "}
-        <strong className="text-foreground">Import / Export</strong> in the collection sidebar.
+        <strong className="text-foreground">Import / Export</strong> in the{" "}
+        <a href="/collections" className="text-primary hover:underline">
+          collection
+        </a>{" "}
+        sidebar.
       </p>
 
       {/* \u2500\u2500 Import \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
@@ -32,25 +37,79 @@ export default function ImportExportArticle() {
           Paste a CSV into the text area, or click the upload button to pick a{" "}
           <code className="bg-muted rounded px-1.5 py-0.5 text-xs">.csv</code> file. Then click{" "}
           <strong className="text-foreground">Parse</strong>. OpenRift auto-detects the source
-          format.
+          format for the supported tools listed below.
         </p>
 
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <FormatCard
+            name="OpenRift"
+            description='Detected by the "Art Variant" column. Re-import files exported by OpenRift itself, for example to transfer cards between accounts or restore after a reset.'
+            columns={[
+              "Card ID",
+              "Card Name",
+              "Rarity",
+              "Type",
+              "Domain",
+              "Finish",
+              "Art Variant",
+              "Promo",
+              "Quantity",
+            ]}
+          />
           <FormatCard
             name="Piltover Archive"
             description='Detected by the "Variant Number" column. Supports finish, art variant, and condition fields.'
-            columns={["Variant Number", "Card Name", "Quantity", "Set", "Rarity", "Variant Type"]}
+            columns={[
+              "Variant Number",
+              "Card Name",
+              "Set",
+              "Set Prefix",
+              "Rarity",
+              "Variant Type",
+              "Variant Label",
+              "Quantity",
+              "Language",
+              "Condition",
+            ]}
           />
           <FormatCard
             name="RiftCore"
             description='Detected by the "RIFTCORE COLLECTION EXPORT" header row. Separates normal and foil quantities.'
-            columns={["Card ID", "Card Name", "Standard Qty", "Foil Qty", "Set", "Rarity"]}
+            columns={[
+              "Card ID",
+              "Card Name",
+              "Set",
+              "Card Number",
+              "Type",
+              "Rarity",
+              "Domain",
+              "Standard Qty",
+              "Foil Qty",
+            ]}
           />
         </div>
 
         <p className="text-muted-foreground mt-3 text-sm">
           Using a different tool? Export it as CSV and try importing. If the format isn&apos;t
-          recognized, OpenRift will tell you. You can request support for new formats on GitHub.
+          recognized, OpenRift will tell you. Let us know on{" "}
+          <a
+            href="https://discord.gg/Qb6RcjXq6z"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline"
+          >
+            Discord
+          </a>{" "}
+          or{" "}
+          <a
+            href="https://github.com/eikowagenknecht/openrift/issues"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline"
+          >
+            GitHub
+          </a>{" "}
+          if you&apos;d like support for another tool and we&apos;ll do our best to add it.
         </p>
       </section>
 
@@ -71,13 +130,8 @@ export default function ImportExportArticle() {
           />
           <StatusRow
             icon={<AlertTriangleIcon className="size-4 text-amber-600 dark:text-amber-400" />}
-            label="Ambiguous"
-            description="Code matched but multiple printings fit (e.g. signed vs. unsigned, or normal vs. promo). Pick the right one from the dropdown."
-          />
-          <StatusRow
-            icon={<CircleHelpIcon className="size-4 text-amber-600 dark:text-amber-400" />}
-            label="Fuzzy"
-            description="Code wasn't found, but a similar card name was. Confirm the suggestion or pick a variant."
+            label="Needs review"
+            description="OpenRift found a likely match but isn't sure (e.g. multiple printings fit, or only a similar name was found). Use the dropdown to confirm or pick the right one."
           />
           <StatusRow
             icon={<XCircleIcon className="size-4 text-red-600 dark:text-red-400" />}
@@ -96,16 +150,10 @@ export default function ImportExportArticle() {
             <MockMatchRow
               status="ambiguous"
               quantity={1}
-              code="OGN-030"
-              name="Fury Strike"
+              code="OGN-001"
+              name="Blazing Scorcher"
               tags={["Foil"]}
-            />
-            <MockMatchRow
-              status="fuzzy"
-              quantity={2}
-              code="DOM-045"
-              name="Zerro Drive"
-              tags={["Alt Art"]}
+              dropdown="OGN-001 · Foil · Nexus Night"
             />
             <MockMatchRow
               status="unresolved"
@@ -118,12 +166,13 @@ export default function ImportExportArticle() {
         </div>
 
         <p className="text-muted-foreground mt-3">
-          Entries are sorted by match quality, so the ones that need attention appear first. Click
-          any row to expand it and see the original data from your CSV. For ambiguous and fuzzy
-          matches, use the dropdown to pick the correct printing. You can also{" "}
+          Exact matches appear first, followed by entries that need review and unresolved ones.
+          Click any row to expand it and see the original data from your CSV. For entries that need
+          review, use the dropdown to pick the correct printing, or click the search icon to look up
+          any printing in the catalog. You can also{" "}
           <strong className="text-foreground">Skip</strong> entries you don&apos;t want to import
-          and <strong className="text-foreground">Undo</strong> if you change your mind. If the same
-          card appears in multiple rows, quantities are combined automatically.
+          and <strong className="text-foreground">Unskip</strong> if you change your mind. If the
+          same card appears in multiple rows, quantities are combined automatically.
         </p>
 
         <p className="text-muted-foreground mt-2">
@@ -155,6 +204,7 @@ export default function ImportExportArticle() {
                   "Domain",
                   "Finish",
                   "Art Variant",
+                  "Promo",
                   "Quantity",
                 ].map((header) => (
                   <th
@@ -168,7 +218,30 @@ export default function ImportExportArticle() {
             </thead>
             <tbody className="divide-border divide-y">
               <ExampleExportRow
-                values={["OGN-007", "Fury Rune", "Common", "Rune", "Fury", "Normal", "normal", "3"]}
+                values={[
+                  "OGN-001",
+                  "Blazing Scorcher",
+                  "Common",
+                  "Unit",
+                  "Fury",
+                  "Foil",
+                  "normal",
+                  "nexus",
+                  "1",
+                ]}
+              />
+              <ExampleExportRow
+                values={[
+                  "OGN-007",
+                  "Fury Rune",
+                  "Common",
+                  "Rune",
+                  "Fury",
+                  "Normal",
+                  "normal",
+                  "",
+                  "3",
+                ]}
               />
               <ExampleExportRow
                 values={[
@@ -179,11 +252,9 @@ export default function ImportExportArticle() {
                   "Fury",
                   "Foil",
                   "altart",
+                  "",
                   "1",
                 ]}
-              />
-              <ExampleExportRow
-                values={["OGN-030", "Fury Strike", "Rare", "Spell", "Fury", "Foil", "normal", "2"]}
               />
             </tbody>
           </table>
@@ -204,22 +275,27 @@ export default function ImportExportArticle() {
       <section>
         <h2 className="mb-2 text-lg font-semibold">How matching works</h2>
         <p className="text-muted-foreground">
-          When you import, OpenRift tries to identify each card in three steps:
+          When you import, OpenRift tries to identify each card automatically:
         </p>
         <ol className="text-muted-foreground mt-2 list-inside list-decimal space-y-2">
           <li>
             <strong className="text-foreground">Code lookup:</strong> looks up the short code (e.g.{" "}
-            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">OGN-007</code>) directly in the
-            catalog, then narrows by finish and art variant.
+            <code className="bg-muted rounded px-1.5 py-0.5 text-xs">OGN-007</code>) in the{" "}
+            <a href="/cards" className="text-primary hover:underline">
+              catalog
+            </a>
+            , then narrows by finish, art variant, and promo type. If multiple printings still
+            match, the entry is flagged for review.
           </li>
           <li>
-            <strong className="text-foreground">Name matching:</strong> if the code doesn&apos;t
-            match, falls back to fuzzy name comparison. Cards with a name similarity above 70% are
-            offered as suggestions.
+            <strong className="text-foreground">Name matching:</strong> if the code isn&apos;t
+            found, falls back to fuzzy name comparison. Cards with a similar name are offered as
+            suggestions.
           </li>
           <li>
-            <strong className="text-foreground">Manual resolution:</strong> anything still unmatched
-            is marked as unresolved. You can skip these entries or look them up manually.
+            <strong className="text-foreground">Unresolved:</strong> anything still unmatched is
+            marked as unresolved. You can skip these or use the search icon to find the right
+            printing manually.
           </li>
         </ol>
       </section>
@@ -266,10 +342,6 @@ const STATUS_ICONS: Record<string, { icon: React.ReactNode; className: string }>
     icon: <AlertTriangleIcon className="size-3.5" />,
     className: "text-amber-600 dark:text-amber-400",
   },
-  fuzzy: {
-    icon: <CircleHelpIcon className="size-3.5" />,
-    className: "text-amber-600 dark:text-amber-400",
-  },
   unresolved: {
     icon: <XCircleIcon className="size-3.5" />,
     className: "text-red-600 dark:text-red-400",
@@ -282,12 +354,14 @@ function MockMatchRow({
   code,
   name,
   tags,
+  dropdown,
 }: {
   status: string;
   quantity: number;
   code: string;
   name: string;
   tags: string[];
+  dropdown?: string;
 }) {
   const config = STATUS_ICONS[status];
 
@@ -298,7 +372,7 @@ function MockMatchRow({
         {quantity}&times;
       </span>
       <code className="bg-muted rounded px-1 py-0.5 text-[11px]">{code}</code>
-      <span className="flex-1 truncate text-xs">{name}</span>
+      <span className="min-w-0 flex-1 truncate text-xs">{name}</span>
       {tags.map((tag) => (
         <span
           key={tag}
@@ -307,6 +381,14 @@ function MockMatchRow({
           {tag}
         </span>
       ))}
+      {dropdown && (
+        <span className="border-border bg-background flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px]">
+          {dropdown}
+          <ChevronDownIcon className="text-muted-foreground size-2.5" />
+        </span>
+      )}
+      <SearchIcon className="text-muted-foreground size-3" />
+      <span className="text-muted-foreground text-[10px]">Skip</span>
     </div>
   );
 }
