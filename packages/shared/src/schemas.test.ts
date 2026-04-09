@@ -108,7 +108,7 @@ describe("addCopiesSchema", () => {
 
   it("rejects non-uuid printingId", () => {
     const result = addCopiesSchema.safeParse({
-      copies: [{ printingId: "SET1-001:common:normal" }],
+      copies: [{ printingId: "not-a-uuid" }],
     });
     expect(result.success).toBe(false);
   });
@@ -197,14 +197,14 @@ describe("updateDeckSchema", () => {
 describe("updateDeckCardsSchema", () => {
   it("accepts valid cards", () => {
     const result = updateDeckCardsSchema.safeParse({
-      cards: [{ cardId: "SET1-001", zone: "main", quantity: 4 }],
+      cards: [{ cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 4 }],
     });
     expect(result.success).toBe(true);
   });
 
   it("accepts sideboard zone", () => {
     const result = updateDeckCardsSchema.safeParse({
-      cards: [{ cardId: "SET1-001", zone: "sideboard", quantity: 2 }],
+      cards: [{ cardId: "c0000000-0001-4000-a000-000000000001", zone: "sideboard", quantity: 2 }],
     });
     expect(result.success).toBe(true);
   });
@@ -212,7 +212,7 @@ describe("updateDeckCardsSchema", () => {
   it("rejects non-positive quantity", () => {
     expect(
       updateDeckCardsSchema.safeParse({
-        cards: [{ cardId: "SET1-001", zone: "main", quantity: 0 }],
+        cards: [{ cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 0 }],
       }).success,
     ).toBe(false);
   });
@@ -220,7 +220,7 @@ describe("updateDeckCardsSchema", () => {
   it("accepts any string zone (FK validates at DB level)", () => {
     expect(
       updateDeckCardsSchema.safeParse({
-        cards: [{ cardId: "SET1-001", zone: "exile", quantity: 1 }],
+        cards: [{ cardId: "c0000000-0001-4000-a000-000000000001", zone: "exile", quantity: 1 }],
       }).success,
     ).toBe(true);
   });
@@ -252,29 +252,41 @@ describe("updateWishListSchema", () => {
 
 describe("createWishListItemSchema", () => {
   it("accepts item with cardId", () => {
-    expect(createWishListItemSchema.safeParse({ cardId: "SET1-001" }).success).toBe(true);
+    expect(
+      createWishListItemSchema.safeParse({ cardId: "c0000000-0001-4000-a000-000000000001" })
+        .success,
+    ).toBe(true);
   });
 
   it("accepts item with printingId", () => {
     expect(
-      createWishListItemSchema.safeParse({ printingId: "SET1-001:common:normal" }).success,
+      createWishListItemSchema.safeParse({ printingId: "d0000000-0001-4000-a000-000000000001" })
+        .success,
     ).toBe(true);
   });
 
   it("defaults quantityDesired to 1", () => {
-    const result = createWishListItemSchema.parse({ cardId: "SET1-001" });
+    const result = createWishListItemSchema.parse({
+      cardId: "c0000000-0001-4000-a000-000000000001",
+    });
     expect(result.quantityDesired).toBe(1);
   });
 
   it("accepts explicit quantityDesired", () => {
-    const result = createWishListItemSchema.parse({ cardId: "SET1-001", quantityDesired: 4 });
+    const result = createWishListItemSchema.parse({
+      cardId: "c0000000-0001-4000-a000-000000000001",
+      quantityDesired: 4,
+    });
     expect(result.quantityDesired).toBe(4);
   });
 
   it("rejects non-positive quantityDesired", () => {
-    expect(createWishListItemSchema.safeParse({ cardId: "c", quantityDesired: 0 }).success).toBe(
-      false,
-    );
+    expect(
+      createWishListItemSchema.safeParse({
+        cardId: "c0000000-0001-4000-a000-000000000001",
+        quantityDesired: 0,
+      }).success,
+    ).toBe(false);
   });
 });
 

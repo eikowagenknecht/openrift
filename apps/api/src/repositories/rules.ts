@@ -55,24 +55,26 @@ export function rulesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Full-text search across rule content.
+     * Full-text search across rule content, optionally scoped to a version.
      *
-     * @returns Matching rules from the latest version.
+     * @returns Matching rules from the given version (or latest if omitted).
      */
-    search(query: string) {
+    search(query: string, version?: string) {
+      let versionSubquery = db
+        .selectFrom("rules as r2")
+        .select(sql<string>`DISTINCT ON (r2.rule_number) r2.id`.as("id"))
+        .orderBy("r2.ruleNumber")
+        .orderBy("r2.version", "desc");
+
+      if (version) {
+        versionSubquery = versionSubquery.where("r2.version", "<=", version);
+      }
+
       return db
         .selectFrom("rules")
         .selectAll()
         .where("changeType", "!=", "removed")
-        .where(
-          "id",
-          "in",
-          db
-            .selectFrom("rules as r2")
-            .select(sql<string>`DISTINCT ON (r2.rule_number) r2.id`.as("id"))
-            .orderBy("r2.ruleNumber")
-            .orderBy("r2.version", "desc"),
-        )
+        .where("id", "in", versionSubquery)
         .where(
           sql<SqlBool>`to_tsvector('english', content) @@ plainto_tsquery('english', ${query})`,
         )

@@ -51,17 +51,20 @@ export const setsRoute = setsApp
   .openapi(getSetList, async (c) => {
     const { catalog } = c.get("repos");
 
-    const allSets = await catalog.sets();
-    const coverImages = await catalog.setCoverImages();
-    const entries = await Promise.all(
-      allSets.map(async (set) => {
-        const [cardCount, printingCount] = await Promise.all([
-          catalog.setCardCount(set.id),
-          catalog.setPrintingCount(set.id),
-        ]);
-        return { ...set, cardCount, printingCount, coverImageUrl: coverImages.get(set.id) ?? null };
-      }),
-    );
+    const [allSets, coverImages, counts] = await Promise.all([
+      catalog.sets(),
+      catalog.setCoverImages(),
+      catalog.setCountsAll(),
+    ]);
+    const entries = allSets.map((set) => {
+      const setCounts = counts.get(set.id);
+      return {
+        ...set,
+        cardCount: setCounts?.cardCount ?? 0,
+        printingCount: setCounts?.printingCount ?? 0,
+        coverImageUrl: coverImages.get(set.id) ?? null,
+      };
+    });
 
     const content: SetListResponse = { sets: entries };
     c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
@@ -79,18 +82,19 @@ export const setsRoute = setsApp
       throw new AppError(404, ERROR_CODES.NOT_FOUND, `Set not found: ${setSlug}`);
     }
 
-    const [printingRows, imageRows, priceRows] = await Promise.all([
+    const [printingRows, imageRows] = await Promise.all([
       catalog.printingsBySetId(set.id),
       catalog.printingImagesBySetId(set.id),
-      marketplace.latestPrices(),
     ]);
 
-    // Get unique card IDs and fetch those cards with bans/errata
+    // Get unique card IDs and printing IDs for scoped lookups
     const cardIds = [...new Set(printingRows.map((p) => p.cardId))];
-    const [cardRows, banRows, errataRows] = await Promise.all([
+    const printingIds = printingRows.map((p) => p.id);
+    const [cardRows, banRows, errataRows, priceRows] = await Promise.all([
       catalog.cardsByIds(cardIds),
-      catalog.cardBans(),
-      catalog.cardErrata(),
+      catalog.cardBansByCardIds(cardIds),
+      catalog.cardErrataByCardIds(cardIds),
+      marketplace.latestPricesForPrintings(printingIds),
     ]);
 
     // Build card lookup with errata and bans
@@ -109,30 +113,24 @@ export const setsRoute = setsApp
     );
 
     const cards: Record<string, CatalogCardResponse> = Object.fromEntries(
-      cardRows
-        .filter((r) => cardIds.includes(r.id))
-        .map((r) => [
-          r.id,
-          {
-            ...r,
-            errata: errataByCard.get(r.id) ?? null,
-            bans: (bansByCard.get(r.id) ?? []).map((b) => ({
-              formatId: b.formatId,
-              formatName: b.formatName,
-              bannedAt: b.bannedAt,
-              reason: b.reason,
-            })),
-          },
-        ]),
+      cardRows.map((r) => [
+        r.id,
+        {
+          ...r,
+          errata: errataByCard.get(r.id) ?? null,
+          bans: (bansByCard.get(r.id) ?? []).map((b) => ({
+            formatId: b.formatId,
+            formatName: b.formatName,
+            bannedAt: b.bannedAt,
+            reason: b.reason,
+          })),
+        },
+      ]),
     );
 
     // Build per-printing price map
-    const printingIdSet = new Set(printingRows.map((p) => p.id));
     const pricesByPrinting = new Map<string, Partial<Record<Marketplace, number>>>();
     for (const row of priceRows) {
-      if (!printingIdSet.has(row.printingId)) {
-        continue;
-      }
       let entry = pricesByPrinting.get(row.printingId);
       if (!entry) {
         entry = {};

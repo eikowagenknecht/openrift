@@ -80,7 +80,7 @@ const dbDeck = {
 
 /** Slim deck card row (for cardsForDeck — detail/PUT endpoints). */
 const dbDeckCard = {
-  cardId: "OGS-001",
+  cardId: "c0000000-0001-4000-a000-000000000001",
   zone: "main",
   quantity: 4,
 };
@@ -89,7 +89,7 @@ const dbDeckCard = {
 const dbDeckCardFull = {
   id: "a0000000-0001-4000-a000-000000000020",
   deckId: DECK_ID,
-  cardId: "OGS-001",
+  cardId: "c0000000-0001-4000-a000-000000000001",
   zone: "main",
   quantity: 4,
   cardName: "Fire Dragon",
@@ -181,7 +181,7 @@ describe("GET /api/v1/decks/:id", () => {
     const json = await res.json();
     expect(json.deck.name).toBe("Fury Aggro");
     expect(json.cards).toHaveLength(1);
-    expect(json.cards[0].cardId).toBe("OGS-001");
+    expect(json.cards[0].cardId).toBe("c0000000-0001-4000-a000-000000000001");
     expect(json.cards[0].zone).toBe("main");
     expect(json.cards[0].quantity).toBe(4);
   });
@@ -253,7 +253,7 @@ describe("PUT /api/v1/decks/:id/cards", () => {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        cards: [{ cardId: "OGS-001", zone: "main", quantity: 4 }],
+        cards: [{ cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 4 }],
       }),
     });
     expect(res.status).toBe(200);
@@ -284,12 +284,14 @@ describe("PUT /api/v1/decks/:id/cards", () => {
 
   it("saves incomplete standard deck without validation error", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "standard" });
-    mockRepo.cardsForDeck.mockResolvedValue([{ cardId: "OGS-001", zone: "main", quantity: 10 }]);
+    mockRepo.cardsForDeck.mockResolvedValue([
+      { cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 10 },
+    ]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        cards: [{ cardId: "OGS-001", zone: "main", quantity: 10 }],
+        cards: [{ cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 10 }],
       }),
     });
     expect(res.status).toBe(200);
@@ -297,12 +299,14 @@ describe("PUT /api/v1/decks/:id/cards", () => {
 
   it("allows freeform deck without validation", async () => {
     mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "freeform" });
-    mockRepo.cardsForDeck.mockResolvedValue([{ cardId: "OGS-001", zone: "main", quantity: 4 }]);
+    mockRepo.cardsForDeck.mockResolvedValue([
+      { cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 4 },
+    ]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        cards: [{ cardId: "OGS-001", zone: "main", quantity: 4 }],
+        cards: [{ cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 4 }],
       }),
     });
     expect(res.status).toBe(200);
@@ -318,13 +322,17 @@ describe("GET /api/v1/decks/:id/availability", () => {
 
   it("returns 200 with availability data", async () => {
     mockRepo.exists.mockResolvedValue({ id: DECK_ID });
-    mockRepo.cardRequirements.mockResolvedValue([{ cardId: "OGS-001", zone: "main", quantity: 4 }]);
-    mockRepo.availableCopiesByCard.mockResolvedValue([{ cardId: "OGS-001", count: 2 }]);
+    mockRepo.cardRequirements.mockResolvedValue([
+      { cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 4 },
+    ]);
+    mockRepo.availableCopiesByCard.mockResolvedValue([
+      { cardId: "c0000000-0001-4000-a000-000000000001", count: 2 },
+    ]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.items).toHaveLength(1);
-    expect(json.items[0].cardId).toBe("OGS-001");
+    expect(json.items[0].cardId).toBe("c0000000-0001-4000-a000-000000000001");
     expect(json.items[0].needed).toBe(4);
     expect(json.items[0].owned).toBe(2);
     expect(json.items[0].shortfall).toBe(2);
@@ -332,8 +340,12 @@ describe("GET /api/v1/decks/:id/availability", () => {
 
   it("returns 0 shortfall when owned >= needed", async () => {
     mockRepo.exists.mockResolvedValue({ id: DECK_ID });
-    mockRepo.cardRequirements.mockResolvedValue([{ cardId: "OGS-001", zone: "main", quantity: 2 }]);
-    mockRepo.availableCopiesByCard.mockResolvedValue([{ cardId: "OGS-001", count: 5 }]);
+    mockRepo.cardRequirements.mockResolvedValue([
+      { cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 2 },
+    ]);
+    mockRepo.availableCopiesByCard.mockResolvedValue([
+      { cardId: "c0000000-0001-4000-a000-000000000001", count: 5 },
+    ]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
     const json = await res.json();
     expect(json.items[0].shortfall).toBe(0);
@@ -349,7 +361,7 @@ describe("GET /api/v1/decks/:id/availability", () => {
   it("defaults owned to 0 when card not in available copies", async () => {
     mockRepo.exists.mockResolvedValue({ id: DECK_ID });
     mockRepo.cardRequirements.mockResolvedValue([
-      { cardId: "UNKNOWN-001", zone: "main", quantity: 3 },
+      { cardId: "c0000000-0003-4000-a000-000000000001", zone: "main", quantity: 3 },
     ]);
     mockRepo.availableCopiesByCard.mockResolvedValue([]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
@@ -371,22 +383,24 @@ describe("GET /api/v1/decks/:id/availability", () => {
   it("returns availability for multiple cards with mixed ownership", async () => {
     mockRepo.exists.mockResolvedValue({ id: DECK_ID });
     mockRepo.cardRequirements.mockResolvedValue([
-      { cardId: "OGS-001", zone: "main", quantity: 4 },
-      { cardId: "OGS-002", zone: "sideboard", quantity: 2 },
+      { cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 4 },
+      { cardId: "c0000000-0002-4000-a000-000000000001", zone: "sideboard", quantity: 2 },
     ]);
-    mockRepo.availableCopiesByCard.mockResolvedValue([{ cardId: "OGS-001", count: 3 }]);
+    mockRepo.availableCopiesByCard.mockResolvedValue([
+      { cardId: "c0000000-0001-4000-a000-000000000001", count: 3 },
+    ]);
     const res = await app.request(`/api/v1/decks/${DECK_ID}/availability`);
     const json = await res.json();
     expect(json.items).toHaveLength(2);
     expect(json.items[0]).toEqual({
-      cardId: "OGS-001",
+      cardId: "c0000000-0001-4000-a000-000000000001",
       zone: "main",
       needed: 4,
       owned: 3,
       shortfall: 1,
     });
     expect(json.items[1]).toEqual({
-      cardId: "OGS-002",
+      cardId: "c0000000-0002-4000-a000-000000000001",
       zone: "sideboard",
       needed: 2,
       owned: 0,
@@ -506,13 +520,13 @@ describe("PUT /api/v1/decks/:id/cards — returned cards", () => {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        cards: [{ cardId: "OGS-001", zone: "main", quantity: 4 }],
+        cards: [{ cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 4 }],
       }),
     });
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.cards).toHaveLength(1);
-    expect(json.cards[0].cardId).toBe("OGS-001");
+    expect(json.cards[0].cardId).toBe("c0000000-0001-4000-a000-000000000001");
     expect(json.cards[0].quantity).toBe(4);
   });
 
@@ -521,8 +535,8 @@ describe("PUT /api/v1/decks/:id/cards — returned cards", () => {
     mockRepo.replaceCards.mockResolvedValue(undefined);
     mockRepo.cardsForDeck.mockResolvedValue([]);
     const cards = [
-      { cardId: "OGS-001", zone: "main", quantity: 4 },
-      { cardId: "OGS-002", zone: "sideboard", quantity: 2 },
+      { cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 4 },
+      { cardId: "c0000000-0002-4000-a000-000000000001", zone: "sideboard", quantity: 2 },
     ];
     await app.request(`/api/v1/decks/${DECK_ID}/cards`, {
       method: "PUT",

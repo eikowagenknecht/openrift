@@ -85,7 +85,7 @@ export const rulesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     let rows;
     if (q) {
-      rows = await repo.search(q);
+      rows = await repo.search(q, version);
     } else if (version) {
       rows = await repo.listAtVersion(version);
     } else {

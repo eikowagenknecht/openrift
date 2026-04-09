@@ -128,6 +128,45 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /** @returns Active bans for a set of cards. */
+    cardBansByCardIds(cardIds: string[]): Promise<CatalogCardBanRow[]> {
+      if (cardIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("cardBans")
+        .innerJoin("formats", "formats.id", "cardBans.formatId")
+        .select([
+          "cardBans.cardId",
+          "cardBans.formatId",
+          "cardBans.bannedAt",
+          "cardBans.reason",
+          "formats.name as formatName",
+        ])
+        .where("cardBans.cardId", "in", cardIds)
+        .where("unbannedAt", "is", null)
+        .execute();
+    },
+
+    /** @returns Errata for a set of cards. */
+    cardErrataByCardIds(cardIds: string[]): Promise<CatalogCardErrataRow[]> {
+      if (cardIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("cardErrata")
+        .select([
+          "cardId",
+          "correctedRulesText",
+          "correctedEffectText",
+          "source",
+          "sourceUrl",
+          "effectiveDate",
+        ])
+        .where("cardId", "in", cardIds)
+        .execute();
+    },
+
     /** @returns All printings ordered by set, collector number, finish, with promoType resolved. */
     async printings(): Promise<CatalogPrintingRow[]> {
       const rows = await db
@@ -487,6 +526,29 @@ export function catalogRepo(db: Kysely<Database>) {
         .where("setId", "=", setId)
         .executeTakeFirstOrThrow();
       return Number(result.count);
+    },
+
+    /**
+     * Card count and printing count per set, in a single query.
+     *
+     * @returns A map from set ID to `{ cardCount, printingCount }`.
+     */
+    async setCountsAll(): Promise<Map<string, { cardCount: number; printingCount: number }>> {
+      const rows = await db
+        .selectFrom("printings")
+        .select([
+          "setId",
+          sql<string>`COUNT(DISTINCT "card_id")`.as("cardCount"),
+          sql<string>`COUNT(*)`.as("printingCount"),
+        ])
+        .groupBy("setId")
+        .execute();
+      return new Map(
+        rows.map((r) => [
+          r.setId,
+          { cardCount: Number(r.cardCount), printingCount: Number(r.printingCount) },
+        ]),
+      );
     },
 
     /** @returns All card slugs, for sitemap generation. */

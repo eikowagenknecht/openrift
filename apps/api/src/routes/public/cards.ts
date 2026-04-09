@@ -47,25 +47,24 @@ export const cardsRoute = cardsApp
       throw new AppError(404, ERROR_CODES.NOT_FOUND, `Card not found: ${cardSlug}`);
     }
 
-    const [printingRows, imageRows, priceRows, banRows, errataRow] = await Promise.all([
+    const [printingRows, imageRows, banRows, errataRow] = await Promise.all([
       catalog.printingsByCardId(card.id),
       catalog.printingImagesByCardId(card.id),
-      marketplace.latestPrices(),
       catalog.cardBansByCardId(card.id),
       catalog.cardErrataByCardId(card.id),
     ]);
 
     // Collect unique set IDs from printings
     const setIds = [...new Set(printingRows.map((p) => p.setId))];
-    const sets = await catalog.setsByIds(setIds);
+    const printingIds = printingRows.map((p) => p.id);
+    const [sets, priceRows] = await Promise.all([
+      catalog.setsByIds(setIds),
+      marketplace.latestPricesForPrintings(printingIds),
+    ]);
 
-    // Build per-printing price map (scoped to this card's printings)
-    const printingIdSet = new Set(printingRows.map((p) => p.id));
+    // Build per-printing price map
     const pricesByPrinting = new Map<string, Partial<Record<Marketplace, number>>>();
     for (const row of priceRows) {
-      if (!printingIdSet.has(row.printingId)) {
-        continue;
-      }
       let entry = pricesByPrinting.get(row.printingId);
       if (!entry) {
         entry = {};
