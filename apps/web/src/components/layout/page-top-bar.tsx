@@ -59,7 +59,7 @@ export function PageTopBarTitle({ onToggleSidebar, children }: PageTopBarTitlePr
       </>
     );
   }
-  return <span className="mr-2 min-w-0 truncate text-lg font-semibold">{children}</span>;
+  return <span className="mr-2 min-w-0 truncate px-3 text-lg font-semibold">{children}</span>;
 }
 
 /**
