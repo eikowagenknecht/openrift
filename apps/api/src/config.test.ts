@@ -51,4 +51,32 @@ describe("validateConfig", () => {
       validateConfig({ DATABASE_URL: "postgres://x", BETTER_AUTH_SECRET: "s" }),
     ).not.toThrow();
   });
+
+  it("throws when production-required vars are missing", () => {
+    expect(() =>
+      validateConfig({
+        APP_ENV: "production",
+        DATABASE_URL: "postgres://x",
+        BETTER_AUTH_SECRET: "s",
+      }),
+    ).toThrow("Missing required environment variables: CORS_ORIGIN, BETTER_AUTH_URL");
+  });
+
+  it("does not require production vars in development", () => {
+    expect(() =>
+      validateConfig({ DATABASE_URL: "postgres://x", BETTER_AUTH_SECRET: "s" }),
+    ).not.toThrow();
+  });
+
+  it("does not throw when all vars are present in production", () => {
+    expect(() =>
+      validateConfig({
+        APP_ENV: "production",
+        DATABASE_URL: "postgres://x",
+        BETTER_AUTH_SECRET: "s",
+        CORS_ORIGIN: "https://openrift.app",
+        BETTER_AUTH_URL: "https://openrift.app",
+      }),
+    ).not.toThrow();
+  });
 });
