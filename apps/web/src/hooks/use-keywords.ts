@@ -74,7 +74,7 @@ export function useUpdateKeywordStyle() {
       updateKeywordStyleFn({ data: params }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      queryClient.invalidateQueries({ queryKey: queryKeys.keywordStyles.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
     },
   });
 }
@@ -100,7 +100,7 @@ export function useCreateKeywordStyle() {
       createKeywordStyleFn({ data: params }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      queryClient.invalidateQueries({ queryKey: queryKeys.keywordStyles.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
     },
   });
 }
@@ -127,7 +127,7 @@ export function useDeleteKeywordStyle() {
     mutationFn: (name: string) => deleteKeywordStyleFn({ data: { name } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      queryClient.invalidateQueries({ queryKey: queryKeys.keywordStyles.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
     },
   });
 }
@@ -158,7 +158,7 @@ export function useDiscoverTranslations() {
     mutationFn: () => discoverTranslationsFn(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      queryClient.invalidateQueries({ queryKey: queryKeys.keywordStyles.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
     },
   });
 }
@@ -187,7 +187,7 @@ export function useUpsertTranslation() {
       upsertTranslationFn({ data: params }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      queryClient.invalidateQueries({ queryKey: queryKeys.keywordStyles.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
     },
   });
 }
@@ -215,7 +215,7 @@ export function useDeleteTranslation() {
       deleteTranslationFn({ data: params }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.keywordStats });
-      queryClient.invalidateQueries({ queryKey: queryKeys.keywordStyles.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.init.all });
     },
   });
 }

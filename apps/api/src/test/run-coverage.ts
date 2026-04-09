@@ -181,7 +181,7 @@ const integrationFiles = [
   "src/repositories/sets.integration.test.ts",
   "src/repositories/keyword-styles.integration.test.ts",
   "src/routes/public/health.integration.test.ts",
-  "src/routes/public/keyword-styles.integration.test.ts",
+  "src/routes/public/init.integration.test.ts",
   "src/routes/public/site-settings.integration.test.ts",
   "src/routes/authenticated/preferences.integration.test.ts",
   "src/routes/admin/promo-types.integration.test.ts",

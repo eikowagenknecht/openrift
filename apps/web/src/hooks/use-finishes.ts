@@ -46,7 +46,7 @@ const createFinishFn = createServerFn({ method: "POST" })
 export function useCreateFinish() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { slug: string; label: string }) => createFinishFn({ data: vars }),
-    invalidates: [queryKeys.admin.finishes, queryKeys.enums.all],
+    invalidates: [queryKeys.admin.finishes, queryKeys.init.all],
   });
 }
 
@@ -67,7 +67,7 @@ const updateFinishFn = createServerFn({ method: "POST" })
 export function useUpdateFinish() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { slug: string; label?: string }) => updateFinishFn({ data: vars }),
-    invalidates: [queryKeys.admin.finishes, queryKeys.enums.all],
+    invalidates: [queryKeys.admin.finishes, queryKeys.init.all],
   });
 }
 
@@ -88,7 +88,7 @@ const reorderFinishesFn = createServerFn({ method: "POST" })
 export function useReorderFinishes() {
   return useMutationWithInvalidation({
     mutationFn: (slugs: string[]) => reorderFinishesFn({ data: { slugs } }),
-    invalidates: [queryKeys.admin.finishes, queryKeys.enums.all],
+    invalidates: [queryKeys.admin.finishes, queryKeys.init.all],
   });
 }
 
@@ -108,6 +108,6 @@ const deleteFinishFn = createServerFn({ method: "POST" })
 export function useDeleteFinish() {
   return useMutationWithInvalidation({
     mutationFn: (slug: string) => deleteFinishFn({ data: { slug } }),
-    invalidates: [queryKeys.admin.finishes, queryKeys.enums.all],
+    invalidates: [queryKeys.admin.finishes, queryKeys.init.all],
   });
 }

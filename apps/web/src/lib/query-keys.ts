@@ -19,11 +19,8 @@ export const queryKeys = {
     all: ["sets"] as const,
     detail: (slug: string) => ["sets", slug] as const,
   },
-  enums: {
-    all: ["enums"] as const,
-  },
-  keywordStyles: {
-    all: ["keyword-styles"] as const,
+  init: {
+    all: ["init"] as const,
   },
   collections: {
     all: ["collections"] as const,

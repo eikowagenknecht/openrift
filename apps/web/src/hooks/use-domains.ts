@@ -47,7 +47,7 @@ export function useCreateDomain() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { slug: string; label: string; color?: string | null }) =>
       createDomainFn({ data: vars }),
-    invalidates: [queryKeys.admin.domains, queryKeys.enums.all],
+    invalidates: [queryKeys.admin.domains, queryKeys.init.all],
   });
 }
 
@@ -69,7 +69,7 @@ export function useUpdateDomain() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { slug: string; label?: string; color?: string | null }) =>
       updateDomainFn({ data: vars }),
-    invalidates: [queryKeys.admin.domains, queryKeys.enums.all],
+    invalidates: [queryKeys.admin.domains, queryKeys.init.all],
   });
 }
 
@@ -90,7 +90,7 @@ const reorderDomainsFn = createServerFn({ method: "POST" })
 export function useReorderDomains() {
   return useMutationWithInvalidation({
     mutationFn: (slugs: string[]) => reorderDomainsFn({ data: { slugs } }),
-    invalidates: [queryKeys.admin.domains, queryKeys.enums.all],
+    invalidates: [queryKeys.admin.domains, queryKeys.init.all],
   });
 }
 
@@ -110,6 +110,6 @@ const deleteDomainFn = createServerFn({ method: "POST" })
 export function useDeleteDomain() {
   return useMutationWithInvalidation({
     mutationFn: (slug: string) => deleteDomainFn({ data: { slug } }),
-    invalidates: [queryKeys.admin.domains, queryKeys.enums.all],
+    invalidates: [queryKeys.admin.domains, queryKeys.init.all],
   });
 }

@@ -67,6 +67,7 @@ export type {
   GroupByField,
   IgnoredProductResponse,
   LanguageResponse,
+  InitResponse,
   KeywordStyleEntry,
   KeywordStylesResponse,
   MappingPrintingResponse,

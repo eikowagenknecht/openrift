@@ -105,6 +105,34 @@ export const keywordStylesResponseSchema = z
   .object({ items: z.record(z.string(), keywordStyleEntrySchema) })
   .openapi("KeywordStylesResponse");
 
+// ── Init ─────────────────────────────────────────────────────────────────────
+
+const enumRowSchema = z.object({
+  slug: z.string(),
+  label: z.string(),
+  sortOrder: z.number(),
+});
+
+const domainEnumRowSchema = enumRowSchema.extend({
+  color: z.string().nullable(),
+});
+
+export const initResponseSchema = z
+  .object({
+    enums: z.object({
+      cardTypes: z.array(enumRowSchema),
+      rarities: z.array(enumRowSchema),
+      domains: z.array(domainEnumRowSchema),
+      superTypes: z.array(enumRowSchema),
+      finishes: z.array(enumRowSchema),
+      artVariants: z.array(enumRowSchema),
+      deckFormats: z.array(enumRowSchema),
+      deckZones: z.array(enumRowSchema),
+    }),
+    keywordStyles: z.record(z.string(), keywordStyleEntrySchema),
+  })
+  .openapi("InitResponse");
+
 // ── Prices ───────────────────────────────────────────────────────────────────
 
 export const pricesResponseSchema = z

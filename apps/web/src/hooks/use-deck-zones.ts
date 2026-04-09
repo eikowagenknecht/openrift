@@ -45,7 +45,7 @@ const reorderDeckZonesFn = createServerFn({ method: "POST" })
 export function useReorderDeckZones() {
   return useMutationWithInvalidation({
     mutationFn: (slugs: string[]) => reorderDeckZonesFn({ data: { slugs } }),
-    invalidates: [queryKeys.admin.deckZones, queryKeys.enums.all],
+    invalidates: [queryKeys.admin.deckZones, queryKeys.init.all],
   });
 }
 
@@ -66,6 +66,6 @@ const updateDeckZoneFn = createServerFn({ method: "POST" })
 export function useUpdateDeckZone() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { slug: string; label?: string }) => updateDeckZoneFn({ data: vars }),
-    invalidates: [queryKeys.admin.deckZones, queryKeys.enums.all],
+    invalidates: [queryKeys.admin.deckZones, queryKeys.init.all],
   });
 }

@@ -145,7 +145,7 @@ const PARALLEL_FILES = [
   "src/repositories/keyword-styles.integration.test.ts",
   // Route integration tests — public + authenticated coverage
   "src/routes/public/health.integration.test.ts",
-  "src/routes/public/keyword-styles.integration.test.ts",
+  "src/routes/public/init.integration.test.ts",
   "src/routes/public/site-settings.integration.test.ts",
   "src/routes/authenticated/preferences.integration.test.ts",
   // Batch 3 — admin route integration tests

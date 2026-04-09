@@ -30,7 +30,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { catalogQueryOptions, useCards } from "@/hooks/use-cards";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
-import { enumsQueryOptions, useZoneOrder } from "@/hooks/use-enums";
+import { useZoneOrder } from "@/hooks/use-enums";
+import { initQueryOptions } from "@/hooks/use-init";
 import type { DeckMatchStatus, DeckMatchedEntry, ResolvedCard } from "@/lib/deck-import-matcher";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
 import type { DeckImportFormat } from "@/lib/deck-import-parsers";
@@ -50,7 +51,7 @@ export const Route = createFileRoute("/_app/_authenticated/decks/import")({
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(catalogQueryOptions),
-      context.queryClient.ensureQueryData(enumsQueryOptions),
+      context.queryClient.ensureQueryData(initQueryOptions),
     ]);
   },
   component: DeckImportPage,
