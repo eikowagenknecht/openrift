@@ -1,10 +1,14 @@
 import type { Printing } from "@openrift/shared";
+import { PackageIcon } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
+import type { ReactNode } from "react";
 import { useEffect, useDeferredValue, useRef, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
+import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
+import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import {
   CollapsibleFilterPanel,
@@ -21,6 +25,8 @@ import { SearchBar } from "@/components/filters/search-bar";
 import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
@@ -39,9 +45,12 @@ import { useSelectionStore } from "@/stores/selection-store";
 export function CardBrowser() {
   const isMobile = useIsMobile();
   const showImages = useDisplayStore((s) => s.showImages);
+  const showOwnedCount = useDisplayStore((s) => s.showOwnedCount);
+  const setShowOwnedCount = useDisplayStore((s) => s.setShowOwnedCount);
   const { allPrintings, sets } = useCards();
   const { data: session } = useSession();
-  const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
+  const isLoggedIn = Boolean(session?.user);
+  const { data: ownedCountByPrinting } = useOwnedCount(isLoggedIn);
 
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
 
@@ -123,6 +132,8 @@ export function CardBrowser() {
     }
   };
 
+  const ownedCountActive = isLoggedIn && showOwnedCount;
+
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.card.id;
     const siblings = printingsByCardId.get(cardId);
@@ -132,6 +143,22 @@ export function CardBrowser() {
       overrideId && siblings
         ? (siblings.find((sibling) => sibling.id === overrideId) ?? item.printing)
         : item.printing;
+
+    let aboveCard: ReactNode | undefined;
+    if (ownedCountActive) {
+      const count =
+        view === "cards"
+          ? (siblings?.reduce((sum, p) => sum + (ownedCountByPrinting?.[p.id] ?? 0), 0) ?? 0)
+          : (ownedCountByPrinting?.[displayPrinting.id] ?? 0);
+      aboveCard = (
+        <OwnedCountStrip
+          count={count}
+          printingId={displayPrinting.id}
+          cardName={displayPrinting.card.name}
+          shortCode={displayPrinting.shortCode}
+        />
+      );
+    }
 
     return (
       <CardThumbnail
@@ -146,6 +173,7 @@ export function CardBrowser() {
         view={view}
         cardWidth={ctx.cardWidth}
         priority={ctx.priority}
+        aboveCard={aboveCard}
       />
     );
   };
@@ -155,6 +183,25 @@ export function CardBrowser() {
       <div className="mb-1.5 flex items-start gap-3 sm:mb-3">
         <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
         <DesktopOptionsBar className="hidden sm:flex" />
+        {isLoggedIn && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  variant={showOwnedCount ? "default" : "outline"}
+                  size="icon"
+                  className="hidden sm:flex"
+                  onClick={() => setShowOwnedCount(!showOwnedCount)}
+                />
+              }
+            >
+              <PackageIcon className="size-4" />
+            </TooltipTrigger>
+            <TooltipContent>
+              {showOwnedCount ? "Hide owned count" : "Show owned count"}
+            </TooltipContent>
+          </Tooltip>
+        )}
         <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <MobileOptionsDrawer
           doneLabel={
@@ -165,6 +212,20 @@ export function CardBrowser() {
           className="sm:hidden"
         >
           <MobileOptionsContent />
+          {isLoggedIn && (
+            <div className="flex items-center justify-between border-t pt-4">
+              <span className="text-sm font-medium">Show owned count</span>
+              <Button
+                variant={showOwnedCount ? "default" : "outline"}
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => setShowOwnedCount(!showOwnedCount)}
+              >
+                <PackageIcon />
+                {showOwnedCount ? "On" : "Off"}
+              </Button>
+            </div>
+          )}
           <MobileFilterContent
             availableFilters={availableFilters}
             setDisplayLabel={setDisplayLabel}
@@ -215,6 +276,7 @@ export function CardBrowser() {
         <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
       }
       rightPane={rightPane}
+      addStripHeight={ownedCountActive ? ADD_STRIP_HEIGHT : undefined}
     >
       {isMobile && (
         <SelectionMobileOverlay

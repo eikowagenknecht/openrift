@@ -73,6 +73,8 @@ interface DisplayState {
   setMaxColumns: (value: number | null | ((prev: number | null) => number | null)) => void;
   filtersExpanded: boolean;
   setFiltersExpanded: (value: boolean) => void;
+  showOwnedCount: boolean;
+  setShowOwnedCount: (value: boolean) => void;
 
   // Layout state (derived from viewport, not persisted)
   physicalMax: number;
@@ -140,6 +142,8 @@ export const useDisplayStore = create<DisplayState>()(
         })),
       filtersExpanded: false,
       setFiltersExpanded: (value) => set({ filtersExpanded: value }),
+      showOwnedCount: false,
+      setShowOwnedCount: (value) => set({ showOwnedCount: value }),
 
       physicalMax: 8,
       physicalMin: 1,
@@ -154,6 +158,7 @@ export const useDisplayStore = create<DisplayState>()(
         overrides: state.overrides,
         maxColumns: state.maxColumns,
         filtersExpanded: state.filtersExpanded,
+        showOwnedCount: state.showOwnedCount,
       }),
       merge: (persisted, current) => {
         const safe = sanitizeOverrides(persisted);
@@ -166,6 +171,10 @@ export const useDisplayStore = create<DisplayState>()(
             typeof (persisted as Record<string, unknown>)?.filtersExpanded === "boolean"
               ? ((persisted as Record<string, unknown>).filtersExpanded as boolean)
               : current.filtersExpanded,
+          showOwnedCount:
+            typeof (persisted as Record<string, unknown>)?.showOwnedCount === "boolean"
+              ? ((persisted as Record<string, unknown>).showOwnedCount as boolean)
+              : current.showOwnedCount,
         };
       },
     },
