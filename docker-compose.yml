@@ -85,31 +85,3 @@ services:
         max-size: "10m"
         max-file: "10"
     restart: unless-stopped
-
-  # Scheduled PostgreSQL backups to Cloudflare R2.
-  # Runs pg_dump on BACKUP_SCHEDULE, uploads encrypted backup to R2, prunes old backups.
-  backup:
-    image: siemens/postgres-backup-s3:18
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      SCHEDULE: ${BACKUP_SCHEDULE:-@daily}
-      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-30}
-      S3_REGION: auto
-      S3_ENDPOINT: ${BACKUP_S3_ENDPOINT}
-      S3_BUCKET: ${BACKUP_S3_BUCKET}
-      S3_PREFIX: ${BACKUP_S3_PREFIX:-backups}
-      S3_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID}
-      S3_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY}
-      PASSPHRASE: ${BACKUP_ENCRYPTION_PASSWORD:?BACKUP_ENCRYPTION_PASSWORD must be set — backups must be encrypted}
-      POSTGRES_HOST: db
-      POSTGRES_DATABASE: ${POSTGRES_DB:-openrift}
-      POSTGRES_USER: ${POSTGRES_USER:-openrift}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
-    restart: unless-stopped
