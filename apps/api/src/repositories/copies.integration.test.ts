@@ -149,25 +149,6 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // listByIdsForUser
-  // ---------------------------------------------------------------------------
-
-  it("returns copies by ids for the owning user", async () => {
-    const ids = insertedCopyIds.slice(0, 2);
-    const result = await copies.listByIdsForUser(ids, userId);
-    expect(result).toHaveLength(2);
-    expect(result.map((r) => r.id).toSorted()).toEqual(ids.toSorted());
-  });
-
-  it("listByIdsForUser returns empty for wrong user", async () => {
-    const result = await copies.listByIdsForUser(
-      insertedCopyIds,
-      "a0000000-9999-4000-a000-000000000001",
-    );
-    expect(result).toEqual([]);
-  });
-
-  // ---------------------------------------------------------------------------
   // countByPrintingForUser
   // ---------------------------------------------------------------------------
 

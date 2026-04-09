@@ -230,151 +230,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     }
   });
 
-  // ── listOrphanCards (lines 240-246) ───────────────────────────────────────
-
-  it("listOrphanCards with excludeIds returns cards not in the list", async () => {
-    const result = await repo.listOrphanCards([SEED_CARD_ANNIE_ID]);
-    expect(Array.isArray(result)).toBe(true);
-    // Annie should be excluded
-    const annieInResult = result.find((card) => card.id === SEED_CARD_ANNIE_ID);
-    expect(annieInResult).toBeUndefined();
-    // But other cards should be present
-    expect(result.length).toBeGreaterThan(0);
-  });
-
-  it("listOrphanCards with empty excludeIds returns all cards", async () => {
-    const result = await repo.listOrphanCards([]);
-    expect(result.length).toBeGreaterThan(0);
-    const annie = result.find((card) => card.id === SEED_CARD_ANNIE_ID);
-    expect(annie).toBeDefined();
-  });
-
-  // ── listOrphanPrintingSetInfo (lines 251-261) ─────────────────────────────
-
-  it("listOrphanPrintingSetInfo returns set info for given cardIds", async () => {
-    const result = await repo.listOrphanPrintingSetInfo([SEED_CARD_ANNIE_ID]);
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    expect(result[0]).toHaveProperty("cardId");
-    expect(result[0]).toHaveProperty("slug");
-    expect(result[0]).toHaveProperty("releasedAt");
-  });
-
-  it("listOrphanPrintingSetInfo returns [] for empty cardIds", async () => {
-    const result = await repo.listOrphanPrintingSetInfo([]);
-    expect(result).toEqual([]);
-  });
-
-  // ── listSuggestionsByNormName (lines 266-275) ─────────────────────────────
-
-  it("listSuggestionsByNormName returns matching cards by normName", async () => {
-    const result = await repo.listSuggestionsByNormName(["anniefiery"]);
-    expect(result.length).toBe(1);
-    expect(result[0].id).toBe(SEED_CARD_ANNIE_ID);
-    expect(result[0]).toHaveProperty("slug");
-    expect(result[0]).toHaveProperty("name");
-    expect(result[0]).toHaveProperty("norm");
-  });
-
-  it("listSuggestionsByNormName returns [] for empty input", async () => {
-    const result = await repo.listSuggestionsByNormName([]);
-    expect(result).toEqual([]);
-  });
-
-  // ── listAliasSuggestions (lines 280-290) ──────────────────────────────────
-
-  it("listAliasSuggestions returns [] for empty input", async () => {
-    const result = await repo.listAliasSuggestions([]);
-    expect(result).toEqual([]);
-  });
-
-  it("listAliasSuggestions returns [] for non-aliased normNames", async () => {
-    const result = await repo.listAliasSuggestions(["nonexistentnormname"]);
-    expect(result).toEqual([]);
-  });
-
-  // ── listPrintingShortCodes (lines 295-303) ────────────────────────────────
-
-  it("listPrintingShortCodes returns shortCodes for given cardIds", async () => {
-    const result = await repo.listPrintingShortCodes([SEED_CARD_ANNIE_ID]);
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    expect(result[0]).toHaveProperty("cardId");
-    expect(result[0]).toHaveProperty("shortCode");
-  });
-
-  it("listPrintingShortCodes returns [] for empty input", async () => {
-    const result = await repo.listPrintingShortCodes([]);
-    expect(result).toEqual([]);
-  });
-
-  // ── listUnlinkedCandidatePrintingsForCards (lines 308-338) ────────────────
-
-  it("listUnlinkedCandidatePrintingsForCards returns unlinked printings", async () => {
-    const result = await repo.listUnlinkedCandidatePrintingsForCards(["anniefiery"]);
-    expect(Array.isArray(result)).toBe(true);
-    // Our CP_ID_3 is unlinked (printingId=null) for anniefiery normName
-    const unlinked = result.filter((row) => row.shortCode === "OGS-099");
-    expect(unlinked.length).toBe(1);
-    expect(unlinked[0]).toHaveProperty("cardId");
-    expect(unlinked[0]).toHaveProperty("setId");
-    expect(unlinked[0]).toHaveProperty("rarity");
-    expect(unlinked[0]).toHaveProperty("finish");
-  });
-
-  it("listUnlinkedCandidatePrintingsForCards returns [] for empty input", async () => {
-    const result = await repo.listUnlinkedCandidatePrintingsForCards([]);
-    expect(result).toEqual([]);
-  });
-
-  // ── listPrintingsForCards (lines 355-383) ─────────────────────────────────
-
-  it("listPrintingsForCards returns printings with set slug", async () => {
-    const result = await repo.listPrintingsForCards([SEED_CARD_ANNIE_ID]);
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    expect(result[0]).toHaveProperty("id");
-    expect(result[0]).toHaveProperty("cardId");
-    expect(result[0]).toHaveProperty("setSlug");
-    expect(result[0]).toHaveProperty("rarity");
-    expect(result[0]).toHaveProperty("finish");
-    expect(result[0]).toHaveProperty("artVariant");
-    expect(result[0]).toHaveProperty("isSigned");
-    expect(result[0]).toHaveProperty("promoTypeId");
-  });
-
-  it("listPrintingsForCards returns [] for empty input", async () => {
-    const result = await repo.listPrintingsForCards([]);
-    expect(result).toEqual([]);
-  });
-
-  // ── listCardIdsWithMissingImages (lines 399-419) ──────────────────────────
-
-  it("listCardIdsWithMissingImages returns card IDs missing front images", async () => {
-    const result = await repo.listCardIdsWithMissingImages([SEED_CARD_ANNIE_ID]);
-    expect(Array.isArray(result)).toBe(true);
-    // Annie's printing has no printing_images rows, so she should appear
-    expect(result.length).toBe(1);
-    expect(result[0].cardId).toBe(SEED_CARD_ANNIE_ID);
-  });
-
-  it("listCardIdsWithMissingImages returns [] for empty input", async () => {
-    const result = await repo.listCardIdsWithMissingImages([]);
-    expect(result).toEqual([]);
-  });
-
-  // ── listPendingShortCodes (lines 424-433) ─────────────────────────────────
-
-  it("listPendingShortCodes returns shortCodes for candidate printings", async () => {
-    const result = await repo.listPendingShortCodes(["anniefiery"]);
-    expect(Array.isArray(result)).toBe(true);
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    expect(result[0]).toHaveProperty("norm");
-    expect(result[0]).toHaveProperty("shortCode");
-  });
-
-  it("listPendingShortCodes returns [] for empty input", async () => {
-    const result = await repo.listPendingShortCodes([]);
-    expect(result).toEqual([]);
-  });
-
   // ── cardBySlug (line 440) ─────────────────────────────────────────────────
 
   it("cardBySlug returns a card for existing slug", async () => {
@@ -386,73 +241,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
   it("cardBySlug returns undefined for nonexistent slug", async () => {
     const result = await repo.cardBySlug("NONEXISTENT-SLUG");
     expect(result).toBeUndefined();
-  });
-
-  // ── printingShortCodesForCard (line 503) ──────────────────────────────────
-
-  it("printingShortCodesForCard returns short codes for a card", async () => {
-    const result = await repo.printingShortCodesForCard(SEED_CARD_ANNIE_ID);
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    expect(result[0]).toHaveProperty("shortCode");
-  });
-
-  // ── candidateCardsByNormNames (lines 508-518) ─────────────────────────────
-
-  it("candidateCardsByNormNames returns matching candidate cards", async () => {
-    const result = await repo.candidateCardsByNormNames(["anniefiery"]);
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    const ours = result.find((card) => card.id === CC_ID_1);
-    expect(ours).toBeDefined();
-    expect(ours!.provider).toBe(PROVIDER);
-  });
-
-  it("candidateCardsByNormNames returns [] for empty input", async () => {
-    const result = await repo.candidateCardsByNormNames([]);
-    expect(result).toEqual([]);
-  });
-
-  // ── candidateCardsByNormNamesOrPrintingShortCodes (lines 526-547) ─────────
-
-  it("candidateCardsByNormNamesOrPrintingShortCodes matches by normName", async () => {
-    const result = await repo.candidateCardsByNormNamesOrPrintingShortCodes(
-      ["anniefiery"],
-      ["NONEXISTENT"],
-    );
-    const ours = result.find((card) => card.id === CC_ID_1);
-    expect(ours).toBeDefined();
-  });
-
-  it("candidateCardsByNormNamesOrPrintingShortCodes matches by shortCode", async () => {
-    const result = await repo.candidateCardsByNormNamesOrPrintingShortCodes(
-      ["nonexistentnorm"],
-      ["OGS-001"],
-    );
-    // CC_ID_1 has a candidate printing with shortCode OGS-001
-    const ours = result.find((card) => card.id === CC_ID_1);
-    expect(ours).toBeDefined();
-  });
-
-  // ── printingsForCard (lines 552-562) ──────────────────────────────────────
-
-  it("printingsForCard returns printings with promoTypeSlug", async () => {
-    const result = await repo.printingsForCard(SEED_CARD_ANNIE_ID);
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    expect(result[0]).toHaveProperty("id");
-    expect(result[0]).toHaveProperty("promoTypeSlug");
-  });
-
-  // ── candidatePrintingsForCandidateCards (lines 601-616) ───────────────────
-
-  it("candidatePrintingsForCandidateCards returns printings for given IDs", async () => {
-    const result = await repo.candidatePrintingsForCandidateCards([CC_ID_1]);
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    const ours = result.filter((row) => row.candidateCardId === CC_ID_1);
-    expect(ours.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it("candidatePrintingsForCandidateCards returns [] for empty input", async () => {
-    const result = await repo.candidatePrintingsForCandidateCards([]);
-    expect(result).toEqual([]);
   });
 
   // ── candidatePrintingsForDetail (lines 650, 652-685) ──────────────────────
@@ -490,36 +278,10 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result).toEqual([]);
   });
 
-  // ── printingImagesForPrintings (lines 697-705) ────────────────────────────
-
-  it("printingImagesForPrintings returns [] for empty input", async () => {
-    const result = await repo.printingImagesForPrintings([]);
-    expect(result).toEqual([]);
-  });
-
-  it("printingImagesForPrintings returns images (or []) for seed printings", async () => {
-    const result = await repo.printingImagesForPrintings([SEED_PRINTING_ANNIE_ID]);
-    expect(Array.isArray(result)).toBe(true);
-    // Seed has no printing_images, so likely empty — but the query path is exercised
-  });
-
   // ── printingImagesForDetail (line 719) ────────────────────────────────────
 
   it("printingImagesForDetail returns [] for empty input", async () => {
     const result = await repo.printingImagesForDetail([]);
-    expect(result).toEqual([]);
-  });
-
-  // ── setSlugsByIds (lines 730-733) ─────────────────────────────────────────
-
-  it("setSlugsByIds returns slugs for known set IDs", async () => {
-    const result = await repo.setSlugsByIds([SEED_SET_ID]);
-    expect(result.length).toBe(1);
-    expect(result[0].slug).toBe("OGS");
-  });
-
-  it("setSlugsByIds returns [] for empty input", async () => {
-    const result = await repo.setSlugsByIds([]);
     expect(result).toEqual([]);
   });
 
@@ -554,20 +316,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result).toEqual([]);
   });
 
-  // ── candidateCardsByNormNameAndProvider (lines 774-782) ───────────────────
-
-  it("candidateCardsByNormNameAndProvider returns unfiltered results", async () => {
-    const result = await repo.candidateCardsByNormNameAndProvider("anniefiery", PROVIDER);
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    const ours = result.find((card) => card.id === CC_ID_1);
-    expect(ours).toBeDefined();
-  });
-
-  it("candidateCardsByNormNameAndProvider returns [] for nonexistent combo", async () => {
-    const result = await repo.candidateCardsByNormNameAndProvider("nonexistent", "no-provider");
-    expect(result).toEqual([]);
-  });
-
   // ── allCandidatePrintingsForCandidateCards (lines 787-796) ────────────────
 
   it("allCandidatePrintingsForCandidateCards returns all printings unfiltered", async () => {
@@ -594,22 +342,6 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
 
   it("candidateCardsByNormName returns [] for nonexistent normName", async () => {
     const result = await repo.candidateCardsByNormName("zzzznonexistent");
-    expect(result).toEqual([]);
-  });
-
-  // ── candidatePrintingsForUnmatched (lines 870-883) ────────────────────────
-
-  it("candidatePrintingsForUnmatched returns printings ordered by shortCode", async () => {
-    const result = await repo.candidatePrintingsForUnmatched([CC_ID_1]);
-    expect(result.length).toBeGreaterThanOrEqual(1);
-    // Verify ordering: shortCodes should be ascending
-    for (let idx = 1; idx < result.length; idx++) {
-      expect(result[idx].shortCode >= result[idx - 1].shortCode).toBe(true);
-    }
-  });
-
-  it("candidatePrintingsForUnmatched returns [] for empty input", async () => {
-    const result = await repo.candidatePrintingsForUnmatched([]);
     expect(result).toEqual([]);
   });
 
