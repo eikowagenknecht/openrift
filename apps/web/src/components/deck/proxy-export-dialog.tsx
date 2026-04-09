@@ -121,6 +121,8 @@ interface ProxyExportDialogProps {
   onOpenChange?: (open: boolean) => void;
   /** Cards to export. Falls back to the deck builder store when omitted. */
   cards?: DeckBuilderCard[];
+  /** Deck name used to derive the PDF filename. */
+  deckName?: string;
 }
 
 /**
@@ -131,6 +133,7 @@ export function ProxyExportDialog({
   open: controlledOpen,
   onOpenChange,
   cards: cardsProp,
+  deckName,
 }: ProxyExportDialogProps = {}) {
   const [internalOpen, setInternalOpen] = useState(false);
   const isControlled = controlledOpen !== undefined;
@@ -256,6 +259,7 @@ export function ProxyExportDialog({
         renderMode,
         cutLines,
         watermark,
+        deckName,
       });
       setOpen(false);
     } finally {

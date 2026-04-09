@@ -465,7 +465,12 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
         cards={detailCards}
       />
 
-      <ProxyExportDialog open={proxyOpen} onOpenChange={setProxyOpen} cards={detailCards} />
+      <ProxyExportDialog
+        open={proxyOpen}
+        onOpenChange={setProxyOpen}
+        cards={detailCards}
+        deckName={deck.name}
+      />
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

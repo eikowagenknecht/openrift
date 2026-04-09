@@ -12,6 +12,7 @@ interface ProxyOptions {
   renderMode: ProxyRenderMode;
   cutLines: boolean;
   watermark: boolean;
+  deckName?: string;
 }
 
 // Card dimensions in mm (standard poker/MTG size)
@@ -333,5 +334,10 @@ export async function assembleProxyPdf(
     }
   }
 
-  doc.save("proxies.pdf");
+  const slug = (options.deckName ?? "")
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-+|-+$/g, "");
+  const filename = slug ? `${slug}-proxies.pdf` : "proxies.pdf";
+  doc.save(filename);
 }

@@ -390,7 +390,7 @@ function DeckEditorContent({
               <DeckSaveStatus isDirty={isDirty} isSaving={saveDeckCards.isPending} />
               <div className="hidden md:flex md:items-center md:gap-1">
                 <DeckExportDialog deckId={deckId} deckName={data.deck.name} isDirty={isDirty} />
-                <ProxyExportDialog />
+                <ProxyExportDialog deckName={data.deck.name} />
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
@@ -431,7 +431,7 @@ function DeckEditorContent({
         open={exportOpen}
         onOpenChange={setExportOpen}
       />
-      <ProxyExportDialog open={proxyOpen} onOpenChange={setProxyOpen} />
+      <ProxyExportDialog open={proxyOpen} onOpenChange={setProxyOpen} deckName={data.deck.name} />
       <DeckDndContext>
         <div
           ref={containerRef}
