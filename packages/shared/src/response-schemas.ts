@@ -59,6 +59,7 @@ export const adminStatusResponseSchema = z
         tcgplayer: cronJobStatusSchema,
         cardmarket: cronJobStatusSchema,
         cardtrader: cronJobStatusSchema,
+        printingEvents: cronJobStatusSchema,
       }),
     }),
     app: z.object({
