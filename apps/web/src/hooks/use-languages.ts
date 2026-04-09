@@ -47,7 +47,7 @@ export function useCreateLanguage() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { code: string; name: string; sortOrder?: number }) =>
       createLanguageFn({ data: vars }),
-    invalidates: [queryKeys.admin.languages],
+    invalidates: [queryKeys.admin.languages, queryKeys.init.all],
   });
 }
 
@@ -69,7 +69,7 @@ export function useUpdateLanguage() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { code: string; name?: string; sortOrder?: number }) =>
       updateLanguageFn({ data: vars }),
-    invalidates: [queryKeys.admin.languages],
+    invalidates: [queryKeys.admin.languages, queryKeys.init.all],
   });
 }
 
@@ -90,7 +90,7 @@ const reorderLanguagesFn = createServerFn({ method: "POST" })
 export function useReorderLanguages() {
   return useMutationWithInvalidation({
     mutationFn: (codes: string[]) => reorderLanguagesFn({ data: { codes } }),
-    invalidates: [queryKeys.admin.languages],
+    invalidates: [queryKeys.admin.languages, queryKeys.init.all],
   });
 }
 
@@ -110,6 +110,6 @@ const deleteLanguageFn = createServerFn({ method: "POST" })
 export function useDeleteLanguage() {
   return useMutationWithInvalidation({
     mutationFn: (code: string) => deleteLanguageFn({ data: { code } }),
-    invalidates: [queryKeys.admin.languages],
+    invalidates: [queryKeys.admin.languages, queryKeys.init.all],
   });
 }
