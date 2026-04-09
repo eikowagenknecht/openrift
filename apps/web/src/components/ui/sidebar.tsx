@@ -702,9 +702,10 @@ function NestedSidebar({
       )}
       style={{
         // Height fills viewport below header + border, minus any extra offset (e.g. top bar).
-        // When stuck, the extra offset area has scrolled away so the sidebar is slightly
-        // taller than needed — but overflow-hidden clips it, so no visual issue.
-        height: `calc(100svh - 3.5rem - 1px - ${extraOffset})`,
+        // When stuck the extra offset has scrolled away, so only subtract the header.
+        height: isStuck
+          ? "calc(100svh - 3.5rem - 1px)"
+          : `calc(100svh - 3.5rem - 1px - ${extraOffset})`,
         ...style,
       }}
       {...props}
