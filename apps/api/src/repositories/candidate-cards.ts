@@ -7,11 +7,10 @@ import type {
   CandidateCardsTable,
   CardsTable,
   Database,
-  PrintingImagesTable,
   CandidatePrintingsTable,
   PrintingsTable,
 } from "../db/index.js";
-import { domainsArray, resolveCardId, superTypesArray } from "./query-helpers.js";
+import { domainsArray, superTypesArray } from "./query-helpers.js";
 
 /**
  * Reusable WHERE filter: exclude candidate_cards that appear in ignored_candidate_cards.
@@ -265,206 +264,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       }));
     },
 
-    // ── GET / — grouped list sub-queries ──────────────────────────────────
-
-    /** @returns Cards that have no candidate_cards (orphans). */
-    listOrphanCards(
-      excludeIds: string[],
-    ): Promise<Pick<Selectable<CardsTable>, "id" | "slug" | "name">[]> {
-      let query = db.selectFrom("cards as c").select(["c.id", "c.slug", "c.name"]);
-      if (excludeIds.length > 0) {
-        query = query.where("c.id", "not in", excludeIds);
-      }
-      return query.execute();
-    },
-
-    /** @returns Set release info for orphan cards via their printings. */
-    listOrphanPrintingSetInfo(
-      cardIds: string[],
-    ): Promise<{ cardId: string; slug: string; releasedAt: string | null }[]> {
-      if (cardIds.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db
-        .selectFrom("printings as p")
-        .innerJoin("sets as s", "s.id", "p.setId")
-        .select(["p.cardId", "s.slug", "s.releasedAt"])
-        .where("p.cardId", "in", cardIds)
-        .execute();
-    },
-
-    /** @returns Card suggestions for unmatched groups (by normalized card name). */
-    listSuggestionsByNormName(
-      normNames: string[],
-    ): Promise<{ id: string; slug: string; name: string; norm: string }[]> {
-      if (normNames.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db
-        .selectFrom("cards as c")
-        .select(["c.id", "c.slug", "c.name", "c.normName as norm"])
-        .where("c.normName", "in", normNames)
-        .execute() as Promise<{ id: string; slug: string; name: string; norm: string }[]>;
-    },
-
-    /** @returns Alias-based card suggestions for remaining unmatched groups. */
-    listAliasSuggestions(
-      normNames: string[],
-    ): Promise<{ id: string; slug: string; name: string; norm: string }[]> {
-      if (normNames.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db
-        .selectFrom("cardNameAliases as cna")
-        .innerJoin("cards as c", "c.id", "cna.cardId")
-        .select(["c.id", "c.slug", "c.name", "cna.normName as norm"])
-        .where("cna.normName", "in", normNames)
-        .execute() as Promise<{ id: string; slug: string; name: string; norm: string }[]>;
-    },
-
-    /** @returns Printing shortCode rows for matched cards, ordered by shortCode. */
-    listPrintingShortCodes(cardIds: string[]): Promise<{ cardId: string; shortCode: string }[]> {
-      if (cardIds.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db
-        .selectFrom("printings")
-        .select(["cardId", "shortCode"])
-        .where("cardId", "in", cardIds)
-        .orderBy("shortCode")
-        .execute();
-    },
-
-    /** @returns Unlinked candidate_printings with grouping fields for matched cards. */
-    listUnlinkedCandidatePrintingsForCards(normNames: string[]): Promise<
-      {
-        cardId: string;
-        shortCode: string;
-        setId: string | null;
-        rarity: string | null;
-        finish: string | null;
-        artVariant: string | null;
-        isSigned: boolean | null;
-        promoTypeId: string | null;
-      }[]
-    > {
-      if (normNames.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db
-        .selectFrom("candidatePrintings as ps")
-        .innerJoin("candidateCards as cs", "cs.id", "ps.candidateCardId")
-        .select([
-          resolveCardId("cs").as("cardId"),
-          "ps.shortCode",
-          "ps.setId",
-          "ps.rarity",
-          "ps.finish",
-          "ps.artVariant",
-          "ps.isSigned",
-          "ps.promoTypeId",
-        ])
-        .where("cs.normName", "in", normNames)
-        .where("ps.printingId", "is", null)
-        .where(notHiddenSource("cs"))
-        .execute() as Promise<
-        {
-          cardId: string;
-          shortCode: string;
-          groupKey: string;
-          setId: string | null;
-          rarity: string | null;
-          finish: string | null;
-          artVariant: string | null;
-          isSigned: boolean | null;
-          promoTypeId: string | null;
-        }[]
-      >;
-    },
-
-    /** @returns Accepted printings with matching fields for given card IDs. Set ID returned as slug. */
-    listPrintingsForCards(cardIds: string[]): Promise<
-      {
-        id: string;
-        cardId: string;
-        setSlug: string | null;
-        rarity: string;
-        finish: string;
-        artVariant: string;
-        isSigned: boolean;
-        promoTypeId: string | null;
-      }[]
-    > {
-      if (cardIds.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db
-        .selectFrom("printings")
-        .leftJoin("sets", "sets.id", "printings.setId")
-        .select([
-          "printings.id",
-          "printings.cardId",
-          "sets.slug as setSlug",
-          "printings.rarity",
-          "printings.finish",
-          "printings.artVariant",
-          "printings.isSigned",
-          "printings.promoTypeId",
-        ])
-        .where("printings.cardId", "in", cardIds)
-        .execute() as Promise<
-        {
-          id: string;
-          cardId: string;
-          setSlug: string | null;
-          rarity: string;
-          finish: string;
-          artVariant: string;
-          isSigned: boolean;
-          promoTypeId: string | null;
-        }[]
-      >;
-    },
-
-    /** @returns Card IDs that have at least one printing without an active front image. */
-    listCardIdsWithMissingImages(cardIds: string[]): Promise<{ cardId: string }[]> {
-      if (cardIds.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db
-        .selectFrom("printings as p")
-        .select("p.cardId")
-        .where("p.cardId", "in", cardIds)
-        .where((eb) =>
-          eb.not(
-            eb.exists(
-              eb
-                .selectFrom("printingImages as pi")
-                .select(sql.lit(1).as("one"))
-                .whereRef("pi.printingId", "=", "p.id")
-                .where("pi.face", "=", "front")
-                .where("pi.isActive", "=", true),
-            ),
-          ),
-        )
-        .groupBy("p.cardId")
-        .execute();
-    },
-
-    /** @returns Candidate printing shortCodes for unmatched groups, ordered by shortCode. */
-    listPendingShortCodes(normNames: string[]): Promise<{ norm: string; shortCode: string }[]> {
-      if (normNames.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db
-        .selectFrom("candidatePrintings as ps")
-        .innerJoin("candidateCards as cs", "cs.id", "ps.candidateCardId")
-        .select(["cs.normName as norm", "ps.shortCode"])
-        .where("cs.normName", "in", normNames)
-        .orderBy("ps.shortCode")
-        .execute() as Promise<{ norm: string; shortCode: string }[]>;
-    },
-
     // ── GET /:cardId — detail sub-queries ─────────────────────────────────
 
     /** @returns A single card by slug, or `undefined`. */
@@ -541,70 +340,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       );
     },
 
-    /** @returns Printing shortCodes for a card. */
-    printingShortCodesForCard(cardId: string): Promise<{ shortCode: string }[]> {
-      return db.selectFrom("printings").select("shortCode").where("cardId", "=", cardId).execute();
-    },
-
-    /** @returns Candidate cards by normalized names, excluding ignored. Ordered by provider. */
-    candidateCardsByNormNames(normNames: string[]): Promise<Selectable<CandidateCardsTable>[]> {
-      if (normNames.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db
-        .selectFrom("candidateCards")
-        .selectAll()
-        .where("candidateCards.normName", "in", normNames)
-        .where(notIgnoredCard("candidateCards"))
-        .where(notHiddenSource("candidateCards"))
-        .orderBy("provider")
-        .execute();
-    },
-
-    /**
-     * @returns Candidate cards matching by normalized name OR by candidate printing shortCode match.
-     * Excludes ignored. Ordered by provider.
-     */
-    candidateCardsByNormNamesOrPrintingShortCodes(
-      normNames: string[],
-      printingShortCodes: string[],
-    ): Promise<Selectable<CandidateCardsTable>[]> {
-      return db
-        .selectFrom("candidateCards")
-        .selectAll()
-        .where((eb) =>
-          eb.or([
-            eb("candidateCards.normName", "in", normNames),
-            eb.exists(
-              eb
-                .selectFrom("candidatePrintings as ps_match")
-                .select(sql.lit(1).as("x"))
-                .whereRef("ps_match.candidateCardId", "=", "candidateCards.id")
-                .where("ps_match.shortCode", "in", printingShortCodes),
-            ),
-          ]),
-        )
-        .where(notIgnoredCard("candidateCards"))
-        .where(notHiddenSource("candidateCards"))
-        .orderBy("provider")
-        .execute();
-    },
-
-    /** @returns All printings for a card, with promo type slug resolved. */
-    printingsForCard(cardId: string) {
-      return db
-        .selectFrom("printings")
-        .leftJoin("promoTypes", "promoTypes.id", "printings.promoTypeId")
-        .selectAll("printings")
-        .select("promoTypes.slug as promoTypeSlug")
-        .where("printings.cardId", "=", cardId)
-        .orderBy("printings.setId")
-        .orderBy("printings.finish")
-        .orderBy("printings.isSigned")
-        .orderBy("printings.shortCode")
-        .execute();
-    },
-
     /** @returns Printings for detail page, without timestamps. */
     printingsForDetail(cardId: string) {
       return db
@@ -633,29 +368,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .orderBy("finish")
         .orderBy("isSigned")
         .orderBy("shortCode")
-        .execute();
-    },
-
-    /**
-     * @returns Candidate printings for given candidate card IDs, excluding ignored.
-     * Ordered by setId, finish, isSigned, shortCode.
-     */
-    candidatePrintingsForCandidateCards(
-      candidateCardIds: string[],
-    ): Promise<Selectable<CandidatePrintingsTable>[]> {
-      if (candidateCardIds.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db
-        .selectFrom("candidatePrintings as ps")
-        .innerJoin("candidateCards as cs_parent", "cs_parent.id", "ps.candidateCardId")
-        .selectAll("ps")
-        .where("ps.candidateCardId", "in", candidateCardIds)
-        .where(notIgnoredPrinting("ps", "cs_parent"))
-        .orderBy("ps.setId")
-        .orderBy("ps.finish")
-        .orderBy("ps.isSigned")
-        .orderBy("ps.shortCode")
         .execute();
     },
 
@@ -737,19 +449,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return db.selectFrom("promoTypes").select(["id", "slug"]).where("id", "in", ids).execute();
     },
 
-    /** @returns Printing images for given printing IDs, ordered by createdAt. */
-    printingImagesForPrintings(printingIds: string[]): Promise<Selectable<PrintingImagesTable>[]> {
-      if (printingIds.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db
-        .selectFrom("printingImages")
-        .selectAll()
-        .where("printingId", "in", printingIds)
-        .orderBy("createdAt", "asc")
-        .execute();
-    },
-
     /** @returns Printing images for detail page, only fields the frontend needs. */
     printingImagesForDetail(printingIds: string[]): Promise<
       {
@@ -780,14 +479,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .where("printingImages.printingId", "in", printingIds)
         .orderBy("printingImages.createdAt", "asc")
         .execute();
-    },
-
-    /** @returns Set UUID → slug mappings. */
-    setSlugsByIds(setIds: string[]): Promise<{ id: string; slug: string }[]> {
-      if (setIds.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db.selectFrom("sets").select(["id", "slug"]).where("id", "in", setIds).execute();
     },
 
     /** @returns Set slug + release date for given IDs. */
@@ -825,19 +516,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     },
 
     // ── GET /new/:name — unmatched detail sub-queries ─────────────────────
-
-    /** @returns Candidate cards by normName and provider, unfiltered (no ignore/hidden exclusions). */
-    candidateCardsByNormNameAndProvider(
-      normName: string,
-      provider: string,
-    ): Promise<Selectable<CandidateCardsTable>[]> {
-      return db
-        .selectFrom("candidateCards")
-        .selectAll()
-        .where("normName", "=", normName)
-        .where("provider", "=", provider)
-        .execute();
-    },
 
     /** @returns All candidate printings for given candidate card IDs, unfiltered (no ignore/hidden exclusions). */
     allCandidatePrintingsForCandidateCards(
@@ -916,26 +594,6 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .where(notHiddenSource("candidateCards"))
         .orderBy("provider")
         .orderBy("shortCode")
-        .execute();
-    },
-
-    /**
-     * @returns Candidate printings for unmatched detail, excluding ignored.
-     * Ordered by shortCode.
-     */
-    candidatePrintingsForUnmatched(
-      candidateCardIds: string[],
-    ): Promise<Selectable<CandidatePrintingsTable>[]> {
-      if (candidateCardIds.length === 0) {
-        return Promise.resolve([]);
-      }
-      return db
-        .selectFrom("candidatePrintings as ps")
-        .innerJoin("candidateCards as cs_parent", "cs_parent.id", "ps.candidateCardId")
-        .selectAll("ps")
-        .where("ps.candidateCardId", "in", candidateCardIds)
-        .where(notIgnoredPrinting("ps", "cs_parent"))
-        .orderBy("ps.shortCode")
         .execute();
     },
 

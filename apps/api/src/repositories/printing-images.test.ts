@@ -41,11 +41,6 @@ describe("printingImagesRepo", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("deactivate sets isActive to false", async () => {
-    const db = createMockDb([]);
-    await expect(printingImagesRepo(db).deactivate("pi-1")).resolves.toBeUndefined();
-  });
-
   it("setActive sets the active flag", async () => {
     const db = createMockDb([]);
     await expect(printingImagesRepo(db).setActive("pi-1", true)).resolves.toBeUndefined();
@@ -153,11 +148,6 @@ describe("printingImagesRepo", () => {
     ]);
   });
 
-  it("countRehosted returns count", async () => {
-    const db = createMockDb([{ count: 10 }]);
-    expect(await printingImagesRepo(db).countRehosted()).toBe(10);
-  });
-
   it("getCandidatePrintingById returns a printing", async () => {
     const db = createMockDb([{ id: "cp-1" }]);
     expect(await printingImagesRepo(db).getCandidatePrintingById("cp-1")).toBeDefined();
@@ -173,11 +163,6 @@ describe("printingImagesRepo", () => {
   it("getPrintingById returns id", async () => {
     const db = createMockDb([{ id: "p-1" }]);
     expect(await printingImagesRepo(db).getPrintingById("p-1")).toEqual({ id: "p-1" });
-  });
-
-  it("getPrintingWithSetById returns printing with set", async () => {
-    const db = createMockDb([{ id: "p-1", setSlug: "OGS" }]);
-    expect(await printingImagesRepo(db).getPrintingWithSetById("p-1")).toBeDefined();
   });
 
   // ── rehostStatusBySet (lines 233-247 — needs real DB for callback coverage) ──

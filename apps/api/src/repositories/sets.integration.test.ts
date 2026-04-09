@@ -19,16 +19,6 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
     }
   });
 
-  it("ping returns true when DB is reachable", async () => {
-    const result = await repo.ping();
-    expect(result).toBe(true);
-  });
-
-  it("hasAny returns true when sets exist", async () => {
-    const result = await repo.hasAny();
-    expect(result).toBe(true);
-  });
-
   it("listAll returns all sets ordered by sortOrder", async () => {
     const sets = await repo.listAll();
     expect(sets.length).toBeGreaterThan(0);
@@ -58,32 +48,12 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
     expect(typeof result!.printedTotal === "number" || result!.printedTotal === null).toBe(true);
   });
 
-  it("getBySlugWithPrintingCount returns set id and printing count", async () => {
-    const sets = await repo.listAll();
-    const result = await repo.getBySlugWithPrintingCount(sets[0].slug);
-    expect(result).toBeDefined();
-    expect(result!.id).toBe(sets[0].id);
-    expect(typeof result!.printingCount).toBe("number");
-  });
-
-  it("getBySlugWithPrintingCount returns undefined for nonexistent slug", async () => {
-    const result = await repo.getBySlugWithPrintingCount("nonexistent-slug-42");
-    expect(result).toBeUndefined();
-  });
-
-  it("nextSortOrder returns a number greater than current max", async () => {
-    const next = await repo.nextSortOrder();
-    expect(typeof next).toBe("number");
-    expect(next).toBeGreaterThan(0);
-  });
-
   it("create inserts a new set", async () => {
-    const sortOrder = await repo.nextSortOrder();
     await repo.create({
       slug: "test-set-42",
       name: "Test Set 42",
       printedTotal: 100,
-      sortOrder,
+      sortOrder: 9999,
     });
 
     const found = await repo.getBySlug("test-set-42");
@@ -198,12 +168,11 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
   });
 
   it("deleteById removes a set", async () => {
-    const sortOrder = await repo.nextSortOrder();
     await repo.create({
       slug: "test-delete-42",
       name: "Delete Me",
       printedTotal: null,
-      sortOrder,
+      sortOrder: 9998,
     });
 
     const found = await repo.getBySlug("test-delete-42");

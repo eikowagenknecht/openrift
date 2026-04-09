@@ -67,11 +67,6 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
     expect(found!.rehostedUrl).toBe("https://cdn.example.com/rehosted.jpg");
   });
 
-  it("deactivate sets isActive to false", async () => {
-    const imageId = createdImageIds[0];
-    await repo.deactivate(imageId);
-  });
-
   it("listAllRehosted returns images with rehosted URLs", async () => {
     const imageFileId = await repo.getImageFileId(createdImageIds[0]);
     const result = await repo.listAllRehosted();
@@ -104,10 +99,5 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
     const urls = await repo.allRehostedUrls();
     expect(Array.isArray(urls)).toBe(true);
     expect(urls).toContain("https://cdn.example.com/rehosted.jpg");
-  });
-
-  it("countRehosted returns total count of rehosted images", async () => {
-    const count = await repo.countRehosted();
-    expect(count).toBeGreaterThanOrEqual(1);
   });
 });

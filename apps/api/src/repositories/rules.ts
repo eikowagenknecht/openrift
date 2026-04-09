@@ -92,20 +92,6 @@ export function rulesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Returns rules that were changed in a specific version (for diff display).
-     *
-     * @returns Only the rows inserted for that version.
-     */
-    listChangesInVersion(version: string) {
-      return db
-        .selectFrom("rules")
-        .selectAll()
-        .where("version", "=", version)
-        .orderBy("sortOrder")
-        .execute();
-    },
-
-    /**
      * Creates a new rule version entry.
      *
      * @returns The inserted version row.

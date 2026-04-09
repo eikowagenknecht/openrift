@@ -137,13 +137,6 @@ describe("candidateMutationsRepo", () => {
     });
   });
 
-  it("getPrintingCardIdById returns cardId", async () => {
-    const db = createMockDb([{ cardId: "c-1" }]);
-    expect(await candidateMutationsRepo(db).getPrintingCardIdById("p-1")).toEqual({
-      cardId: "c-1",
-    });
-  });
-
   it("getPrintingCardIdByComposite returns cardId", async () => {
     const db = createMockDb([{ cardId: "c-1" }]);
     expect(
@@ -246,11 +239,6 @@ describe("candidateMutationsRepo", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("getCardTexts returns text fields", async () => {
-    const db = createMockDb([{ rulesText: "text", effectText: null }]);
-    expect(await candidateMutationsRepo(db).getCardTexts("OGS-001")).toBeDefined();
-  });
-
   // ── Printing mutations ────────────────────────────────────────────────────
 
   it("deletePrintingById returns deleted id", async () => {
@@ -323,24 +311,6 @@ describe("candidateMutationsRepo", () => {
   });
 
   // ── Accept new card helpers ───────────────────────────────────────────────
-
-  it("getCandidateCardNameAndProvider returns name and provider", async () => {
-    const db = createMockDb([{ name: "Annie", provider: "test" }]);
-    expect(await candidateMutationsRepo(db).getCandidateCardNameAndProvider("cc-1")).toEqual({
-      name: "Annie",
-      provider: "test",
-    });
-  });
-
-  it("resolveCardByNormName returns id", async () => {
-    const db = createMockDb([{ id: "c-1" }]);
-    expect(await candidateMutationsRepo(db).resolveCardByNormName("annie")).toEqual({ id: "c-1" });
-  });
-
-  it("resolveCardByAlias returns cardId", async () => {
-    const db = createMockDb([{ cardId: "c-1" }]);
-    expect(await candidateMutationsRepo(db).resolveCardByAlias("annie")).toEqual({ cardId: "c-1" });
-  });
 
   // ── Delete by provider ────────────────────────────────────────────────────
 

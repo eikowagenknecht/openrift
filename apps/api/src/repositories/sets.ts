@@ -10,22 +10,6 @@ import type { Database, SetsTable } from "../db/index.js";
  */
 export function setsRepo(db: Kysely<Database>) {
   return {
-    /** @returns Whether the database connection is alive. */
-    async ping(): Promise<boolean> {
-      try {
-        await db.selectNoFrom((eb) => eb.lit(1).as("one")).execute();
-        return true;
-      } catch {
-        return false;
-      }
-    },
-
-    /** @returns Whether at least one set exists (used for health checks). */
-    async hasAny(): Promise<boolean> {
-      const row = await db.selectFrom("sets").select("id").limit(1).executeTakeFirst();
-      return row !== undefined;
-    },
-
     /** @returns All sets ordered by sort order. */
     listAll(): Promise<Selectable<SetsTable>[]> {
       return db.selectFrom("sets").selectAll().orderBy("sortOrder").execute();
@@ -39,31 +23,6 @@ export function setsRepo(db: Kysely<Database>) {
     /** @returns A set's printed total by UUID, or undefined. */
     getPrintedTotal(id: string): Promise<{ printedTotal: number | null } | undefined> {
       return db.selectFrom("sets").select("printedTotal").where("id", "=", id).executeTakeFirst();
-    },
-
-    /** @returns A set's UUID and printing count by slug, or undefined. */
-    getBySlugWithPrintingCount(
-      slug: string,
-    ): Promise<{ id: string; printingCount: number } | undefined> {
-      return db
-        .selectFrom("sets")
-        .leftJoin("printings", "printings.setId", "sets.id")
-        .select((eb) => [
-          "sets.id",
-          eb.cast<number>(eb.fn.countAll("printings"), "integer").as("printingCount"),
-        ])
-        .where("sets.slug", "=", slug)
-        .groupBy("sets.id")
-        .executeTakeFirst();
-    },
-
-    /** @returns The next sort order (max + 1). */
-    async nextSortOrder(): Promise<number> {
-      const { max } = await db
-        .selectFrom("sets")
-        .select((eb) => eb.fn.coalesce(eb.fn.max("sortOrder"), eb.lit(0)).as("max"))
-        .executeTakeFirstOrThrow();
-      return max + 1;
     },
 
     /** Creates a new set with the given values. */

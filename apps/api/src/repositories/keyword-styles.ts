@@ -45,14 +45,6 @@ export function keywordStylesRepo(db: Kysely<Database>) {
       return rows.rows.map((row) => ({ keyword: row.keyword, count: Number(row.count) }));
     },
 
-    /** Update the color and darkText for a keyword style by name. */
-    async updateStyle(
-      name: string,
-      updates: { color?: string; darkText?: boolean },
-    ): Promise<void> {
-      await db.updateTable("keywordStyles").set(updates).where("name", "=", name).execute();
-    },
-
     /** Insert or update a keyword style. */
     async upsertStyle(values: { name: string; color: string; darkText: boolean }): Promise<void> {
       await db

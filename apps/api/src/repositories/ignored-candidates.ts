@@ -25,19 +25,6 @@ export function ignoredCandidatesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns The ignored entry if it exists, or `undefined`. */
-    getIgnoredCard(
-      provider: string,
-      externalId: string,
-    ): Promise<Selectable<IgnoredCandidateCardsTable> | undefined> {
-      return db
-        .selectFrom("ignoredCandidateCards")
-        .selectAll()
-        .where("provider", "=", provider)
-        .where("externalId", "=", externalId)
-        .executeTakeFirst();
-    },
-
     /** Insert ignored candidate card (no-op on conflict). */
     async ignoreCard(values: { provider: string; externalId: string }): Promise<void> {
       await db
@@ -65,19 +52,6 @@ export function ignoredCandidatesRepo(db: Kysely<Database>) {
         .selectAll()
         .orderBy("createdAt", "desc")
         .execute();
-    },
-
-    /** @returns The ignored entry if it exists, or `undefined`. */
-    getIgnoredPrinting(
-      provider: string,
-      externalId: string,
-    ): Promise<Selectable<IgnoredCandidatePrintingsTable> | undefined> {
-      return db
-        .selectFrom("ignoredCandidatePrintings")
-        .selectAll()
-        .where("provider", "=", provider)
-        .where("externalId", "=", externalId)
-        .executeTakeFirst();
     },
 
     /** Insert ignored candidate printing (no-op on conflict). */

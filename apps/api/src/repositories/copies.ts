@@ -42,16 +42,6 @@ export function copiesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Multiple copies by IDs scoped to a user. */
-    listByIdsForUser(ids: string[], userId: string): Promise<CopyRow[]> {
-      return db
-        .selectFrom("copies")
-        .select(["id", "printingId", "collectionId", "createdAt", "updatedAt"])
-        .where("id", "in", ids)
-        .where("userId", "=", userId)
-        .execute();
-    },
-
     /** @returns Per-collection copy count for a single printing owned by a user. */
     countByCollectionForPrinting(
       userId: string,

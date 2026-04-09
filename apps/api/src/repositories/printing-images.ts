@@ -80,15 +80,6 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Deactivates a printing image. */
-    async deactivate(imageId: string): Promise<void> {
-      await db
-        .updateTable("printingImages")
-        .set({ isActive: false })
-        .where("id", "=", imageId)
-        .execute();
-    },
-
     /** Sets the isActive flag on a printing image. */
     async setActive(imageId: string, active: boolean): Promise<void> {
       await db
@@ -419,16 +410,6 @@ export function printingImagesRepo(db: Kysely<Database>) {
         .where("rehostedUrl", "is not", null)
         .execute();
       return rows.map((r) => r.rehostedUrl as string);
-    },
-
-    /** @returns Total count of rehosted image files. */
-    async countRehosted(): Promise<number> {
-      const result = await db
-        .selectFrom("imageFiles")
-        .select((eb) => eb.fn.countAll<number>().as("count"))
-        .where("rehostedUrl", "is not", null)
-        .executeTakeFirstOrThrow();
-      return Number(result.count);
     },
 
     /** @returns A candidate printing by ID (all columns). */

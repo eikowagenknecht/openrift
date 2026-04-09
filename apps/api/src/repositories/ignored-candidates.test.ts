@@ -13,16 +13,6 @@ describe("ignoredCandidatesRepo", () => {
     expect(await ignoredCandidatesRepo(db).listIgnoredCards()).toEqual([CARD]);
   });
 
-  it("getIgnoredCard returns a card when found", async () => {
-    const db = createMockDb([CARD]);
-    expect(await ignoredCandidatesRepo(db).getIgnoredCard("test", "ext-1")).toEqual(CARD);
-  });
-
-  it("getIgnoredCard returns undefined when not found", async () => {
-    const db = createMockDb([]);
-    expect(await ignoredCandidatesRepo(db).getIgnoredCard("test", "ext-1")).toBeUndefined();
-  });
-
   it("ignoreCard inserts without throwing", async () => {
     const db = createMockDb([]);
     await expect(
@@ -40,11 +30,6 @@ describe("ignoredCandidatesRepo", () => {
   it("listIgnoredPrintings returns all ignored printings", async () => {
     const db = createMockDb([PRINTING]);
     expect(await ignoredCandidatesRepo(db).listIgnoredPrintings()).toEqual([PRINTING]);
-  });
-
-  it("getIgnoredPrinting returns a printing when found", async () => {
-    const db = createMockDb([PRINTING]);
-    expect(await ignoredCandidatesRepo(db).getIgnoredPrinting("test", "ext-1")).toEqual(PRINTING);
   });
 
   it("ignorePrinting inserts without throwing", async () => {

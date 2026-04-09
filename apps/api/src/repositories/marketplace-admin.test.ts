@@ -62,13 +62,6 @@ describe("marketplaceAdminRepo", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("deleteIgnoredProduct deletes a product", async () => {
-    const db = createMockDb([]);
-    await expect(
-      marketplaceAdminRepo(db).deleteIgnoredProduct("tcgplayer", 1, "normal"),
-    ).resolves.toBeUndefined();
-  });
-
   it("deleteIgnoredProducts returns deleted count", async () => {
     const db = createMockDb([{ numDeletedRows: 2n }]);
     expect(

@@ -13,28 +13,6 @@ const SET = {
 };
 
 describe("setsRepo", () => {
-  it("ping returns true on success", async () => {
-    const db = createMockDb([{ one: 1 }]);
-    expect(await setsRepo(db).ping()).toBe(true);
-  });
-
-  it("ping returns false on failure", async () => {
-    const repo = setsRepo({
-      selectNoFrom: () => ({ execute: () => Promise.reject(new Error("fail")) }),
-    } as any);
-    expect(await repo.ping()).toBe(false);
-  });
-
-  it("hasAny returns true when sets exist", async () => {
-    const db = createMockDb([{ id: "s-1" }]);
-    expect(await setsRepo(db).hasAny()).toBe(true);
-  });
-
-  it("hasAny returns false when no sets", async () => {
-    const db = createMockDb([]);
-    expect(await setsRepo(db).hasAny()).toBe(false);
-  });
-
   it("listAll returns all sets", async () => {
     const db = createMockDb([SET]);
     expect(await setsRepo(db).listAll()).toEqual([SET]);
@@ -48,19 +26,6 @@ describe("setsRepo", () => {
   it("getPrintedTotal returns total", async () => {
     const db = createMockDb([{ printedTotal: 200 }]);
     expect(await setsRepo(db).getPrintedTotal("s-1")).toEqual({ printedTotal: 200 });
-  });
-
-  it("getBySlugWithPrintingCount returns id and count", async () => {
-    const db = createMockDb([{ id: "s-1", printingCount: 50 }]);
-    expect(await setsRepo(db).getBySlugWithPrintingCount("OGS")).toEqual({
-      id: "s-1",
-      printingCount: 50,
-    });
-  });
-
-  it("nextSortOrder returns max + 1", async () => {
-    const db = createMockDb([{ max: 5 }]);
-    expect(await setsRepo(db).nextSortOrder()).toBe(6);
   });
 
   it("create inserts a set", async () => {

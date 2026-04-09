@@ -125,22 +125,6 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Delete a single ignored product. */
-    async deleteIgnoredProduct(
-      marketplace: string,
-      externalId: number,
-      finish: string,
-      language: string,
-    ): Promise<void> {
-      await db
-        .deleteFrom("marketplaceIgnoredProducts")
-        .where("marketplace", "=", marketplace)
-        .where("externalId", "=", externalId)
-        .where("finish", "=", finish)
-        .where("language", "=", language)
-        .execute();
-    },
-
     /**
      * Delete multiple ignored products in a single query.
      *

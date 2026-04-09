@@ -28,7 +28,7 @@ describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
     expect(Array.isArray(result)).toBe(true);
   });
 
-  it("insertIgnoredProducts inserts and deleteIgnoredProduct removes", async () => {
+  it("insertIgnoredProducts inserts and deleteIgnoredProducts removes", async () => {
     await repo.insertIgnoredProducts([
       {
         marketplace,
@@ -50,7 +50,10 @@ describe.skipIf(!ctx)("marketplaceAdminRepo (integration)", () => {
     const ours = list.filter((p) => p.marketplace === marketplace);
     expect(ours.length).toBe(2);
 
-    await repo.deleteIgnoredProduct(marketplace, 88_001, "normal", "");
+    const count = await repo.deleteIgnoredProducts(marketplace, [
+      { externalId: 88_001, finish: "normal", language: "" },
+    ]);
+    expect(count).toBe(1);
 
     const after = await repo.listIgnoredProducts();
     const remaining = after.filter((p) => p.marketplace === marketplace);

@@ -41,12 +41,6 @@ describe("copiesRepo", () => {
     expect(await repo.getByIdForUser("cp-1", "u1")).toEqual(COPY_ROW);
   });
 
-  it("listByIdsForUser returns copies", async () => {
-    const db = createMockDb([COPY_ROW]);
-    const repo = copiesRepo(db);
-    expect(await repo.listByIdsForUser(["cp-1"], "u1")).toEqual([COPY_ROW]);
-  });
-
   it("countByPrintingForUser returns counts", async () => {
     const db = createMockDb([{ printingId: "p-1", count: 3 }]);
     const repo = copiesRepo(db);

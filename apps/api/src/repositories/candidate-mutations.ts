@@ -9,13 +9,7 @@ import type {
 } from "@openrift/shared/types";
 import type { DeleteResult, Kysely, Selectable, UpdateResult } from "kysely";
 
-import type {
-  CandidateCardsTable,
-  CandidatePrintingsTable,
-  CardsTable,
-  Database,
-  PrintingsTable,
-} from "../db/index.js";
+import type { CandidatePrintingsTable, CardsTable, Database, PrintingsTable } from "../db/index.js";
 
 /**
  * Mutation queries for candidate cards, candidate printings, cards, and printings
@@ -234,11 +228,6 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       return db.selectFrom("printings").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A printing's cardId by UUID. */
-    getPrintingCardIdById(id: string): Promise<{ cardId: string } | undefined> {
-      return db.selectFrom("printings").select("cardId").where("id", "=", id).executeTakeFirst();
-    },
-
     /** @returns A printing's cardId by composite key (shortCode, finish, promoTypeId, language). */
     getPrintingCardIdByComposite(
       shortCode: string,
@@ -378,34 +367,6 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
     /** Rename a card's slug by card UUID. */
     async renameCardSlugById(cardId: string, newSlug: string): Promise<void> {
       await db.updateTable("cards").set({ slug: newSlug }).where("id", "=", cardId).execute();
-    },
-
-    /**
-     * Get errata text for a card by slug.
-     * @returns Errata correctedRulesText and correctedEffectText, or null if no errata exists.
-     */
-    async getCardTexts(slug: string) {
-      return (
-        (await db
-          .selectFrom("cardErrata")
-          .innerJoin("cards", "cards.id", "cardErrata.cardId")
-          .select(["cardErrata.correctedRulesText", "cardErrata.correctedEffectText"])
-          .where("cards.slug", "=", slug)
-          .executeTakeFirst()) ?? null
-      );
-    },
-
-    /** @returns EN printing-level rules/effect texts for a card identified by slug. */
-    getPrintingTextsForCardSlug(
-      slug: string,
-    ): Promise<Pick<Selectable<PrintingsTable>, "printedRulesText" | "printedEffectText">[]> {
-      return db
-        .selectFrom("printings")
-        .innerJoin("cards", "cards.id", "printings.cardId")
-        .select(["printings.printedRulesText", "printings.printedEffectText"])
-        .where("cards.slug", "=", slug)
-        .where("printings.language", "=", "EN")
-        .execute();
     },
 
     /** @returns EN printing-level rules/effect texts for a card identified by UUID. */
@@ -674,37 +635,6 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .returning("id")
         .executeTakeFirstOrThrow();
       return result.id;
-    },
-
-    // ── Accept new (single source) helpers ────────────────────────────────────
-
-    /** @returns Candidate card name and provider for a candidate card ID. */
-    getCandidateCardNameAndProvider(
-      id: string,
-    ): Promise<Pick<Selectable<CandidateCardsTable>, "name" | "provider"> | undefined> {
-      return db
-        .selectFrom("candidateCards")
-        .select(["name", "provider"])
-        .where("id", "=", id)
-        .executeTakeFirst();
-    },
-
-    /** @returns Card ID resolved by normName (direct match). */
-    resolveCardByNormName(normName: string): Promise<{ id: string } | undefined> {
-      return db
-        .selectFrom("cards")
-        .select("id")
-        .where("cards.normName", "=", normName)
-        .executeTakeFirst();
-    },
-
-    /** @returns Card ID resolved by alias normName. */
-    resolveCardByAlias(normName: string): Promise<{ cardId: string } | undefined> {
-      return db
-        .selectFrom("cardNameAliases")
-        .select("cardId")
-        .where("cardNameAliases.normName", "=", normName)
-        .executeTakeFirst();
     },
 
     // ── Delete by provider ──────────────────────────────────────────────────────
