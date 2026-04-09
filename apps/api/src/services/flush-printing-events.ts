@@ -21,6 +21,7 @@ export async function flushPendingPrintingEvents(
     printingEvents: PrintingEventsRepo;
     siteSettings: SiteSettingsRepo;
   },
+  appBaseUrl: string,
   log: Logger,
 ): Promise<{ sent: number; failed: number }> {
   const events = await repos.printingEvents.listPending();
@@ -28,7 +29,6 @@ export async function flushPendingPrintingEvents(
     return { sent: 0, failed: 0 };
   }
 
-  // Read webhook URLs from site settings
   const settings = await repos.siteSettings.listByScope("api");
   const settingsMap = new Map(settings.map((s) => [s.key, s.value]));
 
@@ -37,7 +37,7 @@ export async function flushPendingPrintingEvents(
     printingChanges: settingsMap.get(SETTING_KEY_CHANGES) ?? null,
   };
 
-  const { sentIds, failedIds } = await flushPrintingEvents(events, webhookUrls, log);
+  const { sentIds, failedIds } = await flushPrintingEvents(events, webhookUrls, appBaseUrl, log);
 
   await repos.printingEvents.markSent(sentIds);
   await repos.printingEvents.markRetry(failedIds);

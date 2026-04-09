@@ -13,8 +13,11 @@ function mockDb() {
     where: vi.fn().mockReturnThis(),
     orderBy: vi.fn().mockReturnThis(),
     set: vi.fn().mockReturnThis(),
+    innerJoin: vi.fn().mockReturnThis(),
+    leftJoin: vi.fn().mockReturnThis(),
+    on: vi.fn().mockReturnThis(),
+    onRef: vi.fn().mockReturnThis(),
     execute: vi.fn(async () => []),
-    executeTakeFirst: vi.fn(async () => undefined),
   };
 
   return {
@@ -26,55 +29,37 @@ function mockDb() {
 }
 
 describe("printingEventsRepo", () => {
-  it("recordNewPrinting inserts a new event", async () => {
+  it("recordNew inserts a new event with just printingId", async () => {
     const db = mockDb();
     const repo = printingEventsRepo(db as any);
 
-    await repo.recordNewPrinting({
-      printingId: "p-1",
-      cardName: "Test Card",
-      setName: "Origins",
-      shortCode: "OGN-001",
-      rarity: "Common",
-      finish: "normal",
-      artist: "Artist A",
-      language: "EN",
-    });
+    await repo.recordNew("p-1");
 
     expect(db.insertInto).toHaveBeenCalledWith("printingEvents");
     expect(db.chain.values).toHaveBeenCalledWith(
       expect.objectContaining({
         eventType: "new",
         printingId: "p-1",
-        cardName: "Test Card",
         status: "pending",
+        changes: null,
       }),
     );
   });
 
-  it("recordPrintingChange skips when changes array is empty", async () => {
+  it("recordChange skips when changes array is empty", async () => {
     const db = mockDb();
     const repo = printingEventsRepo(db as any);
 
-    await repo.recordPrintingChange({
-      printingId: "p-1",
-      cardName: "Test Card",
-      changes: [],
-    });
+    await repo.recordChange("p-1", []);
 
     expect(db.insertInto).not.toHaveBeenCalled();
   });
 
-  it("recordPrintingChange inserts a changed event with diff data", async () => {
+  it("recordChange inserts a changed event with diff data", async () => {
     const db = mockDb();
     const repo = printingEventsRepo(db as any);
 
-    await repo.recordPrintingChange({
-      printingId: "p-1",
-      cardName: "Test Card",
-      shortCode: "OGN-001",
-      changes: [{ field: "artist", from: "Old", to: "New" }],
-    });
+    await repo.recordChange("p-1", [{ field: "artist", from: "Old", to: "New" }]);
 
     expect(db.insertInto).toHaveBeenCalledWith("printingEvents");
     expect(db.chain.values).toHaveBeenCalledWith(

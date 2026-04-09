@@ -1,8 +1,29 @@
-import type { Kysely, Selectable } from "kysely";
+import type { Kysely } from "kysely";
+import { sql } from "kysely";
 
-import type { Database, FieldChange, PrintingEventsTable } from "../db/index.js";
+import type { Database, FieldChange } from "../db/index.js";
+import { imageUrl } from "./query-helpers.js";
 
 const MAX_RETRIES = 5;
+
+/** A pending event enriched with printing/card/set/image context. */
+export interface EnrichedPrintingEvent {
+  id: string;
+  eventType: "new" | "changed";
+  printingId: string;
+  changes: FieldChange[] | null;
+  createdAt: Date;
+  // Joined context
+  cardName: string | null;
+  cardSlug: string | null;
+  setName: string | null;
+  shortCode: string | null;
+  rarity: string | null;
+  finish: string | null;
+  artist: string | null;
+  language: string | null;
+  frontImageUrl: string | null;
+}
 
 /**
  * Repository for printing event notifications (Discord webhook queue).
@@ -15,62 +36,28 @@ export function printingEventsRepo(db: Kysely<Database>) {
      * Record a "new printing" event.
      * @returns Resolves when the event has been inserted.
      */
-    async recordNewPrinting(data: {
-      printingId: string;
-      cardName: string;
-      setName?: string | null;
-      shortCode?: string | null;
-      rarity?: string | null;
-      finish?: string | null;
-      artist?: string | null;
-      language?: string | null;
-    }): Promise<void> {
+    async recordNew(printingId: string): Promise<void> {
       await db
         .insertInto("printingEvents")
-        .values({
-          eventType: "new",
-          printingId: data.printingId,
-          cardName: data.cardName,
-          setName: data.setName ?? null,
-          shortCode: data.shortCode ?? null,
-          rarity: data.rarity ?? null,
-          finish: data.finish ?? null,
-          artist: data.artist ?? null,
-          language: data.language ?? null,
-          changes: null,
-          status: "pending",
-          retryCount: 0,
-        })
+        .values({ eventType: "new", printingId, changes: null, status: "pending", retryCount: 0 })
         .execute();
     },
 
     /**
      * Record a "changed" event with before/after field diffs.
+     * Skips if changes array is empty.
      * @returns Resolves when the event has been inserted.
      */
-    async recordPrintingChange(data: {
-      printingId: string;
-      cardName: string;
-      setName?: string | null;
-      shortCode?: string | null;
-      changes: FieldChange[];
-    }): Promise<void> {
-      if (data.changes.length === 0) {
+    async recordChange(printingId: string, changes: FieldChange[]): Promise<void> {
+      if (changes.length === 0) {
         return;
       }
       await db
         .insertInto("printingEvents")
         .values({
           eventType: "changed",
-          printingId: data.printingId,
-          cardName: data.cardName,
-          setName: data.setName ?? null,
-          shortCode: data.shortCode ?? null,
-          rarity: null,
-          finish: null,
-          artist: null,
-          language: null,
-          changes: JSON.stringify(data.changes),
+          printingId,
+          changes: JSON.stringify(changes),
           status: "pending",
           retryCount: 0,
         })
@@ -78,15 +65,40 @@ export function printingEventsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Fetch all pending events (for the flush cron job).
-     * @returns Pending events ordered by creation time.
+     * Fetch all pending events with full printing/card/set/image context.
+     * @returns Enriched pending events ordered by creation time.
      */
-    listPending(): Promise<Selectable<PrintingEventsTable>[]> {
+    listPending(): Promise<EnrichedPrintingEvent[]> {
       return db
-        .selectFrom("printingEvents")
-        .selectAll()
-        .where("status", "=", "pending")
-        .orderBy("createdAt", "asc")
+        .selectFrom("printingEvents as pe")
+        .innerJoin("printings as p", "p.id", "pe.printingId")
+        .innerJoin("cards as c", "c.id", "p.cardId")
+        .innerJoin("sets as s", "s.id", "p.setId")
+        .leftJoin("printingImages as pi", (join) =>
+          join
+            .onRef("pi.printingId", "=", "p.id")
+            .on("pi.face", "=", "front")
+            .on("pi.isActive", "=", true),
+        )
+        .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
+        .select([
+          "pe.id",
+          "pe.eventType",
+          "pe.printingId",
+          "pe.changes",
+          "pe.createdAt",
+          "c.name as cardName",
+          "c.slug as cardSlug",
+          "s.name as setName",
+          "p.shortCode",
+          "p.rarity",
+          "p.finish",
+          "p.artist",
+          "p.language",
+          sql<string | null>`${imageUrl("imgf")}`.as("frontImageUrl"),
+        ])
+        .where("pe.status", "=", "pending")
+        .orderBy("pe.createdAt", "asc")
         .execute();
     },
 
@@ -113,7 +125,6 @@ export function printingEventsRepo(db: Kysely<Database>) {
       if (ids.length === 0) {
         return;
       }
-      // Increment retry count
       await db
         .updateTable("printingEvents")
         .set((eb) => ({
@@ -122,7 +133,6 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .where("id", "in", ids)
         .execute();
 
-      // Mark as permanently failed if exceeded max retries
       await db
         .updateTable("printingEvents")
         .set({ status: "failed" })

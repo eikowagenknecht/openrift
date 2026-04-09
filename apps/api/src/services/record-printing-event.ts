@@ -5,25 +5,16 @@ type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
 
 /**
  * Record a "new printing" event for the Discord notification queue.
- * Fire-and-forget: errors are logged but don't block the caller.
+ * Best-effort: errors are swallowed.
  *
  * @returns Resolves when the event has been recorded.
  */
 export async function recordNewPrintingEvent(
-  printingEventsRepoInstance: PrintingEventsRepo,
-  data: {
-    printingId: string;
-    cardName: string;
-    setName?: string | null;
-    shortCode?: string | null;
-    rarity?: string | null;
-    finish?: string | null;
-    artist?: string | null;
-    language?: string | null;
-  },
+  repo: PrintingEventsRepo,
+  printingId: string,
 ): Promise<void> {
   try {
-    await printingEventsRepoInstance.recordNewPrinting(data);
+    await repo.recordNew(printingId);
   } catch {
     // Non-fatal: the printing was created successfully, notification is best-effort
   }
@@ -31,25 +22,20 @@ export async function recordNewPrintingEvent(
 
 /**
  * Record a "changed" event for the Discord notification queue.
- * Skips recording if no fields actually changed.
+ * Skips recording if no fields actually changed. Best-effort: errors are swallowed.
  *
  * @returns Resolves when the event has been recorded.
  */
 export async function recordPrintingChangeEvent(
-  printingEventsRepoInstance: PrintingEventsRepo,
-  data: {
-    printingId: string;
-    cardName: string;
-    setName?: string | null;
-    shortCode?: string | null;
-    changes: FieldChange[];
-  },
+  repo: PrintingEventsRepo,
+  printingId: string,
+  changes: FieldChange[],
 ): Promise<void> {
-  if (data.changes.length === 0) {
+  if (changes.length === 0) {
     return;
   }
   try {
-    await printingEventsRepoInstance.recordPrintingChange(data);
+    await repo.recordChange(printingId, changes);
   } catch {
     // Non-fatal: the update was applied successfully, notification is best-effort
   }

@@ -762,13 +762,9 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       const oldValue = printingBefore.promoTypeId;
       const newValue = (normalizedValue as string) || null;
       if (oldValue !== newValue) {
-        const card = await mut.getCardById(printingBefore.cardId);
-        await recordPrintingChangeEvent(printingEvents, {
-          printingId,
-          cardName: card?.name ?? "Unknown",
-          shortCode: printingBefore.shortCode,
-          changes: [{ field: "promoTypeId", from: oldValue, to: newValue }],
-        });
+        await recordPrintingChangeEvent(printingEvents, printingId, [
+          { field: "promoTypeId", from: oldValue, to: newValue },
+        ]);
       }
 
       return c.body(null, 204);
@@ -823,13 +819,9 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     // Record change event
     const oldValue = printingBefore[field as keyof typeof printingBefore] ?? null;
     if (oldValue !== normalizedValue) {
-      const card = await mut.getCardById(printingBefore.cardId);
-      await recordPrintingChangeEvent(printingEvents, {
-        printingId,
-        cardName: card?.name ?? "Unknown",
-        shortCode: printingBefore.shortCode,
-        changes: [{ field, from: oldValue, to: normalizedValue }],
-      });
+      await recordPrintingChangeEvent(printingEvents, printingId, [
+        { field, from: oldValue, to: normalizedValue },
+      ]);
     }
 
     return c.body(null, 204);

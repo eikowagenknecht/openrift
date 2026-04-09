@@ -4,7 +4,6 @@
    -- test file: mocks require empty fns and vi.mock before imports */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-// Mock discord-webhook to avoid real HTTP calls
 vi.mock("./discord-webhook.js", () => ({
   flushPrintingEvents: vi.fn(async () => ({ sentIds: [], failedIds: [] })),
 }));
@@ -17,6 +16,8 @@ const mockFlush = vi.mocked(flushPrintingEvents);
 function mockLog() {
   return { info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn() } as any;
 }
+
+const APP_BASE_URL = "https://openrift.app";
 
 describe("flushPendingPrintingEvents", () => {
   beforeEach(() => {
@@ -35,13 +36,13 @@ describe("flushPendingPrintingEvents", () => {
       },
     };
 
-    const result = await flushPendingPrintingEvents(repos as any, mockLog());
+    const result = await flushPendingPrintingEvents(repos as any, APP_BASE_URL, mockLog());
 
     expect(result).toEqual({ sent: 0, failed: 0 });
     expect(repos.siteSettings.listByScope).not.toHaveBeenCalled();
   });
 
-  it("reads webhook URLs from api-scoped site settings", async () => {
+  it("reads webhook URLs from api-scoped site settings and passes appBaseUrl", async () => {
     const events = [
       {
         id: "evt-1",
@@ -71,7 +72,7 @@ describe("flushPendingPrintingEvents", () => {
       },
     };
 
-    const result = await flushPendingPrintingEvents(repos as any, mockLog());
+    const result = await flushPendingPrintingEvents(repos as any, APP_BASE_URL, mockLog());
 
     expect(repos.siteSettings.listByScope).toHaveBeenCalledWith("api");
     expect(mockFlush).toHaveBeenCalledWith(
@@ -80,6 +81,7 @@ describe("flushPendingPrintingEvents", () => {
         newPrintings: "https://discord.com/api/webhooks/new",
         printingChanges: "https://discord.com/api/webhooks/changes",
       },
+      APP_BASE_URL,
       expect.anything(),
     );
     expect(repos.printingEvents.markSent).toHaveBeenCalledWith(["evt-1"]);
@@ -110,7 +112,7 @@ describe("flushPendingPrintingEvents", () => {
       },
     };
 
-    const result = await flushPendingPrintingEvents(repos as any, mockLog());
+    const result = await flushPendingPrintingEvents(repos as any, APP_BASE_URL, mockLog());
 
     expect(repos.printingEvents.markRetry).toHaveBeenCalledWith(["evt-1"]);
     expect(result).toEqual({ sent: 0, failed: 1 });

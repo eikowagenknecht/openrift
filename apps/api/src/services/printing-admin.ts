@@ -264,16 +264,7 @@ export async function acceptPrinting(
 
   // Record "new printing" event (best-effort, outside transaction)
   if (repos.printingEvents) {
-    await recordNewPrintingEvent(repos.printingEvents, {
-      printingId: insertedId,
-      cardName: card.name,
-      setName: printingFields.setName ?? printingFields.setId ?? null,
-      shortCode: printingFields.shortCode,
-      rarity: printingFields.rarity ?? null,
-      finish: printingFields.finish ?? null,
-      artist: printingFields.artist,
-      language: printingFields.language ?? "EN",
-    });
+    await recordNewPrintingEvent(repos.printingEvents, insertedId);
   }
 
   return insertedId;

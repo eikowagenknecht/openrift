@@ -1,9 +1,7 @@
 import type { Logger } from "@openrift/shared/logger";
-import type { Selectable } from "kysely";
 
-import type { FieldChange, PrintingEventsTable } from "../db/index.js";
-
-type PrintingEvent = Selectable<PrintingEventsTable>;
+import type { FieldChange } from "../db/index.js";
+import type { EnrichedPrintingEvent } from "../repositories/printing-events.js";
 
 // Discord allows up to 10 embeds per message
 const MAX_EMBEDS_PER_MESSAGE = 10;
@@ -15,9 +13,11 @@ const COLOR_CHANGED = 0xfe_e7_5c; // yellow
 
 interface DiscordEmbed {
   title: string;
+  url?: string;
   description?: string;
   color: number;
   fields?: { name: string; value: string; inline?: boolean }[];
+  thumbnail?: { url: string };
   timestamp?: string;
 }
 
@@ -32,8 +32,9 @@ interface DiscordWebhookPayload {
  * @returns IDs of events that were successfully delivered.
  */
 export async function flushPrintingEvents(
-  events: PrintingEvent[],
+  events: EnrichedPrintingEvent[],
   webhookUrls: { newPrintings: string | null; printingChanges: string | null },
+  appBaseUrl: string,
   log: Logger,
 ): Promise<{ sentIds: string[]; failedIds: string[] }> {
   const newEvents = events.filter((e) => e.eventType === "new");
@@ -42,34 +43,23 @@ export async function flushPrintingEvents(
   const sentIds: string[] = [];
   const failedIds: string[] = [];
 
-  // Send new printing notifications
   if (newEvents.length > 0 && webhookUrls.newPrintings) {
-    const payloads = buildNewPrintingPayloads(newEvents);
+    const payloads = buildNewPrintingPayloads(newEvents, appBaseUrl);
     const success = await sendPayloads(webhookUrls.newPrintings, payloads, log);
     for (const event of newEvents) {
-      if (success) {
-        sentIds.push(event.id);
-      } else {
-        failedIds.push(event.id);
-      }
+      (success ? sentIds : failedIds).push(event.id);
     }
   } else {
-    // No webhook configured; mark as sent to avoid infinite retry
     for (const event of newEvents) {
       sentIds.push(event.id);
     }
   }
 
-  // Send change notifications
   if (changedEvents.length > 0 && webhookUrls.printingChanges) {
-    const payloads = buildChangedPrintingPayloads(changedEvents);
+    const payloads = buildChangedPrintingPayloads(changedEvents, appBaseUrl);
     const success = await sendPayloads(webhookUrls.printingChanges, payloads, log);
     for (const event of changedEvents) {
-      if (success) {
-        sentIds.push(event.id);
-      } else {
-        failedIds.push(event.id);
-      }
+      (success ? sentIds : failedIds).push(event.id);
     }
   } else {
     for (const event of changedEvents) {
@@ -80,20 +70,31 @@ export async function flushPrintingEvents(
   return { sentIds, failedIds };
 }
 
+function cardUrl(appBaseUrl: string, slug: string | null): string | undefined {
+  if (!slug) {
+    return undefined;
+  }
+  return `${appBaseUrl}/cards/${slug}`;
+}
+
 /**
  * Build webhook payloads for new printing events.
- * If there are many, send a summary. Otherwise, one embed per printing.
  *
  * @returns Array of Discord webhook payloads to send.
  */
-export function buildNewPrintingPayloads(events: PrintingEvent[]): DiscordWebhookPayload[] {
+export function buildNewPrintingPayloads(
+  events: EnrichedPrintingEvent[],
+  appBaseUrl: string,
+): DiscordWebhookPayload[] {
   if (events.length > SUMMARY_THRESHOLD) {
-    return buildNewPrintingSummary(events);
+    return buildNewPrintingSummary(events, appBaseUrl);
   }
 
   const embeds: DiscordEmbed[] = events.map((event) => ({
-    title: `New: ${event.cardName}`,
+    title: `New: ${event.cardName ?? "Unknown Card"}`,
+    url: cardUrl(appBaseUrl, event.cardSlug),
     color: COLOR_NEW,
+    ...(event.frontImageUrl ? { thumbnail: { url: event.frontImageUrl } } : {}),
     fields: [
       ...(event.shortCode ? [{ name: "Code", value: event.shortCode, inline: true }] : []),
       ...(event.setName ? [{ name: "Set", value: event.setName, inline: true }] : []),
@@ -117,27 +118,34 @@ export function buildNewPrintingPayloads(events: PrintingEvent[]): DiscordWebhoo
  *
  * @returns Array of Discord webhook payloads.
  */
-function buildNewPrintingSummary(events: PrintingEvent[]): DiscordWebhookPayload[] {
-  // Group by set for a nicer summary
+function buildNewPrintingSummary(
+  events: EnrichedPrintingEvent[],
+  appBaseUrl: string,
+): DiscordWebhookPayload[] {
   const bySet = Map.groupBy(events, (e) => e.setName ?? "Unknown Set");
   const lines: string[] = [];
 
   for (const [setName, setEvents] of bySet) {
-    const cardNames = setEvents.map((e) => e.cardName);
-    const uniqueNames = [...new Set(cardNames)];
-    if (uniqueNames.length <= 10) {
-      lines.push(`**${setName}** (${uniqueNames.length}): ${uniqueNames.join(", ")}`);
+    const uniqueCards = [...new Map(setEvents.map((e) => [e.cardName, e])).values()];
+    if (uniqueCards.length <= 10) {
+      const links = uniqueCards.map((e) => {
+        const url = cardUrl(appBaseUrl, e.cardSlug);
+        return url ? `[${e.cardName}](${url})` : (e.cardName ?? "?");
+      });
+      lines.push(`**${setName}** (${uniqueCards.length}): ${links.join(", ")}`);
     } else {
-      const shown = uniqueNames.slice(0, 10).join(", ");
+      const shown = uniqueCards.slice(0, 10).map((e) => {
+        const url = cardUrl(appBaseUrl, e.cardSlug);
+        return url ? `[${e.cardName}](${url})` : (e.cardName ?? "?");
+      });
       lines.push(
-        `**${setName}** (${uniqueNames.length}): ${shown}, and ${uniqueNames.length - 10} more`,
+        `**${setName}** (${uniqueCards.length}): ${shown.join(", ")}, and ${uniqueCards.length - 10} more`,
       );
     }
   }
 
   const description = lines.join("\n");
 
-  // Discord embed description limit is 4096 chars; split if needed
   if (description.length <= 4000) {
     return [
       {
@@ -153,7 +161,6 @@ function buildNewPrintingSummary(events: PrintingEvent[]): DiscordWebhookPayload
     ];
   }
 
-  // If description is too long, split into multiple embeds
   const payloads: DiscordWebhookPayload[] = [];
   let currentLines: string[] = [];
   let currentLength = 0;
@@ -199,8 +206,10 @@ function buildNewPrintingSummary(events: PrintingEvent[]): DiscordWebhookPayload
  *
  * @returns Array of Discord webhook payloads to send.
  */
-export function buildChangedPrintingPayloads(events: PrintingEvent[]): DiscordWebhookPayload[] {
-  // Consolidate events for the same printing
+export function buildChangedPrintingPayloads(
+  events: EnrichedPrintingEvent[],
+  appBaseUrl: string,
+): DiscordWebhookPayload[] {
   const byPrinting = Map.groupBy(events, (e) => e.printingId);
   const embeds: DiscordEmbed[] = [];
 
@@ -209,12 +218,10 @@ export function buildChangedPrintingPayloads(events: PrintingEvent[]): DiscordWe
     const allChanges: FieldChange[] = [];
 
     for (const event of printingEvents) {
-      const changes = event.changes ?? [];
-      allChanges.push(...changes);
+      allChanges.push(...(event.changes ?? []));
     }
 
-    // Deduplicate: if the same field changed multiple times, keep the earliest "from"
-    // and latest "to"
+    // Deduplicate: keep earliest "from" and latest "to" per field
     const fieldMap = new Map<string, { from: unknown; to: unknown }>();
     for (const change of allChanges) {
       const existing = fieldMap.get(change.field);
@@ -231,14 +238,16 @@ export function buildChangedPrintingPayloads(events: PrintingEvent[]): DiscordWe
       inline: false,
     }));
 
-    const titleParts = [first.cardName];
+    const titleParts = [first.cardName ?? "Unknown Card"];
     if (first.shortCode) {
       titleParts.push(`(${first.shortCode})`);
     }
 
     embeds.push({
       title: `Updated: ${titleParts.join(" ")}`,
+      url: cardUrl(appBaseUrl, first.cardSlug),
       color: COLOR_CHANGED,
+      ...(first.frontImageUrl ? { thumbnail: { url: first.frontImageUrl } } : {}),
       fields,
       timestamp: first.createdAt.toISOString(),
     });
@@ -247,11 +256,6 @@ export function buildChangedPrintingPayloads(events: PrintingEvent[]): DiscordWe
   return chunkEmbeds(embeds);
 }
 
-/**
- * Format a field value for display in Discord.
- *
- * @returns A string representation of the value.
- */
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) {
     return "*empty*";
@@ -263,11 +267,6 @@ function formatValue(value: unknown): string {
   return str;
 }
 
-/**
- * Split embeds into chunks of MAX_EMBEDS_PER_MESSAGE.
- *
- * @returns Array of Discord webhook payloads.
- */
 function chunkEmbeds(embeds: DiscordEmbed[]): DiscordWebhookPayload[] {
   const payloads: DiscordWebhookPayload[] = [];
   for (let i = 0; i < embeds.length; i += MAX_EMBEDS_PER_MESSAGE) {
@@ -276,12 +275,6 @@ function chunkEmbeds(embeds: DiscordEmbed[]): DiscordWebhookPayload[] {
   return payloads;
 }
 
-/**
- * Send an array of payloads to a Discord webhook URL.
- * Pauses briefly between messages to avoid rate-limiting.
- *
- * @returns true if all payloads sent successfully, false if any failed.
- */
 async function sendPayloads(
   webhookUrl: string,
   payloads: DiscordWebhookPayload[],
@@ -307,7 +300,6 @@ async function sendPayloads(
       allOk = false;
     }
 
-    // Brief pause between messages to respect rate limits
     if (payloads.length > 1) {
       await Bun.sleep(1000);
     }

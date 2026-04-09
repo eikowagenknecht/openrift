@@ -105,7 +105,7 @@ if (config.cron.cardtraderSchedule && config.cardtraderApiToken) {
   const peLog = log.child({ service: "printing-events" });
   cronJobs.printingEvents = new Cron("*/15 * * * *", { protect: true }, async () => {
     try {
-      await flushPendingPrintingEvents(repos, peLog);
+      await flushPendingPrintingEvents(repos, config.appBaseUrl, peLog);
     } catch (error) {
       peLog.error(error, "Printing events flush failed");
     }

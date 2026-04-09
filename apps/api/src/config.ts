@@ -36,6 +36,8 @@ export function createConfig(env: Record<string, string | undefined>) {
 
     cardtraderApiToken: env.CARDTRADER_API_TOKEN ?? "",
 
+    appBaseUrl: env.BETTER_AUTH_URL ?? "http://localhost:5173",
+
     logRequests: env.LOG_REQUESTS === "true",
 
     cron: {

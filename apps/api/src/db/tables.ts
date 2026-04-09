@@ -708,13 +708,6 @@ export interface PrintingEventsTable {
   id: Generated<string>;
   eventType: "new" | "changed";
   printingId: string;
-  cardName: string;
-  setName: string | null;
-  shortCode: string | null;
-  rarity: string | null;
-  finish: string | null;
-  artist: string | null;
-  language: string | null;
   /** JSONB array of { field, from, to } for changed events */
   changes: ColumnType<FieldChange[] | null, string | null, string | null>;
   status: "pending" | "sent" | "failed";
