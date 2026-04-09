@@ -410,6 +410,59 @@ export const battlefieldNoDuplicates: DeckRule = (state) => {
   return violations;
 };
 
+// Total Signature cards across main deck + sideboard must not exceed 3 (rule 103.2.d.1).
+export const signatureTotalLimit: DeckRule = (state) => {
+  const signatureCards = [
+    ...cardsInZone(state.cards, "main"),
+    ...cardsInZone(state.cards, "sideboard"),
+  ].filter((card) => card.superTypes.includes(WellKnown.superType.SIGNATURE));
+
+  const count = totalQuantity(signatureCards);
+
+  if (count > 3) {
+    return [
+      {
+        zone: "deck",
+        code: "SIGNATURE_TOTAL_LIMIT",
+        message: `${count} Signature cards — maximum is 3`,
+      },
+    ];
+  }
+
+  return [];
+};
+
+// All Signature cards must share a Champion tag with the Legend (rule 103.2.d.2).
+export const signatureMatchesLegendTag: DeckRule = (state) => {
+  const legends = cardsInZone(state.cards, "legend");
+  if (legends.length !== 1) {
+    return [];
+  }
+
+  const legendTags = new Set(legends[0].tags);
+  const violations: DeckViolation[] = [];
+
+  for (const card of [
+    ...cardsInZone(state.cards, "main"),
+    ...cardsInZone(state.cards, "sideboard"),
+  ]) {
+    if (!card.superTypes.includes(WellKnown.superType.SIGNATURE)) {
+      continue;
+    }
+    const hasMatchingTag = card.tags.some((tag) => legendTags.has(tag));
+    if (!hasMatchingTag) {
+      violations.push({
+        zone: card.zone,
+        code: "SIGNATURE_TAG_MISMATCH",
+        message: `${card.cardName} does not match the Legend's Champion tag`,
+        cardId: card.cardId,
+      });
+    }
+  }
+
+  return violations;
+};
+
 // ── Rule Sets ───────────────────────────────────────────────────────────────
 
 export const STANDARD_RULES: DeckRule[] = [
@@ -428,6 +481,8 @@ export const STANDARD_RULES: DeckRule[] = [
   championCopyLimitAcrossZones,
   sideboardMaximum,
   sideboardCopyLimit,
+  signatureTotalLimit,
+  signatureMatchesLegendTag,
 ];
 
 /**

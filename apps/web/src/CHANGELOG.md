@@ -7,6 +7,7 @@
 - feat: Languages can now be reordered in preferences, and the first language is preferred when choosing which printing to display
 - feat: Collections can now be deleted from the sidebar via a three-dot menu, with cards automatically moved to the Inbox
 - feat: Shift+click in select mode now selects all cards between the first and last clicked card
+- feat: Deck builder now validates Signature cards, enforcing a maximum of 3 total and requiring they match the Legend's Champion tag
 - fix: Deck overview and deck card browser no longer show cards from disabled languages
 - fix: Card detail labels (Set, Rules, Flavor, etc.) now align consistently on both mobile and desktop
 

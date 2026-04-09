@@ -16,6 +16,8 @@ import {
   runesMatchLegendDomains,
   sideboardCopyLimit,
   sideboardMaximum,
+  signatureMatchesLegendTag,
+  signatureTotalLimit,
   validateDeck,
 } from "./deck-rules";
 
@@ -421,6 +423,143 @@ describe("sideboardCopyLimit", () => {
     );
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("SIDEBOARD_COPY_LIMIT");
+  });
+});
+
+// ── signatureTotalLimit ────────────────────────────────────────────────────
+
+describe("signatureTotalLimit", () => {
+  it("passes with 3 or fewer Signature cards", () => {
+    const cards = [
+      makeCard({ cardId: "sig-1", superTypes: ["Signature"], quantity: 2 }),
+      makeCard({ cardId: "sig-2", superTypes: ["Signature"], quantity: 1 }),
+    ];
+    expect(signatureTotalLimit(makeState(cards))).toEqual([]);
+  });
+
+  it("passes with no Signature cards", () => {
+    const cards = [makeCard({ cardId: "normal-1", quantity: 3 })];
+    expect(signatureTotalLimit(makeState(cards))).toEqual([]);
+  });
+
+  it("fails with more than 3 Signature cards across main + sideboard", () => {
+    const cards = [
+      makeCard({ cardId: "sig-1", superTypes: ["Signature"], zone: "main", quantity: 2 }),
+      makeCard({
+        cardId: "sig-2",
+        superTypes: ["Signature"],
+        zone: "sideboard",
+        quantity: 2,
+      }),
+    ];
+    const violations = signatureTotalLimit(makeState(cards));
+    expect(violations).toHaveLength(1);
+    expect(violations[0].code).toBe("SIGNATURE_TOTAL_LIMIT");
+    expect(violations[0].zone).toBe("deck");
+  });
+
+  it("ignores non-Signature cards when counting", () => {
+    const cards = [
+      makeCard({ cardId: "sig-1", superTypes: ["Signature"], quantity: 3 }),
+      makeCard({ cardId: "normal-1", quantity: 10 }),
+    ];
+    expect(signatureTotalLimit(makeState(cards))).toEqual([]);
+  });
+
+  it("ignores Signature cards in other zones", () => {
+    const cards = [
+      makeCard({
+        cardId: "sig-rune",
+        zone: "runes",
+        superTypes: ["Signature"],
+        cardType: "Rune",
+        quantity: 12,
+      }),
+    ];
+    expect(signatureTotalLimit(makeState(cards))).toEqual([]);
+  });
+});
+
+// ── signatureMatchesLegendTag ──────────────────────────────────────────────
+
+describe("signatureMatchesLegendTag", () => {
+  it("passes when Signature cards share a tag with the Legend", () => {
+    const cards = [
+      makeLegend({ tags: ["FireLord"] }),
+      makeCard({
+        cardId: "sig-1",
+        superTypes: ["Signature"],
+        tags: ["FireLord"],
+        cardName: "Fire Sig",
+      }),
+    ];
+    expect(signatureMatchesLegendTag(makeState(cards))).toEqual([]);
+  });
+
+  it("fails when a Signature card does not share a tag with the Legend", () => {
+    const cards = [
+      makeLegend({ tags: ["FireLord"] }),
+      makeCard({
+        cardId: "sig-1",
+        superTypes: ["Signature"],
+        tags: ["IceLord"],
+        cardName: "Ice Sig",
+      }),
+    ];
+    const violations = signatureMatchesLegendTag(makeState(cards));
+    expect(violations).toHaveLength(1);
+    expect(violations[0].code).toBe("SIGNATURE_TAG_MISMATCH");
+    expect(violations[0].cardId).toBe("sig-1");
+  });
+
+  it("checks Signature cards in both main and sideboard", () => {
+    const cards = [
+      makeLegend({ tags: ["FireLord"] }),
+      makeCard({
+        cardId: "sig-main",
+        zone: "main",
+        superTypes: ["Signature"],
+        tags: ["IceLord"],
+        cardName: "Main Sig",
+      }),
+      makeCard({
+        cardId: "sig-side",
+        zone: "sideboard",
+        superTypes: ["Signature"],
+        tags: ["IceLord"],
+        cardName: "Side Sig",
+      }),
+    ];
+    const violations = signatureMatchesLegendTag(makeState(cards));
+    expect(violations).toHaveLength(2);
+    expect(violations[0].zone).toBe("main");
+    expect(violations[1].zone).toBe("sideboard");
+  });
+
+  it("skips when no legend is present", () => {
+    const cards = [makeCard({ cardId: "sig-1", superTypes: ["Signature"], tags: ["IceLord"] })];
+    expect(signatureMatchesLegendTag(makeState(cards))).toEqual([]);
+  });
+
+  it("ignores non-Signature cards", () => {
+    const cards = [
+      makeLegend({ tags: ["FireLord"] }),
+      makeCard({ cardId: "normal-1", superTypes: [], tags: ["IceLord"] }),
+    ];
+    expect(signatureMatchesLegendTag(makeState(cards))).toEqual([]);
+  });
+
+  it("passes when Signature card shares one of multiple tags", () => {
+    const cards = [
+      makeLegend({ tags: ["FireLord", "DragonKin"] }),
+      makeCard({
+        cardId: "sig-1",
+        superTypes: ["Signature"],
+        tags: ["DragonKin"],
+        cardName: "Dragon Sig",
+      }),
+    ];
+    expect(signatureMatchesLegendTag(makeState(cards))).toEqual([]);
   });
 });
 
