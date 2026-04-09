@@ -18,10 +18,13 @@ export default function DeckBuildingArticle() {
       <div className="border-border bg-muted/30 rounded-lg border p-4">
         <h3 className="mb-2 text-sm font-semibold">Decks are blueprints, not physical locations</h3>
         <p className="text-muted-foreground text-sm">
-          A deck is a list of <strong className="text-foreground">cards</strong>, not specific
-          printings or copies. It doesn&apos;t matter whether you play the English version, the
-          Chinese version, or the signed foil promo. The deck just says &quot;3x Fury Rune&quot; and
-          any printing of that card will do.
+          A deck is a list of{" "}
+          <a href="/help/cards-printings-copies" className="text-primary hover:underline">
+            cards
+          </a>
+          , not specific printings or copies. It doesn&apos;t matter whether you play the English
+          version, the Chinese version, or the signed foil promo. The deck just says &quot;3x Fury
+          Rune&quot; and any printing of that card will do.
         </p>
         <p className="text-muted-foreground mt-2 text-sm">
           This is different from{" "}
