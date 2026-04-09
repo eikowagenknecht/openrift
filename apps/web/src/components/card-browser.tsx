@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { PackageIcon, PackagePlusIcon } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import type { ReactNode } from "react";
@@ -39,7 +39,6 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -66,20 +65,10 @@ export function CardBrowser() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const batchedAdd = useBatchedAddCopies();
   const disposeCopies = useDisposeCopies();
-  const queryClient = useQueryClient();
 
-  const adjustOwnedCount = (printingId: string, delta: number) => {
-    queryClient.setQueryData<{ items: Record<string, number> }>(queryKeys.ownedCount.all, (old) => {
-      if (!old) {
-        return old;
-      }
-      const prev = old.items[printingId] ?? 0;
-      return {
-        ...old,
-        items: { ...old.items, [printingId]: Math.max(0, prev + delta) },
-      };
-    });
-  };
+  // Optimistic deltas for add-mode: bridges the gap between clicking + and the
+  // batched API call updating the React Query cache via onSuccess.
+  const [countDeltas, setCountDeltas] = useState<Record<string, number>>({});
 
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
 
@@ -182,15 +171,18 @@ export function CardBrowser() {
   const handleQuickAdd =
     isAddMode && inboxId
       ? async (printing: Printing) => {
-          adjustOwnedCount(printing.id, 1);
+          const pid = printing.id;
+          setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) + 1 }));
           useAddModeStore.getState().incrementPending(printing);
           try {
-            const result = await batchedAdd.add(printing.id, inboxId);
+            const result = await batchedAdd.add(pid, inboxId);
+            // onSuccess already updated the query cache — remove our optimistic delta
+            setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) - 1 }));
             useAddModeStore.getState().recordAdd(printing, result.id);
           } catch {
-            adjustOwnedCount(printing.id, -1);
+            setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) - 1 }));
           } finally {
-            useAddModeStore.getState().decrementPending(printing.id);
+            useAddModeStore.getState().decrementPending(pid);
           }
         }
       : undefined;
@@ -205,12 +197,11 @@ export function CardBrowser() {
         if (!copyIdToRemove) {
           return;
         }
-        adjustOwnedCount(printing.id, -1);
+        // useDisposeCopies.onMutate handles the optimistic cache update
         useAddModeStore.getState().recordUndo(printing.id);
         try {
           await disposeCopies.mutateAsync({ copyIds: [copyIdToRemove] });
         } catch {
-          adjustOwnedCount(printing.id, 1);
           useAddModeStore.getState().recordAdd(printing, copyIdToRemove);
         }
       }
@@ -228,10 +219,15 @@ export function CardBrowser() {
 
     let aboveCard: ReactNode | undefined;
     if (showStrip) {
-      const count =
+      const baseCount =
         view === "cards"
           ? (siblings?.reduce((sum, p) => sum + (ownedCountByPrinting?.[p.id] ?? 0), 0) ?? 0)
           : (ownedCountByPrinting?.[displayPrinting.id] ?? 0);
+      const delta =
+        view === "cards"
+          ? (siblings?.reduce((sum, p) => sum + (countDeltas[p.id] ?? 0), 0) ?? 0)
+          : (countDeltas[displayPrinting.id] ?? 0);
+      const count = baseCount + delta;
 
       aboveCard = handleQuickAdd ? (
         <CollectionAddStrip
