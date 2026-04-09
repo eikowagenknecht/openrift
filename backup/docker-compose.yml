@@ -4,7 +4,7 @@
 # Start: docker compose up -d
 # Stop:  docker compose down
 #
-# Requires: symlink to parent .env (ln -s ../.env .env)
+# Requires: .env file (copy .env.example and fill in values)
 # Connects to the main app's Docker network to reach the database.
 services:
   backup:

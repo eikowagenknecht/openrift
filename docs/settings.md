@@ -76,16 +76,7 @@ Email sending is disabled when `SMTP_HOST` is unset.
 
 #### Database Backups (S3/R2)
 
-| Variable                      | Default   | Description                                                                       |
-| ----------------------------- | --------- | --------------------------------------------------------------------------------- |
-| `BACKUP_S3_ENDPOINT`          |           | R2 endpoint URL (no bucket name): `https://<account-id>.r2.cloudflarestorage.com` |
-| `BACKUP_S3_BUCKET`            |           | R2 bucket name                                                                    |
-| `BACKUP_S3_PREFIX`            | `backups` | Object key prefix inside the bucket                                               |
-| `BACKUP_S3_ACCESS_KEY_ID`     |           | R2 API token access key (needs Object Read & Write)                               |
-| `BACKUP_S3_SECRET_ACCESS_KEY` |           | R2 API token secret key                                                           |
-| `BACKUP_ENCRYPTION_PASSWORD`  |           | **Required.** GPG symmetric encryption passphrase for backups                     |
-| `BACKUP_SCHEDULE`             | `@daily`  | Cron expression for automated backups                                             |
-| `BACKUP_KEEP_DAYS`            | `30`      | Delete backups older than this many days                                          |
+Backup variables live in `backup/.env` (not the main `.env`). See `backup/.env.example` for the full list.
 
 ### Testing
 

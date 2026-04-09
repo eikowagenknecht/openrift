@@ -110,18 +110,7 @@ It runs as a separate Docker Compose project in `backup/`, connecting to the mai
 
 ### Configuration
 
-Set these in `.env` on the VPS:
-
-| Variable                      | Description                                                                   |
-| ----------------------------- | ----------------------------------------------------------------------------- |
-| `BACKUP_S3_ENDPOINT`          | R2 endpoint (no bucket name): `https://<account-id>.r2.cloudflarestorage.com` |
-| `BACKUP_S3_BUCKET`            | R2 bucket name (e.g. `openrift-backups`)                                      |
-| `BACKUP_S3_PREFIX`            | Path prefix inside the bucket (default: `backups`)                            |
-| `BACKUP_S3_ACCESS_KEY_ID`     | R2 API token access key (needs Object Read & Write)                           |
-| `BACKUP_S3_SECRET_ACCESS_KEY` | R2 API token secret key                                                       |
-| `BACKUP_ENCRYPTION_PASSWORD`  | **Required.** GPG symmetric encryption passphrase                             |
-| `BACKUP_SCHEDULE`             | Cron expression (default: `@daily`)                                           |
-| `BACKUP_KEEP_DAYS`            | Delete backups older than this many days (default: `30`)                      |
+Create `backup/.env` from `backup/.env.example` and fill in the values. The backup stack has its own `.env` (separate from the main app), including duplicated Postgres credentials. See `backup/.env.example` for all variables.
 
 ### Manual backup
 
@@ -148,7 +137,7 @@ docker compose exec -T db pg_restore -U openrift -d openrift --clean --if-exists
 1. Create an R2 bucket (e.g. `openrift-backups`) in the Cloudflare dashboard (R2 → Create bucket, EU region)
 2. Create an R2 API token: R2 → Manage R2 API Tokens → Object Read & Write, scoped to the backup bucket only
 3. Generate an encryption passphrase: `openssl rand -base64 32` — save it in a password manager
-4. Add `BACKUP_S3_*` and `BACKUP_ENCRYPTION_PASSWORD` to `.env` on the VPS
+4. Create `backup/.env` from `backup/.env.example` and fill in the R2 credentials, encryption passphrase, and Postgres credentials
 5. Start the backup container: `cd backup && docker compose up -d`
 6. Verify with a one-off backup: `cd backup && docker compose run --rm -e SCHEDULE= backup` — check the R2 bucket for the uploaded file
 
