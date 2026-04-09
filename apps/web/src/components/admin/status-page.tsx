@@ -8,6 +8,7 @@ import {
   ServerIcon,
   TagIcon,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,8 +72,15 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
 }
 
 export function StatusPage() {
-  const { data, refetch, isFetching } = useAdminStatus();
+  const { data, refetch, isFetching, dataUpdatedAt } = useAdminStatus();
   const clearCache = useClearSsrCache();
+  const [lastUpdated, setLastUpdated] = useState("");
+
+  useEffect(() => {
+    if (dataUpdatedAt > 0) {
+      setLastUpdated(new Date(dataUpdatedAt).toLocaleTimeString());
+    }
+  }, [dataUpdatedAt]);
 
   if (!data) {
     return null;
@@ -84,7 +92,7 @@ export function StatusPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-muted-foreground text-sm">
-          Auto-refreshes every 30 seconds. Last updated {new Date().toLocaleTimeString()}.
+          Auto-refreshes every 30 seconds.{lastUpdated && ` Last updated ${lastUpdated}.`}
         </p>
         <div className="flex gap-2">
           <Button
