@@ -1608,15 +1608,19 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .returning("id")
         .execute();
 
-      // Add an image to the printing
+      // Add an image to the printing (create card_image first, then link via printing_image)
+      const [cardImage] = await db
+        .insertInto("imageFiles")
+        .values({ originalUrl: "https://example.com/delete-test.png" })
+        .returning("id")
+        .execute();
       await db
         .insertInto("printingImages")
         .values({
           printingId: disposablePrinting.id,
           face: "front",
           provider: "test",
-          originalUrl: "https://example.com/delete-test.png",
-          rehostedUrl: null,
+          imageFileId: cardImage.id,
           isActive: true,
         })
         .execute();

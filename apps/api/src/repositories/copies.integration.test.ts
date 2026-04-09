@@ -82,12 +82,10 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
     const list = await copies.listForCollection(collectionId, 200);
     expect(list.length).toBeGreaterThanOrEqual(3);
 
-    // Verify denormalized fields are present
+    // Verify slim copy fields are present
     for (const copy of list) {
-      expect(copy.cardName).toBeDefined();
-      expect(copy.cardType).toBeDefined();
-      expect(copy.setId).toBeDefined();
-      expect(copy.rarity).toBeDefined();
+      expect(copy.printingId).toBeDefined();
+      expect(copy.collectionId).toBeDefined();
     }
   });
 
@@ -101,7 +99,7 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
 
     // All copies should belong to this user (verified by the where clause)
     for (const copy of list) {
-      expect(copy.cardName).toBeDefined();
+      expect(copy.printingId).toBeDefined();
     }
   });
 
@@ -120,7 +118,7 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
     expect(result).toBeDefined();
     expect(result!.id).toBe(copyId);
     expect(result!.printingId).toBe(printingId1);
-    expect(result!.cardName).toBeDefined();
+    expect(result!.collectionId).toBeDefined();
   });
 
   it("returns undefined for a copy with wrong userId", async () => {

@@ -216,9 +216,9 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
 
   describe("POST /admin/clear-rehosted", () => {
     it("returns 200 with cleared count", async () => {
-      // Ensure no images have rehostedUrl without originalUrl (would violate chk_printing_images_has_url)
+      // Ensure no card_images have rehostedUrl without originalUrl (would violate chk_image_files_has_url)
       await db
-        .updateTable("printingImages")
+        .updateTable("imageFiles")
         .set({ originalUrl: "https://example.com/placeholder.png" })
         .where("rehostedUrl", "is not", null)
         .where("originalUrl", "is", null)
@@ -315,12 +315,19 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
       expect(json.provider).toBe("img-source");
       expect(json.updated).toBeTypeOf("number");
 
-      // Verify a printing_images row was created
+      // Verify a printing_images row was created with its card_image
       const images = await db
         .selectFrom("printingImages")
-        .select(["printingId", "face", "provider", "originalUrl", "isActive"])
-        .where("printingId", "=", printingId)
-        .where("provider", "=", "img-source")
+        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+        .select([
+          "printingImages.printingId",
+          "printingImages.face",
+          "printingImages.provider",
+          "ci.originalUrl",
+          "printingImages.isActive",
+        ])
+        .where("printingImages.printingId", "=", printingId)
+        .where("printingImages.provider", "=", "img-source")
         .execute();
       expect(images).toHaveLength(1);
       expect(images[0].face).toBe("front");

@@ -145,11 +145,12 @@ export function decksRepo(db: Kysely<Database>) {
           domainsArray("dc.cardId").as("domains"),
           superTypesArray("dc.cardId").as("superTypes"),
           sql<string | null>`(
-            SELECT COALESCE(pi.rehosted_url, pi.original_url)
+            SELECT COALESCE(ci.rehosted_url, ci.original_url)
             FROM printings p
             JOIN sets s ON s.id = p.set_id
             JOIN printing_images pi ON pi.printing_id = p.id
               AND pi.face = 'front' AND pi.is_active = true
+            JOIN image_files ci ON ci.id = pi.image_file_id
             WHERE p.card_id = dc.card_id
             ORDER BY
               (p.art_variant = 'normal')::int DESC,

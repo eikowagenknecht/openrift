@@ -474,7 +474,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
 
     /** @returns Card detail fields for the card source detail page. */
     cardForDetail(
-      slug: string,
+      idOrSlug: string,
     ): Promise<
       | (Pick<
           Selectable<CardsTable>,
@@ -511,7 +511,13 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           domainsArray("cards.id").as("domains"),
           superTypesArray("cards.id").as("superTypes"),
         ])
-        .where("slug", "=", slug)
+        .where(
+          /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i.test(idOrSlug)
+            ? "id"
+            : "slug",
+          "=",
+          idOrSlug,
+        )
         .executeTakeFirst() as Promise<any>;
     },
 
