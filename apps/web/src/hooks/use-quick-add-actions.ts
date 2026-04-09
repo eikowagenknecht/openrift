@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useAddModeStore } from "@/stores/add-mode-store";
@@ -54,12 +54,21 @@ export function useQuickAddActions(collectionId?: string) {
       }
     : undefined;
 
+  // Track the card whose popover was just closed so the click-through from the
+  // mousedown close-outside handler doesn't immediately reopen it.
+  const justClosedRef = useRef<string | null>(null);
+
   const handleOpenVariants = collectionId
     ? (printing: Printing, anchorEl: HTMLElement) => {
         const rect = anchorEl.getBoundingClientRect();
+        if (justClosedRef.current === printing.card.id) {
+          justClosedRef.current = null;
+          return;
+        }
         const current = useAddModeStore.getState().variantPopover;
         if (current?.cardId === printing.card.id) {
           useAddModeStore.getState().closeVariants();
+          justClosedRef.current = printing.card.id;
           return;
         }
         useAddModeStore.getState().openVariants(printing.card.id, {

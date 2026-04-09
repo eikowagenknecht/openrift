@@ -51,10 +51,14 @@ export function HelpIndexPage() {
             href="https://discord.gg/Qb6RcjXq6z"
             target="_blank"
             rel="noreferrer"
-            className="text-foreground inline-flex items-center gap-1 hover:underline"
+            className="text-foreground hover:underline"
           >
-            <svg viewBox="0 0 24 24" className="size-3.5" aria-hidden="true">
-              <path d={siDiscord.path} fill="currentColor" />
+            <svg
+              viewBox="0 0 24 24"
+              className="mr-0.5 mb-px inline size-3.5 fill-current align-middle"
+              aria-hidden="true"
+            >
+              <path d={siDiscord.path} />
             </svg>
             Ask us on Discord
           </a>
