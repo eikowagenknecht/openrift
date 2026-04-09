@@ -61,7 +61,6 @@ const mockMut = {
   upsertPrintingLinkOverrides: vi.fn(),
   removePrintingLinkOverrides: vi.fn(),
   renameCardSlugById: vi.fn(),
-  updateCardBySlug: vi.fn(),
   updateCardById: vi.fn(),
   getCardTexts: vi.fn(),
   getCardTextsById: vi.fn(),

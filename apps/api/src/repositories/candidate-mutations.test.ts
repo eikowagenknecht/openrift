@@ -251,13 +251,6 @@ describe("candidateMutationsRepo", () => {
     expect(await candidateMutationsRepo(db).getCardTexts("OGS-001")).toBeDefined();
   });
 
-  it("updateCardBySlug updates fields", async () => {
-    const db = createMockDb([]);
-    await expect(
-      candidateMutationsRepo(db).updateCardBySlug("OGS-001", { name: "Updated" }),
-    ).resolves.toBeUndefined();
-  });
-
   // ── Printing mutations ────────────────────────────────────────────────────
 
   it("deletePrintingById returns deleted id", async () => {
