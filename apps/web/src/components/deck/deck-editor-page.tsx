@@ -494,12 +494,14 @@ function DeckEditorContent({
             </div>
           )}
 
-          <div className="min-w-0 flex-1">
-            <DeckCardBrowser />
+          <div className="flex min-w-0 flex-1 flex-col">
+            <div className="flex-1">
+              <DeckCardBrowser />
+            </div>
+            <Footer />
           </div>
         </div>
       </DeckDndContext>
-      <Footer className="px-3 pb-3" />
     </div>
   );
 }
