@@ -48,3 +48,6 @@ deploy.sh
 
 # Tooling worktrees (auto-managed)
 .worktrees/
+
+# Auto-generated test artifacts from Hypothesis (a property-based testing library)
+.hypothesis/
