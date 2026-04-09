@@ -555,11 +555,15 @@ export function CandidateSpreadsheet({
                         <ChevronDownIcon className="ml-auto size-3.5 opacity-50" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
-                        {(field.options ?? []).map((opt) => {
-                          const selected = Array.isArray(activeValue) && activeValue.includes(opt);
+                        {(field.labeledOptions
+                          ? field.labeledOptions.map((lo) => ({ value: lo.value, label: lo.label }))
+                          : (field.options ?? []).map((opt) => ({ value: opt, label: opt }))
+                        ).map(({ value, label }) => {
+                          const selected =
+                            Array.isArray(activeValue) && activeValue.includes(value);
                           return (
                             <DropdownMenuCheckboxItem
-                              key={opt}
+                              key={value}
                               checked={selected}
                               onSelect={(e) => e.preventDefault()}
                               onCheckedChange={() => {
@@ -567,12 +571,12 @@ export function CandidateSpreadsheet({
                                   ? (activeValue as string[])
                                   : [];
                                 const next = selected
-                                  ? current.filter((v) => v !== opt)
-                                  : [...current, opt];
+                                  ? current.filter((v) => v !== value)
+                                  : [...current, value];
                                 onActiveChange?.(field.key, next.length > 0 ? next : null);
                               }}
                             >
-                              {opt}
+                              {label}
                             </DropdownMenuCheckboxItem>
                           );
                         })}
