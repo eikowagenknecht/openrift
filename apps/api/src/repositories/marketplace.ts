@@ -36,6 +36,31 @@ export function marketplaceRepo(db: Kysely<Database>) {
         .execute();
     },
 
+    /**
+     * Latest market price per marketplace for a subset of printings.
+     *
+     * Same logic as {@link latestPrices} but filtered to the given printing IDs.
+     *
+     * @returns Rows with `printingId`, `marketplace`, and `marketCents`.
+     */
+    latestPricesForPrintings(
+      printingIds: string[],
+    ): Promise<{ printingId: string; marketplace: string; marketCents: number }[]> {
+      if (printingIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("marketplaceProducts as ps")
+        .innerJoin("marketplaceSnapshots as snap", "snap.productId", "ps.id")
+        .innerJoin("printings as p", "p.id", "ps.printingId")
+        .where("ps.printingId", "in", printingIds)
+        .distinctOn("ps.id")
+        .select(["p.id as printingId", "ps.marketplace", "snap.marketCents"])
+        .orderBy("ps.id")
+        .orderBy("snap.recordedAt", "desc")
+        .execute();
+    },
+
     /** @returns Marketplace sources (TCGPlayer / Cardmarket) linked to a printing. */
     sourcesForPrinting(
       printingId: string,

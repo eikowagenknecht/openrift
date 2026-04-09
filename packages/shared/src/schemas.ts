@@ -53,7 +53,7 @@ export const copyCollectionBreakdownQuerySchema = z.object({
 });
 
 export const decksQuerySchema = z.object({
-  wanted: z.string().optional(),
+  wanted: z.enum(["true", "false"]).optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -111,13 +111,15 @@ export const updateDeckSchema = z.object({
 });
 
 export const updateDeckCardsSchema = z.object({
-  cards: z.array(
-    z.object({
-      cardId: z.string(),
-      zone: deckCardFieldRules.zone,
-      quantity: deckCardFieldRules.quantity,
-    }),
-  ),
+  cards: z
+    .array(
+      z.object({
+        cardId: z.uuid(),
+        zone: deckCardFieldRules.zone,
+        quantity: deckCardFieldRules.quantity,
+      }),
+    )
+    .max(500),
 });
 
 // ---------------------------------------------------------------------------
@@ -154,8 +156,8 @@ export const updateWishListSchema = z.object({
 
 export const createWishListItemSchema = z
   .object({
-    cardId: z.string().optional(),
-    printingId: z.string().optional(),
+    cardId: z.uuid().optional(),
+    printingId: z.uuid().optional(),
     quantityDesired: wishListItemFieldRules.quantityDesired.default(1),
   })
   .refine((data) => Boolean(data.cardId) !== Boolean(data.printingId), {

@@ -63,7 +63,7 @@ const dbWishListItem = {
   id: ITEM_ID,
   wishListId: WISH_LIST_ID,
   userId: USER_ID,
-  cardId: "OGS-001",
+  cardId: "c0000000-0001-4000-a000-000000000001",
   printingId: null,
   quantityDesired: 2,
   createdAt: now,
@@ -201,19 +201,26 @@ describe("POST /api/v1/wish-lists/:id/items", () => {
     const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardId: "OGS-001", quantityDesired: 2 }),
+      body: JSON.stringify({ cardId: "c0000000-0001-4000-a000-000000000001", quantityDesired: 2 }),
     });
     expect(res.status).toBe(201);
   });
 
   it("returns 201 with created item (printingId)", async () => {
-    const printingItem = { ...dbWishListItem, cardId: null, printingId: "OGS-001:rare:normal:" };
+    const printingItem = {
+      ...dbWishListItem,
+      cardId: null,
+      printingId: "d0000000-0002-4000-a000-000000000001",
+    };
     mockRepo.exists.mockResolvedValue({ id: WISH_LIST_ID });
     mockRepo.createItem.mockResolvedValue(printingItem);
     const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ printingId: "OGS-001:rare:normal:", quantityDesired: 1 }),
+      body: JSON.stringify({
+        printingId: "d0000000-0002-4000-a000-000000000001",
+        quantityDesired: 1,
+      }),
     });
     expect(res.status).toBe(201);
   });
@@ -222,7 +229,10 @@ describe("POST /api/v1/wish-lists/:id/items", () => {
     const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardId: "OGS-001", printingId: "OGS-001:rare:normal:" }),
+      body: JSON.stringify({
+        cardId: "c0000000-0001-4000-a000-000000000001",
+        printingId: "d0000000-0002-4000-a000-000000000001",
+      }),
     });
     // Zod refine rejects both — returned as 400 by zValidator
     expect(res.status).toBe(400);
@@ -242,7 +252,7 @@ describe("POST /api/v1/wish-lists/:id/items", () => {
     const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardId: "OGS-001" }),
+      body: JSON.stringify({ cardId: "c0000000-0001-4000-a000-000000000001" }),
     });
     expect(res.status).toBe(404);
   });
@@ -377,12 +387,12 @@ describe("POST /api/v1/wish-lists/:id/items — argument passing", () => {
     await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardId: "OGS-001", quantityDesired: 3 }),
+      body: JSON.stringify({ cardId: "c0000000-0001-4000-a000-000000000001", quantityDesired: 3 }),
     });
     expect(mockRepo.createItem).toHaveBeenCalledWith({
       wishListId: WISH_LIST_ID,
       userId: USER_ID,
-      cardId: "OGS-001",
+      cardId: "c0000000-0001-4000-a000-000000000001",
       printingId: null,
       quantityDesired: 3,
     });
@@ -390,17 +400,24 @@ describe("POST /api/v1/wish-lists/:id/items — argument passing", () => {
 
   it("passes correct arguments with printingId", async () => {
     mockRepo.exists.mockResolvedValue({ id: WISH_LIST_ID });
-    mockRepo.createItem.mockResolvedValue({ ...dbWishListItem, cardId: null, printingId: "P-001" });
+    mockRepo.createItem.mockResolvedValue({
+      ...dbWishListItem,
+      cardId: null,
+      printingId: "d0000000-0001-4000-a000-000000000001",
+    });
     await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ printingId: "P-001", quantityDesired: 1 }),
+      body: JSON.stringify({
+        printingId: "d0000000-0001-4000-a000-000000000001",
+        quantityDesired: 1,
+      }),
     });
     expect(mockRepo.createItem).toHaveBeenCalledWith({
       wishListId: WISH_LIST_ID,
       userId: USER_ID,
       cardId: null,
-      printingId: "P-001",
+      printingId: "d0000000-0001-4000-a000-000000000001",
       quantityDesired: 1,
     });
   });
@@ -411,7 +428,7 @@ describe("POST /api/v1/wish-lists/:id/items — argument passing", () => {
     await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cardId: "OGS-001" }),
+      body: JSON.stringify({ cardId: "c0000000-0001-4000-a000-000000000001" }),
     });
     expect(mockRepo.createItem).toHaveBeenCalledWith(
       expect.objectContaining({ quantityDesired: 1 }),
@@ -436,7 +453,7 @@ describe("GET /api/v1/wish-lists/:id — detail response fields", () => {
     expect(json.wishList.updatedAt).toBe(now.toISOString());
     expect(json.items[0].id).toBe(ITEM_ID);
     expect(json.items[0].wishListId).toBe(WISH_LIST_ID);
-    expect(json.items[0].cardId).toBe("OGS-001");
+    expect(json.items[0].cardId).toBe("c0000000-0001-4000-a000-000000000001");
     expect(json.items[0].printingId).toBeNull();
   });
 
