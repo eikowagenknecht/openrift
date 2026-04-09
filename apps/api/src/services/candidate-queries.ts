@@ -338,29 +338,21 @@ export async function buildExport(repo: Repo) {
   });
 }
 
-// ── GET /:cardId — card detail ──────────────────────────────────────────────
+// ── Card detail (shared logic) ─────────────────────────────────────────────
+
+type CardForDetail = Awaited<ReturnType<Repo["cardForDetailById"]>>;
 
 /**
- * Unified detail view — tries slug lookup first, falls back to normName.
- * Both matched (existing card) and unmatched (candidate) use this.
- * @returns Card detail with candidates, printings, candidate printings, groups, and images.
+ * Shared logic for building candidate/printing detail once the card and normNames are known.
+ * @returns Full detail response with candidates, printings, groups, and images.
  */
-export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
-  const card = await repo.cardForDetail(identifier);
-
-  // Fetch errata for matched cards
-  const errata = card ? await repo.cardErrataForDetail(card.id) : null;
-
-  // If matched, look up by card's normName + aliases; otherwise treat identifier as normName
-  const aliases = card ? await repo.cardNameAliases(card.id) : [];
-  if (card && aliases.length === 0) {
-    throw new AppError(
-      500,
-      "MISSING_ALIAS",
-      `Card "${card.slug}" has no name aliases — this should never happen. Re-create the alias to fix.`,
-    );
-  }
-  const normNames = aliases.length > 0 ? aliases.map((a) => a.normName) : [identifier];
+async function buildDetailResponse(
+  repo: Repo,
+  card: NonNullable<CardForDetail> | null,
+  errata: Awaited<ReturnType<Repo["cardErrataForDetail"]>>,
+  normNames: string[],
+  fallbackDisplayName: string,
+) {
   const candidates = await repo.candidateCardsForDetail(normNames);
   const candidateIds = candidates.map((s) => s.id);
   const candidatePrintings =
@@ -459,7 +451,7 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
     });
   }
 
-  // Card name if matched, shortest candidate name if unmatched (candidates may have slight name variations)
+  // Card name if matched, shortest candidate name if unmatched
   const displayName = card
     ? card.name
     : candidates.length > 0
@@ -467,7 +459,7 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
           (best, s) => (s.name.length < best.length ? s.name : best),
           candidates[0].name,
         )
-      : identifier;
+      : fallbackDisplayName;
 
   return {
     card: card
@@ -513,10 +505,40 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
   };
 }
 
-/** @deprecated Use buildCandidateCardDetail which handles both matched and unmatched.
- * @returns Unmatched detail reshaped from buildCandidateCardDetail. */
+// ── GET /:cardId — matched card detail ─────────────────────────────────────
+
+/**
+ * Detail view for a matched card (looked up by UUID).
+ * @returns Card detail with candidates, printings, candidate printings, groups, and images.
+ */
+export async function buildCardDetail(repo: Repo, cardId: string) {
+  const card = await repo.cardForDetailById(cardId);
+  if (!card) {
+    return buildDetailResponse(repo, null, null, [], cardId);
+  }
+
+  const aliases = await repo.cardNameAliases(card.id);
+  if (aliases.length === 0) {
+    throw new AppError(
+      500,
+      "MISSING_ALIAS",
+      `Card "${card.slug}" has no name aliases — this should never happen. Re-create the alias to fix.`,
+    );
+  }
+
+  const errata = await repo.cardErrataForDetail(card.id);
+  const normNames = aliases.map((a) => a.normName);
+  return buildDetailResponse(repo, card, errata, normNames, card.name);
+}
+
+// ── GET /new/:name — unmatched candidate detail ────────────────────────────
+
+/**
+ * Detail view for unmatched candidates (no card exists yet, looked up by normName).
+ * @returns Candidate detail with sources, candidate printings, groups, and set totals.
+ */
 export async function buildUnmatchedDetail(repo: Repo, normName: string) {
-  const result = await buildCandidateCardDetail(repo, normName);
+  const result = await buildDetailResponse(repo, null, null, [normName], normName);
   return {
     displayName: result.displayName,
     sources: result.sources,

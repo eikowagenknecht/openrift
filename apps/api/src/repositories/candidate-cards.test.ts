@@ -162,9 +162,9 @@ describe("candidateCardsRepo", () => {
     expect(await candidateCardsRepo(db).cardBySlug("OGS-001")).toEqual(CARD);
   });
 
-  it("cardForDetail returns card details", async () => {
+  it("cardForDetailById returns card details", async () => {
     const db = createMockDb([{ id: "c-1", slug: "OGS-001", name: "Annie" }]);
-    expect(await candidateCardsRepo(db).cardForDetail("OGS-001")).toBeDefined();
+    expect(await candidateCardsRepo(db).cardForDetailById("c-1")).toBeDefined();
   });
 
   it("cardNameAliases returns aliases", async () => {

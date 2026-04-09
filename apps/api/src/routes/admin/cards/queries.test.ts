@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCandidateCardList,
   buildExport,
-  buildCandidateCardDetail,
+  buildCardDetail,
   buildUnmatchedDetail,
 } from "../../../services/candidate-queries.js";
 import { queriesRoute } from "./queries";
@@ -20,13 +20,13 @@ import { queriesRoute } from "./queries";
 vi.mock("../../../services/candidate-queries.js", () => ({
   buildCandidateCardList: vi.fn(),
   buildExport: vi.fn(),
-  buildCandidateCardDetail: vi.fn(),
+  buildCardDetail: vi.fn(),
   buildUnmatchedDetail: vi.fn(),
 }));
 
 const mockBuildCandidateCardList = vi.mocked(buildCandidateCardList);
 const mockBuildExport = vi.mocked(buildExport);
-const mockBuildCandidateCardDetail = vi.mocked(buildCandidateCardDetail);
+const mockBuildCandidateCardDetail = vi.mocked(buildCardDetail);
 const mockBuildUnmatchedDetail = vi.mocked(buildUnmatchedDetail);
 
 // ---------------------------------------------------------------------------
