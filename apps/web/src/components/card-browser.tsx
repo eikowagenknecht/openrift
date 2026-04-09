@@ -444,7 +444,12 @@ export function CardBrowser() {
             >
               <VariantAddPopover
                 printings={variantPrintings}
-                ownedCounts={ownedCountByPrinting}
+                ownedCounts={Object.fromEntries(
+                  variantPrintings.map((p) => [
+                    p.id,
+                    (ownedCountByPrinting?.[p.id] ?? 0) + (countDeltas[p.id] ?? 0),
+                  ]),
+                )}
                 onQuickAdd={handleQuickAdd}
                 onUndoAdd={handleUndoAdd}
               />
