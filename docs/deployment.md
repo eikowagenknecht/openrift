@@ -15,7 +15,6 @@ Docker images are built in GitHub Actions and pushed to GHCR. The VPS only pulls
 | `api`     | `ghcr.io/eikowagenknecht/openrift-api`   | API + migrations on startup + cron jobs (Bun)          |
 | `web`     | `ghcr.io/eikowagenknecht/openrift-web`   | TanStack Start SSR server (Bun, internal only)         |
 | `proxy`   | `ghcr.io/eikowagenknecht/openrift-proxy` | Nginx reverse proxy + static assets (exposed on :8080) |
-| `backup`  | `siemens/postgres-backup-s3:18`          | Scheduled pg_dump to Cloudflare R2                     |
 
 The `api` container:
 
@@ -105,7 +104,9 @@ docker compose down -v           # Same as above — bind mounts are NOT deleted
 
 ## Database Backups
 
-The `backup` sidecar container runs `pg_dump` on a schedule and uploads GPG-encrypted backups to Cloudflare R2. It uses the [siemens/postgres-backup-s3](https://github.com/siemens/postgres-backup-s3) image (`:18` tag matches our PostgreSQL version). Old backups are automatically pruned after `BACKUP_KEEP_DAYS`.
+The backup container runs `pg_dump` on a schedule and uploads GPG-encrypted backups to Cloudflare R2. It uses the [siemens/postgres-backup-s3](https://github.com/siemens/postgres-backup-s3) image (`:18` tag matches our PostgreSQL version). Old backups are automatically pruned after `BACKUP_KEEP_DAYS`.
+
+It runs as a separate Docker Compose project in `backup/`, connecting to the main app's network to reach the database.
 
 ### Configuration
 
@@ -127,7 +128,7 @@ Set these in `.env` on the VPS:
 Run a one-off backup (dumps immediately, then exits):
 
 ```bash
-docker compose run --rm -e SCHEDULE= backup
+cd backup && docker compose run --rm -e SCHEDULE= backup
 ```
 
 ### Restore from backup
@@ -148,8 +149,8 @@ docker compose exec -T db pg_restore -U openrift -d openrift --clean --if-exists
 2. Create an R2 API token: R2 → Manage R2 API Tokens → Object Read & Write, scoped to the backup bucket only
 3. Generate an encryption passphrase: `openssl rand -base64 32` — save it in a password manager
 4. Add `BACKUP_S3_*` and `BACKUP_ENCRYPTION_PASSWORD` to `.env` on the VPS
-5. Restart: `docker compose up -d`
-6. Verify with a one-off backup: `docker compose run --rm -e SCHEDULE= backup` — check the R2 bucket for the uploaded file
+5. Start the backup container: `cd backup && docker compose up -d`
+6. Verify with a one-off backup: `cd backup && docker compose run --rm -e SCHEDULE= backup` — check the R2 bucket for the uploaded file
 
 ## Logs
 
@@ -307,10 +308,12 @@ From your **local machine**, copy the files:
 # Stable instance
 scp docker-compose.yml openrift@VPS:~/openrift/
 scp deploy.sh.example openrift@VPS:~/openrift/deploy.sh
+scp -r backup openrift@VPS:~/openrift/backup
 
 # Preview instance
 scp docker-compose.yml openrift@VPS:~/openrift-preview/
 scp deploy.sh.example openrift@VPS:~/openrift-preview/deploy.sh
+scp -r backup openrift@VPS:~/openrift-preview/backup
 ```
 
 On the **server**:
@@ -395,6 +398,8 @@ curl -s localhost:8082/api/health | jq .
 ```plaintext
 /home/openrift/
 ├── openrift/                        # Stable (openrift.app)
+│   ├── backup/                      # Backup stack (separate compose project)
+│   │   └── docker-compose.yml
 │   ├── certs/                       # Cloudflare Origin Certificate
 │   │   └── .htpasswd               # Basic auth for monitoring (optional)
 │   ├── data/postgres/               # PostgreSQL data (bind mount)
