@@ -2,7 +2,7 @@
 
 ## 2026-04-09
 
-- feat: The cards page now has a toggle to show how many copies of each card you own
+- feat: The cards page now has a collection mode button that cycles through showing owned counts and quick-add controls, plus Ctrl+K to add cards to your Inbox
 - feat: Keyword and language fields in the admin translations table now use dropdown selects instead of free-text inputs
 - feat: Languages can now be reordered in preferences, and the first language is preferred when choosing which printing to display
 - feat: Collections can now be deleted from the sidebar via a three-dot menu, with cards automatically moved to the Inbox

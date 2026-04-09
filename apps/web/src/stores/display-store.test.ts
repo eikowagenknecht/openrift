@@ -158,6 +158,16 @@ describe("useDisplayStore", () => {
       expect(useDisplayStore.getState().filtersExpanded).toBe(true);
     });
 
+    it("cycleCatalogMode cycles through off → count → add → off", () => {
+      expect(useDisplayStore.getState().catalogMode).toBe("off");
+      useDisplayStore.getState().cycleCatalogMode();
+      expect(useDisplayStore.getState().catalogMode).toBe("count");
+      useDisplayStore.getState().cycleCatalogMode();
+      expect(useDisplayStore.getState().catalogMode).toBe("add");
+      useDisplayStore.getState().cycleCatalogMode();
+      expect(useDisplayStore.getState().catalogMode).toBe("off");
+    });
+
     it("layout state setters work", () => {
       useDisplayStore.getState().setPhysicalMax(12);
       useDisplayStore.getState().setPhysicalMin(2);

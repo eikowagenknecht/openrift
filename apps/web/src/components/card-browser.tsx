@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
-import { PackageIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { PackageIcon, PackagePlusIcon } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import type { ReactNode } from "react";
 import { useEffect, useDeferredValue, useRef, useState } from "react";
@@ -9,6 +10,8 @@ import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
+import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
+import { QuickAddPalette } from "@/components/collection/quick-add-palette";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import {
   CollapsibleFilterPanel,
@@ -30,10 +33,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
+import { collectionsQueryOptions } from "@/hooks/use-collections";
+import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
+import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -45,12 +51,20 @@ import { useSelectionStore } from "@/stores/selection-store";
 export function CardBrowser() {
   const isMobile = useIsMobile();
   const showImages = useDisplayStore((s) => s.showImages);
-  const showOwnedCount = useDisplayStore((s) => s.showOwnedCount);
-  const setShowOwnedCount = useDisplayStore((s) => s.setShowOwnedCount);
+  const catalogMode = useDisplayStore((s) => s.catalogMode);
+  const cycleCatalogMode = useDisplayStore((s) => s.cycleCatalogMode);
   const { allPrintings, sets } = useCards();
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user);
   const { data: ownedCountByPrinting } = useOwnedCount(isLoggedIn);
+  const { data: collections } = useQuery({
+    ...collectionsQueryOptions,
+    enabled: isLoggedIn,
+  });
+  const inboxId = collections?.find((col) => col.isInbox)?.id;
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const batchedAdd = useBatchedAddCopies();
+  const disposeCopies = useDisposeCopies();
 
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
 
@@ -116,6 +130,21 @@ export function CardBrowser() {
     }
   }, [linkedPrintingId, allPrintings, items, setLinkedPrintingId]);
 
+  // Cmd+K / Ctrl+K shortcut to open quick-add palette
+  useEffect(() => {
+    if (!inboxId) {
+      return;
+    }
+    const handler = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setQuickAddOpen((prev) => !prev);
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [inboxId]);
+
   const handleGridCardClick = (printing: Printing) => {
     useSelectionStore.getState().selectCard(printing, items, findBy);
   };
@@ -132,7 +161,42 @@ export function CardBrowser() {
     }
   };
 
-  const ownedCountActive = isLoggedIn && showOwnedCount;
+  const showStrip = isLoggedIn && catalogMode !== "off";
+  const isAddMode = isLoggedIn && catalogMode === "add" && Boolean(inboxId);
+
+  const handleQuickAdd =
+    isAddMode && inboxId
+      ? async (printing: Printing) => {
+          useAddModeStore.getState().incrementPending(printing);
+          try {
+            const result = await batchedAdd.add(printing.id, inboxId);
+            useAddModeStore.getState().recordAdd(printing, result.id);
+          } catch {
+            // Server-side add failed — pending count is the only thing to clean up
+          } finally {
+            useAddModeStore.getState().decrementPending(printing.id);
+          }
+        }
+      : undefined;
+
+  const handleUndoAdd = isAddMode
+    ? async (printing: Printing) => {
+        const entry = useAddModeStore.getState().addedItems.get(printing.id);
+        if (!entry || entry.copyIds.length === 0) {
+          return;
+        }
+        const copyIdToRemove = entry.copyIds.at(-1);
+        if (!copyIdToRemove) {
+          return;
+        }
+        useAddModeStore.getState().recordUndo(printing.id);
+        try {
+          await disposeCopies.mutateAsync({ copyIds: [copyIdToRemove] });
+        } catch {
+          useAddModeStore.getState().recordAdd(printing, copyIdToRemove);
+        }
+      }
+    : undefined;
 
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.card.id;
@@ -145,12 +209,21 @@ export function CardBrowser() {
         : item.printing;
 
     let aboveCard: ReactNode | undefined;
-    if (ownedCountActive) {
+    if (showStrip) {
       const count =
         view === "cards"
           ? (siblings?.reduce((sum, p) => sum + (ownedCountByPrinting?.[p.id] ?? 0), 0) ?? 0)
           : (ownedCountByPrinting?.[displayPrinting.id] ?? 0);
-      aboveCard = (
+
+      aboveCard = handleQuickAdd ? (
+        <CollectionAddStrip
+          printing={displayPrinting}
+          ownedCount={count}
+          hasVariants={false}
+          onQuickAdd={handleQuickAdd}
+          onUndoAdd={handleUndoAdd}
+        />
+      ) : (
         <OwnedCountStrip
           count={count}
           printingId={displayPrinting.id}
@@ -188,17 +261,23 @@ export function CardBrowser() {
             <TooltipTrigger
               render={
                 <Button
-                  variant={showOwnedCount ? "default" : "outline"}
+                  variant={catalogMode === "off" ? "outline" : "default"}
                   size="icon"
                   className="hidden sm:flex"
-                  onClick={() => setShowOwnedCount(!showOwnedCount)}
+                  onClick={cycleCatalogMode}
                 />
               }
             >
-              <PackageIcon className="size-4" />
+              {catalogMode === "add" ? (
+                <PackagePlusIcon className="size-4" />
+              ) : (
+                <PackageIcon className="size-4" />
+              )}
             </TooltipTrigger>
             <TooltipContent>
-              {showOwnedCount ? "Hide owned count" : "Show owned count"}
+              {catalogMode === "off" && "Show owned count"}
+              {catalogMode === "count" && "Switch to add mode"}
+              {catalogMode === "add" && "Turn off"}
             </TooltipContent>
           </Tooltip>
         )}
@@ -214,15 +293,17 @@ export function CardBrowser() {
           <MobileOptionsContent />
           {isLoggedIn && (
             <div className="flex items-center justify-between border-t pt-4">
-              <span className="text-sm font-medium">Show owned count</span>
+              <span className="text-sm font-medium">Collection mode</span>
               <Button
-                variant={showOwnedCount ? "default" : "outline"}
+                variant={catalogMode === "off" ? "outline" : "default"}
                 size="sm"
                 className="gap-1.5 text-xs"
-                onClick={() => setShowOwnedCount(!showOwnedCount)}
+                onClick={cycleCatalogMode}
               >
-                <PackageIcon />
-                {showOwnedCount ? "On" : "Off"}
+                {catalogMode === "add" ? <PackagePlusIcon /> : <PackageIcon />}
+                {catalogMode === "off" && "Off"}
+                {catalogMode === "count" && "Count"}
+                {catalogMode === "add" && "Add"}
               </Button>
             </div>
           )}
@@ -276,7 +357,7 @@ export function CardBrowser() {
         <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
       }
       rightPane={rightPane}
-      addStripHeight={ownedCountActive ? ADD_STRIP_HEIGHT : undefined}
+      addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}
     >
       {isMobile && (
         <SelectionMobileOverlay
@@ -284,6 +365,16 @@ export function CardBrowser() {
           printingsByCardId={printingsByCardId}
           showImages={showImages}
           onSearchAndClose={searchAndClose}
+        />
+      )}
+      {inboxId && (
+        <QuickAddPalette
+          open={quickAddOpen}
+          onOpenChange={setQuickAddOpen}
+          collectionId={inboxId}
+          collectionName="Inbox"
+          printingsByCardId={printingsByCardId}
+          ownedCountByPrinting={ownedCountByPrinting}
         />
       )}
     </BrowserCardViewer>

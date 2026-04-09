@@ -73,8 +73,8 @@ interface DisplayState {
   setMaxColumns: (value: number | null | ((prev: number | null) => number | null)) => void;
   filtersExpanded: boolean;
   setFiltersExpanded: (value: boolean) => void;
-  showOwnedCount: boolean;
-  setShowOwnedCount: (value: boolean) => void;
+  catalogMode: "off" | "count" | "add";
+  cycleCatalogMode: () => void;
 
   // Layout state (derived from viewport, not persisted)
   physicalMax: number;
@@ -142,8 +142,12 @@ export const useDisplayStore = create<DisplayState>()(
         })),
       filtersExpanded: false,
       setFiltersExpanded: (value) => set({ filtersExpanded: value }),
-      showOwnedCount: false,
-      setShowOwnedCount: (value) => set({ showOwnedCount: value }),
+      catalogMode: "off" as const,
+      cycleCatalogMode: () =>
+        set((state) => {
+          const next = { off: "count", count: "add", add: "off" } as const;
+          return { catalogMode: next[state.catalogMode] };
+        }),
 
       physicalMax: 8,
       physicalMin: 1,
@@ -158,7 +162,7 @@ export const useDisplayStore = create<DisplayState>()(
         overrides: state.overrides,
         maxColumns: state.maxColumns,
         filtersExpanded: state.filtersExpanded,
-        showOwnedCount: state.showOwnedCount,
+        catalogMode: state.catalogMode,
       }),
       merge: (persisted, current) => {
         const safe = sanitizeOverrides(persisted);
@@ -171,10 +175,18 @@ export const useDisplayStore = create<DisplayState>()(
             typeof (persisted as Record<string, unknown>)?.filtersExpanded === "boolean"
               ? ((persisted as Record<string, unknown>).filtersExpanded as boolean)
               : current.filtersExpanded,
-          showOwnedCount:
-            typeof (persisted as Record<string, unknown>)?.showOwnedCount === "boolean"
-              ? ((persisted as Record<string, unknown>).showOwnedCount as boolean)
-              : current.showOwnedCount,
+          catalogMode: (() => {
+            const raw = (persisted as Record<string, unknown>)?.catalogMode;
+            if (raw === "off" || raw === "count" || raw === "add") {
+              return raw;
+            }
+            // Migrate old boolean showOwnedCount
+            const legacy = (persisted as Record<string, unknown>)?.showOwnedCount;
+            if (legacy === true) {
+              return "count";
+            }
+            return current.catalogMode;
+          })(),
         };
       },
     },
