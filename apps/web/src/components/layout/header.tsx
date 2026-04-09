@@ -3,6 +3,7 @@ import { Link, useMatch, useRouter } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   CircleHelpIcon,
+  ExternalLinkIcon,
   GavelIcon,
   EllipsisVerticalIcon,
   HeartIcon,
@@ -10,6 +11,7 @@ import {
   LibraryIcon,
   LogOutIcon,
   MenuIcon,
+  MessageSquareIcon,
   MoonIcon,
   ShieldIcon,
   SparklesIcon,
@@ -18,7 +20,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { siDiscord } from "simple-icons";
+import { siDiscord, siGithub } from "simple-icons";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -36,6 +38,7 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Sheet,
   SheetClose,
@@ -356,6 +359,52 @@ function MobileNav({
   );
 }
 
+function FeedbackPopover() {
+  return (
+    <Popover>
+      <PopoverTrigger render={<Button variant="ghost" size="sm" />} className="gap-1.5">
+        <MessageSquareIcon className="size-4" />
+        <span className="hidden md:inline">Feedback</span>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-64 gap-1 p-1.5">
+        <p className="text-muted-foreground px-2 pt-1.5 pb-1 text-xs">
+          Bug report, feature idea, or just want to chat?
+        </p>
+        <a
+          href="https://discord.gg/Qb6RcjXq6z"
+          target="_blank"
+          rel="noreferrer"
+          className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
+        >
+          <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden="true">
+            <path d={siDiscord.path} fill="currentColor" />
+          </svg>
+          <div>
+            <div className="font-medium">Discord</div>
+            <div className="text-muted-foreground text-xs">Chat with the community</div>
+          </div>
+          <ExternalLinkIcon className="text-muted-foreground ml-auto size-3.5" />
+        </a>
+        <a
+          href="https://github.com/eikowagenknecht/openrift/issues/new/choose"
+          target="_blank"
+          rel="noreferrer"
+          className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
+        >
+          <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden="true">
+            <path d={siGithub.path} fill="currentColor" />
+          </svg>
+          <div>
+            <div className="font-medium">GitHub Issues</div>
+            <div className="text-muted-foreground text-xs">Report a bug or request a feature</div>
+          </div>
+          <ExternalLinkIcon className="text-muted-foreground ml-auto size-3.5" />
+        </a>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export function Header() {
   const { data: session, isPending } = useSession();
   const gravatarUrl = useGravatarUrl(session?.user?.email);
@@ -371,20 +420,9 @@ export function Header() {
       <div
         className={`${CONTAINER_WIDTH} grid h-14 grid-cols-[1fr_auto_1fr] items-center px-3 md:grid-cols-[1fr_auto]`}
       >
-        {/* Left: Hamburger + Discord on mobile */}
+        {/* Left: Hamburger on mobile */}
         <div className="flex items-center gap-1 md:hidden">
           <MenuButton onClick={() => setMobileMenuOpen(true)} />
-          <a
-            href="https://discord.gg/Qb6RcjXq6z"
-            target="_blank"
-            rel="noreferrer"
-            className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-            aria-label="Join our Discord"
-          >
-            <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-              <path d={siDiscord.path} fill="currentColor" />
-            </svg>
-          </a>
         </div>
 
         {/* Left: logo + expanded menu on desktop */}
@@ -396,22 +434,9 @@ export function Header() {
         {/* Center: Logo on mobile */}
         <LogoLink className="md:hidden" />
 
-        {/* Right: Support + UserIcon menu */}
+        {/* Right: Feedback + Support + User menu */}
         <div className="flex items-center gap-1 justify-self-end">
-          <a
-            href="https://discord.gg/Qb6RcjXq6z"
-            target="_blank"
-            rel="noreferrer"
-            className={cn(
-              buttonVariants({ variant: "ghost", size: "sm" }),
-              "hidden md:inline-flex",
-            )}
-          >
-            <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-              <path d={siDiscord.path} fill="currentColor" />
-            </svg>
-            Discord
-          </a>
+          <FeedbackPopover />
           <Link to="/support" className={buttonVariants({ variant: "ghost", size: "sm" })}>
             <HeartIcon className="size-4" />
             <span className="hidden md:inline">Support</span>

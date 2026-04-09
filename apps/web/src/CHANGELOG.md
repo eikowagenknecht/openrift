@@ -2,6 +2,7 @@
 
 ## 2026-04-09
 
+- feat: New Feedback button in the header lets you quickly reach Discord or open a GitHub issue
 - feat: The cards page now has a collection mode button that cycles through showing owned counts and quick-add controls, plus Ctrl+K to add cards to your Inbox
 - feat: Keyword and language fields in the admin translations table now use dropdown selects instead of free-text inputs
 - feat: Languages can now be reordered in preferences, and the first language is preferred when choosing which printing to display
