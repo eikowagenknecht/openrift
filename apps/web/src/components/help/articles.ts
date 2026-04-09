@@ -49,7 +49,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       slug: "collections",
       title: "Managing Your Collection",
       description:
-        "Create collections, add cards, drag & drop between collections, and use bulk actions to stay organized.",
+        "Organize cards by where they physically are — deck boxes, binders, or lent to friends — and control which are available for deck building.",
       icon: LibraryIcon,
       component: () => import("./articles/collections"),
     },
@@ -71,7 +71,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       slug: "deck-building",
       title: "Building Decks",
       description:
-        "Create decks, pick a legend, fill your zones, and validate against Standard format rules.",
+        "Build deck blueprints from cards (not specific printings), pick a legend, fill your zones, and validate against Standard format rules.",
       icon: SwordsIcon,
       component: () => import("./articles/deck-building"),
     },

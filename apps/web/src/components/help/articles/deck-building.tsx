@@ -19,6 +19,25 @@ export default function DeckBuildingArticle() {
         card game. Pick a legend, fill your zones, and the editor checks the rules as you go.
       </p>
 
+      {/* Decks vs Collections concept */}
+      <div className="border-border bg-muted/30 rounded-lg border p-4">
+        <h3 className="mb-2 text-sm font-semibold">Decks are blueprints, not physical locations</h3>
+        <p className="text-muted-foreground text-sm">
+          A deck is a list of <strong className="text-foreground">cards</strong>, not specific
+          printings or copies. It doesn&apos;t matter whether you play the English version, the
+          Chinese version, or the signed foil promo. The deck just says &quot;3x Fury Rune&quot; and
+          any printing of that card will do.
+        </p>
+        <p className="text-muted-foreground mt-2 text-sm">
+          This is different from{" "}
+          <a href="/help/collections" className="text-primary hover:underline">
+            collections
+          </a>
+          , which track where your physical copies are. A deck is the recipe; your collection is the
+          pantry.
+        </p>
+      </div>
+
       {/* Deck structure diagram */}
       <div className="border-border bg-muted/30 rounded-lg border p-4">
         <p className="text-muted-foreground mb-3 text-center text-xs font-medium tracking-wider uppercase">

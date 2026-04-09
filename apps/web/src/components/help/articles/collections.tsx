@@ -1,6 +1,7 @@
 import {
   ArrowRightLeftIcon,
   BookOpenIcon,
+  BoxIcon,
   GripVerticalIcon,
   InboxIcon,
   ListChecksIcon,
@@ -8,6 +9,7 @@ import {
   PackageIcon,
   PlusIcon,
   SearchIcon,
+  ShieldCheckIcon,
   Trash2Icon,
 } from "lucide-react";
 
@@ -17,8 +19,10 @@ export default function CollectionsArticle() {
   return (
     <div className="space-y-8">
       <p className="text-muted-foreground">
-        Collections let you organize the cards you own. You can create as many collections as you
-        like: one per deck, one for trades, and one for everything else.
+        A collection represents where your cards physically are. Think of it as a real-world
+        location: &quot;Red Deck Box&quot;, &quot;Binder 1&quot;, &quot;Main Storage Box&quot;, or
+        even &quot;Lent to Sebastian&quot;. Every copy in your collection lives in exactly one
+        place.
       </p>
 
       {/* Overview diagram */}
@@ -29,21 +33,18 @@ export default function CollectionsArticle() {
             <span className="text-muted-foreground mb-1 text-[11px] font-medium tracking-wider uppercase">
               Collections
             </span>
-            <SidebarItem icon={<PackageIcon className="size-3.5" />} label="All Cards" count={47} />
+            <SidebarItem icon={<PackageIcon className="size-3.5" />} label="All Cards" count={94} />
             <SidebarItem
               icon={<InboxIcon className="size-3.5" />}
               label="Inbox"
               count={12}
               active
             />
+            <SidebarItem icon={<BoxIcon className="size-3.5" />} label="Red Deck Box" count={40} />
+            <SidebarItem icon={<BookOpenIcon className="size-3.5" />} label="Binder 1" count={31} />
             <SidebarItem
-              icon={<BookOpenIcon className="size-3.5" />}
-              label="Fury Aggro Deck"
-              count={24}
-            />
-            <SidebarItem
-              icon={<BookOpenIcon className="size-3.5" />}
-              label="Trade Binder"
+              icon={<BoxIcon className="size-3.5" />}
+              label="Lent to Sebastian"
               count={11}
             />
             <div className="border-border mt-1 border-t pt-1">
@@ -73,6 +74,49 @@ export default function CollectionsArticle() {
         </div>
       </div>
 
+      {/* Concept: physical location */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Collections as physical locations</h2>
+        <p className="text-muted-foreground">
+          Unlike a &quot;folder&quot; system, collections are meant to mirror where your cards
+          actually are in the real world. When you move a copy from &quot;Inbox&quot; to &quot;Red
+          Deck Box&quot;, you&apos;re recording that you physically put that card in that box. This
+          makes it easy to find a specific card when you need it.
+        </p>
+        <p className="text-muted-foreground mt-2">
+          Collections track <strong className="text-foreground">copies</strong> (specific physical
+          cards), not abstract card references. If you own three copies of the same card, each one
+          lives in a collection independently. See{" "}
+          <a href="/help/cards-printings-copies" className="text-primary hover:underline">
+            Cards, Printings &amp; Copies
+          </a>{" "}
+          for more on how these relate.
+        </p>
+      </section>
+
+      {/* Deck building availability */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Deck building availability</h2>
+        <div className="border-border bg-muted/30 rounded-lg border p-4">
+          <div className="flex gap-3">
+            <ShieldCheckIcon className="text-primary mt-0.5 size-5 shrink-0" />
+            <div>
+              <p className="text-muted-foreground text-sm">
+                <strong className="text-foreground">Coming soon:</strong> Each collection will have
+                an &quot;available for deck building&quot; flag. When turned off, copies in that
+                collection won&apos;t count toward your owned cards in the deck builder.
+              </p>
+              <p className="text-muted-foreground mt-2 text-sm">
+                This is useful for cards you don&apos;t want to include in decks: a high-value card
+                you keep in a display case, cards lent to a friend, or copies already committed to a
+                specific deck. The deck builder will only consider cards from collections
+                you&apos;ve marked as available.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Getting started */}
       <section>
         <h2 className="mb-2 text-lg font-semibold">Getting started</h2>
@@ -85,7 +129,7 @@ export default function CollectionsArticle() {
         <p className="text-muted-foreground mt-2">
           To create a new collection, click{" "}
           <strong className="text-foreground">New collection</strong> in the sidebar, type a name,
-          and press Enter. Collections appear in the sidebar where you can switch between them.
+          and press Enter. Name it after the real-world location where you keep those cards.
         </p>
       </section>
 
