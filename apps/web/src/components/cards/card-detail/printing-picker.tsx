@@ -55,7 +55,7 @@ export function PrintingPicker({
                 {label}
                 {hasMixedRarities && (
                   <Tooltip>
-                    <TooltipTrigger className="ml-1 inline align-text-bottom">
+                    <TooltipTrigger render={<span />} className="ml-1 inline align-text-bottom">
                       <img
                         src={`/images/rarities/${p.rarity.toLowerCase()}-28x28.webp`}
                         alt={p.rarity}
