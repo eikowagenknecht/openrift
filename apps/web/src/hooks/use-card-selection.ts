@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 interface UseCardSelectionResult {
   selected: Set<string>;
@@ -6,6 +6,11 @@ interface UseCardSelectionResult {
   toggleStack: (copyIds: string[]) => void;
   toggleSelectAll: (allCopyIds: string[]) => void;
   clearSelection: () => void;
+  /** The item ID (not copyId) of the last explicitly selected item, for Shift+click range. */
+  lastSelectedItemId: string | null;
+  setLastSelectedItemId: (id: string) => void;
+  /** Adds all given IDs to the selection without toggling. */
+  addToSelection: (ids: string[]) => void;
 }
 
 /**
@@ -14,6 +19,7 @@ interface UseCardSelectionResult {
  */
 export function useCardSelection(): UseCardSelectionResult {
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const lastSelectedItemIdRef = useRef<string | null>(null);
 
   const toggleSelect = (copyId: string) => {
     setSelected((prev) => {
@@ -50,7 +56,33 @@ export function useCardSelection(): UseCardSelectionResult {
     }
   };
 
-  const clearSelection = () => setSelected(new Set());
+  const clearSelection = () => {
+    setSelected(new Set());
+    lastSelectedItemIdRef.current = null;
+  };
 
-  return { selected, toggleSelect, toggleStack, toggleSelectAll, clearSelection };
+  const addToSelection = (ids: string[]) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const setLastSelectedItemId = (id: string) => {
+    lastSelectedItemIdRef.current = id;
+  };
+
+  return {
+    selected,
+    toggleSelect,
+    toggleStack,
+    toggleSelectAll,
+    clearSelection,
+    lastSelectedItemId: lastSelectedItemIdRef.current,
+    setLastSelectedItemId,
+    addToSelection,
+  };
 }

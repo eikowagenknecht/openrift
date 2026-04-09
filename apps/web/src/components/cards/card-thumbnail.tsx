@@ -2,7 +2,7 @@ import { useDraggable } from "@dnd-kit/core";
 import type { Domain, Printing, Rarity } from "@openrift/shared";
 import { WellKnown, getOrientation } from "@openrift/shared";
 import { SparkleIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { memo, useRef, useState } from "react";
 
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
@@ -150,7 +150,7 @@ function CardImageContent({
 
 interface CardThumbnailProps {
   printing: Printing;
-  onClick: (printing: Printing) => void;
+  onClick: (printing: Printing, event?: ReactMouseEvent) => void;
   onSiblingClick?: (printing: Printing) => void;
   showImages?: boolean;
   isSelected?: boolean;
@@ -445,7 +445,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         <button
           type="button"
           className="focus-visible:ring-ring block w-full cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none"
-          onClick={() => onClick(printing)}
+          onClick={(e) => onClick(printing, e)}
         >
           {imageSection}
         </button>
@@ -475,7 +475,7 @@ export const CardThumbnail = memo(function CardThumbnail({
       <button
         type="button"
         className="focus-visible:ring-ring block w-full cursor-pointer text-left focus-visible:ring-2 focus-visible:outline-none"
-        onClick={() => onClick(printing)}
+        onClick={(e) => onClick(printing, e)}
       >
         {imageSection}
       </button>
