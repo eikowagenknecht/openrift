@@ -353,7 +353,7 @@ async function buildDetailResponse(
   normNames: string[],
   fallbackDisplayName: string,
 ) {
-  const candidates = await repo.candidateCardsForDetail(normNames);
+  const candidates = normNames.length > 0 ? await repo.candidateCardsForDetail(normNames) : [];
   const candidateIds = candidates.map((s) => s.id);
   const candidatePrintings =
     candidateIds.length > 0 ? await repo.candidatePrintingsForDetail(candidateIds) : [];

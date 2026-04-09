@@ -777,6 +777,24 @@ describe("buildExport", () => {
 // ---------------------------------------------------------------------------
 
 describe("buildCardDetail", () => {
+  /** Minimal matched card for tests that need candidates to be fetched. */
+  const matchedCard = {
+    id: "card-1",
+    slug: "x",
+    name: "X",
+    normName: "x",
+    type: null,
+    superTypes: [] as string[],
+    domains: [] as string[],
+    might: null,
+    energy: null,
+    power: null,
+    mightBonus: null,
+    keywords: [] as string[],
+    tags: [] as string[],
+    comment: null,
+  };
+
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -840,38 +858,34 @@ describe("buildCardDetail", () => {
   it("returns null card for unmatched identifier", async () => {
     const repo = createMockRepo({
       cardForDetailById: vi.fn().mockResolvedValue(undefined),
-      candidateCardsForDetail: vi.fn().mockResolvedValue([
-        {
-          id: "cc-1",
-          provider: "gallery",
-          name: "Unknown Card",
-          type: "Unit",
-          superTypes: [],
-          domains: ["Fury"],
-          might: 1,
-          energy: 1,
-          power: 1,
-          mightBonus: null,
-          rulesText: null,
-          effectText: null,
-          tags: [],
-          shortCode: "UNK-001",
-          externalId: "ext-1",
-          extraData: null,
-          checkedAt: null,
-        },
-      ]),
     });
 
     const result = await buildCardDetail(repo, "unknowncard");
 
     expect(result.card).toBeNull();
-    expect(result.displayName).toBe("Unknown Card");
+    expect(result.sources).toHaveLength(0);
+    expect(result.displayName).toBe("unknowncard");
   });
 
   it("uses shortest candidate name for unmatched displayName", async () => {
     const repo = createMockRepo({
-      cardForDetailById: vi.fn().mockResolvedValue(undefined),
+      cardForDetailById: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "somecard",
+        name: "Some Card",
+        normName: "somecard",
+        type: null,
+        superTypes: [],
+        domains: [],
+        might: null,
+        energy: null,
+        power: null,
+        mightBonus: null,
+        keywords: [],
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "somecard" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([
         {
           id: "cc-1",
@@ -915,7 +929,7 @@ describe("buildCardDetail", () => {
     });
 
     const result = await buildCardDetail(repo, "somecard");
-    expect(result.displayName).toBe("Short");
+    expect(result.displayName).toBe("Some Card");
   });
 
   it("uses identifier as displayName when no candidates", async () => {
@@ -1043,7 +1057,8 @@ describe("buildCardDetail", () => {
 
   it("groups unlinked candidate printings into candidatePrintingGroups", async () => {
     const repo = createMockRepo({
-      cardForDetailById: vi.fn().mockResolvedValue(undefined),
+      cardForDetailById: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([
         {
           id: "cc-1",
@@ -1122,7 +1137,8 @@ describe("buildCardDetail", () => {
 
   it("excludes linked candidate printings from grouping", async () => {
     const repo = createMockRepo({
-      cardForDetailById: vi.fn().mockResolvedValue(undefined),
+      cardForDetailById: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([
         {
           id: "cc-1",
@@ -1176,7 +1192,8 @@ describe("buildCardDetail", () => {
 
   it("resolves finish from rarity when finish is null", async () => {
     const repo = createMockRepo({
-      cardForDetailById: vi.fn().mockResolvedValue(undefined),
+      cardForDetailById: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([
         {
           id: "cc-1",
@@ -1230,7 +1247,8 @@ describe("buildCardDetail", () => {
 
   it("resolves finish to normal for Common/Uncommon rarity", async () => {
     const repo = createMockRepo({
-      cardForDetailById: vi.fn().mockResolvedValue(undefined),
+      cardForDetailById: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([
         {
           id: "cc-1",
@@ -1284,7 +1302,8 @@ describe("buildCardDetail", () => {
 
   it("resolves finish to empty string when both finish and rarity are null", async () => {
     const repo = createMockRepo({
-      cardForDetailById: vi.fn().mockResolvedValue(undefined),
+      cardForDetailById: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([
         {
           id: "cc-1",
@@ -1339,7 +1358,8 @@ describe("buildCardDetail", () => {
   it("formats candidate card checkedAt as ISO string", async () => {
     const testDate = new Date("2026-01-15T10:30:00Z");
     const repo = createMockRepo({
-      cardForDetailById: vi.fn().mockResolvedValue(undefined),
+      cardForDetailById: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([
         {
           id: "cc-1",
@@ -1369,7 +1389,8 @@ describe("buildCardDetail", () => {
 
   it("returns null checkedAt when candidate card checkedAt is null", async () => {
     const repo = createMockRepo({
-      cardForDetailById: vi.fn().mockResolvedValue(undefined),
+      cardForDetailById: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([
         {
           id: "cc-1",
@@ -1399,7 +1420,8 @@ describe("buildCardDetail", () => {
 
   it("fetches set printed totals for unlinked candidate printings", async () => {
     const repo = createMockRepo({
-      cardForDetailById: vi.fn().mockResolvedValue(undefined),
+      cardForDetailById: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([
         {
           id: "cc-1",
@@ -1594,7 +1616,8 @@ describe("buildCardDetail", () => {
 
   it("derives expectedCardId from candidate printing groups when no printings", async () => {
     const repo = createMockRepo({
-      cardForDetailById: vi.fn().mockResolvedValue(undefined),
+      cardForDetailById: vi.fn().mockResolvedValue(matchedCard),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([
         {
           id: "cc-1",
