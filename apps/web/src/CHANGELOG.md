@@ -2,6 +2,7 @@
 
 ## 2026-04-09
 
+- feat: Keyword and language fields in the admin translations table now use dropdown selects instead of free-text inputs
 - feat: Languages can now be reordered in preferences, and the first language is preferred when choosing which printing to display
 - feat: Collections can now be deleted from the sidebar via a three-dot menu, with cards automatically moved to the Inbox
 - fix: Deck overview and deck card browser no longer show cards from disabled languages

@@ -8,6 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -15,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useLanguageLabels } from "@/hooks/use-enums";
 import {
   useCreateKeywordStyle,
   useDeleteKeywordStyle,
@@ -343,6 +351,7 @@ export function KeywordsPage() {
       <TranslationsTable
         translations={data.translations}
         keywordNames={data.styles.map((s) => s.name)}
+        languageLabels={useLanguageLabels()}
       />
     </div>
   );
@@ -351,9 +360,11 @@ export function KeywordsPage() {
 function TranslationsTable({
   translations,
   keywordNames,
+  languageLabels,
 }: {
   translations: TranslationRow[];
   keywordNames: string[];
+  languageLabels: Record<string, string>;
 }) {
   const upsertTranslation = useUpsertTranslation();
   const deleteTranslation = useDeleteTranslation();
@@ -465,27 +476,36 @@ function TranslationsTable({
             })}
             <TableRow>
               <TableCell>
-                <Input
-                  value={addKeyword}
-                  onChange={(event) => setAddKeyword(event.target.value)}
-                  placeholder="Keyword"
-                  className="h-7 w-32 text-sm"
-                  list="keyword-names"
-                />
-                <datalist id="keyword-names">
-                  {keywordNames.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
+                <Select value={addKeyword} onValueChange={(value) => setAddKeyword(value ?? "")}>
+                  <SelectTrigger className="h-7 w-40 text-sm" size="sm">
+                    <SelectValue placeholder="Keyword" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {keywordNames.toSorted().map((name) => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </TableCell>
               <TableCell>
-                <Input
-                  value={addLanguage}
-                  onChange={(event) => setAddLanguage(event.target.value.toUpperCase())}
-                  placeholder="ZH"
-                  className="h-7 w-16 text-sm"
-                  maxLength={5}
-                />
+                <Select value={addLanguage} onValueChange={(value) => setAddLanguage(value ?? "")}>
+                  <SelectTrigger className="h-7 w-28 text-sm" size="sm">
+                    <SelectValue placeholder="Language">
+                      {(value: string) => `${value} — ${languageLabels[value] ?? value}`}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(languageLabels)
+                      .filter(([code]) => code !== "EN")
+                      .map(([code, name]) => (
+                        <SelectItem key={code} value={code}>
+                          {code} — {name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </TableCell>
               <TableCell>
                 <Input
