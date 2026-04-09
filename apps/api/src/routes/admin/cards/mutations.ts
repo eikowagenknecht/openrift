@@ -40,7 +40,7 @@ const checkCandidateCard = createRoute({
   path: "/{candidateCardId}/check",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ candidateCardId: z.string() }),
+    params: z.object({ candidateCardId: z.string().uuid() }),
   },
   responses: {
     204: { description: "Candidate card checked" },
@@ -52,7 +52,7 @@ const uncheckCandidateCard = createRoute({
   path: "/{candidateCardId}/uncheck",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ candidateCardId: z.string() }),
+    params: z.object({ candidateCardId: z.string().uuid() }),
   },
   responses: {
     204: { description: "Candidate card unchecked" },
@@ -81,7 +81,7 @@ const checkCandidatePrinting = createRoute({
   path: "/candidate-printings/{id}/check",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ id: z.string() }),
+    params: z.object({ id: z.string().uuid() }),
   },
   responses: {
     204: { description: "Candidate printing checked" },
@@ -93,7 +93,7 @@ const uncheckCandidatePrinting = createRoute({
   path: "/candidate-printings/{id}/uncheck",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ id: z.string() }),
+    params: z.object({ id: z.string().uuid() }),
   },
   responses: {
     204: { description: "Candidate printing unchecked" },
@@ -105,7 +105,7 @@ const checkAllForCard = createRoute({
   path: "/{cardId}/check-all",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ cardId: z.string() }),
+    params: z.object({ cardId: z.string().uuid() }),
   },
   responses: {
     200: {
@@ -122,7 +122,7 @@ const patchCandidatePrintingRoute = createRoute({
   path: "/candidate-printings/{id}",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ id: z.string() }),
+    params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: patchCandidatePrintingSchema } } },
   },
   responses: {
@@ -135,7 +135,7 @@ const deleteCandidatePrinting = createRoute({
   path: "/candidate-printings/{id}",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ id: z.string() }),
+    params: z.object({ id: z.string().uuid() }),
   },
   responses: {
     204: { description: "Candidate printing deleted" },
@@ -147,7 +147,7 @@ const copyCandidatePrintingRoute = createRoute({
   path: "/candidate-printings/{id}/copy",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ id: z.string() }),
+    params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: copyCandidatePrintingSchema } } },
   },
   responses: {
@@ -172,7 +172,7 @@ const renameCard = createRoute({
   path: "/{cardId}/rename",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ cardId: z.string() }),
+    params: z.object({ cardId: z.string().uuid() }),
     body: { content: { "application/json": { schema: renameSchema } } },
   },
   responses: {
@@ -185,7 +185,7 @@ const acceptField = createRoute({
   path: "/{cardId}/accept-field",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ cardId: z.string() }),
+    params: z.object({ cardId: z.string().uuid() }),
     body: { content: { "application/json": { schema: acceptFieldSchema } } },
   },
   responses: {
@@ -198,7 +198,7 @@ const acceptPrintingField = createRoute({
   path: "/printing/{printingId}/accept-field",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ printingId: z.string() }),
+    params: z.object({ printingId: z.string().uuid() }),
     body: { content: { "application/json": { schema: acceptFieldSchema } } },
   },
   responses: {
@@ -211,7 +211,7 @@ const deletePrintingRoute = createRoute({
   path: "/printing/{printingId}",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ printingId: z.string() }),
+    params: z.object({ printingId: z.string().uuid() }),
   },
   responses: {
     204: { description: "Printing deleted" },
@@ -293,7 +293,7 @@ const acceptPrintingRoute = createRoute({
   path: "/{cardId}/accept-printing",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ cardId: z.string() }),
+    params: z.object({ cardId: z.string().uuid() }),
     body: { content: { "application/json": { schema: acceptPrintingSchema } } },
   },
   responses: {
@@ -412,7 +412,7 @@ const upsertErrata = createRoute({
   path: "/{cardId}/errata",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ cardId: z.string() }),
+    params: z.object({ cardId: z.string().uuid() }),
     body: { content: { "application/json": { schema: upsertErrataSchema } } },
   },
   responses: {
@@ -425,7 +425,7 @@ const deleteErrata = createRoute({
   path: "/{cardId}/errata",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ cardId: z.string() }),
+    params: z.object({ cardId: z.string().uuid() }),
   },
   responses: {
     204: { description: "Errata deleted" },

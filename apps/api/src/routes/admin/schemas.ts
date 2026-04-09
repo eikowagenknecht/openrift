@@ -43,11 +43,11 @@ export const updateFlagSchema = z
 // ── User Feature Flags ─────────────────────────────────────────────────────
 
 export const userIdParamSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().uuid(),
 });
 
 export const userKeyParamSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().uuid(),
   key: z.string().min(1),
 });
 
@@ -204,14 +204,14 @@ export const marketplaceSchema = z.object({
 export const saveMappingsSchema = z.object({
   mappings: z.array(
     z.object({
-      printingId: z.string(),
+      printingId: z.string().uuid(),
       externalId: z.number(),
     }),
   ),
 });
 
 export const unmapSchema = z.object({
-  printingId: z.string(),
+  printingId: z.string().uuid(),
 });
 
 // ── Staging Card Overrides ─────────────────────────────────────────────────
@@ -221,7 +221,7 @@ export const stagingCardOverrideSchema = z.object({
   externalId: z.number(),
   finish: z.string(),
   language: z.string(),
-  cardId: z.string(),
+  cardId: z.string().uuid(),
 });
 
 export const deleteOverrideSchema = z.object({
@@ -235,7 +235,7 @@ export const deleteOverrideSchema = z.object({
 
 export const typographyDiffItemSchema = z.object({
   entity: z.enum(["card", "printing"]),
-  id: z.string(),
+  id: z.string().uuid(),
   name: z.string(),
   field: z.string(),
   current: z.string(),
@@ -244,7 +244,7 @@ export const typographyDiffItemSchema = z.object({
 
 export const acceptTypographyFixSchema = z.object({
   entity: z.enum(["card", "printing"]),
-  id: z.string(),
+  id: z.string().uuid(),
   field: z.string(),
   proposed: z.string(),
 });

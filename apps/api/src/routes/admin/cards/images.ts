@@ -30,7 +30,7 @@ const setImage = createRoute({
   path: "/candidate-printings/{id}/set-image",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ id: z.string() }),
+    params: z.object({ id: z.string().uuid() }),
     body: { content: { "application/json": { schema: setImageSchema } } },
   },
   responses: {
@@ -43,7 +43,7 @@ const deleteImage = createRoute({
   path: "/printing-images/{imageId}",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ imageId: z.string() }),
+    params: z.object({ imageId: z.string().uuid() }),
   },
   responses: {
     204: { description: "Image deleted" },
@@ -55,7 +55,7 @@ const activateImage = createRoute({
   path: "/printing-images/{imageId}/activate",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ imageId: z.string() }),
+    params: z.object({ imageId: z.string().uuid() }),
     body: { content: { "application/json": { schema: activateImageSchema } } },
   },
   responses: {
@@ -68,7 +68,7 @@ const unrehostImage = createRoute({
   path: "/printing-images/{imageId}/unrehost",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ imageId: z.string() }),
+    params: z.object({ imageId: z.string().uuid() }),
   },
   responses: {
     204: { description: "Image unrehosted" },
@@ -80,7 +80,7 @@ const rehostImage = createRoute({
   path: "/printing-images/{imageId}/rehost",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ imageId: z.string() }),
+    params: z.object({ imageId: z.string().uuid() }),
   },
   responses: {
     200: {
@@ -97,7 +97,7 @@ const addImageUrl = createRoute({
   path: "/printing/{printingId}/add-image-url",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ printingId: z.string() }),
+    params: z.object({ printingId: z.string().uuid() }),
     body: { content: { "application/json": { schema: addImageUrlSchema } } },
   },
   responses: {
@@ -110,7 +110,7 @@ const uploadImage = createRoute({
   path: "/printing/{printingId}/upload-image",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ printingId: z.string() }),
+    params: z.object({ printingId: z.string().uuid() }),
     body: { content: { "multipart/form-data": { schema: uploadImageFormSchema } } },
   },
   responses: {
