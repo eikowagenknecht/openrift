@@ -58,7 +58,7 @@ export const Route = createFileRoute("/_app/_authenticated/decks/import")({
 type ImportStep = "input" | "preview";
 
 const DECK_FORMAT_LABELS: Record<string, string> = {
-  standard: "Standard",
+  constructed: "Constructed",
   freeform: "Freeform",
 };
 
@@ -136,7 +136,7 @@ function DeckImportPage() {
   const [rawText, setRawText] = useState("");
   const [importFormat, setImportFormat] = useState<DeckImportFormat>("piltover");
   const [deckName, setDeckName] = useState("Imported Deck");
-  const [deckFormat, setDeckFormat] = useState<DeckFormat>("standard");
+  const [deckFormat, setDeckFormat] = useState<DeckFormat>("constructed");
   const [matchedEntries, setMatchedEntries] = useState<DeckMatchedEntry[]>([]);
   const [parseWarnings, setParseWarnings] = useState<string[]>([]);
   const [skippedIndices, setSkippedIndices] = useState<Set<number>>(new Set());
@@ -563,7 +563,7 @@ function PreviewStep({
                 <SelectValue>{(value: string) => DECK_FORMAT_LABELS[value] ?? value}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="standard">Standard</SelectItem>
+                <SelectItem value="constructed">Constructed</SelectItem>
                 <SelectItem value="freeform">Freeform</SelectItem>
               </SelectContent>
             </Select>

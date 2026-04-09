@@ -94,7 +94,7 @@ export default function DeckBuildingArticle() {
         <p className="text-muted-foreground">
           Open <strong className="text-foreground">Decks</strong> from the top navigation and click{" "}
           <strong className="text-foreground">New Deck</strong>. Choose a name and a format:{" "}
-          <strong className="text-foreground">Standard</strong> enforces all deck-building rules,
+          <strong className="text-foreground">Constructed</strong> enforces all deck-building rules,
           while <strong className="text-foreground">Freeform</strong> removes all restrictions so
           you can experiment freely. You can switch between formats at any time.
         </p>
@@ -177,10 +177,10 @@ export default function DeckBuildingArticle() {
 
       {/* Validation rules */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Validation rules (Standard format)</h2>
+        <h2 className="mb-2 text-lg font-semibold">Validation rules (Constructed format)</h2>
         <p className="text-muted-foreground">
-          In Standard format, the editor validates your deck in real time. A green checkmark means
-          your deck is legal. A yellow banner shows the most actionable issue to fix next.
+          In Constructed format, the editor validates your deck in real time. A green checkmark
+          means your deck is legal. A yellow banner shows the most actionable issue to fix next.
         </p>
 
         <div className="border-border divide-border mt-3 divide-y rounded-lg border text-sm">
@@ -218,7 +218,7 @@ export default function DeckBuildingArticle() {
 
         <p className="text-muted-foreground mt-3 text-sm">
           In Freeform format, none of these rules are enforced, so you can build however you like.
-          You can switch to Freeform to theorycraft freely, then switch back to Standard to
+          You can switch to Freeform to theorycraft freely, then switch back to Constructed to
           validate. The zone sidebar highlights violations per zone, so you can quickly see what
           still needs attention.
         </p>

@@ -28,7 +28,7 @@ function ViolationBadge({
 
   const badge = (
     <span className="flex shrink-0 cursor-default items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-      Standard
+      Constructed
       <CircleAlertIcon className="size-3" />
       <span>
         {violationCount} {violationCount === 1 ? "issue" : "issues"}
@@ -62,7 +62,7 @@ function ViolationBadge({
 }
 
 /**
- * Format badge showing "Standard ✓", "Freeform", or violation count.
+ * Format badge showing "Constructed ✓", "Freeform", or violation count.
  * @returns The format badge element.
  */
 export function DeckFormatBadge() {
@@ -74,7 +74,7 @@ export function DeckFormatBadge() {
   if (isValid) {
     return (
       <span className="flex shrink-0 items-center gap-1 rounded-md bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
-        {format === "freeform" ? "Freeform" : "Standard"}
+        {format === "freeform" ? "Freeform" : "Constructed"}
         <CheckIcon className="size-3" />
       </span>
     );

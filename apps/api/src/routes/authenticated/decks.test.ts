@@ -70,7 +70,7 @@ const dbDeck = {
   userId: USER_ID,
   name: "Fury Aggro",
   description: null,
-  format: "standard",
+  format: "constructed",
   isWanted: false,
   isPublic: false,
   shareToken: null,
@@ -143,7 +143,7 @@ describe("POST /api/v1/decks", () => {
     const res = await app.request("/api/v1/decks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: "Fury Aggro", format: "standard" }),
+      body: JSON.stringify({ name: "Fury Aggro", format: "constructed" }),
     });
     expect(res.status).toBe(201);
     const json = await res.json();
@@ -282,8 +282,8 @@ describe("PUT /api/v1/decks/:id/cards", () => {
     expect(res.status).toBe(404);
   });
 
-  it("saves incomplete standard deck without validation error", async () => {
-    mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "standard" });
+  it("saves incomplete constructed deck without validation error", async () => {
+    mockRepo.getIdAndFormat.mockResolvedValue({ id: DECK_ID, format: "constructed" });
     mockRepo.cardsForDeck.mockResolvedValue([
       { cardId: "c0000000-0001-4000-a000-000000000001", zone: "main", quantity: 10 },
     ]);

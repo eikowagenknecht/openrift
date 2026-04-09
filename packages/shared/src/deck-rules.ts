@@ -465,7 +465,7 @@ export const signatureMatchesLegendTag: DeckRule = (state) => {
 
 // ── Rule Sets ───────────────────────────────────────────────────────────────
 
-export const STANDARD_RULES: DeckRule[] = [
+export const CONSTRUCTED_RULES: DeckRule[] = [
   legendExactlyOne,
   championExactlyOne,
   championSharesTagWithLegend,
@@ -496,7 +496,7 @@ export function validateDeck(state: DeckState): DeckViolation[] {
   }
 
   const violations: DeckViolation[] = [];
-  for (const rule of STANDARD_RULES) {
+  for (const rule of CONSTRUCTED_RULES) {
     violations.push(...rule(state));
   }
   return violations;

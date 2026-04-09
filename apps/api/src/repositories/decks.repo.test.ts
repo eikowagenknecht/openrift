@@ -8,7 +8,7 @@ const DECK = {
   userId: "u1",
   name: "Aggro",
   description: null,
-  format: "standard",
+  format: "constructed",
   isWanted: false,
   isPublic: false,
   createdAt: new Date(),
@@ -35,9 +35,9 @@ describe("decksRepo", () => {
   });
 
   it("getIdAndFormat returns id and format", async () => {
-    const db = createMockDb([{ id: "d-1", format: "standard" }]);
+    const db = createMockDb([{ id: "d-1", format: "constructed" }]);
     const repo = decksRepo(db);
-    expect(await repo.getIdAndFormat("d-1", "u1")).toEqual({ id: "d-1", format: "standard" });
+    expect(await repo.getIdAndFormat("d-1", "u1")).toEqual({ id: "d-1", format: "constructed" });
   });
 
   it("exists returns id when found", async () => {
@@ -53,7 +53,7 @@ describe("decksRepo", () => {
       userId: "u1",
       name: "Aggro",
       description: null,
-      format: "standard",
+      format: "constructed",
       isWanted: false,
       isPublic: false,
     });

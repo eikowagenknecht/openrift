@@ -165,7 +165,9 @@ describe("disposeCopiesSchema", () => {
 
 describe("createDeckSchema", () => {
   it("accepts valid deck", () => {
-    expect(createDeckSchema.safeParse({ name: "My Deck", format: "standard" }).success).toBe(true);
+    expect(createDeckSchema.safeParse({ name: "My Deck", format: "constructed" }).success).toBe(
+      true,
+    );
   });
 
   it("accepts all optional fields", () => {

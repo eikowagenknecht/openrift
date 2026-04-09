@@ -166,7 +166,7 @@ export { appendSetTotal, fixTypography } from "./fix-typography.js";
 
 export type { DeckCard, DeckState, DeckViolation, DeckRule } from "./deck-rules.js";
 export {
-  STANDARD_RULES,
+  CONSTRUCTED_RULES,
   validateDeck,
   legendExactlyOne,
   championExactlyOne,

@@ -176,7 +176,7 @@ function revalidate(format: DeckFormat, cards: DeckBuilderCard[]): DeckViolation
 
 export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
   deckId: null,
-  format: "standard",
+  format: "constructed",
   cards: [],
   activeZone: "main",
   isDirty: false,
@@ -461,7 +461,7 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
   reset: () =>
     set({
       deckId: null,
-      format: "standard",
+      format: "constructed",
       cards: [],
       activeZone: "main",
       isDirty: false,

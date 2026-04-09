@@ -291,7 +291,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const handleFormatToggle = (event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    const newFormat: DeckFormat = deck.format === "standard" ? "freeform" : "standard";
+    const newFormat: DeckFormat = deck.format === "constructed" ? "freeform" : "constructed";
     updateDeck.mutate({ deckId: deck.id, format: newFormat });
   };
 
@@ -358,7 +358,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
                 className="border-green-600/30 bg-green-600/10 text-xs text-green-700 dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400"
               >
                 <CheckIcon className="size-3" />
-                Standard
+                Constructed
               </Badge>
             ) : (
               <Badge
@@ -366,7 +366,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
                 className="border-amber-600/30 bg-amber-600/10 text-xs text-amber-700 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400"
               >
                 <CircleAlertIcon className="size-3" />
-                Standard
+                Constructed
               </Badge>
             )}
           </div>
@@ -437,7 +437,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleFormatToggle}>
                   <RefreshCwIcon className="size-4" />
-                  {deck.format === "standard" ? "Change to freeform" : "Change to standard"}
+                  {deck.format === "constructed" ? "Change to freeform" : "Change to constructed"}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleClone}>
                   <CopyIcon className="size-4" />
