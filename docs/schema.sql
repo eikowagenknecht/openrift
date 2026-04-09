@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict PDcvmcZjwO9ahQmTlrLegxCeCZz2qwNAXJnEe1V7jvHjS1efQdGh25qH9eGxNXx
+\restrict BRUxJYqCBGlrclfueUQuTiBwpDlkjQfSzutUIhwb4Ue9P4sbqwaXKcin8jYMLyi
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -782,13 +782,6 @@ CREATE TABLE public.printing_events (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     event_type text NOT NULL,
     printing_id uuid NOT NULL,
-    card_name text NOT NULL,
-    set_name text,
-    short_code text,
-    rarity text,
-    finish text,
-    artist text,
-    language text,
     changes jsonb,
     status text DEFAULT 'pending'::text NOT NULL,
     retry_count integer DEFAULT 0 NOT NULL,
@@ -2842,5 +2835,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict PDcvmcZjwO9ahQmTlrLegxCeCZz2qwNAXJnEe1V7jvHjS1efQdGh25qH9eGxNXx
+\unrestrict BRUxJYqCBGlrclfueUQuTiBwpDlkjQfSzutUIhwb4Ue9P4sbqwaXKcin8jYMLyi
 
