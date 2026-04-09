@@ -39,7 +39,7 @@ import { useDeckDetail, useSaveDeckCards } from "@/hooks/use-decks";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
 import { getCardImageUrl } from "@/lib/images";
-import { cn, CONTAINER_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDeckBuilderStore, toDeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -459,10 +459,7 @@ function DeckEditorContent({
         />
       )}
       <DeckDndContext>
-        <div
-          ref={containerRef}
-          className={cn(CONTAINER_WIDTH, PAGE_PADDING_NO_TOP, "relative flex gap-4")}
-        >
+        <div ref={containerRef} className={cn(CONTAINER_WIDTH, "relative flex gap-4 px-3")}>
           <NestedSidebar
             className="mt-3 w-(--sidebar-width)!"
             extraOffset="calc(0.75rem + 2rem + 0.75rem)"
@@ -494,7 +491,7 @@ function DeckEditorContent({
             </div>
           )}
 
-          <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex min-w-0 flex-1 flex-col pb-3">
             <div className="flex-1">
               <DeckCardBrowser />
             </div>
