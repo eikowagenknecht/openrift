@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { DeckCardBrowser } from "@/components/deck/deck-card-browser";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
+import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
 import { DeckRenameDialog } from "@/components/deck/deck-rename-dialog";
 import { DeckFormatBadge, DeckSaveStatus } from "@/components/deck/deck-validation-banner";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
@@ -33,11 +34,15 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useCards } from "@/hooks/use-cards";
+import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { useDeckDetail, useSaveDeckCards } from "@/hooks/use-decks";
+import { useOwnedCount } from "@/hooks/use-owned-count";
+import { useSession } from "@/lib/auth-session";
 import { getCardImageUrl } from "@/lib/images";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDeckBuilderStore, toDeckBuilderCard } from "@/stores/deck-builder-store";
+import { useDisplayStore } from "@/stores/display-store";
 
 const ZONE_LABELS: Record<DeckZone, string> = {
   legend: "Legend",
@@ -182,7 +187,7 @@ function DeckEditorContent({
   topBarSlot: HTMLDivElement | null;
 }) {
   const { data } = useDeckDetail(deckId);
-  const { cardsById } = useCards();
+  const { cardsById, allPrintings } = useCards();
   const init = useDeckBuilderStore((state) => state.init);
   const reset = useDeckBuilderStore((state) => state.reset);
   const storeId = useDeckBuilderStore((state) => state.deckId);
@@ -200,6 +205,19 @@ function DeckEditorContent({
   const [renameOpen, setRenameOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
+  const [missingOpen, setMissingOpen] = useState(false);
+
+  // Ownership data
+  const { data: session } = useSession();
+  const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
+  const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
+  const marketplace = marketplaceOrder[0] ?? "tcgplayer";
+  const ownershipData = useDeckOwnership(
+    deckCards,
+    allPrintings,
+    ownedCountByPrinting,
+    marketplace,
+  );
 
   // Initialize store when deck data loads or changes
   useEffect(() => {
@@ -339,7 +357,6 @@ function DeckEditorContent({
     return () => globalThis.removeEventListener("mousemove", handler);
   }, [hoveredCardId]);
 
-  const { allPrintings } = useCards();
   const hoveredCard = (() => {
     if (!hoveredCardId || isMobile) {
       return null;
@@ -432,6 +449,15 @@ function DeckEditorContent({
         onOpenChange={setExportOpen}
       />
       <ProxyExportDialog open={proxyOpen} onOpenChange={setProxyOpen} deckName={data.deck.name} />
+      {ownershipData && (
+        <DeckMissingCardsDialog
+          open={missingOpen}
+          onOpenChange={setMissingOpen}
+          missingCards={ownershipData.missingCards}
+          totalMissingValue={ownershipData.missingValueCents}
+          marketplace={marketplace}
+        />
+      )}
       <DeckDndContext>
         <div
           ref={containerRef}
@@ -445,7 +471,13 @@ function DeckEditorContent({
             <MobileSidebarHeader />
             <SidebarContent>
               <div className="p-3">
-                <DeckZonePanel onZoneClick={handleZoneClick} onHoverCard={setHoveredCardId} />
+                <DeckZonePanel
+                  onZoneClick={handleZoneClick}
+                  onHoverCard={setHoveredCardId}
+                  ownershipData={ownershipData}
+                  marketplace={marketplace}
+                  onViewMissing={() => setMissingOpen(true)}
+                />
               </div>
             </SidebarContent>
           </NestedSidebar>
