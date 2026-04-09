@@ -340,7 +340,7 @@ export async function buildExport(repo: Repo) {
 
 // ── Card detail (shared logic) ─────────────────────────────────────────────
 
-type CardForDetail = Awaited<ReturnType<Repo["cardForDetailById"]>>;
+type CardForDetail = Awaited<ReturnType<Repo["cardForDetailBySlug"]>>;
 
 /**
  * Shared logic for building candidate/printing detail once the card and normNames are known.
@@ -511,10 +511,10 @@ async function buildDetailResponse(
  * Detail view for a matched card (looked up by UUID).
  * @returns Card detail with candidates, printings, candidate printings, groups, and images.
  */
-export async function buildCardDetail(repo: Repo, cardId: string) {
-  const card = await repo.cardForDetailById(cardId);
+export async function buildCardDetail(repo: Repo, cardSlug: string) {
+  const card = await repo.cardForDetailBySlug(cardSlug);
   if (!card) {
-    return buildDetailResponse(repo, null, null, [], cardId);
+    return buildDetailResponse(repo, null, null, [], cardSlug);
   }
 
   const aliases = await repo.cardNameAliases(card.id);

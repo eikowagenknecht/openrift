@@ -271,9 +271,9 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return db.selectFrom("cards").selectAll().where("slug", "=", slug).executeTakeFirst();
     },
 
-    /** @returns Card detail fields for the card source detail page, looked up by ID. */
-    cardForDetailById(
-      cardId: string,
+    /** @returns Card detail fields for the card source detail page, looked up by slug. */
+    cardForDetailBySlug(
+      slug: string,
     ): Promise<
       | (Pick<
           Selectable<CardsTable>,
@@ -310,7 +310,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           domainsArray("cards.id").as("domains"),
           superTypesArray("cards.id").as("superTypes"),
         ])
-        .where("id", "=", cardId)
+        .where("slug", "=", slug)
         .executeTakeFirst() as Promise<any>;
     },
 
