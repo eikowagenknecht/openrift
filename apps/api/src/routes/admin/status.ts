@@ -60,6 +60,10 @@ export const adminStatusRoute = new OpenAPIHono<{ Variables: Variables }>().open
             enabled: cronJobs.printingEvents !== null,
             nextRun: cronJobs.printingEvents?.nextRun()?.toISOString() ?? null,
           },
+          changelog: {
+            enabled: cronJobs.changelog !== null,
+            nextRun: cronJobs.changelog?.nextRun()?.toISOString() ?? null,
+          },
         },
       },
       app: appStats,

@@ -59,6 +59,7 @@ const getCronStatus = createRoute({
             tcgplayer: z.object({ nextRun: z.string().nullable() }).nullable(),
             cardmarket: z.object({ nextRun: z.string().nullable() }).nullable(),
             cardtrader: z.object({ nextRun: z.string().nullable() }).nullable(),
+            changelog: z.object({ nextRun: z.string().nullable() }).nullable(),
           }),
         },
       },
@@ -90,6 +91,9 @@ export const adminRoute = app
         : null,
       cardtrader: cronJobs.cardtrader
         ? { nextRun: cronJobs.cardtrader.nextRun()?.toISOString() ?? null }
+        : null,
+      changelog: cronJobs.changelog
+        ? { nextRun: cronJobs.changelog.nextRun()?.toISOString() ?? null }
         : null,
     }),
   )

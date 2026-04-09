@@ -44,7 +44,10 @@ export function createConfig(env: Record<string, string | undefined>) {
       tcgplayerSchedule: env.CRON_TCGPLAYER,
       cardmarketSchedule: env.CRON_CARDMARKET,
       cardtraderSchedule: env.CRON_CARDTRADER,
+      changelogSchedule: env.CRON_CHANGELOG,
     },
+
+    changelogPath: env.CHANGELOG_PATH || "apps/web/src/CHANGELOG.md",
   } as const;
 }
 

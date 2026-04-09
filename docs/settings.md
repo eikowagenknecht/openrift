@@ -44,12 +44,14 @@ Email sending is disabled when `SMTP_HOST` is unset.
 
 #### Cron (Price Refresh)
 
-| Variable               | Default | Description                                                                              |
-| ---------------------- | ------- | ---------------------------------------------------------------------------------------- |
-| `CRON_TCGPLAYER`       |         | Cron expression for TCGPlayer refresh (e.g. `0 6 * * *`). Unset to disable.              |
-| `CRON_CARDMARKET`      |         | Cron expression for Cardmarket refresh (e.g. `15 6 * * *`). Unset to disable.            |
-| `CRON_CARDTRADER`      |         | Cron expression for CardTrader refresh (e.g. `30 6 * * *`). Also requires the API token. |
-| `CARDTRADER_API_TOKEN` |         | CardTrader API token. Required for CardTrader refresh; leave empty to skip.              |
+| Variable               | Default                     | Description                                                                              |
+| ---------------------- | --------------------------- | ---------------------------------------------------------------------------------------- |
+| `CRON_TCGPLAYER`       |                             | Cron expression for TCGPlayer refresh (e.g. `0 6 * * *`). Unset to disable.              |
+| `CRON_CARDMARKET`      |                             | Cron expression for Cardmarket refresh (e.g. `15 6 * * *`). Unset to disable.            |
+| `CRON_CARDTRADER`      |                             | Cron expression for CardTrader refresh (e.g. `30 6 * * *`). Also requires the API token. |
+| `CRON_CHANGELOG`       |                             | Cron expression for changelog Discord post (e.g. `0 20 * * *`). Unset to disable.        |
+| `CARDTRADER_API_TOKEN` |                             | CardTrader API token. Required for CardTrader refresh; leave empty to skip.              |
+| `CHANGELOG_PATH`       | `apps/web/src/CHANGELOG.md` | Path to the changelog file read by the Discord cron job.                                 |
 
 ### Web (Vite)
 

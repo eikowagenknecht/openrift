@@ -10,6 +10,7 @@ import { createDb } from "./db/connect.js";
 import { migrate } from "./db/migrate.js";
 import { createRepos } from "./deps.js";
 import { createEmailSender } from "./email.js";
+import { postChangelogToDiscord } from "./services/changelog-discord.js";
 import { flushPendingPrintingEvents } from "./services/flush-printing-events.js";
 import {
   refreshCardmarketPrices,
@@ -99,6 +100,21 @@ if (config.cron.cardtraderSchedule && config.cardtraderApiToken) {
     }
   });
   ctLog.info(`Cron registered (${ctSchedule})`);
+}
+
+if (config.cron.changelogSchedule) {
+  const clLog = log.child({ service: "changelog" });
+  const clSchedule = config.cron.changelogSchedule;
+
+  cronJobs.changelog = new Cron(clSchedule, { protect: true }, async () => {
+    try {
+      clLog.info("Checking for changelog updates");
+      await postChangelogToDiscord(repos, config.changelogPath, clLog);
+    } catch (error) {
+      clLog.error(error, "Changelog Discord post failed");
+    }
+  });
+  clLog.info(`Cron registered (${clSchedule})`);
 }
 
 {

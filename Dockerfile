@@ -33,6 +33,7 @@ RUN bun install --frozen-lockfile --production --ignore-scripts
 
 COPY --from=build /app/packages/shared ./packages/shared
 COPY --from=build /app/apps/api ./apps/api
+COPY --from=build /app/apps/web/src/CHANGELOG.md ./apps/web/src/CHANGELOG.md
 EXPOSE 3000
 CMD ["bun", "run", "apps/api/src/index.ts"]
 
