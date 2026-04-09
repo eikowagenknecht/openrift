@@ -35,10 +35,10 @@ export function useAdminCardList() {
 }
 
 /**
- * Fetches the unchecked list and returns the first card slug that isn't `currentCardId`.
+ * Fetches the unchecked list and returns the first card slug that isn't `currentSlug`.
  * @returns an object with a `fetchNext` function that resolves to the next card slug or null
  */
-export function useNextUncheckedCard(currentCardId: string) {
+export function useNextUncheckedCard(currentSlug: string) {
   const queryClient = useQueryClient();
 
   async function fetchNext(): Promise<string | null> {
@@ -50,7 +50,7 @@ export function useNextUncheckedCard(currentCardId: string) {
         uncheckedPrintingCount: number;
       }) =>
         r.cardSlug &&
-        r.cardSlug !== currentCardId &&
+        r.cardSlug !== currentSlug &&
         r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
     );
     return next?.cardSlug ?? null;

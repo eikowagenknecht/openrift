@@ -242,9 +242,9 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
 
       await Promise.all(promises);
 
-      const nextCardId = await fetchNext();
-      if (nextCardId) {
-        void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: nextCardId } });
+      const nextSlug = await fetchNext();
+      if (nextSlug) {
+        void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: nextSlug } });
       } else {
         toast.success("All cards reviewed!");
         void navigate({ to: "/admin/cards" });
