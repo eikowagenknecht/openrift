@@ -43,7 +43,6 @@ export const adminStatusRoute = new OpenAPIHono<{ Variables: Variables }>().open
       },
       database: dbStatus,
       cron: {
-        enabled: config.cron.enabled,
         jobs: {
           tcgplayer: {
             enabled: cronJobs.tcgplayer !== null,

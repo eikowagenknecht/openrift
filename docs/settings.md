@@ -44,13 +44,12 @@ Email sending is disabled when `SMTP_HOST` is unset.
 
 #### Cron (Price Refresh)
 
-| Variable               | Default      | Description                                                                 |
-| ---------------------- | ------------ | --------------------------------------------------------------------------- |
-| `CRON_ENABLED`         | `false`      | Set to `true` to enable scheduled price refresh jobs.                       |
-| `CRON_TCGPLAYER`       | `0 6 * * *`  | Cron expression for TCGPlayer refresh (06:00 UTC)                           |
-| `CRON_CARDMARKET`      | `15 6 * * *` | Cron expression for Cardmarket refresh (06:15 UTC)                          |
-| `CRON_CARDTRADER`      | `30 6 * * *` | Cron expression for CardTrader refresh (06:30 UTC)                          |
-| `CARDTRADER_API_TOKEN` |              | CardTrader API token. Required for CardTrader refresh; leave empty to skip. |
+| Variable               | Default | Description                                                                              |
+| ---------------------- | ------- | ---------------------------------------------------------------------------------------- |
+| `CRON_TCGPLAYER`       |         | Cron expression for TCGPlayer refresh (e.g. `0 6 * * *`). Unset to disable.              |
+| `CRON_CARDMARKET`      |         | Cron expression for Cardmarket refresh (e.g. `15 6 * * *`). Unset to disable.            |
+| `CRON_CARDTRADER`      |         | Cron expression for CardTrader refresh (e.g. `30 6 * * *`). Also requires the API token. |
+| `CARDTRADER_API_TOKEN` |         | CardTrader API token. Required for CardTrader refresh; leave empty to skip.              |
 
 ### Web (Vite)
 
@@ -119,15 +118,19 @@ Site settings are key-value pairs stored in the `site_settings` database table. 
 
 ### Recognized Keys
 
-The site settings system is generic (any kebab-case key works), but only the keys below are read by application code. Other keys are stored but have no effect.
+The site settings system is generic (any kebab-case key works), but only the keys below are read by application code. Other keys are stored but have no effect. Unconfigured known settings are shown in the admin UI under "Available settings" for easy setup.
 
-| Key                | Scope | Description                                                                                             |
-| ------------------ | ----- | ------------------------------------------------------------------------------------------------------- |
-| `umami-url`        | web   | Base URL of the Umami analytics instance (e.g. `https://analytics.example.com`).                        |
-| `umami-website-id` | web   | Umami website ID. Both `umami-url` and `umami-website-id` must be set for the analytics script to load. |
+| Key                                | Scope | Description                                                                                             |
+| ---------------------------------- | ----- | ------------------------------------------------------------------------------------------------------- |
+| `umami-url`                        | web   | Base URL of the Umami analytics instance (e.g. `https://analytics.example.com`).                        |
+| `umami-website-id`                 | web   | Umami website ID. Both `umami-url` and `umami-website-id` must be set for the analytics script to load. |
+| `discord-webhook-new-printings`    | api   | Discord webhook URL for the #new-cards channel. Receives notifications when new printings are created.  |
+| `discord-webhook-printing-changes` | api   | Discord webhook URL for the #data-updates channel. Receives notifications when printing data changes.   |
 
 ### How It Works
 
-When both Umami settings are configured, the web app injects a `<script>` tag pointing to `{umami-url}/script.js` with the `data-website-id` attribute. Removing either setting disables analytics.
+**Analytics:** When both Umami settings are configured, the web app injects a `<script>` tag pointing to `{umami-url}/script.js` with the `data-website-id` attribute. Removing either setting disables analytics.
 
-To add a new site setting that code actually reads, use `useSiteSettingValue("your-key")` on the frontend or query the `site_settings` table on the API side.
+**Discord notifications:** When webhook URLs are configured, a cron job flushes pending printing events to Discord every 15 minutes. New printings are posted to the new-printings channel; field changes (with before/after values) are posted to the changes channel. Events are consolidated per printing within each flush window to reduce noise.
+
+To add a new site setting that code actually reads, use `useSiteSettingValue("your-key")` on the frontend or query the `site_settings` table on the API side. Also add the key to the `KNOWN_SETTINGS` array in `apps/web/src/components/admin/site-settings-page.tsx` so it appears in the admin UI.

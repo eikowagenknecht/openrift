@@ -51,13 +51,11 @@ await validateWellKnownSlugs(db);
 
 // ── 3. Register cron jobs (non-blocking timers) ─────────────────────────────
 
-if (config.cron.enabled) {
-  const repos = createRepos(db);
-  const tcgLog = log.child({ service: "tcgplayer" });
-  const cmLog = log.child({ service: "cardmarket" });
+const repos = createRepos(db);
 
+if (config.cron.tcgplayerSchedule) {
+  const tcgLog = log.child({ service: "tcgplayer" });
   const tcgSchedule = config.cron.tcgplayerSchedule;
-  const cmSchedule = config.cron.cardmarketSchedule;
 
   cronJobs.tcgplayer = new Cron(tcgSchedule, { protect: true }, async () => {
     try {
@@ -69,6 +67,11 @@ if (config.cron.enabled) {
     }
   });
   tcgLog.info(`Cron registered (${tcgSchedule})`);
+}
+
+if (config.cron.cardmarketSchedule) {
+  const cmLog = log.child({ service: "cardmarket" });
+  const cmSchedule = config.cron.cardmarketSchedule;
 
   cronJobs.cardmarket = new Cron(cmSchedule, { protect: true }, async () => {
     try {
@@ -80,24 +83,25 @@ if (config.cron.enabled) {
     }
   });
   cmLog.info(`Cron registered (${cmSchedule})`);
+}
 
-  if (config.cardtraderApiToken) {
-    const ctLog = log.child({ service: "cardtrader" });
-    const ctSchedule = config.cron.cardtraderSchedule;
+if (config.cron.cardtraderSchedule && config.cardtraderApiToken) {
+  const ctLog = log.child({ service: "cardtrader" });
+  const ctSchedule = config.cron.cardtraderSchedule;
 
-    cronJobs.cardtrader = new Cron(ctSchedule, { protect: true }, async () => {
-      try {
-        ctLog.info("Starting price refresh");
-        await refreshCardtraderPrices(globalThis.fetch, repos, ctLog, config.cardtraderApiToken);
-        ctLog.info("Price refresh complete");
-      } catch (error) {
-        ctLog.error(error, "Price refresh failed");
-      }
-    });
-    ctLog.info(`Cron registered (${ctSchedule})`);
-  }
+  cronJobs.cardtrader = new Cron(ctSchedule, { protect: true }, async () => {
+    try {
+      ctLog.info("Starting price refresh");
+      await refreshCardtraderPrices(globalThis.fetch, repos, ctLog, config.cardtraderApiToken);
+      ctLog.info("Price refresh complete");
+    } catch (error) {
+      ctLog.error(error, "Price refresh failed");
+    }
+  });
+  ctLog.info(`Cron registered (${ctSchedule})`);
+}
 
-  // Flush printing events to Discord every 15 minutes
+{
   const peLog = log.child({ service: "printing-events" });
   cronJobs.printingEvents = new Cron("*/15 * * * *", { protect: true }, async () => {
     try {

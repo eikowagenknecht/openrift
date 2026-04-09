@@ -39,10 +39,9 @@ export function createConfig(env: Record<string, string | undefined>) {
     logRequests: env.LOG_REQUESTS === "true",
 
     cron: {
-      enabled: env.CRON_ENABLED === "true",
-      tcgplayerSchedule: env.CRON_TCGPLAYER || "0 6 * * *",
-      cardmarketSchedule: env.CRON_CARDMARKET || "15 6 * * *",
-      cardtraderSchedule: env.CRON_CARDTRADER || "30 6 * * *",
+      tcgplayerSchedule: env.CRON_TCGPLAYER,
+      cardmarketSchedule: env.CRON_CARDMARKET,
+      cardtraderSchedule: env.CRON_CARDTRADER,
     },
   } as const;
 }

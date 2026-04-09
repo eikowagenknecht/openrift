@@ -173,12 +173,6 @@ export function StatusPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-0.5">
-            <div className="flex items-center justify-between py-1.5">
-              <span className="text-muted-foreground text-sm">Enabled</span>
-              <Badge variant={cron.enabled ? "default" : "secondary"}>
-                {cron.enabled ? "yes" : "no"}
-              </Badge>
-            </div>
             {Object.entries(cron.jobs).map(([name, job]) => (
               <div key={name} className="flex items-center justify-between py-1.5">
                 <span className="text-muted-foreground text-sm">{name}</span>
