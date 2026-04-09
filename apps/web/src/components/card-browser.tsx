@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PackageIcon, PackagePlusIcon } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import type { ReactNode } from "react";
@@ -39,6 +39,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
+import { queryKeys } from "@/lib/query-keys";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -65,6 +66,20 @@ export function CardBrowser() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const batchedAdd = useBatchedAddCopies();
   const disposeCopies = useDisposeCopies();
+  const queryClient = useQueryClient();
+
+  const adjustOwnedCount = (printingId: string, delta: number) => {
+    queryClient.setQueryData<{ items: Record<string, number> }>(queryKeys.ownedCount.all, (old) => {
+      if (!old) {
+        return old;
+      }
+      const prev = old.items[printingId] ?? 0;
+      return {
+        ...old,
+        items: { ...old.items, [printingId]: Math.max(0, prev + delta) },
+      };
+    });
+  };
 
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
 
@@ -167,12 +182,13 @@ export function CardBrowser() {
   const handleQuickAdd =
     isAddMode && inboxId
       ? async (printing: Printing) => {
+          adjustOwnedCount(printing.id, 1);
           useAddModeStore.getState().incrementPending(printing);
           try {
             const result = await batchedAdd.add(printing.id, inboxId);
             useAddModeStore.getState().recordAdd(printing, result.id);
           } catch {
-            // Server-side add failed — pending count is the only thing to clean up
+            adjustOwnedCount(printing.id, -1);
           } finally {
             useAddModeStore.getState().decrementPending(printing.id);
           }
@@ -189,10 +205,12 @@ export function CardBrowser() {
         if (!copyIdToRemove) {
           return;
         }
+        adjustOwnedCount(printing.id, -1);
         useAddModeStore.getState().recordUndo(printing.id);
         try {
           await disposeCopies.mutateAsync({ copyIds: [copyIdToRemove] });
         } catch {
+          adjustOwnedCount(printing.id, 1);
           useAddModeStore.getState().recordAdd(printing, copyIdToRemove);
         }
       }

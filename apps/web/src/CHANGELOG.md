@@ -12,6 +12,7 @@
 - feat: The app now uses server-side rendering, delivering faster initial page loads, better search engine indexing, and smoother navigation
 - feat: Help pages for import/export, collections, deck building, and card details have been rewritten with clearer guidance
 - feat: The Discord server now receives a daily changelog digest and notifications when new printings are detected
+- fix: Adding and removing cards on the cards page now updates the count instantly instead of after a delay
 - fix: Deck overview and deck card browser no longer show cards from disabled languages
 - fix: Card detail labels (Set, Rules, Flavor, etc.) now align consistently on both mobile and desktop
 - fix: Keyword badges on Chinese cards no longer show trailing color suffixes or formatting noise
