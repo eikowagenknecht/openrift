@@ -702,6 +702,33 @@ export type ArtVariantsTable = ReferenceTable;
 export type DeckFormatsTable = ReferenceTable;
 export type DeckZonesTable = ReferenceTable;
 
+// ─── Printing events (migration 071) ────────────────────────────────────────
+
+export interface PrintingEventsTable {
+  id: Generated<string>;
+  eventType: "new" | "changed";
+  printingId: string;
+  cardName: string;
+  setName: string | null;
+  shortCode: string | null;
+  rarity: string | null;
+  finish: string | null;
+  artist: string | null;
+  language: string | null;
+  /** JSONB array of { field, from, to } for changed events */
+  changes: ColumnType<FieldChange[] | null, string | null, string | null>;
+  status: "pending" | "sent" | "failed";
+  retryCount: number;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+export interface FieldChange {
+  field: string;
+  from: unknown;
+  to: unknown;
+}
+
 // ─── Junction tables (migration 059) ─────────────────────────────────────────
 
 export interface CardDomainsTable {
@@ -818,4 +845,7 @@ export interface Database {
   // Junction tables (migration 062)
   cardDomains: CardDomainsTable;
   cardSuperTypes: CardSuperTypesTable;
+
+  // Printing events (migration 071)
+  printingEvents: PrintingEventsTable;
 }

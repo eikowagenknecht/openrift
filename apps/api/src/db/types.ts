@@ -32,4 +32,7 @@ export type {
   // Reference tables (migration 062)
   DomainsTable,
   ReferenceTable,
+  // Printing events (migration 071)
+  PrintingEventsTable,
+  FieldChange,
 } from "./tables.js";

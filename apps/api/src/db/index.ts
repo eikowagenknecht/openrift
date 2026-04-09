@@ -30,4 +30,6 @@ export type {
   WishListItemsTable,
   WishListsTable,
   ReferenceTable,
+  PrintingEventsTable,
+  FieldChange,
 } from "./types.js";

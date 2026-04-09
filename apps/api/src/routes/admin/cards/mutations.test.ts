@@ -79,11 +79,16 @@ const mockMut = {
   deleteByProvider: vi.fn(),
   replaceCardDomainsById: vi.fn(),
   replaceCardSuperTypesById: vi.fn(),
+  getFullPrintingById: vi.fn(),
 };
 
 const mockCandidateCards = {};
 const mockPrintingImages = {};
 const mockPromoTypes = {};
+const mockPrintingEvents = {
+  recordNewPrinting: vi.fn(),
+  recordPrintingChange: vi.fn(),
+};
 const mockSets = {
   getBySlug: vi.fn(),
 };
@@ -121,6 +126,7 @@ const app = new Hono()
       candidateCards: mockCandidateCards,
       printingImages: mockPrintingImages,
       promoTypes: mockPromoTypes,
+      printingEvents: mockPrintingEvents,
       providerSettings: { favoriteProviders: vi.fn().mockResolvedValue(new Set(["gallery"])) },
       sets: mockSets,
     } as never);
@@ -701,6 +707,28 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
     mockFixTypography.mockImplementation((text: string) => text);
     mockAppendSetTotal.mockImplementation((code: string) => code);
     mockMut.recomputeKeywordsForPrintingCard.mockResolvedValue(undefined);
+    mockMut.getFullPrintingById.mockResolvedValue({
+      id: "OGS-001",
+      cardId: "card-uuid",
+      setId: "set-uuid",
+      shortCode: "OGS-001",
+      rarity: "Common",
+      artVariant: "normal",
+      isSigned: false,
+      promoTypeId: null,
+      finish: "normal",
+      artist: "Original Artist",
+      publicCode: "001",
+      printedRulesText: null,
+      printedEffectText: null,
+      flavorText: null,
+      comment: null,
+      language: "EN",
+      printedName: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    mockMut.getCardById.mockResolvedValue({ id: "card-uuid", name: "Test Card", slug: "test" });
   });
 
   it("returns 204 and updates printing field", async () => {

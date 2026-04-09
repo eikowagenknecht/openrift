@@ -229,6 +229,11 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    /** @returns A full printing row by UUID (for change tracking). */
+    getFullPrintingById(id: string): Promise<Selectable<PrintingsTable> | undefined> {
+      return db.selectFrom("printings").selectAll().where("id", "=", id).executeTakeFirst();
+    },
+
     /** @returns A printing's cardId by UUID. */
     getPrintingCardIdById(id: string): Promise<{ cardId: string } | undefined> {
       return db.selectFrom("printings").select("cardId").where("id", "=", id).executeTakeFirst();

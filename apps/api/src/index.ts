@@ -10,6 +10,7 @@ import { createDb } from "./db/connect.js";
 import { migrate } from "./db/migrate.js";
 import { createRepos } from "./deps.js";
 import { createEmailSender } from "./email.js";
+import { flushPendingPrintingEvents } from "./services/flush-printing-events.js";
 import {
   refreshCardmarketPrices,
   refreshCardtraderPrices,
@@ -95,6 +96,17 @@ if (config.cron.enabled) {
     });
     ctLog.info(`Cron registered (${ctSchedule})`);
   }
+
+  // Flush printing events to Discord every 15 minutes
+  const peLog = log.child({ service: "printing-events" });
+  cronJobs.printingEvents = new Cron("*/15 * * * *", { protect: true }, async () => {
+    try {
+      await flushPendingPrintingEvents(repos, peLog);
+    } catch (error) {
+      peLog.error(error, "Printing events flush failed");
+    }
+  });
+  peLog.info("Cron registered (*/15 * * * *)");
 }
 
 // ── 4. Start server ─────────────────────────────────────────────────────────

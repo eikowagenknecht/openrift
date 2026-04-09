@@ -14,6 +14,7 @@ import {
   deletePrinting,
   updatePrintingPromoType,
 } from "../../../services/printing-admin.js";
+import { recordPrintingChangeEvent } from "../../../services/record-printing-event.js";
 import type { Variables } from "../../../types.js";
 import { assertDeleted, assertFound, assertUpdated } from "../../../utils/assertions.js";
 import {
@@ -693,7 +694,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   // ── POST /printing/:printingId/accept-field ──────────────────────────────
   .openapi(acceptPrintingField, async (c) => {
-    const { candidateMutations: mut } = c.get("repos");
+    const { candidateMutations: mut, printingEvents } = c.get("repos");
     const printingId = c.req.valid("param").printingId;
     const { field, value, source } = c.req.valid("json");
 
@@ -744,6 +745,10 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       }
     }
 
+    // Read the printing before mutation so we can capture old values for change tracking
+    const printingBefore = await mut.getFullPrintingById(printingId);
+    assertFound(printingBefore, "Printing not found");
+
     // When promoTypeId changes, update via dedicated function
     if (field === "promoTypeId") {
       const { candidateMutations, promoTypes } = c.get("repos");
@@ -752,6 +757,20 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
         printingId,
         (normalizedValue as string) || null,
       );
+
+      // Record change event
+      const oldValue = printingBefore.promoTypeId;
+      const newValue = (normalizedValue as string) || null;
+      if (oldValue !== newValue) {
+        const card = await mut.getCardById(printingBefore.cardId);
+        await recordPrintingChangeEvent(printingEvents, {
+          printingId,
+          cardName: card?.name ?? "Unknown",
+          shortCode: printingBefore.shortCode,
+          changes: [{ field: "promoTypeId", from: oldValue, to: newValue }],
+        });
+      }
+
       return c.body(null, 204);
     }
 
@@ -801,6 +820,18 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       await mut.recomputeKeywordsForPrintingCard(printingId);
     }
 
+    // Record change event
+    const oldValue = printingBefore[field as keyof typeof printingBefore] ?? null;
+    if (oldValue !== normalizedValue) {
+      const card = await mut.getCardById(printingBefore.cardId);
+      await recordPrintingChangeEvent(printingEvents, {
+        printingId,
+        cardName: card?.name ?? "Unknown",
+        shortCode: printingBefore.shortCode,
+        changes: [{ field, from: oldValue, to: normalizedValue }],
+      });
+    }
+
     return c.body(null, 204);
   })
 
@@ -843,15 +874,21 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // ── POST /new/:name/accept-favorites ─────────────────────────────────────
   // Create card + printings from favorite-provider sources
   .openapi(acceptFavoriteNewCardRoute, async (c) => {
-    const { candidateCards, candidateMutations, printingImages, promoTypes, providerSettings } =
-      c.get("repos");
+    const {
+      candidateCards,
+      candidateMutations,
+      printingImages,
+      promoTypes,
+      providerSettings,
+      printingEvents,
+    } = c.get("repos");
     const normalizedName = decodeURIComponent(c.req.valid("param").name);
     const favoriteProviders = await providerSettings.favoriteProviders();
 
     const result = await acceptFavoriteNewCard(
       c.get("transact"),
       c.get("io"),
-      { candidateCards, candidateMutations, printingImages, promoTypes },
+      { candidateCards, candidateMutations, printingImages, promoTypes, printingEvents },
       normalizedName,
       favoriteProviders,
     );
@@ -862,8 +899,14 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // ── POST /:cardSlug/accept-favorite-printings ─────────────────────────────
   // Accept all unlinked candidate printings from favorite providers for an existing card
   .openapi(acceptFavoritePrintings, async (c) => {
-    const { candidateCards, candidateMutations, printingImages, promoTypes, providerSettings } =
-      c.get("repos");
+    const {
+      candidateCards,
+      candidateMutations,
+      printingImages,
+      promoTypes,
+      providerSettings,
+      printingEvents,
+    } = c.get("repos");
     const cardSlug = c.req.valid("param").cardSlug;
 
     const favoriteProviders = await providerSettings.favoriteProviders();
@@ -871,7 +914,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const result = await acceptFavoritePrintingsForCard(
       c.get("transact"),
       c.get("io"),
-      { candidateCards, candidateMutations, printingImages, promoTypes },
+      { candidateCards, candidateMutations, printingImages, promoTypes, printingEvents },
       cardSlug,
       favoriteProviders,
     );
@@ -903,13 +946,13 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // ── POST /:cardId/accept-printing ─────────────────────────────────────────
   // Create a new printing from admin-selected fields, link all candidates in the group
   .openapi(acceptPrintingRoute, async (c) => {
-    const { candidateMutations, printingImages, promoTypes } = c.get("repos");
+    const { candidateMutations, printingImages, promoTypes, printingEvents } = c.get("repos");
     const cardId = c.req.valid("param").cardId;
     const { printingFields, candidatePrintingIds } = c.req.valid("json");
 
     const printingId = await acceptPrinting(
       c.get("transact"),
-      { candidateMutations, printingImages, promoTypes },
+      { candidateMutations, printingImages, promoTypes, printingEvents },
       cardId,
       printingFields,
       candidatePrintingIds,

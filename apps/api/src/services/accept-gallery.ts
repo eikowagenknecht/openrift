@@ -5,6 +5,7 @@ import type { Transact } from "../deps.js";
 import type { Io } from "../io.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
+import type { printingEventsRepo } from "../repositories/printing-events.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import type { promoTypesRepo } from "../repositories/promo-types.js";
 import { rehostImages } from "./image-rehost.js";
@@ -12,6 +13,7 @@ import { acceptPrinting } from "./printing-admin.js";
 
 type CandidateCardsRepo = ReturnType<typeof candidateCardsRepo>;
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
+type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 type PromoTypesRepo = ReturnType<typeof promoTypesRepo>;
 
@@ -31,6 +33,7 @@ export async function acceptFavoriteNewCard(
     candidateMutations: CandidateMutationsRepo;
     printingImages: PrintingImagesRepo;
     promoTypes: PromoTypesRepo;
+    printingEvents?: PrintingEventsRepo;
   },
   normalizedName: string,
   favoriteProviders: Set<string>,

@@ -26,6 +26,7 @@ import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
 import { marketplaceTransferRepo } from "./repositories/marketplace-transfer.js";
 import { marketplaceRepo } from "./repositories/marketplace.js";
 import { priceRefreshRepo } from "./repositories/price-refresh.js";
+import { printingEventsRepo } from "./repositories/printing-events.js";
 import { printingImagesRepo } from "./repositories/printing-images.js";
 import { promoTypesRepo } from "./repositories/promo-types.js";
 import { providerSettingsRepo } from "./repositories/provider-settings.js";
@@ -84,6 +85,7 @@ export interface Repos {
   marketplaceMapping: ReturnType<typeof marketplaceMappingRepo>;
   marketplaceTransfer: ReturnType<typeof marketplaceTransferRepo>;
   priceRefresh: ReturnType<typeof priceRefreshRepo>;
+  printingEvents: ReturnType<typeof printingEventsRepo>;
 }
 
 export interface Services {
@@ -137,6 +139,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     marketplaceMapping: marketplaceMappingRepo(db),
     marketplaceTransfer: marketplaceTransferRepo(db),
     priceRefresh: priceRefreshRepo(db),
+    printingEvents: printingEventsRepo(db),
   };
 }
 

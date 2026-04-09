@@ -6,12 +6,15 @@ import type { Transact } from "../deps.js";
 import { AppError, ERROR_CODES } from "../errors.js";
 import type { Io } from "../io.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
+import type { printingEventsRepo } from "../repositories/printing-events.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 import type { promoTypesRepo } from "../repositories/promo-types.js";
 import { assertFound } from "../utils/assertions.js";
 import { deleteRehostFiles } from "./image-rehost.js";
+import { recordNewPrintingEvent } from "./record-printing-event.js";
 
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
+type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 type PromoTypesRepo = ReturnType<typeof promoTypesRepo>;
 
@@ -136,6 +139,7 @@ export async function acceptPrinting(
     candidateMutations: CandidateMutationsRepo;
     printingImages: PrintingImagesRepo;
     promoTypes: PromoTypesRepo;
+    printingEvents?: PrintingEventsRepo;
   },
   cardId: string,
   printingFields: AcceptPrintingFields,
@@ -257,6 +261,20 @@ export async function acceptPrinting(
       insertedId,
     );
   });
+
+  // Record "new printing" event (best-effort, outside transaction)
+  if (repos.printingEvents) {
+    await recordNewPrintingEvent(repos.printingEvents, {
+      printingId: insertedId,
+      cardName: card.name,
+      setName: printingFields.setName ?? printingFields.setId ?? null,
+      shortCode: printingFields.shortCode,
+      rarity: printingFields.rarity ?? null,
+      finish: printingFields.finish ?? null,
+      artist: printingFields.artist,
+      language: printingFields.language ?? "EN",
+    });
+  }
 
   return insertedId;
 }

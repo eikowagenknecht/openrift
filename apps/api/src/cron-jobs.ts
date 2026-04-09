@@ -4,4 +4,5 @@ export const cronJobs = {
   tcgplayer: null as Cron | null,
   cardmarket: null as Cron | null,
   cardtrader: null as Cron | null,
+  printingEvents: null as Cron | null,
 };

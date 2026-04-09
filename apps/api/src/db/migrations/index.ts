@@ -19,6 +19,7 @@ import * as m070 from "./070-drop-collector-number.js";
 import * as m071 from "./071-name-based-card-slugs.js";
 import * as m072 from "./072-rename-image-files.js";
 import * as m073 from "./073-keyword-translations.js";
+import * as m074 from "./074-printing-events.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -97,4 +98,5 @@ export const migrations: Record<string, Migration> = {
   "071-name-based-card-slugs": m071,
   "072-rename-image-files": m072,
   "073-keyword-translations": m073,
+  "074-printing-events": m074,
 };
