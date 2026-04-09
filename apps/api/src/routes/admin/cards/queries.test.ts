@@ -223,19 +223,25 @@ describe("GET /api/v1/:cardId", () => {
     };
     mockBuildCandidateCardDetail.mockResolvedValue(detail as any);
 
-    const res = await app.request("/api/v1/fireball");
+    const res = await app.request("/api/v1/00000000-0000-4000-a000-000000000020");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.displayName).toBe("Fireball");
-    expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(mockCandidateCards, "fireball");
+    expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(
+      mockCandidateCards,
+      "00000000-0000-4000-a000-000000000020",
+    );
   });
 
   it("passes the correct cardId parameter", async () => {
     mockBuildCandidateCardDetail.mockResolvedValue({ card: null } as any);
 
-    await app.request("/api/v1/my-custom-card");
+    await app.request("/api/v1/00000000-0000-4000-a000-000000000021");
 
-    expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(mockCandidateCards, "my-custom-card");
+    expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(
+      mockCandidateCards,
+      "00000000-0000-4000-a000-000000000021",
+    );
   });
 });
 

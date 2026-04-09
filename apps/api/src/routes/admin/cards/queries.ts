@@ -119,7 +119,7 @@ const getCandidateCard = createRoute({
   path: "/{cardId}",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ cardId: z.string() }),
+    params: z.object({ cardId: z.string().uuid() }),
   },
   responses: {
     200: {

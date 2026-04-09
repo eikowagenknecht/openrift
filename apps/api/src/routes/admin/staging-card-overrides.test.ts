@@ -50,7 +50,7 @@ describe("POST /api/v1/staging-card-overrides", () => {
         externalId: 12_345,
         finish: "normal",
         language: "EN",
-        cardId: "card-uuid-1",
+        cardId: "00000000-0000-4000-a000-000000000031",
       }),
     });
 
@@ -60,7 +60,7 @@ describe("POST /api/v1/staging-card-overrides", () => {
       externalId: 12_345,
       finish: "normal",
       language: "EN",
-      cardId: "card-uuid-1",
+      cardId: "00000000-0000-4000-a000-000000000031",
     });
   });
 
@@ -75,7 +75,7 @@ describe("POST /api/v1/staging-card-overrides", () => {
         externalId: 67_890,
         finish: "foil",
         language: "EN",
-        cardId: "card-uuid-2",
+        cardId: "00000000-0000-4000-a000-000000000032",
       }),
     });
 
@@ -93,7 +93,7 @@ describe("POST /api/v1/staging-card-overrides", () => {
         externalId: 11_111,
         finish: "normal",
         language: "EN",
-        cardId: "card-uuid-3",
+        cardId: "00000000-0000-4000-a000-000000000033",
       }),
     });
 
@@ -109,7 +109,7 @@ describe("POST /api/v1/staging-card-overrides", () => {
         externalId: 12_345,
         finish: "normal",
         language: "EN",
-        cardId: "card-uuid-1",
+        cardId: "00000000-0000-4000-a000-000000000031",
       }),
     });
 

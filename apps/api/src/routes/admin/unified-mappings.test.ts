@@ -125,8 +125,8 @@ describe("POST /api/v1/marketplace-mappings", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         mappings: [
-          { printingId: "p-1", externalId: 12_345 },
-          { printingId: "p-2", externalId: 67_890 },
+          { printingId: "00000000-0000-4000-a000-000000000001", externalId: 12_345 },
+          { printingId: "00000000-0000-4000-a000-000000000002", externalId: 67_890 },
         ],
       }),
     });
@@ -145,7 +145,7 @@ describe("POST /api/v1/marketplace-mappings", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        mappings: [{ printingId: "p-1", externalId: 12_345 }],
+        mappings: [{ printingId: "00000000-0000-4000-a000-000000000001", externalId: 12_345 }],
       }),
     });
 
@@ -164,7 +164,7 @@ describe("POST /api/v1/marketplace-mappings", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        mappings: [{ printingId: "p-missing", externalId: 12_345 }],
+        mappings: [{ printingId: "00000000-0000-4000-a000-000000000099", externalId: 12_345 }],
       }),
     });
 
@@ -179,7 +179,7 @@ describe("POST /api/v1/marketplace-mappings", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        mappings: [{ printingId: "p-1", externalId: 12_345 }],
+        mappings: [{ printingId: "00000000-0000-4000-a000-000000000001", externalId: 12_345 }],
       }),
     });
 
@@ -198,7 +198,7 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
     const res = await app.request("/api/v1/marketplace-mappings?marketplace=tcgplayer", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ printingId: "p-1" }),
+      body: JSON.stringify({ printingId: "00000000-0000-4000-a000-000000000001" }),
     });
 
     expect(res.status).toBe(204);
@@ -211,7 +211,7 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
     const res = await app.request("/api/v1/marketplace-mappings?marketplace=cardmarket", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ printingId: "p-2" }),
+      body: JSON.stringify({ printingId: "00000000-0000-4000-a000-000000000002" }),
     });
 
     expect(res.status).toBe(204);
@@ -221,7 +221,7 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
     const res = await app.request("/api/v1/marketplace-mappings?marketplace=invalid", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ printingId: "p-1" }),
+      body: JSON.stringify({ printingId: "00000000-0000-4000-a000-000000000001" }),
     });
 
     expect(res.status).toBe(400);

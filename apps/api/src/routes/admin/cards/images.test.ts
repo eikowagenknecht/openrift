@@ -107,11 +107,14 @@ describe("POST /api/v1/candidate-printings/:id/set-image", () => {
     mockTrxPrintingImages.insertImage.mockResolvedValue("image-id-1");
     mockRehostSingleImage.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/candidate-printings/cp-1/set-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "main" }),
-    });
+    const res = await app.request(
+      "/api/v1/candidate-printings/00000000-0000-4000-a000-000000000001/set-image",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "main" }),
+      },
+    );
     expect(res.status).toBe(204);
     expect(mockTrxPrintingImages.insertImage).toHaveBeenCalledWith(
       "printing-1",
@@ -132,11 +135,14 @@ describe("POST /api/v1/candidate-printings/:id/set-image", () => {
     mockTrxPrintingImages.insertImage.mockResolvedValue("image-id-1");
     mockRehostSingleImage.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/candidate-printings/cp-1/set-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "additional" }),
-    });
+    const res = await app.request(
+      "/api/v1/candidate-printings/00000000-0000-4000-a000-000000000001/set-image",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "additional" }),
+      },
+    );
     expect(res.status).toBe(204);
     expect(mockTrxPrintingImages.insertImage).toHaveBeenCalledWith(
       "printing-1",
@@ -155,11 +161,14 @@ describe("POST /api/v1/candidate-printings/:id/set-image", () => {
     mockPrintingImages.getCandidateCardProvider.mockResolvedValue({ provider: "tcgplayer" });
     mockTrxPrintingImages.insertImage.mockResolvedValue(null);
 
-    const res = await app.request("/api/v1/candidate-printings/cp-1/set-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "main" }),
-    });
+    const res = await app.request(
+      "/api/v1/candidate-printings/00000000-0000-4000-a000-000000000001/set-image",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "main" }),
+      },
+    );
     expect(res.status).toBe(204);
     expect(mockRehostSingleImage).not.toHaveBeenCalled();
   });
@@ -167,11 +176,14 @@ describe("POST /api/v1/candidate-printings/:id/set-image", () => {
   it("returns 404 when candidate printing not found", async () => {
     mockPrintingImages.getCandidatePrintingById.mockResolvedValue(null);
 
-    const res = await app.request("/api/v1/candidate-printings/unknown/set-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "main" }),
-    });
+    const res = await app.request(
+      "/api/v1/candidate-printings/00000000-0000-4000-a000-000000000099/set-image",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "main" }),
+      },
+    );
     expect(res.status).toBe(404);
   });
 
@@ -182,11 +194,14 @@ describe("POST /api/v1/candidate-printings/:id/set-image", () => {
       candidateCardId: "cc-1",
     });
 
-    const res = await app.request("/api/v1/candidate-printings/cp-1/set-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "main" }),
-    });
+    const res = await app.request(
+      "/api/v1/candidate-printings/00000000-0000-4000-a000-000000000001/set-image",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "main" }),
+      },
+    );
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toContain("not linked");
@@ -199,11 +214,14 @@ describe("POST /api/v1/candidate-printings/:id/set-image", () => {
       candidateCardId: "cc-1",
     });
 
-    const res = await app.request("/api/v1/candidate-printings/cp-1/set-image", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "main" }),
-    });
+    const res = await app.request(
+      "/api/v1/candidate-printings/00000000-0000-4000-a000-000000000001/set-image",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "main" }),
+      },
+    );
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toContain("no image URL");
@@ -225,9 +243,13 @@ describe("DELETE /api/v1/printing-images/:imageId", () => {
     mockPrintingImages.deleteOrphanedImageFiles.mockResolvedValue(0);
     mockDeleteRehostFiles.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/printing-images/img-1", { method: "DELETE" });
+    const res = await app.request("/api/v1/printing-images/00000000-0000-4000-a000-000000000002", {
+      method: "DELETE",
+    });
     expect(res.status).toBe(204);
-    expect(mockPrintingImages.deleteById).toHaveBeenCalledWith("img-1");
+    expect(mockPrintingImages.deleteById).toHaveBeenCalledWith(
+      "00000000-0000-4000-a000-000000000002",
+    );
     expect(mockDeleteRehostFiles).toHaveBeenCalledWith(mockIo, "/cards/origin/img-1.avif");
   });
 
@@ -239,7 +261,9 @@ describe("DELETE /api/v1/printing-images/:imageId", () => {
     mockPrintingImages.countOthersByImageFileId.mockResolvedValue(2);
     mockPrintingImages.deleteById.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/printing-images/img-1", { method: "DELETE" });
+    const res = await app.request("/api/v1/printing-images/00000000-0000-4000-a000-000000000002", {
+      method: "DELETE",
+    });
     expect(res.status).toBe(204);
     expect(mockDeleteRehostFiles).not.toHaveBeenCalled();
   });
@@ -251,7 +275,9 @@ describe("DELETE /api/v1/printing-images/:imageId", () => {
     mockPrintingImages.getImageFileId.mockResolvedValue(null);
     mockPrintingImages.deleteById.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/printing-images/img-1", { method: "DELETE" });
+    const res = await app.request("/api/v1/printing-images/00000000-0000-4000-a000-000000000002", {
+      method: "DELETE",
+    });
     expect(res.status).toBe(204);
     expect(mockDeleteRehostFiles).not.toHaveBeenCalled();
   });
@@ -259,7 +285,9 @@ describe("DELETE /api/v1/printing-images/:imageId", () => {
   it("returns 404 when image not found", async () => {
     mockPrintingImages.getIdAndRehostedUrl.mockResolvedValue(null);
 
-    const res = await app.request("/api/v1/printing-images/unknown", { method: "DELETE" });
+    const res = await app.request("/api/v1/printing-images/00000000-0000-4000-a000-000000000099", {
+      method: "DELETE",
+    });
     expect(res.status).toBe(404);
   });
 });
@@ -274,14 +302,20 @@ describe("POST /api/v1/printing-images/:imageId/activate", () => {
       printingId: "printing-1",
     });
 
-    const res = await app.request("/api/v1/printing-images/img-1/activate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ active: true }),
-    });
+    const res = await app.request(
+      "/api/v1/printing-images/00000000-0000-4000-a000-000000000002/activate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: true }),
+      },
+    );
     expect(res.status).toBe(204);
     expect(mockTrxPrintingImages.deactivateActiveFront).toHaveBeenCalledWith("printing-1");
-    expect(mockTrxPrintingImages.setActive).toHaveBeenCalledWith("img-1", true);
+    expect(mockTrxPrintingImages.setActive).toHaveBeenCalledWith(
+      "00000000-0000-4000-a000-000000000002",
+      true,
+    );
   });
 
   it("returns 204 without deactivating when setting inactive", async () => {
@@ -289,24 +323,33 @@ describe("POST /api/v1/printing-images/:imageId/activate", () => {
       printingId: "printing-1",
     });
 
-    const res = await app.request("/api/v1/printing-images/img-1/activate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ active: false }),
-    });
+    const res = await app.request(
+      "/api/v1/printing-images/00000000-0000-4000-a000-000000000002/activate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: false }),
+      },
+    );
     expect(res.status).toBe(204);
     expect(mockTrxPrintingImages.deactivateActiveFront).not.toHaveBeenCalled();
-    expect(mockTrxPrintingImages.setActive).toHaveBeenCalledWith("img-1", false);
+    expect(mockTrxPrintingImages.setActive).toHaveBeenCalledWith(
+      "00000000-0000-4000-a000-000000000002",
+      false,
+    );
   });
 
   it("returns 404 when image not found", async () => {
     mockPrintingImages.getForActivate.mockResolvedValue(null);
 
-    const res = await app.request("/api/v1/printing-images/unknown/activate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ active: true }),
-    });
+    const res = await app.request(
+      "/api/v1/printing-images/00000000-0000-4000-a000-000000000099/activate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: true }),
+      },
+    );
     expect(res.status).toBe(404);
   });
 });
@@ -326,7 +369,10 @@ describe("POST /api/v1/printing-images/:imageId/unrehost", () => {
     mockDeleteRehostFiles.mockResolvedValue(undefined);
     mockPrintingImages.updateRehostedUrl.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/printing-images/img-1/unrehost", { method: "POST" });
+    const res = await app.request(
+      "/api/v1/printing-images/00000000-0000-4000-a000-000000000002/unrehost",
+      { method: "POST" },
+    );
     expect(res.status).toBe(204);
     expect(mockDeleteRehostFiles).toHaveBeenCalledWith(mockIo, "/cards/origin/img-1.avif");
     expect(mockPrintingImages.updateRehostedUrl).toHaveBeenCalledWith("ci-1", null);
@@ -341,7 +387,10 @@ describe("POST /api/v1/printing-images/:imageId/unrehost", () => {
     mockPrintingImages.countOthersByImageFileId.mockResolvedValue(1);
     mockPrintingImages.updateRehostedUrl.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/printing-images/img-1/unrehost", { method: "POST" });
+    const res = await app.request(
+      "/api/v1/printing-images/00000000-0000-4000-a000-000000000002/unrehost",
+      { method: "POST" },
+    );
     expect(res.status).toBe(204);
     expect(mockDeleteRehostFiles).not.toHaveBeenCalled();
     expect(mockPrintingImages.updateRehostedUrl).toHaveBeenCalledWith("ci-1", null);
@@ -350,7 +399,10 @@ describe("POST /api/v1/printing-images/:imageId/unrehost", () => {
   it("returns 404 when image not found", async () => {
     mockPrintingImages.getIdAndUrls.mockResolvedValue(null);
 
-    const res = await app.request("/api/v1/printing-images/unknown/unrehost", { method: "POST" });
+    const res = await app.request(
+      "/api/v1/printing-images/00000000-0000-4000-a000-000000000099/unrehost",
+      { method: "POST" },
+    );
     expect(res.status).toBe(404);
   });
 
@@ -360,7 +412,10 @@ describe("POST /api/v1/printing-images/:imageId/unrehost", () => {
       originalUrl: "https://example.com/img.png",
     });
 
-    const res = await app.request("/api/v1/printing-images/img-1/unrehost", { method: "POST" });
+    const res = await app.request(
+      "/api/v1/printing-images/00000000-0000-4000-a000-000000000002/unrehost",
+      { method: "POST" },
+    );
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toContain("not rehosted");
@@ -372,7 +427,10 @@ describe("POST /api/v1/printing-images/:imageId/unrehost", () => {
       originalUrl: null,
     });
 
-    const res = await app.request("/api/v1/printing-images/img-1/unrehost", { method: "POST" });
+    const res = await app.request(
+      "/api/v1/printing-images/00000000-0000-4000-a000-000000000002/unrehost",
+      { method: "POST" },
+    );
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toContain("no original URL");
@@ -394,7 +452,10 @@ describe("POST /api/v1/printing-images/:imageId/rehost", () => {
     mockImageRehostedUrl.mockReturnValue("/card-images/ab/00594247-a18a-4efd-8998-105449a4c1ab");
     mockPrintingImages.updateRehostedUrl.mockResolvedValue(undefined);
 
-    const res = await app.request("/api/v1/printing-images/img-1/rehost", { method: "POST" });
+    const res = await app.request(
+      "/api/v1/printing-images/00000000-0000-4000-a000-000000000002/rehost",
+      { method: "POST" },
+    );
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual({
@@ -417,7 +478,10 @@ describe("POST /api/v1/printing-images/:imageId/rehost", () => {
   it("returns 404 when image not found", async () => {
     mockPrintingImages.getForRehost.mockResolvedValue(null);
 
-    const res = await app.request("/api/v1/printing-images/unknown/rehost", { method: "POST" });
+    const res = await app.request(
+      "/api/v1/printing-images/00000000-0000-4000-a000-000000000099/rehost",
+      { method: "POST" },
+    );
     expect(res.status).toBe(404);
   });
 
@@ -427,7 +491,10 @@ describe("POST /api/v1/printing-images/:imageId/rehost", () => {
       imageFileId: "ci-1",
     });
 
-    const res = await app.request("/api/v1/printing-images/img-1/rehost", { method: "POST" });
+    const res = await app.request(
+      "/api/v1/printing-images/00000000-0000-4000-a000-000000000002/rehost",
+      { method: "POST" },
+    );
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toContain("no original URL");
@@ -442,11 +509,14 @@ describe("POST /api/v1/printing/:printingId/add-image-url", () => {
   it("returns 204 with default mode and provider", async () => {
     mockPrintingImages.getPrintingById.mockResolvedValue({ id: "printing-1" });
 
-    const res = await app.request("/api/v1/printing/printing-1/add-image-url", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: "https://example.com/img.png" }),
-    });
+    const res = await app.request(
+      "/api/v1/printing/00000000-0000-4000-a000-000000000003/add-image-url",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/img.png" }),
+      },
+    );
     expect(res.status).toBe(204);
     expect(mockTrxPrintingImages.insertImage).toHaveBeenCalledWith(
       "printing-1",
@@ -459,15 +529,18 @@ describe("POST /api/v1/printing/:printingId/add-image-url", () => {
   it("uses explicit mode and provider when provided", async () => {
     mockPrintingImages.getPrintingById.mockResolvedValue({ id: "printing-1" });
 
-    const res = await app.request("/api/v1/printing/printing-1/add-image-url", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url: "https://example.com/img.png",
-        mode: "additional",
-        provider: "tcgplayer",
-      }),
-    });
+    const res = await app.request(
+      "/api/v1/printing/00000000-0000-4000-a000-000000000003/add-image-url",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: "https://example.com/img.png",
+          mode: "additional",
+          provider: "tcgplayer",
+        }),
+      },
+    );
     expect(res.status).toBe(204);
     expect(mockTrxPrintingImages.insertImage).toHaveBeenCalledWith(
       "printing-1",
@@ -478,11 +551,14 @@ describe("POST /api/v1/printing/:printingId/add-image-url", () => {
   });
 
   it("returns 400 when url is empty", async () => {
-    const res = await app.request("/api/v1/printing/printing-1/add-image-url", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: "  " }),
-    });
+    const res = await app.request(
+      "/api/v1/printing/00000000-0000-4000-a000-000000000003/add-image-url",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: "  " }),
+      },
+    );
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.error).toContain("url is required");
@@ -491,11 +567,14 @@ describe("POST /api/v1/printing/:printingId/add-image-url", () => {
   it("returns 404 when printing not found", async () => {
     mockPrintingImages.getPrintingById.mockResolvedValue(null);
 
-    const res = await app.request("/api/v1/printing/unknown/add-image-url", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: "https://example.com/img.png" }),
-    });
+    const res = await app.request(
+      "/api/v1/printing/00000000-0000-4000-a000-000000000099/add-image-url",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: "https://example.com/img.png" }),
+      },
+    );
     expect(res.status).toBe(404);
   });
 });
@@ -515,10 +594,13 @@ describe("POST /api/v1/printing/:printingId/upload-image", () => {
     const formData = new FormData();
     formData.append("file", new File(["image-data"], "card.png", { type: "image/png" }));
 
-    const res = await app.request("/api/v1/printing/printing-1/upload-image", {
-      method: "POST",
-      body: formData,
-    });
+    const res = await app.request(
+      "/api/v1/printing/00000000-0000-4000-a000-000000000003/upload-image",
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual({ rehostedUrl: "/card-images/v7/mock-uuid-v7" });
@@ -543,10 +625,13 @@ describe("POST /api/v1/printing/:printingId/upload-image", () => {
     formData.append("mode", "additional");
     formData.append("provider", "custom-source");
 
-    const res = await app.request("/api/v1/printing/printing-1/upload-image", {
-      method: "POST",
-      body: formData,
-    });
+    const res = await app.request(
+      "/api/v1/printing/00000000-0000-4000-a000-000000000003/upload-image",
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
     expect(res.status).toBe(200);
     expect(mockTrxPrintingImages.insertUploadedImage).toHaveBeenCalledWith({
       id: "mock-uuid-v7",
@@ -563,10 +648,13 @@ describe("POST /api/v1/printing/:printingId/upload-image", () => {
     const formData = new FormData();
     formData.append("file", new File(["data"], "card.png", { type: "image/png" }));
 
-    const res = await app.request("/api/v1/printing/unknown/upload-image", {
-      method: "POST",
-      body: formData,
-    });
+    const res = await app.request(
+      "/api/v1/printing/00000000-0000-4000-a000-000000000099/upload-image",
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
     expect(res.status).toBe(404);
   });
 });

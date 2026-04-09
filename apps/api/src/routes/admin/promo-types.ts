@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { PromoTypeResponse } from "@openrift/shared";
-import { slugParamSchema } from "@openrift/shared/schemas";
+import { idParamSchema } from "@openrift/shared/schemas";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
@@ -68,7 +68,7 @@ const updatePromoType = createRoute({
   path: "/promo-types/{id}",
   tags: ["Admin - Promo Types"],
   request: {
-    params: slugParamSchema,
+    params: idParamSchema,
     body: { content: { "application/json": { schema: updatePromoTypeSchema } } },
   },
   responses: {
@@ -81,7 +81,7 @@ const deletePromoType = createRoute({
   path: "/promo-types/{id}",
   tags: ["Admin - Promo Types"],
   request: {
-    params: slugParamSchema,
+    params: idParamSchema,
   },
   responses: {
     204: { description: "Promo type deleted" },
