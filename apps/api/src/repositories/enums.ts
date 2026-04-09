@@ -38,6 +38,7 @@ export function enumsRepo(db: Kysely<Database>) {
         artVariants,
         deckFormats,
         deckZones,
+        languageRows,
       ] = await Promise.all([
         list("cardTypes"),
         list("rarities"),
@@ -47,7 +48,17 @@ export function enumsRepo(db: Kysely<Database>) {
         list("artVariants"),
         list("deckFormats"),
         list("deckZones"),
+        db.selectFrom("languages").selectAll().orderBy("sortOrder").orderBy("name").execute(),
       ]);
+
+      // Map languages (code/name) to the standard enum shape (slug/label)
+      const languages: EnumRow[] = languageRows.map((row) => ({
+        slug: row.code,
+        label: row.name,
+        sortOrder: row.sortOrder,
+        isWellKnown: false,
+      }));
+
       return {
         cardTypes,
         rarities,
@@ -57,6 +68,7 @@ export function enumsRepo(db: Kysely<Database>) {
         artVariants,
         deckFormats,
         deckZones,
+        languages,
       };
     },
   };

@@ -128,6 +128,7 @@ export const initResponseSchema = z
       artVariants: z.array(enumRowSchema),
       deckFormats: z.array(enumRowSchema),
       deckZones: z.array(enumRowSchema),
+      languages: z.array(enumRowSchema),
     }),
     keywordStyles: z.record(z.string(), keywordStyleEntrySchema),
   })

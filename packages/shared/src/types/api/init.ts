@@ -20,6 +20,7 @@ export interface InitResponse {
     artVariants: EnumRow[];
     deckFormats: EnumRow[];
     deckZones: EnumRow[];
+    languages: EnumRow[];
   };
   keywordStyles: Record<string, KeywordStyleEntry>;
 }
