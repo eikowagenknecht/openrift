@@ -204,7 +204,7 @@ describe("GET /api/v1/export", () => {
   });
 });
 
-describe("GET /api/v1/:cardId", () => {
+describe("GET /api/v1/:cardSlug", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -223,25 +223,19 @@ describe("GET /api/v1/:cardId", () => {
     };
     mockBuildCandidateCardDetail.mockResolvedValue(detail as any);
 
-    const res = await app.request("/api/v1/00000000-0000-4000-a000-000000000020");
+    const res = await app.request("/api/v1/fireball");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.displayName).toBe("Fireball");
-    expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(
-      mockCandidateCards,
-      "00000000-0000-4000-a000-000000000020",
-    );
+    expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(mockCandidateCards, "fireball");
   });
 
-  it("passes the correct cardId parameter", async () => {
+  it("passes the correct cardSlug parameter", async () => {
     mockBuildCandidateCardDetail.mockResolvedValue({ card: null } as any);
 
-    await app.request("/api/v1/00000000-0000-4000-a000-000000000021");
+    await app.request("/api/v1/abandon");
 
-    expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(
-      mockCandidateCards,
-      "00000000-0000-4000-a000-000000000021",
-    );
+    expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(mockCandidateCards, "abandon");
   });
 });
 

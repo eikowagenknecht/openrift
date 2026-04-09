@@ -116,10 +116,10 @@ const exportCandidates = createRoute({
 
 const getCandidateCard = createRoute({
   method: "get",
-  path: "/{cardId}",
+  path: "/{cardSlug}",
   tags: ["Admin - Cards"],
   request: {
-    params: z.object({ cardId: z.string().uuid() }),
+    params: z.object({ cardSlug: z.string() }),
   },
   responses: {
     200: {
@@ -184,7 +184,7 @@ export const queriesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   .openapi(getCandidateCard, async (c) => {
     const { candidateCards } = c.get("repos");
-    return c.json(await buildCardDetail(candidateCards, c.req.valid("param").cardId));
+    return c.json(await buildCardDetail(candidateCards, c.req.valid("param").cardSlug));
   })
 
   .openapi(getUnmatchedDetail, async (c) => {

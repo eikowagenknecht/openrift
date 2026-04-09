@@ -15,7 +15,7 @@ export type AllCardsResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["cards"]["all-cards"]["$get"]
 >;
 export type AdminCardDetailResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["cards"][":cardId"]["$get"]
+  Client["api"]["v1"]["admin"]["cards"][":cardSlug"]["$get"]
 >;
 export type UnmatchedCardDetailResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["cards"]["new"][":name"]["$get"]

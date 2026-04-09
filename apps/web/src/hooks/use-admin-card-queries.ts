@@ -83,8 +83,8 @@ export function useAllCards() {
 const fetchAdminCardDetail = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data: cardId }): Promise<AdminCardDetailResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/${encodeURIComponent(cardId)}`, {
+  .handler(async ({ context, data: cardSlug }): Promise<AdminCardDetailResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards/${encodeURIComponent(cardSlug)}`, {
       headers: { cookie: context.cookie },
     });
     if (!res.ok) {
@@ -93,17 +93,17 @@ const fetchAdminCardDetail = createServerFn({ method: "GET" })
     return res.json() as Promise<AdminCardDetailResponse>;
   });
 
-export function adminCardDetailQueryOptions(cardId: string) {
+export function adminCardDetailQueryOptions(cardSlug: string) {
   return queryOptions({
-    queryKey: queryKeys.admin.cards.detail(cardId),
-    queryFn: () => fetchAdminCardDetail({ data: cardId }),
+    queryKey: queryKeys.admin.cards.detail(cardSlug),
+    queryFn: () => fetchAdminCardDetail({ data: cardSlug }),
   });
 }
 
-export function useAdminCardDetail(cardId: string) {
+export function useAdminCardDetail(cardSlug: string) {
   return useQuery({
-    ...adminCardDetailQueryOptions(cardId),
-    enabled: Boolean(cardId),
+    ...adminCardDetailQueryOptions(cardSlug),
+    enabled: Boolean(cardSlug),
   });
 }
 
