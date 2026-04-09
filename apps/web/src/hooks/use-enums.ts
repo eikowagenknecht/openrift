@@ -57,6 +57,16 @@ export function useZoneOrder(): {
 }
 
 /**
+ * Returns a code-to-name lookup map for languages from the /init endpoint.
+ *
+ * @returns A Record mapping language codes (e.g. "EN") to display names (e.g. "English").
+ */
+export function useLanguageLabels(): Record<string, string> {
+  const { data } = useSuspenseQuery(initQueryOptions);
+  return labelMap(data.enums.languages ?? []);
+}
+
+/**
  * Returns DB-derived sort orders and display labels for all game-data enums.
  * Use this instead of hardcoded *_ORDER arrays and *_LABELS maps.
  *

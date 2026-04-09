@@ -20,6 +20,7 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useLanguageLabels } from "@/hooks/use-enums";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
@@ -39,6 +40,7 @@ function CardDetailPage() {
   const [selectedPrinting, setSelectedPrinting] = useState<Printing>(printings[0]);
   const setById = new Map(sets.map((s) => [s.id, s]));
   const domainColors = useDomainColors();
+  const languageLabels = useLanguageLabels();
 
   if (!selectedPrinting) {
     return (
@@ -354,7 +356,7 @@ function CardDetailPage() {
         [...Map.groupBy(printings, (p) => p.language)].map(([lang, group]) => (
           <div key={lang}>
             <h2 className="text-muted-foreground mb-2 text-xs font-medium">
-              {new Intl.DisplayNames(["en"], { type: "language" }).of(lang) ?? lang}
+              {languageLabels[lang] ?? lang}
             </h2>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {group.map((printing) => (
