@@ -88,5 +88,21 @@ export function useQuickAddActions(collectionId?: string) {
   const adjustedCount = (printingId: string, baseCount: number) =>
     baseCount + (countDeltas[printingId] ?? 0);
 
-  return { handleQuickAdd, handleUndoAdd, handleOpenVariants, countDeltas, adjustedCount };
+  /** Close the variant popover and mark it as just-closed to prevent reopen on click-through. */
+  const closeVariants = () => {
+    const current = useAddModeStore.getState().variantPopover;
+    if (current) {
+      justClosedRef.current = current.cardId;
+    }
+    useAddModeStore.getState().closeVariants();
+  };
+
+  return {
+    handleQuickAdd,
+    handleUndoAdd,
+    handleOpenVariants,
+    closeVariants,
+    countDeltas,
+    adjustedCount,
+  };
 }

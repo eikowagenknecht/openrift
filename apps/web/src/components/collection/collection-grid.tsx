@@ -222,7 +222,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const addedItems = useAddModeStore((s) => s.addedItems);
   const showAddedList = useAddModeStore((s) => s.showAddedList);
   const variantPopover = useAddModeStore((s) => s.variantPopover);
-  const { handleQuickAdd, handleUndoAdd, handleOpenVariants, adjustedCount } =
+  const { handleQuickAdd, handleUndoAdd, handleOpenVariants, closeVariants, adjustedCount } =
     useQuickAddActions(addTarget);
 
   // Fan-card sibling overrides (cards view, add mode)
@@ -235,12 +235,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     }
     const handleClick = (event: MouseEvent) => {
       if (variantPopoverRef.current && !variantPopoverRef.current.contains(event.target as Node)) {
-        useAddModeStore.getState().closeVariants();
+        closeVariants();
       }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [variantPopover]);
+  }, [variantPopover, closeVariants]);
 
   const startBrowsing = () => {
     if (selectMode) {

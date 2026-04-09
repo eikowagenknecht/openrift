@@ -66,9 +66,8 @@ export function CardBrowser() {
   const inboxId = collections?.find((col) => col.isInbox)?.id;
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const isAddMode = isLoggedIn && catalogMode === "add" && Boolean(inboxId);
-  const { handleQuickAdd, handleUndoAdd, handleOpenVariants, adjustedCount } = useQuickAddActions(
-    isAddMode ? inboxId : undefined,
-  );
+  const { handleQuickAdd, handleUndoAdd, handleOpenVariants, closeVariants, adjustedCount } =
+    useQuickAddActions(isAddMode ? inboxId : undefined);
 
   const variantPopover = useAddModeStore((s) => s.variantPopover);
   const variantPopoverRef = useRef<HTMLDivElement>(null);
@@ -82,12 +81,12 @@ export function CardBrowser() {
     }
     const handleClick = (event: MouseEvent) => {
       if (variantPopoverRef.current && !variantPopoverRef.current.contains(event.target as Node)) {
-        useAddModeStore.getState().closeVariants();
+        closeVariants();
       }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
-  }, [variantPopover]);
+  }, [variantPopover, closeVariants]);
 
   const {
     filters,
