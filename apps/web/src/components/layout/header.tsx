@@ -381,7 +381,7 @@ function FeedbackPopover() {
           </svg>
           <div>
             <div className="font-medium">Discord</div>
-            <div className="text-muted-foreground text-xs">Chat with the community</div>
+            <div className="text-muted-foreground text-xs">Chat, report bugs, or share ideas</div>
           </div>
           <ExternalLinkIcon className="text-muted-foreground ml-auto size-3.5" />
         </a>
@@ -396,7 +396,9 @@ function FeedbackPopover() {
           </svg>
           <div>
             <div className="font-medium">GitHub Issues</div>
-            <div className="text-muted-foreground text-xs">Report a bug or request a feature</div>
+            <div className="text-muted-foreground text-xs">
+              We&apos;ll get back to you (we actually will)
+            </div>
           </div>
           <ExternalLinkIcon className="text-muted-foreground ml-auto size-3.5" />
         </a>
@@ -437,9 +439,15 @@ export function Header() {
         {/* Right: Feedback + Support + User menu */}
         <div className="flex items-center gap-1 justify-self-end">
           <FeedbackPopover />
-          <Link to="/support" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+          <Link
+            to="/support"
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              "hidden md:inline-flex",
+            )}
+          >
             <HeartIcon className="size-4" />
-            <span className="hidden md:inline">Support</span>
+            Support
           </Link>
           <UserMenu session={session} isPending={isPending} gravatarUrl={gravatarUrl} />
         </div>
