@@ -37,8 +37,7 @@ export const helpArticles = new Map<string, HelpArticle>([
     {
       slug: "cards-printings-copies",
       title: "Cards, Printings & Copies",
-      description:
-        "Understand the difference between a card, a printing, and a copy — and how they show up in the browser and your collection.",
+      description: "What a card, a printing, and a copy are, and how the three levels connect.",
       icon: LayersIcon,
       component: () => import("./articles/cards-printings-copies"),
     },
@@ -60,7 +59,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       slug: "import-export",
       title: "Importing & Exporting",
       description:
-        "Bring cards in from other tools via CSV, see how matching works, and export your collection.",
+        "Bring cards in from other tools via CSV and download your collection as a CSV export.",
       icon: ArrowRightLeftIcon,
       component: () => import("./articles/import-export"),
     },
@@ -71,7 +70,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       slug: "deck-building",
       title: "Building Decks",
       description:
-        "Build deck blueprints from cards (not specific printings), pick a legend, fill your zones, and validate against Standard format rules.",
+        "Plan your deck by picking cards, filling zones, and validating against Standard format rules.",
       icon: SwordsIcon,
       component: () => import("./articles/deck-building"),
     },
@@ -82,7 +81,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       slug: "proxy-printing",
       title: "Printing Proxies",
       description:
-        "Generate printable proxy PDFs from your decks for playtesting — with card images or text placeholders.",
+        "Print proxy PDFs from your decks for playtesting, with card images or text placeholders.",
       icon: PrinterIcon,
       component: () => import("./articles/proxy-printing"),
     },

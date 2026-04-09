@@ -1,12 +1,4 @@
-import {
-  FileDownIcon,
-  ImageIcon,
-  PrinterIcon,
-  RulerIcon,
-  ScissorsIcon,
-  ShieldCheckIcon,
-  TypeIcon,
-} from "lucide-react";
+import { ImageIcon, InfoIcon, RulerIcon, ScissorsIcon, ShieldCheckIcon } from "lucide-react";
 
 export default function ProxyPrintingArticle() {
   return (
@@ -66,7 +58,7 @@ export default function ProxyPrintingArticle() {
           <OptionCard
             icon={<ImageIcon className="size-4" />}
             title="Render mode"
-            description="Card images uses the actual card art. Text placeholders renders a simplified card with name, stats, and rules text — useful when images aren't available or you want to save ink."
+            description="Card images uses the actual card art. Text placeholders renders a simplified card with name, stats, and rules text — a unified format that can be easier to read during playtesting."
           />
           <OptionCard
             icon={<RulerIcon className="size-4" />}
@@ -86,31 +78,13 @@ export default function ProxyPrintingArticle() {
         </div>
       </section>
 
-      {/* Render modes detail */}
-      <section>
-        <h2 className="mb-2 text-lg font-semibold">Render modes</h2>
-        <div className="border-border divide-border divide-y rounded-lg border text-sm">
-          <RenderModeRow
-            icon={<ImageIcon className="size-3.5 text-blue-600 dark:text-blue-400" />}
-            mode="Card images"
-            description="Full card art at print resolution. Landscape images are automatically rotated to fit. If an image can't be loaded, it falls back to a text placeholder for that card."
-          />
-          <RenderModeRow
-            icon={<TypeIcon className="size-3.5 text-emerald-600 dark:text-emerald-400" />}
-            mode="Text placeholders"
-            description="A styled card showing the name, energy cost, power, type, rules text, and rarity. Uses the same layout as the placeholder cards in the card browser. Great for saving ink or when card art isn't available."
-          />
-        </div>
-      </section>
-
       {/* Generating */}
       <section>
         <h2 className="mb-2 text-lg font-semibold">Generating the PDF</h2>
         <p className="text-muted-foreground">
           Click <strong className="text-foreground">Generate PDF</strong> to start. The dialog shows
           a progress indicator as each unique card is rendered. Once all cards are ready,
-          they&apos;re assembled into a multi-page PDF and downloaded as{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">proxies.pdf</code>.
+          they&apos;re assembled into a multi-page PDF and downloaded automatically.
         </p>
         <p className="text-muted-foreground mt-2">
           Cards with multiple copies in your deck appear the correct number of times in the PDF (a
@@ -119,31 +93,33 @@ export default function ProxyPrintingArticle() {
         </p>
       </section>
 
-      {/* Printing tips */}
+      {/* Limitations */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Printing tips</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <TipCard
-            icon={<PrinterIcon className="size-4" />}
-            title="Print at actual size"
-            description='In your print dialog, make sure scaling is set to 100% or "Actual size." Shrink-to-fit will make the cards smaller than standard.'
-          />
-          <TipCard
-            icon={<ScissorsIcon className="size-4" />}
-            title="Cut carefully"
-            description="Enable cut lines in the export options for visual guides. A paper cutter gives cleaner edges than scissors."
-          />
-          <TipCard
-            icon={<FileDownIcon className="size-4" />}
-            title="Sleeve over a real card"
-            description="Slip each proxy in front of a basic card inside an opaque sleeve. This gives the proxy the right weight and feel for shuffling."
-          />
-          <TipCard
-            icon={<ImageIcon className="size-4" />}
-            title="Save ink with text mode"
-            description="Text placeholders use far less ink than full card images. Great for quick playtesting where art doesn't matter."
-          />
+        <h2 className="mb-2 text-lg font-semibold">Current limitations</h2>
+        <div className="border-border bg-muted/30 rounded-lg border p-4">
+          <div className="flex gap-3">
+            <InfoIcon className="text-primary mt-0.5 size-5 shrink-0" />
+            <div>
+              <p className="text-muted-foreground text-sm">
+                Right now, proxy printing requires a deck. You can&apos;t yet print arbitrary cards
+                from your collection or a custom selection. The deck editor also picks a default
+                printing for each card, so you can&apos;t choose which specific art or edition
+                appears on the proxy. We&apos;re working on improving this so you can select
+                concrete printings and print proxies without needing a deck.
+              </p>
+            </div>
+          </div>
         </div>
+      </section>
+
+      {/* Printing tip */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">Printing</h2>
+        <p className="text-muted-foreground">
+          Make sure scaling is set to 100% or &quot;Actual size&quot; in your print dialog,
+          otherwise the cards won&apos;t be standard size. After cutting, slip each proxy in front
+          of a basic card inside an opaque sleeve for the right weight and feel.
+        </p>
       </section>
     </div>
   );
@@ -172,46 +148,6 @@ function StepRow({
 }
 
 function OptionCard({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="border-border bg-background rounded-lg border p-3">
-      <div className="mb-1 flex items-center gap-2">
-        <span className="text-primary">{icon}</span>
-        <span className="text-sm font-medium">{title}</span>
-      </div>
-      <p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
-    </div>
-  );
-}
-
-function RenderModeRow({
-  icon,
-  mode,
-  description,
-}: {
-  icon: React.ReactNode;
-  mode: string;
-  description: string;
-}) {
-  return (
-    <div className="flex gap-3 px-3 py-2.5">
-      <div className="flex w-32 shrink-0 items-start gap-2">
-        {icon}
-        <span className="font-medium">{mode}</span>
-      </div>
-      <span className="text-muted-foreground">{description}</span>
-    </div>
-  );
-}
-
-function TipCard({
   icon,
   title,
   description,
