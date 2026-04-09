@@ -68,3 +68,23 @@ export function useCreateCollection() {
     invalidates: [queryKeys.collections.all],
   });
 }
+
+const deleteCollectionFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { id: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/collections/${data.id}`, {
+      method: "DELETE",
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Delete collection failed: ${res.status}`);
+    }
+  });
+
+export function useDeleteCollection() {
+  return useMutationWithInvalidation({
+    mutationFn: (id: string) => deleteCollectionFn({ data: { id } }),
+    invalidates: [queryKeys.collections.all, queryKeys.copies.all],
+  });
+}

@@ -2,6 +2,7 @@
 
 ## 2026-04-09
 
+- feat: Collections can now be deleted from the sidebar via a three-dot menu, with cards automatically moved to the Inbox
 - fix: Card detail labels (Set, Rules, Flavor, etc.) now align consistently on both mobile and desktop
 
 ## 2026-04-08
