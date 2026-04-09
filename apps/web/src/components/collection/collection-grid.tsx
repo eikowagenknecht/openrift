@@ -152,6 +152,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     sets,
     favoriteMarketplace,
     keywordReverseMap,
+    languageOrder: useDisplayStore((s) => s.languages),
   });
 
   // ── Catalog data (add mode — skip expensive computation in browse/select) ──

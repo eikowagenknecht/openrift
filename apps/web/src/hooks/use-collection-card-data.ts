@@ -21,6 +21,7 @@ interface UseCollectionCardDataParams {
   favoriteMarketplace: Marketplace;
   /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
   keywordReverseMap?: Map<string, string>;
+  languageOrder?: string[];
 }
 
 function toComparable(printing: Printing, setOrderMap: Map<string, number>) {
@@ -46,6 +47,7 @@ export function useCollectionCardData({
   sets,
   favoriteMarketplace,
   keywordReverseMap,
+  languageOrder,
 }: UseCollectionCardDataParams) {
   "use memo";
   const { stacks, totalCopies } = useStackedCopies(collectionId);
@@ -60,10 +62,10 @@ export function useCollectionCardData({
 
   // In "cards" view, deduplicate by cardId (keep canonical printing)
   const displayCards =
-    view === "cards" ? deduplicateByCard(filteredCards, setOrderMap) : filteredCards;
+    view === "cards" ? deduplicateByCard(filteredCards, setOrderMap, languageOrder) : filteredCards;
 
   // Group all collection printings by cardId for detail pane siblings
-  const printingsByCardId = groupPrintingsByCardId(collectionPrintings, setOrderMap);
+  const printingsByCardId = groupPrintingsByCardId(collectionPrintings, setOrderMap, languageOrder);
 
   // Price ranges for "cards" view sorting
   const priceRangeByCardId =
@@ -102,18 +104,35 @@ export function useCollectionCardData({
   };
 }
 
+function compareWithLanguagePreference(
+  a: Printing,
+  b: Printing,
+  setOrderMap: Map<string, number>,
+  languageOrder?: string[],
+): number {
+  if (languageOrder && languageOrder.length > 1) {
+    const aIdx = languageOrder.indexOf(a.language);
+    const bIdx = languageOrder.indexOf(b.language);
+    const aPos = aIdx === -1 ? languageOrder.length : aIdx;
+    const bPos = bIdx === -1 ? languageOrder.length : bIdx;
+    const langCompare = aPos - bPos;
+    if (langCompare !== 0) {
+      return langCompare;
+    }
+  }
+  return comparePrintings(toComparable(a, setOrderMap), toComparable(b, setOrderMap));
+}
+
 function deduplicateByCard(
   filteredCards: Printing[],
   setOrderMap: Map<string, number>,
+  languageOrder?: string[],
 ): Printing[] {
   const seen = new Map<string, Printing>();
   for (const printing of filteredCards) {
     const existing = seen.get(printing.card.id);
     if (existing) {
-      if (
-        comparePrintings(toComparable(printing, setOrderMap), toComparable(existing, setOrderMap)) <
-        0
-      ) {
+      if (compareWithLanguagePreference(printing, existing, setOrderMap, languageOrder) < 0) {
         seen.set(printing.card.id, printing);
       }
     } else {
@@ -126,6 +145,7 @@ function deduplicateByCard(
 function groupPrintingsByCardId(
   printings: Printing[],
   setOrderMap: Map<string, number>,
+  languageOrder?: string[],
 ): Map<string, Printing[]> {
   const map = new Map<string, Printing[]>();
   for (const printing of printings) {
@@ -137,9 +157,7 @@ function groupPrintingsByCardId(
     group.push(printing);
   }
   for (const group of map.values()) {
-    group.sort((a, b) =>
-      comparePrintings(toComparable(a, setOrderMap), toComparable(b, setOrderMap)),
-    );
+    group.sort((a, b) => compareWithLanguagePreference(a, b, setOrderMap, languageOrder));
   }
   return map;
 }
