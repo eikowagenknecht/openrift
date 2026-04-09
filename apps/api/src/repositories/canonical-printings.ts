@@ -23,7 +23,7 @@ interface ResolvedCard {
  * Bidirectional resolver between card UUIDs and canonical short codes.
  *
  * A "canonical" printing is determined by a simple sort:
- *   1. Earliest set release date
+ *   1. Set sort order (ascending)
  *   2. Short code (alphabetical — picks base variant over alt-art/overnumbered)
  *   3. Non-promo first
  *   4. Normal finish before foil
@@ -52,7 +52,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
   function appendCanonicalOrder<T extends ReturnType<typeof baseQuery>>(query: T): T {
     return (
       query
-        .orderBy("s.releasedAt", "asc")
+        .orderBy("s.sortOrder", "asc")
         .orderBy("p.shortCode", "asc")
         // oxlint-disable-next-line eslint-plugin-promise(prefer-await-to-then) -- Kysely CASE .then(), not Promise
         .orderBy((eb) => eb.case().when("p.promoTypeId", "is", null).then(0).else(1).end(), "asc")

@@ -4,7 +4,7 @@ import type {
   CandidatePrintingGroupResponse,
   CandidatePrintingResponse,
 } from "@openrift/shared";
-import { formatPrintingLabel, mostCommonValue } from "@openrift/shared/utils";
+import { formatPrintingLabel, mostCommonValue, slugifyName } from "@openrift/shared/utils";
 import type { Selectable } from "kysely";
 
 import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.js";
@@ -79,95 +79,15 @@ function formatCandidatePrinting(
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 
-/** Compare short codes: sort by prefix, then number, then suffix.
- * e.g. SFD-113 < SFD-116a < SFD-666 < SFD-666*
- * @returns Negative if a < b, positive if a > b, zero if equal. */
-function compareShortCodes(a: string, b: string): number {
-  const re = /^([A-Z]+-?)(\d+)(.*)$/;
-  const ma = re.exec(a);
-  const mb = re.exec(b);
-  if (!ma || !mb) {
-    return a.localeCompare(b);
-  }
-  const prefixCmp = ma[1].localeCompare(mb[1]);
-  if (prefixCmp !== 0) {
-    return prefixCmp;
-  }
-  const numCmp = Number(ma[2]) - Number(mb[2]);
-  if (numCmp !== 0) {
-    return numCmp;
-  }
-  return ma[3].localeCompare(mb[3]);
-}
-
-/** Strip variant suffix from a short code — e.g. "OGN-001a" → "OGN-001"
- * @returns The short code with trailing letters/asterisks removed. */
-function stripVariantSuffix(shortCode: string): string {
-  return shortCode.replace(/(?<=\d)[a-z*]+$/, "");
-}
-
 /**
- * Pick the canonical short code that should become the card slug.
- * Prefers the earliest-released, normal-variant accepted printing.
- * Falls back to first candidate printing group, then current card slug.
- * @returns The expected card slug derived from candidate data.
+ * Derive the expected card slug from the display name.
+ * Falls back to current slug if no name is available.
+ * @returns The expected name-based card slug.
  */
-function deriveExpectedCardId(
-  printings: {
-    shortCode: string;
-    setId: string;
-    artVariant: string;
-    isSigned: boolean;
-    promoTypeId: string | null;
-    finish: string;
-    language: string;
-  }[],
-  setReleasedAtMap: Map<string, string | null>,
-  candidatePrintingGroups: CandidatePrintingGroupResponse[],
-  currentSlug?: string,
-): string {
-  if (printings.length > 0) {
-    // Filter to "normal" printings — not alternate art, not signed, no promo
-    const normalPrintings = printings.filter(
-      (p) =>
-        (p.artVariant === "normal" || !p.artVariant) &&
-        !p.isSigned &&
-        !p.promoTypeId &&
-        p.finish === "normal",
-    );
-
-    let candidates = normalPrintings.length > 0 ? normalPrintings : printings;
-
-    // Prefer EN printings for slug derivation; fall back to all if no EN exists
-    const enCandidates = candidates.filter((p) => p.language === "EN");
-    if (enCandidates.length > 0) {
-      candidates = enCandidates;
-    }
-
-    // Sort by release date ascending (nulls last), then short code ascending
-    const sorted = candidates.toSorted((a, b) => {
-      const dateA = setReleasedAtMap.get(a.setId) ?? "";
-      const dateB = setReleasedAtMap.get(b.setId) ?? "";
-      if (dateA && !dateB) {
-        return -1;
-      }
-      if (!dateA && dateB) {
-        return 1;
-      }
-      const dateCmp = dateA.localeCompare(dateB);
-      if (dateCmp !== 0) {
-        return dateCmp;
-      }
-      return compareShortCodes(a.shortCode, b.shortCode);
-    });
-
-    return stripVariantSuffix(sorted[0].shortCode);
+function deriveExpectedCardId(displayName: string, currentSlug?: string): string {
+  if (displayName) {
+    return slugifyName(displayName);
   }
-
-  if (candidatePrintingGroups.length > 0) {
-    return stripVariantSuffix(candidatePrintingGroups[0].mostCommonShortCode);
-  }
-
   return currentSlug ?? "";
 }
 
@@ -454,7 +374,6 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
   const setRows = setIds.length > 0 ? await repo.setInfoByIds(setIds) : [];
   const setSlugMap = new Map(setRows.map((s) => [s.id, s.slug]));
   const setNameMap = new Map(setRows.map((s) => [s.id, s.name]));
-  const setReleasedAtMap = new Map(setRows.map((s) => [s.id, s.releasedAt]));
 
   // Build set slug → printedTotal map (used by the UI to append set totals to public codes)
   const setTotals: Record<string, number> = {};
@@ -540,6 +459,16 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
     });
   }
 
+  // Card name if matched, shortest candidate name if unmatched (candidates may have slight name variations)
+  const displayName = card
+    ? card.name
+    : candidates.length > 0
+      ? candidates.reduce(
+          (best, s) => (s.name.length < best.length ? s.name : best),
+          candidates[0].name,
+        )
+      : identifier;
+
   return {
     card: card
       ? {
@@ -571,22 +500,14 @@ export async function buildCandidateCardDetail(repo: Repo, identifier: string) {
           comment: card.comment,
         }
       : null,
-    // Card name if matched, shortest candidate name if unmatched (candidates may have slight name variations)
-    displayName: card
-      ? card.name
-      : candidates.length > 0
-        ? candidates.reduce(
-            (best, s) => (s.name.length < best.length ? s.name : best),
-            candidates[0].name,
-          )
-        : identifier,
+    displayName,
     sources: candidates.map((s) => formatCandidateCard(s)),
     printings: formattedPrintings.sort((a, b) =>
       a.expectedPrintingId.localeCompare(b.expectedPrintingId),
     ),
     candidatePrintings: candidatePrintings.map((cp) => formatCandidatePrinting(cp)),
     candidatePrintingGroups: filteredGroups,
-    expectedCardId: deriveExpectedCardId(printings, setReleasedAtMap, filteredGroups, card?.slug),
+    expectedCardId: deriveExpectedCardId(displayName, card?.slug),
     printingImages,
     setTotals,
   };

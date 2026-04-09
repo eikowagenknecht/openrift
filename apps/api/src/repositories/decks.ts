@@ -156,7 +156,7 @@ export function decksRepo(db: Kysely<Database>) {
               (p.promo_type_id IS NULL)::int DESC,
               (p.is_signed = false)::int DESC,
               (p.finish = 'normal')::int DESC,
-              s.released_at ASC,
+              s.sort_order ASC,
               p.short_code ASC
             LIMIT 1
           )`.as("imageUrl"),
