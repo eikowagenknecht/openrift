@@ -1,4 +1,5 @@
 import type { CandidateCardSummaryResponse } from "@openrift/shared";
+import { formatShortCodesArray } from "@openrift/shared/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
@@ -14,7 +15,6 @@ import { LoaderIcon, SearchIcon, StarIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { PrintingsCell } from "@/components/admin/printings-cell";
 import { SortableHeader } from "@/components/admin/sortable-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,6 @@ import {
   useAcceptFavoritePrintings,
 } from "@/hooks/use-admin-card-mutations";
 import { queryKeys } from "@/lib/query-keys";
-import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -108,7 +107,7 @@ const columns: ColumnDef<Row>[] = [
             params={{ cardSlug: slug }}
             className="font-medium hover:underline"
           >
-            <span className="text-muted-foreground">{slug}</span> {r.name}
+            {r.name}
           </Link>
           {total > 0 && <Badge variant="destructive">Review</Badge>}
         </span>
@@ -117,17 +116,30 @@ const columns: ColumnDef<Row>[] = [
   },
   {
     id: "printings",
-    header: "Printings",
-    enableSorting: false,
+    accessorFn: (r) => r.shortCodes.length,
+    header: ({ column }) => <SortableHeader column={column} label="Printings" />,
     enableGlobalFilter: false,
-    cell: ({ row }) => (
-      <span className="flex items-center gap-2">
-        <PrintingsCell row={row.original} />
-        {row.original.cardSlug && row.original.hasFavoriteStagingPrintings && (
-          <AcceptFavoriteButton cardSlug={row.original.cardSlug} />
-        )}
-      </span>
-    ),
+    cell: ({ row }) => {
+      const codes = formatShortCodesArray(row.original.shortCodes);
+      return <span className="text-muted-foreground">{codes.join(", ")}</span>;
+    },
+  },
+  {
+    id: "candidatePrintings",
+    accessorFn: (r) => r.stagingShortCodes.length,
+    header: ({ column }) => <SortableHeader column={column} label="Candidate Printings" />,
+    enableGlobalFilter: false,
+    cell: ({ row }) => {
+      const codes = formatShortCodesArray(row.original.stagingShortCodes);
+      return (
+        <span className="flex items-center gap-2">
+          <span className="text-muted-foreground/50 italic">{codes.join(", ")}</span>
+          {row.original.cardSlug && row.original.hasFavoriteStagingPrintings && (
+            <AcceptFavoriteButton cardSlug={row.original.cardSlug} />
+          )}
+        </span>
+      );
+    },
   },
 ];
 
@@ -191,7 +203,15 @@ export function AcceptedCardsTable({ data }: { data: Row[] }) {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getRowId: (r) => r.cardSlug ?? r.normalizedName,
-    globalFilterFn: "includesString",
+    globalFilterFn: (row, _columnId, filterValue) => {
+      const query = (filterValue as string).toLowerCase();
+      const r = row.original;
+      return (
+        r.name.toLowerCase().includes(query) ||
+        r.shortCodes.some((code) => code.toLowerCase().includes(query)) ||
+        r.stagingShortCodes.some((code) => code.toLowerCase().includes(query))
+      );
+    },
   });
 
   const rows = table.getRowModel().rows;
@@ -210,6 +230,16 @@ export function AcceptedCardsTable({ data }: { data: Row[] }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
+          <Input
+            placeholder="Search by name or code…"
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="h-8 w-56 pl-8 text-sm"
+          />
+        </div>
+
         <p className="text-muted-foreground">
           {rows.length} of {data.length} cards
           {acceptableCount > 0 && (
@@ -245,63 +275,53 @@ export function AcceptedCardsTable({ data }: { data: Row[] }) {
             )}
           </Button>
         )}
-
-        <div className="relative ml-auto">
-          <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
-          <Input
-            placeholder="Search by name…"
-            value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
-            className="h-8 w-48 pl-8 text-sm"
-          />
-        </div>
       </div>
 
       {rows.length === 0 ? (
         <p className="text-muted-foreground py-8 text-center text-sm">No cards found.</p>
       ) : (
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
-          <Table>
-            <TableHeader className="sticky top-0 z-10">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id}>
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {virtualizer.getVirtualItems().length > 0 && (
-                <tr style={{ height: virtualizer.getVirtualItems()[0].start }} />
-              )}
-              {virtualizer.getVirtualItems().map((virtualRow) => {
-                const row = rows[virtualRow.index];
-                return (
-                  <TableRow key={row.id} data-index={virtualRow.index}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        className={cn(cell.column.id === "printings" && "whitespace-normal")}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
+        <div className="relative min-h-0 flex-1">
+          <div ref={scrollRef} className="absolute inset-0 overflow-auto">
+            <Table>
+              <TableHeader className="sticky top-0 z-10">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id}>
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
                     ))}
                   </TableRow>
-                );
-              })}
-              {virtualizer.getVirtualItems().length > 0 && (
-                <tr
-                  style={{
-                    height:
-                      virtualizer.getTotalSize() - (virtualizer.getVirtualItems().at(-1)?.end ?? 0),
-                  }}
-                />
-              )}
-            </TableBody>
-          </Table>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {virtualizer.getVirtualItems().length > 0 && (
+                  <tr style={{ height: virtualizer.getVirtualItems()[0].start }} />
+                )}
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const row = rows[virtualRow.index];
+                  return (
+                    <TableRow key={row.id} data-index={virtualRow.index}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id} className="whitespace-normal">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
+                {virtualizer.getVirtualItems().length > 0 && (
+                  <tr
+                    style={{
+                      height:
+                        virtualizer.getTotalSize() -
+                        (virtualizer.getVirtualItems().at(-1)?.end ?? 0),
+                    }}
+                  />
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
     </div>

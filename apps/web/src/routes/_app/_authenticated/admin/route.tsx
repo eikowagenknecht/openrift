@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { isAdminQueryOptions } from "@/hooks/use-admin";
 import { seoHead } from "@/lib/seo";
+import { FOOTER_PADDING_NO_TOP } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/_authenticated/admin")({
   head: () => seoHead({ title: "Admin", noIndex: true }),
@@ -46,7 +47,7 @@ function AdminContent() {
       <div className="flex min-h-0 flex-1 flex-col p-3 pb-6">
         <Outlet />
       </div>
-      <Footer />
+      <Footer className={FOOTER_PADDING_NO_TOP} />
     </div>
   );
 }
