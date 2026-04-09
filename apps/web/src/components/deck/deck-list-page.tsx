@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { DownloadIcon, PlusIcon, SwordsIcon } from "lucide-react";
 import { useState } from "react";
 
+import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -101,9 +102,9 @@ export function DeckListPage() {
 
   return (
     <div className={`${CONTAINER_WIDTH} ${PAGE_PADDING}`}>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Decks</h1>
-        <div className="flex items-center gap-2">
+      <PageTopBar className="mb-3">
+        <PageTopBarTitle>Decks</PageTopBarTitle>
+        <PageTopBarActions>
           <Link to="/decks/import" className={buttonVariants({ variant: "outline" })}>
             <DownloadIcon className="size-4" />
             Import
@@ -112,8 +113,8 @@ export function DeckListPage() {
             <PlusIcon className="size-4" />
             New Deck
           </Button>
-        </div>
-      </div>
+        </PageTopBarActions>
+      </PageTopBar>
 
       {deckItems.length === 0 ? (
         <div className="text-muted-foreground flex flex-col items-center gap-2 py-16 text-center">
