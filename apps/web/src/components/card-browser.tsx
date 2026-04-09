@@ -4,6 +4,7 @@ import { PackageIcon, PackagePlusIcon } from "lucide-react";
 import { parseAsString, useQueryState } from "nuqs";
 import type { ReactNode } from "react";
 import { useEffect, useDeferredValue, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -12,6 +13,7 @@ import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
 import { QuickAddPalette } from "@/components/collection/quick-add-palette";
+import { VariantAddPopover } from "@/components/collection/variant-add-popover";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import {
   CollapsibleFilterPanel,
@@ -66,11 +68,28 @@ export function CardBrowser() {
   const batchedAdd = useBatchedAddCopies();
   const disposeCopies = useDisposeCopies();
 
+  const variantPopover = useAddModeStore((s) => s.variantPopover);
+  const variantPopoverRef = useRef<HTMLDivElement>(null);
+
   // Optimistic deltas for add-mode: bridges the gap between clicking + and the
   // batched API call updating the React Query cache via onSuccess.
   const [countDeltas, setCountDeltas] = useState<Record<string, number>>({});
 
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
+
+  // Close variant popover on click outside
+  useEffect(() => {
+    if (!variantPopover) {
+      return;
+    }
+    const handleClick = (event: MouseEvent) => {
+      if (variantPopoverRef.current && !variantPopoverRef.current.contains(event.target as Node)) {
+        useAddModeStore.getState().closeVariants();
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [variantPopover]);
 
   const {
     filters,
@@ -211,6 +230,19 @@ export function CardBrowser() {
       }
     : undefined;
 
+  const handleOpenVariants = isAddMode
+    ? (printing: Printing, anchorEl: HTMLElement) => {
+        const rect = anchorEl.getBoundingClientRect();
+        useAddModeStore.getState().openVariants(printing.card.id, {
+          top: rect.bottom + 4,
+          left: Math.max(
+            8,
+            Math.min(rect.left + rect.width / 2 - 112, globalThis.innerWidth - 232),
+          ),
+        });
+      }
+    : undefined;
+
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.card.id;
     const siblings = printingsByCardId.get(cardId);
@@ -237,9 +269,10 @@ export function CardBrowser() {
         <CollectionAddStrip
           printing={displayPrinting}
           ownedCount={count}
-          hasVariants={false}
+          hasVariants={view === "cards" && (siblings?.length ?? 0) > 1}
           onQuickAdd={handleQuickAdd}
           onUndoAdd={handleUndoAdd}
+          onOpenVariants={handleOpenVariants}
         />
       ) : (
         <OwnedCountStrip
@@ -395,6 +428,30 @@ export function CardBrowser() {
           ownedCountByPrinting={ownedCountByPrinting}
         />
       )}
+      {variantPopover &&
+        handleQuickAdd &&
+        handleUndoAdd &&
+        (() => {
+          const variantPrintings = printingsByCardId.get(variantPopover.cardId);
+          if (!variantPrintings) {
+            return null;
+          }
+          return createPortal(
+            <div
+              ref={variantPopoverRef}
+              className="fixed z-[100]"
+              style={{ top: variantPopover.pos.top, left: variantPopover.pos.left }}
+            >
+              <VariantAddPopover
+                printings={variantPrintings}
+                ownedCounts={ownedCountByPrinting}
+                onQuickAdd={handleQuickAdd}
+                onUndoAdd={handleUndoAdd}
+              />
+            </div>,
+            document.body,
+          );
+        })()}
     </BrowserCardViewer>
   );
 }
