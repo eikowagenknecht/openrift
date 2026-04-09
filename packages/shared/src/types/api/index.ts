@@ -3,6 +3,8 @@ export type { ApiErrorResponse } from "./error.js";
 export type { ResolvedPreferences, Theme, UserPreferencesResponse } from "./preferences.js";
 export { PREFERENCE_DEFAULTS } from "./preferences.js";
 
+export type { InitResponse } from "./init.js";
+
 export type { KeywordStyleEntry, KeywordStylesResponse } from "./keyword-style.js";
 
 export type {

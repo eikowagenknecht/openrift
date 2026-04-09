@@ -78,10 +78,7 @@ export type AdminFinishesResponse = InferResponseType<
 >;
 
 // ── Public endpoints ────────────────────────────────────────────────────────
-export type EnumsResponse = InferResponseType<Client["api"]["v1"]["enums"]["$get"]>;
-export type KeywordStylesResponse = InferResponseType<
-  Client["api"]["v1"]["keyword-styles"]["$get"]
->;
+export type InitResponse = InferResponseType<Client["api"]["v1"]["init"]["$get"]>;
 export type CollectionsResponse = InferResponseType<Client["api"]["v1"]["collections"]["$get"]>;
 export type CopiesResponse = InferResponseType<Client["api"]["v1"]["copies"]["$get"]>;
 // ── MarketplaceGroup derived type ───────────────────────────────────────────

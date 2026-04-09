@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { keywordStylesQueryOptions } from "@/hooks/use-keyword-styles";
+import { initQueryOptions } from "@/hooks/use-init";
 import type { ProxyCard, ProxyPageSize, ProxyRenderMode, RenderedCard } from "@/lib/proxy-pdf";
 import { assembleProxyPdf, prerenderImageCards, resolveProxyCards } from "@/lib/proxy-pdf";
 import { queryKeys } from "@/lib/query-keys";
@@ -174,8 +174,8 @@ export function ProxyExportDialog({
     setPreviewUrl(null);
 
     try {
-      // Pre-fetch keyword styles so CardText doesn't suspend during rendering
-      await queryClient.ensureQueryData(keywordStylesQueryOptions);
+      // Pre-fetch init data so CardText doesn't suspend during rendering
+      await queryClient.ensureQueryData(initQueryOptions);
 
       const proxyCards = resolveProxyCards(cards, catalog);
       const renderedCards = new Map<string, RenderedCard>();

@@ -56,6 +56,7 @@ export type {
   FeatureFlagsResponse,
   IgnoredProductResponse,
   LanguageResponse,
+  InitResponse,
   KeywordStyleEntry,
   LowResImageEntry,
   LowResImagesResponse,
