@@ -3,7 +3,7 @@ import { WellKnown, inferZone, normalizeNameForMatching } from "@openrift/shared
 
 import type { DeckImportEntry } from "@/lib/deck-import-parsers";
 
-export type DeckMatchStatus = "exact" | "ambiguous" | "fuzzy" | "unresolved";
+export type DeckMatchStatus = "exact" | "needs-review" | "unresolved";
 
 /** Minimal card info needed for deck import. */
 export interface ResolvedCard {
@@ -21,11 +21,11 @@ export interface DeckMatchedEntry {
   entry: DeckImportEntry;
   /** Match classification. */
   status: DeckMatchStatus;
-  /** The resolved card (set for exact matches, user-selected for ambiguous/fuzzy). */
+  /** The resolved card (set for exact matches, user-selected for needs-review). */
   resolvedCard: ResolvedCard | null;
-  /** Candidate cards when ambiguous or for manual override. */
+  /** Candidate cards when needs-review or for manual override. */
   candidates: ResolvedCard[];
-  /** For fuzzy matches: the suggested card name. */
+  /** For name-based matches: the suggested card name. */
   suggestedName?: string;
   /** Inferred or explicit deck zone. */
   zone: DeckZone;
@@ -311,7 +311,7 @@ function matchSingleDeckEntry(entry: DeckImportEntry, index: CardIndex): DeckMat
     if (fuzzy) {
       return {
         entry,
-        status: "fuzzy",
+        status: "needs-review",
         resolvedCard: fuzzy.card,
         candidates: [fuzzy.card],
         suggestedName: fuzzy.matchedName,

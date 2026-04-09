@@ -5,7 +5,6 @@ import {
   CheckCircle2Icon,
   ChevronDownIcon,
   ChevronRightIcon,
-  CircleHelpIcon,
   Loader2Icon,
   SearchIcon,
   UploadIcon,
@@ -41,9 +40,8 @@ import { cn } from "@/lib/utils";
 
 const STATUS_SORT_ORDER: Record<DeckMatchStatus, number> = {
   exact: 0,
-  ambiguous: 1,
-  fuzzy: 2,
-  unresolved: 3,
+  "needs-review": 1,
+  unresolved: 2,
 };
 
 export const Route = createFileRoute("/_app/_authenticated/decks/import")({
@@ -600,8 +598,7 @@ function PreviewStep({
 
 const STATUS_CONFIG: Record<DeckMatchStatus, { icon: React.ElementType; className: string }> = {
   exact: { icon: CheckCircle2Icon, className: "text-emerald-600 dark:text-emerald-400" },
-  ambiguous: { icon: AlertTriangleIcon, className: "text-amber-600 dark:text-amber-400" },
-  fuzzy: { icon: CircleHelpIcon, className: "text-amber-600 dark:text-amber-400" },
+  "needs-review": { icon: AlertTriangleIcon, className: "text-amber-600 dark:text-amber-400" },
   unresolved: { icon: XCircleIcon, className: "text-red-600 dark:text-red-400" },
 };
 
@@ -668,7 +665,7 @@ function DeckImportEntryRow({
         </span>
 
         <div className="flex shrink-0 items-center gap-2">
-          {entry.status === "fuzzy" && (
+          {entry.suggestedName && (
             <span className="text-muted-foreground text-xs">
               Did you mean <em>{entry.suggestedName}</em>?
             </span>

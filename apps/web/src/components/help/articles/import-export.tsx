@@ -20,7 +20,7 @@ export default function ImportExportArticle() {
         sidebar.
       </p>
 
-      {/* \u2500\u2500 Import \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+      {/* ── Import ─────────────────────────── */}
       <section>
         <h2 className="mb-2 text-lg font-semibold">Importing cards</h2>
         <p className="text-muted-foreground">
@@ -148,7 +148,7 @@ export default function ImportExportArticle() {
           <div className="divide-border divide-y text-sm">
             <MockMatchRow status="exact" quantity={3} code="OGN-007" name="Fury Rune" tags={[]} />
             <MockMatchRow
-              status="ambiguous"
+              status="needs-review"
               quantity={1}
               code="OGN-001"
               name="Blazing Scorcher"
@@ -184,7 +184,7 @@ export default function ImportExportArticle() {
         </p>
       </section>
 
-      {/* \u2500\u2500 Export \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+      {/* ── Export ─────────────────────────── */}
       <section>
         <h2 className="mb-2 text-lg font-semibold">Exporting cards</h2>
         <p className="text-muted-foreground">
@@ -338,7 +338,7 @@ const STATUS_ICONS: Record<string, { icon: React.ReactNode; className: string }>
     icon: <CheckCircle2Icon className="size-3.5" />,
     className: "text-emerald-600 dark:text-emerald-400",
   },
-  ambiguous: {
+  "needs-review": {
     icon: <AlertTriangleIcon className="size-3.5" />,
     className: "text-amber-600 dark:text-amber-400",
   },

@@ -7,7 +7,6 @@ import {
   CheckCircle2Icon,
   ChevronDownIcon,
   ChevronRightIcon,
-  CircleHelpIcon,
   DownloadIcon,
   FileUpIcon,
   Loader2Icon,
@@ -556,8 +555,7 @@ function PreviewStep({
 
 const STATUS_CONFIG: Record<MatchStatus, { icon: React.ElementType; className: string }> = {
   exact: { icon: CheckCircle2Icon, className: "text-emerald-600 dark:text-emerald-400" },
-  ambiguous: { icon: AlertTriangleIcon, className: "text-amber-600 dark:text-amber-400" },
-  fuzzy: { icon: CircleHelpIcon, className: "text-amber-600 dark:text-amber-400" },
+  "needs-review": { icon: AlertTriangleIcon, className: "text-amber-600 dark:text-amber-400" },
   unresolved: { icon: XCircleIcon, className: "text-red-600 dark:text-red-400" },
 };
 
@@ -617,7 +615,7 @@ function ImportEntryRow({
         </span>
 
         <div className="flex shrink-0 items-center gap-2">
-          {entry.status === "fuzzy" && (
+          {entry.suggestedName && (
             <span className="text-muted-foreground text-xs">
               Did you mean <em>{entry.suggestedName}</em>?
             </span>
