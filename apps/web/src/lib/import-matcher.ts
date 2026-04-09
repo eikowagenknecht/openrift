@@ -3,18 +3,18 @@ import { normalizeNameForMatching } from "@openrift/shared";
 
 import type { ImportEntry } from "@/lib/import-parsers";
 
-export type MatchStatus = "exact" | "ambiguous" | "fuzzy" | "unresolved";
+export type MatchStatus = "exact" | "needs-review" | "unresolved";
 
 export interface MatchedEntry {
   /** Original parsed entry. */
   entry: ImportEntry;
   /** Match classification. */
   status: MatchStatus;
-  /** The resolved printing (set for exact matches, user-selected for ambiguous/fuzzy). */
+  /** The resolved printing (set for exact matches, user-selected for needs-review). */
   resolvedPrinting: Printing | null;
-  /** Candidate printings when ambiguous (multiple printings match the card but not the exact variant). */
+  /** Candidate printings when needs-review (multiple printings match the card but not the exact variant). */
   candidates: Printing[];
-  /** For fuzzy matches: the suggested card name. */
+  /** For name-based matches: the suggested card name. */
   suggestedName?: string;
 }
 
@@ -174,7 +174,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
       if (promoMatches.length > 1) {
         return {
           entry,
-          status: "ambiguous",
+          status: "needs-review",
           resolvedPrinting: null,
           candidates: codeMatches,
         };
@@ -182,7 +182,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
       // promoSlug didn't match any printing (renamed?) — show as ambiguous, don't auto-resolve to non-promo
       return {
         entry,
-        status: "ambiguous",
+        status: "needs-review",
         resolvedPrinting: null,
         candidates: codeMatches,
       };
@@ -213,7 +213,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
       // Multiple printings with same code + finish (e.g., signed vs unsigned)
       return {
         entry,
-        status: "ambiguous",
+        status: "needs-review",
         resolvedPrinting: null,
         candidates: finishMatches,
       };
@@ -222,7 +222,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
     // No finish match — present all code matches as candidates
     return {
       entry,
-      status: "ambiguous",
+      status: "needs-review",
       resolvedPrinting: null,
       candidates: codeMatches,
     };
@@ -239,7 +239,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
     if (finishMatches.length === 1) {
       return {
         entry,
-        status: "fuzzy",
+        status: "needs-review",
         resolvedPrinting: finishMatches[0],
         candidates: fuzzy.printings,
         suggestedName: fuzzy.cardName,
@@ -248,7 +248,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
 
     return {
       entry,
-      status: "fuzzy",
+      status: "needs-review",
       resolvedPrinting: null,
       candidates: fuzzy.printings,
       suggestedName: fuzzy.cardName,
@@ -260,7 +260,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
   if (baseCodeMatches.length > 0) {
     return {
       entry,
-      status: "ambiguous",
+      status: "needs-review",
       resolvedPrinting: null,
       candidates: baseCodeMatches,
     };

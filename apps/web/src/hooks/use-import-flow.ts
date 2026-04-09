@@ -12,16 +12,15 @@ import { parseImportData } from "@/lib/import-parsers";
 
 const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
   exact: 0,
-  ambiguous: 1,
-  fuzzy: 2,
-  unresolved: 3,
+  "needs-review": 1,
+  unresolved: 2,
 };
 
 type ImportStep = "input" | "preview";
 
 /**
  * Manages all state and handlers for the import flow: parsing, matching,
- * resolving ambiguous entries, skipping, and batch-importing into a collection.
+ * resolving needs-review entries, skipping, and batch-importing into a collection.
  * @returns Import flow state and action handlers.
  */
 export function useImportFlow() {
