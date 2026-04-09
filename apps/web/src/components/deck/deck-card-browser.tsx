@@ -165,6 +165,7 @@ export function DeckCardBrowser() {
   } = useCardData({
     allPrintings,
     sets,
+    languageFilter: useDisplayStore((s) => s.languages),
     filters,
     sortBy,
     sortDir,

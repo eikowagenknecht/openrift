@@ -205,6 +205,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const updateDeck = useUpdateDeck();
   const { allPrintings } = useCards();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
+  const languages = useDisplayStore((state) => state.languages);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
@@ -212,15 +213,21 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const [renameName, setRenameName] = useState(deck.name);
   const deleteDeck = useDeleteDeck();
 
+  // Filter printings by user's language preferences
+  const filteredPrintings =
+    languages.length > 0
+      ? allPrintings.filter((entry) => languages.includes(entry.language))
+      : allPrintings;
+
   // Resolve legend/champion card details from catalog
   const legendCard = legendCardId
-    ? allPrintings.find((entry) => entry.card.id === legendCardId)?.card
+    ? filteredPrintings.find((entry) => entry.card.id === legendCardId)?.card
     : undefined;
   const championCard = championCardId
-    ? allPrintings.find((entry) => entry.card.id === championCardId)?.card
+    ? filteredPrintings.find((entry) => entry.card.id === championCardId)?.card
     : undefined;
-  const legendImage = legendCardId ? resolveCardImage(allPrintings, legendCardId) : null;
-  const championImage = championCardId ? resolveCardImage(allPrintings, championCardId) : null;
+  const legendImage = legendCardId ? resolveCardImage(filteredPrintings, legendCardId) : null;
+  const championImage = championCardId ? resolveCardImage(filteredPrintings, championCardId) : null;
 
   // Lazy-fetch full card detail only when export/proxy dialogs are open
   const needsDetail = exportOpen || proxyOpen;
