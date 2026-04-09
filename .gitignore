@@ -48,3 +48,6 @@ deploy.sh
 
 # Claude Code worktrees (auto-managed)
 .claude/worktrees/
+
+# Auto-generated test artifacts from Hypothesis (a property-based testing library)
+.hypothesis/
