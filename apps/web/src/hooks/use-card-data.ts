@@ -29,22 +29,46 @@ function toComparable(p: Printing, setOrderMap: Map<string, number>) {
 }
 
 /**
- * In "cards" mode, deduplicate by cardId — keep the canonical printing per comparePrintings order
- * (earliest set by display order, then short code, then non-promo first).
+ * Compare two printings with language preference as the primary tiebreaker.
+ * Preferred languages (earlier in the user's language order) sort first,
+ * then fall back to the canonical comparePrintings order.
+ * @returns Negative if a comes first, positive if b comes first, 0 if equal.
+ */
+function compareWithLanguagePreference(
+  a: Printing,
+  b: Printing,
+  setOrderMap: Map<string, number>,
+  languageOrder?: string[],
+): number {
+  if (languageOrder && languageOrder.length > 1) {
+    const aIdx = languageOrder.indexOf(a.language);
+    const bIdx = languageOrder.indexOf(b.language);
+    // Missing languages (already filtered out) sort after listed ones
+    const aPos = aIdx === -1 ? languageOrder.length : aIdx;
+    const bPos = bIdx === -1 ? languageOrder.length : bIdx;
+    const langCompare = aPos - bPos;
+    if (langCompare !== 0) {
+      return langCompare;
+    }
+  }
+  return comparePrintings(toComparable(a, setOrderMap), toComparable(b, setOrderMap));
+}
+
+/**
+ * In "cards" mode, deduplicate by cardId — keep the canonical printing per language preference
+ * then comparePrintings order (earliest set by display order, then short code, then non-promo first).
  * @returns Deduplicated printings, one per card.
  */
 function deduplicateByCard(
   filteredCards: Printing[],
   setOrderMap: Map<string, number>,
+  languageOrder?: string[],
 ): Printing[] {
   const seen = new Map<string, Printing>();
   for (const printing of filteredCards) {
     const existing = seen.get(printing.card.id);
     if (existing) {
-      if (
-        comparePrintings(toComparable(printing, setOrderMap), toComparable(existing, setOrderMap)) <
-        0
-      ) {
+      if (compareWithLanguagePreference(printing, existing, setOrderMap, languageOrder) < 0) {
         seen.set(printing.card.id, printing);
       }
     } else {
@@ -55,12 +79,13 @@ function deduplicateByCard(
 }
 
 /**
- * Group all printings by cardId and sort each group by canonical printing order.
+ * Group all printings by cardId and sort each group by language preference then canonical order.
  * @returns A map from cardId to sorted printings.
  */
 function groupPrintingsByCardId(
   allPrintings: Printing[],
   setOrderMap: Map<string, number>,
+  languageOrder?: string[],
 ): Map<string, Printing[]> {
   const map = new Map<string, Printing[]>();
   for (const p of allPrintings) {
@@ -72,9 +97,7 @@ function groupPrintingsByCardId(
     group.push(p);
   }
   for (const group of map.values()) {
-    group.sort((a, b) =>
-      comparePrintings(toComparable(a, setOrderMap), toComparable(b, setOrderMap)),
-    );
+    group.sort((a, b) => compareWithLanguagePreference(a, b, setOrderMap, languageOrder));
   }
   return map;
 }
@@ -196,9 +219,11 @@ export function useCardData({
   const filteredCards = filterCards(langFiltered, filters, keywordReverseMap);
 
   const displayCards =
-    view === "cards" ? deduplicateByCard(filteredCards, setOrderMap) : filteredCards;
+    view === "cards"
+      ? deduplicateByCard(filteredCards, setOrderMap, languageFilter)
+      : filteredCards;
 
-  const printingsByCardId = groupPrintingsByCardId(filteredCards, setOrderMap);
+  const printingsByCardId = groupPrintingsByCardId(filteredCards, setOrderMap, languageFilter);
 
   const priceRangeByCardId =
     view === "cards" ? computePriceRanges(printingsByCardId, favoriteMarketplace) : null;

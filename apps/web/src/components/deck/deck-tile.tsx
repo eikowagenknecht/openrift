@@ -166,21 +166,33 @@ function FannedPreview({
 
 /**
  * Resolves the front image URL for a card from the catalog printings.
- * Picks the canonical printing: normal art variant, non-promo, non-signed, normal finish.
+ * Picks the canonical printing: preferred language first, then normal art variant, non-promo, normal finish.
  * @returns The front image URL, or null if not found.
  */
 function resolveCardImage(
   allPrintings: ReturnType<typeof useCards>["allPrintings"],
   cardId: string,
+  languageOrder?: string[],
 ): string | null {
   const candidates = allPrintings
     .filter((entry) => entry.card.id === cardId)
-    .toSorted(
-      (a, b) =>
+    .toSorted((a, b) => {
+      if (languageOrder && languageOrder.length > 1) {
+        const aIdx = languageOrder.indexOf(a.language);
+        const bIdx = languageOrder.indexOf(b.language);
+        const aPos = aIdx === -1 ? languageOrder.length : aIdx;
+        const bPos = bIdx === -1 ? languageOrder.length : bIdx;
+        const langCompare = aPos - bPos;
+        if (langCompare !== 0) {
+          return langCompare;
+        }
+      }
+      return (
         a.shortCode.localeCompare(b.shortCode) ||
         Number(Boolean(a.promoType)) - Number(Boolean(b.promoType)) ||
-        Number(a.finish !== "normal") - Number(b.finish !== "normal"),
-    );
+        Number(a.finish !== "normal") - Number(b.finish !== "normal")
+      );
+    });
   const frontImage = candidates[0]?.images.find((img) => img.face === "front");
   return frontImage?.url ?? null;
 }
@@ -226,8 +238,12 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const championCard = championCardId
     ? filteredPrintings.find((entry) => entry.card.id === championCardId)?.card
     : undefined;
-  const legendImage = legendCardId ? resolveCardImage(filteredPrintings, legendCardId) : null;
-  const championImage = championCardId ? resolveCardImage(filteredPrintings, championCardId) : null;
+  const legendImage = legendCardId
+    ? resolveCardImage(filteredPrintings, legendCardId, languages)
+    : null;
+  const championImage = championCardId
+    ? resolveCardImage(filteredPrintings, championCardId, languages)
+    : null;
 
   // Lazy-fetch full card detail only when export/proxy dialogs are open
   const needsDetail = exportOpen || proxyOpen;
