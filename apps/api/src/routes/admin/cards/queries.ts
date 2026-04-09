@@ -2,7 +2,7 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import {
-  buildCandidateCardDetail,
+  buildCardDetail,
   buildCandidateCardList,
   buildExport,
   buildUnmatchedDetail,
@@ -184,7 +184,7 @@ export const queriesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   .openapi(getCandidateCard, async (c) => {
     const { candidateCards } = c.get("repos");
-    return c.json(await buildCandidateCardDetail(candidateCards, c.req.valid("param").cardId));
+    return c.json(await buildCardDetail(candidateCards, c.req.valid("param").cardId));
   })
 
   .openapi(getUnmatchedDetail, async (c) => {
