@@ -352,6 +352,17 @@ function MobileNav({
           )}
         </nav>
         <SheetFooter className="border-t px-4 pt-4">
+          <a
+            href="https://discord.gg/Qb6RcjXq6z"
+            target="_blank"
+            rel="noreferrer"
+            className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm"
+          >
+            <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
+              <path d={siDiscord.path} fill="currentColor" />
+            </svg>
+            Join our Discord
+          </a>
           <p className="text-muted-foreground text-xs">Built with Fury. Maintained with Calm.</p>
         </SheetFooter>
       </SheetContent>

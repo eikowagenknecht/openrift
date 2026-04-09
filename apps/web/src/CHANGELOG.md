@@ -5,6 +5,7 @@
 - feat: Deck editor now shows an Ownership panel in the sidebar with how many cards you own, how many are missing, and the estimated cost to complete the deck
 - feat: Missing cards can be viewed in a detailed dialog with a copy-to-clipboard shopping list
 - feat: New Feedback button in the header lets you quickly reach Discord or open a GitHub issue
+- feat: Discord links are now easier to find across the site, including the footer, mobile menu, support page, and help center
 - feat: The cards page now has a collection mode button that cycles through showing owned counts and quick-add controls, plus Ctrl+K to add cards to your Inbox
 - feat: Keyword and language fields in the admin translations table now use dropdown selects instead of free-text inputs
 - feat: Languages can now be reordered in preferences, and the first language is preferred when choosing which printing to display

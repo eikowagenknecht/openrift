@@ -1,6 +1,6 @@
 import { CopyIcon, HeartIcon } from "lucide-react";
 import { Suspense, useState } from "react";
-import { siGithubsponsors, siKofi, siReddit, siX } from "simple-icons";
+import { siDiscord, siGithubsponsors, siKofi, siReddit, siX } from "simple-icons";
 
 import { CardText } from "@/components/cards/card-text";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -211,6 +211,23 @@ export function SupportPage() {
             text="Check out OpenRift — a free card browser for Riftbound! https://openrift.app"
           />
         </div>
+      </section>
+
+      {/* Community */}
+      <section className="mb-10">
+        <h2 className="mb-1 text-lg font-semibold">Join the Party</h2>
+        <p className="text-muted-foreground mb-4 text-sm">
+          Got feedback, questions, or just want to talk cards? We&apos;re on Discord.
+        </p>
+        <a
+          href="https://discord.gg/Qb6RcjXq6z"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-2 rounded-md bg-[#5865F2] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#4752C4]"
+        >
+          <SimpleIcon icon={siDiscord} className="size-4" />
+          Join our Discord
+        </a>
       </section>
 
       {/* Merch */}

@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { siDiscord } from "simple-icons";
 
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
@@ -41,6 +42,23 @@ export function HelpIndexPage() {
             </Card>
           </Link>
         ))}
+      </div>
+
+      <div className="text-muted-foreground mt-8 text-center text-sm">
+        <p>
+          Can&apos;t find what you&apos;re looking for?{" "}
+          <a
+            href="https://discord.gg/Qb6RcjXq6z"
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground inline-flex items-center gap-1 hover:underline"
+          >
+            <svg viewBox="0 0 24 24" className="size-3.5" aria-hidden="true">
+              <path d={siDiscord.path} fill="currentColor" />
+            </svg>
+            Ask us on Discord
+          </a>
+        </p>
       </div>
     </div>
   );

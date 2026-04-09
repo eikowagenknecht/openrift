@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { siGithub } from "simple-icons";
+import { siDiscord, siGithub } from "simple-icons";
 
 import { COMMIT_HASH } from "@/lib/env";
 import { cn } from "@/lib/utils";
@@ -19,6 +19,22 @@ export function Footer({ className }: { className?: string }) {
         <Link to="/support" className="hover:text-muted-foreground">
           Support Us
         </Link>
+        <span aria-hidden="true"> · </span>
+        <a
+          href="https://discord.gg/Qb6RcjXq6z"
+          target="_blank"
+          rel="noreferrer"
+          className="hover:text-muted-foreground"
+        >
+          <svg
+            role="img"
+            viewBox="0 0 24 24"
+            className="mr-0.5 mb-px inline size-2.5 fill-current align-middle"
+          >
+            <path d={siDiscord.path} />
+          </svg>
+          Discord
+        </a>
         <span aria-hidden="true"> · </span>
         <a
           href="https://github.com/eikowagenknecht/openrift/commits/main/"
