@@ -1,4 +1,4 @@
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
@@ -26,13 +26,3 @@ export const initQueryOptions = queryOptions({
   staleTime: 5 * 60 * 1000,
   refetchOnWindowFocus: false,
 });
-
-/**
- * Returns the full init payload (enums + keyword styles).
- *
- * @returns The init response data.
- */
-export function useInit() {
-  const { data } = useSuspenseQuery(initQueryOptions);
-  return data;
-}

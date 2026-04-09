@@ -28,7 +28,7 @@ export function buildTranslationReverseMap(
  *
  * @returns The canonical keyword name.
  */
-export function resolveKeywordCanonical(keyword: string, reverseMap: Map<string, string>): string {
+function resolveKeywordCanonical(keyword: string, reverseMap: Map<string, string>): string {
   return reverseMap.get(keyword.toLowerCase()) ?? keyword;
 }
 

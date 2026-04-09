@@ -411,7 +411,7 @@ export const battlefieldNoDuplicates: DeckRule = (state) => {
 };
 
 // Total Signature cards across main deck + sideboard must not exceed 3 (rule 103.2.d.1).
-export const signatureTotalLimit: DeckRule = (state) => {
+const signatureTotalLimit: DeckRule = (state) => {
   const signatureCards = [
     ...cardsInZone(state.cards, "main"),
     ...cardsInZone(state.cards, "sideboard"),
@@ -433,7 +433,7 @@ export const signatureTotalLimit: DeckRule = (state) => {
 };
 
 // All Signature cards must share a Champion tag with the Legend (rule 103.2.d.2).
-export const signatureMatchesLegendTag: DeckRule = (state) => {
+const signatureMatchesLegendTag: DeckRule = (state) => {
   const legends = cardsInZone(state.cards, "legend");
   if (legends.length !== 1) {
     return [];

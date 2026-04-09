@@ -18,7 +18,6 @@ export type {
   IgnoredCandidateCardsTable,
   IgnoredCandidatePrintingsTable,
   KeywordStylesTable,
-  KeywordTranslationsTable,
   MarketplaceProductsTable,
   MarketplaceSnapshotsTable,
   PrintingImagesTable,
@@ -30,6 +29,5 @@ export type {
   WishListItemsTable,
   WishListsTable,
   ReferenceTable,
-  PrintingEventsTable,
   FieldChange,
 } from "./types.js";

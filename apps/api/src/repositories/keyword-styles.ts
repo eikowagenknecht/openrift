@@ -3,7 +3,7 @@ import { sql } from "kysely";
 
 import type { Database, KeywordStylesTable } from "../db/index.js";
 
-export interface KeywordTranslationRow {
+interface KeywordTranslationRow {
   keywordName: string;
   language: string;
   label: string;

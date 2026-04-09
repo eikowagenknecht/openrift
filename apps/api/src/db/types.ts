@@ -18,7 +18,6 @@ export type {
   IgnoredCandidateCardsTable,
   IgnoredCandidatePrintingsTable,
   KeywordStylesTable,
-  KeywordTranslationsTable,
   MarketplaceProductsTable,
   MarketplaceSnapshotsTable,
   PrintingImagesTable,
@@ -33,6 +32,5 @@ export type {
   DomainsTable,
   ReferenceTable,
   // Printing events (migration 071)
-  PrintingEventsTable,
   FieldChange,
 } from "./tables.js";

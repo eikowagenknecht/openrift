@@ -36,7 +36,7 @@ const fetchSetDetail = createServerFn({ method: "GET" })
       }),
   );
 
-export interface EnrichedSetDetail {
+interface EnrichedSetDetail {
   set: SetDetailResponse["set"];
   printings: Printing[];
   cards: SetDetailResponse["cards"];

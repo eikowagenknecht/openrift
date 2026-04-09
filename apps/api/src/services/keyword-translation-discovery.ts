@@ -2,7 +2,7 @@ import { extractBracketedTerms } from "@openrift/shared";
 
 import type { keywordStylesRepo } from "../repositories/keyword-styles.js";
 
-export interface DiscoveryResult {
+interface DiscoveryResult {
   /** Number of card-language pairs examined. */
   candidatesExamined: number;
   /** Translation pairs discovered with sufficient confidence. */
