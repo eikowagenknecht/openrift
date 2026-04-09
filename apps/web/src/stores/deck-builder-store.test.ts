@@ -77,17 +77,17 @@ describe("useDeckBuilderStore", () => {
   describe("init", () => {
     it("sets deck data and clears dirty flag", () => {
       const cards = [stubDeckBuilderCard({ zone: "main", quantity: 2 })];
-      useDeckBuilderStore.getState().init("deck-1", "standard", cards);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", cards);
 
       const state = useDeckBuilderStore.getState();
       expect(state.deckId).toBe("deck-1");
-      expect(state.format).toBe("standard");
+      expect(state.format).toBe("constructed");
       expect(state.cards).toHaveLength(1);
       expect(state.isDirty).toBe(false);
     });
 
     it("validates the deck on init", () => {
-      useDeckBuilderStore.getState().init("deck-1", "standard", []);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", []);
       const state = useDeckBuilderStore.getState();
       // Empty deck should have violations (no legend, etc.)
       expect(state.violations.length).toBeGreaterThan(0);
@@ -101,7 +101,7 @@ describe("useDeckBuilderStore", () => {
 
       const state = useDeckBuilderStore.getState();
       expect(state.deckId).toBeNull();
-      expect(state.format).toBe("standard");
+      expect(state.format).toBe("constructed");
       expect(state.cards).toHaveLength(0);
       expect(state.isDirty).toBe(false);
     });
@@ -111,7 +111,7 @@ describe("useDeckBuilderStore", () => {
 
   describe("addCard", () => {
     it("adds a card to the active zone", () => {
-      useDeckBuilderStore.getState().init("deck-1", "standard", []);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", []);
       useDeckBuilderStore.getState().setActiveZone("main");
 
       const card = stubDeckBuilderCard({ cardType: "Unit" });
@@ -124,7 +124,7 @@ describe("useDeckBuilderStore", () => {
     });
 
     it("adds a card to a specific zone override", () => {
-      useDeckBuilderStore.getState().init("deck-1", "standard", []);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", []);
 
       const card = stubDeckBuilderCard({ cardType: "Unit" });
       useDeckBuilderStore.getState().addCard(card, "sideboard");
@@ -133,7 +133,7 @@ describe("useDeckBuilderStore", () => {
     });
 
     it("rejects cards not allowed in the target zone", () => {
-      useDeckBuilderStore.getState().init("deck-1", "standard", []);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", []);
 
       const legend = stubDeckBuilderCard({ cardType: "Legend" });
       useDeckBuilderStore.getState().addCard(legend, "main");
@@ -143,7 +143,7 @@ describe("useDeckBuilderStore", () => {
 
     it("increments quantity for existing cards", () => {
       const card = stubDeckBuilderCard({ cardId: "card-1", cardType: "Unit", zone: "main" });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [{ ...card, quantity: 1 }]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [{ ...card, quantity: 1 }]);
 
       useDeckBuilderStore.getState().addCard(card, "main");
 
@@ -157,7 +157,7 @@ describe("useDeckBuilderStore", () => {
         zone: "main",
         quantity: 3,
       });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [card]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [card]);
 
       useDeckBuilderStore.getState().addCard({ ...card, zone: "sideboard" }, "sideboard");
 
@@ -175,7 +175,7 @@ describe("useDeckBuilderStore", () => {
         zone: "main",
         quantity: 2,
       });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [card]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [card]);
 
       useDeckBuilderStore.getState().addCard({ ...card, zone: "sideboard" }, "sideboard", 5);
 
@@ -191,7 +191,7 @@ describe("useDeckBuilderStore", () => {
         cardType: "Legend",
         zone: "legend",
       });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [oldLegend]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [oldLegend]);
 
       const newLegend = stubDeckBuilderCard({ cardId: "new-legend", cardType: "Legend" });
       useDeckBuilderStore.getState().addCard(newLegend, "legend");
@@ -208,7 +208,7 @@ describe("useDeckBuilderStore", () => {
         superTypes: ["Champion"],
         zone: "champion",
       });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [oldChamp]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [oldChamp]);
 
       const newChamp = stubDeckBuilderCard({
         cardId: "new-champ",
@@ -231,7 +231,7 @@ describe("useDeckBuilderStore", () => {
           quantity: 1,
         }),
       );
-      useDeckBuilderStore.getState().init("deck-1", "standard", bfs);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", bfs);
 
       const newBf = stubDeckBuilderCard({ cardId: "bf-new", cardType: "Battlefield" });
       useDeckBuilderStore.getState().addCard(newBf, "battlefield");
@@ -248,7 +248,7 @@ describe("useDeckBuilderStore", () => {
         zone: "battlefield",
         quantity: 1,
       });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [bf]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [bf]);
 
       useDeckBuilderStore.getState().addCard({ ...bf }, "battlefield");
 
@@ -262,7 +262,7 @@ describe("useDeckBuilderStore", () => {
   describe("removeCard", () => {
     it("decrements quantity when above 1", () => {
       const card = stubDeckBuilderCard({ cardId: "card-1", zone: "main", quantity: 3 });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [card]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [card]);
 
       useDeckBuilderStore.getState().removeCard("card-1", "main");
 
@@ -272,7 +272,7 @@ describe("useDeckBuilderStore", () => {
 
     it("removes the entry entirely when quantity is 1", () => {
       const card = stubDeckBuilderCard({ cardId: "card-1", zone: "main", quantity: 1 });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [card]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [card]);
 
       useDeckBuilderStore.getState().removeCard("card-1", "main");
 
@@ -280,7 +280,7 @@ describe("useDeckBuilderStore", () => {
     });
 
     it("does nothing when card is not found", () => {
-      useDeckBuilderStore.getState().init("deck-1", "standard", []);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", []);
 
       useDeckBuilderStore.getState().removeCard("nonexistent", "main");
 
@@ -298,7 +298,7 @@ describe("useDeckBuilderStore", () => {
         zone: "main",
         quantity: 2,
       });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [card]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [card]);
 
       useDeckBuilderStore.getState().moveCard("card-1", "main", "sideboard");
 
@@ -321,7 +321,7 @@ describe("useDeckBuilderStore", () => {
         zone: "sideboard",
         quantity: 1,
       });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [mainCard, sideCard]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [mainCard, sideCard]);
 
       useDeckBuilderStore.getState().moveCard("card-1", "main", "sideboard");
 
@@ -338,7 +338,7 @@ describe("useDeckBuilderStore", () => {
         zone: "main",
         quantity: 1,
       });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [unit]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [unit]);
 
       useDeckBuilderStore.getState().moveCard("card-1", "main", "legend");
 
@@ -357,7 +357,7 @@ describe("useDeckBuilderStore", () => {
         zone: "main",
         quantity: 3,
       });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [card]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [card]);
 
       useDeckBuilderStore.getState().moveOneCard("card-1", "main", "sideboard");
 
@@ -373,7 +373,7 @@ describe("useDeckBuilderStore", () => {
         zone: "main",
         quantity: 1,
       });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [card]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [card]);
 
       useDeckBuilderStore.getState().moveOneCard("card-1", "main", "sideboard");
 
@@ -388,7 +388,7 @@ describe("useDeckBuilderStore", () => {
   describe("setQuantity", () => {
     it("sets the quantity of a card", () => {
       const card = stubDeckBuilderCard({ cardId: "card-1", zone: "main", quantity: 1 });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [card]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [card]);
 
       useDeckBuilderStore.getState().setQuantity("card-1", "main", 3);
 
@@ -397,7 +397,7 @@ describe("useDeckBuilderStore", () => {
 
     it("removes the card when quantity is set to 0", () => {
       const card = stubDeckBuilderCard({ cardId: "card-1", zone: "main", quantity: 2 });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [card]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [card]);
 
       useDeckBuilderStore.getState().setQuantity("card-1", "main", 0);
 
@@ -406,7 +406,7 @@ describe("useDeckBuilderStore", () => {
 
     it("removes the card when quantity is negative", () => {
       const card = stubDeckBuilderCard({ cardId: "card-1", zone: "main", quantity: 2 });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [card]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [card]);
 
       useDeckBuilderStore.getState().setQuantity("card-1", "main", -1);
 
@@ -433,7 +433,7 @@ describe("useDeckBuilderStore", () => {
         zone: "legend",
         domains: ["Fury", "Calm"],
       });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [oldLegend]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [oldLegend]);
 
       const newLegend = stubDeckBuilderCard({
         cardId: "new",
@@ -462,7 +462,7 @@ describe("useDeckBuilderStore", () => {
         domains: ["Fury"],
         quantity: 6,
       });
-      useDeckBuilderStore.getState().init("deck-1", "standard", [legend, rune]);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", [legend, rune]);
 
       const newLegend = stubDeckBuilderCard({
         cardId: "legend-2",
@@ -477,7 +477,7 @@ describe("useDeckBuilderStore", () => {
     });
 
     it("auto-populates runes when runesByDomain is provided", () => {
-      useDeckBuilderStore.getState().init("deck-1", "standard", []);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", []);
 
       const furyRune = stubDeckBuilderCard({
         cardId: "fury-rune",
@@ -512,7 +512,7 @@ describe("useDeckBuilderStore", () => {
   describe("markSaved", () => {
     it("clears the dirty flag", () => {
       const card = stubDeckBuilderCard({ cardType: "Unit" });
-      useDeckBuilderStore.getState().init("deck-1", "standard", []);
+      useDeckBuilderStore.getState().init("deck-1", "constructed", []);
       useDeckBuilderStore.getState().addCard(card, "main");
       expect(useDeckBuilderStore.getState().isDirty).toBe(true);
 

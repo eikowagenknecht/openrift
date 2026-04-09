@@ -80,7 +80,7 @@ function makeBattlefield(cardId: string): DeckCard {
   });
 }
 
-function makeStandardShell(): DeckCard[] {
+function makeConstructedShell(): DeckCard[] {
   return [
     makeLegend(),
     makeChampion(),
@@ -92,7 +92,10 @@ function makeStandardShell(): DeckCard[] {
   ];
 }
 
-function makeState(cards: DeckCard[], format: "standard" | "freeform" = "standard"): DeckState {
+function makeState(
+  cards: DeckCard[],
+  format: "constructed" | "freeform" = "constructed",
+): DeckState {
   return { format, cards };
 }
 
@@ -566,11 +569,11 @@ describe("signatureMatchesLegendTag", () => {
 // ── validateDeck ────────────────────────────────────────────────────────────
 
 describe("validateDeck", () => {
-  it("returns no violations for a valid standard deck", () => {
+  it("returns no violations for a valid constructed deck", () => {
     const mainCards = Array.from({ length: 13 }, (_, index) =>
       makeCard({ cardId: `main-${index}`, quantity: 3 }),
     );
-    const cards = [...makeStandardShell(), ...mainCards];
+    const cards = [...makeConstructedShell(), ...mainCards];
     const violations = validateDeck(makeState(cards));
     expect(violations).toEqual([]);
   });
@@ -580,7 +583,7 @@ describe("validateDeck", () => {
     expect(validateDeck(makeState([makeCard({ quantity: 100 })], "freeform"))).toEqual([]);
   });
 
-  it("returns multiple violations for an empty standard deck", () => {
+  it("returns multiple violations for an empty constructed deck", () => {
     const violations = validateDeck(makeState([]));
     expect(violations.length).toBeGreaterThan(0);
 
@@ -596,7 +599,7 @@ describe("validateDeck", () => {
     const mainCards = Array.from({ length: 13 }, (_, index) =>
       makeCard({ cardId: `main-${index}`, quantity: 3 }),
     );
-    const cards = [...makeStandardShell(), ...mainCards, overflowCard];
+    const cards = [...makeConstructedShell(), ...mainCards, overflowCard];
     const violations = validateDeck(makeState(cards));
     expect(violations).toEqual([]);
   });

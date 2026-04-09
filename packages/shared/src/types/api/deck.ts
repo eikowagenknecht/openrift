@@ -8,7 +8,7 @@ export interface DeckListResponse {
 export interface DeckSummaryResponse {
   id: string;
   name: string;
-  format: "standard" | "freeform";
+  format: "constructed" | "freeform";
   createdAt: string;
   updatedAt: string;
 }
@@ -31,7 +31,7 @@ export interface DeckAvailabilityResponse {
 export interface DeckResponse {
   id: string;
   name: string;
-  format: "standard" | "freeform";
+  format: "constructed" | "freeform";
 }
 
 export interface DeckCardResponse {

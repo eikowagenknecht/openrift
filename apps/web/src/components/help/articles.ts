@@ -70,7 +70,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       slug: "deck-building",
       title: "Building Decks",
       description:
-        "Plan your deck by picking cards, filling zones, and validating against Standard format rules.",
+        "Plan your deck by picking cards, filling zones, and validating against Constructed format rules.",
       icon: SwordsIcon,
       component: () => import("./articles/deck-building"),
     },

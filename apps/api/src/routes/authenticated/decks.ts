@@ -268,9 +268,9 @@ export const decksRoute = decksApp
 
       // Validation
       const isValid =
-        row.format === "standard"
+        row.format === "constructed"
           ? validateDeck({
-              format: "standard",
+              format: "constructed",
               cards: cards.map((card) => ({
                 cardId: card.cardId,
                 zone: card.zone as DeckZone,

@@ -44,8 +44,8 @@ export const WellKnown = {
     OVERNUMBERED: "overnumbered",
   },
   deckFormat: {
-    /** Applies standard deck validation rules. */
-    STANDARD: "standard",
+    /** Applies constructed deck validation rules. */
+    CONSTRUCTED: "constructed",
     /** Skips all deck validation. */
     FREEFORM: "freeform",
   },

@@ -11,7 +11,7 @@ const superTypeSchema = z.string();
 const artVariantSchema = z.string();
 const finishSchema = z.string();
 const activityActionSchema = z.enum(["added", "removed", "moved"]);
-const deckFormatSchema = z.enum(["standard", "freeform"]);
+const deckFormatSchema = z.enum(["constructed", "freeform"]);
 const deckZoneSchema = z.enum([
   "main",
   "sideboard",

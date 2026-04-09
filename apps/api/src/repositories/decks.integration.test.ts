@@ -32,7 +32,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
       userId,
       name: "Test Deck Alpha",
       description: "A test deck",
-      format: "standard",
+      format: "constructed",
       isWanted: false,
       isPublic: false,
     });
@@ -43,7 +43,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     expect(deck.userId).toBe(userId);
     expect(deck.name).toBe("Test Deck Alpha");
     expect(deck.description).toBe("A test deck");
-    expect(deck.format).toBe("standard");
+    expect(deck.format).toBe("constructed");
     expect(deck.isWanted).toBe(false);
     expect(deck.isPublic).toBe(false);
   });
@@ -138,7 +138,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     const deckId = createdDeckIds[0];
     const result = await repo.getIdAndFormat(deckId, userId);
 
-    expect(result).toEqual({ id: deckId, format: "standard" });
+    expect(result).toEqual({ id: deckId, format: "constructed" });
   });
 
   it("returns undefined for a nonexistent deck", async () => {
@@ -265,7 +265,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
       userId,
       name: "To Delete",
       description: null,
-      format: "standard",
+      format: "constructed",
       isWanted: false,
       isPublic: false,
     });

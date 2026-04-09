@@ -84,7 +84,7 @@ describe("toDeck", () => {
       userId: "user-1",
       name: "Aggro",
       description: null,
-      format: "standard",
+      format: "constructed",
       isWanted: false,
       isPublic: true,
       shareToken: null,
@@ -94,7 +94,7 @@ describe("toDeck", () => {
     expect(result).toEqual({
       id: "deck-1",
       name: "Aggro",
-      format: "standard",
+      format: "constructed",
     });
   });
 });
@@ -110,7 +110,7 @@ describe("toDeckSummary", () => {
       userId: "user-1",
       name: "Aggro",
       description: "A fast deck",
-      format: "standard",
+      format: "constructed",
       isWanted: true,
       isPublic: true,
       shareToken: "abc123",
@@ -120,7 +120,7 @@ describe("toDeckSummary", () => {
     expect(result).toEqual({
       id: "deck-1",
       name: "Aggro",
-      format: "standard",
+      format: "constructed",
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });

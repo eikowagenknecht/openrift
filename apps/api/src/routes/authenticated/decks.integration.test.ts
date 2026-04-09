@@ -27,13 +27,15 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
 
   describe("POST /decks", () => {
     it("creates a standard deck", async () => {
-      const res = await app.fetch(req("POST", "/decks", { name: "My Deck", format: "standard" }));
+      const res = await app.fetch(
+        req("POST", "/decks", { name: "My Deck", format: "constructed" }),
+      );
       expect(res.status).toBe(201);
 
       const json = await res.json();
       expect(json.id).toBeTypeOf("string");
       expect(json.name).toBe("My Deck");
-      expect(json.format).toBe("standard");
+      expect(json.format).toBe("constructed");
       expect(json.isWanted).toBe(false);
       expect(json.isPublic).toBe(false);
       deckId = json.id;
@@ -51,7 +53,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
 
     it("creates a wanted deck", async () => {
       const res = await app.fetch(
-        req("POST", "/decks", { name: "Want to Build", format: "standard", isWanted: true }),
+        req("POST", "/decks", { name: "Want to Build", format: "constructed", isWanted: true }),
       );
       expect(res.status).toBe(201);
 
@@ -61,7 +63,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
     });
 
     it("rejects creation without name", async () => {
-      const res = await app.fetch(req("POST", "/decks", { format: "standard" }));
+      const res = await app.fetch(req("POST", "/decks", { format: "constructed" }));
       expect(res.status).toBe(400);
     });
 
@@ -109,7 +111,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       // Custom getOne returns { deck, cards } shape
       expect(json.deck.id).toBe(deckId);
       expect(json.deck.name).toBe("My Deck");
-      expect(json.deck.format).toBe("standard");
+      expect(json.deck.format).toBe("constructed");
       expect(json.cards).toBeDefined();
       expect(json.cards).toHaveLength(0);
     });

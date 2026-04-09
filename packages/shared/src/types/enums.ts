@@ -63,7 +63,7 @@ export const DEFAULT_ENUM_ORDERS: EnumOrders = {
 export type ActivityAction = "added" | "removed" | "moved";
 
 /** Backed by `deck_formats` reference table. */
-export type DeckFormat = "standard" | "freeform";
+export type DeckFormat = "constructed" | "freeform";
 
 /** Backed by `deck_zones` reference table. */
 export type DeckZone =

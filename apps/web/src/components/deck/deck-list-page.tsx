@@ -26,7 +26,7 @@ import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 import { DeckTile } from "./deck-tile";
 
 const FORMAT_LABELS: Record<string, string> = {
-  standard: "Standard",
+  constructed: "Constructed",
   freeform: "Freeform",
 };
 
@@ -40,7 +40,7 @@ function CreateDeckDialog({
   const navigate = useNavigate();
   const createDeck = useCreateDeck();
   const [name, setName] = useState("New Deck");
-  const [format, setFormat] = useState<"standard" | "freeform">("standard");
+  const [format, setFormat] = useState<"constructed" | "freeform">("constructed");
 
   const handleCreate = () => {
     createDeck.mutate(
@@ -79,7 +79,7 @@ function CreateDeckDialog({
                 <SelectValue>{(value: string) => FORMAT_LABELS[value] ?? value}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="standard">Standard</SelectItem>
+                <SelectItem value="constructed">Constructed</SelectItem>
                 <SelectItem value="freeform">Freeform</SelectItem>
               </SelectContent>
             </Select>

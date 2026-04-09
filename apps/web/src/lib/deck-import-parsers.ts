@@ -203,7 +203,7 @@ function stripTTSVariant(token: string): string {
   return match ? match[1] : token;
 }
 
-/** TTS positional boundaries (standard deck: 1+1+39+3+12 = 56 before sideboard). */
+/** TTS positional boundaries (constructed deck: 1+1+39+3+12 = 56 before sideboard). */
 const TTS_SIDEBOARD_START = 56;
 
 /**
