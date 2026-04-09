@@ -61,6 +61,7 @@ When the `api` container starts:
 | ----------------- | -------- | ----------------------------------------------------------------------------- |
 | `CRON_TCGPLAYER`  |          | Cron expression for TCGPlayer price refresh (e.g. `0 6 * * *`). Unset = off   |
 | `CRON_CARDMARKET` |          | Cron expression for Cardmarket price refresh (e.g. `15 6 * * *`). Unset = off |
+| `CRON_CHANGELOG`  |          | Cron expression for changelog Discord post (e.g. `0 20 * * *`). Unset = off   |
 | `IMAGE_TAG`       | `latest` | GHCR image tag (`preview`, `latest`, or `v1.2.3`)                             |
 | `SMTP_PORT`       | `465`    | SMTP port for email verification                                              |
 | `SMTP_SECURE`     | `true`   | Use TLS for SMTP                                                              |

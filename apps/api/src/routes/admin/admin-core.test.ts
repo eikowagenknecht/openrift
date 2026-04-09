@@ -56,12 +56,14 @@ describe("GET /api/v1/admin/cron-status", () => {
     cronJobs.tcgplayer = null;
     cronJobs.cardmarket = null;
     cronJobs.cardtrader = null;
+    cronJobs.changelog = null;
   });
 
   afterEach(() => {
     cronJobs.tcgplayer = originalCronJobs.tcgplayer;
     cronJobs.cardmarket = originalCronJobs.cardmarket;
     cronJobs.cardtrader = originalCronJobs.cardtrader;
+    cronJobs.changelog = originalCronJobs.changelog;
   });
 
   it("returns all null when no cron jobs are scheduled", async () => {
@@ -72,6 +74,7 @@ describe("GET /api/v1/admin/cron-status", () => {
       tcgplayer: null,
       cardmarket: null,
       cardtrader: null,
+      changelog: null,
     });
   });
 
@@ -87,6 +90,7 @@ describe("GET /api/v1/admin/cron-status", () => {
       tcgplayer: { nextRun: nextDate.toISOString() },
       cardmarket: { nextRun: null },
       cardtrader: null,
+      changelog: null,
     });
   });
 
@@ -105,6 +109,7 @@ describe("GET /api/v1/admin/cron-status", () => {
       tcgplayer: { nextRun: date1.toISOString() },
       cardmarket: { nextRun: date2.toISOString() },
       cardtrader: { nextRun: date3.toISOString() },
+      changelog: null,
     });
   });
 });
