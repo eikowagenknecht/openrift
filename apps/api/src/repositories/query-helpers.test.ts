@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { createMockDb } from "../test/mock-db.js";
-import { imageUrl, resolveCardId, selectCopyWithCard } from "./query-helpers.js";
+import {
+  imageUrl,
+  imageUrlWithOriginal,
+  resolveCardId,
+  selectCopyWithCard,
+} from "./query-helpers.js";
 
 describe("resolveCardId", () => {
   it("returns a raw builder expression", () => {
@@ -13,6 +18,13 @@ describe("resolveCardId", () => {
 describe("imageUrl", () => {
   it("returns a raw builder expression", () => {
     const result = imageUrl("pi");
+    expect(result).toBeDefined();
+  });
+});
+
+describe("imageUrlWithOriginal", () => {
+  it("returns a raw builder expression", () => {
+    const result = imageUrlWithOriginal("pi");
     expect(result).toBeDefined();
   });
 });

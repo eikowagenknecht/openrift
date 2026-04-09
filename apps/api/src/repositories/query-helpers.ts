@@ -20,10 +20,21 @@ export const resolveCardId = (alias: string): RawBuilder<string | null> =>
   )`;
 
 /**
- * Resolves the best available image URL from an image_files alias (prefers rehosted).
- * @returns A raw SQL expression: COALESCE(alias.rehosted_url, alias.original_url)
+ * Resolves the self-hosted image URL from an image_files alias.
+ * Only returns the rehosted URL; external provider URLs are excluded
+ * so they never appear on public pages.
+ * @returns A raw SQL expression: alias.rehosted_url (or NULL if not rehosted)
  */
 export function imageUrl(alias: string): RawBuilder<string | null> {
+  return sql<string | null>`${sql.ref(`${alias}.rehostedUrl`)}`;
+}
+
+/**
+ * Resolves the best available image URL, falling back to the original provider URL.
+ * Use this only in admin contexts where showing external images is acceptable.
+ * @returns A raw SQL expression: COALESCE(alias.rehosted_url, alias.original_url)
+ */
+export function imageUrlWithOriginal(alias: string): RawBuilder<string | null> {
   return sql<
     string | null
   >`COALESCE(${sql.ref(`${alias}.rehostedUrl`)}, ${sql.ref(`${alias}.originalUrl`)})`;

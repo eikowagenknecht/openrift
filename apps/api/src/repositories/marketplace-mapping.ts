@@ -2,7 +2,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
-import { domainsArray, imageUrl, superTypesArray } from "./query-helpers.js";
+import { domainsArray, imageUrlWithOriginal, superTypesArray } from "./query-helpers.js";
 
 type Db = Kysely<Database>;
 
@@ -78,7 +78,7 @@ export function marketplaceMappingRepo(db: Db) {
           "pt.slug as promoTypeSlug",
           "p.finish",
           "p.language",
-          imageUrl("ci").as("imageUrl"),
+          imageUrlWithOriginal("ci").as("imageUrl"),
           "ps.externalId",
           "ps.groupId as sourceGroupId",
           "ps.language as sourceLanguage",
