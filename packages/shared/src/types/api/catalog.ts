@@ -6,6 +6,7 @@ export interface CatalogSetResponse {
   id: string;
   slug: string;
   name: string;
+  releasedAt: string | null;
 }
 
 export type CatalogCardResponse = Card;

@@ -31,8 +31,8 @@ type CatalogCardErrataRow = Pick<
   "cardId" | "correctedRulesText" | "correctedEffectText" | "source" | "sourceUrl" | "effectiveDate"
 >;
 
-/** Set columns returned by the catalog (id, slug, name only). */
-type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name">;
+/** Set columns returned by the catalog. */
+type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name" | "releasedAt">;
 
 /** Active printing image with resolved URL (null URLs filtered at query level). */
 type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId" | "face"> & {
@@ -67,7 +67,11 @@ export function catalogRepo(db: Kysely<Database>) {
 
     /** @returns All sets ordered by their display position. */
     sets(): Promise<CatalogSetRow[]> {
-      return db.selectFrom("sets").select(["id", "slug", "name"]).orderBy("sortOrder").execute();
+      return db
+        .selectFrom("sets")
+        .select(["id", "slug", "name", "releasedAt"])
+        .orderBy("sortOrder")
+        .execute();
     },
 
     /** @returns All cards (no printings), for building a card lookup. */
@@ -339,7 +343,7 @@ export function catalogRepo(db: Kysely<Database>) {
       }
       return db
         .selectFrom("sets")
-        .select(["id", "slug", "name"])
+        .select(["id", "slug", "name", "releasedAt"])
         .where("id", "in", ids)
         .orderBy("sortOrder")
         .execute();
@@ -349,7 +353,7 @@ export function catalogRepo(db: Kysely<Database>) {
     setBySlug(slug: string): Promise<CatalogSetRow | undefined> {
       return db
         .selectFrom("sets")
-        .select(["id", "slug", "name"])
+        .select(["id", "slug", "name", "releasedAt"])
         .where("slug", "=", slug)
         .executeTakeFirst();
     },

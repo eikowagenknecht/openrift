@@ -7,7 +7,7 @@ import type {
 } from "@openrift/shared";
 import { ChevronUpIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
-import { Area, CartesianGrid, ComposedChart, Line, XAxis, YAxis } from "recharts";
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
 
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -17,7 +17,7 @@ import { usePriceHistory } from "@/hooks/use-price-history";
 import { formatterForMarketplace } from "@/lib/format";
 import { useDisplayStore } from "@/stores/display-store";
 
-const TIME_RANGES: { value: TimeRange; label: string; days: number }[] = [
+export const TIME_RANGES: { value: TimeRange; label: string; days: number }[] = [
   { value: "7d", label: "7D", days: 7 },
   { value: "30d", label: "30D", days: 30 },
   { value: "90d", label: "90D", days: 90 },
@@ -34,6 +34,16 @@ interface PriceHistoryChartProps {
   range?: TimeRange;
   onRangeChange?: (range: TimeRange) => void;
   onCollapse?: () => void;
+  /** Date string to highlight on the chart (e.g. from table row hover). */
+  highlightedDate?: string | null;
+  /** Called when the user hovers a point on the chart (date string or null on leave). */
+  onDateHover?: (date: string | null) => void;
+  /** Externally controlled marketplace source. */
+  source?: Marketplace;
+  /** Called when the user changes the marketplace source. */
+  onSourceChange?: (source: Marketplace) => void;
+  /** Hide the built-in toolbar (time range + source buttons). */
+  hideControls?: boolean;
 }
 
 export function PriceHistoryChart({
@@ -41,12 +51,21 @@ export function PriceHistoryChart({
   range: controlledRange,
   onRangeChange,
   onCollapse,
+  highlightedDate,
+  onDateHover,
+  source: controlledSource,
+  onSourceChange,
+  hideControls,
 }: PriceHistoryChartProps) {
   const [internalRange, setInternalRange] = useState<TimeRange>("30d");
   const range = controlledRange ?? internalRange;
   const setRange = onRangeChange ?? setInternalRange;
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
-  const [source, setSource] = useState<Marketplace>(marketplaceOrder[0] ?? "tcgplayer");
+  const [internalSource, setInternalSource] = useState<Marketplace>(
+    marketplaceOrder[0] ?? "tcgplayer",
+  );
+  const source = controlledSource ?? internalSource;
+  const setSource = onSourceChange ?? setInternalSource;
 
   const { data: allData } = usePriceHistory(printingId, "all");
 
@@ -93,42 +112,44 @@ export function PriceHistoryChart({
   return (
     <div className="space-y-3">
       {/* Time range + source row */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <ButtonGroup aria-label="Time range">
-          {availableRanges.map((tr) => (
-            <Button
-              key={tr.value}
-              variant={effectiveRange === tr.value ? "default" : "outline"}
-              size={btnSize}
-              onClick={() => setRange(tr.value)}
-            >
-              {tr.label}
-            </Button>
-          ))}
-        </ButtonGroup>
-        <ButtonGroup aria-label="Price source" className="ml-auto">
-          {marketplaceOrder.map((s) => {
-            const label = s === "tcgplayer" ? "TCG" : s === "cardmarket" ? "CM" : "CT";
-            const available = data?.[s]?.available ?? false;
-            return (
+      {!hideControls && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <ButtonGroup aria-label="Time range">
+            {availableRanges.map((tr) => (
               <Button
-                key={s}
-                variant={source === s ? "default" : "outline"}
+                key={tr.value}
+                variant={effectiveRange === tr.value ? "default" : "outline"}
                 size={btnSize}
-                onClick={() => setSource(s)}
-                disabled={!available && Boolean(data)}
+                onClick={() => setRange(tr.value)}
               >
-                {label}
+                {tr.label}
               </Button>
-            );
-          })}
-        </ButtonGroup>
-        {onCollapse && (
-          <Button variant="ghost" size="icon-sm" onClick={onCollapse}>
-            <ChevronUpIcon className="size-3.5" />
-          </Button>
-        )}
-      </div>
+            ))}
+          </ButtonGroup>
+          <ButtonGroup aria-label="Price source" className="ml-auto">
+            {marketplaceOrder.map((s) => {
+              const label = s === "tcgplayer" ? "TCG" : s === "cardmarket" ? "CM" : "CT";
+              const available = data?.[s]?.available ?? false;
+              return (
+                <Button
+                  key={s}
+                  variant={source === s ? "default" : "outline"}
+                  size={btnSize}
+                  onClick={() => setSource(s)}
+                  disabled={!available && Boolean(data)}
+                >
+                  {label}
+                </Button>
+              );
+            })}
+          </ButtonGroup>
+          {onCollapse && (
+            <Button variant="ghost" size="icon-sm" onClick={onCollapse}>
+              <ChevronUpIcon className="size-3.5" />
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Chart */}
       {isLoading && (
@@ -149,7 +170,22 @@ export function PriceHistoryChart({
 
       {!isLoading && !error && snapshots.length > 0 && (
         <ChartContainer config={chartConfig} className="aspect-[2.5/1] w-full">
-          <ComposedChart data={snapshots} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+          <ComposedChart
+            data={snapshots}
+            margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
+            onMouseMove={(state: Record<string, unknown>) => {
+              const activePayload = state?.activePayload as
+                | { payload?: Record<string, unknown> }[]
+                | undefined;
+              if (onDateHover && activePayload?.length) {
+                const date = activePayload[0].payload?.date as string | undefined;
+                if (date) {
+                  onDateHover(date);
+                }
+              }
+            }}
+            onMouseLeave={() => onDateHover?.(null)}
+          >
             <defs>
               <linearGradient id="marketFill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="var(--color-market)" stopOpacity={0.2} />
@@ -157,6 +193,14 @@ export function PriceHistoryChart({
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" />
+            {highlightedDate && (
+              <ReferenceLine
+                x={highlightedDate}
+                stroke="var(--color-market)"
+                strokeWidth={2}
+                strokeOpacity={0.6}
+              />
+            )}
             <XAxis
               dataKey="date"
               tickFormatter={String}

@@ -1,4 +1,5 @@
 import type { CardDetailResponse, Printing } from "@openrift/shared";
+import { comparePrintings } from "@openrift/shared";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -30,11 +31,20 @@ export interface EnrichedCardDetail {
 
 function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
   const slugById = new Map(response.sets.map((s) => [s.id, s.slug]));
-  const printings: Printing[] = response.printings.map((p) => ({
-    ...p,
-    setSlug: slugById.get(p.setId) ?? "",
-    card: response.card,
-  }));
+  // Build a set display-order map so comparePrintings uses sortOrder, not UUID
+  const setOrderMap = new Map(response.sets.map((s, i) => [s.id, i]));
+  const printings: Printing[] = response.printings
+    .map((p) => ({
+      ...p,
+      setSlug: slugById.get(p.setId) ?? "",
+      card: response.card,
+    }))
+    .toSorted((a, b) =>
+      comparePrintings(
+        { ...a, setOrder: setOrderMap.get(a.setId), promoTypeSlug: a.promoType?.slug },
+        { ...b, setOrder: setOrderMap.get(b.setId), promoTypeSlug: b.promoType?.slug },
+      ),
+    );
   return { card: response.card, printings, sets: response.sets };
 }
 

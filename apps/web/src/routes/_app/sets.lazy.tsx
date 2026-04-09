@@ -1,6 +1,7 @@
 import type { SetListEntry } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
+import { CalendarIcon, LayersIcon } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
@@ -14,39 +15,53 @@ export const Route = createLazyFileRoute("/_app/sets")({
 
 const CARD_BORDER_RADIUS = "5% / 3.6%";
 
-function SetCard({ set }: { set: SetListEntry }) {
+function formatDate(dateStr: string): string {
+  const date = new Date(`${dateStr}T00:00:00`);
+  return date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function HeroSetCard({ set }: { set: SetListEntry }) {
   const thumbnailUrl = set.coverImageUrl ? getCardImageUrl(set.coverImageUrl, "thumbnail") : null;
   const srcSet = set.coverImageUrl ? getCardImageSrcSet(set.coverImageUrl) : undefined;
 
   return (
-    <Link to="/sets/$setSlug" params={{ setSlug: set.slug }} className="group relative block p-1.5">
-      <div
-        className="group-hover:ring-primary/60 relative overflow-hidden group-hover:ring-2 after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border after:border-[var(--border-opaque)]"
-        style={{ borderRadius: CARD_BORDER_RADIUS }}
-      >
+    <Link
+      to="/sets/$setSlug"
+      params={{ setSlug: set.slug }}
+      className="border-border bg-card hover:bg-accent group flex overflow-hidden rounded-xl border transition-colors"
+    >
+      <div className="relative w-28 shrink-0 sm:w-36">
         {thumbnailUrl ? (
           <>
             <div className="aspect-card bg-muted/40" />
             <img
               src={thumbnailUrl}
               srcSet={srcSet}
-              sizes="(min-width: 1920px) 12.5vw, (min-width: 1600px) 14vw, (min-width: 1280px) 16vw, (min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
+              sizes="144px"
               alt={set.name}
               loading="lazy"
-              className="absolute inset-0 w-full object-cover"
+              className="absolute inset-0 size-full object-cover"
+              style={{ borderRadius: `${CARD_BORDER_RADIUS} 0 0 ${CARD_BORDER_RADIUS}` }}
             />
           </>
         ) : (
-          <div className="aspect-card bg-muted/40 flex items-center justify-center">
-            <span className="text-muted-foreground text-sm">{set.name}</span>
-          </div>
+          <div className="aspect-card bg-muted/40" />
         )}
-        <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/80 via-black/50 to-transparent px-3 pt-8 pb-3">
-          <h2 className="truncate text-sm font-semibold text-white drop-shadow-sm">{set.name}</h2>
-          <p className="text-xs text-white/70">
+      </div>
+      <div className="flex min-w-0 flex-col justify-center gap-1 p-4">
+        <h2 className="truncate text-lg font-semibold">{set.name}</h2>
+        <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+          <span className="flex items-center gap-1.5">
+            <LayersIcon className="size-3.5" />
             {set.cardCount} {set.cardCount === 1 ? "card" : "cards"}, {set.printingCount}{" "}
             {set.printingCount === 1 ? "printing" : "printings"}
-          </p>
+          </span>
+          {set.releasedAt && (
+            <span className="flex items-center gap-1.5">
+              <CalendarIcon className="size-3.5" />
+              {formatDate(set.releasedAt)}
+            </span>
+          )}
         </div>
       </div>
     </Link>
@@ -59,9 +74,9 @@ function SetsPage() {
   return (
     <div className={PAGE_PADDING}>
       <h1 className="mb-4 text-2xl font-bold">Card Sets</h1>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+      <div className="grid gap-4 min-[1920px]:grid-cols-4 sm:grid-cols-2 xl:grid-cols-3">
         {data.sets.map((set) => (
-          <SetCard key={set.id} set={set} />
+          <HeroSetCard key={set.id} set={set} />
         ))}
       </div>
     </div>
@@ -72,11 +87,9 @@ function SetsPending() {
   return (
     <div className={PAGE_PADDING}>
       <Skeleton className="mb-4 h-8 w-32" />
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+      <div className="grid gap-4 min-[1920px]:grid-cols-4 sm:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 8 }, (_, i) => (
-          <div key={i} className="p-1.5">
-            <Skeleton className="aspect-card w-full rounded-lg" />
-          </div>
+          <Skeleton key={i} className="h-36 rounded-xl" />
         ))}
       </div>
     </div>

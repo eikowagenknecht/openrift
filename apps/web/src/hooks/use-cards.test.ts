@@ -70,7 +70,14 @@ function stubCatalogPrintingResponse(
 }
 
 const CATALOG_RESPONSE: CatalogResponse = {
-  sets: [{ id: "00000000-0000-0000-0000-000000000099", slug: "RB1", name: "First Set" }],
+  sets: [
+    {
+      id: "00000000-0000-0000-0000-000000000099",
+      slug: "RB1",
+      name: "First Set",
+      releasedAt: null,
+    },
+  ],
   cards: {
     "00000000-0000-0000-0000-000000000001": { ...stubCard, name: "Card A" },
     "00000000-0000-0000-0000-000000000002": {
@@ -119,7 +126,12 @@ describe("useCards", () => {
 
     expect(raw.printings).toHaveLength(2);
     expect(raw.sets).toEqual([
-      { id: "00000000-0000-0000-0000-000000000099", slug: "RB1", name: "First Set" },
+      {
+        id: "00000000-0000-0000-0000-000000000099",
+        slug: "RB1",
+        name: "First Set",
+        releasedAt: null,
+      },
     ]);
     expect(raw.totalCopies).toBe(150);
     expect(raw.languages).toEqual([{ code: "EN", name: "English" }]);
@@ -144,7 +156,12 @@ describe("useCards", () => {
     expect(cardB?.card.name).toBe("Card B");
     expect(cardB?.marketPrice).toBeUndefined();
     expect(enriched.sets).toEqual([
-      { id: "00000000-0000-0000-0000-000000000099", slug: "RB1", name: "First Set" },
+      {
+        id: "00000000-0000-0000-0000-000000000099",
+        slug: "RB1",
+        name: "First Set",
+        releasedAt: null,
+      },
     ]);
   });
 

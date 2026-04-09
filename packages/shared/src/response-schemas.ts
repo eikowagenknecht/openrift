@@ -164,6 +164,7 @@ export const catalogSetResponseSchema = z.object({
   id: z.string(),
   slug: z.string(),
   name: z.string(),
+  releasedAt: z.string().nullable(),
 });
 
 const promoTypeSchema = z.object({
