@@ -1,6 +1,36 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
+
 import { CardText } from "@/components/cards/card-text";
+import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
+import { getCardImageUrl } from "@/lib/images";
+
+/** Short codes used in the diagram, in display order. */
+const DIAGRAM_SHORT_CODES = ["OGN-007", "OGN-007a", "SFD-R01b"];
+
+/** Copy counts shown in the copies section of the diagram. */
+const COPY_COUNTS: Record<string, number> = {
+  "OGN-007": 3,
+  "OGN-007a": 1,
+  "SFD-R01b": 2,
+};
+
+function useFuryRuneImages() {
+  const { data } = useSuspenseQuery(cardDetailQueryOptions("fury-rune"));
+  const imageByCode = new Map<string, string>();
+  for (const printing of data.printings) {
+    if (DIAGRAM_SHORT_CODES.includes(printing.shortCode) && !imageByCode.has(printing.shortCode)) {
+      const url = printing.images[0]?.url;
+      if (url) {
+        imageByCode.set(printing.shortCode, getCardImageUrl(url, "thumbnail"));
+      }
+    }
+  }
+  return imageByCode;
+}
 
 export default function CardsPrintingsCopiesArticle() {
+  const imageByCode = useFuryRuneImages();
+
   return (
     <div className="space-y-8">
       <p className="text-muted-foreground">
@@ -23,45 +53,21 @@ export default function CardsPrintingsCopiesArticle() {
               Printings
             </span>
             <div className="flex flex-col gap-2 sm:flex-row">
-              <div className="bg-background border-border flex flex-1 items-center gap-2 rounded-md border px-3 py-2">
-                <img
-                  src="/card-images/OGN/aac9b213-1211-4120-b312-f2cb1bd7dffe-300w.webp"
-                  alt="Fury Rune OGN-007"
-                  className="w-10 rounded"
-                />
-                <div>
-                  <span className="font-medium">OGN-007</span>
-                  <span className="text-muted-foreground block text-xs">
-                    Origins &middot; Common &middot; Normal
-                  </span>
-                </div>
-              </div>
-              <div className="bg-background border-border flex flex-1 items-center gap-2 rounded-md border px-3 py-2">
-                <img
-                  src="/card-images/OGN/48bf20fa-b0c7-40fb-85e8-75577b008025-300w.webp"
-                  alt="Fury Rune OGN-007a"
-                  className="w-10 rounded"
-                />
-                <div>
-                  <span className="font-medium">OGN-007a</span>
-                  <span className="text-muted-foreground block text-xs">
-                    Origins &middot; Showcase &middot; Foil
-                  </span>
-                </div>
-              </div>
-              <div className="bg-background border-border flex flex-1 items-center gap-2 rounded-md border px-3 py-2">
-                <img
-                  src="/card-images/SFD/019d0c1b-2eda-747f-8caa-f276547b3d15-300w.webp"
-                  alt="Fury Rune SFD-R01b"
-                  className="w-10 rounded"
-                />
-                <div>
-                  <span className="font-medium">SFD-R01b</span>
-                  <span className="text-muted-foreground block text-xs">
-                    Spiritforged &middot; Showcase &middot; Foil
-                  </span>
-                </div>
-              </div>
+              <PrintingCard
+                image={imageByCode.get("OGN-007")}
+                code="OGN-007"
+                label="Origins &middot; Common &middot; Normal"
+              />
+              <PrintingCard
+                image={imageByCode.get("OGN-007a")}
+                code="OGN-007a"
+                label="Origins &middot; Showcase &middot; Foil"
+              />
+              <PrintingCard
+                image={imageByCode.get("SFD-R01b")}
+                code="SFD-R01b"
+                label="Spiritforged &middot; Showcase &middot; Foil"
+              />
             </div>
           </div>
           <Arrow />
@@ -70,45 +76,33 @@ export default function CardsPrintingsCopiesArticle() {
               Copies
             </span>
             <div className="flex justify-center gap-6">
-              {[
-                {
-                  code: "OGN-007",
-                  image: "/card-images/OGN/aac9b213-1211-4120-b312-f2cb1bd7dffe-300w.webp",
-                  count: 3,
-                },
-                {
-                  code: "OGN-007a",
-                  image: "/card-images/OGN/48bf20fa-b0c7-40fb-85e8-75577b008025-300w.webp",
-                  count: 1,
-                },
-                {
-                  code: "SFD-R01b",
-                  image: "/card-images/SFD/019d0c1b-2eda-747f-8caa-f276547b3d15-300w.webp",
-                  count: 2,
-                },
-              ].map(({ code, image, count }) => (
-                <div key={code} className="flex flex-col items-center gap-1">
-                  <div
-                    className="relative"
-                    style={{ width: 48 + (count - 1) * 4, height: 68 + (count - 1) * 4 }}
-                  >
-                    {Array.from({ length: Math.min(count, 3) }, (_, index) => (
-                      <img
-                        key={index}
-                        src={image}
-                        alt={`${code} copy ${index + 1}`}
-                        className="absolute w-12 rounded shadow-sm"
-                        style={{
-                          top: index * 4,
-                          left: index * 4,
-                          zIndex: index,
-                        }}
-                      />
-                    ))}
+              {DIAGRAM_SHORT_CODES.map((code) => {
+                const image = imageByCode.get(code);
+                const count = COPY_COUNTS[code] ?? 1;
+                return (
+                  <div key={code} className="flex flex-col items-center gap-1">
+                    <div
+                      className="relative"
+                      style={{ width: 48 + (count - 1) * 4, height: 68 + (count - 1) * 4 }}
+                    >
+                      {Array.from({ length: Math.min(count, 3) }, (_, index) => (
+                        <img
+                          key={index}
+                          src={image}
+                          alt={`${code} copy ${index + 1}`}
+                          className="absolute w-12 rounded shadow-sm"
+                          style={{
+                            top: index * 4,
+                            left: index * 4,
+                            zIndex: index,
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-primary text-xs font-semibold">&times;{count}</span>
                   </div>
-                  <span className="text-primary text-xs font-semibold">&times;{count}</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -124,8 +118,14 @@ export default function CardsPrintingsCopiesArticle() {
           printed.
         </p>
         <p className="text-muted-foreground mt-2">
-          If a card appears in multiple sets, it is still one card. The detail panel shows all
-          available versions under <em>Versions</em>.
+          In the{" "}
+          <a href="/cards" className="text-primary hover:underline">
+            browser
+          </a>
+          , <strong className="text-foreground">Cards</strong> view shows one entry per unique card,
+          regardless of how many printings exist. This is the best view for answering &quot;do I
+          have this card at all?&quot; If a card appears in multiple sets, it is still one card. The
+          detail panel shows all available printings under <em>Printings</em>.
         </p>
         <ExampleTable
           rows={[
@@ -177,20 +177,30 @@ export default function CardsPrintingsCopiesArticle() {
         <h2 className="mb-2 text-lg font-semibold">Printings</h2>
         <p className="text-muted-foreground">
           A <strong className="text-foreground">printing</strong> is a specific physical version of
-          a card, tied to a set, with its own short code, rarity, finish (normal or foil), art
-          variant, and artist. The same card can have many printings across different sets, and each
-          printing has its own image and market price.
+          a card. It belongs to a set (like Origins or Spiritforged) and has its own short code,
+          rarity, finish (normal or foil), art variant, artist, language, and printed text. The same
+          card can have many printings across different sets, and each printing has its own image
+          and market price.
         </p>
         <p className="text-muted-foreground mt-2">
           Every printing has a short code visible at the bottom left of the physical card, like{" "}
-          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">SFD-R01b</code>. But two
-          printings can share the same short code and still be different (for example, a normal
-          finish and a foil finish of a Common card, or a special promo edition (often marked at the
-          bottom center of the card or with other visual differences). OpenRift treats each unique
-          combination of set, short code, finish, art variant, and promo type as its own printing).
-          Different printings can also have different printed text: some alt art cards omit the
-          reminder text in parentheses, and newer printings may have updated wording if there was an
-          errata. Flavor text can also vary between printings.
+          <code className="bg-muted rounded px-1.5 py-0.5 text-xs">SFD-R01b</code>. Two printings
+          can share the same short code and still be different (for example, a normal finish and a
+          foil finish, or a special promo edition). OpenRift treats each unique combination of short
+          code, finish, art variant, language, and promo type as its own printing.
+        </p>
+        <p className="text-muted-foreground mt-2">
+          Printed text can also vary between printings: some alt art cards omit reminder text, and
+          newer printings may have updated wording after an errata. Flavor text can differ too.
+        </p>
+        <p className="text-muted-foreground mt-2">
+          In the{" "}
+          <a href="/cards" className="text-primary hover:underline">
+            browser
+          </a>
+          , <strong className="text-foreground">Printings</strong> view shows every version
+          separately, each with its own image, rarity, and price. Use this when you care about
+          specific editions.
         </p>
         <ExampleTable
           rows={[
@@ -219,6 +229,16 @@ export default function CardsPrintingsCopiesArticle() {
           copy could have its own condition details (like a PSA grading or a coffee stain), but we
           don&apos;t track those yet.
         </p>
+        <p className="text-muted-foreground mt-2">
+          In your{" "}
+          <a href="/collections" className="text-primary hover:underline">
+            collection
+          </a>
+          , <strong className="text-foreground">Copies</strong> view shows every individual copy as
+          its own entry, with no stacking. Where the other views show a count badge like{" "}
+          <strong className="text-foreground">&times;3</strong>, Copies view shows three separate
+          cards on the grid.
+        </p>
         <ExampleTable
           rows={[
             [
@@ -239,33 +259,21 @@ export default function CardsPrintingsCopiesArticle() {
           ]}
         />
       </section>
+    </div>
+  );
+}
 
-      {/* View modes */}
-      <section>
-        <h2 className="mb-2 text-lg font-semibold">View modes</h2>
-        <p className="text-muted-foreground">
-          The browser lets you switch between three view modes that correspond to these levels.
-        </p>
-        <p className="text-muted-foreground mt-2">
-          <strong className="text-foreground">Cards</strong> shows one entry per unique card,
-          regardless of how many printings exist. If you own any version of a card, the owned count
-          reflects the total across all printings. This is the best view for answering &quot;do I
-          have this card at all?&quot; It is also useful for deck building, where any printing of a
-          card is allowed.
-        </p>
-        <p className="text-muted-foreground mt-2">
-          <strong className="text-foreground">Printings</strong> shows every version separately.
-          Each entry has its own image, rarity, and price. The owned count is per printing. Use this
-          when you care about specific editions, for example comparing the price of a regular
-          printing versus a foil promo.
-        </p>
-        <p className="text-muted-foreground mt-2">
-          <strong className="text-foreground">Copies</strong> is available inside collections and
-          shows every individual copy as its own entry, with no stacking. Where the other views show
-          a count badge like <strong className="text-foreground">&times;3</strong>, Copies view
-          shows three separate cards on the grid.
-        </p>
-      </section>
+function PrintingCard({ image, code, label }: { image?: string; code: string; label: string }) {
+  return (
+    <div className="bg-background border-border flex flex-1 items-center gap-2 rounded-md border px-3 py-2">
+      {image && <img src={image} alt={`Fury Rune ${code}`} className="w-10 rounded" />}
+      <div>
+        <span className="font-medium">{code}</span>
+        <span
+          className="text-muted-foreground block text-xs"
+          dangerouslySetInnerHTML={{ __html: label }}
+        />
+      </div>
     </div>
   );
 }

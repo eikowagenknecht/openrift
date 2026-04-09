@@ -1,7 +1,6 @@
 import {
   ArrowRightLeftIcon,
   BookOpenIcon,
-  BoxIcon,
   GripVerticalIcon,
   InboxIcon,
   ListChecksIcon,
@@ -40,10 +39,14 @@ export default function CollectionsArticle() {
               count={12}
               active
             />
-            <SidebarItem icon={<BoxIcon className="size-3.5" />} label="Red Deck Box" count={40} />
+            <SidebarItem
+              icon={<BookOpenIcon className="size-3.5" />}
+              label="Red Deck Box"
+              count={40}
+            />
             <SidebarItem icon={<BookOpenIcon className="size-3.5" />} label="Binder 1" count={31} />
             <SidebarItem
-              icon={<BoxIcon className="size-3.5" />}
+              icon={<BookOpenIcon className="size-3.5" />}
               label="Lent to Sebastian"
               count={11}
             />
@@ -86,7 +89,7 @@ export default function CollectionsArticle() {
         <p className="text-muted-foreground mt-2">
           Collections track <strong className="text-foreground">copies</strong> (specific physical
           cards), not abstract card references. If you own three copies of the same card, each one
-          lives in a collection independently. See{" "}
+          lives in a collection, whether that&apos;s the same collection or different ones. See{" "}
           <a href="/help/cards-printings-copies" className="text-primary hover:underline">
             Cards, Printings &amp; Copies
           </a>{" "}
@@ -96,7 +99,9 @@ export default function CollectionsArticle() {
 
       {/* Deck building availability */}
       <section>
-        <h2 className="mb-2 text-lg font-semibold">Deck building availability</h2>
+        <h2 id="deck-building-availability" className="mb-2 text-lg font-semibold">
+          Deck building availability
+        </h2>
         <div className="border-border bg-muted/30 rounded-lg border p-4">
           <div className="flex gap-3">
             <ShieldCheckIcon className="text-primary mt-0.5 size-5 shrink-0" />
@@ -143,7 +148,7 @@ export default function CollectionsArticle() {
             icon={<SearchIcon className="size-4" />}
             title="Quick add"
             shortcut="Ctrl+K"
-            description="A fast search palette. Type a card name, use arrow keys to navigate, and press Enter to add. Use Shift+Enter to undo."
+            description="A fast search palette, like VS Code's command palette. Type a card name, use arrow keys to navigate, and press Enter to add. Use Shift+Enter to undo."
           />
           <FeatureCard
             icon={<MousePointerClickIcon className="size-4" />}

@@ -1,14 +1,9 @@
 import {
-  AlertTriangleIcon,
-  CheckCircle2Icon,
   CopyIcon,
   GripVerticalIcon,
-  LayersIcon,
   MousePointerClickIcon,
   PlusIcon,
   ShuffleIcon,
-  SwordsIcon,
-  Wand2Icon,
 } from "lucide-react";
 
 export default function DeckBuildingArticle() {
@@ -34,7 +29,17 @@ export default function DeckBuildingArticle() {
             collections
           </a>
           , which track where your physical copies are. A deck is the recipe; your collection is the
-          pantry.
+          pantry. Most other sites like Piltover Archive or TCG Arena tie decks to specific
+          printings, but OpenRift keeps them separate by design. This means any printing you own
+          (across all{" "}
+          <a
+            href="/help/collections#deck-building-availability"
+            className="text-primary hover:underline"
+          >
+            available collections
+          </a>
+          ) counts toward completing the deck, and shared deck lists (coming soon) work regardless
+          of which language or edition other players own.
         </p>
       </div>
 
@@ -47,7 +52,7 @@ export default function DeckBuildingArticle() {
           <ZoneCard
             name="Legend"
             count="1"
-            description="Your commander — determines which domains you can use"
+            description="Defines your deck's identity and which domains it can use"
             color="text-amber-600 dark:text-amber-400"
           />
           <ZoneCard
@@ -70,8 +75,8 @@ export default function DeckBuildingArticle() {
           />
           <ZoneCard
             name="Main Deck"
-            count="40+"
-            description="Units, spells, and gear — includes your champion toward the minimum"
+            count="40"
+            description="Units, spells, and gear — includes your champion toward the count"
             color="text-foreground"
           />
           <ZoneCard
@@ -91,7 +96,7 @@ export default function DeckBuildingArticle() {
           <strong className="text-foreground">New Deck</strong>. Choose a name and a format:{" "}
           <strong className="text-foreground">Standard</strong> enforces all deck-building rules,
           while <strong className="text-foreground">Freeform</strong> removes all restrictions so
-          you can experiment freely.
+          you can experiment freely. You can switch between formats at any time.
         </p>
         <p className="text-muted-foreground mt-2">
           The editor opens with two panels: a{" "}
@@ -114,7 +119,7 @@ export default function DeckBuildingArticle() {
           <StepRow
             step={1}
             title="Pick a Legend"
-            description="The browser starts filtered to legends. Choose one to set your deck's domains. Runes are auto-populated to get you started."
+            description="The browser starts filtered to legends. Choose one to set your deck's domains. Runes are auto-populated with a 6/6 split to get you started."
           />
           <StepRow
             step={2}
@@ -129,7 +134,7 @@ export default function DeckBuildingArticle() {
           <StepRow
             step={4}
             title="Fill the Main Deck"
-            description="The browser now shows units, spells, and gear in your legend's domains. Add at least 40 cards total (including your champion)."
+            description="The browser now shows units, spells, and gear in your legend's domains. Your champion already counts toward the 40, so add 39 more."
           />
         </div>
 
@@ -146,7 +151,7 @@ export default function DeckBuildingArticle() {
           <FeatureCard
             icon={<PlusIcon className="size-4" />}
             title="Quick add"
-            description='Click the + button on any card in the browser to add it to the active zone. Single-card zones like Legend and Champion show a "Choose" button instead. Cards you own show an owned count, so you can build with cards you actually have.'
+            description='Click the + button above any card in the browser to add it to the active zone. Single-card zones like Legend and Champion show a "Choose" button instead. Cards you own show an owned count, so you can build with cards you actually have.'
           />
           <FeatureCard
             icon={<GripVerticalIcon className="size-4" />}
@@ -156,7 +161,7 @@ export default function DeckBuildingArticle() {
           <FeatureCard
             icon={<MousePointerClickIcon className="size-4" />}
             title="Quantity controls"
-            description="Once a card is in a zone, use the +/− buttons next to it to adjust the quantity. Maximum 3 copies per card across main, sideboard, and overflow."
+            description="Once a card is in a zone, use the +/− buttons next to it to adjust the quantity."
           />
           <FeatureCard
             icon={<ShuffleIcon className="size-4" />}
@@ -180,34 +185,34 @@ export default function DeckBuildingArticle() {
 
         <div className="border-border divide-border mt-3 divide-y rounded-lg border text-sm">
           <RuleRow
-            icon={<SwordsIcon className="size-3.5 text-amber-600 dark:text-amber-400" />}
+            icon={<TypeIcon src="/images/types/legend.svg" alt="Legend" />}
             zone="Legend"
             rule="Exactly 1 legend"
           />
           <RuleRow
-            icon={<Wand2Icon className="size-3.5 text-purple-600 dark:text-purple-400" />}
+            icon={<TypeIcon src="/images/supertypes/champion.svg" alt="Champion" />}
             zone="Champion"
             rule="Exactly 1 champion that shares a tag with your legend"
           />
           <RuleRow
-            icon={<LayersIcon className="size-3.5 text-blue-600 dark:text-blue-400" />}
+            icon={<TypeIcon src="/images/types/rune.svg" alt="Rune" />}
             zone="Runes"
             rule="Exactly 12 runes, all matching the legend's domains"
           />
           <RuleRow
-            icon={<CheckCircle2Icon className="size-3.5 text-emerald-600 dark:text-emerald-400" />}
+            icon={<TypeIcon src="/images/types/battlefield.svg" alt="Battlefield" />}
             zone="Battlefield"
             rule="Exactly 3 unique battlefields"
           />
           <RuleRow
             icon={<CopyIcon className="size-3.5" />}
             zone="Main"
-            rule="At least 40 cards (including champion). All card domains must be within the legend's domains or colorless."
+            rule="Exactly 39 cards, plus the champion for a total of 40. Max 3 copies of any card. Max 3 Signature cards total, all sharing a Champion tag with the legend. All card domains must be within the legend's domains or colorless."
           />
           <RuleRow
-            icon={<AlertTriangleIcon className="text-muted-foreground size-3.5" />}
+            icon={<CopyIcon className="text-muted-foreground size-3.5" />}
             zone="Sideboard"
-            rule="Up to 8 cards. Max 3 copies of any card across main, sideboard, and overflow."
+            rule="Up to 8 cards. Copy limits are shared with the main deck (e.g. if you have 2 copies of a card in main, you can only have 1 more in the sideboard)."
           />
         </div>
 
@@ -226,7 +231,7 @@ export default function DeckBuildingArticle() {
           When you pick a legend, the editor automatically fills the rune zone with 12 runes split
           evenly across the legend&apos;s two domains (6 per domain). You can then swap individual
           runes or adjust the split. If you remove a rune and the count drops below 12, the editor
-          tries to add a replacement from the other domain to keep the balance.
+          adds a replacement from the other domain to keep the balance.
         </p>
       </section>
 
@@ -250,19 +255,16 @@ export default function DeckBuildingArticle() {
         </p>
         <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1">
           <li>
-            <strong className="text-foreground">Domain distribution:</strong> how many cards per
-            domain in main vs. sideboard
+            <strong className="text-foreground">Domain bar:</strong> a color bar showing the
+            proportion of each domain in your deck
           </li>
           <li>
-            <strong className="text-foreground">Energy curve:</strong> distribution of energy costs
-            across your deck
-          </li>
-          <li>
-            <strong className="text-foreground">Power curve:</strong> distribution of power values
+            <strong className="text-foreground">Energy and power curves:</strong> distribution of
+            energy costs and power values, with averages
           </li>
           <li>
             <strong className="text-foreground">Type breakdown:</strong> count of units, spells,
-            gear, and other card types
+            gear, and other card types, split by domain
           </li>
         </ul>
       </section>
@@ -271,18 +273,31 @@ export default function DeckBuildingArticle() {
       <section>
         <h2 className="mb-2 text-lg font-semibold">Managing decks</h2>
         <p className="text-muted-foreground">
-          The <strong className="text-foreground">Decks</strong> page lists all your decks with
-          their format, domain colors, card count, and validation status. From here you can:
+          The{" "}
+          <a href="/decks" className="text-primary hover:underline">
+            <strong className="text-foreground">Decks</strong>
+          </a>{" "}
+          page lists all your decks with their format, domain colors, card count, and validation
+          status. From here you can:
         </p>
         <ul className="text-muted-foreground mt-2 list-inside list-disc space-y-1">
           <li>Click a deck to open it in the editor</li>
+          <li>
+            <strong className="text-foreground">Rename</strong> a deck
+          </li>
           <li>
             <strong className="text-foreground">Clone</strong> a deck to create an exact copy for
             experimenting with variants
           </li>
           <li>
-            <strong className="text-foreground">Delete</strong> a deck you no longer need (with
-            confirmation)
+            <strong className="text-foreground">Export</strong> a deck list as text
+          </li>
+          <li>
+            <strong className="text-foreground">Print proxies</strong> to generate a printable PDF
+            for playtesting
+          </li>
+          <li>
+            <strong className="text-foreground">Delete</strong> a deck you no longer need
           </li>
         </ul>
       </section>
@@ -363,6 +378,10 @@ function FeatureCard({
       <p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
     </div>
   );
+}
+
+function TypeIcon({ src, alt }: { src: string; alt: string }) {
+  return <img src={src} alt={alt} className="size-3.5" />;
 }
 
 function RuleRow({ icon, zone, rule }: { icon: React.ReactNode; zone: string; rule: string }) {
