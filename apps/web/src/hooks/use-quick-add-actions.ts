@@ -57,6 +57,11 @@ export function useQuickAddActions(collectionId?: string) {
   const handleOpenVariants = collectionId
     ? (printing: Printing, anchorEl: HTMLElement) => {
         const rect = anchorEl.getBoundingClientRect();
+        const current = useAddModeStore.getState().variantPopover;
+        if (current?.cardId === printing.card.id) {
+          useAddModeStore.getState().closeVariants();
+          return;
+        }
         useAddModeStore.getState().openVariants(printing.card.id, {
           top: rect.bottom + 4,
           left: Math.max(
