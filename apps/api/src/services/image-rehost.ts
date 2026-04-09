@@ -334,6 +334,26 @@ function diskFileToPrefix(dirPrefix: string, file: string): string {
 }
 
 /**
+ * Extract a human-readable resolution label from a card-image filename.
+ * @returns The resolution label (e.g. "orig", "full", "300w", "400w", or "other").
+ */
+function resolveResolutionLabel(filename: string): string {
+  if (filename.includes("-orig.")) {
+    return "orig";
+  }
+  if (filename.endsWith("-full.webp")) {
+    return "full";
+  }
+  if (filename.endsWith("-300w.webp")) {
+    return "300w";
+  }
+  if (filename.endsWith("-400w.webp")) {
+    return "400w";
+  }
+  return "other";
+}
+
+/**
  * Scan the card-images directory and return per-prefix stats + all file paths grouped by prefix.
  * @returns Disk stats and file listings per prefix directory.
  */
@@ -343,6 +363,7 @@ async function scanDisk(io: Io): Promise<{
 }> {
   const sets: RehostStatusDiskStats["sets"] = [];
   const filesByPrefix: { prefix: string; files: string[] }[] = [];
+  const resByResolution = new Map<string, { bytes: number; fileCount: number }>();
   let totalBytes = 0;
 
   try {
@@ -357,6 +378,11 @@ async function scanDisk(io: Io): Promise<{
       for (const file of files) {
         const info = await io.fs.stat(join(prefixDir, file));
         dirBytes += info.size;
+        const resolution = resolveResolutionLabel(file);
+        const bucket = resByResolution.get(resolution) ?? { bytes: 0, fileCount: 0 };
+        bucket.bytes += info.size;
+        bucket.fileCount++;
+        resByResolution.set(resolution, bucket);
       }
       sets.push({ setId: entry.name, bytes: dirBytes, fileCount: files.length });
       filesByPrefix.push({ prefix: entry.name, files });
@@ -366,7 +392,11 @@ async function scanDisk(io: Io): Promise<{
     // Directory doesn't exist yet
   }
 
-  return { stats: { totalBytes, sets }, filesByPrefix };
+  const byResolution = [...resByResolution.entries()]
+    .map(([resolution, stats]) => ({ resolution, ...stats }))
+    .toSorted((a, b) => b.bytes - a.bytes);
+
+  return { stats: { totalBytes, byResolution, sets }, filesByPrefix };
 }
 
 export async function getRehostStatus(

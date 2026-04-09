@@ -179,6 +179,14 @@ function ManageSection() {
           {status.rehosted} / {status.total} images rehosted
           {status.disk.totalBytes > 0 &&
             ` · ${totalFiles} files · ${formatBytes(status.disk.totalBytes)}`}
+          {status.disk.byResolution.length > 0 && (
+            <>
+              {" · "}
+              {status.disk.byResolution
+                .map((r) => `${r.resolution}: ${formatBytes(r.bytes)}`)
+                .join(", ")}
+            </>
+          )}
           {status.orphanedFiles > 0 && ` · ${status.orphanedFiles} orphaned`}
         </CardDescription>
         <Progress value={pct} className="h-1.5" />

@@ -505,6 +505,7 @@ describe("getRehostStatus", () => {
     expect(result.external).toBe(7);
     expect(result.sets).toHaveLength(2);
     expect(result.disk.totalBytes).toBe(2048);
+    expect(result.disk.byResolution).toEqual([{ resolution: "other", bytes: 2048, fileCount: 2 }]);
     expect(result.disk.sets).toEqual([{ setId: "set1", bytes: 2048, fileCount: 2 }]);
   });
 
@@ -518,7 +519,7 @@ describe("getRehostStatus", () => {
       external: 0,
       orphanedFiles: 0,
       sets: [],
-      disk: { totalBytes: 0, sets: [] },
+      disk: { totalBytes: 0, byResolution: [], sets: [] },
     });
   });
 
@@ -555,9 +556,33 @@ describe("getRehostStatus", () => {
 
     const result = await getRehostStatus(mockIo, repo);
     expect(result.disk.totalBytes).toBe(1500);
+    expect(result.disk.byResolution).toEqual([{ resolution: "other", bytes: 1500, fileCount: 3 }]);
     expect(result.disk.sets).toEqual([
       { setId: "set-a", bytes: 1000, fileCount: 2 },
       { setId: "set-b", bytes: 500, fileCount: 1 },
+    ]);
+  });
+
+  it("breaks down disk usage by resolution", async () => {
+    const repo = makeMockRepo({
+      selectResult: [{ setId: "s1", setName: "S1", total: 4, rehosted: 4 }],
+    });
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("s1", true)];
+      }
+      return ["card1-orig.png", "card1-full.webp", "card1-300w.webp", "card1-400w.webp"];
+    });
+    let statCall = 0;
+    const sizes = [5000, 2000, 500, 800];
+    mockStat.mockImplementation(async () => ({ size: sizes[statCall++] }));
+
+    const result = await getRehostStatus(mockIo, repo);
+    expect(result.disk.byResolution).toEqual([
+      { resolution: "orig", bytes: 5000, fileCount: 1 },
+      { resolution: "full", bytes: 2000, fileCount: 1 },
+      { resolution: "400w", bytes: 800, fileCount: 1 },
+      { resolution: "300w", bytes: 500, fileCount: 1 },
     ]);
   });
 

@@ -128,6 +128,13 @@ const rehostStatus = createRoute({
             ),
             disk: z.object({
               totalBytes: z.number(),
+              byResolution: z.array(
+                z.object({
+                  resolution: z.string(),
+                  bytes: z.number(),
+                  fileCount: z.number(),
+                }),
+              ),
               sets: z.array(
                 z.object({
                   setId: z.string(),

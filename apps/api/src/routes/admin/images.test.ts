@@ -190,6 +190,7 @@ describe("GET /api/v1/rehost-status", () => {
       ],
       disk: {
         totalBytes: 1_024_000,
+        byResolution: [{ resolution: "full", bytes: 1_024_000, fileCount: 80 }],
         sets: [{ setId: "origin", bytes: 1_024_000, fileCount: 80 }],
       },
     };

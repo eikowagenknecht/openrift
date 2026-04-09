@@ -291,6 +291,7 @@ export interface RehostStatusSetStats {
 
 export interface RehostStatusDiskStats {
   totalBytes: number;
+  byResolution: { resolution: string; bytes: number; fileCount: number }[];
   sets: { setId: string; bytes: number; fileCount: number }[];
 }
 
