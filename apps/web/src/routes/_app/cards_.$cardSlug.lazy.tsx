@@ -222,11 +222,11 @@ function CardDetailPage() {
                   const right = rightRows[i];
                   return (
                     <tr key={i}>
-                      <td className="text-muted-foreground py-1 pr-2 align-top text-xs font-medium whitespace-nowrap">
+                      <td className="text-muted-foreground w-20 py-1 pr-2 align-top text-xs font-medium whitespace-nowrap">
                         {left?.[0]}
                       </td>
                       <td className="py-1 pr-6 align-top">{left?.[1]}</td>
-                      <td className="text-muted-foreground hidden py-1 pr-2 align-top text-xs font-medium whitespace-nowrap sm:table-cell">
+                      <td className="text-muted-foreground hidden w-20 py-1 pr-2 align-top text-xs font-medium whitespace-nowrap sm:table-cell">
                         {right?.[0]}
                       </td>
                       <td className="hidden py-1 align-top sm:table-cell">{right?.[1]}</td>
@@ -437,7 +437,7 @@ function ErrataRow({ errata, printing }: { errata: CardErrata; printing: Printin
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <tr>
-      <td className="text-muted-foreground py-1 pr-2 align-top text-xs font-medium whitespace-nowrap">
+      <td className="text-muted-foreground w-20 py-1 pr-2 align-top text-xs font-medium whitespace-nowrap">
         {label}
       </td>
       <td className="py-1 align-top">{children}</td>

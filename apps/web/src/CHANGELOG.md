@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-09
+
+- fix: Card detail labels (Set, Rules, Flavor, etc.) now align consistently on both mobile and desktop
+
 ## 2026-04-08
 
 - feat: Card pages can now show prices and breadcrumb trails in Google search results
