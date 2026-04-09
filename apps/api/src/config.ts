@@ -36,7 +36,7 @@ export function createConfig(env: Record<string, string | undefined>) {
 
     cardtraderApiToken: env.CARDTRADER_API_TOKEN ?? "",
 
-    appBaseUrl: env.BETTER_AUTH_URL ?? "http://localhost:5173",
+    appBaseUrl: env.BETTER_AUTH_URL ?? "",
 
     logRequests: env.LOG_REQUESTS === "true",
 
@@ -53,7 +53,14 @@ export function createConfig(env: Record<string, string | undefined>) {
 
 export function validateConfig(env: Record<string, string | undefined>): void {
   const required = ["DATABASE_URL", "BETTER_AUTH_SECRET"] as const;
-  const missing = required.filter((name) => !env[name]);
+  const isProd = env.APP_ENV === "production";
+  const requiredInProd = ["CORS_ORIGIN", "BETTER_AUTH_URL"] as const;
+
+  const missing = [
+    ...required.filter((name) => !env[name]),
+    ...(isProd ? requiredInProd.filter((name) => !env[name]) : []),
+  ];
+
   if (missing.length > 0) {
     throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
   }
