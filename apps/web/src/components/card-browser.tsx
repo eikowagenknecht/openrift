@@ -36,10 +36,10 @@ import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
-import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
+import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSession } from "@/lib/auth-session";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -65,15 +65,13 @@ export function CardBrowser() {
   });
   const inboxId = collections?.find((col) => col.isInbox)?.id;
   const [quickAddOpen, setQuickAddOpen] = useState(false);
-  const batchedAdd = useBatchedAddCopies();
-  const disposeCopies = useDisposeCopies();
+  const isAddMode = isLoggedIn && catalogMode === "add" && Boolean(inboxId);
+  const { handleQuickAdd, handleUndoAdd, handleOpenVariants, adjustedCount } = useQuickAddActions(
+    isAddMode ? inboxId : undefined,
+  );
 
   const variantPopover = useAddModeStore((s) => s.variantPopover);
   const variantPopoverRef = useRef<HTMLDivElement>(null);
-
-  // Optimistic deltas for add-mode: bridges the gap between clicking + and the
-  // batched API call updating the React Query cache via onSuccess.
-  const [countDeltas, setCountDeltas] = useState<Record<string, number>>({});
 
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
 
@@ -185,63 +183,6 @@ export function CardBrowser() {
   };
 
   const showStrip = isLoggedIn && catalogMode !== "off";
-  const isAddMode = isLoggedIn && catalogMode === "add" && Boolean(inboxId);
-
-  const handleQuickAdd =
-    isAddMode && inboxId
-      ? async (printing: Printing) => {
-          const pid = printing.id;
-          setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) + 1 }));
-          useAddModeStore.getState().incrementPending(printing);
-          try {
-            const result = await batchedAdd.add(pid, inboxId);
-            // onSuccess already updated the query cache — remove our optimistic delta
-            setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) - 1 }));
-            useAddModeStore.getState().recordAdd(printing, result.id);
-          } catch {
-            setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) - 1 }));
-          } finally {
-            useAddModeStore.getState().decrementPending(pid);
-          }
-        }
-      : undefined;
-
-  const handleUndoAdd = isAddMode
-    ? async (printing: Printing) => {
-        const entry = useAddModeStore.getState().addedItems.get(printing.id);
-        if (!entry || entry.copyIds.length === 0) {
-          return;
-        }
-        const copyIdToRemove = entry.copyIds.at(-1);
-        if (!copyIdToRemove) {
-          return;
-        }
-        const pid = printing.id;
-        setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) - 1 }));
-        useAddModeStore.getState().recordUndo(pid);
-        try {
-          await disposeCopies.mutateAsync({ copyIds: [copyIdToRemove] });
-          // No delta reset — useDisposeCopies has no onSuccess that updates owned counts,
-          // so the delta must persist until the query naturally refetches.
-        } catch {
-          setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) + 1 }));
-          useAddModeStore.getState().recordAdd(printing, copyIdToRemove);
-        }
-      }
-    : undefined;
-
-  const handleOpenVariants = isAddMode
-    ? (printing: Printing, anchorEl: HTMLElement) => {
-        const rect = anchorEl.getBoundingClientRect();
-        useAddModeStore.getState().openVariants(printing.card.id, {
-          top: rect.bottom + 4,
-          left: Math.max(
-            8,
-            Math.min(rect.left + rect.width / 2 - 112, globalThis.innerWidth - 232),
-          ),
-        });
-      }
-    : undefined;
 
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.card.id;
@@ -255,15 +196,13 @@ export function CardBrowser() {
 
     let aboveCard: ReactNode | undefined;
     if (showStrip) {
-      const baseCount =
+      const count =
         view === "cards"
-          ? (siblings?.reduce((sum, p) => sum + (ownedCountByPrinting?.[p.id] ?? 0), 0) ?? 0)
-          : (ownedCountByPrinting?.[displayPrinting.id] ?? 0);
-      const delta =
-        view === "cards"
-          ? (siblings?.reduce((sum, p) => sum + (countDeltas[p.id] ?? 0), 0) ?? 0)
-          : (countDeltas[displayPrinting.id] ?? 0);
-      const count = baseCount + delta;
+          ? (siblings?.reduce(
+              (sum, p) => sum + adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
+              0,
+            ) ?? 0)
+          : adjustedCount(displayPrinting.id, ownedCountByPrinting?.[displayPrinting.id] ?? 0);
 
       aboveCard = handleQuickAdd ? (
         <CollectionAddStrip
@@ -447,7 +386,7 @@ export function CardBrowser() {
                 ownedCounts={Object.fromEntries(
                   variantPrintings.map((p) => [
                     p.id,
-                    (ownedCountByPrinting?.[p.id] ?? 0) + (countDeltas[p.id] ?? 0),
+                    adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
                   ]),
                 )}
                 onQuickAdd={handleQuickAdd}

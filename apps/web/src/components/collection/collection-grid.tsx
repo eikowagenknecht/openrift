@@ -49,10 +49,11 @@ import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCards } from "@/hooks/use-cards";
 import { useCollectionCardData } from "@/hooks/use-collection-card-data";
 import { useCollections, useCollectionsMap } from "@/hooks/use-collections";
-import { useBatchedAddCopies, useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
+import { useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
+import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
 import { formatterForMarketplace } from "@/lib/format";
@@ -212,12 +213,17 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const disposeCopies = useDisposeCopies();
   const navigate = useNavigate();
 
+  // ── Navigation helpers ──────────────────────────────────────────────
+  const inboxId = collections.find((collection) => collection.isInbox)?.id;
+  const currentCollection = collectionId ? collectionsMap.get(collectionId) : undefined;
+  const addTarget = collectionId ?? inboxId;
+
   // ── Add mode state ──────────────────────────────────────────────────
   const addedItems = useAddModeStore((s) => s.addedItems);
   const showAddedList = useAddModeStore((s) => s.showAddedList);
   const variantPopover = useAddModeStore((s) => s.variantPopover);
-  const batchedAdd = useBatchedAddCopies();
-  const addModeDisposeCopies = useDisposeCopies();
+  const { handleQuickAdd, handleUndoAdd, handleOpenVariants, adjustedCount } =
+    useQuickAddActions(addTarget);
 
   // Fan-card sibling overrides (cards view, add mode)
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
@@ -235,11 +241,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [variantPopover]);
-
-  // ── Navigation helpers ──────────────────────────────────────────────
-  const inboxId = collections.find((collection) => collection.isInbox)?.id;
-  const currentCollection = collectionId ? collectionsMap.get(collectionId) : undefined;
-  const addTarget = collectionId ?? inboxId;
 
   const startBrowsing = () => {
     if (selectMode) {
@@ -313,54 +314,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       },
     );
   };
-
-  const handleQuickAdd = addTarget
-    ? async (printing: Printing) => {
-        useAddModeStore.getState().incrementPending(printing);
-        try {
-          const result = await batchedAdd.add(printing.id, addTarget);
-          useAddModeStore.getState().recordAdd(printing, result.id);
-        } catch {
-          // Server-side add failed — pending count is the only thing to clean up
-        } finally {
-          useAddModeStore.getState().decrementPending(printing.id);
-        }
-      }
-    : undefined;
-
-  const handleUndoAdd = isAddMode
-    ? async (printing: Printing) => {
-        const entry = useAddModeStore.getState().addedItems.get(printing.id);
-        if (!entry || entry.copyIds.length === 0) {
-          return;
-        }
-        const copyIdToRemove = entry.copyIds.at(-1);
-        if (!copyIdToRemove) {
-          return;
-        }
-        // Optimistic: remove from store immediately so rapid clicks read distinct IDs
-        useAddModeStore.getState().recordUndo(printing.id);
-        try {
-          await addModeDisposeCopies.mutateAsync({ copyIds: [copyIdToRemove] });
-        } catch {
-          // Rollback on failure
-          useAddModeStore.getState().recordAdd(printing, copyIdToRemove);
-        }
-      }
-    : undefined;
-
-  const handleOpenVariants = isAddMode
-    ? (printing: Printing, anchorEl: HTMLElement) => {
-        const rect = anchorEl.getBoundingClientRect();
-        useAddModeStore.getState().openVariants(printing.card.id, {
-          top: rect.bottom + 4,
-          left: Math.max(
-            8,
-            Math.min(rect.left + rect.width / 2 - 112, globalThis.innerWidth - 232),
-          ),
-        });
-      }
-    : undefined;
 
   // ── Grid click handlers ─────────────────────────────────────────────
   const findBy = dataView === "cards" ? "card" : ("printing" as const);
@@ -585,10 +538,17 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
     const hasMultipleVariants = dataView === "cards" && (siblings?.length ?? 0) > 1;
     const totalOwned = hasMultipleVariants
-      ? siblings?.reduce((sum, printing) => sum + (ownedCountByPrinting?.[printing.id] ?? 0), 0)
+      ? siblings?.reduce(
+          (sum, printing) =>
+            sum + adjustedCount(printing.id, ownedCountByPrinting?.[printing.id] ?? 0),
+          0,
+        )
       : undefined;
 
-    const ownedCount = ownedCountByPrinting?.[displayPrinting.id] ?? 0;
+    const ownedCount = adjustedCount(
+      displayPrinting.id,
+      ownedCountByPrinting?.[displayPrinting.id] ?? 0,
+    );
 
     return (
       <CardThumbnail
@@ -872,7 +832,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           >
             <VariantAddPopover
               printings={variantPrintings}
-              ownedCounts={ownedCountByPrinting}
+              ownedCounts={Object.fromEntries(
+                variantPrintings.map((p) => [
+                  p.id,
+                  adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
+                ]),
+              )}
               onQuickAdd={handleQuickAdd}
               onUndoAdd={handleUndoAdd}
             />
