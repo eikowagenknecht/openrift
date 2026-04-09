@@ -190,8 +190,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const isGridStale = deferredSortedCards !== sortedCards;
 
   // ── Selection state (select mode) ───────────────────────────────────
-  const { selected, toggleSelect, toggleStack, toggleSelectAll, clearSelection } =
-    useCardSelection();
+  const {
+    selected,
+    toggleSelect,
+    toggleStack,
+    toggleSelectAll,
+    clearSelection,
+    lastSelectedItemId,
+    setLastSelectedItemId,
+    addToSelection,
+  } = useCardSelection();
   // In "cards" view, sum copy counts across all printings of the same card
   const copyCountByCardId = buildCopyCountByCardId(stacks);
 
@@ -463,9 +471,39 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       } else {
         toggleSelect(item.id);
       }
+      setLastSelectedItemId(item.id);
     };
 
-    const handleClick = (printing: Printing, event?: MouseEvent) => {
+    const handleShiftSelect = () => {
+      if (lastSelectedItemId === null) {
+        handleToggle();
+        return;
+      }
+      const startIdx = items.findIndex((i) => i.id === lastSelectedItemId);
+      const endIdx = items.findIndex((i) => i.id === item.id);
+      if (startIdx === -1 || endIdx === -1) {
+        handleToggle();
+        return;
+      }
+      const lo = Math.min(startIdx, endIdx);
+      const hi = Math.max(startIdx, endIdx);
+      const rangeIds: string[] = [];
+      for (let idx = lo; idx <= hi; idx++) {
+        const rangeItem = items[idx];
+        if (stacked) {
+          const rangeStack = stackByItemId.get(rangeItem.id);
+          if (rangeStack) {
+            rangeIds.push(...rangeStack.copyIds);
+          }
+        } else {
+          rangeIds.push(rangeItem.id);
+        }
+      }
+      addToSelection(rangeIds);
+      setLastSelectedItemId(item.id);
+    };
+
+    const handleClick = (printing: Printing, event?: { shiftKey: boolean; ctrlKey: boolean }) => {
       // Ctrl+click auto-enters select mode
       if (mode === "browse" && event?.ctrlKey) {
         setSelectMode(true);
@@ -473,7 +511,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         return;
       }
       if (mode === "select") {
-        handleToggle();
+        if (event?.shiftKey) {
+          handleShiftSelect();
+        } else {
+          handleToggle();
+        }
       } else {
         handleGridCardClick(printing);
       }
@@ -510,7 +552,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           )}
           <CardThumbnail
             printing={item.printing}
-            onClick={(printing) => handleClick(printing)}
+            onClick={(printing, event) => handleClick(printing, event)}
             showImages={showImages}
             view="printings"
             cardWidth={ctx.cardWidth}
