@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict F3b7mZ6AI5uZ9sMIEp46H6L11HbQQeNAn18bTYSFxYfyLhqUWYtZVYgyX3ufEB9
+\restrict PDcvmcZjwO9ahQmTlrLegxCeCZz2qwNAXJnEe1V7jvHjS1efQdGh25qH9eGxNXx
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -775,6 +775,31 @@ CREATE TABLE public.marketplace_staging_card_overrides (
 
 
 --
+-- Name: printing_events; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.printing_events (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    event_type text NOT NULL,
+    printing_id uuid NOT NULL,
+    card_name text NOT NULL,
+    set_name text,
+    short_code text,
+    rarity text,
+    finish text,
+    artist text,
+    language text,
+    changes jsonb,
+    status text DEFAULT 'pending'::text NOT NULL,
+    retry_count integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_printing_events_event_type CHECK ((event_type = ANY (ARRAY['new'::text, 'changed'::text]))),
+    CONSTRAINT chk_printing_events_status CHECK ((status = ANY (ARRAY['pending'::text, 'sent'::text, 'failed'::text])))
+);
+
+
+--
 -- Name: printing_images; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1455,6 +1480,14 @@ ALTER TABLE ONLY public.marketplace_staging
 
 
 --
+-- Name: printing_events printing_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_events
+    ADD CONSTRAINT printing_events_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: printing_images printing_images_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1896,6 +1929,13 @@ CREATE INDEX idx_marketplace_staging_marketplace_group_id ON public.marketplace_
 
 
 --
+-- Name: idx_printing_events_status_created; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_printing_events_status_created ON public.printing_events USING btree (status, created_at);
+
+
+--
 -- Name: idx_printing_images_active; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2047,6 +2087,13 @@ CREATE UNIQUE INDEX uq_wish_list_items_printing ON public.wish_list_items USING 
 --
 
 CREATE TRIGGER keyword_styles_set_updated_at BEFORE UPDATE ON public.keyword_styles FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: printing_events printing_events_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER printing_events_set_updated_at BEFORE UPDATE ON public.printing_events FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -2795,5 +2842,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict F3b7mZ6AI5uZ9sMIEp46H6L11HbQQeNAn18bTYSFxYfyLhqUWYtZVYgyX3ufEB9
+\unrestrict PDcvmcZjwO9ahQmTlrLegxCeCZz2qwNAXJnEe1V7jvHjS1efQdGh25qH9eGxNXx
 
