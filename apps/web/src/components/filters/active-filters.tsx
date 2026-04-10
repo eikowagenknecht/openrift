@@ -9,17 +9,20 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { formatDomainFilterLabel } from "@/lib/domain";
+import { formatPriceIntegerForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+import { useDisplayStore } from "@/stores/display-store";
 
-const RANGE_BADGE_SECTIONS: {
+interface RangeBadgeSection {
   key: RangeKey;
   label: string;
   formatValue?: (v: number) => string;
-}[] = [
+}
+
+const STAT_RANGE_BADGE_SECTIONS: RangeBadgeSection[] = [
   { key: "energy", label: "Energy" },
   { key: "might", label: "Might" },
   { key: "power", label: "Power" },
-  { key: "price", label: "Price", formatValue: (v) => `$${v}` },
 ];
 
 interface ActiveFiltersProps {
@@ -45,6 +48,16 @@ export function ActiveFilters({
     clearAllFilters,
     setSearch,
   } = useFilterActions();
+  const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0] ?? "tcgplayer");
+
+  const rangeBadgeSections: RangeBadgeSection[] = [
+    ...STAT_RANGE_BADGE_SECTIONS,
+    {
+      key: "price",
+      label: "Price",
+      formatValue: formatPriceIntegerForMarketplace(favoriteMarketplace),
+    },
+  ];
   type FilterKey =
     | "sets"
     | "rarities"
@@ -91,7 +104,7 @@ export function ActiveFilters({
   const hasVisibleContent =
     filterState.search !== "" ||
     filterGroups.length > 0 ||
-    RANGE_BADGE_SECTIONS.some(({ key }) => ranges[key].min !== null || ranges[key].max !== null) ||
+    rangeBadgeSections.some(({ key }) => ranges[key].min !== null || ranges[key].max !== null) ||
     filterState.signed !== null ||
     filterState.promo !== null ||
     filterState.banned !== null ||
@@ -143,7 +156,7 @@ export function ActiveFilters({
             })}
           </div>
         ))}
-        {RANGE_BADGE_SECTIONS.map(({ key, label, formatValue }) => {
+        {rangeBadgeSections.map(({ key, label, formatValue }) => {
           const range = ranges[key];
           if (range.min === null && range.max === null) {
             return null;
