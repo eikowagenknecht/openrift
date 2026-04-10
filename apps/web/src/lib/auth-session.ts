@@ -42,6 +42,8 @@ export const sessionQueryOptions = () =>
   queryOptions({
     queryKey: ["session"],
     queryFn: () => getServerSession(),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
 /**
