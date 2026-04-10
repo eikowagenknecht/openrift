@@ -5,11 +5,11 @@ import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 const domainSchema = z.object({
-  slug: z.string(),
-  label: z.string(),
-  sortOrder: z.number(),
-  isWellKnown: z.boolean(),
-  color: z.string().nullable(),
+  slug: z.string().openapi({ example: "Chaos" }),
+  label: z.string().openapi({ example: "Chaos" }),
+  sortOrder: z.number().openapi({ example: 5 }),
+  isWellKnown: z.boolean().openapi({ example: true }),
+  color: z.string().nullable().openapi({ example: "#b8336a" }),
 });
 
 const slugParamSchema = z.object({ slug: z.string().min(1) });

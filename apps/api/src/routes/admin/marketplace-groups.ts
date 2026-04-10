@@ -20,12 +20,12 @@ const listGroups = createRoute({
           schema: z.object({
             groups: z.array(
               z.object({
-                marketplace: z.string(),
-                groupId: z.number(),
-                name: z.string().nullable(),
-                abbreviation: z.string().nullable(),
-                stagedCount: z.number(),
-                assignedCount: z.number(),
+                marketplace: z.string().openapi({ example: "cardmarket" }),
+                groupId: z.number().openapi({ example: 6286 }),
+                name: z.string().nullable().openapi({ example: "Origins" }),
+                abbreviation: z.string().nullable().openapi({ example: "OGN" }),
+                stagedCount: z.number().openapi({ example: 0 }),
+                assignedCount: z.number().openapi({ example: 312 }),
               }),
             ),
           }),

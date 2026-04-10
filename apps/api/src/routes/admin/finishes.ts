@@ -5,10 +5,10 @@ import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 const finishSchema = z.object({
-  slug: z.string(),
-  label: z.string(),
-  sortOrder: z.number(),
-  isWellKnown: z.boolean(),
+  slug: z.string().openapi({ example: "foil" }),
+  label: z.string().openapi({ example: "Foil" }),
+  sortOrder: z.number().openapi({ example: 2 }),
+  isWellKnown: z.boolean().openapi({ example: true }),
 });
 
 const slugParamSchema = z.object({ slug: z.string().min(1) });

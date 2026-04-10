@@ -20,10 +20,10 @@ const listProviderSettings = createRoute({
           schema: z.object({
             providerSettings: z.array(
               z.object({
-                provider: z.string(),
-                sortOrder: z.number(),
-                isHidden: z.boolean(),
-                isFavorite: z.boolean(),
+                provider: z.string().openapi({ example: "riftcore" }),
+                sortOrder: z.number().openapi({ example: 7 }),
+                isHidden: z.boolean().openapi({ example: true }),
+                isFavorite: z.boolean().openapi({ example: false }),
               }),
             ),
           }),

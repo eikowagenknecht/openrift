@@ -8,6 +8,16 @@ import type { Variables } from "../../types.js";
 import { assertFound } from "../../utils/assertions.js";
 import { createPromoTypeSchema, updatePromoTypeSchema } from "./schemas.js";
 
+// ── Schemas ─────────────────────────────────────────────────────────────────
+
+const promoTypeSchema = z.object({
+  id: z.string().openapi({ example: "019d4999-4219-72f6-b7bb-64004e1b1bff" }),
+  slug: z.string().openapi({ example: "prerift" }),
+  label: z.string().openapi({ example: "Pre-Rift Promo" }),
+  createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
+  updatedAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
+});
+
 // ── Route definitions ───────────────────────────────────────────────────────
 
 const listPromoTypes = createRoute({
@@ -18,17 +28,7 @@ const listPromoTypes = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: z.object({
-            promoTypes: z.array(
-              z.object({
-                id: z.string(),
-                slug: z.string(),
-                label: z.string(),
-                createdAt: z.string(),
-                updatedAt: z.string(),
-              }),
-            ),
-          }),
+          schema: z.object({ promoTypes: z.array(promoTypeSchema) }),
         },
       },
       description: "List promo types",
@@ -47,15 +47,7 @@ const createPromoType = createRoute({
     201: {
       content: {
         "application/json": {
-          schema: z.object({
-            promoType: z.object({
-              id: z.string(),
-              slug: z.string(),
-              label: z.string(),
-              createdAt: z.string(),
-              updatedAt: z.string(),
-            }),
-          }),
+          schema: z.object({ promoType: promoTypeSchema }),
         },
       },
       description: "Promo type created",

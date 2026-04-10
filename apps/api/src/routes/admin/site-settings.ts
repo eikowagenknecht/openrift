@@ -21,11 +21,11 @@ const listSettings = createRoute({
           schema: z.object({
             settings: z.array(
               z.object({
-                key: z.string(),
-                value: z.string(),
-                scope: z.string(),
-                createdAt: z.string(),
-                updatedAt: z.string(),
+                key: z.string().openapi({ example: "umami-url" }),
+                value: z.string().openapi({ example: "https://analytics.example.com" }),
+                scope: z.string().openapi({ example: "web" }),
+                createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
+                updatedAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
               }),
             ),
           }),

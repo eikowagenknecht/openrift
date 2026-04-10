@@ -5,10 +5,10 @@ import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 
 const deckZoneSchema = z.object({
-  slug: z.string(),
-  label: z.string(),
-  sortOrder: z.number(),
-  isWellKnown: z.boolean(),
+  slug: z.string().openapi({ example: "main" }),
+  label: z.string().openapi({ example: "Main Deck" }),
+  sortOrder: z.number().openapi({ example: 1 }),
+  isWellKnown: z.boolean().openapi({ example: true }),
 });
 
 // ── Route definitions ───────────────────────────────────────────────────────

@@ -39,8 +39,13 @@ const saveMappingsRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            saved: z.number(),
-            skipped: z.array(z.object({ externalId: z.number(), reason: z.string() })),
+            saved: z.number().openapi({ example: 312 }),
+            skipped: z.array(
+              z.object({
+                externalId: z.number().openapi({ example: 748_215 }),
+                reason: z.string().openapi({ example: "Already mapped to a different printing" }),
+              }),
+            ),
           }),
         },
       },
@@ -72,7 +77,9 @@ const unmapAllRoute = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.object({ unmapped: z.number() }) },
+        "application/json": {
+          schema: z.object({ unmapped: z.number().openapi({ example: 312 }) }),
+        },
       },
       description: "All mappings removed",
     },

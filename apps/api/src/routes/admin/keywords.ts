@@ -15,19 +15,24 @@ const getKeywordStats = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            counts: z.array(z.object({ keyword: z.string(), count: z.number() })),
+            counts: z.array(
+              z.object({
+                keyword: z.string().openapi({ example: "Accelerate" }),
+                count: z.number().openapi({ example: 14 }),
+              }),
+            ),
             styles: z.array(
               z.object({
-                name: z.string(),
-                color: z.string(),
-                darkText: z.boolean(),
+                name: z.string().openapi({ example: "Accelerate" }),
+                color: z.string().openapi({ example: "#24705f" }),
+                darkText: z.boolean().openapi({ example: false }),
               }),
             ),
             translations: z.array(
               z.object({
-                keywordName: z.string(),
-                language: z.string(),
-                label: z.string(),
+                keywordName: z.string().openapi({ example: "Accelerate" }),
+                language: z.string().openapi({ example: "DE" }),
+                label: z.string().openapi({ example: "Beschleunigen" }),
               }),
             ),
           }),
@@ -94,7 +99,10 @@ const recomputeKeywords = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: z.object({ totalCards: z.number(), updated: z.number() }),
+          schema: z.object({
+            totalCards: z.number().openapi({ example: 342 }),
+            updated: z.number().openapi({ example: 17 }),
+          }),
         },
       },
       description: "Keywords recomputed for all cards",
@@ -111,16 +119,20 @@ const discoverTranslations = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            candidatesExamined: z.number(),
+            candidatesExamined: z.number().openapi({ example: 124 }),
             discovered: z.array(
-              z.object({ keyword: z.string(), language: z.string(), label: z.string() }),
+              z.object({
+                keyword: z.string().openapi({ example: "Accelerate" }),
+                language: z.string().openapi({ example: "DE" }),
+                label: z.string().openapi({ example: "Beschleunigen" }),
+              }),
             ),
-            inserted: z.number(),
+            inserted: z.number().openapi({ example: 8 }),
             conflicts: z.array(
               z.object({
-                keyword: z.string(),
-                language: z.string(),
-                labels: z.array(z.string()),
+                keyword: z.string().openapi({ example: "Ambush" }),
+                language: z.string().openapi({ example: "FR" }),
+                labels: z.array(z.string()).openapi({ example: ["Embuscade", "Embuscader"] }),
               }),
             ),
           }),

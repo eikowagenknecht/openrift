@@ -69,7 +69,9 @@ const checkAllCandidatePrintings = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.object({ updated: z.number() }) },
+        "application/json": {
+          schema: z.object({ updated: z.number().openapi({ example: 14 }) }),
+        },
       },
       description: "All candidate printings checked",
     },
@@ -110,7 +112,9 @@ const checkAllForCard = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.object({ updated: z.number() }) },
+        "application/json": {
+          schema: z.object({ updated: z.number().openapi({ example: 14 }) }),
+        },
       },
       description: "All candidates for card checked",
     },
@@ -243,8 +247,8 @@ const acceptFavoriteNewCardRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            cardSlug: z.string(),
-            printingsCreated: z.number(),
+            cardSlug: z.string().openapi({ example: "jinx-rebel" }),
+            printingsCreated: z.number().openapi({ example: 3 }),
           }),
         },
       },
@@ -265,8 +269,13 @@ const acceptFavoritePrintings = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            printingsCreated: z.number(),
-            skipped: z.array(z.object({ shortCode: z.string(), reason: z.string() })),
+            printingsCreated: z.number().openapi({ example: 3 }),
+            skipped: z.array(
+              z.object({
+                shortCode: z.string().openapi({ example: "OGN-202" }),
+                reason: z.string().openapi({ example: "Printing already exists" }),
+              }),
+            ),
           }),
         },
       },
@@ -299,7 +308,11 @@ const acceptPrintingRoute = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.object({ printingId: z.string() }) },
+        "application/json": {
+          schema: z.object({
+            printingId: z.string().openapi({ example: "019cfc3b-03d3-7dac-86c9-27900cd43727" }),
+          }),
+        },
       },
       description: "Printing accepted",
     },
@@ -318,43 +331,63 @@ const uploadCandidates = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            provider: z.string(),
-            newCards: z.number(),
-            removedCards: z.number(),
-            updates: z.number(),
-            unchanged: z.number(),
-            newPrintings: z.number(),
-            removedPrintings: z.number(),
-            printingUpdates: z.number(),
-            printingsUnchanged: z.number(),
-            errors: z.array(z.string()),
+            provider: z.string().openapi({ example: "riftcore" }),
+            newCards: z.number().openapi({ example: 3 }),
+            removedCards: z.number().openapi({ example: 0 }),
+            updates: z.number().openapi({ example: 12 }),
+            unchanged: z.number().openapi({ example: 297 }),
+            newPrintings: z.number().openapi({ example: 5 }),
+            removedPrintings: z.number().openapi({ example: 0 }),
+            printingUpdates: z.number().openapi({ example: 18 }),
+            printingsUnchanged: z.number().openapi({ example: 445 }),
+            errors: z.array(z.string()).openapi({ example: [] }),
             newCardDetails: z.array(
-              z.object({ name: z.string(), shortCode: z.string().nullable() }),
+              z.object({
+                name: z.string().openapi({ example: "Jinx, Rebel" }),
+                shortCode: z.string().nullable().openapi({ example: "OGN-202" }),
+              }),
             ),
             removedCardDetails: z.array(
-              z.object({ name: z.string(), shortCode: z.string().nullable() }),
+              z.object({
+                name: z.string().openapi({ example: "Jinx, Rebel" }),
+                shortCode: z.string().nullable().openapi({ example: "OGN-202" }),
+              }),
             ),
             updatedCards: z.array(
               z.object({
-                name: z.string(),
-                shortCode: z.string().nullable(),
+                name: z.string().openapi({ example: "Jinx, Rebel" }),
+                shortCode: z.string().nullable().openapi({ example: "OGN-202" }),
                 fields: z.array(
-                  z.object({ field: z.string(), from: z.unknown(), to: z.unknown() }),
+                  z.object({
+                    field: z.string().openapi({ example: "might" }),
+                    from: z.unknown().openapi({ example: 4 }),
+                    to: z.unknown().openapi({ example: 5 }),
+                  }),
                 ),
               }),
             ),
             newPrintingDetails: z.array(
-              z.object({ name: z.string(), shortCode: z.string().nullable() }),
+              z.object({
+                name: z.string().openapi({ example: "Jinx, Rebel" }),
+                shortCode: z.string().nullable().openapi({ example: "OGN-202" }),
+              }),
             ),
             removedPrintingDetails: z.array(
-              z.object({ name: z.string(), shortCode: z.string().nullable() }),
+              z.object({
+                name: z.string().openapi({ example: "Jinx, Rebel" }),
+                shortCode: z.string().nullable().openapi({ example: "OGN-202" }),
+              }),
             ),
             updatedPrintings: z.array(
               z.object({
-                name: z.string(),
-                shortCode: z.string().nullable(),
+                name: z.string().openapi({ example: "Jinx, Rebel" }),
+                shortCode: z.string().nullable().openapi({ example: "OGN-202" }),
                 fields: z.array(
-                  z.object({ field: z.string(), from: z.unknown(), to: z.unknown() }),
+                  z.object({
+                    field: z.string().openapi({ example: "artist" }),
+                    from: z.unknown().openapi({ example: "Unknown" }),
+                    to: z.unknown().openapi({ example: "Kudos Productions" }),
+                  }),
                 ),
               }),
             ),
@@ -378,8 +411,8 @@ const checkByProvider = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            cardsChecked: z.number(),
-            printingsChecked: z.number(),
+            cardsChecked: z.number().openapi({ example: 312 }),
+            printingsChecked: z.number().openapi({ example: 468 }),
           }),
         },
       },
@@ -399,7 +432,10 @@ const deleteByProvider = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: z.object({ provider: z.string(), deleted: z.number() }),
+          schema: z.object({
+            provider: z.string().openapi({ example: "riftcore" }),
+            deleted: z.number().openapi({ example: 312 }),
+          }),
         },
       },
       description: "Provider candidates deleted",

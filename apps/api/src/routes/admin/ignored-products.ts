@@ -18,12 +18,12 @@ const listIgnoredProducts = createRoute({
           schema: z.object({
             products: z.array(
               z.object({
-                marketplace: z.string(),
-                externalId: z.number(),
-                finish: z.string(),
-                language: z.string(),
-                productName: z.string(),
-                createdAt: z.string(),
+                marketplace: z.string().openapi({ example: "cardmarket" }),
+                externalId: z.number().openapi({ example: 748_215 }),
+                finish: z.string().openapi({ example: "foil" }),
+                language: z.string().openapi({ example: "EN" }),
+                productName: z.string().openapi({ example: "Jinx, Rebel (Foil)" }),
+                createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
               }),
             ),
           }),
@@ -44,7 +44,9 @@ const ignoreProducts = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.object({ ignored: z.number() }) },
+        "application/json": {
+          schema: z.object({ ignored: z.number().openapi({ example: 12 }) }),
+        },
       },
       description: "Products ignored",
     },
@@ -61,7 +63,9 @@ const unignoreProducts = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.object({ unignored: z.number() }) },
+        "application/json": {
+          schema: z.object({ unignored: z.number().openapi({ example: 12 }) }),
+        },
       },
       description: "Products unignored",
     },

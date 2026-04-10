@@ -20,14 +20,14 @@ const listSets = createRoute({
           schema: z.object({
             sets: z.array(
               z.object({
-                id: z.string(),
-                slug: z.string(),
-                name: z.string(),
-                printedTotal: z.number().nullable(),
-                sortOrder: z.number(),
-                releasedAt: z.string().nullable(),
-                cardCount: z.number(),
-                printingCount: z.number(),
+                id: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
+                slug: z.string().openapi({ example: "OGN" }),
+                name: z.string().openapi({ example: "Origins" }),
+                printedTotal: z.number().nullable().openapi({ example: 298 }),
+                sortOrder: z.number().openapi({ example: 1 }),
+                releasedAt: z.string().nullable().openapi({ example: "2025-10-31" }),
+                cardCount: z.number().openapi({ example: 312 }),
+                printingCount: z.number().openapi({ example: 468 }),
               }),
             ),
           }),
@@ -60,7 +60,13 @@ const createSet = createRoute({
   },
   responses: {
     201: {
-      content: { "application/json": { schema: z.object({ id: z.string() }) } },
+      content: {
+        "application/json": {
+          schema: z.object({
+            id: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
+          }),
+        },
+      },
       description: "Set created",
     },
   },

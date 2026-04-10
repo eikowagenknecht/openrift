@@ -85,7 +85,13 @@ const rehostImage = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.object({ rehostedUrl: z.string() }) },
+        "application/json": {
+          schema: z.object({
+            rehostedUrl: z
+              .string()
+              .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
+          }),
+        },
       },
       description: "Image rehosted",
     },
@@ -116,7 +122,13 @@ const uploadImage = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.object({ rehostedUrl: z.string() }) },
+        "application/json": {
+          schema: z.object({
+            rehostedUrl: z
+              .string()
+              .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
+          }),
+        },
       },
       description: "Image uploaded",
     },

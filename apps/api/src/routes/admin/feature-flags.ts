@@ -21,11 +21,11 @@ const listFlags = createRoute({
           schema: z.object({
             flags: z.array(
               z.object({
-                key: z.string(),
-                enabled: z.boolean(),
-                description: z.string().nullable(),
-                createdAt: z.string(),
-                updatedAt: z.string(),
+                key: z.string().openapi({ example: "collection" }),
+                enabled: z.boolean().openapi({ example: true }),
+                description: z.string().nullable().openapi({ example: "Enable Collections" }),
+                createdAt: z.string().openapi({ example: "2026-03-11T18:04:22.059Z" }),
+                updatedAt: z.string().openapi({ example: "2026-03-28T23:04:44.749Z" }),
               }),
             ),
           }),

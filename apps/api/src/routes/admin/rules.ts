@@ -28,11 +28,11 @@ const importRules = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            version: z.string(),
-            rulesCount: z.number(),
-            added: z.number(),
-            modified: z.number(),
-            removed: z.number(),
+            version: z.string().openapi({ example: "1.2.0" }),
+            rulesCount: z.number().openapi({ example: 248 }),
+            added: z.number().openapi({ example: 12 }),
+            modified: z.number().openapi({ example: 5 }),
+            removed: z.number().openapi({ example: 2 }),
           }),
         },
       },

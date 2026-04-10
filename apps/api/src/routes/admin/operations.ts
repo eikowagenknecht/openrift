@@ -27,11 +27,11 @@ const clearPrices = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            marketplace: z.string(),
+            marketplace: z.string().openapi({ example: "cardmarket" }),
             deleted: z.object({
-              snapshots: z.number(),
-              products: z.number(),
-              staging: z.number(),
+              snapshots: z.number().openapi({ example: 4821 }),
+              products: z.number().openapi({ example: 312 }),
+              staging: z.number().openapi({ example: 468 }),
             }),
           }),
         },

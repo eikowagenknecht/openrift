@@ -29,11 +29,13 @@ const rehostImagesRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            total: z.number(),
-            rehosted: z.number(),
-            skipped: z.number(),
-            failed: z.number(),
-            errors: z.array(z.string()),
+            total: z.number().openapi({ example: 468 }),
+            rehosted: z.number().openapi({ example: 452 }),
+            skipped: z.number().openapi({ example: 14 }),
+            failed: z.number().openapi({ example: 2 }),
+            errors: z.array(z.string()).openapi({
+              example: ["OGN-202/298: failed to fetch from upstream (HTTP 503)"],
+            }),
           }),
         },
       },
@@ -54,12 +56,12 @@ const regenerateImagesRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            total: z.number(),
-            regenerated: z.number(),
-            failed: z.number(),
-            errors: z.array(z.string()),
-            hasMore: z.boolean(),
-            totalFiles: z.number(),
+            total: z.number().openapi({ example: 468 }),
+            regenerated: z.number().openapi({ example: 468 }),
+            failed: z.number().openapi({ example: 0 }),
+            errors: z.array(z.string()).openapi({ example: [] }),
+            hasMore: z.boolean().openapi({ example: false }),
+            totalFiles: z.number().openapi({ example: 1404 }),
           }),
         },
       },
@@ -77,9 +79,9 @@ const cleanupOrphaned = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            scanned: z.number(),
-            deleted: z.number(),
-            errors: z.array(z.string()),
+            scanned: z.number().openapi({ example: 1404 }),
+            deleted: z.number().openapi({ example: 23 }),
+            errors: z.array(z.string()).openapi({ example: [] }),
           }),
         },
       },
@@ -96,7 +98,7 @@ const clearRehosted = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: z.object({ cleared: z.number() }),
+          schema: z.object({ cleared: z.number().openapi({ example: 468 }) }),
         },
       },
       description: "Clear rehosted result",
@@ -113,33 +115,33 @@ const rehostStatus = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            total: z.number(),
-            rehosted: z.number(),
-            external: z.number(),
-            orphanedFiles: z.number(),
+            total: z.number().openapi({ example: 1404 }),
+            rehosted: z.number().openapi({ example: 1380 }),
+            external: z.number().openapi({ example: 24 }),
+            orphanedFiles: z.number().openapi({ example: 12 }),
             sets: z.array(
               z.object({
-                setId: z.string(),
-                setName: z.string(),
-                total: z.number(),
-                rehosted: z.number(),
-                external: z.number(),
+                setId: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
+                setName: z.string().openapi({ example: "Origins" }),
+                total: z.number().openapi({ example: 468 }),
+                rehosted: z.number().openapi({ example: 460 }),
+                external: z.number().openapi({ example: 8 }),
               }),
             ),
             disk: z.object({
-              totalBytes: z.number(),
+              totalBytes: z.number().openapi({ example: 524_288_000 }),
               byResolution: z.array(
                 z.object({
-                  resolution: z.string(),
-                  bytes: z.number(),
-                  fileCount: z.number(),
+                  resolution: z.string().openapi({ example: "672x936" }),
+                  bytes: z.number().openapi({ example: 314_572_800 }),
+                  fileCount: z.number().openapi({ example: 468 }),
                 }),
               ),
               sets: z.array(
                 z.object({
-                  setId: z.string(),
-                  bytes: z.number(),
-                  fileCount: z.number(),
+                  setId: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
+                  bytes: z.number().openapi({ example: 167_772_160 }),
+                  fileCount: z.number().openapi({ example: 468 }),
                 }),
               ),
             }),
@@ -160,16 +162,21 @@ const brokenImages = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            total: z.number(),
+            total: z.number().openapi({ example: 3 }),
             broken: z.array(
               z.object({
-                imageId: z.string(),
-                rehostedUrl: z.string(),
-                originalUrl: z.string().nullable(),
-                cardSlug: z.string(),
-                cardName: z.string(),
-                printingShortCode: z.string(),
-                setSlug: z.string(),
+                imageId: z.string().openapi({ example: "019d02f1-d14f-769f-9295-9852db692dbe" }),
+                rehostedUrl: z
+                  .string()
+                  .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
+                originalUrl: z
+                  .string()
+                  .nullable()
+                  .openapi({ example: "https://example.com/cards/jinx-rebel.jpg" }),
+                cardSlug: z.string().openapi({ example: "jinx-rebel" }),
+                cardName: z.string().openapi({ example: "Jinx, Rebel" }),
+                printingShortCode: z.string().openapi({ example: "OGN-202" }),
+                setSlug: z.string().openapi({ example: "OGN" }),
               }),
             ),
           }),
@@ -189,18 +196,23 @@ const lowResImages = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            total: z.number(),
+            total: z.number().openapi({ example: 5 }),
             lowRes: z.array(
               z.object({
-                imageId: z.string(),
-                rehostedUrl: z.string(),
-                originalUrl: z.string().nullable(),
-                cardSlug: z.string(),
-                cardName: z.string(),
-                printingShortCode: z.string(),
-                setSlug: z.string(),
-                width: z.number(),
-                height: z.number(),
+                imageId: z.string().openapi({ example: "019d02f1-d14f-769f-9295-9852db692dbe" }),
+                rehostedUrl: z
+                  .string()
+                  .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
+                originalUrl: z
+                  .string()
+                  .nullable()
+                  .openapi({ example: "https://example.com/cards/jinx-rebel.jpg" }),
+                cardSlug: z.string().openapi({ example: "jinx-rebel" }),
+                cardName: z.string().openapi({ example: "Jinx, Rebel" }),
+                printingShortCode: z.string().openapi({ example: "OGN-202" }),
+                setSlug: z.string().openapi({ example: "OGN" }),
+                width: z.number().openapi({ example: 320 }),
+                height: z.number().openapi({ example: 446 }),
               }),
             ),
           }),
@@ -221,9 +233,9 @@ const missingImages = createRoute({
         "application/json": {
           schema: z.array(
             z.object({
-              cardId: z.string(),
-              slug: z.string(),
-              name: z.string(),
+              cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
+              slug: z.string().openapi({ example: "jinx-rebel" }),
+              name: z.string().openapi({ example: "Jinx, Rebel" }),
             }),
           ),
         },
@@ -242,11 +254,11 @@ const migrateDirectories = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            scanned: z.number(),
-            moved: z.number(),
-            skipped: z.number(),
-            failed: z.number(),
-            errors: z.array(z.string()),
+            scanned: z.number().openapi({ example: 1404 }),
+            moved: z.number().openapi({ example: 1392 }),
+            skipped: z.number().openapi({ example: 12 }),
+            failed: z.number().openapi({ example: 0 }),
+            errors: z.array(z.string()).openapi({ example: [] }),
           }),
         },
       },
@@ -266,7 +278,10 @@ const restoreImageUrls = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: z.object({ provider: z.string(), updated: z.number() }),
+          schema: z.object({
+            provider: z.string().openapi({ example: "riftcore" }),
+            updated: z.number().openapi({ example: 312 }),
+          }),
         },
       },
       description: "Restore image URLs result",

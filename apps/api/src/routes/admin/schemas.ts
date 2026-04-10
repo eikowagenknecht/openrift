@@ -139,17 +139,17 @@ export const clearPricesSchema = z.object({
 });
 
 const upsertCountsSchema = z.object({
-  total: z.number(),
-  new: z.number(),
-  updated: z.number(),
-  unchanged: z.number(),
+  total: z.number().openapi({ example: 468 }),
+  new: z.number().openapi({ example: 12 }),
+  updated: z.number().openapi({ example: 455 }),
+  unchanged: z.number().openapi({ example: 1 }),
 });
 
 export const priceRefreshResponseSchema = z.object({
   transformed: z.object({
-    groups: z.number(),
-    products: z.number(),
-    prices: z.number(),
+    groups: z.number().openapi({ example: 3 }),
+    products: z.number().openapi({ example: 312 }),
+    prices: z.number().openapi({ example: 468 }),
   }),
   upserted: z.object({
     snapshots: upsertCountsSchema,
@@ -235,11 +235,11 @@ export const deleteOverrideSchema = z.object({
 
 export const typographyDiffItemSchema = z.object({
   entity: z.enum(["card", "printing"]),
-  id: z.string().uuid(),
-  name: z.string(),
-  field: z.string(),
-  current: z.string(),
-  proposed: z.string(),
+  id: z.string().uuid().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
+  name: z.string().openapi({ example: "Jinx, Rebel" }),
+  field: z.string().openapi({ example: "printedRulesText" }),
+  current: z.string().openapi({ example: 'Deal 2 damage to target unit. "This\'ll hurt..."' }),
+  proposed: z.string().openapi({ example: "Deal 2 damage to target unit. “This’ll hurt…”" }),
 });
 
 export const acceptTypographyFixSchema = z.object({

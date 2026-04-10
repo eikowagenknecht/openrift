@@ -21,19 +21,19 @@ const listIgnoredCandidates = createRoute({
           schema: z.object({
             cards: z.array(
               z.object({
-                id: z.string(),
-                provider: z.string(),
-                externalId: z.string(),
-                createdAt: z.string(),
+                id: z.string().openapi({ example: "019d0b86-f893-7a8c-b408-5286a5a5fe00" }),
+                provider: z.string().openapi({ example: "riftcore" }),
+                externalId: z.string().openapi({ example: "OGN-RUNE-BACK" }),
+                createdAt: z.string().openapi({ example: "2026-03-20T13:54:48.083Z" }),
               }),
             ),
             printings: z.array(
               z.object({
-                id: z.string(),
-                provider: z.string(),
-                externalId: z.string(),
-                finish: z.string().nullable(),
-                createdAt: z.string(),
+                id: z.string().openapi({ example: "019d0b87-070a-7216-8765-a69eb3c81e17" }),
+                provider: z.string().openapi({ example: "riftcore" }),
+                externalId: z.string().openapi({ example: "OGN-MAIN-DECK-BACK" }),
+                finish: z.string().nullable().openapi({ example: "foil" }),
+                createdAt: z.string().openapi({ example: "2026-03-20T13:54:51.784Z" }),
               }),
             ),
           }),

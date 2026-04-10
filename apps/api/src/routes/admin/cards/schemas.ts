@@ -186,29 +186,29 @@ export const removeBanSchema = z.object({
 });
 
 export const banResponseSchema = z.object({
-  id: z.string(),
-  cardId: z.string(),
-  formatId: z.string(),
-  formatName: z.string(),
-  bannedAt: z.string(),
-  reason: z.string().nullable(),
-  createdAt: z.string(),
+  id: z.string().openapi({ example: "019d6a00-1234-7000-8000-000000000001" }),
+  cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
+  formatId: z.string().openapi({ example: "standard" }),
+  formatName: z.string().openapi({ example: "Standard" }),
+  bannedAt: z.string().openapi({ example: "2026-01-15" }),
+  reason: z.string().nullable().openapi({ example: "Power level concerns" }),
+  createdAt: z.string().openapi({ example: "2026-01-15T12:00:00.000Z" }),
 });
 
 // ── Queries ────────────────────────────────────────────────────────────────
 
 export const candidateCardSummarySchema = z.object({
-  cardSlug: z.string().nullable(),
-  name: z.string(),
-  normalizedName: z.string(),
-  shortCodes: z.array(z.string()),
-  stagingShortCodes: z.array(z.string()),
-  candidateCount: z.number(),
-  uncheckedCardCount: z.number(),
-  uncheckedPrintingCount: z.number(),
-  hasFavorite: z.boolean(),
-  hasFavoriteStagingPrintings: z.boolean(),
-  suggestedCardSlug: z.string().nullable(),
+  cardSlug: z.string().nullable().openapi({ example: "jinx-rebel" }),
+  name: z.string().openapi({ example: "Jinx, Rebel" }),
+  normalizedName: z.string().openapi({ example: "jinx rebel" }),
+  shortCodes: z.array(z.string()).openapi({ example: ["OGN-202"] }),
+  stagingShortCodes: z.array(z.string()).openapi({ example: [] }),
+  candidateCount: z.number().openapi({ example: 3 }),
+  uncheckedCardCount: z.number().openapi({ example: 0 }),
+  uncheckedPrintingCount: z.number().openapi({ example: 0 }),
+  hasFavorite: z.boolean().openapi({ example: true }),
+  hasFavoriteStagingPrintings: z.boolean().openapi({ example: false }),
+  suggestedCardSlug: z.string().nullable().openapi({ example: null }),
 });
 
 // ── Upload / Ingest ────────────────────────────────────────────────────────

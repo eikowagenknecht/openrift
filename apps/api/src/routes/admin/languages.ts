@@ -12,6 +12,16 @@ import {
   updateLanguageSchema,
 } from "./schemas.js";
 
+// ── Schemas ─────────────────────────────────────────────────────────────────
+
+const languageSchema = z.object({
+  code: z.string().openapi({ example: "EN" }),
+  name: z.string().openapi({ example: "English" }),
+  sortOrder: z.number().openapi({ example: 1 }),
+  createdAt: z.string().openapi({ example: "2026-03-31T19:56:40.945Z" }),
+  updatedAt: z.string().openapi({ example: "2026-03-31T19:56:40.945Z" }),
+});
+
 // ── Route definitions ───────────────────────────────────────────────────────
 
 const listLanguages = createRoute({
@@ -22,17 +32,7 @@ const listLanguages = createRoute({
     200: {
       content: {
         "application/json": {
-          schema: z.object({
-            languages: z.array(
-              z.object({
-                code: z.string(),
-                name: z.string(),
-                sortOrder: z.number(),
-                createdAt: z.string(),
-                updatedAt: z.string(),
-              }),
-            ),
-          }),
+          schema: z.object({ languages: z.array(languageSchema) }),
         },
       },
       description: "List languages",
@@ -63,15 +63,7 @@ const createLanguage = createRoute({
     201: {
       content: {
         "application/json": {
-          schema: z.object({
-            language: z.object({
-              code: z.string(),
-              name: z.string(),
-              sortOrder: z.number(),
-              createdAt: z.string(),
-              updatedAt: z.string(),
-            }),
-          }),
+          schema: z.object({ language: languageSchema }),
         },
       },
       description: "Language created",

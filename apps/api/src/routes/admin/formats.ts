@@ -14,7 +14,12 @@ const listFormats = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            formats: z.array(z.object({ id: z.string(), name: z.string() })),
+            formats: z.array(
+              z.object({
+                id: z.string().openapi({ example: "standard" }),
+                name: z.string().openapi({ example: "Standard" }),
+              }),
+            ),
           }),
         },
       },

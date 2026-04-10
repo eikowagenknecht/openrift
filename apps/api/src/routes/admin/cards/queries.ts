@@ -22,10 +22,10 @@ const allCards = createRoute({
         "application/json": {
           schema: z.array(
             z.object({
-              id: z.string(),
-              slug: z.string(),
-              name: z.string(),
-              type: z.string(),
+              id: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
+              slug: z.string().openapi({ example: "jinx-rebel" }),
+              name: z.string().openapi({ example: "Jinx, Rebel" }),
+              type: z.string().openapi({ example: "Unit" }),
             }),
           ),
         },
@@ -42,7 +42,9 @@ const providerNames = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.array(z.string()) },
+        "application/json": {
+          schema: z.array(z.string()).openapi({ example: ["riftcore", "ocr", "justtcg"] }),
+        },
       },
       description: "Distinct provider names",
     },
@@ -56,7 +58,9 @@ const distinctArtists = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.array(z.string()) },
+        "application/json": {
+          schema: z.array(z.string()).openapi({ example: ["Kudos Productions", "Six More Vodka"] }),
+        },
       },
       description: "Distinct artist names from published printings",
     },
@@ -73,10 +77,10 @@ const providerStats = createRoute({
         "application/json": {
           schema: z.array(
             z.object({
-              provider: z.string(),
-              cardCount: z.number(),
-              printingCount: z.number(),
-              lastUpdated: z.string(),
+              provider: z.string().openapi({ example: "riftcore" }),
+              cardCount: z.number().openapi({ example: 312 }),
+              printingCount: z.number().openapi({ example: 468 }),
+              lastUpdated: z.string().openapi({ example: "2026-04-07T07:52:01.623Z" }),
             }),
           ),
         },
