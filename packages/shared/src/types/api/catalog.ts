@@ -77,7 +77,7 @@ export interface SetDetailResponse {
   prices: PriceMap;
 }
 
-export interface SitemapEntry {
+interface SitemapEntry {
   slug: string;
   updatedAt: string;
 }

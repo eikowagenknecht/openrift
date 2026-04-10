@@ -21,7 +21,7 @@ const fetchPrices = createServerFn({ method: "GET" }).handler(
     }),
 );
 
-export const pricesQueryOptions = queryOptions({
+const pricesQueryOptions = queryOptions({
   queryKey: queryKeys.prices.all,
   queryFn: () => fetchPrices(),
   // Prices refresh once per day, so a long staleTime is fine. The server cache
