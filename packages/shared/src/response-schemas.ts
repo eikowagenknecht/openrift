@@ -4,12 +4,12 @@ import { z } from "zod";
 
 // ── Enums ────────────────────────────────────────────────────────────────────
 
-const cardTypeSchema = z.string();
-const raritySchema = z.string();
-const domainSchema = z.string();
-const superTypeSchema = z.string();
-const artVariantSchema = z.string();
-const finishSchema = z.string();
+const cardTypeSchema = z.string().openapi({ example: "Unit" });
+const raritySchema = z.string().openapi({ example: "Common" });
+const domainSchema = z.string().openapi({ example: "Fury" });
+const superTypeSchema = z.string().openapi({ example: "Legend" });
+const artVariantSchema = z.string().openapi({ example: "normal" });
+const finishSchema = z.string().openapi({ example: "normal" });
 const activityActionSchema = z.enum(["added", "removed", "moved"]);
 const deckFormatSchema = z.enum(["constructed", "freeform"]);
 const deckZoneSchema = z.enum([
@@ -191,43 +191,43 @@ export const priceHistoryResponseSchema = z
 // ── Catalog ──────────────────────────────────────────────────────────────────
 
 export const catalogSetResponseSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  name: z.string(),
-  releasedAt: z.string().nullable(),
+  id: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
+  slug: z.string().openapi({ example: "OGN" }),
+  name: z.string().openapi({ example: "Origins" }),
+  releasedAt: z.string().nullable().openapi({ example: "2025-10-31" }),
 });
 
 const promoTypeSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  label: z.string(),
+  id: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000001" }),
+  slug: z.string().openapi({ example: "prerelease" }),
+  label: z.string().openapi({ example: "Prerelease" }),
 });
 
 const printingImageSchema = z.object({
   face: cardFaceSchema,
-  url: z.string(),
+  url: z.string().openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
 });
 
 const cardBanSchema = z.object({
-  formatId: z.string(),
-  formatName: z.string(),
-  bannedAt: z.string(),
-  reason: z.string().nullable(),
+  formatId: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000002" }),
+  formatName: z.string().openapi({ example: "Constructed" }),
+  bannedAt: z.string().openapi({ example: "2026-01-15" }),
+  reason: z.string().nullable().openapi({ example: "Power level" }),
 });
 
 export const catalogCardResponseSchema = z.object({
-  id: z.string(),
-  slug: z.string(),
-  name: z.string(),
+  id: z.string().openapi({ example: "019d1eea-5a5d-74fb-809b-5ba2cad3ff0f" }),
+  slug: z.string().openapi({ example: "xerath-freed" }),
+  name: z.string().openapi({ example: "Xerath, Freed" }),
   type: cardTypeSchema,
-  superTypes: z.array(superTypeSchema),
-  domains: z.array(domainSchema),
-  might: z.number().nullable(),
-  energy: z.number().nullable(),
-  power: z.number().nullable(),
-  keywords: z.array(z.string()),
-  tags: z.array(z.string()),
-  mightBonus: z.number().nullable(),
+  superTypes: z.array(superTypeSchema).openapi({ example: ["Legend"] }),
+  domains: z.array(domainSchema).openapi({ example: ["Fury"] }),
+  might: z.number().nullable().openapi({ example: 5 }),
+  energy: z.number().nullable().openapi({ example: 5 }),
+  power: z.number().nullable().openapi({ example: null }),
+  keywords: z.array(z.string()).openapi({ example: ["Accelerate"] }),
+  tags: z.array(z.string()).openapi({ example: [] }),
+  mightBonus: z.number().nullable().openapi({ example: null }),
   errata: z
     .object({
       correctedRulesText: z.string().nullable(),
@@ -236,29 +236,30 @@ export const catalogCardResponseSchema = z.object({
       sourceUrl: z.string().nullable(),
       effectiveDate: z.string().nullable(),
     })
-    .nullable(),
-  bans: z.array(cardBanSchema),
+    .nullable()
+    .openapi({ example: null }),
+  bans: z.array(cardBanSchema).openapi({ example: [] }),
 });
 
 export const catalogPrintingResponseSchema = z.object({
-  id: z.string(),
-  shortCode: z.string(),
-  setId: z.string(),
+  id: z.string().openapi({ example: "019d66f2-5912-76af-a375-99d128482013" }),
+  shortCode: z.string().openapi({ example: "OGN-001" }),
+  setId: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
   rarity: raritySchema,
   artVariant: artVariantSchema,
-  isSigned: z.boolean(),
-  promoType: promoTypeSchema.nullable(),
+  isSigned: z.boolean().openapi({ example: false }),
+  promoType: promoTypeSchema.nullable().openapi({ example: null }),
   finish: finishSchema,
   images: z.array(printingImageSchema),
-  artist: z.string(),
-  publicCode: z.string(),
-  printedRulesText: z.string().nullable(),
-  printedEffectText: z.string().nullable(),
-  flavorText: z.string().nullable(),
-  printedName: z.string().nullable(),
-  language: z.string(),
-  marketPrice: z.number().optional(),
-  cardId: z.string(),
+  artist: z.string().openapi({ example: "Kudos Productions" }),
+  publicCode: z.string().openapi({ example: "OGN-001/312" }),
+  printedRulesText: z.string().nullable().openapi({ example: null }),
+  printedEffectText: z.string().nullable().openapi({ example: null }),
+  flavorText: z.string().nullable().openapi({ example: null }),
+  printedName: z.string().nullable().openapi({ example: null }),
+  language: z.string().openapi({ example: "EN" }),
+  marketPrice: z.number().optional().openapi({ example: 0.25 }),
+  cardId: z.string().openapi({ example: "019d1eea-5a5d-74fb-809b-5ba2cad3ff0f" }),
 });
 
 export const catalogResponseSchema = z
@@ -283,9 +284,12 @@ export const cardDetailResponseSchema = z
 // ── Sets ────────────────────────────────────────────────────────────────────
 
 const setListEntrySchema = catalogSetResponseSchema.extend({
-  cardCount: z.number(),
-  printingCount: z.number(),
-  coverImageUrl: z.string().nullable(),
+  cardCount: z.number().openapi({ example: 312 }),
+  printingCount: z.number().openapi({ example: 468 }),
+  coverImageUrl: z
+    .string()
+    .nullable()
+    .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
 });
 
 export const setListResponseSchema = z
