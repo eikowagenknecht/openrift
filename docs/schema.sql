@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict j00zMziEbZXp0i4ZAUdd7GROFzBGBNBWLUAlMmyoyzMCLwSwEHT2ihFIGKJoA7t
+\restrict AFMFJuoLbh4U5efySBoHqxPnEV0hffi4DSyyhainfKTFagrjisxVqpoiJCb3Q8X
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -587,9 +587,11 @@ CREATE TABLE public.image_files (
     rehosted_url text,
     created_at timestamp with time zone DEFAULT now() CONSTRAINT card_images_created_at_not_null NOT NULL,
     updated_at timestamp with time zone DEFAULT now() CONSTRAINT card_images_updated_at_not_null NOT NULL,
+    rotation smallint DEFAULT 0 NOT NULL,
     CONSTRAINT chk_image_files_has_url CHECK (((original_url IS NOT NULL) OR (rehosted_url IS NOT NULL))),
     CONSTRAINT chk_image_files_original_url CHECK ((original_url <> ''::text)),
-    CONSTRAINT chk_image_files_rehosted_url CHECK ((rehosted_url <> ''::text))
+    CONSTRAINT chk_image_files_rehosted_url CHECK ((rehosted_url <> ''::text)),
+    CONSTRAINT chk_image_files_rotation CHECK ((rotation = ANY (ARRAY[0, 90, 180, 270])))
 );
 
 
@@ -2914,5 +2916,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict j00zMziEbZXp0i4ZAUdd7GROFzBGBNBWLUAlMmyoyzMCLwSwEHT2ihFIGKJoA7t
+\unrestrict AFMFJuoLbh4U5efySBoHqxPnEV0hffi4DSyyhainfKTFagrjisxVqpoiJCb3Q8X
 
