@@ -10,6 +10,8 @@ import { API_URL } from "@/lib/server-fns/api-url";
 interface UseCardsResult {
   allPrintings: Printing[];
   cardsById: Record<string, Card>;
+  printingsById: Record<string, Printing>;
+  printingsByCardId: Map<string, Printing[]>;
   sets: SetInfo[];
   totalCopies: number;
 }
@@ -30,17 +32,33 @@ const fetchCatalog = createServerFn({ method: "GET" }).handler(
 
 function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
   const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
+
+  // Re-add `id` to each card value so existing consumers can keep reading `.id`.
+  const cardsById: Record<string, Card> = {};
+  for (const [id, value] of Object.entries(catalog.cards)) {
+    cardsById[id] = { ...value, id };
+  }
+
+  // Re-add `id` and join with card + setSlug to produce the enriched Printing shape.
   const allPrintings: Printing[] = [];
-  for (const p of catalog.printings) {
-    const setSlug = slugById.get(p.setId);
-    const card = catalog.cards[p.cardId];
+  const printingsById: Record<string, Printing> = {};
+  for (const [id, value] of Object.entries(catalog.printings)) {
+    const setSlug = slugById.get(value.setId);
+    const card = cardsById[value.cardId];
     if (setSlug && card) {
-      allPrintings.push({ ...p, setSlug, card });
+      const printing: Printing = { ...value, id, setSlug, card };
+      allPrintings.push(printing);
+      printingsById[id] = printing;
     }
   }
+
+  const printingsByCardId = Map.groupBy(allPrintings, (p) => p.card.id);
+
   return {
     allPrintings,
-    cardsById: catalog.cards,
+    cardsById,
+    printingsById,
+    printingsByCardId,
     sets: catalog.sets,
     totalCopies: catalog.totalCopies,
   };

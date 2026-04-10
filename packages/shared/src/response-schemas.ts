@@ -282,11 +282,15 @@ export const catalogPrintingResponseSchema = z.object({
   cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
 });
 
+// Wire-only shapes for /catalog: identity lives in the map key, not the value.
+const catalogCardResponseValueSchema = catalogCardResponseSchema.omit({ id: true });
+const catalogPrintingResponseValueSchema = catalogPrintingResponseSchema.omit({ id: true });
+
 export const catalogResponseSchema = z
   .object({
     sets: z.array(catalogSetResponseSchema),
-    cards: z.record(z.string(), catalogCardResponseSchema),
-    printings: z.array(catalogPrintingResponseSchema),
+    cards: z.record(z.string(), catalogCardResponseValueSchema),
+    printings: z.record(z.string(), catalogPrintingResponseValueSchema),
     totalCopies: z.number().openapi({ example: 142 }),
   })
   .openapi("CatalogResponse");

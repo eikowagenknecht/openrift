@@ -32,6 +32,8 @@ export type {
   CatalogCardResponse,
   CatalogPrintingResponse,
   CatalogResponse,
+  CatalogResponseCardValue,
+  CatalogResponsePrintingValue,
   CatalogSetResponse,
   ClearPricesResponse,
   CleanupOrphanedResponse,

@@ -1,9 +1,9 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { centsToDollars } from "@openrift/shared";
 import type {
-  CatalogCardResponse,
-  CatalogPrintingResponse,
   CatalogResponse,
+  CatalogResponseCardValue,
+  CatalogResponsePrintingValue,
   Marketplace,
 } from "@openrift/shared";
 import { catalogResponseSchema } from "@openrift/shared/response-schemas";
@@ -29,9 +29,9 @@ export const catalogRoute = catalogApp
   /**
    * `GET /catalog` — Returns the full card catalog as {@link CatalogResponse}.
    *
-   * Returns a normalized response with cards keyed by ID, a flat printings
-   * array (referencing cards by `cardId`), and a simple sets list. Latest
-   * market prices are included directly on each printing.
+   * Cards and printings are both returned as maps keyed by their own id; the
+   * id is therefore omitted from each value (identity lives in the key). Sets
+   * stay as an array. Latest market prices are included on each printing.
    */
   .openapi(getCatalog, async (c) => {
     const { catalog, marketplace } = c.get("repos");
@@ -76,35 +76,33 @@ export const catalogRoute = catalogApp
       ]),
     );
 
-    const cards: Record<string, CatalogCardResponse> = Object.fromEntries(
-      cardRows.map((r) => [
-        r.id,
-        {
-          ...r,
-          errata: errataByCard.get(r.id) ?? null,
-          bans: (bansByCard.get(r.id) ?? []).map((b) => ({
-            formatId: b.formatId,
-            formatName: b.formatName,
-            bannedAt: b.bannedAt,
-            reason: b.reason,
-          })),
-        },
-      ]),
-    );
+    const cards: Record<string, CatalogResponseCardValue> = {};
+    for (const { id, ...rest } of cardRows) {
+      cards[id] = {
+        ...rest,
+        errata: errataByCard.get(id) ?? null,
+        bans: (bansByCard.get(id) ?? []).map((b) => ({
+          formatId: b.formatId,
+          formatName: b.formatName,
+          bannedAt: b.bannedAt,
+          reason: b.reason,
+        })),
+      };
+    }
 
     // Build images lookup (null URLs already filtered at the DB level)
     const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
-    // Build flat printings array
-    const printings: CatalogPrintingResponse[] = printingRows.map((row) => {
-      const prices = pricesByPrinting.get(row.id);
-      return {
-        ...row,
-        images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
+    const printings: Record<string, CatalogResponsePrintingValue> = {};
+    for (const { id, ...rest } of printingRows) {
+      const prices = pricesByPrinting.get(id);
+      printings[id] = {
+        ...rest,
+        images: (imagesByPrinting.get(id) ?? []).map((i) => ({ face: i.face, url: i.url })),
         ...(prices?.tcgplayer !== undefined && { marketPrice: prices.tcgplayer }),
         ...(prices && { marketPrices: prices }),
       };
-    });
+    }
 
     const content: CatalogResponse = {
       sets,

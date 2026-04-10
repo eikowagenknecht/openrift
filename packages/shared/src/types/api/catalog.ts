@@ -11,7 +11,7 @@ export interface CatalogSetResponse {
 
 export type CatalogCardResponse = Card;
 
-/** Wire type returned by `GET /catalog` — references card by ID instead of embedding. */
+/** Wire type for a single printing (still carries `id` for endpoints that return printings as arrays). */
 export interface CatalogPrintingResponse {
   id: string;
   shortCode: string;
@@ -34,10 +34,14 @@ export interface CatalogPrintingResponse {
   cardId: string;
 }
 
+/** Wire-only value shapes for `GET /catalog` — identity lives in the map key, not the value. */
+export type CatalogResponseCardValue = Omit<CatalogCardResponse, "id">;
+export type CatalogResponsePrintingValue = Omit<CatalogPrintingResponse, "id">;
+
 export interface CatalogResponse {
   sets: CatalogSetResponse[];
-  cards: Record<string, CatalogCardResponse>;
-  printings: CatalogPrintingResponse[];
+  cards: Record<string, CatalogResponseCardValue>;
+  printings: Record<string, CatalogResponsePrintingValue>;
   totalCopies: number;
 }
 

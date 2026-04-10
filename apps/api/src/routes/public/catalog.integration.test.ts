@@ -116,7 +116,8 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       const json = await res.json();
       expect(Array.isArray(json.sets)).toBe(true);
       expect(typeof json.cards).toBe("object");
-      expect(Array.isArray(json.printings)).toBe(true);
+      expect(typeof json.printings).toBe("object");
+      expect(Array.isArray(json.printings)).toBe(false);
     });
 
     it("sets contain id, slug, and name", async () => {
@@ -136,6 +137,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       const annieCardId = CARD_FURY_UNIT.id;
       const annie = json.cards[annieCardId];
       expect(annie).toBeDefined();
+      expect(annie.id).toBeUndefined();
       expect(annie.name).toBe("Annie, Fiery");
       expect(annie.type).toBe("Unit");
       expect(annie.superTypes).toContain("Champion");
@@ -146,8 +148,9 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       const res = await app.fetch(req("GET", "/catalog"));
       const json = await res.json();
 
-      const printing = json.printings.find((p: { id: string }) => p.id === SEED_PRINTING_ID);
+      const printing = json.printings[SEED_PRINTING_ID];
       expect(printing).toBeDefined();
+      expect(printing.id).toBeUndefined();
       expect(printing.cardId).toBe(CARD_FURY_UNIT.id);
       expect(printing.setId).toBe(SEED_SET_ID);
       expect(printing.shortCode).toBe("OGS-001");
@@ -159,7 +162,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       const res = await app.fetch(req("GET", "/catalog"));
       const json = await res.json();
 
-      const printing = json.printings.find((p: { id: string }) => p.id === SEED_PRINTING_ID);
+      const printing = json.printings[SEED_PRINTING_ID];
       expect(printing.marketPrice).toBe(3.5);
     });
 
@@ -167,7 +170,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       const res = await app.fetch(req("GET", "/catalog"));
       const json = await res.json();
 
-      const printing = json.printings.find((p: { id: string }) => p.id === SEED_PRINTING_ID);
+      const printing = json.printings[SEED_PRINTING_ID];
       expect(Array.isArray(printing.images)).toBe(true);
       expect(printing.images.length).toBeGreaterThanOrEqual(1);
     });

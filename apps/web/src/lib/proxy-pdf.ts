@@ -49,15 +49,22 @@ export function resolveProxyCards(
   deckCards: DeckBuilderCard[],
   catalog: CatalogResponse,
 ): ProxyCard[] {
-  const cardsById = catalog.cards;
-  const printingByCardId = new Map<string, Printing & { setSlug: string }>();
   const slugById = new Map(catalog.sets.map((set) => [set.id, set.slug]));
-  for (const printing of catalog.printings) {
+
+  // Re-attach id to cards so ProxyCard.card (a full Card) has it.
+  const cardsById: Record<string, Card> = {};
+  for (const [id, value] of Object.entries(catalog.cards)) {
+    cardsById[id] = { ...value, id };
+  }
+
+  // First printing per cardId wins, mirroring the previous array-order behavior.
+  const printingByCardId = new Map<string, Printing & { setSlug: string }>();
+  for (const [id, printing] of Object.entries(catalog.printings)) {
     if (!printingByCardId.has(printing.cardId)) {
       const setSlug = slugById.get(printing.setId);
       const card = cardsById[printing.cardId];
       if (setSlug && card) {
-        printingByCardId.set(printing.cardId, { ...printing, setSlug, card });
+        printingByCardId.set(printing.cardId, { ...printing, id, setSlug, card });
       }
     }
   }

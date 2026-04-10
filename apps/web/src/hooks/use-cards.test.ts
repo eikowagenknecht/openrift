@@ -1,4 +1,8 @@
-import type { Card, CatalogResponse, CatalogPrintingResponse } from "@openrift/shared";
+import type {
+  CatalogResponse,
+  CatalogResponseCardValue,
+  CatalogResponsePrintingValue,
+} from "@openrift/shared";
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
@@ -27,8 +31,13 @@ vi.mock("@/lib/server-cache", async () => {
 const { serverCache } = await import("@/lib/server-cache");
 const { catalogQueryOptions } = await import("./use-cards");
 
-const stubCard: Card = {
-  id: "00000000-0000-0000-0000-000000000001",
+const CARD_A_ID = "00000000-0000-0000-0000-000000000001";
+const CARD_B_ID = "00000000-0000-0000-0000-000000000002";
+const PRINTING_A_ID = "00000000-0000-0000-0000-000000000011";
+const PRINTING_B_ID = "00000000-0000-0000-0000-000000000012";
+const SET_ID = "00000000-0000-0000-0000-000000000099";
+
+const stubCardValue: CatalogResponseCardValue = {
   slug: "RB1-001",
   name: "Test Card",
   type: "Unit",
@@ -44,13 +53,12 @@ const stubCard: Card = {
   bans: [],
 };
 
-function stubCatalogPrintingResponse(
-  overrides: Partial<CatalogPrintingResponse> = {},
-): CatalogPrintingResponse {
+function stubPrintingValue(
+  overrides: Partial<CatalogResponsePrintingValue> = {},
+): CatalogResponsePrintingValue {
   return {
-    id: "00000000-0000-0000-0000-000000000011",
     shortCode: "RB1-001",
-    setId: "00000000-0000-0000-0000-000000000099",
+    setId: SET_ID,
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,
@@ -64,7 +72,7 @@ function stubCatalogPrintingResponse(
     flavorText: null,
     printedName: null,
     language: "EN",
-    cardId: "00000000-0000-0000-0000-000000000001",
+    cardId: CARD_A_ID,
     ...overrides,
   };
 }
@@ -72,33 +80,26 @@ function stubCatalogPrintingResponse(
 const CATALOG_RESPONSE: CatalogResponse = {
   sets: [
     {
-      id: "00000000-0000-0000-0000-000000000099",
+      id: SET_ID,
       slug: "RB1",
       name: "First Set",
       releasedAt: null,
     },
   ],
   cards: {
-    "00000000-0000-0000-0000-000000000001": { ...stubCard, name: "Card A" },
-    "00000000-0000-0000-0000-000000000002": {
-      ...stubCard,
-      id: "00000000-0000-0000-0000-000000000002",
-      slug: "RB1-002",
-      name: "Card B",
-    },
+    [CARD_A_ID]: { ...stubCardValue, name: "Card A" },
+    [CARD_B_ID]: { ...stubCardValue, slug: "RB1-002", name: "Card B" },
   },
-  printings: [
-    stubCatalogPrintingResponse({
-      id: "00000000-0000-0000-0000-000000000011",
-      cardId: "00000000-0000-0000-0000-000000000001",
+  printings: {
+    [PRINTING_A_ID]: stubPrintingValue({
+      cardId: CARD_A_ID,
       marketPrice: 1,
     }),
-    stubCatalogPrintingResponse({
-      id: "00000000-0000-0000-0000-000000000012",
+    [PRINTING_B_ID]: stubPrintingValue({
       shortCode: "RB1-002",
-      cardId: "00000000-0000-0000-0000-000000000002",
+      cardId: CARD_B_ID,
     }),
-  ],
+  },
   totalCopies: 150,
 };
 
@@ -123,10 +124,10 @@ describe("useCards", () => {
     // fetchQuery returns raw data (without select), so check the raw shape
     const raw = await queryClient.fetchQuery(catalogQueryOptions);
 
-    expect(raw.printings).toHaveLength(2);
+    expect(Object.keys(raw.printings)).toHaveLength(2);
     expect(raw.sets).toEqual([
       {
-        id: "00000000-0000-0000-0000-000000000099",
+        id: SET_ID,
         slug: "RB1",
         name: "First Set",
         releasedAt: null,
@@ -135,27 +136,32 @@ describe("useCards", () => {
     expect(raw.totalCopies).toBe(150);
   });
 
-  it("enrichCatalog joins card data onto printings", () => {
+  it("enrichCatalog joins card data onto printings and restores ids", () => {
     // Test the select/enrichment function directly
     const select = catalogQueryOptions.select!;
     const enriched = select(CATALOG_RESPONSE);
 
     expect(enriched.allPrintings).toHaveLength(2);
 
-    const cardA = enriched.allPrintings.find(
-      (c) => c.id === "00000000-0000-0000-0000-000000000011",
-    );
-    const cardB = enriched.allPrintings.find(
-      (c) => c.id === "00000000-0000-0000-0000-000000000012",
-    );
+    const printingA = enriched.printingsById[PRINTING_A_ID];
+    const printingB = enriched.printingsById[PRINTING_B_ID];
 
-    expect(cardA?.card.name).toBe("Card A");
-    expect(cardA?.marketPrice).toBe(1);
-    expect(cardB?.card.name).toBe("Card B");
-    expect(cardB?.marketPrice).toBeUndefined();
+    expect(printingA?.id).toBe(PRINTING_A_ID);
+    expect(printingA?.card.id).toBe(CARD_A_ID);
+    expect(printingA?.card.name).toBe("Card A");
+    expect(printingA?.marketPrice).toBe(1);
+    expect(printingB?.card.name).toBe("Card B");
+    expect(printingB?.marketPrice).toBeUndefined();
+
+    expect(enriched.cardsById[CARD_A_ID]?.id).toBe(CARD_A_ID);
+    expect(enriched.cardsById[CARD_B_ID]?.id).toBe(CARD_B_ID);
+
+    expect(enriched.printingsByCardId.get(CARD_A_ID)).toHaveLength(1);
+    expect(enriched.printingsByCardId.get(CARD_B_ID)).toHaveLength(1);
+
     expect(enriched.sets).toEqual([
       {
-        id: "00000000-0000-0000-0000-000000000099",
+        id: SET_ID,
         slug: "RB1",
         name: "First Set",
         releasedAt: null,
