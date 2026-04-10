@@ -233,7 +233,7 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
   // ── cardBySlug (line 440) ─────────────────────────────────────────────────
 
   it("cardBySlug returns a card for existing slug", async () => {
-    const result = await repo.cardBySlug("OGS-001");
+    const result = await repo.cardBySlug(CARD_FURY_UNIT.slug);
     expect(result).toBeDefined();
     expect(result!.id).toBe(SEED_CARD_ANNIE_ID);
   });

@@ -14,391 +14,535 @@ export const OGS_SET = {
 // -- Cards (all 24) -----------------------------------------------------------
 
 export const CARDS = {
-  "OGS-001": {
+  "annie-fiery": {
     id: "019cfc3b-038a-7c0c-a76c-e0a5e2f46b18",
-    slug: "OGS-001",
+    slug: "annie-fiery",
     name: "Annie, Fiery",
     type: "Unit",
     domains: ["Fury"],
   },
-  "OGS-002": {
-    id: "019cfc3b-038a-7e00-b828-03d838e5edab",
-    slug: "OGS-002",
-    name: "Firestorm",
-    type: "Spell",
-    domains: ["Fury"],
-  },
-  "OGS-003": {
-    id: "019cfc3b-0389-7de9-8860-226f4c8947d8",
-    slug: "OGS-003",
-    name: "Incinerate",
-    type: "Spell",
-    domains: ["Fury"],
-  },
-  "OGS-004": {
-    id: "019cfc3b-038a-7c1e-a8eb-57c9b27608ca",
-    slug: "OGS-004",
-    name: "Master Yi, Meditative",
-    type: "Unit",
-    domains: ["Calm"],
-  },
-  "OGS-005": {
-    id: "019cfc3b-038a-7e10-b8d4-6e8b9646a975",
-    slug: "OGS-005",
-    name: "Zephyr Sage",
-    type: "Unit",
-    domains: ["Calm"],
-  },
-  "OGS-006": {
-    id: "019cfc3b-038a-7aab-b290-3ac99454fe0e",
-    slug: "OGS-006",
-    name: "Lux, Illuminated",
-    type: "Unit",
-    domains: ["Mind"],
-  },
-  "OGS-007": {
-    id: "019cfc3b-038a-7c30-8616-613222ef6b01",
-    slug: "OGS-007",
-    name: "Garen, Rugged",
-    type: "Unit",
-    domains: ["Body"],
-  },
-  "OGS-008": {
-    id: "019cfc3b-038a-7e20-b240-25edfa53cbca",
-    slug: "OGS-008",
-    name: "Gentlemen's Duel",
-    type: "Spell",
-    domains: ["Body"],
-  },
-  "OGS-009": {
-    id: "019cfc3b-038a-7abc-b43e-79b55463b059",
-    slug: "OGS-009",
-    name: "Master Yi, Honed",
-    type: "Unit",
-    domains: ["Body"],
-  },
-  "OGS-010": {
+  "annie-stubborn": {
     id: "019cfc3b-038a-7c41-b170-c9f989adc4a8",
-    slug: "OGS-010",
+    slug: "annie-stubborn",
     name: "Annie, Stubborn",
     type: "Unit",
     domains: ["Chaos"],
   },
-  "OGS-011": {
-    id: "019cfc3b-038a-7e2f-a482-917692bfd498",
-    slug: "OGS-011",
-    name: "Flash",
-    type: "Spell",
-    domains: ["Chaos"],
-  },
-  "OGS-012": {
+  "blast-of-power": {
     id: "019cfc3b-038a-7acd-8d1e-ff0cd42a7878",
-    slug: "OGS-012",
+    slug: "blast-of-power",
     name: "Blast of Power",
     type: "Spell",
     domains: ["Order"],
   },
-  "OGS-013": {
-    id: "019cfc3b-038a-7c52-b7f5-683161fa2c98",
-    slug: "OGS-013",
-    name: "Garen, Commander",
-    type: "Unit",
-    domains: ["Order"],
-  },
-  "OGS-014": {
-    id: "019cfc3b-038a-7e42-8b17-0f904fc6a78c",
-    slug: "OGS-014",
-    name: "Lux, Crownguard",
-    type: "Unit",
-    domains: ["Order"],
-  },
-  "OGS-015": {
-    id: "019cfc3b-038a-7add-b48d-e16b7614dfda",
-    slug: "OGS-015",
-    name: "Recruit the Vanguard",
-    type: "Spell",
-    domains: ["Order"],
-  },
-  "OGS-016": {
-    id: "019cfc3b-038a-7c63-a32a-d4ca63b2bee9",
-    slug: "OGS-016",
-    name: "Vanguard Attendant",
-    type: "Unit",
-    domains: ["Order"],
-  },
-  "OGS-017": {
+  "dark-child-starter": {
     id: "019cfc3b-038a-7e54-90c3-34a262a17bea",
-    slug: "OGS-017",
+    slug: "dark-child-starter",
     name: "Dark Child, Starter",
     type: "Legend",
     domains: ["Fury", "Chaos"],
   },
-  "OGS-018": {
-    id: "019cfc3b-038a-7aef-b46a-dc08a7a17008",
-    slug: "OGS-018",
-    name: "Tibbers",
-    type: "Unit",
-    domains: ["Fury", "Chaos"],
-  },
-  "OGS-019": {
-    id: "019cfc3b-038a-7c85-87b3-452bea9999fb",
-    slug: "OGS-019",
-    name: "Wuju Bladesman, Starter",
-    type: "Legend",
-    domains: ["Calm", "Body"],
-  },
-  "OGS-020": {
-    id: "019cfc3b-038a-7e66-ae6d-5c57a250af7e",
-    slug: "OGS-020",
-    name: "Highlander",
+  "decisive-strike": {
+    id: "019cfc3b-038b-7140-a819-397e9b1eb94e",
+    slug: "decisive-strike",
+    name: "Decisive Strike",
     type: "Spell",
-    domains: ["Calm", "Body"],
+    domains: ["Body", "Order"],
   },
-  "OGS-021": {
-    id: "019cfc3b-038a-7aff-9f64-d915ada7e046",
-    slug: "OGS-021",
-    name: "Lady of Luminosity, Starter",
-    type: "Legend",
-    domains: ["Mind", "Order"],
-  },
-  "OGS-022": {
+  "final-spark": {
     id: "019cfc3b-038a-7c96-a595-49eecd42e4bf",
-    slug: "OGS-022",
+    slug: "final-spark",
     name: "Final Spark",
     type: "Spell",
     domains: ["Mind", "Order"],
   },
-  "OGS-023": {
+  firestorm: {
+    id: "019cfc3b-038a-7e00-b828-03d838e5edab",
+    slug: "firestorm",
+    name: "Firestorm",
+    type: "Spell",
+    domains: ["Fury"],
+  },
+  flash: {
+    id: "019cfc3b-038a-7e2f-a482-917692bfd498",
+    slug: "flash",
+    name: "Flash",
+    type: "Spell",
+    domains: ["Chaos"],
+  },
+  "garen-commander": {
+    id: "019cfc3b-038a-7c52-b7f5-683161fa2c98",
+    slug: "garen-commander",
+    name: "Garen, Commander",
+    type: "Unit",
+    domains: ["Order"],
+  },
+  "garen-rugged": {
+    id: "019cfc3b-038a-7c30-8616-613222ef6b01",
+    slug: "garen-rugged",
+    name: "Garen, Rugged",
+    type: "Unit",
+    domains: ["Body"],
+  },
+  "gentlemen-s-duel": {
+    id: "019cfc3b-038a-7e20-b240-25edfa53cbca",
+    slug: "gentlemen-s-duel",
+    name: "Gentlemen's Duel",
+    type: "Spell",
+    domains: ["Body"],
+  },
+  highlander: {
+    id: "019cfc3b-038a-7e66-ae6d-5c57a250af7e",
+    slug: "highlander",
+    name: "Highlander",
+    type: "Spell",
+    domains: ["Calm", "Body"],
+  },
+  incinerate: {
+    id: "019cfc3b-0389-7de9-8860-226f4c8947d8",
+    slug: "incinerate",
+    name: "Incinerate",
+    type: "Spell",
+    domains: ["Fury"],
+  },
+  "lady-of-luminosity-starter": {
+    id: "019cfc3b-038a-7aff-9f64-d915ada7e046",
+    slug: "lady-of-luminosity-starter",
+    name: "Lady of Luminosity, Starter",
+    type: "Legend",
+    domains: ["Mind", "Order"],
+  },
+  "lux-crownguard": {
+    id: "019cfc3b-038a-7e42-8b17-0f904fc6a78c",
+    slug: "lux-crownguard",
+    name: "Lux, Crownguard",
+    type: "Unit",
+    domains: ["Order"],
+  },
+  "lux-illuminated": {
+    id: "019cfc3b-038a-7aab-b290-3ac99454fe0e",
+    slug: "lux-illuminated",
+    name: "Lux, Illuminated",
+    type: "Unit",
+    domains: ["Mind"],
+  },
+  "master-yi-honed": {
+    id: "019cfc3b-038a-7abc-b43e-79b55463b059",
+    slug: "master-yi-honed",
+    name: "Master Yi, Honed",
+    type: "Unit",
+    domains: ["Body"],
+  },
+  "master-yi-meditative": {
+    id: "019cfc3b-038a-7c1e-a8eb-57c9b27608ca",
+    slug: "master-yi-meditative",
+    name: "Master Yi, Meditative",
+    type: "Unit",
+    domains: ["Calm"],
+  },
+  "might-of-demacia-starter": {
     id: "019cfc3b-038a-7e76-9ea8-f1feb5c9d837",
-    slug: "OGS-023",
+    slug: "might-of-demacia-starter",
     name: "Might of Demacia, Starter",
     type: "Legend",
     domains: ["Body", "Order"],
   },
-  "OGS-024": {
-    id: "019cfc3b-038b-7140-a819-397e9b1eb94e",
-    slug: "OGS-024",
-    name: "Decisive Strike",
+  "recruit-the-vanguard": {
+    id: "019cfc3b-038a-7add-b48d-e16b7614dfda",
+    slug: "recruit-the-vanguard",
+    name: "Recruit the Vanguard",
     type: "Spell",
-    domains: ["Body", "Order"],
+    domains: ["Order"],
+  },
+  tibbers: {
+    id: "019cfc3b-038a-7aef-b46a-dc08a7a17008",
+    slug: "tibbers",
+    name: "Tibbers",
+    type: "Unit",
+    domains: ["Fury", "Chaos"],
+  },
+  "vanguard-attendant": {
+    id: "019cfc3b-038a-7c63-a32a-d4ca63b2bee9",
+    slug: "vanguard-attendant",
+    name: "Vanguard Attendant",
+    type: "Unit",
+    domains: ["Order"],
+  },
+  "wuju-bladesman-starter": {
+    id: "019cfc3b-038a-7c85-87b3-452bea9999fb",
+    slug: "wuju-bladesman-starter",
+    name: "Wuju Bladesman, Starter",
+    type: "Legend",
+    domains: ["Calm", "Body"],
+  },
+  "zephyr-sage": {
+    id: "019cfc3b-038a-7e10-b8d4-6e8b9646a975",
+    slug: "zephyr-sage",
+    name: "Zephyr Sage",
+    type: "Unit",
+    domains: ["Calm"],
   },
 } as const;
 
 // -- Printings (all 24) -------------------------------------------------------
 
 export const PRINTINGS = {
-  "OGS-001:epic:normal:": {
-    id: "019cfc3b-03d6-74cf-adec-1dce41f631eb",
-    cardId: "019cfc3b-038a-7c0c-a76c-e0a5e2f46b18",
-    rarity: "Epic",
-    finish: "normal",
-  },
-  "OGS-001:epic:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c": {
+  "OGS-001:epic:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c:EN": {
     id: "019d17a1-2723-733a-a21e-4630e4370046",
     cardId: "019cfc3b-038a-7c0c-a76c-e0a5e2f46b18",
     rarity: "Epic",
     finish: "foil",
   },
-  "OGS-002:uncommon:normal:": {
+  "OGS-001:epic:normal::EN": {
+    id: "019cfc3b-03d6-74cf-adec-1dce41f631eb",
+    cardId: "019cfc3b-038a-7c0c-a76c-e0a5e2f46b18",
+    rarity: "Epic",
+    finish: "normal",
+  },
+  "OGS-001:epic:normal::ZH": {
+    id: "019d6d05-930d-7af7-9eb5-1bbefadba3a4",
+    cardId: "019cfc3b-038a-7c0c-a76c-e0a5e2f46b18",
+    rarity: "Epic",
+    finish: "normal",
+  },
+  "OGS-002:uncommon:normal::ZH": {
+    id: "019d6d05-9935-76e8-a805-ea6541cb99dd",
+    cardId: "019cfc3b-038a-7e00-b828-03d838e5edab",
+    rarity: "Uncommon",
+    finish: "normal",
+  },
+  "OGS-002:uncommon:normal::EN": {
     id: "019cfc3b-03d5-768e-91cf-8ac59b20fb0e",
     cardId: "019cfc3b-038a-7e00-b828-03d838e5edab",
     rarity: "Uncommon",
     finish: "normal",
   },
-  "OGS-003:common:normal:": {
+  "OGS-003:common:normal::EN": {
     id: "019cfc3b-03d6-74e0-bdbe-4aca898a0bbd",
     cardId: "019cfc3b-0389-7de9-8860-226f4c8947d8",
     rarity: "Common",
     finish: "normal",
   },
-  "OGS-004:rare:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c": {
-    id: "019d17a6-13f6-74f3-bcaa-6974580b57db",
+  "OGS-003:common:normal::ZH": {
+    id: "019d6d05-9a7a-7234-aa16-3d519c8131c9",
+    cardId: "019cfc3b-0389-7de9-8860-226f4c8947d8",
+    rarity: "Common",
+    finish: "normal",
+  },
+  "OGS-004:rare:normal::ZH": {
+    id: "019d6d05-a758-7fce-aadd-aafcc11baebe",
     cardId: "019cfc3b-038a-7c1e-a8eb-57c9b27608ca",
     rarity: "Rare",
-    finish: "foil",
+    finish: "normal",
   },
-  "OGS-004:rare:normal:": {
+  "OGS-004:rare:normal::EN": {
     id: "019cfc3b-03d6-74f2-bcff-7bd89d0061f5",
     cardId: "019cfc3b-038a-7c1e-a8eb-57c9b27608ca",
     rarity: "Rare",
     finish: "normal",
   },
-  "OGS-005:uncommon:normal:": {
+  "OGS-004:rare:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c:EN": {
+    id: "019d17a6-13f6-74f3-bcaa-6974580b57db",
+    cardId: "019cfc3b-038a-7c1e-a8eb-57c9b27608ca",
+    rarity: "Rare",
+    finish: "foil",
+  },
+  "OGS-005:uncommon:normal::ZH": {
+    id: "019d6d05-aa97-77be-8913-cae20a56f25f",
+    cardId: "019cfc3b-038a-7e10-b8d4-6e8b9646a975",
+    rarity: "Uncommon",
+    finish: "normal",
+  },
+  "OGS-005:uncommon:normal::EN": {
     id: "019cfc3b-03d6-7502-b5c1-a9e422f91ac7",
     cardId: "019cfc3b-038a-7e10-b8d4-6e8b9646a975",
     rarity: "Uncommon",
     finish: "normal",
   },
-  "OGS-006:rare:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c": {
+  "OGS-006:rare:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c:EN": {
     id: "019d1be8-3681-73b5-bf13-078b7e3c9096",
     cardId: "019cfc3b-038a-7aab-b290-3ac99454fe0e",
     rarity: "Rare",
     finish: "foil",
   },
-  "OGS-006:rare:normal:": {
+  "OGS-006:rare:normal::ZH": {
+    id: "019d6d05-b0ac-79e3-8edc-0d6d436d148b",
+    cardId: "019cfc3b-038a-7aab-b290-3ac99454fe0e",
+    rarity: "Rare",
+    finish: "normal",
+  },
+  "OGS-006:rare:normal::EN": {
     id: "019cfc3b-03d6-7514-9347-be4597ff1eee",
     cardId: "019cfc3b-038a-7aab-b290-3ac99454fe0e",
     rarity: "Rare",
     finish: "normal",
   },
-  "OGS-007:rare:normal:": {
-    id: "019cfc3b-03d6-752a-adc5-19033009d65d",
-    cardId: "019cfc3b-038a-7c30-8616-613222ef6b01",
-    rarity: "Rare",
-    finish: "normal",
-  },
-  "OGS-007:rare:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c": {
+  "OGS-007:rare:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c:EN": {
     id: "019d1bee-0857-793a-b76b-50b6ead8ddbb",
     cardId: "019cfc3b-038a-7c30-8616-613222ef6b01",
     rarity: "Rare",
     finish: "foil",
   },
-  "OGS-008:common:normal:": {
+  "OGS-007:rare:normal::EN": {
+    id: "019cfc3b-03d6-752a-adc5-19033009d65d",
+    cardId: "019cfc3b-038a-7c30-8616-613222ef6b01",
+    rarity: "Rare",
+    finish: "normal",
+  },
+  "OGS-007:rare:normal::ZH": {
+    id: "019d6d05-b656-79e4-b3df-2c0c6414f64b",
+    cardId: "019cfc3b-038a-7c30-8616-613222ef6b01",
+    rarity: "Rare",
+    finish: "normal",
+  },
+  "OGS-008:common:normal::EN": {
     id: "019cfc3b-03d6-753c-9ec3-7cf48219b1e8",
     cardId: "019cfc3b-038a-7e20-b240-25edfa53cbca",
     rarity: "Common",
     finish: "normal",
   },
-  "OGS-009:epic:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c": {
-    id: "019d17ac-724a-732c-b83a-23cd257a74e5",
+  "OGS-008:common:normal::ZH": {
+    id: "019d6d05-b99e-7e0e-96dd-e1c9da4bdae3",
+    cardId: "019cfc3b-038a-7e20-b240-25edfa53cbca",
+    rarity: "Common",
+    finish: "normal",
+  },
+  "OGS-009:epic:normal::ZH": {
+    id: "019d6d05-c13a-799a-bda0-efd70a6a1b75",
     cardId: "019cfc3b-038a-7abc-b43e-79b55463b059",
     rarity: "Epic",
-    finish: "foil",
+    finish: "normal",
   },
-  "OGS-009:epic:normal:": {
+  "OGS-009:epic:normal::EN": {
     id: "019cfc3b-03d6-754e-a4de-ca223b302965",
     cardId: "019cfc3b-038a-7abc-b43e-79b55463b059",
     rarity: "Epic",
     finish: "normal",
   },
-  "OGS-010:rare:normal:": {
-    id: "019cfc3b-03d6-755e-8d42-32464c0bf236",
-    cardId: "019cfc3b-038a-7c41-b170-c9f989adc4a8",
-    rarity: "Rare",
-    finish: "normal",
+  "OGS-009:epic:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c:EN": {
+    id: "019d17ac-724a-732c-b83a-23cd257a74e5",
+    cardId: "019cfc3b-038a-7abc-b43e-79b55463b059",
+    rarity: "Epic",
+    finish: "foil",
   },
-  "OGS-010:rare:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c": {
+  "OGS-010:rare:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c:EN": {
     id: "019d1bf8-97d5-79ac-929e-286838af5508",
     cardId: "019cfc3b-038a-7c41-b170-c9f989adc4a8",
     rarity: "Rare",
     finish: "foil",
   },
-  "OGS-011:common:normal:": {
+  "OGS-010:rare:normal::EN": {
+    id: "019cfc3b-03d6-755e-8d42-32464c0bf236",
+    cardId: "019cfc3b-038a-7c41-b170-c9f989adc4a8",
+    rarity: "Rare",
+    finish: "normal",
+  },
+  "OGS-010:rare:normal::ZH": {
+    id: "019d6d05-c823-7069-95b6-1cdf23f82a9a",
+    cardId: "019cfc3b-038a-7c41-b170-c9f989adc4a8",
+    rarity: "Rare",
+    finish: "normal",
+  },
+  "OGS-011:common:normal::EN": {
     id: "019cfc3b-03d6-7570-ac57-ad240fe24183",
     cardId: "019cfc3b-038a-7e2f-a482-917692bfd498",
     rarity: "Common",
     finish: "normal",
   },
-  "OGS-012:common:normal:": {
+  "OGS-011:common:normal::ZH": {
+    id: "019d6d05-d8e2-7e53-8fe6-54fd10424a8b",
+    cardId: "019cfc3b-038a-7e2f-a482-917692bfd498",
+    rarity: "Common",
+    finish: "normal",
+  },
+  "OGS-012:common:normal::EN": {
     id: "019cfc3b-03d6-7581-bf1d-f627860d73b0",
     cardId: "019cfc3b-038a-7acd-8d1e-ff0cd42a7878",
     rarity: "Common",
     finish: "normal",
   },
-  "OGS-013:epic:normal:": {
-    id: "019cfc3b-03d6-7592-be7d-af8b5a85a818",
+  "OGS-012:common:normal::ZH": {
+    id: "019d6d05-d9e8-75ca-9545-64d46c8fb6cb",
+    cardId: "019cfc3b-038a-7acd-8d1e-ff0cd42a7878",
+    rarity: "Common",
+    finish: "normal",
+  },
+  "OGS-013:epic:normal::ZH": {
+    id: "019d6d05-e5d5-7c5b-8b55-90aeb47adb3e",
     cardId: "019cfc3b-038a-7c52-b7f5-683161fa2c98",
     rarity: "Epic",
     finish: "normal",
   },
-  "OGS-013:epic:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c": {
+  "OGS-013:epic:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c:EN": {
     id: "019d1bfd-da4c-73d9-b2c9-a6c628b23bdd",
     cardId: "019cfc3b-038a-7c52-b7f5-683161fa2c98",
     rarity: "Epic",
     finish: "foil",
   },
-  "OGS-014:epic:normal:": {
+  "OGS-013:epic:normal::EN": {
+    id: "019cfc3b-03d6-7592-be7d-af8b5a85a818",
+    cardId: "019cfc3b-038a-7c52-b7f5-683161fa2c98",
+    rarity: "Epic",
+    finish: "normal",
+  },
+  "OGS-014:epic:normal::ZH": {
+    id: "019d6d05-f9be-789f-b21f-bfe68b1572d8",
+    cardId: "019cfc3b-038a-7e42-8b17-0f904fc6a78c",
+    rarity: "Epic",
+    finish: "normal",
+  },
+  "OGS-014:epic:normal::EN": {
     id: "019cfc3b-03d6-75a3-90b8-c82d7afdc00a",
     cardId: "019cfc3b-038a-7e42-8b17-0f904fc6a78c",
     rarity: "Epic",
     finish: "normal",
   },
-  "OGS-014:epic:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c": {
+  "OGS-014:epic:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c:EN": {
     id: "019d1c00-e58f-73c9-a402-a822d45df1f9",
     cardId: "019cfc3b-038a-7e42-8b17-0f904fc6a78c",
     rarity: "Epic",
     finish: "foil",
   },
-  "OGS-015:uncommon:normal:": {
+  "OGS-015:uncommon:normal::ZH": {
+    id: "019d6d05-fee6-7d60-b8f2-ea216d891c59",
+    cardId: "019cfc3b-038a-7add-b48d-e16b7614dfda",
+    rarity: "Uncommon",
+    finish: "normal",
+  },
+  "OGS-015:uncommon:normal::EN": {
     id: "019cfc3b-03d6-75d8-a0f7-c6fd8a35c6f9",
     cardId: "019cfc3b-038a-7add-b48d-e16b7614dfda",
     rarity: "Uncommon",
     finish: "normal",
   },
-  "OGS-016:common:normal:": {
+  "OGS-016:common:normal::EN": {
     id: "019cfc3b-03d6-75ee-922c-1e736369b5d4",
     cardId: "019cfc3b-038a-7c63-a32a-d4ca63b2bee9",
     rarity: "Common",
     finish: "normal",
   },
-  "OGS-017:rare:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c": {
+  "OGS-016:common:normal::ZH": {
+    id: "019d6d06-0398-7088-8098-0484a6aa2fea",
+    cardId: "019cfc3b-038a-7c63-a32a-d4ca63b2bee9",
+    rarity: "Common",
+    finish: "normal",
+  },
+  "OGS-017:rare:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c:EN": {
     id: "019d1c05-bf03-747d-be95-60ee1687b24b",
     cardId: "019cfc3b-038a-7e54-90c3-34a262a17bea",
     rarity: "Rare",
     finish: "foil",
   },
-  "OGS-017:rare:normal:": {
+  "OGS-017:rare:normal::ZH": {
+    id: "019d6d06-108e-726f-809e-13b31796be1c",
+    cardId: "019cfc3b-038a-7e54-90c3-34a262a17bea",
+    rarity: "Rare",
+    finish: "normal",
+  },
+  "OGS-017:rare:normal::EN": {
     id: "019cfc3b-03d6-7600-9bd2-f43441e40ace",
     cardId: "019cfc3b-038a-7e54-90c3-34a262a17bea",
     rarity: "Rare",
     finish: "normal",
   },
-  "OGS-018:epic:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c": {
+  "OGS-018:epic:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c:EN": {
     id: "019d1c0b-64ab-7160-8bd6-36dfdffb1210",
     cardId: "019cfc3b-038a-7aef-b46a-dc08a7a17008",
     rarity: "Epic",
     finish: "foil",
   },
-  "OGS-018:epic:normal:": {
+  "OGS-018:epic:normal::ZH": {
+    id: "019d6d06-1dd2-7649-938a-01851a1098ae",
+    cardId: "019cfc3b-038a-7aef-b46a-dc08a7a17008",
+    rarity: "Epic",
+    finish: "normal",
+  },
+  "OGS-018:epic:normal::EN": {
     id: "019cfc3b-03d8-7309-9eae-0ba9ba5967f3",
     cardId: "019cfc3b-038a-7aef-b46a-dc08a7a17008",
     rarity: "Epic",
     finish: "normal",
   },
-  "OGS-019:rare:normal:": {
-    id: "019cfc3b-03d8-731c-8957-4f2dc4f8464f",
-    cardId: "019cfc3b-038a-7c85-87b3-452bea9999fb",
-    rarity: "Rare",
-    finish: "normal",
-  },
-  "OGS-019:rare:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c": {
+  "OGS-019:rare:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c:EN": {
     id: "019d1c0e-5395-709b-a44a-b9b9bc85907b",
     cardId: "019cfc3b-038a-7c85-87b3-452bea9999fb",
     rarity: "Rare",
     finish: "foil",
   },
-  "OGS-020:epic:normal:": {
+  "OGS-019:rare:normal::ZH": {
+    id: "019d6d06-2149-7ed5-a52b-64215640186a",
+    cardId: "019cfc3b-038a-7c85-87b3-452bea9999fb",
+    rarity: "Rare",
+    finish: "normal",
+  },
+  "OGS-019:rare:normal::EN": {
+    id: "019cfc3b-03d8-731c-8957-4f2dc4f8464f",
+    cardId: "019cfc3b-038a-7c85-87b3-452bea9999fb",
+    rarity: "Rare",
+    finish: "normal",
+  },
+  "OGS-020:epic:normal::ZH": {
+    id: "019d6d06-2210-7187-b6ea-5d10e2e048ab",
+    cardId: "019cfc3b-038a-7e66-ae6d-5c57a250af7e",
+    rarity: "Epic",
+    finish: "normal",
+  },
+  "OGS-020:epic:normal::EN": {
     id: "019cfc3b-03d8-732e-9d55-1e74ebff11dd",
     cardId: "019cfc3b-038a-7e66-ae6d-5c57a250af7e",
     rarity: "Epic",
     finish: "normal",
   },
-  "OGS-020:epic:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c": {
+  "OGS-020:epic:foil:019d02a7-1639-7700-a279-2e6f4f6dc91c:EN": {
     id: "019d1c11-4999-78e3-9980-2298b44d436d",
     cardId: "019cfc3b-038a-7e66-ae6d-5c57a250af7e",
     rarity: "Epic",
     finish: "foil",
   },
-  "OGS-021:rare:normal:": {
+  "OGS-021:rare:normal::EN": {
     id: "019cfc3b-03d8-7340-8664-d8b5b646ef84",
     cardId: "019cfc3b-038a-7aff-9f64-d915ada7e046",
     rarity: "Rare",
     finish: "normal",
   },
-  "OGS-022:epic:normal:": {
+  "OGS-021:rare:normal::ZH": {
+    id: "019d6d06-3071-78cb-871f-945422034de3",
+    cardId: "019cfc3b-038a-7aff-9f64-d915ada7e046",
+    rarity: "Rare",
+    finish: "normal",
+  },
+  "OGS-022:epic:normal::ZH": {
+    id: "019d6d06-31c7-75c2-ba60-479deb454553",
+    cardId: "019cfc3b-038a-7c96-a595-49eecd42e4bf",
+    rarity: "Epic",
+    finish: "normal",
+  },
+  "OGS-022:epic:normal::EN": {
     id: "019cfc3b-03d8-7350-b433-2aee587b1912",
     cardId: "019cfc3b-038a-7c96-a595-49eecd42e4bf",
     rarity: "Epic",
     finish: "normal",
   },
-  "OGS-023:rare:normal:": {
+  "OGS-023:rare:normal::ZH": {
+    id: "019d6d06-3485-71cd-bcef-9c7db6924832",
+    cardId: "019cfc3b-038a-7e76-9ea8-f1feb5c9d837",
+    rarity: "Rare",
+    finish: "normal",
+  },
+  "OGS-023:rare:normal::EN": {
     id: "019cfc3b-03d8-7361-9a9a-915783d54e1c",
     cardId: "019cfc3b-038a-7e76-9ea8-f1feb5c9d837",
     rarity: "Rare",
     finish: "normal",
   },
-  "OGS-024:epic:normal:": {
+  "OGS-024:epic:normal::EN": {
     id: "019cfc3b-03d8-7371-9e2d-f3aa5ad324a9",
+    cardId: "019cfc3b-038b-7140-a819-397e9b1eb94e",
+    rarity: "Epic",
+    finish: "normal",
+  },
+  "OGS-024:epic:normal::ZH": {
+    id: "019d6d06-37a3-7312-bb34-9c497b8b9d64",
     cardId: "019cfc3b-038b-7140-a819-397e9b1eb94e",
     rarity: "Epic",
     finish: "normal",
@@ -406,28 +550,32 @@ export const PRINTINGS = {
 } as const;
 
 // -- Convenience aliases for common test needs --------------------------------
+//
+// These are keyed by the current kebab-case card slug. Card slugs derive from
+// the card name, so they can change if a card is renamed. When that happens,
+// update the key on the right-hand side after regenerating.
 
-/** A Unit card in the Fury domain (Epic rarity) */
-export const CARD_FURY_UNIT = CARDS["OGS-001"];
-/** A Spell card in the Fury domain (Uncommon rarity) */
-export const CARD_FURY_SPELL = CARDS["OGS-002"];
-/** A Unit card in the Calm domain (Rare rarity) */
-export const CARD_CALM_UNIT = CARDS["OGS-004"];
-/** A Unit card in the Body domain (Rare rarity) */
-export const CARD_BODY_UNIT = CARDS["OGS-007"];
-/** A Unit card in the Mind domain (Rare rarity) */
-export const CARD_MIND_UNIT = CARDS["OGS-006"];
-/** A Unit card in the Order domain (Epic rarity) */
-export const CARD_ORDER_UNIT = CARDS["OGS-013"];
+/** A Unit card in the Fury domain (Epic rarity): Annie, Fiery */
+export const CARD_FURY_UNIT = CARDS["annie-fiery"];
+/** A Spell card in the Fury domain (Uncommon rarity): Firestorm */
+export const CARD_FURY_SPELL = CARDS["firestorm"];
+/** A Unit card in the Calm domain (Rare rarity): Master Yi, Meditative */
+export const CARD_CALM_UNIT = CARDS["master-yi-meditative"];
+/** A Unit card in the Body domain (Rare rarity): Garen, Rugged */
+export const CARD_BODY_UNIT = CARDS["garen-rugged"];
+/** A Unit card in the Mind domain (Rare rarity): Lux, Illuminated */
+export const CARD_MIND_UNIT = CARDS["lux-illuminated"];
+/** A Unit card in the Order domain (Epic rarity): Garen, Commander */
+export const CARD_ORDER_UNIT = CARDS["garen-commander"];
 
-/** Printing for OGS-001 (Epic, normal finish) */
-export const PRINTING_1 = PRINTINGS["OGS-001:epic:normal:"];
-/** Printing for OGS-002 (Uncommon, normal finish) */
-export const PRINTING_2 = PRINTINGS["OGS-002:uncommon:normal:"];
-/** Printing for OGS-003 (Common, normal finish) */
-export const PRINTING_3 = PRINTINGS["OGS-003:common:normal:"];
-/** Printing for OGS-004 (Rare, normal finish) */
-export const PRINTING_4 = PRINTINGS["OGS-004:rare:normal:"];
+/** Printing for OGS-001 (Epic, normal finish, EN): Annie, Fiery */
+export const PRINTING_1 = PRINTINGS["OGS-001:epic:normal::EN"];
+/** Printing for OGS-002 (Uncommon, normal finish, EN): Firestorm */
+export const PRINTING_2 = PRINTINGS["OGS-002:uncommon:normal::EN"];
+/** Printing for OGS-003 (Common, normal finish, EN): Incinerate */
+export const PRINTING_3 = PRINTINGS["OGS-003:common:normal::EN"];
+/** Printing for OGS-004 (Rare, normal finish, EN): Master Yi, Meditative */
+export const PRINTING_4 = PRINTINGS["OGS-004:rare:normal::EN"];
 
 // -- Marketplace groups -------------------------------------------------------
 

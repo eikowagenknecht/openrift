@@ -16,6 +16,7 @@ const mockSharpPipeline = {
   resize: () => mockSharpPipeline,
   webp: () => mockSharpPipeline,
   toBuffer: async () => FAKE_BUFFER,
+  metadata: async () => ({ width: 400, height: 560 }),
 };
 
 /* oxlint-disable no-empty-function -- noop mocks for io operations */

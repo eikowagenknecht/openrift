@@ -214,6 +214,7 @@ interface PrintingRow {
   rarity: string;
   finish: string;
   promo_type_id: string | null;
+  language: string | null;
 }
 
 interface CardRow {
@@ -270,35 +271,39 @@ ${typedCards
 export const PRINTINGS = {
 ${typedPrintings
   .map((p) => {
-    const key = `${p.short_code}:${p.rarity.toLowerCase()}:${p.finish}:${p.promo_type_id ?? ""}`;
+    const key = `${p.short_code}:${p.rarity.toLowerCase()}:${p.finish}:${p.promo_type_id ?? ""}:${p.language ?? ""}`;
     return `  ${JSON.stringify(key)}: { id: ${JSON.stringify(p.id)}, cardId: ${JSON.stringify(p.card_id)}, rarity: ${JSON.stringify(p.rarity)}, finish: ${JSON.stringify(p.finish)} },`;
   })
   .join("\n")}
 } as const;
 
 // -- Convenience aliases for common test needs --------------------------------
+//
+// These are keyed by the current kebab-case card slug. Card slugs derive from
+// the card name, so they can change if a card is renamed. When that happens,
+// update the key on the right-hand side after regenerating.
 
-/** A Unit card in the Fury domain (Epic rarity) */
-export const CARD_FURY_UNIT = CARDS["OGS-001"];
-/** A Spell card in the Fury domain (Uncommon rarity) */
-export const CARD_FURY_SPELL = CARDS["OGS-002"];
-/** A Unit card in the Calm domain (Rare rarity) */
-export const CARD_CALM_UNIT = CARDS["OGS-004"];
-/** A Unit card in the Body domain (Rare rarity) */
-export const CARD_BODY_UNIT = CARDS["OGS-007"];
-/** A Unit card in the Mind domain (Rare rarity) */
-export const CARD_MIND_UNIT = CARDS["OGS-006"];
-/** A Unit card in the Order domain (Epic rarity) */
-export const CARD_ORDER_UNIT = CARDS["OGS-013"];
+/** A Unit card in the Fury domain (Epic rarity): Annie, Fiery */
+export const CARD_FURY_UNIT = CARDS["annie-fiery"];
+/** A Spell card in the Fury domain (Uncommon rarity): Firestorm */
+export const CARD_FURY_SPELL = CARDS["firestorm"];
+/** A Unit card in the Calm domain (Rare rarity): Master Yi, Meditative */
+export const CARD_CALM_UNIT = CARDS["master-yi-meditative"];
+/** A Unit card in the Body domain (Rare rarity): Garen, Rugged */
+export const CARD_BODY_UNIT = CARDS["garen-rugged"];
+/** A Unit card in the Mind domain (Rare rarity): Lux, Illuminated */
+export const CARD_MIND_UNIT = CARDS["lux-illuminated"];
+/** A Unit card in the Order domain (Epic rarity): Garen, Commander */
+export const CARD_ORDER_UNIT = CARDS["garen-commander"];
 
-/** Printing for OGS-001 (Epic, normal finish) */
-export const PRINTING_1 = PRINTINGS["OGS-001:epic:normal:"];
-/** Printing for OGS-002 (Uncommon, normal finish) */
-export const PRINTING_2 = PRINTINGS["OGS-002:uncommon:normal:"];
-/** Printing for OGS-003 (Common, normal finish) */
-export const PRINTING_3 = PRINTINGS["OGS-003:common:normal:"];
-/** Printing for OGS-004 (Rare, normal finish) */
-export const PRINTING_4 = PRINTINGS["OGS-004:rare:normal:"];
+/** Printing for OGS-001 (Epic, normal finish, EN): Annie, Fiery */
+export const PRINTING_1 = PRINTINGS["OGS-001:epic:normal::EN"];
+/** Printing for OGS-002 (Uncommon, normal finish, EN): Firestorm */
+export const PRINTING_2 = PRINTINGS["OGS-002:uncommon:normal::EN"];
+/** Printing for OGS-003 (Common, normal finish, EN): Incinerate */
+export const PRINTING_3 = PRINTINGS["OGS-003:common:normal::EN"];
+/** Printing for OGS-004 (Rare, normal finish, EN): Master Yi, Meditative */
+export const PRINTING_4 = PRINTINGS["OGS-004:rare:normal::EN"];
 
 // -- Marketplace groups -------------------------------------------------------
 
