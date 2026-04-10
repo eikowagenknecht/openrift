@@ -231,7 +231,17 @@ export function createApp(deps: AppDeps) {
   // ── OpenAPI spec & Swagger UI ──────────────────────────────────────────
   app.doc("/api/doc", {
     openapi: "3.1.0",
-    info: { title: "OpenRift API", version: "1.0.0" },
+    info: {
+      title: "OpenRift API",
+      version: "1.0.0",
+      description: [
+        "**Authentication:** This API uses session cookies (Better Auth).",
+        "Auth endpoints are not in this spec, they are proxied from `/api/auth/*`.",
+        "",
+        "To try authenticated endpoints in Swagger UI: sign in via the web app,",
+        "then open this page on the API origin in the same browser.",
+      ].join("\n"),
+    },
   });
   app.get("/api/ui", swaggerUI({ url: "/api/doc" }));
 
