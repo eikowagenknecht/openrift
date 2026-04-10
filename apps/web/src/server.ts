@@ -1,7 +1,52 @@
+// oxlint-disable-next-line import/no-nodejs-modules -- server entry runs in Bun/Node.js
+import { readFile } from "node:fs/promises";
+// oxlint-disable-next-line import/no-nodejs-modules -- server entry runs in Bun/Node.js
+import path from "node:path";
+
 import type { SitemapDataResponse } from "@openrift/shared";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
 const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
+
+// Local-only helper for `bun run start` smoke tests: when CARD_IMAGES_DIR is
+// set, serve /card-images/* from that host directory. In real prod, this env
+// var is unset so serveCardImage() short-circuits to undefined, AND nginx
+// bind-mounts the path in front of the server — so this code is inert there.
+const CARD_IMAGES_DIR = process.env.CARD_IMAGES_DIR
+  ? path.resolve(process.env.CARD_IMAGES_DIR)
+  : undefined;
+
+const CARD_IMAGE_MIME: Record<string, string> = {
+  ".webp": "image/webp",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+};
+
+async function serveCardImage(pathname: string): Promise<Response | undefined> {
+  if (!CARD_IMAGES_DIR) {
+    return undefined;
+  }
+  const relative = decodeURIComponent(pathname.slice("/card-images/".length));
+  const resolved = path.resolve(CARD_IMAGES_DIR, relative);
+  if (!resolved.startsWith(`${CARD_IMAGES_DIR}${path.sep}`)) {
+    return new Response("Forbidden", { status: 403 });
+  }
+  let buffer: Buffer;
+  try {
+    buffer = await readFile(resolved);
+  } catch {
+    return new Response("Not Found", { status: 404 });
+  }
+  const bytes = new ArrayBuffer(buffer.byteLength);
+  new Uint8Array(bytes).set(buffer);
+  const mime = CARD_IMAGE_MIME[path.extname(resolved).toLowerCase()] ?? "application/octet-stream";
+  return new Response(new Blob([bytes], { type: mime }), {
+    headers: {
+      "Cache-Control": "public, max-age=3600",
+    },
+  });
+}
 
 const DEPLOY_DATE = new Date().toISOString().slice(0, 10);
 
@@ -92,6 +137,12 @@ export default createServerEntry({
     const url = new URL(request.url);
     if (url.pathname === "/health") {
       return new Response("ok", { status: 200 });
+    }
+    if (CARD_IMAGES_DIR && url.pathname.startsWith("/card-images/")) {
+      const response = await serveCardImage(url.pathname);
+      if (response) {
+        return response;
+      }
     }
     if (url.pathname === "/robots.txt") {
       return new Response(isPreview() ? PREVIEW_ROBOTS_TXT : buildProdRobotsTxt(), {
