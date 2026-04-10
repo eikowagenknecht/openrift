@@ -156,7 +156,7 @@ export function CardDetail({
 
         {/* Card image */}
         <div ref={imageSwipeRef}>
-          <div ref={tilt.containerRef} style={tilt.style}>
+          <div ref={tilt.containerRef}>
             <CardImage
               innerRef={tilt.innerRef}
               printing={printing}
