@@ -12,6 +12,7 @@ import {
   downloadImage,
   imageRehostedUrl,
   processAndSave,
+  regenerateFromOrig,
   rehostSingleImage,
 } from "../../../services/image-rehost.js";
 import type { Variables } from "../../../types.js";
@@ -19,6 +20,7 @@ import { assertFound } from "../../../utils/assertions.js";
 import {
   activateImageSchema,
   addImageUrlSchema,
+  rotateImageSchema,
   setImageSchema,
   uploadImageFormSchema,
 } from "./schemas.js";
@@ -95,6 +97,19 @@ const rehostImage = createRoute({
       },
       description: "Image rehosted",
     },
+  },
+});
+
+const rotateImage = createRoute({
+  method: "post",
+  path: "/printing-images/{imageId}/rotate",
+  tags: ["Admin - Cards"],
+  request: {
+    params: z.object({ imageId: z.string().uuid() }),
+    body: { content: { "application/json": { schema: rotateImageSchema } } },
+  },
+  responses: {
+    204: { description: "Image rotation updated" },
   },
 });
 
@@ -278,11 +293,26 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const rehostedUrl = imageRehostedUrl(image.imageFileId);
     const outputDir = join(CARD_IMAGES_DIR, image.imageFileId.slice(-2));
 
-    await processAndSave(c.get("io"), buffer, ext, outputDir, image.imageFileId);
+    await processAndSave(c.get("io"), buffer, ext, outputDir, image.imageFileId, image.rotation);
 
     await printingImages.updateRehostedUrl(image.imageFileId, rehostedUrl);
 
     return c.json({ rehostedUrl });
+  })
+
+  // ── POST /printing-images/:imageId/rotate ────────────────────────────────
+  .openapi(rotateImage, async (c) => {
+    const { printingImages } = c.get("repos");
+    const { imageId } = c.req.valid("param");
+    const { rotation } = c.req.valid("json");
+
+    const image = await printingImages.getForRehost(imageId);
+    assertFound(image, "Printing image not found");
+
+    await printingImages.setRotation(image.imageFileId, rotation);
+    await regenerateFromOrig(c.get("io"), image.imageFileId, rotation, image.originalUrl);
+
+    return c.body(null, 204);
   })
 
   // ── POST /printing/:printingId/add-image-url ─────────────────────────────
@@ -334,7 +364,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const rehostedUrl = imageRehostedUrl(imageId);
     const outputDir = join(CARD_IMAGES_DIR, imageId.slice(-2));
 
-    await processAndSave(c.get("io"), buffer, ext, outputDir, imageId);
+    await processAndSave(c.get("io"), buffer, ext, outputDir, imageId, 0);
 
     await c.get("transact")(async (trxRepos) => {
       await trxRepos.printingImages.insertUploadedImage({

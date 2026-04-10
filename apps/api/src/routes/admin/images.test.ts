@@ -115,7 +115,7 @@ describe("POST /api/v1/regenerate-images", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(result);
-    expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, 0);
+    expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, 0);
   });
 
   it("passes custom offset from query param", async () => {
@@ -131,7 +131,7 @@ describe("POST /api/v1/regenerate-images", () => {
 
     const res = await app.request("/api/v1/regenerate-images?offset=50", { method: "POST" });
     expect(res.status).toBe(200);
-    expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, 50);
+    expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, 50);
   });
 });
 

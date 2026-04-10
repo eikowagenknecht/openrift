@@ -5,6 +5,8 @@ import {
   EyeOffIcon,
   ImagePlusIcon,
   PlusIcon,
+  RotateCcwIcon,
+  RotateCwIcon,
   Trash2Icon,
   UploadIcon,
   XIcon,
@@ -22,10 +24,13 @@ import {
   useAddImageFromUrl,
   useDeletePrintingImage,
   useRehostPrintingImage,
+  useRotatePrintingImage,
   useSetCandidatePrintingImage,
   useUnrehostPrintingImage,
   useUploadPrintingImage,
 } from "@/hooks/use-admin-image-mutations";
+
+type Rotation = 0 | 90 | 180 | 270;
 
 function getDisplayUrl(img: AdminPrintingImageResponse): string | null {
   return img.rehostedUrl ? `${img.rehostedUrl}-full.webp` : img.originalUrl;
@@ -48,6 +53,7 @@ export function PrintingImageSwitcher({
   const activatePrintingImage = useActivatePrintingImage();
   const rehostPrintingImage = useRehostPrintingImage();
   const unrehostPrintingImage = useUnrehostPrintingImage();
+  const rotatePrintingImage = useRotatePrintingImage();
   const addImageFromUrl = useAddImageFromUrl();
   const uploadPrintingImage = useUploadPrintingImage();
   const setPrintingSourceImage = useSetCandidatePrintingImage();
@@ -251,6 +257,40 @@ export function PrintingImageSwitcher({
               >
                 <DownloadIcon className="size-3" />
               </Button>
+            )}
+            {effectiveImage.rehostedUrl && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6"
+                  title={`Rotate left (current: ${effectiveImage.rotation}°)`}
+                  disabled={rotatePrintingImage.isPending}
+                  onClick={() =>
+                    rotatePrintingImage.mutate({
+                      imageId: effectiveImage.id,
+                      rotation: ((effectiveImage.rotation + 270) % 360) as Rotation,
+                    })
+                  }
+                >
+                  <RotateCcwIcon className="size-3" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6"
+                  title={`Rotate right (current: ${effectiveImage.rotation}°)`}
+                  disabled={rotatePrintingImage.isPending}
+                  onClick={() =>
+                    rotatePrintingImage.mutate({
+                      imageId: effectiveImage.id,
+                      rotation: ((effectiveImage.rotation + 90) % 360) as Rotation,
+                    })
+                  }
+                >
+                  <RotateCwIcon className="size-3" />
+                </Button>
+              </>
             )}
             {effectiveImage.rehostedUrl && effectiveImage.originalUrl && (
               <Button

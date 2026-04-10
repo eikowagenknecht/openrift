@@ -446,6 +446,7 @@ describe("POST /api/v1/printing-images/:imageId/rehost", () => {
     mockPrintingImages.getForRehost.mockResolvedValue({
       originalUrl: "https://example.com/img.png",
       imageFileId: "00594247-a18a-4efd-8998-105449a4c1ab",
+      rotation: 0,
     });
     mockDownloadImage.mockResolvedValue({ buffer: Buffer.from("image"), ext: ".png" });
     mockProcessAndSave.mockResolvedValue(undefined);
@@ -468,6 +469,7 @@ describe("POST /api/v1/printing-images/:imageId/rehost", () => {
       ".png",
       "/mock/card-images/ab",
       "00594247-a18a-4efd-8998-105449a4c1ab",
+      0,
     );
     expect(mockPrintingImages.updateRehostedUrl).toHaveBeenCalledWith(
       "00594247-a18a-4efd-8998-105449a4c1ab",

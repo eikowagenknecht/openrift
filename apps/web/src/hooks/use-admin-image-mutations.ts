@@ -97,6 +97,25 @@ const unrehostPrintingImageFn = createServerFn({ method: "POST" })
     }
   });
 
+type Rotation = 0 | 90 | 180 | 270;
+
+const rotatePrintingImageFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { imageId: string; rotation: Rotation }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/rotate`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ rotation: data.rotation }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Rotate printing image failed: ${res.status}`);
+    }
+  });
+
 const addImageFromUrlFn = createServerFn({ method: "POST" })
   .inputValidator(
     (input: { printingId: string; url: string; source?: string; mode?: string }) => input,
@@ -182,6 +201,15 @@ export function useUnrehostPrintingImage() {
   return useMutationWithInvalidation({
     mutationFn: async (imageId: string) => {
       await unrehostPrintingImageFn({ data: { imageId } });
+    },
+    invalidates: [queryKeys.admin.cards.all],
+  });
+}
+
+export function useRotatePrintingImage() {
+  return useMutationWithInvalidation({
+    mutationFn: async ({ imageId, rotation }: { imageId: string; rotation: Rotation }) => {
+      await rotatePrintingImageFn({ data: { imageId, rotation } });
     },
     invalidates: [queryKeys.admin.cards.all],
   });

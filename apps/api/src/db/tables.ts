@@ -526,6 +526,8 @@ export interface ImageFilesTable {
   originalUrl: string | null;
   /** CHECK: <> '' */
   rehostedUrl: string | null;
+  /** CHECK: IN (0, 90, 180, 270) */
+  rotation: Generated<0 | 90 | 180 | 270>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

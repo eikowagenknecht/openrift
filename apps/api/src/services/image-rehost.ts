@@ -105,19 +105,29 @@ async function generateWebpVariants(
   buffer: Buffer,
   outputDir: string,
   fileBase: string,
+  rotation: number,
 ): Promise<void> {
   await io.fs.mkdir(outputDir, { recursive: true });
   const meta = await io.sharp(buffer).metadata();
-  const sourceWidth = meta.width ?? 0;
-  const sourceHeight = meta.height ?? 0;
+  const rawWidth = meta.width ?? 0;
+  const rawHeight = meta.height ?? 0;
+  // 90° and 270° rotations swap width and height — measure orientation post-rotation
+  // so short-edge capping stays orientation-aware after rotate.
+  const swap = rotation === 90 || rotation === 270;
+  const sourceWidth = swap ? rawHeight : rawWidth;
+  const sourceHeight = swap ? rawWidth : rawHeight;
   const isLandscape = sourceWidth > sourceHeight;
   await sweepStaleWebpVariants(io, outputDir, fileBase);
   for (const size of SIZES) {
-    const pipeline = io
-      .sharp(buffer)
-      .resize(isLandscape ? null : size.shortEdge, isLandscape ? size.shortEdge : null, {
-        withoutEnlargement: true,
-      });
+    let pipeline = io.sharp(buffer);
+    if (rotation !== 0) {
+      pipeline = pipeline.rotate(rotation);
+    }
+    pipeline = pipeline.resize(
+      isLandscape ? null : size.shortEdge,
+      isLandscape ? size.shortEdge : null,
+      { withoutEnlargement: true },
+    );
     const webpBuffer = await pipeline.webp({ quality: size.quality }).toBuffer();
     await io.fs.writeFile(join(outputDir, `${fileBase}-${size.suffix}.webp`), webpBuffer);
   }
@@ -148,6 +158,7 @@ export async function processAndSave(
   originalExt: string,
   outputDir: string,
   fileBase: string,
+  rotation: number,
   /** Set to true to allow overwriting existing files (e.g. regeneration). */
   allowOverwrite = false,
 ): Promise<void> {
@@ -156,7 +167,7 @@ export async function processAndSave(
   }
   await io.fs.mkdir(outputDir, { recursive: true });
   await io.fs.writeFile(join(outputDir, `${fileBase}-orig${originalExt}`), buffer);
-  await generateWebpVariants(io, buffer, outputDir, fileBase);
+  await generateWebpVariants(io, buffer, outputDir, fileBase, rotation);
 }
 
 /**
@@ -184,6 +195,39 @@ export async function deleteRehostFiles(io: Io, rehostedUrl: string): Promise<vo
 }
 
 /**
+ * Regenerate webp variants for an image_file from its on-disk `-orig.*` file.
+ * Falls back to re-downloading from `originalUrl` if the orig file is missing.
+ * Used by the rotate endpoint to rebuild variants after changing rotation.
+ */
+export async function regenerateFromOrig(
+  io: Io,
+  imageFileId: string,
+  rotation: number,
+  originalUrl: string | null,
+): Promise<void> {
+  const outputDir = join(CARD_IMAGES_DIR, imageFileId.slice(-2));
+  let files: string[] = [];
+  try {
+    files = await io.fs.readdir(outputDir);
+  } catch {
+    // directory doesn't exist yet
+  }
+
+  const origFile = files.find((f) => f.startsWith(`${imageFileId}-orig.`));
+  if (origFile) {
+    const buffer = await io.fs.readFile(join(outputDir, origFile));
+    await generateWebpVariants(io, buffer, outputDir, imageFileId, rotation);
+    return;
+  }
+
+  if (!originalUrl) {
+    throw new Error(`No orig file on disk and no originalUrl for image ${imageFileId}`);
+  }
+  const { buffer, ext } = await downloadImage(io, originalUrl);
+  await processAndSave(io, buffer, ext, outputDir, imageFileId, rotation, true);
+}
+
+/**
  * Rehost a single image by its printing_image ID: download, process variants, and update the DB.
  * Updates the image_files row so all printings sharing this image benefit.
  * Silently swallows errors so callers can treat this as best-effort.
@@ -202,7 +246,7 @@ export async function rehostSingleImage(
     const { buffer, ext } = await downloadImage(io, image.originalUrl);
     const rehostedUrl = imageRehostedUrl(image.imageFileId);
     const outputDir = join(CARD_IMAGES_DIR, image.imageFileId.slice(-2));
-    await processAndSave(io, buffer, ext, outputDir, image.imageFileId, true);
+    await processAndSave(io, buffer, ext, outputDir, image.imageFileId, image.rotation, true);
     await repo.updateRehostedUrl(image.imageFileId, rehostedUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -236,7 +280,7 @@ export async function rehostImages(
       const { buffer, ext } = await downloadImage(io, img.originalUrl);
       const selfHostedPath = imageRehostedUrl(img.imageId);
       const outputDir = join(CARD_IMAGES_DIR, img.imageId.slice(-2));
-      await processAndSave(io, buffer, ext, outputDir, img.imageId, true);
+      await processAndSave(io, buffer, ext, outputDir, img.imageId, img.rotation, true);
       await repo.updateRehostedUrl(img.imageId, selfHostedPath);
       return "rehosted" as const;
     }),
@@ -262,7 +306,11 @@ export async function rehostImages(
   return progress;
 }
 
-export async function regenerateImages(io: Io, offset: number): Promise<RegenerateImageResponse> {
+export async function regenerateImages(
+  io: Io,
+  repo: PrintingImagesRepo,
+  offset: number,
+): Promise<RegenerateImageResponse> {
   const progress: RegenerateImageResponse = {
     total: 0,
     regenerated: 0,
@@ -298,11 +346,15 @@ export async function regenerateImages(io: Io, offset: number): Promise<Regenera
   progress.total = batch.length;
   progress.hasMore = offset + BATCH_SIZE < allOrigFiles.length;
 
+  const rotations = await repo.getRotationsByIds(
+    batch.map(({ file }) => file.replace(/-orig\.[^.]+$/, "")),
+  );
+
   const results = await Promise.allSettled(
     batch.map(async ({ prefixDir, file }) => {
       const fileBase = file.replace(/-orig\.[^.]+$/, "");
       const buffer = await io.fs.readFile(join(prefixDir, file));
-      await generateWebpVariants(io, buffer, prefixDir, fileBase);
+      await generateWebpVariants(io, buffer, prefixDir, fileBase, rotations.get(fileBase) ?? 0);
     }),
   );
 
