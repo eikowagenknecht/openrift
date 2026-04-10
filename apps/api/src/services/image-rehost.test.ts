@@ -71,7 +71,9 @@ const mockIo: Io = {
  * Creates a mock PrintingImagesRepo for rehostImages/clearAllRehosted/getRehostStatus.
  * @returns Mock repo object.
  */
-function makeMockRepo(opts: { selectResult?: any; updateResult?: any } = {}) {
+function makeMockRepo(
+  opts: { selectResult?: any; updateResult?: any; rehosted?: { imageId: string }[] } = {},
+) {
   const updateRehostedUrlFn = vi.fn(() => Promise.resolve());
   return {
     listUnrehosted: vi.fn(() => Promise.resolve(opts.selectResult ?? [])),
@@ -83,6 +85,7 @@ function makeMockRepo(opts: { selectResult?: any; updateResult?: any } = {}) {
     rehostStatusBySet: vi.fn(() => Promise.resolve(opts.selectResult ?? [])),
     allRehostedUrls: vi.fn(() => Promise.resolve([])),
     getRotationsByIds: vi.fn(() => Promise.resolve(new Map())),
+    listAllRehosted: vi.fn(() => Promise.resolve(opts.rehosted ?? [])),
   } as any;
 }
 
@@ -247,20 +250,14 @@ describe("processAndSave", () => {
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 800, { withoutEnlargement: true });
   });
 
-  it("sweeps stale webp variants (e.g. legacy 300w) before regeneration", async () => {
-    // Existing dir has orig + stale 300w + current 400w — regen should
-    // delete 300w but keep orig alone (sweep only touches .webp files).
-    mockReaddir.mockResolvedValue([
-      "card-001-orig.png",
-      "card-001-300w.webp",
-      "card-001-400w.webp",
-      "card-001-full.webp",
-    ]);
+  it("sweeps a pre-existing orig with a different extension before writing", async () => {
+    // Existing dir holds a legacy png-orig; new rehost delivers webp.
+    // processAndSave should delete the png-orig so we don't end up with both.
+    mockReaddir.mockResolvedValue(["card-001-orig.png"]);
+    await processAndSave(mockIo, Buffer.from("w"), ".webp", "/tmp/out", "card-001", 0, true);
 
-    await processAndSave(mockIo, Buffer.from("b"), ".png", "/tmp/out", "card-001", 0, true);
-
-    expect(mockUnlink).toHaveBeenCalledTimes(1);
-    expect(mockUnlink).toHaveBeenCalledWith("/tmp/out/card-001-300w.webp");
+    expect(mockUnlink).toHaveBeenCalledWith("/tmp/out/card-001-orig.png");
+    expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-orig.webp", expect.any(Buffer));
   });
 });
 
@@ -386,9 +383,8 @@ describe("rehostImages", () => {
 });
 
 describe("regenerateImages", () => {
-  it("returns empty when card-images dir missing", async () => {
-    mockReaddir.mockRejectedValue(new Error("ENOENT"));
-    const result = await regenerateImages(mockIo, makeMockRepo(), 0);
+  it("returns empty when DB has no rehosted images", async () => {
+    const result = await regenerateImages(mockIo, makeMockRepo({ rehosted: [] }), 0);
     expect(result).toEqual({
       total: 0,
       regenerated: 0,
@@ -399,101 +395,83 @@ describe("regenerateImages", () => {
     });
   });
 
-  it("handles no orig files", async () => {
-    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
-      if (opts?.withFileTypes) {
-        return [dirent("set1", true)];
-      }
-      return ["card-300w.webp"]; // no -orig. files
+  it("regenerates variants from on-disk orig files for each DB row", async () => {
+    const repo = makeMockRepo({
+      rehosted: [{ imageId: "card-001" }, { imageId: "card-002" }],
     });
-    const result = await regenerateImages(mockIo, makeMockRepo(), 0);
-    expect(result.total).toBe(0);
-    expect(result.hasMore).toBe(false);
-  });
-
-  it("regenerates variants from orig files", async () => {
-    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
-      if (opts?.withFileTypes) {
-        return [dirent("set1", true), dirent(".gitkeep", false)];
-      }
-      return ["card-001-orig.png", "card-002-orig.jpg"];
-    });
-    const result = await regenerateImages(mockIo, makeMockRepo(), 0);
+    mockReaddir.mockImplementation(async () => ["card-001-orig.png", "card-002-orig.jpg"]);
+    const result = await regenerateImages(mockIo, repo, 0);
     expect(result.regenerated).toBe(2);
     expect(result.totalFiles).toBe(2);
     expect(mockReadFile).toHaveBeenCalledTimes(2);
   });
 
-  it("sets hasMore when exceeding batch size", async () => {
-    const files = Array.from({ length: 15 }, (_, i) => `card-${i}-orig.png`);
-    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
-      if (opts?.withFileTypes) {
-        return [dirent("set1", true)];
-      }
-      return files;
-    });
-    const result = await regenerateImages(mockIo, makeMockRepo(), 0);
+  it("sets hasMore when rehosted count exceeds batch size", async () => {
+    const rehosted = Array.from({ length: 15 }, (_, i) => ({ imageId: `card-${i}` }));
+    const repo = makeMockRepo({ rehosted });
+    mockReaddir.mockImplementation(async () => rehosted.map((r) => `${r.imageId}-orig.png`));
+    const result = await regenerateImages(mockIo, repo, 0);
     expect(result.totalFiles).toBe(15);
     expect(result.total).toBe(10);
     expect(result.hasMore).toBe(true);
     expect(result.regenerated).toBe(10);
   });
 
-  it("counts readFile failures", async () => {
-    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
-      if (opts?.withFileTypes) {
-        return [dirent("set1", true)];
-      }
-      return ["card-001-orig.png"];
-    });
-    mockReadFile.mockRejectedValue(new Error("read error"));
-    const result = await regenerateImages(mockIo, makeMockRepo(), 0);
-    expect(result.failed).toBe(1);
-    expect(result.errors[0]).toContain("read error");
-  });
-
-  it("paginates with offset > 0", async () => {
-    const files = Array.from({ length: 15 }, (_, i) => `card-${i}-orig.png`);
-    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
-      if (opts?.withFileTypes) {
-        return [dirent("set1", true)];
-      }
-      return files;
-    });
-    const result = await regenerateImages(mockIo, makeMockRepo(), 10);
+  it("paginates with offset > 0 over a stable DB list", async () => {
+    const rehosted = Array.from({ length: 15 }, (_, i) => ({ imageId: `card-${i}` }));
+    const repo = makeMockRepo({ rehosted });
+    mockReaddir.mockImplementation(async () => rehosted.map((r) => `${r.imageId}-orig.png`));
+    const result = await regenerateImages(mockIo, repo, 10);
     expect(result.totalFiles).toBe(15);
     expect(result.total).toBe(5);
     expect(result.hasMore).toBe(false);
     expect(result.regenerated).toBe(5);
   });
 
-  it("handles non-Error thrown values in regeneration", async () => {
-    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
-      if (opts?.withFileTypes) {
-        return [dirent("set1", true)];
-      }
-      return ["card-001-orig.png"];
+  it("clears stale rehostedUrl when the prefix dir is missing entirely", async () => {
+    const repo = makeMockRepo({
+      rehosted: [{ imageId: "card-001", rehostedUrl: "/card-images/01/card-001" }],
     });
-    mockReadFile.mockRejectedValue("raw-string-error");
-    const result = await regenerateImages(mockIo, makeMockRepo(), 0);
+    mockReaddir.mockRejectedValue(new Error("ENOENT"));
+    const result = await regenerateImages(mockIo, repo, 0);
     expect(result.failed).toBe(1);
-    expect(result.errors[0]).toContain("raw-string-error");
+    expect(result.regenerated).toBe(0);
+    expect(result.errors[0]).toContain("prefix dir missing");
+    expect(result.errors[0]).toContain("cleared stale rehostedUrl");
+    expect(repo.updateRehostedUrl).toHaveBeenCalledWith("card-001", null);
   });
 
-  it("collects orig files across multiple set directories", async () => {
-    let callIndex = 0;
-    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
-      if (opts?.withFileTypes) {
-        return [dirent("alpha", true), dirent("beta", true)];
-      }
-      callIndex++;
-      // alpha has 1 orig, beta has 1 orig
-      return callIndex === 1 ? ["card-a-orig.png"] : ["card-b-orig.jpg"];
+  it("deletes dangling variants and clears DB when -orig is missing", async () => {
+    const repo = makeMockRepo({
+      rehosted: [{ imageId: "card-001", rehostedUrl: "/card-images/01/card-001" }],
     });
-    const result = await regenerateImages(mockIo, makeMockRepo(), 0);
-    expect(result.totalFiles).toBe(2);
-    expect(result.regenerated).toBe(2);
-    expect(mockReadFile).toHaveBeenCalledTimes(2);
+    mockReaddir.mockImplementation(async () => ["card-001-400w.webp", "card-001-full.webp"]);
+    const result = await regenerateImages(mockIo, repo, 0);
+    expect(result.failed).toBe(1);
+    expect(result.regenerated).toBe(0);
+    expect(result.errors[0]).toContain("no -orig file on disk");
+    expect(result.errors[0]).toContain("cleared stale rehostedUrl");
+    // deleteRehostFiles unlinks the matching files it finds in the parent dir
+    expect(mockUnlink).toHaveBeenCalled();
+    expect(repo.updateRehostedUrl).toHaveBeenCalledWith("card-001", null);
+  });
+
+  it("counts readFile failures", async () => {
+    const repo = makeMockRepo({ rehosted: [{ imageId: "card-001" }] });
+    mockReaddir.mockImplementation(async () => ["card-001-orig.png"]);
+    mockReadFile.mockRejectedValue(new Error("read error"));
+    const result = await regenerateImages(mockIo, repo, 0);
+    expect(result.failed).toBe(1);
+    expect(result.errors[0]).toContain("read error");
+  });
+
+  it("handles non-Error thrown values in regeneration", async () => {
+    const repo = makeMockRepo({ rehosted: [{ imageId: "card-001" }] });
+    mockReaddir.mockImplementation(async () => ["card-001-orig.png"]);
+    mockReadFile.mockRejectedValue("raw-string-error");
+    const result = await regenerateImages(mockIo, repo, 0);
+    expect(result.failed).toBe(1);
+    expect(result.errors[0]).toContain("raw-string-error");
   });
 });
 
@@ -698,6 +676,31 @@ describe("getRehostStatus", () => {
     const result = await getRehostStatus(mockIo, repo);
     expect(result.orphanedFiles).toBe(2);
   });
+
+  it("counts duplicate -orig.* archives as orphaned (count - 1 per base)", async () => {
+    const repo = makeMockRepo({
+      selectResult: [{ setId: "s", setName: "Set", total: 1, rehosted: 1 }],
+    });
+    repo.allRehostedUrls = vi.fn(() =>
+      Promise.resolve(["/card-images/s1/img-1", "/card-images/s1/img-2"]),
+    );
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("s1", true)];
+      }
+      // img-1 has 2 orig (1 duplicate); img-2 has 3 orig (2 duplicates)
+      return [
+        "img-1-orig.png",
+        "img-1-orig.webp",
+        "img-2-orig.png",
+        "img-2-orig.jpg",
+        "img-2-orig.webp",
+      ];
+    });
+
+    const result = await getRehostStatus(mockIo, repo);
+    expect(result.orphanedFiles).toBe(3);
+  });
 });
 
 describe("imageRehostedUrl", () => {
@@ -777,7 +780,7 @@ describe("cleanupOrphanedFiles", () => {
       if (opts?.withFileTypes) {
         return [dirent("g1", true)];
       }
-      return ["img-1-300w.webp", "orphan-300w.webp"];
+      return ["img-1-full.webp", "orphan-full.webp"];
     });
 
     const result = await cleanupOrphanedFiles(mockIo, repo);
@@ -785,6 +788,54 @@ describe("cleanupOrphanedFiles", () => {
     expect(result.scanned).toBe(2);
     expect(result.deleted).toBe(1);
     expect(result.errors).toHaveLength(0);
+  });
+
+  it("deletes stale duplicate -orig.* archives, keeping the newest by mtime", async () => {
+    const repo = {
+      allRehostedUrls: vi.fn(async () => ["/card-images/g1/img-1"]),
+    } as any;
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("g1", true)];
+      }
+      return ["img-1-orig.png", "img-1-orig.webp", "img-1-400w.webp", "img-1-full.webp"];
+    });
+    // png is older, webp is newer → keep webp, delete png
+    mockStat.mockImplementation(async (path: any) => {
+      if (String(path).endsWith("img-1-orig.png")) {
+        return { size: 1000, mtime: new Date("2024-01-01") };
+      }
+      if (String(path).endsWith("img-1-orig.webp")) {
+        return { size: 1000, mtime: new Date("2024-06-01") };
+      }
+      return { size: 500, mtime: new Date("2024-06-01") };
+    });
+
+    const result = await cleanupOrphanedFiles(mockIo, repo);
+
+    expect(result.deleted).toBe(1);
+    expect(mockUnlink).toHaveBeenCalledWith(expect.stringContaining("img-1-orig.png"));
+    expect(mockUnlink).not.toHaveBeenCalledWith(expect.stringContaining("img-1-orig.webp"));
+  });
+
+  it("deletes files whose variant suffix is no longer in SIZES", async () => {
+    const repo = {
+      allRehostedUrls: vi.fn(async () => ["/card-images/g1/img-1"]),
+    } as any;
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("g1", true)];
+      }
+      // img-1 has a DB entry so its base matches, but -300w is no longer in SIZES
+      // → treated as orphaned. -full and -orig remain valid.
+      return ["img-1-300w.webp", "img-1-400w.webp", "img-1-full.webp", "img-1-orig.png"];
+    });
+
+    const result = await cleanupOrphanedFiles(mockIo, repo);
+
+    expect(result.scanned).toBe(4);
+    expect(result.deleted).toBe(1);
+    expect(mockUnlink).toHaveBeenCalledWith(expect.stringContaining("img-1-300w.webp"));
   });
 
   it("reports unlink errors", async () => {
@@ -808,21 +859,19 @@ describe("cleanupOrphanedFiles", () => {
 });
 
 describe("findBrokenImages", () => {
-  it("returns empty broken list when all files exist", async () => {
-    const repo = {
-      listAllRehostedWithContext: vi.fn(async () => [
-        {
-          imageId: "img-1",
-          rehostedUrl: "/card-images/g1/img-1",
-          originalUrl: "https://example.com/img.png",
-          cardSlug: "c-1",
-          cardName: "Card",
-          printingShortCode: "p-1",
-          setSlug: "set-a",
-        },
-      ]),
-    } as any;
-    mockReaddir.mockResolvedValue(["img-1-orig.png"]);
+  const sampleImage = {
+    imageId: "img-1",
+    rehostedUrl: "/card-images/g1/img-1",
+    originalUrl: "https://example.com/img.png",
+    cardSlug: "c-1",
+    cardName: "Card",
+    printingShortCode: "p-1",
+    setSlug: "set-a",
+  };
+
+  it("returns empty broken list when orig + all SIZES variants exist", async () => {
+    const repo = { listAllRehostedWithContext: vi.fn(async () => [sampleImage]) } as any;
+    mockReaddir.mockResolvedValue(["img-1-orig.png", "img-1-400w.webp", "img-1-full.webp"]);
 
     const result = await findBrokenImages(mockIo, repo);
 
@@ -831,19 +880,7 @@ describe("findBrokenImages", () => {
   });
 
   it("identifies broken images with no files on disk", async () => {
-    const repo = {
-      listAllRehostedWithContext: vi.fn(async () => [
-        {
-          imageId: "img-1",
-          rehostedUrl: "/card-images/g1/img-1",
-          originalUrl: "https://example.com/img.png",
-          cardSlug: "c-1",
-          cardName: "Card",
-          printingShortCode: "p-1",
-          setSlug: "set-a",
-        },
-      ]),
-    } as any;
+    const repo = { listAllRehostedWithContext: vi.fn(async () => [sampleImage]) } as any;
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
 
     const result = await findBrokenImages(mockIo, repo);
@@ -851,6 +888,25 @@ describe("findBrokenImages", () => {
     expect(result.total).toBe(1);
     expect(result.broken).toHaveLength(1);
     expect(result.broken[0].imageId).toBe("img-1");
+  });
+
+  it("flags images missing the -orig archive (variants alone don't count)", async () => {
+    const repo = { listAllRehostedWithContext: vi.fn(async () => [sampleImage]) } as any;
+    mockReaddir.mockResolvedValue(["img-1-400w.webp", "img-1-full.webp"]);
+
+    const result = await findBrokenImages(mockIo, repo);
+
+    expect(result.broken).toHaveLength(1);
+    expect(result.broken[0].imageId).toBe("img-1");
+  });
+
+  it("flags images missing any current SIZES variant", async () => {
+    const repo = { listAllRehostedWithContext: vi.fn(async () => [sampleImage]) } as any;
+    mockReaddir.mockResolvedValue(["img-1-orig.png", "img-1-400w.webp"]); // no -full.webp
+
+    const result = await findBrokenImages(mockIo, repo);
+
+    expect(result.broken).toHaveLength(1);
   });
 });
 

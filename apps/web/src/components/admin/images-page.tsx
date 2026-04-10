@@ -183,7 +183,7 @@ function ManageSection() {
             <>
               {" · "}
               {status.disk.byResolution
-                .map((r) => `${r.resolution}: ${formatBytes(r.bytes)}`)
+                .map((r) => `${r.resolution}: ${r.fileCount} / ${formatBytes(r.bytes)}`)
                 .join(", ")}
             </>
           )}

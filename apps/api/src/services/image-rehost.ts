@@ -84,20 +84,18 @@ export async function downloadImage(io: Io, url: string): Promise<{ buffer: Buff
   return { buffer, ext };
 }
 
-async function sweepStaleWebpVariants(io: Io, outputDir: string, fileBase: string): Promise<void> {
-  let files: string[];
-  try {
-    files = await io.fs.readdir(outputDir);
-  } catch {
-    return;
+/**
+ * Whether a filename uses a currently-valid variant suffix (`-orig.{ext}` or
+ * `-{SIZES.suffix}.webp`). Files failing this check are either legacy-resolution
+ * stragglers (e.g. `-300w.webp`) or unrelated junk, and should be treated as
+ * orphaned by the cleanup pass.
+ * @returns `true` when the filename matches a known suffix.
+ */
+function isValidVariantSuffix(file: string): boolean {
+  if (/-orig\.[^.]+$/.test(file)) {
+    return true;
   }
-  const current = new Set(SIZES.map((s) => `${fileBase}-${s.suffix}.webp`));
-  for (const file of files) {
-    if (file.startsWith(`${fileBase}-`) && file.endsWith(".webp") && !current.has(file)) {
-      // oxlint-disable-next-line no-empty-function -- swallow missing-file errors
-      await io.fs.unlink(join(outputDir, file)).catch(() => {});
-    }
-  }
+  return SIZES.some((size) => file.endsWith(`-${size.suffix}.webp`));
 }
 
 async function generateWebpVariants(
@@ -117,7 +115,6 @@ async function generateWebpVariants(
   const sourceWidth = swap ? rawHeight : rawWidth;
   const sourceHeight = swap ? rawWidth : rawHeight;
   const isLandscape = sourceWidth > sourceHeight;
-  await sweepStaleWebpVariants(io, outputDir, fileBase);
   for (const size of SIZES) {
     let pipeline = io.sharp(buffer);
     if (rotation !== 0) {
@@ -136,6 +133,9 @@ async function generateWebpVariants(
 /**
  * Check whether rehosted files already exist on disk for a given file base.
  * Looks for any file starting with `{fileBase}-` in the output directory.
+ * Used by `processAndSave` as a cheap "don't clobber" guard — NOT for
+ * integrity checking. Use `rehostFilesComplete` for "are all required files
+ * present" (broken-image detection).
  * @returns `true` if at least one matching file exists.
  */
 export async function rehostFilesExist(
@@ -152,6 +152,47 @@ export async function rehostFilesExist(
   return files.some((f) => f.startsWith(`${fileBase}-`));
 }
 
+/**
+ * Check whether ALL expected rehost files exist on disk: the `-orig.*` archive
+ * plus every `-{SIZES.suffix}.webp` variant. Used by the broken-image finder
+ * so an image missing its orig (or any variant) is surfaced to the admin.
+ * @returns `true` when every required file is present.
+ */
+async function rehostFilesComplete(io: Io, outputDir: string, fileBase: string): Promise<boolean> {
+  let files: string[];
+  try {
+    files = await io.fs.readdir(outputDir);
+  } catch {
+    return false;
+  }
+  const hasOrig = files.some((f) => f.startsWith(`${fileBase}-orig.`));
+  if (!hasOrig) {
+    return false;
+  }
+  return SIZES.every((size) => files.includes(`${fileBase}-${size.suffix}.webp`));
+}
+
+/**
+ * Remove every `{fileBase}-orig.*` file from `outputDir`. Used to sweep stale
+ * orig archives with a *different* extension before writing a new one —
+ * otherwise a format change upstream (e.g. png → webp) leaves both files on
+ * disk and we end up with duplicate origs.
+ */
+async function sweepExistingOrig(io: Io, outputDir: string, fileBase: string): Promise<void> {
+  let files: string[];
+  try {
+    files = await io.fs.readdir(outputDir);
+  } catch {
+    return;
+  }
+  for (const file of files) {
+    if (file.startsWith(`${fileBase}-orig.`)) {
+      // oxlint-disable-next-line no-empty-function -- swallow missing-file errors
+      await io.fs.unlink(join(outputDir, file)).catch(() => {});
+    }
+  }
+}
+
 export async function processAndSave(
   io: Io,
   buffer: Buffer,
@@ -166,6 +207,9 @@ export async function processAndSave(
     throw new Error(`Rehost files already exist for ${fileBase} in ${outputDir}`);
   }
   await io.fs.mkdir(outputDir, { recursive: true });
+  // Sweep any pre-existing orig with a different extension so we don't end
+  // up with both e.g. `{base}-orig.png` and `{base}-orig.webp` on disk.
+  await sweepExistingOrig(io, outputDir, fileBase);
   await io.fs.writeFile(join(outputDir, `${fileBase}-orig${originalExt}`), buffer);
   await generateWebpVariants(io, buffer, outputDir, fileBase, rotation);
 }
@@ -320,41 +364,54 @@ export async function regenerateImages(
     totalFiles: 0,
   };
 
-  // Collect all orig files across all prefix directories
-  const allOrigFiles: { prefixDir: string; prefix: string; file: string }[] = [];
-  try {
-    const entries = await io.fs.readdir(CARD_IMAGES_DIR, { withFileTypes: true });
-    const prefixDirs = entries
-      .filter((e) => e.isDirectory())
-      .map((e) => e.name)
-      .sort();
-    for (const prefix of prefixDirs) {
-      const prefixDir = join(CARD_IMAGES_DIR, prefix);
-      const files = await io.fs.readdir(prefixDir);
-      for (const file of files) {
-        if (file.includes("-orig.")) {
-          allOrigFiles.push({ prefixDir, prefix, file });
-        }
-      }
-    }
-  } catch {
+  // Drive pagination from the DB, not a disk scan. The DB list is stable across
+  // paginated calls even while regeneration is mutating disk state underneath;
+  // a disk scan reorders as variants get added/removed and causes slice()
+  // offsets to skip files between batches.
+  const allImages = await repo.listAllRehosted();
+  progress.totalFiles = allImages.length;
+
+  const batch = allImages.slice(offset, offset + BATCH_SIZE);
+  progress.total = batch.length;
+  progress.hasMore = offset + BATCH_SIZE < allImages.length;
+
+  if (batch.length === 0) {
     return progress;
   }
 
-  progress.totalFiles = allOrigFiles.length;
-  const batch = allOrigFiles.slice(offset, offset + BATCH_SIZE);
-  progress.total = batch.length;
-  progress.hasMore = offset + BATCH_SIZE < allOrigFiles.length;
-
-  const rotations = await repo.getRotationsByIds(
-    batch.map(({ file }) => file.replace(/-orig\.[^.]+$/, "")),
-  );
+  const rotations = await repo.getRotationsByIds(batch.map((img) => img.imageId));
 
   const results = await Promise.allSettled(
-    batch.map(async ({ prefixDir, file }) => {
-      const fileBase = file.replace(/-orig\.[^.]+$/, "");
-      const buffer = await io.fs.readFile(join(prefixDir, file));
-      await generateWebpVariants(io, buffer, prefixDir, fileBase, rotations.get(fileBase) ?? 0);
+    batch.map(async (img) => {
+      const prefixDir = join(CARD_IMAGES_DIR, img.imageId.slice(-2));
+      let files: string[];
+      try {
+        files = await io.fs.readdir(prefixDir);
+      } catch {
+        // Prefix dir is gone entirely — the DB still thinks this image is
+        // rehosted. Clean up the stale DB entry so a future rehost-images
+        // run can re-fetch it fresh.
+        await repo.updateRehostedUrl(img.imageId, null);
+        throw new Error(`prefix dir missing; cleared stale rehostedUrl`);
+      }
+      const origFile = files.find((f) => f.startsWith(`${img.imageId}-orig.`));
+      if (!origFile) {
+        // Variants exist but the -orig archive is gone — we can't regenerate
+        // from local files, and regenerate is a local-only operation. Delete
+        // the dangling variants and clear rehostedUrl in the DB; the next
+        // rehost-images run will re-download and rebuild everything.
+        await deleteRehostFiles(io, img.rehostedUrl);
+        await repo.updateRehostedUrl(img.imageId, null);
+        throw new Error(`no -orig file on disk; cleared stale rehostedUrl and removed variants`);
+      }
+      const buffer = await io.fs.readFile(join(prefixDir, origFile));
+      await generateWebpVariants(
+        io,
+        buffer,
+        prefixDir,
+        img.imageId,
+        rotations.get(img.imageId) ?? 0,
+      );
     }),
   );
 
@@ -364,11 +421,11 @@ export async function regenerateImages(
       progress.regenerated++;
     } else {
       progress.failed++;
-      const { prefix, file } = batch[idx];
+      const { imageId } = batch[idx];
       const message =
         result.reason instanceof Error ? result.reason.message : String(result.reason);
-      progress.errors.push(`${prefix}/${file}: ${message}`);
-      console.error(`[regenerate] Failed for ${prefix}/${file}:`, message);
+      progress.errors.push(`${imageId}: ${message}`);
+      console.error(`[regenerate] ${imageId}:`, message);
     }
   }
 
@@ -495,13 +552,30 @@ export async function getRehostStatus(
     return { setId: row.setId, setName: row.setName, total: t, rehosted: r, external: t - r };
   });
 
-  // Count orphaned files (on disk but no matching DB entry)
+  // Count orphaned files: the DB doesn't know the base UUID, or the filename
+  // uses a variant suffix that's no longer in the current SIZES config
+  // (e.g. legacy `-300w.webp` stragglers after a resolution change). Also
+  // add stale duplicate `-orig.*` archives — when multiple origs exist for
+  // the same base (from an upstream format change), cleanup keeps the newest
+  // so `(count - 1)` of them are orphans per base.
   const knownPrefixes = new Set(knownUrls);
   let orphanedFiles = 0;
   for (const { prefix, files } of filesByPrefix) {
     for (const file of files) {
-      if (!knownPrefixes.has(diskFileToPrefix(prefix, file))) {
+      if (!isValidVariantSuffix(file) || !knownPrefixes.has(diskFileToPrefix(prefix, file))) {
         orphanedFiles++;
+      }
+    }
+    const origCountByBase = new Map<string, number>();
+    for (const file of files) {
+      const match = ORIG_FILE_RE.exec(file);
+      if (match) {
+        origCountByBase.set(match[1], (origCountByBase.get(match[1]) ?? 0) + 1);
+      }
+    }
+    for (const count of origCountByBase.values()) {
+      if (count > 1) {
+        orphanedFiles += count - 1;
       }
     }
   }
@@ -509,10 +583,55 @@ export async function getRehostStatus(
   return { total, rehosted, external: total - rehosted, orphanedFiles, sets, disk };
 }
 
+const ORIG_FILE_RE = /^(.+)-orig\.[^.]+$/;
+
 /**
- * Delete files in the card-images directory that don't match any rehostedUrl in the DB.
- * Compares the `/card-images/{set}/{fileBase}` prefix of each file against the set of
- * known rehosted URLs. Files whose prefix has no DB match are deleted.
+ * Identify stale duplicate `{base}-orig.*` files in a directory — when more
+ * than one orig archive exists for the same base (e.g. both `-orig.png` and
+ * `-orig.webp`, left over when the upstream content type changed between
+ * rehost runs), keep the newest by mtime and return the rest for deletion.
+ * @returns Filenames that should be removed.
+ */
+async function findDuplicateOrigs(
+  io: Io,
+  prefixDir: string,
+  files: string[],
+): Promise<Set<string>> {
+  const byBase = new Map<string, { file: string; mtime: number }[]>();
+  for (const file of files) {
+    const match = ORIG_FILE_RE.exec(file);
+    if (!match) {
+      continue;
+    }
+    const base = match[1];
+    const info = await io.fs.stat(join(prefixDir, file));
+    const mtime = info.mtime instanceof Date ? info.mtime.getTime() : 0;
+    const list = byBase.get(base) ?? [];
+    list.push({ file, mtime });
+    byBase.set(base, list);
+  }
+
+  const stale = new Set<string>();
+  for (const origs of byBase.values()) {
+    if (origs.length <= 1) {
+      continue;
+    }
+    origs.sort((a, b) => b.mtime - a.mtime); // newest first
+    for (let i = 1; i < origs.length; i++) {
+      stale.add(origs[i].file);
+    }
+  }
+  return stale;
+}
+
+/**
+ * Delete files in the card-images directory that are no longer valid. A file
+ * is considered orphaned if its base UUID has no matching rehostedUrl in the
+ * DB, if its variant suffix is not in the current SIZES config (e.g. legacy
+ * `-300w.webp` after a resolution change), or if it is a stale duplicate
+ * `-orig.*` (another orig with a different extension exists and is newer).
+ * This is the one place users can reach for to sweep stale files, so
+ * regenerate no longer needs to touch them.
  * @returns Counts of scanned files, deleted files, and any errors.
  */
 export async function cleanupOrphanedFiles(
@@ -526,9 +645,15 @@ export async function cleanupOrphanedFiles(
 
   for (const { prefix, files } of filesByPrefix) {
     const prefixDir = join(CARD_IMAGES_DIR, prefix);
+    const staleDuplicateOrigs = await findDuplicateOrigs(io, prefixDir, files);
+
     for (const file of files) {
       progress.scanned++;
-      if (!knownPrefixes.has(diskFileToPrefix(prefix, file))) {
+      const orphaned =
+        !isValidVariantSuffix(file) ||
+        !knownPrefixes.has(diskFileToPrefix(prefix, file)) ||
+        staleDuplicateOrigs.has(file);
+      if (orphaned) {
         try {
           await io.fs.unlink(join(prefixDir, file));
           progress.deleted++;
@@ -544,8 +669,10 @@ export async function cleanupOrphanedFiles(
 }
 
 /**
- * Find all rehosted card images whose files are missing on disk.
- * Checks for the presence of at least one variant file per rehosted URL.
+ * Find all rehosted card images with missing files on disk. An image is
+ * considered broken if its `-orig.*` archive is missing OR any current
+ * `-{SIZES.suffix}.webp` variant is missing. This also catches images left
+ * over from earlier resolution changes where the orig was never preserved.
  * @returns The total rehosted count and the list of entries with missing files.
  */
 export async function findBrokenImages(
@@ -559,8 +686,8 @@ export async function findBrokenImages(
     const relPath = img.rehostedUrl.replace(/^\/card-images\//, "");
     const dir = join(CARD_IMAGES_DIR, relPath.split("/").slice(0, -1).join("/"));
     const fileBase = relPath.split("/").pop() as string;
-    const exists = await rehostFilesExist(io, dir, fileBase);
-    if (!exists) {
+    const complete = await rehostFilesComplete(io, dir, fileBase);
+    if (!complete) {
       broken.push({
         imageId: img.imageId,
         rehostedUrl: img.rehostedUrl,
