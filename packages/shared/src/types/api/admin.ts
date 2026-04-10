@@ -247,12 +247,12 @@ interface IgnoredProductBase {
 }
 
 /** Level 2: the entire upstream product is denied (sealed product, bundles, etc.). */
-export interface IgnoredProductLevelTwoResponse extends IgnoredProductBase {
+interface IgnoredProductLevelTwoResponse extends IgnoredProductBase {
   level: "product";
 }
 
 /** Level 3: one specific SKU of an otherwise-mapped upstream product is denied. */
-export interface IgnoredProductLevelThreeResponse extends IgnoredProductBase {
+interface IgnoredProductLevelThreeResponse extends IgnoredProductBase {
   level: "variant";
   finish: string;
   language: string;

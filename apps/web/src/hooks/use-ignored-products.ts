@@ -9,14 +9,14 @@ import { withCookies } from "@/lib/server-fns/middleware";
 type Marketplace = "tcgplayer" | "cardmarket" | "cardtrader";
 
 /** Unignore a whole upstream product (level 2). */
-export interface UnignoreProductInput {
+interface UnignoreProductInput {
   level: "product";
   marketplace: Marketplace;
   externalId: number;
 }
 
 /** Unignore one specific SKU of an upstream product (level 3). */
-export interface UnignoreVariantInput {
+interface UnignoreVariantInput {
   level: "variant";
   marketplace: Marketplace;
   externalId: number;
@@ -24,7 +24,7 @@ export interface UnignoreVariantInput {
   language: string;
 }
 
-export type UnignoreInput = UnignoreProductInput | UnignoreVariantInput;
+type UnignoreInput = UnignoreProductInput | UnignoreVariantInput;
 
 const fetchIgnoredProducts = createServerFn({ method: "GET" })
   .middleware([withCookies])
