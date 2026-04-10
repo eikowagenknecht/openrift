@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CARD_FURY_UNIT, PRINTING_1, PRINTING_2 } from "../../test/fixtures/constants.js";
+import { PRINTING_1, PRINTING_2 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
@@ -92,7 +92,7 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
   // ── GET /copies ───────────────────────────────────────────────────────────
 
   describe("GET /copies", () => {
-    it("returns all copies for the user with card info", async () => {
+    it("returns all copies for the user", async () => {
       const res = await app.fetch(req("GET", "/copies"));
       expect(res.status).toBe(200);
 
@@ -101,13 +101,11 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       // 3 from first add + 1 from inbox add = 4
       expect(json.items.length).toBe(4);
 
-      // Each copy should have denormalized card info
       const copy = json.items[0];
       expect(copy.id).toBeTypeOf("string");
       expect(copy.printingId).toBeTypeOf("string");
       expect(copy.collectionId).toBeTypeOf("string");
-      expect(copy.cardName).toBe(CARD_FURY_UNIT.name);
-      expect(copy.cardType).toBe(CARD_FURY_UNIT.type);
+      expect(copy.createdAt).toBeTypeOf("string");
     });
   });
 
@@ -125,31 +123,6 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     });
   });
 
-  // ── GET /copies/:id ───────────────────────────────────────────────────────
-
-  describe("GET /copies/:id", () => {
-    it("returns a single copy by ID", async () => {
-      const res = await app.fetch(req("GET", `/copies/${copyIds[0]}`));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.id).toBe(copyIds[0]);
-      expect(json.collectionId).toBe(collectionId);
-      expect(json.cardName).toBe(CARD_FURY_UNIT.name);
-      // Should include the same fields as GET /copies
-      expect(json.artVariant).toBeTypeOf("string");
-      expect(json.isSigned).toBe(false);
-      expect(json.finish).toBe("normal");
-      expect(json.artist).toBeTypeOf("string");
-    });
-
-    it("returns 404 for non-existent copy", async () => {
-      const fakeId = "00000000-0000-4000-a000-000000000000";
-      const res = await app.fetch(req("GET", `/copies/${fakeId}`));
-      expect(res.status).toBe(404);
-    });
-  });
-
   // ── POST /copies/move ─────────────────────────────────────────────────────
 
   describe("POST /copies/move", () => {
@@ -163,9 +136,10 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(res.status).toBe(204);
 
       // Verify the copy is now in the second collection
-      const copyRes = await app.fetch(req("GET", `/copies/${copyIds[0]}`));
-      const copy = await copyRes.json();
-      expect(copy.collectionId).toBe(secondCollectionId);
+      const listRes = await app.fetch(req("GET", "/copies"));
+      const list = (await listRes.json()) as { items: { id: string; collectionId: string }[] };
+      const moved = list.items.find((item) => item.id === copyIds[0]);
+      expect(moved?.collectionId).toBe(secondCollectionId);
     });
 
     it("rejects moving to non-existent collection", async () => {
@@ -192,8 +166,9 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
       expect(res.status).toBe(204);
 
       // Verify the copy is gone
-      const copyRes = await app.fetch(req("GET", `/copies/${copyIds[2]}`));
-      expect(copyRes.status).toBe(404);
+      const listRes = await app.fetch(req("GET", "/copies"));
+      const list = (await listRes.json()) as { items: { id: string }[] };
+      expect(list.items.find((item) => item.id === copyIds[2])).toBeUndefined();
     });
 
     it("rejects with empty copyIds", async () => {

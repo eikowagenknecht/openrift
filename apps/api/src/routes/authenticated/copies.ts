@@ -8,21 +8,18 @@ import {
   copyCollectionBreakdownResponseSchema,
   copyCountResponseSchema,
   copyListResponseSchema,
-  copyResponseSchema,
 } from "@openrift/shared/response-schemas";
 import {
   addCopiesSchema,
   copiesQuerySchema,
   copyCollectionBreakdownQuerySchema,
   disposeCopiesSchema,
-  idParamSchema,
   moveCopiesSchema,
 } from "@openrift/shared/schemas";
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import type { Variables } from "../../types.js";
-import { assertFound } from "../../utils/assertions.js";
 import { toCopy } from "../../utils/mappers.js";
 
 const listCopies = createRoute({
@@ -99,19 +96,6 @@ const countCopiesByCollection = createRoute({
   },
 });
 
-const getCopy = createRoute({
-  method: "get",
-  path: "/{id}",
-  tags: ["Copies"],
-  request: { params: idParamSchema },
-  responses: {
-    200: {
-      content: { "application/json": { schema: copyResponseSchema } },
-      description: "Success",
-    },
-  },
-});
-
 const copiesApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/copies");
 copiesApp.use(requireAuth);
 export const copiesRoute = copiesApp
@@ -121,10 +105,11 @@ export const copiesRoute = copiesApp
   .openapi(listCopies, async (c) => {
     const { copies } = c.get("repos");
     const { cursor, limit } = c.req.valid("query");
+    const effectiveLimit = limit ?? 500;
 
-    const rows = await copies.listForUser(getUserId(c), limit, cursor);
-    const hasMore = limit !== undefined && rows.length > limit;
-    const items = limit === undefined ? rows : rows.slice(0, limit);
+    const rows = await copies.listForUser(getUserId(c), effectiveLimit, cursor);
+    const hasMore = rows.length > effectiveLimit;
+    const items = rows.slice(0, effectiveLimit);
 
     return c.json({
       items: items.map((row) => toCopy(row)),
@@ -191,14 +176,4 @@ export const copiesRoute = copiesApp
     const { printingId } = c.req.valid("query");
     const rows = await copies.countByCollectionForPrinting(getUserId(c), printingId);
     return c.json({ items: rows } satisfies CopyCollectionBreakdownResponse);
-  })
-
-  // ── GET /copies/:id ─────────────────────────────────────────────────────────
-
-  .openapi(getCopy, async (c) => {
-    const { copies } = c.get("repos");
-    const { id } = c.req.valid("param");
-    const copy = await copies.getByIdForUser(id, getUserId(c));
-    assertFound(copy, "Not found");
-    return c.json(toCopy(copy));
   });

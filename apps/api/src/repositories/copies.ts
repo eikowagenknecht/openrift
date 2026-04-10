@@ -3,10 +3,7 @@ import type { Insertable, Kysely, Selectable } from "kysely";
 import type { CopiesTable, Database } from "../db/index.js";
 
 /** Slim copy row — printing details are resolved client-side from the catalog. */
-type CopyRow = Pick<
-  Selectable<CopiesTable>,
-  "id" | "printingId" | "collectionId" | "createdAt" | "updatedAt"
->;
+type CopyRow = Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId" | "createdAt">;
 
 /**
  * Read-only queries for user copy data.
@@ -19,7 +16,7 @@ export function copiesRepo(db: Kysely<Database>) {
     listForUser(userId: string, limit?: number, cursor?: string): Promise<CopyRow[]> {
       let query = db
         .selectFrom("copies")
-        .select(["id", "printingId", "collectionId", "createdAt", "updatedAt"])
+        .select(["id", "printingId", "collectionId", "createdAt"])
         .where("userId", "=", userId)
         .orderBy("createdAt", "desc")
         .orderBy("id");
@@ -36,7 +33,7 @@ export function copiesRepo(db: Kysely<Database>) {
     getByIdForUser(id: string, userId: string): Promise<CopyRow | undefined> {
       return db
         .selectFrom("copies")
-        .select(["id", "printingId", "collectionId", "createdAt", "updatedAt"])
+        .select(["id", "printingId", "collectionId", "createdAt"])
         .where("id", "=", id)
         .where("userId", "=", userId)
         .executeTakeFirst();
@@ -92,7 +89,7 @@ export function copiesRepo(db: Kysely<Database>) {
     listForCollection(collectionId: string, limit?: number, cursor?: string): Promise<CopyRow[]> {
       let query = db
         .selectFrom("copies")
-        .select(["id", "printingId", "collectionId", "createdAt", "updatedAt"])
+        .select(["id", "printingId", "collectionId", "createdAt"])
         .where("collectionId", "=", collectionId)
         .orderBy("createdAt", "desc")
         .orderBy("id");

@@ -273,14 +273,12 @@ describe("toCopy", () => {
       printingId: "p-1",
       collectionId: "col-1",
       createdAt: NOW,
-      updatedAt: LATER,
     });
     expect(result).toEqual({
       id: "copy-1",
       printingId: "p-1",
       collectionId: "col-1",
       createdAt: "2025-06-15T12:00:00.000Z",
-      updatedAt: "2025-06-16T08:30:00.000Z",
     });
   });
 });

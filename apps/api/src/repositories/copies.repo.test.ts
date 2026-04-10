@@ -7,19 +7,7 @@ const COPY_ROW = {
   id: "cp-1",
   printingId: "p-1",
   collectionId: "col-1",
-
   createdAt: new Date(),
-  updatedAt: new Date(),
-  cardId: "c-1",
-  setId: "s-1",
-  rarity: "Rare",
-  artVariant: "normal",
-  isSigned: false,
-  finish: "normal",
-  imageUrl: null,
-  artist: "Artist",
-  cardName: "Card",
-  cardType: "Unit",
 };
 
 describe("copiesRepo", () => {
