@@ -189,14 +189,14 @@ const ignoreLevelThreeItemSchema = z.object({
 });
 
 /** Level 2: deny the entire upstream product regardless of finish/language. */
-export const ignoreProductsBodySchema = z.object({
+const ignoreProductsBodySchema = z.object({
   level: z.literal("product"),
   marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
   products: z.array(ignoreLevelTwoItemSchema).min(1),
 });
 
 /** Level 3: deny a specific (finish, language) SKU of an upstream product. */
-export const ignoreVariantsBodySchema = z.object({
+const ignoreVariantsBodySchema = z.object({
   level: z.literal("variant"),
   marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
   products: z.array(ignoreLevelThreeItemSchema).min(1),

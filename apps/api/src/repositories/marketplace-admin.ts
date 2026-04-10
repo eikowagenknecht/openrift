@@ -4,7 +4,7 @@ import { sql } from "kysely";
 import type { Database } from "../db/index.js";
 
 /** Listing row for a level-2 ignored product. */
-export interface IgnoredProductRow {
+interface IgnoredProductRow {
   level: "product";
   marketplace: string;
   externalId: number;
@@ -13,7 +13,7 @@ export interface IgnoredProductRow {
 }
 
 /** Listing row for a level-3 ignored variant. */
-export interface IgnoredVariantRow {
+interface IgnoredVariantRow {
   level: "variant";
   marketplace: string;
   externalId: number;
@@ -23,7 +23,7 @@ export interface IgnoredVariantRow {
   createdAt: Date;
 }
 
-export type IgnoredEntry = IgnoredProductRow | IgnoredVariantRow;
+type IgnoredEntry = IgnoredProductRow | IgnoredVariantRow;
 
 /**
  * Admin queries for marketplace groups, ignored products, staging overrides,
