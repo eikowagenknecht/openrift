@@ -133,6 +133,16 @@ export function createApp(deps: AppDeps) {
     app.use("/api/*", logger());
   }
 
+  const MAX_BODY_LOG_BYTES = 10_000;
+  const truncateBody = (text: string) =>
+    text.length > MAX_BODY_LOG_BYTES
+      ? `${text.slice(0, MAX_BODY_LOG_BYTES)}... [truncated ${text.length - MAX_BODY_LOG_BYTES} bytes]`
+      : text;
+  const isTextualContentType = (contentType: string) =>
+    contentType.includes("json") ||
+    contentType.includes("text") ||
+    contentType.includes("urlencoded");
+
   if (config.logRequestBodies) {
     app.use("/api/*", async (c, next) => {
       const method = c.req.method;
@@ -141,20 +151,11 @@ export function createApp(deps: AppDeps) {
       // Skip auth endpoints to avoid logging credentials (passwords, OTPs, tokens).
       if (hasBody && !path.startsWith("/api/auth/")) {
         const contentType = c.req.header("content-type") ?? "";
-        const isTextual =
-          contentType.includes("json") ||
-          contentType.includes("text") ||
-          contentType.includes("urlencoded");
-        if (isTextual) {
+        if (isTextualContentType(contentType)) {
           try {
             const text = await c.req.raw.clone().text();
             if (text.length > 0) {
-              const MAX_BODY_LOG_BYTES = 10_000;
-              const body =
-                text.length > MAX_BODY_LOG_BYTES
-                  ? `${text.slice(0, MAX_BODY_LOG_BYTES)}... [truncated ${text.length - MAX_BODY_LOG_BYTES} bytes]`
-                  : text;
-              log.info({ method, path, body }, "Request body");
+              log.info({ method, path, body: truncateBody(text) }, "Request body");
             }
           } catch (error) {
             log.warn({ err: error, method, path }, "Failed to read request body for logging");
@@ -162,6 +163,33 @@ export function createApp(deps: AppDeps) {
         }
       }
       await next();
+    });
+  }
+
+  if (config.logResponseBodies) {
+    app.use("/api/*", async (c, next) => {
+      await next();
+      const method = c.req.method;
+      const path = c.req.path;
+      // Skip auth endpoints to avoid logging session tokens/cookies in responses.
+      if (path.startsWith("/api/auth/")) {
+        return;
+      }
+      const contentType = c.res.headers.get("content-type") ?? "";
+      if (!isTextualContentType(contentType)) {
+        return;
+      }
+      try {
+        const text = await c.res.clone().text();
+        if (text.length > 0) {
+          log.info(
+            { method, path, status: c.res.status, body: truncateBody(text) },
+            "Response body",
+          );
+        }
+      } catch (error) {
+        log.warn({ err: error, method, path }, "Failed to read response body for logging");
+      }
     });
   }
 

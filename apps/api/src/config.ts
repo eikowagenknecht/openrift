@@ -40,6 +40,7 @@ export function createConfig(env: Record<string, string | undefined>) {
 
     logRequests: env.LOG_REQUESTS === "true",
     logRequestBodies: env.LOG_REQUEST_BODIES === "true",
+    logResponseBodies: env.LOG_RESPONSE_BODIES === "true",
 
     cron: {
       tcgplayerSchedule: env.CRON_TCGPLAYER,
