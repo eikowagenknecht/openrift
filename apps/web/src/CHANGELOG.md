@@ -2,6 +2,7 @@
 
 ## 2026-04-10
 
+- feat: Chinese printings now show CardTrader prices and price history, so you can see and track the value of your Chinese cards the same way as English ones
 - feat: The Support page now explains that buying through TCGplayer or Cardtrader price links earns us a small commission, so shopping you were going to do anyway can help fund the site
 - fix: Set pages now show cards in your preferred language instead of randomly mixing printings from different languages
 - fix: Hovering a card in the deck editor now shows the preview instantly instead of waiting for a full-resolution image to download, then crisps up once the higher-res version arrives

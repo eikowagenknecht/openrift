@@ -70,6 +70,24 @@ interface CtPrice {
   minPriceCents: number;
 }
 
+/**
+ * Normalize CardTrader's language codes to the shorter form stored on
+ * `printings.language`. CardTrader uses `zh-CN` for Chinese; our printings
+ * use `ZH`. Everything else is upper-cased.
+ *
+ * @returns The normalized language code.
+ */
+function normalizeCtLanguage(raw: string | undefined): string {
+  if (!raw) {
+    return "EN";
+  }
+  const upper = raw.toUpperCase();
+  if (upper === "ZH-CN" || upper === "ZH_CN") {
+    return "ZH";
+  }
+  return upper;
+}
+
 // ── API helpers ───────────────────────────────────────────────────────────
 
 /**
@@ -160,10 +178,12 @@ async function fetchCardtraderData(
         continue;
       }
 
-      // Group listings by (language, finish) to produce per-language prices
+      // Group listings by (language, finish) to produce per-language prices.
+      // Normalize CardTrader's language codes (e.g. "zh-CN") to the shorter
+      // form we use on printings ("ZH") so downstream matching lines up.
       const byLangFinish = new Map<string, CtMarketplaceProduct[]>();
       for (const listing of nmListings) {
-        const lang = (listing.properties_hash?.riftbound_language ?? "en").toUpperCase();
+        const lang = normalizeCtLanguage(listing.properties_hash?.riftbound_language);
         const finish = listing.properties_hash?.riftbound_foil === true ? "foil" : "normal";
         const key = `${lang}::${finish}`;
         const list = byLangFinish.get(key) ?? [];
@@ -250,27 +270,78 @@ function buildCardtraderGroups(expansions: CtExpansion[]): GroupRow[] {
 // ── Auto-matching ──────────────────────────────────────────────────────────
 
 /**
- * Auto-match CardTrader blueprints to existing printings by looking up their
- * TCGPlayer and Cardmarket cross-references in `marketplace_product_variants`.
+ * Build a lookup from "printing identity without language" to a map of
+ * `language → printingId`, so that given an English printing we can find its
+ * sibling printing in any other language that shares the same card, set,
+ * short code, finish, art variant, signed status, and promo type.
  *
- * One upstream product (tcg/cm) can now resolve to multiple variants (foil +
- * normal of the same card), so a single blueprint may produce multiple
- * cardtrader variants — one per finish+language found on the matched
- * cross-reference. This is important because the CardTrader blueprint itself
- * doesn't carry finish; the finishes come from its cross-reference target.
+ * @returns A map keyed by the printing-identity string.
+ */
+function buildSiblingLookup(
+  printings: {
+    id: string;
+    cardId: string;
+    setId: string;
+    shortCode: string;
+    finish: string;
+    artVariant: string;
+    isSigned: boolean;
+    language: string;
+    promoTypeId: string | null;
+  }[],
+): Map<string, Map<string, string>> {
+  const byIdentity = new Map<string, Map<string, string>>();
+  for (const p of printings) {
+    const identity = `${p.cardId}|${p.setId}|${p.shortCode}|${p.finish}|${p.artVariant}|${p.isSigned}|${p.promoTypeId ?? ""}`;
+    let byLang = byIdentity.get(identity);
+    if (!byLang) {
+      byLang = new Map<string, string>();
+      byIdentity.set(identity, byLang);
+    }
+    if (!byLang.has(p.language)) {
+      byLang.set(p.language, p.id);
+    }
+  }
+  return byIdentity;
+}
+
+/**
+ * Auto-match CardTrader blueprints to existing printings by looking up their
+ * TCGPlayer and Cardmarket cross-references in `marketplace_product_variants`
+ * and then propagating the cardtrader-observed `(finish, language)` tuples
+ * through to sibling printings.
+ *
+ * TCG and Cardmarket only carry English printings, so a direct cross-reference
+ * from a cardtrader blueprint lands on an English printing. If the cardtrader
+ * blueprint also has prices in Chinese (or any other language), we look up the
+ * sibling printing in our catalog — same card, short code, finish, art variant,
+ * signed status, and promo type, but with the requested language — and create
+ * a variant pointing at the sibling.
  *
  * @returns The number of newly auto-matched variant rows.
  */
 async function autoMatchBlueprints(
   repos: Repos,
   blueprints: CtBlueprint[],
+  prices: Map<string, CtPrice>,
   log: Logger,
 ): Promise<number> {
-  // Load existing tcg/cm variants (one row per finish × language).
+  // Load existing tcg/cm variants (one row per finish × language). These
+  // provide the cross-reference from cardtrader blueprints to printings.
   const existingSources = await repos.priceRefresh.existingSourcesByMarketplaces([
     "tcgplayer",
     "cardmarket",
   ]);
+
+  // Load all printings once and build a sibling lookup so we can walk from
+  // an English printing to its ZH (or any other language) counterpart.
+  const allPrintings = await repos.priceRefresh.allPrintingsForPriceMatch();
+  const siblingByIdentity = buildSiblingLookup(allPrintings);
+  const identityByPrintingId = new Map<string, string>();
+  for (const p of allPrintings) {
+    const identity = `${p.cardId}|${p.setId}|${p.shortCode}|${p.finish}|${p.artVariant}|${p.isSigned}|${p.promoTypeId ?? ""}`;
+    identityByPrintingId.set(p.id, identity);
+  }
 
   interface CrossRefEntry {
     printingId: string;
@@ -297,6 +368,10 @@ async function autoMatchBlueprints(
     lookup.set(src.externalId, list);
   }
 
+  // Group the fetched prices by blueprint id so we can learn what
+  // (finish, language) combos each blueprint actually sells in.
+  const pricesByBlueprint = Map.groupBy([...prices.values()], (p) => p.blueprintId);
+
   // Skip any blueprint that already has at least one variant row.
   const existingCtExternalIds =
     await repos.priceRefresh.existingExternalIdsByMarketplace("cardtrader");
@@ -312,6 +387,10 @@ async function autoMatchBlueprints(
     language: string;
   }[] = [];
 
+  // Deduplicate (bp.id, finish, language) across iterations in case the same
+  // combo is emitted twice via different cross-refs.
+  const emitted = new Set<string>();
+
   for (const bp of blueprints) {
     if (bp.category_id !== CT_SINGLES_CATEGORY) {
       continue;
@@ -320,7 +399,10 @@ async function autoMatchBlueprints(
       continue;
     }
 
-    // Try TCGPlayer cross-reference first, falling back to Cardmarket.
+    // Try TCGPlayer cross-reference first, falling back to Cardmarket. The
+    // cross-ref entries are all English printings because TCG/CM don't list
+    // Chinese cards, but they anchor us to the correct (cardId, shortCode,
+    // finish, …) identity which we can then language-swap.
     let crossRefVariants: CrossRefEntry[] | undefined;
     if (bp.tcg_player_id !== null) {
       crossRefVariants = tcgLookup.get(bp.tcg_player_id);
@@ -338,17 +420,42 @@ async function autoMatchBlueprints(
       continue;
     }
 
-    // Emit one cardtrader variant per matched cross-reference variant. The
-    // parent product row is upserted once by (marketplace, externalId).
+    // Walk each cross-ref's printing up to its identity and remember which
+    // finishes the cross-ref covers — we only honor observed finishes that
+    // line up with what the cross-ref actually has.
+    const identityByFinish = new Map<string, string>();
     for (const variant of crossRefVariants) {
+      const identity = identityByPrintingId.get(variant.printingId);
+      if (identity && !identityByFinish.has(variant.finish)) {
+        identityByFinish.set(variant.finish, identity);
+      }
+    }
+
+    // For every (finish, language) combo this blueprint actually sells in,
+    // resolve the sibling printing and emit a variant.
+    const observed = pricesByBlueprint.get(bp.id) ?? [];
+    for (const price of observed) {
+      const identity = identityByFinish.get(price.finish);
+      if (!identity) {
+        continue;
+      }
+      const sibling = siblingByIdentity.get(identity)?.get(price.language);
+      if (!sibling) {
+        continue;
+      }
+      const emitKey = `${bp.id}::${price.finish}::${price.language}`;
+      if (emitted.has(emitKey)) {
+        continue;
+      }
+      emitted.add(emitKey);
       toInsert.push({
         marketplace: "cardtrader",
         externalId: bp.id,
         groupId: bp.expansion_id,
         productName: bp.name,
-        printingId: variant.printingId,
-        finish: variant.finish,
-        language: variant.language,
+        printingId: sibling,
+        finish: price.finish,
+        language: price.language,
       });
     }
   }
@@ -387,14 +494,16 @@ export async function refreshCardtraderPrices(
 
   // Phase 1: Fetch
   const fetchResult = await fetchCardtraderData(fetchFn, authHeaders, log);
-  const { expansions, blueprints } = fetchResult;
+  const { expansions, blueprints, prices } = fetchResult;
 
   // Phase 2: Upsert groups first (auto-match needs the FK)
   const groupRows = buildCardtraderGroups(expansions);
   await upsertMarketplaceGroups(repos.priceRefresh, "cardtrader", groupRows);
 
-  // Phase 3: Auto-match (before transform so new products get snapshots)
-  await autoMatchBlueprints(repos, blueprints, log);
+  // Phase 3: Auto-match (before transform so new products get snapshots).
+  // Pass `prices` so the matcher can read what (finish, language) combos each
+  // blueprint actually sells in and resolve Chinese listings to ZH printings.
+  await autoMatchBlueprints(repos, blueprints, prices, log);
 
   // Phase 4: Transform
   const allStaging = buildCardtraderStaging(fetchResult, ignoredKeys);
