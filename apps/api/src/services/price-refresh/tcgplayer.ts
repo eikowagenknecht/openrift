@@ -30,6 +30,7 @@ const UPSERT_CONFIG: PriceUpsertConfig = {
 
 const TCGCSV_BASE = "https://tcgcsv.com/tcgplayer";
 const TCGCSV_CATEGORY = 89; // Riftbound
+const TCGCSV_HEADERS = { "User-Agent": "OpenRift/1.0.0" };
 
 // ── External API types ─────────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ async function fetchTcgplayerData(fetchFn: Fetch): Promise<TcgplayerFetchResult>
   const { data: groupsData } = await fetchJson<{ results: TcgcsvGroup[] }>(
     fetchFn,
     `${TCGCSV_BASE}/${TCGCSV_CATEGORY}/groups`,
+    TCGCSV_HEADERS,
   );
   const groups = groupsData.results;
 
@@ -86,10 +88,12 @@ async function fetchTcgplayerData(fetchFn: Fetch): Promise<TcgplayerFetchResult>
         fetchJson<{ results: TcgcsvProduct[] }>(
           fetchFn,
           `${TCGCSV_BASE}/${TCGCSV_CATEGORY}/${group.groupId}/products`,
+          TCGCSV_HEADERS,
         ),
         fetchJson<{ results: TcgcsvPrice[] }>(
           fetchFn,
           `${TCGCSV_BASE}/${TCGCSV_CATEGORY}/${group.groupId}/prices`,
+          TCGCSV_HEADERS,
         ),
       ]);
 
