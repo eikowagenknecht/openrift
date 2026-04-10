@@ -66,6 +66,19 @@ function makeMockLogger(): { log: Logger; messages: string[] } {
   return { log, messages };
 }
 
+interface MockPrinting {
+  id: string;
+  cardId: string;
+  setId: string;
+  shortCode: string;
+  publicCode?: string;
+  finish: string;
+  artVariant?: string;
+  isSigned?: boolean;
+  language?: string;
+  promoTypeId?: string | null;
+}
+
 interface MockReposConfig {
   ignoredProducts?: { externalId: number; finish?: string; language?: string }[];
   existingSources?: {
@@ -78,6 +91,14 @@ interface MockReposConfig {
     productName: string;
   }[];
   existingCtExternalIds?: number[];
+  /**
+   * Printings to return from `allPrintingsForPriceMatch`. When a test wires
+   * up `existingSources` whose `printingId` is present here, the sibling
+   * lookup can find Chinese (or other-language) counterparts. Defaults to
+   * the printings referenced by `existingSources` as English printings so
+   * legacy tests keep working without each having to declare printings.
+   */
+  printings?: MockPrinting[];
 }
 
 function createMockRepos(config: MockReposConfig = {}) {
@@ -99,12 +120,46 @@ function createMockRepos(config: MockReposConfig = {}) {
     ...s,
   }));
 
+  // If no printings were declared, synthesize an English printing for every
+  // cross-ref source so the sibling lookup has something to anchor on. Each
+  // synthesized printing gets a unique identity so siblings don't accidentally
+  // collide across cross-refs.
+  const declared = config.printings;
+  const synthesized: MockPrinting[] =
+    declared ??
+    existingSources.map((src) => ({
+      id: src.printingId,
+      cardId: `card-${src.printingId}`,
+      setId: `set-${src.printingId}`,
+      shortCode: `SC-${src.printingId}`,
+      publicCode: `PUB-${src.printingId}`,
+      finish: src.finish,
+      artVariant: "normal",
+      isSigned: false,
+      language: src.language,
+      promoTypeId: null,
+    }));
+
+  const printings = synthesized.map((p) => ({
+    id: p.id,
+    cardId: p.cardId,
+    setId: p.setId,
+    shortCode: p.shortCode,
+    publicCode: p.publicCode ?? `PUB-${p.id}`,
+    finish: p.finish,
+    artVariant: p.artVariant ?? "normal",
+    isSigned: p.isSigned ?? false,
+    language: p.language ?? "EN",
+    promoTypeId: p.promoTypeId ?? null,
+  }));
+
   const repos = {
     priceRefresh: {
       loadIgnoredKeys: vi.fn(async () => ignoredKeys),
       upsertGroups: vi.fn(async () => {}),
       existingSourcesByMarketplaces: vi.fn(async () => existingSources),
       existingExternalIdsByMarketplace: vi.fn(async () => config.existingCtExternalIds ?? []),
+      allPrintingsForPriceMatch: vi.fn(async () => printings),
       batchInsertProductVariants: vi.fn(async () => {}),
     },
   } as unknown as Repos;
@@ -417,7 +472,22 @@ describe("refreshCardtraderPrices", () => {
       setupMockFetch(fetchSpy, {
         expansions: [EXPANSION_A],
         blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
-        productsByExpansion: new Map([[1001, {}]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_foil: false, riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
       });
 
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
@@ -441,7 +511,22 @@ describe("refreshCardtraderPrices", () => {
       setupMockFetch(fetchSpy, {
         expansions: [EXPANSION_A],
         blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
-        productsByExpansion: new Map([[1001, {}]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_foil: false, riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
       });
 
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
@@ -481,6 +566,198 @@ describe("refreshCardtraderPrices", () => {
         expansions: [EXPANSION_A],
         blueprintsByExpansion: new Map([[1001, [BLUEPRINT_ICE]]]),
         productsByExpansion: new Map([[1001, {}]]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      expect(repos.priceRefresh.batchInsertProductVariants).not.toHaveBeenCalled();
+    });
+
+    it("resolves ZH-CN listings to the ZH sibling printing", async () => {
+      // The EN printing and its ZH sibling share the same identity tuple
+      // (card, set, short_code, finish, art_variant, is_signed, promo_type)
+      // but differ on language. The TCG cross-reference lands on the EN
+      // printing; the matcher walks across the sibling lookup to the ZH one.
+      const enPrinting: MockPrinting = {
+        id: "p-en",
+        cardId: "card-flame",
+        setId: "set-origins",
+        shortCode: "OGS-001",
+        finish: "normal",
+        language: "EN",
+      };
+      const zhPrinting: MockPrinting = {
+        id: "p-zh",
+        cardId: "card-flame",
+        setId: "set-origins",
+        shortCode: "OGS-001",
+        finish: "normal",
+        language: "ZH",
+      };
+      const { repos } = createMockRepos({
+        existingSources: [
+          {
+            marketplace: "tcgplayer",
+            externalId: 7001,
+            printingId: "p-en",
+            groupId: 101,
+            productName: "Flame Striker",
+          },
+        ],
+        printings: [enPrinting, zhPrinting],
+      });
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 200,
+                  price_currency: "EUR",
+                  // CardTrader emits `zh-CN`; the matcher should normalize to `ZH`.
+                  properties_hash: { riftbound_foil: false, riftbound_language: "zh-CN" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      expect(repos.priceRefresh.batchInsertProductVariants).toHaveBeenCalled();
+      const insertCall = (
+        repos.priceRefresh.batchInsertProductVariants as unknown as ReturnType<typeof vi.fn>
+      ).mock.calls[0][0] as { printingId: string; finish: string; language: string }[];
+      expect(insertCall).toHaveLength(1);
+      expect(insertCall[0]).toMatchObject({
+        printingId: "p-zh",
+        finish: "normal",
+        language: "ZH",
+      });
+    });
+
+    it("emits both EN and ZH variants when a blueprint sells in both languages", async () => {
+      const enPrinting: MockPrinting = {
+        id: "p-en",
+        cardId: "card-flame",
+        setId: "set-origins",
+        shortCode: "OGS-001",
+        finish: "normal",
+        language: "EN",
+      };
+      const zhPrinting: MockPrinting = {
+        id: "p-zh",
+        cardId: "card-flame",
+        setId: "set-origins",
+        shortCode: "OGS-001",
+        finish: "normal",
+        language: "ZH",
+      };
+      const { repos } = createMockRepos({
+        existingSources: [
+          {
+            marketplace: "tcgplayer",
+            externalId: 7001,
+            printingId: "p-en",
+            groupId: 101,
+            productName: "Flame Striker",
+          },
+        ],
+        printings: [enPrinting, zhPrinting],
+      });
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_foil: false, riftbound_language: "en" },
+                },
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 150,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_foil: false, riftbound_language: "zh-CN" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const insertCall = (
+        repos.priceRefresh.batchInsertProductVariants as unknown as ReturnType<typeof vi.fn>
+      ).mock.calls[0][0] as { printingId: string; finish: string; language: string }[];
+      expect(insertCall).toHaveLength(2);
+      expect(insertCall).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ printingId: "p-en", finish: "normal", language: "EN" }),
+          expect.objectContaining({ printingId: "p-zh", finish: "normal", language: "ZH" }),
+        ]),
+      );
+    });
+
+    it("skips ZH listings when no ZH sibling printing exists", async () => {
+      // Only an EN printing exists in the catalog — the ZH listing from
+      // cardtrader should be silently dropped from auto-match.
+      const enPrinting: MockPrinting = {
+        id: "p-en",
+        cardId: "card-flame",
+        setId: "set-origins",
+        shortCode: "OGS-001",
+        finish: "normal",
+        language: "EN",
+      };
+      const { repos } = createMockRepos({
+        existingSources: [
+          {
+            marketplace: "tcgplayer",
+            externalId: 7001,
+            printingId: "p-en",
+            groupId: 101,
+            productName: "Flame Striker",
+          },
+        ],
+        printings: [enPrinting],
+      });
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 200,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_foil: false, riftbound_language: "zh-CN" },
+                },
+              ],
+            },
+          ],
+        ]),
       });
 
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
