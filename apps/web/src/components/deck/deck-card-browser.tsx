@@ -46,7 +46,7 @@ function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCa
     if (entry.card.type !== "Rune") {
       continue;
     }
-    const runeCard = catalogCardToDeckBuilderCard(entry.card);
+    const runeCard = catalogCardToDeckBuilderCard(entry.cardId, entry.card);
     for (const domain of entry.card.domains) {
       const list = runesByDomain.get(domain);
       if (list) {
@@ -216,7 +216,7 @@ export function DeckCardBrowser() {
   };
 
   const handleQuickAdd = (printing: Printing, event?: React.MouseEvent) => {
-    const builderCard = catalogCardToDeckBuilderCard(printing.card);
+    const builderCard = catalogCardToDeckBuilderCard(printing.cardId, printing.card);
 
     if (activeZone === "legend") {
       setLegend(builderCard, buildRunesByDomain(allPrintings));
@@ -234,7 +234,7 @@ export function DeckCardBrowser() {
   const setQuantity = useDeckBuilderStore((state) => state.setQuantity);
 
   const handleRemove = (printing: Printing, event?: React.MouseEvent) => {
-    const cardId = printing.card.id;
+    const cardId = printing.cardId;
 
     // Shift+click removes all copies across all zones
     if (event?.shiftKey) {
@@ -294,7 +294,7 @@ export function DeckCardBrowser() {
   };
 
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
-    const cardId = item.printing.card.id;
+    const cardId = item.printing.cardId;
     const ownedCount = ownedCounts?.get(item.printing.id) ?? 0;
 
     const deckQty = deckQuantityByCard.get(cardId) ?? 0;
@@ -313,7 +313,10 @@ export function DeckCardBrowser() {
         cardWidth={ctx.cardWidth}
         priority={ctx.priority}
         dimmed={ownedCount === 0 && deckQty === 0}
-        dragData={{ type: "browser-card", card: catalogCardToDeckBuilderCard(item.printing.card) }}
+        dragData={{
+          type: "browser-card",
+          card: catalogCardToDeckBuilderCard(item.printing.cardId, item.printing.card),
+        }}
         dragId={`browser-card-${item.printing.id}`}
         showBanOverlay
         topSlot={

@@ -25,7 +25,7 @@ export const useSelectionStore = create<SelectionState>()((set) => ({
   selectCard: (printing, items, findBy) => {
     const index =
       findBy === "card"
-        ? items.findIndex((item) => item.printing.card.id === printing.card.id)
+        ? items.findIndex((item) => item.printing.cardId === printing.cardId)
         : items.findIndex((item) => item.printing.id === printing.id);
     set({ selectedCard: printing, selectedIndex: index, detailOpen: true });
   },

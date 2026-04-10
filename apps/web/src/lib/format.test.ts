@@ -17,6 +17,7 @@ import {
 function stub(overrides: Partial<Printing> = {}): Printing {
   return {
     id: "00000000-0000-0000-0000-000000000001",
+    cardId: "00000000-0000-0000-0000-000000000001",
     shortCode: "OGS-001",
     setId: "",
     setSlug: "",
@@ -34,7 +35,6 @@ function stub(overrides: Partial<Printing> = {}): Printing {
     printedName: null,
     language: "EN",
     card: {
-      id: "00000000-0000-0000-0000-000000000001",
       slug: "OGS-001",
       name: "",
       type: "Unit",

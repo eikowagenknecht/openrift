@@ -19,7 +19,7 @@ afterEach(() => {
 describe("useSelectionStore", () => {
   describe("selectCard", () => {
     it("selects a card by printing id and opens detail", () => {
-      const printing = stubPrinting({ id: "p1", card: { id: "c1", name: "Alpha" } });
+      const printing = stubPrinting({ id: "p1", cardId: "c1", card: { name: "Alpha" } });
       const items = [{ id: "p1", printing }];
 
       useSelectionStore.getState().selectCard(printing, items, "printing");
@@ -31,8 +31,8 @@ describe("useSelectionStore", () => {
     });
 
     it("selects a card by card id", () => {
-      const printing1 = stubPrinting({ id: "p1", card: { id: "c1", name: "Alpha" } });
-      const printing2 = stubPrinting({ id: "p2", card: { id: "c2", name: "Beta" } });
+      const printing1 = stubPrinting({ id: "p1", cardId: "c1", card: { name: "Alpha" } });
+      const printing2 = stubPrinting({ id: "p2", cardId: "c2", card: { name: "Beta" } });
       const items = [
         { id: "p1", printing: printing1 },
         { id: "p2", printing: printing2 },
@@ -45,7 +45,7 @@ describe("useSelectionStore", () => {
     });
 
     it("sets index to -1 when card is not found in items", () => {
-      const printing = stubPrinting({ id: "p-missing", card: { id: "c-missing" } });
+      const printing = stubPrinting({ id: "p-missing", cardId: "c-missing" });
 
       useSelectionStore.getState().selectCard(printing, [], "printing");
 

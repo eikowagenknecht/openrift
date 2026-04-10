@@ -43,10 +43,10 @@ export function BrowserCardViewer({
 
   const gridSelectedId =
     view === "cards" && selectedCard
-      ? (deferredSortedCards.find((c) => c.card.id === selectedCard.card.id)?.id ?? selectedCard.id)
+      ? (deferredSortedCards.find((c) => c.cardId === selectedCard.cardId)?.id ?? selectedCard.id)
       : selectedCard?.id;
 
-  const siblingPrintings = selectedCard ? (printingsByCardId.get(selectedCard.card.id) ?? []) : [];
+  const siblingPrintings = selectedCard ? (printingsByCardId.get(selectedCard.cardId) ?? []) : [];
 
   return (
     <CardViewer

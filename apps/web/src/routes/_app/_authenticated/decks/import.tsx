@@ -920,16 +920,16 @@ function deduplicateToCards(allPrintings: Printing[], query: string): ResolvedCa
   const results: ResolvedCard[] = [];
 
   for (const printing of allPrintings) {
-    if (seen.has(printing.card.id)) {
+    if (seen.has(printing.cardId)) {
       continue;
     }
     if (
       printing.card.name.toLowerCase().includes(lower) ||
       printing.shortCode.toLowerCase().includes(lower)
     ) {
-      seen.add(printing.card.id);
+      seen.add(printing.cardId);
       results.push({
-        cardId: printing.card.id,
+        cardId: printing.cardId,
         cardName: printing.card.name,
         cardType: printing.card.type,
         superTypes: printing.card.superTypes,

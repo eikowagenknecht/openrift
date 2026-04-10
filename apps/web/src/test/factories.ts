@@ -37,10 +37,9 @@ export function resetIdCounter(): void {
  * @returns A complete Card object with overrides applied.
  */
 export function stubCard(overrides: Partial<Card> = {}): Card {
-  const id = overrides.id ?? nextId();
+  const slug = overrides.slug ?? `RB1-${nextId().slice(-3)}`;
   return {
-    id,
-    slug: `RB1-${id.slice(-3)}`,
+    slug,
     name: "Test Card",
     type: "Unit",
     superTypes: [],
@@ -65,10 +64,12 @@ export function stubPrinting(
   overrides: Omit<Partial<Printing>, "card"> & { card?: Partial<Card> } = {},
 ): Printing {
   const id = overrides.id ?? nextId();
+  const cardId = overrides.cardId ?? nextId();
   const { card: cardOverrides, ...printingOverrides } = overrides;
   const card = stubCard(cardOverrides);
   return {
     id,
+    cardId,
     shortCode: card.slug,
     setId: nextId(),
     setSlug: "RB1",

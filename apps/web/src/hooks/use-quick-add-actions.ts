@@ -61,17 +61,17 @@ export function useQuickAddActions(collectionId?: string) {
   const handleOpenVariants = collectionId
     ? (printing: Printing, anchorEl: HTMLElement) => {
         const rect = anchorEl.getBoundingClientRect();
-        if (justClosedRef.current === printing.card.id) {
+        if (justClosedRef.current === printing.cardId) {
           justClosedRef.current = null;
           return;
         }
         const current = useAddModeStore.getState().variantPopover;
-        if (current?.cardId === printing.card.id) {
+        if (current?.cardId === printing.cardId) {
           useAddModeStore.getState().closeVariants();
-          justClosedRef.current = printing.card.id;
+          justClosedRef.current = printing.cardId;
           return;
         }
-        useAddModeStore.getState().openVariants(printing.card.id, {
+        useAddModeStore.getState().openVariants(printing.cardId, {
           top: rect.bottom + 4,
           left: Math.max(
             8,

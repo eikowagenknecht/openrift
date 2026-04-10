@@ -63,7 +63,7 @@ export function SelectionMobileOverlay({
     return null;
   }
 
-  const siblingPrintings = printingsByCardId.get(selectedCard.card.id) ?? [];
+  const siblingPrintings = printingsByCardId.get(selectedCard.cardId) ?? [];
 
   const handleClose = () => {
     if (history.state?.cardDetail) {

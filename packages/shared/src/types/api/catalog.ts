@@ -9,7 +9,8 @@ export interface CatalogSetResponse {
   releasedAt: string | null;
 }
 
-export type CatalogCardResponse = Card;
+/** Wire type for a single card (adds `id` back for endpoints that return cards outside a map). */
+export type CatalogCardResponse = Card & { id: string };
 
 /** Wire type for a single printing (still carries `id` for endpoints that return printings as arrays). */
 export interface CatalogPrintingResponse {

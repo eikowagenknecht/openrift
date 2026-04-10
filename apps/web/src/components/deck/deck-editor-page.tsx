@@ -363,7 +363,7 @@ function DeckEditorContent({
     }
     // Pick canonical printing: short code → non-promo → normal finish
     const candidates = allPrintings
-      .filter((entry) => entry.card.id === hoveredCardId)
+      .filter((entry) => entry.cardId === hoveredCardId)
       .toSorted(
         (a, b) =>
           a.shortCode.localeCompare(b.shortCode) ||

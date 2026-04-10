@@ -50,9 +50,9 @@ class CardIndex {
     const cardMap = new Map<string, { resolved: ResolvedCard; tags: string[] }>();
 
     for (const printing of allPrintings) {
-      if (cardMap.has(printing.card.id)) {
+      if (cardMap.has(printing.cardId)) {
         // Still index additional short codes for this card
-        const existing = cardMap.get(printing.card.id);
+        const existing = cardMap.get(printing.cardId);
         if (existing) {
           this.byShortCode.set(printing.shortCode.toLowerCase(), existing.resolved);
         }
@@ -60,7 +60,7 @@ class CardIndex {
       }
 
       const resolved = cardFromPrinting(printing);
-      cardMap.set(printing.card.id, { resolved, tags: printing.card.tags });
+      cardMap.set(printing.cardId, { resolved, tags: printing.card.tags });
       this.byShortCode.set(printing.shortCode.toLowerCase(), resolved);
     }
 
@@ -189,7 +189,7 @@ class CardIndex {
  */
 function cardFromPrinting(printing: Printing): ResolvedCard {
   return {
-    cardId: printing.card.id,
+    cardId: printing.cardId,
     cardName: printing.card.name,
     cardType: printing.card.type,
     superTypes: printing.card.superTypes,

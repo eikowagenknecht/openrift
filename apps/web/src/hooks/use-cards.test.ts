@@ -146,12 +146,12 @@ describe("useCards", () => {
     const printingB = enriched.printingsById[PRINTING_B_ID];
 
     expect(printingA?.id).toBe(PRINTING_A_ID);
-    expect(printingA?.card.id).toBe(CARD_A_ID);
+    expect(printingA?.cardId).toBe(CARD_A_ID);
     expect(printingA?.card.name).toBe("Card A");
     expect(printingB?.card.name).toBe("Card B");
 
-    expect(enriched.cardsById[CARD_A_ID]?.id).toBe(CARD_A_ID);
-    expect(enriched.cardsById[CARD_B_ID]?.id).toBe(CARD_B_ID);
+    expect(enriched.cardsById[CARD_A_ID]?.name).toBe("Card A");
+    expect(enriched.cardsById[CARD_B_ID]?.name).toBe("Card B");
 
     expect(enriched.printingsByCardId.get(CARD_A_ID)).toHaveLength(1);
     expect(enriched.printingsByCardId.get(CARD_B_ID)).toHaveLength(1);

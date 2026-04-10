@@ -45,7 +45,7 @@ export function computeDeckOwnership(
     for (const printing of allPrintings) {
       const count = ownedCountByPrinting[printing.id] ?? 0;
       if (count > 0) {
-        ownedByCardId.set(printing.card.id, (ownedByCardId.get(printing.card.id) ?? 0) + count);
+        ownedByCardId.set(printing.cardId, (ownedByCardId.get(printing.cardId) ?? 0) + count);
       }
     }
   }
@@ -55,9 +55,9 @@ export function computeDeckOwnership(
   for (const printing of allPrintings) {
     const price = prices.get(printing.id, marketplace);
     if (price !== undefined) {
-      const existing = cheapestByCardId.get(printing.card.id);
+      const existing = cheapestByCardId.get(printing.cardId);
       if (existing === undefined || price < existing) {
-        cheapestByCardId.set(printing.card.id, price);
+        cheapestByCardId.set(printing.cardId, price);
       }
     }
   }

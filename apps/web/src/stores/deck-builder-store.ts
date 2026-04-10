@@ -471,9 +471,11 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
 }));
 
 // Converts a catalog Card to a DeckBuilderCard (for adding from the browser).
-export function catalogCardToDeckBuilderCard(card: Card): DeckBuilderCard {
+// The cardId is required as a separate argument since Card no longer carries
+// its own id — identity is held by whatever map or context the caller got it from.
+export function catalogCardToDeckBuilderCard(cardId: string, card: Card): DeckBuilderCard {
   return {
-    cardId: card.id,
+    cardId,
     zone: "main",
     quantity: 1,
     cardName: card.name,

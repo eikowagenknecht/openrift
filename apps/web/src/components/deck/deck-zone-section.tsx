@@ -138,7 +138,7 @@ export function DeckZoneSection({
   const handleCardClick = (card: DeckBuilderCard) => {
     // Pick canonical printing: short code → non-promo → normal finish
     const candidates = allPrintings
-      .filter((entry) => entry.card.id === card.cardId)
+      .filter((entry) => entry.cardId === card.cardId)
       .toSorted(
         (a, b) =>
           a.shortCode.localeCompare(b.shortCode) ||

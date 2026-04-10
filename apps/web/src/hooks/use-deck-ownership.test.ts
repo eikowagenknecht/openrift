@@ -29,7 +29,7 @@ describe("computeDeckOwnership", () => {
     const printingId = "printing-1";
 
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 3, zone: "main" })];
-    const printings = [stubPrinting({ id: printingId, card: { id: cardId } })];
+    const printings = [stubPrinting({ id: printingId, cardId })];
     const owned = { [printingId]: 3 };
 
     const result = computeDeckOwnership(
@@ -55,7 +55,7 @@ describe("computeDeckOwnership", () => {
     const printingId = "printing-1";
 
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 3, zone: "main" })];
-    const printings = [stubPrinting({ id: printingId, card: { id: cardId } })];
+    const printings = [stubPrinting({ id: printingId, cardId })];
     const owned = { [printingId]: 1 };
 
     const result = computeDeckOwnership(
@@ -76,7 +76,7 @@ describe("computeDeckOwnership", () => {
     const cardId = "card-1";
 
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" })];
-    const printings = [stubPrinting({ card: { id: cardId } })];
+    const printings = [stubPrinting({ cardId })];
 
     const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", EMPTY_PRICE_LOOKUP);
 
@@ -92,10 +92,7 @@ describe("computeDeckOwnership", () => {
     const cardId = "card-1";
 
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 3, zone: "main" })];
-    const printings = [
-      stubPrinting({ id: "p1", card: { id: cardId } }),
-      stubPrinting({ id: "p2", card: { id: cardId } }),
-    ];
+    const printings = [stubPrinting({ id: "p1", cardId }), stubPrinting({ id: "p2", cardId })];
     const owned = { p1: 1, p2: 2 };
 
     const result = computeDeckOwnership(
@@ -118,7 +115,7 @@ describe("computeDeckOwnership", () => {
       stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" }),
       stubDeckBuilderCard({ cardId, quantity: 2, zone: "sideboard" }),
     ];
-    const printings = [stubPrinting({ id: printingId, card: { id: cardId } })];
+    const printings = [stubPrinting({ id: printingId, cardId })];
     // Only own 3 copies, but need 4 (2 main + 2 sideboard)
     const owned = { [printingId]: 3 };
 
@@ -139,10 +136,7 @@ describe("computeDeckOwnership", () => {
     const cardId = "card-1";
 
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" })];
-    const printings = [
-      stubPrinting({ id: "p1", card: { id: cardId } }),
-      stubPrinting({ id: "p2", card: { id: cardId } }),
-    ];
+    const printings = [stubPrinting({ id: "p1", cardId }), stubPrinting({ id: "p2", cardId })];
     const owned = { p1: 1 };
     const prices = stubPriceLookup({
       p1: { tcgplayer: 5 },
@@ -163,7 +157,7 @@ describe("computeDeckOwnership", () => {
     const cardId = "card-1";
 
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
-    const printings = [stubPrinting({ id: "p1", card: { id: cardId } })];
+    const printings = [stubPrinting({ id: "p1", cardId })];
 
     const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", EMPTY_PRICE_LOOKUP);
 
@@ -176,7 +170,7 @@ describe("computeDeckOwnership", () => {
     const cardId = "card-1";
 
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
-    const printings = [stubPrinting({ id: "p1", card: { id: cardId } })];
+    const printings = [stubPrinting({ id: "p1", cardId })];
     const prices = stubPriceLookup({
       p1: { tcgplayer: 10, cardmarket: 8 },
     });
@@ -193,9 +187,9 @@ describe("computeDeckOwnership", () => {
       stubDeckBuilderCard({ cardId: "c", cardName: "Gamma", quantity: 1, zone: "sideboard" }),
     ];
     const printings = [
-      stubPrinting({ id: "pa", card: { id: "a" } }),
-      stubPrinting({ id: "pb", card: { id: "b" } }),
-      stubPrinting({ id: "pc", card: { id: "c" } }),
+      stubPrinting({ id: "pa", cardId: "a" }),
+      stubPrinting({ id: "pb", cardId: "b" }),
+      stubPrinting({ id: "pc", cardId: "c" }),
     ];
     const owned = { pa: 3, pb: 0 };
     const prices = stubPriceLookup({

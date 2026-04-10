@@ -74,13 +74,13 @@ function deduplicateByCard(
 ): Printing[] {
   const seen = new Map<string, Printing>();
   for (const printing of filteredCards) {
-    const existing = seen.get(printing.card.id);
+    const existing = seen.get(printing.cardId);
     if (existing) {
       if (compareWithLanguagePreference(printing, existing, setOrderMap, languageOrder) < 0) {
-        seen.set(printing.card.id, printing);
+        seen.set(printing.cardId, printing);
       }
     } else {
-      seen.set(printing.card.id, printing);
+      seen.set(printing.cardId, printing);
     }
   }
   return [...seen.values()];
@@ -97,10 +97,10 @@ function groupPrintingsByCardId(
 ): Map<string, Printing[]> {
   const map = new Map<string, Printing[]>();
   for (const p of allPrintings) {
-    let group = map.get(p.card.id);
+    let group = map.get(p.cardId);
     if (!group) {
       group = [];
-      map.set(p.card.id, group);
+      map.set(p.cardId, group);
     }
     group.push(p);
   }
@@ -153,10 +153,10 @@ function buildOwnedCounts(
     const countByCard = new Map<string, number>();
     for (const p of allPrintings) {
       const count = ownedCountByPrinting[p.id] ?? 0;
-      countByCard.set(p.card.id, (countByCard.get(p.card.id) ?? 0) + count);
+      countByCard.set(p.cardId, (countByCard.get(p.cardId) ?? 0) + count);
     }
     for (const p of displayCards) {
-      const count = countByCard.get(p.card.id) ?? 0;
+      const count = countByCard.get(p.cardId) ?? 0;
       if (count > 0) {
         map.set(p.id, count);
       }
@@ -236,7 +236,7 @@ export function useCardData({
   const sortOptions: SortCardsOptions = { sortDir };
   if (sortBy === "price" && priceRangeByCardId) {
     sortOptions.getPrice = (p) => {
-      const range = priceRangeByCardId.get(p.card.id);
+      const range = priceRangeByCardId.get(p.cardId);
       if (!range) {
         return getPrice(p) ?? null;
       }
@@ -252,7 +252,7 @@ export function useCardData({
     : undefined;
 
   const totalUniqueCards =
-    view === "cards" ? new Set(langFiltered.map((c) => c.card.id)).size : langFiltered.length;
+    view === "cards" ? new Set(langFiltered.map((c) => c.cardId)).size : langFiltered.length;
 
   return {
     availableFilters,

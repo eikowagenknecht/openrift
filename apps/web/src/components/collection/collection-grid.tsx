@@ -103,7 +103,7 @@ interface CollectionGridProps {
 function buildCopyCountByCardId(stacks: StackedEntry[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const stack of stacks) {
-    const cardId = stack.printing.card.id;
+    const cardId = stack.printing.cardId;
     map.set(cardId, (map.get(cardId) ?? 0) + stack.copyIds.length);
   }
   return map;
@@ -330,7 +330,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   const handleSiblingClick = (printing: Printing) => {
     handleGridCardClick(printing);
-    setTopPrintingOverrides((prev) => new Map(prev).set(printing.card.id, printing.id));
+    setTopPrintingOverrides((prev) => new Map(prev).set(printing.cardId, printing.id));
   };
 
   const searchAndClose = (query: string) => {
@@ -480,7 +480,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
     const ownedCount = stacked
       ? ((dataView === "cards"
-          ? copyCountByCardId.get(item.printing.card.id)
+          ? copyCountByCardId.get(item.printing.cardId)
           : stack.copyIds.length) ?? 0)
       : 1;
 
@@ -531,7 +531,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   };
 
   const renderAddModeCard = (item: CardViewerItem, ctx: CardRenderContext) => {
-    const cardId = item.printing.card.id;
+    const cardId = item.printing.cardId;
     const siblings = catalogPrintingsByCardId.get(cardId);
 
     const overrideId = topPrintingOverrides.get(cardId);

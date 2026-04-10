@@ -33,13 +33,12 @@ const fetchCatalog = createServerFn({ method: "GET" }).handler(
 function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
   const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
 
-  // Re-add `id` to each card value so existing consumers can keep reading `.id`.
-  const cardsById: Record<string, Card> = {};
-  for (const [id, value] of Object.entries(catalog.cards)) {
-    cardsById[id] = { ...value, id };
-  }
+  // Cards are already in the right shape — identity lives in the map key.
+  const cardsById: Record<string, Card> = catalog.cards;
 
-  // Re-add `id` and join with card + setSlug to produce the enriched Printing shape.
+  // Join printings with their card and the parent set slug. The printing id
+  // is restored on the object so consumers that iterate `allPrintings` (a
+  // flat array without surrounding keys) still have an identifier.
   const allPrintings: Printing[] = [];
   const printingsById: Record<string, Printing> = {};
   for (const [id, value] of Object.entries(catalog.printings)) {
@@ -52,7 +51,7 @@ function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
     }
   }
 
-  const printingsByCardId = Map.groupBy(allPrintings, (p) => p.card.id);
+  const printingsByCardId = Map.groupBy(allPrintings, (p) => p.cardId);
 
   return {
     allPrintings,

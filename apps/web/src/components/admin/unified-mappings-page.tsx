@@ -101,6 +101,7 @@ function toMarketplaceGroup(
 function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Printing {
   return {
     id: p.printingId,
+    cardId: group.cardId,
     shortCode: p.shortCode,
     setId: group.setName,
     setSlug: group.setName,
@@ -118,7 +119,6 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
     printedName: null,
     language: "EN",
     card: {
-      id: group.cardId,
       slug: group.cardId,
       name: group.cardName,
       type: group.cardType as CardType,

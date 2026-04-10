@@ -23,10 +23,10 @@ function SetDetailPage() {
   // Deduplicate to one printing per card (prefer the first one, which has images)
   const seen = new Set<string>();
   const uniquePrintings = data.printings.filter((p) => {
-    if (seen.has(p.card.id)) {
+    if (seen.has(p.cardId)) {
       return false;
     }
-    seen.add(p.card.id);
+    seen.add(p.cardId);
     return true;
   });
 

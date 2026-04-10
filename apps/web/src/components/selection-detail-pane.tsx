@@ -41,7 +41,7 @@ export function SelectionDetailPane({
     return null;
   }
 
-  const siblingPrintings = printingsByCardId.get(selectedCard.card.id) ?? [];
+  const siblingPrintings = printingsByCardId.get(selectedCard.cardId) ?? [];
 
   const handlePrevCard =
     selectedIndex > 0

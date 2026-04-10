@@ -175,7 +175,7 @@ function resolveCardImage(
   languageOrder?: string[],
 ): string | null {
   const candidates = allPrintings
-    .filter((entry) => entry.card.id === cardId)
+    .filter((entry) => entry.cardId === cardId)
     .toSorted((a, b) => {
       if (languageOrder && languageOrder.length > 1) {
         const aIdx = languageOrder.indexOf(a.language);
@@ -233,10 +233,10 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
 
   // Resolve legend/champion card details from catalog
   const legendCard = legendCardId
-    ? filteredPrintings.find((entry) => entry.card.id === legendCardId)?.card
+    ? filteredPrintings.find((entry) => entry.cardId === legendCardId)?.card
     : undefined;
   const championCard = championCardId
-    ? filteredPrintings.find((entry) => entry.card.id === championCardId)?.card
+    ? filteredPrintings.find((entry) => entry.cardId === championCardId)?.card
     : undefined;
   const legendImage = legendCardId
     ? resolveCardImage(filteredPrintings, legendCardId, languages)

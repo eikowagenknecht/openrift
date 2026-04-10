@@ -22,7 +22,6 @@ export interface CardErrata {
 }
 
 export interface Card {
-  id: string;
   slug: string;
   name: string;
   type: CardType;
@@ -45,6 +44,7 @@ export interface PrintingImage {
 
 export interface Printing {
   id: string;
+  cardId: string;
   shortCode: string;
   setId: string;
   setSlug: string;

@@ -56,7 +56,7 @@ export function CardBrowser() {
   const showImages = useDisplayStore((s) => s.showImages);
   const catalogMode = useDisplayStore((s) => s.catalogMode);
   const cycleCatalogMode = useDisplayStore((s) => s.cycleCatalogMode);
-  const { allPrintings, sets } = useCards();
+  const { allPrintings, printingsById, sets } = useCards();
   const prices = usePrices();
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user);
@@ -145,13 +145,13 @@ export function CardBrowser() {
     if (!linkedPrintingId || deepLinkHandled.current) {
       return;
     }
-    const printing = allPrintings.find((p) => p.id === linkedPrintingId);
+    const printing = printingsById[linkedPrintingId];
     if (printing) {
       deepLinkHandled.current = true;
       useSelectionStore.getState().selectCard(printing, items, "printing");
       void setLinkedPrintingId(null);
     }
-  }, [linkedPrintingId, allPrintings, items, setLinkedPrintingId]);
+  }, [linkedPrintingId, printingsById, items, setLinkedPrintingId]);
 
   // Cmd+K / Ctrl+K shortcut to open quick-add palette
   useEffect(() => {
@@ -174,7 +174,7 @@ export function CardBrowser() {
 
   const handleSiblingClick = (printing: Printing) => {
     handleGridCardClick(printing);
-    setTopPrintingOverrides((prev) => new Map(prev).set(printing.card.id, printing.id));
+    setTopPrintingOverrides((prev) => new Map(prev).set(printing.cardId, printing.id));
   };
 
   const searchAndClose = (query: string) => {
@@ -187,7 +187,7 @@ export function CardBrowser() {
   const showStrip = isLoggedIn && catalogMode !== "off";
 
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
-    const cardId = item.printing.card.id;
+    const cardId = item.printing.cardId;
     const siblings = printingsByCardId.get(cardId);
 
     const overrideId = topPrintingOverrides.get(cardId);

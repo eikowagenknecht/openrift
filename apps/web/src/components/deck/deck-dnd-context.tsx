@@ -286,12 +286,12 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     dragInfo !== null &&
     (dragInfo.fromBrowser ? browserRemaining > 1 : dragInfo.quantity > 1);
 
-  const { allPrintings } = useCards();
+  const { printingsByCardId } = useCards();
   const dragImageUrl = (() => {
     if (!dragInfo) {
       return null;
     }
-    const printing = allPrintings.find((entry) => entry.card.id === dragInfo.cardId);
+    const printing = printingsByCardId.get(dragInfo.cardId)?.[0];
     const frontImage = printing?.images.find((img) => img.face === "front");
     return frontImage ? getCardImageUrl(frontImage.url, "thumbnail") : null;
   })();

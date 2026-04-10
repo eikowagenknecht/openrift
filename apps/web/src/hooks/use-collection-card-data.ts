@@ -78,7 +78,7 @@ export function useCollectionCardData({
   const sortOptions: SortCardsOptions = { sortDir };
   if (sortBy === "price" && priceRangeByCardId) {
     sortOptions.getPrice = (printing) => {
-      const range = priceRangeByCardId.get(printing.card.id);
+      const range = priceRangeByCardId.get(printing.cardId);
       if (!range) {
         return getPrice(printing) ?? null;
       }
@@ -94,7 +94,7 @@ export function useCollectionCardData({
 
   const totalUniqueCards =
     view === "cards"
-      ? new Set(collectionPrintings.map((p) => p.card.id)).size
+      ? new Set(collectionPrintings.map((p) => p.cardId)).size
       : collectionPrintings.length;
 
   return {
@@ -136,13 +136,13 @@ function deduplicateByCard(
 ): Printing[] {
   const seen = new Map<string, Printing>();
   for (const printing of filteredCards) {
-    const existing = seen.get(printing.card.id);
+    const existing = seen.get(printing.cardId);
     if (existing) {
       if (compareWithLanguagePreference(printing, existing, setOrderMap, languageOrder) < 0) {
-        seen.set(printing.card.id, printing);
+        seen.set(printing.cardId, printing);
       }
     } else {
-      seen.set(printing.card.id, printing);
+      seen.set(printing.cardId, printing);
     }
   }
   return [...seen.values()];
@@ -155,10 +155,10 @@ function groupPrintingsByCardId(
 ): Map<string, Printing[]> {
   const map = new Map<string, Printing[]>();
   for (const printing of printings) {
-    let group = map.get(printing.card.id);
+    let group = map.get(printing.cardId);
     if (!group) {
       group = [];
-      map.set(printing.card.id, group);
+      map.set(printing.cardId, group);
     }
     group.push(printing);
   }

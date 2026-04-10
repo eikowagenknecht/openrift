@@ -23,10 +23,10 @@ function makePrinting(
   overrides: Omit<Partial<Printing>, "card"> & { card?: Partial<Card> } = {},
 ): Printing {
   const { card: cardOverrides, ...printingOverrides } = overrides;
-  const cardId = cardOverrides?.id ?? "00000000-0000-0000-0000-000000000001";
   const cardSlug = cardOverrides?.slug ?? "SET1-001";
   return {
     id: "00000000-0000-0000-0000-000000000001",
+    cardId: "00000000-0000-0000-0000-000000000001",
     shortCode: "SET1-001",
     setId: "00000000-0000-0000-0000-0000000000a1",
     setSlug: "Set Alpha",
@@ -44,7 +44,6 @@ function makePrinting(
     printedName: null,
     language: "EN",
     card: {
-      id: cardId,
       slug: cardSlug,
       name: "Test Card",
       type: "Unit",
@@ -211,8 +210,8 @@ describe("filterCards", () => {
       finish: "normal",
       images: [{ face: "front", url: "t.jpg" }],
       artist: "Alice",
+      cardId: "SET1-001",
       card: {
-        id: "SET1-001",
         name: "Fire Dragon",
         type: "Unit",
         superTypes: ["Champion"],
@@ -241,8 +240,8 @@ describe("filterCards", () => {
       finish: "foil",
       images: [{ face: "front", url: "t.jpg" }],
       artist: "Bob",
+      cardId: "SET1-002",
       card: {
-        id: "SET1-002",
         name: "Ice Golem",
         type: "Unit",
         superTypes: [],
@@ -271,8 +270,8 @@ describe("filterCards", () => {
       finish: "normal",
       images: [{ face: "front", url: "t.jpg" }],
       artist: "Carol",
+      cardId: "SET2-001",
       card: {
-        id: "SET2-001",
         name: "Mind Weaver",
         type: "Spell",
         superTypes: ["Basic"],
@@ -506,8 +505,8 @@ describe("filterCards", () => {
     const withSigned = [
       makePrinting({
         isSigned: true,
+        cardId: "s",
         card: {
-          id: "s",
           name: "Signed Card",
           type: "Unit",
           superTypes: [],
@@ -523,8 +522,8 @@ describe("filterCards", () => {
       }),
       makePrinting({
         isSigned: false,
+        cardId: "u",
         card: {
-          id: "u",
           name: "Unsigned Card",
           type: "Unit",
           superTypes: [],
@@ -550,8 +549,8 @@ describe("filterCards", () => {
     const withPromo = [
       makePrinting({
         promoType: { id: "1", slug: "promo", label: "Promo" },
+        cardId: "p",
         card: {
-          id: "p",
           name: "Promo Card",
           type: "Unit",
           superTypes: [],
@@ -567,8 +566,8 @@ describe("filterCards", () => {
       }),
       makePrinting({
         promoType: null,
+        cardId: "r",
         card: {
-          id: "r",
           name: "Regular Card",
           type: "Unit",
           superTypes: [],
@@ -600,8 +599,8 @@ describe("filterCards", () => {
     const withPrices = [
       withPrice(
         makePrinting({
+          cardId: "c",
           card: {
-            id: "c",
             name: "Cheap Card",
             type: "Unit",
             superTypes: [],
@@ -619,8 +618,8 @@ describe("filterCards", () => {
       ),
       withPrice(
         makePrinting({
+          cardId: "e",
           card: {
-            id: "e",
             name: "Expensive Card",
             type: "Unit",
             superTypes: [],
@@ -637,8 +636,8 @@ describe("filterCards", () => {
         25,
       ),
       makePrinting({
+        cardId: "n",
         card: {
-          id: "n",
           name: "No Price Card",
           type: "Unit",
           superTypes: [],
@@ -693,7 +692,8 @@ describe("filterCards", () => {
     const nullArtVariant = [
       makePrinting({
         artVariant: null as unknown as "normal",
-        card: { id: "nav", name: "Null Art Card" },
+        cardId: "nav",
+        card: { name: "Null Art Card" },
       }),
     ];
     const result = filterCards(nullArtVariant, emptyFilters({ artVariants: ["normal"] }));
@@ -706,8 +706,8 @@ describe("filterCards", () => {
   it("card text search handles null errata", () => {
     const nullTextCard = [
       makePrinting({
+        cardId: "nt",
         card: {
-          id: "nt",
           name: "No Text Card",
           type: "Unit",
           superTypes: [],
@@ -732,11 +732,13 @@ describe("filterCards", () => {
     const cards = [
       makePrinting({
         isSigned: true,
-        card: { id: "s1", name: "Signed Card" },
+        cardId: "s1",
+        card: { name: "Signed Card" },
       }),
       makePrinting({
         isSigned: false,
-        card: { id: "s2", name: "Unsigned Card" },
+        cardId: "s2",
+        card: { name: "Unsigned Card" },
       }),
     ];
     const result = filterCards(cards, emptyFilters({ isSigned: false }));
@@ -750,11 +752,13 @@ describe("filterCards", () => {
     const cards = [
       makePrinting({
         promoType: { id: "1", slug: "promo", label: "Promo" },
-        card: { id: "p1", name: "Promo Card" },
+        cardId: "p1",
+        card: { name: "Promo Card" },
       }),
       makePrinting({
         promoType: null,
-        card: { id: "p2", name: "Regular Card" },
+        cardId: "p2",
+        card: { name: "Regular Card" },
       }),
     ];
     const result = filterCards(cards, emptyFilters({ isPromo: false }));
@@ -775,8 +779,8 @@ describe("filterCards", () => {
   it("excludes cards with null energy when energy filter is active", () => {
     const cards = [
       makePrinting({
+        cardId: "ne",
         card: {
-          id: "ne",
           name: "No Energy Card",
           type: "Spell",
           superTypes: [],
@@ -798,8 +802,8 @@ describe("filterCards", () => {
   it("excludes cards with null might when might filter is active", () => {
     const cards = [
       makePrinting({
+        cardId: "nm",
         card: {
-          id: "nm",
           name: "No Might Card",
           type: "Spell",
           superTypes: [],
@@ -821,8 +825,8 @@ describe("filterCards", () => {
   it("excludes cards with null power when power filter is active", () => {
     const cards = [
       makePrinting({
+        cardId: "np",
         card: {
-          id: "np",
           name: "No Power Card",
           type: "Spell",
           superTypes: [],
@@ -845,8 +849,11 @@ describe("filterCards", () => {
 
   it("includes null-energy cards when min is NONE", () => {
     const cards = [
-      makePrinting({ card: { id: "1", name: "Spell", energy: null, might: null, power: null } }),
-      makePrinting({ card: { id: "2", name: "Unit", energy: 3 } }),
+      makePrinting({
+        cardId: "1",
+        card: { name: "Spell", energy: null, might: null, power: null },
+      }),
+      makePrinting({ cardId: "2", card: { name: "Unit", energy: 3 } }),
     ];
     const result = filterCards(cards, emptyFilters({ energy: { min: NONE, max: 5 } }));
     expect(result).toHaveLength(2);
@@ -854,8 +861,11 @@ describe("filterCards", () => {
 
   it("isolates null-energy cards when both min and max are NONE", () => {
     const cards = [
-      makePrinting({ card: { id: "1", name: "Spell", energy: null, might: null, power: null } }),
-      makePrinting({ card: { id: "2", name: "Unit", energy: 3 } }),
+      makePrinting({
+        cardId: "1",
+        card: { name: "Spell", energy: null, might: null, power: null },
+      }),
+      makePrinting({ cardId: "2", card: { name: "Unit", energy: 3 } }),
     ];
     const result = filterCards(cards, emptyFilters({ energy: { min: NONE, max: NONE } }));
     expect(result).toHaveLength(1);
@@ -864,8 +874,11 @@ describe("filterCards", () => {
 
   it("excludes null-energy cards when min is a real number", () => {
     const cards = [
-      makePrinting({ card: { id: "1", name: "Spell", energy: null, might: null, power: null } }),
-      makePrinting({ card: { id: "2", name: "Unit", energy: 0 } }),
+      makePrinting({
+        cardId: "1",
+        card: { name: "Spell", energy: null, might: null, power: null },
+      }),
+      makePrinting({ cardId: "2", card: { name: "Unit", energy: 0 } }),
     ];
     const result = filterCards(cards, emptyFilters({ energy: { min: 0, max: 10 } }));
     expect(result).toHaveLength(1);
@@ -874,8 +887,8 @@ describe("filterCards", () => {
 
   it("includes null-might cards when min is NONE", () => {
     const cards = [
-      makePrinting({ card: { id: "1", name: "Spell", might: null } }),
-      makePrinting({ card: { id: "2", name: "Unit", might: 4 } }),
+      makePrinting({ cardId: "1", card: { name: "Spell", might: null } }),
+      makePrinting({ cardId: "2", card: { name: "Unit", might: 4 } }),
     ];
     const result = filterCards(cards, emptyFilters({ might: { min: NONE, max: 5 } }));
     expect(result).toHaveLength(2);
@@ -883,8 +896,8 @@ describe("filterCards", () => {
 
   it("isolates null-power cards when both min and max are NONE", () => {
     const cards = [
-      makePrinting({ card: { id: "1", name: "Spell", power: null } }),
-      makePrinting({ card: { id: "2", name: "Unit", power: 6 } }),
+      makePrinting({ cardId: "1", card: { name: "Spell", power: null } }),
+      makePrinting({ cardId: "2", card: { name: "Unit", power: 6 } }),
     ];
     const result = filterCards(cards, emptyFilters({ power: { min: NONE, max: NONE } }));
     expect(result).toHaveLength(1);
@@ -921,8 +934,8 @@ describe("filterCards", () => {
   it("card text search matches errata effectText only (not rulesText)", () => {
     const cards = [
       makePrinting({
+        cardId: "et",
         card: {
-          id: "et",
           name: "Effect Only",
           type: "Unit",
           superTypes: [],
@@ -970,15 +983,18 @@ describe("filterCards", () => {
     const cards = [
       makePrinting({
         promoType: { id: "1", slug: "nexus-night", label: "Nexus Night" },
-        card: { id: "p1", name: "Nexus Card" },
+        cardId: "p1",
+        card: { name: "Nexus Card" },
       }),
       makePrinting({
         promoType: { id: "2", slug: "launch-day", label: "Launch Day" },
-        card: { id: "p2", name: "Launch Card" },
+        cardId: "p2",
+        card: { name: "Launch Card" },
       }),
       makePrinting({
         promoType: null,
-        card: { id: "p3", name: "Regular Card" },
+        cardId: "p3",
+        card: { name: "Regular Card" },
       }),
     ];
     // isPromo null + promoTypes = filter by slug only
@@ -991,11 +1007,13 @@ describe("filterCards", () => {
     const cards = [
       makePrinting({
         promoType: { id: "1", slug: "nexus-night", label: "Nexus Night" },
-        card: { id: "p1", name: "Nexus Card" },
+        cardId: "p1",
+        card: { name: "Nexus Card" },
       }),
       makePrinting({
         promoType: { id: "2", slug: "launch-day", label: "Launch Day" },
-        card: { id: "p2", name: "Launch Card" },
+        cardId: "p2",
+        card: { name: "Launch Card" },
       }),
     ];
     const result = filterCards(cards, emptyFilters({ isPromo: true, promoTypes: ["nexus-night"] }));
@@ -1007,11 +1025,13 @@ describe("filterCards", () => {
     const cards = [
       makePrinting({
         promoType: { id: "1", slug: "nexus-night", label: "Nexus Night" },
-        card: { id: "p1", name: "Nexus Card" },
+        cardId: "p1",
+        card: { name: "Nexus Card" },
       }),
       makePrinting({
         promoType: null,
-        card: { id: "p2", name: "Regular Card" },
+        cardId: "p2",
+        card: { name: "Regular Card" },
       }),
     ];
     const result = filterCards(cards, emptyFilters({ isPromo: true, promoTypes: [] }));
@@ -1023,7 +1043,8 @@ describe("filterCards", () => {
     const cards = [
       makePrinting({
         promoType: null,
-        card: { id: "r", name: "Regular Card" },
+        cardId: "r",
+        card: { name: "Regular Card" },
       }),
     ];
     const result = filterCards(cards, emptyFilters({ isPromo: null, promoTypes: ["nexus-night"] }));
@@ -1035,8 +1056,8 @@ describe("filterCards", () => {
   it("excludes value below min in range filter", () => {
     const cards = [
       makePrinting({
+        cardId: "low",
         card: {
-          id: "low",
           name: "Low Energy",
           type: "Unit",
           superTypes: [],
@@ -1060,8 +1081,8 @@ describe("filterCards", () => {
   it("excludes value above max in range filter", () => {
     const cards = [
       makePrinting({
+        cardId: "high",
         card: {
-          id: "high",
           name: "High Energy",
           type: "Unit",
           superTypes: [],
@@ -1092,8 +1113,8 @@ describe("getAvailableFilters", () => {
       setSlug: "Set Alpha",
       artVariant: "altart",
       finish: "normal",
+      cardId: "1",
       card: {
-        id: "1",
         name: "Test",
         type: "Spell",
         superTypes: ["Basic"],
@@ -1112,8 +1133,8 @@ describe("getAvailableFilters", () => {
       setSlug: "Set Beta",
       artVariant: "normal",
       finish: "normal",
+      cardId: "2",
       card: {
-        id: "2",
         name: "Test2",
         type: "Unit",
         superTypes: ["Champion"],
@@ -1132,8 +1153,8 @@ describe("getAvailableFilters", () => {
       setSlug: "Set Alpha",
       artVariant: "normal",
       finish: "foil",
+      cardId: "3",
       card: {
-        id: "3",
         name: "Test3",
         type: "Unit",
         superTypes: [],
@@ -1261,8 +1282,8 @@ describe("getAvailableFilters", () => {
   it("handles printings with null energy/might/power", () => {
     const result = getAvailableFilters([
       makePrinting({
+        cardId: "null-stats",
         card: {
-          id: "null-stats",
           name: "Null Stats",
           type: "Spell",
           superTypes: [],
@@ -1287,7 +1308,7 @@ describe("getAvailableFilters", () => {
 
   it("computes hasNull flags as false when all cards have stats", () => {
     const result = getAvailableFilters([
-      makePrinting({ card: { id: "1", energy: 3, might: 2, power: 4 } }),
+      makePrinting({ cardId: "1", card: { energy: 3, might: 2, power: 4 } }),
     ]);
     expect(result.hasNullEnergy).toBe(false);
     expect(result.hasNullMight).toBe(false);
@@ -1302,8 +1323,8 @@ describe("getAvailableFilters", () => {
   it("deduplicates domains from multiple printings", () => {
     const result = getAvailableFilters([
       makePrinting({
+        cardId: "1",
         card: {
-          id: "1",
           name: "A",
           type: "Unit",
           superTypes: [],
@@ -1318,8 +1339,8 @@ describe("getAvailableFilters", () => {
         },
       }),
       makePrinting({
+        cardId: "2",
         card: {
-          id: "2",
           name: "B",
           type: "Unit",
           superTypes: [],
@@ -1350,8 +1371,8 @@ describe("sortCards", () => {
       id: "SET1-003:epic:normal:",
       shortCode: "SET1-003",
       rarity: "Epic",
+      cardId: "SET1-003",
       card: {
-        id: "SET1-003",
         name: "Charlie",
         type: "Unit",
         superTypes: [],
@@ -1369,8 +1390,8 @@ describe("sortCards", () => {
       id: "SET1-001:rare:normal:",
       shortCode: "SET1-001",
       rarity: "Common",
+      cardId: "SET1-001",
       card: {
-        id: "SET1-001",
         name: "Alpha",
         type: "Unit",
         superTypes: [],
@@ -1388,8 +1409,8 @@ describe("sortCards", () => {
       id: "SET1-002:common:foil:",
       shortCode: "SET1-002",
       rarity: "Rare",
+      cardId: "SET1-002",
       card: {
-        id: "SET1-002",
         name: "Bravo",
         type: "Unit",
         superTypes: [],
@@ -1437,8 +1458,8 @@ describe("sortCards", () => {
       makePrinting({
         shortCode: "SET1-003",
         rarity: "Common",
+        cardId: "c3",
         card: {
-          id: "c3",
           name: "Zeta",
           type: "Unit",
           superTypes: [],
@@ -1455,8 +1476,8 @@ describe("sortCards", () => {
       makePrinting({
         shortCode: "SET1-001",
         rarity: "Common",
+        cardId: "c1",
         card: {
-          id: "c1",
           name: "Alpha",
           type: "Unit",
           superTypes: [],
@@ -1473,8 +1494,8 @@ describe("sortCards", () => {
       makePrinting({
         shortCode: "SET1-002",
         rarity: "Rare",
+        cardId: "c2",
         card: {
-          id: "c2",
           name: "Bravo",
           type: "Unit",
           superTypes: [],
@@ -1498,8 +1519,8 @@ describe("sortCards", () => {
     const pricePrintings = [
       withPrice(
         makePrinting({
+          cardId: "e",
           card: {
-            id: "e",
             name: "Expensive",
             type: "Unit",
             superTypes: [],
@@ -1516,8 +1537,8 @@ describe("sortCards", () => {
         20,
       ),
       makePrinting({
+        cardId: "n",
         card: {
-          id: "n",
           name: "No Price",
           type: "Unit",
           superTypes: [],
@@ -1533,8 +1554,8 @@ describe("sortCards", () => {
       }),
       withPrice(
         makePrinting({
+          cardId: "c",
           card: {
-            id: "c",
             name: "Cheap",
             type: "Unit",
             superTypes: [],
@@ -1562,8 +1583,8 @@ describe("sortCards", () => {
         withPrice(
           makePrinting({
             shortCode: "SET1-002",
+            cardId: "b",
             card: {
-              id: "b",
               name: "Bravo",
               type: "Unit",
               superTypes: [],
@@ -1582,8 +1603,8 @@ describe("sortCards", () => {
         withPrice(
           makePrinting({
             shortCode: "SET1-001",
+            cardId: "a",
             card: {
-              id: "a",
               name: "Alpha",
               type: "Unit",
               superTypes: [],
@@ -1608,8 +1629,8 @@ describe("sortCards", () => {
       const nullPrintings = [
         makePrinting({
           shortCode: "SET1-002",
+          cardId: "z",
           card: {
-            id: "z",
             name: "Zed",
             type: "Unit",
             superTypes: [],
@@ -1625,8 +1646,8 @@ describe("sortCards", () => {
         }),
         makePrinting({
           shortCode: "SET1-001",
+          cardId: "a",
           card: {
-            id: "a",
             name: "Amy",
             type: "Unit",
             superTypes: [],
@@ -1649,8 +1670,8 @@ describe("sortCards", () => {
       const priceMix = [
         makePrinting({
           shortCode: "SET1-002",
+          cardId: "n",
           card: {
-            id: "n",
             name: "No Price",
             type: "Unit",
             superTypes: [],
@@ -1667,8 +1688,8 @@ describe("sortCards", () => {
         withPrice(
           makePrinting({
             shortCode: "SET1-001",
+            cardId: "m",
             card: {
-              id: "m",
               name: "Mid Price",
               type: "Unit",
               superTypes: [],
@@ -1687,8 +1708,8 @@ describe("sortCards", () => {
         withPrice(
           makePrinting({
             shortCode: "SET1-003",
+            cardId: "h",
             card: {
-              id: "h",
               name: "High Price",
               type: "Unit",
               superTypes: [],
@@ -1713,8 +1734,8 @@ describe("sortCards", () => {
       const energyMix = [
         makePrinting({
           shortCode: "SET1-002",
+          cardId: "n",
           card: {
-            id: "n",
             name: "No Energy",
             type: "Spell",
             superTypes: [],
@@ -1730,8 +1751,8 @@ describe("sortCards", () => {
         }),
         makePrinting({
           shortCode: "SET1-001",
+          cardId: "h",
           card: {
-            id: "h",
             name: "High Energy",
             type: "Unit",
             superTypes: [],
@@ -1747,8 +1768,8 @@ describe("sortCards", () => {
         }),
         makePrinting({
           shortCode: "SET1-003",
+          cardId: "l",
           card: {
-            id: "l",
             name: "Low Energy",
             type: "Unit",
             superTypes: [],
@@ -1771,8 +1792,8 @@ describe("sortCards", () => {
       const printingsWithCustomPrice = [
         makePrinting({
           shortCode: "SET1-001",
+          cardId: "a",
           card: {
-            id: "a",
             name: "Alpha",
             type: "Unit",
             superTypes: [],
@@ -1788,8 +1809,8 @@ describe("sortCards", () => {
         }),
         makePrinting({
           shortCode: "SET1-002",
+          cardId: "b",
           card: {
-            id: "b",
             name: "Bravo",
             type: "Unit",
             superTypes: [],
@@ -1807,7 +1828,7 @@ describe("sortCards", () => {
       // Override so Alpha appears more expensive
       const result = sortCards(printingsWithCustomPrice, "price", {
         sortDir: "desc",
-        getPrice: (p) => (p.card.id === "a" ? 100 : 1),
+        getPrice: (p) => (p.cardId === "a" ? 100 : 1),
       });
       expect(result.map((p) => p.card.name)).toEqual(["Alpha", "Bravo"]);
     });
@@ -1817,8 +1838,8 @@ describe("sortCards", () => {
     it("pushes null energy to the end", () => {
       const energyPrintings = [
         makePrinting({
+          cardId: "n",
           card: {
-            id: "n",
             name: "No Energy",
             type: "Spell",
             superTypes: [],
@@ -1833,8 +1854,8 @@ describe("sortCards", () => {
           },
         }),
         makePrinting({
+          cardId: "l",
           card: {
-            id: "l",
             name: "Low Energy",
             type: "Unit",
             superTypes: [],
@@ -1857,8 +1878,8 @@ describe("sortCards", () => {
       const energyPrintings = [
         makePrinting({
           shortCode: "SET1-002",
+          cardId: "z",
           card: {
-            id: "z",
             name: "Zeta Null",
             type: "Spell",
             superTypes: [],
@@ -1874,8 +1895,8 @@ describe("sortCards", () => {
         }),
         makePrinting({
           shortCode: "SET1-001",
+          cardId: "a",
           card: {
-            id: "a",
             name: "Alpha Null",
             type: "Spell",
             superTypes: [],
@@ -1890,8 +1911,8 @@ describe("sortCards", () => {
           },
         }),
         makePrinting({
+          cardId: "h",
           card: {
-            id: "h",
             name: "High Energy",
             type: "Unit",
             superTypes: [],
@@ -1920,7 +1941,7 @@ describe("sortCards", () => {
   });
 
   it("handles single-element array for all sort modes", () => {
-    const single = [makePrinting({ card: { id: "x", name: "Solo" } })];
+    const single = [makePrinting({ cardId: "x", card: { name: "Solo" } })];
     expect(sortCards(single, "name")).toHaveLength(1);
     expect(sortCards(single, "id")).toHaveLength(1);
     expect(sortCards(single, "energy")).toHaveLength(1);

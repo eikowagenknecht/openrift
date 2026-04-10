@@ -50,12 +50,7 @@ export function resolveProxyCards(
   catalog: CatalogResponse,
 ): ProxyCard[] {
   const slugById = new Map(catalog.sets.map((set) => [set.id, set.slug]));
-
-  // Re-attach id to cards so ProxyCard.card (a full Card) has it.
-  const cardsById: Record<string, Card> = {};
-  for (const [id, value] of Object.entries(catalog.cards)) {
-    cardsById[id] = { ...value, id };
-  }
+  const cardsById: Record<string, Card> = catalog.cards;
 
   // First printing per cardId wins, mirroring the previous array-order behavior.
   const printingByCardId = new Map<string, Printing & { setSlug: string }>();
