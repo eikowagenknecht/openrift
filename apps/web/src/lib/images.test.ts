@@ -12,7 +12,7 @@ const BASE_WITH_PARAMS = "https://example.com/card.png?accountingTag=RB";
 describe("getCardImageUrl", () => {
   it("returns thumbnail URL for CDN images", () => {
     const url = getCardImageUrl(BASE, "thumbnail");
-    expect(url).toBe(`${BASE}?w=300&fit=max&fm=webp&q=75`);
+    expect(url).toBe(`${BASE}?w=400&fit=max&fm=webp&q=75`);
   });
 
   it("returns full URL for CDN images", () => {
@@ -22,7 +22,7 @@ describe("getCardImageUrl", () => {
 
   it("uses & separator when base URL already has query params (thumbnail)", () => {
     const url = getCardImageUrl(BASE_WITH_PARAMS, "thumbnail");
-    expect(url).toBe(`${BASE_WITH_PARAMS}&w=300&fit=max&fm=webp&q=75`);
+    expect(url).toBe(`${BASE_WITH_PARAMS}&w=400&fit=max&fm=webp&q=75`);
   });
 
   it("uses & separator when base URL already has query params (full)", () => {
@@ -30,12 +30,12 @@ describe("getCardImageUrl", () => {
     expect(url).toBe(`${BASE_WITH_PARAMS}&fm=webp`);
   });
 
-  it("returns -300w.webp for self-hosted thumbnail", () => {
+  it("returns -400w.webp for self-hosted thumbnail", () => {
     const url = getCardImageUrl(
       "/card-images/40/00594247-a18a-4efd-8998-105449a4cf40",
       "thumbnail",
     );
-    expect(url).toBe("/card-images/40/00594247-a18a-4efd-8998-105449a4cf40-300w.webp");
+    expect(url).toBe("/card-images/40/00594247-a18a-4efd-8998-105449a4cf40-400w.webp");
   });
 
   it("returns -full.webp for self-hosted full size", () => {
@@ -54,19 +54,20 @@ describe("getCardImageUrl", () => {
 // ---------------------------------------------------------------------------
 
 describe("getCardImageSrcSet", () => {
-  it("generates srcset with all thumbnail widths", () => {
+  it("generates srcset with all thumbnail widths for CDN images", () => {
     const srcSet = getCardImageSrcSet(BASE);
+    expect(srcSet).toBeDefined();
     expect(srcSet).toContain("w=200");
     expect(srcSet).toContain("w=300");
     expect(srcSet).toContain("w=400");
     expect(srcSet).toContain("w=600");
     expect(srcSet).toContain("w=750");
     expect(srcSet).not.toContain("or=270");
-    expect(srcSet.split(", ")).toHaveLength(5);
+    expect(srcSet?.split(", ")).toHaveLength(5);
   });
 
   it("each entry ends with the width descriptor", () => {
-    const entries = getCardImageSrcSet(BASE).split(", ");
+    const entries = getCardImageSrcSet(BASE)?.split(", ") ?? [];
     expect(entries[0]).toMatch(/200w$/);
     expect(entries[1]).toMatch(/300w$/);
     expect(entries[2]).toMatch(/400w$/);
@@ -76,15 +77,14 @@ describe("getCardImageSrcSet", () => {
 
   it("uses & separator when base URL already has query params", () => {
     const srcSet = getCardImageSrcSet(BASE_WITH_PARAMS);
-    for (const entry of srcSet.split(", ")) {
+    for (const entry of srcSet?.split(", ") ?? []) {
       expect(entry).toContain("?accountingTag=RB&w=");
     }
   });
 
-  it("returns 300w and 400w webp variants for self-hosted URLs", () => {
+  it("returns undefined for self-hosted URLs (single 400w variant, no srcset needed)", () => {
     const base = "/card-images/40/00594247-a18a-4efd-8998-105449a4cf40";
-    const srcSet = getCardImageSrcSet(base);
-    expect(srcSet).toBe(`${base}-300w.webp 300w, ${base}-400w.webp 400w`);
+    expect(getCardImageSrcSet(base)).toBeUndefined();
   });
 });
 

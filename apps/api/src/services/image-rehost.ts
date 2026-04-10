@@ -43,10 +43,12 @@ function findProjectRoot(): string {
 
 export const CARD_IMAGES_DIR = join(findProjectRoot(), "card-images");
 
+// Both variants are capped on the **short edge** so portrait and landscape
+// cards end up at the same visual size after layout. `full` is not the
+// pristine original — that's kept separately as `-orig.{ext}`.
 const SIZES = [
-  { suffix: "300w", width: 300, quality: 85 },
-  { suffix: "400w", width: 400, quality: 85 },
-  { suffix: "full", width: null, quality: 85 },
+  { suffix: "400w", shortEdge: 400, quality: 85 },
+  { suffix: "full", shortEdge: 800, quality: 85 },
 ] as const;
 
 function guessExtension(contentType: string | null, url: string): string {
@@ -82,6 +84,22 @@ export async function downloadImage(io: Io, url: string): Promise<{ buffer: Buff
   return { buffer, ext };
 }
 
+async function sweepStaleWebpVariants(io: Io, outputDir: string, fileBase: string): Promise<void> {
+  let files: string[];
+  try {
+    files = await io.fs.readdir(outputDir);
+  } catch {
+    return;
+  }
+  const current = new Set(SIZES.map((s) => `${fileBase}-${s.suffix}.webp`));
+  for (const file of files) {
+    if (file.startsWith(`${fileBase}-`) && file.endsWith(".webp") && !current.has(file)) {
+      // oxlint-disable-next-line no-empty-function -- swallow missing-file errors
+      await io.fs.unlink(join(outputDir, file)).catch(() => {});
+    }
+  }
+}
+
 async function generateWebpVariants(
   io: Io,
   buffer: Buffer,
@@ -89,11 +107,17 @@ async function generateWebpVariants(
   fileBase: string,
 ): Promise<void> {
   await io.fs.mkdir(outputDir, { recursive: true });
+  const meta = await io.sharp(buffer).metadata();
+  const sourceWidth = meta.width ?? 0;
+  const sourceHeight = meta.height ?? 0;
+  const isLandscape = sourceWidth > sourceHeight;
+  await sweepStaleWebpVariants(io, outputDir, fileBase);
   for (const size of SIZES) {
-    let pipeline = io.sharp(buffer);
-    if (size.width !== null) {
-      pipeline = pipeline.resize(size.width, null, { withoutEnlargement: true });
-    }
+    const pipeline = io
+      .sharp(buffer)
+      .resize(isLandscape ? null : size.shortEdge, isLandscape ? size.shortEdge : null, {
+        withoutEnlargement: true,
+      });
     const webpBuffer = await pipeline.webp({ quality: size.quality }).toBuffer();
     await io.fs.writeFile(join(outputDir, `${fileBase}-${size.suffix}.webp`), webpBuffer);
   }
@@ -137,7 +161,7 @@ export async function processAndSave(
 
 /**
  * Delete all rehosted files for a given rehosted_url path prefix.
- * Removes orig, 300w, 400w, full variants.
+ * Removes the orig archive and every WebP variant for the base.
  */
 export async function deleteRehostFiles(io: Io, rehostedUrl: string): Promise<void> {
   const dir = join(CARD_IMAGES_DIR, rehostedUrl.replace(/^\/card-images\//, ""));
@@ -330,12 +354,15 @@ export async function clearAllRehosted(
  * @returns The `/card-images/{prefix}/{base}` prefix without the variant suffix.
  */
 function diskFileToPrefix(dirPrefix: string, file: string): string {
-  return `/card-images/${dirPrefix}/${file.replace(/-(orig\.[^.]+|300w\.webp|400w\.webp|full\.webp)$/, "")}`;
+  // Match only the suffix after the LAST dash: `-<variant>.webp` or `-orig.<ext>`.
+  // The `[^-.]+` class prevents the suffix from swallowing an internal dash
+  // (e.g. `img-1-300w.webp` must become `img-1`, not `img`).
+  return `/card-images/${dirPrefix}/${file.replace(/-(orig\.[^.]+|[^-.]+\.webp)$/, "")}`;
 }
 
 /**
  * Extract a human-readable resolution label from a card-image filename.
- * @returns The resolution label (e.g. "orig", "full", "300w", "400w", or "other").
+ * @returns The resolution label (e.g. "orig", "full", "400w", or "other").
  */
 function resolveResolutionLabel(filename: string): string {
   if (filename.includes("-orig.")) {
@@ -343,9 +370,6 @@ function resolveResolutionLabel(filename: string): string {
   }
   if (filename.endsWith("-full.webp")) {
     return "full";
-  }
-  if (filename.endsWith("-300w.webp")) {
-    return "300w";
   }
   if (filename.endsWith("-400w.webp")) {
     return "400w";
@@ -500,11 +524,15 @@ export async function findBrokenImages(
   return { total: images.length, broken };
 }
 
-const LOW_RES_WIDTH_THRESHOLD = 600;
+// Images whose source short edge is below this are flagged as low-res.
+// The -full.webp variant is short-edge capped at 800; anything below 400
+// means the source was genuinely small (below our grid thumbnail size).
+const LOW_RES_SHORT_EDGE_THRESHOLD = 400;
 
 /**
- * Find all rehosted card images whose full-resolution variant is below a width threshold.
- * Reads the `-full.webp` file for each rehosted image and checks its dimensions.
+ * Find all rehosted card images whose source short edge is below a threshold.
+ * Reads the `-full.webp` file (short-edge capped at 800) and checks its
+ * shorter dimension — orientation-agnostic.
  * @returns The total rehosted count and the list of low-resolution entries.
  */
 export async function findLowResImages(
@@ -522,7 +550,10 @@ export async function findLowResImages(
 
     try {
       const metadata = await io.sharp(await io.fs.readFile(fullPath)).metadata();
-      if (metadata.width && metadata.width < LOW_RES_WIDTH_THRESHOLD) {
+      const width = metadata.width ?? 0;
+      const height = metadata.height ?? 0;
+      const shortEdge = Math.min(width, height);
+      if (shortEdge > 0 && shortEdge < LOW_RES_SHORT_EDGE_THRESHOLD) {
         lowRes.push({
           imageId: img.imageId,
           rehostedUrl: img.rehostedUrl,
@@ -531,8 +562,8 @@ export async function findLowResImages(
           cardName: img.cardName,
           printingShortCode: img.printingShortCode,
           setSlug: img.setSlug,
-          width: metadata.width,
-          height: metadata.height ?? 0,
+          width,
+          height,
         });
       }
     } catch {

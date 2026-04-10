@@ -43,10 +43,14 @@ const mockFetch = vi.fn(() =>
 ) as any;
 
 // ─── sharp mock ──────────────────────────────────────────────────────────
+// Default: portrait source (width < height). Individual tests can pass a
+// custom `sharp` via `customIo` to simulate landscape or specific metadata.
+let mockSharpMetadata: { width: number; height: number } = { width: 600, height: 850 };
 const mockSharpInstance: any = {};
-mockSharpInstance.resize = () => mockSharpInstance;
+mockSharpInstance.resize = vi.fn(() => mockSharpInstance);
 mockSharpInstance.webp = () => mockSharpInstance;
 mockSharpInstance.toBuffer = () => Promise.resolve(Buffer.from("webp"));
+mockSharpInstance.metadata = () => Promise.resolve(mockSharpMetadata);
 
 const mockIo: Io = {
   fs: {
@@ -94,6 +98,8 @@ beforeEach(() => {
   mockRename.mockReset().mockResolvedValue();
   mockUnlink.mockReset().mockResolvedValue();
   mockStat.mockReset().mockResolvedValue({ size: 1024 });
+  mockSharpInstance.resize.mockClear();
+  mockSharpMetadata = { width: 600, height: 850 };
   mockFetch
     .mockReset()
     .mockResolvedValue(
@@ -181,22 +187,21 @@ describe("rehostFilesExist", () => {
 });
 
 describe("processAndSave", () => {
-  it("writes original and 3 webp variants", async () => {
+  it("writes original and 2 webp variants", async () => {
     const buf = Buffer.from("test-img");
     await processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001");
 
     // mkdir: once in processAndSave, once in generateWebpVariants
     expect(mockMkdir).toHaveBeenCalledTimes(2);
-    // 1 orig + 3 webp
-    expect(mockWriteFile).toHaveBeenCalledTimes(4);
+    // 1 orig + 2 webp
+    expect(mockWriteFile).toHaveBeenCalledTimes(3);
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-orig.png", buf);
-    expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-300w.webp", expect.any(Buffer));
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-400w.webp", expect.any(Buffer));
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-full.webp", expect.any(Buffer));
   });
 
   it("throws when files already exist on disk", async () => {
-    mockReaddir.mockResolvedValue(["card-001-orig.png", "card-001-300w.webp"]);
+    mockReaddir.mockResolvedValue(["card-001-orig.png", "card-001-400w.webp"]);
     const buf = Buffer.from("test-img");
     await expect(processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001")).rejects.toThrow(
       "Rehost files already exist for card-001",
@@ -208,18 +213,52 @@ describe("processAndSave", () => {
     mockReaddir.mockResolvedValue(["card-001-orig.png"]);
     const buf = Buffer.from("test-img");
     await processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001", true);
-    expect(mockWriteFile).toHaveBeenCalledTimes(4);
+    expect(mockWriteFile).toHaveBeenCalledTimes(3);
+  });
+
+  it("resizes portrait sources on the width axis", async () => {
+    mockSharpMetadata = { width: 600, height: 900 };
+    await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "portrait-1");
+
+    // Portrait → width capped, height null
+    expect(mockSharpInstance.resize).toHaveBeenCalledWith(400, null, { withoutEnlargement: true });
+    expect(mockSharpInstance.resize).toHaveBeenCalledWith(800, null, { withoutEnlargement: true });
+  });
+
+  it("resizes landscape sources on the height axis", async () => {
+    mockSharpMetadata = { width: 900, height: 600 };
+    await processAndSave(mockIo, Buffer.from("l"), ".png", "/tmp/out", "landscape-1");
+
+    // Landscape → height capped, width null
+    expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 400, { withoutEnlargement: true });
+    expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 800, { withoutEnlargement: true });
+  });
+
+  it("sweeps stale webp variants (e.g. legacy 300w) before regeneration", async () => {
+    // Existing dir has orig + stale 300w + current 400w — regen should
+    // delete 300w but keep orig alone (sweep only touches .webp files).
+    mockReaddir.mockResolvedValue([
+      "card-001-orig.png",
+      "card-001-300w.webp",
+      "card-001-400w.webp",
+      "card-001-full.webp",
+    ]);
+
+    await processAndSave(mockIo, Buffer.from("b"), ".png", "/tmp/out", "card-001", true);
+
+    expect(mockUnlink).toHaveBeenCalledTimes(1);
+    expect(mockUnlink).toHaveBeenCalledWith("/tmp/out/card-001-300w.webp");
   });
 });
 
 describe("deleteRehostFiles", () => {
   it("deletes matching files only", async () => {
-    mockReaddir.mockResolvedValue(["card-001-orig.png", "card-001-300w.webp", "other.webp"]);
+    mockReaddir.mockResolvedValue(["card-001-orig.png", "card-001-400w.webp", "other.webp"]);
     await deleteRehostFiles(mockIo, "/card-images/set1/card-001");
 
     expect(mockUnlink).toHaveBeenCalledTimes(2);
     expect(mockUnlink).toHaveBeenCalledWith(join(CARD_IMAGES_DIR, "set1", "card-001-orig.png"));
-    expect(mockUnlink).toHaveBeenCalledWith(join(CARD_IMAGES_DIR, "set1", "card-001-300w.webp"));
+    expect(mockUnlink).toHaveBeenCalledWith(join(CARD_IMAGES_DIR, "set1", "card-001-400w.webp"));
   });
 
   it("handles missing directory", async () => {
@@ -565,16 +604,16 @@ describe("getRehostStatus", () => {
 
   it("breaks down disk usage by resolution", async () => {
     const repo = makeMockRepo({
-      selectResult: [{ setId: "s1", setName: "S1", total: 4, rehosted: 4 }],
+      selectResult: [{ setId: "s1", setName: "S1", total: 3, rehosted: 3 }],
     });
     mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
       if (opts?.withFileTypes) {
         return [dirent("s1", true)];
       }
-      return ["card1-orig.png", "card1-full.webp", "card1-300w.webp", "card1-400w.webp"];
+      return ["card1-orig.png", "card1-full.webp", "card1-400w.webp"];
     });
     let statCall = 0;
-    const sizes = [5000, 2000, 500, 800];
+    const sizes = [5000, 2000, 800];
     mockStat.mockImplementation(async () => ({ size: sizes[statCall++] }));
 
     const result = await getRehostStatus(mockIo, repo);
@@ -582,8 +621,23 @@ describe("getRehostStatus", () => {
       { resolution: "orig", bytes: 5000, fileCount: 1 },
       { resolution: "full", bytes: 2000, fileCount: 1 },
       { resolution: "400w", bytes: 800, fileCount: 1 },
-      { resolution: "300w", bytes: 500, fileCount: 1 },
     ]);
+  });
+
+  it("labels legacy 300w files as 'other' (pre-sweep stragglers)", async () => {
+    const repo = makeMockRepo({
+      selectResult: [{ setId: "s1", setName: "S1", total: 1, rehosted: 1 }],
+    });
+    mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
+      if (opts?.withFileTypes) {
+        return [dirent("s1", true)];
+      }
+      return ["card1-300w.webp"];
+    });
+    mockStat.mockResolvedValue({ size: 500 });
+
+    const result = await getRehostStatus(mockIo, repo);
+    expect(result.disk.byResolution).toEqual([{ resolution: "other", bytes: 500, fileCount: 1 }]);
   });
 
   it("correctly computes external = total - rehosted per set", async () => {
@@ -788,7 +842,7 @@ describe("findBrokenImages", () => {
 });
 
 describe("findLowResImages", () => {
-  it("returns empty when all images are high-res", async () => {
+  it("returns empty when all images have a large enough short edge", async () => {
     const mockSharpMeta: any = {
       metadata: () => Promise.resolve({ width: 800, height: 1200 }),
     };
@@ -817,9 +871,10 @@ describe("findLowResImages", () => {
     expect(result.lowRes).toHaveLength(0);
   });
 
-  it("identifies images below the width threshold", async () => {
+  it("identifies portrait images with short edge below the threshold", async () => {
+    // 300×500 portrait → short edge = 300 < 400 threshold
     const mockSharpMeta: any = {
-      metadata: () => Promise.resolve({ width: 400, height: 600 }),
+      metadata: () => Promise.resolve({ width: 300, height: 500 }),
     };
     const customIo = {
       ...mockIo,
@@ -844,7 +899,40 @@ describe("findLowResImages", () => {
 
     expect(result.total).toBe(1);
     expect(result.lowRes).toHaveLength(1);
-    expect(result.lowRes[0].width).toBe(400);
+    expect(result.lowRes[0].width).toBe(300);
+    expect(result.lowRes[0].height).toBe(500);
+  });
+
+  it("identifies landscape images with short edge (height) below the threshold", async () => {
+    // 700×350 landscape → short edge = 350 < 400 threshold
+    const mockSharpMeta: any = {
+      metadata: () => Promise.resolve({ width: 700, height: 350 }),
+    };
+    const customIo = {
+      ...mockIo,
+      sharp: (() => mockSharpMeta) as any,
+    };
+
+    const repo = {
+      listAllRehostedWithContext: vi.fn(async () => [
+        {
+          imageId: "img-1",
+          rehostedUrl: "/card-images/g1/img-1",
+          originalUrl: "https://example.com/img.png",
+          cardSlug: "c-1",
+          cardName: "Card",
+          printingShortCode: "p-1",
+          setSlug: "set-a",
+        },
+      ]),
+    } as any;
+
+    const result = await findLowResImages(customIo, repo);
+
+    expect(result.total).toBe(1);
+    expect(result.lowRes).toHaveLength(1);
+    expect(result.lowRes[0].width).toBe(700);
+    expect(result.lowRes[0].height).toBe(350);
   });
 
   it("skips images where file read fails", async () => {
