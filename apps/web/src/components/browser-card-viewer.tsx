@@ -6,6 +6,8 @@ import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer
 import type { GroupInfo } from "@/components/cards/card-grid-types";
 import { useSelectionStore } from "@/stores/selection-store";
 
+const EMPTY_SIBLINGS: Printing[] = [];
+
 interface BrowserCardViewerProps {
   items: CardViewerItem[];
   totalItems: number;
@@ -46,7 +48,9 @@ export function BrowserCardViewer({
       ? (deferredSortedCards.find((c) => c.cardId === selectedCard.cardId)?.id ?? selectedCard.id)
       : selectedCard?.id;
 
-  const siblingPrintings = selectedCard ? (printingsByCardId.get(selectedCard.cardId) ?? []) : [];
+  const siblingPrintings = selectedCard
+    ? (printingsByCardId.get(selectedCard.cardId) ?? EMPTY_SIBLINGS)
+    : EMPTY_SIBLINGS;
 
   return (
     <CardViewer
