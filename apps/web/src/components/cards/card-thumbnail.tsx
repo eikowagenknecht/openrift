@@ -2,7 +2,7 @@ import { useDraggable } from "@dnd-kit/core";
 import type { Domain, Printing, Rarity } from "@openrift/shared";
 import { WellKnown, getOrientation } from "@openrift/shared";
 import { SparkleIcon } from "lucide-react";
-import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { memo, useRef, useState } from "react";
 
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
@@ -176,6 +176,47 @@ interface CardThumbnailProps {
   showBanOverlay?: boolean; // custom: deckbuilder banned card overlay
 }
 
+// Wrapper that owns the dnd-kit useDraggable subscription. Only mounted when a
+// caller passes dragData (deckbuilder), so the cards browser and collection grid
+// pay zero @dnd-kit cost on mount.
+function DraggableTopSlotWrapper({
+  dragId,
+  dragData,
+  className,
+  style,
+  onMouseEnter,
+  onMouseLeave,
+  children,
+}: {
+  dragId: string;
+  dragData: Record<string, unknown>;
+  className: string;
+  style: CSSProperties | undefined;
+  onMouseEnter: (() => void) | undefined;
+  onMouseLeave: (() => void) | undefined;
+  children: ReactNode;
+}) {
+  const isMobile = useIsMobile();
+  const enableDrag = !isMobile;
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: dragId,
+    data: dragData,
+    disabled: !enableDrag,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(className, isDragging && "opacity-40", enableDrag && "select-none")}
+      style={style}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      {...(enableDrag ? { ...listeners, ...attributes } : {})}
+    >
+      {children}
+    </div>
+  );
+}
+
 // Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
 // scroll frame. React Compiler cannot memoize JSX created in dynamic .map() callbacks.
 export const CardThumbnail = memo(function CardThumbnail({
@@ -223,7 +264,13 @@ export const CardThumbnail = memo(function CardThumbnail({
   const favoritePrice = prices.get(printing.id, favoriteMarketplace);
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
   const isFoilCard = printing.finish === WellKnown.finish.FOIL;
-  const tilt = useCardTilt({ mode: "pointer", enabled: cardTilt && !IS_COARSE_POINTER });
+  const tiltEnabled = cardTilt && !IS_COARSE_POINTER;
+  const tilt = useCardTilt({ mode: "pointer", enabled: tiltEnabled });
+  // Spreading TILT_STYLE creates a perspective + preserve-3d context, which
+  // promotes every card to its own compositing layer. When tilt is disabled,
+  // skip the transform entirely so the browser can keep cards on the default
+  // 2D paint path — measured to dramatically reduce paint cost during scroll.
+  const tiltStyle = tiltEnabled ? TILT_STYLE : undefined;
   const otherPrintings = siblings ? siblings.filter((s) => s.id !== printing.id).toReversed() : [];
   const fanStep = cardWidth === undefined ? 2 : Math.max(1, cardWidth * 0.01);
   const fanAngle = fancyFan ? 8 : 1.5;
@@ -296,7 +343,7 @@ export const CardThumbnail = memo(function CardThumbnail({
             <div
               ref={tilt.innerRef}
               className={cn(AFTER_BORDER, "hover:ring-primary/60 hover:ring-2")}
-              style={{ borderRadius: "inherit", ...TILT_STYLE }}
+              style={{ borderRadius: "inherit", ...tiltStyle }}
             >
               <CardImageContent
                 thumbnailUrl={thumbnailUrl}
@@ -324,7 +371,7 @@ export const CardThumbnail = memo(function CardThumbnail({
               AFTER_BORDER,
               "hover:ring-primary/60 hover:ring-2",
             )}
-            style={{ borderRadius: CARD_BORDER_RADIUS, ...TILT_STYLE }}
+            style={{ borderRadius: CARD_BORDER_RADIUS, ...tiltStyle }}
           >
             <CardImageContent
               thumbnailUrl={thumbnailUrl}
@@ -407,41 +454,19 @@ export const CardThumbnail = memo(function CardThumbnail({
         }
       : undefined;
 
-  // custom: optional drag support for deckbuilder browser cards (disabled on mobile)
-  const isMobile = useIsMobile();
-  const enableDrag = Boolean(dragData) && !isMobile;
-  const {
-    setNodeRef: dragRef,
-    listeners: dragListeners,
-    attributes: dragAttributes,
-    isDragging,
-  } = useDraggable({
-    id: dragId ?? `card-${printing.id}`,
-    data: dragData,
-    disabled: !enableDrag,
-  });
-
   /* ── Top-slot mode: outer <div> is inert, only the image area is a <button> ── */
   if (topSlot) {
-    return (
-      <div
-        ref={enableDrag ? dragRef : undefined}
-        className={cn(
-          // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
-          "group relative w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
-          otherPrintings.length > 0 && "hover:[--fan:1]",
-          isDragging && "opacity-40",
-          enableDrag && "select-none",
-        )}
-        style={
-          isSelected || highlighted
-            ? getDomainGradientStyle(card.domains, "38", domainColors)
-            : undefined
-        }
-        onMouseEnter={fanMouseEnter}
-        onMouseLeave={fanMouseLeave}
-        {...(enableDrag ? { ...dragListeners, ...dragAttributes } : {})}
-      >
+    const wrapperClassName = cn(
+      // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
+      "group relative w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
+      otherPrintings.length > 0 && "hover:[--fan:1]",
+    );
+    const wrapperStyle =
+      isSelected || highlighted
+        ? getDomainGradientStyle(card.domains, "38", domainColors)
+        : undefined;
+    const wrapperContent = (
+      <>
         {flashOverlay}
         {topSlot}
         <button
@@ -452,6 +477,32 @@ export const CardThumbnail = memo(function CardThumbnail({
           {imageSection}
         </button>
         {labelSection}
+      </>
+    );
+
+    if (dragData) {
+      return (
+        <DraggableTopSlotWrapper
+          dragId={dragId ?? `card-${printing.id}`}
+          dragData={dragData}
+          className={wrapperClassName}
+          style={wrapperStyle}
+          onMouseEnter={fanMouseEnter}
+          onMouseLeave={fanMouseLeave}
+        >
+          {wrapperContent}
+        </DraggableTopSlotWrapper>
+      );
+    }
+
+    return (
+      <div
+        className={wrapperClassName}
+        style={wrapperStyle}
+        onMouseEnter={fanMouseEnter}
+        onMouseLeave={fanMouseLeave}
+      >
+        {wrapperContent}
       </div>
     );
   }
