@@ -24,23 +24,24 @@ function mockTransact(trxRepos: Repos): Transact {
 function createMockMappingRepo(overrides: Record<string, unknown> = {}) {
   return {
     ignoredProducts: vi.fn().mockResolvedValue([]),
+    ignoredVariants: vi.fn().mockResolvedValue([]),
     allStaging: vi.fn().mockResolvedValue([]),
     groupNames: vi.fn().mockResolvedValue([]),
     allCardsWithPrintings: vi.fn().mockResolvedValue([]),
     stagingCardOverrides: vi.fn().mockResolvedValue([]),
     printingFinishesAndLanguages: vi.fn().mockResolvedValue([]),
     stagingByExternalIds: vi.fn().mockResolvedValue([]),
-    upsertSources: vi.fn().mockResolvedValue([]),
+    upsertProductVariants: vi.fn().mockResolvedValue([]),
     insertSnapshots: vi.fn().mockResolvedValue(undefined),
     deleteStagingTuples: vi.fn().mockResolvedValue(undefined),
-    getSource: vi.fn().mockResolvedValue(null),
+    getVariantForPrinting: vi.fn().mockResolvedValue(undefined),
     getPrintingFinishAndLanguage: vi.fn().mockResolvedValue({ finish: "normal", language: "EN" }),
-    snapshotsByProductId: vi.fn().mockResolvedValue([]),
-    deleteSnapshotsByProductId: vi.fn().mockResolvedValue(undefined),
-    deleteSourceById: vi.fn().mockResolvedValue(undefined),
-    countMappedSources: vi.fn().mockResolvedValue(0),
-    deleteSnapshotsForMappedSources: vi.fn().mockResolvedValue(undefined),
-    deleteMappedSources: vi.fn().mockResolvedValue(undefined),
+    snapshotsByVariantId: vi.fn().mockResolvedValue([]),
+    deleteSnapshotsByVariantId: vi.fn().mockResolvedValue(undefined),
+    deleteVariantById: vi.fn().mockResolvedValue(undefined),
+    countMappedVariants: vi.fn().mockResolvedValue(0),
+    deleteSnapshotsForMappedVariants: vi.fn().mockResolvedValue(undefined),
+    deleteMappedVariants: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -256,9 +257,9 @@ describe("getMappingOverview", () => {
     expect(result.unmatchedProducts[0].productName).toBe("Completely Unknown Product");
   });
 
-  it("excludes ignored staging rows", async () => {
+  it("excludes ignored staging rows via L3 ignoredVariants", async () => {
     const mappingRepo = createMockMappingRepo({
-      ignoredProducts: vi.fn().mockResolvedValue([
+      ignoredVariants: vi.fn().mockResolvedValue([
         {
           externalId: 12_345,
           finish: "normal",
@@ -278,6 +279,35 @@ describe("getMappingOverview", () => {
 
     expect(result.unmatchedProducts).toHaveLength(0);
     expect(result.ignoredProducts).toHaveLength(1);
+    expect(result.ignoredProducts[0].level).toBe("variant");
+  });
+
+  it("excludes staging rows via L2 ignoredProducts (whole-product ignore)", async () => {
+    const mappingRepo = createMockMappingRepo({
+      ignoredProducts: vi.fn().mockResolvedValue([
+        {
+          externalId: 12_345,
+          productName: "Ignored Product",
+          createdAt: new Date(),
+        },
+      ]),
+      allStaging: vi
+        .fn()
+        .mockResolvedValue([
+          makeStagingRow({ externalId: 12_345, finish: "normal" }),
+          makeStagingRow({ externalId: 12_345, finish: "foil" }),
+        ]),
+    });
+    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
+    const config = createMockConfig();
+
+    const result = await getMappingOverview(repos, config);
+
+    // Both SKUs filtered by the single L2 ignore
+    expect(result.unmatchedProducts).toHaveLength(0);
+    expect(result.ignoredProducts).toHaveLength(1);
+    expect(result.ignoredProducts[0].level).toBe("product");
+    expect(result.ignoredProducts[0].finish).toBeNull();
   });
 
   it("deduplicates staged products by externalId+finish key", async () => {
@@ -544,9 +574,9 @@ describe("getMappingOverview", () => {
     expect(result.allCards[0].printings).toHaveLength(1);
   });
 
-  it("builds ignored products list with group name lookups", async () => {
+  it("builds ignored variants list with group name lookups", async () => {
     const mappingRepo = createMockMappingRepo({
-      ignoredProducts: vi.fn().mockResolvedValue([
+      ignoredVariants: vi.fn().mockResolvedValue([
         {
           externalId: 999,
           finish: "normal",
@@ -571,9 +601,9 @@ describe("getMappingOverview", () => {
     expect(result.ignoredProducts[0].currency).toBe("USD");
   });
 
-  it("uses fallback group name for ignored product without staging data", async () => {
+  it("uses fallback group name for ignored variant without staging data", async () => {
     const mappingRepo = createMockMappingRepo({
-      ignoredProducts: vi.fn().mockResolvedValue([
+      ignoredVariants: vi.fn().mockResolvedValue([
         {
           externalId: 999,
           finish: "normal",
@@ -857,7 +887,7 @@ describe("saveMappings", () => {
           avg30Cents: 495,
         },
       ]),
-      upsertSources: vi.fn().mockResolvedValue([{ printingId: "p-1", id: "source-1" }]),
+      upsertProductVariants: vi.fn().mockResolvedValue([{ printingId: "p-1", variantId: "var-1" }]),
     });
     const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
     const transact = mockTransact(repos);
@@ -871,6 +901,10 @@ describe("saveMappings", () => {
     expect(result.skipped).toEqual([]);
     expect(mappingRepo.insertSnapshots).toHaveBeenCalledTimes(1);
     expect(mappingRepo.deleteStagingTuples).toHaveBeenCalledTimes(1);
+    // Snapshot rows use variantId, not productId
+    const snapshotArg = (mappingRepo.insertSnapshots as unknown as { mock: { calls: unknown[][] } })
+      .mock.calls[0][0] as { variantId: string }[];
+    expect(snapshotArg[0].variantId).toBe("var-1");
   });
 
   it("skips mapping when printing not found", async () => {
@@ -985,7 +1019,7 @@ describe("saveMappings", () => {
           avg30Cents: null,
         },
       ]),
-      upsertSources: vi.fn().mockResolvedValue([]),
+      upsertProductVariants: vi.fn().mockResolvedValue([]),
     });
     const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
     const transact = mockTransact(repos);
@@ -1035,7 +1069,7 @@ describe("saveMappings", () => {
           avg30Cents: null,
         },
       ]),
-      upsertSources: vi.fn().mockResolvedValue([{ printingId: "p-1", id: "source-1" }]),
+      upsertProductVariants: vi.fn().mockResolvedValue([{ printingId: "p-1", variantId: "var-1" }]),
     });
     const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
     const transact = mockTransact(repos);
@@ -1060,9 +1094,9 @@ describe("unmapPrinting", () => {
     vi.resetAllMocks();
   });
 
-  it("does nothing when source does not exist", async () => {
+  it("does nothing when variant does not exist", async () => {
     const mappingRepo = createMockMappingRepo({
-      getSource: vi.fn().mockResolvedValue(null),
+      getVariantForPrinting: vi.fn().mockResolvedValue(undefined),
     });
     const repos = {
       marketplaceMapping: mappingRepo,
@@ -1073,37 +1107,24 @@ describe("unmapPrinting", () => {
 
     await unmapPrinting(transact, config, "p-1");
 
-    expect(mappingRepo.deleteSnapshotsByProductId).not.toHaveBeenCalled();
-    expect(mappingRepo.deleteSourceById).not.toHaveBeenCalled();
+    expect(mappingRepo.deleteSnapshotsByVariantId).not.toHaveBeenCalled();
+    expect(mappingRepo.deleteVariantById).not.toHaveBeenCalled();
   });
 
-  it("does nothing when source has null externalId", async () => {
-    const mappingRepo = createMockMappingRepo({
-      getSource: vi.fn().mockResolvedValue({ id: "source-1", externalId: null }),
-    });
-    const repos = {
-      marketplaceMapping: mappingRepo,
-      marketplaceTransfer: {},
-    } as unknown as Repos;
-    const transact = mockTransact(repos);
-    const config = createMockConfig();
-
-    await unmapPrinting(transact, config, "p-1");
-
-    expect(mappingRepo.deleteSnapshotsByProductId).not.toHaveBeenCalled();
-  });
-
-  it("restores snapshots to staging and deletes source", async () => {
+  it("restores snapshots to staging and deletes variant (parent product preserved)", async () => {
     const mockInsertStagingFromSnapshot = vi.fn().mockResolvedValue(undefined);
     const mappingRepo = createMockMappingRepo({
-      getSource: vi.fn().mockResolvedValue({
-        id: "source-1",
+      getVariantForPrinting: vi.fn().mockResolvedValue({
+        variantId: "var-1",
+        marketplaceProductId: "mp-1",
+        finish: "normal",
+        language: "EN",
         externalId: 12_345,
         groupId: 1,
         productName: "Test Product",
+        marketplace: "tcgplayer",
       }),
-      getPrintingFinishAndLanguage: vi.fn().mockResolvedValue({ finish: "normal", language: "EN" }),
-      snapshotsByProductId: vi.fn().mockResolvedValue([
+      snapshotsByVariantId: vi.fn().mockResolvedValue([
         {
           recordedAt: new Date("2026-01-15"),
           marketCents: 500,
@@ -1132,8 +1153,8 @@ describe("unmapPrinting", () => {
 
     await unmapPrinting(transact, config, "p-1");
 
-    expect(mappingRepo.deleteSnapshotsByProductId).toHaveBeenCalledWith("source-1");
-    expect(mappingRepo.deleteSourceById).toHaveBeenCalledWith("source-1");
+    expect(mappingRepo.deleteSnapshotsByVariantId).toHaveBeenCalledWith("var-1");
+    expect(mappingRepo.deleteVariantById).toHaveBeenCalledWith("var-1");
     expect(mockInsertStagingFromSnapshot).toHaveBeenCalledTimes(1);
   });
 });
@@ -1150,7 +1171,7 @@ describe("unmapAll", () => {
   it("calls bulkUnmapSql and returns count", async () => {
     const mockBulkUnmapToStaging = vi.fn().mockResolvedValue(undefined);
     const mappingRepo = createMockMappingRepo({
-      countMappedSources: vi.fn().mockResolvedValue(5),
+      countMappedVariants: vi.fn().mockResolvedValue(5),
     });
     const mockTransferRepo = {
       snapshotsByMarketplace: vi.fn().mockResolvedValue([]),
@@ -1168,8 +1189,8 @@ describe("unmapAll", () => {
     const result = await unmapAll(transact, config);
 
     expect(result.unmapped).toBe(5);
-    expect(mappingRepo.deleteSnapshotsForMappedSources).toHaveBeenCalledWith("tcgplayer");
-    expect(mappingRepo.deleteMappedSources).toHaveBeenCalledWith("tcgplayer");
+    expect(mappingRepo.deleteSnapshotsForMappedVariants).toHaveBeenCalledWith("tcgplayer");
+    expect(mappingRepo.deleteMappedVariants).toHaveBeenCalledWith("tcgplayer");
     expect(mockBulkUnmapToStaging).toHaveBeenCalledWith("tcgplayer");
   });
 });

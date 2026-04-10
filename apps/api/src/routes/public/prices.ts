@@ -107,9 +107,9 @@ export const pricesRoute = pricesApp
     const ctSource = sources.find((s) => s.marketplace === ("cardtrader" satisfies Marketplace));
 
     const [tcgRows, cmRows, ctRows] = await Promise.all([
-      tcgSource ? marketplace.snapshots(tcgSource.id, cutoff) : [],
-      cmSource ? marketplace.snapshots(cmSource.id, cutoff) : [],
-      ctSource ? marketplace.snapshots(ctSource.id, cutoff) : [],
+      tcgSource ? marketplace.snapshots(tcgSource.variantId, cutoff) : [],
+      cmSource ? marketplace.snapshots(cmSource.variantId, cutoff) : [],
+      ctSource ? marketplace.snapshots(ctSource.variantId, cutoff) : [],
     ]);
 
     const tcgSnapshots: PriceHistoryResponse["tcgplayer"]["snapshots"] = [];

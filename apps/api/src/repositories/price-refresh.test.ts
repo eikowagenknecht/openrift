@@ -19,11 +19,23 @@ describe("priceRefreshRepo", () => {
     expect(await priceRefreshRepo(db).allPrintingsForPriceMatch()).toHaveLength(1);
   });
 
-  it("loadIgnoredKeys returns a Set of keys", async () => {
+  it("loadIgnoredKeys returns LoadedIgnoredKeys with productIds and variantKeys", async () => {
+    // The mock proxy returns the same execute result for both the product and
+    // variant queries. A row with externalId + finish + language satisfies both
+    // (extra fields are ignored for the product query).
     const db = createMockDb([{ externalId: 123, finish: "normal", language: "EN" }]);
     const result = await priceRefreshRepo(db).loadIgnoredKeys("tcgplayer");
-    expect(result).toBeInstanceOf(Set);
-    expect(result.has("123::normal::EN")).toBe(true);
+    expect(result.productIds).toBeInstanceOf(Set);
+    expect(result.variantKeys).toBeInstanceOf(Set);
+    expect(result.productIds.has(123)).toBe(true);
+    expect(result.variantKeys.has("123::normal::EN")).toBe(true);
+  });
+
+  it("loadIgnoredKeys returns empty sets when no ignored rows", async () => {
+    const db = createMockDb([]);
+    const result = await priceRefreshRepo(db).loadIgnoredKeys("tcgplayer");
+    expect(result.productIds.size).toBe(0);
+    expect(result.variantKeys.size).toBe(0);
   });
 
   it("upsertGroups upserts marketplace groups", async () => {
@@ -38,9 +50,11 @@ describe("priceRefreshRepo", () => {
     await expect(priceRefreshRepo(db).upsertGroups("tcgplayer", [])).resolves.toBeUndefined();
   });
 
-  it("sourcesWithFinish returns sources with printing finish", async () => {
-    const db = createMockDb([{ id: "ps-1", printingId: "p-1", externalId: 123, finish: "normal" }]);
-    expect(await priceRefreshRepo(db).sourcesWithFinish("tcgplayer")).toHaveLength(1);
+  it("variantsWithFinish returns variants with printing finish", async () => {
+    const db = createMockDb([
+      { id: "var-1", printingId: "p-1", externalId: 123, finish: "normal", language: "EN" },
+    ]);
+    expect(await priceRefreshRepo(db).variantsWithFinish("tcgplayer")).toHaveLength(1);
   });
 
   it("countSnapshots returns count", async () => {
@@ -58,7 +72,7 @@ describe("priceRefreshRepo", () => {
     expect(
       await priceRefreshRepo(db).upsertSnapshots([
         {
-          productId: "ps-1",
+          variantId: "var-1",
           recordedAt: new Date(),
           marketCents: 1500,
           lowCents: null,
@@ -97,8 +111,18 @@ describe("priceRefreshRepo", () => {
     ).toBe(1);
   });
 
-  it("existingSourcesByMarketplaces returns sources", async () => {
-    const db = createMockDb([{ marketplace: "tcgplayer", externalId: 123 }]);
+  it("existingSourcesByMarketplaces returns sources with finish + language", async () => {
+    const db = createMockDb([
+      {
+        marketplace: "tcgplayer",
+        externalId: 123,
+        printingId: "p-1",
+        finish: "normal",
+        language: "EN",
+        groupId: 1,
+        productName: "Card",
+      },
+    ]);
     expect(await priceRefreshRepo(db).existingSourcesByMarketplaces(["tcgplayer"])).toHaveLength(1);
   });
 
@@ -107,24 +131,25 @@ describe("priceRefreshRepo", () => {
     expect(await priceRefreshRepo(db).existingExternalIdsByMarketplace("tcgplayer")).toEqual([123]);
   });
 
-  it("batchInsertProducts inserts products", async () => {
-    const db = createMockDb([]);
+  it("batchInsertProductVariants inserts products + variants", async () => {
+    const db = createMockDb([{ id: "mp-1", marketplace: "tcgplayer", externalId: 123 }]);
     await expect(
-      priceRefreshRepo(db).batchInsertProducts([
+      priceRefreshRepo(db).batchInsertProductVariants([
         {
           marketplace: "tcgplayer",
           externalId: 123,
           groupId: 1,
           productName: "Card",
           printingId: "p-1",
+          finish: "normal",
           language: "EN",
         },
       ]),
     ).resolves.toBeUndefined();
   });
 
-  it("batchInsertProducts is no-op for empty array", async () => {
+  it("batchInsertProductVariants is no-op for empty array", async () => {
     const db = createMockDb([]);
-    await expect(priceRefreshRepo(db).batchInsertProducts([])).resolves.toBeUndefined();
+    await expect(priceRefreshRepo(db).batchInsertProductVariants([])).resolves.toBeUndefined();
   });
 });

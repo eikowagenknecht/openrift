@@ -12,6 +12,7 @@ import { CM_CONFIG, TCG_CONFIG } from "./source-configs";
 const marketplaceLabels: Record<string, string> = {
   tcgplayer: "TCGplayer",
   cardmarket: "Cardmarket",
+  cardtrader: "CardTrader",
 };
 
 export function IgnoredProductsPage() {
@@ -20,6 +21,16 @@ export function IgnoredProductsPage() {
   const { products } = data;
 
   const columns: AdminColumnDef<IgnoredProductResponse>[] = [
+    {
+      header: "Level",
+      width: "w-24",
+      sortValue: (p) => p.level,
+      cell: (p) => (
+        <Badge variant={p.level === "product" ? "default" : "outline"}>
+          {p.level === "product" ? "Product" : "Variant"}
+        </Badge>
+      ),
+    },
     {
       header: "Marketplace",
       width: "w-28",
@@ -57,8 +68,24 @@ export function IgnoredProductsPage() {
     {
       header: "Finish",
       width: "w-24",
-      sortValue: (p) => p.finish,
-      cell: (p) => <Badge variant="outline">{p.finish}</Badge>,
+      sortValue: (p) => (p.level === "variant" ? p.finish : ""),
+      cell: (p) =>
+        p.level === "variant" ? (
+          <Badge variant="outline">{p.finish}</Badge>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
+      header: "Language",
+      width: "w-20",
+      sortValue: (p) => (p.level === "variant" ? p.language : ""),
+      cell: (p) =>
+        p.level === "variant" ? (
+          <span className="text-muted-foreground font-mono text-xs">{p.language}</span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
     },
     {
       header: "Ignored At",
@@ -74,13 +101,17 @@ export function IgnoredProductsPage() {
     <AdminTable
       columns={columns}
       data={products}
-      getRowKey={(p) => `${p.marketplace}:${p.externalId}:${p.finish}`}
+      getRowKey={(p) =>
+        p.level === "product"
+          ? `product:${p.marketplace}:${p.externalId}`
+          : `variant:${p.marketplace}:${p.externalId}:${p.finish}:${p.language}`
+      }
       emptyText="No ignored products."
       defaultSort={{ column: "Ignored At", direction: "desc" }}
       toolbar={
         products.length > 0 ? (
           <p className="text-muted-foreground text-sm">
-            {products.length} ignored product{products.length === 1 ? "" : "s"} across all
+            {products.length} ignored entr{products.length === 1 ? "y" : "ies"} across all
             marketplaces
           </p>
         ) : undefined
@@ -89,12 +120,21 @@ export function IgnoredProductsPage() {
         <Button
           variant="ghost"
           onClick={() =>
-            unignoreMutation.mutate({
-              marketplace: p.marketplace as "tcgplayer" | "cardmarket" | "cardtrader",
-              externalId: p.externalId,
-              finish: p.finish,
-              language: p.language,
-            })
+            unignoreMutation.mutate(
+              p.level === "product"
+                ? {
+                    level: "product",
+                    marketplace: p.marketplace as "tcgplayer" | "cardmarket" | "cardtrader",
+                    externalId: p.externalId,
+                  }
+                : {
+                    level: "variant",
+                    marketplace: p.marketplace as "tcgplayer" | "cardmarket" | "cardtrader",
+                    externalId: p.externalId,
+                    finish: p.finish,
+                    language: p.language,
+                  },
+            )
           }
           disabled={unignoreMutation.isPending}
         >

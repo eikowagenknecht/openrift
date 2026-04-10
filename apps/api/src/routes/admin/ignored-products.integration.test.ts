@@ -69,11 +69,12 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
   // ── POST /admin/ignored-products ────────────────────────────────────────
 
   describe("POST /admin/ignored-products", () => {
-    it("ignores a product that exists in staging", async () => {
+    it("ignores a product that exists in staging (L2)", async () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
+          level: "product",
           marketplace: "tcgplayer",
-          products: [{ externalId: 10_401, finish: "normal", language: "" }],
+          products: [{ externalId: 10_401 }],
         }),
       );
       expect(res.status).toBe(200);
@@ -85,8 +86,9 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     it("returns 0 ignored count for non-existent staging ID", async () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
+          level: "product",
           marketplace: "tcgplayer",
-          products: [{ externalId: 99_999, finish: "normal", language: "" }],
+          products: [{ externalId: 99_999 }],
         }),
       );
       expect(res.status).toBe(200);
@@ -106,8 +108,9 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     it("returns 400 for invalid source", async () => {
       const res = await app.fetch(
         req("POST", "/admin/ignored-products", {
+          level: "product",
           marketplace: "invalid",
-          products: [{ externalId: 10_401, finish: "normal", language: "" }],
+          products: [{ externalId: 10_401 }],
         }),
       );
       expect(res.status).toBe(400);
@@ -124,9 +127,9 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       const json = await res.json();
       const igpProduct = json.products.find((p: { externalId: number }) => p.externalId === 10_401);
       expect(igpProduct).toBeDefined();
+      expect(igpProduct.level).toBe("product");
       expect(igpProduct.marketplace).toBe("tcgplayer");
       expect(igpProduct.externalId).toBe(10_401);
-      expect(igpProduct.finish).toBe("normal");
       expect(igpProduct.productName).toBe("IGP Stageable Product");
       expect(igpProduct.createdAt).toBeTypeOf("string");
     });
@@ -138,8 +141,9 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
     it("un-ignores a product", async () => {
       const res = await app.fetch(
         req("DELETE", "/admin/ignored-products", {
+          level: "product",
           marketplace: "tcgplayer",
-          products: [{ externalId: 10_401, finish: "normal", language: "" }],
+          products: [{ externalId: 10_401 }],
         }),
       );
       expect(res.status).toBe(200);

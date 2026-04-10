@@ -223,21 +223,22 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .execute();
       expect(stagingRows).toHaveLength(0);
 
-      // marketplace_sources row should exist
-      const sourceRow = await db
-        .selectFrom("marketplaceProducts")
-        .selectAll()
-        .where("marketplace", "=", "tcgplayer")
-        .where("printingId", "=", printingId)
+      // marketplace_products + variant row should exist (keyed on printingId via the variant).
+      const variantRow = await db
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .select(["mpv.id as variantId", "mp.externalId as externalId"])
+        .where("mp.marketplace", "=", "tcgplayer")
+        .where("mpv.printingId", "=", printingId)
         .executeTakeFirst();
-      expect(sourceRow).toBeDefined();
-      expect(sourceRow?.externalId).toBe(12_345);
+      expect(variantRow).toBeDefined();
+      expect(variantRow?.externalId).toBe(12_345);
 
       // marketplace_snapshots should have at least one row
       const snapshots = await db
         .selectFrom("marketplaceSnapshots")
         .selectAll()
-        .where("productId", "=", sourceRow?.id as string)
+        .where("variantId", "=", variantRow?.variantId as string)
         .execute();
       expect(snapshots.length).toBeGreaterThanOrEqual(1);
       expect(snapshots[0].marketCents).toBe(100);
@@ -263,20 +264,21 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   // ── TCGPlayer: DELETE (unmap single) ───────────────────────────────────────
 
   describe("DELETE /admin/marketplace-mappings?marketplace=tcgplayer", () => {
-    it("unmaps a single printing and restores staging rows", async () => {
+    it("unmaps a single printing, deletes the variant, and restores staging rows", async () => {
       const res = await app.fetch(
         req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", { printingId }),
       );
       expect(res.status).toBe(204);
 
-      // Source should be deleted
-      const sourceRow = await db
-        .selectFrom("marketplaceProducts")
-        .selectAll()
-        .where("marketplace", "=", "tcgplayer")
-        .where("printingId", "=", printingId)
+      // Variant should be deleted (parent product is intentionally left behind).
+      const variantRow = await db
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .selectAll("mpv")
+        .where("mp.marketplace", "=", "tcgplayer")
+        .where("mpv.printingId", "=", printingId)
         .executeTakeFirst();
-      expect(sourceRow).toBeUndefined();
+      expect(variantRow).toBeUndefined();
 
       // Staging rows should be restored
       const stagingRows = await db
@@ -309,15 +311,15 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       const json = await res.json();
       expect(json.unmapped).toBeGreaterThanOrEqual(1);
 
-      // No more sources with external_id should exist for TCGPlayer for our printing
-      const sources = await db
-        .selectFrom("marketplaceProducts")
-        .selectAll()
-        .where("marketplace", "=", "tcgplayer")
-        .where("printingId", "=", printingId)
-        .where("externalId", "is not", null)
+      // No variant rows should exist for TCGPlayer for our printing.
+      const variants = await db
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .selectAll("mpv")
+        .where("mp.marketplace", "=", "tcgplayer")
+        .where("mpv.printingId", "=", printingId)
         .execute();
-      expect(sources).toHaveLength(0);
+      expect(variants).toHaveLength(0);
     });
   });
 
@@ -335,12 +337,13 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       const json = await res.json();
       expect(json.saved).toBe(1);
 
-      // Verify source was created
+      // Verify the product + variant was created (joined via the variant).
       const sourceRow = await db
-        .selectFrom("marketplaceProducts")
-        .selectAll()
-        .where("marketplace", "=", "cardmarket")
-        .where("printingId", "=", printingId)
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .select(["mpv.id as variantId", "mp.externalId as externalId"])
+        .where("mp.marketplace", "=", "cardmarket")
+        .where("mpv.printingId", "=", printingId)
         .executeTakeFirst();
       expect(sourceRow).toBeDefined();
       expect(sourceRow?.externalId).toBe(67_890);
@@ -457,19 +460,15 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         )
         .execute();
 
-      // Insert an ignored-product record for this external_id + finish
+      // Insert an L2 ignored-product record for this external_id (whole-product ignore).
       await db
         .insertInto("marketplaceIgnoredProducts")
         .values({
           marketplace: "tcgplayer",
           externalId: 99_001,
-          finish: "normal",
-          language: "EN",
           productName: "MKM Ignored Product",
         })
-        .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
-        )
+        .onConflict((oc) => oc.columns(["marketplace", "externalId"]).doNothing())
         .execute();
 
       const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));

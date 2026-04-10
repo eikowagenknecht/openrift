@@ -28,6 +28,13 @@ const PRICE_EXCLUDED_SET = {
   avg30Cents: sql<number | null>`excluded.avg30_cents`,
 };
 
+export interface LoadedIgnoredKeys {
+  /** Level 2: whole upstream products (keyed by externalId). */
+  productIds: Set<number>;
+  /** Level 3: per-SKU ignores (keyed by `externalId::finish::language`). */
+  variantKeys: Set<string>;
+}
+
 /**
  * Queries for the price refresh pipeline (upsert snapshots/staging, load reference data).
  *
@@ -66,14 +73,31 @@ export function priceRefreshRepo(db: Db) {
 
     // ── Ignored keys ────────────────────────────────────────────────────────
 
-    /** @returns Ignored product keys as "externalId::finish::language" set. */
-    async loadIgnoredKeys(marketplace: string): Promise<Set<string>> {
-      const rows = await db
-        .selectFrom("marketplaceIgnoredProducts")
-        .select(["externalId", "finish", "language"])
-        .where("marketplace", "=", marketplace)
-        .execute();
-      return new Set(rows.map((r) => `${r.externalId}::${r.finish}::${r.language}`));
+    /**
+     * @returns Both L2 (whole-product) and L3 (per-variant) ignored keys for a
+     *          marketplace. Staging ingest should skip a row if its externalId
+     *          is in `productIds` OR its `externalId::finish::language` tuple
+     *          is in `variantKeys`.
+     */
+    async loadIgnoredKeys(marketplace: string): Promise<LoadedIgnoredKeys> {
+      const [productRows, variantRows] = await Promise.all([
+        db
+          .selectFrom("marketplaceIgnoredProducts")
+          .select(["externalId"])
+          .where("marketplace", "=", marketplace)
+          .execute(),
+        db
+          .selectFrom("marketplaceIgnoredVariants as iv")
+          .innerJoin("marketplaceProducts as mp", "mp.id", "iv.marketplaceProductId")
+          .select(["mp.externalId as externalId", "iv.finish as finish", "iv.language as language"])
+          .where("mp.marketplace", "=", marketplace)
+          .execute(),
+      ]);
+
+      return {
+        productIds: new Set(productRows.map((r) => r.externalId)),
+        variantKeys: new Set(variantRows.map((r) => `${r.externalId}::${r.finish}::${r.language}`)),
+      };
     },
 
     // ── Group upsert ────────────────────────────────────────────────────────
@@ -105,27 +129,37 @@ export function priceRefreshRepo(db: Db) {
         .execute();
     },
 
-    // ── Source lookup ────────────────────────────────────────────────────────
+    // ── Variant lookup ──────────────────────────────────────────────────────
 
-    /** @returns Marketplace sources joined with printing finish, including source language. */
-    sourcesWithFinish(marketplace: string) {
+    /**
+     * @returns One row per variant in a marketplace, with its parent's external_id.
+     *          `id` is the variant id (suitable for use as snapshot.variantId).
+     */
+    variantsWithFinish(marketplace: string) {
       return db
-        .selectFrom("marketplaceProducts as src")
-        .innerJoin("printings as p", "p.id", "src.printingId")
-        .select(["src.id", "src.printingId", "src.externalId", "src.language", "p.finish"])
-        .where("src.marketplace", "=", marketplace)
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .select([
+          "mpv.id as id",
+          "mpv.printingId as printingId",
+          "mp.externalId as externalId",
+          "mpv.language as language",
+          "mpv.finish as finish",
+        ])
+        .where("mp.marketplace", "=", marketplace)
         .execute();
     },
 
     // ── Row counts ──────────────────────────────────────────────────────────
 
-    /** @returns Row count for marketplace snapshots (joined via sources). */
+    /** @returns Row count for marketplace snapshots (joined via variants and products). */
     async countSnapshots(marketplace: string): Promise<number> {
       const result = await db
         .selectFrom("marketplaceSnapshots as snap")
-        .innerJoin("marketplaceProducts as src", "src.id", "snap.productId")
+        .innerJoin("marketplaceProductVariants as mpv", "mpv.id", "snap.variantId")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
         .select(sql<number>`count(*)::int`.as("count"))
-        .where("src.marketplace", "=", marketplace)
+        .where("mp.marketplace", "=", marketplace)
         .executeTakeFirstOrThrow();
       return result.count;
     },
@@ -148,7 +182,7 @@ export function priceRefreshRepo(db: Db) {
      */
     async upsertSnapshots(
       batch: {
-        productId: string;
+        variantId: string;
         recordedAt: Date;
         marketCents: number | null;
         lowCents: number | null;
@@ -166,7 +200,7 @@ export function priceRefreshRepo(db: Db) {
         .values(batch)
         .onConflict((oc) =>
           oc
-            .columns(["productId", "recordedAt"])
+            .columns(["variantId", "recordedAt"])
             .doUpdateSet(PRICE_EXCLUDED_SET)
             .where(distinctWhere),
         )
@@ -223,20 +257,35 @@ export function priceRefreshRepo(db: Db) {
 
     // ── Auto-match helpers (CardTrader) ─────────────────────────────────────
 
-    /** @returns Existing marketplace_products rows for the given marketplaces. */
+    /**
+     * @returns One row per variant for the given marketplaces. A single
+     *          external_id can now resolve to multiple rows (e.g. foil + normal
+     *          SKUs of the same upstream product).
+     */
     existingSourcesByMarketplaces(marketplaces: string[]): Promise<
       {
         marketplace: string;
         externalId: number;
         printingId: string;
+        finish: string;
+        language: string;
         groupId: number;
         productName: string;
       }[]
     > {
       return db
-        .selectFrom("marketplaceProducts")
-        .select(["marketplace", "externalId", "printingId", "groupId", "productName"])
-        .where("marketplace", "in", marketplaces)
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .select([
+          "mp.marketplace as marketplace",
+          "mp.externalId as externalId",
+          "mpv.printingId as printingId",
+          "mpv.finish as finish",
+          "mpv.language as language",
+          "mp.groupId as groupId",
+          "mp.productName as productName",
+        ])
+        .where("mp.marketplace", "in", marketplaces)
         .execute();
     },
 
@@ -250,24 +299,76 @@ export function priceRefreshRepo(db: Db) {
       return rows.map((r) => r.externalId);
     },
 
-    /** Batch insert marketplace_products with ON CONFLICT DO NOTHING. */
-    async batchInsertProducts(
+    /**
+     * Batch-insert product + variant rows. Upserts the parent product by
+     * `(marketplace, external_id)` then upserts the variant by
+     * `(marketplaceProductId, finish, language)` pointing at the given printing.
+     * No-ops on conflict (used by auto-match where we don't want to overwrite
+     * existing mappings).
+     */
+    async batchInsertProductVariants(
       values: {
         marketplace: string;
         externalId: number;
         groupId: number;
         productName: string;
         printingId: string;
+        finish: string;
         language: string;
       }[],
     ): Promise<void> {
       if (values.length === 0) {
         return;
       }
+
+      const productRows = values.map((v) => ({
+        marketplace: v.marketplace,
+        externalId: v.externalId,
+        groupId: v.groupId,
+        productName: v.productName,
+      }));
+
       await db
         .insertInto("marketplaceProducts")
-        .values(values)
-        .onConflict((oc) => oc.columns(["marketplace", "printingId"]).doNothing())
+        .values(productRows)
+        .onConflict((oc) => oc.columns(["marketplace", "externalId"]).doNothing())
+        .execute();
+
+      const products = await db
+        .selectFrom("marketplaceProducts")
+        .select(["id", "marketplace", "externalId"])
+        .where((eb) =>
+          eb.or(
+            values.map((v) =>
+              eb.and([eb("marketplace", "=", v.marketplace), eb("externalId", "=", v.externalId)]),
+            ),
+          ),
+        )
+        .execute();
+
+      const productIdByKey = new Map(
+        products.map((p) => [`${p.marketplace}::${p.externalId}`, p.id]),
+      );
+
+      const variantRows = values.map((v) => {
+        const productId = productIdByKey.get(`${v.marketplace}::${v.externalId}`);
+        if (!productId) {
+          throw new Error(
+            `batchInsertProductVariants: missing product id for ${v.marketplace} ${v.externalId}`,
+          );
+        }
+        return {
+          marketplaceProductId: productId,
+          printingId: v.printingId,
+          finish: v.finish,
+          language: v.language,
+        };
+      });
+
+      await db
+        .insertInto("marketplaceProductVariants")
+        .values(variantRows)
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "finish", "language"]).doNothing())
         .execute();
     },
   };

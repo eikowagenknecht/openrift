@@ -16,7 +16,7 @@ const MARKETPLACE = "tcgplayer";
 describe.skipIf(!ctx)("Catalog route (integration)", () => {
   const { app, db } = ctx!;
 
-  let productId = "";
+  let variantId = "";
 
   beforeAll(async () => {
     await db
@@ -32,19 +32,20 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       .onConflict((oc) => oc.columns(["printingId", "face", "provider"]).doNothing())
       .execute();
 
-    // Seed data has a tcgplayer product for this printing; look it up
-    // so we can attach our snapshot to it.
+    // Seed data has a tcgplayer variant for this printing; look it up so we
+    // can attach our snapshot to it.
     const existing = await db
-      .selectFrom("marketplaceProducts")
-      .select("id")
-      .where("marketplace", "=", MARKETPLACE)
-      .where("printingId", "=", SEED_PRINTING_ID)
+      .selectFrom("marketplaceProductVariants as mpv")
+      .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+      .select("mpv.id as variantId")
+      .where("mp.marketplace", "=", MARKETPLACE)
+      .where("mpv.printingId", "=", SEED_PRINTING_ID)
       .executeTakeFirst();
 
     if (existing) {
-      productId = existing.id;
+      variantId = existing.variantId;
     } else {
-      // If seed data was somehow removed, create our own product
+      // If seed data was somehow removed, create our own product + variant.
       const groupRow = await db
         .selectFrom("marketplaceGroups")
         .select("groupId")
@@ -71,18 +72,27 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
           groupId,
           externalId: 999_001,
           productName: "Annie Fiery (Cat Test)",
+        })
+        .returning("id")
+        .execute();
+
+      const [variant] = await db
+        .insertInto("marketplaceProductVariants")
+        .values({
+          marketplaceProductId: product.id,
           printingId: SEED_PRINTING_ID,
+          finish: "normal",
           language: "EN",
         })
         .returning("id")
         .execute();
-      productId = product.id;
+      variantId = variant.id;
     }
 
     await db
       .insertInto("marketplaceSnapshots")
       .values({
-        productId,
+        variantId,
         recordedAt: new Date("2026-03-15T10:00:00Z"),
         marketCents: 350,
         lowCents: 200,
@@ -93,16 +103,16 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
         avg7Cents: null,
         avg30Cents: null,
       })
-      .onConflict((oc) => oc.columns(["productId", "recordedAt"]).doNothing())
+      .onConflict((oc) => oc.columns(["variantId", "recordedAt"]).doNothing())
       .execute();
   });
 
   afterAll(async () => {
     await db.deleteFrom("printingImages").where("provider", "=", "cat-test").execute();
-    if (productId) {
+    if (variantId) {
       await db
         .deleteFrom("marketplaceSnapshots")
-        .where("productId", "=", productId)
+        .where("variantId", "=", variantId)
         .where("recordedAt", "=", new Date("2026-03-15T10:00:00Z"))
         .execute();
     }

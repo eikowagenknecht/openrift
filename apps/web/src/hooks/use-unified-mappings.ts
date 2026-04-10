@@ -122,7 +122,7 @@ export function useUnifiedUnmapPrinting(marketplace: "tcgplayer" | "cardmarket" 
   });
 }
 
-const ignoreProductsFn = createServerFn({ method: "POST" })
+const ignoreVariantsFn = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
       marketplace: string;
@@ -134,20 +134,56 @@ const ignoreProductsFn = createServerFn({ method: "POST" })
     const res = await fetch(`${API_URL}/api/v1/admin/ignored-products`, {
       method: "POST",
       headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ marketplace: data.marketplace, products: data.products }),
+      body: JSON.stringify({
+        level: "variant",
+        marketplace: data.marketplace,
+        products: data.products,
+      }),
+    });
+    if (!res.ok) {
+      throw new Error(`Ignore variants failed: ${res.status}`);
+    }
+  });
+
+const ignoreProductsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { marketplace: string; products: { externalId: number }[] }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/ignored-products`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify({
+        level: "product",
+        marketplace: data.marketplace,
+        products: data.products,
+      }),
     });
     if (!res.ok) {
       throw new Error(`Ignore products failed: ${res.status}`);
     }
   });
 
-export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
+/**
+ * Level-3 ignore: deny a specific SKU (finish × language) of an upstream product.
+ * @returns A mutation hook that posts a batch of variant-level ignores.
+ */
+export function useUnifiedIgnoreVariants(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(
     marketplace,
     async (products: { externalId: number; finish: string; language: string }[]) => {
-      await ignoreProductsFn({ data: { marketplace, products } });
+      await ignoreVariantsFn({ data: { marketplace, products } });
     },
   );
+}
+
+/**
+ * Level-2 ignore: deny an entire upstream product regardless of finish/language.
+ * @returns A mutation hook that posts a batch of product-level ignores.
+ */
+export function useUnifiedIgnoreProducts(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
+  return useUnifiedMutation(marketplace, async (products: { externalId: number }[]) => {
+    await ignoreProductsFn({ data: { marketplace, products } });
+  });
 }
 
 const assignToCardFn = createServerFn({ method: "POST" })

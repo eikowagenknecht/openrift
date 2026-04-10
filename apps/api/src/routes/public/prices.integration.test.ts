@@ -20,8 +20,8 @@ let setId: string;
 let cardId: string;
 let printingId: string;
 let printingNoSourceId: string;
-let tcgSourceId: string;
-let cmSourceId: string;
+let tcgVariantId: string;
+let cmVariantId: string;
 
 if (ctx) {
   const { db } = ctx;
@@ -100,35 +100,51 @@ if (ctx) {
     .execute();
   printingNoSourceId = printingNoSourceRow.id;
 
-  // TCGPlayer marketplace source for printingId
-  const [tcgRow] = await db
+  // TCGPlayer product + variant for printingId
+  const [tcgProduct] = await db
     .insertInto("marketplaceProducts")
     .values({
       marketplace: "tcgplayer",
       externalId: 90_001,
       groupId: 24_439,
       productName: "PRC Price Card Normal",
+    })
+    .returning("id")
+    .execute();
+  const [tcgVariant] = await db
+    .insertInto("marketplaceProductVariants")
+    .values({
+      marketplaceProductId: tcgProduct.id,
       printingId,
+      finish: "normal",
       language: "EN",
     })
     .returning("id")
     .execute();
-  tcgSourceId = tcgRow.id;
+  tcgVariantId = tcgVariant.id;
 
-  // Cardmarket marketplace source for printingId
-  const [cmRow] = await db
+  // Cardmarket product + variant for printingId
+  const [cmProduct] = await db
     .insertInto("marketplaceProducts")
     .values({
       marketplace: "cardmarket",
       externalId: 90_002,
       groupId: 6289,
       productName: "PRC Price Card Normal",
+    })
+    .returning("id")
+    .execute();
+  const [cmVariant] = await db
+    .insertInto("marketplaceProductVariants")
+    .values({
+      marketplaceProductId: cmProduct.id,
       printingId,
+      finish: "normal",
       language: "EN",
     })
     .returning("id")
     .execute();
-  cmSourceId = cmRow.id;
+  cmVariantId = cmVariant.id;
 
   // TCGPlayer snapshots at various dates
   const now = new Date();
@@ -138,7 +154,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      productId: tcgSourceId,
+      variantId: tcgVariantId,
       recordedAt: daysAgo(2),
       marketCents: 250,
       lowCents: 120,
@@ -149,7 +165,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      productId: tcgSourceId,
+      variantId: tcgVariantId,
       recordedAt: daysAgo(15),
       marketCents: 200,
       lowCents: 100,
@@ -160,7 +176,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      productId: tcgSourceId,
+      variantId: tcgVariantId,
       recordedAt: daysAgo(60),
       marketCents: 150,
       lowCents: 80,
@@ -171,7 +187,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      productId: tcgSourceId,
+      variantId: tcgVariantId,
       recordedAt: daysAgo(120),
       marketCents: 100,
       lowCents: 50,
@@ -182,7 +198,7 @@ if (ctx) {
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      productId: cmSourceId,
+      variantId: cmVariantId,
       recordedAt: daysAgo(2),
       marketCents: 180,
       lowCents: 100,

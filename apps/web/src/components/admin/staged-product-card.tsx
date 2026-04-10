@@ -1,10 +1,16 @@
-import { BanIcon, CheckIcon, LinkIcon, Undo2Icon, XIcon } from "lucide-react";
+import { BanIcon, CheckIcon, ChevronDownIcon, LinkIcon, Undo2Icon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 import type { AssignableCard, SourceMappingConfig, StagedProduct } from "./price-mappings-types";
@@ -13,7 +19,9 @@ import { formatCents, ProductLink } from "./price-mappings-utils";
 export function StagedProductCard({
   config,
   product: sp,
-  onIgnore,
+  onIgnoreVariant,
+  onIgnoreProduct,
+  primaryIgnoreLevel = "variant",
   isIgnoring,
   onUnignore,
   isUnignoring,
@@ -27,7 +35,16 @@ export function StagedProductCard({
 }: {
   config: SourceMappingConfig;
   product: StagedProduct;
-  onIgnore?: () => void;
+  /** Level-3 ignore: deny just this finish/language SKU. */
+  onIgnoreVariant?: () => void;
+  /** Level-2 ignore: deny the entire upstream product. */
+  onIgnoreProduct?: () => void;
+  /**
+   * Which ignore action is primary. Defaults to `variant` (sidebar / partial
+   * mapping cases). Set to `product` in the Unmatched section where sealed
+   * product / bundles dominate.
+   */
+  primaryIgnoreLevel?: "variant" | "product";
   isIgnoring?: boolean;
   onUnignore?: () => void;
   isUnignoring?: boolean;
@@ -110,17 +127,13 @@ export function StagedProductCard({
               {showAssign ? "Cancel" : assignLabel}
             </Button>
           )}
-          {onIgnore && (
-            <Button
-              variant="ghost"
-              className="text-muted-foreground hover:text-destructive"
-              onClick={onIgnore}
-              disabled={isIgnoring}
-              title="Ignore this product"
-            >
-              <BanIcon className="size-3.5" />
-              Ignore
-            </Button>
+          {(onIgnoreVariant || onIgnoreProduct) && (
+            <IgnoreSplitButton
+              onIgnoreVariant={onIgnoreVariant}
+              onIgnoreProduct={onIgnoreProduct}
+              primaryLevel={primaryIgnoreLevel}
+              isIgnoring={isIgnoring}
+            />
           )}
           {onUnignore && (
             <Button
@@ -163,6 +176,91 @@ export function StagedProductCard({
             autoFocus
           />
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Split button for the Ignore action: primary click runs the context-appropriate
+ * level (variant in the sidebar, product in the Unmatched section), with the
+ * other level available as a dropdown menu item.
+ *
+ * @returns A split button UI for choosing between level-2 and level-3 ignore.
+ */
+function IgnoreSplitButton({
+  onIgnoreVariant,
+  onIgnoreProduct,
+  primaryLevel,
+  isIgnoring,
+}: {
+  onIgnoreVariant?: () => void;
+  onIgnoreProduct?: () => void;
+  primaryLevel: "variant" | "product";
+  isIgnoring?: boolean;
+}) {
+  const primaryHandler = primaryLevel === "variant" ? onIgnoreVariant : onIgnoreProduct;
+  const secondaryHandler = primaryLevel === "variant" ? onIgnoreProduct : onIgnoreVariant;
+  const primaryLabel = primaryLevel === "variant" ? "Ignore variant" : "Ignore product";
+  const secondaryLabel =
+    primaryLevel === "variant" ? "Ignore entire product" : "Ignore this variant only";
+  const primaryTitle =
+    primaryLevel === "variant"
+      ? "Ignore this specific finish/language SKU"
+      : "Ignore every SKU of this upstream product";
+
+  if (!primaryHandler) {
+    // Only one handler was provided and it's the non-primary one — render it inline.
+    if (!secondaryHandler) {
+      return null;
+    }
+    return (
+      <Button
+        variant="ghost"
+        className="text-muted-foreground hover:text-destructive"
+        onClick={secondaryHandler}
+        disabled={isIgnoring}
+        title={secondaryLabel}
+      >
+        <BanIcon className="size-3.5" />
+        {secondaryLabel}
+      </Button>
+    );
+  }
+
+  return (
+    <div className="flex items-stretch">
+      <Button
+        variant="ghost"
+        className="text-muted-foreground hover:text-destructive rounded-r-none pr-2"
+        onClick={primaryHandler}
+        disabled={isIgnoring}
+        title={primaryTitle}
+      >
+        <BanIcon className="size-3.5" />
+        {primaryLabel}
+      </Button>
+      {secondaryHandler && (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                className="text-muted-foreground hover:text-destructive rounded-l-none border-l px-1.5"
+                disabled={isIgnoring}
+                title="More ignore options"
+              >
+                <ChevronDownIcon className="size-3.5" />
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={secondaryHandler}>
+              <BanIcon className="size-3.5" />
+              {secondaryLabel}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   );

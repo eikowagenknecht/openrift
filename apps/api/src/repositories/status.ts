@@ -25,6 +25,7 @@ interface AppStats {
 interface PricingSourceStats {
   marketplace: string;
   products: number;
+  variants: number;
   snapshots: number;
   latestSnapshot: string | null;
   stagingRows: number;
@@ -145,16 +146,19 @@ export function statusRepo(db: Kysely<Database>) {
         sql<{
           marketplace: string;
           products: number;
+          variants: number;
           snapshots: number;
           latestSnapshot: string | null;
         }>`
           SELECT
             mp.marketplace,
             count(DISTINCT mp.id)::int AS products,
+            count(DISTINCT mpv.id)::int AS variants,
             count(ms.id)::int AS snapshots,
             max(ms.recorded_at)::text AS latest_snapshot
           FROM marketplace_products mp
-          LEFT JOIN marketplace_snapshots ms ON ms.product_id = mp.id
+          LEFT JOIN marketplace_product_variants mpv ON mpv.marketplace_product_id = mp.id
+          LEFT JOIN marketplace_snapshots ms ON ms.variant_id = mpv.id
           GROUP BY mp.marketplace
           ORDER BY mp.marketplace
         `
@@ -187,6 +191,7 @@ export function statusRepo(db: Kysely<Database>) {
           return {
             marketplace: row.marketplace,
             products: row.products,
+            variants: row.variants,
             snapshots: row.snapshots,
             latestSnapshot: row.latestSnapshot,
             stagingRows: staging?.stagingRows ?? 0,

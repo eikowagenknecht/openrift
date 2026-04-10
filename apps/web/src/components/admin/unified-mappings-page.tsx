@@ -34,6 +34,7 @@ import {
 import {
   useUnifiedAssignToCard,
   useUnifiedIgnoreProducts,
+  useUnifiedIgnoreVariants,
   useUnifiedMappings,
   useUnifiedSaveMappings,
   useUnifiedUnassignFromCard,
@@ -203,7 +204,8 @@ function MarketplaceProductColumn({
   marketplace,
   group,
   allCards,
-  onIgnore,
+  onIgnoreVariant,
+  onIgnoreProduct,
   isIgnoring,
   onUnassign,
   isUnassigning,
@@ -213,7 +215,8 @@ function MarketplaceProductColumn({
   marketplace: MappableMarketplace;
   group: UnifiedMappingGroup;
   allCards: AssignableCard[];
-  onIgnore: (externalId: number, finish: string, language: string) => void;
+  onIgnoreVariant: (externalId: number, finish: string, language: string) => void;
+  onIgnoreProduct: (externalId: number) => void;
   isIgnoring: boolean;
   onUnassign: (externalId: number, finish: string, language: string) => void;
   isUnassigning: boolean;
@@ -241,9 +244,17 @@ function MarketplaceProductColumn({
               config={config}
               product={sp}
               isAssigned={isAssigned}
-              onIgnore={
-                isAssigned ? undefined : () => onIgnore(sp.externalId, sp.finish, sp.language)
+              // Sidebar cards: this product is about to map (or already did),
+              // so per-SKU ignores are the common case ("this card doesn't
+              // come in foil, deny that variant"). Level-2 stays available
+              // via the dropdown.
+              primaryIgnoreLevel="variant"
+              onIgnoreVariant={
+                isAssigned
+                  ? undefined
+                  : () => onIgnoreVariant(sp.externalId, sp.finish, sp.language)
               }
+              onIgnoreProduct={isAssigned ? undefined : () => onIgnoreProduct(sp.externalId)}
               isIgnoring={isIgnoring}
               onUnassign={
                 sp.isOverride ? () => onUnassign(sp.externalId, sp.finish, sp.language) : undefined
@@ -326,9 +337,12 @@ function UnifiedExpandedDetail({
   tcgUnmap,
   cmUnmap,
   ctUnmap,
-  tcgIgnore,
-  cmIgnore,
-  ctIgnore,
+  tcgIgnoreVariant,
+  cmIgnoreVariant,
+  ctIgnoreVariant,
+  tcgIgnoreProduct,
+  cmIgnoreProduct,
+  ctIgnoreProduct,
   tcgUnassign,
   cmUnassign,
   ctUnassign,
@@ -346,9 +360,12 @@ function UnifiedExpandedDetail({
   tcgUnmap: MutId;
   cmUnmap: MutId;
   ctUnmap: MutId;
-  tcgIgnore: MutProducts;
-  cmIgnore: MutProducts;
-  ctIgnore: MutProducts;
+  tcgIgnoreVariant: MutProducts;
+  cmIgnoreVariant: MutProducts;
+  ctIgnoreVariant: MutProducts;
+  tcgIgnoreProduct: MutExternalIds;
+  cmIgnoreProduct: MutExternalIds;
+  ctIgnoreProduct: MutExternalIds;
   tcgUnassign: MutProduct;
   cmUnassign: MutProduct;
   ctUnassign: MutProduct;
@@ -663,10 +680,11 @@ function UnifiedExpandedDetail({
           marketplace="tcgplayer"
           group={group}
           allCards={allCards}
-          onIgnore={(eid, fin, lang) =>
-            tcgIgnore.mutate([{ externalId: eid, finish: fin, language: lang }])
+          onIgnoreVariant={(eid, fin, lang) =>
+            tcgIgnoreVariant.mutate([{ externalId: eid, finish: fin, language: lang }])
           }
-          isIgnoring={tcgIgnore.isPending}
+          onIgnoreProduct={(eid) => tcgIgnoreProduct.mutate([{ externalId: eid }])}
+          isIgnoring={tcgIgnoreVariant.isPending || tcgIgnoreProduct.isPending}
           onUnassign={(eid, fin, lang) =>
             tcgUnassign.mutate({ externalId: eid, finish: fin, language: lang })
           }
@@ -680,10 +698,11 @@ function UnifiedExpandedDetail({
           marketplace="cardmarket"
           group={group}
           allCards={allCards}
-          onIgnore={(eid, fin, lang) =>
-            cmIgnore.mutate([{ externalId: eid, finish: fin, language: lang }])
+          onIgnoreVariant={(eid, fin, lang) =>
+            cmIgnoreVariant.mutate([{ externalId: eid, finish: fin, language: lang }])
           }
-          isIgnoring={cmIgnore.isPending}
+          onIgnoreProduct={(eid) => cmIgnoreProduct.mutate([{ externalId: eid }])}
+          isIgnoring={cmIgnoreVariant.isPending || cmIgnoreProduct.isPending}
           onUnassign={(eid, fin, lang) =>
             cmUnassign.mutate({ externalId: eid, finish: fin, language: lang })
           }
@@ -697,10 +716,11 @@ function UnifiedExpandedDetail({
           marketplace="cardtrader"
           group={group}
           allCards={allCards}
-          onIgnore={(eid, fin, lang) =>
-            ctIgnore.mutate([{ externalId: eid, finish: fin, language: lang }])
+          onIgnoreVariant={(eid, fin, lang) =>
+            ctIgnoreVariant.mutate([{ externalId: eid, finish: fin, language: lang }])
           }
-          isIgnoring={ctIgnore.isPending}
+          onIgnoreProduct={(eid) => ctIgnoreProduct.mutate([{ externalId: eid }])}
+          isIgnoring={ctIgnoreVariant.isPending || ctIgnoreProduct.isPending}
           onUnassign={(eid, fin, lang) =>
             ctUnassign.mutate({ externalId: eid, finish: fin, language: lang })
           }
@@ -721,7 +741,8 @@ function UnmatchedSection({
   marketplace,
   products,
   allCards,
-  onIgnore,
+  onIgnoreVariant,
+  onIgnoreProduct,
   isIgnoring,
   onAssignToCard,
   isAssigning,
@@ -729,7 +750,8 @@ function UnmatchedSection({
   marketplace: MappableMarketplace;
   products: StagedProduct[];
   allCards: AssignableCard[];
-  onIgnore: (p: { externalId: number; finish: string; language: string }[]) => void;
+  onIgnoreVariant: (p: { externalId: number; finish: string; language: string }[]) => void;
+  onIgnoreProduct: (p: { externalId: number }[]) => void;
   isIgnoring: boolean;
   onAssignToCard: (p: {
     externalId: number;
@@ -760,8 +782,15 @@ function UnmatchedSection({
               key={`${sp.externalId}::${sp.finish}`}
               config={config}
               product={sp}
-              onIgnore={() =>
-                onIgnore([{ externalId: sp.externalId, finish: sp.finish, language: sp.language }])
+              // In the unmatched section, most rows are sealed product or
+              // bundles that should be denied wholesale. Make the level-2
+              // action primary, with level-3 available from the dropdown.
+              primaryIgnoreLevel="product"
+              onIgnoreProduct={() => onIgnoreProduct([{ externalId: sp.externalId }])}
+              onIgnoreVariant={() =>
+                onIgnoreVariant([
+                  { externalId: sp.externalId, finish: sp.finish, language: sp.language },
+                ])
               }
               isIgnoring={isIgnoring}
               allCards={allCards}
@@ -795,9 +824,12 @@ export function UnifiedMappingsPage() {
   const tcgUnmap = useUnifiedUnmapPrinting("tcgplayer");
   const cmUnmap = useUnifiedUnmapPrinting("cardmarket");
   const ctUnmap = useUnifiedUnmapPrinting("cardtrader");
-  const tcgIgnore = useUnifiedIgnoreProducts("tcgplayer");
-  const cmIgnore = useUnifiedIgnoreProducts("cardmarket");
-  const ctIgnore = useUnifiedIgnoreProducts("cardtrader");
+  const tcgIgnoreVariant = useUnifiedIgnoreVariants("tcgplayer");
+  const cmIgnoreVariant = useUnifiedIgnoreVariants("cardmarket");
+  const ctIgnoreVariant = useUnifiedIgnoreVariants("cardtrader");
+  const tcgIgnoreProduct = useUnifiedIgnoreProducts("tcgplayer");
+  const cmIgnoreProduct = useUnifiedIgnoreProducts("cardmarket");
+  const ctIgnoreProduct = useUnifiedIgnoreProducts("cardtrader");
   const tcgUnassign = useUnifiedUnassignFromCard("tcgplayer");
   const cmUnassign = useUnifiedUnassignFromCard("cardmarket");
   const ctUnassign = useUnifiedUnassignFromCard("cardtrader");
@@ -1031,9 +1063,12 @@ export function UnifiedMappingsPage() {
                     tcgUnmap={tcgUnmap}
                     cmUnmap={cmUnmap}
                     ctUnmap={ctUnmap}
-                    tcgIgnore={tcgIgnore}
-                    cmIgnore={cmIgnore}
-                    ctIgnore={ctIgnore}
+                    tcgIgnoreVariant={tcgIgnoreVariant}
+                    cmIgnoreVariant={cmIgnoreVariant}
+                    ctIgnoreVariant={ctIgnoreVariant}
+                    tcgIgnoreProduct={tcgIgnoreProduct}
+                    cmIgnoreProduct={cmIgnoreProduct}
+                    ctIgnoreProduct={ctIgnoreProduct}
                     tcgUnassign={tcgUnassign}
                     cmUnassign={cmUnassign}
                     ctUnassign={ctUnassign}
@@ -1058,8 +1093,9 @@ export function UnifiedMappingsPage() {
             marketplace="tcgplayer"
             products={data.unmatchedProducts.tcgplayer}
             allCards={allCards}
-            onIgnore={(p) => tcgIgnore.mutate(p)}
-            isIgnoring={tcgIgnore.isPending}
+            onIgnoreVariant={(p) => tcgIgnoreVariant.mutate(p)}
+            onIgnoreProduct={(p) => tcgIgnoreProduct.mutate(p)}
+            isIgnoring={tcgIgnoreVariant.isPending || tcgIgnoreProduct.isPending}
             onAssignToCard={(p) => tcgAssignToCard.mutate(p)}
             isAssigning={tcgAssignToCard.isPending}
           />
@@ -1067,8 +1103,9 @@ export function UnifiedMappingsPage() {
             marketplace="cardmarket"
             products={data.unmatchedProducts.cardmarket}
             allCards={allCards}
-            onIgnore={(p) => cmIgnore.mutate(p)}
-            isIgnoring={cmIgnore.isPending}
+            onIgnoreVariant={(p) => cmIgnoreVariant.mutate(p)}
+            onIgnoreProduct={(p) => cmIgnoreProduct.mutate(p)}
+            isIgnoring={cmIgnoreVariant.isPending || cmIgnoreProduct.isPending}
             onAssignToCard={(p) => cmAssignToCard.mutate(p)}
             isAssigning={cmAssignToCard.isPending}
           />
@@ -1076,8 +1113,9 @@ export function UnifiedMappingsPage() {
             marketplace="cardtrader"
             products={data.unmatchedProducts.cardtrader}
             allCards={allCards}
-            onIgnore={(p) => ctIgnore.mutate(p)}
-            isIgnoring={ctIgnore.isPending}
+            onIgnoreVariant={(p) => ctIgnoreVariant.mutate(p)}
+            onIgnoreProduct={(p) => ctIgnoreProduct.mutate(p)}
+            isIgnoring={ctIgnoreVariant.isPending || ctIgnoreProduct.isPending}
             onAssignToCard={(p) => ctAssignToCard.mutate(p)}
             isAssigning={ctAssignToCard.isPending}
           />
@@ -1101,6 +1139,10 @@ interface MutProducts {
   mutate: (p: { externalId: number; finish: string; language: string }[]) => void;
   isPending: boolean;
 }
+interface MutExternalIds {
+  mutate: (p: { externalId: number }[]) => void;
+  isPending: boolean;
+}
 interface MutProduct {
   mutate: (p: { externalId: number; finish: string; language: string }) => void;
   isPending: boolean;
@@ -1122,9 +1164,12 @@ function UnifiedCardGroupRow({
   tcgUnmap,
   cmUnmap,
   ctUnmap,
-  tcgIgnore,
-  cmIgnore,
-  ctIgnore,
+  tcgIgnoreVariant,
+  cmIgnoreVariant,
+  ctIgnoreVariant,
+  tcgIgnoreProduct,
+  cmIgnoreProduct,
+  ctIgnoreProduct,
   tcgUnassign,
   cmUnassign,
   ctUnassign,
@@ -1144,9 +1189,12 @@ function UnifiedCardGroupRow({
   tcgUnmap: MutId;
   cmUnmap: MutId;
   ctUnmap: MutId;
-  tcgIgnore: MutProducts;
-  cmIgnore: MutProducts;
-  ctIgnore: MutProducts;
+  tcgIgnoreVariant: MutProducts;
+  cmIgnoreVariant: MutProducts;
+  ctIgnoreVariant: MutProducts;
+  tcgIgnoreProduct: MutExternalIds;
+  cmIgnoreProduct: MutExternalIds;
+  ctIgnoreProduct: MutExternalIds;
   tcgUnassign: MutProduct;
   cmUnassign: MutProduct;
   ctUnassign: MutProduct;
@@ -1197,9 +1245,12 @@ function UnifiedCardGroupRow({
               tcgUnmap={tcgUnmap}
               cmUnmap={cmUnmap}
               ctUnmap={ctUnmap}
-              tcgIgnore={tcgIgnore}
-              cmIgnore={cmIgnore}
-              ctIgnore={ctIgnore}
+              tcgIgnoreVariant={tcgIgnoreVariant}
+              cmIgnoreVariant={cmIgnoreVariant}
+              ctIgnoreVariant={ctIgnoreVariant}
+              tcgIgnoreProduct={tcgIgnoreProduct}
+              cmIgnoreProduct={cmIgnoreProduct}
+              ctIgnoreProduct={ctIgnoreProduct}
               tcgUnassign={tcgUnassign}
               cmUnassign={cmUnassign}
               ctUnassign={ctUnassign}
