@@ -546,16 +546,24 @@ export function catalogRepo(db: Kysely<Database>) {
       );
     },
 
-    /** @returns All card slugs, for sitemap generation. */
-    async allCardSlugs(): Promise<string[]> {
-      const rows = await db.selectFrom("cards").select("slug").orderBy("name").execute();
-      return rows.map((r) => r.slug);
+    /** @returns All card sitemap entries (slug + updatedAt). */
+    async allCardSitemapEntries(): Promise<{ slug: string; updatedAt: string }[]> {
+      const rows = await db
+        .selectFrom("cards")
+        .select(["slug", "updatedAt"])
+        .orderBy("name")
+        .execute();
+      return rows.map((row) => ({ slug: row.slug, updatedAt: row.updatedAt.toISOString() }));
     },
 
-    /** @returns All set slugs, for sitemap generation. */
-    async allSetSlugs(): Promise<string[]> {
-      const rows = await db.selectFrom("sets").select("slug").orderBy("sortOrder").execute();
-      return rows.map((r) => r.slug);
+    /** @returns All set sitemap entries (slug + updatedAt). */
+    async allSetSitemapEntries(): Promise<{ slug: string; updatedAt: string }[]> {
+      const rows = await db
+        .selectFrom("sets")
+        .select(["slug", "updatedAt"])
+        .orderBy("sortOrder")
+        .execute();
+      return rows.map((row) => ({ slug: row.slug, updatedAt: row.updatedAt.toISOString() }));
     },
   };
 }

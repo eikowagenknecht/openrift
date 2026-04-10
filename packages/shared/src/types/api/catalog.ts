@@ -63,7 +63,12 @@ export interface SetDetailResponse {
   printings: CatalogPrintingResponse[];
 }
 
+export interface SitemapEntry {
+  slug: string;
+  updatedAt: string;
+}
+
 export interface SitemapDataResponse {
-  cardSlugs: string[];
-  setSlugs: string[];
+  cards: SitemapEntry[];
+  sets: SitemapEntry[];
 }

@@ -4,14 +4,16 @@ import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 const SITE_URL = "https://openrift.app";
 
+const DEPLOY_DATE = new Date().toISOString().slice(0, 10);
+
 const STATIC_PAGES = [
-  { path: "/", priority: "1.0", changefreq: "daily" },
-  { path: "/cards", priority: "0.8", changefreq: "daily" },
+  { path: "/", priority: "1.0", changefreq: "weekly" },
+  { path: "/cards", priority: "0.8", changefreq: "weekly" },
   { path: "/sets", priority: "0.7", changefreq: "weekly" },
   { path: "/rules", priority: "0.5", changefreq: "monthly" },
   { path: "/help", priority: "0.4", changefreq: "monthly" },
   { path: "/roadmap", priority: "0.3", changefreq: "monthly" },
-  { path: "/changelog", priority: "0.3", changefreq: "monthly" },
+  { path: "/changelog", priority: "0.3", changefreq: "weekly" },
 ];
 
 async function generateSitemap(): Promise<string> {
@@ -24,17 +26,19 @@ async function generateSitemap(): Promise<string> {
   const urls: string[] = [];
   for (const page of STATIC_PAGES) {
     urls.push(
-      `  <url><loc>${SITE_URL}${page.path}</loc><changefreq>${page.changefreq}</changefreq><priority>${page.priority}</priority></url>`,
+      `  <url><loc>${SITE_URL}${page.path}</loc><lastmod>${DEPLOY_DATE}</lastmod><changefreq>${page.changefreq}</changefreq><priority>${page.priority}</priority></url>`,
     );
   }
-  for (const slug of data.cardSlugs) {
+  for (const entry of data.cards) {
+    const lastmod = entry.updatedAt.slice(0, 10);
     urls.push(
-      `  <url><loc>${SITE_URL}/cards/${slug}</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>`,
+      `  <url><loc>${SITE_URL}/cards/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>`,
     );
   }
-  for (const slug of data.setSlugs) {
+  for (const entry of data.sets) {
+    const lastmod = entry.updatedAt.slice(0, 10);
     urls.push(
-      `  <url><loc>${SITE_URL}/sets/${slug}</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>`,
+      `  <url><loc>${SITE_URL}/sets/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`,
     );
   }
 

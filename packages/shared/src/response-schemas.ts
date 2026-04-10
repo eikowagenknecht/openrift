@@ -326,10 +326,15 @@ export const setDetailResponseSchema = z
 
 // ── Sitemap Data ────────────────────────────────────────────────────────────
 
+const sitemapEntrySchema = z.object({
+  slug: z.string().openapi({ example: "jinx-rebel" }),
+  updatedAt: z.string().openapi({ example: "2026-04-01T12:00:00.000Z" }),
+});
+
 export const sitemapDataResponseSchema = z
   .object({
-    cardSlugs: z.array(z.string()).openapi({ example: ["jinx-rebel", "chemtech-enforcer"] }),
-    setSlugs: z.array(z.string()).openapi({ example: ["OGN", "UNL"] }),
+    cards: z.array(sitemapEntrySchema),
+    sets: z.array(sitemapEntrySchema),
   })
   .openapi("SitemapDataResponse");
 
