@@ -85,7 +85,9 @@ export function CardDetail({
 
   const tiltMode = IS_COARSE_POINTER ? ("none" as const) : ("pointer" as const);
 
-  const tilt = useCardTilt({
+  // Destructure into locals so React Compiler's ref heuristic doesn't flag
+  // property access on the hook result — see the note in card-thumbnail.tsx.
+  const { containerRef: tiltContainerRef, innerRef: tiltInnerRef } = useCardTilt({
     mode: tiltMode,
     enabled: cardTilt && (!IS_COARSE_POINTER || isFoil),
   });
@@ -155,9 +157,9 @@ export function CardDetail({
 
         {/* Card image */}
         <div ref={imageSwipeRef}>
-          <div ref={tilt.containerRef}>
+          <div ref={tiltContainerRef}>
             <CardImage
-              innerRef={tilt.innerRef}
+              innerRef={tiltInnerRef}
               printing={printing}
               orientation={orientation}
               showImages={showImages}

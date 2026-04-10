@@ -248,7 +248,11 @@ export const CardThumbnail = memo(function CardThumbnail({
   };
   const domainColors = useDomainColors();
   const imageUrl = printing.images[0]?.url ?? null;
-  const orientation = getOrientation(card.type);
+  // Read `printing.card.type` directly (not `card.type`): reading the derived
+  // `card` object here would couple its construction to this call and prevent
+  // React Compiler from memoizing `card`. That unmemoized `card` would then
+  // cascade into re-creating the `<CardImageContent>` JSX on every render.
+  const orientation = getOrientation(printing.card.type);
   const thumbnailUrl = showImages && imageUrl ? getCardImageUrl(imageUrl, "thumbnail") : null;
   const srcSet = showImages && imageUrl ? getCardImageSrcSet(imageUrl) : undefined;
   const rotated = needsCssRotation(orientation);
@@ -265,7 +269,14 @@ export const CardThumbnail = memo(function CardThumbnail({
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
   const isFoilCard = printing.finish === WellKnown.finish.FOIL;
   const tiltEnabled = cardTilt && !IS_COARSE_POINTER;
-  const tilt = useCardTilt({ mode: "pointer", enabled: tiltEnabled });
+  // Destructure into locals: React Compiler's ref-detection heuristic flags
+  // property access on the hook result (e.g. `tilt.innerRef`) as a ref-value
+  // read during render, which bails out of compiling the entire component.
+  // Reading through plain locals avoids the property-access pattern.
+  const { containerRef: tiltContainerRef, innerRef: tiltInnerRef } = useCardTilt({
+    mode: "pointer",
+    enabled: tiltEnabled,
+  });
   // Spreading TILT_STYLE creates a perspective + preserve-3d context, which
   // promotes every card to its own compositing layer. When tilt is disabled,
   // skip the transform entirely so the browser can keep cards on the default
@@ -337,11 +348,11 @@ export const CardThumbnail = memo(function CardThumbnail({
           </div>
         );
       })}
-      <div ref={tilt.containerRef} className="relative">
+      <div ref={tiltContainerRef} className="relative">
         {rotated ? (
           <div className="relative overflow-hidden" style={{ borderRadius: CARD_BORDER_RADIUS }}>
             <div
-              ref={tilt.innerRef}
+              ref={tiltInnerRef}
               className={cn(AFTER_BORDER, "hover:ring-primary/60 hover:ring-2")}
               style={{ borderRadius: "inherit", ...tiltStyle }}
             >
@@ -365,7 +376,7 @@ export const CardThumbnail = memo(function CardThumbnail({
           </div>
         ) : (
           <div
-            ref={tilt.innerRef}
+            ref={tiltInnerRef}
             className={cn(
               "relative overflow-hidden",
               AFTER_BORDER,
