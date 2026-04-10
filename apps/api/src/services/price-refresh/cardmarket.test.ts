@@ -577,8 +577,13 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(stubFetch, repos, log);
 
-      // Config should be "cardmarket"
-      expect(upsertSpy.mock.calls[0][2]).toEqual({ marketplace: "cardmarket" });
+      // Cardmarket's price guide is a cross-language aggregate, so the upsert
+      // config flags it as `languageAggregate: true` to make the matcher key
+      // on (externalId, finish) instead of including language.
+      expect(upsertSpy.mock.calls[0][2]).toEqual({
+        marketplace: "cardmarket",
+        languageAggregate: true,
+      });
     });
 
     it("correctly computes group rows from unique expansion IDs", async () => {

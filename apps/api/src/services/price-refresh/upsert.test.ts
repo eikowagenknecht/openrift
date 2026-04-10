@@ -57,7 +57,7 @@ function makeMockRepo(opts: {
     printingId: string;
     externalId: number;
     finish: string;
-    language: string;
+    language: string | null;
   }[];
   countResult?: number;
 }) {
@@ -271,5 +271,70 @@ describe("upsertPriceData", () => {
 
     // Should not have the "N snapshots for M mapped variants" message
     expect(messages.some((m) => m.includes("snapshots"))).toBe(false);
+  });
+
+  it("matches staging EN rows against NULL-language variants when languageAggregate is true", async () => {
+    // Cardmarket's price guide is cross-language. Staging rows carry a
+    // placeholder language ("EN") but the matched variants in the DB have
+    // `language = NULL`. With the `languageAggregate: true` config flag, the
+    // matcher ignores the language dimension and pairs them purely on
+    // (externalId, finish) — so the staging row finds its variant.
+    const aggregateConfig: PriceUpsertConfig = {
+      marketplace: "cardmarket",
+      languageAggregate: true,
+    };
+    const { repo } = makeMockRepo({
+      variants: [
+        {
+          id: "var-cm",
+          printingId: "print-en",
+          externalId: 12_345,
+          finish: "normal",
+          language: null,
+        },
+      ],
+    });
+    // Staging row from the CM scraper with the placeholder "EN".
+    const staging = [makeStagingRow(12_345, "normal")];
+
+    const counts = await upsertPriceData(repo, noopLogger, aggregateConfig, staging);
+
+    // Under the old strict key ("...::EN" vs "...::null") this would be 0.
+    expect(counts.snapshots.total).toBe(1);
+  });
+
+  it("still pins per-language variants when languageAggregate is false", async () => {
+    const exactConfig: PriceUpsertConfig = {
+      marketplace: "cardtrader",
+      languageAggregate: false,
+    };
+    const { repo } = makeMockRepo({
+      variants: [
+        {
+          id: "var-en",
+          printingId: "print-en",
+          externalId: 54_321,
+          finish: "normal",
+          language: "EN",
+        },
+        {
+          id: "var-zh",
+          printingId: "print-zh",
+          externalId: 54_321,
+          finish: "normal",
+          language: "ZH",
+        },
+      ],
+    });
+    // Two staging rows for the same external_id × finish, differing only on language.
+    const staging = [
+      { ...makeStagingRow(54_321, "normal"), language: "EN" },
+      { ...makeStagingRow(54_321, "normal"), language: "ZH" },
+    ];
+
+    const counts = await upsertPriceData(repo, noopLogger, exactConfig, staging);
+
+    // EN row goes to var-en, ZH row goes to var-zh — two distinct snapshots.
+    expect(counts.snapshots.total).toBe(2);
   });
 });

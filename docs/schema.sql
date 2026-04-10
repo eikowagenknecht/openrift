@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict AFMFJuoLbh4U5efySBoHqxPnEV0hffi4DSyyhainfKTFagrjisxVqpoiJCb3Q8X
+\restrict O3sLJobG60YbpBq3QI08wnQvxTSelPEC7ibFhN270rgsYIIUAISsiJbaTAkQXxL
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -710,7 +710,7 @@ CREATE TABLE public.marketplace_product_variants (
     marketplace_product_id uuid NOT NULL,
     printing_id uuid NOT NULL,
     finish text NOT NULL,
-    language text DEFAULT 'EN'::text NOT NULL,
+    language text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -1460,14 +1460,6 @@ ALTER TABLE ONLY public.marketplace_product_variants
 
 
 --
--- Name: marketplace_product_variants marketplace_product_variants_product_finish_language_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.marketplace_product_variants
-    ADD CONSTRAINT marketplace_product_variants_product_finish_language_key UNIQUE (marketplace_product_id, finish, language);
-
-
---
 -- Name: marketplace_products marketplace_products_marketplace_external_id_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2089,6 +2081,13 @@ CREATE INDEX idx_wish_list_items_list ON public.wish_list_items USING btree (wis
 --
 
 CREATE INDEX idx_wish_lists_user_id ON public.wish_lists USING btree (user_id);
+
+
+--
+-- Name: marketplace_product_variants_product_finish_language_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX marketplace_product_variants_product_finish_language_key ON public.marketplace_product_variants USING btree (marketplace_product_id, finish, language) NULLS NOT DISTINCT;
 
 
 --
@@ -2916,5 +2915,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict AFMFJuoLbh4U5efySBoHqxPnEV0hffi4DSyyhainfKTFagrjisxVqpoiJCb3Q8X
+\unrestrict O3sLJobG60YbpBq3QI08wnQvxTSelPEC7ibFhN270rgsYIIUAISsiJbaTAkQXxL
 

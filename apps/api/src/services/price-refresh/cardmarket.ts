@@ -24,6 +24,10 @@ import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./ups
 
 const UPSERT_CONFIG: PriceUpsertConfig = {
   marketplace: "cardmarket",
+  // Cardmarket's price guide exposes only cross-language aggregate numbers,
+  // so variants in our DB store `language = NULL` while staging rows carry
+  // a placeholder "EN". The upsert matcher ignores language for this marketplace.
+  languageAggregate: true,
 };
 
 // ── Constants ──────────────────────────────────────────────────────────────

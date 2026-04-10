@@ -12,7 +12,12 @@ export interface SourceMappingConfig {
   source: string;
   displayName: string;
   shortName: string;
-  productUrl: (id: number) => string;
+  /**
+   * Build a deep link to the marketplace's product page. Pass the printing's
+   * language (e.g. "EN", "ZH") to land on listings filtered by that language.
+   * Omit the language for a language-agnostic link.
+   */
+  productUrl: (id: number, language?: string | null) => string;
 }
 
 export interface MappingGroup {

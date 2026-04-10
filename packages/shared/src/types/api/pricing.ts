@@ -37,22 +37,23 @@ export interface CardtraderSnapshot {
   low: number;
 }
 
+/**
+ * Per-marketplace slice of the price history response. `languageAggregate`
+ * is `true` when the marketplace only exposes a single cross-language price
+ * (Cardmarket's price guide) — the UI should render an "any language" note
+ * next to the price so users understand it doesn't break down per-language.
+ */
+interface PriceHistorySlice<TSnapshot> {
+  available: boolean;
+  productId: number | null;
+  snapshots: TSnapshot[];
+  languageAggregate: boolean;
+}
+
 export interface PriceHistoryResponse {
-  tcgplayer: {
-    available: boolean;
-    productId: number | null;
-    snapshots: TcgplayerSnapshot[];
-  };
-  cardmarket: {
-    available: boolean;
-    productId: number | null;
-    snapshots: CardmarketSnapshot[];
-  };
-  cardtrader: {
-    available: boolean;
-    productId: number | null;
-    snapshots: CardtraderSnapshot[];
-  };
+  tcgplayer: PriceHistorySlice<TcgplayerSnapshot>;
+  cardmarket: PriceHistorySlice<CardmarketSnapshot>;
+  cardtrader: PriceHistorySlice<CardtraderSnapshot>;
 }
 
 export type AnySnapshot = TcgplayerSnapshot | CardmarketSnapshot | CardtraderSnapshot;

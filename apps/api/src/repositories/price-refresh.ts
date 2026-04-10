@@ -270,7 +270,7 @@ export function priceRefreshRepo(db: Db) {
         externalId: number;
         printingId: string;
         finish: string;
-        language: string;
+        language: string | null;
         groupId: number;
         productName: string;
       }[]
@@ -316,7 +316,8 @@ export function priceRefreshRepo(db: Db) {
         productName: string;
         printingId: string;
         finish: string;
-        language: string;
+        /** `null` for cross-language aggregate variants (e.g. Cardmarket). */
+        language: string | null;
       }[],
     ): Promise<void> {
       if (values.length === 0) {

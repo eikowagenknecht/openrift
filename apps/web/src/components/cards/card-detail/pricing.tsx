@@ -7,6 +7,7 @@ import { usePriceHistory } from "@/hooks/use-price-history";
 import { usePrices } from "@/hooks/use-prices";
 import { affiliateUrl, cardtraderAffiliateUrl } from "@/lib/affiliate";
 import { formatPrice, formatPriceEur, priceColorClass } from "@/lib/format";
+import { cardmarketLangParam } from "@/lib/marketplace-language";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -15,7 +16,7 @@ interface MarketplaceConfig {
   icon: string;
   iconClassName: string;
   formatValue: (v: number) => string;
-  getUrl: (productId: number) => string;
+  getUrl: (productId: number, language?: string | null) => string;
 }
 
 const MARKETPLACE_CONFIG: Record<Marketplace, MarketplaceConfig> = {
@@ -31,7 +32,8 @@ const MARKETPLACE_CONFIG: Record<Marketplace, MarketplaceConfig> = {
     icon: "/images/external/cardmarket-20x28.webp",
     iconClassName: "invert dark:invert-0",
     formatValue: formatPriceEur,
-    getUrl: (id) => `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${id}`,
+    getUrl: (id, language) =>
+      `https://www.cardmarket.com/en/Riftbound/Products?idProduct=${id}${cardmarketLangParam(language)}`,
   },
   cardtrader: {
     label: "CardTrader",
@@ -60,16 +62,23 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
   // Resolve which marketplaces have data to show. We prefer the latest catalog
   // price (available without waiting for history to load) and fall back to the
   // last history snapshot if the catalog has no entry yet.
-  const chips: { marketplace: Marketplace; value: number; url: string | null }[] = [];
+  const chips: {
+    marketplace: Marketplace;
+    value: number;
+    url: string | null;
+    languageAggregate: boolean;
+  }[] = [];
   for (const marketplace of marketplaceOrder) {
     const config = MARKETPLACE_CONFIG[marketplace];
-    const productId = history?.[marketplace]?.productId ?? null;
-    const url = productId ? config.getUrl(productId) : null;
+    const slice = history?.[marketplace];
+    const productId = slice?.productId ?? null;
+    const languageAggregate = slice?.languageAggregate ?? false;
+    const url = productId ? config.getUrl(productId, printing.language) : null;
 
     const value = prices.get(printing.id, marketplace) ?? latestPrice(marketplace);
 
     if (value !== null && value !== undefined) {
-      chips.push({ marketplace, value, url });
+      chips.push({ marketplace, value, url, languageAggregate });
     }
   }
 
@@ -84,7 +93,7 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
       {chips[0]?.marketplace === favorite && (
         <PriceTrend printingId={printing.id} range={range} marketplace={favorite} />
       )}
-      {chips.map(({ marketplace, value, url }) => {
+      {chips.map(({ marketplace, value, url, languageAggregate }) => {
         const config = MARKETPLACE_CONFIG[marketplace];
         return (
           <PriceChip
@@ -95,6 +104,7 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
             value={value}
             url={url}
             formatValue={config.formatValue}
+            languageAggregate={languageAggregate}
           />
         );
       })}
@@ -168,6 +178,7 @@ function PriceChip({
   url,
   formatValue = formatPrice,
   iconClassName,
+  languageAggregate,
 }: {
   label: string;
   icon?: string;
@@ -175,6 +186,7 @@ function PriceChip({
   url: string | null;
   formatValue?: (v: number) => string;
   iconClassName?: string;
+  languageAggregate?: boolean;
 }) {
   const Wrapper = url ? "a" : "span";
   const linkProps = url ? { href: url, target: "_blank" as const, rel: "noreferrer" } : {};
@@ -195,9 +207,17 @@ function PriceChip({
             <span className="text-muted-foreground text-xs font-normal">{label}</span>
           )}
           {formatValue(value)}
+          {languageAggregate && (
+            <span className="text-muted-foreground text-[10px] font-normal">*</span>
+          )}
         </Wrapper>
       </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
+      <TooltipContent>
+        {label}
+        {languageAggregate && (
+          <span className="text-muted-foreground ml-1 text-xs">(any language)</span>
+        )}
+      </TooltipContent>
     </Tooltip>
   );
 }

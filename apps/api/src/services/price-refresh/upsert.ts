@@ -112,18 +112,21 @@ export async function upsertPriceData(
 
   // ── Build snapshots from staging + variant mappings ─────────────────────
 
-  // Match staging rows to mapped variants by exact externalId+finish+language.
-  // Each staging row's price only flows to the variant with the same finish/language.
-  const variantByKey = Map.groupBy(
-    dbVariants,
-    (src) => `${src.externalId}::${src.finish}::${src.language}`,
+  // Match staging rows to mapped variants. Normally the key is
+  // (externalId, finish, language) so prices flow only to the exactly
+  // matching variant. For language-aggregate marketplaces (Cardmarket)
+  // variants have `language = NULL` and staging rows carry an arbitrary
+  // placeholder, so the key drops the language dimension entirely.
+  const keyOf = (externalId: number, finish: string, language: string | null): string =>
+    config.languageAggregate ? `${externalId}::${finish}` : `${externalId}::${finish}::${language}`;
+
+  const variantByKey = Map.groupBy(dbVariants, (src) =>
+    keyOf(src.externalId, src.finish, src.language),
   );
 
   const uniqueSnapshots = new Map<string, SnapshotInsertRow>();
   for (const staging of allStaging) {
-    const variants = variantByKey.get(
-      `${staging.externalId}::${staging.finish}::${staging.language}`,
-    );
+    const variants = variantByKey.get(keyOf(staging.externalId, staging.finish, staging.language));
     if (!variants) {
       continue;
     }

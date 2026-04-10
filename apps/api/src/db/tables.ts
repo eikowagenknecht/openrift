@@ -147,13 +147,20 @@ export interface MarketplaceProductsTable {
   updatedAt: UpdatedAt;
 }
 
-/** Level 3: one row per SKU (finish × language) of an upstream product, linked to a printing. */
+/**
+ * Level 3: one row per SKU of an upstream product, linked to a printing.
+ *
+ * `language` is NULL when the upstream marketplace only exposes cross-language
+ * aggregate prices (e.g. Cardmarket's price guide). Queries that filter by a
+ * specific printing use a sibling fan-out to surface these aggregate rows on
+ * every language of the same card.
+ */
 export interface MarketplaceProductVariantsTable {
   id: Generated<string>;
   marketplaceProductId: string;
   printingId: string;
   finish: string;
-  language: string;
+  language: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

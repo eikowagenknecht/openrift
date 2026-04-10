@@ -50,6 +50,7 @@ function createMockConfig(overrides: Partial<MarketplaceConfig> = {}): Marketpla
   return {
     marketplace: "tcgplayer",
     currency: "USD",
+    languageAggregate: false,
     mapStagingPrices: (row: StagingRow) => ({
       marketCents: row.marketCents,
       lowCents: row.lowCents,
@@ -1082,6 +1083,82 @@ describe("saveMappings", () => {
     expect(result.saved).toBe(1);
     const snapshotArg = mappingRepo.insertSnapshots.mock.calls[0][0];
     expect(snapshotArg).toHaveLength(2);
+  });
+
+  it("writes language=null when the marketplace is language-aggregate", async () => {
+    const upsertMock = vi.fn().mockResolvedValue([{ printingId: "p-1", variantId: "var-1" }]);
+    const mappingRepo = createMockMappingRepo({
+      printingFinishesAndLanguages: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-1", finish: "normal", language: "EN" }]),
+      stagingByExternalIds: vi.fn().mockResolvedValue([
+        {
+          externalId: 12_345,
+          finish: "normal",
+          language: "EN",
+          groupId: 1,
+          productName: "X",
+          recordedAt: new Date("2026-01-01"),
+          marketCents: 100,
+          lowCents: null,
+          midCents: null,
+          highCents: null,
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
+        },
+      ]),
+      upsertProductVariants: upsertMock,
+    });
+    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
+    const transact = mockTransact(repos);
+    const config = createMockConfig({ marketplace: "cardmarket", languageAggregate: true });
+
+    await saveMappings(transact, config, [{ printingId: "p-1", externalId: 12_345 }]);
+
+    // Cardmarket mapping should store the variant with language=null even
+    // though the underlying printing is English — the marketplace data
+    // itself doesn't know the language.
+    expect(upsertMock).toHaveBeenCalledOnce();
+    const upsertValues = upsertMock.mock.calls[0][0] as { language: string | null }[];
+    expect(upsertValues[0].language).toBeNull();
+  });
+
+  it("writes language from the printing when the marketplace is per-language", async () => {
+    const upsertMock = vi.fn().mockResolvedValue([{ printingId: "p-1", variantId: "var-1" }]);
+    const mappingRepo = createMockMappingRepo({
+      printingFinishesAndLanguages: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-1", finish: "normal", language: "ZH" }]),
+      stagingByExternalIds: vi.fn().mockResolvedValue([
+        {
+          externalId: 12_345,
+          finish: "normal",
+          language: "ZH",
+          groupId: 1,
+          productName: "X",
+          recordedAt: new Date("2026-01-01"),
+          marketCents: 100,
+          lowCents: null,
+          midCents: null,
+          highCents: null,
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
+        },
+      ]),
+      upsertProductVariants: upsertMock,
+    });
+    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
+    const transact = mockTransact(repos);
+    const config = createMockConfig({ marketplace: "cardtrader", languageAggregate: false });
+
+    await saveMappings(transact, config, [{ printingId: "p-1", externalId: 12_345 }]);
+
+    const upsertValues = upsertMock.mock.calls[0][0] as { language: string | null }[];
+    expect(upsertValues[0].language).toBe("ZH");
   });
 });
 

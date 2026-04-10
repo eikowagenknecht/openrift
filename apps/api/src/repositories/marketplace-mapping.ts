@@ -164,7 +164,8 @@ export function marketplaceMappingRepo(db: Db) {
         groupId: number;
         productName: string;
         finish: string;
-        language: string;
+        /** `null` for cross-language aggregate variants (e.g. Cardmarket). */
+        language: string | null;
       }[],
     ): Promise<{ printingId: string; variantId: string }[]> {
       if (values.length === 0) {

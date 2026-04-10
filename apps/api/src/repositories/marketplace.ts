@@ -19,28 +19,38 @@ export function marketplaceRepo(db: Kysely<Database>) {
     /**
      * Latest headline price per marketplace for every printing.
      *
-     * Uses `DISTINCT ON` to efficiently pick only the most recent snapshot
-     * per variant without scanning the full `marketplace_snapshots` table.
-     * Coalesces `market_cents` with `low_cents` so marketplaces without a true
-     * market price (e.g. cardtrader) fall back to their lowest listing.
+     * Uses a sibling self-join so variants with `language IS NULL` (cross-language
+     * aggregate prices — Cardmarket) surface on every language of a card, while
+     * exact-language variants stay pinned to their specific printing. Coalesces
+     * `market_cents` with `low_cents` so marketplaces without a true market price
+     * (e.g. cardtrader) fall back to their lowest listing.
      *
      * @returns Rows with `printingId`, `marketplace`, and the headline price as `marketCents`.
      */
-    latestPrices(): Promise<{ printingId: string; marketplace: string; marketCents: number }[]> {
-      return db
-        .selectFrom("marketplaceProductVariants as mpv")
-        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
-        .innerJoin("marketplaceSnapshots as snap", "snap.variantId", "mpv.id")
-        .distinctOn("mpv.id")
-        .select([
-          "mpv.printingId as printingId",
-          "mp.marketplace",
-          sql<number>`coalesce(snap.market_cents, snap.low_cents)`.as("marketCents"),
-        ])
-        .where(sql<boolean>`coalesce(snap.market_cents, snap.low_cents) is not null`)
-        .orderBy("mpv.id")
-        .orderBy("snap.recordedAt", "desc")
-        .execute();
+    async latestPrices(): Promise<
+      { printingId: string; marketplace: string; marketCents: number }[]
+    > {
+      const result = await sql<{ printingId: string; marketplace: string; marketCents: number }>`
+        SELECT DISTINCT ON (target.id, mp.marketplace)
+          target.id as "printingId",
+          mp.marketplace as "marketplace",
+          coalesce(snap.market_cents, snap.low_cents) as "marketCents"
+        FROM printings target
+        JOIN printings source
+          ON source.card_id = target.card_id
+          AND source.short_code = target.short_code
+          AND source.finish = target.finish
+          AND source.art_variant = target.art_variant
+          AND source.is_signed = target.is_signed
+          AND source.promo_type_id IS NOT DISTINCT FROM target.promo_type_id
+        JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
+        JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
+        JOIN marketplace_snapshots snap ON snap.variant_id = mpv.id
+        WHERE coalesce(snap.market_cents, snap.low_cents) IS NOT NULL
+          AND (mpv.language IS NULL OR source.id = target.id)
+        ORDER BY target.id, mp.marketplace, snap.recorded_at DESC
+      `.execute(db);
+      return result.rows;
     },
 
     /**
@@ -50,43 +60,74 @@ export function marketplaceRepo(db: Kysely<Database>) {
      *
      * @returns Rows with `printingId`, `marketplace`, and the headline price as `marketCents`.
      */
-    latestPricesForPrintings(
+    async latestPricesForPrintings(
       printingIds: string[],
     ): Promise<{ printingId: string; marketplace: string; marketCents: number }[]> {
       if (printingIds.length === 0) {
-        return Promise.resolve([]);
+        return [];
       }
-      return db
-        .selectFrom("marketplaceProductVariants as mpv")
-        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
-        .innerJoin("marketplaceSnapshots as snap", "snap.variantId", "mpv.id")
-        .where("mpv.printingId", "in", printingIds)
-        .where(sql<boolean>`coalesce(snap.market_cents, snap.low_cents) is not null`)
-        .distinctOn("mpv.id")
-        .select([
-          "mpv.printingId as printingId",
-          "mp.marketplace",
-          sql<number>`coalesce(snap.market_cents, snap.low_cents)`.as("marketCents"),
-        ])
-        .orderBy("mpv.id")
-        .orderBy("snap.recordedAt", "desc")
-        .execute();
+      const result = await sql<{ printingId: string; marketplace: string; marketCents: number }>`
+        SELECT DISTINCT ON (target.id, mp.marketplace)
+          target.id as "printingId",
+          mp.marketplace as "marketplace",
+          coalesce(snap.market_cents, snap.low_cents) as "marketCents"
+        FROM printings target
+        JOIN printings source
+          ON source.card_id = target.card_id
+          AND source.short_code = target.short_code
+          AND source.finish = target.finish
+          AND source.art_variant = target.art_variant
+          AND source.is_signed = target.is_signed
+          AND source.promo_type_id IS NOT DISTINCT FROM target.promo_type_id
+        JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
+        JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
+        JOIN marketplace_snapshots snap ON snap.variant_id = mpv.id
+        WHERE target.id = ANY(${printingIds})
+          AND coalesce(snap.market_cents, snap.low_cents) IS NOT NULL
+          AND (mpv.language IS NULL OR source.id = target.id)
+        ORDER BY target.id, mp.marketplace, snap.recorded_at DESC
+      `.execute(db);
+      return result.rows;
     },
 
-    /** @returns Marketplace variants (one per SKU) linked to a printing, with parent-product external_id. */
-    sourcesForPrinting(
-      printingId: string,
-    ): Promise<{ variantId: string; externalId: number; marketplace: string }[]> {
-      return db
-        .selectFrom("marketplaceProductVariants as mpv")
-        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
-        .select([
-          "mpv.id as variantId",
-          "mp.externalId as externalId",
-          "mp.marketplace as marketplace",
-        ])
-        .where("mpv.printingId", "=", printingId)
-        .execute();
+    /**
+     * @returns Marketplace variants linked to a printing, including cross-language
+     *          aggregate variants attached to any sibling printing. The `language`
+     *          field is `null` for aggregate variants so callers can label them.
+     */
+    async sourcesForPrinting(printingId: string): Promise<
+      {
+        variantId: string;
+        externalId: number;
+        marketplace: string;
+        language: string | null;
+      }[]
+    > {
+      const result = await sql<{
+        variantId: string;
+        externalId: number;
+        marketplace: string;
+        language: string | null;
+      }>`
+        SELECT
+          mpv.id as "variantId",
+          mp.external_id as "externalId",
+          mp.marketplace as "marketplace",
+          mpv.language as "language"
+        FROM printings target
+        JOIN printings source
+          ON source.card_id = target.card_id
+          AND source.short_code = target.short_code
+          AND source.finish = target.finish
+          AND source.art_variant = target.art_variant
+          AND source.is_signed = target.is_signed
+          AND source.promo_type_id IS NOT DISTINCT FROM target.promo_type_id
+        JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
+        JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
+        WHERE target.id = ${printingId}
+          AND (mpv.language IS NULL OR source.id = target.id)
+      `.execute(db);
+      return result.rows;
     },
 
     /** @returns Snapshots for a single variant, optionally filtered by a cutoff date, ordered chronologically. */

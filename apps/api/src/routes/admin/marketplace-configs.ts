@@ -58,6 +58,12 @@ interface MappedSnapshotRow extends PriceColumns {
 export interface MarketplaceConfig {
   marketplace: string;
   currency: string;
+  /**
+   * True when the marketplace only reports cross-language aggregate prices.
+   * Variants for this marketplace are stored with `language = NULL` and the
+   * UI surfaces them on every language of a card via a sibling fan-out.
+   */
+  languageAggregate: boolean;
   /** Map a staging row → the unified product-info price fields */
   mapStagingPrices(row: StagingRow): Omit<ProductInfo, "productName" | "recordedAt">;
   /** Select + map snapshot prices for mapped products */
@@ -82,6 +88,7 @@ export interface MarketplaceConfig {
 function createMarketplaceConfig(opts: {
   marketplace: string;
   currency: string;
+  languageAggregate: boolean;
   mapPrices(row: PriceColumns): Omit<ProductInfo, "productName" | "recordedAt">;
   repo: ReturnType<typeof marketplaceTransferRepo>;
 }): MarketplaceConfig {
@@ -90,6 +97,7 @@ function createMarketplaceConfig(opts: {
   return {
     marketplace,
     currency: opts.currency,
+    languageAggregate: opts.languageAggregate,
 
     mapStagingPrices: mapPrices,
 
@@ -154,18 +162,21 @@ export function createMarketplaceConfigs(repos: Repos) {
     tcgplayer: createMarketplaceConfig({
       marketplace: "tcgplayer",
       currency: "USD",
+      languageAggregate: false,
       mapPrices: tcgMapPrices,
       repo,
     }),
     cardmarket: createMarketplaceConfig({
       marketplace: "cardmarket",
       currency: "EUR",
+      languageAggregate: true,
       mapPrices: cmMapPrices,
       repo,
     }),
     cardtrader: createMarketplaceConfig({
       marketplace: "cardtrader",
       currency: "EUR",
+      languageAggregate: false,
       mapPrices: ctMapPrices,
       repo,
     }),

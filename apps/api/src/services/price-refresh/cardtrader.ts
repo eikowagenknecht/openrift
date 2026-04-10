@@ -343,12 +343,12 @@ async function autoMatchBlueprints(
     identityByPrintingId.set(p.id, identity);
   }
 
+  // Only the `printingId` and `finish` matter for sibling resolution — the
+  // cross-ref's own `language` is irrelevant because we pick the target
+  // language from the cardtrader blueprint's own prices (see below).
   interface CrossRefEntry {
     printingId: string;
     finish: string;
-    language: string;
-    groupId: number;
-    productName: string;
   }
 
   const tcgLookup = new Map<number, CrossRefEntry[]>();
@@ -358,9 +358,6 @@ async function autoMatchBlueprints(
     const entry: CrossRefEntry = {
       printingId: src.printingId,
       finish: src.finish,
-      language: src.language,
-      groupId: src.groupId,
-      productName: src.productName,
     };
     const lookup = src.marketplace === "tcgplayer" ? tcgLookup : cmLookup;
     const list = lookup.get(src.externalId) ?? [];

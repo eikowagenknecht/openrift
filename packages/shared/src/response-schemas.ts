@@ -196,16 +196,19 @@ export const priceHistoryResponseSchema = z
       available: z.boolean().openapi({ example: true }),
       productId: z.number().nullable().openapi({ example: 582_391 }),
       snapshots: z.array(tcgplayerSnapshotSchema),
+      languageAggregate: z.boolean().openapi({ example: false }),
     }),
     cardmarket: z.object({
       available: z.boolean().openapi({ example: true }),
       productId: z.number().nullable().openapi({ example: 748_215 }),
       snapshots: z.array(cardmarketSnapshotSchema),
+      languageAggregate: z.boolean().openapi({ example: true }),
     }),
     cardtrader: z.object({
       available: z.boolean().openapi({ example: false }),
       productId: z.number().nullable().openapi({ example: null }),
       snapshots: z.array(cardtraderSnapshotSchema),
+      languageAggregate: z.boolean().openapi({ example: false }),
     }),
   })
   .openapi("PriceHistoryResponse");

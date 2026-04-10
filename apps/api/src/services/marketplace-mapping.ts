@@ -517,7 +517,7 @@ export async function saveMappings(
       groupId: number;
       productName: string;
       finish: string;
-      language: string;
+      language: string | null;
     }[] = [];
     for (const m of mappings) {
       const info = printingInfoByid.get(m.printingId);
@@ -545,7 +545,10 @@ export async function saveMappings(
         groupId: first.groupId,
         productName: first.productName,
         finish: info.finish,
-        language: info.language,
+        // Cardmarket's price guide is a cross-language aggregate, so variants
+        // are stored with NULL language. Other marketplaces pin the variant
+        // to the printing's actual language.
+        language: config.languageAggregate ? null : info.language,
       });
     }
 
@@ -575,7 +578,14 @@ export async function saveMappings(
       if (variantId === undefined) {
         continue;
       }
-      const stagingKey = `${sv.externalId}::${sv.finish}::${sv.language}`;
+      // The variant's stored language can be NULL for language-aggregate
+      // marketplaces; the staging key uses the printing's actual language
+      // because that's what the scraper writes.
+      const printingLanguage = printingInfoByid.get(sv.printingId)?.language;
+      if (printingLanguage === undefined) {
+        continue;
+      }
+      const stagingKey = `${sv.externalId}::${sv.finish}::${printingLanguage}`;
       const rows = stagingByKey.get(stagingKey) ?? [];
       for (const row of rows) {
         snapshotRows.push({
@@ -597,10 +607,18 @@ export async function saveMappings(
       await repo.insertSnapshots(snapshotRows);
     }
 
-    // 6. Batch-delete staging rows (1 query instead of N)
+    // 6. Batch-delete staging rows (1 query instead of N).
+    // Important: stagingByKey is keyed on the staging row's actual language
+    // (e.g. "EN" for cardmarket, where the scraper uses a placeholder), not
+    // on the variant's stored language (which is NULL for language-aggregate
+    // marketplaces). Look up the printing's language via printingInfoByid.
     const deleteTuples: { externalId: number; finish: string; language: string }[] = [];
     for (const sv of upsertValues) {
-      const stagingKey = `${sv.externalId}::${sv.finish}::${sv.language}`;
+      const printingLanguage = printingInfoByid.get(sv.printingId)?.language;
+      if (printingLanguage === undefined) {
+        continue;
+      }
+      const stagingKey = `${sv.externalId}::${sv.finish}::${printingLanguage}`;
       const rows = stagingByKey.get(stagingKey) ?? [];
       for (const row of rows) {
         deleteTuples.push({
@@ -641,6 +659,11 @@ export async function unmapPrinting(
 
     const snapshots = await repo.snapshotsByVariantId(variant.variantId);
 
+    // Cardmarket variants have `language = NULL` (cross-language aggregate),
+    // but the staging table is NOT NULL. Fall back to the scraper's placeholder
+    // "EN" so the next refresh cycle's upsert matcher can rebuild the variant
+    // from staging (matcher ignores language for aggregate marketplaces).
+    const stagingLanguage = variant.language ?? "EN";
     for (const snap of snapshots) {
       await trxConfig.insertStagingFromSnapshot(
         {
@@ -649,7 +672,7 @@ export async function unmapPrinting(
           productName: variant.productName,
         },
         variant.finish,
-        variant.language,
+        stagingLanguage,
         snap,
       );
     }

@@ -96,9 +96,24 @@ export const pricesRoute = pricesApp
 
     if (!printing) {
       return c.json({
-        tcgplayer: { available: false, productId: null, snapshots: [] },
-        cardmarket: { available: false, productId: null, snapshots: [] },
-        cardtrader: { available: false, productId: null, snapshots: [] },
+        tcgplayer: {
+          available: false,
+          productId: null,
+          snapshots: [],
+          languageAggregate: false,
+        },
+        cardmarket: {
+          available: false,
+          productId: null,
+          snapshots: [],
+          languageAggregate: true,
+        },
+        cardtrader: {
+          available: false,
+          productId: null,
+          snapshots: [],
+          languageAggregate: false,
+        },
       } satisfies PriceHistoryResponse);
     }
 
@@ -152,16 +167,22 @@ export const pricesRoute = pricesApp
         available: Boolean(tcgSource),
         productId: tcgSource?.externalId ?? null,
         snapshots: tcgSnapshots,
+        languageAggregate: false,
       },
       cardmarket: {
         available: Boolean(cmSource),
         productId: cmSource?.externalId ?? null,
         snapshots: cmSnapshots,
+        // Cardmarket's price guide is a cross-language aggregate. The
+        // sourcesForPrinting fan-out means this same variant is surfaced on
+        // every language of the card; the UI labels it "(any language)".
+        languageAggregate: true,
       },
       cardtrader: {
         available: Boolean(ctSource),
         productId: ctSource?.externalId ?? null,
         snapshots: ctSnapshots,
+        languageAggregate: false,
       },
     };
 

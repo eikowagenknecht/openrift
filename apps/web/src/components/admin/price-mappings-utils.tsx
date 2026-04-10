@@ -16,15 +16,18 @@ export function formatCents(cents: number | null, currency: string): string {
 export function ProductLink({
   config,
   externalId,
+  language,
   children,
 }: {
   config: SourceMappingConfig;
   externalId: number;
+  /** Printing language to pass through to the marketplace's language filter. */
+  language?: string | null;
   children: React.ReactNode;
 }) {
   return (
     <a
-      href={config.productUrl(externalId)}
+      href={config.productUrl(externalId, language)}
       target="_blank"
       rel="noreferrer"
       className="decoration-muted-foreground/50 hover:decoration-foreground underline underline-offset-2"
