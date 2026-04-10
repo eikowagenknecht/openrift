@@ -360,7 +360,7 @@ function DaySummary({
     parts.push(`${moved} moved`);
   }
 
-  const netValue = addedValue - removedValue;
+  const netValue = Math.round((addedValue - removedValue) * 100) / 100;
 
   return (
     <div className="text-muted-foreground flex items-center gap-2 text-xs">
