@@ -431,6 +431,7 @@ export const CardThumbnail = memo(function CardThumbnail({
           "group relative w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
           otherPrintings.length > 0 && "hover:[--fan:1]",
           isDragging && "opacity-40",
+          enableDrag && "select-none",
         )}
         style={
           isSelected || highlighted

@@ -246,7 +246,7 @@ export function DeckZoneSection({
     <div
       ref={dropRef}
       className={cn(
-        "overflow-hidden rounded-lg border transition-opacity",
+        "overflow-hidden rounded-lg border transition-opacity select-none",
         isActive && "bg-primary/10",
         isOver && !dropDisabled && "ring-primary/60 ring-2",
         dropDisabled && "opacity-40",

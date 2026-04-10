@@ -1,3 +1,4 @@
+import { useDndContext } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
 import { EllipsisVerticalIcon, PencilIcon, PrinterIcon, Share2Icon, XIcon } from "lucide-react";
 import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
@@ -68,6 +69,30 @@ function MobileSidebarHeader() {
         <XIcon />
         <span className="sr-only">Close</span>
       </Button>
+    </div>
+  );
+}
+
+function HoveredCardPreview({
+  hoveredCard,
+  mouseY,
+}: {
+  hoveredCard: { url: string; landscape: boolean } | null;
+  mouseY: number;
+}) {
+  const { active } = useDndContext();
+  if (!hoveredCard || active) {
+    return null;
+  }
+  return (
+    <div
+      className={cn(
+        "pointer-events-none absolute left-[19.5rem] z-50",
+        hoveredCard.landscape ? "w-[560px]" : "w-[400px]",
+      )}
+      style={{ top: Math.max(0, mouseY - 96) }}
+    >
+      <img src={hoveredCard.url} alt="" className="w-full rounded-lg shadow-lg" />
     </div>
   );
 }
@@ -479,17 +504,7 @@ function DeckEditorContent({
             </SidebarContent>
           </NestedSidebar>
 
-          {hoveredCard && (
-            <div
-              className={cn(
-                "pointer-events-none absolute left-[19.5rem] z-50",
-                hoveredCard.landscape ? "w-[560px]" : "w-[400px]",
-              )}
-              style={{ top: Math.max(0, mouseY - 96) }}
-            >
-              <img src={hoveredCard.url} alt="" className="w-full rounded-lg shadow-lg" />
-            </div>
-          )}
+          <HoveredCardPreview hoveredCard={hoveredCard} mouseY={mouseY} />
 
           <div className="flex min-w-0 flex-1 flex-col pb-3">
             <div className="flex-1">
