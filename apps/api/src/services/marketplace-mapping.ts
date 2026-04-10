@@ -279,11 +279,19 @@ function buildResponseGroups(
 export async function getMappingOverview(repos: Repos, config: MarketplaceConfig) {
   const repo = repos.marketplaceMapping;
 
-  // 1. Load ignored products
-  const ignoredRows = await repo.ignoredProducts(config.marketplace);
-  const ignoredKeys = new Set(
-    ignoredRows.map((r) => `${r.externalId}::${r.finish}::${r.language}`),
+  // 1. Load both L2 (whole-product) and L3 (per-variant) ignores.
+  const [ignoredProductRows, ignoredVariantRows] = await Promise.all([
+    repo.ignoredProducts(config.marketplace),
+    repo.ignoredVariants(config.marketplace),
+  ]);
+
+  const ignoredProductIds = new Set(ignoredProductRows.map((r) => r.externalId));
+  const ignoredVariantKeys = new Set(
+    ignoredVariantRows.map((r) => `${r.externalId}::${r.finish}::${r.language}`),
   );
+  const isIgnored = (row: { externalId: number; finish: string; language: string }): boolean =>
+    ignoredProductIds.has(row.externalId) ||
+    ignoredVariantKeys.has(`${row.externalId}::${row.finish}::${row.language}`);
 
   // 2. Fetch & deduplicate staged products
   const staged = await repo.allStaging(config.marketplace);
@@ -291,7 +299,7 @@ export async function getMappingOverview(repos: Repos, config: MarketplaceConfig
   const seenStagingKeys = new Set<string>();
   const uniqueStaged = staged.filter((row) => {
     const key = `${row.externalId}::${row.finish}::${row.language}`;
-    if (ignoredKeys.has(key) || seenStagingKeys.has(key)) {
+    if (isIgnored(row) || seenStagingKeys.has(key)) {
       return false;
     }
     seenStagingKeys.add(key);
@@ -366,44 +374,69 @@ export async function getMappingOverview(repos: Repos, config: MarketplaceConfig
 
   // Unmatched products (excluding ignored)
   const unmatchedProducts = uniqueStaged
-    .filter(
-      (row) =>
-        !matchedStagingKeys.has(`${row.externalId}::${row.finish}::${row.language}`) &&
-        !ignoredKeys.has(`${row.externalId}::${row.finish}::${row.language}`),
-    )
+    .filter((row) => !matchedStagingKeys.has(`${row.externalId}::${row.finish}::${row.language}`))
     .map((row) => mapStagedRow(row));
 
-  // Ignored products — look up group from staging data
+  // Ignored products / variants — look up group from staging data. L2 ignores
+  // carry no finish/language; for display purposes we pick the first staging
+  // row with a matching external_id so the admin UI can show some provenance.
   const groupByExternal = new Map<string, number>();
+  const groupByExternalOnly = new Map<number, number>();
   for (const row of staged) {
-    if (row.externalId !== null) {
-      const key = `${row.externalId}::${row.finish}::${row.language}`;
-      if (!groupByExternal.has(key)) {
-        groupByExternal.set(key, row.groupId);
-      }
+    if (row.externalId === null) {
+      continue;
+    }
+    const key = `${row.externalId}::${row.finish}::${row.language}`;
+    if (!groupByExternal.has(key)) {
+      groupByExternal.set(key, row.groupId);
+    }
+    if (!groupByExternalOnly.has(row.externalId)) {
+      groupByExternalOnly.set(row.externalId, row.groupId);
     }
   }
-  const ignoredProducts = ignoredRows.map((r) => {
-    const gid = groupByExternal.get(`${r.externalId}::${r.finish}::${r.language}`);
-    return {
-      externalId: r.externalId,
-      productName: r.productName,
-      finish: r.finish,
-      language: r.language,
-      marketCents: 0,
-      lowCents: null as number | null,
-      currency: config.currency,
-      recordedAt: r.createdAt.toISOString(),
-      midCents: null as number | null,
-      highCents: null as number | null,
-      trendCents: null as number | null,
-      avg1Cents: null as number | null,
-      avg7Cents: null as number | null,
-      avg30Cents: null as number | null,
-      groupId: gid,
-      groupName: gid === undefined ? undefined : (groupNameMap.get(gid) ?? `Group #${gid}`),
-    };
-  });
+
+  const emptyPrices = {
+    marketCents: 0,
+    lowCents: null as number | null,
+    midCents: null as number | null,
+    highCents: null as number | null,
+    trendCents: null as number | null,
+    avg1Cents: null as number | null,
+    avg7Cents: null as number | null,
+    avg30Cents: null as number | null,
+    currency: config.currency,
+  };
+
+  const ignoredProducts = [
+    ...ignoredProductRows.map((r) => {
+      const gid = groupByExternalOnly.get(r.externalId);
+      return {
+        level: "product" as const,
+        externalId: r.externalId,
+        productName: r.productName,
+        finish: null as string | null,
+        language: null as string | null,
+        recordedAt: r.createdAt.toISOString(),
+        ...emptyPrices,
+        groupId: gid,
+        groupName: gid === undefined ? undefined : (groupNameMap.get(gid) ?? `Group #${gid}`),
+      };
+    }),
+    ...ignoredVariantRows.map((r) => {
+      const gid = groupByExternal.get(`${r.externalId}::${r.finish}::${r.language}`);
+      return {
+        level: "variant" as const,
+        externalId: r.externalId,
+        productName: r.productName,
+        finish: r.finish as string | null,
+        language: r.language as string | null,
+        recordedAt: r.createdAt.toISOString(),
+        ...emptyPrices,
+        groupId: gid,
+        groupName: gid === undefined ? undefined : (groupNameMap.get(gid) ?? `Group #${gid}`),
+      };
+    }),
+  ];
 
   // 8. Build response groups
   const groups = buildResponseGroups(
@@ -476,13 +509,14 @@ export async function saveMappings(
       variantsByExtId.set(row.externalId, set);
     }
 
-    // 3. Build source upsert values, collecting skip reasons
-    const sourceValues: {
+    // 3. Build upsert values, collecting skip reasons
+    const upsertValues: {
       marketplace: string;
       printingId: string;
       externalId: number;
       groupId: number;
       productName: string;
+      finish: string;
       language: string;
     }[] = [];
     for (const m of mappings) {
@@ -504,27 +538,28 @@ export async function saveMappings(
         }
         continue;
       }
-      sourceValues.push({
+      upsertValues.push({
         marketplace: config.marketplace,
         printingId: m.printingId,
         externalId: m.externalId,
         groupId: first.groupId,
         productName: first.productName,
+        finish: info.finish,
         language: info.language,
       });
     }
 
-    if (sourceValues.length === 0) {
+    if (upsertValues.length === 0) {
       return 0;
     }
 
-    // 4. Batch-upsert sources (1 query instead of N)
-    const sourceResults = await repo.upsertSources(sourceValues);
-    const productIdByPrinting = new Map(sourceResults.map((r) => [r.printingId, r.id]));
+    // 4. Batch-upsert product + variant rows (1 pair of queries instead of N)
+    const upsertResults = await repo.upsertProductVariants(upsertValues);
+    const variantIdByPrinting = new Map(upsertResults.map((r) => [r.printingId, r.variantId]));
 
     // 5. Batch-insert snapshots (1 query instead of N×M)
     const snapshotRows: {
-      productId: string;
+      variantId: string;
       recordedAt: Date;
       marketCents: number | null;
       lowCents: number | null;
@@ -535,17 +570,16 @@ export async function saveMappings(
       avg7Cents: number | null;
       avg30Cents: number | null;
     }[] = [];
-    for (const sv of sourceValues) {
-      const productId = productIdByPrinting.get(sv.printingId);
-      if (productId === undefined) {
+    for (const sv of upsertValues) {
+      const variantId = variantIdByPrinting.get(sv.printingId);
+      if (variantId === undefined) {
         continue;
       }
-      const info = printingInfoByid.get(sv.printingId);
-      const stagingKey = `${sv.externalId}::${info?.finish ?? ""}::${info?.language ?? "EN"}`;
+      const stagingKey = `${sv.externalId}::${sv.finish}::${sv.language}`;
       const rows = stagingByKey.get(stagingKey) ?? [];
       for (const row of rows) {
         snapshotRows.push({
-          productId,
+          variantId,
           recordedAt: row.recordedAt,
           marketCents: row.marketCents,
           lowCents: row.lowCents,
@@ -565,9 +599,8 @@ export async function saveMappings(
 
     // 6. Batch-delete staging rows (1 query instead of N)
     const deleteTuples: { externalId: number; finish: string; language: string }[] = [];
-    for (const sv of sourceValues) {
-      const info = printingInfoByid.get(sv.printingId);
-      const stagingKey = `${sv.externalId}::${info?.finish ?? ""}::${info?.language ?? "EN"}`;
+    for (const sv of upsertValues) {
+      const stagingKey = `${sv.externalId}::${sv.finish}::${sv.language}`;
       const rows = stagingByKey.get(stagingKey) ?? [];
       for (const row of rows) {
         deleteTuples.push({
@@ -580,7 +613,7 @@ export async function saveMappings(
 
     await repo.deleteStagingTuples(config.marketplace, deleteTuples);
 
-    return sourceValues.length;
+    return upsertValues.length;
   });
 
   return { saved, skipped };
@@ -600,21 +633,32 @@ export async function unmapPrinting(
         config.marketplace as keyof ReturnType<typeof createMarketplaceConfigs>
       ];
 
-    const ps = await repo.getSource(config.marketplace, printingId);
+    const variant = await repo.getVariantForPrinting(config.marketplace, printingId);
 
-    if (!ps || ps.externalId === null) {
+    if (!variant) {
       return;
     }
 
-    const printing = await repo.getPrintingFinishAndLanguage(printingId);
-    const snapshots = await repo.snapshotsByProductId(ps.id);
+    const snapshots = await repo.snapshotsByVariantId(variant.variantId);
 
     for (const snap of snapshots) {
-      await trxConfig.insertStagingFromSnapshot(ps, printing.finish, printing.language, snap);
+      await trxConfig.insertStagingFromSnapshot(
+        {
+          externalId: variant.externalId,
+          groupId: variant.groupId,
+          productName: variant.productName,
+        },
+        variant.finish,
+        variant.language,
+        snap,
+      );
     }
 
-    await repo.deleteSnapshotsByProductId(ps.id);
-    await repo.deleteSourceById(ps.id);
+    await repo.deleteSnapshotsByVariantId(variant.variantId);
+    // Note: parent marketplace_products row intentionally left behind (Option A).
+    // It still represents a known upstream listing and can be re-mapped later
+    // without being re-created.
+    await repo.deleteVariantById(variant.variantId);
   });
 }
 
@@ -633,9 +677,9 @@ export async function unmapAll(
 
     await trxConfig.bulkUnmapSql();
 
-    const count = await repo.countMappedSources(config.marketplace);
-    await repo.deleteSnapshotsForMappedSources(config.marketplace);
-    await repo.deleteMappedSources(config.marketplace);
+    const count = await repo.countMappedVariants(config.marketplace);
+    await repo.deleteSnapshotsForMappedVariants(config.marketplace);
+    await repo.deleteMappedVariants(config.marketplace);
 
     return count;
   });

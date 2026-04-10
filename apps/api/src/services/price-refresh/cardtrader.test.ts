@@ -67,11 +67,13 @@ function makeMockLogger(): { log: Logger; messages: string[] } {
 }
 
 interface MockReposConfig {
-  ignoredProducts?: { externalId: number; finish: string; language?: string }[];
+  ignoredProducts?: { externalId: number; finish?: string; language?: string }[];
   existingSources?: {
     marketplace: string;
     externalId: number;
     printingId: string;
+    finish?: string;
+    language?: string;
     groupId: number;
     productName: string;
   }[];
@@ -79,19 +81,31 @@ interface MockReposConfig {
 }
 
 function createMockRepos(config: MockReposConfig = {}) {
-  const ignoredKeys = new Set(
-    (config.ignoredProducts ?? []).map(
-      (product) => `${product.externalId}::${product.finish}::${product.language ?? "EN"}`,
-    ),
-  );
+  const productIds = new Set<number>();
+  const variantKeys = new Set<string>();
+  for (const p of config.ignoredProducts ?? []) {
+    if (p.finish === undefined) {
+      productIds.add(p.externalId);
+    } else {
+      variantKeys.add(`${p.externalId}::${p.finish}::${p.language ?? "EN"}`);
+    }
+  }
+  const ignoredKeys = { productIds, variantKeys };
+
+  // Expand defaults on existing sources (new shape has finish + language).
+  const existingSources = (config.existingSources ?? []).map((s) => ({
+    finish: "normal",
+    language: "EN",
+    ...s,
+  }));
 
   const repos = {
     priceRefresh: {
       loadIgnoredKeys: vi.fn(async () => ignoredKeys),
       upsertGroups: vi.fn(async () => {}),
-      existingSourcesByMarketplaces: vi.fn(async () => config.existingSources ?? []),
+      existingSourcesByMarketplaces: vi.fn(async () => existingSources),
       existingExternalIdsByMarketplace: vi.fn(async () => config.existingCtExternalIds ?? []),
-      batchInsertProducts: vi.fn(async () => {}),
+      batchInsertProductVariants: vi.fn(async () => {}),
     },
   } as unknown as Repos;
 
@@ -408,7 +422,7 @@ describe("refreshCardtraderPrices", () => {
 
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
 
-      expect(repos.priceRefresh.batchInsertProducts).toHaveBeenCalled();
+      expect(repos.priceRefresh.batchInsertProductVariants).toHaveBeenCalled();
     });
 
     it("auto-matches blueprints via Cardmarket cross-reference", async () => {
@@ -432,7 +446,7 @@ describe("refreshCardtraderPrices", () => {
 
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
 
-      expect(repos.priceRefresh.batchInsertProducts).toHaveBeenCalled();
+      expect(repos.priceRefresh.batchInsertProductVariants).toHaveBeenCalled();
     });
 
     it("skips already-existing cardtrader products", async () => {
@@ -457,7 +471,7 @@ describe("refreshCardtraderPrices", () => {
 
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
 
-      expect(repos.priceRefresh.batchInsertProducts).not.toHaveBeenCalled();
+      expect(repos.priceRefresh.batchInsertProductVariants).not.toHaveBeenCalled();
     });
 
     it("does not auto-match blueprints without cross-references", async () => {
@@ -471,7 +485,7 @@ describe("refreshCardtraderPrices", () => {
 
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
 
-      expect(repos.priceRefresh.batchInsertProducts).not.toHaveBeenCalled();
+      expect(repos.priceRefresh.batchInsertProductVariants).not.toHaveBeenCalled();
     });
   });
 

@@ -52,13 +52,13 @@ const dbPrinting = {
 };
 
 const dbMarketplaceSource = {
-  id: "ms-tcg-1",
+  variantId: "ms-tcg-1",
   externalId: 12_345,
   marketplace: "tcgplayer",
   printingId: "a0000000-0001-4000-a000-000000000001",
 };
 const dbMarketplaceSourceCM = {
-  id: "ms-cm-1",
+  variantId: "ms-cm-1",
   externalId: 67_890,
   marketplace: "cardmarket",
   printingId: "a0000000-0001-4000-a000-000000000001",
@@ -66,7 +66,7 @@ const dbMarketplaceSourceCM = {
 
 const dbSnapshot = {
   id: "snap-1",
-  productId: "ms-tcg-1",
+  variantId: "ms-tcg-1",
   recordedAt: new Date("2026-03-01"),
   marketCents: 275,
   lowCents: 200,
@@ -295,7 +295,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
 
   it("returns cardtrader data when cardtrader source exists (low-only snapshot)", async () => {
     const ctSource = {
-      id: "ms-ct-1",
+      variantId: "ms-ct-1",
       externalId: 99_999,
       marketplace: "cardtrader",
       printingId: "a0000000-0001-4000-a000-000000000001",
@@ -307,16 +307,16 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     ]);
     const ctSnapshot = {
       id: "snap-ct-1",
-      productId: "ms-ct-1",
+      variantId: "ms-ct-1",
       recordedAt: new Date("2026-03-01"),
       marketCents: null,
       lowCents: 150,
     };
-    mockMarketplaceRepo.snapshots.mockImplementation(async (sourceId: string) => {
-      if (sourceId === "ms-ct-1") {
+    mockMarketplaceRepo.snapshots.mockImplementation(async (variantId: string) => {
+      if (variantId === "ms-ct-1") {
         return [ctSnapshot];
       }
-      if (sourceId === "ms-tcg-1") {
+      if (variantId === "ms-tcg-1") {
         return [dbSnapshot];
       }
       return [dbSnapshot];
@@ -342,13 +342,13 @@ describe("GET /api/v1/prices/:printingId/history", () => {
   it("converts cardmarket snapshot to market+low only", async () => {
     const cmSnapshot = {
       id: "snap-cm-1",
-      productId: "ms-cm-1",
+      variantId: "ms-cm-1",
       recordedAt: new Date("2026-03-02"),
       marketCents: 300,
       lowCents: 150,
     };
-    mockMarketplaceRepo.snapshots.mockImplementation(async (sourceId: string) => {
-      if (sourceId === "ms-cm-1") {
+    mockMarketplaceRepo.snapshots.mockImplementation(async (variantId: string) => {
+      if (variantId === "ms-cm-1") {
         return [cmSnapshot];
       }
       return [dbSnapshot];

@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { PRINTING_1 } from "../test/fixtures/constants.js";
@@ -16,7 +17,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   const mpTcg = "mp-repo-test-tcg";
   const mpCm = "mp-repo-test-cm";
 
-  let tcgProductId = "";
+  let tcgVariantId = "";
 
   // Track snapshot IDs for cleanup
   const createdSnapshotIds: string[] = [];
@@ -32,29 +33,47 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
       .execute();
 
-    // Create two marketplace products linked to the same printing but different marketplaces
-    const [tcg] = await db
+    // Create products + variants for the same printing in two marketplaces.
+    const [tcgProduct] = await db
       .insertInto("marketplaceProducts")
       .values({
         marketplace: mpTcg,
         groupId: 80_001,
         externalId: 653_136,
         productName: "Annie Fiery (Test TCG)",
+      })
+      .returning("id")
+      .execute();
+
+    const [tcgVariant] = await db
+      .insertInto("marketplaceProductVariants")
+      .values({
+        marketplaceProductId: tcgProduct.id,
         printingId: anniePrintingId,
+        finish: "normal",
         language: "EN",
       })
       .returning("id")
       .execute();
-    tcgProductId = tcg.id;
+    tcgVariantId = tcgVariant.id;
 
-    await db
+    const [cmProduct] = await db
       .insertInto("marketplaceProducts")
       .values({
         marketplace: mpCm,
         groupId: 80_002,
         externalId: 847_523,
         productName: "Annie, Fiery (Test CM)",
+      })
+      .returning("id")
+      .execute();
+
+    await db
+      .insertInto("marketplaceProductVariants")
+      .values({
+        marketplaceProductId: cmProduct.id,
         printingId: anniePrintingId,
+        finish: "normal",
         language: "EN",
       })
       .execute();
@@ -64,6 +83,13 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
     for (const id of createdSnapshotIds.toReversed()) {
       await db.deleteFrom("marketplaceSnapshots").where("id", "=", id).execute();
     }
+    // Delete variants first (FK), then products.
+    await sql`
+      DELETE FROM marketplace_product_variants mpv
+      USING marketplace_products mp
+      WHERE mp.id = mpv.marketplace_product_id
+        AND mp.marketplace IN (${mpTcg}, ${mpCm})
+    `.execute(db);
     await db.deleteFrom("marketplaceProducts").where("marketplace", "in", [mpTcg, mpCm]).execute();
     await db.deleteFrom("marketplaceGroups").where("marketplace", "in", [mpTcg, mpCm]).execute();
   });
@@ -93,11 +119,11 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   // ---------------------------------------------------------------------------
 
   it("returns snapshots ordered by recordedAt ascending", async () => {
-    // Insert two snapshots for our TCG product
+    // Insert two snapshots for our TCG variant
     const snap1 = await db
       .insertInto("marketplaceSnapshots")
       .values({
-        productId: tcgProductId,
+        variantId: tcgVariantId,
         marketCents: 100,
         lowCents: 80,
         recordedAt: new Date("2026-01-01T00:00:00Z"),
@@ -109,7 +135,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
     const snap2 = await db
       .insertInto("marketplaceSnapshots")
       .values({
-        productId: tcgProductId,
+        variantId: tcgVariantId,
         marketCents: 120,
         lowCents: 90,
         recordedAt: new Date("2026-02-01T00:00:00Z"),
@@ -118,7 +144,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .executeTakeFirstOrThrow();
     createdSnapshotIds.push(snap2.id);
 
-    const snaps = await repo.snapshots(tcgProductId, null);
+    const snaps = await repo.snapshots(tcgVariantId, null);
 
     expect(snaps.length).toBeGreaterThanOrEqual(2);
     // Verify ascending order
@@ -131,7 +157,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
 
   it("filters snapshots by cutoff date", async () => {
     const cutoff = new Date("2026-01-15T00:00:00Z");
-    const snaps = await repo.snapshots(tcgProductId, cutoff);
+    const snaps = await repo.snapshots(tcgVariantId, cutoff);
 
     // Should only include snap2 (Feb) and anything after cutoff
     for (const s of snaps) {
@@ -139,7 +165,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
     }
   });
 
-  it("returns empty array for a nonexistent source", async () => {
+  it("returns empty array for a nonexistent variant", async () => {
     const snaps = await repo.snapshots("a0000000-0000-4000-a000-000000000000", null);
 
     expect(snaps).toEqual([]);

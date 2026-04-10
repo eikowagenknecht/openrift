@@ -13,6 +13,7 @@ import type { Logger } from "@openrift/shared/logger";
 
 import type { Repos } from "../../deps.js";
 import type { Fetch } from "../../io.js";
+import type { LoadedIgnoredKeys } from "../../repositories/price-refresh.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
 import type { GroupRow, PriceUpsertConfig, StagingRow } from "./types.js";
 import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./upsert.js";
@@ -197,7 +198,7 @@ async function fetchCardtraderData(
 
 function buildCardtraderStaging(
   { blueprints, prices, recordedAt }: CardtraderFetchResult,
-  ignoredKeys: Set<string>,
+  ignoredKeys: LoadedIgnoredKeys,
 ): StagingRow[] {
   const allStaging: StagingRow[] = [];
 
@@ -205,12 +206,15 @@ function buildCardtraderStaging(
     if (bp.category_id !== CT_SINGLES_CATEGORY) {
       continue;
     }
+    if (ignoredKeys.productIds.has(bp.id)) {
+      continue;
+    }
     // Iterate all prices for this blueprint (keyed by id::finish::language)
     for (const price of prices.values()) {
       if (price.blueprintId !== bp.id || price.minPriceCents <= 0) {
         continue;
       }
-      if (ignoredKeys.has(`${bp.id}::${price.finish}::${price.language}`)) {
+      if (ignoredKeys.variantKeys.has(`${bp.id}::${price.finish}::${price.language}`)) {
         continue;
       }
       allStaging.push({
@@ -246,51 +250,65 @@ function buildCardtraderGroups(expansions: CtExpansion[]): GroupRow[] {
 // ── Auto-matching ──────────────────────────────────────────────────────────
 
 /**
- * Auto-match CardTrader blueprints to existing printings by looking up
- * their TCGPlayer and Cardmarket cross-references in marketplace_products.
- * Inserts new marketplace_products rows with ON CONFLICT DO NOTHING.
+ * Auto-match CardTrader blueprints to existing printings by looking up their
+ * TCGPlayer and Cardmarket cross-references in `marketplace_product_variants`.
  *
- * @returns The number of newly auto-matched products.
+ * One upstream product (tcg/cm) can now resolve to multiple variants (foil +
+ * normal of the same card), so a single blueprint may produce multiple
+ * cardtrader variants — one per finish+language found on the matched
+ * cross-reference. This is important because the CardTrader blueprint itself
+ * doesn't carry finish; the finishes come from its cross-reference target.
+ *
+ * @returns The number of newly auto-matched variant rows.
  */
 async function autoMatchBlueprints(
   repos: Repos,
   blueprints: CtBlueprint[],
   log: Logger,
 ): Promise<number> {
-  // Load existing marketplace_products for tcgplayer and cardmarket
+  // Load existing tcg/cm variants (one row per finish × language).
   const existingSources = await repos.priceRefresh.existingSourcesByMarketplaces([
     "tcgplayer",
     "cardmarket",
   ]);
 
-  const tcgLookup = new Map<number, { printingId: string; groupId: number; productName: string }>();
-  const cmLookup = new Map<number, { printingId: string; groupId: number; productName: string }>();
+  interface CrossRefEntry {
+    printingId: string;
+    finish: string;
+    language: string;
+    groupId: number;
+    productName: string;
+  }
+
+  const tcgLookup = new Map<number, CrossRefEntry[]>();
+  const cmLookup = new Map<number, CrossRefEntry[]>();
 
   for (const src of existingSources) {
-    const entry = {
+    const entry: CrossRefEntry = {
       printingId: src.printingId,
+      finish: src.finish,
+      language: src.language,
       groupId: src.groupId,
       productName: src.productName,
     };
-    if (src.marketplace === "tcgplayer") {
-      tcgLookup.set(src.externalId, entry);
-    } else {
-      cmLookup.set(src.externalId, entry);
-    }
+    const lookup = src.marketplace === "tcgplayer" ? tcgLookup : cmLookup;
+    const list = lookup.get(src.externalId) ?? [];
+    list.push(entry);
+    lookup.set(src.externalId, list);
   }
 
-  // Load existing cardtrader products to avoid re-inserting
+  // Skip any blueprint that already has at least one variant row.
   const existingCtExternalIds =
     await repos.priceRefresh.existingExternalIdsByMarketplace("cardtrader");
   const existingCtIds = new Set(existingCtExternalIds);
 
-  // Match blueprints to printings via cross-references
   const toInsert: {
     marketplace: string;
     externalId: number;
     groupId: number;
     productName: string;
     printingId: string;
+    finish: string;
     language: string;
   }[] = [];
 
@@ -302,30 +320,35 @@ async function autoMatchBlueprints(
       continue;
     }
 
-    // Try TCGPlayer cross-reference first
-    let match: { printingId: string } | undefined;
+    // Try TCGPlayer cross-reference first, falling back to Cardmarket.
+    let crossRefVariants: CrossRefEntry[] | undefined;
     if (bp.tcg_player_id !== null) {
-      match = tcgLookup.get(bp.tcg_player_id);
+      crossRefVariants = tcgLookup.get(bp.tcg_player_id);
     }
-
-    // Fall back to Cardmarket cross-references
-    if (!match) {
+    if (!crossRefVariants) {
       for (const cmId of bp.card_market_ids) {
-        match = cmLookup.get(cmId);
-        if (match) {
+        crossRefVariants = cmLookup.get(cmId);
+        if (crossRefVariants) {
           break;
         }
       }
     }
 
-    if (match) {
+    if (!crossRefVariants) {
+      continue;
+    }
+
+    // Emit one cardtrader variant per matched cross-reference variant. The
+    // parent product row is upserted once by (marketplace, externalId).
+    for (const variant of crossRefVariants) {
       toInsert.push({
         marketplace: "cardtrader",
         externalId: bp.id,
         groupId: bp.expansion_id,
         productName: bp.name,
-        printingId: match.printingId,
-        language: "EN",
+        printingId: variant.printingId,
+        finish: variant.finish,
+        language: variant.language,
       });
     }
   }
@@ -334,14 +357,13 @@ async function autoMatchBlueprints(
     return 0;
   }
 
-  // Batch insert with ON CONFLICT DO NOTHING
   const BATCH_SIZE = 200;
   for (let i = 0; i < toInsert.length; i += BATCH_SIZE) {
     const batch = toInsert.slice(i, i + BATCH_SIZE);
-    await repos.priceRefresh.batchInsertProducts(batch);
+    await repos.priceRefresh.batchInsertProductVariants(batch);
   }
 
-  log.info(`Auto-matched ${toInsert.length} CardTrader blueprints to existing printings`);
+  log.info(`Auto-matched ${toInsert.length} CardTrader variants to existing printings`);
   return toInsert.length;
 }
 
@@ -383,7 +405,11 @@ export async function refreshCardtraderPrices(
     prices: allStaging.length,
   };
 
-  logFetchSummary(log, transformedCounts, ignoredKeys.size);
+  logFetchSummary(
+    log,
+    transformedCounts,
+    ignoredKeys.productIds.size + ignoredKeys.variantKeys.size,
+  );
 
   // Phase 5: Persist snapshots + staging
   const counts = await upsertPriceData(repos.priceRefresh, log, UPSERT_CONFIG, allStaging);

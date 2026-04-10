@@ -81,7 +81,8 @@ describe("POST /api/v1/clear-prices", () => {
   it("returns 200 with deleted counts", async () => {
     mockMktAdmin.clearPriceData.mockResolvedValue({
       snapshots: 10,
-      sources: 20,
+      variants: 15,
+      products: 20,
       staging: 5,
     });
 
@@ -94,7 +95,7 @@ describe("POST /api/v1/clear-prices", () => {
     const json = await res.json();
     expect(json).toEqual({
       marketplace: "tcgplayer",
-      deleted: { snapshots: 10, products: 20, staging: 5 },
+      deleted: { snapshots: 10, variants: 15, products: 20, staging: 5 },
     });
     expect(mockMktAdmin.clearPriceData).toHaveBeenCalledWith("tcgplayer");
   });
@@ -102,7 +103,8 @@ describe("POST /api/v1/clear-prices", () => {
   it("works with cardmarket marketplace", async () => {
     mockMktAdmin.clearPriceData.mockResolvedValue({
       snapshots: 0,
-      sources: 0,
+      variants: 0,
+      products: 0,
       staging: 0,
     });
 

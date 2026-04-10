@@ -17,19 +17,29 @@ const listIgnoredProducts = createRoute({
         "application/json": {
           schema: z.object({
             products: z.array(
-              z.object({
-                marketplace: z.string().openapi({ example: "cardmarket" }),
-                externalId: z.number().openapi({ example: 748_215 }),
-                finish: z.string().openapi({ example: "foil" }),
-                language: z.string().openapi({ example: "EN" }),
-                productName: z.string().openapi({ example: "Jinx, Rebel (Foil)" }),
-                createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
-              }),
+              z.discriminatedUnion("level", [
+                z.object({
+                  level: z.literal("product"),
+                  marketplace: z.string().openapi({ example: "cardmarket" }),
+                  externalId: z.number().openapi({ example: 748_215 }),
+                  productName: z.string().openapi({ example: "Origins Booster Display" }),
+                  createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
+                }),
+                z.object({
+                  level: z.literal("variant"),
+                  marketplace: z.string().openapi({ example: "tcgplayer" }),
+                  externalId: z.number().openapi({ example: 652_909 }),
+                  finish: z.string().openapi({ example: "foil" }),
+                  language: z.string().openapi({ example: "EN" }),
+                  productName: z.string().openapi({ example: "Body Rune" }),
+                  createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
+                }),
+              ]),
             ),
           }),
         },
       },
-      description: "List ignored products",
+      description: "List ignored products and variants (discriminated by `level`)",
     },
   },
 });
@@ -84,14 +94,24 @@ export const ignoredProductsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     return c.json({
       products: rows.map(
-        (r): IgnoredProductResponse => ({
-          marketplace: r.marketplace,
-          externalId: r.externalId,
-          finish: r.finish,
-          language: r.language,
-          productName: r.productName,
-          createdAt: r.createdAt.toISOString(),
-        }),
+        (r): IgnoredProductResponse =>
+          r.level === "product"
+            ? {
+                level: "product",
+                marketplace: r.marketplace,
+                externalId: r.externalId,
+                productName: r.productName,
+                createdAt: r.createdAt.toISOString(),
+              }
+            : {
+                level: "variant",
+                marketplace: r.marketplace,
+                externalId: r.externalId,
+                finish: r.finish,
+                language: r.language,
+                productName: r.productName,
+                createdAt: r.createdAt.toISOString(),
+              },
       ),
     });
   })
@@ -100,11 +120,10 @@ export const ignoredProductsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   .openapi(ignoreProducts, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { marketplace, products } = c.req.valid("json");
+    const body = c.req.valid("json");
 
-    // Look up product names from staging
-    const externalIds = products.map((p) => p.externalId);
-    const stagingRows = await mktAdmin.getStagingProductNames(marketplace, externalIds);
+    const externalIds = body.products.map((p) => p.externalId);
+    const stagingRows = await mktAdmin.getStagingProductNames(body.marketplace, externalIds);
 
     const nameMap = new Map<number, string>();
     for (const row of stagingRows) {
@@ -113,11 +132,25 @@ export const ignoredProductsRoute = new OpenAPIHono<{ Variables: Variables }>()
       }
     }
 
-    // Insert into ignored products table (staging data is kept)
-    const values = products
+    if (body.level === "product") {
+      const values = body.products
+        .filter((p) => nameMap.has(p.externalId))
+        .map((p) => ({
+          marketplace: body.marketplace,
+          externalId: p.externalId,
+          productName: nameMap.get(p.externalId) ?? "",
+        }));
+
+      if (values.length > 0) {
+        await mktAdmin.insertIgnoredProducts(values);
+      }
+      return c.json({ ignored: values.length });
+    }
+
+    const values = body.products
       .filter((p) => nameMap.has(p.externalId))
       .map((p) => ({
-        marketplace,
+        marketplace: body.marketplace,
         externalId: p.externalId,
         finish: p.finish,
         language: p.language,
@@ -125,9 +158,8 @@ export const ignoredProductsRoute = new OpenAPIHono<{ Variables: Variables }>()
       }));
 
     if (values.length > 0) {
-      await mktAdmin.insertIgnoredProducts(values);
+      await mktAdmin.insertIgnoredVariants(values);
     }
-
     return c.json({ ignored: values.length });
   })
 
@@ -135,16 +167,23 @@ export const ignoredProductsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   .openapi(unignoreProducts, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
-    const { marketplace, products } = c.req.valid("json");
+    const body = c.req.valid("json");
 
-    const deleted = await mktAdmin.deleteIgnoredProducts(
-      marketplace,
-      products.map((p) => ({
+    if (body.level === "product") {
+      const deleted = await mktAdmin.deleteIgnoredProducts(
+        body.marketplace,
+        body.products.map((p) => p.externalId),
+      );
+      return c.json({ unignored: deleted });
+    }
+
+    const deleted = await mktAdmin.deleteIgnoredVariants(
+      body.marketplace,
+      body.products.map((p) => ({
         externalId: p.externalId,
         finish: p.finish,
         language: p.language,
       })),
     );
-
     return c.json({ unignored: deleted });
   });

@@ -14,11 +14,12 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
     /** @returns The latest snapshot rows for mapped printings in a given marketplace. */
     snapshotsByMarketplace(marketplace: string, printingIds: string[]) {
       return db
-        .selectFrom("marketplaceProducts as ps")
-        .innerJoin("marketplaceSnapshots as snap", "snap.productId", "ps.id")
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .innerJoin("marketplaceSnapshots as snap", "snap.variantId", "mpv.id")
         .select([
-          "ps.printingId",
-          "ps.productName",
+          "mpv.printingId as printingId",
+          "mp.productName as productName",
           "snap.marketCents",
           "snap.lowCents",
           "snap.midCents",
@@ -29,15 +30,15 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
           "snap.avg30Cents",
           "snap.recordedAt",
         ])
-        .where("ps.marketplace", "=", marketplace)
-        .where("ps.printingId", "in", printingIds)
+        .where("mp.marketplace", "=", marketplace)
+        .where("mpv.printingId", "in", printingIds)
         .orderBy("snap.recordedAt", "desc")
         .execute();
     },
 
     /** Upsert a snapshot row from staging data. */
     async insertSnapshot(
-      productId: string,
+      variantId: string,
       row: {
         recordedAt: Date;
         marketCents: number | null;
@@ -53,7 +54,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
       await db
         .insertInto("marketplaceSnapshots")
         .values({
-          productId,
+          variantId,
           recordedAt: row.recordedAt,
           marketCents: row.marketCents,
           lowCents: row.lowCents,
@@ -65,7 +66,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
           avg30Cents: row.avg30Cents,
         })
         .onConflict((oc) =>
-          oc.columns(["productId", "recordedAt"]).doUpdateSet({
+          oc.columns(["variantId", "recordedAt"]).doUpdateSet({
             marketCents: sql<number | null>`excluded.market_cents`,
             lowCents: sql<number | null>`excluded.low_cents`,
             midCents: sql<number | null>`excluded.mid_cents`,
@@ -82,7 +83,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
     /** Insert a staging row from a snapshot (used during unmap). */
     async insertStagingFromSnapshot(
       marketplace: string,
-      ps: { externalId: number; groupId: number; productName: string },
+      product: { externalId: number; groupId: number; productName: string },
       finish: string,
       language: string,
       snap: {
@@ -101,9 +102,9 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
         .insertInto("marketplaceStaging")
         .values({
           marketplace,
-          externalId: ps.externalId,
-          groupId: ps.groupId,
-          productName: ps.productName,
+          externalId: product.externalId,
+          groupId: product.groupId,
+          productName: product.productName,
           finish,
           language,
           recordedAt: snap.recordedAt,
@@ -127,13 +128,12 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
       await sql`
         INSERT INTO marketplace_staging (marketplace, external_id, group_id, product_name, finish, language, recorded_at,
           market_cents, low_cents, mid_cents, high_cents, trend_cents, avg1_cents, avg7_cents, avg30_cents)
-        SELECT s.marketplace, s.external_id, s.group_id, s.product_name, p.finish, s.language, snap.recorded_at,
+        SELECT mp.marketplace, mp.external_id, mp.group_id, mp.product_name, mpv.finish, mpv.language, snap.recorded_at,
           snap.market_cents, snap.low_cents, snap.mid_cents, snap.high_cents, snap.trend_cents, snap.avg1_cents, snap.avg7_cents, snap.avg30_cents
-        FROM marketplace_products s
-        JOIN printings p ON p.id = s.printing_id
-        JOIN marketplace_snapshots snap ON snap.product_id = s.id
-        WHERE s.marketplace = ${marketplace}
-          AND s.external_id IS NOT NULL
+        FROM marketplace_products mp
+        JOIN marketplace_product_variants mpv ON mpv.marketplace_product_id = mp.id
+        JOIN marketplace_snapshots snap ON snap.variant_id = mpv.id
+        WHERE mp.marketplace = ${marketplace}
         ON CONFLICT (marketplace, external_id, finish, language, recorded_at) DO NOTHING
       `.execute(db);
     },

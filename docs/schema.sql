@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict BRUxJYqCBGlrclfueUQuTiBwpDlkjQfSzutUIhwb4Ue9P4sbqwaXKcin8jYMLyi
+\restrict j00zMziEbZXp0i4ZAUdd7GROFzBGBNBWLUAlMmyoyzMCLwSwEHT2ihFIGKJoA7t
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -679,11 +679,38 @@ CREATE TABLE public.marketplace_groups (
 CREATE TABLE public.marketplace_ignored_products (
     marketplace text NOT NULL,
     external_id integer NOT NULL,
-    finish text NOT NULL,
     product_name text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    language text DEFAULT 'EN'::text NOT NULL
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: marketplace_ignored_variants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.marketplace_ignored_variants (
+    marketplace_product_id uuid NOT NULL,
+    finish text NOT NULL,
+    language text DEFAULT 'EN'::text NOT NULL,
+    product_name text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
+-- Name: marketplace_product_variants; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.marketplace_product_variants (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    marketplace_product_id uuid NOT NULL,
+    printing_id uuid NOT NULL,
+    finish text NOT NULL,
+    language text DEFAULT 'EN'::text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -699,8 +726,6 @@ CREATE TABLE public.marketplace_products (
     created_at timestamp with time zone DEFAULT now() CONSTRAINT marketplace_sources_created_at_not_null NOT NULL,
     updated_at timestamp with time zone DEFAULT now() CONSTRAINT marketplace_sources_updated_at_not_null NOT NULL,
     id uuid DEFAULT uuidv7() NOT NULL,
-    printing_id uuid NOT NULL,
-    language text DEFAULT 'EN'::text NOT NULL,
     CONSTRAINT chk_marketplace_products_external_id_positive CHECK ((external_id > 0)),
     CONSTRAINT chk_marketplace_products_marketplace_not_empty CHECK ((marketplace <> ''::text)),
     CONSTRAINT chk_marketplace_products_product_name_not_empty CHECK ((product_name <> ''::text))
@@ -713,7 +738,7 @@ CREATE TABLE public.marketplace_products (
 
 CREATE TABLE public.marketplace_snapshots (
     recorded_at timestamp with time zone DEFAULT now() NOT NULL,
-    market_cents integer NOT NULL,
+    market_cents integer,
     low_cents integer,
     mid_cents integer,
     high_cents integer,
@@ -722,7 +747,7 @@ CREATE TABLE public.marketplace_snapshots (
     avg7_cents integer,
     avg30_cents integer,
     id uuid DEFAULT uuidv7() CONSTRAINT marketplace_snapshots_new_id_not_null NOT NULL,
-    product_id uuid NOT NULL,
+    variant_id uuid CONSTRAINT marketplace_snapshots_product_id_not_null NOT NULL,
     CONSTRAINT chk_marketplace_snapshots_avg1_cents_non_negative CHECK ((avg1_cents >= 0)),
     CONSTRAINT chk_marketplace_snapshots_avg30_cents_non_negative CHECK ((avg30_cents >= 0)),
     CONSTRAINT chk_marketplace_snapshots_avg7_cents_non_negative CHECK ((avg7_cents >= 0)),
@@ -745,7 +770,7 @@ CREATE TABLE public.marketplace_staging (
     product_name text NOT NULL,
     finish text NOT NULL,
     recorded_at timestamp with time zone NOT NULL,
-    market_cents integer NOT NULL,
+    market_cents integer,
     low_cents integer,
     mid_cents integer,
     high_cents integer,
@@ -1413,7 +1438,39 @@ ALTER TABLE ONLY public.marketplace_groups
 --
 
 ALTER TABLE ONLY public.marketplace_ignored_products
-    ADD CONSTRAINT marketplace_ignored_products_pkey PRIMARY KEY (marketplace, external_id, finish, language);
+    ADD CONSTRAINT marketplace_ignored_products_pkey PRIMARY KEY (marketplace, external_id);
+
+
+--
+-- Name: marketplace_ignored_variants marketplace_ignored_variants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_ignored_variants
+    ADD CONSTRAINT marketplace_ignored_variants_pkey PRIMARY KEY (marketplace_product_id, finish, language);
+
+
+--
+-- Name: marketplace_product_variants marketplace_product_variants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_product_variants
+    ADD CONSTRAINT marketplace_product_variants_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: marketplace_product_variants marketplace_product_variants_product_finish_language_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_product_variants
+    ADD CONSTRAINT marketplace_product_variants_product_finish_language_key UNIQUE (marketplace_product_id, finish, language);
+
+
+--
+-- Name: marketplace_products marketplace_products_marketplace_external_id_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_products
+    ADD CONSTRAINT marketplace_products_marketplace_external_id_key UNIQUE (marketplace, external_id);
 
 
 --
@@ -1425,19 +1482,11 @@ ALTER TABLE ONLY public.marketplace_snapshots
 
 
 --
--- Name: marketplace_snapshots marketplace_snapshots_product_id_recorded_at_key; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: marketplace_snapshots marketplace_snapshots_variant_id_recorded_at_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.marketplace_snapshots
-    ADD CONSTRAINT marketplace_snapshots_product_id_recorded_at_key UNIQUE (product_id, recorded_at);
-
-
---
--- Name: marketplace_products marketplace_sources_marketplace_printing_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.marketplace_products
-    ADD CONSTRAINT marketplace_sources_marketplace_printing_id_key UNIQUE (marketplace, printing_id);
+    ADD CONSTRAINT marketplace_snapshots_variant_id_recorded_at_key UNIQUE (variant_id, recorded_at);
 
 
 --
@@ -1901,17 +1950,17 @@ CREATE UNIQUE INDEX idx_image_files_original_url ON public.image_files USING btr
 
 
 --
--- Name: idx_marketplace_snapshots_product_id_recorded_at; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_marketplace_product_variants_printing_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_marketplace_snapshots_product_id_recorded_at ON public.marketplace_snapshots USING btree (product_id, recorded_at);
+CREATE INDEX idx_marketplace_product_variants_printing_id ON public.marketplace_product_variants USING btree (printing_id);
 
 
 --
--- Name: idx_marketplace_sources_printing_id; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_marketplace_snapshots_variant_id_recorded_at; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_marketplace_sources_printing_id ON public.marketplace_products USING btree (printing_id);
+CREATE INDEX idx_marketplace_snapshots_variant_id_recorded_at ON public.marketplace_snapshots USING btree (variant_id, recorded_at);
 
 
 --
@@ -2269,6 +2318,20 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_groups FOR
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_ignored_products FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: marketplace_ignored_variants trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_ignored_variants FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: marketplace_product_variants trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_product_variants FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -2672,11 +2735,35 @@ ALTER TABLE ONLY public.keyword_translations
 
 
 --
--- Name: marketplace_snapshots marketplace_snapshots_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: marketplace_ignored_variants marketplace_ignored_variants_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_ignored_variants
+    ADD CONSTRAINT marketplace_ignored_variants_product_id_fkey FOREIGN KEY (marketplace_product_id) REFERENCES public.marketplace_products(id);
+
+
+--
+-- Name: marketplace_product_variants marketplace_product_variants_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_product_variants
+    ADD CONSTRAINT marketplace_product_variants_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id);
+
+
+--
+-- Name: marketplace_product_variants marketplace_product_variants_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_product_variants
+    ADD CONSTRAINT marketplace_product_variants_product_id_fkey FOREIGN KEY (marketplace_product_id) REFERENCES public.marketplace_products(id);
+
+
+--
+-- Name: marketplace_snapshots marketplace_snapshots_variant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.marketplace_snapshots
-    ADD CONSTRAINT marketplace_snapshots_product_id_fkey FOREIGN KEY (product_id) REFERENCES public.marketplace_products(id);
+    ADD CONSTRAINT marketplace_snapshots_variant_id_fkey FOREIGN KEY (variant_id) REFERENCES public.marketplace_product_variants(id);
 
 
 --
@@ -2685,14 +2772,6 @@ ALTER TABLE ONLY public.marketplace_snapshots
 
 ALTER TABLE ONLY public.marketplace_products
     ADD CONSTRAINT marketplace_sources_group_fkey FOREIGN KEY (marketplace, group_id) REFERENCES public.marketplace_groups(marketplace, group_id);
-
-
---
--- Name: marketplace_products marketplace_sources_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.marketplace_products
-    ADD CONSTRAINT marketplace_sources_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id);
 
 
 --
@@ -2835,5 +2914,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict BRUxJYqCBGlrclfueUQuTiBwpDlkjQfSzutUIhwb4Ue9P4sbqwaXKcin8jYMLyi
+\unrestrict j00zMziEbZXp0i4ZAUdd7GROFzBGBNBWLUAlMmyoyzMCLwSwEHT2ihFIGKJoA7t
 

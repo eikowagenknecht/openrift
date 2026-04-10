@@ -311,9 +311,20 @@ Marketplace product group/expansion metadata. Used to associate marketplace grou
 
 Unique constraint on `(marketplace, group_id)`.
 
+### Marketplace 4-level hierarchy
+
+The marketplace domain is modelled in four levels:
+
+1. **`marketplace_groups`** — marketplace-side "set" concept (TCGplayer groupId, Cardmarket expansion, etc.)
+2. **`marketplace_products`** — one row per upstream listing (the marketplace's concept of a "product", keyed on `(marketplace, external_id)`). Carries upstream metadata like group_id, product_name.
+3. **`marketplace_product_variants`** — one row per SKU: a specific `(finish, language)` of an upstream product, linked to one of our `printings`. This is where the finish/language dimension lives.
+4. **`marketplace_snapshots`** — time-series price observations, hanging off a variant (not a product).
+
+A single TCGplayer product like "Sunken Temple" can have both foil and normal SKUs: that's one `marketplace_products` row plus two `marketplace_product_variants` rows pointing at the foil and normal printings respectively, with separate price streams.
+
 ### `marketplace_products`
 
-Links a marketplace product to a specific printing. One row per (marketplace, printing) pair.
+One row per upstream marketplace listing. Carries the product-level metadata (name, group) without any finish/language split.
 
 | Column         | Type        | Constraints                                              |
 | -------------- | ----------- | -------------------------------------------------------- |
@@ -322,31 +333,48 @@ Links a marketplace product to a specific printing. One row per (marketplace, pr
 | `external_id`  | integer     | not null (> 0) — marketplace product ID                  |
 | `group_id`     | integer     | not null, FK → marketplace_groups(marketplace, group_id) |
 | `product_name` | text        | not null                                                 |
-| `printing_id`  | uuid        | not null, FK → printings.id                              |
 | `created_at`   | timestamptz | not null, default now()                                  |
 | `updated_at`   | timestamptz | not null, default now()                                  |
 
-Unique constraint on `(marketplace, printing_id)`. Indexes: `printing_id`.
+Unique constraint on `(marketplace, external_id)`.
+
+### `marketplace_product_variants`
+
+One row per SKU of an upstream product, linking a specific `(finish, language)` to one of our `printings`. Snapshots hang off the variant, not the parent product.
+
+| Column                   | Type        | Constraints                            |
+| ------------------------ | ----------- | -------------------------------------- |
+| `id`                     | uuid        | primary key, default uuidv7()          |
+| `marketplace_product_id` | uuid        | not null, FK → marketplace_products.id |
+| `printing_id`            | uuid        | not null, FK → printings.id            |
+| `finish`                 | text        | not null ("normal" or "foil")          |
+| `language`               | text        | not null, default "EN"                 |
+| `created_at`             | timestamptz | not null, default now()                |
+| `updated_at`             | timestamptz | not null, default now()                |
+
+Unique constraint on `(marketplace_product_id, finish, language)`. Index on `printing_id`.
+
+Unmapping a printing deletes only the variant row — the parent `marketplace_products` row is left behind as an orphan so it can be re-mapped later without losing upstream metadata.
 
 ### `marketplace_snapshots`
 
-Price observations at a point in time. All monetary values are stored in integer cents.
+Price observations at a point in time, one stream per variant. All monetary values are stored in integer cents.
 
-| Column         | Type        | Constraints                             |
-| -------------- | ----------- | --------------------------------------- |
-| `id`           | uuid        | primary key, default uuidv7()           |
-| `product_id`   | uuid        | not null, FK → marketplace_products.id  |
-| `recorded_at`  | timestamptz | not null, default now()                 |
-| `market_cents` | integer     | not null (>= 0)                         |
-| `low_cents`    | integer     | nullable (>= 0)                         |
-| `mid_cents`    | integer     | nullable (>= 0) — TCGplayer mid price   |
-| `high_cents`   | integer     | nullable (>= 0) — TCGplayer high price  |
-| `trend_cents`  | integer     | nullable (>= 0) — Cardmarket trend      |
-| `avg1_cents`   | integer     | nullable (>= 0) — Cardmarket 1-day avg  |
-| `avg7_cents`   | integer     | nullable (>= 0) — Cardmarket 7-day avg  |
-| `avg30_cents`  | integer     | nullable (>= 0) — Cardmarket 30-day avg |
+| Column         | Type        | Constraints                                    |
+| -------------- | ----------- | ---------------------------------------------- |
+| `id`           | uuid        | primary key, default uuidv7()                  |
+| `variant_id`   | uuid        | not null, FK → marketplace_product_variants.id |
+| `recorded_at`  | timestamptz | not null, default now()                        |
+| `market_cents` | integer     | nullable (>= 0)                                |
+| `low_cents`    | integer     | nullable (>= 0)                                |
+| `mid_cents`    | integer     | nullable (>= 0) — TCGplayer mid price          |
+| `high_cents`   | integer     | nullable (>= 0) — TCGplayer high price         |
+| `trend_cents`  | integer     | nullable (>= 0) — Cardmarket trend             |
+| `avg1_cents`   | integer     | nullable (>= 0) — Cardmarket 1-day avg         |
+| `avg7_cents`   | integer     | nullable (>= 0) — Cardmarket 7-day avg         |
+| `avg30_cents`  | integer     | nullable (>= 0) — Cardmarket 30-day avg        |
 
-Unique constraint on `(product_id, recorded_at)`. Index on `(product_id, recorded_at)`.
+Unique constraint on `(variant_id, recorded_at)`. Index on `(variant_id, recorded_at)`.
 
 ### `marketplace_staging`
 
@@ -388,20 +416,36 @@ Manual overrides that force a staged marketplace product to match a specific car
 
 Primary key on `(marketplace, external_id, finish)`.
 
-### `marketplace_ignored_products`
+### `marketplace_ignored_products` (level 2)
 
-Marketplace products explicitly marked to be skipped during price refresh.
+Whole upstream products that should be denied during price refresh — sealed product, bundles, champion decks, anything that isn't an individual card and will never map to a printing. One row per `(marketplace, external_id)`; finish and language don't matter at this level because _every_ SKU of the product is rejected.
 
 | Column         | Type        | Constraints             |
 | -------------- | ----------- | ----------------------- |
 | `marketplace`  | text        | not null                |
 | `external_id`  | integer     | not null                |
-| `finish`       | text        | not null                |
 | `product_name` | text        | not null                |
 | `created_at`   | timestamptz | not null, default now() |
 | `updated_at`   | timestamptz | not null, default now() |
 
-Primary key on `(marketplace, external_id, finish)`.
+Primary key on `(marketplace, external_id)`.
+
+### `marketplace_ignored_variants` (level 3)
+
+Individual SKUs of an otherwise-mapped upstream product that have no home in our catalog. For example, when an upstream product exists in both foil and normal but our catalog only has a normal printing, the foil SKU is recorded here.
+
+| Column                   | Type        | Constraints                            |
+| ------------------------ | ----------- | -------------------------------------- |
+| `marketplace_product_id` | uuid        | not null, FK → marketplace_products.id |
+| `finish`                 | text        | not null                               |
+| `language`               | text        | not null, default "EN"                 |
+| `product_name`           | text        | not null (cached for admin UI)         |
+| `created_at`             | timestamptz | not null, default now()                |
+| `updated_at`             | timestamptz | not null, default now()                |
+
+Primary key on `(marketplace_product_id, finish, language)`.
+
+During price refresh, a staging row is dropped if _either_ its external*id matches a level-2 ignore \_or* its `(external_id, finish, language)` tuple matches a level-3 ignore.
 
 ## Candidate Tables (Card Ingestion Pipeline)
 

@@ -12,19 +12,23 @@ describe.skipIf(!ctx)("marketplaceTransferRepo (integration)", () => {
   const seedPrintingId = PRINTING_1.id;
   const marketplace = "test-mp-transfer";
   let productId = "";
+  let variantId = "";
 
   afterAll(async () => {
-    // Clean up in FK order
+    // Clean up in FK order: staging, snapshots, variants, products, groups.
     await db.deleteFrom("marketplaceStaging").where("marketplace", "=", marketplace).execute();
+    if (variantId) {
+      await db.deleteFrom("marketplaceSnapshots").where("variantId", "=", variantId).execute();
+      await db.deleteFrom("marketplaceProductVariants").where("id", "=", variantId).execute();
+    }
     if (productId) {
-      await db.deleteFrom("marketplaceSnapshots").where("productId", "=", productId).execute();
       await db.deleteFrom("marketplaceProducts").where("id", "=", productId).execute();
     }
     await db.deleteFrom("marketplaceGroups").where("marketplace", "=", marketplace).execute();
   });
 
-  it("insertSnapshot inserts a snapshot row for a product", async () => {
-    // Create a marketplace group and product first
+  it("insertSnapshot inserts a snapshot row for a variant", async () => {
+    // Create a marketplace group, product, and variant first
     await db
       .insertInto("marketplaceGroups")
       .values({ marketplace, groupId: 99_001, name: "Transfer Test" })
@@ -37,15 +41,25 @@ describe.skipIf(!ctx)("marketplaceTransferRepo (integration)", () => {
         externalId: 99_001,
         groupId: 99_001,
         productName: "Test Transfer Product",
-        printingId: seedPrintingId,
-        language: "EN",
       })
       .returningAll()
       .executeTakeFirstOrThrow();
     productId = product.id;
 
+    const variant = await db
+      .insertInto("marketplaceProductVariants")
+      .values({
+        marketplaceProductId: productId,
+        printingId: seedPrintingId,
+        finish: "normal",
+        language: "EN",
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    variantId = variant.id;
+
     const now = new Date();
-    await repo.insertSnapshot(productId, {
+    await repo.insertSnapshot(variantId, {
       recordedAt: now,
       marketCents: 500,
       lowCents: 400,
@@ -69,7 +83,7 @@ describe.skipIf(!ctx)("marketplaceTransferRepo (integration)", () => {
       marketplace,
       { externalId: 99_001, groupId: 99_001, productName: "Test Transfer Product" },
       "normal",
-      "",
+      "EN",
       {
         recordedAt: now,
         marketCents: 500,

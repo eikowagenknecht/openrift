@@ -11,7 +11,9 @@ const mockMktAdmin = {
   listIgnoredProducts: vi.fn(),
   getStagingProductNames: vi.fn(),
   insertIgnoredProducts: vi.fn(),
+  insertIgnoredVariants: vi.fn(),
   deleteIgnoredProducts: vi.fn(),
+  deleteIgnoredVariants: vi.fn(),
 };
 
 // ---------------------------------------------------------------------------
@@ -34,24 +36,26 @@ const app = new Hono()
 
 const now = new Date("2026-03-17T00:00:00Z");
 
-const dbIgnoredProduct = {
+const dbIgnoredProductL2 = {
+  level: "product" as const,
   marketplace: "tcgplayer",
   externalId: 12_345,
-  finish: "normal",
   productName: "Fire Dragon",
   createdAt: now,
 };
 
-const dbIgnoredProduct2 = {
+const dbIgnoredVariantL3 = {
+  level: "variant" as const,
   marketplace: "cardmarket",
   externalId: 67_890,
   finish: "foil",
+  language: "EN",
   productName: "Ice Elemental",
   createdAt: now,
 };
 
 // ---------------------------------------------------------------------------
-// Tests
+// GET /api/v1/ignored-products
 // ---------------------------------------------------------------------------
 
 describe("GET /api/v1/ignored-products", () => {
@@ -59,23 +63,25 @@ describe("GET /api/v1/ignored-products", () => {
     vi.resetAllMocks();
   });
 
-  it("returns 200 with serialized ignored products", async () => {
-    mockMktAdmin.listIgnoredProducts.mockResolvedValue([dbIgnoredProduct, dbIgnoredProduct2]);
+  it("returns 200 with serialized L2 + L3 ignored products", async () => {
+    mockMktAdmin.listIgnoredProducts.mockResolvedValue([dbIgnoredProductL2, dbIgnoredVariantL3]);
     const res = await app.request("/api/v1/ignored-products");
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.products).toHaveLength(2);
     expect(json.products[0]).toEqual({
+      level: "product",
       marketplace: "tcgplayer",
       externalId: 12_345,
-      finish: "normal",
       productName: "Fire Dragon",
       createdAt: now.toISOString(),
     });
     expect(json.products[1]).toEqual({
+      level: "variant",
       marketplace: "cardmarket",
       externalId: 67_890,
       finish: "foil",
+      language: "EN",
       productName: "Ice Elemental",
       createdAt: now.toISOString(),
     });
@@ -90,12 +96,16 @@ describe("GET /api/v1/ignored-products", () => {
   });
 });
 
-describe("POST /api/v1/ignored-products", () => {
+// ---------------------------------------------------------------------------
+// POST /api/v1/ignored-products (L2 — product level)
+// ---------------------------------------------------------------------------
+
+describe("POST /api/v1/ignored-products (L2)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("returns 200 with count of ignored products", async () => {
+  it("ignores products at level 2 (whole upstream product)", async () => {
     mockMktAdmin.getStagingProductNames.mockResolvedValue([
       { externalId: 12_345, productName: "Fire Dragon" },
       { externalId: 67_890, productName: "Ice Elemental" },
@@ -106,11 +116,9 @@ describe("POST /api/v1/ignored-products", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        level: "product",
         marketplace: "tcgplayer",
-        products: [
-          { externalId: 12_345, finish: "normal", language: "EN" },
-          { externalId: 67_890, finish: "foil", language: "EN" },
-        ],
+        products: [{ externalId: 12_345 }, { externalId: 67_890 }],
       }),
     });
     expect(res.status).toBe(200);
@@ -120,18 +128,15 @@ describe("POST /api/v1/ignored-products", () => {
       {
         marketplace: "tcgplayer",
         externalId: 12_345,
-        finish: "normal",
-        language: "EN",
         productName: "Fire Dragon",
       },
       {
         marketplace: "tcgplayer",
         externalId: 67_890,
-        finish: "foil",
-        language: "EN",
         productName: "Ice Elemental",
       },
     ]);
+    expect(mockMktAdmin.insertIgnoredVariants).not.toHaveBeenCalled();
   });
 
   it("filters out products not found in staging", async () => {
@@ -144,11 +149,9 @@ describe("POST /api/v1/ignored-products", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        level: "product",
         marketplace: "tcgplayer",
-        products: [
-          { externalId: 12_345, finish: "normal", language: "EN" },
-          { externalId: 99_999, finish: "foil", language: "EN" },
-        ],
+        products: [{ externalId: 12_345 }, { externalId: 99_999 }],
       }),
     });
     expect(res.status).toBe(200);
@@ -163,8 +166,9 @@ describe("POST /api/v1/ignored-products", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        level: "product",
         marketplace: "tcgplayer",
-        products: [{ externalId: 99_999, finish: "normal", language: "EN" }],
+        products: [{ externalId: 99_999 }],
       }),
     });
     expect(res.status).toBe(200);
@@ -184,8 +188,9 @@ describe("POST /api/v1/ignored-products", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        level: "product",
         marketplace: "tcgplayer",
-        products: [{ externalId: 12_345, finish: "normal", language: "EN" }],
+        products: [{ externalId: 12_345 }],
       }),
     });
     expect(res.status).toBe(200);
@@ -193,39 +198,76 @@ describe("POST /api/v1/ignored-products", () => {
       {
         marketplace: "tcgplayer",
         externalId: 12_345,
-        finish: "normal",
-        language: "EN",
         productName: "Fire Dragon",
       },
     ]);
   });
 });
 
-describe("DELETE /api/v1/ignored-products", () => {
+// ---------------------------------------------------------------------------
+// POST /api/v1/ignored-products (L3 — variant level)
+// ---------------------------------------------------------------------------
+
+describe("POST /api/v1/ignored-products (L3)", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("returns 200 with count of unignored products", async () => {
+  it("ignores variants at level 3 (specific finish/language SKU)", async () => {
+    mockMktAdmin.getStagingProductNames.mockResolvedValue([
+      { externalId: 12_345, productName: "Fire Dragon" },
+    ]);
+    mockMktAdmin.insertIgnoredVariants.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/ignored-products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        level: "variant",
+        marketplace: "tcgplayer",
+        products: [{ externalId: 12_345, finish: "foil", language: "EN" }],
+      }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.ignored).toBe(1);
+    expect(mockMktAdmin.insertIgnoredVariants).toHaveBeenCalledWith([
+      {
+        marketplace: "tcgplayer",
+        externalId: 12_345,
+        finish: "foil",
+        language: "EN",
+        productName: "Fire Dragon",
+      },
+    ]);
+    expect(mockMktAdmin.insertIgnoredProducts).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DELETE /api/v1/ignored-products
+// ---------------------------------------------------------------------------
+
+describe("DELETE /api/v1/ignored-products (L2)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 200 with count of unignored L2 products", async () => {
     mockMktAdmin.deleteIgnoredProducts.mockResolvedValue(2);
     const res = await app.request("/api/v1/ignored-products", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        level: "product",
         marketplace: "tcgplayer",
-        products: [
-          { externalId: 12_345, finish: "normal", language: "EN" },
-          { externalId: 67_890, finish: "foil", language: "EN" },
-        ],
+        products: [{ externalId: 12_345 }, { externalId: 67_890 }],
       }),
     });
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.unignored).toBe(2);
-    expect(mockMktAdmin.deleteIgnoredProducts).toHaveBeenCalledWith("tcgplayer", [
-      { externalId: 12_345, finish: "normal", language: "EN" },
-      { externalId: 67_890, finish: "foil", language: "EN" },
-    ]);
+    expect(mockMktAdmin.deleteIgnoredProducts).toHaveBeenCalledWith("tcgplayer", [12_345, 67_890]);
   });
 
   it("returns 0 when no products were unignored", async () => {
@@ -234,12 +276,38 @@ describe("DELETE /api/v1/ignored-products", () => {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        level: "product",
         marketplace: "cardmarket",
-        products: [{ externalId: 99_999, finish: "normal", language: "EN" }],
+        products: [{ externalId: 99_999 }],
       }),
     });
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.unignored).toBe(0);
+  });
+});
+
+describe("DELETE /api/v1/ignored-products (L3)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 200 with count of unignored L3 variants", async () => {
+    mockMktAdmin.deleteIgnoredVariants.mockResolvedValue(1);
+    const res = await app.request("/api/v1/ignored-products", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        level: "variant",
+        marketplace: "tcgplayer",
+        products: [{ externalId: 12_345, finish: "normal", language: "EN" }],
+      }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.unignored).toBe(1);
+    expect(mockMktAdmin.deleteIgnoredVariants).toHaveBeenCalledWith("tcgplayer", [
+      { externalId: 12_345, finish: "normal", language: "EN" },
+    ]);
   });
 });

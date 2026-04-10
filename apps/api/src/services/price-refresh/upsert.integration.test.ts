@@ -116,24 +116,41 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     printingId = insertedPrintings[0].id;
     printingId2 = insertedPrintings[1].id;
 
-    // Seed marketplace sources (created via admin mapping in production)
-    await db
+    // Seed marketplace products + variants (created via admin mapping in production).
+    // With the 4-level split, one product has many variants (one per finish × language).
+    const insertedProducts = await db
       .insertInto("marketplaceProducts")
       .values([
         {
           marketplace: "cardmarket",
-          printingId,
           externalId: 94_101,
           groupId: 94_001,
           productName: "UPS Test Product",
-          language: "EN",
         },
         {
           marketplace: "cardmarket",
-          printingId: printingId2,
           externalId: 94_201,
           groupId: 94_001,
           productName: "UPS Test Product Foil",
+        },
+      ])
+      .returning(["id", "externalId"])
+      .execute();
+    const productIdByExt = new Map(insertedProducts.map((row) => [row.externalId, row.id]));
+
+    await db
+      .insertInto("marketplaceProductVariants")
+      .values([
+        {
+          marketplaceProductId: productIdByExt.get(94_101)!,
+          printingId,
+          finish: "normal",
+          language: "EN",
+        },
+        {
+          marketplaceProductId: productIdByExt.get(94_201)!,
+          printingId: printingId2,
+          finish: "foil",
           language: "EN",
         },
       ])

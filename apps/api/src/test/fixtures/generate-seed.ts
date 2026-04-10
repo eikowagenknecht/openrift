@@ -134,13 +134,24 @@ const marketplaceGroups = await sql<Record<string, unknown>[]>`
   ORDER BY marketplace, group_id
 `;
 
-const marketplaceSources = await sql<Record<string, unknown>[]>`
-  SELECT ms.id, ms.marketplace, ms.group_id, ms.external_id, ms.product_name, ms.printing_id, ms.language
-  FROM marketplace_products ms
-  JOIN printings p ON p.id = ms.printing_id
+const marketplaceProducts = await sql<Record<string, unknown>[]>`
+  SELECT DISTINCT mp.id, mp.marketplace, mp.group_id, mp.external_id, mp.product_name
+  FROM marketplace_products mp
+  JOIN marketplace_product_variants mpv ON mpv.marketplace_product_id = mp.id
+  JOIN printings p ON p.id = mpv.printing_id
   JOIN sets s ON s.id = p.set_id
   WHERE s.slug = ${SET_SLUG}
-  ORDER BY ms.marketplace, ms.external_id
+  ORDER BY mp.marketplace, mp.external_id
+`;
+
+const marketplaceProductVariants = await sql<Record<string, unknown>[]>`
+  SELECT mpv.id, mpv.marketplace_product_id, mpv.printing_id, mpv.finish, mpv.language
+  FROM marketplace_product_variants mpv
+  JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
+  JOIN printings p ON p.id = mpv.printing_id
+  JOIN sets s ON s.id = p.set_id
+  WHERE s.slug = ${SET_SLUG}
+  ORDER BY mp.marketplace, mp.external_id, mpv.finish, mpv.language
 `;
 
 const promoTypes = await sql<Record<string, unknown>[]>`
@@ -180,7 +191,8 @@ const seedSql = [
   toInsert("promo_types", promoTypes),
   toInsert("printings", printings),
   toInsert("marketplace_groups", marketplaceGroups),
-  toInsert("marketplace_products", marketplaceSources),
+  toInsert("marketplace_products", marketplaceProducts),
+  toInsert("marketplace_product_variants", marketplaceProductVariants),
   toInsert("card_name_aliases", cardNameAliases),
 ].join("\n");
 
@@ -188,7 +200,7 @@ const seedSql = [
 const dir = resolve(import.meta.dirname!);
 writeFileSync(resolve(dir, "seed.sql"), seedSql);
 console.log(
-  `Wrote seed.sql (${sets.length} sets, ${cards.length} cards, ${cardSuperTypes.length} super types, ${cardDomains.length} domains, ${printings.length} printings, ${marketplaceGroups.length} marketplace groups, ${marketplaceSources.length} marketplace sources, ${cardNameAliases.length} aliases)`,
+  `Wrote seed.sql (${sets.length} sets, ${cards.length} cards, ${cardSuperTypes.length} super types, ${cardDomains.length} domains, ${printings.length} printings, ${marketplaceGroups.length} marketplace groups, ${marketplaceProducts.length} marketplace products, ${marketplaceProductVariants.length} marketplace variants, ${cardNameAliases.length} aliases)`,
 );
 
 // ---------------------------------------------------------------------------

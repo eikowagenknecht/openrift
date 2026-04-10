@@ -128,25 +128,35 @@ async function seedMarketplaceData(marketplace: string) {
     .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
     .execute();
 
-  // marketplace_sources
-  const [source] = await db
+  // marketplace_products (level 2)
+  const [product] = await db
     .insertInto("marketplaceProducts")
     .values({
       marketplace,
-      printingId: printing.id,
       externalId: baseExtId,
       groupId: baseGroupId,
       productName: `OPS ${marketplace} Test ${suffix}`,
+    })
+    .returning("id")
+    .execute();
+
+  // marketplace_product_variants (level 3)
+  const [variant] = await db
+    .insertInto("marketplaceProductVariants")
+    .values({
+      marketplaceProductId: product.id,
+      printingId: printing.id,
+      finish: "normal",
       language: "EN",
     })
     .returning("id")
     .execute();
 
-  // marketplace_snapshots
+  // marketplace_snapshots (keyed on variantId)
   await db
     .insertInto("marketplaceSnapshots")
     .values({
-      productId: source.id,
+      variantId: variant.id,
       recordedAt: new Date(),
       marketCents: 100,
       lowCents: 50,
@@ -254,20 +264,22 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(json.marketplace).toBe("tcgplayer");
       expect(json.deleted).toBeDefined();
       expect(typeof json.deleted.snapshots).toBe("number");
+      expect(typeof json.deleted.variants).toBe("number");
       expect(typeof json.deleted.products).toBe("number");
       expect(typeof json.deleted.staging).toBe("number");
       expect(json.deleted.snapshots).toBeGreaterThanOrEqual(1);
+      expect(json.deleted.variants).toBeGreaterThanOrEqual(1);
       expect(json.deleted.products).toBeGreaterThanOrEqual(1);
       expect(json.deleted.staging).toBeGreaterThanOrEqual(1);
     });
 
     it("verifies tables are empty for tcgplayer after clearing", async () => {
-      const sources = await db
+      const products = await db
         .selectFrom("marketplaceProducts")
         .select("id")
         .where("marketplace", "=", "tcgplayer")
         .execute();
-      expect(sources).toHaveLength(0);
+      expect(products).toHaveLength(0);
 
       const staging = await db
         .selectFrom("marketplaceStaging")
@@ -285,6 +297,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       const json = await res.json();
       expect(json.marketplace).toBe("tcgplayer");
       expect(json.deleted.snapshots).toBe(0);
+      expect(json.deleted.variants).toBe(0);
       expect(json.deleted.products).toBe(0);
       expect(json.deleted.staging).toBe(0);
     });
@@ -305,20 +318,22 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       expect(json.marketplace).toBe("cardmarket");
       expect(json.deleted).toBeDefined();
       expect(typeof json.deleted.snapshots).toBe("number");
+      expect(typeof json.deleted.variants).toBe("number");
       expect(typeof json.deleted.products).toBe("number");
       expect(typeof json.deleted.staging).toBe("number");
       expect(json.deleted.snapshots).toBeGreaterThanOrEqual(1);
+      expect(json.deleted.variants).toBeGreaterThanOrEqual(1);
       expect(json.deleted.products).toBeGreaterThanOrEqual(1);
       expect(json.deleted.staging).toBeGreaterThanOrEqual(1);
     });
 
     it("verifies tables are empty for cardmarket after clearing", async () => {
-      const sources = await db
+      const products = await db
         .selectFrom("marketplaceProducts")
         .select("id")
         .where("marketplace", "=", "cardmarket")
         .execute();
-      expect(sources).toHaveLength(0);
+      expect(products).toHaveLength(0);
 
       const staging = await db
         .selectFrom("marketplaceStaging")
@@ -337,6 +352,7 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       const json = await res.json();
       expect(json.marketplace).toBe("cardmarket");
       expect(json.deleted.snapshots).toBe(0);
+      expect(json.deleted.variants).toBe(0);
       expect(json.deleted.products).toBe(0);
       expect(json.deleted.staging).toBe(0);
     });

@@ -8,6 +8,7 @@
 import type { Logger } from "@openrift/shared/logger";
 
 import type { Repos } from "../../deps.js";
+import type { LoadedIgnoredKeys } from "../../repositories/price-refresh.js";
 import type {
   GroupRow,
   PriceColumns,
@@ -23,13 +24,17 @@ const BATCH_SIZE = 200;
 // ── Ignored keys ───────────────────────────────────────────────────────────
 
 /**
- * Load the set of ignored (external_id, finish) keys for a marketplace.
- * @returns A set of "external_id::finish" strings for filtering.
+ * Load the two sets of ignored keys (level-2 whole-product + level-3 per-variant)
+ * for a marketplace.
+ *
+ * @returns `{ productIds, variantKeys }`. Skip a staging row if its externalId
+ *          is in `productIds` OR its `externalId::finish::language` tuple is in
+ *          `variantKeys`.
  */
 export function loadIgnoredKeys(
   priceRefresh: Repos["priceRefresh"],
   marketplace: string,
-): Promise<Set<string>> {
+): Promise<LoadedIgnoredKeys> {
   return priceRefresh.loadIgnoredKeys(marketplace);
 }
 
@@ -79,7 +84,7 @@ function countRows(
 // ── Main upsert ────────────────────────────────────────────────────────────
 
 interface SnapshotInsertRow extends PriceColumns {
-  productId: string;
+  variantId: string;
   recordedAt: Date;
 }
 
@@ -101,40 +106,31 @@ export async function upsertPriceData(
   const { marketplace } = config;
   const repo = priceRefresh;
 
-  // ── Source lookup (single query for both snapshot building & ID mapping) ─
+  // ── Variant lookup (single query for both snapshot building & ID mapping) ─
 
-  const dbProducts = await repo.sourcesWithFinish(marketplace);
+  const dbVariants = await repo.variantsWithFinish(marketplace);
 
-  const productIdLookup = new Map<string, string>();
-  for (const row of dbProducts) {
-    productIdLookup.set(row.printingId, row.id);
-  }
+  // ── Build snapshots from staging + variant mappings ─────────────────────
 
-  // ── Build snapshots from staging + source mappings ─────────────────────
-
-  // Match staging rows to mapped sources by exact externalId+finish+language.
-  // Each staging row's price only flows to products with the same finish and language.
-  const productByKey = Map.groupBy(
-    dbProducts,
+  // Match staging rows to mapped variants by exact externalId+finish+language.
+  // Each staging row's price only flows to the variant with the same finish/language.
+  const variantByKey = Map.groupBy(
+    dbVariants,
     (src) => `${src.externalId}::${src.finish}::${src.language}`,
   );
 
   const uniqueSnapshots = new Map<string, SnapshotInsertRow>();
   for (const staging of allStaging) {
-    const sources = productByKey.get(
+    const variants = variantByKey.get(
       `${staging.externalId}::${staging.finish}::${staging.language}`,
     );
-    if (!sources) {
+    if (!variants) {
       continue;
     }
-    for (const src of sources) {
-      const productId = productIdLookup.get(src.printingId);
-      if (productId === undefined) {
-        continue;
-      }
-      const snapKey = `${productId}|${staging.recordedAt.toISOString()}`;
+    for (const variant of variants) {
+      const snapKey = `${variant.id}|${staging.recordedAt.toISOString()}`;
       uniqueSnapshots.set(snapKey, {
-        productId,
+        variantId: variant.id,
         recordedAt: staging.recordedAt,
         ...pickPrices(staging),
       });
@@ -142,7 +138,7 @@ export async function upsertPriceData(
   }
 
   if (uniqueSnapshots.size > 0) {
-    log.info(`${uniqueSnapshots.size} snapshots for ${dbProducts.length} mapped products`);
+    log.info(`${uniqueSnapshots.size} snapshots for ${dbVariants.length} mapped variants`);
   }
 
   const snapshotRows = [...uniqueSnapshots.values()];

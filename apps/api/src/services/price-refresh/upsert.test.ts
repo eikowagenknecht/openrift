@@ -2,6 +2,7 @@ import type { Logger } from "@openrift/shared/logger";
 import { describe, expect, it } from "vitest";
 
 import type { Repos } from "../../deps";
+import type { LoadedIgnoredKeys } from "../../repositories/price-refresh";
 import type { GroupRow, PriceUpsertConfig, StagingRow } from "./types";
 import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./upsert";
 
@@ -31,6 +32,7 @@ function makeStagingRow(
     groupId: 1001,
     productName: "Test Product",
     finish,
+    language: "EN",
     recordedAt: new Date("2026-03-10T00:00:00Z"),
     marketCents: 100,
     lowCents: null,
@@ -44,13 +46,23 @@ function makeStagingRow(
   };
 }
 
+function emptyIgnoredKeys(): LoadedIgnoredKeys {
+  return { productIds: new Set<number>(), variantKeys: new Set<string>() };
+}
+
 function makeMockRepo(opts: {
-  ignoredKeys?: Set<string>;
-  sources?: { id: string; printingId: string; externalId: number; finish: string }[];
+  ignoredKeys?: LoadedIgnoredKeys;
+  variants?: {
+    id: string;
+    printingId: string;
+    externalId: number;
+    finish: string;
+    language: string;
+  }[];
   countResult?: number;
 }) {
-  const ignoredKeys = opts.ignoredKeys ?? new Set<string>();
-  const sources = opts.sources ?? [];
+  const ignoredKeys = opts.ignoredKeys ?? emptyIgnoredKeys();
+  const variants = opts.variants ?? [];
   const countResult = opts.countResult ?? 0;
   let upsertGroupsCalled = false;
   let upsertGroupsArgs: unknown[] = [];
@@ -61,7 +73,7 @@ function makeMockRepo(opts: {
       upsertGroupsCalled = true;
       upsertGroupsArgs = args;
     },
-    sourcesWithFinish: async () => sources,
+    variantsWithFinish: async () => variants,
     countSnapshots: async () => countResult,
     countStaging: async () => countResult,
     upsertSnapshots: async () => 0,
@@ -80,34 +92,27 @@ function makeMockRepo(opts: {
 // ---------------------------------------------------------------------------
 
 describe("loadIgnoredKeys", () => {
-  it("returns a Set of externalId::finish strings", async () => {
-    const expected = new Set(["123::normal", "456::foil"]);
+  it("returns LoadedIgnoredKeys with productIds and variantKeys", async () => {
+    const expected: LoadedIgnoredKeys = {
+      productIds: new Set([123]),
+      variantKeys: new Set(["123::normal::EN", "456::foil::EN"]),
+    };
     const { repo } = makeMockRepo({ ignoredKeys: expected });
 
     const result = await loadIgnoredKeys(repo, "cardmarket");
 
-    expect(result).toBeInstanceOf(Set);
-    expect(result.size).toBe(2);
-    expect(result.has("123::normal")).toBe(true);
-    expect(result.has("456::foil")).toBe(true);
+    expect(result.productIds.has(123)).toBe(true);
+    expect(result.variantKeys.has("123::normal::EN")).toBe(true);
+    expect(result.variantKeys.has("456::foil::EN")).toBe(true);
   });
 
-  it("returns empty set when no ignored products", async () => {
+  it("returns empty sets when nothing ignored", async () => {
     const { repo } = makeMockRepo({});
 
     const result = await loadIgnoredKeys(repo, "tcgplayer");
 
-    expect(result.size).toBe(0);
-  });
-
-  it("handles single ignored product", async () => {
-    const expected = new Set(["789::normal"]);
-    const { repo } = makeMockRepo({ ignoredKeys: expected });
-
-    const result = await loadIgnoredKeys(repo, "cardmarket");
-
-    expect(result.size).toBe(1);
-    expect(result.has("789::normal")).toBe(true);
+    expect(result.productIds.size).toBe(0);
+    expect(result.variantKeys.size).toBe(0);
   });
 });
 
@@ -116,12 +121,11 @@ describe("loadIgnoredKeys", () => {
 // ---------------------------------------------------------------------------
 
 describe("upsertMarketplaceGroups", () => {
-  it("returns early on empty groups array without calling upsertGroups", async () => {
+  it("calls upsertGroups even for empty array (repo handles empty)", async () => {
     const { repo, wasUpsertGroupsCalled } = makeMockRepo({});
 
     await upsertMarketplaceGroups(repo, "cardmarket", []);
 
-    // The repo's upsertGroups returns early for empty arrays
     expect(wasUpsertGroupsCalled()).toBe(true);
   });
 
@@ -162,8 +166,8 @@ describe("upsertPriceData", () => {
     expect(counts.staging.unchanged).toBe(0);
   });
 
-  it("builds no snapshots when no sources are mapped", async () => {
-    const { repo } = makeMockRepo({ sources: [] });
+  it("builds no snapshots when no variants are mapped", async () => {
+    const { repo } = makeMockRepo({ variants: [] });
     const staging = [makeStagingRow(999, "normal")];
 
     const counts = await upsertPriceData(repo, noopLogger, config, staging);
@@ -173,26 +177,34 @@ describe("upsertPriceData", () => {
     expect(counts.staging.total).toBe(1);
   });
 
-  it("builds snapshots when sources match staging entries", async () => {
+  it("builds snapshots when variants match staging entries", async () => {
     const { log, messages } = makeMockLogger();
     const { repo } = makeMockRepo({
-      sources: [{ id: "src-1", printingId: "print-1", externalId: 1001, finish: "normal" }],
+      variants: [
+        {
+          id: "var-1",
+          printingId: "print-1",
+          externalId: 1001,
+          finish: "normal",
+          language: "EN",
+        },
+      ],
     });
     const staging = [makeStagingRow(1001, "normal")];
 
     const counts = await upsertPriceData(repo, log, config, staging);
 
-    // One source maps to one snapshot
+    // One variant maps to one snapshot
     expect(counts.snapshots.total).toBe(1);
     // Log message should mention the snapshot count
     expect(messages.some((m) => m.includes("1 snapshots") || m.includes("1 snapshot"))).toBe(true);
   });
 
-  it("deduplicates staging by (externalId, finish, recordedAt)", async () => {
+  it("deduplicates staging by (externalId, finish, language, recordedAt)", async () => {
     const { repo } = makeMockRepo({});
     const row1 = makeStagingRow(2001, "normal", { marketCents: 100 });
     const row2 = makeStagingRow(2001, "normal", { marketCents: 200 });
-    // Same externalId, finish, and recordedAt — should deduplicate to 1
+    // Same externalId, finish, language, and recordedAt — should deduplicate to 1
 
     const counts = await upsertPriceData(repo, noopLogger, config, [row1, row2]);
 
@@ -222,30 +234,42 @@ describe("upsertPriceData", () => {
     expect(counts.staging.total).toBe(2);
   });
 
-  it("maps multiple sources to multiple snapshots for same external ID", async () => {
+  it("maps multiple variants to multiple snapshots for same externalId+finish", async () => {
     const { log } = makeMockLogger();
     const { repo } = makeMockRepo({
-      sources: [
-        { id: "src-1", printingId: "print-1", externalId: 5001, finish: "normal" },
-        { id: "src-2", printingId: "print-2", externalId: 5001, finish: "normal" },
+      variants: [
+        {
+          id: "var-1",
+          printingId: "print-1",
+          externalId: 5001,
+          finish: "normal",
+          language: "EN",
+        },
+        {
+          id: "var-2",
+          printingId: "print-2",
+          externalId: 5001,
+          finish: "normal",
+          language: "EN",
+        },
       ],
     });
     const staging = [makeStagingRow(5001, "normal")];
 
     const counts = await upsertPriceData(repo, log, config, staging);
 
-    // Two sources mapped to the same external_id::finish -> 2 snapshots
+    // Two variants mapped to the same external_id::finish::language -> 2 snapshots
     expect(counts.snapshots.total).toBe(2);
   });
 
   it("does not log snapshot info message when there are no snapshots", async () => {
     const { log, messages } = makeMockLogger();
-    const { repo } = makeMockRepo({ sources: [] });
+    const { repo } = makeMockRepo({ variants: [] });
     const staging = [makeStagingRow(9999, "normal")];
 
     await upsertPriceData(repo, log, config, staging);
 
-    // Should not have the "N snapshots for M mapped sources" message
+    // Should not have the "N snapshots for M mapped variants" message
     expect(messages.some((m) => m.includes("snapshots"))).toBe(false);
   });
 });

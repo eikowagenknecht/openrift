@@ -23,6 +23,7 @@ import * as m074 from "./074-printing-events.js";
 import * as m075 from "./075-simplify-printing-events.js";
 import * as m076 from "./076-rename-standard-to-constructed.js";
 import * as m077 from "./077-cardtrader-null-market.js";
+import * as m078 from "./078-split-marketplace-products-variants.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -105,4 +106,5 @@ export const migrations: Record<string, Migration> = {
   "075-simplify-printing-events": m075,
   "076-rename-standard-to-constructed": m076,
   "077-cardtrader-null-market": m077,
+  "078-split-marketplace-products-variants": m078,
 };

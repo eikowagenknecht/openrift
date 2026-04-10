@@ -14,6 +14,7 @@ import { toCents } from "@openrift/shared/utils";
 
 import type { Repos } from "../../deps.js";
 import type { Fetch } from "../../io.js";
+import type { LoadedIgnoredKeys } from "../../repositories/price-refresh.js";
 import { fetchJson } from "./fetch.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
 import type { GroupRow, PriceUpsertConfig, StagingRow } from "./types.js";
@@ -89,7 +90,7 @@ async function fetchCardmarketData(fetchFn: Fetch): Promise<CardmarketFetchResul
 
 function buildCardmarketStaging(
   { singles, priceGuides, recordedAt }: CardmarketFetchResult,
-  ignoredKeys: Set<string>,
+  ignoredKeys: LoadedIgnoredKeys,
 ): StagingRow[] {
   const cmPriceById = new Map<number, CmPriceGuide>();
   for (const pg of priceGuides) {
@@ -103,8 +104,11 @@ function buildCardmarketStaging(
     if (!pg) {
       continue;
     }
+    if (ignoredKeys.productIds.has(product.idProduct)) {
+      continue;
+    }
     const normalMarket = toCents(pg.avg);
-    if (normalMarket !== null && !ignoredKeys.has(`${product.idProduct}::normal::EN`)) {
+    if (normalMarket !== null && !ignoredKeys.variantKeys.has(`${product.idProduct}::normal::EN`)) {
       allStaging.push({
         externalId: product.idProduct,
         groupId: product.idExpansion,
@@ -123,7 +127,7 @@ function buildCardmarketStaging(
       });
     }
     const foilMarket = toCents(pg["avg-foil"]);
-    if (foilMarket !== null && !ignoredKeys.has(`${product.idProduct}::foil::EN`)) {
+    if (foilMarket !== null && !ignoredKeys.variantKeys.has(`${product.idProduct}::foil::EN`)) {
       allStaging.push({
         externalId: product.idProduct,
         groupId: product.idExpansion,
@@ -181,7 +185,11 @@ export async function refreshCardmarketPrices(
     prices: allStaging.length,
   };
 
-  logFetchSummary(log, transformedCounts, ignoredKeys.size);
+  logFetchSummary(
+    log,
+    transformedCounts,
+    ignoredKeys.productIds.size + ignoredKeys.variantKeys.size,
+  );
 
   // Phase 3: Persist
   await upsertMarketplaceGroups(repos.priceRefresh, "cardmarket", groupRows);

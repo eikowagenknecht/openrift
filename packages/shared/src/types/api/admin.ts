@@ -238,14 +238,28 @@ export interface ProviderSettingResponse {
   isFavorite: boolean;
 }
 
-export interface IgnoredProductResponse {
+interface IgnoredProductBase {
   marketplace: string;
   externalId: number;
-  finish: string;
-  language: string;
   productName: string;
   createdAt: string;
 }
+
+/** Level 2: the entire upstream product is denied (sealed product, bundles, etc.). */
+export interface IgnoredProductLevelTwoResponse extends IgnoredProductBase {
+  level: "product";
+}
+
+/** Level 3: one specific SKU of an otherwise-mapped upstream product is denied. */
+export interface IgnoredProductLevelThreeResponse extends IgnoredProductBase {
+  level: "variant";
+  finish: string;
+  language: string;
+}
+
+export type IgnoredProductResponse =
+  | IgnoredProductLevelTwoResponse
+  | IgnoredProductLevelThreeResponse;
 
 // ── Image rehosting response types ──────────────────────────────────────────
 
@@ -359,7 +373,7 @@ export interface PriceRefreshResponse {
 
 export interface ClearPricesResponse {
   marketplace: string;
-  deleted: { snapshots: number; products: number; staging: number };
+  deleted: { snapshots: number; variants: number; products: number; staging: number };
 }
 
 // ── Unified marketplace mappings response types ─────────────────────────────

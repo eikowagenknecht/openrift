@@ -14,6 +14,7 @@ import { toCents } from "@openrift/shared/utils";
 
 import type { Repos } from "../../deps.js";
 import type { Fetch } from "../../io.js";
+import type { LoadedIgnoredKeys } from "../../repositories/price-refresh.js";
 import { fetchJson } from "./fetch.js";
 import { logFetchSummary, logUpsertCounts } from "./log.js";
 import type { GroupRow, PriceUpsertConfig, StagingRow } from "./types.js";
@@ -114,7 +115,7 @@ async function fetchTcgplayerData(fetchFn: Fetch): Promise<TcgplayerFetchResult>
 
 function buildTcgplayerStaging(
   { groups, groupProducts, groupPrices, groupRecordedAt }: TcgplayerFetchResult,
-  ignoredKeys: Set<string>,
+  ignoredKeys: LoadedIgnoredKeys,
 ): StagingRow[] {
   const allStaging: StagingRow[] = [];
 
@@ -129,6 +130,9 @@ function buildTcgplayerStaging(
     const pricesByProductId = Map.groupBy(prices, (p) => p.productId);
 
     for (const product of products) {
+      if (ignoredKeys.productIds.has(product.productId)) {
+        continue;
+      }
       const priceEntries = pricesByProductId.get(product.productId) || [];
       for (const entry of priceEntries) {
         const marketCents = toCents(entry.marketPrice);
@@ -136,7 +140,7 @@ function buildTcgplayerStaging(
           continue;
         }
         const finish = entry.subTypeName === "Foil" ? "foil" : "normal";
-        if (ignoredKeys.has(`${product.productId}::${finish}::EN`)) {
+        if (ignoredKeys.variantKeys.has(`${product.productId}::${finish}::EN`)) {
           continue;
         }
         allStaging.push({
@@ -199,7 +203,11 @@ export async function refreshTcgplayerPrices(
     prices: allStaging.length,
   };
 
-  logFetchSummary(log, transformedCounts, ignoredKeys.size);
+  logFetchSummary(
+    log,
+    transformedCounts,
+    ignoredKeys.productIds.size + ignoredKeys.variantKeys.size,
+  );
 
   // Phase 3: Persist
   await upsertMarketplaceGroups(repos.priceRefresh, "tcgplayer", groupRows);

@@ -118,15 +118,22 @@ function makeMockLogger(): { log: Logger; messages: string[] } {
 }
 
 interface MockReposConfig {
-  ignoredProducts?: { externalId: number; finish: string }[];
+  ignoredProducts?: { externalId: number; finish?: string }[];
 }
 
 function createMockRepos(config: MockReposConfig = {}) {
   let upsertGroupsCalled = false;
 
-  const ignoredKeys = new Set(
-    (config.ignoredProducts ?? []).map((p) => `${p.externalId}::${p.finish}::EN`),
-  );
+  const productIds = new Set<number>();
+  const variantKeys = new Set<string>();
+  for (const p of config.ignoredProducts ?? []) {
+    if (p.finish === undefined) {
+      productIds.add(p.externalId);
+    } else {
+      variantKeys.add(`${p.externalId}::${p.finish}::EN`);
+    }
+  }
+  const ignoredKeys = { productIds, variantKeys };
 
   const repos = {
     priceRefresh: {

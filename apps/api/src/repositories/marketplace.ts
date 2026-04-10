@@ -1,7 +1,7 @@
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, MarketplaceSnapshotsTable, MarketplaceProductsTable } from "../db/index.js";
+import type { Database, MarketplaceSnapshotsTable } from "../db/index.js";
 
 export interface CollectionValue {
   collectionId: string;
@@ -20,7 +20,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
      * Latest headline price per marketplace for every printing.
      *
      * Uses `DISTINCT ON` to efficiently pick only the most recent snapshot
-     * per product without scanning the full `marketplace_snapshots` table.
+     * per variant without scanning the full `marketplace_snapshots` table.
      * Coalesces `market_cents` with `low_cents` so marketplaces without a true
      * market price (e.g. cardtrader) fall back to their lowest listing.
      *
@@ -28,17 +28,17 @@ export function marketplaceRepo(db: Kysely<Database>) {
      */
     latestPrices(): Promise<{ printingId: string; marketplace: string; marketCents: number }[]> {
       return db
-        .selectFrom("marketplaceProducts as ps")
-        .innerJoin("marketplaceSnapshots as snap", "snap.productId", "ps.id")
-        .innerJoin("printings as p", "p.id", "ps.printingId")
-        .distinctOn("ps.id")
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .innerJoin("marketplaceSnapshots as snap", "snap.variantId", "mpv.id")
+        .distinctOn("mpv.id")
         .select([
-          "p.id as printingId",
-          "ps.marketplace",
+          "mpv.printingId as printingId",
+          "mp.marketplace",
           sql<number>`coalesce(snap.market_cents, snap.low_cents)`.as("marketCents"),
         ])
         .where(sql<boolean>`coalesce(snap.market_cents, snap.low_cents) is not null`)
-        .orderBy("ps.id")
+        .orderBy("mpv.id")
         .orderBy("snap.recordedAt", "desc")
         .execute();
     },
@@ -57,36 +57,41 @@ export function marketplaceRepo(db: Kysely<Database>) {
         return Promise.resolve([]);
       }
       return db
-        .selectFrom("marketplaceProducts as ps")
-        .innerJoin("marketplaceSnapshots as snap", "snap.productId", "ps.id")
-        .innerJoin("printings as p", "p.id", "ps.printingId")
-        .where("ps.printingId", "in", printingIds)
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .innerJoin("marketplaceSnapshots as snap", "snap.variantId", "mpv.id")
+        .where("mpv.printingId", "in", printingIds)
         .where(sql<boolean>`coalesce(snap.market_cents, snap.low_cents) is not null`)
-        .distinctOn("ps.id")
+        .distinctOn("mpv.id")
         .select([
-          "p.id as printingId",
-          "ps.marketplace",
+          "mpv.printingId as printingId",
+          "mp.marketplace",
           sql<number>`coalesce(snap.market_cents, snap.low_cents)`.as("marketCents"),
         ])
-        .orderBy("ps.id")
+        .orderBy("mpv.id")
         .orderBy("snap.recordedAt", "desc")
         .execute();
     },
 
-    /** @returns Marketplace sources (TCGPlayer / Cardmarket) linked to a printing. */
+    /** @returns Marketplace variants (one per SKU) linked to a printing, with parent-product external_id. */
     sourcesForPrinting(
       printingId: string,
-    ): Promise<Pick<Selectable<MarketplaceProductsTable>, "id" | "externalId" | "marketplace">[]> {
+    ): Promise<{ variantId: string; externalId: number; marketplace: string }[]> {
       return db
-        .selectFrom("marketplaceProducts")
-        .select(["id", "externalId", "marketplace"])
-        .where("printingId", "=", printingId)
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .select([
+          "mpv.id as variantId",
+          "mp.externalId as externalId",
+          "mp.marketplace as marketplace",
+        ])
+        .where("mpv.printingId", "=", printingId)
         .execute();
     },
 
-    /** @returns Snapshots for a single source, optionally filtered by a cutoff date, ordered chronologically. */
+    /** @returns Snapshots for a single variant, optionally filtered by a cutoff date, ordered chronologically. */
     snapshots(
-      productId: string,
+      variantId: string,
       cutoff: Date | null,
     ): Promise<
       Pick<Selectable<MarketplaceSnapshotsTable>, "recordedAt" | "marketCents" | "lowCents">[]
@@ -94,7 +99,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
       let query = db
         .selectFrom("marketplaceSnapshots")
         .select(["recordedAt", "marketCents", "lowCents"])
-        .where("productId", "=", productId)
+        .where("variantId", "=", variantId)
         .orderBy("recordedAt", "asc");
       if (cutoff) {
         query = query.where("recordedAt", ">=", cutoff);
@@ -120,12 +125,13 @@ export function marketplaceRepo(db: Kysely<Database>) {
         left join lateral (
           select min(latest.headline_cents) as headline_cents
           from printings p
+          inner join marketplace_product_variants mpv on mpv.printing_id = p.id
           inner join marketplace_products mp
-            on mp.printing_id = p.id and mp.marketplace = ${marketplace}
+            on mp.id = mpv.marketplace_product_id and mp.marketplace = ${marketplace}
           inner join lateral (
             select coalesce(ms.market_cents, ms.low_cents) as headline_cents
             from marketplace_snapshots ms
-            where ms.product_id = mp.id
+            where ms.variant_id = mpv.id
             order by ms.recorded_at desc
             limit 1
           ) latest on true
@@ -152,12 +158,13 @@ export function marketplaceRepo(db: Kysely<Database>) {
           coalesce(sum(snap.headline_cents), 0)::int as "totalValueCents",
           (count(cp.id) - count(snap.headline_cents))::int as "unpricedCopyCount"
         from copies cp
+        left join marketplace_product_variants mpv on mpv.printing_id = cp.printing_id
         left join marketplace_products mp
-          on mp.printing_id = cp.printing_id and mp.marketplace = ${marketplace}
+          on mp.id = mpv.marketplace_product_id and mp.marketplace = ${marketplace}
         left join lateral (
           select coalesce(ms.market_cents, ms.low_cents) as headline_cents
           from marketplace_snapshots ms
-          where ms.product_id = mp.id
+          where ms.variant_id = mpv.id
           order by ms.recorded_at desc
           limit 1
         ) snap on true
@@ -183,12 +190,13 @@ export function marketplaceRepo(db: Kysely<Database>) {
           coalesce(sum(snap.headline_cents), 0)::int as "totalValueCents",
           (count(cp.id) - count(snap.headline_cents))::int as "unpricedCopyCount"
         from copies cp
+        left join marketplace_product_variants mpv on mpv.printing_id = cp.printing_id
         left join marketplace_products mp
-          on mp.printing_id = cp.printing_id and mp.marketplace = ${marketplace}
+          on mp.id = mpv.marketplace_product_id and mp.marketplace = ${marketplace}
         left join lateral (
           select coalesce(ms.market_cents, ms.low_cents) as headline_cents
           from marketplace_snapshots ms
-          where ms.product_id = mp.id
+          where ms.variant_id = mpv.id
           order by ms.recorded_at desc
           limit 1
         ) snap on true

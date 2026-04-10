@@ -132,18 +132,27 @@ export interface MarketplaceGroupsTable {
   updatedAt: UpdatedAt;
 }
 
-/** @see marketplaceProductFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+/** Level 2: one row per upstream marketplace listing (e.g. one TCGplayer product). */
 export interface MarketplaceProductsTable {
   id: Generated<string>;
   /** CHECK: <> '' ; FK composite → marketplace_groups(marketplace, group_id) */
   marketplace: string;
-  printingId: string;
   /** CHECK: > 0 */
   externalId: number;
   /** FK composite → marketplace_groups(marketplace, group_id) */
   groupId: number;
   /** CHECK: <> '' */
   productName: string;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/** Level 3: one row per SKU (finish × language) of an upstream product, linked to a printing. */
+export interface MarketplaceProductVariantsTable {
+  id: Generated<string>;
+  marketplaceProductId: string;
+  printingId: string;
+  finish: string;
   language: string;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -152,7 +161,7 @@ export interface MarketplaceProductsTable {
 /** @see marketplaceSnapshotFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
 export interface MarketplaceSnapshotsTable {
   id: Generated<string>;
-  productId: string;
+  variantId: string;
   recordedAt: CreatedAt;
   /** CHECK: >= 0. Null for marketplaces without a true "market" price (e.g. cardtrader, where lowCents is the headline). */
   marketCents: number | null;
@@ -193,9 +202,18 @@ export interface MarketplaceStagingTable {
   updatedAt: UpdatedAt;
 }
 
+/** Level 2 ignores: deny an entire upstream product (e.g. sealed product, bundles). */
 export interface MarketplaceIgnoredProductsTable {
   marketplace: string;
   externalId: number;
+  productName: string;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+/** Level 3 ignores: deny a specific SKU of an otherwise-mapped upstream product. */
+export interface MarketplaceIgnoredVariantsTable {
+  marketplaceProductId: string;
   finish: string;
   language: string;
   productName: string;
@@ -744,12 +762,14 @@ export interface Database {
   cardErrata: CardErrataTable;
   printings: PrintingsTable;
 
-  // Unified marketplace pricing (migration 022)
+  // Unified marketplace pricing (migration 022, split into 4 levels in 078)
   marketplaceGroups: MarketplaceGroupsTable;
   marketplaceProducts: MarketplaceProductsTable;
+  marketplaceProductVariants: MarketplaceProductVariantsTable;
   marketplaceSnapshots: MarketplaceSnapshotsTable;
   marketplaceStaging: MarketplaceStagingTable;
   marketplaceIgnoredProducts: MarketplaceIgnoredProductsTable;
+  marketplaceIgnoredVariants: MarketplaceIgnoredVariantsTable;
   marketplaceStagingCardOverrides: MarketplaceStagingCardOverridesTable;
 
   // Admin (migration 012)

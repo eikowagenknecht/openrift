@@ -30,6 +30,7 @@ const clearPrices = createRoute({
             marketplace: z.string().openapi({ example: "cardmarket" }),
             deleted: z.object({
               snapshots: z.number().openapi({ example: 4821 }),
+              variants: z.number().openapi({ example: 468 }),
               products: z.number().openapi({ example: 312 }),
               staging: z.number().openapi({ example: 468 }),
             }),
@@ -87,10 +88,10 @@ export const operationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { marketplace } = c.req.valid("json");
 
-    const { snapshots, sources, staging } = await mktAdmin.clearPriceData(marketplace);
+    const { snapshots, variants, products, staging } = await mktAdmin.clearPriceData(marketplace);
     return c.json({
       marketplace,
-      deleted: { snapshots, products: sources, staging },
+      deleted: { snapshots, variants, products, staging },
     } satisfies ClearPricesResponse);
   })
 

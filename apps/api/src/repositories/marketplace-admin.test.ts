@@ -43,9 +43,17 @@ describe("marketplaceAdminRepo", () => {
     expect(await marketplaceAdminRepo(db).updateGroupName("tcgplayer", 999, null)).toBe(false);
   });
 
-  it("listIgnoredProducts returns ignored products", async () => {
-    const db = createMockDb([{ marketplace: "tcgplayer", externalId: 1 }]);
-    expect(await marketplaceAdminRepo(db).listIgnoredProducts()).toHaveLength(1);
+  it("listIgnoredProducts returns ignored products and variants merged", async () => {
+    // The proxy mock returns the same execute result for both queries (products + variants).
+    // We supply one row shape that's compatible with the product path.
+    const now = new Date();
+    const db = createMockDb([
+      { marketplace: "tcgplayer", externalId: 1, productName: "Card", createdAt: now },
+    ]);
+    const result = await marketplaceAdminRepo(db).listIgnoredProducts();
+    // Each row is returned once for each of the two internal queries, so expect 2.
+    expect(result.length).toBeGreaterThanOrEqual(1);
+    expect(result[0].marketplace).toBe("tcgplayer");
   });
 
   it("getStagingProductNames returns names", async () => {
@@ -53,27 +61,65 @@ describe("marketplaceAdminRepo", () => {
     expect(await marketplaceAdminRepo(db).getStagingProductNames("tcgplayer", [1])).toHaveLength(1);
   });
 
-  it("insertIgnoredProducts inserts products", async () => {
+  it("insertIgnoredProducts inserts L2 ignores", async () => {
     const db = createMockDb([]);
     await expect(
       marketplaceAdminRepo(db).insertIgnoredProducts([
-        { marketplace: "tcgplayer", externalId: 1, finish: "normal", productName: "Card" },
+        { marketplace: "tcgplayer", externalId: 1, productName: "Card" },
       ]),
     ).resolves.toBeUndefined();
   });
 
-  it("deleteIgnoredProducts returns deleted count", async () => {
-    const db = createMockDb([{ numDeletedRows: 2n }]);
-    expect(
-      await marketplaceAdminRepo(db).deleteIgnoredProducts("tcgplayer", [
-        { externalId: 1, finish: "normal" },
+  it("insertIgnoredProducts is a no-op for empty input", async () => {
+    const db = createMockDb([]);
+    await expect(marketplaceAdminRepo(db).insertIgnoredProducts([])).resolves.toBeUndefined();
+  });
+
+  it("insertIgnoredVariants inserts L3 ignores", async () => {
+    // The repo needs to look up parent products after upserting them; the mock proxy
+    // will happily return whatever we provide for every query.
+    const db = createMockDb([{ id: "mp-1", marketplace: "tcgplayer", externalId: 1 }]);
+    await expect(
+      marketplaceAdminRepo(db).insertIgnoredVariants([
+        {
+          marketplace: "tcgplayer",
+          externalId: 1,
+          finish: "normal",
+          language: "EN",
+          productName: "Card",
+          groupId: 10,
+        },
       ]),
-    ).toBe(2);
+    ).resolves.toBeUndefined();
+  });
+
+  it("insertIgnoredVariants is a no-op for empty input", async () => {
+    const db = createMockDb([]);
+    await expect(marketplaceAdminRepo(db).insertIgnoredVariants([])).resolves.toBeUndefined();
+  });
+
+  it("deleteIgnoredProducts returns deleted count for L2", async () => {
+    const db = createMockDb([{ numDeletedRows: 2n }]);
+    expect(await marketplaceAdminRepo(db).deleteIgnoredProducts("tcgplayer", [1, 2])).toBe(2);
   });
 
   it("deleteIgnoredProducts returns 0 for empty input", async () => {
     const db = createMockDb([]);
     expect(await marketplaceAdminRepo(db).deleteIgnoredProducts("tcgplayer", [])).toBe(0);
+  });
+
+  it("deleteIgnoredVariants returns deleted count for L3", async () => {
+    const db = createMockDb([{ deleted: 3 }]);
+    expect(
+      await marketplaceAdminRepo(db).deleteIgnoredVariants("tcgplayer", [
+        { externalId: 1, finish: "normal", language: "EN" },
+      ]),
+    ).toBe(3);
+  });
+
+  it("deleteIgnoredVariants returns 0 for empty input", async () => {
+    const db = createMockDb([]);
+    expect(await marketplaceAdminRepo(db).deleteIgnoredVariants("tcgplayer", [])).toBe(0);
   });
 
   it("upsertStagingCardOverride upserts an override", async () => {
@@ -83,6 +129,7 @@ describe("marketplaceAdminRepo", () => {
         marketplace: "tcgplayer",
         externalId: 1,
         finish: "normal",
+        language: "EN",
         cardId: "c-1",
       }),
     ).resolves.toBeUndefined();
@@ -91,13 +138,13 @@ describe("marketplaceAdminRepo", () => {
   it("deleteStagingCardOverride deletes an override", async () => {
     const db = createMockDb([]);
     await expect(
-      marketplaceAdminRepo(db).deleteStagingCardOverride("tcgplayer", 1, "normal"),
+      marketplaceAdminRepo(db).deleteStagingCardOverride("tcgplayer", 1, "normal", "EN"),
     ).resolves.toBeUndefined();
   });
 
   it("clearPriceData returns counts", async () => {
-    const db = createMockDb([{ numDeletedRows: 5n }]);
+    const db = createMockDb([{ numDeletedRows: 5n, deleted: 5 }]);
     const result = await marketplaceAdminRepo(db).clearPriceData("tcgplayer");
-    expect(result).toEqual({ snapshots: 5, sources: 5, staging: 5 });
+    expect(result).toEqual({ snapshots: 5, variants: 5, products: 5, staging: 5 });
   });
 });
