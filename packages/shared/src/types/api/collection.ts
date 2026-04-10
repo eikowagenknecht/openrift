@@ -41,5 +41,4 @@ export interface CopyResponse {
   printingId: string;
   collectionId: string;
   createdAt: string;
-  updatedAt: string;
 }

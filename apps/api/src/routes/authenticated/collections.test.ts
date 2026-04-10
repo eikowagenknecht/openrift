@@ -97,7 +97,6 @@ const dbCopy = {
   printingId: "OGS-001:rare:normal:",
   collectionId: dbCollection.id,
   createdAt: now,
-  updatedAt: now,
 };
 
 // ---------------------------------------------------------------------------
@@ -289,9 +288,9 @@ describe("GET /api/v1/collections/:id/copies", () => {
     expect(json.nextCursor).toBeTruthy();
   });
 
-  it("returns all items with no nextCursor when limit is not provided", async () => {
+  it("caps results at default 500 limit when none is provided", async () => {
     mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
-    const items = Array.from({ length: 201 }, (_, idx) => ({
+    const items = Array.from({ length: 501 }, (_, idx) => ({
       ...dbCopy,
       id: `a0000000-0001-4000-a000-${String(idx).padStart(12, "0")}`,
       createdAt: new Date(now.getTime() - idx * 1000),
@@ -300,8 +299,8 @@ describe("GET /api/v1/collections/:id/copies", () => {
     const res = await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.items).toHaveLength(201);
-    expect(json.nextCursor).toBeNull();
+    expect(json.items).toHaveLength(500);
+    expect(json.nextCursor).toBeTruthy();
   });
 
   it("passes cursor and limit query params", async () => {
@@ -317,18 +316,14 @@ describe("GET /api/v1/collections/:id/copies", () => {
     );
   });
 
-  it("fetches all copies when limit is not provided", async () => {
+  it("passes default limit of 500 to repo when none provided", async () => {
     mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
     mockCopiesRepo.listForCollection.mockResolvedValue([]);
     await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
-    expect(mockCopiesRepo.listForCollection).toHaveBeenCalledWith(
-      dbCollection.id,
-      undefined,
-      undefined,
-    );
+    expect(mockCopiesRepo.listForCollection).toHaveBeenCalledWith(dbCollection.id, 500, undefined);
   });
 
-  it("returns null nextCursor when items exactly equal limit", async () => {
+  it("returns null nextCursor when items fit within default limit", async () => {
     mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
     const items = Array.from({ length: 200 }, (_, idx) => ({
       ...dbCopy,

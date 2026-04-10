@@ -211,9 +211,10 @@ export const collectionsRoute = collectionsApp
     const collection = await collections.exists(id, userId);
     assertFound(collection, "Not found");
 
-    const rows = await copies.listForCollection(id, limit, cursor);
-    const hasMore = limit !== undefined && rows.length > limit;
-    const items = limit === undefined ? rows : rows.slice(0, limit);
+    const effectiveLimit = limit ?? 500;
+    const rows = await copies.listForCollection(id, effectiveLimit, cursor);
+    const hasMore = rows.length > effectiveLimit;
+    const items = rows.slice(0, effectiveLimit);
 
     return c.json({
       items: items.map((row) => toCopy(row)),

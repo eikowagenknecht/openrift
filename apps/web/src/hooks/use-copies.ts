@@ -142,7 +142,6 @@ export function useAddCopies() {
         printingId: item.printingId,
         collectionId: item.collectionId,
         createdAt: now,
-        updatedAt: now,
       }));
 
       // Update copies caches

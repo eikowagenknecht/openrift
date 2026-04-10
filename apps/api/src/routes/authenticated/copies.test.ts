@@ -10,7 +10,6 @@ import { copiesRoute } from "./copies";
 
 const mockRepo = {
   listForUser: vi.fn(() => Promise.resolve([] as object[])),
-  getByIdForUser: vi.fn(() => Promise.resolve(undefined as object | undefined)),
   countByPrintingForUser: vi.fn(() =>
     Promise.resolve([] as { printingId: string; count: number }[]),
   ),
@@ -57,7 +56,6 @@ const dbCopy = {
   printingId: "OGS-001:rare:normal:",
   collectionId: "a0000000-0001-4000-a000-000000000010",
   createdAt: now,
-  updatedAt: now,
 };
 
 const COPY_ID = "a0000000-0001-4000-a000-000000000020";
@@ -104,8 +102,8 @@ describe("GET /api/v1/copies", () => {
     expect(json.nextCursor).toBeTruthy();
   });
 
-  it("returns all items with no nextCursor when limit is not provided", async () => {
-    const items = Array.from({ length: 201 }, (_, i) => ({
+  it("caps results at default 500 limit when none is provided", async () => {
+    const items = Array.from({ length: 501 }, (_, i) => ({
       ...dbCopy,
       id: `a0000000-0001-4000-a000-${String(i).padStart(12, "0")}`,
       createdAt: new Date(now.getTime() - i * 1000),
@@ -113,8 +111,8 @@ describe("GET /api/v1/copies", () => {
     mockRepo.listForUser.mockResolvedValue(items);
     const res = await app.request("/api/v1/copies");
     const json = await res.json();
-    expect(json.items).toHaveLength(201);
-    expect(json.nextCursor).toBeNull();
+    expect(json.items).toHaveLength(500);
+    expect(json.nextCursor).toBeTruthy();
   });
 
   it("passes cursor and limit to repo", async () => {
@@ -206,38 +204,6 @@ describe("GET /api/v1/copies/count", () => {
   });
 });
 
-describe("GET /api/v1/copies/:id", () => {
-  beforeEach(() => {
-    mockRepo.getByIdForUser.mockReset();
-  });
-
-  it("returns 200 with copy when found", async () => {
-    mockRepo.getByIdForUser.mockResolvedValue(dbCopy);
-    const res = await app.request(`/api/v1/copies/${dbCopy.id}`);
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.id).toBe(dbCopy.id);
-    expect(json.printingId).toBe(dbCopy.printingId);
-  });
-
-  it("returns 404 when copy not found", async () => {
-    mockRepo.getByIdForUser.mockResolvedValue();
-    const res = await app.request(`/api/v1/copies/${dbCopy.id}`);
-    expect(res.status).toBe(404);
-  });
-
-  it("returns all mapped fields", async () => {
-    mockRepo.getByIdForUser.mockResolvedValue(dbCopy);
-    const res = await app.request(`/api/v1/copies/${dbCopy.id}`);
-    const json = await res.json();
-    expect(json.id).toBe(dbCopy.id);
-    expect(json.printingId).toBe(dbCopy.printingId);
-    expect(json.collectionId).toBe(dbCopy.collectionId);
-    expect(json.createdAt).toBe(now.toISOString());
-    expect(json.updatedAt).toBe(now.toISOString());
-  });
-});
-
 describe("POST /api/v1/copies — service arguments", () => {
   beforeEach(() => {
     mockAddCopies.mockReset();
@@ -300,14 +266,14 @@ describe("POST /api/v1/copies/dispose — service arguments", () => {
   });
 });
 
-describe("GET /api/v1/copies — no default limit", () => {
+describe("GET /api/v1/copies — default limit", () => {
   beforeEach(() => {
     mockRepo.listForUser.mockReset();
   });
 
-  it("fetches all copies when limit is not provided", async () => {
+  it("passes default limit of 500 to repo when none provided", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
     await app.request("/api/v1/copies");
-    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, undefined, undefined);
+    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, 500, undefined);
   });
 });

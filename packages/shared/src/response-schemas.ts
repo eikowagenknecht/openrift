@@ -386,7 +386,6 @@ export const copyResponseSchema = z
     printingId: z.string(),
     collectionId: z.string(),
     createdAt: z.string(),
-    updatedAt: z.string(),
   })
   .openapi("CopyResponse");
 
