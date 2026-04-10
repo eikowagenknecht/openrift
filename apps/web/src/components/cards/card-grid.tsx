@@ -189,28 +189,34 @@ function computeRowStarts(
   return starts;
 }
 
-function GroupHeaderLabel({
+// Explicit memo + primitive `groupId` prop: lets the two call sites pass a
+// stable onSelect (scrollToGroup) instead of minting a fresh `() => scrollToGroup(id)`
+// arrow on every CardGrid re-render. Without this, every scroll tick changed
+// the onClick reference and forced GroupHeaderLabel to re-render.
+const GroupHeaderLabel = memo(function GroupHeaderLabel({
   slug,
   name,
-  onClick,
+  groupId,
+  onSelect,
   className,
 }: {
   slug: string;
   name: string;
-  onClick: () => void;
+  groupId: string;
+  onSelect: (groupId: string) => void;
   className?: string;
 }) {
   return (
     <button
       type="button"
       className={cn("flex cursor-pointer flex-row gap-3 text-sm", className)}
-      onClick={onClick}
+      onClick={() => onSelect(groupId)}
     >
       {slug && <span className="text-muted-foreground font-medium">{slug}</span>}
       <span className="font-semibold">{name}</span>
     </button>
   );
-}
+});
 
 // Explicit memo: rendered inside the virtualizer's items.map() which re-runs every
 // scroll frame. React Compiler cannot memoize JSX created in dynamic .map() callbacks.
@@ -228,7 +234,8 @@ const HeaderRow = memo(function HeaderRow({
       <GroupHeaderLabel
         slug={row.group.slug}
         name={row.group.name}
-        onClick={() => onScrollToGroup(row.group.id)}
+        groupId={row.group.id}
+        onSelect={onScrollToGroup}
       />
       <div className="bg-border h-px flex-1" />
     </div>
@@ -384,43 +391,48 @@ export function CardGrid({
   // ── Group items, then flatten into virtual rows ──────────────────
   const groups = buildGroups(items, groupBy, setOrder, groupDir, orders);
   const multipleGroups = groups.length > 1;
-  const virtualRowsCacheRef = useRef<{
+
+  // Manual ref cache for virtualRows + rowStarts. React Compiler does not
+  // stabilize these across CardGrid's scroll-driven re-renders (the virtualizer
+  // dispatches a useReducer on every tick to force a render), so without this
+  // cache every scroll frame produces new array references for both, which
+  // breaks the props.equal check in downstream memoized children like
+  // ScrollIndicator and the extracted sticky-header / keyboard-nav hooks.
+  const gridCacheRef = useRef<{
     items: CardViewerItem[];
     setOrder: GroupInfo[] | undefined;
     groupBy: GroupByField;
     groupDir: "asc" | "desc";
     columns: number;
+    thumbWidth: number;
+    addStripHeight: number;
     rows: VRow[];
+    rowStarts: number[];
   }>({
     items: [],
     setOrder: undefined,
     groupBy: "set",
     groupDir: "asc",
     columns: 0,
+    thumbWidth: 0,
+    addStripHeight: 0,
     rows: [],
+    rowStarts: [],
   });
-  if (
-    virtualRowsCacheRef.current.items !== items ||
-    virtualRowsCacheRef.current.setOrder !== setOrder ||
-    virtualRowsCacheRef.current.groupBy !== groupBy ||
-    virtualRowsCacheRef.current.groupDir !== groupDir ||
-    virtualRowsCacheRef.current.columns !== columns
-  ) {
-    virtualRowsCacheRef.current = {
-      items,
-      setOrder,
-      groupBy,
-      groupDir,
-      columns,
-      rows: buildVirtualRows(groups, columns),
-    };
-  }
-  const virtualRows = virtualRowsCacheRef.current.rows;
 
   const labelHeight = LABEL_HEIGHT;
 
+  const rowsInvalid =
+    gridCacheRef.current.items !== items ||
+    gridCacheRef.current.setOrder !== setOrder ||
+    gridCacheRef.current.groupBy !== groupBy ||
+    gridCacheRef.current.groupDir !== groupDir ||
+    gridCacheRef.current.columns !== columns;
+
+  const nextRows = rowsInvalid ? buildVirtualRows(groups, columns) : gridCacheRef.current.rows;
+
   const estimateRowHeight = (index: number): number => {
-    const row = virtualRows[index];
+    const row = nextRows[index];
     if (!row) {
       return FALLBACK_ROW_HEIGHT;
     }
@@ -431,8 +443,29 @@ export function CardGrid({
     return Math.round(imgHeight + labelHeight + BUTTON_PAD * 2 + addStripHeight);
   };
 
-  // Precompute cumulative start offsets for each row.
-  const rowStarts = computeRowStarts(virtualRows, estimateRowHeight);
+  const startsInvalid =
+    rowsInvalid ||
+    gridCacheRef.current.thumbWidth !== thumbWidth ||
+    gridCacheRef.current.addStripHeight !== addStripHeight;
+
+  if (rowsInvalid || startsInvalid) {
+    gridCacheRef.current = {
+      items,
+      setOrder,
+      groupBy,
+      groupDir,
+      columns,
+      thumbWidth,
+      addStripHeight,
+      rows: nextRows,
+      rowStarts: startsInvalid
+        ? computeRowStarts(nextRows, estimateRowHeight)
+        : gridCacheRef.current.rowStarts,
+    };
+  }
+
+  const virtualRows = gridCacheRef.current.rows;
+  const rowStarts = gridCacheRef.current.rowStarts;
 
   // ── Scroll margin (container's document offset) ────────────────────
   const [scrollMargin, setScrollMargin] = useState(0);
@@ -562,14 +595,22 @@ export function CardGrid({
   }, [columns, selectedItemId]);
 
   // ── Helpers ────────────────────────────────────────────────────────
-  const scrollToGroup = (groupId: string) => {
-    const rowIndex = virtualRowsRef.current.findIndex(
-      (r) => r.kind === "header" && r.group.id === groupId,
-    );
-    if (rowIndex !== -1) {
-      virtualizerRef.current.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
-    }
-  };
+  // Lazy-init ref pattern: scrollToGroup only reads from refs, so a single
+  // stable function suffices for the component's lifetime. Needed so HeaderRow's
+  // `onScrollToGroup` prop stays referentially equal across scroll-driven
+  // re-renders and its memo doesn't bust on every tick.
+  const scrollToGroupRef = useRef<((groupId: string) => void) | null>(null);
+  if (scrollToGroupRef.current === null) {
+    scrollToGroupRef.current = (groupId: string) => {
+      const rowIndex = virtualRowsRef.current.findIndex(
+        (r) => r.kind === "header" && r.group.id === groupId,
+      );
+      if (rowIndex !== -1) {
+        virtualizerRef.current.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
+      }
+    };
+  }
+  const scrollToGroup = scrollToGroupRef.current;
 
   const virtualItems = virtualizer.getVirtualItems();
 
@@ -633,7 +674,8 @@ export function CardGrid({
             <GroupHeaderLabel
               slug={activeHeaderRow.group.slug}
               name={activeHeaderRow.group.name}
-              onClick={() => scrollToGroup(activeHeaderRow.group.id)}
+              groupId={activeHeaderRow.group.id}
+              onSelect={scrollToGroup}
               className="bg-background/60 ring-border/70 rounded-full px-3 py-1 shadow-sm ring-1 backdrop-blur"
             />
           </div>
