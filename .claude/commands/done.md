@@ -1,10 +1,14 @@
 Finalize work in a worktree — run checks, add changelog, and mark as ready to merge.
 
+## Arguments
+
+- `yolo` — skip changelog check, checks, and merge confirmation. Only does the minimum: commit uncommitted work, rebase onto main, exit worktree, squash-merge. Use when the user passes `yolo` as an argument.
+
 ## Prerequisites
 
 Must be on a worktree branch, not main. If on main, abort and tell the user to use `/commit-main` instead.
 
-## Steps
+## Steps (default)
 
 1. **Commit any uncommitted work** using the `/commit all yolo` flow (stage everything, commit without approval — the merge confirmation in step 5 is the real gate).
 
@@ -20,3 +24,12 @@ Must be on a worktree branch, not main. If on main, abort and tell the user to u
 5. **Exit the worktree.** Use `ExitWorktree` with `action: "keep"` to return to main. Remember the branch name from step 1 — you'll need it for the merge.
 
 6. **Squash-merge into main.** Run the full `/merge` flow from here (gather context, draft message, present plan, wait for confirmation, execute merge, clean up). Do NOT invoke `/merge` as a separate skill — execute its steps inline.
+
+## Steps (yolo)
+
+When invoked with `yolo`, do only these steps — no asking, no checks, no changelog:
+
+1. **Commit any uncommitted work** via `/commit all yolo`.
+2. **Rebase onto main** (`git rebase main`). If there are conflicts, abort and tell the user — yolo does not resolve conflicts.
+3. **Exit the worktree** with `ExitWorktree` action `keep`.
+4. **Squash-merge into main** by executing the `/merge` flow inline, but skip the confirmation gate — proceed straight to the merge and cleanup.
