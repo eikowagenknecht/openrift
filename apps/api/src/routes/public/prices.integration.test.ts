@@ -142,12 +142,6 @@ if (ctx) {
       recordedAt: daysAgo(2),
       marketCents: 250,
       lowCents: 120,
-      midCents: 180,
-      highCents: 400,
-      trendCents: null,
-      avg1Cents: null,
-      avg7Cents: null,
-      avg30Cents: null,
     })
     .execute();
 
@@ -159,12 +153,6 @@ if (ctx) {
       recordedAt: daysAgo(15),
       marketCents: 200,
       lowCents: 100,
-      midCents: 150,
-      highCents: 350,
-      trendCents: null,
-      avg1Cents: null,
-      avg7Cents: null,
-      avg30Cents: null,
     })
     .execute();
 
@@ -176,12 +164,6 @@ if (ctx) {
       recordedAt: daysAgo(60),
       marketCents: 150,
       lowCents: 80,
-      midCents: 120,
-      highCents: 300,
-      trendCents: null,
-      avg1Cents: null,
-      avg7Cents: null,
-      avg30Cents: null,
     })
     .execute();
 
@@ -193,12 +175,6 @@ if (ctx) {
       recordedAt: daysAgo(120),
       marketCents: 100,
       lowCents: 50,
-      midCents: 80,
-      highCents: 200,
-      trendCents: null,
-      avg1Cents: null,
-      avg7Cents: null,
-      avg30Cents: null,
     })
     .execute();
 
@@ -210,12 +186,6 @@ if (ctx) {
       recordedAt: daysAgo(2),
       marketCents: 180,
       lowCents: 100,
-      midCents: null,
-      highCents: null,
-      trendCents: 150,
-      avg1Cents: 140,
-      avg7Cents: 145,
-      avg30Cents: 160,
     })
     .execute();
 }
@@ -275,16 +245,13 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.printingId).toBe(printingId);
 
       expect(json.tcgplayer.available).toBe(true);
-      expect(json.tcgplayer.currency).toBe("USD");
       expect(json.tcgplayer.productId).toBe(90_001);
       expect(json.tcgplayer.snapshots).toEqual(expect.any(Array));
       expect(json.tcgplayer.snapshots.length).toBeGreaterThanOrEqual(1);
 
       expect(json.cardmarket.available).toBe(true);
-      expect(json.cardmarket.currency).toBe("EUR");
       expect(json.cardmarket.productId).toBe(90_002);
       expect(json.cardmarket.snapshots).toEqual(expect.any(Array));
       expect(json.cardmarket.snapshots.length).toBeGreaterThanOrEqual(1);
@@ -296,7 +263,6 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.printingId).toBe(fakeId);
       expect(json.tcgplayer.available).toBe(false);
       expect(json.tcgplayer.productId).toBeNull();
       expect(json.tcgplayer.snapshots).toHaveLength(0);
@@ -310,7 +276,6 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json.printingId).toBe(printingNoSourceId);
       expect(json.tcgplayer.available).toBe(false);
       expect(json.cardmarket.available).toBe(false);
     });
@@ -357,8 +322,8 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       expect(typeof snap.market).toBe("number");
       expect(snap.market).toBe(2.5); // 250 cents
       expect(snap.low).toBe(1.2); // 120 cents
-      expect(snap.mid).toBe(1.8); // 180 cents
-      expect(snap.high).toBe(4); // 400 cents
+      expect(snap.mid).toBeUndefined();
+      expect(snap.high).toBeUndefined();
     });
 
     it("cardmarket snapshots have correct shape", async () => {
@@ -369,10 +334,9 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       expect(snap.date).toBeTypeOf("string");
       expect(snap.market).toBe(1.8); // 180 cents
       expect(snap.low).toBe(1); // 100 cents
-      expect(snap.trend).toBe(1.5); // 150 cents
-      expect(snap.avg1).toBe(1.4); // 140 cents
-      expect(snap.avg7).toBe(1.45); // 145 cents
-      expect(snap.avg30).toBe(1.6); // 160 cents
+      expect(snap.trend).toBeUndefined();
+      expect(snap.avg1).toBeUndefined();
+      expect(snap.avg30).toBeUndefined();
     });
 
     it("returns Cache-Control header", async () => {

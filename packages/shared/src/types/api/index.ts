@@ -80,6 +80,7 @@ export type {
 } from "./shopping-list.js";
 
 export type {
+  AnySnapshot,
   CardmarketSnapshot,
   CardtraderSnapshot,
   PriceHistoryResponse,
@@ -88,6 +89,7 @@ export type {
   PricesResponse,
   TcgplayerSnapshot,
 } from "./pricing.js";
+export { snapshotHeadline } from "./pricing.js";
 
 export type {
   AdminCardDetailResponse,

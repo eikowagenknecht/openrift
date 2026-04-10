@@ -1,4 +1,5 @@
-import type { TimeRange } from "@openrift/shared";
+import type { AnySnapshot, TimeRange } from "@openrift/shared";
+import { snapshotHeadline } from "@openrift/shared";
 import { ChevronDownIcon } from "lucide-react";
 import { useId, useState } from "react";
 import { Area, AreaChart, Tooltip } from "recharts";
@@ -11,8 +12,8 @@ import { formatterForMarketplace } from "@/lib/format";
 import { useDisplayStore } from "@/stores/display-store";
 
 const chartConfig = {
-  market: {
-    label: "Market",
+  value: {
+    label: "Price",
     color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
@@ -28,7 +29,8 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const favorite = marketplaceOrder[0] ?? "tcgplayer";
   const { data } = usePriceHistory(printingId, "30d");
-  const snapshots = data?.[favorite]?.snapshots ?? [];
+  const rawSnapshots: AnySnapshot[] = data?.[favorite]?.snapshots ?? [];
+  const snapshots = rawSnapshots.map((s) => ({ date: s.date, value: snapshotHeadline(s) }));
   const fmt = formatterForMarketplace(favorite);
   const gradientId = `sparkFill-${useId().replaceAll(":", "")}`;
 
@@ -62,8 +64,8 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
         <AreaChart data={snapshots} margin={{ top: 6, right: 0, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--color-market)" stopOpacity={0.3} />
-              <stop offset="100%" stopColor="var(--color-market)" stopOpacity={0.05} />
+              <stop offset="0%" stopColor="var(--color-value)" stopOpacity={0.3} />
+              <stop offset="100%" stopColor="var(--color-value)" stopOpacity={0.05} />
             </linearGradient>
           </defs>
           <Tooltip
@@ -71,21 +73,21 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
               if (!active || !payload?.length) {
                 return null;
               }
-              const snap = payload[0].payload as { market: number; date: string };
+              const snap = payload[0].payload as { value: number; date: string };
               return (
                 <div className="bg-popover rounded-md px-2 py-1 text-xs shadow-md">
-                  <span className="font-medium">{fmt(snap.market)}</span>
+                  <span className="font-medium">{fmt(snap.value)}</span>
                   <span className="text-muted-foreground ml-1.5">{snap.date}</span>
                 </div>
               );
             }}
-            cursor={{ stroke: "var(--color-market)", strokeWidth: 1, strokeDasharray: "3 3" }}
+            cursor={{ stroke: "var(--color-value)", strokeWidth: 1, strokeDasharray: "3 3" }}
             isAnimationActive={false}
           />
           <Area
-            dataKey="market"
+            dataKey="value"
             type="monotone"
-            stroke="var(--color-market)"
+            stroke="var(--color-value)"
             strokeWidth={1.5}
             fill={`url(#${gradientId})`}
             isAnimationActive={false}

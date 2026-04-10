@@ -526,7 +526,7 @@ export async function saveMappings(
     const snapshotRows: {
       productId: string;
       recordedAt: Date;
-      marketCents: number;
+      marketCents: number | null;
       lowCents: number | null;
       midCents: number | null;
       highCents: number | null;

@@ -40,7 +40,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
       productId: string,
       row: {
         recordedAt: Date;
-        marketCents: number;
+        marketCents: number | null;
         lowCents: number | null;
         midCents: number | null;
         highCents: number | null;
@@ -66,7 +66,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
         })
         .onConflict((oc) =>
           oc.columns(["productId", "recordedAt"]).doUpdateSet({
-            marketCents: sql<number>`excluded.market_cents`,
+            marketCents: sql<number | null>`excluded.market_cents`,
             lowCents: sql<number | null>`excluded.low_cents`,
             midCents: sql<number | null>`excluded.mid_cents`,
             highCents: sql<number | null>`excluded.high_cents`,
@@ -87,7 +87,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
       language: string,
       snap: {
         recordedAt: Date;
-        marketCents: number;
+        marketCents: number | null;
         lowCents: number | null;
         midCents: number | null;
         highCents: number | null;

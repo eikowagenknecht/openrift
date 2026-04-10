@@ -177,43 +177,33 @@ const tcgplayerSnapshotSchema = z.object({
   date: z.string().openapi({ example: "2026-04-01" }),
   market: z.number().openapi({ example: 4.52 }),
   low: z.number().nullable().openapi({ example: 3.25 }),
-  mid: z.number().nullable().openapi({ example: 4.5 }),
-  high: z.number().nullable().openapi({ example: 6.99 }),
 });
 
 const cardmarketSnapshotSchema = z.object({
   date: z.string().openapi({ example: "2026-04-01" }),
   market: z.number().openapi({ example: 3.8 }),
   low: z.number().nullable().openapi({ example: 2.5 }),
-  trend: z.number().nullable().openapi({ example: 3.95 }),
-  avg1: z.number().nullable().openapi({ example: 3.8 }),
-  avg7: z.number().nullable().openapi({ example: 3.72 }),
-  avg30: z.number().nullable().openapi({ example: 3.65 }),
 });
 
 const cardtraderSnapshotSchema = z.object({
   date: z.string().openapi({ example: "2026-04-01" }),
-  market: z.number().openapi({ example: 3.9 }),
+  low: z.number().openapi({ example: 3.9 }),
 });
 
 export const priceHistoryResponseSchema = z
   .object({
-    printingId: z.string().openapi({ example: "019cfc3b-03d3-7dac-86c9-27900cd43727" }),
     tcgplayer: z.object({
       available: z.boolean().openapi({ example: true }),
-      currency: z.literal("USD"),
       productId: z.number().nullable().openapi({ example: 582_391 }),
       snapshots: z.array(tcgplayerSnapshotSchema),
     }),
     cardmarket: z.object({
       available: z.boolean().openapi({ example: true }),
-      currency: z.literal("EUR"),
       productId: z.number().nullable().openapi({ example: 748_215 }),
       snapshots: z.array(cardmarketSnapshotSchema),
     }),
     cardtrader: z.object({
       available: z.boolean().openapi({ example: false }),
-      currency: z.literal("EUR"),
       productId: z.number().nullable().openapi({ example: null }),
       snapshots: z.array(cardtraderSnapshotSchema),
     }),

@@ -1,4 +1,5 @@
 import type { Marketplace, Printing } from "@openrift/shared";
+import { snapshotHeadline } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -90,7 +91,11 @@ function PrintingPrices({ printing }: { printing: Printing }) {
     }
     // Fall back to latest history snapshot
     const snapshots = history?.[marketplace]?.snapshots;
-    return snapshots?.length ? (snapshots.at(-1)?.market ?? null) : null;
+    if (!snapshots?.length) {
+      return null;
+    }
+    // oxlint-disable-next-line no-non-null-assertion -- length check above
+    return snapshotHeadline(snapshots.at(-1)!);
   }
 
   const entries: { marketplace: Marketplace; value: number }[] = [];

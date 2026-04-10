@@ -5,7 +5,7 @@ import type { marketplaceTransferRepo } from "../../repositories/marketplace-tra
 
 export interface ProductInfo {
   productName: string | null;
-  marketCents: number;
+  marketCents: number | null;
   lowCents: number | null;
   currency: string;
   recordedAt: string;
@@ -21,7 +21,7 @@ export interface ProductInfo {
 
 /** All 8 price columns shared by marketplace_snapshots and marketplace_staging. */
 interface PriceColumns {
-  marketCents: number;
+  marketCents: number | null;
   lowCents: number | null;
   midCents: number | null;
   highCents: number | null;

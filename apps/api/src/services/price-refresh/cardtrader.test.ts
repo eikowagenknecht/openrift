@@ -235,10 +235,11 @@ describe("refreshCardtraderPrices", () => {
       expect(staging).toHaveLength(2);
       const normalRow = staging.find((row) => row.finish === "normal");
       const foilRow = staging.find((row) => row.finish === "foil");
-      expect(normalRow?.marketCents).toBe(100);
+      // CardTrader has no separate "market" price; we only store lowCents.
+      expect(normalRow?.marketCents).toBeNull();
       expect(normalRow?.lowCents).toBe(100);
       expect(normalRow?.language).toBe("EN");
-      expect(foilRow?.marketCents).toBe(300);
+      expect(foilRow?.marketCents).toBeNull();
       expect(foilRow?.lowCents).toBe(300);
       expect(foilRow?.language).toBe("EN");
     });
@@ -281,10 +282,10 @@ describe("refreshCardtraderPrices", () => {
       const enRow = staging.find((row) => row.language === "EN");
       const jaRow = staging.find((row) => row.language === "JA");
       expect(enRow).toBeDefined();
-      expect(enRow?.marketCents).toBe(100);
+      expect(enRow?.lowCents).toBe(100);
       expect(enRow?.language).toBe("EN");
       expect(jaRow).toBeDefined();
-      expect(jaRow?.marketCents).toBe(50);
+      expect(jaRow?.lowCents).toBe(50);
       expect(jaRow?.language).toBe("JA");
     });
 
@@ -379,7 +380,7 @@ describe("refreshCardtraderPrices", () => {
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
       expect(staging).toHaveLength(1);
-      expect(staging[0].marketCents).toBe(50);
+      expect(staging[0].lowCents).toBe(50);
     });
   });
 
@@ -567,7 +568,7 @@ describe("refreshCardtraderPrices", () => {
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
       expect(staging).toHaveLength(1);
-      expect(staging[0].marketCents).toBe(200);
+      expect(staging[0].lowCents).toBe(200);
     });
 
     it("includes listings without a condition field (assumed NM)", async () => {
@@ -598,7 +599,7 @@ describe("refreshCardtraderPrices", () => {
 
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
       expect(staging).toHaveLength(1);
-      expect(staging[0].marketCents).toBe(100);
+      expect(staging[0].lowCents).toBe(100);
     });
 
     it("skips blueprint entirely when all listings are non-NM", async () => {
@@ -668,7 +669,7 @@ describe("refreshCardtraderPrices", () => {
       const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
       const foilRow = staging.find((row) => row.finish === "foil");
       expect(foilRow).toBeDefined();
-      expect(foilRow?.marketCents).toBe(150);
+      expect(foilRow?.lowCents).toBe(150);
     });
   });
 

@@ -71,9 +71,11 @@ export const pricesRoute = pricesApp
   /**
    * `GET /prices/:printingId/history` — Returns price history for a single printing.
    *
-   * Accepts a printing UUID. Returns snapshots for both TCGPlayer (USD)
-   * and Cardmarket (EUR) when available. The `range` query param controls the
-   * lookback window (`7d`, `30d`, `90d`, `all`); defaults to `30d`.
+   * Accepts a printing UUID. Returns snapshots for TCGPlayer (USD), Cardmarket
+   * (EUR), and CardTrader (EUR) when available. CardTrader snapshots only carry
+   * `low` (cheapest available listing) since the API exposes no separate market
+   * value. The `range` query param controls the lookback window (`7d`, `30d`,
+   * `90d`, `all`); defaults to `30d`.
    *
    * Returns `available: false` (not a 404) when the printing or marketplace
    * source doesn't exist, so the frontend can render an empty state without
@@ -94,10 +96,9 @@ export const pricesRoute = pricesApp
 
     if (!printing) {
       return c.json({
-        printingId,
-        tcgplayer: { available: false, currency: "USD", productId: null, snapshots: [] },
-        cardmarket: { available: false, currency: "EUR", productId: null, snapshots: [] },
-        cardtrader: { available: false, currency: "EUR", productId: null, snapshots: [] },
+        tcgplayer: { available: false, productId: null, snapshots: [] },
+        cardmarket: { available: false, productId: null, snapshots: [] },
+        cardtrader: { available: false, productId: null, snapshots: [] },
       } satisfies PriceHistoryResponse);
     }
 
@@ -111,46 +112,54 @@ export const pricesRoute = pricesApp
       ctSource ? marketplace.snapshots(ctSource.id, cutoff) : [],
     ]);
 
-    const tcgSnapshots = tcgRows.map((r) => ({
-      date: formatDateUTC(r.recordedAt),
-      market: centsToDollars(r.marketCents),
-      low: centsToDollars(r.lowCents),
-      mid: centsToDollars(r.midCents),
-      high: centsToDollars(r.highCents),
-    }));
+    const tcgSnapshots: PriceHistoryResponse["tcgplayer"]["snapshots"] = [];
+    for (const r of tcgRows) {
+      if (r.marketCents === null) {
+        continue;
+      }
+      tcgSnapshots.push({
+        date: formatDateUTC(r.recordedAt),
+        market: centsToDollars(r.marketCents),
+        low: centsToDollars(r.lowCents),
+      });
+    }
 
-    const cmSnapshots = cmRows.map((r) => ({
-      date: formatDateUTC(r.recordedAt),
-      market: centsToDollars(r.marketCents),
-      low: centsToDollars(r.lowCents),
-      trend: centsToDollars(r.trendCents),
-      avg1: centsToDollars(r.avg1Cents),
-      avg7: centsToDollars(r.avg7Cents),
-      avg30: centsToDollars(r.avg30Cents),
-    }));
+    const cmSnapshots: PriceHistoryResponse["cardmarket"]["snapshots"] = [];
+    for (const r of cmRows) {
+      if (r.marketCents === null) {
+        continue;
+      }
+      cmSnapshots.push({
+        date: formatDateUTC(r.recordedAt),
+        market: centsToDollars(r.marketCents),
+        low: centsToDollars(r.lowCents),
+      });
+    }
 
-    const ctSnapshots = ctRows.map((r) => ({
-      date: formatDateUTC(r.recordedAt),
-      market: centsToDollars(r.marketCents),
-    }));
+    const ctSnapshots: PriceHistoryResponse["cardtrader"]["snapshots"] = [];
+    for (const r of ctRows) {
+      if (r.lowCents === null) {
+        continue;
+      }
+      ctSnapshots.push({
+        date: formatDateUTC(r.recordedAt),
+        low: centsToDollars(r.lowCents),
+      });
+    }
 
     const response: PriceHistoryResponse = {
-      printingId: printing.id,
       tcgplayer: {
         available: Boolean(tcgSource),
-        currency: "USD",
         productId: tcgSource?.externalId ?? null,
         snapshots: tcgSnapshots,
       },
       cardmarket: {
         available: Boolean(cmSource),
-        currency: "EUR",
         productId: cmSource?.externalId ?? null,
         snapshots: cmSnapshots,
       },
       cardtrader: {
         available: Boolean(ctSource),
-        currency: "EUR",
         productId: ctSource?.externalId ?? null,
         snapshots: ctSnapshots,
       },

@@ -220,7 +220,7 @@ function buildCardtraderStaging(
         finish: price.finish,
         language: price.language,
         recordedAt,
-        marketCents: price.minPriceCents,
+        marketCents: null,
         lowCents: price.minPriceCents,
         midCents: null,
         highCents: null,

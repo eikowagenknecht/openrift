@@ -137,6 +137,7 @@ export type {
 } from "./api/index.js";
 
 export type {
+  AnySnapshot,
   CardmarketSnapshot,
   CardtraderSnapshot,
   PriceHistoryResponse,
@@ -145,3 +146,4 @@ export type {
   PricesResponse,
   TcgplayerSnapshot,
 } from "./api/index.js";
+export { snapshotHeadline } from "./api/index.js";

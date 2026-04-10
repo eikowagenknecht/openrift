@@ -76,9 +76,9 @@ export function StagedProductCard({
         </p>
       )}
       <div className="mt-1.5 flex items-baseline gap-2">
-        {sp.marketCents > 0 && (
+        {(sp.marketCents ?? sp.lowCents ?? 0) > 0 && (
           <span className="text-lg font-semibold tabular-nums">
-            {formatCents(sp.marketCents, sp.currency)}
+            {formatCents(sp.marketCents ?? sp.lowCents, sp.currency)}
           </span>
         )}
         {sp.finish && (

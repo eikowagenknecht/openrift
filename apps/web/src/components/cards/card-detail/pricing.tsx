@@ -1,4 +1,5 @@
 import type { Marketplace, Printing, TimeRange } from "@openrift/shared";
+import { snapshotHeadline } from "@openrift/shared";
 import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -46,14 +47,14 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
   const { data: history } = usePriceHistory(printing.id, range);
   const prices = usePrices();
 
-  /** @returns The latest market price for a marketplace (from price history snapshots). */
+  /** @returns The latest headline price for a marketplace (from price history snapshots). */
   function latestPrice(marketplace: Marketplace): number | null {
     const snapshots = history?.[marketplace]?.snapshots;
     if (!snapshots?.length) {
       return null;
     }
     // oxlint-disable-next-line no-non-null-assertion -- length check above
-    return snapshots.at(-1)!.market;
+    return snapshotHeadline(snapshots.at(-1)!);
   }
 
   // Resolve which marketplaces have data to show. We prefer the latest catalog
@@ -123,9 +124,9 @@ function PriceTrend({
     return null;
   }
 
-  const first = snapshots[0].market;
+  const first = snapshotHeadline(snapshots[0]);
   // oxlint-disable-next-line no-non-null-assertion -- length >= 2 is checked above
-  const last = snapshots.at(-1)!.market;
+  const last = snapshotHeadline(snapshots.at(-1)!);
   if (first === 0) {
     return null;
   }

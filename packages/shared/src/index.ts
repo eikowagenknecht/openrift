@@ -20,6 +20,7 @@ export type {
   CardErrata,
   CardFilters,
   CardFace,
+  AnySnapshot,
   CardmarketSnapshot,
   CardtraderSnapshot,
   CandidateCardResponse,
@@ -148,6 +149,8 @@ export type {
   GetAvailableFiltersOptions,
   SortCardsOptions,
 } from "./filters.js";
+
+export { snapshotHeadline } from "./types/api/pricing.js";
 
 export { EMPTY_PRICE_LOOKUP, priceLookupFromMap } from "./price-lookup.js";
 

@@ -1,5 +1,5 @@
 import type { CardErrata, Marketplace, Printing, TimeRange } from "@openrift/shared";
-import { ALL_MARKETPLACES, EUR_MARKETPLACES, WellKnown } from "@openrift/shared";
+import { ALL_MARKETPLACES, EUR_MARKETPLACES, snapshotHeadline, WellKnown } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import {
@@ -579,7 +579,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
       }
       for (const snap of mpData.snapshots) {
         const entry = dateMap.get(snap.date) ?? {};
-        entry[mp] = snap.market;
+        entry[mp] = snapshotHeadline(snap);
         dateMap.set(snap.date, entry);
       }
     }

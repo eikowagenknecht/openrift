@@ -154,8 +154,8 @@ export interface MarketplaceSnapshotsTable {
   id: Generated<string>;
   productId: string;
   recordedAt: CreatedAt;
-  /** CHECK: >= 0 */
-  marketCents: number;
+  /** CHECK: >= 0. Null for marketplaces without a true "market" price (e.g. cardtrader, where lowCents is the headline). */
+  marketCents: number | null;
   /** CHECK: >= 0 */
   lowCents: number | null;
   /** CHECK: >= 0 */
@@ -181,7 +181,7 @@ export interface MarketplaceStagingTable {
   finish: string;
   language: string;
   recordedAt: Date;
-  marketCents: number;
+  marketCents: number | null;
   lowCents: number | null;
   midCents: number | null;
   highCents: number | null;

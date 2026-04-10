@@ -100,8 +100,6 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
         productId: tcgProductId,
         marketCents: 100,
         lowCents: 80,
-        midCents: 95,
-        highCents: 150,
         recordedAt: new Date("2026-01-01T00:00:00Z"),
       })
       .returningAll()
@@ -114,8 +112,6 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
         productId: tcgProductId,
         marketCents: 120,
         lowCents: 90,
-        midCents: 110,
-        highCents: 160,
         recordedAt: new Date("2026-02-01T00:00:00Z"),
       })
       .returningAll()

@@ -392,7 +392,7 @@ export interface StagedProductResponse {
   productName: string;
   finish: string;
   language: string;
-  marketCents: number;
+  marketCents: number | null;
   lowCents: number | null;
   currency: string;
   recordedAt: string;

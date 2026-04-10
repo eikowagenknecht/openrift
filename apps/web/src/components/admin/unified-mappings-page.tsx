@@ -309,7 +309,7 @@ function SuggestionButton({
         </span>
       </span>
       <span className="shrink-0 text-sm font-semibold tabular-nums">
-        {formatCents(sp.marketCents, sp.currency)}
+        {formatCents(sp.marketCents ?? sp.lowCents, sp.currency)}
       </span>
     </button>
   );

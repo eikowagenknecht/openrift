@@ -20,43 +20,48 @@ export interface TcgplayerSnapshot {
   date: string;
   market: number;
   low: number | null;
-  mid: number | null;
-  high: number | null;
 }
 
 export interface CardmarketSnapshot {
   date: string;
   market: number;
   low: number | null;
-  trend: number | null;
-  avg1: number | null;
-  avg7: number | null;
-  avg30: number | null;
 }
 
+/**
+ * CardTrader exposes only a "lowest available listing" price — there's no
+ * separate market value, so snapshots carry just `low`.
+ */
 export interface CardtraderSnapshot {
   date: string;
-  market: number;
+  low: number;
 }
 
 export interface PriceHistoryResponse {
-  printingId: string;
   tcgplayer: {
     available: boolean;
-    currency: "USD";
     productId: number | null;
     snapshots: TcgplayerSnapshot[];
   };
   cardmarket: {
     available: boolean;
-    currency: "EUR";
     productId: number | null;
     snapshots: CardmarketSnapshot[];
   };
   cardtrader: {
     available: boolean;
-    currency: "EUR";
     productId: number | null;
     snapshots: CardtraderSnapshot[];
   };
+}
+
+export type AnySnapshot = TcgplayerSnapshot | CardmarketSnapshot | CardtraderSnapshot;
+
+/**
+ * Headline price for a snapshot — `market` for TCGplayer/Cardmarket, `low` for
+ * CardTrader (which has no separate market value).
+ * @returns The number that should be plotted as the main price line/area.
+ */
+export function snapshotHeadline(snap: AnySnapshot): number {
+  return "market" in snap ? snap.market : snap.low;
 }

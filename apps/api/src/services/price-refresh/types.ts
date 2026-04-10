@@ -23,7 +23,7 @@ export interface GroupRow {
 
 /** All 8 price columns shared by marketplace_snapshots and marketplace_staging. */
 export interface PriceColumns {
-  marketCents: number;
+  marketCents: number | null;
   lowCents: number | null;
   midCents: number | null;
   highCents: number | null;

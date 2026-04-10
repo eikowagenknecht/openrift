@@ -1,10 +1,5 @@
-import type {
-  CardmarketSnapshot,
-  CardtraderSnapshot,
-  Marketplace,
-  TcgplayerSnapshot,
-  TimeRange,
-} from "@openrift/shared";
+import type { AnySnapshot, Marketplace, TimeRange } from "@openrift/shared";
+import { snapshotHeadline } from "@openrift/shared";
 import { ChevronUpIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
@@ -25,7 +20,7 @@ export const TIME_RANGES: { value: TimeRange; label: string; days: number }[] = 
 ];
 
 const chartConfig = {
-  market: { label: "Market", color: "var(--chart-1)" },
+  value: { label: "Market", color: "var(--chart-1)" },
   low: { label: "Low", color: "var(--chart-2)" },
 } satisfies ChartConfig;
 
@@ -95,17 +90,17 @@ export function PriceHistoryChart({
 
   const currencyFormatter = formatterForMarketplace(source);
   const sourceData = data?.[source];
-  const snapshots = (sourceData?.snapshots ?? []) as (
-    | TcgplayerSnapshot
-    | CardmarketSnapshot
-    | CardtraderSnapshot
-  )[];
+  // Normalize per-source snapshot shapes into a uniform `{date, value, low?}`.
+  // For TCG/CM the headline is `market` and `low` is the secondary line; for
+  // CardTrader there's only `low` (which becomes the headline `value`).
+  const rawSnapshots: AnySnapshot[] = sourceData?.snapshots ?? [];
+  const snapshots = rawSnapshots.map((s) => ({
+    date: s.date,
+    value: snapshotHeadline(s),
+    low: "market" in s ? s.low : null,
+  }));
 
-  const hasLow = snapshots.some(
-    (s) =>
-      (s as unknown as Record<string, unknown>).low !== undefined &&
-      (s as unknown as Record<string, unknown>).low !== null,
-  );
+  const hasLow = snapshots.some((s) => s.low !== null);
 
   const btnSize = "sm" as const;
 
@@ -188,15 +183,15 @@ export function PriceHistoryChart({
           >
             <defs>
               <linearGradient id="marketFill" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--color-market)" stopOpacity={0.2} />
-                <stop offset="100%" stopColor="var(--color-market)" stopOpacity={0.02} />
+                <stop offset="0%" stopColor="var(--color-value)" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="var(--color-value)" stopOpacity={0.02} />
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" />
             {highlightedDate && (
               <ReferenceLine
                 x={highlightedDate}
-                stroke="var(--color-market)"
+                stroke="var(--color-value)"
                 strokeWidth={2}
                 strokeOpacity={0.6}
               />
@@ -218,26 +213,29 @@ export function PriceHistoryChart({
                 if (!active || !payload?.length) {
                   return null;
                 }
-                const snap = payload[0].payload as Record<string, unknown>;
-                const market = snap.market as number | null;
-                const low = snap.low as number | null;
+                const snap = payload[0].payload as {
+                  date: string;
+                  value: number | null;
+                  low: number | null;
+                };
+                const headlineLabel = source === "cardtrader" ? "Lowest" : "Market";
                 return (
                   <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
-                    <p className="mb-1 font-medium">{String(snap.date)}</p>
+                    <p className="mb-1 font-medium">{snap.date}</p>
                     <div className="space-y-0.5">
-                      {market !== null && market !== undefined && (
+                      {snap.value !== null && snap.value !== undefined && (
                         <div className="flex items-center gap-2">
                           <span
                             className="size-2 rounded-full"
-                            style={{ backgroundColor: "var(--color-market)" }}
+                            style={{ backgroundColor: "var(--color-value)" }}
                           />
-                          <span className="text-muted-foreground">Market</span>
+                          <span className="text-muted-foreground">{headlineLabel}</span>
                           <span className="ml-auto font-mono font-medium tabular-nums">
-                            {currencyFormatter(market)}
+                            {currencyFormatter(snap.value)}
                           </span>
                         </div>
                       )}
-                      {low !== null && low !== undefined && (
+                      {snap.low !== null && snap.low !== undefined && (
                         <div className="flex items-center gap-2">
                           <span
                             className="size-2 rounded-full"
@@ -245,7 +243,7 @@ export function PriceHistoryChart({
                           />
                           <span className="text-muted-foreground">Low</span>
                           <span className="ml-auto font-mono font-medium tabular-nums">
-                            {currencyFormatter(low)}
+                            {currencyFormatter(snap.low)}
                           </span>
                         </div>
                       )}
@@ -254,11 +252,11 @@ export function PriceHistoryChart({
                 );
               }}
             />
-            {/* Market: filled area + solid line */}
+            {/* Headline value: filled area + solid line */}
             <Area
-              dataKey="market"
+              dataKey="value"
               type="monotone"
-              stroke="var(--color-market)"
+              stroke="var(--color-value)"
               strokeWidth={2}
               fill="url(#marketFill)"
               dot={false}

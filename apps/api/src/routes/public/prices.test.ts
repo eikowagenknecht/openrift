@@ -70,12 +70,6 @@ const dbSnapshot = {
   recordedAt: new Date("2026-03-01"),
   marketCents: 275,
   lowCents: 200,
-  midCents: 250,
-  highCents: 400,
-  trendCents: null,
-  avg1Cents: null,
-  avg7Cents: null,
-  avg30Cents: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -186,42 +180,34 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.printingId).toBe("a0000000-0001-4000-a000-000000000001");
     expect(json.tcgplayer).toBeDefined();
     expect(json.cardmarket).toBeDefined();
+    expect(json.cardtrader).toBeDefined();
   });
 
-  it("returns tcgplayer data with correct currency", async () => {
+  it("returns tcgplayer data with available + productId", async () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
     expect(json.tcgplayer.available).toBe(true);
-    expect(json.tcgplayer.currency).toBe("USD");
     expect(json.tcgplayer.productId).toBe(12_345);
   });
 
-  it("returns cardmarket data with correct currency", async () => {
+  it("returns cardmarket data with available + productId", async () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
     expect(json.cardmarket.available).toBe(true);
-    expect(json.cardmarket.currency).toBe("EUR");
     expect(json.cardmarket.productId).toBe(67_890);
   });
 
-  it("converts snapshot cents to dollars", async () => {
+  it("converts snapshot cents to dollars and trims unused fields", async () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
     expect(json.tcgplayer.snapshots).toHaveLength(1);
     expect(json.tcgplayer.snapshots[0].market).toBe(2.75);
     expect(json.tcgplayer.snapshots[0].low).toBe(2);
-    expect(json.tcgplayer.snapshots[0].mid).toBe(2.5);
-    expect(json.tcgplayer.snapshots[0].high).toBe(4);
-  });
-
-  it("handles null cents values", async () => {
-    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
-    const json = await res.json();
-    expect(json.cardmarket.snapshots[0].trend).toBeNull();
-    expect(json.cardmarket.snapshots[0].avg1).toBeNull();
+    // mid/high are no longer returned
+    expect(json.tcgplayer.snapshots[0].mid).toBeUndefined();
+    expect(json.tcgplayer.snapshots[0].high).toBeUndefined();
   });
 
   it("formats snapshot date as YYYY-MM-DD", async () => {
@@ -235,7 +221,6 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-ffffffffffff/history");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.printingId).toBe("a0000000-0001-4000-a000-ffffffffffff");
     expect(json.tcgplayer.available).toBe(false);
     expect(json.tcgplayer.snapshots).toEqual([]);
     expect(json.cardmarket.available).toBe(false);
@@ -308,7 +293,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     expect(res.status).toBe(200);
   });
 
-  it("returns cardtrader data when cardtrader source exists", async () => {
+  it("returns cardtrader data when cardtrader source exists (low-only snapshot)", async () => {
     const ctSource = {
       id: "ms-ct-1",
       externalId: 99_999,
@@ -324,14 +309,8 @@ describe("GET /api/v1/prices/:printingId/history", () => {
       id: "snap-ct-1",
       productId: "ms-ct-1",
       recordedAt: new Date("2026-03-01"),
-      marketCents: 150,
-      lowCents: null,
-      midCents: null,
-      highCents: null,
-      trendCents: null,
-      avg1Cents: null,
-      avg7Cents: null,
-      avg30Cents: null,
+      marketCents: null,
+      lowCents: 150,
     };
     mockMarketplaceRepo.snapshots.mockImplementation(async (sourceId: string) => {
       if (sourceId === "ms-ct-1") {
@@ -345,10 +324,10 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
     expect(json.cardtrader.available).toBe(true);
-    expect(json.cardtrader.currency).toBe("EUR");
     expect(json.cardtrader.productId).toBe(99_999);
     expect(json.cardtrader.snapshots).toHaveLength(1);
-    expect(json.cardtrader.snapshots[0].market).toBe(1.5);
+    expect(json.cardtrader.snapshots[0].low).toBe(1.5);
+    expect(json.cardtrader.snapshots[0].market).toBeUndefined();
   });
 
   it("returns unavailable cardtrader when no source exists", async () => {
@@ -360,19 +339,13 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     expect(json.cardtrader.snapshots).toEqual([]);
   });
 
-  it("converts cardmarket snapshot fields including trend and averages", async () => {
+  it("converts cardmarket snapshot to market+low only", async () => {
     const cmSnapshot = {
       id: "snap-cm-1",
       productId: "ms-cm-1",
       recordedAt: new Date("2026-03-02"),
       marketCents: 300,
       lowCents: 150,
-      midCents: null,
-      highCents: null,
-      trendCents: 280,
-      avg1Cents: 290,
-      avg7Cents: 310,
-      avg30Cents: 320,
     };
     mockMarketplaceRepo.snapshots.mockImplementation(async (sourceId: string) => {
       if (sourceId === "ms-cm-1") {
@@ -384,10 +357,9 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     const json = await res.json();
     expect(json.cardmarket.snapshots[0].market).toBe(3);
     expect(json.cardmarket.snapshots[0].low).toBe(1.5);
-    expect(json.cardmarket.snapshots[0].trend).toBe(2.8);
-    expect(json.cardmarket.snapshots[0].avg1).toBe(2.9);
-    expect(json.cardmarket.snapshots[0].avg7).toBe(3.1);
-    expect(json.cardmarket.snapshots[0].avg30).toBe(3.2);
+    // trend/avg1/avg7/avg30 are no longer returned
+    expect(json.cardmarket.snapshots[0].trend).toBeUndefined();
+    expect(json.cardmarket.snapshots[0].avg1).toBeUndefined();
     expect(json.cardmarket.snapshots[0].date).toBe("2026-03-02");
   });
 

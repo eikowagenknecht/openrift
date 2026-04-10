@@ -3,7 +3,10 @@ import type { SourceMappingConfig } from "./price-mappings-types";
 // oxlint-disable-next-line no-empty-function -- intentional no-op for non-interactive CardThumbnail
 export const NOOP = () => {};
 
-export function formatCents(cents: number, currency: string): string {
+export function formatCents(cents: number | null, currency: string): string {
+  if (cents === null) {
+    return "—";
+  }
   return new Intl.NumberFormat("en", {
     style: "currency",
     currency,

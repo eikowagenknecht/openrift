@@ -154,7 +154,7 @@ export function marketplaceMappingRepo(db: Db) {
       rows: {
         productId: string;
         recordedAt: Date;
-        marketCents: number;
+        marketCents: number | null;
         lowCents: number | null;
         midCents: number | null;
         highCents: number | null;
@@ -169,7 +169,7 @@ export function marketplaceMappingRepo(db: Db) {
         .values(rows)
         .onConflict((oc) =>
           oc.columns(["productId", "recordedAt"]).doUpdateSet({
-            marketCents: sql<number>`excluded.market_cents`,
+            marketCents: sql<number | null>`excluded.market_cents`,
             lowCents: sql<number | null>`excluded.low_cents`,
             midCents: sql<number | null>`excluded.mid_cents`,
             highCents: sql<number | null>`excluded.high_cents`,

@@ -18,7 +18,7 @@ const PRICE_COL_NAMES = [
 ] as const;
 
 const PRICE_EXCLUDED_SET = {
-  marketCents: sql<number>`excluded.market_cents`,
+  marketCents: sql<number | null>`excluded.market_cents`,
   lowCents: sql<number | null>`excluded.low_cents`,
   midCents: sql<number | null>`excluded.mid_cents`,
   highCents: sql<number | null>`excluded.high_cents`,
@@ -150,7 +150,7 @@ export function priceRefreshRepo(db: Db) {
       batch: {
         productId: string;
         recordedAt: Date;
-        marketCents: number;
+        marketCents: number | null;
         lowCents: number | null;
         midCents: number | null;
         highCents: number | null;
@@ -188,7 +188,7 @@ export function priceRefreshRepo(db: Db) {
         productName: string;
         recordedAt: Date;
         groupId: number;
-        marketCents: number;
+        marketCents: number | null;
         lowCents: number | null;
         midCents: number | null;
         highCents: number | null;
