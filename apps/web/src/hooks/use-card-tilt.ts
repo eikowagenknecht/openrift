@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 interface CardTiltOptions {
   mode: "pointer" | "none";
@@ -9,15 +9,12 @@ interface CardTiltOptions {
 interface CardTiltResult {
   containerRef: React.RefCallback<HTMLElement>;
   innerRef: React.RefCallback<HTMLElement>;
-  style: React.CSSProperties;
-  active: boolean;
 }
 
 export function useCardTilt({ mode, enabled, maxTilt = 8 }: CardTiltOptions): CardTiltResult {
   const containerElRef = useRef<HTMLElement | null>(null);
   const innerElRef = useRef<HTMLElement | null>(null);
   const rafRef = useRef(0);
-  const [active, setActive] = useState(mode === "none");
 
   const containerRef = (node: HTMLElement | null) => {
     containerElRef.current = node;
@@ -59,7 +56,6 @@ export function useCardTilt({ mode, enabled, maxTilt = 8 }: CardTiltOptions): Ca
     const onEnter = () => {
       // Remove transition so movement is instant
       inner.style.transition = "transform 0s";
-      setActive(true);
     };
 
     const onMove = (e: PointerEvent) => {
@@ -94,7 +90,6 @@ export function useCardTilt({ mode, enabled, maxTilt = 8 }: CardTiltOptions): Ca
       el.style.setProperty("--foil-rotate-y", "0deg");
       el.style.setProperty("--foil-bg-x", "50%");
       el.style.setProperty("--foil-bg-y", "50%");
-      setActive(false);
     };
 
     el.addEventListener("pointerenter", onEnter);
@@ -109,12 +104,8 @@ export function useCardTilt({ mode, enabled, maxTilt = 8 }: CardTiltOptions): Ca
     };
   }, [enabled, mode, maxTilt]);
 
-  const isActive = enabled && (mode === "none" ? true : active);
-
   return {
     containerRef,
     innerRef,
-    style: {},
-    active: isActive,
   };
 }

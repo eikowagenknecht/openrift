@@ -290,7 +290,7 @@ export const CardThumbnail = memo(function CardThumbnail({
           </div>
         );
       })}
-      <div ref={tilt.containerRef} style={tilt.style} className="relative">
+      <div ref={tilt.containerRef} className="relative">
         {rotated ? (
           <div className="relative overflow-hidden" style={{ borderRadius: CARD_BORDER_RADIUS }}>
             <div
