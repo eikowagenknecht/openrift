@@ -213,6 +213,35 @@ export function SupportPage() {
         </div>
       </section>
 
+      {/* Affiliate */}
+      <section className="mb-10">
+        <h2 className="mb-1 text-lg font-semibold">Shop Through the Rift</h2>
+        <p className="text-muted-foreground text-sm">
+          When you click a{" "}
+          <a
+            href="https://partner.tcgplayer.com/openrift?u=https%3A%2F%2Fwww.tcgplayer.com%2F"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            TCGplayer
+          </a>{" "}
+          or{" "}
+          <a
+            href="https://www.cardtrader.com/?share_code=openrift"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            Cardtrader
+          </a>{" "}
+          link from a card&apos;s prices and end up buying something, we get a very small commission
+          at no extra cost to you. (Cardmarket doesn&apos;t do this, so those links are just regular
+          links.) Buying cards you were going to buy anyway through our links is a sneaky-easy way
+          to help out.
+        </p>
+      </section>
+
       {/* Community */}
       <section className="mb-10">
         <h2 className="mb-1 text-lg font-semibold">Join the Party</h2>
