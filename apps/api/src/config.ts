@@ -39,6 +39,7 @@ export function createConfig(env: Record<string, string | undefined>) {
     appBaseUrl: env.BETTER_AUTH_URL ?? "",
 
     logRequests: env.LOG_REQUESTS === "true",
+    logRequestBodies: env.LOG_REQUEST_BODIES === "true",
 
     cron: {
       tcgplayerSchedule: env.CRON_TCGPLAYER,

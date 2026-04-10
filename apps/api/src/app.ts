@@ -133,6 +133,38 @@ export function createApp(deps: AppDeps) {
     app.use("/api/*", logger());
   }
 
+  if (config.logRequestBodies) {
+    app.use("/api/*", async (c, next) => {
+      const method = c.req.method;
+      const path = c.req.path;
+      const hasBody = method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
+      // Skip auth endpoints to avoid logging credentials (passwords, OTPs, tokens).
+      if (hasBody && !path.startsWith("/api/auth/")) {
+        const contentType = c.req.header("content-type") ?? "";
+        const isTextual =
+          contentType.includes("json") ||
+          contentType.includes("text") ||
+          contentType.includes("urlencoded");
+        if (isTextual) {
+          try {
+            const text = await c.req.raw.clone().text();
+            if (text.length > 0) {
+              const MAX_BODY_LOG_BYTES = 10_000;
+              const body =
+                text.length > MAX_BODY_LOG_BYTES
+                  ? `${text.slice(0, MAX_BODY_LOG_BYTES)}... [truncated ${text.length - MAX_BODY_LOG_BYTES} bytes]`
+                  : text;
+              log.info({ method, path, body }, "Request body");
+            }
+          } catch (error) {
+            log.warn({ err: error, method, path }, "Failed to read request body for logging");
+          }
+        }
+      }
+      await next();
+    });
+  }
+
   // Make shared dependencies (repos, services, etc.) available via c.get() in all routes.
   app.use("/api/*", async (c, next) => {
     c.set("io", deps.io ?? defaultIo);
