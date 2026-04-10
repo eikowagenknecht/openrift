@@ -26,6 +26,7 @@ import { useExportDeck } from "@/hooks/use-decks";
 import { useSession } from "@/lib/auth-session";
 import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
 import { generateRegistrationPdf } from "@/lib/registration-pdf";
+import { getSiteUrl } from "@/lib/site-config";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 
@@ -187,7 +188,7 @@ export function DeckExportDialog({
       eventLocation,
     };
     try {
-      await generateRegistrationPdf(fields, cards, registrationPageSize);
+      await generateRegistrationPdf(fields, cards, registrationPageSize, getSiteUrl());
     } finally {
       setGenerating(false);
     }

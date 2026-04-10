@@ -7,9 +7,10 @@ import { catalogQueryOptions } from "@/hooks/use-cards";
 import { collectionsQueryOptions, useCollectionsMap } from "@/hooks/use-collections";
 import { copiesQueryOptions } from "@/hooks/use-copies";
 import { seoHead } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/_authenticated/collections/$collectionId")({
-  head: () => seoHead({ title: "Collection", noIndex: true }),
+  head: () => seoHead({ siteUrl: getSiteUrl(), title: "Collection", noIndex: true }),
   loader: async ({ context, params }) => {
     const [collections] = await Promise.all([
       context.queryClient.ensureQueryData(collectionsQueryOptions),

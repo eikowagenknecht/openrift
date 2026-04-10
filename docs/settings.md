@@ -8,15 +8,15 @@ All env vars are set in `.env` at the repo/deployment root. See `.env.example` f
 
 ### API
 
-| Variable             | Required | Default                 | Description                                                                                                         |
-| -------------------- | -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`       | **yes**  |                         | PostgreSQL connection string. Use `db` (Compose service name) as the host in production, `localhost` for local dev. |
-| `BETTER_AUTH_SECRET` | **yes**  |                         | Session secret for Better Auth. Generate with `openssl rand -base64 32`.                                            |
-| `APP_ENV`            |          | `development`           | Set to `production` to hide stack traces and validation details in error responses.                                 |
-| `PORT`               |          | `3000`                  | Port the Hono server listens on inside the container.                                                               |
-| `CORS_ORIGIN`        |          |                         | Comma-separated allowed origins. Supports wildcards (`*.example.com`).                                              |
-| `BETTER_AUTH_URL`    |          | `http://localhost:5173` | Public URL for Better Auth callbacks.                                                                               |
-| `ADMIN_EMAIL`        |          |                         | Email address that is auto-promoted to admin on signup.                                                             |
+| Variable             | Required | Default                 | Description                                                                                                                                                                                                              |
+| -------------------- | -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`       | **yes**  |                         | PostgreSQL connection string. Use `db` (Compose service name) as the host in production, `localhost` for local dev.                                                                                                      |
+| `BETTER_AUTH_SECRET` | **yes**  |                         | Session secret for Better Auth. Generate with `openssl rand -base64 32`.                                                                                                                                                 |
+| `APP_ENV`            |          | `development`           | `development` \| `production` \| `preview`. Non-dev values hide stack traces and enforce required prod vars. `preview` additionally excludes the deploy from search indexing (noindex meta, robots.txt, `X-Robots-Tag`). |
+| `PORT`               |          | `3000`                  | Port the Hono server listens on inside the container.                                                                                                                                                                    |
+| `CORS_ORIGIN`        |          |                         | Comma-separated allowed origins. Supports wildcards (`*.example.com`).                                                                                                                                                   |
+| `BETTER_AUTH_URL`    |          | `http://localhost:5173` | Public URL for Better Auth callbacks.                                                                                                                                                                                    |
+| `ADMIN_EMAIL`        |          |                         | Email address that is auto-promoted to admin on signup.                                                                                                                                                                  |
 
 #### OAuth Providers
 
@@ -58,6 +58,14 @@ Email sending is disabled when `SMTP_HOST` is unset.
 | Variable             | Default | Description                                                                                                                        |
 | -------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `VITE_PREVIEW_HOSTS` |         | Comma-separated hostname suffixes that identify preview deployments (e.g. `.workers.dev`). Used to detect preview URLs at runtime. |
+
+#### Web SSR (runtime)
+
+Resolved per container at startup, **not** baked into the Docker image. The same image ships to both prod and preview — each deployment sets these from its own `.env`. `APP_ENV` is shared with the API (see above) and drives the preview noindex behavior.
+
+| Variable   | Default                 | Description                                                                                                                                                                                 |
+| ---------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SITE_URL` | `http://localhost:5173` | Public origin for this deployment. Used for og:image, canonical links, sitemap, share URLs, PDF branding. Set to `https://openrift.app` in prod, `https://preview.openrift.app` in preview. |
 
 `VITE_BUILD_HASH` is injected automatically at build time (exposed as `__COMMIT_HASH__` in code).
 

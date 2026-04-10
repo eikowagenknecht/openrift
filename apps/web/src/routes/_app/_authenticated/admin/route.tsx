@@ -7,10 +7,11 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { isAdminQueryOptions } from "@/hooks/use-admin";
 import { seoHead } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/site-config";
 import { FOOTER_PADDING_NO_TOP } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/_authenticated/admin")({
-  head: () => seoHead({ title: "Admin", noIndex: true }),
+  head: () => seoHead({ siteUrl: getSiteUrl(), title: "Admin", noIndex: true }),
   staticData: { hideFooter: true },
   errorComponent: RouteErrorFallback,
   beforeLoad: async ({ context }) => {

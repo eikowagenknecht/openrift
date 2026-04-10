@@ -5,6 +5,7 @@
 - feat: The Support page now explains that buying through TCGplayer or Cardtrader price links earns us a small commission, so shopping you were going to do anyway can help fund the site
 - fix: Set pages now show cards in your preferred language instead of randomly mixing printings from different languages
 - fix: Hovering a card in the deck editor now shows the preview instantly instead of waiting for a full-resolution image to download, then crisps up once the higher-res version arrives
+- fix: Sharing a card page on Telegram, WhatsApp, or Discord now shows the card image in the preview, instead of nothing
 - fix: Dragging a card in the deck editor no longer shows the hover preview or lets text get selected, so the drag stays out of the way
 - fix: Filtering by price range now respects the marketplace you have selected, instead of always filtering on TCGplayer prices
 - fix: The price filter slider and active filter badges now show the right currency for your selected marketplace (€ for Cardmarket and CardTrader, $ for TCGplayer)

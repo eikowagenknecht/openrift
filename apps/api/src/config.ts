@@ -1,6 +1,7 @@
 export function createConfig(env: Record<string, string | undefined>) {
+  const appEnv = env.APP_ENV ?? "development";
   return {
-    isDev: (env.APP_ENV ?? "development") !== "production",
+    isDev: appEnv !== "production" && appEnv !== "preview",
     port: Number(env.PORT ?? 3000),
     databaseUrl: env.DATABASE_URL ?? "",
 
@@ -55,7 +56,9 @@ export function createConfig(env: Record<string, string | undefined>) {
 
 export function validateConfig(env: Record<string, string | undefined>): void {
   const required = ["DATABASE_URL", "BETTER_AUTH_SECRET"] as const;
-  const isProd = env.APP_ENV === "production";
+  // Preview is a prod-style build on a non-canonical domain — enforce the
+  // same required vars as production.
+  const isProd = env.APP_ENV === "production" || env.APP_ENV === "preview";
   const requiredInProd = ["CORS_ORIGIN", "BETTER_AUTH_URL"] as const;
 
   const missing = [

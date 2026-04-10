@@ -117,6 +117,7 @@ function drawHeader(
   fields: RegistrationFields,
   logoDataUrl: string | null,
   pageWidth: number,
+  siteUrl: string,
 ): number {
   let currentY = MARGIN_TOP;
 
@@ -133,16 +134,17 @@ function drawHeader(
     }
   }
 
-  // "Generated with openrift.app" centered below logo, linked
+  // "Generated with <host>" centered below logo, linked to the current deploy
   doc.setFont("helvetica", "bold");
   doc.setFontSize(5);
   doc.setTextColor(100, 100, 100);
-  const brandText = "Generated with openrift.app";
+  const brandHost = siteUrl.replace(/^https?:\/\//, "");
+  const brandText = `Generated with ${brandHost}`;
   const brandTextWidth = doc.getTextWidth(brandText);
   const brandX = logoX + LOGO_SIZE / 2 - brandTextWidth / 2;
   const brandY = currentY + LOGO_SIZE + 3;
   doc.text(brandText, brandX, brandY);
-  doc.link(brandX, brandY - 2, brandTextWidth, 3, { url: "https://openrift.app" });
+  doc.link(brandX, brandY - 2, brandTextWidth, 3, { url: siteUrl });
   doc.setTextColor(0, 0, 0);
 
   // Title "DECK REGISTRATION SHEET"
@@ -472,6 +474,7 @@ export async function generateRegistrationPdf(
   fields: RegistrationFields,
   cards: DeckBuilderCard[],
   pageSize: RegistrationPageSize,
+  siteUrl: string,
 ): Promise<void> {
   const page = PAGE_SIZES[pageSize];
   const doc = new jsPDF({
@@ -495,7 +498,7 @@ export async function generateRegistrationPdf(
 
   // ── Header ──────────────────────────────────────────────────────────────
 
-  const cardAreaTop = drawHeader(doc, fields, logoDataUrl, page.width);
+  const cardAreaTop = drawHeader(doc, fields, logoDataUrl, page.width, siteUrl);
 
   // ── Card area border ────────────────────────────────────────────────────
 

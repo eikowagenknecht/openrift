@@ -5,20 +5,20 @@
  */
 
 const SITE_NAME = "OpenRift";
-const SITE_URL = "https://openrift.app";
-const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`;
 const DEFAULT_DESCRIPTION =
   "Browse, collect, and build decks for the Riftbound trading card game. Search cards, track your collection, compare prices, and share decks.";
 const TWITTER_SITE = "@eikowagenknecht";
 
 interface SeoOptions {
+  /** Canonical origin for this deployment (from runtime env, not build time). */
+  siteUrl: string;
   /** Page title (without site suffix). */
   title: string;
   /** Meta description for the page. */
   description?: string;
   /** Canonical URL path (e.g. "/cards"). Omit for no canonical tag. */
   path?: string;
-  /** Open Graph image URL. Defaults to the static branded image. */
+  /** Open Graph image URL. Defaults to the static branded image on `siteUrl`. */
   ogImage?: string;
   /** Open Graph type. Defaults to "website". */
   ogType?: string;
@@ -32,10 +32,11 @@ interface SeoOptions {
  * @returns An object with `meta` and `links` arrays.
  */
 export function seoHead(options: SeoOptions) {
-  const { title, path, ogImage = DEFAULT_OG_IMAGE, ogType = "website", noIndex } = options;
+  const { siteUrl, title, path, ogType = "website", noIndex } = options;
+  const ogImage = options.ogImage ?? `${siteUrl}/og-image.png`;
   const description = options.description ?? DEFAULT_DESCRIPTION;
   const fullTitle = title.includes(SITE_NAME) ? title : `${title} — ${SITE_NAME}`;
-  const canonicalUrl = path ? `${SITE_URL}${path}` : undefined;
+  const canonicalUrl = path ? `${siteUrl}${path}` : undefined;
 
   const meta: Record<string, string>[] = [
     { title: fullTitle },
@@ -83,20 +84,20 @@ export function seoHead(options: SeoOptions) {
  *
  * @returns A script descriptor for TanStack Start's `head.scripts`.
  */
-export function websiteJsonLd() {
+export function websiteJsonLd(siteUrl: string) {
   return {
     type: "application/ld+json",
     children: JSON.stringify({
       "@context": "https://schema.org",
       "@type": "WebSite",
       name: SITE_NAME,
-      url: SITE_URL,
+      url: siteUrl,
       description: DEFAULT_DESCRIPTION,
       potentialAction: {
         "@type": "SearchAction",
         target: {
           "@type": "EntryPoint",
-          urlTemplate: `${SITE_URL}/cards?q={search_term_string}`,
+          urlTemplate: `${siteUrl}/cards?q={search_term_string}`,
         },
         "query-input": "required name=search_term_string",
       },
@@ -114,7 +115,7 @@ interface BreadcrumbItem {
  *
  * @returns A script descriptor for TanStack Start's `head.scripts`.
  */
-export function breadcrumbJsonLd(items: BreadcrumbItem[]) {
+export function breadcrumbJsonLd(siteUrl: string, items: BreadcrumbItem[]) {
   return {
     type: "application/ld+json",
     children: JSON.stringify({
@@ -124,13 +125,14 @@ export function breadcrumbJsonLd(items: BreadcrumbItem[]) {
         "@type": "ListItem",
         position: index + 1,
         name: item.name,
-        item: `${SITE_URL}${item.path}`,
+        item: `${siteUrl}${item.path}`,
       })),
     }),
   };
 }
 
 interface ProductJsonLdOptions {
+  siteUrl: string;
   name: string;
   description: string;
   image?: string;
@@ -174,7 +176,7 @@ export function productJsonLd(options: ProductJsonLdOptions) {
       name: options.name,
       description: options.description,
       image: options.image,
-      url: `${SITE_URL}${options.url}`,
+      url: `${options.siteUrl}${options.url}`,
       brand: { "@type": "Brand", name: "Riftbound" },
       ...(offer ? { offers: offer } : {}),
     }),

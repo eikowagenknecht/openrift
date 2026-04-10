@@ -5,9 +5,10 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { decksQueryOptions } from "@/hooks/use-decks";
 import { seoHead } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/_authenticated/decks/")({
-  head: () => seoHead({ title: "Decks", noIndex: true }),
+  head: () => seoHead({ siteUrl: getSiteUrl(), title: "Decks", noIndex: true }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(decksQueryOptions),

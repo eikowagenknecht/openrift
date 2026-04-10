@@ -6,29 +6,8 @@ import { PAGE_PADDING } from "@/lib/utils";
 
 import type { HelpArticle } from "./articles";
 
-const SITE_URL = "https://openrift.app";
-
 export function HelpArticlePage({ article }: { article: HelpArticle }) {
   const ArticleContent = lazy(article.component);
-
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "Help",
-        item: `${SITE_URL}/help`,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: article.title,
-        item: `${SITE_URL}/help/${article.slug}`,
-      },
-    ],
-  };
 
   return (
     <div className={`mx-auto w-full max-w-2xl flex-1 ${PAGE_PADDING}`}>
@@ -55,10 +34,6 @@ export function HelpArticlePage({ article }: { article: HelpArticle }) {
       <Suspense>
         <ArticleContent />
       </Suspense>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
     </div>
   );
 }

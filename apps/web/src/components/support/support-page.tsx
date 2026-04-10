@@ -5,11 +5,11 @@ import { siDiscord, siGithubsponsors, siKofi, siReddit, siX } from "simple-icons
 import { CardText } from "@/components/cards/card-text";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getSiteUrl } from "@/lib/site-config";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 const GITHUB_SPONSORS_URL = "https://github.com/sponsors/eikowagenknecht";
 const KOFI_URL = "https://ko-fi.com/eikowagenknecht";
-const SITE_URL = "https://openrift.app";
 
 interface SupportTier {
   rarity: string;
@@ -123,9 +123,9 @@ function CopyButton({ text, label, icon }: { text: string; label: string; icon: 
 }
 
 export function SupportPage() {
-  const tweetText = encodeURIComponent(
-    "Check out OpenRift — a free card browser for Riftbound! https://openrift.app",
-  );
+  const siteUrl = getSiteUrl();
+  const shareText = `Check out OpenRift — a free card browser for Riftbound! ${siteUrl}`;
+  const tweetText = encodeURIComponent(shareText);
 
   return (
     <div className={`mx-auto flex w-full max-w-2xl flex-1 flex-col ${PAGE_PADDING}`}>
@@ -203,12 +203,12 @@ export function SupportPage() {
           <ShareButton
             label="Tell Reddit about us"
             icon={<SimpleIcon icon={siReddit} />}
-            href={`https://reddit.com/submit?url=${encodeURIComponent(SITE_URL)}&title=${encodeURIComponent("OpenRift — free card browser for Riftbound")}`}
+            href={`https://reddit.com/submit?url=${encodeURIComponent(siteUrl)}&title=${encodeURIComponent("OpenRift — free card browser for Riftbound")}`}
           />
           <CopyButton
             label="Send a Carrier Pigeon"
             icon={<CopyIcon className="size-4" />}
-            text="Check out OpenRift — a free card browser for Riftbound! https://openrift.app"
+            text={shareText}
           />
         </div>
       </section>
