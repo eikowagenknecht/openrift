@@ -78,6 +78,7 @@
     "eslint": "10.2.0",
     "eslint-plugin-react-compiler": "19.1.0-rc.2",
     "jsdom": "29.0.2",
+    "react-scan": "0.5.3",
     "typescript": "6.0.2",
     "typescript-eslint": "8.58.1",
     "vite": "8.0.8",
