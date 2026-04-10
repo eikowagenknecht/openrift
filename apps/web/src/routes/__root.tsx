@@ -10,6 +10,7 @@ import { RouteNotFoundFallback } from "@/components/error-message";
 import { Toaster } from "@/components/ui/sonner";
 import { PROD } from "@/lib/env";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
+import { getIsPreview } from "@/lib/site-config";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
 
 // CSS ?url import causes a harmless hydration warning in dev (Vite appends
@@ -73,6 +74,11 @@ export const Route = createRootRouteWithContext<{
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "theme-color", content: "#1d1538" },
       { name: "impact-site-verification", content: "5a360cf2-9e98-4886-8c05-4e2e1a39ce0e" },
+      // Preview deploys must never be indexed. Layer 1 of 3 (see also
+      // /robots.txt in server.ts and X-Robots-Tag in preview nginx).
+      ...(getIsPreview()
+        ? [{ name: "robots", content: "noindex, nofollow" } as Record<string, string>]
+        : []),
     ],
     links: [
       { rel: "icon", type: "image/png", sizes: "64x64", href: "/favicon-64x64.png" },

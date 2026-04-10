@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { breadcrumbJsonLd, productJsonLd, seoHead } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/site-config";
 
 function buildDescription(
   card: CardDetailResponse["card"],
@@ -39,17 +40,29 @@ function getFrontImageUrl(printings: CatalogPrintingResponse[]): string {
   return "";
 }
 
+function toAbsoluteUrl(siteUrl: string, imageUrl: string): string | undefined {
+  if (!imageUrl) {
+    return undefined;
+  }
+  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    return imageUrl;
+  }
+  return `${siteUrl}${imageUrl.startsWith("/") ? "" : "/"}${imageUrl}`;
+}
+
 export const Route = createFileRoute("/_app/cards_/$cardSlug")({
   head: ({ loaderData }) => {
+    const siteUrl = getSiteUrl();
     const data = loaderData as CardDetailResponse | undefined;
     if (!data) {
-      return seoHead({ title: "Card" });
+      return seoHead({ siteUrl, title: "Card" });
     }
 
-    const imageUrl = getFrontImageUrl(data.printings) || undefined;
+    const imageUrl = toAbsoluteUrl(siteUrl, getFrontImageUrl(data.printings));
     const description = buildDescription(data.card, data.printings);
     const cardPath = `/cards/${data.card.slug}`;
     const head = seoHead({
+      siteUrl,
       title: `${data.card.name} — Riftbound Card`,
       description,
       path: cardPath,
@@ -69,6 +82,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       ...head,
       scripts: [
         productJsonLd({
+          siteUrl,
           name: data.card.name,
           description: `${data.card.name} is a ${data.card.type} card from Riftbound.`,
           image: imageUrl,
@@ -76,7 +90,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
           priceLow,
           priceHigh,
         }),
-        breadcrumbJsonLd([
+        breadcrumbJsonLd(siteUrl, [
           { name: "Cards", path: "/cards" },
           { name: data.card.name, path: cardPath },
         ]),

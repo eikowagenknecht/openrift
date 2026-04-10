@@ -56,6 +56,11 @@ services:
     environment:
       PORT: "3001"
       API_INTERNAL_URL: "http://api:3000"
+      # Resolved per-container at startup from .env so the same image can ship
+      # to prod and preview. Each deploy sets APP_ENV (production|preview)
+      # and SITE_URL in its own .env.
+      APP_ENV: "${APP_ENV:-production}"
+      SITE_URL: "${SITE_URL}"
     logging:
       driver: json-file
       options:

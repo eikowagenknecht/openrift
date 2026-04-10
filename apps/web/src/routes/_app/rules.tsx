@@ -5,10 +5,12 @@ import { ruleVersionsQueryOptions, rulesQueryOptions } from "@/hooks/use-rules";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { seoHead } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/rules")({
   head: () =>
     seoHead({
+      siteUrl: getSiteUrl(),
       title: "Rules",
       description: "Read the official Riftbound rules, with version history and keyword reference.",
       path: "/rules",

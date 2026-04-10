@@ -6,11 +6,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
 import { seoHead } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 export const Route = createFileRoute("/_app/cards")({
   head: () =>
     seoHead({
+      siteUrl: getSiteUrl(),
       title: "Cards",
       description:
         "Browse all Riftbound cards with filters for set, domain, rarity, cost, and more. View card art, stats, and pricing.",

@@ -2,9 +2,45 @@ import type { SitemapDataResponse } from "@openrift/shared";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
 const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
-const SITE_URL = "https://openrift.app";
 
 const DEPLOY_DATE = new Date().toISOString().slice(0, 10);
+
+function getSiteUrl(): string {
+  // Dev fallback is a localhost URL on purpose — a missing SITE_URL in
+  // production should fail loudly rather than silently leaking the prod URL
+  // into preview deploys. Must stay in sync with runtime-config.ts.
+  return process.env.SITE_URL ?? "http://localhost:5173";
+}
+
+function isPreview(): boolean {
+  return process.env.APP_ENV === "preview";
+}
+
+// Preview deploys serve a restrictive robots.txt to block crawlers.
+// Layer 2 of 3 (see __root.tsx meta + nginx X-Robots-Tag).
+const PREVIEW_ROBOTS_TXT = "User-agent: *\nDisallow: /\n";
+
+function buildProdRobotsTxt(): string {
+  return [
+    "User-agent: *",
+    "Allow: /",
+    "",
+    "# Authenticated-only routes (not useful to crawlers)",
+    "Disallow: /collections",
+    "Disallow: /decks",
+    "Disallow: /profile",
+    "Disallow: /admin",
+    "",
+    "# Auth flows",
+    "Disallow: /login",
+    "Disallow: /signup",
+    "Disallow: /reset-password",
+    "Disallow: /verify-email",
+    "",
+    `Sitemap: ${getSiteUrl()}/sitemap.xml`,
+    "",
+  ].join("\n");
+}
 
 const STATIC_PAGES = [
   { path: "/", priority: "1.0", changefreq: "weekly" },
@@ -17,6 +53,7 @@ const STATIC_PAGES = [
 ];
 
 async function generateSitemap(): Promise<string> {
+  const siteUrl = getSiteUrl();
   const res = await fetch(`${API_URL}/api/v1/sitemap-data`);
   if (!res.ok) {
     throw new Error(`Sitemap data fetch failed: ${res.status}`);
@@ -26,19 +63,19 @@ async function generateSitemap(): Promise<string> {
   const urls: string[] = [];
   for (const page of STATIC_PAGES) {
     urls.push(
-      `  <url><loc>${SITE_URL}${page.path}</loc><lastmod>${DEPLOY_DATE}</lastmod><changefreq>${page.changefreq}</changefreq><priority>${page.priority}</priority></url>`,
+      `  <url><loc>${siteUrl}${page.path}</loc><lastmod>${DEPLOY_DATE}</lastmod><changefreq>${page.changefreq}</changefreq><priority>${page.priority}</priority></url>`,
     );
   }
   for (const entry of data.cards) {
     const lastmod = entry.updatedAt.slice(0, 10);
     urls.push(
-      `  <url><loc>${SITE_URL}/cards/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>`,
+      `  <url><loc>${siteUrl}/cards/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.7</priority></url>`,
     );
   }
   for (const entry of data.sets) {
     const lastmod = entry.updatedAt.slice(0, 10);
     urls.push(
-      `  <url><loc>${SITE_URL}/sets/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`,
+      `  <url><loc>${siteUrl}/sets/${entry.slug}</loc><lastmod>${lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>`,
     );
   }
 
@@ -55,6 +92,14 @@ export default createServerEntry({
     const url = new URL(request.url);
     if (url.pathname === "/health") {
       return new Response("ok", { status: 200 });
+    }
+    if (url.pathname === "/robots.txt") {
+      return new Response(isPreview() ? PREVIEW_ROBOTS_TXT : buildProdRobotsTxt(), {
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+          "Cache-Control": "public, max-age=3600",
+        },
+      });
     }
     if (url.pathname === "/sitemap.xml") {
       try {
