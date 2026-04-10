@@ -9,6 +9,16 @@ export interface CollectionValue {
   unpricedCopyCount: number;
 }
 
+// Cardmarket's `avg` field is a sales-history mean that occasionally spikes
+// from a single anomalous listing/sale and stays stuck for days. We display
+// the cheapest current listing instead — same convention as CardTrader.
+const HEADLINE_CENTS_EXPR = sql<number | null>`
+  case when mp.marketplace = 'cardmarket'
+    then coalesce(snap.low_cents, snap.market_cents)
+    else coalesce(snap.market_cents, snap.low_cents)
+  end
+`;
+
 /**
  * Read-only queries for marketplace prices and snapshots.
  *
@@ -21,9 +31,9 @@ export function marketplaceRepo(db: Kysely<Database>) {
      *
      * Uses a sibling self-join so variants with `language IS NULL` (cross-language
      * aggregate prices — Cardmarket) surface on every language of a card, while
-     * exact-language variants stay pinned to their specific printing. Coalesces
-     * `market_cents` with `low_cents` so marketplaces without a true market price
-     * (e.g. cardtrader) fall back to their lowest listing.
+     * exact-language variants stay pinned to their specific printing. The headline
+     * is `market_cents` for TCGPlayer and `low_cents` for Cardmarket / CardTrader
+     * (see HEADLINE_CENTS_EXPR for the rationale).
      *
      * @returns Rows with `printingId`, `marketplace`, and the headline price as `marketCents`.
      */
@@ -34,7 +44,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         SELECT DISTINCT ON (target.id, mp.marketplace)
           target.id as "printingId",
           mp.marketplace as "marketplace",
-          coalesce(snap.market_cents, snap.low_cents) as "marketCents"
+          ${HEADLINE_CENTS_EXPR} as "marketCents"
         FROM printings target
         JOIN printings source
           ON source.card_id = target.card_id
@@ -46,7 +56,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
         JOIN marketplace_snapshots snap ON snap.variant_id = mpv.id
-        WHERE coalesce(snap.market_cents, snap.low_cents) IS NOT NULL
+        WHERE ${HEADLINE_CENTS_EXPR} IS NOT NULL
           AND (mpv.language IS NULL OR source.id = target.id)
         ORDER BY target.id, mp.marketplace, snap.recorded_at DESC
       `.execute(db);
@@ -70,7 +80,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         SELECT DISTINCT ON (target.id, mp.marketplace)
           target.id as "printingId",
           mp.marketplace as "marketplace",
-          coalesce(snap.market_cents, snap.low_cents) as "marketCents"
+          ${HEADLINE_CENTS_EXPR} as "marketCents"
         FROM printings target
         JOIN printings source
           ON source.card_id = target.card_id
@@ -83,7 +93,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
         JOIN marketplace_snapshots snap ON snap.variant_id = mpv.id
         WHERE target.id = ANY(${printingIds})
-          AND coalesce(snap.market_cents, snap.low_cents) IS NOT NULL
+          AND ${HEADLINE_CENTS_EXPR} IS NOT NULL
           AND (mpv.language IS NULL OR source.id = target.id)
         ORDER BY target.id, mp.marketplace, snap.recorded_at DESC
       `.execute(db);
@@ -170,10 +180,13 @@ export function marketplaceRepo(db: Kysely<Database>) {
           inner join marketplace_products mp
             on mp.id = mpv.marketplace_product_id and mp.marketplace = ${marketplace}
           inner join lateral (
-            select coalesce(ms.market_cents, ms.low_cents) as headline_cents
-            from marketplace_snapshots ms
-            where ms.variant_id = mpv.id
-            order by ms.recorded_at desc
+            select case when mp.marketplace = 'cardmarket'
+                     then coalesce(snap.low_cents, snap.market_cents)
+                     else coalesce(snap.market_cents, snap.low_cents)
+                   end as headline_cents
+            from marketplace_snapshots snap
+            where snap.variant_id = mpv.id
+            order by snap.recorded_at desc
             limit 1
           ) latest on true
           where p.card_id = dc.card_id
@@ -203,7 +216,10 @@ export function marketplaceRepo(db: Kysely<Database>) {
         left join marketplace_products mp
           on mp.id = mpv.marketplace_product_id and mp.marketplace = ${marketplace}
         left join lateral (
-          select coalesce(ms.market_cents, ms.low_cents) as headline_cents
+          select case when mp.marketplace = 'cardmarket'
+                   then coalesce(ms.low_cents, ms.market_cents)
+                   else coalesce(ms.market_cents, ms.low_cents)
+                 end as headline_cents
           from marketplace_snapshots ms
           where ms.variant_id = mpv.id
           order by ms.recorded_at desc
@@ -235,7 +251,10 @@ export function marketplaceRepo(db: Kysely<Database>) {
         left join marketplace_products mp
           on mp.id = mpv.marketplace_product_id and mp.marketplace = ${marketplace}
         left join lateral (
-          select coalesce(ms.market_cents, ms.low_cents) as headline_cents
+          select case when mp.marketplace = 'cardmarket'
+                   then coalesce(ms.low_cents, ms.market_cents)
+                   else coalesce(ms.market_cents, ms.low_cents)
+                 end as headline_cents
           from marketplace_snapshots ms
           where ms.variant_id = mpv.id
           order by ms.recorded_at desc

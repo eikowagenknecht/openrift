@@ -339,7 +339,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     expect(json.cardtrader.snapshots).toEqual([]);
   });
 
-  it("converts cardmarket snapshot to market+low only", async () => {
+  it("uses Cardmarket's lowest listing as the headline market price", async () => {
     const cmSnapshot = {
       id: "snap-cm-1",
       variantId: "ms-cm-1",
@@ -355,12 +355,53 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     });
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
-    expect(json.cardmarket.snapshots[0].market).toBe(3);
+    // Headline = lowCents (1.50), not marketCents (3.00). CM's `avg` field
+    // can be polluted by anomalous sales, so we display the cheapest listing.
+    expect(json.cardmarket.snapshots[0].market).toBe(1.5);
     expect(json.cardmarket.snapshots[0].low).toBe(1.5);
     // trend/avg1/avg7/avg30 are no longer returned
     expect(json.cardmarket.snapshots[0].trend).toBeUndefined();
     expect(json.cardmarket.snapshots[0].avg1).toBeUndefined();
     expect(json.cardmarket.snapshots[0].date).toBe("2026-03-02");
+  });
+
+  it("falls back to marketCents for Cardmarket when lowCents is null", async () => {
+    const cmSnapshot = {
+      id: "snap-cm-2",
+      variantId: "ms-cm-1",
+      recordedAt: new Date("2026-03-03"),
+      marketCents: 300,
+      lowCents: null,
+    };
+    mockMarketplaceRepo.snapshots.mockImplementation(async (variantId: string) => {
+      if (variantId === "ms-cm-1") {
+        return [cmSnapshot];
+      }
+      return [dbSnapshot];
+    });
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await res.json();
+    expect(json.cardmarket.snapshots[0].market).toBe(3);
+    expect(json.cardmarket.snapshots[0].low).toBeNull();
+  });
+
+  it("skips Cardmarket snapshots with neither low nor market price", async () => {
+    const cmSnapshot = {
+      id: "snap-cm-3",
+      variantId: "ms-cm-1",
+      recordedAt: new Date("2026-03-04"),
+      marketCents: null,
+      lowCents: null,
+    };
+    mockMarketplaceRepo.snapshots.mockImplementation(async (variantId: string) => {
+      if (variantId === "ms-cm-1") {
+        return [cmSnapshot];
+      }
+      return [dbSnapshot];
+    });
+    const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
+    const json = await res.json();
+    expect(json.cardmarket.snapshots).toEqual([]);
   });
 
   it("rejects non-UUID printingId with 400", async () => {

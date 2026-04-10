@@ -230,11 +230,11 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const res = await app.fetch(req("GET", "/prices"));
       const json = await res.json();
 
-      // Most recent tcgplayer snapshot: 250 cents -> $2.50
-      // Most recent cardmarket snapshot: 180 cents -> $1.80
+      // tcgplayer headline = market_cents = 250 -> $2.50
+      // cardmarket headline = low_cents = 100 -> $1.00 (low, not avg-derived market)
       expect(json.prices[printingId]).toEqual({
         tcgplayer: 2.5,
-        cardmarket: 1.8,
+        cardmarket: 1,
       });
     });
 
@@ -348,8 +348,10 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
 
       const snap = json.cardmarket.snapshots[0];
       expect(snap.date).toBeTypeOf("string");
-      expect(snap.market).toBe(1.8); // 180 cents
-      expect(snap.low).toBe(1); // 100 cents
+      // Headline = lowCents (100 -> $1.00), not marketCents. CM's `avg`
+      // can be polluted by anomalous sales, so we display the cheapest listing.
+      expect(snap.market).toBe(1);
+      expect(snap.low).toBe(1);
       expect(snap.trend).toBeUndefined();
       expect(snap.avg1).toBeUndefined();
       expect(snap.avg30).toBeUndefined();
