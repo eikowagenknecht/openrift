@@ -7,6 +7,7 @@ import {
   formatPrice,
   formatPriceCompact,
   formatPriceEur,
+  formatPriceIntegerForMarketplace,
   formatPriceRange,
   formatPrintingLabel,
   formatPublicCode,
@@ -274,5 +275,30 @@ describe("formatPriceEur", () => {
 
   it("uses comma as decimal separator", () => {
     expect(formatPriceEur(1.23)).toBe("1,23 \u20AC");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// formatPriceIntegerForMarketplace
+// ---------------------------------------------------------------------------
+
+describe("formatPriceIntegerForMarketplace", () => {
+  it("returns USD prefix for tcgplayer", () => {
+    const fmt = formatPriceIntegerForMarketplace("tcgplayer");
+    expect(fmt(0)).toBe("$0");
+    expect(fmt(5)).toBe("$5");
+    expect(fmt(1000)).toBe("$1000");
+  });
+
+  it("returns EUR suffix for cardmarket", () => {
+    const fmt = formatPriceIntegerForMarketplace("cardmarket");
+    expect(fmt(0)).toBe("0 \u20AC");
+    expect(fmt(5)).toBe("5 \u20AC");
+    expect(fmt(1000)).toBe("1000 \u20AC");
+  });
+
+  it("returns EUR suffix for cardtrader", () => {
+    const fmt = formatPriceIntegerForMarketplace("cardtrader");
+    expect(fmt(42)).toBe("42 \u20AC");
   });
 });

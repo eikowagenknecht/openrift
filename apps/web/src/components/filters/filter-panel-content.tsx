@@ -8,7 +8,9 @@ import { Slider } from "@/components/ui/slider";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { formatDomainFilterLabel } from "@/lib/domain";
+import { formatPriceIntegerForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+import { useDisplayStore } from "@/stores/display-store";
 
 /** Number of discrete positions on the slider track in logarithmic mode. */
 const LOG_STEPS = 1000;
@@ -39,17 +41,18 @@ function sliderPosToValue(position: number, rangeMin: number, rangeMax: number):
   return Math.round(Math.expm1(logMin + (position / LOG_STEPS) * (logMax - logMin)));
 }
 
-const RANGE_SECTIONS: {
+interface RangeSection {
   key: RangeKey;
   label: string;
   step?: number;
   logarithmic?: boolean;
   formatValue?: (v: number) => string;
-}[] = [
+}
+
+const STAT_RANGE_SECTIONS: RangeSection[] = [
   { key: "energy", label: "Energy" },
   { key: "might", label: "Might" },
   { key: "power", label: "Power" },
-  { key: "price", label: "TCG Price", logarithmic: true, formatValue: (v) => `$${v}` },
 ];
 
 interface FilterPanelContentProps {
@@ -204,10 +207,24 @@ export function FilterRangeSections({
 }: Omit<FilterPanelContentProps, "setDisplayLabel">) {
   const { ranges } = useFilterValues();
   const { setRange } = useFilterActions();
+  const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0] ?? "tcgplayer");
+
+  // The price section uses a marketplace-aware currency formatter so EUR
+  // users see "5 €" instead of "$5". The available range itself already
+  // reflects the favourite marketplace via getAvailableFilters' getPrice.
+  const sections: RangeSection[] = [
+    ...STAT_RANGE_SECTIONS,
+    {
+      key: "price",
+      label: "Price",
+      logarithmic: true,
+      formatValue: formatPriceIntegerForMarketplace(favoriteMarketplace),
+    },
+  ];
 
   return (
     <>
-      {RANGE_SECTIONS.map(({ key, label, ...rest }) => {
+      {sections.map(({ key, label, ...rest }) => {
         const available = availableFilters[key];
         const hasNullKey = HAS_NULL_KEY[key];
         const hasNone = hasNullKey ? (availableFilters[hasNullKey] as boolean) : false;

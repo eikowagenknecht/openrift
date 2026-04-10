@@ -3,6 +3,7 @@
 ## 2026-04-10
 
 - fix: Filtering by price range now respects the marketplace you have selected, instead of always filtering on TCGplayer prices
+- fix: The price filter slider and active filter badges now show the right currency for your selected marketplace (€ for Cardmarket and CardTrader, $ for TCGplayer)
 
 ## 2026-04-09
 

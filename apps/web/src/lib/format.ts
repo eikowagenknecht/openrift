@@ -199,3 +199,14 @@ export function compactFormatterForMarketplace(
 ): (v?: number | null) => string {
   return EUR_MARKETPLACES.has(marketplace) ? formatPriceCompactEur : formatPriceCompact;
 }
+
+/**
+ * Integer-only price formatter for a marketplace's currency. Used by the
+ * filter slider and active-filter badges where values are always whole units.
+ * @returns `"5 €"` for EUR marketplaces, `"$5"` for USD.
+ */
+export function formatPriceIntegerForMarketplace(
+  marketplace: Marketplace,
+): (value: number) => string {
+  return EUR_MARKETPLACES.has(marketplace) ? (value) => `${value} \u20AC` : (value) => `$${value}`;
+}
