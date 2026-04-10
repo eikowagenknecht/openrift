@@ -77,29 +77,27 @@ Chosen option: "`oven/bun:1-alpine`", because it supports sharp's native binding
 
 ### Image Sizes
 
-Three WebP variants are pre-generated per printing image:
+Two WebP variants are pre-generated per printing image, both capped on the **short edge** so portrait and landscape cards land at the same display size after layout. The pristine source is kept separately as `-orig.{ext}`.
 
-| Size   | Width    | Quality | Use case                            |
-| ------ | -------- | ------- | ----------------------------------- |
-| `300w` | 300px    | 75      | 2× retina at typical card width     |
-| `400w` | 400px    | 75      | 2× retina at wider cards, 3×        |
-| `full` | Original | 85      | Card detail view                    |
-| `orig` | Original | —       | Archive (original format, not WebP) |
+| Size   | Short edge | Quality | Use case                               |
+| ------ | ---------- | ------- | -------------------------------------- |
+| `400w` | 400px      | 85      | Grid thumbnails                        |
+| `full` | 800px      | 85      | Card detail modal + deck hover preview |
+| `orig` | Source     | —       | Archive (original format, not served)  |
 
-These sizes were chosen based on the actual card widths the grid produces. The responsive column system (`useResponsiveColumns`) yields card image widths between ~115px (5+ columns with detail panel open) and ~177px (3-column tablet). With the `sizes` attribute set to the exact card width, the browser picks the smallest srcset entry that covers `image_width × device_pixel_ratio`:
+For portrait cards (width < height) the cap is applied to the width; for landscape cards (width > height, e.g. Battlefields) it is applied to the height. `sharp`'s `withoutEnlargement: true` keeps smaller-than-cap sources at their native size. Names keep the `w` suffix for continuity even though the cap is short-edge, not strictly width.
 
-| Scenario                        | Image width | × DPR | Needs | Served |
-| ------------------------------- | ----------- | ----- | ----- | ------ |
-| Desktop, detail panel open (5+) | ~115px      | 2×    | 230w  | 300w   |
-| Mobile (2 cols)                 | ~150px      | 2×    | 300w  | 300w   |
-| Tablet (3 cols)                 | ~177px      | 2×    | 354w  | 400w   |
-| Mobile (2 cols)                 | ~150px      | 3×    | 450w  | full   |
+Rendered card widths in the grid range ~115–177px across layouts. At 2× DPR that's 230–354 physical px — comfortably covered by the 400w variant, so the grid no longer uses `srcset` for self-hosted images. The `full` variant's 800 short-edge cap hits the exact pixel budget for the deck hover preview on retina (400px CSS × 2 DPR = 800px for portrait, 560px CSS × 2 DPR = 1120px for landscape which maps to the 1120-wide side of the 1120×800 landscape file).
 
-The previous Sanity CDN srcset used 5 widths (200, 300, 400, 600, 750) because on-the-fly resizing has no storage cost. Analysis of actual card widths shows 600w and 750w are never selected by the browser — no card is wide enough for 2× to exceed 400w. The 200w size only served 1× non-retina devices, which are rare on modern hardware. Dropping these three unused sizes keeps the pre-generated file count manageable without any visible quality loss.
+The card detail modal and standalone card page also use `full`. On very wide retina displays the modal will render the 800-capped image slightly soft; this is an accepted trade-off for the ~2× storage savings and faster hover previews.
 
-The original is stored as-is in its source format (PNG, JPG, etc.) so images can be re-processed later without depending on external CDNs. The frontend never references the `orig` file.
+The original is stored as-is in its source format (PNG, JPG, etc.) so images can be re-processed later. The frontend never references `orig` — only backfill tools do.
 
-At ~150 KB average source image, the 3 WebP variants total ~100 KB per printing. With originals: ~250 KB per printing, ~200 MB total for ~800 printings.
+At ~150 KB average source image, the 2 WebP variants total ~80 KB per printing. With originals: ~230 KB per printing.
+
+### Progressive Hover Preview
+
+The deck editor's hover preview layers two `<img>` tags: the bottom one points at the grid's already-cached `400w` thumbnail (renders instantly with no network round-trip), the top one loads `full` and crossfades in via `onLoad`. This gives every hover a zero-latency first paint regardless of cache state, and retina users crisp up after the full variant finishes loading (~50–150ms).
 
 ### Directory Structure
 
@@ -112,11 +110,10 @@ card-images/
 └── ARC/
 ├── OGN/
 │   ├── OGN-027-normal-n-rare-foil-orig.png     # original (archived)
-│   ├── OGN-027-normal-n-rare-foil-300w.webp
 │   ├── OGN-027-normal-n-rare-foil-400w.webp
 │   ├── OGN-027-normal-n-rare-foil-full.webp
-│   ├── OGN-027a-altart-n-rare-foil-300w.webp   # alt-art
-│   ├── OGN-223-normal-y-common-foil-300w.webp   # signed
+│   ├── OGN-027a-altart-n-rare-foil-400w.webp   # alt-art
+│   ├── OGN-223-normal-y-common-foil-400w.webp  # signed
 │   └── ...
 ├── SFD/
 ```
@@ -133,9 +130,9 @@ The `image_url` column in `printings` stores a relative base path without size o
 
 `getCardImageUrl()` in `apps/web/src/lib/images.ts` gains a branch for self-hosted images. Detection: path starts with `/card-images/`.
 
-- Self-hosted thumbnail: `{base}-300w.webp`
+- Self-hosted thumbnail: `{base}-400w.webp`
 - Self-hosted full: `{base}-full.webp`
-- Self-hosted srcset: `{base}-300w.webp 300w, {base}-400w.webp 400w`
+- Self-hosted srcset: none (single 400w variant; `getCardImageSrcSet` returns `undefined`)
 - External URLs: existing query-param logic (kept until migration completes, then removed)
 
 ### Serving Images

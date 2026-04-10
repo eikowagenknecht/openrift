@@ -34,18 +34,19 @@ export const LANDSCAPE_ROTATION_STYLE: React.CSSProperties = {
 
 export function getCardImageUrl(baseUrl: string, size: "thumbnail" | "full"): string {
   if (isSelfHosted(baseUrl)) {
-    return size === "thumbnail" ? `${baseUrl}-300w.webp` : `${baseUrl}-full.webp`;
+    return size === "thumbnail" ? `${baseUrl}-400w.webp` : `${baseUrl}-full.webp`;
   }
 
   if (size === "thumbnail") {
-    return appendParams(baseUrl, "w=300&fit=max&fm=webp&q=75");
+    return appendParams(baseUrl, "w=400&fit=max&fm=webp&q=75");
   }
   return appendParams(baseUrl, "fm=webp");
 }
 
-export function getCardImageSrcSet(baseUrl: string): string {
+export function getCardImageSrcSet(baseUrl: string): string | undefined {
   if (isSelfHosted(baseUrl)) {
-    return `${baseUrl}-300w.webp 300w, ${baseUrl}-400w.webp 400w`;
+    // Self-hosted grid uses a single 400w variant — no srcset needed.
+    return undefined;
   }
 
   return THUMBNAIL_WIDTHS.map(

@@ -77,10 +77,20 @@ function HoveredCardPreview({
   hoveredCard,
   mouseY,
 }: {
-  hoveredCard: { url: string; landscape: boolean } | null;
+  hoveredCard: { thumbnailUrl: string; fullUrl: string; landscape: boolean } | null;
   mouseY: number;
 }) {
   const { active } = useDndContext();
+  const [fullLoaded, setFullLoaded] = useState(false);
+  const fullUrl = hoveredCard?.fullUrl ?? null;
+
+  // Reset the crossfade whenever the hovered card changes so the next
+  // hover starts from the cached thumbnail and only fades in once the
+  // new full-resolution image has finished loading.
+  useEffect(() => {
+    setFullLoaded(false);
+  }, [fullUrl]);
+
   if (!hoveredCard || active) {
     return null;
   }
@@ -92,7 +102,18 @@ function HoveredCardPreview({
       )}
       style={{ top: Math.max(0, mouseY - 96) }}
     >
-      <img src={hoveredCard.url} alt="" className="w-full rounded-lg shadow-lg" />
+      <div className="relative">
+        <img src={hoveredCard.thumbnailUrl} alt="" className="w-full rounded-lg shadow-lg" />
+        <img
+          src={hoveredCard.fullUrl}
+          alt=""
+          onLoad={() => setFullLoaded(true)}
+          className={cn(
+            "absolute inset-0 w-full rounded-lg shadow-lg transition-opacity duration-150",
+            fullLoaded ? "opacity-100" : "opacity-0",
+          )}
+        />
+      </div>
     </div>
   );
 }
@@ -401,7 +422,8 @@ function DeckEditorContent({
       return null;
     }
     return {
-      url: getCardImageUrl(frontImage.url, "full"),
+      thumbnailUrl: getCardImageUrl(frontImage.url, "thumbnail"),
+      fullUrl: getCardImageUrl(frontImage.url, "full"),
       landscape: printing.card.type === "Battlefield",
     };
   })();

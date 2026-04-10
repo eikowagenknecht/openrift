@@ -511,7 +511,7 @@ function LowResImagesSection() {
             </Button>
           </div>
           <CardDescription>
-            Scan rehosted images for any with a full-resolution width under 600px.
+            Scan rehosted images for any whose source short edge is under 400px.
           </CardDescription>
         </CardHeader>
       </Card>
