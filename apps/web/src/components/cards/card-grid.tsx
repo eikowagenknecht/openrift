@@ -692,7 +692,6 @@ export function CardGrid({
             <div
               key={vItem.key}
               data-index={vItem.index}
-              ref={virtualizer.measureElement}
               style={{
                 position: "absolute",
                 top: 0,
