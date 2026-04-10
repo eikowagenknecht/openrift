@@ -386,10 +386,6 @@ export const copyListResponseSchema = z
   })
   .openapi("CopyListResponse");
 
-export const copyCountResponseSchema = z
-  .object({ items: z.record(z.string(), z.number()) })
-  .openapi("CopyCountResponse");
-
 const copyCollectionBreakdownEntrySchema = z.object({
   collectionId: z.string(),
   collectionName: z.string(),
@@ -397,7 +393,7 @@ const copyCollectionBreakdownEntrySchema = z.object({
 });
 
 export const copyCollectionBreakdownResponseSchema = z
-  .object({ items: z.array(copyCollectionBreakdownEntrySchema) })
+  .object({ items: z.record(z.string(), z.array(copyCollectionBreakdownEntrySchema)) })
   .openapi("CopyCollectionBreakdownResponse");
 
 // ── Collection Events ────────────────────────────────────────────────────────

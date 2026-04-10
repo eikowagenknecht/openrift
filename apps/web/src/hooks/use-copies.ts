@@ -1,4 +1,10 @@
-import type { CollectionListResponse, CopyListResponse, CopyResponse } from "@openrift/shared";
+import type {
+  CollectionListResponse,
+  CopyCollectionBreakdownEntry,
+  CopyCollectionBreakdownResponse,
+  CopyListResponse,
+  CopyResponse,
+} from "@openrift/shared";
 import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { useCallback, useRef } from "react";
@@ -59,28 +65,52 @@ function appendCopiesToCache(
   }
 }
 
-function updateOwnedCounts(
+interface OwnedBreakdownChange {
+  printingId: string;
+  collectionId: string;
+  delta: number;
+}
+
+function updateOwnedBreakdown(
   queryClient: ReturnType<typeof useQueryClient>,
-  deltas: Map<string, number>,
+  changes: OwnedBreakdownChange[],
 ) {
-  queryClient.setQueryData<{ items: Record<string, number> }>(queryKeys.ownedCount.all, (old) => {
+  queryClient.setQueryData<CopyCollectionBreakdownResponse>(queryKeys.ownedCount.all, (old) => {
     if (!old) {
       return old;
     }
-    const items: Record<string, number> = {};
-    for (const [key, value] of Object.entries(old.items)) {
-      const delta = deltas.get(key) ?? 0;
-      const next = value + delta;
-      if (next > 0) {
-        items[key] = next;
+    const collections = queryClient.getQueryData<CollectionListResponse>(queryKeys.collections.all);
+    const collectionNameById = new Map<string, string>(
+      collections?.items.map((col) => [col.id, col.name]),
+    );
+
+    const working: Record<string, CopyCollectionBreakdownEntry[]> = {};
+    for (const [printingId, entries] of Object.entries(old.items)) {
+      working[printingId] = entries.map((entry) => ({ ...entry }));
+    }
+
+    for (const { printingId, collectionId, delta } of changes) {
+      const entries = (working[printingId] ??= []);
+      const existing = entries.find((entry) => entry.collectionId === collectionId);
+      if (existing) {
+        existing.count += delta;
+      } else if (delta > 0) {
+        entries.push({
+          collectionId,
+          collectionName: collectionNameById.get(collectionId) ?? "",
+          count: delta,
+        });
       }
     }
-    // Handle new printings not in old items
-    for (const [printingId, delta] of deltas) {
-      if (!(printingId in old.items) && delta > 0) {
-        items[printingId] = delta;
+
+    const items: Record<string, CopyCollectionBreakdownEntry[]> = {};
+    for (const [printingId, entries] of Object.entries(working)) {
+      const filtered = entries.filter((entry) => entry.count > 0);
+      if (filtered.length > 0) {
+        items[printingId] = filtered;
       }
     }
+
     return { items };
   });
 }
@@ -157,12 +187,15 @@ export function useAddCopies() {
         collectionIds,
       );
 
-      // Update owned counts
-      const printingDeltas = new Map<string, number>();
-      for (const item of data) {
-        printingDeltas.set(item.printingId, (printingDeltas.get(item.printingId) ?? 0) + 1);
-      }
-      updateOwnedCounts(queryClient, printingDeltas);
+      // Update owned breakdown
+      updateOwnedBreakdown(
+        queryClient,
+        data.map((item) => ({
+          printingId: item.printingId,
+          collectionId: item.collectionId,
+          delta: 1,
+        })),
+      );
 
       // Update collection copy counts
       const collectionDeltas = new Map<string, number>();
@@ -201,11 +234,15 @@ export function useMoveCopies() {
       // Cancel in-flight queries
       await queryClient.cancelQueries({ queryKey: queryKeys.copies.all });
       await queryClient.cancelQueries({ queryKey: queryKeys.collections.all });
+      await queryClient.cancelQueries({ queryKey: queryKeys.ownedCount.all });
 
       // Snapshot for rollback
       const prevCopies = queryClient.getQueryData<CopyListResponse>(queryKeys.copies.all);
       const prevCollections = queryClient.getQueryData<CollectionListResponse>(
         queryKeys.collections.all,
+      );
+      const prevOwnedBreakdown = queryClient.getQueryData<CopyCollectionBreakdownResponse>(
+        queryKeys.ownedCount.all,
       );
 
       // Find the copies being moved to determine source collections
@@ -225,8 +262,9 @@ export function useMoveCopies() {
         };
       });
 
-      // Update collection copy counts
+      // Update collection copy counts and owned breakdown (per-printing per-collection shift)
       const collectionDeltas = new Map<string, number>();
+      const breakdownChanges: OwnedBreakdownChange[] = [];
       for (const copy of movedCopies) {
         if (copy.collectionId !== variables.toCollectionId) {
           collectionDeltas.set(
@@ -237,9 +275,18 @@ export function useMoveCopies() {
             variables.toCollectionId,
             (collectionDeltas.get(variables.toCollectionId) ?? 0) + 1,
           );
+          breakdownChanges.push(
+            { printingId: copy.printingId, collectionId: copy.collectionId, delta: -1 },
+            {
+              printingId: copy.printingId,
+              collectionId: variables.toCollectionId,
+              delta: 1,
+            },
+          );
         }
       }
       updateCollectionCopyCounts(queryClient, collectionDeltas);
+      updateOwnedBreakdown(queryClient, breakdownChanges);
 
       // Invalidate per-collection caches (source and target)
       const affectedCollections = new Set([
@@ -250,7 +297,7 @@ export function useMoveCopies() {
         void queryClient.invalidateQueries({ queryKey: queryKeys.copies.byCollection(colId) });
       }
 
-      return { prevCopies, prevCollections };
+      return { prevCopies, prevCollections, prevOwnedBreakdown };
     },
     onError: (_error, _variables, context) => {
       if (context?.prevCopies) {
@@ -258,6 +305,9 @@ export function useMoveCopies() {
       }
       if (context?.prevCollections) {
         queryClient.setQueryData(queryKeys.collections.all, context.prevCollections);
+      }
+      if (context?.prevOwnedBreakdown) {
+        queryClient.setQueryData(queryKeys.ownedCount.all, context.prevOwnedBreakdown);
       }
     },
   });
@@ -360,10 +410,11 @@ export function useDisposeCopies() {
       // Cancel in-flight queries
       await queryClient.cancelQueries({ queryKey: queryKeys.copies.all });
       await queryClient.cancelQueries({ queryKey: queryKeys.collections.all });
+      await queryClient.cancelQueries({ queryKey: queryKeys.ownedCount.all });
 
       // Snapshot for rollback
       const prevCopies = queryClient.getQueryData<CopyListResponse>(queryKeys.copies.all);
-      const prevOwnedCount = queryClient.getQueryData<{ items: Record<string, number> }>(
+      const prevOwnedBreakdown = queryClient.getQueryData<CopyCollectionBreakdownResponse>(
         queryKeys.ownedCount.all,
       );
       const prevCollections = queryClient.getQueryData<CollectionListResponse>(
@@ -388,12 +439,15 @@ export function useDisposeCopies() {
         void queryClient.invalidateQueries({ queryKey: queryKeys.copies.byCollection(colId) });
       }
 
-      // Update owned counts (decrement)
-      const printingDeltas = new Map<string, number>();
-      for (const copy of deletedCopies) {
-        printingDeltas.set(copy.printingId, (printingDeltas.get(copy.printingId) ?? 0) - 1);
-      }
-      updateOwnedCounts(queryClient, printingDeltas);
+      // Update owned breakdown (decrement each printing/collection pair)
+      updateOwnedBreakdown(
+        queryClient,
+        deletedCopies.map((copy) => ({
+          printingId: copy.printingId,
+          collectionId: copy.collectionId,
+          delta: -1,
+        })),
+      );
 
       // Update collection copy counts (decrement)
       const collectionDeltas = new Map<string, number>();
@@ -402,14 +456,14 @@ export function useDisposeCopies() {
       }
       updateCollectionCopyCounts(queryClient, collectionDeltas);
 
-      return { prevCopies, prevOwnedCount, prevCollections };
+      return { prevCopies, prevOwnedBreakdown, prevCollections };
     },
     onError: (_error, _variables, context) => {
       if (context?.prevCopies) {
         queryClient.setQueryData(queryKeys.copies.all, context.prevCopies);
       }
-      if (context?.prevOwnedCount) {
-        queryClient.setQueryData(queryKeys.ownedCount.all, context.prevOwnedCount);
+      if (context?.prevOwnedBreakdown) {
+        queryClient.setQueryData(queryKeys.ownedCount.all, context.prevOwnedBreakdown);
       }
       if (context?.prevCollections) {
         queryClient.setQueryData(queryKeys.collections.all, context.prevCollections);

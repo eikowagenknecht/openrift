@@ -5,6 +5,7 @@
 - feat: The Support page now explains that buying through TCGplayer or Cardtrader price links earns us a small commission, so shopping you were going to do anyway can help fund the site
 - fix: Filtering by price range now respects the marketplace you have selected, instead of always filtering on TCGplayer prices
 - fix: The price filter slider and active filter badges now show the right currency for your selected marketplace (€ for Cardmarket and CardTrader, $ for TCGplayer)
+- fix: Scrolling through the cards page is smoother, since it no longer issues a separate request for every card in view
 
 ## 2026-04-09
 

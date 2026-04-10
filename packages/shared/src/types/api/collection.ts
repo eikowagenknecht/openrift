@@ -22,10 +22,6 @@ export interface CopyListResponse {
   nextCursor: string | null;
 }
 
-export interface CopyCountResponse {
-  items: Record<string, number>;
-}
-
 export interface CopyCollectionBreakdownEntry {
   collectionId: string;
   collectionName: string;
@@ -33,7 +29,7 @@ export interface CopyCollectionBreakdownEntry {
 }
 
 export interface CopyCollectionBreakdownResponse {
-  items: CopyCollectionBreakdownEntry[];
+  items: Record<string, CopyCollectionBreakdownEntry[]>;
 }
 
 export interface CopyResponse {

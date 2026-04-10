@@ -39,36 +39,24 @@ export function copiesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Per-collection copy count for a single printing owned by a user. */
-    countByCollectionForPrinting(
+    /** @returns Per-(printing, collection) copy counts for a user, ordered by collection sort order. */
+    countByCollectionForUser(
       userId: string,
-      printingId: string,
-    ): Promise<{ collectionId: string; collectionName: string; count: number }[]> {
+    ): Promise<
+      { printingId: string; collectionId: string; collectionName: string; count: number }[]
+    > {
       return db
         .selectFrom("copies as cp")
         .innerJoin("collections as col", "col.id", "cp.collectionId")
         .select((eb) => [
+          "cp.printingId" as const,
           "cp.collectionId" as const,
           "col.name as collectionName",
           eb.cast<number>(eb.fn.count("cp.id"), "integer").as("count"),
         ])
         .where("cp.userId", "=", userId)
-        .where("cp.printingId", "=", printingId)
-        .groupBy(["cp.collectionId", "col.name", "col.sortOrder"])
+        .groupBy(["cp.printingId", "cp.collectionId", "col.name", "col.sortOrder"])
         .orderBy("col.sortOrder")
-        .execute();
-    },
-
-    /** @returns Owned count per printing for a user. */
-    countByPrintingForUser(userId: string): Promise<{ printingId: string; count: number }[]> {
-      return db
-        .selectFrom("copies")
-        .select((eb) => [
-          "printingId" as const,
-          eb.cast<number>(eb.fn.count("id"), "integer").as("count"),
-        ])
-        .where("userId", "=", userId)
-        .groupBy("printingId")
         .execute();
     },
 

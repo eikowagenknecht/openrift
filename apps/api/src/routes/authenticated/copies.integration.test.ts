@@ -109,17 +109,21 @@ describe.skipIf(!ctx)("Copies routes (integration)", () => {
     });
   });
 
-  // ── GET /copies/count ─────────────────────────────────────────────────────
+  // ── GET /copies/count-by-collection ────────────────────────────────────────
 
-  describe("GET /copies/count", () => {
-    it("returns counts per printing", async () => {
-      const res = await app.fetch(req("GET", "/copies/count"));
+  describe("GET /copies/count-by-collection", () => {
+    it("returns per-(printing, collection) breakdown", async () => {
+      const res = await app.fetch(req("GET", "/copies/count-by-collection"));
       expect(res.status).toBe(200);
 
-      const json = (await res.json()) as { items: Record<string, number> };
-      // 2 of PRINTING_1, 2 of PRINTING_2 (1 explicit + 1 inbox)
-      expect(json.items[PRINTING_1.id]).toBe(2);
-      expect(json.items[PRINTING_2.id]).toBe(2);
+      const json = (await res.json()) as {
+        items: Record<string, { collectionId: string; collectionName: string; count: number }[]>;
+      };
+      // 2 of PRINTING_1, 2 of PRINTING_2 (1 explicit + 1 inbox) — summed across collections
+      const sumFor = (printingId: string) =>
+        (json.items[printingId] ?? []).reduce((total, row) => total + row.count, 0);
+      expect(sumFor(PRINTING_1.id)).toBe(2);
+      expect(sumFor(PRINTING_2.id)).toBe(2);
     });
   });
 

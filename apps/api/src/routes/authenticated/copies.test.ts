@@ -10,8 +10,15 @@ import { copiesRoute } from "./copies";
 
 const mockRepo = {
   listForUser: vi.fn(() => Promise.resolve([] as object[])),
-  countByPrintingForUser: vi.fn(() =>
-    Promise.resolve([] as { printingId: string; count: number }[]),
+  countByCollectionForUser: vi.fn(() =>
+    Promise.resolve(
+      [] as {
+        printingId: string;
+        collectionId: string;
+        collectionName: string;
+        count: number;
+      }[],
+    ),
   ),
 };
 
@@ -179,26 +186,47 @@ describe("POST /api/v1/copies/dispose", () => {
   });
 });
 
-describe("GET /api/v1/copies/count", () => {
+describe("GET /api/v1/copies/count-by-collection", () => {
   beforeEach(() => {
-    mockRepo.countByPrintingForUser.mockReset();
+    mockRepo.countByCollectionForUser.mockReset();
   });
 
-  it("returns 200 with printingId→count map", async () => {
-    mockRepo.countByPrintingForUser.mockResolvedValue([
-      { printingId: "OGS-001:rare:normal:", count: 3 },
-      { printingId: "OGS-002:common:normal:", count: 1 },
+  it("returns 200 with printingId → breakdown entries map", async () => {
+    mockRepo.countByCollectionForUser.mockResolvedValue([
+      {
+        printingId: "OGS-001:rare:normal:",
+        collectionId: "col-1",
+        collectionName: "Main",
+        count: 2,
+      },
+      {
+        printingId: "OGS-001:rare:normal:",
+        collectionId: "col-2",
+        collectionName: "Trades",
+        count: 1,
+      },
+      {
+        printingId: "OGS-002:common:normal:",
+        collectionId: "col-1",
+        collectionName: "Main",
+        count: 1,
+      },
     ]);
-    const res = await app.request("/api/v1/copies/count");
+    const res = await app.request("/api/v1/copies/count-by-collection");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.items["OGS-001:rare:normal:"]).toBe(3);
-    expect(json.items["OGS-002:common:normal:"]).toBe(1);
+    expect(json.items["OGS-001:rare:normal:"]).toEqual([
+      { collectionId: "col-1", collectionName: "Main", count: 2 },
+      { collectionId: "col-2", collectionName: "Trades", count: 1 },
+    ]);
+    expect(json.items["OGS-002:common:normal:"]).toEqual([
+      { collectionId: "col-1", collectionName: "Main", count: 1 },
+    ]);
   });
 
   it("returns empty object when no copies", async () => {
-    mockRepo.countByPrintingForUser.mockResolvedValue([]);
-    const res = await app.request("/api/v1/copies/count");
+    mockRepo.countByCollectionForUser.mockResolvedValue([]);
+    const res = await app.request("/api/v1/copies/count-by-collection");
     const json = await res.json();
     expect(json.items).toEqual({});
   });

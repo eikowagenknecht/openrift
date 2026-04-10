@@ -214,8 +214,8 @@ export function createApp(deps: AppDeps) {
   });
 
   // Split into separate .get/.post — app.on() with method arrays + ** wildcards
-  // breaks Hono's router when other routes use fixed+param paths (e.g. /copies/count
-  // alongside /copies/:id).
+  // breaks Hono's router when other routes use fixed+param paths (e.g.
+  // /copies/count-by-collection alongside /copies/:id).
   app.get("/api/auth/*", (c) => auth.handler(c.req.raw));
   app.post("/api/auth/*", (c) => auth.handler(c.req.raw));
 

@@ -48,10 +48,6 @@ export const copiesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(500).optional(),
 });
 
-export const copyCollectionBreakdownQuerySchema = z.object({
-  printingId: z.uuid(),
-});
-
 export const decksQuerySchema = z.object({
   wanted: z.enum(["true", "false"]).optional(),
 });

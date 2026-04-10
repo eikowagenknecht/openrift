@@ -43,7 +43,6 @@ export type {
   CollectionResponse,
   CopyCollectionBreakdownEntry,
   CopyCollectionBreakdownResponse,
-  CopyCountResponse,
   CopyListResponse,
   CopyResponse,
   DeckAvailabilityItemResponse,

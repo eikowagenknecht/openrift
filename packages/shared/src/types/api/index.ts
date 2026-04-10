@@ -28,7 +28,6 @@ export type {
   CollectionResponse,
   CopyCollectionBreakdownEntry,
   CopyCollectionBreakdownResponse,
-  CopyCountResponse,
   CopyListResponse,
   CopyResponse,
 } from "./collection.js";

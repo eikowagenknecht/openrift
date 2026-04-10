@@ -1,18 +1,16 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type {
+  CopyCollectionBreakdownEntry,
   CopyCollectionBreakdownResponse,
-  CopyCountResponse,
   CopyListResponse,
 } from "@openrift/shared";
 import {
   copyCollectionBreakdownResponseSchema,
-  copyCountResponseSchema,
   copyListResponseSchema,
 } from "@openrift/shared/response-schemas";
 import {
   addCopiesSchema,
   copiesQuerySchema,
-  copyCollectionBreakdownQuerySchema,
   disposeCopiesSchema,
   moveCopiesSchema,
 } from "@openrift/shared/schemas";
@@ -71,23 +69,10 @@ const disposeCopies = createRoute({
   },
 });
 
-const countCopies = createRoute({
-  method: "get",
-  path: "/count",
-  tags: ["Copies"],
-  responses: {
-    200: {
-      content: { "application/json": { schema: copyCountResponseSchema } },
-      description: "Success",
-    },
-  },
-});
-
 const countCopiesByCollection = createRoute({
   method: "get",
   path: "/count-by-collection",
   tags: ["Copies"],
-  request: { query: copyCollectionBreakdownQuerySchema },
   responses: {
     200: {
       content: { "application/json": { schema: copyCollectionBreakdownResponseSchema } },
@@ -155,25 +140,21 @@ export const copiesRoute = copiesApp
     return c.body(null, 204);
   })
 
-  // ── GET /copies/count ───────────────────────────────────────────────────────
-  // Returns owned count per printing for the authenticated user
-
-  .openapi(countCopies, async (c) => {
-    const { copies } = c.get("repos");
-    const rows = await copies.countByPrintingForUser(getUserId(c));
-
-    const counts: Record<string, number> = Object.fromEntries(
-      rows.map((row) => [row.printingId, row.count]),
-    );
-    return c.json({ items: counts } satisfies CopyCountResponse);
-  })
-
   // ── GET /copies/count-by-collection ─────────────────────────────────────────
-  // Returns per-collection copy counts for a single printing
+  // Returns per-(printing, collection) copy counts for the authenticated user.
+  // Totals per printing can be derived by summing the entries.
 
   .openapi(countCopiesByCollection, async (c) => {
     const { copies } = c.get("repos");
-    const { printingId } = c.req.valid("query");
-    const rows = await copies.countByCollectionForPrinting(getUserId(c), printingId);
-    return c.json({ items: rows } satisfies CopyCollectionBreakdownResponse);
+    const rows = await copies.countByCollectionForUser(getUserId(c));
+
+    const items: Record<string, CopyCollectionBreakdownEntry[]> = {};
+    for (const row of rows) {
+      (items[row.printingId] ??= []).push({
+        collectionId: row.collectionId,
+        collectionName: row.collectionName,
+        count: row.count,
+      });
+    }
+    return c.json({ items } satisfies CopyCollectionBreakdownResponse);
   });
