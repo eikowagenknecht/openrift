@@ -100,14 +100,41 @@ describe("GET /api/v1/prices", () => {
   it("converts market_cents to dollars", async () => {
     const res = await app.request("/api/v1/prices");
     const json = await res.json();
-    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toBe(2.75);
+    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({ tcgplayer: 2.75 });
   });
 
   it("returns one entry per printing", async () => {
     const res = await app.request("/api/v1/prices");
     const json = await res.json();
-    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toBe(2.75);
-    expect(json.prices["a0000000-0001-4000-a000-000000000002"]).toBe(8);
+    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({ tcgplayer: 2.75 });
+    expect(json.prices["a0000000-0001-4000-a000-000000000002"]).toEqual({ tcgplayer: 8 });
+  });
+
+  it("groups multiple marketplaces under the same printing", async () => {
+    mockMarketplaceRepo.latestPrices.mockResolvedValue([
+      {
+        printingId: "a0000000-0001-4000-a000-000000000001",
+        marketplace: "tcgplayer",
+        marketCents: 100,
+      },
+      {
+        printingId: "a0000000-0001-4000-a000-000000000001",
+        marketplace: "cardmarket",
+        marketCents: 200,
+      },
+      {
+        printingId: "a0000000-0001-4000-a000-000000000001",
+        marketplace: "cardtrader",
+        marketCents: 300,
+      },
+    ]);
+    const res = await app.request("/api/v1/prices");
+    const json = await res.json();
+    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toEqual({
+      tcgplayer: 1,
+      cardmarket: 2,
+      cardtrader: 3,
+    });
   });
 
   it("returns empty prices when no rows exist", async () => {
@@ -254,26 +281,6 @@ describe("GET /api/v1/prices/:printingId/history", () => {
       "/api/v1/prices/a0000000-0001-4000-a000-000000000001/history?range=invalid",
     );
     expect(res.status).toBe(400);
-  });
-
-  it("filters only tcgplayer prices in GET /prices (ignores cardmarket)", async () => {
-    mockMarketplaceRepo.latestPrices.mockResolvedValue([
-      {
-        printingId: "a0000000-0001-4000-a000-000000000001",
-        marketplace: "tcgplayer",
-        marketCents: 100,
-      },
-      {
-        printingId: "a0000000-0001-4000-a000-000000000001",
-        marketplace: "cardmarket",
-        marketCents: 200,
-      },
-    ]);
-    const res = await app.request("/api/v1/prices");
-    const json = await res.json();
-    // Only tcgplayer price should appear
-    expect(json.prices["a0000000-0001-4000-a000-000000000001"]).toBe(1);
-    expect(Object.keys(json.prices)).toHaveLength(1);
   });
 
   it("defaults to 30d range when no range parameter is provided", async () => {

@@ -1,5 +1,4 @@
 import type { ArtVariant, CardFace, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
-import type { Marketplace } from "./pricing.js";
 
 export interface PromoType {
   id: string;
@@ -62,7 +61,5 @@ export interface Printing {
   flavorText: string | null;
   printedName: string | null;
   language: string;
-  marketPrice?: number;
-  marketPrices?: Partial<Record<Marketplace, number>>;
   card: Card;
 }

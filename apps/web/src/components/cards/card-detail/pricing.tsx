@@ -3,6 +3,7 @@ import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePriceHistory } from "@/hooks/use-price-history";
+import { usePrices } from "@/hooks/use-prices";
 import { affiliateUrl, cardtraderAffiliateUrl } from "@/lib/affiliate";
 import { formatPrice, formatPriceEur, priceColorClass } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ const MARKETPLACE_CONFIG: Record<Marketplace, MarketplaceConfig> = {
 export function PricingSection({ printing, range }: { printing: Printing; range: TimeRange }) {
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const { data: history } = usePriceHistory(printing.id, range);
+  const prices = usePrices();
 
   /** @returns The latest market price for a marketplace (from price history snapshots). */
   function latestPrice(marketplace: Marketplace): number | null {
@@ -54,18 +56,16 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
     return snapshots.at(-1)!.market;
   }
 
-  // Resolve which marketplaces have data to show
+  // Resolve which marketplaces have data to show. We prefer the latest catalog
+  // price (available without waiting for history to load) and fall back to the
+  // last history snapshot if the catalog has no entry yet.
   const chips: { marketplace: Marketplace; value: number; url: string | null }[] = [];
   for (const marketplace of marketplaceOrder) {
     const config = MARKETPLACE_CONFIG[marketplace];
     const productId = history?.[marketplace]?.productId ?? null;
     const url = productId ? config.getUrl(productId) : null;
 
-    // For tcgplayer, prefer the inline marketPrice (available without history loading)
-    const value =
-      marketplace === "tcgplayer"
-        ? (printing.marketPrice ?? latestPrice(marketplace))
-        : latestPrice(marketplace);
+    const value = prices.get(printing.id, marketplace) ?? latestPrice(marketplace);
 
     if (value !== null && value !== undefined) {
       chips.push({ marketplace, value, url });

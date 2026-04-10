@@ -5,7 +5,7 @@ import { createTestContext, req } from "../../test/integration-context.js";
 // ---------------------------------------------------------------------------
 // Integration tests: Prices routes
 //
-// GET /prices — latest TCGPlayer market prices for all printings
+// GET /prices — latest market prices per marketplace for all printings
 // GET /prices/:printingId/history — price history per printing
 // Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Uses prefix PRC- for entities it creates.
@@ -240,12 +240,16 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       expect(typeof json.prices).toBe("object");
     });
 
-    it("includes the seeded printing with correct dollar value", async () => {
+    it("includes the seeded printing with prices for both marketplaces", async () => {
       const res = await app.fetch(req("GET", "/prices"));
       const json = await res.json();
 
-      // Most recent tcgplayer snapshot has marketCents=250 -> $2.50
-      expect(json.prices[printingId]).toBe(2.5);
+      // Most recent tcgplayer snapshot: 250 cents -> $2.50
+      // Most recent cardmarket snapshot: 180 cents -> $1.80
+      expect(json.prices[printingId]).toEqual({
+        tcgplayer: 2.5,
+        cardmarket: 1.8,
+      });
     });
 
     it("does not include printings without marketplace sources", async () => {
@@ -253,17 +257,6 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       const json = await res.json();
 
       expect(json.prices[printingNoSourceId]).toBeUndefined();
-    });
-
-    it("only includes tcgplayer prices (not cardmarket)", async () => {
-      const res = await app.fetch(req("GET", "/prices"));
-      const json = await res.json();
-
-      // The printing has both tcgplayer and cardmarket sources, but
-      // latestPrices() only queries tcgplayer. The price should be
-      // from the tcgplayer snapshot (250 cents = $2.50), not the
-      // cardmarket one (180 cents = $1.80).
-      expect(json.prices[printingId]).toBe(2.5);
     });
 
     it("returns Cache-Control header", async () => {

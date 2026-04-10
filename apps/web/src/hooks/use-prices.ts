@@ -1,42 +1,42 @@
-import type { ClearPricesResponse, PriceRefreshResponse } from "@openrift/shared";
-import { useMutation } from "@tanstack/react-query";
+import type { PriceLookup, PricesResponse } from "@openrift/shared";
+import { priceLookupFromMap } from "@openrift/shared";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { refreshActions, clearActions } from "@/components/admin/refresh-actions";
+import { queryKeys } from "@/lib/query-keys";
+import { serverCache } from "@/lib/server-cache";
 import { API_URL } from "@/lib/server-fns/api-url";
-import { withCookies } from "@/lib/server-fns/middleware";
 
-// ── Server function for clear prices ─────────────────────────────────────────
+const fetchPrices = createServerFn({ method: "GET" }).handler(
+  (): Promise<PricesResponse> =>
+    serverCache.fetchQuery({
+      queryKey: ["server-cache", "prices"],
+      queryFn: async () => {
+        const res = await fetch(`${API_URL}/api/v1/prices`);
+        if (!res.ok) {
+          throw new Error(`Prices fetch failed: ${res.status}`);
+        }
+        return res.json() as Promise<PricesResponse>;
+      },
+    }),
+);
 
-const clearPricesFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { marketplace: string }) => input)
-  .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/clear-prices`, {
-      method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ marketplace: data.marketplace }),
-    });
-    if (!res.ok) {
-      throw new Error(`Clear prices failed: ${res.status}`);
-    }
-    return res.json() as Promise<ClearPricesResponse>;
-  });
+export const pricesQueryOptions = queryOptions({
+  queryKey: queryKeys.prices.all,
+  queryFn: () => fetchPrices(),
+  // Prices refresh once per day, so a long staleTime is fine. The server cache
+  // and react-query refetch policies handle propagation when prices do change.
+  staleTime: 30 * 60 * 1000, // 30 minutes
+  refetchOnWindowFocus: false,
+  select: (response: PricesResponse): PriceLookup => priceLookupFromMap(response.prices),
+});
 
-// ── Mutations ─────────────────────────────────────────────────────────────────
-
-export function useRefreshPrices(cronKey: "tcgplayer" | "cardmarket" | "cardtrader") {
-  const refreshAction = refreshActions[cronKey];
-  return useMutation({
-    mutationFn: (): Promise<PriceRefreshResponse> =>
-      refreshAction.post() as Promise<PriceRefreshResponse>,
-  });
-}
-
-export function useClearPrices(cronKey: "tcgplayer" | "cardmarket" | "cardtrader") {
-  const clearAction = clearActions[cronKey];
-  return useMutation({
-    mutationFn: (): Promise<ClearPricesResponse> =>
-      clearPricesFn({ data: { marketplace: clearAction.source } }),
-  });
+/**
+ * Suspense hook returning a {@link PriceLookup} backed by the latest /api/v1/prices payload.
+ * Components that filter, sort, or display by price compose this with `useCards()`.
+ * @returns A lookup wired to the cached `/api/v1/prices` response.
+ */
+export function usePrices(): PriceLookup {
+  const { data } = useSuspenseQuery(pricesQueryOptions);
+  return data;
 }

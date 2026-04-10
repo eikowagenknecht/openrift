@@ -2,8 +2,8 @@ import type { Marketplace, Printing } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { resolvePrice } from "@/hooks/use-card-data";
 import { usePriceHistory } from "@/hooks/use-price-history";
+import { usePrices } from "@/hooks/use-prices";
 import {
   formatCardId,
   formatterForMarketplace,
@@ -79,11 +79,12 @@ export function PrintingPicker({
 
 function PrintingPrices({ printing }: { printing: Printing }) {
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
+  const prices = usePrices();
   const { data: history } = usePriceHistory(printing.id, "30d");
 
   function priceFor(marketplace: Marketplace): number | null {
     // Try inline catalog price first
-    const inline = resolvePrice(printing, marketplace);
+    const inline = prices.get(printing.id, marketplace);
     if (inline !== undefined) {
       return inline;
     }

@@ -26,6 +26,7 @@ import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
+import { usePrices } from "@/hooks/use-prices";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { catalogCardToDeckBuilderCard, useDeckBuilderStore } from "@/stores/deck-builder-store";
@@ -81,6 +82,7 @@ const ZONE_FILTER_CONFIG: Partial<
 export function DeckCardBrowser() {
   const showImages = useDisplayStore((state) => state.showImages);
   const { allPrintings, sets } = useCards();
+  const prices = usePrices();
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
@@ -172,6 +174,7 @@ export function DeckCardBrowser() {
     view,
     ownedCountByPrinting,
     favoriteMarketplace: marketplaceOrder[0] ?? "tcgplayer",
+    prices,
     keywordReverseMap,
   });
 

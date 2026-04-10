@@ -140,6 +140,8 @@ export type {
   CardmarketSnapshot,
   CardtraderSnapshot,
   PriceHistoryResponse,
+  PriceLookup,
+  PriceMap,
   PricesResponse,
   TcgplayerSnapshot,
 } from "./api/index.js";

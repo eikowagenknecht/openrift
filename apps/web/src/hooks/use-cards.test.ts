@@ -93,7 +93,6 @@ const CATALOG_RESPONSE: CatalogResponse = {
   printings: {
     [PRINTING_A_ID]: stubPrintingValue({
       cardId: CARD_A_ID,
-      marketPrice: 1,
     }),
     [PRINTING_B_ID]: stubPrintingValue({
       shortCode: "RB1-002",
@@ -149,9 +148,7 @@ describe("useCards", () => {
     expect(printingA?.id).toBe(PRINTING_A_ID);
     expect(printingA?.card.id).toBe(CARD_A_ID);
     expect(printingA?.card.name).toBe("Card A");
-    expect(printingA?.marketPrice).toBe(1);
     expect(printingB?.card.name).toBe("Card B");
-    expect(printingB?.marketPrice).toBeUndefined();
 
     expect(enriched.cardsById[CARD_A_ID]?.id).toBe(CARD_A_ID);
     expect(enriched.cardsById[CARD_B_ID]?.id).toBe(CARD_B_ID);

@@ -239,6 +239,18 @@ function matchesSearch(
   });
 }
 
+export interface FilterCardsOptions {
+  /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
+  keywordReverseMap?: Map<string, string>;
+  /**
+   * Resolves the latest market price for a printing. Defaults to a no-op that returns
+   * `undefined`, which means the price filter only matches printings with no price
+   * (when the filter range is non-empty). Wire this to a {@link PriceLookup}-backed
+   * resolver to filter on the user's selected marketplace.
+   */
+  getPrice?: (printing: Printing) => number | undefined;
+}
+
 /**
  * Core filtering pipeline — applies every active filter (search, sets, rarities,
  * types, stats, price, etc.) to the full printings list and returns only matches.
@@ -248,21 +260,22 @@ function matchesSearch(
  *
  * @example
  * ```ts
- * const results = filterCards(allPrintings, { ...defaultFilters, sets: ["Origins"], rarities: ["Rare"] });
+ * const results = filterCards(allPrintings, { ...defaultFilters, sets: ["Origins"] });
  * ```
  */
 export function filterCards(
   printings: Printing[],
   filters: CardFilters,
-  keywordReverseMap?: Map<string, string>,
+  options: FilterCardsOptions = {},
 ): Printing[] {
   const terms = filters.search ? parseSearchTerms(filters.search) : [];
   const hasPrefixes = terms.some((t) => t.field !== null);
+  const getPrice = options.getPrice;
 
   return printings.filter((printing) => {
     const { card } = printing;
     return (
-      matchesSearch(printing, terms, hasPrefixes, filters.searchScope, keywordReverseMap) &&
+      matchesSearch(printing, terms, hasPrefixes, filters.searchScope, options.keywordReverseMap) &&
       includes(filters.sets, printing.setSlug) &&
       overlaps(filters.domains, card.domains) &&
       includes(filters.types, card.type) &&
@@ -275,7 +288,7 @@ export function filterCards(
       matchesRange(card.energy, filters.energy) &&
       matchesRange(card.might, filters.might) &&
       matchesRange(card.power, filters.power) &&
-      matchesRange(printing.marketPrice ?? null, filters.price) &&
+      matchesRange(getPrice?.(printing) ?? null, filters.price) &&
       matchesFlag(filters.isBanned, card.bans.length > 0) &&
       matchesFlag(filters.hasErrata, card.errata !== null)
     );
@@ -313,6 +326,17 @@ export interface AvailableFilters {
   price: { min: number; max: number };
 }
 
+export interface GetAvailableFiltersOptions {
+  /** Override the default enum sort orders. */
+  orders?: EnumOrders;
+  /**
+   * Resolves the latest market price for a printing. Used to compute the
+   * available price range. Defaults to `() => undefined` (no prices known),
+   * which yields a `{ min: 0, max: 0 }` range.
+   */
+  getPrice?: (printing: Printing) => number | undefined;
+}
+
 /**
  * Scans the full printings list to derive every distinct filter value (sets, rarities,
  * stat ranges, etc.) so the UI can populate dropdowns and sliders with only values
@@ -329,8 +353,10 @@ export interface AvailableFilters {
  */
 export function getAvailableFilters(
   printings: Printing[],
-  orders: EnumOrders = DEFAULT_ENUM_ORDERS,
+  options: GetAvailableFiltersOptions = {},
 ): AvailableFilters {
+  const orders = options.orders ?? DEFAULT_ENUM_ORDERS;
+  const getPrice = options.getPrice;
   // Sets are not sorted but shown in insertion order.
   const sets = unique(printings.map((p) => p.setSlug));
   const domains = unique(printings.flatMap((p) => p.card.domains)).sort(
@@ -353,7 +379,7 @@ export function getAvailableFilters(
   const energies = printings.flatMap((p) => p.card.energy ?? []);
   const mights = printings.flatMap((p) => p.card.might ?? []);
   const powers = printings.flatMap((p) => p.card.power ?? []);
-  const prices = printings.flatMap((p) => p.marketPrice ?? []);
+  const prices = getPrice ? printings.flatMap((p) => getPrice(p) ?? []) : [];
 
   return {
     sets,
@@ -389,7 +415,11 @@ export function getAvailableFilters(
 
 export interface SortCardsOptions {
   sortDir?: SortDirection;
-  /** Override the price used for sorting (e.g. stack min/max in cards view). */
+  /**
+   * Resolves the price used for sorting. Required for `sortBy === "price"` to
+   * produce meaningful results — without it, all printings appear price-less
+   * and fall back to shortCode order.
+   */
   getPrice?: (p: Printing) => number | null | undefined;
   /** Override the default enum sort orders. */
   orders?: EnumOrders;
@@ -433,6 +463,7 @@ export function sortCards(
         a.shortCode.localeCompare(b.shortCode),
     );
   }
-  const getPrice = options.getPrice ?? ((p: Printing) => p.marketPrice);
+  // oxlint-disable-next-line unicorn/no-useless-undefined -- returning undefined satisfies the getPrice contract
+  const getPrice = options.getPrice ?? (() => undefined);
   return printings.toSorted((a, b) => compareWithFallback(a, b, getPrice, dir));
 }

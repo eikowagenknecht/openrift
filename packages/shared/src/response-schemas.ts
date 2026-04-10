@@ -153,10 +153,22 @@ export const initResponseSchema = z
 
 // ── Prices ───────────────────────────────────────────────────────────────────
 
+const marketplacePriceMapSchema = z.object({
+  tcgplayer: z.number().optional().openapi({ example: 4.52 }),
+  cardmarket: z.number().optional().openapi({ example: 3.8 }),
+  cardtrader: z.number().optional().openapi({ example: 3.9 }),
+});
+
 export const pricesResponseSchema = z
   .object({
-    prices: z.record(z.string(), z.number()).openapi({
-      example: { "019cfc3b-03d3-7dac-86c9-27900cd43727": 4.52 },
+    prices: z.record(z.string(), marketplacePriceMapSchema).openapi({
+      example: {
+        "019cfc3b-03d3-7dac-86c9-27900cd43727": {
+          tcgplayer: 4.52,
+          cardmarket: 3.8,
+          cardtrader: 3.9,
+        },
+      },
     }),
   })
   .openapi("PricesResponse");
@@ -278,7 +290,6 @@ export const catalogPrintingResponseSchema = z.object({
   flavorText: z.string().nullable().openapi({ example: null }),
   printedName: z.string().nullable().openapi({ example: null }),
   language: z.string().openapi({ example: "EN" }),
-  marketPrice: z.number().optional().openapi({ example: 4.52 }),
   cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
 });
 
@@ -302,6 +313,7 @@ export const cardDetailResponseSchema = z
     card: catalogCardResponseSchema,
     printings: z.array(catalogPrintingResponseSchema),
     sets: z.array(catalogSetResponseSchema),
+    prices: z.record(z.string(), marketplacePriceMapSchema),
   })
   .openapi("CardDetailResponse");
 
@@ -325,6 +337,7 @@ export const setDetailResponseSchema = z
     set: catalogSetResponseSchema,
     cards: z.record(z.string(), catalogCardResponseSchema),
     printings: z.array(catalogPrintingResponseSchema),
+    prices: z.record(z.string(), marketplacePriceMapSchema),
   })
   .openapi("SetDetailResponse");
 

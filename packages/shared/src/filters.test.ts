@@ -4,6 +4,17 @@ import { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from ".
 import type { Card, CardFilters, Printing } from "./types";
 import { NONE } from "./types";
 
+// Tests inject prices via a WeakMap keyed by printing identity, since the
+// production `Printing` type no longer carries prices on the object itself.
+// `withPrice(makePrinting(...), 1.50)` attaches a price; `getTestPrice` reads it
+// when passed as the `getPrice` option to filterCards/sortCards/getAvailableFilters.
+const TEST_PRICES = new WeakMap<Printing, number>();
+function withPrice(printing: Printing, price: number): Printing {
+  TEST_PRICES.set(printing, price);
+  return printing;
+}
+const getTestPrice = (p: Printing): number | undefined => TEST_PRICES.get(p);
+
 // ---------------------------------------------------------------------------
 // Helpers — build minimal Printing objects for testing
 // ---------------------------------------------------------------------------
@@ -587,40 +598,44 @@ describe("filterCards", () => {
 
   it("filters by price range", () => {
     const withPrices = [
-      makePrinting({
-        marketPrice: 1,
-        card: {
-          id: "c",
-          name: "Cheap Card",
-          type: "Unit",
-          superTypes: [],
-          domains: [],
-          energy: null,
-          might: null,
-          power: null,
-          keywords: [],
-          tags: [],
-          mightBonus: null,
-          errata: null,
-        },
-      }),
-      makePrinting({
-        marketPrice: 25,
-        card: {
-          id: "e",
-          name: "Expensive Card",
-          type: "Unit",
-          superTypes: [],
-          domains: [],
-          energy: null,
-          might: null,
-          power: null,
-          keywords: [],
-          tags: [],
-          mightBonus: null,
-          errata: null,
-        },
-      }),
+      withPrice(
+        makePrinting({
+          card: {
+            id: "c",
+            name: "Cheap Card",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            errata: null,
+          },
+        }),
+        1,
+      ),
+      withPrice(
+        makePrinting({
+          card: {
+            id: "e",
+            name: "Expensive Card",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            errata: null,
+          },
+        }),
+        25,
+      ),
       makePrinting({
         card: {
           id: "n",
@@ -639,7 +654,9 @@ describe("filterCards", () => {
       }),
     ];
 
-    const result = filterCards(withPrices, emptyFilters({ price: { min: 5, max: 30 } }));
+    const result = filterCards(withPrices, emptyFilters({ price: { min: 5, max: 30 } }), {
+      getPrice: getTestPrice,
+    });
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Expensive Card");
   });
@@ -1182,9 +1199,15 @@ describe("getAvailableFilters", () => {
   });
 
   it("computes price range from printings with prices", () => {
-    const withPrices = [makePrinting({ marketPrice: 2.5 }), makePrinting({ marketPrice: 25.3 })];
-    const result = getAvailableFilters(withPrices);
+    const withPrices = [withPrice(makePrinting(), 2.5), withPrice(makePrinting(), 25.3)];
+    const result = getAvailableFilters(withPrices, { getPrice: getTestPrice });
     expect(result.price).toEqual({ min: 2, max: 26 }); // floor(2.5), ceil(25.3)
+  });
+
+  it("returns 0 price range when no getPrice resolver is supplied", () => {
+    const withPrices = [withPrice(makePrinting(), 2.5), withPrice(makePrinting(), 25.3)];
+    const result = getAvailableFilters(withPrices);
+    expect(result.price).toEqual({ min: 0, max: 0 });
   });
 
   it("returns 0 price range when no printings have prices", () => {
@@ -1473,23 +1496,25 @@ describe("sortCards", () => {
 
   describe("price sort", () => {
     const pricePrintings = [
-      makePrinting({
-        marketPrice: 20,
-        card: {
-          id: "e",
-          name: "Expensive",
-          type: "Unit",
-          superTypes: [],
-          domains: [],
-          energy: null,
-          might: null,
-          power: null,
-          keywords: [],
-          tags: [],
-          mightBonus: null,
-          errata: null,
-        },
-      }),
+      withPrice(
+        makePrinting({
+          card: {
+            id: "e",
+            name: "Expensive",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            errata: null,
+          },
+        }),
+        20,
+      ),
       makePrinting({
         card: {
           id: "n",
@@ -1506,70 +1531,76 @@ describe("sortCards", () => {
           errata: null,
         },
       }),
-      makePrinting({
-        marketPrice: 1,
-        card: {
-          id: "c",
-          name: "Cheap",
-          type: "Unit",
-          superTypes: [],
-          domains: [],
-          energy: null,
-          might: null,
-          power: null,
-          keywords: [],
-          tags: [],
-          mightBonus: null,
-          errata: null,
-        },
-      }),
+      withPrice(
+        makePrinting({
+          card: {
+            id: "c",
+            name: "Cheap",
+            type: "Unit",
+            superTypes: [],
+            domains: [],
+            energy: null,
+            might: null,
+            power: null,
+            keywords: [],
+            tags: [],
+            mightBonus: null,
+            errata: null,
+          },
+        }),
+        1,
+      ),
     ];
 
     it("sorts by price ascending, nulls last", () => {
-      const result = sortCards(pricePrintings, "price");
+      const result = sortCards(pricePrintings, "price", { getPrice: getTestPrice });
       expect(result.map((p) => p.card.name)).toEqual(["Cheap", "Expensive", "No Price"]);
     });
 
     it("breaks price ties by shortCode", () => {
       const tiedPrintings = [
-        makePrinting({
-          shortCode: "SET1-002",
-          marketPrice: 5,
-          card: {
-            id: "b",
-            name: "Bravo",
-            type: "Unit",
-            superTypes: [],
-            domains: [],
-            energy: null,
-            might: null,
-            power: null,
-            keywords: [],
-            tags: [],
-            mightBonus: null,
-            errata: null,
-          },
-        }),
-        makePrinting({
-          shortCode: "SET1-001",
-          marketPrice: 5,
-          card: {
-            id: "a",
-            name: "Alpha",
-            type: "Unit",
-            superTypes: [],
-            domains: [],
-            energy: null,
-            might: null,
-            power: null,
-            keywords: [],
-            tags: [],
-            mightBonus: null,
-            errata: null,
-          },
-        }),
+        withPrice(
+          makePrinting({
+            shortCode: "SET1-002",
+            card: {
+              id: "b",
+              name: "Bravo",
+              type: "Unit",
+              superTypes: [],
+              domains: [],
+              energy: null,
+              might: null,
+              power: null,
+              keywords: [],
+              tags: [],
+              mightBonus: null,
+              errata: null,
+            },
+          }),
+          5,
+        ),
+        withPrice(
+          makePrinting({
+            shortCode: "SET1-001",
+            card: {
+              id: "a",
+              name: "Alpha",
+              type: "Unit",
+              superTypes: [],
+              domains: [],
+              energy: null,
+              might: null,
+              power: null,
+              keywords: [],
+              tags: [],
+              mightBonus: null,
+              errata: null,
+            },
+          }),
+          5,
+        ),
       ];
-      const result = sortCards(tiedPrintings, "price");
+      const result = sortCards(tiedPrintings, "price", { getPrice: getTestPrice });
       expect(result.map((p) => p.card.name)).toEqual(["Alpha", "Bravo"]);
     });
 
@@ -1610,7 +1641,7 @@ describe("sortCards", () => {
           },
         }),
       ];
-      const result = sortCards(nullPrintings, "price");
+      const result = sortCards(nullPrintings, "price", { getPrice: getTestPrice });
       expect(result.map((p) => p.card.name)).toEqual(["Amy", "Zed"]);
     });
 
@@ -1633,44 +1664,48 @@ describe("sortCards", () => {
             errata: null,
           },
         }),
-        makePrinting({
-          shortCode: "SET1-001",
-          marketPrice: 10,
-          card: {
-            id: "m",
-            name: "Mid Price",
-            type: "Unit",
-            superTypes: [],
-            domains: [],
-            energy: null,
-            might: null,
-            power: null,
-            keywords: [],
-            tags: [],
-            mightBonus: null,
-            errata: null,
-          },
-        }),
-        makePrinting({
-          shortCode: "SET1-003",
-          marketPrice: 50,
-          card: {
-            id: "h",
-            name: "High Price",
-            type: "Unit",
-            superTypes: [],
-            domains: [],
-            energy: null,
-            might: null,
-            power: null,
-            keywords: [],
-            tags: [],
-            mightBonus: null,
-            errata: null,
-          },
-        }),
+        withPrice(
+          makePrinting({
+            shortCode: "SET1-001",
+            card: {
+              id: "m",
+              name: "Mid Price",
+              type: "Unit",
+              superTypes: [],
+              domains: [],
+              energy: null,
+              might: null,
+              power: null,
+              keywords: [],
+              tags: [],
+              mightBonus: null,
+              errata: null,
+            },
+          }),
+          10,
+        ),
+        withPrice(
+          makePrinting({
+            shortCode: "SET1-003",
+            card: {
+              id: "h",
+              name: "High Price",
+              type: "Unit",
+              superTypes: [],
+              domains: [],
+              energy: null,
+              might: null,
+              power: null,
+              keywords: [],
+              tags: [],
+              mightBonus: null,
+              errata: null,
+            },
+          }),
+          50,
+        ),
       ];
-      const result = sortCards(priceMix, "price", { sortDir: "desc" });
+      const result = sortCards(priceMix, "price", { sortDir: "desc", getPrice: getTestPrice });
       expect(result.map((p) => p.card.name)).toEqual(["High Price", "Mid Price", "No Price"]);
     });
 
@@ -1736,7 +1771,6 @@ describe("sortCards", () => {
       const printingsWithCustomPrice = [
         makePrinting({
           shortCode: "SET1-001",
-          marketPrice: 5,
           card: {
             id: "a",
             name: "Alpha",
@@ -1754,7 +1788,6 @@ describe("sortCards", () => {
         }),
         makePrinting({
           shortCode: "SET1-002",
-          marketPrice: 20,
           card: {
             id: "b",
             name: "Bravo",

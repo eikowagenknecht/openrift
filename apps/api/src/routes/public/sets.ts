@@ -4,6 +4,7 @@ import type {
   CatalogCardResponse,
   CatalogPrintingResponse,
   Marketplace,
+  PriceMap,
   SetDetailResponse,
   SetListResponse,
 } from "@openrift/shared";
@@ -128,30 +129,26 @@ export const setsRoute = setsApp
       ]),
     );
 
-    // Build per-printing price map
-    const pricesByPrinting = new Map<string, Partial<Record<Marketplace, number>>>();
+    // Per-printing price map. Sibling field on the response — used for SSR
+    // JSON-LD; runtime UI reads prices through the global usePrices() hook.
+    const prices: PriceMap = {};
     for (const row of priceRows) {
-      let entry = pricesByPrinting.get(row.printingId);
+      let entry = prices[row.printingId];
       if (!entry) {
         entry = {};
-        pricesByPrinting.set(row.printingId, entry);
+        prices[row.printingId] = entry;
       }
       entry[row.marketplace as Marketplace] = centsToDollars(row.marketCents);
     }
 
     const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
-    const printings: CatalogPrintingResponse[] = printingRows.map((row) => {
-      const prices = pricesByPrinting.get(row.id);
-      return {
-        ...row,
-        images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
-        ...(prices?.tcgplayer !== undefined && { marketPrice: prices.tcgplayer }),
-        ...(prices && { marketPrices: prices }),
-      };
-    });
+    const printings: CatalogPrintingResponse[] = printingRows.map((row) => ({
+      ...row,
+      images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
+    }));
 
-    const content: SetDetailResponse = { set, cards, printings };
+    const content: SetDetailResponse = { set, cards, printings, prices };
     c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
     return c.json(content);
   });

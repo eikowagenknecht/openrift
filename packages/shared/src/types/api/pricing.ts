@@ -1,5 +1,19 @@
+import type { Marketplace } from "../pricing.js";
+
+export type PriceMap = Record<string, Partial<Record<Marketplace, number>>>;
+
 export interface PricesResponse {
-  prices: Record<string, number>;
+  prices: PriceMap;
+}
+
+/**
+ * Lookup interface for resolving the latest price of a printing on a given marketplace.
+ * Backed by either a {@link PriceMap} (e.g. SSR detail responses) or a react-query
+ * store (the client-side `usePrices()` hook).
+ */
+export interface PriceLookup {
+  get(printingId: string, marketplace: Marketplace): number | undefined;
+  has(printingId: string): boolean;
 }
 
 export interface TcgplayerSnapshot {

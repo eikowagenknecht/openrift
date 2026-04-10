@@ -83,6 +83,8 @@ export type {
   CardmarketSnapshot,
   CardtraderSnapshot,
   PriceHistoryResponse,
+  PriceLookup,
+  PriceMap,
   PricesResponse,
   TcgplayerSnapshot,
 } from "./pricing.js";

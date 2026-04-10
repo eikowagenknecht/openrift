@@ -9,8 +9,8 @@ const ctx = createTestContext(USER_ID);
 const SEED_SET_ID = OGS_SET.id;
 const SEED_PRINTING_ID = PRINTING_1.id;
 
-// Must use "tcgplayer" because the catalog route checks `prices?.tcgplayer`
-// to populate the `marketPrice` field.
+// Marketplace used to seed snapshots for the /api/v1/prices integration tests.
+// The /catalog route no longer joins prices — they live on /api/v1/prices.
 const MARKETPLACE = "tcgplayer";
 
 describe.skipIf(!ctx)("Catalog route (integration)", () => {
@@ -158,12 +158,13 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       expect(printing.promoType).toBeNull();
     });
 
-    it("printing includes marketPrice when a snapshot exists", async () => {
+    it("printing does not include marketPrice (prices live on /api/v1/prices)", async () => {
       const res = await app.fetch(req("GET", "/catalog"));
       const json = await res.json();
 
       const printing = json.printings[SEED_PRINTING_ID];
-      expect(printing.marketPrice).toBe(3.5);
+      expect("marketPrice" in printing).toBe(false);
+      expect("marketPrices" in printing).toBe(false);
     });
 
     it("printings include images array", async () => {
@@ -178,7 +179,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
     it("returns Cache-Control header", async () => {
       const res = await app.fetch(req("GET", "/catalog"));
       expect(res.headers.get("Cache-Control")).toBe(
-        "public, max-age=60, stale-while-revalidate=300",
+        "public, max-age=3600, stale-while-revalidate=86400",
       );
     });
   });
