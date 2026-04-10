@@ -5,11 +5,11 @@ import { z } from "zod";
 // ── Enums ────────────────────────────────────────────────────────────────────
 
 const cardTypeSchema = z.string().openapi({ example: "Unit" });
-const raritySchema = z.string().openapi({ example: "Common" });
-const domainSchema = z.string().openapi({ example: "Fury" });
-const superTypeSchema = z.string().openapi({ example: "Legend" });
+const raritySchema = z.string().openapi({ example: "Epic" });
+const domainSchema = z.string().openapi({ example: "Chaos" });
+const superTypeSchema = z.string().openapi({ example: "Champion" });
 const artVariantSchema = z.string().openapi({ example: "normal" });
-const finishSchema = z.string().openapi({ example: "normal" });
+const finishSchema = z.string().openapi({ example: "foil" });
 const activityActionSchema = z.enum(["added", "removed", "moved"]);
 const deckFormatSchema = z.enum(["constructed", "freeform"]);
 const deckZoneSchema = z.enum([
@@ -25,7 +25,9 @@ const cardFaceSchema = z.enum(["front", "back"]);
 
 // ── Health ───────────────────────────────────────────────────────────────────
 
-export const healthResponseSchema = z.object({ status: z.string() }).openapi("HealthResponse");
+export const healthResponseSchema = z
+  .object({ status: z.string().openapi({ example: "ok" }) })
+  .openapi("HealthResponse");
 
 // ── Admin Status ────────────────────────────────────────────────────────────
 
@@ -91,31 +93,45 @@ export const adminStatusResponseSchema = z
 // ── Feature Flags ────────────────────────────────────────────────────────────
 
 export const featureFlagsResponseSchema = z
-  .object({ items: z.record(z.string(), z.boolean()) })
+  .object({
+    items: z.record(z.string(), z.boolean()).openapi({
+      example: { collection: true, decks: true },
+    }),
+  })
   .openapi("FeatureFlagsResponse");
 
 // ── Keyword Styles ───────────────────────────────────────────────────────────
 
 const keywordStyleEntrySchema = z.object({
-  color: z.string(),
-  darkText: z.boolean(),
-  translations: z.record(z.string(), z.string()).optional(),
+  color: z.string().openapi({ example: "#24705f" }),
+  darkText: z.boolean().openapi({ example: false }),
+  translations: z
+    .record(z.string(), z.string())
+    .optional()
+    .openapi({ example: { de: "Beschleunigen" } }),
 });
 
 export const keywordStylesResponseSchema = z
-  .object({ items: z.record(z.string(), keywordStyleEntrySchema) })
+  .object({
+    items: z.record(z.string(), keywordStyleEntrySchema).openapi({
+      example: {
+        Accelerate: { color: "#24705f", darkText: false },
+        Ambush: { color: "#5a2d82", darkText: false },
+      },
+    }),
+  })
   .openapi("KeywordStylesResponse");
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 const enumRowSchema = z.object({
-  slug: z.string(),
-  label: z.string(),
-  sortOrder: z.number(),
+  slug: z.string().openapi({ example: "Unit" }),
+  label: z.string().openapi({ example: "Unit" }),
+  sortOrder: z.number().openapi({ example: 1 }),
 });
 
 const domainEnumRowSchema = enumRowSchema.extend({
-  color: z.string().nullable(),
+  color: z.string().nullable().openapi({ example: "#b8336a" }),
 });
 
 export const initResponseSchema = z
@@ -138,51 +154,55 @@ export const initResponseSchema = z
 // ── Prices ───────────────────────────────────────────────────────────────────
 
 export const pricesResponseSchema = z
-  .object({ prices: z.record(z.string(), z.number()) })
+  .object({
+    prices: z.record(z.string(), z.number()).openapi({
+      example: { "019cfc3b-03d3-7dac-86c9-27900cd43727": 4.52 },
+    }),
+  })
   .openapi("PricesResponse");
 
 const tcgplayerSnapshotSchema = z.object({
-  date: z.string(),
-  market: z.number(),
-  low: z.number().nullable(),
-  mid: z.number().nullable(),
-  high: z.number().nullable(),
+  date: z.string().openapi({ example: "2026-04-01" }),
+  market: z.number().openapi({ example: 4.52 }),
+  low: z.number().nullable().openapi({ example: 3.25 }),
+  mid: z.number().nullable().openapi({ example: 4.5 }),
+  high: z.number().nullable().openapi({ example: 6.99 }),
 });
 
 const cardmarketSnapshotSchema = z.object({
-  date: z.string(),
-  market: z.number(),
-  low: z.number().nullable(),
-  trend: z.number().nullable(),
-  avg1: z.number().nullable(),
-  avg7: z.number().nullable(),
-  avg30: z.number().nullable(),
+  date: z.string().openapi({ example: "2026-04-01" }),
+  market: z.number().openapi({ example: 3.8 }),
+  low: z.number().nullable().openapi({ example: 2.5 }),
+  trend: z.number().nullable().openapi({ example: 3.95 }),
+  avg1: z.number().nullable().openapi({ example: 3.8 }),
+  avg7: z.number().nullable().openapi({ example: 3.72 }),
+  avg30: z.number().nullable().openapi({ example: 3.65 }),
 });
 
 const cardtraderSnapshotSchema = z.object({
-  date: z.string(),
-  market: z.number(),
+  date: z.string().openapi({ example: "2026-04-01" }),
+  market: z.number().openapi({ example: 3.9 }),
 });
 
 export const priceHistoryResponseSchema = z
   .object({
-    printingId: z.string(),
+    printingId: z.string().openapi({ example: "019cfc3b-03d3-7dac-86c9-27900cd43727" }),
     tcgplayer: z.object({
-      available: z.boolean(),
+      available: z.boolean().openapi({ example: true }),
       currency: z.literal("USD"),
-      productId: z.number().nullable(),
+      productId: z.number().nullable().openapi({ example: 582_391 }),
       snapshots: z.array(tcgplayerSnapshotSchema),
     }),
     cardmarket: z.object({
-      available: z.boolean(),
+      available: z.boolean().openapi({ example: true }),
       currency: z.literal("EUR"),
-      productId: z.number().nullable(),
+      productId: z.number().nullable().openapi({ example: 748_215 }),
       snapshots: z.array(cardmarketSnapshotSchema),
     }),
     cardtrader: z.object({
-      available: z.boolean(),
+      available: z.boolean().openapi({ example: false }),
       currency: z.literal("EUR"),
-      productId: z.number().nullable(),
+      productId: z.number().nullable().openapi({ example: null }),
       snapshots: z.array(cardtraderSnapshotSchema),
     }),
   })
@@ -216,16 +236,16 @@ const cardBanSchema = z.object({
 });
 
 export const catalogCardResponseSchema = z.object({
-  id: z.string().openapi({ example: "019d1eea-5a5d-74fb-809b-5ba2cad3ff0f" }),
-  slug: z.string().openapi({ example: "xerath-freed" }),
-  name: z.string().openapi({ example: "Xerath, Freed" }),
+  id: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
+  slug: z.string().openapi({ example: "jinx-rebel" }),
+  name: z.string().openapi({ example: "Jinx, Rebel" }),
   type: cardTypeSchema,
-  superTypes: z.array(superTypeSchema).openapi({ example: ["Legend"] }),
-  domains: z.array(domainSchema).openapi({ example: ["Fury"] }),
+  superTypes: z.array(superTypeSchema).openapi({ example: ["Champion"] }),
+  domains: z.array(domainSchema).openapi({ example: ["Chaos"] }),
   might: z.number().nullable().openapi({ example: 5 }),
   energy: z.number().nullable().openapi({ example: 5 }),
   power: z.number().nullable().openapi({ example: null }),
-  keywords: z.array(z.string()).openapi({ example: ["Accelerate"] }),
+  keywords: z.array(z.string()).openapi({ example: [] }),
   tags: z.array(z.string()).openapi({ example: [] }),
   mightBonus: z.number().nullable().openapi({ example: null }),
   errata: z
@@ -242,8 +262,8 @@ export const catalogCardResponseSchema = z.object({
 });
 
 export const catalogPrintingResponseSchema = z.object({
-  id: z.string().openapi({ example: "019d66f2-5912-76af-a375-99d128482013" }),
-  shortCode: z.string().openapi({ example: "OGN-001" }),
+  id: z.string().openapi({ example: "019cfc3b-03d3-7dac-86c9-27900cd43727" }),
+  shortCode: z.string().openapi({ example: "OGN-202" }),
   setId: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
   rarity: raritySchema,
   artVariant: artVariantSchema,
@@ -252,14 +272,14 @@ export const catalogPrintingResponseSchema = z.object({
   finish: finishSchema,
   images: z.array(printingImageSchema),
   artist: z.string().openapi({ example: "Kudos Productions" }),
-  publicCode: z.string().openapi({ example: "OGN-001/312" }),
+  publicCode: z.string().openapi({ example: "OGN-202/298" }),
   printedRulesText: z.string().nullable().openapi({ example: null }),
   printedEffectText: z.string().nullable().openapi({ example: null }),
   flavorText: z.string().nullable().openapi({ example: null }),
   printedName: z.string().nullable().openapi({ example: null }),
   language: z.string().openapi({ example: "EN" }),
-  marketPrice: z.number().optional().openapi({ example: 0.25 }),
-  cardId: z.string().openapi({ example: "019d1eea-5a5d-74fb-809b-5ba2cad3ff0f" }),
+  marketPrice: z.number().optional().openapi({ example: 4.52 }),
+  cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
 });
 
 export const catalogResponseSchema = z
@@ -267,7 +287,7 @@ export const catalogResponseSchema = z
     sets: z.array(catalogSetResponseSchema),
     cards: z.record(z.string(), catalogCardResponseSchema),
     printings: z.array(catalogPrintingResponseSchema),
-    totalCopies: z.number(),
+    totalCopies: z.number().openapi({ example: 142 }),
   })
   .openapi("CatalogResponse");
 
@@ -308,8 +328,8 @@ export const setDetailResponseSchema = z
 
 export const sitemapDataResponseSchema = z
   .object({
-    cardSlugs: z.array(z.string()),
-    setSlugs: z.array(z.string()),
+    cardSlugs: z.array(z.string()).openapi({ example: ["jinx-rebel", "chemtech-enforcer"] }),
+    setSlugs: z.array(z.string()).openapi({ example: ["OGN", "UNL"] }),
   })
   .openapi("SitemapDataResponse");
 
@@ -613,22 +633,24 @@ export const shoppingListResponseSchema = z
 // ── Rules ───────────────────────────────────────────────────────────────────
 
 const ruleResponseSchema = z.object({
-  id: z.string(),
-  version: z.string(),
-  ruleNumber: z.string(),
-  sortOrder: z.number(),
-  depth: z.number(),
+  id: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000100" }),
+  version: z.string().openapi({ example: "1.2.0" }),
+  ruleNumber: z.string().openapi({ example: "3.4.1" }),
+  sortOrder: z.number().openapi({ example: 120 }),
+  depth: z.number().openapi({ example: 2 }),
   ruleType: z.enum(["title", "subtitle", "text"]),
-  content: z.string(),
+  content: z.string().openapi({
+    example: "A player loses the game if they would draw a card from an empty deck.",
+  }),
   changeType: z.enum(["added", "modified", "removed"]),
 });
 
 const ruleVersionResponseSchema = z.object({
-  version: z.string(),
-  sourceType: z.string(),
-  sourceUrl: z.string().nullable(),
-  publishedAt: z.string().nullable(),
-  importedAt: z.string(),
+  version: z.string().openapi({ example: "1.2.0" }),
+  sourceType: z.string().openapi({ example: "pdf" }),
+  sourceUrl: z.string().nullable().openapi({ example: "https://example.com/rules-1.2.0.pdf" }),
+  publishedAt: z.string().nullable().openapi({ example: "2026-02-15" }),
+  importedAt: z.string().openapi({ example: "2026-02-16T08:30:00Z" }),
 });
 
 export const rulesListResponseSchema = z
