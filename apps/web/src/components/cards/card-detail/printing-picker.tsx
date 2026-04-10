@@ -2,7 +2,6 @@ import type { Marketplace, Printing } from "@openrift/shared";
 import { snapshotHeadline } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { usePrices } from "@/hooks/use-prices";
 import {
@@ -55,18 +54,14 @@ export function PrintingPicker({
                 </Link>
                 {label}
                 {hasMixedRarities && (
-                  <Tooltip>
-                    <TooltipTrigger render={<span />} className="ml-1 inline align-text-bottom">
-                      <img
-                        src={`/images/rarities/${p.rarity.toLowerCase()}-28x28.webp`}
-                        alt={p.rarity}
-                        width={28}
-                        height={28}
-                        className="size-3.5"
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent>{p.rarity}</TooltipContent>
-                  </Tooltip>
+                  <img
+                    src={`/images/rarities/${p.rarity.toLowerCase()}-28x28.webp`}
+                    alt={p.rarity}
+                    title={p.rarity}
+                    width={28}
+                    height={28}
+                    className="ml-1 inline size-3.5 align-text-bottom"
+                  />
                 )}
               </span>
               <PrintingPrices printing={p} />
