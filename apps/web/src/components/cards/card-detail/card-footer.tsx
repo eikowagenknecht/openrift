@@ -2,7 +2,7 @@ import type { Printing, TimeRange } from "@openrift/shared";
 import { useState } from "react";
 
 import { PriceSparkline } from "@/components/cards/price-sparkline";
-import { resolvePrice } from "@/hooks/use-card-data";
+import { usePrices } from "@/hooks/use-prices";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { PricingSection } from "./pricing";
@@ -11,7 +11,8 @@ export function CardFooter({ printing }: { printing: Printing }) {
   const [priceRange, setPriceRange] = useState<TimeRange>("30d");
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const favorite = marketplaceOrder[0] ?? "tcgplayer";
-  const hasPrice = resolvePrice(printing, favorite) !== undefined;
+  const prices = usePrices();
+  const hasPrice = prices.get(printing.id, favorite) !== undefined;
 
   return (
     <div className="mt-2 space-y-2">

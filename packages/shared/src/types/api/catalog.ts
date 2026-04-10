@@ -1,6 +1,6 @@
 import type { Card, PrintingImage, PromoType } from "../catalog.js";
 import type { ArtVariant, Finish, Rarity } from "../enums.js";
-import type { Marketplace } from "../pricing.js";
+import type { PriceMap } from "./pricing.js";
 
 export interface CatalogSetResponse {
   id: string;
@@ -29,8 +29,6 @@ export interface CatalogPrintingResponse {
   flavorText: string | null;
   printedName: string | null;
   language: string;
-  marketPrice?: number;
-  marketPrices?: Partial<Record<Marketplace, number>>;
   cardId: string;
 }
 
@@ -49,6 +47,13 @@ export interface CardDetailResponse {
   card: CatalogCardResponse;
   printings: CatalogPrintingResponse[];
   sets: CatalogSetResponse[];
+  /**
+   * Latest market prices for the printings on this page, per marketplace.
+   * Embedded so the SSR `head()` function can synchronously read prices for
+   * Schema.org Product/Offer JSON-LD without waiting for client-side fetches.
+   * Runtime UI should still go through `usePrices()` for the cross-page lookup.
+   */
+  prices: PriceMap;
 }
 
 export interface SetListEntry extends CatalogSetResponse {
@@ -65,6 +70,11 @@ export interface SetDetailResponse {
   set: CatalogSetResponse;
   cards: Record<string, CatalogCardResponse>;
   printings: CatalogPrintingResponse[];
+  /**
+   * Latest market prices for the printings in this set, per marketplace.
+   * Used for SSR JSON-LD; runtime UI reads through `usePrices()`.
+   */
+  prices: PriceMap;
 }
 
 export interface SitemapEntry {

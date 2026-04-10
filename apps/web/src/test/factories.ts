@@ -2,7 +2,18 @@
  * Shared test factories for creating stub data objects.
  * Uses deep defaults with partial overrides for convenience.
  */
-import type { Card, CardType, DeckZone, Domain, Printing, SuperType } from "@openrift/shared";
+import type {
+  Card,
+  CardType,
+  DeckZone,
+  Domain,
+  Marketplace,
+  PriceLookup,
+  PriceMap,
+  Printing,
+  SuperType,
+} from "@openrift/shared";
+import { priceLookupFromMap } from "@openrift/shared";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
@@ -88,6 +99,18 @@ export function stubCardViewerItem(
 ): CardViewerItem {
   const printing = stubPrinting(overrides);
   return { id: printing.id, printing };
+}
+
+/**
+ * Builds a {@link PriceLookup} from a map of `printingId → marketplace → price`.
+ * Use in place of attaching prices to test printings — keeps the printing factory
+ * decoupled from pricing data.
+ * @returns A lookup that resolves prices from the given map.
+ */
+export function stubPriceLookup(
+  prices: Record<string, Partial<Record<Marketplace, number>>>,
+): PriceLookup {
+  return priceLookupFromMap(prices as PriceMap);
 }
 
 /**

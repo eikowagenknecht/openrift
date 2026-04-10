@@ -56,11 +56,14 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       ogImage: imageUrl,
     });
 
-    const prices = data.printings
-      .map((p) => p.marketPrice)
+    // Schema.org Product/Offer JSON-LD reads from the response's `prices` sibling
+    // (not from each printing) so the data is available synchronously at SSR time
+    // for crawlers that don't execute JS.
+    const tcgPrices = data.printings
+      .map((p) => data.prices[p.id]?.tcgplayer)
       .filter((p): p is number => p !== undefined && p > 0);
-    const priceLow = prices.length > 0 ? Math.min(...prices) : undefined;
-    const priceHigh = prices.length > 0 ? Math.max(...prices) : undefined;
+    const priceLow = tcgPrices.length > 0 ? Math.min(...tcgPrices) : undefined;
+    const priceHigh = tcgPrices.length > 0 ? Math.max(...tcgPrices) : undefined;
 
     return {
       ...head,

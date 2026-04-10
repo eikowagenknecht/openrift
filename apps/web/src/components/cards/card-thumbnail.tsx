@@ -8,10 +8,10 @@ import { memo, useRef, useState } from "react";
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
-import { resolvePrice } from "@/hooks/use-card-data";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { usePrices } from "@/hooks/use-prices";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import {
@@ -219,7 +219,8 @@ export const CardThumbnail = memo(function CardThumbnail({
   const gridFoil = foilEffect;
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const favoriteMarketplace = marketplaceOrder[0] ?? "tcgplayer";
-  const favoritePrice = resolvePrice(printing, favoriteMarketplace);
+  const prices = usePrices();
+  const favoritePrice = prices.get(printing.id, favoriteMarketplace);
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
   const isFoilCard = printing.finish === WellKnown.finish.FOIL;
   const tilt = useCardTilt({ mode: "pointer", enabled: cardTilt && !IS_COARSE_POINTER });

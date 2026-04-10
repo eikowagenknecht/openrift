@@ -75,6 +75,8 @@ export type {
   Marketplace,
   MarketplaceGroupResponse,
   PriceHistoryResponse,
+  PriceLookup,
+  PriceMap,
   PriceRefreshResponse,
   PriceRefreshUpsertCounts,
   PricesResponse,
@@ -141,7 +143,13 @@ export {
 
 export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
 export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters.js";
-export type { SortCardsOptions } from "./filters.js";
+export type {
+  FilterCardsOptions,
+  GetAvailableFiltersOptions,
+  SortCardsOptions,
+} from "./filters.js";
+
+export { EMPTY_PRICE_LOOKUP, priceLookupFromMap } from "./price-lookup.js";
 
 export {
   extractCardIdFromShortCode,

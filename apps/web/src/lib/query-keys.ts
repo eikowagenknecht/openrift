@@ -12,6 +12,9 @@ export const queryKeys = {
   catalog: {
     all: ["catalog"] as const,
   },
+  prices: {
+    all: ["prices"] as const,
+  },
   cards: {
     detail: (slug: string) => ["card-detail", slug] as const,
   },

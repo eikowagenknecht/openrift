@@ -1,10 +1,8 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import { centsToDollars } from "@openrift/shared";
 import type {
   CatalogResponse,
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
-  Marketplace,
 } from "@openrift/shared";
 import { catalogResponseSchema } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
@@ -31,33 +29,25 @@ export const catalogRoute = catalogApp
    *
    * Cards and printings are both returned as maps keyed by their own id; the
    * id is therefore omitted from each value (identity lives in the key). Sets
-   * stay as an array. Latest market prices are included on each printing.
+   * stay as an array.
+   *
+   * Prices live on a separate `/api/v1/prices` endpoint with its own cache
+   * lifetime, so the catalog ETag stays stable across daily price refreshes.
+   * Clients compose the two via the `useCards()` + `usePrices()` hook pair.
    */
   .openapi(getCatalog, async (c) => {
-    const { catalog, marketplace } = c.get("repos");
+    const { catalog } = c.get("repos");
 
-    const [sets, cardRows, printingRows, imageRows, priceRows, banRows, errataRows, totalCopies] =
+    const [sets, cardRows, printingRows, imageRows, banRows, errataRows, totalCopies] =
       await Promise.all([
         catalog.sets(),
         catalog.cards(),
         catalog.printings(),
         catalog.printingImages(),
-        marketplace.latestPrices(),
         catalog.cardBans(),
         catalog.cardErrata(),
         catalog.totalCopies(),
       ]);
-
-    // Build per-printing, per-marketplace price map
-    const pricesByPrinting = new Map<string, Partial<Record<Marketplace, number>>>();
-    for (const row of priceRows) {
-      let entry = pricesByPrinting.get(row.printingId);
-      if (!entry) {
-        entry = {};
-        pricesByPrinting.set(row.printingId, entry);
-      }
-      entry[row.marketplace as Marketplace] = centsToDollars(row.marketCents);
-    }
 
     // Group active bans by card
     const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
@@ -95,12 +85,9 @@ export const catalogRoute = catalogApp
 
     const printings: Record<string, CatalogResponsePrintingValue> = {};
     for (const { id, ...rest } of printingRows) {
-      const prices = pricesByPrinting.get(id);
       printings[id] = {
         ...rest,
         images: (imagesByPrinting.get(id) ?? []).map((i) => ({ face: i.face, url: i.url })),
-        ...(prices?.tcgplayer !== undefined && { marketPrice: prices.tcgplayer }),
-        ...(prices && { marketPrices: prices }),
       };
     }
 
@@ -111,6 +98,8 @@ export const catalogRoute = catalogApp
       totalCopies,
     };
 
-    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    // Catalog data only changes when sets/cards/printings ship — typically
+    // weeks apart. Long max-age + SWR keeps caches warm across refreshes.
+    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
     return c.json(content);
   });

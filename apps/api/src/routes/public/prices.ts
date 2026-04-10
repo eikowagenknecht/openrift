@@ -1,6 +1,6 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { TIME_RANGE_DAYS, centsToDollars, formatDateUTC } from "@openrift/shared";
-import type { Marketplace, PriceHistoryResponse, PricesResponse } from "@openrift/shared";
+import type { Marketplace, PriceHistoryResponse, PriceMap, PricesResponse } from "@openrift/shared";
 import {
   priceHistoryResponseSchema,
   pricesResponseSchema,
@@ -43,23 +43,26 @@ pricesApp.use("/prices", etag());
 pricesApp.use("/prices/:printingId/history", etag());
 export const pricesRoute = pricesApp
   /**
-   * `GET /prices` — Returns the latest TCGPlayer market price for every printing.
+   * `GET /prices` — Returns the latest market price per marketplace for every printing.
    *
    * Uses `DISTINCT ON` to efficiently pick only the most recent snapshot per
    * marketplace source without scanning the full `marketplace_snapshots` table.
-   * Prices are returned as a `{ [printingId]: dollars }` map.
+   * Returned as `{ [printingId]: { tcgplayer?, cardmarket?, cardtrader? } }`,
+   * with each value in dollars.
    */
   .openapi(getPrices, async (c) => {
     const { marketplace } = c.get("repos");
 
     const rows = await marketplace.latestPrices();
 
-    // This endpoint returns a simple printingId → USD price map (TCGplayer only).
-    const prices: Record<string, number> = {};
+    const prices: PriceMap = {};
     for (const row of rows) {
-      if (row.marketplace === "tcgplayer") {
-        prices[row.printingId] = centsToDollars(row.marketCents);
+      let entry = prices[row.printingId];
+      if (!entry) {
+        entry = {};
+        prices[row.printingId] = entry;
       }
+      entry[row.marketplace as Marketplace] = centsToDollars(row.marketCents);
     }
 
     c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");

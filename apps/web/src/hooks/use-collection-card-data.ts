@@ -1,6 +1,7 @@
 import type {
   CardFilters,
   Marketplace,
+  PriceLookup,
   Printing,
   SortCardsOptions,
   SortOption,
@@ -8,7 +9,6 @@ import type {
 import { comparePrintings, filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
-import { resolvePrice } from "@/hooks/use-card-data";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
 
 interface UseCollectionCardDataParams {
@@ -19,6 +19,7 @@ interface UseCollectionCardDataParams {
   view: "cards" | "printings";
   sets: SetInfo[];
   favoriteMarketplace: Marketplace;
+  prices: PriceLookup;
   /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
   keywordReverseMap?: Map<string, string>;
   languageOrder?: string[];
@@ -46,6 +47,7 @@ export function useCollectionCardData({
   view,
   sets,
   favoriteMarketplace,
+  prices,
   keywordReverseMap,
   languageOrder,
 }: UseCollectionCardDataParams) {
@@ -57,8 +59,10 @@ export function useCollectionCardData({
   const setSlugToName = new Map(sets.map((set) => [set.slug, set.name]));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
 
-  const availableFilters = getAvailableFilters(collectionPrintings);
-  const filteredCards = filterCards(collectionPrintings, filters, keywordReverseMap);
+  const getPrice = (p: Printing) => prices.get(p.id, favoriteMarketplace);
+
+  const availableFilters = getAvailableFilters(collectionPrintings, { getPrice });
+  const filteredCards = filterCards(collectionPrintings, filters, { keywordReverseMap, getPrice });
 
   // In "cards" view, deduplicate by cardId (keep canonical printing)
   const displayCards =
@@ -69,17 +73,19 @@ export function useCollectionCardData({
 
   // Price ranges for "cards" view sorting
   const priceRangeByCardId =
-    view === "cards" ? computePriceRanges(printingsByCardId, favoriteMarketplace) : null;
+    view === "cards" ? computePriceRanges(printingsByCardId, prices, favoriteMarketplace) : null;
 
   const sortOptions: SortCardsOptions = { sortDir };
   if (sortBy === "price" && priceRangeByCardId) {
     sortOptions.getPrice = (printing) => {
       const range = priceRangeByCardId.get(printing.card.id);
       if (!range) {
-        return resolvePrice(printing, favoriteMarketplace) ?? null;
+        return getPrice(printing) ?? null;
       }
       return sortDir === "desc" ? range.max : range.min;
     };
+  } else if (sortBy === "price") {
+    sortOptions.getPrice = getPrice;
   }
   const sortedCards = sortCards(displayCards, sortBy, sortOptions);
 
@@ -164,6 +170,7 @@ function groupPrintingsByCardId(
 
 function computePriceRanges(
   printingsByCardId: Map<string, Printing[]>,
+  prices: PriceLookup,
   marketplace: Marketplace,
 ): Map<string, { min: number; max: number }> {
   const map = new Map<string, { min: number; max: number }>();
@@ -171,8 +178,8 @@ function computePriceRanges(
     let min = Infinity;
     let max = -Infinity;
     for (const printing of printings) {
-      const price = resolvePrice(printing, marketplace);
-      if (price !== null && price !== undefined) {
+      const price = prices.get(printing.id, marketplace);
+      if (price !== undefined) {
         min = Math.min(min, price);
         max = Math.max(max, price);
       }

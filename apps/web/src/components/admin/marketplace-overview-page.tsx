@@ -5,9 +5,9 @@ import { formatRelativeTime } from "@/components/admin/refresh-actions";
 import type { CronStatus } from "@/components/admin/refresh-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useClearPrices, useRefreshPrices } from "@/hooks/use-admin-prices";
 import { useCronStatus } from "@/hooks/use-cron-status";
 import { useMarketplaceGroups } from "@/hooks/use-marketplace-groups";
-import { useClearPrices, useRefreshPrices } from "@/hooks/use-prices";
 
 import { ConfirmClearButton } from "./confirm-clear-button";
 

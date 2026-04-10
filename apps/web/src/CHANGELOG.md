@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-10
+
+- fix: Filtering by price range now respects the marketplace you have selected, instead of always filtering on TCGplayer prices
+
 ## 2026-04-09
 
 - feat: Deck editor now shows an Ownership panel in the sidebar with how many cards you own, how many are missing, and the estimated cost to complete the deck

@@ -5,6 +5,7 @@ import type {
   CatalogPrintingResponse,
   CardDetailResponse,
   Marketplace,
+  PriceMap,
 } from "@openrift/shared";
 import { cardDetailResponseSchema } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
@@ -62,13 +63,15 @@ export const cardsRoute = cardsApp
       marketplace.latestPricesForPrintings(printingIds),
     ]);
 
-    // Build per-printing price map
-    const pricesByPrinting = new Map<string, Partial<Record<Marketplace, number>>>();
+    // Per-printing price map. Returned as a sibling field on the response so
+    // SSR head() can synchronously read it for Schema.org Product/Offer JSON-LD;
+    // runtime UI reads prices through the global usePrices() hook instead.
+    const prices: PriceMap = {};
     for (const row of priceRows) {
-      let entry = pricesByPrinting.get(row.printingId);
+      let entry = prices[row.printingId];
       if (!entry) {
         entry = {};
-        pricesByPrinting.set(row.printingId, entry);
+        prices[row.printingId] = entry;
       }
       entry[row.marketplace as Marketplace] = centsToDollars(row.marketCents);
     }
@@ -98,20 +101,16 @@ export const cardsRoute = cardsApp
       })),
     };
 
-    const printings: CatalogPrintingResponse[] = printingRows.map((row) => {
-      const prices = pricesByPrinting.get(row.id);
-      return {
-        ...row,
-        images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
-        ...(prices?.tcgplayer !== undefined && { marketPrice: prices.tcgplayer }),
-        ...(prices && { marketPrices: prices }),
-      };
-    });
+    const printings: CatalogPrintingResponse[] = printingRows.map((row) => ({
+      ...row,
+      images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
+    }));
 
     const content: CardDetailResponse = {
       card: cardResponse,
       printings,
       sets,
+      prices,
     };
 
     c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");

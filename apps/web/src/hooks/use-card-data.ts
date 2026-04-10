@@ -1,11 +1,18 @@
 import type {
   CardFilters,
   Marketplace,
+  PriceLookup,
   Printing,
   SortCardsOptions,
   SortOption,
 } from "@openrift/shared";
-import { comparePrintings, filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
+import {
+  EMPTY_PRICE_LOOKUP,
+  comparePrintings,
+  filterCards,
+  getAvailableFilters,
+  sortCards,
+} from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
 
@@ -19,6 +26,7 @@ interface UseCardDataParams {
   view: "cards" | "printings";
   ownedCountByPrinting: Record<string, number> | undefined;
   favoriteMarketplace: Marketplace;
+  prices: PriceLookup;
   enabled?: boolean;
   /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
   keywordReverseMap?: Map<string, string>;
@@ -103,23 +111,13 @@ function groupPrintingsByCardId(
 }
 
 /**
- * Resolve the display price for a printing from the user's favorite marketplace.
- * Falls back to `marketPrice` (TCGplayer) when `marketPrices` is absent.
- * @returns The price or `undefined` if unavailable.
- */
-export function resolvePrice(printing: Printing, marketplace: Marketplace): number | undefined {
-  return (
-    printing.marketPrices?.[marketplace] ??
-    (marketplace === "tcgplayer" ? printing.marketPrice : undefined)
-  );
-}
-
-/**
- * Compute min/max market price per cardId from grouped printings.
+ * Compute min/max market price per cardId from grouped printings, looking up
+ * each printing's price on the user's favorite marketplace.
  * @returns A map from cardId to price range.
  */
 function computePriceRanges(
   printingsByCardId: Map<string, Printing[]>,
+  prices: PriceLookup,
   marketplace: Marketplace,
 ): Map<string, { min: number; max: number }> {
   const map = new Map<string, { min: number; max: number }>();
@@ -127,8 +125,8 @@ function computePriceRanges(
     let min = Infinity;
     let max = -Infinity;
     for (const p of printings) {
-      const price = resolvePrice(p, marketplace);
-      if (price !== null && price !== undefined) {
+      const price = prices.get(p.id, marketplace);
+      if (price !== undefined) {
         min = Math.min(min, price);
         max = Math.max(max, price);
       }
@@ -188,6 +186,7 @@ export function useCardData({
   view,
   ownedCountByPrinting,
   favoriteMarketplace,
+  prices,
   enabled = true,
   keywordReverseMap,
 }: UseCardDataParams) {
@@ -215,8 +214,14 @@ export function useCardData({
       ? allPrintings.filter((printing) => languageFilter.includes(printing.language))
       : allPrintings;
 
-  const availableFilters = getAvailableFilters(langFiltered);
-  const filteredCards = filterCards(langFiltered, filters, keywordReverseMap);
+  // getPrice resolves a printing's price on the user's favorite marketplace.
+  // Filters, sorting, and the available-price-range histogram all read prices
+  // through this dependency rather than reading a field off the printing.
+  const lookup = prices ?? EMPTY_PRICE_LOOKUP;
+  const getPrice = (p: Printing) => lookup.get(p.id, favoriteMarketplace);
+
+  const availableFilters = getAvailableFilters(langFiltered, { getPrice });
+  const filteredCards = filterCards(langFiltered, filters, { keywordReverseMap, getPrice });
 
   const displayCards =
     view === "cards"
@@ -226,17 +231,19 @@ export function useCardData({
   const printingsByCardId = groupPrintingsByCardId(filteredCards, setOrderMap, languageFilter);
 
   const priceRangeByCardId =
-    view === "cards" ? computePriceRanges(printingsByCardId, favoriteMarketplace) : null;
+    view === "cards" ? computePriceRanges(printingsByCardId, lookup, favoriteMarketplace) : null;
 
   const sortOptions: SortCardsOptions = { sortDir };
   if (sortBy === "price" && priceRangeByCardId) {
     sortOptions.getPrice = (p) => {
       const range = priceRangeByCardId.get(p.card.id);
       if (!range) {
-        return resolvePrice(p, favoriteMarketplace) ?? null;
+        return getPrice(p) ?? null;
       }
       return sortDir === "desc" ? range.max : range.min;
     };
+  } else if (sortBy === "price") {
+    sortOptions.getPrice = getPrice;
   }
   const sortedCards = sortCards(displayCards, sortBy, sortOptions);
 

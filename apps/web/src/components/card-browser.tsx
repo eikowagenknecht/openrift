@@ -39,6 +39,7 @@ import { collectionsQueryOptions } from "@/hooks/use-collections";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
+import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSession } from "@/lib/auth-session";
 import { useAddModeStore } from "@/stores/add-mode-store";
@@ -56,6 +57,7 @@ export function CardBrowser() {
   const catalogMode = useDisplayStore((s) => s.catalogMode);
   const cycleCatalogMode = useDisplayStore((s) => s.cycleCatalogMode);
   const { allPrintings, sets } = useCards();
+  const prices = usePrices();
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user);
   const { data: ownedCountByPrinting } = useOwnedCount(isLoggedIn);
@@ -121,6 +123,7 @@ export function CardBrowser() {
     view,
     ownedCountByPrinting,
     favoriteMarketplace: marketplaceOrder[0] ?? "tcgplayer",
+    prices,
     keywordReverseMap,
   });
 

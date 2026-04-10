@@ -1,6 +1,12 @@
+import { EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import { describe, expect, it, beforeEach } from "vitest";
 
-import { resetIdCounter, stubDeckBuilderCard, stubPrinting } from "@/test/factories";
+import {
+  resetIdCounter,
+  stubDeckBuilderCard,
+  stubPriceLookup,
+  stubPrinting,
+} from "@/test/factories";
 
 import { computeDeckOwnership } from "./use-deck-ownership";
 
@@ -10,7 +16,7 @@ beforeEach(() => {
 
 describe("computeDeckOwnership", () => {
   it("returns all zeros for an empty deck", () => {
-    const result = computeDeckOwnership([], [], {}, "tcgplayer");
+    const result = computeDeckOwnership([], [], {}, "tcgplayer", EMPTY_PRICE_LOOKUP);
 
     expect(result.totalNeeded).toBe(0);
     expect(result.totalOwned).toBe(0);
@@ -26,7 +32,13 @@ describe("computeDeckOwnership", () => {
     const printings = [stubPrinting({ id: printingId, card: { id: cardId } })];
     const owned = { [printingId]: 3 };
 
-    const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer");
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      owned,
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+    );
 
     expect(result.totalNeeded).toBe(3);
     expect(result.totalOwned).toBe(3);
@@ -46,7 +58,13 @@ describe("computeDeckOwnership", () => {
     const printings = [stubPrinting({ id: printingId, card: { id: cardId } })];
     const owned = { [printingId]: 1 };
 
-    const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer");
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      owned,
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+    );
 
     expect(result.totalOwned).toBe(1);
     expect(result.missingCount).toBe(2);
@@ -60,7 +78,7 @@ describe("computeDeckOwnership", () => {
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" })];
     const printings = [stubPrinting({ card: { id: cardId } })];
 
-    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer");
+    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", EMPTY_PRICE_LOOKUP);
 
     expect(result.totalOwned).toBe(0);
     expect(result.missingCount).toBe(2);
@@ -80,7 +98,13 @@ describe("computeDeckOwnership", () => {
     ];
     const owned = { p1: 1, p2: 2 };
 
-    const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer");
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      owned,
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+    );
 
     expect(result.totalOwned).toBe(3);
     expect(result.missingCount).toBe(0);
@@ -98,7 +122,13 @@ describe("computeDeckOwnership", () => {
     // Only own 3 copies, but need 4 (2 main + 2 sideboard)
     const owned = { [printingId]: 3 };
 
-    const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer");
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      owned,
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+    );
 
     expect(result.totalNeeded).toBe(4);
     expect(result.totalOwned).toBe(3);
@@ -110,12 +140,16 @@ describe("computeDeckOwnership", () => {
 
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" })];
     const printings = [
-      stubPrinting({ id: "p1", card: { id: cardId }, marketPrice: 5 }),
-      stubPrinting({ id: "p2", card: { id: cardId }, marketPrice: 3 }),
+      stubPrinting({ id: "p1", card: { id: cardId } }),
+      stubPrinting({ id: "p2", card: { id: cardId } }),
     ];
     const owned = { p1: 1 };
+    const prices = stubPriceLookup({
+      p1: { tcgplayer: 5 },
+      p2: { tcgplayer: 3 },
+    });
 
-    const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer");
+    const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer", prices);
 
     // Cheapest printing is $3.00, need 2 copies
     expect(result.deckValueCents).toBe(6);
@@ -131,7 +165,7 @@ describe("computeDeckOwnership", () => {
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
     const printings = [stubPrinting({ id: "p1", card: { id: cardId } })];
 
-    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer");
+    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", EMPTY_PRICE_LOOKUP);
 
     expect(result.deckValueCents).toBeUndefined();
     expect(result.ownedValueCents).toBeUndefined();
@@ -142,16 +176,12 @@ describe("computeDeckOwnership", () => {
     const cardId = "card-1";
 
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
-    const printings = [
-      stubPrinting({
-        id: "p1",
-        card: { id: cardId },
-        marketPrice: 10,
-        marketPrices: { cardmarket: 8 },
-      }),
-    ];
+    const printings = [stubPrinting({ id: "p1", card: { id: cardId } })];
+    const prices = stubPriceLookup({
+      p1: { tcgplayer: 10, cardmarket: 8 },
+    });
 
-    const result = computeDeckOwnership(deckCards, printings, {}, "cardmarket");
+    const result = computeDeckOwnership(deckCards, printings, {}, "cardmarket", prices);
 
     expect(result.deckValueCents).toBe(8);
   });
@@ -163,13 +193,18 @@ describe("computeDeckOwnership", () => {
       stubDeckBuilderCard({ cardId: "c", cardName: "Gamma", quantity: 1, zone: "sideboard" }),
     ];
     const printings = [
-      stubPrinting({ id: "pa", card: { id: "a" }, marketPrice: 1 }),
-      stubPrinting({ id: "pb", card: { id: "b" }, marketPrice: 5 }),
-      stubPrinting({ id: "pc", card: { id: "c" }, marketPrice: 2 }),
+      stubPrinting({ id: "pa", card: { id: "a" } }),
+      stubPrinting({ id: "pb", card: { id: "b" } }),
+      stubPrinting({ id: "pc", card: { id: "c" } }),
     ];
     const owned = { pa: 3, pb: 0 };
+    const prices = stubPriceLookup({
+      pa: { tcgplayer: 1 },
+      pb: { tcgplayer: 5 },
+      pc: { tcgplayer: 2 },
+    });
 
-    const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer");
+    const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer", prices);
 
     expect(result.totalNeeded).toBe(6);
     expect(result.totalOwned).toBe(3); // 3 of Alpha, 0 of Beta, 0 of Gamma

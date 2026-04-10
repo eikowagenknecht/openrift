@@ -17,16 +17,11 @@ const mockCatalogRepo = {
   totalCopies: vi.fn(() => Promise.resolve(0)),
 };
 
-const mockMarketplaceRepo = {
-  latestPrices: vi.fn(() => Promise.resolve([])),
-};
-
 // oxlint-disable-next-line -- test mock doesn't match full Repos type
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("repos", {
       catalog: mockCatalogRepo,
-      marketplace: mockMarketplaceRepo,
     } as never);
     await next();
   })
@@ -79,19 +74,11 @@ const dbImage = {
   url: "https://example.com/thumb.jpg",
 };
 
-const dbPrice = {
-  printingId: "OGS-001:rare:normal:",
-  marketplace: "tcgplayer",
-  marketCents: 275,
-  recordedAt: new Date("2026-03-01"),
-};
-
 function seedDefaults(overrides?: {
   sets?: unknown[];
   cards?: unknown[];
   printings?: unknown[];
   printingImages?: unknown[];
-  prices?: unknown[];
   totalCopies?: number;
 }) {
   mockCatalogRepo.sets.mockResolvedValue(overrides?.sets ?? [dbSet]);
@@ -101,7 +88,6 @@ function seedDefaults(overrides?: {
   mockCatalogRepo.cardBans.mockResolvedValue([]);
   mockCatalogRepo.cardErrata.mockResolvedValue([]);
   mockCatalogRepo.totalCopies.mockResolvedValue(overrides?.totalCopies ?? 42);
-  mockMarketplaceRepo.latestPrices.mockResolvedValue(overrides?.prices ?? [dbPrice]);
 }
 
 // ---------------------------------------------------------------------------
@@ -117,7 +103,6 @@ describe("GET /api/v1/catalog", () => {
     mockCatalogRepo.cardBans.mockReset();
     mockCatalogRepo.cardErrata.mockReset();
     mockCatalogRepo.totalCopies.mockReset();
-    mockMarketplaceRepo.latestPrices.mockReset();
     seedDefaults();
   });
 
@@ -235,35 +220,13 @@ describe("GET /api/v1/catalog", () => {
     expect(card.errata).toBeNull();
   });
 
-  it("includes latest market price on printing", async () => {
+  it("does not include market price on printing (prices live on /api/v1/prices)", async () => {
     const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     const printing = json.printings["OGS-001:rare:normal:"];
-    expect(printing.marketPrice).toBe(2.75);
-    expect(printing.marketPrices).toEqual({ tcgplayer: 2.75 });
-  });
-
-  it("includes all marketplace prices on printing", async () => {
-    seedDefaults({
-      prices: [
-        dbPrice,
-        { printingId: "OGS-001:rare:normal:", marketplace: "cardmarket", marketCents: 350 },
-      ],
-    });
-    const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
-    const printing = json.printings["OGS-001:rare:normal:"];
-    expect(printing.marketPrice).toBe(2.75);
-    expect(printing.marketPrices).toEqual({ tcgplayer: 2.75, cardmarket: 3.5 });
-  });
-
-  it("omits marketPrice when no price exists", async () => {
-    seedDefaults({ prices: [] });
-    const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
-    const printing = json.printings["OGS-001:rare:normal:"];
-    expect(printing.marketPrice).toBeUndefined();
-    expect(printing.marketPrices).toBeUndefined();
+    expect(printing).toBeDefined();
+    expect("marketPrice" in printing).toBe(false);
+    expect("marketPrices" in printing).toBe(false);
   });
 
   it("returns printings from multiple sets keyed by printing id", async () => {
@@ -299,7 +262,6 @@ describe("GET /api/v1/catalog", () => {
       cards: [],
       printings: [],
       printingImages: [],
-      prices: [],
     });
     const res = await app.request("/api/v1/catalog");
     const json = await res.json();
@@ -311,7 +273,9 @@ describe("GET /api/v1/catalog", () => {
   it("returns ETag and Cache-Control headers", async () => {
     const res = await app.request("/api/v1/catalog");
     expect(res.headers.get("ETag")).toBeTruthy();
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60, stale-while-revalidate=300");
+    expect(res.headers.get("Cache-Control")).toBe(
+      "public, max-age=3600, stale-while-revalidate=86400",
+    );
   });
 
   it("returns 304 when If-None-Match matches current ETag", async () => {
@@ -329,40 +293,6 @@ describe("GET /api/v1/catalog", () => {
       headers: { "If-None-Match": '"stale"' },
     });
     expect(res.status).toBe(200);
-  });
-
-  it("includes non-tcgplayer prices in marketPrices without setting marketPrice", async () => {
-    seedDefaults({
-      prices: [{ printingId: "OGS-001:rare:normal:", marketplace: "cardmarket", marketCents: 350 }],
-    });
-    const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
-    // Only cardmarket — no tcgplayer, so marketPrice should be undefined
-    const printing = json.printings["OGS-001:rare:normal:"];
-    expect(printing.marketPrice).toBeUndefined();
-    expect(printing.marketPrices).toEqual({ cardmarket: 3.5 });
-  });
-
-  it("groups prices by printing ID across multiple printings", async () => {
-    const secondRow = {
-      ...dbPrintingRow,
-      id: "OGS-002:rare:normal:",
-      slug: "OGS-002:rare:normal:",
-      cardId: "OGS-001",
-      shortCode: "OGS-002",
-    };
-    seedDefaults({
-      printings: [dbPrintingRow, secondRow],
-      printingImages: [],
-      prices: [
-        { printingId: "OGS-001:rare:normal:", marketplace: "tcgplayer", marketCents: 100 },
-        { printingId: "OGS-002:rare:normal:", marketplace: "tcgplayer", marketCents: 500 },
-      ],
-    });
-    const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
-    expect(json.printings["OGS-001:rare:normal:"].marketPrice).toBe(1);
-    expect(json.printings["OGS-002:rare:normal:"].marketPrice).toBe(5);
   });
 
   it("returns multiple images for a single printing", async () => {
@@ -386,31 +316,13 @@ describe("GET /api/v1/catalog", () => {
     });
   });
 
-  it("handles printing with no images and no prices", async () => {
+  it("handles printing with no images", async () => {
     seedDefaults({
       printingImages: [],
-      prices: [],
     });
     const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     const printing = json.printings["OGS-001:rare:normal:"];
     expect(printing.images).toEqual([]);
-    expect(printing.marketPrice).toBeUndefined();
-    expect(printing.marketPrices).toBeUndefined();
-  });
-
-  it("handles cardtrader marketplace prices", async () => {
-    seedDefaults({
-      prices: [
-        dbPrice,
-        { printingId: "OGS-001:rare:normal:", marketplace: "cardtrader", marketCents: 200 },
-      ],
-    });
-    const res = await app.request("/api/v1/catalog");
-    const json = await res.json();
-    expect(json.printings["OGS-001:rare:normal:"].marketPrices).toEqual({
-      tcgplayer: 2.75,
-      cardtrader: 2,
-    });
   });
 });

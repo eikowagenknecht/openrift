@@ -1,4 +1,4 @@
-import type { ActivityAction, CollectionEventResponse, Printing } from "@openrift/shared";
+import type { ActivityAction, CollectionEventResponse } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import {
@@ -25,10 +25,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSidebar } from "@/components/ui/sidebar";
-import { resolvePrice } from "@/hooks/use-card-data";
-import { useCards } from "@/hooks/use-cards";
 import { useCollectionEvents } from "@/hooks/use-collection-events";
 import { useCollections } from "@/hooks/use-collections";
+import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
 import { getCardImageUrl } from "@/lib/images";
 import { cn } from "@/lib/utils";
@@ -122,18 +121,6 @@ function getTypeIconPath(type: string, superTypes: string[]): string {
     return "/images/supertypes/champion.svg";
   }
   return `/images/types/${type.toLowerCase()}.svg`;
-}
-
-function lookupPrice(
-  printingMap: Map<string, Printing>,
-  printingId: string,
-  marketplace: string,
-): number | undefined {
-  const printing = printingMap.get(printingId);
-  if (!printing) {
-    return undefined;
-  }
-  return resolvePrice(printing, marketplace as "tcgplayer");
 }
 
 // ── Components ──────────────────────────────────────────────────────────────
@@ -331,15 +318,14 @@ function EventCard({
 
 function DaySummary({
   events,
-  printingMap,
   marketplace,
   formatPrice,
 }: {
   events: CollectionEventResponse[];
-  printingMap: Map<string, Printing>;
-  marketplace: string;
+  marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
   formatPrice: (v?: number | null) => string;
 }) {
+  const prices = usePrices();
   let added = 0;
   let removed = 0;
   let moved = 0;
@@ -347,7 +333,7 @@ function DaySummary({
   let removedValue = 0;
 
   for (const e of events) {
-    const price = lookupPrice(printingMap, e.printingId, marketplace);
+    const price = prices.get(e.printingId, marketplace);
     if (e.action === "added") {
       added++;
       if (price) {
@@ -463,7 +449,7 @@ function ActivityPage() {
   const { toggleSidebar } = useSidebar();
   const topBarSlot = use(TopBarSlotContext);
   const { data, hasNextPage, fetchNextPage, isFetchingNextPage } = useCollectionEvents();
-  const { allPrintings } = useCards();
+  const prices = usePrices();
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const marketplace = marketplaceOrder[0] ?? "tcgplayer";
   const formatPrice = compactFormatterForMarketplace(marketplace);
@@ -471,8 +457,6 @@ function ActivityPage() {
   const [actionFilter, setActionFilter] = useState<ActionFilter>("all");
   const [collectionFilter, setCollectionFilter] = useState("all");
   const [datePreset, setDatePreset] = useState<DatePreset>("all");
-
-  const printingMap = new Map(allPrintings.map((p) => [p.id, p]));
 
   const allEvents = data.pages.flatMap((page) => page.items);
 
@@ -539,12 +523,7 @@ function ActivityPage() {
                   <h2 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                     {formatDateHeading(events[0].createdAt)}
                   </h2>
-                  <DaySummary
-                    events={events}
-                    printingMap={printingMap}
-                    marketplace={marketplace}
-                    formatPrice={formatPrice}
-                  />
+                  <DaySummary events={events} marketplace={marketplace} formatPrice={formatPrice} />
                 </div>
                 <div className="divide-y">
                   {grouped.map((g) => {
@@ -553,7 +532,7 @@ function ActivityPage() {
                       <EventCard
                         key={`${g.event.action}:${g.event.printingId}:${collectionId}`}
                         {...g}
-                        price={lookupPrice(printingMap, g.event.printingId, marketplace)}
+                        price={prices.get(g.event.printingId, marketplace)}
                         formatPrice={formatPrice}
                         collectionFilter={collectionFilter}
                       />

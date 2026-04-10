@@ -1,8 +1,8 @@
-import type { Marketplace, Printing } from "@openrift/shared";
+import type { Marketplace, PriceLookup, Printing } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 
-import { resolvePrice } from "./use-card-data";
+import { usePrices } from "./use-prices";
 
 export interface CardOwnership {
   cardId: string;
@@ -35,6 +35,7 @@ export function computeDeckOwnership(
   allPrintings: Printing[],
   ownedCountByPrinting: Record<string, number> | undefined,
   marketplace: Marketplace,
+  prices: PriceLookup,
 ): DeckOwnershipData {
   "use memo";
 
@@ -52,7 +53,7 @@ export function computeDeckOwnership(
   // Build cheapest price by cardId
   const cheapestByCardId = new Map<string, number>();
   for (const printing of allPrintings) {
-    const price = resolvePrice(printing, marketplace);
+    const price = prices.get(printing.id, marketplace);
     if (price !== undefined) {
       const existing = cheapestByCardId.get(printing.card.id);
       if (existing === undefined || price < existing) {
@@ -136,9 +137,11 @@ export function useDeckOwnership(
   ownedCountByPrinting: Record<string, number> | undefined,
   marketplace: Marketplace,
 ): DeckOwnershipData | undefined {
+  const prices = usePrices();
+
   if (!ownedCountByPrinting) {
     return undefined;
   }
 
-  return computeDeckOwnership(deckCards, allPrintings, ownedCountByPrinting, marketplace);
+  return computeDeckOwnership(deckCards, allPrintings, ownedCountByPrinting, marketplace, prices);
 }

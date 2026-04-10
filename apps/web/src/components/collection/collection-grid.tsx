@@ -53,6 +53,7 @@ import { useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
+import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
@@ -127,6 +128,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const { filters, sortBy, sortDir, view, groupBy, groupDir, hasActiveFilters } = useFilterValues();
   const { setSearch, clearAllFilters } = useFilterActions();
   const { allPrintings, sets } = useCards();
+  const prices = usePrices();
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
@@ -152,6 +154,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     view: dataView,
     sets,
     favoriteMarketplace,
+    prices,
     keywordReverseMap,
     languageOrder: useDisplayStore((s) => s.languages),
   });
@@ -175,6 +178,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     view: dataView,
     ownedCountByPrinting,
     favoriteMarketplace,
+    prices,
     enabled: isAddMode,
     keywordReverseMap,
   });
