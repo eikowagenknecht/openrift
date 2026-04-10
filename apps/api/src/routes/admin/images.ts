@@ -303,8 +303,9 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
   })
 
   .openapi(regenerateImagesRoute, async (c) => {
+    const { printingImages } = c.get("repos");
     const offset = c.req.valid("query").offset ?? 0;
-    const result = await regenerateImages(c.get("io"), offset);
+    const result = await regenerateImages(c.get("io"), printingImages, offset);
     return c.json(result);
   })
 

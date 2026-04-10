@@ -102,6 +102,10 @@ export const activateImageSchema = z.object({
   active: z.boolean(),
 });
 
+export const rotateImageSchema = z.object({
+  rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
+});
+
 export const addImageUrlSchema = z.object({
   url: z.string(),
   provider: z.string().optional(),

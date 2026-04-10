@@ -48,9 +48,35 @@ export function printingImagesRepo(db: Kysely<Database>) {
       return db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as imgf", "imgf.id", "printingImages.imageFileId")
-        .select(["printingImages.id", "printingImages.imageFileId", "imgf.originalUrl"])
+        .select([
+          "printingImages.id",
+          "printingImages.imageFileId",
+          "imgf.originalUrl",
+          "imgf.rotation",
+        ])
         .where("printingImages.id", "=", imageId)
         .executeTakeFirst();
+    },
+
+    /**
+     * Fetch rotation values for a batch of image_file IDs.
+     * @returns Map of imageFileId → rotation.
+     */
+    async getRotationsByIds(ids: string[]): Promise<Map<string, number>> {
+      if (ids.length === 0) {
+        return new Map();
+      }
+      const rows = await db
+        .selectFrom("imageFiles")
+        .select(["id", "rotation"])
+        .where("id", "in", ids)
+        .execute();
+      return new Map(rows.map((r) => [r.id, r.rotation]));
+    },
+
+    /** Set the rotation on an image_file. */
+    async setRotation(imageFileId: string, rotation: 0 | 90 | 180 | 270): Promise<void> {
+      await db.updateTable("imageFiles").set({ rotation }).where("id", "=", imageFileId).execute();
     },
 
     /** Deletes a printing image by ID. */
@@ -243,11 +269,11 @@ export function printingImagesRepo(db: Kysely<Database>) {
       return db
         .selectFrom("printingImages as pi")
         .innerJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
-        .select(["imgf.id as imageId", "imgf.originalUrl"])
+        .select(["imgf.id as imageId", "imgf.originalUrl", "imgf.rotation"])
         .where("pi.face", "=", "front")
         .where("imgf.rehostedUrl", "is", null)
         .where("imgf.originalUrl", "is not", null)
-        .groupBy(["imgf.id", "imgf.originalUrl"])
+        .groupBy(["imgf.id", "imgf.originalUrl", "imgf.rotation"])
         .limit(limit)
         .execute();
     },
