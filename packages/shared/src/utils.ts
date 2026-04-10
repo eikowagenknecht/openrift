@@ -1,4 +1,4 @@
-import type { CardType } from "./types/index.js";
+import type { CardType, Printing } from "./types/index.js";
 import { DEFAULT_ENUM_ORDERS } from "./types/index.js";
 import { WellKnown } from "./well-known.js";
 
@@ -99,6 +99,88 @@ export function comparePrintings(
     Number(Boolean(a.promoTypeSlug)) - Number(Boolean(b.promoTypeSlug)) ||
     finishCompare
   );
+}
+
+function toComparable(printing: Printing, setOrderMap: Map<string, number>): ComparablePrinting {
+  return {
+    ...printing,
+    setOrder: setOrderMap.get(printing.setId),
+    promoTypeSlug: printing.promoType?.slug,
+  };
+}
+
+/**
+ * Compare two printings with language preference as the primary tiebreaker.
+ * Languages earlier in the user's `languageOrder` sort first; unlisted languages
+ * sort after listed ones. Falls back to canonical {@link comparePrintings} order.
+ * @returns Negative if a comes first, positive if b comes first, 0 if equal.
+ */
+export function compareWithLanguagePreference(
+  a: Printing,
+  b: Printing,
+  setOrderMap: Map<string, number>,
+  languageOrder?: string[],
+): number {
+  if (languageOrder && languageOrder.length > 1) {
+    const aIdx = languageOrder.indexOf(a.language);
+    const bIdx = languageOrder.indexOf(b.language);
+    const aPos = aIdx === -1 ? languageOrder.length : aIdx;
+    const bPos = bIdx === -1 ? languageOrder.length : bIdx;
+    const langCompare = aPos - bPos;
+    if (langCompare !== 0) {
+      return langCompare;
+    }
+  }
+  return comparePrintings(toComparable(a, setOrderMap), toComparable(b, setOrderMap));
+}
+
+/**
+ * Deduplicate printings to one per card, keeping the best match per
+ * {@link compareWithLanguagePreference} (language preference, then canonical order).
+ * @returns Deduplicated printings, one per cardId.
+ */
+export function deduplicateByCard(
+  printings: Printing[],
+  setOrderMap: Map<string, number>,
+  languageOrder?: string[],
+): Printing[] {
+  const seen = new Map<string, Printing>();
+  for (const printing of printings) {
+    const existing = seen.get(printing.cardId);
+    if (existing) {
+      if (compareWithLanguagePreference(printing, existing, setOrderMap, languageOrder) < 0) {
+        seen.set(printing.cardId, printing);
+      }
+    } else {
+      seen.set(printing.cardId, printing);
+    }
+  }
+  return [...seen.values()];
+}
+
+/**
+ * Group all printings by cardId and sort each group by
+ * {@link compareWithLanguagePreference}.
+ * @returns A map from cardId to sorted printings.
+ */
+export function groupPrintingsByCardId(
+  printings: Printing[],
+  setOrderMap: Map<string, number>,
+  languageOrder?: string[],
+): Map<string, Printing[]> {
+  const map = new Map<string, Printing[]>();
+  for (const printing of printings) {
+    let group = map.get(printing.cardId);
+    if (!group) {
+      group = [];
+      map.set(printing.cardId, group);
+    }
+    group.push(printing);
+  }
+  for (const group of map.values()) {
+    group.sort((a, b) => compareWithLanguagePreference(a, b, setOrderMap, languageOrder));
+  }
+  return map;
 }
 
 /**

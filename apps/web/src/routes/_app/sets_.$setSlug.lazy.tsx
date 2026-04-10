@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { deduplicateByCard } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeftIcon } from "lucide-react";
@@ -14,21 +15,16 @@ export const Route = createLazyFileRoute("/_app/sets_/$setSlug")({
   pendingComponent: SetDetailPending,
 });
 
+const EMPTY_SET_ORDER_MAP = new Map<string, number>();
+
 function SetDetailPage() {
   const { setSlug } = Route.useParams();
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
   const navigate = useNavigate();
   const showImages = useDisplayStore((s) => s.showImages);
+  const languageOrder = useDisplayStore((s) => s.languages);
 
-  // Deduplicate to one printing per card (prefer the first one, which has images)
-  const seen = new Set<string>();
-  const uniquePrintings = data.printings.filter((p) => {
-    if (seen.has(p.cardId)) {
-      return false;
-    }
-    seen.add(p.cardId);
-    return true;
-  });
+  const uniquePrintings = deduplicateByCard(data.printings, EMPTY_SET_ORDER_MAP, languageOrder);
 
   const handleCardClick = (printing: Printing) => {
     void navigate({ to: "/cards/$cardSlug", params: { cardSlug: printing.card.slug } });

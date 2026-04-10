@@ -6,7 +6,13 @@ import type {
   SortCardsOptions,
   SortOption,
 } from "@openrift/shared";
-import { comparePrintings, filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
+import {
+  deduplicateByCard,
+  filterCards,
+  getAvailableFilters,
+  groupPrintingsByCardId,
+  sortCards,
+} from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
@@ -23,14 +29,6 @@ interface UseCollectionCardDataParams {
   /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
   keywordReverseMap?: Map<string, string>;
   languageOrder?: string[];
-}
-
-function toComparable(printing: Printing, setOrderMap: Map<string, number>) {
-  return {
-    ...printing,
-    setOrder: setOrderMap.get(printing.setId),
-    promoTypeSlug: printing.promoType?.slug,
-  };
 }
 
 /**
@@ -108,64 +106,6 @@ export function useCollectionCardData({
     totalUniqueCards,
     setDisplayLabel,
   };
-}
-
-function compareWithLanguagePreference(
-  a: Printing,
-  b: Printing,
-  setOrderMap: Map<string, number>,
-  languageOrder?: string[],
-): number {
-  if (languageOrder && languageOrder.length > 1) {
-    const aIdx = languageOrder.indexOf(a.language);
-    const bIdx = languageOrder.indexOf(b.language);
-    const aPos = aIdx === -1 ? languageOrder.length : aIdx;
-    const bPos = bIdx === -1 ? languageOrder.length : bIdx;
-    const langCompare = aPos - bPos;
-    if (langCompare !== 0) {
-      return langCompare;
-    }
-  }
-  return comparePrintings(toComparable(a, setOrderMap), toComparable(b, setOrderMap));
-}
-
-function deduplicateByCard(
-  filteredCards: Printing[],
-  setOrderMap: Map<string, number>,
-  languageOrder?: string[],
-): Printing[] {
-  const seen = new Map<string, Printing>();
-  for (const printing of filteredCards) {
-    const existing = seen.get(printing.cardId);
-    if (existing) {
-      if (compareWithLanguagePreference(printing, existing, setOrderMap, languageOrder) < 0) {
-        seen.set(printing.cardId, printing);
-      }
-    } else {
-      seen.set(printing.cardId, printing);
-    }
-  }
-  return [...seen.values()];
-}
-
-function groupPrintingsByCardId(
-  printings: Printing[],
-  setOrderMap: Map<string, number>,
-  languageOrder?: string[],
-): Map<string, Printing[]> {
-  const map = new Map<string, Printing[]>();
-  for (const printing of printings) {
-    let group = map.get(printing.cardId);
-    if (!group) {
-      group = [];
-      map.set(printing.cardId, group);
-    }
-    group.push(printing);
-  }
-  for (const group of map.values()) {
-    group.sort((a, b) => compareWithLanguagePreference(a, b, setOrderMap, languageOrder));
-  }
-  return map;
 }
 
 function computePriceRanges(
