@@ -15,7 +15,6 @@ const mockCatalogRepo = {
   cardBans: vi.fn(() => Promise.resolve([])),
   cardErrata: vi.fn(() => Promise.resolve([])),
   totalCopies: vi.fn(() => Promise.resolve(0)),
-  languages: vi.fn(() => Promise.resolve([])),
 };
 
 const mockMarketplaceRepo = {
@@ -94,7 +93,6 @@ function seedDefaults(overrides?: {
   printingImages?: unknown[];
   prices?: unknown[];
   totalCopies?: number;
-  languages?: unknown[];
 }) {
   mockCatalogRepo.sets.mockResolvedValue(overrides?.sets ?? [dbSet]);
   mockCatalogRepo.cards.mockResolvedValue(overrides?.cards ?? [dbCard]);
@@ -103,9 +101,6 @@ function seedDefaults(overrides?: {
   mockCatalogRepo.cardBans.mockResolvedValue([]);
   mockCatalogRepo.cardErrata.mockResolvedValue([]);
   mockCatalogRepo.totalCopies.mockResolvedValue(overrides?.totalCopies ?? 42);
-  mockCatalogRepo.languages.mockResolvedValue(
-    overrides?.languages ?? [{ code: "EN", name: "English" }],
-  );
   mockMarketplaceRepo.latestPrices.mockResolvedValue(overrides?.prices ?? [dbPrice]);
 }
 
@@ -122,7 +117,6 @@ describe("GET /api/v1/catalog", () => {
     mockCatalogRepo.cardBans.mockReset();
     mockCatalogRepo.cardErrata.mockReset();
     mockCatalogRepo.totalCopies.mockReset();
-    mockCatalogRepo.languages.mockReset();
     mockMarketplaceRepo.latestPrices.mockReset();
     seedDefaults();
   });

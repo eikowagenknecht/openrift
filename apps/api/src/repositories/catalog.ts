@@ -60,11 +60,6 @@ type CatalogPrintingRow = Omit<
  */
 export function catalogRepo(db: Kysely<Database>) {
   return {
-    /** @returns All languages ordered by their display position. */
-    languages() {
-      return db.selectFrom("languages").select(["code", "name"]).orderBy("sortOrder").execute();
-    },
-
     /** @returns All sets ordered by their display position. */
     sets(): Promise<CatalogSetRow[]> {
       return db

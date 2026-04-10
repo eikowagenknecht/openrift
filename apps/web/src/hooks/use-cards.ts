@@ -7,17 +7,11 @@ import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import { API_URL } from "@/lib/server-fns/api-url";
 
-export interface CatalogLanguage {
-  code: string;
-  name: string;
-}
-
 interface UseCardsResult {
   allPrintings: Printing[];
   cardsById: Record<string, Card>;
   sets: SetInfo[];
   totalCopies: number;
-  languages: CatalogLanguage[];
 }
 
 const fetchCatalog = createServerFn({ method: "GET" }).handler(
@@ -49,7 +43,6 @@ function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
     cardsById: catalog.cards,
     sets: catalog.sets,
     totalCopies: catalog.totalCopies,
-    languages: catalog.languages,
   };
 }
 

@@ -30,7 +30,6 @@ export type {
   CardDetailResponse,
   CardType,
   CatalogCardResponse,
-  CatalogLanguageResponse,
   CatalogPrintingResponse,
   CatalogResponse,
   CatalogSetResponse,

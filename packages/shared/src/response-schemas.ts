@@ -261,18 +261,12 @@ export const catalogPrintingResponseSchema = z.object({
   cardId: z.string(),
 });
 
-const catalogLanguageResponseSchema = z.object({
-  code: z.string(),
-  name: z.string(),
-});
-
 export const catalogResponseSchema = z
   .object({
     sets: z.array(catalogSetResponseSchema),
     cards: z.record(z.string(), catalogCardResponseSchema),
     printings: z.array(catalogPrintingResponseSchema),
     totalCopies: z.number(),
-    languages: z.array(catalogLanguageResponseSchema),
   })
   .openapi("CatalogResponse");
 

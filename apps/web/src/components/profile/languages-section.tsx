@@ -5,13 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { CatalogLanguage } from "@/hooks/use-cards";
 import { useDisplayStore } from "@/stores/display-store";
 
 export function LanguagesSection({
   availableLanguages,
 }: {
-  availableLanguages: CatalogLanguage[];
+  availableLanguages: { code: string; name: string }[];
 }) {
   const languages = useDisplayStore((s) => s.languages);
   const setLanguages = useDisplayStore((s) => s.setLanguages);

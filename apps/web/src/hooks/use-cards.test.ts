@@ -100,7 +100,6 @@ const CATALOG_RESPONSE: CatalogResponse = {
     }),
   ],
   totalCopies: 150,
-  languages: [{ code: "EN", name: "English" }],
 };
 
 describe("useCards", () => {
@@ -134,7 +133,6 @@ describe("useCards", () => {
       },
     ]);
     expect(raw.totalCopies).toBe(150);
-    expect(raw.languages).toEqual([{ code: "EN", name: "English" }]);
   });
 
   it("enrichCatalog joins card data onto printings", () => {

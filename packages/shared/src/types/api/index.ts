@@ -10,7 +10,6 @@ export type { KeywordStyleEntry, KeywordStylesResponse } from "./keyword-style.j
 export type {
   CardDetailResponse,
   CatalogCardResponse,
-  CatalogLanguageResponse,
   CatalogPrintingResponse,
   CatalogResponse,
   CatalogSetResponse,

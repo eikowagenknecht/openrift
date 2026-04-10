@@ -34,17 +34,11 @@ export interface CatalogPrintingResponse {
   cardId: string;
 }
 
-export interface CatalogLanguageResponse {
-  code: string;
-  name: string;
-}
-
 export interface CatalogResponse {
   sets: CatalogSetResponse[];
   cards: Record<string, CatalogCardResponse>;
   printings: CatalogPrintingResponse[];
   totalCopies: number;
-  languages: CatalogLanguageResponse[];
 }
 
 export interface CardDetailResponse {

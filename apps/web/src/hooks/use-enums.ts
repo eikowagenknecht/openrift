@@ -67,6 +67,17 @@ export function useLanguageLabels(): Record<string, string> {
 }
 
 /**
+ * Returns ordered language rows from the /init endpoint, shaped as
+ * `{ code, name }` for UI components that need both the identifier and label.
+ *
+ * @returns An ordered array of `{ code, name }` language entries.
+ */
+export function useLanguageList(): { code: string; name: string }[] {
+  const { data } = useSuspenseQuery(initQueryOptions);
+  return sorted(data.enums.languages ?? []).map((row) => ({ code: row.slug, name: row.label }));
+}
+
+/**
  * Returns DB-derived sort orders and display labels for all game-data enums.
  * Use this instead of hardcoded *_ORDER arrays and *_LABELS maps.
  *

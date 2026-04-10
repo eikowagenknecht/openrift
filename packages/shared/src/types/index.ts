@@ -45,7 +45,6 @@ export type {
   CandidateCardUploadResponse,
   CardDetailResponse,
   CatalogCardResponse,
-  CatalogLanguageResponse,
   CatalogPrintingResponse,
   CatalogResponse,
   CatalogSetResponse,
