@@ -152,11 +152,15 @@ export function PrintingMarketplaceCells({
   mappings,
   stagingCandidates,
   allPrintings,
+  highlightMarketplace,
 }: {
   printing: AdminPrintingResponse;
   mappings: AdminPrintingMarketplaceMappingResponse[];
   stagingCandidates: AdminMarketplaceStagingCandidateResponse[];
   allPrintings: AdminPrintingResponse[];
+  /** Flash a ring on this marketplace's row — set by the parent when the
+      user arrived here via a "Route to card" click on the Unmatched tab. */
+  highlightMarketplace?: AdminMarketplaceName;
 }) {
   const saveMapping = useSaveMarketplaceMapping();
   const unmapPrinting = useUnmapMarketplacePrinting();
@@ -177,6 +181,7 @@ export function PrintingMarketplaceCells({
             stagingCandidates={stagingCandidates.filter((s) => s.marketplace === marketplace)}
             allMappings={mappings}
             allPrintings={allPrintings}
+            isHighlighted={marketplace === highlightMarketplace}
             onAssign={(externalId) =>
               saveMapping.mutate(
                 { marketplace, printingId: printing.id, externalId },
@@ -214,6 +219,7 @@ function MarketplaceCellRow({
   onUnmap,
   isSaving,
   isUnmapping,
+  isHighlighted,
 }: {
   marketplace: AdminMarketplaceName;
   printing: AdminPrintingResponse;
@@ -225,13 +231,14 @@ function MarketplaceCellRow({
   onUnmap: () => void;
   isSaving: boolean;
   isUnmapping: boolean;
+  isHighlighted: boolean;
 }) {
   const config = CONFIG_BY_MARKETPLACE[marketplace];
 
   if (state.owner) {
     const mapping = state.owner;
     return (
-      <RowShell marketplace={marketplace}>
+      <RowShell marketplace={marketplace} isHighlighted={isHighlighted}>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <ProductLink config={config} externalId={mapping.externalId} language={printing.language}>
             #{mapping.externalId}
@@ -258,7 +265,7 @@ function MarketplaceCellRow({
       allPrintings.find((p) => p.id === mapping.ownerPrintingId)?.expectedPrintingId ??
       mapping.ownerLanguage;
     return (
-      <RowShell marketplace={marketplace}>
+      <RowShell marketplace={marketplace} isHighlighted={isHighlighted}>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <Tooltip>
             <TooltipTrigger
@@ -286,7 +293,7 @@ function MarketplaceCellRow({
   // Unmapped state
   if (isEnglishOnly(marketplace) && printing.language !== "EN") {
     return (
-      <RowShell marketplace={marketplace}>
+      <RowShell marketplace={marketplace} isHighlighted={isHighlighted}>
         <Tooltip>
           <TooltipTrigger
             render={<span className="text-muted-foreground text-xs">— not assignable</span>}
@@ -320,7 +327,7 @@ function MarketplaceCellRow({
         allPrintings.find((p) => p.id === siblingOwner.ownerPrintingId)?.expectedPrintingId ??
         siblingOwner.ownerLanguage;
       return (
-        <RowShell marketplace={marketplace}>
+        <RowShell marketplace={marketplace} isHighlighted={isHighlighted}>
           <Tooltip>
             <TooltipTrigger
               render={
@@ -357,14 +364,14 @@ function MarketplaceCellRow({
 
   if (matching.length === 0) {
     return (
-      <RowShell marketplace={marketplace}>
+      <RowShell marketplace={marketplace} isHighlighted={isHighlighted}>
         <span className="text-muted-foreground text-xs">No candidates.</span>
       </RowShell>
     );
   }
 
   return (
-    <RowShell marketplace={marketplace}>
+    <RowShell marketplace={marketplace} isHighlighted={isHighlighted}>
       <Select
         value=""
         disabled={isSaving}
@@ -408,14 +415,21 @@ function MarketplaceCellRow({
 
 function RowShell({
   marketplace,
+  isHighlighted,
   children,
 }: {
   marketplace: AdminMarketplaceName;
+  isHighlighted?: boolean;
   children: React.ReactNode;
 }) {
   const config = CONFIG_BY_MARKETPLACE[marketplace];
   return (
-    <div className={cn("flex items-center gap-3 px-2 py-1.5 text-sm")}>
+    <div
+      className={cn(
+        "flex items-center gap-3 px-2 py-1.5 text-sm",
+        isHighlighted && "ring-primary/60 bg-primary/5 animate-pulse ring-2",
+      )}
+    >
       <span className="text-muted-foreground w-8 shrink-0 text-xs font-semibold tracking-wide uppercase">
         {config.shortName}
       </span>
