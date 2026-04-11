@@ -35,7 +35,7 @@ function makePrinting(
     isSigned: false,
     promoType: null,
     finish: "normal",
-    images: [{ face: "front", url: "thumb.jpg" }],
+    images: [{ face: "front", full: "thumb-full.webp", thumbnail: "thumb-400w.webp" }],
     artist: "Jane Doe",
     publicCode: "ABCD",
     printedRulesText: null,
@@ -208,7 +208,7 @@ describe("filterCards", () => {
       rarity: "Rare",
       artVariant: "normal",
       finish: "normal",
-      images: [{ face: "front", url: "t.jpg" }],
+      images: [{ face: "front", full: "t-full.webp", thumbnail: "t-400w.webp" }],
       artist: "Alice",
       cardId: "SET1-001",
       card: {
@@ -238,7 +238,7 @@ describe("filterCards", () => {
       rarity: "Common",
       artVariant: "normal",
       finish: "foil",
-      images: [{ face: "front", url: "t.jpg" }],
+      images: [{ face: "front", full: "t-full.webp", thumbnail: "t-400w.webp" }],
       artist: "Bob",
       cardId: "SET1-002",
       card: {
@@ -268,7 +268,7 @@ describe("filterCards", () => {
       rarity: "Epic",
       artVariant: "altart",
       finish: "normal",
-      images: [{ face: "front", url: "t.jpg" }],
+      images: [{ face: "front", full: "t-full.webp", thumbnail: "t-400w.webp" }],
       artist: "Carol",
       cardId: "SET2-001",
       card: {

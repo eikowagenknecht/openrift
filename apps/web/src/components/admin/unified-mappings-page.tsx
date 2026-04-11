@@ -99,6 +99,18 @@ function toMarketplaceGroup(
   };
 }
 
+// Admin-only escape hatch: `MappingPrintingResponse.imageUrl` is either a
+// self-hosted base URL (`/card-images/{prefix}/{uuid}` — needs the variant
+// suffix appended) or an external provider URL (used as-is for both sizes).
+// Public APIs already hand callers ready-to-use `{ full, thumbnail }` URLs;
+// only admin pages still see the raw form.
+function toAdminImage(url: string): { face: "front"; full: string; thumbnail: string } {
+  if (url.startsWith("/card-images/")) {
+    return { face: "front", full: `${url}-full.webp`, thumbnail: `${url}-400w.webp` };
+  }
+  return { face: "front", full: url, thumbnail: url };
+}
+
 function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Printing {
   return {
     id: p.printingId,
@@ -111,7 +123,7 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
     isSigned: p.isSigned,
     promoType: p.promoTypeSlug ? { id: "", slug: p.promoTypeSlug, label: p.promoTypeSlug } : null,
     finish: p.finish as Finish,
-    images: p.imageUrl ? [{ face: "front", url: p.imageUrl }] : [],
+    images: p.imageUrl ? [toAdminImage(p.imageUrl)] : [],
     artist: "",
     publicCode: p.shortCode,
     printedRulesText: null,

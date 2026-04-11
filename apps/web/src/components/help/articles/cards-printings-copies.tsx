@@ -2,7 +2,6 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { CardText } from "@/components/cards/card-text";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
-import { getCardImageUrl } from "@/lib/images";
 
 /** Short codes used in the diagram, in display order. */
 const DIAGRAM_SHORT_CODES = ["OGN-007", "OGN-007a", "SFD-R01b"];
@@ -19,9 +18,9 @@ function useFuryRuneImages() {
   const imageByCode = new Map<string, string>();
   for (const printing of data.printings) {
     if (DIAGRAM_SHORT_CODES.includes(printing.shortCode) && !imageByCode.has(printing.shortCode)) {
-      const url = printing.images[0]?.url;
-      if (url) {
-        imageByCode.set(printing.shortCode, getCardImageUrl(url, "thumbnail"));
+      const thumbnail = printing.images[0]?.thumbnail;
+      if (thumbnail) {
+        imageByCode.set(printing.shortCode, thumbnail);
       }
     }
   }

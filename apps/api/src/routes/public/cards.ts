@@ -13,6 +13,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
+import { toCardImageVariants } from "../../utils/card-image.js";
 
 const cardSlugParamSchema = z.object({ cardSlug: z.string() });
 
@@ -103,7 +104,10 @@ export const cardsRoute = cardsApp
 
     const printings: CatalogPrintingResponse[] = printingRows.map((row) => ({
       ...row,
-      images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
+      images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({
+        face: i.face,
+        ...toCardImageVariants(i.url),
+      })),
     }));
 
     const content: CardDetailResponse = {

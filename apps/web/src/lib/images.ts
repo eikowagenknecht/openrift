@@ -1,18 +1,6 @@
-const THUMBNAIL_WIDTHS = [200, 300, 400, 600, 750];
-
-function appendParams(baseUrl: string, params: string): string {
-  const sep = baseUrl.includes("?") ? "&" : "?";
-  return `${baseUrl}${sep}${params}`;
-}
-
-function isSelfHosted(url: string): boolean {
-  return url.startsWith("/card-images/");
-}
-
 /**
  * Returns true when a landscape card image needs a -90deg CSS rotation
- * to display in portrait orientation. All landscape images use CSS rotation
- * so that both CDN and self-hosted images follow the same code path.
+ * to display in portrait orientation.
  * @returns Whether the image needs a -90deg CSS rotation for display
  */
 export function needsCssRotation(orientation: string): boolean {
@@ -31,25 +19,3 @@ export const LANDSCAPE_ROTATION_STYLE: React.CSSProperties = {
   aspectRatio: "88 / 63",
   transform: "translate(-50%, -50%) rotate(-90deg)",
 };
-
-export function getCardImageUrl(baseUrl: string, size: "thumbnail" | "full"): string {
-  if (isSelfHosted(baseUrl)) {
-    return size === "thumbnail" ? `${baseUrl}-400w.webp` : `${baseUrl}-full.webp`;
-  }
-
-  if (size === "thumbnail") {
-    return appendParams(baseUrl, "w=400&fit=max&fm=webp&q=75");
-  }
-  return appendParams(baseUrl, "fm=webp");
-}
-
-export function getCardImageSrcSet(baseUrl: string): string | undefined {
-  if (isSelfHosted(baseUrl)) {
-    // Self-hosted grid uses a single 400w variant — no srcset needed.
-    return undefined;
-  }
-
-  return THUMBNAIL_WIDTHS.map(
-    (w) => `${appendParams(baseUrl, `w=${w}&fit=max&fm=webp&q=75`)} ${w}w`,
-  ).join(", ");
-}

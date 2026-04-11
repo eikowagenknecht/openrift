@@ -11,7 +11,7 @@ import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { searchCards } from "@/hooks/use-quick-add-search";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
-import { LANDSCAPE_ROTATION_STYLE, getCardImageUrl, needsCssRotation } from "@/lib/images";
+import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { cn } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
 
@@ -100,7 +100,7 @@ function PaletteInner({
   const previewPrinting = expandedCardId
     ? (results.find((r) => r.cardId === expandedCardId)?.printings[expandedIndex] ?? null)
     : null;
-  const previewImageUrl = previewPrinting?.images[0]?.url ?? null;
+  const previewThumbnail = previewPrinting?.images[0]?.thumbnail ?? null;
   const previewRotated = previewPrinting
     ? needsCssRotation(getOrientation(previewPrinting.card.type))
     : false;
@@ -249,7 +249,7 @@ function PaletteInner({
   return (
     <div className="relative">
       {/* Card image preview — floats left of the dialog on desktop */}
-      {previewPrinting && previewImageUrl && (
+      {previewPrinting && previewThumbnail && (
         <div className="absolute top-0 right-full mr-3 hidden w-48 lg:block">
           <div
             className="bg-muted aspect-card relative overflow-hidden"
@@ -261,14 +261,14 @@ function PaletteInner({
                 style={LANDSCAPE_ROTATION_STYLE}
               >
                 <img
-                  src={getCardImageUrl(previewImageUrl, "thumbnail")}
+                  src={previewThumbnail}
                   alt={previewPrinting.card.name}
                   className="size-full object-cover"
                 />
               </div>
             ) : (
               <img
-                src={getCardImageUrl(previewImageUrl, "thumbnail")}
+                src={previewThumbnail}
                 alt={previewPrinting.card.name}
                 className="absolute inset-0 w-full object-cover"
               />

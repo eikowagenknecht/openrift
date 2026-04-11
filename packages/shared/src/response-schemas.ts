@@ -228,9 +228,23 @@ const promoTypeSchema = z.object({
   label: z.string().openapi({ example: "Prerelease" }),
 });
 
+const cardImageVariantsSchema = z.object({
+  full: z
+    .string()
+    .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe-full.webp" }),
+  thumbnail: z
+    .string()
+    .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe-400w.webp" }),
+});
+
 const printingImageSchema = z.object({
   face: cardFaceSchema,
-  url: z.string().openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
+  full: z
+    .string()
+    .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe-full.webp" }),
+  thumbnail: z
+    .string()
+    .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe-400w.webp" }),
 });
 
 const cardBanSchema = z.object({
@@ -315,10 +329,7 @@ export const cardDetailResponseSchema = z
 const setListEntrySchema = catalogSetResponseSchema.extend({
   cardCount: z.number().openapi({ example: 312 }),
   printingCount: z.number().openapi({ example: 468 }),
-  coverImageUrl: z
-    .string()
-    .nullable()
-    .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
+  coverImage: cardImageVariantsSchema.nullable(),
 });
 
 export const setListResponseSchema = z
@@ -414,7 +425,7 @@ const collectionEventResponseSchema = z
     createdAt: z.string(),
     shortCode: z.string(),
     rarity: raritySchema,
-    imageUrl: z.string().nullable(),
+    image: cardImageVariantsSchema.nullable(),
     cardName: z.string(),
     cardType: cardTypeSchema,
     cardSuperTypes: z.array(z.string()),
@@ -602,7 +613,7 @@ const tradeListItemDetailResponseSchema = z
     copyId: z.string(),
     printingId: z.string(),
     collectionId: z.string(),
-    imageUrl: z.string().nullable(),
+    image: cardImageVariantsSchema.nullable(),
     setId: z.string(),
     rarity: raritySchema,
     finish: finishSchema,

@@ -3,7 +3,6 @@ import { XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
-import { getCardImageUrl } from "@/lib/images";
 import { useAddModeStore } from "@/stores/add-mode-store";
 
 interface AddedCardsListProps {
@@ -31,8 +30,7 @@ export function AddedCardsList({ onCardClick, onClose }: AddedCardsListProps) {
       </div>
       <div className="space-y-1 pb-4">
         {entries.map((entry) => {
-          const imageUrl = entry.printing.images[0]?.url;
-          const thumbnailUrl = imageUrl ? getCardImageUrl(imageUrl, "thumbnail") : null;
+          const thumbnailUrl = entry.printing.images[0]?.thumbnail ?? null;
 
           return (
             <button

@@ -5,7 +5,6 @@ import { CalendarIcon, LayersIcon } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
-import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
 import { PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/sets")({
@@ -21,9 +20,6 @@ function formatDate(dateStr: string): string {
 }
 
 function HeroSetCard({ set }: { set: SetListEntry }) {
-  const thumbnailUrl = set.coverImageUrl ? getCardImageUrl(set.coverImageUrl, "thumbnail") : null;
-  const srcSet = set.coverImageUrl ? getCardImageSrcSet(set.coverImageUrl) : undefined;
-
   return (
     <Link
       to="/sets/$setSlug"
@@ -31,12 +27,12 @@ function HeroSetCard({ set }: { set: SetListEntry }) {
       className="border-border bg-card hover:bg-accent group flex overflow-hidden rounded-xl border transition-colors"
     >
       <div className="relative w-28 shrink-0 sm:w-36">
-        {thumbnailUrl ? (
+        {set.coverImage ? (
           <>
             <div className="aspect-card bg-muted/40" />
             <img
-              src={thumbnailUrl}
-              srcSet={srcSet}
+              src={set.coverImage.thumbnail}
+              srcSet={`${set.coverImage.thumbnail} 400w, ${set.coverImage.full} 800w`}
               sizes="144px"
               alt={set.name}
               loading="lazy"

@@ -24,7 +24,6 @@ import { useLanguageLabels } from "@/hooks/use-enums";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
-import { getCardImageUrl } from "@/lib/images";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -71,11 +70,7 @@ function CardDetailPage() {
         {/* Left column: card image */}
         <div className="shrink-0 md:w-80">
           {frontImage ? (
-            <img
-              src={getCardImageUrl(frontImage.url, "full")}
-              alt={card.name}
-              className="w-full rounded-xl"
-            />
+            <img src={frontImage.full} alt={card.name} className="w-full rounded-xl" />
           ) : (
             <div className="bg-muted aspect-card flex items-center justify-center rounded-xl">
               <span className="text-muted-foreground">No image</span>
@@ -503,7 +498,7 @@ function PrintingCard({
       <div className="bg-muted aspect-card w-10 shrink-0 overflow-hidden rounded">
         {frontImage ? (
           <img
-            src={getCardImageUrl(frontImage.url, "thumbnail")}
+            src={frontImage.thumbnail}
             alt={printing.card.name}
             className="size-full object-cover"
             loading="lazy"

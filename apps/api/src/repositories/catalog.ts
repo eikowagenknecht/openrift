@@ -269,7 +269,11 @@ export function catalogRepo(db: Kysely<Database>) {
         .executeTakeFirst() as Promise<CatalogCardRow | undefined>;
     },
 
-    /** @returns All printings for a given card ID. */
+    /**
+     * @returns All printings for a given card ID, English first so that
+     * `printings[0]` is the canonical printing for SSR meta tags and the UI's
+     * default selected printing.
+     */
     async printingsByCardId(cardId: string): Promise<CatalogPrintingRow[]> {
       const rows = await db
         .selectFrom("printings")
@@ -295,6 +299,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "promoTypes.label as promoTypeLabel",
         ])
         .where("printings.cardId", "=", cardId)
+        .orderBy(sql`(printings.language = 'EN') DESC`)
         .orderBy("printings.setId")
         .orderBy("printings.shortCode")
         .orderBy("printings.finish", "desc")

@@ -1,4 +1,4 @@
-import type { Card, PrintingImage, PromoType } from "../catalog.js";
+import type { Card, CardImageVariants, PrintingImage, PromoType } from "../catalog.js";
 import type { ArtVariant, Finish, Rarity } from "../enums.js";
 import type { PriceMap } from "./pricing.js";
 
@@ -60,7 +60,7 @@ export interface CardDetailResponse {
 export interface SetListEntry extends CatalogSetResponse {
   cardCount: number;
   printingCount: number;
-  coverImageUrl: string | null;
+  coverImage: CardImageVariants | null;
 }
 
 export interface SetListResponse {

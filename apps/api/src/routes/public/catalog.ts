@@ -8,6 +8,7 @@ import { catalogResponseSchema } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
 
 import type { Variables } from "../../types.js";
+import { toCardImageVariants } from "../../utils/card-image.js";
 
 const getCatalog = createRoute({
   method: "get",
@@ -87,7 +88,10 @@ export const catalogRoute = catalogApp
     for (const { id, ...rest } of printingRows) {
       printings[id] = {
         ...rest,
-        images: (imagesByPrinting.get(id) ?? []).map((i) => ({ face: i.face, url: i.url })),
+        images: (imagesByPrinting.get(id) ?? []).map((i) => ({
+          face: i.face,
+          ...toCardImageVariants(i.url),
+        })),
       };
     }
 

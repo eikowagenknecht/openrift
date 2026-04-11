@@ -1,7 +1,5 @@
 import type { Printing } from "@openrift/shared";
 
-import { getCardImageUrl } from "@/lib/images";
-
 export interface PhashMatch {
   printing: Printing;
   distance: number;
@@ -328,8 +326,7 @@ export async function buildPhashIndex(
           return null;
         }
 
-        const resolvedUrl = getCardImageUrl(frontImage.url, "thumbnail");
-        const hash = await hashImageUrl(resolvedUrl, config);
+        const hash = await hashImageUrl(frontImage.thumbnail, config);
         if (!hash) {
           return null;
         }

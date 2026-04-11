@@ -23,6 +23,7 @@ import type {
   WishListsTable,
 } from "../db/index.js";
 import type { CollectionValue } from "../repositories/marketplace.js";
+import { toCardImageVariants } from "./card-image.js";
 
 // ── Simple entity mappers ──────────────────────────────────────────────────
 
@@ -138,7 +139,7 @@ export function toCollectionEvent(row: {
     createdAt: row.createdAt.toISOString(),
     shortCode: row.shortCode,
     rarity: row.rarity as CollectionEventResponse["rarity"],
-    imageUrl: row.imageUrl,
+    image: toCardImageVariants(row.imageUrl),
     cardName: row.cardName,
     cardType: row.cardType as CollectionEventResponse["cardType"],
     cardSuperTypes: row.cardSuperTypes,
@@ -204,7 +205,7 @@ export function toTradeListItemDetail(row: {
     copyId: row.copyId,
     printingId: row.printingId,
     collectionId: row.collectionId,
-    imageUrl: row.imageUrl,
+    image: toCardImageVariants(row.imageUrl),
     setId: row.setId,
     rarity: row.rarity as TradeListItemDetailResponse["rarity"],
     finish: row.finish as TradeListItemDetailResponse["finish"],

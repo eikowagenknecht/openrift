@@ -16,7 +16,6 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCards } from "@/hooks/use-cards";
-import { getCardImageUrl } from "@/lib/images";
 import type { OcrResult } from "@/lib/ocr-scanner";
 import { ocrScan, terminateOcr } from "@/lib/ocr-scanner";
 import type { PhashConfig, PhashIndex, PhashResult } from "@/lib/phash-scanner";
@@ -618,7 +617,7 @@ function MatchResults({
           >
             {match.printing.images[0] && (
               <img
-                src={getCardImageUrl(match.printing.images[0].url, "thumbnail")}
+                src={match.printing.images[0].thumbnail}
                 alt={match.printing.card.name}
                 className="h-16 w-auto rounded"
               />

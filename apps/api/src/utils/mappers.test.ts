@@ -187,7 +187,7 @@ describe("toTradeListItemDetail", () => {
       copyId: "copy-1",
       printingId: "p-1",
       collectionId: "col-1",
-      imageUrl: "https://example.com/img.jpg",
+      imageUrl: "/card-images/ab/uuid-base",
       setId: "set-1",
       rarity: "Rare",
       finish: "foil",
@@ -200,13 +200,33 @@ describe("toTradeListItemDetail", () => {
       copyId: "copy-1",
       printingId: "p-1",
       collectionId: "col-1",
-      imageUrl: "https://example.com/img.jpg",
+      image: {
+        full: "/card-images/ab/uuid-base-full.webp",
+        thumbnail: "/card-images/ab/uuid-base-400w.webp",
+      },
       setId: "set-1",
       rarity: "Rare",
       finish: "foil",
       cardName: "Fire Dragon",
       cardType: "Unit",
     });
+  });
+
+  it("maps null imageUrl to null image", () => {
+    const result = toTradeListItemDetail({
+      id: "tli-1",
+      tradeListId: "tl-1",
+      copyId: "copy-1",
+      printingId: "p-1",
+      collectionId: "col-1",
+      imageUrl: null,
+      setId: "set-1",
+      rarity: "Rare",
+      finish: "foil",
+      cardName: "Fire Dragon",
+      cardType: "Unit",
+    });
+    expect(result.image).toBeNull();
   });
 });
 
@@ -301,7 +321,7 @@ describe("toCollectionEvent", () => {
       createdAt: NOW,
       shortCode: "OGS-005",
       rarity: "Rare",
-      imageUrl: "https://example.com/img.jpg",
+      imageUrl: "/card-images/ab/uuid-base",
       cardName: "Shadow Knight",
       cardType: "Unit",
       cardSuperTypes: ["Champion"],
@@ -318,11 +338,35 @@ describe("toCollectionEvent", () => {
       createdAt: "2025-06-15T12:00:00.000Z",
       shortCode: "OGS-005",
       rarity: "Rare",
-      imageUrl: "https://example.com/img.jpg",
+      image: {
+        full: "/card-images/ab/uuid-base-full.webp",
+        thumbnail: "/card-images/ab/uuid-base-400w.webp",
+      },
       cardName: "Shadow Knight",
       cardType: "Unit",
       cardSuperTypes: ["Champion"],
     });
+  });
+
+  it("maps null imageUrl to null image", () => {
+    const result = toCollectionEvent({
+      id: "ev-1",
+      action: "added",
+      copyId: "copy-1",
+      printingId: "p-1",
+      fromCollectionId: null,
+      fromCollectionName: null,
+      toCollectionId: "col-1",
+      toCollectionName: "Main",
+      createdAt: NOW,
+      shortCode: "OGS-005",
+      rarity: "Rare",
+      imageUrl: null,
+      cardName: "Shadow Knight",
+      cardType: "Unit",
+      cardSuperTypes: ["Champion"],
+    });
+    expect(result.image).toBeNull();
   });
 });
 

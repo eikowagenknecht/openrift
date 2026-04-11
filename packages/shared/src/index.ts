@@ -20,6 +20,7 @@ export type {
   CardErrata,
   CardFilters,
   CardFace,
+  CardImageVariants,
   AnySnapshot,
   CardmarketSnapshot,
   CardtraderSnapshot,

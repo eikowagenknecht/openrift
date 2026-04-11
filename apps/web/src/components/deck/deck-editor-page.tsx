@@ -39,7 +39,6 @@ import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { useDeckDetail, useSaveDeckCards } from "@/hooks/use-decks";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
-import { getCardImageUrl } from "@/lib/images";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDeckBuilderStore, toDeckBuilderCard } from "@/stores/deck-builder-store";
@@ -422,8 +421,8 @@ function DeckEditorContent({
       return null;
     }
     return {
-      thumbnailUrl: getCardImageUrl(frontImage.url, "thumbnail"),
-      fullUrl: getCardImageUrl(frontImage.url, "full"),
+      thumbnailUrl: frontImage.thumbnail,
+      fullUrl: frontImage.full,
       landscape: printing.card.type === "Battlefield",
     };
   })();

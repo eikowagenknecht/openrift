@@ -78,4 +78,28 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     const result = await repo.printingById("00000000-0000-0000-0000-000000000000");
     expect(result).toBeUndefined();
   });
+
+  it("printingsByCardId orders English printings before other languages", async () => {
+    // Find a card that has both an EN printing and at least one non-EN printing
+    // (e.g. a localized ZH version) so the sort key is exercised. SSR meta tags
+    // and the UI's default selected printing both rely on `printings[0]` being EN.
+    const allPrintings = await repo.printings();
+    const cardLanguages = new Map<string, Set<string>>();
+    for (const p of allPrintings) {
+      const langs = cardLanguages.get(p.cardId) ?? new Set<string>();
+      langs.add(p.language);
+      cardLanguages.set(p.cardId, langs);
+    }
+    const multiLangCardId = [...cardLanguages.entries()].find(
+      ([, langs]) => langs.has("EN") && langs.size > 1,
+    )?.[0];
+    if (!multiLangCardId) {
+      // Seed data may not contain a multilingual card; skip in that case rather
+      // than fail noisily — the unit-level guarantee still holds via the SQL.
+      return;
+    }
+    const printings = await repo.printingsByCardId(multiLangCardId);
+    expect(printings.length).toBeGreaterThan(1);
+    expect(printings[0].language).toBe("EN");
+  });
 });

@@ -14,6 +14,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
+import { toCardImageVariants } from "../../utils/card-image.js";
 
 const setSlugParamSchema = z.object({ setSlug: z.string() });
 
@@ -63,7 +64,7 @@ export const setsRoute = setsApp
         ...set,
         cardCount: setCounts?.cardCount ?? 0,
         printingCount: setCounts?.printingCount ?? 0,
-        coverImageUrl: coverImages.get(set.id) ?? null,
+        coverImage: toCardImageVariants(coverImages.get(set.id) ?? null),
       };
     });
 
@@ -145,7 +146,10 @@ export const setsRoute = setsApp
 
     const printings: CatalogPrintingResponse[] = printingRows.map((row) => ({
       ...row,
-      images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({ face: i.face, url: i.url })),
+      images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({
+        face: i.face,
+        ...toCardImageVariants(i.url),
+      })),
     }));
 
     const content: SetDetailResponse = { set, cards, printings, prices };

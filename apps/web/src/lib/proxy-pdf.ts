@@ -1,7 +1,6 @@
 import type { Card, CatalogResponse, Printing, Rarity } from "@openrift/shared";
 import { jsPDF } from "jspdf";
 
-import { getCardImageUrl } from "@/lib/images";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 
 export type ProxyPageSize = "a4" | "letter";
@@ -31,7 +30,7 @@ const PAGE_SIZES = {
 export interface ProxyCard {
   cardId: string;
   name: string;
-  imageUrl: string | null;
+  imageFullUrl: string | null;
   card: Card;
   rarity: Rarity;
   publicCode: string;
@@ -71,7 +70,7 @@ export function resolveProxyCards(
       continue;
     }
     const printing = printingByCardId.get(deckCard.cardId);
-    const imageUrl = printing?.images[0]?.url ?? null;
+    const imageFullUrl = printing?.images[0]?.full ?? null;
     const flavorText = printing?.flavorText ?? null;
     // Use printing-level text (falls back to errata if available)
     const rulesText = printing?.printedRulesText ?? card.errata?.correctedRulesText ?? null;
@@ -81,7 +80,7 @@ export function resolveProxyCards(
       result.push({
         cardId: deckCard.cardId,
         name: card.name,
-        imageUrl,
+        imageFullUrl,
         card,
         rarity: printing?.rarity ?? ("Common" as Rarity),
         publicCode: printing?.publicCode ?? "",
@@ -149,7 +148,7 @@ export async function prerenderImageCards(
 ): Promise<Map<string, RenderedCard>> {
   const uniqueCards = new Map<string, ProxyCard>();
   for (const proxyCard of proxyCards) {
-    if (!uniqueCards.has(proxyCard.cardId) && proxyCard.imageUrl) {
+    if (!uniqueCards.has(proxyCard.cardId) && proxyCard.imageFullUrl) {
       uniqueCards.set(proxyCard.cardId, proxyCard);
     }
   }
@@ -160,9 +159,11 @@ export async function prerenderImageCards(
 
   for (const [cardId, proxyCard] of uniqueCards) {
     onProgress?.(++completed, total);
+    if (!proxyCard.imageFullUrl) {
+      continue;
+    }
     try {
-      const fullUrl = getCardImageUrl(proxyCard.imageUrl ?? "", "full");
-      rendered.set(cardId, await loadImageAsDataUrl(fullUrl));
+      rendered.set(cardId, await loadImageAsDataUrl(proxyCard.imageFullUrl));
     } catch (error) {
       console.error(`Failed to render card "${proxyCard.name}":`, error);
     }

@@ -14,12 +14,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePrices } from "@/hooks/use-prices";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
-import {
-  LANDSCAPE_ROTATION_STYLE,
-  getCardImageSrcSet,
-  getCardImageUrl,
-  needsCssRotation,
-} from "@/lib/images";
+import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -247,14 +242,17 @@ export const CardThumbnail = memo(function CardThumbnail({
     flavorText: printing.flavorText,
   };
   const domainColors = useDomainColors();
-  const imageUrl = printing.images[0]?.url ?? null;
+  const frontImage = printing.images[0] ?? null;
   // Read `printing.card.type` directly (not `card.type`): reading the derived
   // `card` object here would couple its construction to this call and prevent
   // React Compiler from memoizing `card`. That unmemoized `card` would then
   // cascade into re-creating the `<CardImageContent>` JSX on every render.
   const orientation = getOrientation(printing.card.type);
-  const thumbnailUrl = showImages && imageUrl ? getCardImageUrl(imageUrl, "thumbnail") : null;
-  const srcSet = showImages && imageUrl ? getCardImageSrcSet(imageUrl) : undefined;
+  const thumbnailUrl = showImages && frontImage ? frontImage.thumbnail : null;
+  // Two on-disk variants (400w + full) — let the browser pick when grid rows
+  // are scaled large.
+  const srcSet =
+    showImages && frontImage ? `${frontImage.thumbnail} 400w, ${frontImage.full} 800w` : undefined;
   const rotated = needsCssRotation(orientation);
   const [imgLoaded, setImgLoaded] = useState(false);
 
@@ -305,11 +303,8 @@ export const CardThumbnail = memo(function CardThumbnail({
     <div className={cn("relative", dimmed && "opacity-50")}>
       {otherPrintings.map((sibling, i) => {
         const depth = otherPrintings.length - i;
-        const siblingImageUrl = sibling.images[0]?.url ?? null;
-        const siblingUrl =
-          fancyFan && showImages && siblingImageUrl
-            ? getCardImageUrl(siblingImageUrl, "thumbnail")
-            : null;
+        const siblingThumbnail = sibling.images[0]?.thumbnail ?? null;
+        const siblingUrl = fancyFan && showImages ? siblingThumbnail : null;
         return (
           // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- decorative layer inside a parent <button>; keyboard nav handled by parent
           <div

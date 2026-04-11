@@ -1,4 +1,9 @@
-import type { DeckFormat, DeckListItemResponse, DeckResponse } from "@openrift/shared";
+import type {
+  DeckFormat,
+  DeckListItemResponse,
+  DeckResponse,
+  PrintingImage,
+} from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -55,7 +60,6 @@ import {
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
-import { getCardImageSrcSet, getCardImageUrl } from "@/lib/images";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { toDeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -78,13 +82,13 @@ function DomainIcon({ domain }: { domain: string }) {
 }
 
 function CardPreviewImage({
-  imageUrl,
+  image,
   alt,
   sizes,
   className,
   style,
 }: {
-  imageUrl: string;
+  image: PrintingImage;
   alt: string;
   sizes: string;
   className: string;
@@ -92,8 +96,8 @@ function CardPreviewImage({
 }) {
   return (
     <img
-      src={getCardImageUrl(imageUrl, "thumbnail")}
-      srcSet={getCardImageSrcSet(imageUrl)}
+      src={image.thumbnail}
+      srcSet={`${image.thumbnail} 400w, ${image.full} 800w`}
       sizes={sizes}
       alt={alt}
       loading="lazy"
@@ -108,8 +112,8 @@ function FannedPreview({
   championImage,
   gradientStyle,
 }: {
-  legendImage?: string | null;
-  championImage?: string | null;
+  legendImage?: PrintingImage | null;
+  championImage?: PrintingImage | null;
   gradientStyle?: React.CSSProperties;
 }) {
   const singleImage = legendImage ?? championImage;
@@ -121,14 +125,14 @@ function FannedPreview({
         style={{ aspectRatio: "5 / 3" }}
       >
         <CardPreviewImage
-          imageUrl={legendImage}
+          image={legendImage}
           alt="Legend"
           sizes="160px"
           className="absolute h-[85%] rounded-lg object-cover shadow-md"
           style={{ left: "12%", transform: "rotate(-6deg)" }}
         />
         <CardPreviewImage
-          imageUrl={championImage}
+          image={championImage}
           alt="Champion"
           sizes="160px"
           className="absolute h-[85%] rounded-lg object-cover shadow-md"
@@ -145,7 +149,7 @@ function FannedPreview({
         style={{ aspectRatio: "5 / 3" }}
       >
         <CardPreviewImage
-          imageUrl={singleImage}
+          image={singleImage}
           alt="Card"
           sizes="200px"
           className="h-[90%] rounded-lg object-cover shadow-md"
@@ -173,7 +177,7 @@ function resolveCardImage(
   allPrintings: ReturnType<typeof useCards>["allPrintings"],
   cardId: string,
   languageOrder?: string[],
-): string | null {
+): PrintingImage | null {
   const candidates = allPrintings
     .filter((entry) => entry.cardId === cardId)
     .toSorted((a, b) => {
@@ -193,8 +197,7 @@ function resolveCardImage(
         Number(a.finish !== "normal") - Number(b.finish !== "normal")
       );
     });
-  const frontImage = candidates[0]?.images.find((img) => img.face === "front");
-  return frontImage?.url ?? null;
+  return candidates[0]?.images.find((img) => img.face === "front") ?? null;
 }
 
 /**

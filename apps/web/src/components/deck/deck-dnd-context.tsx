@@ -14,7 +14,6 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { useCards } from "@/hooks/use-cards";
-import { getCardImageUrl } from "@/lib/images";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 
@@ -293,7 +292,7 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     }
     const printing = printingsByCardId.get(dragInfo.cardId)?.[0];
     const frontImage = printing?.images.find((img) => img.face === "front");
-    return frontImage ? getCardImageUrl(frontImage.url, "thumbnail") : null;
+    return frontImage?.thumbnail ?? null;
   })();
 
   const dragCount = moveAll

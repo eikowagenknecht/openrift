@@ -1,3 +1,4 @@
+import type { CardImageVariants } from "../catalog.js";
 import type { CardType, Finish, Rarity } from "../enums.js";
 
 export interface TradeListListResponse {
@@ -22,7 +23,7 @@ export interface TradeListItemResponse {
 export interface TradeListItemDetailResponse extends TradeListItemResponse {
   printingId: string;
   collectionId: string;
-  imageUrl: string | null;
+  image: CardImageVariants | null;
   setId: string;
   rarity: Rarity;
   finish: Finish;

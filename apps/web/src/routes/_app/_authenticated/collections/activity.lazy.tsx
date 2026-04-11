@@ -29,7 +29,6 @@ import { useCollectionEvents } from "@/hooks/use-collection-events";
 import { useCollections } from "@/hooks/use-collections";
 import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
-import { getCardImageUrl } from "@/lib/images";
 import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useDisplayStore } from "@/stores/display-store";
@@ -249,9 +248,9 @@ function EventCard({
         <Icon className={cn("size-3.5", config.color)} />
       </div>
 
-      {event.imageUrl ? (
+      {event.image ? (
         <img
-          src={getCardImageUrl(event.imageUrl, "thumbnail")}
+          src={event.image.thumbnail}
           alt={event.cardName}
           className="h-12 w-[2.15rem] shrink-0 rounded-sm object-cover"
         />

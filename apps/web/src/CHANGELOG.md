@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-11
+
+- fix: Sharing a card page on Telegram, WhatsApp, or Discord now actually shows the card preview — the previous attempt was pointing crawlers at a URL that returned 404. Previews also use the English art and a clean description, instead of whichever language happened to come first or rules text leaking unrendered icon shortcodes
+- fix: Card detail pages now default to the English printing instead of whichever printing happens to sort first
+
 ## 2026-04-10
 
 - feat: Cardmarket prices now appear on Chinese printings too, marked with a small star and an "any language" tooltip — Cardmarket only publishes one price per card across all languages, so the same number now correctly shows up wherever you view the card. Clicking through opens Cardmarket pre-filtered to the language you're viewing.

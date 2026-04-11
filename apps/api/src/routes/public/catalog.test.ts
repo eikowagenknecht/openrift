@@ -199,11 +199,15 @@ describe("GET /api/v1/catalog", () => {
     expect(printing.card).toBeUndefined();
   });
 
-  it("maps image URL into images array", async () => {
+  it("expands stored base URL into full + thumbnail variants", async () => {
     const res = await app.request("/api/v1/catalog");
     const json = await res.json();
     expect(json.printings["OGS-001:rare:normal:"].images).toEqual([
-      { face: "front", url: "https://example.com/thumb.jpg" },
+      {
+        face: "front",
+        full: "https://example.com/thumb.jpg-full.webp",
+        thumbnail: "https://example.com/thumb.jpg-400w.webp",
+      },
     ]);
   });
 
@@ -308,11 +312,13 @@ describe("GET /api/v1/catalog", () => {
     expect(printing.images).toHaveLength(2);
     expect(printing.images[0]).toEqual({
       face: "front",
-      url: "https://example.com/front.jpg",
+      full: "https://example.com/front.jpg-full.webp",
+      thumbnail: "https://example.com/front.jpg-400w.webp",
     });
     expect(printing.images[1]).toEqual({
       face: "back",
-      url: "https://example.com/back.jpg",
+      full: "https://example.com/back.jpg-full.webp",
+      thumbnail: "https://example.com/back.jpg-400w.webp",
     });
   });
 

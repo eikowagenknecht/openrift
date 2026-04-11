@@ -13,7 +13,15 @@ export type {
 export type { EnumOrders } from "./enums.js";
 export { DEFAULT_ENUM_ORDERS } from "./enums.js";
 
-export type { Card, CardBan, CardErrata, Printing, PrintingImage, PromoType } from "./catalog.js";
+export type {
+  Card,
+  CardBan,
+  CardErrata,
+  CardImageVariants,
+  Printing,
+  PrintingImage,
+  PromoType,
+} from "./catalog.js";
 
 export type {
   CardFilters,

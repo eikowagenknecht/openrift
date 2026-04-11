@@ -37,9 +37,15 @@ export interface Card {
   bans: CardBan[];
 }
 
+export interface CardImageVariants {
+  full: string;
+  thumbnail: string;
+}
+
 export interface PrintingImage {
   face: CardFace;
-  url: string;
+  full: string;
+  thumbnail: string;
 }
 
 export interface Printing {

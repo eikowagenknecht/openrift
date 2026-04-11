@@ -16,7 +16,6 @@ import type { CardDragData } from "@/components/collection/dnd-types";
 import { Footer } from "@/components/layout/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
-import { getCardImageUrl } from "@/lib/images";
 
 /** Portal slot for the full-width top bar rendered above the sidebar + content row. */
 export const TopBarSlotContext = createContext<HTMLDivElement | null>(null);
@@ -138,11 +137,11 @@ function DragPreview({ drag }: { drag: CardDragData }) {
       {cards.toReversed().map((printing, reversedIndex) => {
         const index = cards.length - 1 - reversedIndex;
         const offset = FAN_OFFSETS[index];
-        const imageUrl = printing.images[0]?.url;
+        const thumbnail = printing.images[0]?.thumbnail;
         return (
           <img
             key={printing.id}
-            src={imageUrl ? getCardImageUrl(imageUrl, "thumbnail") : ""}
+            src={thumbnail ?? ""}
             alt=""
             className="absolute top-0 left-0 w-28 rounded-lg shadow-lg"
             style={{

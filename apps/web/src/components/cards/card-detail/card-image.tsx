@@ -3,7 +3,7 @@ import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
-import { LANDSCAPE_ROTATION_STYLE, getCardImageUrl, needsCssRotation } from "@/lib/images";
+import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 export function CardImage({
@@ -22,8 +22,8 @@ export function CardImage({
   showShimmer: boolean;
 }) {
   const { card } = printing;
-  const imageUrl = printing.images[0]?.url ?? null;
-  const hasImage = showImages && imageUrl;
+  const frontImage = printing.images[0] ?? null;
+  const hasImage = Boolean(showImages && frontImage);
   const [imgLoaded, setImgLoaded] = useState(false);
   return (
     <div
@@ -41,7 +41,7 @@ export function CardImage({
         transformStyle: "preserve-3d",
       }}
     >
-      {hasImage ? (
+      {hasImage && frontImage ? (
         <>
           <div className="aspect-card" />
           {needsCssRotation(orientation) ? (
@@ -53,7 +53,7 @@ export function CardImage({
               style={LANDSCAPE_ROTATION_STYLE}
             >
               <img
-                src={getCardImageUrl(imageUrl, "full")}
+                src={frontImage.full}
                 alt={card.name}
                 className="size-full object-cover"
                 onLoad={() => setImgLoaded(true)}
@@ -61,7 +61,7 @@ export function CardImage({
             </div>
           ) : (
             <img
-              src={getCardImageUrl(imageUrl, "full")}
+              src={frontImage.full}
               alt={card.name}
               className={cn(
                 "absolute inset-0 block w-full transition-opacity duration-300",
