@@ -1,6 +1,7 @@
 import type { CollectionResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
+import { PRINTING_1, PRINTING_2 } from "../../test/fixtures/constants.js";
 import { createTestContext, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
@@ -211,14 +212,93 @@ describe.skipIf(!ctx)("Collections routes (integration)", () => {
       expect(res.status).toBe(400);
     });
 
-    it("deletes a collection and auto-moves copies to inbox", async () => {
+    it("deletes a collection and auto-moves its copies to inbox", async () => {
+      // Populate `secondCollectionId` with two copies so the auto-move path
+      // is actually exercised (without copies the test passes trivially).
+      const addRes = await app.fetch(
+        req("POST", "/copies", {
+          copies: [
+            { printingId: PRINTING_1.id, collectionId: secondCollectionId },
+            { printingId: PRINTING_2.id, collectionId: secondCollectionId },
+          ],
+        }),
+      );
+      expect(addRes.status).toBe(201);
+      const added = (await addRes.json()) as { id: string }[];
+      const addedIds = new Set(added.map((c) => c.id));
+
       const res = await app.fetch(req("DELETE", `/collections/${secondCollectionId}`));
       expect(res.status).toBe(204);
+
+      // Both copies should now live in the inbox.
+      const inboxCopiesRes = await app.fetch(req("GET", `/collections/${inboxId}/copies`));
+      const inboxCopies = (await inboxCopiesRes.json()) as { items: { id: string }[] };
+      const inboxIds = new Set(inboxCopies.items.map((c) => c.id));
+      for (const id of addedIds) {
+        expect(inboxIds.has(id)).toBe(true);
+      }
     });
 
     it("returns 404 after deletion", async () => {
       const res = await app.fetch(req("GET", `/collections/${secondCollectionId}`));
       expect(res.status).toBe(404);
+    });
+
+    it("deletes a collection that has prior 'removed' events in its history", async () => {
+      // Reproduces the bug where deleting a collection fails with 500 because
+      // the FK ON DELETE SET NULL on collection_events.from_collection_id
+      // violates chk_collection_events_collection_presence (which requires
+      // 'removed' events to keep from_collection_id NOT NULL).
+      const createRes = await app.fetch(req("POST", "/collections", { name: "Has History" }));
+      expect(createRes.status).toBe(201);
+      const { id: historyCollectionId } = (await createRes.json()) as { id: string };
+
+      // Add a copy, then dispose it — this writes a 'removed' event with
+      // from_collection_id = historyCollectionId.
+      const addRes = await app.fetch(
+        req("POST", "/copies", {
+          copies: [{ printingId: PRINTING_1.id, collectionId: historyCollectionId }],
+        }),
+      );
+      expect(addRes.status).toBe(201);
+      const [copy] = (await addRes.json()) as { id: string }[];
+
+      const disposeRes = await app.fetch(req("POST", "/copies/dispose", { copyIds: [copy.id] }));
+      expect(disposeRes.status).toBe(204);
+
+      // Collection is now empty but has a 'removed' event referencing it.
+      const res = await app.fetch(req("DELETE", `/collections/${historyCollectionId}`));
+      expect(res.status).toBe(204);
+    });
+
+    it("deletes a collection that has prior 'moved' events in its history", async () => {
+      // Same root cause as above but for the 'moved' branch of the check
+      // constraint, which requires both from_collection_id and to_collection_id
+      // to remain NOT NULL.
+      const createSrcRes = await app.fetch(req("POST", "/collections", { name: "Move Source" }));
+      const { id: srcId } = (await createSrcRes.json()) as { id: string };
+      const createDstRes = await app.fetch(
+        req("POST", "/collections", { name: "Move Destination" }),
+      );
+      const { id: dstId } = (await createDstRes.json()) as { id: string };
+
+      const addRes = await app.fetch(
+        req("POST", "/copies", {
+          copies: [{ printingId: PRINTING_2.id, collectionId: srcId }],
+        }),
+      );
+      const [copy] = (await addRes.json()) as { id: string }[];
+
+      const moveRes = await app.fetch(
+        req("POST", "/copies/move", { copyIds: [copy.id], toCollectionId: dstId }),
+      );
+      expect(moveRes.status).toBe(204);
+
+      // Deleting either endpoint of the historical 'moved' event should work.
+      const delSrcRes = await app.fetch(req("DELETE", `/collections/${srcId}`));
+      expect(delSrcRes.status).toBe(204);
+      const delDstRes = await app.fetch(req("DELETE", `/collections/${dstId}`));
+      expect(delDstRes.status).toBe(204);
     });
 
     it("returns 404 when deleting non-existent collection", async () => {

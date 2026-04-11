@@ -4,6 +4,7 @@ import {
   BookOpenIcon,
   ActivityIcon,
   CameraIcon,
+  FileWarningIcon,
   GalleryVerticalIcon,
   DatabaseIcon,
   FlagIcon,
@@ -55,6 +56,7 @@ const taxonomyPages = [
 const contentPages = [
   { to: "/admin/typography-review" as const, icon: SpellCheckIcon, title: "Typography" },
   { to: "/admin/rules" as const, icon: BookOpenIcon, title: "Rules" },
+  { to: "/admin/errata" as const, icon: FileWarningIcon, title: "Errata" },
 ];
 
 const marketplacePages = [

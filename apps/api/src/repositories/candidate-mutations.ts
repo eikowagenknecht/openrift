@@ -826,5 +826,55 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
           .executeTakeFirst()) ?? null
       );
     },
+
+    /** @returns Card ids/names keyed by slug for the given slug list. */
+    getCardsBySlugs(
+      slugs: string[],
+    ): Promise<Pick<Selectable<CardsTable>, "id" | "slug" | "name">[]> {
+      if (slugs.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("cards")
+        .select(["id", "slug", "name"])
+        .where("slug", "in", slugs)
+        .execute();
+    },
+
+    /** @returns Existing errata rows for the given card ids. */
+    getErrataByCardIds(cardIds: string[]) {
+      if (cardIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("cardErrata")
+        .select([
+          "cardId",
+          "correctedRulesText",
+          "correctedEffectText",
+          "source",
+          "sourceUrl",
+          "effectiveDate",
+        ])
+        .where("cardId", "in", cardIds)
+        .execute();
+    },
+
+    /** @returns EN printing rules/effect texts for the given card ids. */
+    getPrintingTextsByCardIds(
+      cardIds: string[],
+    ): Promise<
+      Pick<Selectable<PrintingsTable>, "cardId" | "printedRulesText" | "printedEffectText">[]
+    > {
+      if (cardIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("printings")
+        .select(["cardId", "printedRulesText", "printedEffectText"])
+        .where("cardId", "in", cardIds)
+        .where("language", "=", "EN")
+        .execute();
+    },
   };
 }

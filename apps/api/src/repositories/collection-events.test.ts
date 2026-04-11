@@ -41,4 +41,10 @@ describe("collectionEventsRepo", () => {
       ]),
     ).resolves.toBeUndefined();
   });
+
+  it("deleteForCollection removes events for either endpoint", async () => {
+    const db = createMockDb([]);
+    const repo = collectionEventsRepo(db);
+    await expect(repo.deleteForCollection("col1", "u1")).resolves.toBeUndefined();
+  });
 });

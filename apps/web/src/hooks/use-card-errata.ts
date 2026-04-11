@@ -94,3 +94,65 @@ export function useDeleteCardErrata() {
     invalidates: [queryKeys.admin.cards.all, queryKeys.catalog.all],
   });
 }
+
+export interface BulkErrataEntry {
+  cardSlug: string;
+  correctedRulesText?: string | null;
+  correctedEffectText?: string | null;
+  source: string;
+  sourceUrl?: string | null;
+  effectiveDate?: string | null;
+}
+
+export interface BulkErrataUploadBody {
+  dryRun: boolean;
+  entries: BulkErrataEntry[];
+}
+
+interface EntryRef {
+  cardSlug: string;
+  cardName: string;
+}
+
+interface EntryDiff extends EntryRef {
+  fields: { field: string; from: string | null; to: string | null }[];
+}
+
+export interface BulkErrataUploadResponse {
+  dryRun: boolean;
+  newCount: number;
+  updatedCount: number;
+  unchangedCount: number;
+  matchesPrintedCount: number;
+  errors: string[];
+  newEntries: EntryRef[];
+  updatedEntries: EntryDiff[];
+  skippedMatchesPrinted: EntryRef[];
+}
+
+const uploadErrataFn = createServerFn({ method: "POST" })
+  .inputValidator((input: BulkErrataUploadBody) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards/errata/upload`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      throw new Error(body?.error ?? `Upload errata failed: ${res.status}`);
+    }
+    return (await res.json()) as BulkErrataUploadResponse;
+  });
+
+/**
+ * Bulk-upload card errata from a JSON payload.
+ * @returns A mutation that POSTs to `/admin/cards/errata/upload`.
+ */
+export function useUploadErrata() {
+  return useMutationWithInvalidation({
+    mutationFn: (payload: BulkErrataUploadBody) => uploadErrataFn({ data: payload }),
+    invalidates: [queryKeys.admin.cards.all, queryKeys.catalog.all],
+  });
+}

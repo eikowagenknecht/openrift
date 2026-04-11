@@ -95,6 +95,7 @@ const mockTrxMut = {
 };
 
 const mockIngestCandidates = vi.fn();
+const mockImportErrata = vi.fn();
 
 const mockTransact = vi.fn(
   async (
@@ -128,6 +129,7 @@ const app = new Hono()
     } as never);
     c.set("services", {
       ingestCandidates: mockIngestCandidates,
+      importErrata: mockImportErrata,
     } as never);
     await next();
   })

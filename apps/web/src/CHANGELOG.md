@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-12
+
+- fix: Deleting a collection no longer fails when cards had previously been moved or removed from it
+
 ## 2026-04-11
 
 - fix: Sharing a card page on Telegram, WhatsApp, or Discord now actually shows the card preview — the previous attempt was pointing crawlers at a URL that returned 404. Previews also use the English art and a clean description, instead of whichever language happened to come first or rules text leaking unrendered icon shortcodes

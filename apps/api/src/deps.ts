@@ -42,6 +42,7 @@ import { wishListsRepo } from "./repositories/wish-lists.js";
 import { deleteCollection } from "./services/collections.js";
 import { addCopies, disposeCopies, moveCopies } from "./services/copies.js";
 import { logEvents } from "./services/event-logger.js";
+import { importErrata } from "./services/import-errata.js";
 import { ensureInbox } from "./services/inbox.js";
 import { ingestCandidates } from "./services/ingest-candidates.js";
 import { getMappingOverview } from "./services/marketplace-mapping.js";
@@ -98,6 +99,7 @@ export interface Services {
   buildShoppingList: typeof buildShoppingList;
   getMappingOverview: typeof getMappingOverview;
   ingestCandidates: typeof ingestCandidates;
+  importErrata: typeof importErrata;
 }
 
 export function createRepos(db: Kysely<Database>): Repos {
@@ -160,4 +162,5 @@ export const services: Services = {
   buildShoppingList,
   getMappingOverview,
   ingestCandidates,
+  importErrata,
 };

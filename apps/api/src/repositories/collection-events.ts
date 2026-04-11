@@ -93,5 +93,23 @@ export function collectionEventsRepo(db: Kysely<Database>) {
       }
       await db.insertInto("collectionEvents").values(items).execute();
     },
+
+    // The FK on (from|to)_collection_id uses ON DELETE SET NULL, but the
+    // chk_collection_events_collection_presence check forbids NULLs on
+    // 'removed' / 'moved' rows. So we have to purge any event that references
+    // the collection before deleting the collection itself, otherwise the
+    // delete would violate the check constraint.
+    async deleteForCollection(collectionId: string, userId: string): Promise<void> {
+      await db
+        .deleteFrom("collectionEvents")
+        .where("userId", "=", userId)
+        .where((eb) =>
+          eb.or([
+            eb("fromCollectionId", "=", collectionId),
+            eb("toCollectionId", "=", collectionId),
+          ]),
+        )
+        .execute();
+    },
   };
 }
