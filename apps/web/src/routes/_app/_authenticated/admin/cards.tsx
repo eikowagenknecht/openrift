@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
       context.queryClient.ensureQueryData(adminCardListQueryOptions),
       context.queryClient.ensureQueryData(providerSettingsQueryOptions),
       context.queryClient.ensureQueryData(allCardsQueryOptions),
-      context.queryClient.ensureQueryData(unifiedMappingsQueryOptions(false)),
+      context.queryClient.ensureQueryData(unifiedMappingsQueryOptions(true)),
     ]);
   },
   pendingComponent: AdminPending,

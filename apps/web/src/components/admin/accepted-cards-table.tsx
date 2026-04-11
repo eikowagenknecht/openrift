@@ -27,11 +27,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   acceptFavoritePrintingsFn,
   useAcceptFavoritePrintings,
 } from "@/hooks/use-admin-card-mutations";
+import type { CardCoverage, MarketplaceCoverage } from "@/lib/marketplace-coverage";
 import { queryKeys } from "@/lib/query-keys";
+import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -87,61 +90,165 @@ function AcceptFavoriteButton({ cardSlug }: { cardSlug: string }) {
 }
 
 // ---------------------------------------------------------------------------
+// Marketplace coverage badges
+// ---------------------------------------------------------------------------
+
+const COVERAGE_BADGE_CLASS: Record<MarketplaceCoverage["status"], string> = {
+  full: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  partial: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  none: "border-destructive/30 bg-destructive/10 text-destructive",
+  na: "border-muted text-muted-foreground",
+};
+
+function MarketplaceCoverageBadge({
+  shortName,
+  fullLabel,
+  coverage,
+}: {
+  shortName: string;
+  fullLabel: string;
+  coverage: MarketplaceCoverage;
+}) {
+  const tooltip =
+    coverage.status === "na"
+      ? `${fullLabel}: not applicable for this card`
+      : `${fullLabel}: ${coverage.mapped}/${coverage.total} mapped`;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Badge
+            className={cn(
+              "h-5 px-1.5 font-mono text-[10px]",
+              COVERAGE_BADGE_CLASS[coverage.status],
+            )}
+          >
+            {shortName}
+          </Badge>
+        }
+      />
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function MarketplaceCoverageBadges({ coverage }: { coverage: CardCoverage | undefined }) {
+  if (!coverage) {
+    return <span className="text-muted-foreground/50 text-xs">—</span>;
+  }
+  return (
+    <span className="flex items-center gap-1">
+      <MarketplaceCoverageBadge
+        shortName="TCG"
+        fullLabel="TCGplayer"
+        coverage={coverage.tcgplayer}
+      />
+      <MarketplaceCoverageBadge
+        shortName="CM"
+        fullLabel="Cardmarket"
+        coverage={coverage.cardmarket}
+      />
+      <MarketplaceCoverageBadge
+        shortName="CT"
+        fullLabel="CardTrader"
+        coverage={coverage.cardtrader}
+      />
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sort weighting for the marketplace coverage column
+// ---------------------------------------------------------------------------
+
+// Sort partially-mapped cards highest so admins see the work-in-progress
+// rows first, then unmapped, then n/a, then fully-mapped (least urgent).
+const STATUS_WEIGHT: Record<MarketplaceCoverage["status"], number> = {
+  partial: 0,
+  none: 1,
+  na: 2,
+  full: 3,
+};
+
+function coverageSortValue(coverage: CardCoverage | undefined): number {
+  if (!coverage) {
+    return 99;
+  }
+  return (
+    STATUS_WEIGHT[coverage.tcgplayer.status] * 100 +
+    STATUS_WEIGHT[coverage.cardmarket.status] * 10 +
+    STATUS_WEIGHT[coverage.cardtrader.status]
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Column definitions
 // ---------------------------------------------------------------------------
 
-const columns: ColumnDef<Row>[] = [
-  {
-    id: "name",
-    accessorFn: (r) => r.name,
-    header: ({ column }) => <SortableHeader column={column} label="Card" />,
-    enableGlobalFilter: true,
-    cell: ({ row }) => {
-      const r = row.original;
-      const slug = r.cardSlug ?? r.normalizedName;
-      const total = r.uncheckedCardCount + r.uncheckedPrintingCount;
-      return (
-        <span className="flex items-center gap-2">
-          <Link
-            to="/admin/cards/$cardSlug"
-            params={{ cardSlug: slug }}
-            className="font-medium hover:underline"
-          >
-            {r.name}
-          </Link>
-          {total > 0 && <Badge variant="destructive">Review</Badge>}
-        </span>
-      );
+function buildColumns(coverageBySlug: Map<string, CardCoverage>): ColumnDef<Row>[] {
+  return [
+    {
+      id: "name",
+      accessorFn: (r) => r.name,
+      header: ({ column }) => <SortableHeader column={column} label="Card" />,
+      enableGlobalFilter: true,
+      cell: ({ row }) => {
+        const r = row.original;
+        const slug = r.cardSlug ?? r.normalizedName;
+        const total = r.uncheckedCardCount + r.uncheckedPrintingCount;
+        return (
+          <span className="flex items-center gap-2">
+            <Link
+              to="/admin/cards/$cardSlug"
+              params={{ cardSlug: slug }}
+              className="font-medium hover:underline"
+            >
+              {r.name}
+            </Link>
+            {total > 0 && <Badge variant="destructive">Review</Badge>}
+          </span>
+        );
+      },
     },
-  },
-  {
-    id: "printings",
-    accessorFn: (r) => r.shortCodes.length,
-    header: ({ column }) => <SortableHeader column={column} label="Printings" />,
-    enableGlobalFilter: false,
-    cell: ({ row }) => {
-      const codes = formatShortCodesArray(row.original.shortCodes);
-      return <span className="text-muted-foreground">{codes.join(", ")}</span>;
+    {
+      id: "printings",
+      accessorFn: (r) => r.shortCodes.length,
+      header: ({ column }) => <SortableHeader column={column} label="Printings" />,
+      enableGlobalFilter: false,
+      cell: ({ row }) => {
+        const codes = formatShortCodesArray(row.original.shortCodes);
+        return <span className="text-muted-foreground">{codes.join(", ")}</span>;
+      },
     },
-  },
-  {
-    id: "candidatePrintings",
-    accessorFn: (r) => r.stagingShortCodes.length,
-    header: ({ column }) => <SortableHeader column={column} label="Candidate Printings" />,
-    enableGlobalFilter: false,
-    cell: ({ row }) => {
-      const codes = formatShortCodesArray(row.original.stagingShortCodes);
-      return (
-        <span className="flex items-center gap-2">
-          <span className="text-muted-foreground/50 italic">{codes.join(", ")}</span>
-          {row.original.cardSlug && row.original.hasFavoriteStagingPrintings && (
-            <AcceptFavoriteButton cardSlug={row.original.cardSlug} />
-          )}
-        </span>
-      );
+    {
+      id: "marketplaces",
+      accessorFn: (r) => coverageSortValue(coverageBySlug.get(r.cardSlug ?? "")),
+      header: ({ column }) => <SortableHeader column={column} label="Marketplaces" />,
+      enableGlobalFilter: false,
+      sortingFn: "basic",
+      cell: ({ row }) => (
+        <MarketplaceCoverageBadges coverage={coverageBySlug.get(row.original.cardSlug ?? "")} />
+      ),
     },
-  },
-];
+    {
+      id: "candidatePrintings",
+      accessorFn: (r) => r.stagingShortCodes.length,
+      header: ({ column }) => <SortableHeader column={column} label="Candidate Printings" />,
+      enableGlobalFilter: false,
+      cell: ({ row }) => {
+        const codes = formatShortCodesArray(row.original.stagingShortCodes);
+        return (
+          <span className="flex items-center gap-2">
+            <span className="text-muted-foreground/50 italic">{codes.join(", ")}</span>
+            {row.original.cardSlug && row.original.hasFavoriteStagingPrintings && (
+              <AcceptFavoriteButton cardSlug={row.original.cardSlug} />
+            )}
+          </span>
+        );
+      },
+    },
+  ];
+}
 
 // ---------------------------------------------------------------------------
 // Virtualizer constants
@@ -154,12 +261,20 @@ const OVERSCAN = 20;
 // Component
 // ---------------------------------------------------------------------------
 
-export function AcceptedCardsTable({ data }: { data: Row[] }) {
+export function AcceptedCardsTable({
+  data,
+  coverageBySlug,
+}: {
+  data: Row[];
+  coverageBySlug: Map<string, CardCoverage>;
+}) {
   const queryClient = useQueryClient();
   const [acceptAllProgress, setAcceptAllProgress] = useState<{
     done: number;
     total: number;
   } | null>(null);
+
+  const columns = buildColumns(coverageBySlug);
 
   const acceptAll = useMutation({
     mutationFn: async (slugs: string[]) => {
