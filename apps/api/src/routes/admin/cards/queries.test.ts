@@ -50,12 +50,18 @@ const mockProviderSettings = {
 
 const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
+const mockMarketplaceMapping = {
+  variantsForCard: vi.fn().mockResolvedValue([]),
+  stagingCandidatesForCard: vi.fn().mockResolvedValue([]),
+};
+
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("user", { id: USER_ID });
     c.set("repos", {
       candidateCards: mockCandidateCards,
       providerSettings: mockProviderSettings,
+      marketplaceMapping: mockMarketplaceMapping,
     } as never);
     await next();
   })
@@ -227,7 +233,11 @@ describe("GET /api/v1/:cardSlug", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.displayName).toBe("Fireball");
-    expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(mockCandidateCards, "fireball");
+    expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(
+      mockCandidateCards,
+      mockMarketplaceMapping,
+      "fireball",
+    );
   });
 
   it("passes the correct cardSlug parameter", async () => {
@@ -235,7 +245,11 @@ describe("GET /api/v1/:cardSlug", () => {
 
     await app.request("/api/v1/abandon");
 
-    expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(mockCandidateCards, "abandon");
+    expect(mockBuildCandidateCardDetail).toHaveBeenCalledWith(
+      mockCandidateCards,
+      mockMarketplaceMapping,
+      "abandon",
+    );
   });
 });
 

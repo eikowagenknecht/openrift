@@ -1,4 +1,7 @@
 import type {
+  AdminMarketplaceName,
+  AdminMarketplaceStagingCandidateResponse,
+  AdminPrintingMarketplaceMappingResponse,
   CandidateCardResponse,
   CandidateCardSummaryResponse,
   CandidatePrintingGroupResponse,
@@ -11,8 +14,17 @@ import type { CandidateCardsTable, CandidatePrintingsTable } from "../db/index.j
 // oxlint-disable-next-line no-restricted-imports -- API has no @/ alias
 import { AppError } from "../errors.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
+import type { marketplaceMappingRepo } from "../repositories/marketplace-mapping.js";
 
 type Repo = ReturnType<typeof candidateCardsRepo>;
+type MarketplaceMappingRepo = ReturnType<typeof marketplaceMappingRepo>;
+
+function toMarketplaceName(marketplace: string): AdminMarketplaceName | null {
+  if (marketplace === "tcgplayer" || marketplace === "cardmarket" || marketplace === "cardtrader") {
+    return marketplace;
+  }
+  return null;
+}
 
 // ── Shared response-shaping helpers ─────────────────────────────────────────
 
@@ -348,6 +360,7 @@ type CardForDetail = Awaited<ReturnType<Repo["cardForDetailBySlug"]>>;
  */
 async function buildDetailResponse(
   repo: Repo,
+  marketplaceRepo: MarketplaceMappingRepo | null,
   card: NonNullable<CardForDetail> | null,
   errata: Awaited<ReturnType<Repo["cardErrataForDetail"]>>,
   normNames: string[],
@@ -418,6 +431,52 @@ async function buildDetailResponse(
   const printingIds = printings.map((p) => p.id);
   const printingImages =
     printingIds.length > 0 ? await repo.printingImagesForDetail(printingIds) : [];
+
+  // Marketplace mappings (TCGplayer / Cardmarket / CardTrader) — fetched for
+  // matched cards only, so the admin can assign/unmap products from the card
+  // detail view instead of navigating out to a separate mappings page.
+  const marketplaceMappings: AdminPrintingMarketplaceMappingResponse[] = [];
+  const marketplaceStagingCandidates: AdminMarketplaceStagingCandidateResponse[] = [];
+  if (card && marketplaceRepo) {
+    const [variantRows, stagingRows] = await Promise.all([
+      marketplaceRepo.variantsForCard(card.id),
+      marketplaceRepo.stagingCandidatesForCard(card.id, normNames),
+    ]);
+    for (const row of variantRows) {
+      const marketplace = toMarketplaceName(row.marketplace);
+      if (!marketplace) {
+        continue;
+      }
+      marketplaceMappings.push({
+        targetPrintingId: row.targetPrintingId,
+        marketplace,
+        externalId: row.externalId,
+        productName: row.productName,
+        finish: row.finish,
+        variantLanguage: row.variantLanguage,
+        ownerPrintingId: row.ownerPrintingId,
+        ownerLanguage: row.ownerLanguage,
+      });
+    }
+    for (const row of stagingRows) {
+      const marketplace = toMarketplaceName(row.marketplace);
+      if (!marketplace) {
+        continue;
+      }
+      marketplaceStagingCandidates.push({
+        marketplace,
+        externalId: row.externalId,
+        productName: row.productName,
+        finish: row.finish,
+        language: row.language,
+        groupId: row.groupId,
+        groupName: row.groupName,
+        marketCents: row.marketCents,
+        lowCents: row.lowCents,
+        recordedAt: row.recordedAt.toISOString(),
+      });
+    }
+  }
 
   // Only group unlinked candidate printings — linked ones are already shown under their accepted printing
   const unlinkedCP = candidatePrintings.filter((cp) => !cp.printingId);
@@ -502,6 +561,8 @@ async function buildDetailResponse(
     expectedCardId: deriveExpectedCardId(displayName, card?.slug),
     printingImages,
     setTotals,
+    marketplaceMappings,
+    marketplaceStagingCandidates,
   };
 }
 
@@ -511,10 +572,14 @@ async function buildDetailResponse(
  * Detail view for a matched card (looked up by UUID).
  * @returns Card detail with candidates, printings, candidate printings, groups, and images.
  */
-export async function buildCardDetail(repo: Repo, cardSlug: string) {
+export async function buildCardDetail(
+  repo: Repo,
+  marketplaceRepo: MarketplaceMappingRepo,
+  cardSlug: string,
+) {
   const card = await repo.cardForDetailBySlug(cardSlug);
   if (!card) {
-    return buildDetailResponse(repo, null, null, [], cardSlug);
+    return buildDetailResponse(repo, marketplaceRepo, null, null, [], cardSlug);
   }
 
   const aliases = await repo.cardNameAliases(card.id);
@@ -528,7 +593,7 @@ export async function buildCardDetail(repo: Repo, cardSlug: string) {
 
   const errata = await repo.cardErrataForDetail(card.id);
   const normNames = aliases.map((a) => a.normName);
-  return buildDetailResponse(repo, card, errata, normNames, card.name);
+  return buildDetailResponse(repo, marketplaceRepo, card, errata, normNames, card.name);
 }
 
 // ── GET /new/:name — unmatched candidate detail ────────────────────────────
@@ -538,7 +603,7 @@ export async function buildCardDetail(repo: Repo, cardSlug: string) {
  * @returns Candidate detail with sources, candidate printings, groups, and set totals.
  */
 export async function buildUnmatchedDetail(repo: Repo, normName: string) {
-  const result = await buildDetailResponse(repo, null, null, [normName], normName);
+  const result = await buildDetailResponse(repo, null, null, null, [normName], normName);
   return {
     displayName: result.displayName,
     sources: result.sources,

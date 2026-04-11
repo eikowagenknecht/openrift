@@ -40,7 +40,10 @@ export { ALL_MARKETPLACES, EUR_MARKETPLACES, TIME_RANGE_DAYS } from "./pricing.j
 export type {
   AdminCardDetailResponse,
   AdminCardResponse,
+  AdminMarketplaceName,
+  AdminMarketplaceStagingCandidateResponse,
   AdminPrintingImageResponse,
+  AdminPrintingMarketplaceMappingResponse,
   AdminPrintingResponse,
   AdminSetResponse,
   AdminUserResponse,

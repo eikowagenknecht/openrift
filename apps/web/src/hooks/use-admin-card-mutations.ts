@@ -559,3 +559,66 @@ export function useDeleteProvider() {
     invalidates: [queryKeys.admin.cards.all],
   });
 }
+
+// ── Marketplace mappings (card-detail scoped) ────────────────────────────────
+
+const saveMarketplaceMappingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { marketplace: string; printingId: string; externalId: number }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({
+          mappings: [{ printingId: data.printingId, externalId: data.externalId }],
+        }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Save marketplace mapping failed: ${res.status}`);
+    }
+    return (await res.json()) as {
+      saved: number;
+      skipped: { externalId: number; reason: string }[];
+    };
+  });
+
+const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { marketplace: string; printingId: string }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
+      {
+        method: "DELETE",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify({ printingId: data.printingId }),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Unmap marketplace printing failed: ${res.status}`);
+    }
+  });
+
+export function useSaveMarketplaceMapping() {
+  return useMutationWithInvalidation({
+    mutationFn: (input: {
+      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
+      printingId: string;
+      externalId: number;
+    }) => saveMarketplaceMappingFn({ data: input }),
+    invalidates: [queryKeys.admin.cards.all, queryKeys.admin.unifiedMappings.all],
+  });
+}
+
+export function useUnmapMarketplacePrinting() {
+  return useMutationWithInvalidation({
+    mutationFn: (input: {
+      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
+      printingId: string;
+    }) => unmapMarketplacePrintingFn({ data: input }),
+    invalidates: [queryKeys.admin.cards.all, queryKeys.admin.unifiedMappings.all],
+  });
+}

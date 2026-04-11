@@ -93,7 +93,10 @@ export { snapshotHeadline } from "./pricing.js";
 export type {
   AdminCardDetailResponse,
   AdminCardResponse,
+  AdminMarketplaceName,
+  AdminMarketplaceStagingCandidateResponse,
   AdminPrintingImageResponse,
+  AdminPrintingMarketplaceMappingResponse,
   AdminPrintingResponse,
   AdminSetResponse,
   AdminUserResponse,

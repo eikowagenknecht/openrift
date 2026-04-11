@@ -157,6 +157,39 @@ export interface AdminPrintingResponse {
   expectedPrintingId: string;
 }
 
+export type AdminMarketplaceName = "tcgplayer" | "cardmarket" | "cardtrader";
+
+/**
+ * A marketplace variant visible to a printing. When `ownerPrintingId` differs
+ * from the printing this row is shown under, the variant is inherited via
+ * sibling fan-out (Cardmarket cross-language aggregate — variants are stored
+ * with `variantLanguage = null` and surface on every sibling printing).
+ */
+export interface AdminPrintingMarketplaceMappingResponse {
+  targetPrintingId: string;
+  marketplace: AdminMarketplaceName;
+  externalId: number;
+  productName: string;
+  finish: string;
+  variantLanguage: string | null;
+  ownerPrintingId: string;
+  ownerLanguage: string;
+}
+
+/** A staging row that could be assigned to any printing of the card. */
+export interface AdminMarketplaceStagingCandidateResponse {
+  marketplace: AdminMarketplaceName;
+  externalId: number;
+  productName: string;
+  finish: string;
+  language: string;
+  groupId: number;
+  groupName: string | null;
+  marketCents: number | null;
+  lowCents: number | null;
+  recordedAt: string;
+}
+
 export interface AdminCardDetailResponse {
   card: AdminCardResponse | null;
   displayName: string;
@@ -167,6 +200,8 @@ export interface AdminCardDetailResponse {
   expectedCardId: string;
   printingImages: AdminPrintingImageResponse[];
   setTotals: Record<string, number>;
+  marketplaceMappings: AdminPrintingMarketplaceMappingResponse[];
+  marketplaceStagingCandidates: AdminMarketplaceStagingCandidateResponse[];
 }
 
 export interface UnmatchedCardDetailResponse {

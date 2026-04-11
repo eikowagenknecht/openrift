@@ -41,6 +41,16 @@ function createMockRepo(overrides: Record<string, unknown> = {}) {
   } as any;
 }
 
+function createMockMarketplaceRepo(overrides: Record<string, unknown> = {}) {
+  return {
+    variantsForCard: vi.fn().mockResolvedValue([]),
+    stagingCandidatesForCard: vi.fn().mockResolvedValue([]),
+    ...overrides,
+  } as any;
+}
+
+const mpRepo = () => createMockMarketplaceRepo();
+
 // ---------------------------------------------------------------------------
 // buildCandidateCardList
 // ---------------------------------------------------------------------------
@@ -820,8 +830,8 @@ describe("buildCardDetail", () => {
       cardNameAliases: vi.fn().mockResolvedValue([]),
     });
 
-    await expect(buildCardDetail(repo, "fireball")).rejects.toThrow(AppError);
-    await expect(buildCardDetail(repo, "fireball")).rejects.toThrow("no name aliases");
+    await expect(buildCardDetail(repo, mpRepo(), "fireball")).rejects.toThrow(AppError);
+    await expect(buildCardDetail(repo, mpRepo(), "fireball")).rejects.toThrow("no name aliases");
   });
 
   it("returns card detail with all fields for matched card", async () => {
@@ -848,7 +858,7 @@ describe("buildCardDetail", () => {
       printingImagesForDetail: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCardDetail(repo, "fireball");
+    const result = await buildCardDetail(repo, mpRepo(), "fireball");
 
     expect(result.card).not.toBeNull();
     expect(result.card?.slug).toBe("fireball");
@@ -860,7 +870,7 @@ describe("buildCardDetail", () => {
       cardForDetailBySlug: vi.fn().mockResolvedValue(undefined),
     });
 
-    const result = await buildCardDetail(repo, "unknowncard");
+    const result = await buildCardDetail(repo, mpRepo(), "unknowncard");
 
     expect(result.card).toBeNull();
     expect(result.sources).toHaveLength(0);
@@ -928,7 +938,7 @@ describe("buildCardDetail", () => {
       ]),
     });
 
-    const result = await buildCardDetail(repo, "somecard");
+    const result = await buildCardDetail(repo, mpRepo(), "somecard");
     expect(result.displayName).toBe("Some Card");
   });
 
@@ -938,7 +948,7 @@ describe("buildCardDetail", () => {
       candidateCardsForDetail: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCardDetail(repo, "unknownid");
+    const result = await buildCardDetail(repo, mpRepo(), "unknownid");
     expect(result.displayName).toBe("unknownid");
   });
 
@@ -994,7 +1004,7 @@ describe("buildCardDetail", () => {
       printingImagesForDetail: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCardDetail(repo, "fireball");
+    const result = await buildCardDetail(repo, mpRepo(), "fireball");
 
     expect(result.printings).toHaveLength(1);
     expect(result.printings[0].setId).toBe("origin");
@@ -1051,7 +1061,7 @@ describe("buildCardDetail", () => {
       printingImagesForDetail: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCardDetail(repo, "fireball");
+    const result = await buildCardDetail(repo, mpRepo(), "fireball");
     expect(result.printings[0].expectedPrintingId).toBe("OGN-001:foil:promo");
   });
 
@@ -1128,7 +1138,7 @@ describe("buildCardDetail", () => {
       ]),
     });
 
-    const result = await buildCardDetail(repo, "x");
+    const result = await buildCardDetail(repo, mpRepo(), "x");
 
     expect(result.candidatePrintingGroups).toHaveLength(1);
     expect(result.candidatePrintingGroups[0].shortCodes).toEqual(["cp-1", "cp-2"]);
@@ -1186,7 +1196,7 @@ describe("buildCardDetail", () => {
       ]),
     });
 
-    const result = await buildCardDetail(repo, "x");
+    const result = await buildCardDetail(repo, mpRepo(), "x");
     expect(result.candidatePrintingGroups).toHaveLength(0);
   });
 
@@ -1241,7 +1251,7 @@ describe("buildCardDetail", () => {
       ]),
     });
 
-    const result = await buildCardDetail(repo, "x");
+    const result = await buildCardDetail(repo, mpRepo(), "x");
     expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001:foil:");
   });
 
@@ -1296,7 +1306,7 @@ describe("buildCardDetail", () => {
       ]),
     });
 
-    const result = await buildCardDetail(repo, "x");
+    const result = await buildCardDetail(repo, mpRepo(), "x");
     expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001:normal:");
   });
 
@@ -1351,7 +1361,7 @@ describe("buildCardDetail", () => {
       ]),
     });
 
-    const result = await buildCardDetail(repo, "x");
+    const result = await buildCardDetail(repo, mpRepo(), "x");
     expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001::");
   });
 
@@ -1383,7 +1393,7 @@ describe("buildCardDetail", () => {
       ]),
     });
 
-    const result = await buildCardDetail(repo, "x");
+    const result = await buildCardDetail(repo, mpRepo(), "x");
     expect(result.sources[0].checkedAt).toBe(testDate.toISOString());
   });
 
@@ -1414,7 +1424,7 @@ describe("buildCardDetail", () => {
       ]),
     });
 
-    const result = await buildCardDetail(repo, "x");
+    const result = await buildCardDetail(repo, mpRepo(), "x");
     expect(result.sources[0].checkedAt).toBeNull();
   });
 
@@ -1472,7 +1482,7 @@ describe("buildCardDetail", () => {
         .mockResolvedValue([{ slug: "candidate-set-slug", printedTotal: 200 }]),
     });
 
-    const result = await buildCardDetail(repo, "x");
+    const result = await buildCardDetail(repo, mpRepo(), "x");
     expect(result.setTotals["candidate-set-slug"]).toBe(200);
     expect(repo.setPrintedTotalBySlugs).toHaveBeenCalledWith(["candidate-set-slug"]);
   });
@@ -1554,7 +1564,7 @@ describe("buildCardDetail", () => {
       printingImagesForDetail: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCardDetail(repo, "fireball");
+    const result = await buildCardDetail(repo, mpRepo(), "fireball");
     expect(result.expectedCardId).toBe("fireball");
   });
 
@@ -1610,7 +1620,7 @@ describe("buildCardDetail", () => {
       printingImagesForDetail: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCardDetail(repo, "fireball");
+    const result = await buildCardDetail(repo, mpRepo(), "fireball");
     expect(result.expectedCardId).toBe("fireball");
   });
 
@@ -1665,7 +1675,7 @@ describe("buildCardDetail", () => {
       ]),
     });
 
-    const result = await buildCardDetail(repo, "x");
+    const result = await buildCardDetail(repo, mpRepo(), "x");
     expect(result.expectedCardId).toBe("x");
   });
 
@@ -1693,7 +1703,7 @@ describe("buildCardDetail", () => {
       printingImagesForDetail: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCardDetail(repo, "existing-slug");
+    const result = await buildCardDetail(repo, mpRepo(), "existing-slug");
     expect(result.expectedCardId).toBe("x");
   });
 
@@ -1703,7 +1713,7 @@ describe("buildCardDetail", () => {
       candidateCardsForDetail: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCardDetail(repo, "nothing");
+    const result = await buildCardDetail(repo, mpRepo(), "nothing");
     expect(result.expectedCardId).toBe("nothing");
   });
 
@@ -1773,7 +1783,7 @@ describe("buildCardDetail", () => {
       printingImagesForDetail: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCardDetail(repo, "x");
+    const result = await buildCardDetail(repo, mpRepo(), "x");
     expect(result.printings[0].expectedPrintingId).toBe("OGN-001:normal:");
     expect(result.printings[1].expectedPrintingId).toBe("OGN-002:normal:");
   });
@@ -1826,7 +1836,7 @@ describe("buildCardDetail", () => {
       printingImagesForDetail: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCardDetail(repo, "x");
+    const result = await buildCardDetail(repo, mpRepo(), "x");
     expect(result.setTotals).toEqual({ origin: 150 });
   });
 
@@ -1900,7 +1910,7 @@ describe("buildCardDetail", () => {
       printingImagesForDetail: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCardDetail(repo, "x");
+    const result = await buildCardDetail(repo, mpRepo(), "x");
     expect(result.setTotals).toEqual({ origin: 150 });
   });
 
@@ -1910,9 +1920,128 @@ describe("buildCardDetail", () => {
       candidateCardsForDetail: vi.fn().mockResolvedValue([]),
     });
 
-    const result = await buildCardDetail(repo, "nothing");
+    const result = await buildCardDetail(repo, mpRepo(), "nothing");
     expect(repo.setPrintedTotalBySlugs).not.toHaveBeenCalled();
     expect(result.setTotals).toEqual({});
+  });
+  it("passes through marketplace mappings and staging candidates for a matched card", async () => {
+    const repo = createMockRepo({
+      cardForDetailBySlug: vi.fn().mockResolvedValue({
+        id: "card-1",
+        slug: "x",
+        name: "X",
+        normName: "x",
+        type: "Unit",
+        superTypes: [],
+        domains: ["Fury"],
+        might: 1,
+        energy: 1,
+        power: 1,
+        mightBonus: null,
+        keywords: [],
+        tags: [],
+        comment: null,
+      }),
+      cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      printingsForDetail: vi.fn().mockResolvedValue([]),
+      printingImagesForDetail: vi.fn().mockResolvedValue([]),
+    });
+    const marketplaceRepo = createMockMarketplaceRepo({
+      variantsForCard: vi.fn().mockResolvedValue([
+        {
+          targetPrintingId: "p-en",
+          marketplace: "cardmarket",
+          externalId: 123,
+          productName: "X",
+          finish: "normal",
+          variantLanguage: null,
+          ownerPrintingId: "p-en",
+          ownerLanguage: "EN",
+        },
+        {
+          targetPrintingId: "p-zh",
+          marketplace: "cardmarket",
+          externalId: 123,
+          productName: "X",
+          finish: "normal",
+          variantLanguage: null,
+          ownerPrintingId: "p-en",
+          ownerLanguage: "EN",
+        },
+        {
+          // unsupported marketplace — should be filtered out
+          targetPrintingId: "p-en",
+          marketplace: "ebay",
+          externalId: 999,
+          productName: "X",
+          finish: "normal",
+          variantLanguage: "EN",
+          ownerPrintingId: "p-en",
+          ownerLanguage: "EN",
+        },
+      ]),
+      stagingCandidatesForCard: vi.fn().mockResolvedValue([
+        {
+          marketplace: "tcgplayer",
+          externalId: 555,
+          productName: "X",
+          finish: "normal",
+          language: "EN",
+          groupId: 42,
+          groupName: "Origin",
+          marketCents: 100,
+          lowCents: 80,
+          recordedAt: new Date("2026-01-01T00:00:00Z"),
+        },
+      ]),
+    });
+
+    const result = await buildCardDetail(repo, marketplaceRepo, "x");
+
+    expect(marketplaceRepo.variantsForCard).toHaveBeenCalledWith("card-1");
+    expect(marketplaceRepo.stagingCandidatesForCard).toHaveBeenCalledWith("card-1", ["x"]);
+    expect(result.marketplaceMappings).toHaveLength(2);
+    expect(result.marketplaceMappings[0]).toMatchObject({
+      targetPrintingId: "p-en",
+      marketplace: "cardmarket",
+      externalId: 123,
+      ownerPrintingId: "p-en",
+    });
+    expect(result.marketplaceMappings[1]).toMatchObject({
+      targetPrintingId: "p-zh",
+      marketplace: "cardmarket",
+      ownerPrintingId: "p-en",
+    });
+    expect(result.marketplaceStagingCandidates).toEqual([
+      {
+        marketplace: "tcgplayer",
+        externalId: 555,
+        productName: "X",
+        finish: "normal",
+        language: "EN",
+        groupId: 42,
+        groupName: "Origin",
+        marketCents: 100,
+        lowCents: 80,
+        recordedAt: "2026-01-01T00:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("leaves marketplace fields empty when the card is unmatched", async () => {
+    const repo = createMockRepo({
+      cardForDetailBySlug: vi.fn().mockResolvedValue(undefined),
+      candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+    });
+    const marketplaceRepo = createMockMarketplaceRepo();
+
+    const result = await buildCardDetail(repo, marketplaceRepo, "missing");
+
+    expect(marketplaceRepo.variantsForCard).not.toHaveBeenCalled();
+    expect(marketplaceRepo.stagingCandidatesForCard).not.toHaveBeenCalled();
+    expect(result.marketplaceMappings).toEqual([]);
+    expect(result.marketplaceStagingCandidates).toEqual([]);
   });
 });
 

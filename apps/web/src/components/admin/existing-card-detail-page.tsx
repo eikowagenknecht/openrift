@@ -34,6 +34,10 @@ import {
 import { CardErrataManager } from "@/components/admin/card-errata-manager";
 import { NewPrintingGroupCard } from "@/components/admin/new-printing-group-card";
 import { PrintingImageSwitcher } from "@/components/admin/printing-image-switcher";
+import {
+  PrintingMarketplaceBadges,
+  PrintingMarketplaceCells,
+} from "@/components/admin/printing-marketplace-cells";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -176,6 +180,8 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
   const printings = existingData.printings;
   const printingImages = existingData.printingImages;
   const setTotals = existingData.setTotals ?? {};
+  const marketplaceMappings = existingData.marketplaceMappings ?? [];
+  const marketplaceStagingCandidates = existingData.marketplaceStagingCandidates ?? [];
   const expectedCardId = existingData.expectedCardId;
   const isCardIdStale = cardId !== expectedCardId;
   const card = existingData.card;
@@ -560,6 +566,10 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                   </span>
                   {allChecked && <CheckCheckIcon className="text-green-600" />}
                   {!activeImage && <Badge variant="destructive">no image</Badge>}
+                  <PrintingMarketplaceBadges
+                    printingId={printingId}
+                    mappings={marketplaceMappings}
+                  />
                 </span>
                 {allSources.some((ps) => !ps.checkedAt) && (
                   <Button
@@ -595,13 +605,21 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
               </div>
               {isExpanded && (
                 <div className="flex gap-3 border-t p-3">
-                  <PrintingImageSwitcher
-                    printingId={printingId}
-                    printingLabel={printingLabel}
-                    images={printingImages.filter((pi) => pi.printingId === printingId)}
-                    providerSettings={providerSettings}
-                    sourceImages={sourceImagesForSwitcher}
-                  />
+                  <div className="flex flex-col gap-3">
+                    <PrintingImageSwitcher
+                      printingId={printingId}
+                      printingLabel={printingLabel}
+                      images={printingImages.filter((pi) => pi.printingId === printingId)}
+                      providerSettings={providerSettings}
+                      sourceImages={sourceImagesForSwitcher}
+                    />
+                    <PrintingMarketplaceCells
+                      printing={printing}
+                      mappings={marketplaceMappings}
+                      stagingCandidates={marketplaceStagingCandidates}
+                      allPrintings={printings}
+                    />
+                  </div>
                   <div className="min-w-0 flex-1 space-y-3">
                     <CandidateSpreadsheet
                       key={allSources.map((s) => s.id).join(",")}

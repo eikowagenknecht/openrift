@@ -187,8 +187,10 @@ export const queriesRoute = new OpenAPIHono<{ Variables: Variables }>()
   })
 
   .openapi(getCandidateCard, async (c) => {
-    const { candidateCards } = c.get("repos");
-    return c.json(await buildCardDetail(candidateCards, c.req.valid("param").cardSlug));
+    const { candidateCards, marketplaceMapping } = c.get("repos");
+    return c.json(
+      await buildCardDetail(candidateCards, marketplaceMapping, c.req.valid("param").cardSlug),
+    );
   })
 
   .openapi(getUnmatchedDetail, async (c) => {
