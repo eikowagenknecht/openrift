@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { randomEmailPlaceholder } from "@/lib/placeholders";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { sanitizeRedirect } from "@/lib/utils";
@@ -18,4 +19,5 @@ export const Route = createFileRoute("/_app/signup")({
     redirect: sanitizeRedirect(search.redirect as string),
     email: (search.email as string) || undefined,
   }),
+  loader: () => ({ emailPlaceholder: randomEmailPlaceholder() }),
 });

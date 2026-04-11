@@ -8,7 +8,6 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { authClient } from "@/lib/auth-client";
-import { randomEmailPlaceholder } from "@/lib/placeholders";
 
 export const Route = createLazyFileRoute("/_app/reset-password")({
   component: ResetPasswordPage,
@@ -16,6 +15,7 @@ export const Route = createLazyFileRoute("/_app/reset-password")({
 
 function ResetPasswordPage() {
   const { email: initialEmail } = Route.useSearch();
+  const { emailPlaceholder } = Route.useLoaderData();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<"email" | "code">(initialEmail ? "code" : "email");
@@ -28,8 +28,6 @@ function ResetPasswordPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  // oxlint-disable-next-line react/hook-use-state -- stable random value, setter intentionally unused
-  const [emailPlaceholder] = useState(randomEmailPlaceholder);
 
   async function handleSendCode() {
     const trimmed = email.trim();

@@ -10,7 +10,6 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { signUp } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
-import { randomEmailPlaceholder } from "@/lib/placeholders";
 
 const signUpSchema = z.object({
   name: z.string().min(1, "Name is required."),
@@ -24,11 +23,14 @@ export function SignupForm({
   className,
   redirectTo,
   initialEmail = "",
+  emailPlaceholder,
   ...props
-}: React.ComponentProps<"div"> & { redirectTo?: string; initialEmail?: string }) {
+}: React.ComponentProps<"div"> & {
+  redirectTo?: string;
+  initialEmail?: string;
+  emailPlaceholder: string;
+}) {
   const navigate = useNavigate();
-  // oxlint-disable-next-line react/hook-use-state -- stable random value, setter intentionally unused
-  const [emailPlaceholder] = useState(randomEmailPlaceholder);
   const [loading, setLoading] = useState(false);
   const form = useForm<SignUpValues>({
     resolver: zodResolver(signUpSchema),

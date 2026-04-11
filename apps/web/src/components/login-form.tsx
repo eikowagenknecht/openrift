@@ -14,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { authClient, signIn } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
 import { sessionQueryOptions } from "@/lib/auth-session";
-import { randomEmailPlaceholder } from "@/lib/placeholders";
 import { queryKeys } from "@/lib/query-keys";
 
 const signInSchema = z.object({
@@ -28,12 +27,15 @@ export function LoginForm({
   className,
   redirectTo,
   initialEmail = "",
+  emailPlaceholder,
   ...props
-}: React.ComponentProps<"div"> & { redirectTo?: string; initialEmail?: string }) {
+}: React.ComponentProps<"div"> & {
+  redirectTo?: string;
+  initialEmail?: string;
+  emailPlaceholder: string;
+}) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  // oxlint-disable-next-line react/hook-use-state -- stable random value, setter intentionally unused
-  const [emailPlaceholder] = useState(randomEmailPlaceholder);
   const [method, setMethod] = useState<"password" | "otp">("password");
   const [loading, setLoading] = useState(false);
   const [emailNotVerified, setEmailNotVerified] = useState(false);

@@ -1,3 +1,4 @@
+import { useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { Footer } from "@/components/layout/footer";
@@ -52,8 +53,16 @@ const NOT_FOUND_SUBTEXTS = [
 
 const NOT_FOUND_EMOJIS = ["?", "404", "[MISSING]", String.raw`¯\_(ツ)_/¯`];
 
-export function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+function hashString(input: string): number {
+  let hash = 0;
+  for (let index = 0; index < input.length; index++) {
+    hash = Math.trunc(hash * 31 + (input.codePointAt(index) ?? 0));
+  }
+  return hash;
+}
+
+export function pick<T>(arr: T[], seed: string): T {
+  return arr[Math.abs(hashString(seed)) % arr.length];
 }
 
 function DevErrorDetails({ error }: { error: string }) {
@@ -133,11 +142,12 @@ export function ErrorMessageLayout({
 
 export function RouteErrorFallback({ error }: { error?: unknown }) {
   const message = error instanceof Error ? error.message : error ? String(error) : undefined;
+  const seed = message ?? "unknown";
   return (
     <ErrorMessageLayout
-      emoji={pick(EMOJIS)}
-      heading={pick(HEADINGS)}
-      subtext={pick(SUBTEXTS)}
+      emoji={pick(EMOJIS, `${seed}:emoji`)}
+      heading={pick(HEADINGS, `${seed}:heading`)}
+      subtext={pick(SUBTEXTS, `${seed}:subtext`)}
       className="flex-1"
       reload
       devError={message}
@@ -150,11 +160,12 @@ export function RouteErrorFallback({ error }: { error?: unknown }) {
  * @returns Not-found UI
  */
 export function NotFoundFallback() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
   return (
     <ErrorMessageLayout
-      emoji={pick(NOT_FOUND_EMOJIS)}
-      heading={pick(NOT_FOUND_HEADINGS)}
-      subtext={pick(NOT_FOUND_SUBTEXTS)}
+      emoji={pick(NOT_FOUND_EMOJIS, `${pathname}:emoji`)}
+      heading={pick(NOT_FOUND_HEADINGS, `${pathname}:heading`)}
+      subtext={pick(NOT_FOUND_SUBTEXTS, `${pathname}:subtext`)}
       className="flex-1"
       goHome
     />
