@@ -3,9 +3,11 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   CheckIcon,
   CheckSquareIcon,
+  EllipsisVerticalIcon,
   LibraryBigIcon,
   PackageIcon,
   PackagePlusIcon,
+  Trash2Icon,
   XIcon,
 } from "lucide-react";
 import { parseAsBoolean, useQueryState } from "nuqs";
@@ -42,13 +44,19 @@ import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCardSelection } from "@/hooks/use-card-selection";
 import { useCards } from "@/hooks/use-cards";
 import { useCollectionCardData } from "@/hooks/use-collection-card-data";
-import { useCollections, useCollectionsMap } from "@/hooks/use-collections";
+import { useCollections, useCollectionsMap, useDeleteCollection } from "@/hooks/use-collections";
 import { useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
@@ -64,6 +72,7 @@ import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
+import { DeleteCollectionDialog } from "./delete-collection-dialog";
 import { DisposeDialog } from "./dispose-dialog";
 import { DraggableCard } from "./draggable-card";
 import { MoveDialog } from "./move-dialog";
@@ -213,8 +222,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const [moveOpen, setMoveOpen] = useState(false);
   const [disposeOpen, setDisposeOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
+  const deleteCollection = useDeleteCollection();
   const navigate = useNavigate();
 
   // ── Navigation helpers ──────────────────────────────────────────────
@@ -318,6 +329,20 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       },
     );
   };
+
+  const handleDeleteCollection = () => {
+    if (!collectionId) {
+      return;
+    }
+    deleteCollection.mutate(collectionId, {
+      onSuccess: () => {
+        setDeleteOpen(false);
+        void navigate({ to: "/collections" });
+      },
+    });
+  };
+
+  const canDeleteCollection = Boolean(currentCollection && !currentCollection.isInbox);
 
   // ── Grid click handlers ─────────────────────────────────────────────
   const findBy = dataView === "cards" ? "card" : ("printing" as const);
@@ -626,6 +651,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       onExitSelect={exitSelectMode}
       isAllSelected={selected.size === totalCopies}
       view={view}
+      canDelete={canDeleteCollection}
+      onDelete={() => setDeleteOpen(true)}
     />
   );
 
@@ -821,6 +848,17 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           onConfirm={handleDispose}
           isPending={disposeCopies.isPending}
         />
+
+        {currentCollection && !currentCollection.isInbox && (
+          <DeleteCollectionDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            collectionName={currentCollection.name}
+            copyCount={currentCollection.copyCount}
+            onConfirm={handleDeleteCollection}
+            isPending={deleteCollection.isPending}
+          />
+        )}
       </BrowserCardViewer>
 
       {/* Variant add popover (portal, add mode only) */}
@@ -882,6 +920,8 @@ interface CollectionTopBarProps {
   onExitSelect: () => void;
   isAllSelected: boolean;
   view: string;
+  canDelete: boolean;
+  onDelete: () => void;
 }
 
 function CollectionTopBar({
@@ -902,6 +942,8 @@ function CollectionTopBar({
   onExitSelect,
   isAllSelected,
   view,
+  canDelete,
+  onDelete,
 }: CollectionTopBarProps) {
   return (
     <PageTopBar>
@@ -979,6 +1021,23 @@ function CollectionTopBar({
                   Select {view}
                 </Button>
               </>
+            )}
+            {canDelete && (
+              <DropdownMenu>
+                <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
+                  <EllipsisVerticalIcon className="size-4" />
+                  <span className="sr-only">More</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={onDelete}
+                  >
+                    <Trash2Icon className="size-4" />
+                    Delete collection
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         )}

@@ -1,14 +1,12 @@
 import { useDndContext } from "@dnd-kit/core";
-import { Link, useMatches, useNavigate, useParams } from "@tanstack/react-router";
+import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
   BookOpenIcon,
-  EllipsisVerticalIcon,
   HistoryIcon,
   ArrowLeftRightIcon,
   InboxIcon,
   LayersIcon,
   PlusIcon,
-  Trash2Icon,
   XIcon,
 } from "lucide-react";
 import { parseAsBoolean, useQueryState } from "nuqs";
@@ -16,12 +14,6 @@ import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   NestedSidebar,
@@ -30,14 +22,12 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { useCollections, useCreateCollection, useDeleteCollection } from "@/hooks/use-collections";
+import { useCollections, useCreateCollection } from "@/hooks/use-collections";
 
-import { DeleteCollectionDialog } from "./delete-collection-dialog";
 import type { CardDragData } from "./dnd-types";
 import { DroppableCollection } from "./droppable-collection";
 
@@ -60,7 +50,6 @@ export function CollectionSidebar() {
   const currentPath = matches.at(-1)?.fullPath;
   const { collectionId } = useParams({ strict: false }) as { collectionId?: string };
   const [browsing] = useQueryState("browsing", parseAsBoolean.withDefault(false));
-  const navigate = useNavigate();
   const { isMobile, setOpenMobile } = useSidebar();
   const { data: collections } = useCollections();
 
@@ -71,14 +60,8 @@ export function CollectionSidebar() {
     }
   }, [currentPath, collectionId, isMobile, setOpenMobile]);
   const createCollection = useCreateCollection();
-  const deleteCollection = useDeleteCollection();
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<{
-    id: string;
-    name: string;
-    copyCount: number;
-  } | null>(null);
 
   const { active } = useDndContext();
   const dragSourceCollectionId = (active?.data.current as CardDragData | undefined)
@@ -155,29 +138,6 @@ export function CollectionSidebar() {
                       )
                     )}
                   </SidebarMenuButton>
-                  {!col.isInbox && (
-                    <DropdownMenu>
-                      <DropdownMenuTrigger render={<SidebarMenuAction showOnHover />}>
-                        <EllipsisVerticalIcon />
-                        <span className="sr-only">More</span>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent side="right" align="start">
-                        <DropdownMenuItem
-                          className="text-destructive focus:text-destructive"
-                          onClick={() =>
-                            setDeleteTarget({
-                              id: col.id,
-                              name: col.name,
-                              copyCount: col.copyCount,
-                            })
-                          }
-                        >
-                          <Trash2Icon className="size-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  )}
                 </SidebarMenuItem>
               </DroppableCollection>
             ))}
@@ -239,29 +199,6 @@ export function CollectionSidebar() {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <DeleteCollectionDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setDeleteTarget(null);
-          }
-        }}
-        collectionName={deleteTarget?.name ?? ""}
-        copyCount={deleteTarget?.copyCount ?? 0}
-        onConfirm={() => {
-          if (deleteTarget) {
-            deleteCollection.mutate(deleteTarget.id, {
-              onSuccess: () => {
-                setDeleteTarget(null);
-                if (collectionId === deleteTarget.id) {
-                  void navigate({ to: "/collections" });
-                }
-              },
-            });
-          }
-        }}
-        isPending={deleteCollection.isPending}
-      />
     </NestedSidebar>
   );
 }
