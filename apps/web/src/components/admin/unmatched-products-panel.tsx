@@ -49,7 +49,7 @@ function flattenUnmatched(data: {
 
 export function UnmatchedProductsPanel() {
   const navigate = useNavigate();
-  const { data } = useUnifiedMappings(false);
+  const { data } = useUnifiedMappings(true);
 
   const [marketplaceFilter, setMarketplaceFilter] = useState<"all" | Marketplace>("all");
   const [finishFilter, setFinishFilter] = useState<"all" | string>("all");

@@ -4,10 +4,11 @@ import { UnmatchedProductsPanel } from "@/components/admin/unmatched-products-pa
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminCardList } from "@/hooks/use-admin-card-queries";
 import { useUnifiedMappings } from "@/hooks/use-unified-mappings";
+import { buildCoverageMapBySlug } from "@/lib/marketplace-coverage";
 
 export function AdminCardListPage() {
   const { data } = useAdminCardList();
-  const { data: unified } = useUnifiedMappings(false);
+  const { data: unified } = useUnifiedMappings(true);
 
   const cards = data.filter((r) => r.cardSlug);
   const candidates = data.filter((r) => !r.cardSlug);
@@ -15,6 +16,8 @@ export function AdminCardListPage() {
     unified.unmatchedProducts.tcgplayer.length +
     unified.unmatchedProducts.cardmarket.length +
     unified.unmatchedProducts.cardtrader.length;
+
+  const coverageBySlug = buildCoverageMapBySlug(unified.groups);
 
   return (
     <Tabs defaultValue="cards" className="flex min-h-0 flex-1 flex-col">
@@ -24,7 +27,7 @@ export function AdminCardListPage() {
         <TabsTrigger value="unmatched">Unmatched ({unmatchedCount})</TabsTrigger>
       </TabsList>
       <TabsContent value="cards" className="flex min-h-0 flex-1 flex-col">
-        <AcceptedCardsTable data={cards} />
+        <AcceptedCardsTable data={cards} coverageBySlug={coverageBySlug} />
       </TabsContent>
       <TabsContent value="candidates" className="flex min-h-0 flex-1 flex-col">
         <CandidateCardsTable data={candidates} />
