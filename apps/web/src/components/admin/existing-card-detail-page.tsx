@@ -1,5 +1,6 @@
 import type {
   AdminCardDetailResponse,
+  AdminMarketplaceName,
   CandidateCardResponse,
   CandidatePrintingResponse,
 } from "@openrift/shared";
@@ -68,7 +69,17 @@ import {
 } from "@/hooks/use-admin-card-queries";
 import { cn } from "@/lib/utils";
 
-export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
+export function ExistingCardDetailPage({
+  identifier,
+  focusMarketplace,
+  focusFinish,
+  focusLanguage,
+}: {
+  identifier: string;
+  focusMarketplace?: AdminMarketplaceName;
+  focusFinish?: string;
+  focusLanguage?: string;
+}) {
   const navigate = useNavigate();
   const cardId = identifier;
 
@@ -114,7 +125,9 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
   const [collapsedPrintings, setCollapsedPrintings] = useState<Set<string>>(new Set());
   const [showBanForm, setShowBanForm] = useState(false);
   const [showErrataForm, setShowErrataForm] = useState(false);
+  const [focusedPrintingId, setFocusedPrintingId] = useState<string | null>(null);
   const pendingScrollTarget = useRef<string | null>(null);
+  const focusHandledRef = useRef(false);
 
   // --- Check all & next card ---
   const { fetchNext } = useNextUncheckedCard(identifier);
@@ -152,6 +165,47 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
   }, [existingData]);
+
+  // When the user arrives via a "Route to card" click on the Unmatched tab,
+  // find the printing that matches the staging row (finish match, plus
+  // language match for non-aggregate marketplaces — Cardmarket rows apply to
+  // all siblings so any matching finish works), auto-expand it, scroll to it,
+  // and mark it focused so the marketplace cell can flash a ring.
+  useEffect(() => {
+    if (focusHandledRef.current || !focusMarketplace || !focusFinish || !existingData) {
+      return;
+    }
+    const printings = existingData.printings;
+    if (printings.length === 0) {
+      return;
+    }
+    const isLanguageAggregate = focusMarketplace === "cardmarket";
+    const match =
+      printings.find(
+        (p) =>
+          p.finish === focusFinish &&
+          (isLanguageAggregate || !focusLanguage || p.language === focusLanguage),
+      ) ??
+      printings.find((p) => p.finish === focusFinish) ??
+      null;
+    if (!match) {
+      return;
+    }
+    focusHandledRef.current = true;
+    setCollapsedPrintings((prev) => {
+      const next = new Set(prev);
+      next.delete(match.id);
+      return next;
+    });
+    setFocusedPrintingId(match.id);
+    requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-printing-id="${match.id}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    const timeout = setTimeout(() => setFocusedPrintingId(null), 2400);
+    return () => clearTimeout(timeout);
+  }, [existingData, focusMarketplace, focusFinish, focusLanguage]);
 
   // --- Error / loading states ---
   if (isError) {
@@ -618,6 +672,9 @@ export function ExistingCardDetailPage({ identifier }: { identifier: string }) {
                       mappings={marketplaceMappings}
                       stagingCandidates={marketplaceStagingCandidates}
                       allPrintings={printings}
+                      highlightMarketplace={
+                        focusedPrintingId === printingId ? focusMarketplace : undefined
+                      }
                     />
                   </div>
                   <div className="min-w-0 flex-1 space-y-3">
