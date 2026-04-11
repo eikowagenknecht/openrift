@@ -30,6 +30,7 @@ import {
   printingFieldRules,
   renameSchema,
   uploadCandidatesSchema,
+  uploadErrataSchema,
   upsertErrataSchema,
 } from "./schemas.js";
 
@@ -465,6 +466,50 @@ const deleteErrata = createRoute({
   },
   responses: {
     204: { description: "Errata deleted" },
+  },
+});
+
+const entryRefSchema = z.object({
+  cardSlug: z.string().openapi({ example: "jinx-rebel" }),
+  cardName: z.string().openapi({ example: "Jinx, Rebel" }),
+});
+
+const entryDiffSchema = entryRefSchema.extend({
+  fields: z.array(
+    z.object({
+      field: z.string().openapi({ example: "correctedRulesText" }),
+      from: z.unknown().openapi({ example: "Deal 3 damage." }),
+      to: z.unknown().openapi({ example: "Deal 4 damage." }),
+    }),
+  ),
+});
+
+const uploadErrata = createRoute({
+  method: "post",
+  path: "/errata/upload",
+  tags: ["Admin - Cards"],
+  request: {
+    body: { content: { "application/json": { schema: uploadErrataSchema } } },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            dryRun: z.boolean().openapi({ example: true }),
+            newCount: z.number().openapi({ example: 2 }),
+            updatedCount: z.number().openapi({ example: 1 }),
+            unchangedCount: z.number().openapi({ example: 0 }),
+            matchesPrintedCount: z.number().openapi({ example: 0 }),
+            errors: z.array(z.string()).openapi({ example: [] }),
+            newEntries: z.array(entryRefSchema),
+            updatedEntries: z.array(entryDiffSchema),
+            skippedMatchesPrinted: z.array(entryRefSchema),
+          }),
+        },
+      },
+      description: "Errata imported (or previewed, if dryRun)",
+    },
   },
 });
 
@@ -1093,4 +1138,13 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     await mut.updateCardById(cardId, { keywords });
 
     return c.body(null, 204);
+  })
+
+  // ── POST /errata/upload ────────────────────────────────────────────────────
+  // Bulk upsert card errata from a JSON payload. Set dryRun=true to preview.
+  .openapi(uploadErrata, async (c) => {
+    const { dryRun, entries } = c.req.valid("json");
+    const { importErrata } = c.get("services");
+    const result = await importErrata(c.get("transact"), { entries, dryRun });
+    return c.json(result);
   });

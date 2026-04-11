@@ -67,6 +67,26 @@ export const upsertErrataSchema = z.object({
   effectiveDate: cardErrataFieldRules.effectiveDate.optional().default(null),
 });
 
+export const uploadErrataEntrySchema = z
+  .object({
+    cardSlug: cardFieldRules.slug,
+    correctedRulesText: cardErrataFieldRules.correctedRulesText.optional().default(null),
+    correctedEffectText: cardErrataFieldRules.correctedEffectText.optional().default(null),
+    source: cardErrataFieldRules.source,
+    sourceUrl: cardErrataFieldRules.sourceUrl.optional().default(null),
+    effectiveDate: cardErrataFieldRules.effectiveDate.optional().default(null),
+  })
+  .refine((entry) => entry.correctedRulesText !== null || entry.correctedEffectText !== null, {
+    message: "At least one of correctedRulesText or correctedEffectText must be provided",
+  });
+
+export const uploadErrataSchema = z.object({
+  dryRun: z.boolean().optional().default(false),
+  entries: z.array(uploadErrataEntrySchema).min(1),
+});
+
+export type UploadErrataEntry = z.infer<typeof uploadErrataEntrySchema>;
+
 export const linkUnmatchedSchema = z.object({
   cardId: z.string(),
 });

@@ -22,6 +22,7 @@ function createMockRepos(
   const moveCopiesBetweenCollections = vi.fn(async () => {});
   const deleteByIdForUser = vi.fn(async () => {});
   const listCopiesInCollection = vi.fn(async () => copies);
+  const deleteForCollection = vi.fn(async () => {});
 
   const repos = {
     collections: {
@@ -31,6 +32,7 @@ function createMockRepos(
     },
     collectionEvents: {
       insert: vi.fn(async () => {}),
+      deleteForCollection,
     },
   } as unknown as Repos;
 
@@ -39,6 +41,7 @@ function createMockRepos(
     listCopiesInCollection,
     moveCopiesBetweenCollections,
     deleteByIdForUser,
+    deleteForCollection,
   };
 }
 
@@ -124,5 +127,24 @@ describe("deleteCollection", () => {
     });
 
     expect(insertSpy).not.toHaveBeenCalled();
+  });
+
+  it("purges historical events for the collection before deleting it", async () => {
+    const { repos, deleteForCollection, deleteByIdForUser } = createMockRepos({ copies: [] });
+    const transact = mockTransact(repos);
+
+    await deleteCollection(transact, {
+      collectionId: "col-1",
+      collectionName: "Old",
+      moveCopiesTo: "col-2",
+      targetName: "Target",
+      userId: "user-1",
+    });
+
+    expect(deleteForCollection).toHaveBeenCalledWith("col-1", "user-1");
+    // Order matters: events must be purged before the collection row is dropped.
+    expect(deleteForCollection.mock.invocationCallOrder[0]).toBeLessThan(
+      deleteByIdForUser.mock.invocationCallOrder[0],
+    );
   });
 });

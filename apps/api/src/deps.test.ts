@@ -77,6 +77,7 @@ describe("services", () => {
       "buildShoppingList",
       "getMappingOverview",
       "ingestCandidates",
+      "importErrata",
     ];
     for (const key of expectedKeys) {
       expect(services).toHaveProperty(key);
