@@ -33,7 +33,12 @@ import {
 type Rotation = 0 | 90 | 180 | 270;
 
 function getDisplayUrl(img: AdminPrintingImageResponse): string | null {
-  return img.rehostedUrl ? `${img.rehostedUrl}-full.webp` : img.originalUrl;
+  if (!img.rehostedUrl) {
+    return img.originalUrl;
+  }
+  // Cache-bust on rotation so admins see the rotated result immediately —
+  // the rehosted URL is stable but the file behind it is rewritten in place.
+  return `${img.rehostedUrl}-full.webp?r=${img.rotation}`;
 }
 
 export function PrintingImageSwitcher({
@@ -177,7 +182,7 @@ export function PrintingImageSwitcher({
           )}
           {effectiveImage?.rehostedUrl && (
             <a
-              href={`${effectiveImage.rehostedUrl}-full.webp`}
+              href={`${effectiveImage.rehostedUrl}-full.webp?r=${effectiveImage.rotation}`}
               target="_blank"
               rel="noreferrer"
               className="block truncate text-green-600 hover:text-green-500"
