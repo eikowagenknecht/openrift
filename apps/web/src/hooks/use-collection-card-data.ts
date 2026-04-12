@@ -60,6 +60,9 @@ export function useCollectionCardData({
   const getPrice = (p: Printing) => prices.get(p.id, favoriteMarketplace);
 
   const availableFilters = getAvailableFilters(collectionPrintings, { getPrice });
+  availableFilters.supplementalSets = new Set(
+    sets.filter((s) => s.setType === "supplemental").map((s) => s.slug),
+  );
   const filteredCards = filterCards(collectionPrintings, filters, { keywordReverseMap, getPrice });
 
   // In "cards" view, deduplicate by cardId (keep canonical printing)

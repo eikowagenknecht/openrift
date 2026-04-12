@@ -306,6 +306,8 @@ function orderIndex(order: readonly string[], value: string): number {
 
 export interface AvailableFilters {
   sets: string[];
+  /** Set slugs that are supplemental (not main expansions). Used for dimmed styling in filters. */
+  supplementalSets: ReadonlySet<string>;
   domains: string[];
   types: string[];
   superTypes: string[];
@@ -383,6 +385,7 @@ export function getAvailableFilters(
 
   return {
     sets,
+    supplementalSets: new Set<string>(),
     domains,
     types,
     superTypes,

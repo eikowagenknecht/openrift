@@ -10,6 +10,7 @@ import { useEnumOrders } from "@/hooks/use-enums";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { formatPriceIntegerForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
+import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 /** Number of discrete positions on the slider track in logarithmic mode. */
@@ -95,6 +96,7 @@ export function FilterBadgeSections({
         selected={filterState.sets}
         onToggle={(v) => toggleArrayFilter("sets", v)}
         displayLabel={setDisplayLabel}
+        secondaryOptions={availableFilters.supplementalSets}
       />
       {!hiddenSections?.has("domains") && (
         <FilterSection
@@ -345,6 +347,7 @@ function FilterSection({
   onToggle,
   iconPath,
   displayLabel,
+  secondaryOptions,
   children,
 }: {
   label: string;
@@ -354,6 +357,7 @@ function FilterSection({
   onToggle?: (value: string) => void;
   iconPath?: (value: string) => string | undefined;
   displayLabel?: (value: string) => string;
+  secondaryOptions?: ReadonlySet<string>;
 }) {
   if (!children && (!options || options.length === 0)) {
     return null;
@@ -366,11 +370,13 @@ function FilterSection({
         {children ??
           options?.map((option) => {
             const icon = iconPath?.(option);
+            const isSelected = selected?.includes(option);
+            const isSecondary = secondaryOptions?.has(option);
             return (
               <Badge
                 key={option}
-                variant={selected?.includes(option) ? "default" : "outline"}
-                className="cursor-pointer"
+                variant={isSelected ? "default" : "outline"}
+                className={cn("cursor-pointer", isSecondary && !isSelected && "opacity-65")}
                 onClick={() => onToggle?.(option)}
               >
                 {icon && <CardIcon src={icon} />}

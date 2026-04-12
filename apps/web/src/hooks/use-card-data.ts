@@ -153,6 +153,9 @@ export function useCardData({
   availableFilters.sets.sort(
     (a, b) => (setSlugOrder.get(a) ?? Infinity) - (setSlugOrder.get(b) ?? Infinity),
   );
+  availableFilters.supplementalSets = new Set(
+    sets.filter((s) => s.setType === "supplemental").map((s) => s.slug),
+  );
   const filteredCards = filterCards(langFiltered, filters, { keywordReverseMap, getPrice });
 
   const displayCards =
