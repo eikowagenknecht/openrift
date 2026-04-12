@@ -4,7 +4,11 @@ import { PackageIcon } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFilterValues } from "@/hooks/use-card-filters";
-import { useOwnedCollections, useOwnedCount } from "@/hooks/use-owned-count";
+import {
+  useOwnedCollections,
+  useOwnedCollectionsByPrintings,
+  useOwnedCount,
+} from "@/hooks/use-owned-count";
 import { useSession } from "@/lib/auth-session";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +20,8 @@ interface OwnedCollectionsPopoverProps {
   shortCode: string;
   /** Override the displayed count (e.g. from stacked copies). Falls back to the global owned count. */
   count?: number;
+  /** All printing IDs for the same card (cards view). When provided, the breakdown aggregates across all printings. */
+  allPrintingIds?: string[];
   /** Horizontal alignment of the popover relative to the trigger. */
   align?: PopoverPrimitive.Positioner.Props["align"];
 }
@@ -31,13 +37,23 @@ export function OwnedCollectionsPopover({
   cardName,
   shortCode,
   count,
+  allPrintingIds,
   align = "end",
 }: OwnedCollectionsPopoverProps) {
   const { data: session } = useSession();
   const isAuthenticated = Boolean(session?.user);
   const { data: ownedCountByPrinting } = useOwnedCount(isAuthenticated);
   const totalOwned = count ?? ownedCountByPrinting?.[printingId] ?? 0;
-  const { data: breakdown } = useOwnedCollections(printingId, isAuthenticated && totalOwned > 0);
+  const useAggregated = allPrintingIds && allPrintingIds.length > 1;
+  const { data: singleBreakdown } = useOwnedCollections(
+    printingId,
+    isAuthenticated && totalOwned > 0 && !useAggregated,
+  );
+  const { data: aggregatedBreakdown } = useOwnedCollectionsByPrintings(
+    allPrintingIds ?? [],
+    isAuthenticated && totalOwned > 0 && Boolean(useAggregated),
+  );
+  const breakdown = useAggregated ? aggregatedBreakdown : singleBreakdown;
   const { view } = useFilterValues();
   const isPrintingsView = view === "printings" || view === "copies";
 
