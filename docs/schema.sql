@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict YUVKTkSSDUr4H6topEzglSO9OjSMZTARWuPxEroKzpbOqAd4JLufkNQMZRyGq9a
+\restrict XwjeRtH9xi2Po1bFX15CGotjq7SFWjNcau1QJM9DLjXytKXrfDaqcX9n6VYxCmy
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -933,7 +933,9 @@ CREATE TABLE public.rarities (
     slug text NOT NULL,
     label text NOT NULL,
     sort_order smallint NOT NULL,
-    is_well_known boolean DEFAULT false NOT NULL
+    is_well_known boolean DEFAULT false NOT NULL,
+    color text,
+    CONSTRAINT chk_rarities_color CHECK ((color ~ '^#[0-9a-fA-F]{6}$'::text))
 );
 
 
@@ -2926,5 +2928,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict YUVKTkSSDUr4H6topEzglSO9OjSMZTARWuPxEroKzpbOqAd4JLufkNQMZRyGq9a
+\unrestrict XwjeRtH9xi2Po1bFX15CGotjq7SFWjNcau1QJM9DLjXytKXrfDaqcX9n6VYxCmy
 
