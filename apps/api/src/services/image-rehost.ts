@@ -41,7 +41,7 @@ function findProjectRoot(): string {
   throw new Error("Could not find project root (no bun.lock found)");
 }
 
-export const MEDIA_DIR = join(findProjectRoot(), "media");
+const MEDIA_DIR = join(findProjectRoot(), "media");
 export const CARD_MEDIA_DIR = join(MEDIA_DIR, "cards");
 
 // Both variants are capped on the **short edge** so portrait and landscape
