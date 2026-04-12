@@ -2,6 +2,8 @@
 
 ## 2026-04-12
 
+- feat: Sets page now groups main sets separately from supplemental sets like Proving Grounds and Arcane Box Set, so the core expansions stand out
+- feat: Set filter in the card browser now shows main sets first, followed by supplemental sets
 - fix: In "Cards" view, selecting a card stack now correctly selects all copies across all printings of that card, not just the displayed variant. The owned-count popover also shows the full per-collection breakdown.
 - fix: Disposing or moving cards now removes them from the collection view immediately, instead of requiring a page reload
 - fix: Tapping the deck violation badge now opens the issue list on all devices, instead of requiring a hover on desktop
