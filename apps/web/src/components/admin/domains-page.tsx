@@ -9,6 +9,7 @@ import {
   useReorderDomains,
   useUpdateDomain,
 } from "@/hooks/use-domains";
+import { contrastText } from "@/lib/color";
 
 interface DomainRow {
   slug: string;
@@ -115,7 +116,11 @@ export function DomainsPage() {
       width: "w-28",
       cell: (domain) => (
         <Badge
-          style={domain.color ? { backgroundColor: domain.color, color: "#ffffff" } : undefined}
+          style={
+            domain.color
+              ? { backgroundColor: domain.color, color: contrastText(domain.color) }
+              : undefined
+          }
           variant={domain.color ? "default" : "secondary"}
         >
           {domain.label}

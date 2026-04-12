@@ -9,6 +9,7 @@ import {
   useReorderRarities,
   useUpdateRarity,
 } from "@/hooks/use-rarities";
+import { contrastText } from "@/lib/color";
 
 interface RarityRow {
   slug: string;
@@ -115,7 +116,11 @@ export function RaritiesPage() {
       width: "w-28",
       cell: (rarity) => (
         <Badge
-          style={rarity.color ? { backgroundColor: rarity.color, color: "#ffffff" } : undefined}
+          style={
+            rarity.color
+              ? { backgroundColor: rarity.color, color: contrastText(rarity.color) }
+              : undefined
+          }
           variant={rarity.color ? "default" : "secondary"}
         >
           {rarity.label}
