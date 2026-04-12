@@ -30,6 +30,7 @@ import { printingEventsRepo } from "./repositories/printing-events.js";
 import { printingImagesRepo } from "./repositories/printing-images.js";
 import { promoTypesRepo } from "./repositories/promo-types.js";
 import { providerSettingsRepo } from "./repositories/provider-settings.js";
+import { raritiesRepo } from "./repositories/rarities.js";
 import { rulesRepo } from "./repositories/rules.js";
 import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
@@ -73,6 +74,7 @@ export interface Repos {
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
   promoTypes: ReturnType<typeof promoTypesRepo>;
+  rarities: ReturnType<typeof raritiesRepo>;
   rules: ReturnType<typeof rulesRepo>;
   sets: ReturnType<typeof setsRepo>;
   status: ReturnType<typeof statusRepo>;
@@ -128,6 +130,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     marketplaceAdmin: marketplaceAdminRepo(db),
     printingImages: printingImagesRepo(db),
     promoTypes: promoTypesRepo(db),
+    rarities: raritiesRepo(db),
     rules: rulesRepo(db),
     sets: setsRepo(db),
     status: statusRepo(db),

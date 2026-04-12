@@ -29,6 +29,7 @@ import * as m080 from "./080-normalize-cardtrader-zh-cn.js";
 import * as m081 from "./081-variant-nullable-language.js";
 import * as m082 from "./082-set-type.js";
 import * as m083 from "./083-rename-card-images-to-media.js";
+import * as m084 from "./084-rarity-color.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -117,4 +118,5 @@ export const migrations: Record<string, Migration> = {
   "081-variant-nullable-language": m081,
   "082-set-type": m082,
   "083-rename-card-images-to-media": m083,
+  "084-rarity-color": m084,
 };

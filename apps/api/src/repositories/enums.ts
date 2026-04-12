@@ -1,9 +1,10 @@
 import type { Kysely, Selectable } from "kysely";
 
-import type { Database, DomainsTable, ReferenceTable } from "../db/index.js";
+import type { Database, DomainsTable, RaritiesTable, ReferenceTable } from "../db/index.js";
 
 type EnumRow = Selectable<ReferenceTable>;
 type DomainRow = Selectable<DomainsTable>;
+type RarityRow = Selectable<RaritiesTable>;
 
 /**
  * Read-only queries for reference tables (enums backed by DB rows).
@@ -14,13 +15,7 @@ export function enumsRepo(db: Kysely<Database>) {
   function list(
     table: keyof Pick<
       Database,
-      | "cardTypes"
-      | "rarities"
-      | "superTypes"
-      | "finishes"
-      | "artVariants"
-      | "deckFormats"
-      | "deckZones"
+      "cardTypes" | "superTypes" | "finishes" | "artVariants" | "deckFormats" | "deckZones"
     >,
   ): Promise<EnumRow[]> {
     return db.selectFrom(table).selectAll().orderBy("sortOrder").execute();
@@ -28,7 +23,7 @@ export function enumsRepo(db: Kysely<Database>) {
 
   return {
     /** @returns All rows from every reference table, keyed by table name. */
-    async all(): Promise<Record<string, (EnumRow | DomainRow)[]>> {
+    async all(): Promise<Record<string, (EnumRow | DomainRow | RarityRow)[]>> {
       const [
         cardTypes,
         rarities,
@@ -41,7 +36,7 @@ export function enumsRepo(db: Kysely<Database>) {
         languageRows,
       ] = await Promise.all([
         list("cardTypes"),
-        list("rarities"),
+        db.selectFrom("rarities").selectAll().orderBy("sortOrder").execute(),
         db.selectFrom("domains").selectAll().orderBy("sortOrder").execute(),
         list("superTypes"),
         list("finishes"),

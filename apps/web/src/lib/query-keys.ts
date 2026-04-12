@@ -93,6 +93,7 @@ export const queryKeys = {
     domains: ["admin", "domains"] as const,
     languages: ["admin", "languages"] as const,
     finishes: ["admin", "finishes"] as const,
+    rarities: ["admin", "rarities"] as const,
     formats: ["admin", "formats"] as const,
     promoTypes: ["admin", "promo-types"] as const,
     distinctArtists: ["admin", "distinct-artists"] as const,

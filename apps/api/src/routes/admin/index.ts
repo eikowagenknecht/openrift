@@ -20,6 +20,7 @@ import { marketplaceGroupsRoute } from "./marketplace-groups.js";
 import { operationsRoute } from "./operations.js";
 import { adminPromoTypesRoute } from "./promo-types.js";
 import { adminProviderSettingsRoute } from "./provider-settings.js";
+import { adminRaritiesRoute } from "./rarities.js";
 import { adminRulesRoute } from "./rules.js";
 import { adminSiteSettingsRoute } from "./site-settings.js";
 import { stagingCardOverridesRoute } from "./staging-card-overrides.js";
@@ -122,4 +123,5 @@ export const adminRoute = app
   .route("/admin", adminStatusRoute)
   .route("/admin", adminKeywordsRoute)
   .route("/admin", adminFinishesRoute)
-  .route("/admin", adminDomainsRoute);
+  .route("/admin", adminDomainsRoute)
+  .route("/admin", adminRaritiesRoute);

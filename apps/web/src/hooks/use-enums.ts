@@ -9,7 +9,7 @@ interface EnumRow {
   sortOrder: number;
 }
 
-interface DomainEnumRow extends EnumRow {
+interface ColoredEnumRow extends EnumRow {
   color: string | null;
 }
 
@@ -87,10 +87,12 @@ export function useEnumOrders(): {
   orders: EnumOrders;
   labels: EnumLabels;
   domainColors: Record<string, string>;
+  rarityColors: Record<string, string>;
 } {
   const { data } = useSuspenseQuery(initQueryOptions);
   const d = data.enums as Record<string, EnumRow[]>;
-  const domainRows = (d.domains ?? []) as DomainEnumRow[];
+  const domainRows = (d.domains ?? []) as ColoredEnumRow[];
+  const rarityRows = (d.rarities ?? []) as ColoredEnumRow[];
   return {
     orders: {
       finishes: slugs(d.finishes ?? []),
@@ -110,6 +112,11 @@ export function useEnumOrders(): {
     },
     domainColors: Object.fromEntries(
       domainRows
+        .filter((row) => row.color !== null && row.color !== undefined)
+        .map((row) => [row.slug, row.color as string]),
+    ),
+    rarityColors: Object.fromEntries(
+      rarityRows
         .filter((row) => row.color !== null && row.color !== undefined)
         .map((row) => [row.slug, row.color as string]),
     ),

@@ -2,6 +2,7 @@
 
 ## 2026-04-12
 
+- feat: Rarities now have their own colors, visible throughout the UI wherever rarity appears
 - feat: Sets page now groups main sets separately from supplemental sets like Proving Grounds and Arcane Box Set, so the core expansions stand out
 - feat: Set filter in the card browser now shows main sets first, followed by supplemental sets
 - fix: In "Cards" view, selecting a card stack now correctly selects all copies across all printings of that card, not just the displayed variant. The owned-count popover also shows the full per-collection breakdown.
