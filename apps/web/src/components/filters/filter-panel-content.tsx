@@ -90,28 +90,9 @@ export function FilterBadgeSections({
 }: FilterPanelContentProps) {
   const { labels } = useEnumOrders();
   const { filterState } = useFilterValues();
-  const {
-    toggleOwned,
-    toggleArrayFilter,
-    setArrayFilter,
-    toggleSigned,
-    togglePromo,
-    toggleBanned,
-    toggleErrata,
-  } = useFilterActions();
+  const { toggleOwned, toggleArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
+    useFilterActions();
   const languageLabels = useLanguageLabels();
-  // Effective languages: URL param if set, else display store preference
-  const preferredLanguages = useDisplayStore((s) => s.languages);
-  const effectiveLanguages =
-    filterState.languages.length > 0 ? filterState.languages : preferredLanguages;
-  const toggleLanguage = (code: string) => {
-    const next = effectiveLanguages.includes(code)
-      ? effectiveLanguages.filter((lang) => lang !== code)
-      : [...effectiveLanguages, code];
-    if (next.length > 0) {
-      setArrayFilter("languages", next);
-    }
-  };
   return (
     <>
       {!hiddenSections?.has("owned") && (
@@ -137,8 +118,8 @@ export function FilterBadgeSections({
         <FilterSection
           label="Language"
           options={availableLanguages}
-          selected={effectiveLanguages}
-          onToggle={toggleLanguage}
+          selected={filterState.languages}
+          onToggle={(v) => toggleArrayFilter("languages", v)}
           displayLabel={(code) => languageLabels[code] ?? code}
         />
       )}
