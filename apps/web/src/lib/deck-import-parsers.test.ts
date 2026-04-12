@@ -33,7 +33,9 @@ describe("parseDeckImportData — piltover format", () => {
       (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "chosenChampion",
     );
     expect(championMain?.quantity).toBe(2);
+    expect(championMain?.explicitZone).toBeUndefined();
     expect(championEntry?.quantity).toBe(1);
+    expect(championEntry?.explicitZone).toBe("champion");
 
     // Non-champion card is unaffected
     const normalCard = entries.find(
@@ -63,6 +65,7 @@ describe("parseDeckImportData — piltover format", () => {
     );
     expect(championMain).toBeUndefined();
     expect(championEntry?.quantity).toBe(1);
+    expect(championEntry?.explicitZone).toBe("champion");
   });
 
   it("only subtracts 1 even when library returns multiple entries for the champion", () => {
@@ -89,6 +92,7 @@ describe("parseDeckImportData — piltover format", () => {
       (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "chosenChampion",
     );
     expect(championEntry?.quantity).toBe(1);
+    expect(championEntry?.explicitZone).toBe("champion");
   });
 
   it("handles decks with no chosen champion", () => {
@@ -138,6 +142,7 @@ describe("parseDeckImportData — tts format", () => {
     const champion = entries.find((entry) => entry.sourceSlot === "chosenChampion");
     expect(champion?.shortCode).toBe("OGN-002");
     expect(champion?.quantity).toBe(1);
+    expect(champion?.explicitZone).toBe("champion");
   });
 
   it("assigns positions 56+ as sideboard", () => {

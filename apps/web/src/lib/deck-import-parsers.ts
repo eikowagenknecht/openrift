@@ -92,6 +92,7 @@ function parsePiltoverDeckCode(code: string): DeckParseResult {
         shortCode: decoded.chosenChampion,
         quantity: 1,
         sourceSlot: "chosenChampion",
+        explicitZone: "champion",
         rawFields: { "Source Code": decoded.chosenChampion, Slot: "Chosen Champion" },
       });
     }
@@ -255,6 +256,7 @@ function parseTTSFormat(code: string): DeckParseResult {
       shortCode,
       quantity,
       sourceSlot,
+      explicitZone: sourceSlot === "chosenChampion" ? ("champion" as const) : undefined,
       rawFields: { "Source Code": shortCode, Slot: TTS_SLOT_LABELS[sourceSlot] },
     }),
   );
