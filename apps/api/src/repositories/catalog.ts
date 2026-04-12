@@ -73,22 +73,23 @@ export function catalogRepo(db: Kysely<Database>) {
     cards(): Promise<CatalogCardRow[]> {
       return db
         .selectFrom("cards")
+        .innerJoin("mvCardAggregates as mca", "mca.cardId", "cards.id")
         .select([
-          "id",
-          "slug",
-          "name",
-          "type",
-          "might",
-          "energy",
-          "power",
-          "mightBonus",
-          "keywords",
-          "tags",
-          "comment",
-          domainsArray("cards.id").as("domains"),
-          superTypesArray("cards.id").as("superTypes"),
+          "cards.id",
+          "cards.slug",
+          "cards.name",
+          "cards.type",
+          "cards.might",
+          "cards.energy",
+          "cards.power",
+          "cards.mightBonus",
+          "cards.keywords",
+          "cards.tags",
+          "cards.comment",
+          "mca.domains",
+          "mca.superTypes",
         ])
-        .orderBy("name")
+        .orderBy("cards.name")
         .execute() as Promise<CatalogCardRow[]>;
     },
 
@@ -570,6 +571,16 @@ export function catalogRepo(db: Kysely<Database>) {
         .orderBy("sortOrder")
         .execute();
       return rows.map((row) => ({ slug: row.slug, updatedAt: row.updatedAt.toISOString() }));
+    },
+
+    /**
+     * Refresh the `mv_card_aggregates` materialized view.
+     * Uses CONCURRENTLY so reads aren't blocked during refresh.
+     *
+     * @returns void
+     */
+    async refreshCardAggregates(): Promise<void> {
+      await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_card_aggregates`.execute(db);
     },
   };
 }

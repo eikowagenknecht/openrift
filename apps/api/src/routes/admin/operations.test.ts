@@ -46,6 +46,8 @@ const app = new Hono()
     c.set("config", mockConfig as never);
     c.set("repos", {
       marketplaceAdmin: mockMktAdmin,
+      marketplace: { refreshLatestPrices: vi.fn() },
+      catalog: { refreshCardAggregates: vi.fn() },
     } as never);
     await next();
   })

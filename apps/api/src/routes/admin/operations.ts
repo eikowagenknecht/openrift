@@ -78,6 +78,15 @@ const refreshCardtrader = createRoute({
   },
 });
 
+const refreshMatviews = createRoute({
+  method: "post",
+  path: "/refresh-materialized-views",
+  tags: ["Admin - Operations"],
+  responses: {
+    204: { description: "All materialized views refreshed" },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const operationsRoute = new OpenAPIHono<{ Variables: Variables }>()
@@ -116,4 +125,12 @@ export const operationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       config.cardtraderApiToken,
     );
     return c.json(result);
+  })
+
+  // ── Refresh materialized views ──────────────────────────────────────────────
+
+  .openapi(refreshMatviews, async (c) => {
+    const { marketplace, catalog } = c.get("repos");
+    await Promise.all([marketplace.refreshLatestPrices(), catalog.refreshCardAggregates()]);
+    return c.body(null, 204);
   });

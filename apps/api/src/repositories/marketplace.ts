@@ -9,18 +9,12 @@ export interface CollectionValue {
   unpricedCopyCount: number;
 }
 
-// Cardmarket's `avg` field is a sales-history mean that occasionally spikes
-// from a single anomalous listing/sale and stays stuck for days. We display
-// the cheapest current listing instead — same convention as CardTrader.
-const HEADLINE_CENTS_EXPR = sql<number | null>`
-  case when mp.marketplace = 'cardmarket'
-    then coalesce(snap.low_cents, snap.market_cents)
-    else coalesce(snap.market_cents, snap.low_cents)
-  end
-`;
-
 /**
  * Read-only queries for marketplace prices and snapshots.
+ *
+ * Price queries read from the `mv_latest_printing_prices` materialized view,
+ * which must be refreshed after each price-refresh pipeline run (see
+ * {@link refreshLatestPrices}).
  *
  * @returns An object with marketplace query methods bound to the given `db`.
  */
@@ -29,75 +23,36 @@ export function marketplaceRepo(db: Kysely<Database>) {
     /**
      * Latest headline price per marketplace for every printing.
      *
-     * Uses a sibling self-join so variants with `language IS NULL` (cross-language
-     * aggregate prices — Cardmarket) surface on every language of a card, while
-     * exact-language variants stay pinned to their specific printing. The headline
-     * is `market_cents` for TCGPlayer and `low_cents` for Cardmarket / CardTrader
-     * (see HEADLINE_CENTS_EXPR for the rationale).
+     * Reads from the `mv_latest_printing_prices` materialized view, which
+     * pre-computes the sibling self-join + DISTINCT ON from raw snapshot data.
      *
      * @returns Rows with `printingId`, `marketplace`, and the headline price as `marketCents`.
      */
-    async latestPrices(): Promise<
-      { printingId: string; marketplace: string; marketCents: number }[]
-    > {
-      const result = await sql<{ printingId: string; marketplace: string; marketCents: number }>`
-        SELECT DISTINCT ON (target.id, mp.marketplace)
-          target.id as "printingId",
-          mp.marketplace as "marketplace",
-          ${HEADLINE_CENTS_EXPR} as "marketCents"
-        FROM printings target
-        JOIN printings source
-          ON source.card_id = target.card_id
-          AND source.short_code = target.short_code
-          AND source.finish = target.finish
-          AND source.art_variant = target.art_variant
-          AND source.is_signed = target.is_signed
-          AND source.promo_type_id IS NOT DISTINCT FROM target.promo_type_id
-        JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
-        JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
-        JOIN marketplace_snapshots snap ON snap.variant_id = mpv.id
-        WHERE ${HEADLINE_CENTS_EXPR} IS NOT NULL
-          AND (mpv.language IS NULL OR source.id = target.id)
-        ORDER BY target.id, mp.marketplace, snap.recorded_at DESC
-      `.execute(db);
-      return result.rows;
+    latestPrices(): Promise<{ printingId: string; marketplace: string; marketCents: number }[]> {
+      return db
+        .selectFrom("mvLatestPrintingPrices")
+        .select(["printingId", "marketplace", "headlineCents as marketCents"])
+        .execute();
     },
 
     /**
      * Latest headline price per marketplace for a subset of printings.
      *
-     * Same logic as {@link latestPrices} but filtered to the given printing IDs.
+     * Same data as {@link latestPrices} but filtered to the given printing IDs.
      *
      * @returns Rows with `printingId`, `marketplace`, and the headline price as `marketCents`.
      */
-    async latestPricesForPrintings(
+    latestPricesForPrintings(
       printingIds: string[],
     ): Promise<{ printingId: string; marketplace: string; marketCents: number }[]> {
       if (printingIds.length === 0) {
-        return [];
+        return Promise.resolve([]);
       }
-      const result = await sql<{ printingId: string; marketplace: string; marketCents: number }>`
-        SELECT DISTINCT ON (target.id, mp.marketplace)
-          target.id as "printingId",
-          mp.marketplace as "marketplace",
-          ${HEADLINE_CENTS_EXPR} as "marketCents"
-        FROM printings target
-        JOIN printings source
-          ON source.card_id = target.card_id
-          AND source.short_code = target.short_code
-          AND source.finish = target.finish
-          AND source.art_variant = target.art_variant
-          AND source.is_signed = target.is_signed
-          AND source.promo_type_id IS NOT DISTINCT FROM target.promo_type_id
-        JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
-        JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
-        JOIN marketplace_snapshots snap ON snap.variant_id = mpv.id
-        WHERE target.id = ANY(${printingIds})
-          AND ${HEADLINE_CENTS_EXPR} IS NOT NULL
-          AND (mpv.language IS NULL OR source.id = target.id)
-        ORDER BY target.id, mp.marketplace, snap.recorded_at DESC
-      `.execute(db);
-      return result.rows;
+      return db
+        .selectFrom("mvLatestPrintingPrices")
+        .select(["printingId", "marketplace", "headlineCents as marketCents"])
+        .where("printingId", "in", printingIds)
+        .execute();
     },
 
     /**
@@ -161,37 +116,26 @@ export function marketplaceRepo(db: Kysely<Database>) {
     /**
      * Total market value per deck for a user.
      *
-     * Uses the cheapest printing of each card to estimate what it would cost
-     * to buy the deck on the given marketplace.
+     * Uses the cheapest printing of each card (from the materialized view)
+     * to estimate what it would cost to buy the deck on a given marketplace.
      *
      * @returns A map from deck ID to total value in cents.
      */
     async deckValues(userId: string, marketplace: string): Promise<Map<string, number>> {
       const rows = await sql<{ deckId: string; totalValueCents: number }>`
-        select
-          dc.deck_id as "deckId",
-          coalesce(sum(dc.quantity * cheapest.headline_cents), 0)::int as "totalValueCents"
-        from deck_cards dc
-        inner join decks d on d.id = dc.deck_id and d.user_id = ${userId}
-        left join lateral (
-          select min(latest.headline_cents) as headline_cents
-          from printings p
-          inner join marketplace_product_variants mpv on mpv.printing_id = p.id
-          inner join marketplace_products mp
-            on mp.id = mpv.marketplace_product_id and mp.marketplace = ${marketplace}
-          inner join lateral (
-            select case when mp.marketplace = 'cardmarket'
-                     then coalesce(snap.low_cents, snap.market_cents)
-                     else coalesce(snap.market_cents, snap.low_cents)
-                   end as headline_cents
-            from marketplace_snapshots snap
-            where snap.variant_id = mpv.id
-            order by snap.recorded_at desc
-            limit 1
-          ) latest on true
-          where p.card_id = dc.card_id
-        ) cheapest on true
-        group by dc.deck_id
+        SELECT
+          dc.deck_id AS "deckId",
+          COALESCE(SUM(dc.quantity * cheapest.headline_cents), 0)::int AS "totalValueCents"
+        FROM deck_cards dc
+        INNER JOIN decks d ON d.id = dc.deck_id AND d.user_id = ${userId}
+        LEFT JOIN LATERAL (
+          SELECT MIN(mvp.headline_cents) AS headline_cents
+          FROM printings p
+          INNER JOIN mv_latest_printing_prices mvp
+            ON mvp.printing_id = p.id AND mvp.marketplace = ${marketplace}
+          WHERE p.card_id = dc.card_id
+        ) cheapest ON true
+        GROUP BY dc.deck_id
       `.execute(db);
 
       return new Map(rows.rows.map((row) => [row.deckId, row.totalValueCents]));
@@ -207,26 +151,15 @@ export function marketplaceRepo(db: Kysely<Database>) {
       marketplace: string,
     ): Promise<Map<string, CollectionValue>> {
       const rows = await sql<CollectionValue>`
-        select
-          cp.collection_id as "collectionId",
-          coalesce(sum(snap.headline_cents), 0)::int as "totalValueCents",
-          (count(cp.id) - count(snap.headline_cents))::int as "unpricedCopyCount"
-        from copies cp
-        left join marketplace_product_variants mpv on mpv.printing_id = cp.printing_id
-        left join marketplace_products mp
-          on mp.id = mpv.marketplace_product_id and mp.marketplace = ${marketplace}
-        left join lateral (
-          select case when mp.marketplace = 'cardmarket'
-                   then coalesce(ms.low_cents, ms.market_cents)
-                   else coalesce(ms.market_cents, ms.low_cents)
-                 end as headline_cents
-          from marketplace_snapshots ms
-          where ms.variant_id = mpv.id
-          order by ms.recorded_at desc
-          limit 1
-        ) snap on true
-        where cp.user_id = ${userId}
-        group by cp.collection_id
+        SELECT
+          cp.collection_id AS "collectionId",
+          COALESCE(SUM(mvp.headline_cents), 0)::int AS "totalValueCents",
+          (COUNT(cp.id) - COUNT(mvp.headline_cents))::int AS "unpricedCopyCount"
+        FROM copies cp
+        LEFT JOIN mv_latest_printing_prices mvp
+          ON mvp.printing_id = cp.printing_id AND mvp.marketplace = ${marketplace}
+        WHERE cp.user_id = ${userId}
+        GROUP BY cp.collection_id
       `.execute(db);
 
       return new Map(rows.rows.map((row) => [row.collectionId, row]));
@@ -242,29 +175,28 @@ export function marketplaceRepo(db: Kysely<Database>) {
       marketplace: string,
     ): Promise<CollectionValue | undefined> {
       const rows = await sql<CollectionValue>`
-        select
-          cp.collection_id as "collectionId",
-          coalesce(sum(snap.headline_cents), 0)::int as "totalValueCents",
-          (count(cp.id) - count(snap.headline_cents))::int as "unpricedCopyCount"
-        from copies cp
-        left join marketplace_product_variants mpv on mpv.printing_id = cp.printing_id
-        left join marketplace_products mp
-          on mp.id = mpv.marketplace_product_id and mp.marketplace = ${marketplace}
-        left join lateral (
-          select case when mp.marketplace = 'cardmarket'
-                   then coalesce(ms.low_cents, ms.market_cents)
-                   else coalesce(ms.market_cents, ms.low_cents)
-                 end as headline_cents
-          from marketplace_snapshots ms
-          where ms.variant_id = mpv.id
-          order by ms.recorded_at desc
-          limit 1
-        ) snap on true
-        where cp.collection_id = ${collectionId}
-        group by cp.collection_id
+        SELECT
+          cp.collection_id AS "collectionId",
+          COALESCE(SUM(mvp.headline_cents), 0)::int AS "totalValueCents",
+          (COUNT(cp.id) - COUNT(mvp.headline_cents))::int AS "unpricedCopyCount"
+        FROM copies cp
+        LEFT JOIN mv_latest_printing_prices mvp
+          ON mvp.printing_id = cp.printing_id AND mvp.marketplace = ${marketplace}
+        WHERE cp.collection_id = ${collectionId}
+        GROUP BY cp.collection_id
       `.execute(db);
 
       return rows.rows[0];
+    },
+
+    /**
+     * Refresh the `mv_latest_printing_prices` materialized view.
+     * Uses CONCURRENTLY so reads aren't blocked during refresh.
+     *
+     * @returns void
+     */
+    async refreshLatestPrices(): Promise<void> {
+      await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_latest_printing_prices`.execute(db);
     },
   };
 }
