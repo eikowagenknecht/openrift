@@ -130,6 +130,12 @@ export function useCardData({
   const setSlugToName = new Map(sets.map((s) => [s.slug, s.name]));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
   const setOrderMap = new Map(sets.map((s, i) => [s.id, i]));
+  // Sort order for set filter: main sets first (in sortOrder), then supplemental.
+  const setSlugOrder = new Map(
+    sets
+      .toSorted((a, b) => (a.setType === b.setType ? 0 : a.setType === "main" ? -1 : 1))
+      .map((s, i) => [s.slug, i]),
+  );
 
   // Apply language filter before other filters
   const langFiltered =
@@ -144,6 +150,9 @@ export function useCardData({
   const getPrice = (p: Printing) => lookup.get(p.id, favoriteMarketplace);
 
   const availableFilters = getAvailableFilters(langFiltered, { getPrice });
+  availableFilters.sets.sort(
+    (a, b) => (setSlugOrder.get(a) ?? Infinity) - (setSlugOrder.get(b) ?? Infinity),
+  );
   const filteredCards = filterCards(langFiltered, filters, { keywordReverseMap, getPrice });
 
   const displayCards =

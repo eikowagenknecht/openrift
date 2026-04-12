@@ -4,6 +4,7 @@ export interface GroupInfo {
   id: string;
   slug: string;
   name: string;
+  setType?: "main" | "supplemental";
 }
 
 /** @deprecated Use GroupInfo instead. */

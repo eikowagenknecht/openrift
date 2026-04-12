@@ -64,17 +64,32 @@ function HeroSetCard({ set }: { set: SetListEntry }) {
   );
 }
 
+const SET_GRID = "grid gap-4 min-[1920px]:grid-cols-4 sm:grid-cols-2 xl:grid-cols-3";
+
 function SetsPage() {
   const { data } = useSuspenseQuery(publicSetListQueryOptions);
+
+  const mainSets = data.sets.filter((s) => s.setType === "main");
+  const supplementalSets = data.sets.filter((s) => s.setType !== "main");
 
   return (
     <div className={PAGE_PADDING}>
       <h1 className="mb-4 text-2xl font-bold">Card Sets</h1>
-      <div className="grid gap-4 min-[1920px]:grid-cols-4 sm:grid-cols-2 xl:grid-cols-3">
-        {data.sets.map((set) => (
+      <div className={SET_GRID}>
+        {mainSets.map((set) => (
           <HeroSetCard key={set.id} set={set} />
         ))}
       </div>
+      {supplementalSets.length > 0 && (
+        <>
+          <h2 className="mt-8 mb-4 text-lg font-semibold">Supplemental Sets</h2>
+          <div className={SET_GRID}>
+            {supplementalSets.map((set) => (
+              <HeroSetCard key={set.id} set={set} />
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
