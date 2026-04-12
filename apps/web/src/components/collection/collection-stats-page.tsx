@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Progress } from "@/components/ui/progress";
 import {
   Select,
   SelectContent,
@@ -259,18 +258,27 @@ const COUNT_MODE_OPTIONS: { value: CompletionCountMode; label: string; tooltip: 
   },
 ];
 
-function CompletionProgressBar({ entries }: { entries: CompletionEntry[] }) {
+function CompletionTotalRow({ entries }: { entries: CompletionEntry[] }) {
   const totalOwned = entries.reduce((sum, entry) => sum + entry.owned, 0);
   const totalAll = entries.reduce((sum, entry) => sum + entry.total, 0);
   const percent = totalAll > 0 ? (totalOwned / totalAll) * 100 : 0;
 
   return (
-    <div className="flex items-center gap-3">
-      <Progress value={percent} className="h-2.5 flex-1" />
-      <span className="text-muted-foreground shrink-0 text-sm tabular-nums">
+    <div className="bg-muted/50 -mx-2 flex items-center gap-3 rounded-md px-2 py-1.5">
+      <span className="flex w-36 shrink-0 items-center text-sm font-semibold sm:w-48">Overall</span>
+      <div className="bg-muted h-1.5 flex-1 overflow-hidden rounded-full">
+        <div
+          className="bg-primary h-full rounded-full transition-all"
+          style={{ width: `${Math.min(percent, 100)}%` }}
+        />
+      </div>
+      <span className="text-muted-foreground w-20 shrink-0 text-right text-xs tabular-nums">
         {totalOwned.toLocaleString()} / {totalAll.toLocaleString()}
       </span>
-      <span className="shrink-0 text-sm font-semibold tabular-nums">{percent.toFixed(1)}%</span>
+      <span className="w-12 shrink-0 text-right text-xs font-semibold tabular-nums">
+        {percent.toFixed(1)}%
+      </span>
+      <span className="w-3.5 shrink-0" />
     </div>
   );
 }
@@ -437,7 +445,7 @@ function CompletionSection({
 
   return (
     <section className="space-y-3">
-      <CompletionProgressBar entries={entries} />
+      <CompletionTotalRow entries={entries} />
 
       {mainEntries.length === 0 && supplementalEntries.length === 0 ? (
         <p className="text-muted-foreground py-4 text-center text-sm">No data</p>
