@@ -121,6 +121,7 @@ const app = new Hono()
     c.set("repos", {
       candidateMutations: mockMut,
       candidateCards: mockCandidateCards,
+      catalog: { refreshCardAggregates: vi.fn() },
       printingImages: mockPrintingImages,
       promoTypes: mockPromoTypes,
       printingEvents: mockPrintingEvents,

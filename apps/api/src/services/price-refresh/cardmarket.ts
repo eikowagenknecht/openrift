@@ -201,5 +201,7 @@ export async function refreshCardmarketPrices(
   const counts = await upsertPriceData(repos.priceRefresh, log, UPSERT_CONFIG, allStaging);
   logUpsertCounts(log, counts);
 
+  await repos.marketplace.refreshLatestPrices();
+
   return { transformed: transformedCounts, upserted: counts };
 }

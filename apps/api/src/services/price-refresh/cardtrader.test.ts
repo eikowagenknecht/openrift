@@ -162,6 +162,7 @@ function createMockRepos(config: MockReposConfig = {}) {
       allPrintingsForPriceMatch: vi.fn(async () => printings),
       batchInsertProductVariants: vi.fn(async () => {}),
     },
+    marketplace: { refreshLatestPrices: vi.fn() },
   } as unknown as Repos;
 
   return { repos };

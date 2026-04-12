@@ -142,6 +142,7 @@ function createMockRepos(config: MockReposConfig = {}) {
         upsertGroupsCalled = true;
       },
     },
+    marketplace: { refreshLatestPrices: vi.fn() },
   } as unknown as Repos;
 
   return { repos, wasUpsertGroupsCalled: () => upsertGroupsCalled };

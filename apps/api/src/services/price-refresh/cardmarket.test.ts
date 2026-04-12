@@ -114,6 +114,7 @@ function createMockRepos(config: MockReposConfig = {}) {
         }
       },
     },
+    marketplace: { refreshLatestPrices: vi.fn() },
   } as unknown as Repos;
 
   return { repos, insertedExpansionIds };

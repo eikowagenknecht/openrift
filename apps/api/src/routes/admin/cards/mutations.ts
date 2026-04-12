@@ -748,10 +748,12 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     // Domains and superTypes are stored in junction tables, not on the cards row
     if (field === "domains") {
       await mut.replaceCardDomainsById(cardId, finalValue as string[]);
+      await c.get("repos").catalog.refreshCardAggregates();
       return c.body(null, 204);
     }
     if (field === "superTypes") {
       await mut.replaceCardSuperTypesById(cardId, finalValue as string[]);
+      await c.get("repos").catalog.refreshCardAggregates();
       return c.body(null, 204);
     }
 
@@ -941,6 +943,8 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       );
     });
 
+    await c.get("repos").catalog.refreshCardAggregates();
+
     return c.body(null, 204);
   })
 
@@ -965,6 +969,8 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       normalizedName,
       favoriteProviders,
     );
+
+    await c.get("repos").catalog.refreshCardAggregates();
 
     return c.json(result);
   })

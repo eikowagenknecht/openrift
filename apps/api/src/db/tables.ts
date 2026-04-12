@@ -765,6 +765,20 @@ export interface CardSuperTypesTable {
   superTypeSlug: string;
 }
 
+// ─── Materialized views (migration 085) ─────────────────────────────────────
+
+export interface MvLatestPrintingPricesView {
+  printingId: string;
+  marketplace: string;
+  headlineCents: number;
+}
+
+export interface MvCardAggregatesView {
+  cardId: string;
+  domains: string[];
+  superTypes: string[];
+}
+
 // ─── Database ────────────────────────────────────────────────────────────────
 
 export interface Database {
@@ -873,4 +887,8 @@ export interface Database {
 
   // Printing events (migration 071)
   printingEvents: PrintingEventsTable;
+
+  // Materialized views (migration 085)
+  mvLatestPrintingPrices: MvLatestPrintingPricesView;
+  mvCardAggregates: MvCardAggregatesView;
 }
