@@ -104,6 +104,7 @@ beforeEach(() => {
   mockUnlink.mockReset().mockResolvedValue();
   mockStat.mockReset().mockResolvedValue({ size: 1024 });
   mockSharpInstance.resize.mockClear();
+  mockSharpInstance.toBuffer = () => Promise.resolve(Buffer.from("webp"));
   mockSharpMetadata = { width: 600, height: 850 };
   mockFetch
     .mockReset()
@@ -258,6 +259,74 @@ describe("processAndSave", () => {
 
     expect(mockUnlink).toHaveBeenCalledWith("/tmp/out/card-001-orig.png");
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-orig.webp", expect.any(Buffer));
+  });
+
+  it("reuses webp orig bytes for -full when re-encoding would inflate the file", async () => {
+    // Portrait 600×850: short edge 600 ≤ 800 (full target), so the full
+    // variant is a no-op resize and can safely reuse orig bytes. The
+    // re-encoded buffer is larger than the orig, so the orig wins.
+    mockSharpMetadata = { width: 600, height: 850 };
+    const origBuf = Buffer.from("tiny");
+    mockSharpInstance.toBuffer = () => Promise.resolve(Buffer.from("bigger-reencoded-buffer"));
+    await processAndSave(mockIo, origBuf, ".webp", "/tmp/out", "card-001", 0);
+
+    // -full.webp reuses the orig bytes
+    expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-full.webp", origBuf);
+    // -400w.webp must still be re-encoded: source 600 > target 400 → resize applies
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      "/tmp/out/card-001-400w.webp",
+      Buffer.from("bigger-reencoded-buffer"),
+    );
+  });
+
+  it("keeps the re-encoded -full when it is smaller than the webp orig", async () => {
+    mockSharpMetadata = { width: 600, height: 850 };
+    const origBuf = Buffer.from("huge-already-inflated-webp-source");
+    mockSharpInstance.toBuffer = () => Promise.resolve(Buffer.from("small"));
+    await processAndSave(mockIo, origBuf, ".webp", "/tmp/out", "card-001", 0);
+
+    expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-full.webp", Buffer.from("small"));
+  });
+
+  it("does not reuse orig bytes for non-webp sources", async () => {
+    mockSharpMetadata = { width: 600, height: 850 };
+    const origBuf = Buffer.from("p"); // smaller bytes but source is png
+    mockSharpInstance.toBuffer = () => Promise.resolve(Buffer.from("re-encoded"));
+    await processAndSave(mockIo, origBuf, ".png", "/tmp/out", "card-001", 0);
+
+    // png source always re-encodes to webp regardless of size
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      "/tmp/out/card-001-full.webp",
+      Buffer.from("re-encoded"),
+    );
+  });
+
+  it("does not reuse orig bytes when source short edge exceeds the variant target", async () => {
+    // Source is genuinely larger than full's 800 short-edge target, so the
+    // resize actually kicks in. Even if orig bytes are smaller, reusing them
+    // would serve a bigger-dimension image than expected.
+    mockSharpMetadata = { width: 1200, height: 1600 };
+    const origBuf = Buffer.from("t");
+    mockSharpInstance.toBuffer = () => Promise.resolve(Buffer.from("re-encoded-larger"));
+    await processAndSave(mockIo, origBuf, ".webp", "/tmp/out", "card-001", 0);
+
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      "/tmp/out/card-001-full.webp",
+      Buffer.from("re-encoded-larger"),
+    );
+  });
+
+  it("does not reuse orig bytes when rotation is non-zero", async () => {
+    mockSharpMetadata = { width: 600, height: 850 };
+    const origBuf = Buffer.from("t");
+    mockSharpInstance.toBuffer = () => Promise.resolve(Buffer.from("re-encoded-larger"));
+    await processAndSave(mockIo, origBuf, ".webp", "/tmp/out", "card-001", 90);
+
+    // Non-zero rotation requires re-encoding to apply the rotation
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      "/tmp/out/card-001-full.webp",
+      Buffer.from("re-encoded-larger"),
+    );
   });
 });
 

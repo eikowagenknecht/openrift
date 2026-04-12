@@ -101,6 +101,7 @@ function isValidVariantSuffix(file: string): boolean {
 async function generateWebpVariants(
   io: Io,
   buffer: Buffer,
+  originalExt: string,
   outputDir: string,
   fileBase: string,
   rotation: number,
@@ -115,6 +116,8 @@ async function generateWebpVariants(
   const sourceWidth = swap ? rawHeight : rawWidth;
   const sourceHeight = swap ? rawWidth : rawHeight;
   const isLandscape = sourceWidth > sourceHeight;
+  const sourceShortEdge = Math.min(sourceWidth, sourceHeight);
+  const sourceIsWebp = originalExt === ".webp";
   for (const size of SIZES) {
     let pipeline = io.sharp(buffer);
     if (rotation !== 0) {
@@ -126,7 +129,15 @@ async function generateWebpVariants(
       { withoutEnlargement: true },
     );
     const webpBuffer = await pipeline.webp({ quality: size.quality }).toBuffer();
-    await io.fs.writeFile(join(outputDir, `${fileBase}-${size.suffix}.webp`), webpBuffer);
+    // When the source is already webp and neither resize nor rotate applies
+    // (rotation=0 and source short edge already ≤ this variant's target),
+    // the re-encoded variant has identical dimensions to the orig. In that
+    // case, prefer the orig bytes when they're smaller — re-encoding at
+    // q=85 sometimes inflates already-well-compressed webps.
+    const canReuseOrig =
+      sourceIsWebp && rotation === 0 && sourceShortEdge > 0 && sourceShortEdge <= size.shortEdge;
+    const finalBuffer = canReuseOrig && buffer.length < webpBuffer.length ? buffer : webpBuffer;
+    await io.fs.writeFile(join(outputDir, `${fileBase}-${size.suffix}.webp`), finalBuffer);
   }
 }
 
@@ -211,7 +222,7 @@ export async function processAndSave(
   // up with both e.g. `{base}-orig.png` and `{base}-orig.webp` on disk.
   await sweepExistingOrig(io, outputDir, fileBase);
   await io.fs.writeFile(join(outputDir, `${fileBase}-orig${originalExt}`), buffer);
-  await generateWebpVariants(io, buffer, outputDir, fileBase, rotation);
+  await generateWebpVariants(io, buffer, originalExt, outputDir, fileBase, rotation);
 }
 
 /**
@@ -260,7 +271,7 @@ export async function regenerateFromOrig(
   const origFile = files.find((f) => f.startsWith(`${imageFileId}-orig.`));
   if (origFile) {
     const buffer = await io.fs.readFile(join(outputDir, origFile));
-    await generateWebpVariants(io, buffer, outputDir, imageFileId, rotation);
+    await generateWebpVariants(io, buffer, extname(origFile), outputDir, imageFileId, rotation);
     return;
   }
 
@@ -408,6 +419,7 @@ export async function regenerateImages(
       await generateWebpVariants(
         io,
         buffer,
+        extname(origFile),
         prefixDir,
         img.imageId,
         rotations.get(img.imageId) ?? 0,
