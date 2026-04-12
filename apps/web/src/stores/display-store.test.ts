@@ -123,6 +123,7 @@ describe("useDisplayStore", () => {
         cardTilt: null,
         marketplaceOrder: ["cardmarket"],
         languages: null,
+        completionScope: null,
       });
 
       const state = useDisplayStore.getState();

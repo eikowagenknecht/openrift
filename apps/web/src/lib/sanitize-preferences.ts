@@ -1,4 +1,4 @@
-import type { Marketplace, Theme } from "@openrift/shared";
+import type { CompletionScopePreference, Marketplace, Theme } from "@openrift/shared";
 import { ALL_MARKETPLACES } from "@openrift/shared";
 
 import type { DisplayOverrides } from "@/stores/display-store";
@@ -77,6 +77,7 @@ function nullOverrides(): DisplayOverrides {
     cardTilt: null,
     marketplaceOrder: null,
     languages: null,
+    completionScope: null,
   };
 }
 
@@ -119,6 +120,8 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
     ? record.languages.filter((lang): lang is string => typeof lang === "string" && lang.length > 0)
     : null;
 
+  const safeCompletionScope = sanitizeCompletionScope(record.completionScope);
+
   return {
     showImages,
     fancyFan,
@@ -126,7 +129,37 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
     cardTilt,
     marketplaceOrder: safeOrder,
     languages: safeLanguages,
+    completionScope: safeCompletionScope,
   };
+}
+
+function sanitizeCompletionScope(value: unknown): CompletionScopePreference | null {
+  if (typeof value !== "object" || value === null) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const result: CompletionScopePreference = {};
+  if (Array.isArray(record.languages)) {
+    const safe = record.languages.filter((lang): lang is string => typeof lang === "string");
+    if (safe.length > 0) {
+      result.languages = safe;
+    }
+  }
+  if (Array.isArray(record.finishes)) {
+    const safe = record.finishes.filter((finish): finish is string => typeof finish === "string");
+    if (safe.length > 0) {
+      result.finishes = safe;
+    }
+  }
+  if (Array.isArray(record.artVariants)) {
+    const safe = record.artVariants.filter(
+      (variant): variant is string => typeof variant === "string",
+    );
+    if (safe.length > 0) {
+      result.artVariants = safe;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : null;
 }
 
 /**

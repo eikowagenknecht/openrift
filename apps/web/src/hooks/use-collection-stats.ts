@@ -1,4 +1,11 @@
-import type { Domain, Marketplace, Printing, PriceLookup, SetListEntry } from "@openrift/shared";
+import type {
+  CompletionScopePreference,
+  Domain,
+  Marketplace,
+  Printing,
+  PriceLookup,
+  SetListEntry,
+} from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { useCards } from "@/hooks/use-cards";
@@ -22,13 +29,6 @@ import { useDisplayStore } from "@/stores/display-store";
 
 export type CompletionGroupBy = "set" | "domain" | "rarity" | "type";
 export type CompletionCountMode = "cards" | "printings" | "copies";
-
-/** Filters that narrow which printings count toward completion totals. */
-export interface CompletionScope {
-  languages?: string[];
-  finishes?: string[];
-  artVariants?: string[];
-}
 
 export interface CompletionEntry {
   key: string;
@@ -86,7 +86,7 @@ function targetForType(cardType: string): number {
 interface CompletionInput {
   stacks: StackedEntry[];
   scopedPrintings: Printing[];
-  scope: CompletionScope;
+  scope: CompletionScopePreference;
   sets: SetListEntry[];
   groupBy: CompletionGroupBy;
   countMode: CompletionCountMode;
@@ -525,7 +525,7 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
  * Filters printings by scope criteria.
  * @returns Only the printings matching all active scope filters.
  */
-export function filterByScope(printings: Printing[], scope: CompletionScope): Printing[] {
+export function filterByScope(printings: Printing[], scope: CompletionScopePreference): Printing[] {
   "use memo";
   const { languages, finishes, artVariants } = scope;
   const hasLanguages = languages && languages.length > 0;
@@ -552,7 +552,10 @@ export function filterByScope(printings: Printing[], scope: CompletionScope): Pr
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function filterStacksByScope(stacks: StackedEntry[], scope: CompletionScope): StackedEntry[] {
+function filterStacksByScope(
+  stacks: StackedEntry[],
+  scope: CompletionScopePreference,
+): StackedEntry[] {
   const { languages, finishes, artVariants } = scope;
   const hasLanguages = languages && languages.length > 0;
   const hasFinishes = finishes && finishes.length > 0;

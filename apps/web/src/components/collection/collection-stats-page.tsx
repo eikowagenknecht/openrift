@@ -1,4 +1,4 @@
-import type { Domain } from "@openrift/shared";
+import type { CompletionScopePreference, Domain } from "@openrift/shared";
 import { Link, Navigate } from "@tanstack/react-router";
 import {
   ChartBarIcon,
@@ -38,7 +38,6 @@ import type {
   CompletionCountMode,
   CompletionEntry,
   CompletionGroupBy,
-  CompletionScope,
 } from "@/hooks/use-collection-stats";
 import { computeCompletion, filterByScope, useCollectionStats } from "@/hooks/use-collection-stats";
 import { useCollections } from "@/hooks/use-collections";
@@ -50,6 +49,7 @@ import { getFilterIconPath } from "@/lib/icons";
 import type { DomainCount } from "@/lib/stat-types";
 import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
+import { useDisplayStore } from "@/stores/display-store";
 
 // ── Hero Stats ─────────────────────────────────────────────────────────────
 
@@ -143,8 +143,8 @@ function ScopeFilterPopover({
   scope,
   onScopeChange,
 }: {
-  scope: CompletionScope;
-  onScopeChange: (scope: CompletionScope) => void;
+  scope: CompletionScopePreference;
+  onScopeChange: (scope: CompletionScopePreference) => void;
 }) {
   const { orders, labels } = useEnumOrders();
   const languageList = useLanguageList();
@@ -331,7 +331,8 @@ function getRowIcon(groupBy: CompletionGroupBy, key: string): string | undefined
 function CompletionSection({ stats }: { stats: CollectionStatsResult }) {
   const [groupBy, setGroupBy] = useState<CompletionGroupBy>("set");
   const [countMode, setCountMode] = useState<CompletionCountMode>("cards");
-  const [scope, setScope] = useState<CompletionScope>({});
+  const scope = useDisplayStore((state) => state.completionScope);
+  const setCompletionScope = useDisplayStore((state) => state.setCompletionScope);
   const domainColors = useDomainColors();
   const { rarityColors } = useEnumOrders();
 
@@ -437,7 +438,7 @@ function CompletionSection({ stats }: { stats: CollectionStatsResult }) {
               ))}
             </ButtonGroup>
           </TooltipProvider>
-          <ScopeFilterPopover scope={scope} onScopeChange={setScope} />
+          <ScopeFilterPopover scope={scope} onScopeChange={setCompletionScope} />
         </div>
       </div>
 
