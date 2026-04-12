@@ -3,6 +3,7 @@
 ## 2026-04-12
 
 - fix: Deleting a collection no longer fails when cards had previously been moved or removed from it
+- fix: The 3-dot menu on collection pages no longer squishes its items into a narrow column
 
 ## 2026-04-11
 
