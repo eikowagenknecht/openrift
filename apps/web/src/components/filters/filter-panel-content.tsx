@@ -86,10 +86,21 @@ export function FilterBadgeSections({
 }: FilterPanelContentProps) {
   const { labels } = useEnumOrders();
   const { filterState } = useFilterValues();
-  const { toggleArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
+  const { toggleOwned, toggleArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
     useFilterActions();
   return (
     <>
+      {!hiddenSections?.has("owned") && (
+        <FilterSection label="Owned">
+          <Badge
+            variant={filterState.owned === null ? "outline" : "default"}
+            className="cursor-pointer"
+            onClick={toggleOwned}
+          >
+            {filterState.owned === "false" ? "Missing" : "Owned"}
+          </Badge>
+        </FilterSection>
+      )}
       <FilterSection
         label="Set"
         options={availableFilters.sets}

@@ -2,6 +2,7 @@ import { useDndContext } from "@dnd-kit/core";
 import { Link, useMatches, useParams } from "@tanstack/react-router";
 import {
   BookOpenIcon,
+  ChartBarIcon,
   HistoryIcon,
   ArrowLeftRightIcon,
   InboxIcon,
@@ -27,6 +28,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 
 import type { CardDragData } from "./dnd-types";
 import { DroppableCollection } from "./droppable-collection";
@@ -52,6 +54,7 @@ export function CollectionSidebar() {
   const [browsing] = useQueryState("browsing", parseAsBoolean.withDefault(false));
   const { isMobile, setOpenMobile } = useSidebar();
   const { data: collections } = useCollections();
+  const statsEnabled = useFeatureEnabled("stats");
 
   // Close the mobile sidebar when the user navigates to a different page
   useEffect(() => {
@@ -178,6 +181,17 @@ export function CollectionSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Manage</SidebarGroupLabel>
           <SidebarMenu className="gap-1">
+            {statsEnabled && (
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={currentPath === "/collections/stats"}
+                  render={<Link to="/collections/stats" />}
+                >
+                  <ChartBarIcon />
+                  <span>Statistics</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            )}
             <SidebarMenuItem>
               <SidebarMenuButton
                 isActive={currentPath === "/collections/import"}

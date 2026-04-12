@@ -32,6 +32,7 @@ const filterParsers = {
   powerMax: parseAsInteger,
   priceMin: parseAsFloat,
   priceMax: parseAsFloat,
+  owned: parseAsString,
   signed: parseAsString,
   promo: parseAsString,
   banned: parseAsString,
@@ -75,6 +76,7 @@ export function useFilterValues() {
     domains: filterState.domains as Domain[],
     artVariants: filterState.artVariants as ArtVariant[],
     finishes: filterState.finishes as Finish[],
+    isOwned: filterState.owned === "true" ? true : filterState.owned === "false" ? false : null,
     isSigned: filterState.signed === "true" ? true : filterState.signed === "false" ? false : null,
     isPromo: filterState.promo === "true" ? true : filterState.promo === "false" ? false : null,
     promoTypes: [],
@@ -116,6 +118,7 @@ export function useFilterValues() {
     filterState.powerMax !== null ||
     filterState.priceMin !== null ||
     filterState.priceMax !== null ||
+    filterState.owned !== null ||
     filterState.signed !== null ||
     filterState.promo !== null ||
     filterState.banned !== null ||
@@ -198,6 +201,7 @@ export function useFilterActions() {
       powerMax: null,
       priceMin: null,
       priceMax: null,
+      owned: null,
       signed: null,
       promo: null,
       banned: null,
@@ -220,6 +224,13 @@ export function useFilterActions() {
 
   const setRange = (key: RangeKey, min: number | null, max: number | null) =>
     void setFilterState({ [`${key}Min`]: min, [`${key}Max`]: max });
+
+  const toggleOwned = () => {
+    const next =
+      filterState.owned === null ? "true" : filterState.owned === "true" ? "false" : null;
+    void setFilterState({ owned: next });
+  };
+  const clearOwned = () => void setFilterState({ owned: null });
 
   const toggleSigned = () => {
     const next =
@@ -270,6 +281,8 @@ export function useFilterActions() {
     setSearch,
     toggleArrayFilter,
     setRange,
+    toggleOwned,
+    clearOwned,
     toggleSigned,
     togglePromo,
     toggleBanned,

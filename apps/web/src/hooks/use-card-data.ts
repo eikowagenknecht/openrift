@@ -22,6 +22,8 @@ interface UseCardDataParams {
   sets: SetInfo[];
   languageFilter?: string[];
   filters: CardFilters;
+  /** Tri-state ownership filter: true = owned only, false = missing only, null = all. */
+  isOwned?: boolean | null;
   sortBy: SortOption;
   sortDir: "asc" | "desc";
   view: "cards" | "printings";
@@ -104,6 +106,7 @@ export function useCardData({
   sets,
   languageFilter,
   filters,
+  isOwned,
   sortBy,
   sortDir,
   view,
@@ -156,7 +159,21 @@ export function useCardData({
   availableFilters.supplementalSets = new Set(
     sets.filter((s) => s.setType === "supplemental").map((s) => s.slug),
   );
-  const filteredCards = filterCards(langFiltered, filters, { keywordReverseMap, getPrice });
+  let filteredCards = filterCards(langFiltered, filters, { keywordReverseMap, getPrice });
+
+  // Apply ownership filter (frontend-only, needs user copy data)
+  if (isOwned !== null && isOwned !== undefined && ownedCountByPrinting) {
+    // Build set of owned card IDs for "cards" view deduplication
+    const ownedCardIds = new Set<string>();
+    for (const printing of langFiltered) {
+      if ((ownedCountByPrinting[printing.id] ?? 0) > 0) {
+        ownedCardIds.add(printing.cardId);
+      }
+    }
+    filteredCards = isOwned
+      ? filteredCards.filter((printing) => ownedCardIds.has(printing.cardId))
+      : filteredCards.filter((printing) => !ownedCardIds.has(printing.cardId));
+  }
 
   const displayCards =
     view === "cards"

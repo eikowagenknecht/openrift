@@ -118,6 +118,7 @@ export function CardBrowser() {
     sets,
     languageFilter: useDisplayStore((s) => s.languages),
     filters,
+    isOwned: filters.isOwned,
     sortBy,
     sortDir,
     view,

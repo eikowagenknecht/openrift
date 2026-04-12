@@ -28,16 +28,36 @@ const fetchCopies = createServerFn({ method: "GET" })
   .inputValidator((input: { collectionId?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }): Promise<CopiesResponse> => {
-    const url = data.collectionId
+    const baseUrl = data.collectionId
       ? `${API_URL}/api/v1/collections/${encodeURIComponent(data.collectionId)}/copies`
       : `${API_URL}/api/v1/copies`;
-    const res = await fetch(url, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Copies fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<CopiesResponse>;
+
+    const allItems: CopyResponse[] = [];
+    let cursor: string | null = null;
+
+    // Paginate through all pages to ensure we fetch every copy.
+    // The cursor is timestamp-based, so we pass a high per-page limit
+    // to minimize round-trips and avoid the timestamp-collision issue
+    // where copies sharing a createdAt get skipped by strict < comparison.
+    const pageSize = 5000;
+    do {
+      const params = new URLSearchParams({ limit: String(pageSize) });
+      if (cursor) {
+        params.set("cursor", cursor);
+      }
+      const url = `${baseUrl}?${params.toString()}`;
+      const res = await fetch(url, {
+        headers: { cookie: context.cookie },
+      });
+      if (!res.ok) {
+        throw new Error(`Copies fetch failed: ${res.status}`);
+      }
+      const page = (await res.json()) as CopiesResponse;
+      allItems.push(...page.items);
+      cursor = page.nextCursor;
+    } while (cursor);
+
+    return { items: allItems, nextCursor: null };
   });
 
 export function copiesQueryOptions(collectionId?: string) {
