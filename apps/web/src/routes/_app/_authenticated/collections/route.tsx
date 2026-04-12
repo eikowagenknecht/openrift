@@ -33,7 +33,12 @@ const snapCenterToCursor: Modifier = ({
   draggingNodeRect,
   transform,
 }) => {
-  if (activatorEvent instanceof PointerEvent && activeNodeRect && draggingNodeRect) {
+  if (
+    typeof PointerEvent !== "undefined" &&
+    activatorEvent instanceof PointerEvent &&
+    activeNodeRect &&
+    draggingNodeRect
+  ) {
     const grabX = activatorEvent.clientX - activeNodeRect.left;
     const grabY = activatorEvent.clientY - activeNodeRect.top;
     return {
