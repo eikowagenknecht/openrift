@@ -81,7 +81,7 @@ export function CardViewer({
     <div className="@container flex flex-1 flex-col">
       <div
         ref={toolbarRef}
-        className="bg-background/80 sticky z-20 -mx-3 px-3 pt-3 pb-1 backdrop-blur-lg sm:rounded-b-xl"
+        className="bg-background/80 sticky z-20 -mx-3 px-3 pt-3 backdrop-blur-lg sm:rounded-b-xl"
         style={{ top: APP_HEADER_HEIGHT }}
       >
         {toolbar}
