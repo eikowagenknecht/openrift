@@ -166,11 +166,6 @@ export function DeckCardBrowser() {
   const view = "cards" as const;
   const keywordReverseMap = useKeywordReverseMap();
 
-  // Language filter: URL param takes precedence, display store preference is fallback
-  const urlLanguages = urlFilters.languages;
-  const preferredLanguages = useDisplayStore((s) => s.languages);
-  const languageFilter = urlLanguages.length > 0 ? urlLanguages : preferredLanguages;
-
   const {
     availableFilters,
     availableLanguages,
@@ -183,7 +178,7 @@ export function DeckCardBrowser() {
   } = useCardData({
     allPrintings,
     sets,
-    languageFilter,
+    languageFilter: urlFilters.languages.length > 0 ? urlFilters.languages : undefined,
     filters,
     isOwned: filters.isOwned,
     sortBy,
