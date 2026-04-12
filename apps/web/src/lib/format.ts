@@ -35,23 +35,12 @@ const DEFAULT_ENUM_LABELS: EnumLabels = {
   artVariants: { normal: "Normal", altart: "Alt Art", overnumbered: "Overnumbered" },
 };
 
-const LANGUAGE_LABELS: Record<string, string> = {
-  EN: "English",
-  JA: "Japanese",
-  KO: "Korean",
-  ZH: "Chinese",
-  DE: "German",
-  FR: "French",
-  ES: "Spanish",
-  IT: "Italian",
-  PT: "Portuguese",
-};
-
 /**
  * Human-readable label for a printing's distinguishing attributes.
- * Omits "Normal" defaults and attributes shared by all siblings.
- * E.g. "Alt Art · Signed" (omitting "Foil" when every sibling is foil).
- * @returns A label like "Alt Art · Signed", or "Standard" when no distinguishing attributes.
+ * Omits "Normal" defaults and attributes shared by all siblings. When language
+ * varies among siblings, every row gets a `[XX]` tag (including English) so
+ * the pairing reads symmetrically rather than leaving default rows blank.
+ * @returns A label like "[EN] · Alt Art", or "Standard" when no distinguishing attributes.
  */
 export function formatPrintingLabel(
   printing: Printing,
@@ -62,6 +51,9 @@ export function formatPrintingLabel(
     siblings ? siblings.every((s) => fn(s) === fn(printing)) : false;
 
   const parts: string[] = [];
+  if (siblings && !allSame((c) => c.language)) {
+    parts.push(`[${printing.language}]`);
+  }
   if (printing.artVariant !== "normal" && !allSame((c) => c.artVariant)) {
     parts.push(labels.artVariants[printing.artVariant] ?? printing.artVariant);
   }
@@ -73,9 +65,6 @@ export function formatPrintingLabel(
   }
   if (printing.promoType && !allSame((c) => c.promoType?.slug)) {
     parts.push(printing.promoType.label);
-  }
-  if (printing.language !== "EN" && !allSame((c) => c.language)) {
-    parts.push(LANGUAGE_LABELS[printing.language] ?? printing.language);
   }
   return parts.length > 0 ? parts.join(" · ") : "Standard";
 }

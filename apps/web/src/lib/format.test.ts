@@ -250,6 +250,30 @@ describe("formatPrintingLabel", () => {
     const siblings = [p, stub()];
     expect(formatPrintingLabel(p, siblings)).toBe("Alt Art · Signed");
   });
+
+  it("tags every row with [XX] when language varies, including English", () => {
+    const en = stub({ language: "EN" });
+    const zh = stub({ language: "ZH" });
+    const siblings = [en, zh];
+    expect(formatPrintingLabel(en, siblings)).toBe("[EN]");
+    expect(formatPrintingLabel(zh, siblings)).toBe("[ZH]");
+  });
+
+  it("puts the language tag before other distinguishing attributes", () => {
+    const p = stub({ language: "ZH", artVariant: "altart", isSigned: true });
+    const siblings = [p, stub({ language: "EN" })];
+    expect(formatPrintingLabel(p, siblings)).toBe("[ZH] · Alt Art · Signed");
+  });
+
+  it("omits the language tag when every sibling shares the language", () => {
+    const p = stub({ language: "EN", artVariant: "altart" });
+    const siblings = [p, stub({ language: "EN" })];
+    expect(formatPrintingLabel(p, siblings)).toBe("Alt Art");
+  });
+
+  it("omits the language tag when no siblings are provided", () => {
+    expect(formatPrintingLabel(stub({ language: "ZH" }))).toBe("Standard");
+  });
 });
 
 // ---------------------------------------------------------------------------

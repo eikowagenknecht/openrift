@@ -9,6 +9,7 @@
 - fix: Tapping the deck violation badge now opens the issue list on all devices, instead of requiring a hover on desktop
 - fix: Deleting a collection no longer fails when cards had previously been moved or removed from it
 - fix: The 3-dot menu on collection pages no longer squishes its items into a narrow column
+- fix: When a card has printings in multiple languages, the printings list now tags every row with its language code (`[EN]`, `[ZH]`, …) instead of confusingly labeling some rows "Standard"
 
 ## 2026-04-11
 
