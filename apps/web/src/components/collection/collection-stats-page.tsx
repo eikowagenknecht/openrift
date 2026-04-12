@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type {
@@ -53,20 +54,21 @@ import { useDisplayStore } from "@/stores/display-store";
 
 // ── Hero Stats ─────────────────────────────────────────────────────────────
 
-function HeroStats({ stats }: { stats: CollectionStats }) {
+function CompletionHeroStats({ stats }: { stats: CollectionStats }) {
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3">
       <Card size="sm">
         <CardHeader>
           <CardTitle className="text-muted-foreground flex items-center gap-1.5 text-xs font-normal">
-            <PackageIcon className="size-4" />
-            Total Copies
+            <CircleCheckBigIcon className="size-4" />
+            Completion
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-2xl font-semibold tabular-nums">
-            {stats.totalCopies.toLocaleString()}
+            {stats.completionPercent.toFixed(1)}%
           </p>
+          <Progress value={stats.completionPercent} className="mt-2" />
         </CardContent>
       </Card>
       <Card size="sm">
@@ -82,6 +84,26 @@ function HeroStats({ stats }: { stats: CollectionStats }) {
             <span className="text-muted-foreground ml-1 text-sm font-normal">
               / {stats.totalCardsInGame.toLocaleString()}
             </span>
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function StatsHeroStats({ stats }: { stats: CollectionStats }) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <Card size="sm">
+        <CardHeader>
+          <CardTitle className="text-muted-foreground flex items-center gap-1.5 text-xs font-normal">
+            <PackageIcon className="size-4" />
+            Total Copies
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-2xl font-semibold tabular-nums">
+            {stats.totalCopies.toLocaleString()}
           </p>
         </CardContent>
       </Card>
@@ -101,20 +123,6 @@ function HeroStats({ stats }: { stats: CollectionStats }) {
               {stats.unpricedCount} {stats.unpricedCount === 1 ? "copy" : "copies"} unpriced
             </p>
           )}
-        </CardContent>
-      </Card>
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle className="text-muted-foreground flex items-center gap-1.5 text-xs font-normal">
-            <CircleCheckBigIcon className="size-4" />
-            Completion
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-semibold tabular-nums">
-            {stats.completionPercent.toFixed(1)}%
-          </p>
-          <Progress value={stats.completionPercent} className="mt-2" />
         </CardContent>
       </Card>
     </div>
@@ -446,45 +454,42 @@ function CompletionSection({ stats }: { stats: CollectionStatsResult }) {
 
   return (
     <section>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h3 className="text-sm font-medium">Completion</h3>
-        <div className="ml-auto flex flex-wrap gap-2">
-          <ButtonGroup aria-label="Group by">
-            {GROUP_BY_OPTIONS.map((option) => (
-              <Button
-                key={option.value}
-                variant={groupBy === option.value ? "default" : "outline"}
-                size="sm"
-                className="text-xs"
-                onClick={() => setGroupBy(option.value)}
-              >
-                {option.label}
-              </Button>
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+        <ButtonGroup aria-label="Group by">
+          {GROUP_BY_OPTIONS.map((option) => (
+            <Button
+              key={option.value}
+              variant={groupBy === option.value ? "default" : "outline"}
+              size="sm"
+              className="text-xs"
+              onClick={() => setGroupBy(option.value)}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </ButtonGroup>
+        <TooltipProvider>
+          <ButtonGroup aria-label="Count mode">
+            {COUNT_MODE_OPTIONS.map((option) => (
+              <Tooltip key={option.value}>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant={countMode === option.value ? "default" : "outline"}
+                      size="sm"
+                      className="text-xs"
+                      onClick={() => setCountMode(option.value)}
+                    />
+                  }
+                >
+                  {option.label}
+                </TooltipTrigger>
+                <TooltipContent>{option.tooltip}</TooltipContent>
+              </Tooltip>
             ))}
           </ButtonGroup>
-          <TooltipProvider>
-            <ButtonGroup aria-label="Count mode">
-              {COUNT_MODE_OPTIONS.map((option) => (
-                <Tooltip key={option.value}>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        variant={countMode === option.value ? "default" : "outline"}
-                        size="sm"
-                        className="text-xs"
-                        onClick={() => setCountMode(option.value)}
-                      />
-                    }
-                  >
-                    {option.label}
-                  </TooltipTrigger>
-                  <TooltipContent>{option.tooltip}</TooltipContent>
-                </Tooltip>
-              ))}
-            </ButtonGroup>
-          </TooltipProvider>
-          <ScopeFilterPopover scope={scope} onScopeChange={setCompletionScope} />
-        </div>
+        </TooltipProvider>
+        <ScopeFilterPopover scope={scope} onScopeChange={setCompletionScope} />
       </div>
 
       {mainEntries.length === 0 && supplementalEntries.length === 0 ? (
@@ -680,29 +685,41 @@ function CollectionStatsContent() {
         <EmptyState />
       ) : (
         <div className="space-y-6">
-          <HeroStats stats={stats} />
-          <CompletionSection stats={stats} />
-          <DomainDistribution data={stats.domainDistribution} totalCopies={stats.totalCopies} />
+          {/* ── Completion ──────────────────────────────────── */}
+          <section className="space-y-4">
+            <h2 className="text-base font-semibold">Completion</h2>
+            <CompletionHeroStats stats={stats} />
+            <CompletionSection stats={stats} />
+          </section>
 
-          {(stats.energyCurve.length > 0 || stats.powerCurve.length > 0) && (
-            <section>
-              <h3 className="mb-2 text-sm font-medium">Energy &amp; Power</h3>
-              <EnergyPowerChart
-                energyData={stats.energyCurve}
-                energyStacks={stats.energyCurveStacks}
-                averageEnergy={stats.averageEnergy}
-                powerData={stats.powerCurve}
-                powerStacks={stats.powerCurveStacks}
-                averagePower={stats.averagePower}
-              />
-            </section>
-          )}
+          <Separator />
 
-          {stats.typeBreakdown.length > 0 && (
-            <section>
-              <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
-            </section>
-          )}
+          {/* ── Stats ───────────────────────────────────────── */}
+          <section className="space-y-4">
+            <h2 className="text-base font-semibold">Stats</h2>
+            <StatsHeroStats stats={stats} />
+            <DomainDistribution data={stats.domainDistribution} totalCopies={stats.totalCopies} />
+
+            {(stats.energyCurve.length > 0 || stats.powerCurve.length > 0) && (
+              <section>
+                <h3 className="mb-2 text-sm font-medium">Energy &amp; Power</h3>
+                <EnergyPowerChart
+                  energyData={stats.energyCurve}
+                  energyStacks={stats.energyCurveStacks}
+                  averageEnergy={stats.averageEnergy}
+                  powerData={stats.powerCurve}
+                  powerStacks={stats.powerCurveStacks}
+                  averagePower={stats.averagePower}
+                />
+              </section>
+            )}
+
+            {stats.typeBreakdown.length > 0 && (
+              <section>
+                <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
+              </section>
+            )}
+          </section>
         </div>
       )}
     </div>
