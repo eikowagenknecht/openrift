@@ -153,7 +153,7 @@ function ScopeFilterPopover({
     (scope.languages && scope.languages.length > 0) ||
     (scope.finishes && scope.finishes.length > 0) ||
     (scope.artVariants && scope.artVariants.length > 0) ||
-    scope.excludePromos;
+    scope.promos !== undefined;
 
   function toggleIn(current: string[] | undefined, value: string): string[] | undefined {
     if (!current || current.length === 0) {
@@ -180,7 +180,7 @@ function ScopeFilterPopover({
                 {(scope.languages?.length ?? 0) +
                   (scope.finishes?.length ?? 0) +
                   (scope.artVariants?.length ?? 0) +
-                  (scope.excludePromos ? 1 : 0)}
+                  (scope.promos ? 1 : 0)}
               </span>
             )}
           </Button>
@@ -236,13 +236,23 @@ function ScopeFilterPopover({
           <p className="text-muted-foreground mb-1.5 text-xs font-medium">Promos</p>
           <div className="flex flex-wrap gap-1">
             <Badge
-              variant={scope.excludePromos ? "default" : "outline"}
+              variant={scope.promos === undefined ? "outline" : "default"}
               className="cursor-pointer"
-              onClick={() =>
-                onScopeChange({ ...scope, excludePromos: !scope.excludePromos || undefined })
-              }
+              onClick={() => {
+                const next =
+                  scope.promos === undefined
+                    ? "only"
+                    : scope.promos === "only"
+                      ? "exclude"
+                      : undefined;
+                onScopeChange({ ...scope, promos: next });
+              }}
             >
-              Exclude promos
+              {scope.promos === "only"
+                ? "Only promos"
+                : scope.promos === "exclude"
+                  ? "No promos"
+                  : "Promo"}
             </Badge>
           </div>
         </div>

@@ -12,7 +12,8 @@ export interface CompletionScopePreference {
   languages?: string[];
   finishes?: string[];
   artVariants?: string[];
-  excludePromos?: boolean;
+  /** Tri-state: undefined = all, "only" = promos only, "exclude" = no promos. */
+  promos?: "only" | "exclude";
 }
 
 export interface UserPreferencesResponse {

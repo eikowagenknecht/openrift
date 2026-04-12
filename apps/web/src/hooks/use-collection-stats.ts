@@ -527,12 +527,12 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
  */
 export function filterByScope(printings: Printing[], scope: CompletionScopePreference): Printing[] {
   "use memo";
-  const { languages, finishes, artVariants, excludePromos } = scope;
+  const { languages, finishes, artVariants, promos } = scope;
   const hasLanguages = languages && languages.length > 0;
   const hasFinishes = finishes && finishes.length > 0;
   const hasArtVariants = artVariants && artVariants.length > 0;
 
-  if (!hasLanguages && !hasFinishes && !hasArtVariants && !excludePromos) {
+  if (!hasLanguages && !hasFinishes && !hasArtVariants && !promos) {
     return printings;
   }
 
@@ -546,7 +546,10 @@ export function filterByScope(printings: Printing[], scope: CompletionScopePrefe
     if (hasArtVariants && !artVariants.includes(printing.artVariant)) {
       return false;
     }
-    if (excludePromos && printing.promoType !== null) {
+    if (promos === "exclude" && printing.promoType !== null) {
+      return false;
+    }
+    if (promos === "only" && printing.promoType === null) {
       return false;
     }
     return true;
@@ -559,12 +562,12 @@ function filterStacksByScope(
   stacks: StackedEntry[],
   scope: CompletionScopePreference,
 ): StackedEntry[] {
-  const { languages, finishes, artVariants, excludePromos } = scope;
+  const { languages, finishes, artVariants, promos } = scope;
   const hasLanguages = languages && languages.length > 0;
   const hasFinishes = finishes && finishes.length > 0;
   const hasArtVariants = artVariants && artVariants.length > 0;
 
-  if (!hasLanguages && !hasFinishes && !hasArtVariants && !excludePromos) {
+  if (!hasLanguages && !hasFinishes && !hasArtVariants && !promos) {
     return stacks;
   }
 
@@ -579,7 +582,10 @@ function filterStacksByScope(
     if (hasArtVariants && !artVariants.includes(printing.artVariant)) {
       return false;
     }
-    if (excludePromos && printing.promoType !== null) {
+    if (promos === "exclude" && printing.promoType !== null) {
+      return false;
+    }
+    if (promos === "only" && printing.promoType === null) {
       return false;
     }
     return true;
