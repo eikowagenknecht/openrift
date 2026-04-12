@@ -12,6 +12,7 @@ export interface CompletionScopePreference {
   languages?: string[];
   finishes?: string[];
   artVariants?: string[];
+  excludePromos?: boolean;
 }
 
 export interface UserPreferencesResponse {

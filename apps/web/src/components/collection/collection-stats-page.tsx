@@ -152,7 +152,8 @@ function ScopeFilterPopover({
   const hasActiveFilters =
     (scope.languages && scope.languages.length > 0) ||
     (scope.finishes && scope.finishes.length > 0) ||
-    (scope.artVariants && scope.artVariants.length > 0);
+    (scope.artVariants && scope.artVariants.length > 0) ||
+    scope.excludePromos;
 
   function toggleIn(current: string[] | undefined, value: string): string[] | undefined {
     if (!current || current.length === 0) {
@@ -178,7 +179,8 @@ function ScopeFilterPopover({
               <span className="bg-primary text-primary-foreground flex size-4 items-center justify-center rounded-full text-[10px]">
                 {(scope.languages?.length ?? 0) +
                   (scope.finishes?.length ?? 0) +
-                  (scope.artVariants?.length ?? 0)}
+                  (scope.artVariants?.length ?? 0) +
+                  (scope.excludePromos ? 1 : 0)}
               </span>
             )}
           </Button>
@@ -228,6 +230,20 @@ function ScopeFilterPopover({
                 }
               />
             ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-muted-foreground mb-1.5 text-xs font-medium">Promos</p>
+          <div className="flex flex-wrap gap-1">
+            <Badge
+              variant={scope.excludePromos ? "default" : "outline"}
+              className="cursor-pointer"
+              onClick={() =>
+                onScopeChange({ ...scope, excludePromos: !scope.excludePromos || undefined })
+              }
+            >
+              Exclude promos
+            </Badge>
           </div>
         </div>
         {hasActiveFilters && (

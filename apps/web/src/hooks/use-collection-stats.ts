@@ -527,12 +527,12 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
  */
 export function filterByScope(printings: Printing[], scope: CompletionScopePreference): Printing[] {
   "use memo";
-  const { languages, finishes, artVariants } = scope;
+  const { languages, finishes, artVariants, excludePromos } = scope;
   const hasLanguages = languages && languages.length > 0;
   const hasFinishes = finishes && finishes.length > 0;
   const hasArtVariants = artVariants && artVariants.length > 0;
 
-  if (!hasLanguages && !hasFinishes && !hasArtVariants) {
+  if (!hasLanguages && !hasFinishes && !hasArtVariants && !excludePromos) {
     return printings;
   }
 
@@ -546,6 +546,9 @@ export function filterByScope(printings: Printing[], scope: CompletionScopePrefe
     if (hasArtVariants && !artVariants.includes(printing.artVariant)) {
       return false;
     }
+    if (excludePromos && printing.promoType !== null) {
+      return false;
+    }
     return true;
   });
 }
@@ -556,12 +559,12 @@ function filterStacksByScope(
   stacks: StackedEntry[],
   scope: CompletionScopePreference,
 ): StackedEntry[] {
-  const { languages, finishes, artVariants } = scope;
+  const { languages, finishes, artVariants, excludePromos } = scope;
   const hasLanguages = languages && languages.length > 0;
   const hasFinishes = finishes && finishes.length > 0;
   const hasArtVariants = artVariants && artVariants.length > 0;
 
-  if (!hasLanguages && !hasFinishes && !hasArtVariants) {
+  if (!hasLanguages && !hasFinishes && !hasArtVariants && !excludePromos) {
     return stacks;
   }
 
@@ -574,6 +577,9 @@ function filterStacksByScope(
       return false;
     }
     if (hasArtVariants && !artVariants.includes(printing.artVariant)) {
+      return false;
+    }
+    if (excludePromos && printing.promoType !== null) {
       return false;
     }
     return true;

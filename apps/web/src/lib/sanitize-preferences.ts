@@ -197,6 +197,9 @@ function sanitizeCompletionScope(value: unknown): CompletionScopePreference | nu
       result.artVariants = safe;
     }
   }
+  if (typeof record.excludePromos === "boolean" && record.excludePromos) {
+    result.excludePromos = true;
+  }
   return Object.keys(result).length > 0 ? result : null;
 }
 
