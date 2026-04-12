@@ -23,24 +23,21 @@ interface ResolvedCard {
  * Bidirectional resolver between card UUIDs and canonical short codes.
  *
  * A "canonical" printing is determined by a simple sort:
- *   1. Set sort order (ascending)
- *   2. Short code (alphabetical — picks base variant over alt-art/overnumbered)
- *   3. Non-promo first
- *   4. Normal finish before foil
- * Only EN-language printings are considered.
+ *   1. EN language preferred (falls back to other languages)
+ *   2. Set sort order (ascending)
+ *   3. Short code (alphabetical — picks base variant over alt-art/overnumbered)
+ *   4. Non-promo first
+ *   5. Normal finish before foil
  *
  * @returns An object with resolver methods bound to the given `db`.
  */
 export function canonicalPrintingsRepo(db: Kysely<Database>) {
   /**
-   * Base query: EN-language printings joined to sets.
+   * Base query: printings joined to sets.
    * @returns A query builder ready for further chaining.
    */
   function baseQuery() {
-    return db
-      .selectFrom("printings as p")
-      .innerJoin("sets as s", "s.id", "p.setId")
-      .where("p.language", "=", "EN");
+    return db.selectFrom("printings as p").innerJoin("sets as s", "s.id", "p.setId");
   }
 
   /**
@@ -52,6 +49,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
   function appendCanonicalOrder<T extends ReturnType<typeof baseQuery>>(query: T): T {
     return (
       query
+        .orderBy(sql`(p.language = 'EN') DESC`)
         .orderBy("s.sortOrder", "asc")
         .orderBy("p.shortCode", "asc")
         // oxlint-disable-next-line eslint-plugin-promise(prefer-await-to-then) -- Kysely CASE .then(), not Promise

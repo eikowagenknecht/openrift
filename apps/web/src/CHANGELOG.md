@@ -11,6 +11,7 @@
 - fix: The 3-dot menu on collection pages no longer squishes its items into a narrow column
 - fix: When a card has printings in multiple languages, the printings list now tags every row with its language code (`[EN]`, `[ZH]`, …) instead of confusingly labeling some rows "Standard"
 - fix: Card fan no longer hides behind the card's own label text or cards in the row below
+- fix: Set cover images on the sets page now show English card art instead of Chinese printings
 
 ## 2026-04-11
 

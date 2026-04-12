@@ -503,6 +503,7 @@ export function catalogRepo(db: Kysely<Database>) {
         .where(sql`${imageUrl("ci")}`, "is not", null)
         .distinctOn("printings.setId")
         .orderBy("printings.setId")
+        .orderBy(sql`(printings.language = 'EN') DESC`)
         .orderBy("printings.shortCode")
         .execute();
       return new Map(rows.filter((r) => r.url !== null).map((r) => [r.setId, r.url as string]));
