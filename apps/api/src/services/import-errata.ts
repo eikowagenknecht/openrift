@@ -12,7 +12,7 @@ interface EntryDiff extends EntryRef {
   fields: { field: string; from: unknown; to: unknown }[];
 }
 
-export interface ImportErrataResult {
+interface ImportErrataResult {
   dryRun: boolean;
   newCount: number;
   updatedCount: number;

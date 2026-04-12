@@ -104,7 +104,7 @@ export interface BulkErrataEntry {
   effectiveDate?: string | null;
 }
 
-export interface BulkErrataUploadBody {
+interface BulkErrataUploadBody {
   dryRun: boolean;
   entries: BulkErrataEntry[];
 }
