@@ -76,6 +76,9 @@ export type AdminDomainsResponse = InferResponseType<
 export type AdminFinishesResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["finishes"]["$get"]
 >;
+export type AdminRaritiesResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["rarities"]["$get"]
+>;
 
 // ── Public endpoints ────────────────────────────────────────────────────────
 export type InitResponse = InferResponseType<Client["api"]["v1"]["init"]["$get"]>;

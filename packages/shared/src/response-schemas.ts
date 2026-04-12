@@ -130,7 +130,7 @@ const enumRowSchema = z.object({
   sortOrder: z.number().openapi({ example: 1 }),
 });
 
-const domainEnumRowSchema = enumRowSchema.extend({
+const coloredEnumRowSchema = enumRowSchema.extend({
   color: z.string().nullable().openapi({ example: "#b8336a" }),
 });
 
@@ -138,8 +138,8 @@ export const initResponseSchema = z
   .object({
     enums: z.object({
       cardTypes: z.array(enumRowSchema),
-      rarities: z.array(enumRowSchema),
-      domains: z.array(domainEnumRowSchema),
+      rarities: z.array(coloredEnumRowSchema),
+      domains: z.array(coloredEnumRowSchema),
       superTypes: z.array(enumRowSchema),
       finishes: z.array(enumRowSchema),
       artVariants: z.array(enumRowSchema),

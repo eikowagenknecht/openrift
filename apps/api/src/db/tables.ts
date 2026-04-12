@@ -720,7 +720,9 @@ export interface ReferenceTable {
 }
 
 export type CardTypesTable = ReferenceTable;
-export type RaritiesTable = ReferenceTable;
+export interface RaritiesTable extends ReferenceTable {
+  color: string | null;
+}
 export interface DomainsTable extends ReferenceTable {
   color: string | null;
 }

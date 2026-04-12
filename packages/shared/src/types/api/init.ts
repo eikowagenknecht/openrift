@@ -6,15 +6,15 @@ interface EnumRow {
   sortOrder: number;
 }
 
-interface DomainEnumRow extends EnumRow {
+interface ColoredEnumRow extends EnumRow {
   color: string | null;
 }
 
 export interface InitResponse {
   enums: {
     cardTypes: EnumRow[];
-    rarities: EnumRow[];
-    domains: DomainEnumRow[];
+    rarities: ColoredEnumRow[];
+    domains: ColoredEnumRow[];
     superTypes: EnumRow[];
     finishes: EnumRow[];
     artVariants: EnumRow[];

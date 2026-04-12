@@ -27,6 +27,7 @@ export type {
   UserPreferencesTable,
   WishListItemsTable,
   WishListsTable,
+  RaritiesTable,
   ReferenceTable,
   FieldChange,
 } from "./types.js";
