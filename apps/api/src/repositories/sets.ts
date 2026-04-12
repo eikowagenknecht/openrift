@@ -78,7 +78,12 @@ export function setsRepo(db: Kysely<Database>) {
      */
     async update(
       id: string,
-      values: { name: string; printedTotal: number | null; releasedAt: string | null },
+      values: {
+        name: string;
+        printedTotal: number | null;
+        releasedAt: string | null;
+        setType: "main" | "supplemental";
+      },
     ): Promise<boolean> {
       const result = await db
         .updateTable("sets")

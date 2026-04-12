@@ -32,7 +32,7 @@ type CatalogCardErrataRow = Pick<
 >;
 
 /** Set columns returned by the catalog. */
-type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name" | "releasedAt">;
+type CatalogSetRow = Pick<Selectable<SetsTable>, "id" | "slug" | "name" | "releasedAt" | "setType">;
 
 /** Active printing image with resolved URL (null URLs filtered at query level). */
 type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId" | "face"> & {
@@ -64,7 +64,7 @@ export function catalogRepo(db: Kysely<Database>) {
     sets(): Promise<CatalogSetRow[]> {
       return db
         .selectFrom("sets")
-        .select(["id", "slug", "name", "releasedAt"])
+        .select(["id", "slug", "name", "releasedAt", "setType"])
         .orderBy("sortOrder")
         .execute();
     },
@@ -382,7 +382,7 @@ export function catalogRepo(db: Kysely<Database>) {
       }
       return db
         .selectFrom("sets")
-        .select(["id", "slug", "name", "releasedAt"])
+        .select(["id", "slug", "name", "releasedAt", "setType"])
         .where("id", "in", ids)
         .orderBy("sortOrder")
         .execute();
@@ -392,7 +392,7 @@ export function catalogRepo(db: Kysely<Database>) {
     setBySlug(slug: string): Promise<CatalogSetRow | undefined> {
       return db
         .selectFrom("sets")
-        .select(["id", "slug", "name", "releasedAt"])
+        .select(["id", "slug", "name", "releasedAt", "setType"])
         .where("slug", "=", slug)
         .executeTakeFirst();
     },

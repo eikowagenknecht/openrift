@@ -220,6 +220,7 @@ export const catalogSetResponseSchema = z.object({
   slug: z.string().openapi({ example: "OGN" }),
   name: z.string().openapi({ example: "Origins" }),
   releasedAt: z.string().nullable().openapi({ example: "2025-10-31" }),
+  setType: z.enum(["main", "supplemental"]).openapi({ example: "main" }),
 });
 
 const promoTypeSchema = z.object({

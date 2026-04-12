@@ -1,5 +1,5 @@
 import type { Card, CardImageVariants, PrintingImage, PromoType } from "../catalog.js";
-import type { ArtVariant, Finish, Rarity } from "../enums.js";
+import type { ArtVariant, Finish, Rarity, SetType } from "../enums.js";
 import type { PriceMap } from "./pricing.js";
 
 export interface CatalogSetResponse {
@@ -7,6 +7,7 @@ export interface CatalogSetResponse {
   slug: string;
   name: string;
   releasedAt: string | null;
+  setType: SetType;
 }
 
 /** Wire type for a single card (adds `id` back for endpoints that return cards outside a map). */

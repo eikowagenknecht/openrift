@@ -4,8 +4,16 @@ import { Link } from "@tanstack/react-router";
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { CountBadge } from "@/components/admin/count-badge";
+import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   useCreateSet,
   useDeleteSet,
@@ -19,6 +27,7 @@ interface SetDraft {
   name: string;
   printedTotal: string;
   releasedAt: string;
+  setType: "main" | "supplemental";
 }
 
 export function SetsPage() {
@@ -115,6 +124,49 @@ export function SetsPage() {
       ),
     },
     {
+      header: "Type",
+      width: "w-36",
+      cell: (s) => (
+        <Badge variant={s.setType === "main" ? "default" : "secondary"}>{s.setType}</Badge>
+      ),
+      editCell: (d, set) => (
+        <Select
+          value={d.setType}
+          onValueChange={(value) => {
+            if (value) {
+              set((prev) => ({ ...prev, setType: value as "main" | "supplemental" }));
+            }
+          }}
+        >
+          <SelectTrigger className="h-8 w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="main">main</SelectItem>
+            <SelectItem value="supplemental">supplemental</SelectItem>
+          </SelectContent>
+        </Select>
+      ),
+      addCell: (d, set) => (
+        <Select
+          value={d.setType}
+          onValueChange={(value) => {
+            if (value) {
+              set((prev) => ({ ...prev, setType: value as "main" | "supplemental" }));
+            }
+          }}
+        >
+          <SelectTrigger className="h-8 w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="main">main</SelectItem>
+            <SelectItem value="supplemental">supplemental</SelectItem>
+          </SelectContent>
+        </Select>
+      ),
+    },
+    {
       header: "Cards",
       width: "w-24",
       align: "right",
@@ -155,7 +207,13 @@ export function SetsPage() {
         isPending: reorderMutation.isPending,
       }}
       add={{
-        emptyDraft: { id: "", name: "", printedTotal: "", releasedAt: "" },
+        emptyDraft: {
+          id: "",
+          name: "",
+          printedTotal: "",
+          releasedAt: "",
+          setType: "main" as const,
+        },
         onSave: (d) => {
           const printedTotal = parseInt(d.printedTotal, 10);
           return createMutation.mutateAsync({
@@ -183,6 +241,7 @@ export function SetsPage() {
           name: s.name,
           printedTotal: s.printedTotal === null ? "" : String(s.printedTotal),
           releasedAt: s.releasedAt ?? "",
+          setType: s.setType,
         }),
         onSave: (d) => {
           const printedTotal = parseInt(d.printedTotal, 10);
@@ -191,6 +250,7 @@ export function SetsPage() {
             name: d.name,
             printedTotal: isNaN(printedTotal) ? 0 : printedTotal,
             releasedAt: d.releasedAt || null,
+            setType: d.setType,
           });
         },
         validate: (d) => {

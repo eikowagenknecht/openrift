@@ -30,7 +30,13 @@ export function useSets() {
 
 const updateSetFn = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { id: string; name: string; printedTotal: number; releasedAt: string | null }) => input,
+    (input: {
+      id: string;
+      name: string;
+      printedTotal: number;
+      releasedAt: string | null;
+      setType: "main" | "supplemental";
+    }) => input,
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
@@ -51,6 +57,7 @@ export function useUpdateSet() {
       name: string;
       printedTotal: number;
       releasedAt: string | null;
+      setType: "main" | "supplemental";
     }) => {
       await updateSetFn({ data: body });
     },

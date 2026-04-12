@@ -1,5 +1,5 @@
 import type { CardErrata } from "../catalog.js";
-import type { CardFace } from "../enums.js";
+import type { CardFace, SetType } from "../enums.js";
 
 export interface CandidateCardResponse {
   id: string;
@@ -222,6 +222,7 @@ export interface AdminSetResponse {
   printedTotal: number | null;
   sortOrder: number;
   releasedAt: string | null;
+  setType: SetType;
   cardCount: number;
   printingCount: number;
 }

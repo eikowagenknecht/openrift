@@ -134,6 +134,7 @@ describe("PATCH /api/v1/sets/:id", () => {
         name: "Updated Name",
         printedTotal: 200,
         releasedAt: "2026-06-01",
+        setType: "main",
       }),
     });
     expect(res.status).toBe(204);
@@ -141,6 +142,7 @@ describe("PATCH /api/v1/sets/:id", () => {
       name: "Updated Name",
       printedTotal: 200,
       releasedAt: "2026-06-01",
+      setType: "main",
     });
   });
 
@@ -153,6 +155,7 @@ describe("PATCH /api/v1/sets/:id", () => {
         name: "Updated",
         printedTotal: 100,
         releasedAt: null,
+        setType: "main",
       }),
     });
     expect(res.status).toBe(404);
@@ -169,6 +172,7 @@ describe("PATCH /api/v1/sets/:id", () => {
         name: "Test",
         printedTotal: 50,
         releasedAt: null,
+        setType: "supplemental",
       }),
     });
     expect(res.status).toBe(204);
@@ -176,6 +180,7 @@ describe("PATCH /api/v1/sets/:id", () => {
       name: "Test",
       printedTotal: 50,
       releasedAt: null,
+      setType: "supplemental",
     });
   });
 });

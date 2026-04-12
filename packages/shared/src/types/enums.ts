@@ -60,6 +60,8 @@ export const DEFAULT_ENUM_ORDERS: EnumOrders = {
 // These are structural to the app and stay hardcoded — adding a value always
 // requires code changes.
 
+export type SetType = "main" | "supplemental";
+
 export type ActivityAction = "added" | "removed" | "moved";
 
 /** Backed by `deck_formats` reference table. */

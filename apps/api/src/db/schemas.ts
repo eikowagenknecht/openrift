@@ -39,6 +39,7 @@ export const setFieldRules = {
   slug: z.string().min(1),
   name: z.string().min(1),
   printedTotal: z.number().int().min(0).nullable(),
+  setType: z.enum(["main", "supplemental"]),
 } satisfies Record<string, z.ZodType>;
 
 /** Mirrors DB constraints on the `cards` table. @see {@link CardsTable} */

@@ -26,6 +26,7 @@ const listSets = createRoute({
                 printedTotal: z.number().nullable().openapi({ example: 298 }),
                 sortOrder: z.number().openapi({ example: 1 }),
                 releasedAt: z.string().nullable().openapi({ example: "2025-10-31" }),
+                setType: z.enum(["main", "supplemental"]).openapi({ example: "main" }),
                 cardCount: z.number().openapi({ example: 312 }),
                 printingCount: z.number().openapi({ example: 468 }),
               }),
@@ -123,6 +124,7 @@ export const catalogRoute = new OpenAPIHono<{ Variables: Variables }>()
           printedTotal: s.printedTotal,
           sortOrder: s.sortOrder,
           releasedAt: s.releasedAt,
+          setType: s.setType,
           cardCount: cardCountMap.get(s.id) ?? 0,
           printingCount: printingCountMap.get(s.id) ?? 0,
         }),
@@ -133,9 +135,9 @@ export const catalogRoute = new OpenAPIHono<{ Variables: Variables }>()
   .openapi(updateSet, async (c) => {
     const { sets: setsRepo } = c.get("repos");
     const { id } = c.req.valid("param");
-    const { name, printedTotal, releasedAt } = c.req.valid("json");
+    const { name, printedTotal, releasedAt, setType } = c.req.valid("json");
 
-    const updated = await setsRepo.update(id, { name, printedTotal, releasedAt });
+    const updated = await setsRepo.update(id, { name, printedTotal, releasedAt, setType });
     if (!updated) {
       throw new AppError(404, ERROR_CODES.NOT_FOUND, `Set "${id}" not found`);
     }

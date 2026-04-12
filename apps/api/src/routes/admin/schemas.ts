@@ -8,6 +8,7 @@ export const updateSetSchema = z.object({
   name: setFieldRules.name,
   printedTotal: setFieldRules.printedTotal,
   releasedAt: z.string().nullable(),
+  setType: setFieldRules.setType,
 });
 
 export const createSetSchema = z.object({

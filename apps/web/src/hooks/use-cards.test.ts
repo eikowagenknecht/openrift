@@ -84,6 +84,7 @@ const CATALOG_RESPONSE: CatalogResponse = {
       slug: "RB1",
       name: "First Set",
       releasedAt: null,
+      setType: "main",
     },
   ],
   cards: {
@@ -130,6 +131,7 @@ describe("useCards", () => {
         slug: "RB1",
         name: "First Set",
         releasedAt: null,
+        setType: "main",
       },
     ]);
     expect(raw.totalCopies).toBe(150);
@@ -162,6 +164,7 @@ describe("useCards", () => {
         slug: "RB1",
         name: "First Set",
         releasedAt: null,
+        setType: "main",
       },
     ]);
   });

@@ -8,6 +8,7 @@ export type {
   Domain,
   Finish,
   Rarity,
+  SetType,
   SuperType,
 } from "./enums.js";
 export type { EnumOrders } from "./enums.js";
