@@ -217,6 +217,27 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // In "cards" view, sum copy counts across all printings of the same card
   const copyCountByCardId = buildCopyCountByCardId(stacks);
 
+  // In "cards" view, collect all copy IDs and printing IDs per card for selection/popover
+  const allCopyIdsByCardId = new Map<string, string[]>();
+  const allPrintingIdsByCardId = new Map<string, string[]>();
+  if (dataView === "cards") {
+    for (const stack of stacks) {
+      const cardId = stack.printing.cardId;
+      const copyIds = allCopyIdsByCardId.get(cardId);
+      if (copyIds) {
+        copyIds.push(...stack.copyIds);
+      } else {
+        allCopyIdsByCardId.set(cardId, [...stack.copyIds]);
+      }
+      const printingIds = allPrintingIdsByCardId.get(cardId);
+      if (printingIds) {
+        printingIds.push(stack.printingId);
+      } else {
+        allPrintingIdsByCardId.set(cardId, [stack.printingId]);
+      }
+    }
+  }
+
   // "copies" view expands individual copies; "cards"/"printings" stay stacked
   const stacked = view !== "copies";
   const [moveOpen, setMoveOpen] = useState(false);
@@ -440,16 +461,20 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       return null;
     }
 
+    // In "cards" view, operate on all copies across all printings of the same card
+    const cardCopyIds = allCopyIdsByCardId.get(item.printing.cardId);
+    const effectiveCopyIds = cardCopyIds ?? stack.copyIds;
+
     const isItemSelected =
       mode === "select"
         ? stacked
-          ? stack.copyIds.every((id) => selected.has(id))
+          ? effectiveCopyIds.every((id) => selected.has(id))
           : selected.has(item.id)
         : false;
 
     const handleToggle = () => {
       if (stacked) {
-        toggleStack(stack.copyIds);
+        toggleStack(effectiveCopyIds);
       } else {
         toggleSelect(item.id);
       }
@@ -473,9 +498,14 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       for (let idx = lo; idx <= hi; idx++) {
         const rangeItem = items[idx];
         if (stacked) {
-          const rangeStack = stackByItemId.get(rangeItem.id);
-          if (rangeStack) {
-            rangeIds.push(...rangeStack.copyIds);
+          const rangeCardCopyIds = allCopyIdsByCardId.get(rangeItem.printing.cardId);
+          if (rangeCardCopyIds) {
+            rangeIds.push(...rangeCardCopyIds);
+          } else {
+            const rangeStack = stackByItemId.get(rangeItem.id);
+            if (rangeStack) {
+              rangeIds.push(...rangeStack.copyIds);
+            }
           }
         } else {
           rangeIds.push(rangeItem.id);
@@ -514,7 +544,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       mode === "select" && isItemSelected && selected.size > 0
         ? [...selected]
         : stacked
-          ? stack.copyIds
+          ? effectiveCopyIds
           : [item.id];
 
     return (
@@ -547,6 +577,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
                 printingId={item.printing.id}
                 cardName={item.printing.card.name}
                 shortCode={item.printing.shortCode}
+                allPrintingIds={allPrintingIdsByCardId.get(item.printing.cardId)}
               />
             }
           />

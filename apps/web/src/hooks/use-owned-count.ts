@@ -55,3 +55,30 @@ export function useOwnedCollections(printingId: string, enabled: boolean) {
     staleTime: STALE_TIME_MS,
   });
 }
+
+/**
+ * Aggregates owned-collection breakdown across multiple printings of the same card.
+ * @returns Merged per-collection entries with summed counts.
+ */
+export function useOwnedCollectionsByPrintings(printingIds: string[], enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.ownedCount.all,
+    queryFn: () => fetchOwnedBreakdownFn(),
+    select: (data: CopyCollectionBreakdownResponse): CopyCollectionBreakdownEntry[] => {
+      const merged = new Map<string, CopyCollectionBreakdownEntry>();
+      for (const pid of printingIds) {
+        for (const entry of data.items[pid] ?? []) {
+          const existing = merged.get(entry.collectionId);
+          if (existing) {
+            existing.count += entry.count;
+          } else {
+            merged.set(entry.collectionId, { ...entry });
+          }
+        }
+      }
+      return [...merged.values()];
+    },
+    enabled,
+    staleTime: STALE_TIME_MS,
+  });
+}

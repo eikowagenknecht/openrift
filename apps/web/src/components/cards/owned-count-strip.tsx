@@ -5,6 +5,8 @@ interface OwnedCountStripProps {
   printingId?: string;
   cardName?: string;
   shortCode?: string;
+  /** All printing IDs for the same card (cards view), passed to the popover for aggregated breakdown. */
+  allPrintingIds?: string[];
 }
 
 /**
@@ -14,7 +16,13 @@ interface OwnedCountStripProps {
  * When a `printingId` is provided, clicking the count opens a collection breakdown popover.
  * @returns The owned-count strip.
  */
-export function OwnedCountStrip({ count, printingId, cardName, shortCode }: OwnedCountStripProps) {
+export function OwnedCountStrip({
+  count,
+  printingId,
+  cardName,
+  shortCode,
+  allPrintingIds,
+}: OwnedCountStripProps) {
   return (
     // ⚠ h-5 + mb-1 = 24px is mirrored as ADD_STRIP_HEIGHT in card-grid-constants — update both together
     <div className="relative z-10 mb-1 flex h-5 items-center justify-center">
@@ -24,6 +32,7 @@ export function OwnedCountStrip({ count, printingId, cardName, shortCode }: Owne
           cardName={cardName}
           shortCode={shortCode}
           count={count}
+          allPrintingIds={allPrintingIds}
           align="center"
         />
       ) : (
