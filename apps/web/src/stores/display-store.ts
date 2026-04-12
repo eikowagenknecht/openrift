@@ -78,7 +78,7 @@ interface DisplayState {
   ) => void;
 
   // Hydrate overrides from server data (used by sync hook)
-  hydrateOverrides: (incoming: DisplayOverrides) => void;
+  hydrateOverrides: (incoming: Partial<DisplayOverrides>) => void;
 
   // Device-local — not synced
   maxColumns: number | null;
@@ -147,10 +147,31 @@ export const useDisplayStore = create<DisplayState>()(
         }),
 
       hydrateOverrides: (incoming) =>
-        set(() => ({
-          overrides: incoming,
-          ...resolveAll(incoming),
-        })),
+        set((state) => {
+          // Merge: only overwrite fields the server explicitly provided.
+          // Undefined fields keep the existing localStorage value.
+          const merged: DisplayOverrides = {
+            showImages:
+              incoming.showImages === undefined ? state.overrides.showImages : incoming.showImages,
+            fancyFan:
+              incoming.fancyFan === undefined ? state.overrides.fancyFan : incoming.fancyFan,
+            foilEffect:
+              incoming.foilEffect === undefined ? state.overrides.foilEffect : incoming.foilEffect,
+            cardTilt:
+              incoming.cardTilt === undefined ? state.overrides.cardTilt : incoming.cardTilt,
+            marketplaceOrder:
+              incoming.marketplaceOrder === undefined
+                ? state.overrides.marketplaceOrder
+                : incoming.marketplaceOrder,
+            languages:
+              incoming.languages === undefined ? state.overrides.languages : incoming.languages,
+            completionScope:
+              incoming.completionScope === undefined
+                ? state.overrides.completionScope
+                : incoming.completionScope,
+          };
+          return { overrides: merged, ...resolveAll(merged) };
+        }),
 
       maxColumns: null,
       setMaxColumns: (value) =>

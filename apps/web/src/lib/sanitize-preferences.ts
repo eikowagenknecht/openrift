@@ -46,14 +46,52 @@ export function sanitizeOverrides(data: unknown): SanitizedOverrides {
 
 /**
  * Sanitizes server response data (UserPreferencesResponse) into overrides.
- * Missing fields become null (use default).
- * @returns Display overrides.
+ * Missing fields stay undefined so hydration preserves the localStorage value.
+ * @returns Partial display overrides (undefined = server had no value for this field).
  */
-export function sanitizeServerResponse(data: unknown): DisplayOverrides {
+export function sanitizeServerResponse(data: unknown): Partial<DisplayOverrides> {
   if (typeof data !== "object" || data === null) {
-    return nullOverrides();
+    return {};
   }
-  return sanitizeOverrideFields(data as Record<string, unknown>);
+  const record = data as Record<string, unknown>;
+  const result: Partial<DisplayOverrides> = {};
+
+  if ("showImages" in record) {
+    result.showImages = typeof record.showImages === "boolean" ? record.showImages : null;
+  }
+  if ("fancyFan" in record) {
+    result.fancyFan = typeof record.fancyFan === "boolean" ? record.fancyFan : null;
+  }
+  if ("foilEffect" in record) {
+    result.foilEffect =
+      typeof record.foilEffect === "boolean"
+        ? record.foilEffect
+        : typeof record.foilEffect === "string"
+          ? record.foilEffect !== "none"
+          : null;
+  }
+  if ("cardTilt" in record) {
+    result.cardTilt = typeof record.cardTilt === "boolean" ? record.cardTilt : null;
+  }
+  if ("marketplaceOrder" in record) {
+    result.marketplaceOrder = Array.isArray(record.marketplaceOrder)
+      ? record.marketplaceOrder.filter(
+          (marketplace): marketplace is Marketplace =>
+            typeof marketplace === "string" && VALID_MARKETPLACES.has(marketplace),
+        )
+      : null;
+  }
+  if ("languages" in record) {
+    result.languages = Array.isArray(record.languages)
+      ? record.languages.filter(
+          (lang): lang is string => typeof lang === "string" && lang.length > 0,
+        )
+      : null;
+  }
+  if ("completionScope" in record) {
+    result.completionScope = sanitizeCompletionScope(record.completionScope);
+  }
+  return result;
 }
 
 /**

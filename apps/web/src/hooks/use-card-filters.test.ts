@@ -27,6 +27,7 @@ function defaultFilterState() {
   return {
     search: "",
     sets: [],
+    languages: [],
     rarities: [],
     types: [],
     superTypes: [],
@@ -49,6 +50,8 @@ function defaultFilterState() {
     sort: "id",
     sortDir: "asc",
     view: "cards",
+    groupBy: "set",
+    groupDir: "asc",
   };
 }
 
@@ -143,6 +146,7 @@ describe("useCardFilters", () => {
     expect(mockSetFilterState).toHaveBeenCalledWith({
       search: null,
       sets: null,
+      languages: null,
       rarities: null,
       types: null,
       superTypes: null,

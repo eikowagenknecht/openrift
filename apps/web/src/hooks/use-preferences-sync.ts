@@ -7,7 +7,6 @@ import { queryKeys } from "@/lib/query-keys";
 import { sanitizeServerResponse, sanitizeTheme } from "@/lib/sanitize-preferences";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
-import type { DisplayOverrides } from "@/stores/display-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
 
@@ -88,7 +87,7 @@ export function usePreferencesSync(enabled: boolean) {
 
     hydrating.current = true;
 
-    const overrides: DisplayOverrides = sanitizeServerResponse(data);
+    const overrides = sanitizeServerResponse(data);
     useDisplayStore.getState().hydrateOverrides(overrides);
 
     const theme = sanitizeTheme((data as Record<string, unknown>).theme);
