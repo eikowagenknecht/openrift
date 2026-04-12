@@ -113,6 +113,7 @@ export function ActiveFilters({
     filterState.search !== "" ||
     filterGroups.length > 0 ||
     rangeBadgeSections.some(({ key }) => ranges[key].min !== null || ranges[key].max !== null) ||
+    filterState.owned !== null ||
     filterState.signed !== null ||
     filterState.promo !== null ||
     filterState.banned !== null ||
@@ -182,6 +183,17 @@ export function ActiveFilters({
             />
           );
         })}
+        {filterState.owned !== null && (
+          <div className="flex items-center gap-1">
+            <span className="text-muted-foreground text-xs">Owned:</span>
+            <Badge variant="secondary" className="gap-1">
+              {filterState.owned === "false" ? "Missing" : "Owned"}
+              <button type="button" onClick={clearOwned} className="hover:text-foreground ml-0.5">
+                <XIcon className="size-3" />
+              </button>
+            </Badge>
+          </div>
+        )}
         {filterState.signed !== null && (
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground text-xs">Flag:</span>
