@@ -300,7 +300,13 @@ export const CardThumbnail = memo(function CardThumbnail({
   );
 
   const imageSection = (
-    <div className={cn("relative", dimmed && "opacity-50")}>
+    <div
+      className={cn(
+        "relative",
+        otherPrintings.length > 0 && "group-hover:z-20",
+        dimmed && "opacity-50",
+      )}
+    >
       {otherPrintings.map((sibling, i) => {
         const depth = otherPrintings.length - i;
         const siblingThumbnail = sibling.images[0]?.thumbnail ?? null;
@@ -464,7 +470,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   if (topSlot) {
     const wrapperClassName = cn(
       // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
-      "group relative w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
+      "group relative z-0 w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
       otherPrintings.length > 0 && "hover:[--fan:1]",
     );
     const wrapperStyle =
@@ -518,7 +524,7 @@ export const CardThumbnail = memo(function CardThumbnail({
     <div
       className={cn(
         // ⚠ p-1.5 is mirrored as BUTTON_PAD in card-grid.tsx — update both together
-        "group relative w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
+        "group relative z-0 w-full rounded-lg p-1.5 text-left transition-all hover:z-10",
         otherPrintings.length > 0 && "hover:[--fan:1]",
       )}
       onMouseEnter={fanMouseEnter}

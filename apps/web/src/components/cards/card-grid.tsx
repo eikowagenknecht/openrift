@@ -692,6 +692,7 @@ export function CardGrid({
             <div
               key={vItem.key}
               data-index={vItem.index}
+              className="has-[:hover]:z-10"
               style={{
                 position: "absolute",
                 top: 0,
