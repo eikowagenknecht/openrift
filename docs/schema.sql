@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict XwjeRtH9xi2Po1bFX15CGotjq7SFWjNcau1QJM9DLjXytKXrfDaqcX9n6VYxCmy
+\restrict mui92sgeadlSmFGCNkzl8dOBDR7LVxkHY9RrfosgTzemyZdq3zh84TUKXYKxQMu
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -812,6 +812,82 @@ CREATE TABLE public.marketplace_staging_card_overrides (
 
 
 --
+-- Name: mv_card_aggregates; Type: MATERIALIZED VIEW; Schema: public; Owner: -
+--
+
+CREATE MATERIALIZED VIEW public.mv_card_aggregates AS
+ SELECT id AS card_id,
+    COALESCE(( SELECT array_agg(cd.domain_slug ORDER BY cd.ordinal) AS array_agg
+           FROM public.card_domains cd
+          WHERE (cd.card_id = c.id)), '{}'::text[]) AS domains,
+    COALESCE(( SELECT array_agg(cst.super_type_slug) AS array_agg
+           FROM public.card_super_types cst
+          WHERE (cst.card_id = c.id)), '{}'::text[]) AS super_types
+   FROM public.cards c
+  WITH NO DATA;
+
+
+--
+-- Name: printings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.printings (
+    short_code text CONSTRAINT printings_source_id_not_null NOT NULL,
+    rarity text NOT NULL,
+    art_variant text NOT NULL,
+    is_signed boolean DEFAULT false NOT NULL,
+    finish text NOT NULL,
+    artist text NOT NULL,
+    public_code text NOT NULL,
+    printed_rules_text text,
+    printed_effect_text text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    flavor_text text,
+    id uuid DEFAULT uuidv7() CONSTRAINT printings_new_id_not_null NOT NULL,
+    card_id uuid CONSTRAINT printings_new_card_id_not_null NOT NULL,
+    set_id uuid CONSTRAINT printings_new_set_id_not_null NOT NULL,
+    comment text,
+    promo_type_id uuid,
+    language text DEFAULT 'EN'::text NOT NULL,
+    printed_name text,
+    CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_printed_name CHECK ((printed_name <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
+    CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
+    CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text))
+);
+
+
+--
+-- Name: mv_latest_printing_prices; Type: MATERIALIZED VIEW; Schema: public; Owner: -
+--
+
+CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
+ SELECT DISTINCT ON (target.id, mp.marketplace) target.id AS printing_id,
+    mp.marketplace,
+        CASE
+            WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(snap.low_cents, snap.market_cents)
+            ELSE COALESCE(snap.market_cents, snap.low_cents)
+        END AS headline_cents
+   FROM ((((public.printings target
+     JOIN public.printings source ON (((source.card_id = target.card_id) AND (source.short_code = target.short_code) AND (source.finish = target.finish) AND (source.art_variant = target.art_variant) AND (source.is_signed = target.is_signed) AND (NOT (source.promo_type_id IS DISTINCT FROM target.promo_type_id)))))
+     JOIN public.marketplace_product_variants mpv ON ((mpv.printing_id = source.id)))
+     JOIN public.marketplace_products mp ON ((mp.id = mpv.marketplace_product_id)))
+     JOIN public.marketplace_snapshots snap ON ((snap.variant_id = mpv.id)))
+  WHERE ((
+        CASE
+            WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(snap.low_cents, snap.market_cents)
+            ELSE COALESCE(snap.market_cents, snap.low_cents)
+        END IS NOT NULL) AND ((mpv.language IS NULL) OR (source.id = target.id)))
+  ORDER BY target.id, mp.marketplace, snap.recorded_at DESC
+  WITH NO DATA;
+
+
+--
 -- Name: printing_events; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -857,41 +933,6 @@ CREATE TABLE public.printing_link_overrides (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     printing_id uuid NOT NULL,
     CONSTRAINT chk_plo_no_empty_external_id CHECK ((external_id <> ''::text))
-);
-
-
---
--- Name: printings; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.printings (
-    short_code text CONSTRAINT printings_source_id_not_null NOT NULL,
-    rarity text NOT NULL,
-    art_variant text NOT NULL,
-    is_signed boolean DEFAULT false NOT NULL,
-    finish text NOT NULL,
-    artist text NOT NULL,
-    public_code text NOT NULL,
-    printed_rules_text text,
-    printed_effect_text text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    flavor_text text,
-    id uuid DEFAULT uuidv7() CONSTRAINT printings_new_id_not_null NOT NULL,
-    card_id uuid CONSTRAINT printings_new_card_id_not_null NOT NULL,
-    set_id uuid CONSTRAINT printings_new_set_id_not_null NOT NULL,
-    comment text,
-    promo_type_id uuid,
-    language text DEFAULT 'EN'::text NOT NULL,
-    printed_name text,
-    CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_printed_name CHECK ((printed_name <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
-    CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
-    CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text))
 );
 
 
@@ -1978,6 +2019,20 @@ CREATE INDEX idx_marketplace_staging_marketplace_group_id ON public.marketplace_
 
 
 --
+-- Name: idx_mv_card_aggregates_pk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_mv_card_aggregates_pk ON public.mv_card_aggregates USING btree (card_id);
+
+
+--
+-- Name: idx_mv_latest_printing_prices_pk; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX idx_mv_latest_printing_prices_pk ON public.mv_latest_printing_prices USING btree (printing_id, marketplace);
+
+
+--
 -- Name: idx_printing_events_status_created; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2928,5 +2983,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict XwjeRtH9xi2Po1bFX15CGotjq7SFWjNcau1QJM9DLjXytKXrfDaqcX9n6VYxCmy
+\unrestrict mui92sgeadlSmFGCNkzl8dOBDR7LVxkHY9RrfosgTzemyZdq3zh84TUKXYKxQMu
 
