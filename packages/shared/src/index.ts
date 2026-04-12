@@ -43,6 +43,7 @@ export type {
   ClearPricesResponse,
   CleanupOrphanedResponse,
   ClearRehostedResponse,
+  CompletionScopePreference,
   CollectionListResponse,
   CollectionResponse,
   CopyCollectionBreakdownEntry,

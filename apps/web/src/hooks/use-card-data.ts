@@ -163,16 +163,22 @@ export function useCardData({
 
   // Apply ownership filter (frontend-only, needs user copy data)
   if (isOwned !== null && isOwned !== undefined && ownedCountByPrinting) {
-    // Build set of owned card IDs for "cards" view deduplication
-    const ownedCardIds = new Set<string>();
-    for (const printing of langFiltered) {
-      if ((ownedCountByPrinting[printing.id] ?? 0) > 0) {
-        ownedCardIds.add(printing.cardId);
+    if (view === "printings") {
+      filteredCards = isOwned
+        ? filteredCards.filter((printing) => (ownedCountByPrinting[printing.id] ?? 0) > 0)
+        : filteredCards.filter((printing) => (ownedCountByPrinting[printing.id] ?? 0) === 0);
+    } else {
+      // Cards view: include if any printing of this card is owned
+      const ownedCardIds = new Set<string>();
+      for (const printing of filteredCards) {
+        if ((ownedCountByPrinting[printing.id] ?? 0) > 0) {
+          ownedCardIds.add(printing.cardId);
+        }
       }
+      filteredCards = isOwned
+        ? filteredCards.filter((printing) => ownedCardIds.has(printing.cardId))
+        : filteredCards.filter((printing) => !ownedCardIds.has(printing.cardId));
     }
-    filteredCards = isOwned
-      ? filteredCards.filter((printing) => ownedCardIds.has(printing.cardId))
-      : filteredCards.filter((printing) => !ownedCardIds.has(printing.cardId));
   }
 
   const displayCards =

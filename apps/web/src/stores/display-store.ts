@@ -1,4 +1,4 @@
-import type { Marketplace } from "@openrift/shared";
+import type { CompletionScopePreference, Marketplace } from "@openrift/shared";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -14,6 +14,7 @@ export interface DisplayOverrides {
   cardTilt: boolean | null;
   marketplaceOrder: Marketplace[] | null;
   languages: string[] | null;
+  completionScope: CompletionScopePreference | null;
 }
 
 const NULL_OVERRIDES: DisplayOverrides = {
@@ -23,6 +24,7 @@ const NULL_OVERRIDES: DisplayOverrides = {
   cardTilt: null,
   marketplaceOrder: null,
   languages: null,
+  completionScope: null,
 };
 
 // ── Resolve helpers ─────────────────────────────────────────────────────────
@@ -35,6 +37,7 @@ function resolveAll(overrides: DisplayOverrides) {
     cardTilt: overrides.cardTilt ?? PREFERENCE_DEFAULTS.cardTilt,
     marketplaceOrder: overrides.marketplaceOrder ?? [...PREFERENCE_DEFAULTS.marketplaceOrder],
     languages: overrides.languages ?? [...PREFERENCE_DEFAULTS.languages],
+    completionScope: overrides.completionScope ?? { ...PREFERENCE_DEFAULTS.completionScope },
   };
 }
 
@@ -48,6 +51,7 @@ interface DisplayState {
   cardTilt: boolean;
   marketplaceOrder: Marketplace[];
   languages: string[];
+  completionScope: CompletionScopePreference;
 
   // Nullable overrides — persisted to localStorage and synced to DB
   overrides: DisplayOverrides;
@@ -59,10 +63,18 @@ interface DisplayState {
   setCardTilt: (value: boolean) => void;
   setMarketplaceOrder: (value: Marketplace[]) => void;
   setLanguages: (value: string[]) => void;
+  setCompletionScope: (value: CompletionScopePreference) => void;
 
   // Reset a top-level preference to its default
   resetPreference: (
-    key: "showImages" | "fancyFan" | "foilEffect" | "cardTilt" | "marketplaceOrder" | "languages",
+    key:
+      | "showImages"
+      | "fancyFan"
+      | "foilEffect"
+      | "cardTilt"
+      | "marketplaceOrder"
+      | "languages"
+      | "completionScope",
   ) => void;
 
   // Hydrate overrides from server data (used by sync hook)
@@ -121,6 +133,11 @@ export const useDisplayStore = create<DisplayState>()(
         set((state) => ({
           languages: value,
           overrides: { ...state.overrides, languages: value },
+        })),
+      setCompletionScope: (value) =>
+        set((state) => ({
+          completionScope: value,
+          overrides: { ...state.overrides, completionScope: value },
         })),
 
       resetPreference: (key) =>

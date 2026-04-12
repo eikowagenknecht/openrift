@@ -100,6 +100,7 @@ export type {
   UnifiedMappingPrintingResponse,
   UnifiedMappingsResponse,
   UnmatchedCardDetailResponse,
+  CompletionScopePreference,
   ResolvedPreferences,
   Theme,
   UserPreferencesResponse,

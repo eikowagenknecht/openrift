@@ -7,6 +7,13 @@ export type Theme = "light" | "dark" | "auto";
  * Stored preferences — all fields optional.
  * Missing fields use `PREFERENCE_DEFAULTS` at read time.
  */
+/** Scope filters for collection completion tracking. */
+export interface CompletionScopePreference {
+  languages?: string[];
+  finishes?: string[];
+  artVariants?: string[];
+}
+
 export interface UserPreferencesResponse {
   showImages?: boolean;
   fancyFan?: boolean;
@@ -15,6 +22,7 @@ export interface UserPreferencesResponse {
   theme?: Theme;
   marketplaceOrder?: Marketplace[];
   languages?: string[];
+  completionScope?: CompletionScopePreference;
 }
 
 /** Fully resolved preferences — no optional fields. */
@@ -26,6 +34,7 @@ export interface ResolvedPreferences {
   theme: Theme;
   marketplaceOrder: Marketplace[];
   languages: string[];
+  completionScope: CompletionScopePreference;
 }
 
 /** Default values for every preference. Used to resolve missing/null fields. */
@@ -37,4 +46,5 @@ export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   theme: "auto",
   marketplaceOrder: [...ALL_MARKETPLACES],
   languages: ["EN"],
+  completionScope: {},
 };
