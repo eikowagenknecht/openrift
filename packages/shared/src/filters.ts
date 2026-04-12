@@ -164,6 +164,21 @@ function overlaps<T>(allowed: T[], values: T[]): boolean {
   return allowed.length === 0 || values.some((v) => allowed.includes(v));
 }
 
+/**
+ * Domain filter: 0 selected = all, 1 selected = any card with that domain,
+ * 2+ selected = card's domains must all be within the selected set.
+ * @returns Whether the card matches the domain filter.
+ */
+function matchesDomains<T>(allowed: T[], values: T[]): boolean {
+  if (allowed.length === 0) {
+    return true;
+  }
+  if (allowed.length === 1) {
+    return values.some((v) => allowed.includes(v));
+  }
+  return values.every((v) => allowed.includes(v));
+}
+
 function matchesFlag(filter: boolean | null, actual: boolean): boolean {
   return filter === null || actual === filter;
 }
@@ -277,7 +292,7 @@ export function filterCards(
     return (
       matchesSearch(printing, terms, hasPrefixes, filters.searchScope, options.keywordReverseMap) &&
       includes(filters.sets, printing.setSlug) &&
-      overlaps(filters.domains, card.domains) &&
+      matchesDomains(filters.domains, card.domains) &&
       includes(filters.types, card.type) &&
       overlaps(filters.superTypes, card.superTypes) &&
       includes(filters.rarities, printing.rarity) &&

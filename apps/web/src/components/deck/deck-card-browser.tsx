@@ -135,16 +135,26 @@ export function DeckCardBrowser() {
     setRunesByDomain(map);
   }, [allPrintings, setRunesByDomain]);
 
-  // Merge zone-forced filters into URL filters
+  const deckCards = useDeckBuilderStore((state) => state.cards);
+  const singleCardZoneOccupied =
+    isSingleCardZone && deckCards.some((card) => card.zone === activeZone);
+
+  // Merge zone-forced filters into URL filters.
+  // For open zones (main/sideboard), default the domain filter to the legend's
+  // domains + Colorless when the user hasn't set an explicit domain filter.
+  const legend = deckCards.find((card) => card.zone === "legend");
+  const isOpenZone =
+    activeZone === "main" || activeZone === "sideboard" || activeZone === "overflow";
+  const defaultDomains =
+    isOpenZone && legend && urlFilters.domains.length === 0
+      ? [...legend.domains, "Colorless"]
+      : undefined;
   const filters = {
     ...urlFilters,
     ...(zoneConfig?.types ? { types: zoneConfig.types } : {}),
     ...(zoneConfig?.superTypes ? { superTypes: zoneConfig.superTypes } : {}),
+    ...(defaultDomains ? { domains: defaultDomains } : {}),
   };
-
-  const deckCards = useDeckBuilderStore((state) => state.cards);
-  const singleCardZoneOccupied =
-    isSingleCardZone && deckCards.some((card) => card.zone === activeZone);
 
   // Build a map of cardId → total quantity across all zones
   const deckQuantityByCard = new Map<string, number>();
@@ -156,8 +166,14 @@ export function DeckCardBrowser() {
   const view = "cards" as const;
   const keywordReverseMap = useKeywordReverseMap();
 
+  // Language filter: URL param takes precedence, display store preference is fallback
+  const urlLanguages = urlFilters.languages;
+  const preferredLanguages = useDisplayStore((s) => s.languages);
+  const languageFilter = urlLanguages.length > 0 ? urlLanguages : preferredLanguages;
+
   const {
     availableFilters,
+    availableLanguages,
     sortedCards,
     printingsByCardId,
     priceRangeByCardId,
@@ -167,8 +183,9 @@ export function DeckCardBrowser() {
   } = useCardData({
     allPrintings,
     sets,
-    languageFilter: useDisplayStore((s) => s.languages),
+    languageFilter,
     filters,
+    isOwned: filters.isOwned,
     sortBy,
     sortDir,
     view,
@@ -178,23 +195,8 @@ export function DeckCardBrowser() {
     keywordReverseMap,
   });
 
-  // Client-side filtering for zones where the URL filter can't express the constraint:
-  // 1. main/sideboard: all card domains must be within legend's domains (+ Colorless)
-  // 2. main/sideboard/overflow: exclude types that belong in dedicated zones
-  const legend = deckCards.find((card) => card.zone === "legend");
-  const isOpenZone =
-    activeZone === "main" || activeZone === "sideboard" || activeZone === "overflow";
-  const allowedDomains = legend ? new Set([...legend.domains, "Colorless"]) : null;
-  const strictDomainFilter =
-    isOpenZone && (activeZone === "main" || activeZone === "sideboard") && allowedDomains;
-
+  // Exclude types that belong in dedicated zones from open zones
   const filteredCards = sortedCards.filter((printing) => {
-    if (
-      strictDomainFilter &&
-      !printing.card.domains.every((domain) => allowedDomains.has(domain))
-    ) {
-      return false;
-    }
     if (isOpenZone && DEDICATED_ZONE_TYPES.has(printing.card.type)) {
       return false;
     }
@@ -359,6 +361,7 @@ export function DeckCardBrowser() {
           <MobileOptionsContent />
           <MobileFilterContent
             availableFilters={availableFilters}
+            availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
             hiddenSections={hiddenSections}
           />
@@ -366,6 +369,7 @@ export function DeckCardBrowser() {
       </div>
       <CollapsibleFilterPanel
         availableFilters={availableFilters}
+        availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
         hiddenSections={hiddenSections}
       />
@@ -378,6 +382,7 @@ export function DeckCardBrowser() {
       <div className="space-y-4 pb-4">
         <FilterPanelContent
           availableFilters={availableFilters}
+          availableLanguages={availableLanguages}
           setDisplayLabel={setDisplayLabel}
           hiddenSections={hiddenSections}
         />

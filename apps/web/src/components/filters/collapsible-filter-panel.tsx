@@ -11,6 +11,7 @@ import { FilterBadgeSections, FilterRangeSections } from "./filter-panel-content
 
 interface CollapsibleFilterPanelProps {
   availableFilters: AvailableFilters;
+  availableLanguages?: string[];
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
 }
@@ -23,6 +24,7 @@ interface CollapsibleFilterPanelProps {
  */
 export function CollapsibleFilterPanel({
   availableFilters,
+  availableLanguages,
   setDisplayLabel,
   hiddenSections,
 }: CollapsibleFilterPanelProps) {
@@ -39,6 +41,7 @@ export function CollapsibleFilterPanel({
         <div className="grid grid-cols-1 gap-x-6 gap-y-3 lg:grid-cols-2">
           <FilterBadgeSections
             availableFilters={availableFilters}
+            availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
             hiddenSections={hiddenSections}
           />

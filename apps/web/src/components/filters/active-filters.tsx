@@ -42,6 +42,7 @@ export function ActiveFilters({
   const {
     toggleArrayFilter,
     setRange,
+    clearOwned,
     clearSigned,
     clearPromo,
     clearBanned,

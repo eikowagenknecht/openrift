@@ -598,10 +598,12 @@ export function MobileOptionsContent({ showCopies }: { showCopies?: boolean } = 
 
 export function MobileFilterContent({
   availableFilters,
+  availableLanguages,
   setDisplayLabel,
   hiddenSections,
 }: {
   availableFilters: AvailableFilters;
+  availableLanguages?: string[];
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
 }) {
@@ -611,6 +613,7 @@ export function MobileFilterContent({
       <div className="flex flex-col gap-4">
         <FilterPanelContent
           availableFilters={availableFilters}
+          availableLanguages={availableLanguages}
           setDisplayLabel={setDisplayLabel}
           hiddenSections={hiddenSections}
         />

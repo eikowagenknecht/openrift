@@ -141,11 +141,10 @@ export function useCardData({
       .map((s, i) => [s.slug, i]),
   );
 
-  // Apply language filter before other filters
-  const langFiltered =
-    languageFilter && languageFilter.length > 0
-      ? allPrintings.filter((printing) => languageFilter.includes(printing.language))
-      : allPrintings;
+  // Language is a display preference, not a hard filter — it controls which
+  // printing variant deduplicateByCard / groupPrintingsByCardId prefer, but
+  // never hides cards or printings that only exist in other languages.
+  const langFiltered = allPrintings;
 
   // getPrice resolves a printing's price on the user's favorite marketplace.
   // Filters, sorting, and the available-price-range histogram all read prices
