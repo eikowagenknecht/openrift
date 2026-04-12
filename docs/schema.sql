@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict O3sLJobG60YbpBq3QI08wnQvxTSelPEC7ibFhN270rgsYIIUAISsiJbaTAkQXxL
+\restrict YUVKTkSSDUr4H6topEzglSO9OjSMZTARWuPxEroKzpbOqAd4JLufkNQMZRyGq9a
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -31,6 +31,16 @@ SET row_security = off;
 --
 
 COMMENT ON SCHEMA public IS '';
+
+
+--
+-- Name: set_type; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.set_type AS ENUM (
+    'main',
+    'supplemental'
+);
 
 
 --
@@ -991,6 +1001,7 @@ CREATE TABLE public.sets (
     released_at date,
     slug text NOT NULL,
     id uuid DEFAULT uuidv7() CONSTRAINT sets_new_id_not_null NOT NULL,
+    set_type public.set_type DEFAULT 'main'::public.set_type NOT NULL,
     CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
     CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
@@ -2915,5 +2926,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict O3sLJobG60YbpBq3QI08wnQvxTSelPEC7ibFhN270rgsYIIUAISsiJbaTAkQXxL
+\unrestrict YUVKTkSSDUr4H6topEzglSO9OjSMZTARWuPxEroKzpbOqAd4JLufkNQMZRyGq9a
 
