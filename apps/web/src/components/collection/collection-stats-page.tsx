@@ -2,11 +2,9 @@ import type { CompletionScopePreference, Domain } from "@openrift/shared";
 import { Link, Navigate } from "@tanstack/react-router";
 import {
   ChartBarIcon,
-  CircleCheckBigIcon,
   CoinsIcon,
   ExternalLinkIcon,
   FilterIcon,
-  LayersIcon,
   PackageIcon,
   SearchIcon,
 } from "lucide-react";
@@ -53,43 +51,6 @@ import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/rout
 import { useDisplayStore } from "@/stores/display-store";
 
 // ── Hero Stats ─────────────────────────────────────────────────────────────
-
-function CompletionHeroStats({ stats }: { stats: CollectionStats }) {
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle className="text-muted-foreground flex items-center gap-1.5 text-xs font-normal">
-            <CircleCheckBigIcon className="size-4" />
-            Completion
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-semibold tabular-nums">
-            {stats.completionPercent.toFixed(1)}%
-          </p>
-          <Progress value={stats.completionPercent} className="mt-2" />
-        </CardContent>
-      </Card>
-      <Card size="sm">
-        <CardHeader>
-          <CardTitle className="text-muted-foreground flex items-center gap-1.5 text-xs font-normal">
-            <LayersIcon className="size-4" />
-            Unique Cards
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-semibold tabular-nums">
-            {stats.uniqueCards.toLocaleString()}
-            <span className="text-muted-foreground ml-1 text-sm font-normal">
-              / {stats.totalCardsInGame.toLocaleString()}
-            </span>
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
 
 function StatsHeroStats({ stats }: { stats: CollectionStats }) {
   return (
@@ -298,6 +259,22 @@ const COUNT_MODE_OPTIONS: { value: CompletionCountMode; label: string; tooltip: 
   },
 ];
 
+function CompletionProgressBar({ entries }: { entries: CompletionEntry[] }) {
+  const totalOwned = entries.reduce((sum, entry) => sum + entry.owned, 0);
+  const totalAll = entries.reduce((sum, entry) => sum + entry.total, 0);
+  const percent = totalAll > 0 ? (totalOwned / totalAll) * 100 : 0;
+
+  return (
+    <div className="flex items-center gap-3">
+      <Progress value={percent} className="h-2.5 flex-1" />
+      <span className="text-muted-foreground shrink-0 text-sm tabular-nums">
+        {totalOwned.toLocaleString()} / {totalAll.toLocaleString()}
+      </span>
+      <span className="shrink-0 text-sm font-semibold tabular-nums">{percent.toFixed(1)}%</span>
+    </div>
+  );
+}
+
 function CompletionRow({
   entry,
   icon,
@@ -370,11 +347,17 @@ function getRowIcon(groupBy: CompletionGroupBy, key: string): string | undefined
   }
 }
 
-function CompletionSection({ stats }: { stats: CollectionStatsResult }) {
-  const [groupBy, setGroupBy] = useState<CompletionGroupBy>("set");
-  const [countMode, setCountMode] = useState<CompletionCountMode>("cards");
-  const scope = useDisplayStore((state) => state.completionScope);
-  const setCompletionScope = useDisplayStore((state) => state.setCompletionScope);
+function CompletionSection({
+  stats,
+  groupBy,
+  countMode,
+  scope,
+}: {
+  stats: CollectionStatsResult;
+  groupBy: CompletionGroupBy;
+  countMode: CompletionCountMode;
+  scope: CompletionScopePreference;
+}) {
   const domainColors = useDomainColors();
   const { rarityColors } = useEnumOrders();
 
@@ -453,44 +436,8 @@ function CompletionSection({ stats }: { stats: CollectionStatsResult }) {
   }
 
   return (
-    <section>
-      <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
-        <ButtonGroup aria-label="Group by">
-          {GROUP_BY_OPTIONS.map((option) => (
-            <Button
-              key={option.value}
-              variant={groupBy === option.value ? "default" : "outline"}
-              size="sm"
-              className="text-xs"
-              onClick={() => setGroupBy(option.value)}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </ButtonGroup>
-        <TooltipProvider>
-          <ButtonGroup aria-label="Count mode">
-            {COUNT_MODE_OPTIONS.map((option) => (
-              <Tooltip key={option.value}>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant={countMode === option.value ? "default" : "outline"}
-                      size="sm"
-                      className="text-xs"
-                      onClick={() => setCountMode(option.value)}
-                    />
-                  }
-                >
-                  {option.label}
-                </TooltipTrigger>
-                <TooltipContent>{option.tooltip}</TooltipContent>
-              </Tooltip>
-            ))}
-          </ButtonGroup>
-        </TooltipProvider>
-        <ScopeFilterPopover scope={scope} onScopeChange={setCompletionScope} />
-      </div>
+    <section className="space-y-3">
+      <CompletionProgressBar entries={entries} />
 
       {mainEntries.length === 0 && supplementalEntries.length === 0 ? (
         <p className="text-muted-foreground py-4 text-center text-sm">No data</p>
@@ -660,9 +607,14 @@ export function CollectionStatsPage() {
 function CollectionStatsContent() {
   const { toggleSidebar } = useSidebar();
   const topBarSlot = use(TopBarSlotContext);
-  const [scope, setScope] = useState("all");
-  const collectionId = scope === "all" ? undefined : scope;
+  const [collectionScope, setCollectionScope] = useState("all");
+  const collectionId = collectionScope === "all" ? undefined : collectionScope;
   const stats = useCollectionStats(collectionId);
+
+  const [groupBy, setGroupBy] = useState<CompletionGroupBy>("set");
+  const [countMode, setCountMode] = useState<CompletionCountMode>("cards");
+  const scope = useDisplayStore((state) => state.completionScope);
+  const setCompletionScope = useDisplayStore((state) => state.setCompletionScope);
 
   const topBarPortal =
     topBarSlot &&
@@ -677,8 +629,46 @@ function CollectionStatsContent() {
     <div className={cn("mx-auto w-full max-w-4xl pt-3")}>
       {topBarPortal}
 
-      <div className="mb-4">
-        <CollectionSelector value={scope} onChange={setScope} />
+      {/* ── Controls bar ─────────────────────────────────── */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <CollectionSelector value={collectionScope} onChange={setCollectionScope} />
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <ButtonGroup aria-label="Group by">
+            {GROUP_BY_OPTIONS.map((option) => (
+              <Button
+                key={option.value}
+                variant={groupBy === option.value ? "default" : "outline"}
+                size="sm"
+                className="text-xs"
+                onClick={() => setGroupBy(option.value)}
+              >
+                {option.label}
+              </Button>
+            ))}
+          </ButtonGroup>
+          <TooltipProvider>
+            <ButtonGroup aria-label="Count mode">
+              {COUNT_MODE_OPTIONS.map((option) => (
+                <Tooltip key={option.value}>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        variant={countMode === option.value ? "default" : "outline"}
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => setCountMode(option.value)}
+                      />
+                    }
+                  >
+                    {option.label}
+                  </TooltipTrigger>
+                  <TooltipContent>{option.tooltip}</TooltipContent>
+                </Tooltip>
+              ))}
+            </ButtonGroup>
+          </TooltipProvider>
+          <ScopeFilterPopover scope={scope} onScopeChange={setCompletionScope} />
+        </div>
       </div>
 
       {stats.totalCopies === 0 ? (
@@ -688,8 +678,12 @@ function CollectionStatsContent() {
           {/* ── Completion ──────────────────────────────────── */}
           <section className="space-y-4">
             <h2 className="text-base font-semibold">Completion</h2>
-            <CompletionHeroStats stats={stats} />
-            <CompletionSection stats={stats} />
+            <CompletionSection
+              stats={stats}
+              groupBy={groupBy}
+              countMode={countMode}
+              scope={scope}
+            />
           </section>
 
           <Separator />
