@@ -249,8 +249,8 @@ export function useMoveCopies() {
       const copyIdSet = new Set(variables.copyIds);
       const movedCopies = prevCopies?.items.filter((copy) => copyIdSet.has(copy.id)) ?? [];
 
-      // Update copies cache: change collectionId on moved copies
-      queryClient.setQueryData<CopyListResponse>(queryKeys.copies.all, (old) => {
+      // Update copies cache: change collectionId on moved copies (global)
+      const updateCollectionId = (old: CopyListResponse | undefined) => {
         if (!old) {
           return old;
         }
@@ -260,7 +260,8 @@ export function useMoveCopies() {
             copyIdSet.has(copy.id) ? { ...copy, collectionId: variables.toCollectionId } : copy,
           ),
         };
-      });
+      };
+      queryClient.setQueryData<CopyListResponse>(queryKeys.copies.all, updateCollectionId);
 
       // Update collection copy counts and owned breakdown (per-printing per-collection shift)
       const collectionDeltas = new Map<string, number>();
@@ -288,16 +289,43 @@ export function useMoveCopies() {
       updateCollectionCopyCounts(queryClient, collectionDeltas);
       updateOwnedBreakdown(queryClient, breakdownChanges);
 
-      // Invalidate per-collection caches (source and target)
-      const affectedCollections = new Set([
-        ...movedCopies.map((copy) => copy.collectionId),
-        variables.toCollectionId,
-      ]);
-      for (const colId of affectedCollections) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.copies.byCollection(colId) });
+      // Optimistically update per-collection caches (source: remove, target: add)
+      const sourceCollections = new Set(movedCopies.map((copy) => copy.collectionId));
+      const allAffectedCollections = new Set([...sourceCollections, variables.toCollectionId]);
+      const prevByCollection = new Map<string, CopyListResponse | undefined>();
+      for (const colId of allAffectedCollections) {
+        prevByCollection.set(
+          colId,
+          queryClient.getQueryData<CopyListResponse>(queryKeys.copies.byCollection(colId)),
+        );
       }
+      const removeMoved = (old: CopyListResponse | undefined) => {
+        if (!old) {
+          return old;
+        }
+        return { ...old, items: old.items.filter((copy) => !copyIdSet.has(copy.id)) };
+      };
+      for (const colId of sourceCollections) {
+        queryClient.setQueryData<CopyListResponse>(
+          queryKeys.copies.byCollection(colId),
+          removeMoved,
+        );
+      }
+      queryClient.setQueryData<CopyListResponse>(
+        queryKeys.copies.byCollection(variables.toCollectionId),
+        (old) => {
+          if (!old) {
+            return old;
+          }
+          const updatedCopies = movedCopies.map((copy) => ({
+            ...copy,
+            collectionId: variables.toCollectionId,
+          }));
+          return { ...old, items: [...old.items, ...updatedCopies] };
+        },
+      );
 
-      return { prevCopies, prevCollections, prevOwnedBreakdown };
+      return { prevCopies, prevCollections, prevOwnedBreakdown, prevByCollection };
     },
     onError: (_error, _variables, context) => {
       if (context?.prevCopies) {
@@ -308,6 +336,11 @@ export function useMoveCopies() {
       }
       if (context?.prevOwnedBreakdown) {
         queryClient.setQueryData(queryKeys.ownedCount.all, context.prevOwnedBreakdown);
+      }
+      if (context?.prevByCollection) {
+        for (const [colId, data] of context.prevByCollection) {
+          queryClient.setQueryData(queryKeys.copies.byCollection(colId), data);
+        }
       }
     },
   });
@@ -425,18 +458,27 @@ export function useDisposeCopies() {
       const copyIdSet = new Set(variables.copyIds);
       const deletedCopies = prevCopies?.items.filter((copy) => copyIdSet.has(copy.id)) ?? [];
 
-      // Remove from copies cache
-      queryClient.setQueryData<CopyListResponse>(queryKeys.copies.all, (old) => {
+      // Remove from copies cache (global + per-collection)
+      const removeCopy = (old: CopyListResponse | undefined) => {
         if (!old) {
           return old;
         }
         return { ...old, items: old.items.filter((copy) => !copyIdSet.has(copy.id)) };
-      });
-
-      // Invalidate affected per-collection caches
+      };
       const affectedCollections = new Set(deletedCopies.map((copy) => copy.collectionId));
+      const prevByCollection = new Map<string, CopyListResponse | undefined>();
       for (const colId of affectedCollections) {
-        void queryClient.invalidateQueries({ queryKey: queryKeys.copies.byCollection(colId) });
+        prevByCollection.set(
+          colId,
+          queryClient.getQueryData<CopyListResponse>(queryKeys.copies.byCollection(colId)),
+        );
+      }
+      queryClient.setQueryData<CopyListResponse>(queryKeys.copies.all, removeCopy);
+      for (const colId of affectedCollections) {
+        queryClient.setQueryData<CopyListResponse>(
+          queryKeys.copies.byCollection(colId),
+          removeCopy,
+        );
       }
 
       // Update owned breakdown (decrement each printing/collection pair)
@@ -456,7 +498,7 @@ export function useDisposeCopies() {
       }
       updateCollectionCopyCounts(queryClient, collectionDeltas);
 
-      return { prevCopies, prevOwnedBreakdown, prevCollections };
+      return { prevCopies, prevOwnedBreakdown, prevCollections, prevByCollection };
     },
     onError: (_error, _variables, context) => {
       if (context?.prevCopies) {
@@ -467,6 +509,11 @@ export function useDisposeCopies() {
       }
       if (context?.prevCollections) {
         queryClient.setQueryData(queryKeys.collections.all, context.prevCollections);
+      }
+      if (context?.prevByCollection) {
+        for (const [colId, data] of context.prevByCollection) {
+          queryClient.setQueryData(queryKeys.copies.byCollection(colId), data);
+        }
       }
     },
   });
