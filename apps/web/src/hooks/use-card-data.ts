@@ -121,6 +121,7 @@ export function useCardData({
   if (!enabled) {
     return {
       availableFilters: EMPTY_AVAILABLE,
+      availableLanguages: [] as string[],
       sortedCards: [] as Printing[],
       printingsByCardId: EMPTY_PRINTINGS_MAP,
       priceRangeByCardId: null,
@@ -212,8 +213,13 @@ export function useCardData({
   const totalUniqueCards =
     view === "cards" ? new Set(langFiltered.map((c) => c.cardId)).size : langFiltered.length;
 
+  // Available languages are derived from ALL printings (before language filtering)
+  // so the filter UI always shows every language that exists in the catalog.
+  const availableLanguages = [...new Set(allPrintings.map((p) => p.language))];
+
   return {
     availableFilters,
+    availableLanguages,
     sortedCards,
     printingsByCardId,
     priceRangeByCardId,

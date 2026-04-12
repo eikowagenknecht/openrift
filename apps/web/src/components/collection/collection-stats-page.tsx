@@ -268,12 +268,12 @@ function CompletionRow({
   entry,
   icon,
   barColor,
-  missingSearch,
+  missingHref,
 }: {
   entry: CompletionEntry;
   icon?: string;
   barColor?: string;
-  missingSearch?: Record<string, string>;
+  missingHref?: string;
 }) {
   const missing = entry.total - entry.owned;
 
@@ -298,14 +298,22 @@ function CompletionRow({
       <span className="w-12 shrink-0 text-right text-xs font-medium tabular-nums">
         {entry.percent.toFixed(0)}%
       </span>
-      {missingSearch && missing > 0 && (
-        <Link
-          to="/cards"
-          search={missingSearch}
-          className="text-muted-foreground hover:text-foreground shrink-0"
+      {missingHref ? (
+        <a
+          href={missingHref}
+          title={`Browse ${missing} missing`}
+          className={cn(
+            "shrink-0",
+            missing > 0
+              ? "text-muted-foreground hover:text-foreground"
+              : "pointer-events-none invisible",
+          )}
+          tabIndex={missing > 0 ? undefined : -1}
         >
           <ExternalLinkIcon className="size-3.5" />
-        </Link>
+        </a>
+      ) : (
+        <span className="w-3.5 shrink-0" />
       )}
     </div>
   );
@@ -370,33 +378,44 @@ function CompletionSection({ stats }: { stats: CollectionStatsResult }) {
   // Only available in "cards" count mode (the card browser filters at the card level).
   const setIdToSlug = new Map(stats.sets.map((set) => [set.id, set.slug]));
 
-  function missingSearch(key: string): Record<string, string> | undefined {
+  function missingHref(key: string): string | undefined {
     if (countMode !== "cards") {
       return undefined;
     }
-    const params: Record<string, string> = { owned: "false" };
+    const params = new URLSearchParams();
+    params.set("owned", "false");
     switch (groupBy) {
       case "set": {
         const slug = setIdToSlug.get(key);
         if (slug) {
-          params.sets = slug;
+          params.set("sets", slug);
         }
         break;
       }
       case "domain": {
-        params.domains = key;
+        params.set("domains", key);
         break;
       }
       case "rarity": {
-        params.rarities = key;
+        params.set("rarities", key);
         break;
       }
       case "type": {
-        params.types = key;
+        params.set("types", key);
         break;
       }
     }
-    return params;
+    // Pass scope filters so the card browser matches the completion view
+    if (scope.languages && scope.languages.length > 0) {
+      params.set("languages", scope.languages.join(","));
+    }
+    if (scope.finishes && scope.finishes.length > 0) {
+      params.set("finishes", scope.finishes.join(","));
+    }
+    if (scope.artVariants && scope.artVariants.length > 0) {
+      params.set("artVariants", scope.artVariants.join(","));
+    }
+    return `/cards?${params.toString()}`;
   }
 
   return (
@@ -453,7 +472,7 @@ function CompletionSection({ stats }: { stats: CollectionStatsResult }) {
                 entry={entry}
                 icon={getRowIcon(groupBy, entry.key)}
                 barColor={rowBarColor(entry.key)}
-                missingSearch={missingSearch(entry.key)}
+                missingHref={missingHref(entry.key)}
               />
             ))}
           </div>
@@ -468,7 +487,7 @@ function CompletionSection({ stats }: { stats: CollectionStatsResult }) {
                   entry={entry}
                   icon={getRowIcon(groupBy, entry.key)}
                   barColor={rowBarColor(entry.key)}
-                  missingSearch={missingSearch(entry.key)}
+                  missingHref={missingHref(entry.key)}
                 />
               ))}
             </div>

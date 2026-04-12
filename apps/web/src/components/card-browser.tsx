@@ -106,8 +106,14 @@ export function CardBrowser() {
   const view = rawView === "copies" ? "printings" : rawView;
   const keywordReverseMap = useKeywordReverseMap();
 
+  // Language filter: URL param takes precedence, display store preference is fallback
+  const urlLanguages = filters.languages;
+  const preferredLanguages = useDisplayStore((s) => s.languages);
+  const languageFilter = urlLanguages.length > 0 ? urlLanguages : preferredLanguages;
+
   const {
     availableFilters,
+    availableLanguages,
     sortedCards,
     printingsByCardId,
     priceRangeByCardId,
@@ -116,7 +122,7 @@ export function CardBrowser() {
   } = useCardData({
     allPrintings,
     sets,
-    languageFilter: useDisplayStore((s) => s.languages),
+    languageFilter,
     filters,
     isOwned: filters.isOwned,
     sortBy,
@@ -302,12 +308,14 @@ export function CardBrowser() {
           )}
           <MobileFilterContent
             availableFilters={availableFilters}
+            availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
           />
         </MobileOptionsDrawer>
       </div>
       <CollapsibleFilterPanel
         availableFilters={availableFilters}
+        availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
       />
     </>
@@ -317,7 +325,11 @@ export function CardBrowser() {
     <Pane className="@wide:block px-3">
       <h2 className="pb-4 text-lg font-semibold">Filters</h2>
       <div className="space-y-4 pb-4">
-        <FilterPanelContent availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+        <FilterPanelContent
+          availableFilters={availableFilters}
+          availableLanguages={availableLanguages}
+          setDisplayLabel={setDisplayLabel}
+        />
       </div>
     </Pane>
   );

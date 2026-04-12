@@ -6,7 +6,7 @@ import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
-import { useEnumOrders } from "@/hooks/use-enums";
+import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { formatPriceIntegerForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
@@ -58,12 +58,14 @@ const STAT_RANGE_SECTIONS: RangeSection[] = [
 
 interface FilterPanelContentProps {
   availableFilters: AvailableFilters;
+  availableLanguages?: string[];
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
 }
 
 export function FilterPanelContent({
   availableFilters,
+  availableLanguages,
   setDisplayLabel,
   hiddenSections,
 }: FilterPanelContentProps) {
@@ -71,6 +73,7 @@ export function FilterPanelContent({
     <>
       <FilterBadgeSections
         availableFilters={availableFilters}
+        availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
         hiddenSections={hiddenSections}
       />
@@ -81,13 +84,34 @@ export function FilterPanelContent({
 
 export function FilterBadgeSections({
   availableFilters,
+  availableLanguages,
   setDisplayLabel,
   hiddenSections,
 }: FilterPanelContentProps) {
   const { labels } = useEnumOrders();
   const { filterState } = useFilterValues();
-  const { toggleOwned, toggleArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
-    useFilterActions();
+  const {
+    toggleOwned,
+    toggleArrayFilter,
+    setArrayFilter,
+    toggleSigned,
+    togglePromo,
+    toggleBanned,
+    toggleErrata,
+  } = useFilterActions();
+  const languageLabels = useLanguageLabels();
+  // Effective languages: URL param if set, else display store preference
+  const preferredLanguages = useDisplayStore((s) => s.languages);
+  const effectiveLanguages =
+    filterState.languages.length > 0 ? filterState.languages : preferredLanguages;
+  const toggleLanguage = (code: string) => {
+    const next = effectiveLanguages.includes(code)
+      ? effectiveLanguages.filter((lang) => lang !== code)
+      : [...effectiveLanguages, code];
+    if (next.length > 0) {
+      setArrayFilter("languages", next);
+    }
+  };
   return (
     <>
       {!hiddenSections?.has("owned") && (
@@ -109,6 +133,15 @@ export function FilterBadgeSections({
         displayLabel={setDisplayLabel}
         secondaryOptions={availableFilters.supplementalSets}
       />
+      {availableLanguages && availableLanguages.length > 1 && (
+        <FilterSection
+          label="Language"
+          options={availableLanguages}
+          selected={effectiveLanguages}
+          onToggle={toggleLanguage}
+          displayLabel={(code) => languageLabels[code] ?? code}
+        />
+      )}
       {!hiddenSections?.has("domains") && (
         <FilterSection
           label="Domain"

@@ -18,6 +18,7 @@ import { useSearchScopeStore } from "@/stores/search-scope-store";
 const filterParsers = {
   search: parseAsString.withDefault(""),
   sets: parseAsArrayOf(parseAsString, ",").withDefault([]),
+  languages: parseAsArrayOf(parseAsString, ",").withDefault([]),
   rarities: parseAsArrayOf(parseAsString, ",").withDefault([]),
   types: parseAsArrayOf(parseAsString, ",").withDefault([]),
   superTypes: parseAsArrayOf(parseAsString, ",").withDefault([]),
@@ -46,6 +47,7 @@ const filterParsers = {
 
 type ArrayKey =
   | "sets"
+  | "languages"
   | "rarities"
   | "types"
   | "superTypes"
@@ -70,6 +72,7 @@ export function useFilterValues() {
     search: filterState.search,
     searchScope,
     sets: filterState.sets,
+    languages: filterState.languages,
     rarities: filterState.rarities as Rarity[],
     types: filterState.types as CardType[],
     superTypes: filterState.superTypes as SuperType[],
@@ -104,6 +107,7 @@ export function useFilterValues() {
   const hasActiveFilters =
     filterState.search !== "" ||
     filterState.sets.length > 0 ||
+    filterState.languages.length > 0 ||
     filterState.rarities.length > 0 ||
     filterState.types.length > 0 ||
     filterState.superTypes.length > 0 ||
@@ -187,6 +191,7 @@ export function useFilterActions() {
     void setFilterState({
       search: null,
       sets: null,
+      languages: null,
       rarities: null,
       types: null,
       superTypes: null,
@@ -220,6 +225,11 @@ export function useFilterActions() {
     const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
     pendingRef.current[key] = next;
     void setFilterState({ [key]: next.length > 0 ? next : null });
+  };
+
+  const setArrayFilter = (key: ArrayKey, values: string[]) => {
+    pendingRef.current[key] = values;
+    void setFilterState({ [key]: values.length > 0 ? values : null });
   };
 
   const setRange = (key: RangeKey, min: number | null, max: number | null) =>
@@ -280,6 +290,7 @@ export function useFilterActions() {
   return {
     setSearch,
     toggleArrayFilter,
+    setArrayFilter,
     setRange,
     toggleOwned,
     clearOwned,
