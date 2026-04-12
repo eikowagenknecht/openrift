@@ -4,9 +4,9 @@ import { toCardImageVariants } from "./card-image.js";
 
 describe("toCardImageVariants", () => {
   it("expands a stored base URL into full and thumbnail variants", () => {
-    expect(toCardImageVariants("/card-images/d2/019d0b5b-543c-743f-801c-5a158d14ded2")).toEqual({
-      full: "/card-images/d2/019d0b5b-543c-743f-801c-5a158d14ded2-full.webp",
-      thumbnail: "/card-images/d2/019d0b5b-543c-743f-801c-5a158d14ded2-400w.webp",
+    expect(toCardImageVariants("/media/cards/d2/019d0b5b-543c-743f-801c-5a158d14ded2")).toEqual({
+      full: "/media/cards/d2/019d0b5b-543c-743f-801c-5a158d14ded2-full.webp",
+      thumbnail: "/media/cards/d2/019d0b5b-543c-743f-801c-5a158d14ded2-400w.webp",
     });
   });
 

@@ -8,28 +8,26 @@ import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
 const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
-// Local-only helper for `bun run start` smoke tests: when CARD_IMAGES_DIR is
-// set, serve /card-images/* from that host directory. In real prod, this env
-// var is unset so serveCardImage() short-circuits to undefined, AND nginx
-// bind-mounts the path in front of the server — so this code is inert there.
-const CARD_IMAGES_DIR = process.env.CARD_IMAGES_DIR
-  ? path.resolve(process.env.CARD_IMAGES_DIR)
-  : undefined;
+// Local-only helper for `bun run start` smoke tests: when MEDIA_DIR is set,
+// serve /media/* from that host directory. In real prod, this env var is unset
+// so serveMediaFile() short-circuits to undefined, AND nginx bind-mounts the
+// path in front of the server — so this code is inert there.
+const MEDIA_DIR = process.env.MEDIA_DIR ? path.resolve(process.env.MEDIA_DIR) : undefined;
 
-const CARD_IMAGE_MIME: Record<string, string> = {
+const MEDIA_MIME: Record<string, string> = {
   ".webp": "image/webp",
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
 };
 
-async function serveCardImage(pathname: string): Promise<Response | undefined> {
-  if (!CARD_IMAGES_DIR) {
+async function serveMediaFile(pathname: string): Promise<Response | undefined> {
+  if (!MEDIA_DIR) {
     return undefined;
   }
-  const relative = decodeURIComponent(pathname.slice("/card-images/".length));
-  const resolved = path.resolve(CARD_IMAGES_DIR, relative);
-  if (!resolved.startsWith(`${CARD_IMAGES_DIR}${path.sep}`)) {
+  const relative = decodeURIComponent(pathname.slice("/media/".length));
+  const resolved = path.resolve(MEDIA_DIR, relative);
+  if (!resolved.startsWith(`${MEDIA_DIR}${path.sep}`)) {
     return new Response("Forbidden", { status: 403 });
   }
   let buffer: Buffer;
@@ -40,7 +38,7 @@ async function serveCardImage(pathname: string): Promise<Response | undefined> {
   }
   const bytes = new ArrayBuffer(buffer.byteLength);
   new Uint8Array(bytes).set(buffer);
-  const mime = CARD_IMAGE_MIME[path.extname(resolved).toLowerCase()] ?? "application/octet-stream";
+  const mime = MEDIA_MIME[path.extname(resolved).toLowerCase()] ?? "application/octet-stream";
   return new Response(new Blob([bytes], { type: mime }), {
     headers: {
       "Cache-Control": "public, max-age=3600",
@@ -138,8 +136,8 @@ export default createServerEntry({
     if (url.pathname === "/health") {
       return new Response("ok", { status: 200 });
     }
-    if (CARD_IMAGES_DIR && url.pathname.startsWith("/card-images/")) {
-      const response = await serveCardImage(url.pathname);
+    if (MEDIA_DIR && url.pathname.startsWith("/media/")) {
+      const response = await serveMediaFile(url.pathname);
       if (response) {
         return response;
       }

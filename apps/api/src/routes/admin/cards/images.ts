@@ -7,7 +7,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../../errors.js";
 import {
-  CARD_IMAGES_DIR,
+  CARD_MEDIA_DIR,
   deleteRehostFiles,
   downloadImage,
   imageRehostedUrl,
@@ -91,7 +91,7 @@ const rehostImage = createRoute({
           schema: z.object({
             rehostedUrl: z
               .string()
-              .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
+              .openapi({ example: "/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
           }),
         },
       },
@@ -141,7 +141,7 @@ const uploadImage = createRoute({
           schema: z.object({
             rehostedUrl: z
               .string()
-              .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
+              .openapi({ example: "/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
           }),
         },
       },
@@ -291,7 +291,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const { buffer, ext } = await downloadImage(c.get("io"), image.originalUrl);
     const rehostedUrl = imageRehostedUrl(image.imageFileId);
-    const outputDir = join(CARD_IMAGES_DIR, image.imageFileId.slice(-2));
+    const outputDir = join(CARD_MEDIA_DIR, image.imageFileId.slice(-2));
 
     await processAndSave(c.get("io"), buffer, ext, outputDir, image.imageFileId, image.rotation);
 
@@ -362,7 +362,7 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
     // Pre-compute paths so rehostedUrl can be included in the INSERT
     const imageId = uuidv7();
     const rehostedUrl = imageRehostedUrl(imageId);
-    const outputDir = join(CARD_IMAGES_DIR, imageId.slice(-2));
+    const outputDir = join(CARD_MEDIA_DIR, imageId.slice(-2));
 
     await processAndSave(c.get("io"), buffer, ext, outputDir, imageId, 0);
 

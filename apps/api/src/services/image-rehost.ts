@@ -22,10 +22,10 @@ type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
 /**
  * Build the canonical rehosted URL for an image by its UUID.
  * Uses the last 2 hex characters of the UUID as a directory prefix for even distribution.
- * @returns The URL path like `/card-images/{prefix}/{imageId}`
+ * @returns The URL path like `/media/cards/{prefix}/{imageId}`
  */
 export function imageRehostedUrl(imageId: string): string {
-  return `/card-images/${imageId.slice(-2)}/${imageId}`;
+  return `/media/cards/${imageId.slice(-2)}/${imageId}`;
 }
 
 function findProjectRoot(): string {
@@ -41,7 +41,8 @@ function findProjectRoot(): string {
   throw new Error("Could not find project root (no bun.lock found)");
 }
 
-export const CARD_IMAGES_DIR = join(findProjectRoot(), "card-images");
+export const MEDIA_DIR = join(findProjectRoot(), "media");
+export const CARD_MEDIA_DIR = join(MEDIA_DIR, "cards");
 
 // Both variants are capped on the **short edge** so portrait and landscape
 // cards end up at the same visual size after layout. `full` is not the
@@ -219,7 +220,7 @@ export async function processAndSave(
  * Removes the orig archive and every WebP variant for the base.
  */
 export async function deleteRehostFiles(io: Io, rehostedUrl: string): Promise<void> {
-  const dir = join(CARD_IMAGES_DIR, rehostedUrl.replace(/^\/card-images\//, ""));
+  const dir = join(CARD_MEDIA_DIR, rehostedUrl.replace(/^\/media\/cards\//, ""));
   const parentDir = dirname(dir);
   const base = dir.split("/").pop() as string;
 
@@ -249,7 +250,7 @@ export async function regenerateFromOrig(
   rotation: number,
   originalUrl: string | null,
 ): Promise<void> {
-  const outputDir = join(CARD_IMAGES_DIR, imageFileId.slice(-2));
+  const outputDir = join(CARD_MEDIA_DIR, imageFileId.slice(-2));
   let files: string[] = [];
   try {
     files = await io.fs.readdir(outputDir);
@@ -289,7 +290,7 @@ export async function rehostSingleImage(
   try {
     const { buffer, ext } = await downloadImage(io, image.originalUrl);
     const rehostedUrl = imageRehostedUrl(image.imageFileId);
-    const outputDir = join(CARD_IMAGES_DIR, image.imageFileId.slice(-2));
+    const outputDir = join(CARD_MEDIA_DIR, image.imageFileId.slice(-2));
     await processAndSave(io, buffer, ext, outputDir, image.imageFileId, image.rotation, true);
     await repo.updateRehostedUrl(image.imageFileId, rehostedUrl);
   } catch (error) {
@@ -323,7 +324,7 @@ export async function rehostImages(
 
       const { buffer, ext } = await downloadImage(io, img.originalUrl);
       const selfHostedPath = imageRehostedUrl(img.imageId);
-      const outputDir = join(CARD_IMAGES_DIR, img.imageId.slice(-2));
+      const outputDir = join(CARD_MEDIA_DIR, img.imageId.slice(-2));
       await processAndSave(io, buffer, ext, outputDir, img.imageId, img.rotation, true);
       await repo.updateRehostedUrl(img.imageId, selfHostedPath);
       return "rehosted" as const;
@@ -383,7 +384,7 @@ export async function regenerateImages(
 
   const results = await Promise.allSettled(
     batch.map(async (img) => {
-      const prefixDir = join(CARD_IMAGES_DIR, img.imageId.slice(-2));
+      const prefixDir = join(CARD_MEDIA_DIR, img.imageId.slice(-2));
       let files: string[];
       try {
         files = await io.fs.readdir(prefixDir);
@@ -438,14 +439,14 @@ export async function clearAllRehosted(
 ): Promise<ClearRehostedResponse> {
   const cleared = await repo.clearAllRehostedUrls();
 
-  // Delete all files in the card-images directory
+  // Delete all files in the media/cards directory
   try {
-    const entries = await io.fs.readdir(CARD_IMAGES_DIR, { withFileTypes: true });
+    const entries = await io.fs.readdir(CARD_MEDIA_DIR, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) {
         continue;
       }
-      const prefixDir = join(CARD_IMAGES_DIR, entry.name);
+      const prefixDir = join(CARD_MEDIA_DIR, entry.name);
       const files = await io.fs.readdir(prefixDir);
       for (const file of files) {
         await io.fs.unlink(join(prefixDir, file));
@@ -460,13 +461,13 @@ export async function clearAllRehosted(
 
 /**
  * Strip the variant suffix from a disk filename to get the rehostedUrl prefix.
- * @returns The `/card-images/{prefix}/{base}` prefix without the variant suffix.
+ * @returns The `/media/cards/{prefix}/{base}` prefix without the variant suffix.
  */
 function diskFileToPrefix(dirPrefix: string, file: string): string {
   // Match only the suffix after the LAST dash: `-<variant>.webp` or `-orig.<ext>`.
   // The `[^-.]+` class prevents the suffix from swallowing an internal dash
   // (e.g. `img-1-300w.webp` must become `img-1`, not `img`).
-  return `/card-images/${dirPrefix}/${file.replace(/-(orig\.[^.]+|[^-.]+\.webp)$/, "")}`;
+  return `/media/cards/${dirPrefix}/${file.replace(/-(orig\.[^.]+|[^-.]+\.webp)$/, "")}`;
 }
 
 /**
@@ -487,7 +488,7 @@ function resolveResolutionLabel(filename: string): string {
 }
 
 /**
- * Scan the card-images directory and return per-prefix stats + all file paths grouped by prefix.
+ * Scan the media/cards directory and return per-prefix stats + all file paths grouped by prefix.
  * @returns Disk stats and file listings per prefix directory.
  */
 async function scanDisk(io: Io): Promise<{
@@ -500,12 +501,12 @@ async function scanDisk(io: Io): Promise<{
   let totalBytes = 0;
 
   try {
-    const entries = await io.fs.readdir(CARD_IMAGES_DIR, { withFileTypes: true });
+    const entries = await io.fs.readdir(CARD_MEDIA_DIR, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) {
         continue;
       }
-      const prefixDir = join(CARD_IMAGES_DIR, entry.name);
+      const prefixDir = join(CARD_MEDIA_DIR, entry.name);
       const files = await io.fs.readdir(prefixDir);
       let dirBytes = 0;
       for (const file of files) {
@@ -625,7 +626,7 @@ async function findDuplicateOrigs(
 }
 
 /**
- * Delete files in the card-images directory that are no longer valid. A file
+ * Delete files in the media/cards directory that are no longer valid. A file
  * is considered orphaned if its base UUID has no matching rehostedUrl in the
  * DB, if its variant suffix is not in the current SIZES config (e.g. legacy
  * `-300w.webp` after a resolution change), or if it is a stale duplicate
@@ -644,7 +645,7 @@ export async function cleanupOrphanedFiles(
   const knownPrefixes = new Set(knownUrls);
 
   for (const { prefix, files } of filesByPrefix) {
-    const prefixDir = join(CARD_IMAGES_DIR, prefix);
+    const prefixDir = join(CARD_MEDIA_DIR, prefix);
     const staleDuplicateOrigs = await findDuplicateOrigs(io, prefixDir, files);
 
     for (const file of files) {
@@ -683,8 +684,8 @@ export async function findBrokenImages(
   const broken: BrokenImagesResponse["broken"] = [];
 
   for (const img of images) {
-    const relPath = img.rehostedUrl.replace(/^\/card-images\//, "");
-    const dir = join(CARD_IMAGES_DIR, relPath.split("/").slice(0, -1).join("/"));
+    const relPath = img.rehostedUrl.replace(/^\/media\/cards\//, "");
+    const dir = join(CARD_MEDIA_DIR, relPath.split("/").slice(0, -1).join("/"));
     const fileBase = relPath.split("/").pop() as string;
     const complete = await rehostFilesComplete(io, dir, fileBase);
     if (!complete) {
@@ -722,8 +723,8 @@ export async function findLowResImages(
   const lowRes: LowResImagesResponse["lowRes"] = [];
 
   for (const img of images) {
-    const relPath = img.rehostedUrl.replace(/^\/card-images\//, "");
-    const dir = join(CARD_IMAGES_DIR, relPath.split("/").slice(0, -1).join("/"));
+    const relPath = img.rehostedUrl.replace(/^\/media\/cards\//, "");
+    const dir = join(CARD_MEDIA_DIR, relPath.split("/").slice(0, -1).join("/"));
     const fileBase = relPath.split("/").pop() as string;
     const fullPath = join(dir, `${fileBase}-full.webp`);
 
@@ -755,7 +756,7 @@ export async function findLowResImages(
 
 /**
  * Migrate files from old set-slug directory structure to UUID-prefix structure.
- * Moves files from `card-images/{setSlug}/{uuid}-*` to `card-images/{last2chars}/{uuid}-*`.
+ * Moves files from `media/cards/{setSlug}/{uuid}-*` to `media/cards/{last2chars}/{uuid}-*`.
  * Only processes directories that are NOT 2-char hex prefixes (i.e., old set-slug dirs).
  * @returns Counts of scanned, moved, skipped, and failed files.
  */
@@ -770,7 +771,7 @@ export async function migrateImageDirectories(io: Io): Promise<{
 
   let entries: { name: string; isDirectory: () => boolean }[];
   try {
-    entries = await io.fs.readdir(CARD_IMAGES_DIR, { withFileTypes: true });
+    entries = await io.fs.readdir(CARD_MEDIA_DIR, { withFileTypes: true });
   } catch {
     return progress;
   }
@@ -779,7 +780,7 @@ export async function migrateImageDirectories(io: Io): Promise<{
   const oldDirs = entries.filter((e) => e.isDirectory() && !isHexPrefix(e.name));
 
   for (const dir of oldDirs) {
-    const oldDir = join(CARD_IMAGES_DIR, dir.name);
+    const oldDir = join(CARD_MEDIA_DIR, dir.name);
     let files: string[];
     try {
       files = await io.fs.readdir(oldDir);
@@ -798,7 +799,7 @@ export async function migrateImageDirectories(io: Io): Promise<{
       }
 
       const newPrefix = uuidMatch[1].slice(-2);
-      const newDir = join(CARD_IMAGES_DIR, newPrefix);
+      const newDir = join(CARD_MEDIA_DIR, newPrefix);
 
       try {
         await io.fs.mkdir(newDir, { recursive: true });

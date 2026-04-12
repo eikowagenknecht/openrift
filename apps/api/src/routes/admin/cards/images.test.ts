@@ -16,7 +16,7 @@ import { imagesRoute } from "./images";
 // ---------------------------------------------------------------------------
 
 vi.mock("../../../services/image-rehost.js", () => ({
-  CARD_IMAGES_DIR: "/mock/card-images",
+  CARD_MEDIA_DIR: "/mock/media/cards",
   rehostSingleImage: vi.fn(),
   deleteRehostFiles: vi.fn(),
   downloadImage: vi.fn(),
@@ -450,7 +450,7 @@ describe("POST /api/v1/printing-images/:imageId/rehost", () => {
     });
     mockDownloadImage.mockResolvedValue({ buffer: Buffer.from("image"), ext: ".png" });
     mockProcessAndSave.mockResolvedValue(undefined);
-    mockImageRehostedUrl.mockReturnValue("/card-images/ab/00594247-a18a-4efd-8998-105449a4c1ab");
+    mockImageRehostedUrl.mockReturnValue("/media/cards/ab/00594247-a18a-4efd-8998-105449a4c1ab");
     mockPrintingImages.updateRehostedUrl.mockResolvedValue(undefined);
 
     const res = await app.request(
@@ -460,20 +460,20 @@ describe("POST /api/v1/printing-images/:imageId/rehost", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual({
-      rehostedUrl: "/card-images/ab/00594247-a18a-4efd-8998-105449a4c1ab",
+      rehostedUrl: "/media/cards/ab/00594247-a18a-4efd-8998-105449a4c1ab",
     });
     expect(mockDownloadImage).toHaveBeenCalledWith(mockIo, "https://example.com/img.png");
     expect(mockProcessAndSave).toHaveBeenCalledWith(
       mockIo,
       expect.any(Buffer),
       ".png",
-      "/mock/card-images/ab",
+      "/mock/media/cards/ab",
       "00594247-a18a-4efd-8998-105449a4c1ab",
       0,
     );
     expect(mockPrintingImages.updateRehostedUrl).toHaveBeenCalledWith(
       "00594247-a18a-4efd-8998-105449a4c1ab",
-      "/card-images/ab/00594247-a18a-4efd-8998-105449a4c1ab",
+      "/media/cards/ab/00594247-a18a-4efd-8998-105449a4c1ab",
     );
   });
 
@@ -591,7 +591,7 @@ describe("POST /api/v1/printing/:printingId/upload-image", () => {
       id: "printing-1",
     });
     mockProcessAndSave.mockResolvedValue(undefined);
-    mockImageRehostedUrl.mockReturnValue("/card-images/v7/mock-uuid-v7");
+    mockImageRehostedUrl.mockReturnValue("/media/cards/v7/mock-uuid-v7");
 
     const formData = new FormData();
     formData.append("file", new File(["image-data"], "card.png", { type: "image/png" }));
@@ -605,12 +605,12 @@ describe("POST /api/v1/printing/:printingId/upload-image", () => {
     );
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json).toEqual({ rehostedUrl: "/card-images/v7/mock-uuid-v7" });
+    expect(json).toEqual({ rehostedUrl: "/media/cards/v7/mock-uuid-v7" });
     expect(mockTrxPrintingImages.insertUploadedImage).toHaveBeenCalledWith({
       id: "mock-uuid-v7",
       printingId: "printing-1",
       provider: "upload",
-      rehostedUrl: "/card-images/v7/mock-uuid-v7",
+      rehostedUrl: "/media/cards/v7/mock-uuid-v7",
       mode: "main",
     });
   });
@@ -620,7 +620,7 @@ describe("POST /api/v1/printing/:printingId/upload-image", () => {
       id: "printing-1",
     });
     mockProcessAndSave.mockResolvedValue(undefined);
-    mockImageRehostedUrl.mockReturnValue("/card-images/v7/mock-uuid-v7");
+    mockImageRehostedUrl.mockReturnValue("/media/cards/v7/mock-uuid-v7");
 
     const formData = new FormData();
     formData.append("file", new File(["image-data"], "card.jpg", { type: "image/jpeg" }));
@@ -639,7 +639,7 @@ describe("POST /api/v1/printing/:printingId/upload-image", () => {
       id: "mock-uuid-v7",
       printingId: "printing-1",
       provider: "custom-source",
-      rehostedUrl: "/card-images/v7/mock-uuid-v7",
+      rehostedUrl: "/media/cards/v7/mock-uuid-v7",
       mode: "additional",
     });
   });

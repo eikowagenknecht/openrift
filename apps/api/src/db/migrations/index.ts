@@ -28,6 +28,7 @@ import * as m079 from "./079-image-rotation.js";
 import * as m080 from "./080-normalize-cardtrader-zh-cn.js";
 import * as m081 from "./081-variant-nullable-language.js";
 import * as m082 from "./082-set-type.js";
+import * as m083 from "./083-rename-card-images-to-media.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -115,4 +116,5 @@ export const migrations: Record<string, Migration> = {
   "080-normalize-cardtrader-zh-cn": m080,
   "081-variant-nullable-language": m081,
   "082-set-type": m082,
+  "083-rename-card-images-to-media": m083,
 };

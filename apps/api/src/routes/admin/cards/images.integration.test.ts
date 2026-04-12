@@ -451,8 +451,8 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .where("id", "=", additionalImageId)
         .executeTakeFirstOrThrow();
 
-      const mainUrl = `/card-images/CSI/${mainImageId}`;
-      const additionalUrl = `/card-images/CSI/${additionalImageId}`;
+      const mainUrl = `/media/cards/CSI/${mainImageId}`;
+      const additionalUrl = `/media/cards/CSI/${additionalImageId}`;
       await db
         .updateTable("imageFiles")
         .set({ rehostedUrl: mainUrl })
@@ -508,7 +508,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
     });
 
     it("does not change rehostedUrl when deactivating an image", async () => {
-      const additionalUrl = `/card-images/CSI/${additionalImageId}`;
+      const additionalUrl = `/media/cards/CSI/${additionalImageId}`;
       // additionalImageId is currently active from the previous test
       const res = await app.fetch(
         req("POST", `/admin/cards/printing-images/${additionalImageId}/activate`, {
@@ -598,7 +598,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
       // Insert a card_image with no originalUrl (rehostedUrl satisfies the DB constraint)
       const [noUrlCardImage] = await db
         .insertInto("imageFiles")
-        .values({ rehostedUrl: "/card-images/CSI/placeholder" })
+        .values({ rehostedUrl: "/media/cards/CSI/placeholder" })
         .returning("id")
         .execute();
       const [noUrlImage] = await db
@@ -707,7 +707,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .executeTakeFirstOrThrow();
       await db
         .updateTable("imageFiles")
-        .set({ rehostedUrl: "/card-images/CSI/csi-test-rehosted" })
+        .set({ rehostedUrl: "/media/cards/CSI/csi-test-rehosted" })
         .where("id", "=", mainCardImageRow.imageFileId)
         .execute();
 
@@ -846,7 +846,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
 
       const json = await res.json();
       expect(json.rehostedUrl).toBeTypeOf("string");
-      expect(json.rehostedUrl).toContain("/card-images/");
+      expect(json.rehostedUrl).toContain("/media/cards/");
 
       // Verify DB state: should be active with rehostedUrl
       const images = await db

@@ -21,7 +21,7 @@
     "make-admin": "bun run --cwd packages/shared make-admin --",
     "dev:api": "bun --env-file=.env --watch apps/api/src/index.ts | bunx pino-pretty",
     "routes:generate": "bun run --cwd apps/web routes:generate",
-    "start": "turbo run build && (bun run --cwd apps/api start & CARD_IMAGES_DIR=\"$PWD/card-images\" PORT=5173 bun run --cwd apps/web start & wait)",
+    "start": "turbo run build && (bun run --cwd apps/api start & MEDIA_DIR=\"$PWD/media\" PORT=5173 bun run --cwd apps/web start & wait)",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage && mkdir -p coverage && bun scripts/normalize-lcov.ts $(find apps packages -name 'lcov.info' -path '*/coverage/*') && lcov-result-merger '{apps,packages}/*/coverage/**/lcov.info' coverage/lcov.info",
     "test:watch:web": "bun run --cwd apps/web test:watch",

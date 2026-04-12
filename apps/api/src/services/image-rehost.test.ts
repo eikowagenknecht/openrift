@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Io } from "../io.js";
 // ─── Import module under test ───────────────────────────────────────────
 import {
-  CARD_IMAGES_DIR,
+  CARD_MEDIA_DIR,
   cleanupOrphanedFiles,
   clearAllRehosted,
   deleteRehostFiles,
@@ -264,23 +264,23 @@ describe("processAndSave", () => {
 describe("deleteRehostFiles", () => {
   it("deletes matching files only", async () => {
     mockReaddir.mockResolvedValue(["card-001-orig.png", "card-001-400w.webp", "other.webp"]);
-    await deleteRehostFiles(mockIo, "/card-images/set1/card-001");
+    await deleteRehostFiles(mockIo, "/media/cards/set1/card-001");
 
     expect(mockUnlink).toHaveBeenCalledTimes(2);
-    expect(mockUnlink).toHaveBeenCalledWith(join(CARD_IMAGES_DIR, "set1", "card-001-orig.png"));
-    expect(mockUnlink).toHaveBeenCalledWith(join(CARD_IMAGES_DIR, "set1", "card-001-400w.webp"));
+    expect(mockUnlink).toHaveBeenCalledWith(join(CARD_MEDIA_DIR, "set1", "card-001-orig.png"));
+    expect(mockUnlink).toHaveBeenCalledWith(join(CARD_MEDIA_DIR, "set1", "card-001-400w.webp"));
   });
 
   it("handles missing directory", async () => {
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
-    await deleteRehostFiles(mockIo, "/card-images/set1/card-001");
+    await deleteRehostFiles(mockIo, "/media/cards/set1/card-001");
     expect(mockUnlink).not.toHaveBeenCalled();
   });
 
   it("swallows unlink errors", async () => {
     mockReaddir.mockResolvedValue(["base-orig.png"]);
     mockUnlink.mockRejectedValue(new Error("EPERM"));
-    await deleteRehostFiles(mockIo, "/card-images/set1/base"); // should not throw
+    await deleteRehostFiles(mockIo, "/media/cards/set1/base"); // should not throw
   });
 });
 
@@ -430,7 +430,7 @@ describe("regenerateImages", () => {
 
   it("clears stale rehostedUrl when the prefix dir is missing entirely", async () => {
     const repo = makeMockRepo({
-      rehosted: [{ imageId: "card-001", rehostedUrl: "/card-images/01/card-001" }],
+      rehosted: [{ imageId: "card-001", rehostedUrl: "/media/cards/01/card-001" }],
     });
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
     const result = await regenerateImages(mockIo, repo, 0);
@@ -443,7 +443,7 @@ describe("regenerateImages", () => {
 
   it("deletes dangling variants and clears DB when -orig is missing", async () => {
     const repo = makeMockRepo({
-      rehosted: [{ imageId: "card-001", rehostedUrl: "/card-images/01/card-001" }],
+      rehosted: [{ imageId: "card-001", rehostedUrl: "/media/cards/01/card-001" }],
     });
     mockReaddir.mockImplementation(async () => ["card-001-400w.webp", "card-001-full.webp"]);
     const result = await regenerateImages(mockIo, repo, 0);
@@ -490,7 +490,7 @@ describe("clearAllRehosted", () => {
     expect(mockUnlink).toHaveBeenCalledTimes(2);
   });
 
-  it("handles missing card-images directory", async () => {
+  it("handles missing media/cards directory", async () => {
     const repo = makeMockRepo({ updateResult: [{ numUpdatedRows: 3n }] });
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
     const result = await clearAllRehosted(mockIo, repo);
@@ -682,7 +682,7 @@ describe("getRehostStatus", () => {
       selectResult: [{ setId: "s", setName: "Set", total: 1, rehosted: 1 }],
     });
     repo.allRehostedUrls = vi.fn(() =>
-      Promise.resolve(["/card-images/s1/img-1", "/card-images/s1/img-2"]),
+      Promise.resolve(["/media/cards/s1/img-1", "/media/cards/s1/img-2"]),
     );
     mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
       if (opts?.withFileTypes) {
@@ -706,7 +706,7 @@ describe("getRehostStatus", () => {
 describe("imageRehostedUrl", () => {
   it("builds the canonical rehosted URL using last 2 chars of UUID", () => {
     expect(imageRehostedUrl("00594247-a18a-4efd-8998-105449a4cf40")).toBe(
-      "/card-images/40/00594247-a18a-4efd-8998-105449a4cf40",
+      "/media/cards/40/00594247-a18a-4efd-8998-105449a4cf40",
     );
   });
 });
@@ -750,7 +750,7 @@ describe("rehostSingleImage", () => {
     expect(mockWriteFile).toHaveBeenCalled();
     expect(repo.updateRehostedUrl).toHaveBeenCalledWith(
       "00594247-a18a-4efd-8998-105449a4cf40",
-      "/card-images/40/00594247-a18a-4efd-8998-105449a4cf40",
+      "/media/cards/40/00594247-a18a-4efd-8998-105449a4cf40",
     );
   });
 
@@ -774,7 +774,7 @@ describe("rehostSingleImage", () => {
 describe("cleanupOrphanedFiles", () => {
   it("deletes files with no matching DB entry", async () => {
     const repo = {
-      allRehostedUrls: vi.fn(async () => ["/card-images/g1/img-1"]),
+      allRehostedUrls: vi.fn(async () => ["/media/cards/g1/img-1"]),
     } as any;
     mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
       if (opts?.withFileTypes) {
@@ -792,7 +792,7 @@ describe("cleanupOrphanedFiles", () => {
 
   it("deletes stale duplicate -orig.* archives, keeping the newest by mtime", async () => {
     const repo = {
-      allRehostedUrls: vi.fn(async () => ["/card-images/g1/img-1"]),
+      allRehostedUrls: vi.fn(async () => ["/media/cards/g1/img-1"]),
     } as any;
     mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
       if (opts?.withFileTypes) {
@@ -820,7 +820,7 @@ describe("cleanupOrphanedFiles", () => {
 
   it("deletes files whose variant suffix is no longer in SIZES", async () => {
     const repo = {
-      allRehostedUrls: vi.fn(async () => ["/card-images/g1/img-1"]),
+      allRehostedUrls: vi.fn(async () => ["/media/cards/g1/img-1"]),
     } as any;
     mockReaddir.mockImplementation(async (_dir: any, opts?: any) => {
       if (opts?.withFileTypes) {
@@ -861,7 +861,7 @@ describe("cleanupOrphanedFiles", () => {
 describe("findBrokenImages", () => {
   const sampleImage = {
     imageId: "img-1",
-    rehostedUrl: "/card-images/g1/img-1",
+    rehostedUrl: "/media/cards/g1/img-1",
     originalUrl: "https://example.com/img.png",
     cardSlug: "c-1",
     cardName: "Card",
@@ -924,7 +924,7 @@ describe("findLowResImages", () => {
       listAllRehostedWithContext: vi.fn(async () => [
         {
           imageId: "img-1",
-          rehostedUrl: "/card-images/g1/img-1",
+          rehostedUrl: "/media/cards/g1/img-1",
           originalUrl: "https://example.com/img.png",
           cardSlug: "c-1",
           cardName: "Card",
@@ -954,7 +954,7 @@ describe("findLowResImages", () => {
       listAllRehostedWithContext: vi.fn(async () => [
         {
           imageId: "img-1",
-          rehostedUrl: "/card-images/g1/img-1",
+          rehostedUrl: "/media/cards/g1/img-1",
           originalUrl: "https://example.com/img.png",
           cardSlug: "c-1",
           cardName: "Card",
@@ -986,7 +986,7 @@ describe("findLowResImages", () => {
       listAllRehostedWithContext: vi.fn(async () => [
         {
           imageId: "img-1",
-          rehostedUrl: "/card-images/g1/img-1",
+          rehostedUrl: "/media/cards/g1/img-1",
           originalUrl: "https://example.com/img.png",
           cardSlug: "c-1",
           cardName: "Card",
@@ -1010,7 +1010,7 @@ describe("findLowResImages", () => {
       listAllRehostedWithContext: vi.fn(async () => [
         {
           imageId: "img-1",
-          rehostedUrl: "/card-images/g1/img-1",
+          rehostedUrl: "/media/cards/g1/img-1",
           originalUrl: "https://example.com/img.png",
           cardSlug: "c-1",
           cardName: "Card",

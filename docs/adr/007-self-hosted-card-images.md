@@ -5,6 +5,8 @@ date: 2026-03-09
 
 # ADR-007: Self-Hosted Card Images
 
+> **Update 2026-04-12:** The `card-images/` directory was renamed to `media/cards/` and the URL prefix changed from `/card-images/` to `/media/cards/`. The `media/` directory also hosts `sets/` for set images. All references below use the original naming from the initial decision.
+
 ## Context and Problem Statement
 
 All card images are currently served from an external CDN we don't control. If the CDN changes URLs, rate-limits us, or goes down, our card browser breaks. We need to self-host card images so we control our own availability.

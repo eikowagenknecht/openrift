@@ -36,8 +36,8 @@ coverage/
 # TanStack Router (auto-generated)
 routeTree.gen.ts
 
-# Self-hosted card images (generated at runtime, bind-mounted in Docker)
-card-images
+# Self-hosted media files (card images, set images — generated at runtime, bind-mounted in Docker)
+media
 
 # Docker bind-mounted data (PostgreSQL, etc.)
 /data/

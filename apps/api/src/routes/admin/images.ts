@@ -168,7 +168,7 @@ const brokenImages = createRoute({
                 imageId: z.string().openapi({ example: "019d02f1-d14f-769f-9295-9852db692dbe" }),
                 rehostedUrl: z
                   .string()
-                  .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
+                  .openapi({ example: "/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
                 originalUrl: z
                   .string()
                   .nullable()
@@ -202,7 +202,7 @@ const lowResImages = createRoute({
                 imageId: z.string().openapi({ example: "019d02f1-d14f-769f-9295-9852db692dbe" }),
                 rehostedUrl: z
                   .string()
-                  .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
+                  .openapi({ example: "/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe" }),
                 originalUrl: z
                   .string()
                   .nullable()

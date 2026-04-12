@@ -19,7 +19,7 @@ trap 'rm -f "$LOCKFILE"' EXIT
 trap 'trap - INT TERM HUP; kill -- -$$ 2>/dev/null' INT TERM HUP
 
 echo "==> Ensuring data directories exist..."
-mkdir -p data/postgres card-images
+mkdir -p data/postgres media/cards media/sets
 
 echo "==> Pulling images..."
 pull_retries=3

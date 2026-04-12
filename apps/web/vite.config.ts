@@ -14,7 +14,7 @@ import { nitro } from "nitro/vite";
 import { defineConfig, loadEnv } from "vite";
 
 const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
-const cardImagesDir = path.resolve(__dirname, "../../card-images");
+const mediaDir = path.resolve(__dirname, "../../media");
 
 const repoRoot = path.resolve(__dirname, "../..");
 
@@ -34,12 +34,12 @@ export default defineConfig(({ mode, command }) => {
       __COMMIT_HASH__: JSON.stringify(commitHash),
     },
     plugins: [
-      // Serve /card-images/ from repo root in dev (in prod, nginx bind mount handles this)
+      // Serve /media/ from repo root in dev (in prod, nginx bind mount handles this)
       {
-        name: "serve-card-images",
+        name: "serve-media",
         configureServer(server) {
-          server.middlewares.use("/card-images", (req, res, next) => {
-            const filePath = path.join(cardImagesDir, req.url?.split("?")[0] ?? "");
+          server.middlewares.use("/media", (req, res, next) => {
+            const filePath = path.join(mediaDir, req.url?.split("?")[0] ?? "");
             if (!existsSync(filePath)) {
               return next();
             }

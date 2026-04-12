@@ -164,7 +164,7 @@ describe("deletePrinting", () => {
         deletePrintingById: vi.fn(async () => {}),
         getImageFileById: vi.fn(async (id: string) =>
           id === "ci-1"
-            ? { id: "ci-1", rehostedUrl: "/card-images/g1/img-1" }
+            ? { id: "ci-1", rehostedUrl: "/media/cards/g1/img-1" }
             : { id: "ci-2", rehostedUrl: null },
         ),
         isImageFileReferenced: vi.fn(async () => false),
@@ -176,7 +176,7 @@ describe("deletePrinting", () => {
     await deletePrinting(transact, {} as Io, repos as any, "p-uuid");
 
     expect(deleteRehostFiles).toHaveBeenCalledTimes(1);
-    expect(deleteRehostFiles).toHaveBeenCalledWith({}, "/card-images/g1/img-1");
+    expect(deleteRehostFiles).toHaveBeenCalledWith({}, "/media/cards/g1/img-1");
   });
 });
 

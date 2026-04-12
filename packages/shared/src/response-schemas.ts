@@ -232,20 +232,20 @@ const promoTypeSchema = z.object({
 const cardImageVariantsSchema = z.object({
   full: z
     .string()
-    .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe-full.webp" }),
+    .openapi({ example: "/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe-full.webp" }),
   thumbnail: z
     .string()
-    .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe-400w.webp" }),
+    .openapi({ example: "/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe-400w.webp" }),
 });
 
 const printingImageSchema = z.object({
   face: cardFaceSchema,
   full: z
     .string()
-    .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe-full.webp" }),
+    .openapi({ example: "/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe-full.webp" }),
   thumbnail: z
     .string()
-    .openapi({ example: "/card-images/be/019d02f1-d14f-769f-9295-9852db692dbe-400w.webp" }),
+    .openapi({ example: "/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe-400w.webp" }),
 });
 
 const cardBanSchema = z.object({
