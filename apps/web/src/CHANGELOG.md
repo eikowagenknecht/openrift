@@ -3,6 +3,7 @@
 ## 2026-04-12
 
 - fix: In "Cards" view, selecting a card stack now correctly selects all copies across all printings of that card, not just the displayed variant. The owned-count popover also shows the full per-collection breakdown.
+- fix: Tapping the deck violation badge now opens the issue list on all devices, instead of requiring a hover on desktop
 - fix: Deleting a collection no longer fails when cards had previously been moved or removed from it
 - fix: The 3-dot menu on collection pages no longer squishes its items into a narrow column
 

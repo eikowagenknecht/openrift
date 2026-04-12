@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 
 /**
- * Badge showing violation count — tooltip on hover (desktop), popover on tap (mobile).
+ * Badge showing violation count with a click-to-open popover listing each violation.
  * @returns The violation badge element.
  */
 function ViolationBadge({
@@ -16,48 +16,27 @@ function ViolationBadge({
   violations: DeckViolation[];
   violationCount: number;
 }) {
-  const violationList = (
-    <ul className="space-y-0.5">
-      {violations.map((violation) => (
-        <li key={violation.code} className="text-xs">
-          {violation.message}
-        </li>
-      ))}
-    </ul>
-  );
-
-  const badge = (
-    <span className="flex shrink-0 cursor-default items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-      Constructed
-      <CircleAlertIcon className="size-3" />
-      <span>
-        {violationCount} {violationCount === 1 ? "issue" : "issues"}
-      </span>
-    </span>
-  );
-
   return (
-    <>
-      {/* Desktop: hover tooltip */}
-      <Tooltip>
-        <TooltipTrigger className="hidden md:flex" render={<span />}>
-          {badge}
-        </TooltipTrigger>
-        <TooltipContent side="bottom" align="start" className="max-w-80">
-          {violationList}
-        </TooltipContent>
-      </Tooltip>
-
-      {/* Mobile: tap popover */}
-      <Popover>
-        <PopoverTrigger className="flex md:hidden" nativeButton={false} render={<span />}>
-          {badge}
-        </PopoverTrigger>
-        <PopoverContent side="bottom" align="start" className="w-auto max-w-80 p-2">
-          {violationList}
-        </PopoverContent>
-      </Popover>
-    </>
+    <Popover>
+      <PopoverTrigger nativeButton={false} render={<span />}>
+        <span className="flex shrink-0 cursor-default items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+          Constructed
+          <CircleAlertIcon className="size-3" />
+          <span>
+            {violationCount} {violationCount === 1 ? "issue" : "issues"}
+          </span>
+        </span>
+      </PopoverTrigger>
+      <PopoverContent side="bottom" align="start" className="w-auto max-w-80 p-2">
+        <ul className="space-y-0.5">
+          {violations.map((violation) => (
+            <li key={violation.code} className="text-xs">
+              {violation.message}
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }
 
