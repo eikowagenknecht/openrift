@@ -668,7 +668,7 @@ export function CardGrid({
       />
 
       {/* Sticky set header overlay */}
-      <div className="sticky z-10 h-0" style={{ top: stickyOffset }}>
+      <div className="sticky z-20 h-0" style={{ top: stickyOffset }}>
         {multipleGroups && activeHeaderRow && (
           <div className="flex justify-center pt-2">
             <GroupHeaderLabel
