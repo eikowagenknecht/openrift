@@ -51,6 +51,11 @@ function Button({
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      // custom: BaseUI's useRenderElement conditionally skips useMergedRefs on
+      // the server (typeof document check), which causes the native <button>'s
+      // `disabled` attribute to be absent from SSR HTML while present on the
+      // client, triggering a React 19 hydration mismatch warning.
+      suppressHydrationWarning
       {...props}
     />
   );
