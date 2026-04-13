@@ -1,5 +1,5 @@
 import type { DeckZone, Printing } from "@openrift/shared";
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -58,89 +58,26 @@ function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCa
   return runesByDomain;
 }
 
-/** Filter keys to clear when switching zones (excludes sort/view/group). */
-const CLEARED_FILTERS: Record<string, null> = {
-  search: null,
-  sets: null,
-  rarities: null,
-  types: null,
-  superTypes: null,
-  domains: null,
-  artVariants: null,
-  finishes: null,
-  energyMin: null,
-  energyMax: null,
-  mightMin: null,
-  mightMax: null,
-  powerMin: null,
-  powerMax: null,
-  priceMin: null,
-  priceMax: null,
-  signed: null,
-  promo: null,
-  banned: null,
-  errata: null,
-};
-
-/**
- * Build the URL filter update for a given deck zone.
- * @returns A record of filter keys to set (or null to clear).
- */
-function buildZoneFilterUpdate(
-  zone: DeckZone,
-  legendDomains: string[],
-  legendTag?: string,
-): Record<string, string[] | string | null> {
-  switch (zone) {
-    case "legend": {
-      return { ...CLEARED_FILTERS, types: ["Legend"] };
-    }
-    case "champion": {
-      return {
-        ...CLEARED_FILTERS,
-        types: ["Unit"],
-        superTypes: ["Champion"],
-        domains: legendDomains.length > 0 ? [...legendDomains, "Colorless"] : null,
-        search: legendTag ? `t:${legendTag}` : null,
-      };
-    }
-    case "runes": {
-      return {
-        ...CLEARED_FILTERS,
-        types: ["Rune"],
-        domains: legendDomains.length > 0 ? legendDomains : null,
-      };
-    }
-    case "battlefield": {
-      return { ...CLEARED_FILTERS, types: ["Battlefield"] };
-    }
-    case "main":
-    case "sideboard": {
-      return {
-        ...CLEARED_FILTERS,
-        types: ["Unit", "Spell", "Gear"],
-        domains: legendDomains.length > 0 ? [...legendDomains, "Colorless"] : null,
-      };
-    }
-    case "overflow": {
-      return {
-        ...CLEARED_FILTERS,
-        types: ["Unit", "Spell", "Gear", "Battlefield"],
-        domains: legendDomains.length > 0 ? [...legendDomains, "Colorless"] : null,
-      };
-    }
-    default: {
-      return { ...CLEARED_FILTERS };
-    }
-  }
-}
-
 /**
  * Full card browser for the deck editor — reuses the same filter UI, search bar,
  * and card grid as the catalog browser. Clicking + on a card adds it to the active zone.
- * @returns The deck card browser view.
+ * @returns The deck card browser view, or an empty state if no zone is selected.
  */
 export function DeckCardBrowser() {
+  const activeZone = useDeckBuilderStore((state) => state.activeZone);
+
+  if (!activeZone) {
+    return (
+      <div className="flex flex-1 items-center justify-center p-8">
+        <p className="text-muted-foreground text-center text-sm">Select a zone to browse cards</p>
+      </div>
+    );
+  }
+
+  return <DeckCardBrowserInner />;
+}
+
+function DeckCardBrowserInner() {
   const showImages = useDisplayStore((state) => state.showImages);
   const { allPrintings, sets } = useCards();
   const prices = usePrices();
@@ -154,7 +91,6 @@ export function DeckCardBrowser() {
     groupBy,
     groupDir,
     hasActiveFilters,
-    setFilterState,
   } = useFilterValues();
   const { setSearch } = useFilterActions();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
@@ -162,7 +98,8 @@ export function DeckCardBrowser() {
   const removeCard = useDeckBuilderStore((state) => state.removeCard);
   const setLegend = useDeckBuilderStore((state) => state.setLegend);
   const setRunesByDomain = useDeckBuilderStore((state) => state.setRunesByDomain);
-  const activeZone = useDeckBuilderStore((state) => state.activeZone);
+  // Wrapper only renders this component when activeZone is set
+  const activeZone = useDeckBuilderStore((state) => state.activeZone) as DeckZone;
   const isSingleCardZone = activeZone === "legend" || activeZone === "champion";
 
   // Track Shift key for "add max" visual hint
@@ -199,33 +136,7 @@ export function DeckCardBrowser() {
   const singleCardZoneOccupied =
     isSingleCardZone && deckCards.some((card) => card.zone === activeZone);
 
-  // Sync URL filters when the active zone or legend changes.
-  // Using setFilterState from the SAME useQueryStates instance that provides
-  // urlFilters avoids cross-hook sync issues during React Strict Mode.
-  const legend = deckCards.find((card) => card.zone === "legend");
-  const legendDomainsKey = legend ? [...legend.domains].sort().join(",") : "";
-  const prevZoneKey = useRef("");
-  useEffect(() => {
-    const key = `${activeZone}:${legendDomainsKey}`;
-    if (key === prevZoneKey.current) {
-      return;
-    }
-    prevZoneKey.current = key;
-    const update = buildZoneFilterUpdate(activeZone, legend?.domains ?? [], legend?.tags[0]);
-    void setFilterState(update);
-    // Reset ref on cleanup so Strict Mode remount re-applies filters
-    return () => {
-      prevZoneKey.current = "";
-    };
-  }, [activeZone, legendDomainsKey, legend?.domains, legend?.tags, setFilterState]);
-
   const filters = urlFilters;
-
-  // Build a map of cardId → total quantity across all zones
-  const deckQuantityByCard = new Map<string, number>();
-  for (const card of deckCards) {
-    deckQuantityByCard.set(card.cardId, (deckQuantityByCard.get(card.cardId) ?? 0) + card.quantity);
-  }
 
   // Always use "cards" view in deckbuilder — printings/copies modes don't apply
   const view = "cards" as const;
@@ -264,6 +175,12 @@ export function DeckCardBrowser() {
 
   const deferredSortedCards = useDeferredValue(filteredCards);
   const isGridStale = deferredSortedCards !== filteredCards;
+
+  // Build a map of cardId → total quantity across all zones
+  const deckQuantityByCard = new Map<string, number>();
+  for (const card of deckCards) {
+    deckQuantityByCard.set(card.cardId, (deckQuantityByCard.get(card.cardId) ?? 0) + card.quantity);
+  }
 
   const items: CardViewerItem[] = deferredSortedCards.map((printing) => ({
     id: printing.id,
