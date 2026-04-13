@@ -29,6 +29,7 @@
     "test:watch:shared": "bun run --cwd packages/shared test:watch",
     "test:integration": "turbo run test:integration",
     "test:e2e": "turbo run test:e2e",
+    "test:e2e:headed": "turbo run test:e2e:headed",
     "check": "bun run build && bun run lint:oxlint && bun run lint:oxfmt && bun run test && bun run test:integration && bun run knip",
     "knip": "knip",
     "postinstall": "test -n \"$CI\" || test -n \"$DOCKER_CONTAINER\" || env | grep -q ^DEPENDABOT || lefthook install"

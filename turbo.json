@@ -29,6 +29,11 @@
       "inputs": ["src/**", "playwright.config.ts"],
       "cache": false
     },
+    "test:e2e:headed": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "playwright.config.ts"],
+      "cache": false
+    },
     "lint": {},
     "dev": {
       "cache": false,
