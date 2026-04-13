@@ -196,13 +196,33 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
   // ── listCardsWithMissingImages (lines 151-169) ────────────────────────────
 
   it("listCardsWithMissingImages returns cards lacking active front images", async () => {
+    // Temporarily deactivate Annie's front image so at least one printing is missing
+    await db
+      .updateTable("printingImages")
+      .set({ isActive: false })
+      .where("printingId", "=", SEED_PRINTING_ANNIE_ID)
+      .where("face", "=", "front")
+      .where("isActive", "=", true)
+      .execute();
+
     const result = await repo.listCardsWithMissingImages();
     expect(Array.isArray(result)).toBe(true);
-    // All seed printings lack printing_images rows, so all should appear
     expect(result.length).toBeGreaterThan(0);
     expect(result[0]).toHaveProperty("cardId");
     expect(result[0]).toHaveProperty("slug");
     expect(result[0]).toHaveProperty("name");
+
+    // Annie's card should appear since her printing now lacks an active front image
+    const annie = result.find((r) => r.cardId === SEED_CARD_ANNIE_ID);
+    expect(annie).toBeDefined();
+
+    // Restore the image
+    await db
+      .updateTable("printingImages")
+      .set({ isActive: true })
+      .where("printingId", "=", SEED_PRINTING_ANNIE_ID)
+      .where("face", "=", "front")
+      .execute();
   });
 
   // ── listCandidatePrintingsForSourceList (lines 186-196) ───────────────────

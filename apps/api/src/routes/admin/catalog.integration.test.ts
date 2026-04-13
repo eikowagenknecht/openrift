@@ -171,6 +171,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           name: "Ghost Set",
           printedTotal: 0,
           releasedAt: null,
+          setType: "main",
         }),
       );
       expect(res.status).toBe(404);
@@ -184,6 +185,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           name: "CAT Core Set Revised",
           printedTotal: 210,
           releasedAt: "2025-02-01",
+          setType: "main",
         }),
       );
       expect(res.status).toBe(204);
