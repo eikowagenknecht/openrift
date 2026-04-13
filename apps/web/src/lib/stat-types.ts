@@ -5,6 +5,11 @@ export interface DomainCount {
   count: number;
 }
 
+export interface RarityCount {
+  rarity: string;
+  count: number;
+}
+
 /** A single domain or a multi-domain combo (e.g. Fire+Water). */
 export interface DomainCombo {
   key: string;
