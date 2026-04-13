@@ -144,6 +144,9 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .executeTakeFirstOrThrow();
     createdSnapshotIds.push(snap2.id);
 
+    // Refresh the MV so latestPrices() sees the new snapshots
+    await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
+
     const snaps = await repo.snapshots(tcgVariantId, null);
 
     expect(snaps.length).toBeGreaterThanOrEqual(2);
