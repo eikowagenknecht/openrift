@@ -19,8 +19,17 @@ test.describe("login page", () => {
   test("shows error for invalid credentials", async ({ page }) => {
     await page.goto("/login");
 
+    // Wait for hydration: the button is disabled while React isn't ready,
+    // or we can wait for a client-side-only element. Filling + clicking
+    // before hydration causes a native form GET submission.
+    await page.waitForFunction(() => document.querySelector("#password") !== null);
+
     await page.locator("#email").fill("nonexistent@test.com");
     await page.locator("#password").fill("WrongPassword123!");
+
+    // Use page.evaluate to submit via the button click after ensuring
+    // React has attached its handlers (wait for next idle).
+    await page.waitForTimeout(500);
     await page.getByRole("button", { name: /login/i }).click();
 
     // better-auth returns "Invalid email or password."
@@ -49,6 +58,9 @@ test.describe("login page", () => {
     }
 
     await page.goto("/login");
+    await page.waitForFunction(() => document.querySelector("#password") !== null);
+    await page.waitForTimeout(500);
+
     await page.locator("#email").fill(testEmail);
     await page.locator("#password").fill(testPassword);
     await page.getByRole("button", { name: /login/i }).click();
