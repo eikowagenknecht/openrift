@@ -20,6 +20,7 @@ import type {
   DomainCount,
   EnergyCostCount,
   PowerCount,
+  RarityCount,
   TypeCount,
 } from "@/lib/stat-types";
 import { comboKey, sortCombos } from "@/lib/stat-types";
@@ -61,6 +62,7 @@ export interface CollectionStats {
   cheapestPrinting: PricedCard | null;
   mostExpensivePrinting: PricedCard | null;
   domainDistribution: DomainCount[];
+  rarityDistribution: RarityCount[];
   energyCurve: EnergyCostCount[];
   energyCurveStacks: DomainCombo[];
   averageEnergy: number | null;
@@ -394,6 +396,17 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
     .filter((domain) => domainCounts.has(domain))
     .map((domain) => ({ domain: domain as Domain, count: domainCounts.get(domain) ?? 0 }));
 
+  // ── Rarity distribution ───────────────────────────────────────────────
+
+  const rarityCounts = new Map<string, number>();
+  for (const stack of stacks) {
+    const rarity = stack.printing.rarity;
+    rarityCounts.set(rarity, (rarityCounts.get(rarity) ?? 0) + stack.copyIds.length);
+  }
+  const rarityDistribution: RarityCount[] = orders.rarities
+    .filter((rarity) => rarityCounts.has(rarity))
+    .map((rarity) => ({ rarity, count: rarityCounts.get(rarity) ?? 0 }));
+
   // ── Energy curve ───────────────────────────────────────────────────────
 
   const energyByCombo = new Map<number, Map<string, number>>();
@@ -544,6 +557,7 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
     cheapestPrinting,
     mostExpensivePrinting,
     domainDistribution,
+    rarityDistribution,
     energyCurve,
     energyCurveStacks,
     averageEnergy,

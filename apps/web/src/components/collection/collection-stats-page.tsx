@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { use, useState } from "react";
 import { createPortal } from "react-dom";
+import { Pie, PieChart } from "recharts";
 
 import { CardIcon } from "@/components/card-icon";
 import { CostToCompleteChart } from "@/components/collection/cost-to-complete-chart";
@@ -26,6 +27,8 @@ import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { ChartConfig } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   Select,
@@ -55,7 +58,7 @@ import { usePrices } from "@/hooks/use-prices";
 import { getDomainColor } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
-import type { DomainCount } from "@/lib/stat-types";
+import type { DomainCount, RarityCount } from "@/lib/stat-types";
 import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 
@@ -452,61 +455,114 @@ function CompletionSection({
   );
 }
 
-// ── Domain Distribution ────────────────────────────────────────────────────
+// ── Distribution Donut Charts ─────────────────────────────────────────────
 
-function DomainDistribution({ data, totalCopies }: { data: DomainCount[]; totalCopies: number }) {
+function DomainDistributionChart({ data }: { data: DomainCount[] }) {
   const domainColors = useDomainColors();
 
   if (data.length === 0) {
     return null;
   }
 
+  const chartConfig: ChartConfig = {};
+  const chartData = data.map((entry) => {
+    chartConfig[entry.domain] = {
+      label: entry.domain,
+      color: getDomainColor(entry.domain, domainColors),
+    };
+    return {
+      name: entry.domain,
+      value: entry.count,
+      fill: getDomainColor(entry.domain, domainColors),
+    };
+  });
+
   return (
-    <div>
-      <TooltipProvider>
-        <div className="mb-3 flex h-4 overflow-hidden rounded-full">
-          {data.map((entry) => {
-            if (entry.count === 0) {
-              return null;
-            }
-            const percentage = (entry.count / totalCopies) * 100;
-            return (
-              <Tooltip key={entry.domain}>
-                <TooltipTrigger
-                  className="h-full"
-                  render={<span />}
-                  style={{
-                    width: `${percentage}%`,
-                    backgroundColor: getDomainColor(entry.domain, domainColors),
-                  }}
-                />
-                <TooltipContent side="bottom">
-                  {entry.domain}: {entry.count} ({percentage.toFixed(1)}%)
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </div>
-      </TooltipProvider>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-3 md:grid-cols-4">
-        {data.map((entry) => {
-          const percentage = totalCopies > 0 ? (entry.count / totalCopies) * 100 : 0;
-          return (
-            <div key={entry.domain} className="flex items-center gap-2 text-sm">
-              <span
-                className="size-3 shrink-0 rounded-sm"
-                style={{ backgroundColor: getDomainColor(entry.domain, domainColors) }}
-              />
-              <span className="flex-1">{entry.domain}</span>
-              <span className="text-muted-foreground tabular-nums">{entry.count}</span>
-              <span className="text-muted-foreground w-10 text-right text-xs tabular-nums">
-                {percentage.toFixed(0)}%
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-36">
+      <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+        <Pie
+          data={chartData}
+          dataKey="value"
+          nameKey="name"
+          innerRadius="60%"
+          outerRadius="95%"
+          strokeWidth={2}
+        />
+      </PieChart>
+    </ChartContainer>
+  );
+}
+
+function RarityDistributionChart({ data }: { data: RarityCount[] }) {
+  const { rarityColors, labels } = useEnumOrders();
+
+  if (data.length === 0) {
+    return null;
+  }
+
+  const chartConfig: ChartConfig = {};
+  const chartData = data.map((entry) => {
+    const label = labels.rarities[entry.rarity] ?? entry.rarity;
+    const color = rarityColors[entry.rarity] ?? "var(--color-muted-foreground)";
+    chartConfig[entry.rarity] = { label, color };
+    return { name: entry.rarity, label, value: entry.count, fill: color };
+  });
+
+  return (
+    <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-36">
+      <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="label" />} />
+        <Pie
+          data={chartData}
+          dataKey="value"
+          nameKey="label"
+          innerRadius="60%"
+          outerRadius="95%"
+          strokeWidth={2}
+        />
+      </PieChart>
+    </ChartContainer>
+  );
+}
+
+const TYPE_CHART_COLORS = [
+  "var(--color-chart-1)",
+  "var(--color-chart-2)",
+  "var(--color-chart-3)",
+  "var(--color-chart-4)",
+  "var(--color-chart-5)",
+];
+
+function TypeDistributionChart({ data }: { data: { type: string; total: number }[] }) {
+  const { labels } = useEnumOrders();
+
+  if (data.length === 0) {
+    return null;
+  }
+
+  const chartConfig: ChartConfig = {};
+  const chartData = data.map((entry, index) => {
+    const label = labels.cardTypes[entry.type] ?? entry.type;
+    const color = TYPE_CHART_COLORS[index % TYPE_CHART_COLORS.length];
+    chartConfig[entry.type] = { label, color };
+    return { name: entry.type, label, value: entry.total, fill: color };
+  });
+
+  return (
+    <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-36">
+      <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="label" />} />
+        <Pie
+          data={chartData}
+          dataKey="value"
+          nameKey="label"
+          innerRadius="60%"
+          outerRadius="95%"
+          strokeWidth={2}
+        />
+      </PieChart>
+    </ChartContainer>
   );
 }
 
@@ -804,17 +860,32 @@ function CollectionStatsContent() {
               mostExpensive={stats.mostExpensivePrinting}
               formatPrice={stats.formatPrice}
             />
-            <Card>
-              <CardHeader>
-                <CardTitle>Domain Distribution</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <DomainDistribution
-                  data={stats.domainDistribution}
-                  totalCopies={stats.totalCopies}
-                />
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Domain</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <DomainDistributionChart data={stats.domainDistribution} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Rarity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RarityDistributionChart data={stats.rarityDistribution} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Type</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <TypeDistributionChart data={stats.typeBreakdown} />
+                </CardContent>
+              </Card>
+            </div>
 
             {(stats.energyCurve.length > 0 || stats.powerCurve.length > 0) && (
               <Card>
