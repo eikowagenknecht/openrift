@@ -170,3 +170,54 @@ describe("matchEntries — fallbackLanguage", () => {
     expect(results[0].candidates).toHaveLength(2);
   });
 });
+
+describe("matchEntries — isPromo flag", () => {
+  const basePrinting = makePrinting({
+    id: "base",
+    shortCode: "OGN-001",
+    finish: "foil",
+    promoType: null,
+  });
+  const promoPrinting = makePrinting({
+    id: "promo-nexus",
+    shortCode: "OGN-001",
+    finish: "foil",
+    promoType: { slug: "nexus", name: "Nexus" },
+  });
+
+  it("auto-resolves to the single promo printing when isPromo is set", () => {
+    const entries = [makeEntry({ finish: "foil", language: "EN", isPromo: true })];
+    const results = matchEntries(entries, [basePrinting, promoPrinting]);
+    expect(results[0].status).toBe("exact");
+    expect(results[0].resolvedPrinting?.id).toBe("promo-nexus");
+  });
+
+  it("returns needs-review with promo candidates when multiple promos exist", () => {
+    const promoRelease = makePrinting({
+      id: "promo-release",
+      shortCode: "OGN-001",
+      finish: "foil",
+      promoType: { slug: "release", name: "Release" },
+    });
+    const entries = [makeEntry({ finish: "foil", language: "EN", isPromo: true })];
+    const results = matchEntries(entries, [basePrinting, promoPrinting, promoRelease]);
+    expect(results[0].status).toBe("needs-review");
+    // Candidates should only include promo printings, not the base
+    expect(results[0].candidates).toHaveLength(2);
+    expect(results[0].candidates.every((c) => c.promoType !== null)).toBe(true);
+  });
+
+  it("falls back to all candidates when no promo printings exist", () => {
+    const entries = [makeEntry({ finish: "foil", language: "EN", isPromo: true })];
+    const results = matchEntries(entries, [basePrinting]);
+    expect(results[0].status).toBe("needs-review");
+    expect(results[0].candidates).toHaveLength(1);
+  });
+
+  it("without isPromo, prefers non-promo base printing", () => {
+    const entries = [makeEntry({ finish: "foil", language: "EN" })];
+    const results = matchEntries(entries, [basePrinting, promoPrinting]);
+    expect(results[0].status).toBe("exact");
+    expect(results[0].resolvedPrinting?.id).toBe("base");
+  });
+});

@@ -212,6 +212,26 @@ function matchSingleEntry(
       };
     }
 
+    // If the entry is known to be a promo (e.g. RiftMana's -p suffix) but without a specific slug,
+    // prefer promo printings and avoid auto-resolving to the non-promo base
+    if (entry.isPromo) {
+      const promoMatches = langMatches.filter((printing) => printing.promoType);
+      if (promoMatches.length === 1) {
+        return {
+          entry,
+          status: "exact",
+          resolvedPrinting: promoMatches[0],
+          candidates: langMatches,
+        };
+      }
+      return {
+        entry,
+        status: "needs-review",
+        resolvedPrinting: null,
+        candidates: promoMatches.length > 0 ? promoMatches : langMatches,
+      };
+    }
+
     if (finishMatches.length === 1) {
       // Exact match — include language-narrowed matches as candidates for manual override
       return {
