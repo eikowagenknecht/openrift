@@ -16,7 +16,8 @@
     "test:integration": "bun --env-file=../../.env run src/test/run-integration.ts",
     "dev": "bun --env-file=../../.env --watch src/index.ts",
     "start": "bun --env-file=../../.env src/index.ts",
-    "build": "NODE_OPTIONS='--max-old-space-size=4096' tsc"
+    "build": "tsgo",
+    "build:tsc": "NODE_OPTIONS='--max-old-space-size=4096' tsc"
   },
   "dependencies": {
     "@hono/swagger-ui": "0.6.1",
@@ -39,6 +40,7 @@
   "devDependencies": {
     "@types/bun": "1.3.11",
     "@types/nodemailer": "8.0.0",
+    "@typescript/native-preview": "7.0.0-dev.20260329.1",
     "@vitest/coverage-v8": "4.1.4",
     "typescript": "6.0.2",
     "vitest": "4.1.4"
