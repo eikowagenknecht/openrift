@@ -30,7 +30,7 @@ export const collectionEventsRoute = collectionEventsApp.openapi(listEvents, asy
   const { collectionEvents } = c.get("repos");
   const userId = getUserId(c);
   const { cursor, limit: rawLimit } = c.req.valid("query");
-  const limit = rawLimit ?? 50;
+  const limit = rawLimit ?? 100;
 
   const rows = await collectionEvents.listForUser(userId, limit, cursor);
 

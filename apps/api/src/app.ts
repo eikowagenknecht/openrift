@@ -6,7 +6,6 @@ import * as Sentry from "@sentry/bun";
 import { rateLimiter } from "hono-rate-limiter";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
-import { logger } from "hono/logger";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { Kysely } from "kysely";
 import { z } from "zod";
@@ -131,7 +130,25 @@ export function createApp(deps: AppDeps) {
   );
 
   if (config.logRequests) {
-    app.use("/api/*", logger());
+    app.use("/api/*", async (c, next) => {
+      const start = performance.now();
+      const reqBody = await c.req.raw.clone().arrayBuffer();
+      const reqSize = reqBody.byteLength;
+      await next();
+      const ms = (performance.now() - start).toFixed(0);
+      const resBody = await c.res.clone().arrayBuffer();
+      const resSize = resBody.byteLength;
+      const fmtSize = (bytes: number) =>
+        bytes < 1024 ? `${bytes}B` : `${(bytes / 1024).toFixed(1)}KB`;
+      const parts = [`${c.req.method} ${c.req.path} ${c.res.status} ${ms}ms`];
+      if (reqSize > 0) {
+        parts.push(`req=${fmtSize(reqSize)}`);
+      }
+      if (resSize > 0) {
+        parts.push(`res=${fmtSize(resSize)}`);
+      }
+      log.info(parts.join(" "));
+    });
   }
 
   const MAX_BODY_LOG_BYTES = 10_000;
