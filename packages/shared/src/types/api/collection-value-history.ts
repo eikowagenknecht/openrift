@@ -1,6 +1,6 @@
 export interface CollectionValueHistoryPoint {
   date: string;
-  valueCents: number;
+  value: number;
   copyCount: number;
 }
 

@@ -693,7 +693,7 @@ export const collectionValueHistoryResponseSchema = z
     series: z.array(
       z.object({
         date: z.string().openapi({ example: "2026-03-15" }),
-        valueCents: z.number().openapi({ example: 125_000 }),
+        value: z.number().openapi({ example: 1250 }),
         copyCount: z.number().openapi({ example: 42 }),
       }),
     ),

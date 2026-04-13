@@ -121,7 +121,7 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
                 }
                 const point = payload[0].payload as {
                   date: string;
-                  valueCents: number;
+                  value: number;
                   copyCount: number;
                 };
                 return (
@@ -135,7 +135,7 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
                         />
                         <span className="text-muted-foreground">Value</span>
                         <span className="ml-auto font-mono font-medium tabular-nums">
-                          {currencyFormatter(point.valueCents)}
+                          {currencyFormatter(point.value)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -151,7 +151,7 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
               }}
             />
             <Area
-              dataKey="valueCents"
+              dataKey="value"
               type="monotone"
               stroke="var(--color-value)"
               strokeWidth={2}
