@@ -69,6 +69,12 @@ export default async function globalSetup(_config: FullConfig) {
   const seedSql = readFileSync(seedPath, "utf8");
   const sql = connectToDb(tempDbUrl);
   await sql.unsafe(seedSql);
+
+  // Refresh materialized views so the catalog query returns data.
+  // Migrations create the views before seed data is loaded, so they're empty.
+  console.log("[e2e] Refreshing materialized views...");
+  await sql`REFRESH MATERIALIZED VIEW mv_card_aggregates`;
+  await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`;
   await sql.end();
 
   // ── 2. Start API server ─────────────────────────────────────────────────
