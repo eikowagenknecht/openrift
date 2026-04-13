@@ -4,6 +4,27 @@ import type { Kysely, Selectable } from "kysely";
 import type { CollectionEventsTable, Database, PrintingsTable } from "../db/index.js";
 import { imageUrl, superTypesArray } from "./query-helpers.js";
 
+const CURSOR_SEPARATOR = "_";
+
+/**
+ * Builds an opaque keyset cursor from a timestamp and id.
+ * @returns A cursor string encoding both values.
+ */
+export function buildEventsCursor(createdAt: Date, id: string): string {
+  return `${createdAt.toISOString()}${CURSOR_SEPARATOR}${id}`;
+}
+
+function parseCursor(cursor: string): { time: Date; id: string | null } {
+  const separatorIndex = cursor.indexOf(CURSOR_SEPARATOR);
+  if (separatorIndex === -1) {
+    return { time: new Date(cursor), id: null };
+  }
+  return {
+    time: new Date(cursor.slice(0, separatorIndex)),
+    id: cursor.slice(separatorIndex + 1),
+  };
+}
+
 /** Collection event row with printing, card, and image details. */
 type CollectionEventRow = Pick<
   Selectable<CollectionEventsTable>,
@@ -70,7 +91,15 @@ export function collectionEventsRepo(db: Kysely<Database>) {
         .orderBy("ce.id", "desc")
         .limit(limit + 1);
       if (cursor) {
-        query = query.where("ce.createdAt", "<", new Date(cursor));
+        const { time, id } = parseCursor(cursor);
+        query = id
+          ? query.where((eb) =>
+              eb.or([
+                eb("ce.createdAt", "<", time),
+                eb.and([eb("ce.createdAt", "=", time), eb("ce.id", "<", id)]),
+              ]),
+            )
+          : query.where("ce.createdAt", "<", time);
       }
       return query.execute();
     },

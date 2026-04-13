@@ -5,6 +5,7 @@ import { collectionEventsQuerySchema } from "@openrift/shared/schemas";
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { buildEventsCursor } from "../../repositories/collection-events.js";
 import type { Variables } from "../../types.js";
 import { toCollectionEvent } from "../../utils/mappers.js";
 
@@ -36,9 +37,10 @@ export const collectionEventsRoute = collectionEventsApp.openapi(listEvents, asy
   const hasMore = rows.length > limit;
   const items = rows.slice(0, limit);
 
+  const lastItem = items.at(-1);
   const result: CollectionEventListResponse = {
     items: items.map((r) => toCollectionEvent(r)),
-    nextCursor: hasMore ? (items.at(-1)?.createdAt.toISOString() ?? null) : null,
+    nextCursor: hasMore && lastItem ? buildEventsCursor(lastItem.createdAt, lastItem.id) : null,
   };
   return c.json(result);
 });
