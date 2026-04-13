@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-13
+
+- feat: New "Cost to Complete" chart on the Statistics page shows how much you'd spend to reach 100% completion, with cards sorted cheapest-first so you can see where diminishing returns kick in
+
 ## 2026-04-12
 
 - feat: Rarities now have their own colors, visible throughout the UI wherever rarity appears

@@ -12,6 +12,7 @@ import { use, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { CardIcon } from "@/components/card-icon";
+import { CostToCompleteChart } from "@/components/collection/cost-to-complete-chart";
 import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
@@ -42,6 +43,7 @@ import { useCollections } from "@/hooks/use-collections";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
+import { usePrices } from "@/hooks/use-prices";
 import { getDomainColor } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
 import type { DomainCount } from "@/lib/stat-types";
@@ -650,6 +652,7 @@ function CollectionStatsContent() {
   const [scopeExpanded, setScopeExpanded] = useState(false);
   const scope = useDisplayStore((state) => state.completionScope);
   const setCompletionScope = useDisplayStore((state) => state.setCompletionScope);
+  const prices = usePrices();
 
   const topBarPortal =
     topBarSlot &&
@@ -728,6 +731,21 @@ function CollectionStatsContent() {
               groupBy={groupBy}
               countMode={countMode}
               scope={scope}
+            />
+          </section>
+
+          <Separator />
+
+          {/* ── Cost to Complete ────────────────────────────── */}
+          <section className="space-y-4">
+            <h2 className="text-base font-semibold">Cost to Complete</h2>
+            <CostToCompleteChart
+              allPrintings={stats.allPrintings}
+              stacks={stats.stacks}
+              scope={scope}
+              countMode={countMode}
+              prices={prices}
+              marketplace={stats.marketplace}
             />
           </section>
 
