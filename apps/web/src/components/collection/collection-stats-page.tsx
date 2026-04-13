@@ -7,6 +7,7 @@ import {
   FilterIcon,
   PackageIcon,
   SearchIcon,
+  XIcon,
 } from "lucide-react";
 import { use, useState } from "react";
 import { createPortal } from "react-dom";
@@ -56,9 +57,9 @@ import { useDisplayStore } from "@/stores/display-store";
 function StatsHeroStats({ stats }: { stats: CollectionStats }) {
   return (
     <div className="grid grid-cols-2 gap-3">
-      <Card size="sm">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-muted-foreground flex items-center gap-1.5 text-xs font-normal">
+          <CardTitle className="text-muted-foreground flex items-center gap-1.5">
             <PackageIcon className="size-4" />
             Total Copies
           </CardTitle>
@@ -69,9 +70,9 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
           </p>
         </CardContent>
       </Card>
-      <Card size="sm">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-muted-foreground flex items-center gap-1.5 text-xs font-normal">
+          <CardTitle className="text-muted-foreground flex items-center gap-1.5">
             <CoinsIcon className="size-4" />
             Estimated Value
           </CardTitle>
@@ -127,8 +128,7 @@ function ScopeFilterToggle({
   return (
     <Button
       variant="outline"
-      size="sm"
-      className="gap-1.5 text-xs"
+      className="gap-1.5"
       onClick={onToggle}
       aria-label={expanded ? "Hide scope filters" : "Show scope filters"}
       aria-expanded={expanded}
@@ -181,87 +181,96 @@ function ScopeFilterPanel({
   return (
     <Collapsible open={expanded} onOpenChange={onExpandedChange} className="mb-3">
       <CollapsibleContent className="h-(--collapsible-panel-height) space-y-3 overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
-        <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
-          <div>
-            <p className="text-muted-foreground mb-1.5 text-xs font-medium">Language</p>
-            <div className="flex flex-wrap gap-1">
-              {languageList.map((lang) => (
-                <ScopeFilterBadge
-                  key={lang.code}
-                  label={lang.name}
-                  active={scope.languages?.includes(lang.code) ?? false}
-                  onClick={() =>
-                    onScopeChange({ ...scope, languages: toggleIn(scope.languages, lang.code) })
+        <TooltipProvider>
+          <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+            <div>
+              <p className="text-muted-foreground mb-1.5 text-xs font-medium">Language</p>
+              <div className="flex flex-wrap gap-1">
+                {languageList.map((lang) => (
+                  <ScopeFilterBadge
+                    key={lang.code}
+                    label={lang.name}
+                    active={scope.languages?.includes(lang.code) ?? false}
+                    onClick={() =>
+                      onScopeChange({ ...scope, languages: toggleIn(scope.languages, lang.code) })
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-1.5 text-xs font-medium">Finish</p>
+              <div className="flex flex-wrap gap-1">
+                {orders.finishes.map((finish) => (
+                  <ScopeFilterBadge
+                    key={finish}
+                    label={labels.finishes[finish] ?? finish}
+                    active={scope.finishes?.includes(finish) ?? false}
+                    onClick={() =>
+                      onScopeChange({ ...scope, finishes: toggleIn(scope.finishes, finish) })
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-1.5 text-xs font-medium">Art Variant</p>
+              <div className="flex flex-wrap gap-1">
+                {orders.artVariants.map((variant) => (
+                  <ScopeFilterBadge
+                    key={variant}
+                    label={labels.artVariants[variant] ?? variant}
+                    active={scope.artVariants?.includes(variant) ?? false}
+                    onClick={() =>
+                      onScopeChange({ ...scope, artVariants: toggleIn(scope.artVariants, variant) })
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-muted-foreground mb-1.5 text-xs font-medium">Promos</p>
+              <div className="flex flex-wrap gap-1">
+                <Badge
+                  variant={scope.promos === undefined ? "outline" : "default"}
+                  className="cursor-pointer"
+                  onClick={() => {
+                    const next =
+                      scope.promos === undefined
+                        ? "only"
+                        : scope.promos === "only"
+                          ? "exclude"
+                          : undefined;
+                    onScopeChange({ ...scope, promos: next });
+                  }}
+                >
+                  {scope.promos === "only"
+                    ? "Only promos"
+                    : scope.promos === "exclude"
+                      ? "No promos"
+                      : "Promo"}
+                </Badge>
+              </div>
+            </div>
+            {hasActiveFilters && (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      variant="destructive"
+                      size="icon-sm"
+                      className="ml-auto shrink-0 self-start"
+                      onClick={() => onScopeChange({})}
+                    />
                   }
-                />
-              ))}
-            </div>
+                >
+                  <XIcon className="size-4" />
+                </TooltipTrigger>
+                <TooltipContent>Clear scope filters</TooltipContent>
+              </Tooltip>
+            )}
           </div>
-          <div>
-            <p className="text-muted-foreground mb-1.5 text-xs font-medium">Finish</p>
-            <div className="flex flex-wrap gap-1">
-              {orders.finishes.map((finish) => (
-                <ScopeFilterBadge
-                  key={finish}
-                  label={labels.finishes[finish] ?? finish}
-                  active={scope.finishes?.includes(finish) ?? false}
-                  onClick={() =>
-                    onScopeChange({ ...scope, finishes: toggleIn(scope.finishes, finish) })
-                  }
-                />
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="text-muted-foreground mb-1.5 text-xs font-medium">Art Variant</p>
-            <div className="flex flex-wrap gap-1">
-              {orders.artVariants.map((variant) => (
-                <ScopeFilterBadge
-                  key={variant}
-                  label={labels.artVariants[variant] ?? variant}
-                  active={scope.artVariants?.includes(variant) ?? false}
-                  onClick={() =>
-                    onScopeChange({ ...scope, artVariants: toggleIn(scope.artVariants, variant) })
-                  }
-                />
-              ))}
-            </div>
-          </div>
-          <div>
-            <p className="text-muted-foreground mb-1.5 text-xs font-medium">Promos</p>
-            <div className="flex flex-wrap gap-1">
-              <Badge
-                variant={scope.promos === undefined ? "outline" : "default"}
-                className="cursor-pointer"
-                onClick={() => {
-                  const next =
-                    scope.promos === undefined
-                      ? "only"
-                      : scope.promos === "only"
-                        ? "exclude"
-                        : undefined;
-                  onScopeChange({ ...scope, promos: next });
-                }}
-              >
-                {scope.promos === "only"
-                  ? "Only promos"
-                  : scope.promos === "exclude"
-                    ? "No promos"
-                    : "Promo"}
-              </Badge>
-            </div>
-          </div>
-          {hasActiveFilters && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="self-end text-xs"
-              onClick={() => onScopeChange({})}
-            >
-              Clear all
-            </Button>
-          )}
-        </div>
+        </TooltipProvider>
       </CollapsibleContent>
     </Collapsible>
   );
@@ -584,7 +593,7 @@ function EmptyState() {
         </p>
       </div>
       <div className="mt-2 flex gap-2">
-        <Button variant="default" size="sm" render={<Link to="/cards" />}>
+        <Button variant="default" render={<Link to="/cards" />}>
           <SearchIcon className="size-3.5" />
           Browse cards
         </Button>
@@ -676,8 +685,6 @@ function CollectionStatsContent() {
               <Button
                 key={option.value}
                 variant={groupBy === option.value ? "default" : "outline"}
-                size="sm"
-                className="text-xs"
                 onClick={() => setGroupBy(option.value)}
               >
                 {option.label}
@@ -692,8 +699,6 @@ function CollectionStatsContent() {
                     render={
                       <Button
                         variant={countMode === option.value ? "default" : "outline"}
-                        size="sm"
-                        className="text-xs"
                         onClick={() => setCountMode(option.value)}
                       />
                     }
