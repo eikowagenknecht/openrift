@@ -2,6 +2,7 @@
 
 ## 2026-04-13
 
+- feat: Card and printing counts on the landing page now animate up from zero when the page loads
 - feat: Search queries, collection actions, and filter usage are now tracked with privacy-friendly Umami analytics to help us understand which features matter most
 - feat: Cards you don't own are now dimmed in the card browser when showing owned counts or in add mode, making it easy to spot gaps in your collection
 - feat: You can now import collections from RiftMana CSV exports, with support for normal/foil splits, alt art, promos, and language detection

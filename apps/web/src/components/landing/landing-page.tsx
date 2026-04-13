@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { catalogQueryOptions } from "@/hooks/use-cards";
+import { useCountUp } from "@/hooks/use-count-up";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,10 @@ export function LandingPage() {
   const uniqueCards = data ? new Set(data.allPrintings.map((p) => p.cardId)).size : 0;
   const printings = data?.allPrintings.length ?? 0;
   const copies = data?.totalCopies ?? 0;
+
+  const animatedCards = useCountUp(uniqueCards);
+  const animatedPrintings = useCountUp(printings);
+  const animatedCopies = useCountUp(copies);
 
   function handleLogoTap() {
     setHinting(true);
@@ -62,17 +67,19 @@ export function LandingPage() {
           </Link>
         </div>
         {data && (
-          <p className="text-muted-foreground/70 text-sm">
-            <span className="text-foreground font-semibold">{uniqueCards.toLocaleString()}</span>{" "}
+          <p className="text-muted-foreground/70 text-sm tabular-nums">
+            <span className="text-foreground font-semibold">{animatedCards.toLocaleString()}</span>{" "}
             cards &middot;{" "}
-            <span className="text-foreground font-semibold">{printings.toLocaleString()}</span>{" "}
+            <span className="text-foreground font-semibold">
+              {animatedPrintings.toLocaleString()}
+            </span>{" "}
             printings
             {copiesTracked && (
               <>
                 {" "}
                 &middot;{" "}
                 <span className="text-foreground font-semibold">
-                  {copies.toLocaleString()}
+                  {animatedCopies.toLocaleString()}
                 </span>{" "}
                 copies tracked
               </>
