@@ -390,7 +390,7 @@ function LoadMoreSentinel({
 
   useEffect(() => {
     const el = ref.current;
-    if (!el) {
+    if (!el || isFetching) {
       return;
     }
     const observer = new IntersectionObserver(
@@ -403,7 +403,7 @@ function LoadMoreSentinel({
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [onIntersect]);
+  }, [onIntersect, isFetching]);
 
   return (
     <div ref={ref} className="flex justify-center py-4">
