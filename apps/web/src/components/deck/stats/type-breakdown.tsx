@@ -37,7 +37,6 @@ export function TypeBreakdown({ data, domains }: TypeBreakdownProps) {
 
   return (
     <div>
-      <h4 className="mb-1 text-xs font-medium">Types</h4>
       <ChartContainer config={chartConfig} className="aspect-auto h-20 w-full">
         <BarChart data={labeledData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
           <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />

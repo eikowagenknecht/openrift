@@ -40,6 +40,15 @@ export interface CompletionEntry {
   setType?: "main" | "supplemental";
 }
 
+export interface PricedCard {
+  name: string;
+  printingId: string;
+  price: number;
+  setSlug: string;
+  cardSlug: string;
+  thumbnail?: string;
+}
+
 export interface CollectionStats {
   totalCopies: number;
   uniqueCards: number;
@@ -49,6 +58,8 @@ export interface CollectionStats {
   unpricedCount: number;
   completionPercent: number;
   totalCardsInGame: number;
+  cheapestPrinting: PricedCard | null;
+  mostExpensivePrinting: PricedCard | null;
   domainDistribution: DomainCount[];
   energyCurve: EnergyCostCount[];
   energyCurveStacks: DomainCombo[];
@@ -330,6 +341,8 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
   const uniquePrintingIds = new Set<string>();
   let estimatedValue = 0;
   let unpricedCount = 0;
+  let cheapestPrinting: PricedCard | null = null;
+  let mostExpensivePrinting: PricedCard | null = null;
 
   for (const stack of stacks) {
     uniqueCardSlugs.add(stack.printing.card.slug);
@@ -339,6 +352,26 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
       unpricedCount += stack.copyIds.length;
     } else {
       estimatedValue += price * stack.copyIds.length;
+      if (price > 0 && (cheapestPrinting === null || price < cheapestPrinting.price)) {
+        cheapestPrinting = {
+          name: stack.printing.card.name,
+          printingId: stack.printingId,
+          price,
+          setSlug: stack.printing.setSlug,
+          cardSlug: stack.printing.card.slug,
+          thumbnail: stack.printing.images[0]?.thumbnail,
+        };
+      }
+      if (mostExpensivePrinting === null || price > mostExpensivePrinting.price) {
+        mostExpensivePrinting = {
+          name: stack.printing.card.name,
+          printingId: stack.printingId,
+          price,
+          setSlug: stack.printing.setSlug,
+          cardSlug: stack.printing.card.slug,
+          thumbnail: stack.printing.images[0]?.thumbnail,
+        };
+      }
     }
   }
 
@@ -508,6 +541,8 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
     unpricedCount,
     completionPercent,
     totalCardsInGame,
+    cheapestPrinting,
+    mostExpensivePrinting,
     domainDistribution,
     energyCurve,
     energyCurveStacks,

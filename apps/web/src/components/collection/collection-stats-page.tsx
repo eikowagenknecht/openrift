@@ -1,12 +1,16 @@
 import type { CompletionScopePreference, Domain } from "@openrift/shared";
 import { Link, Navigate } from "@tanstack/react-router";
 import {
+  ArrowDownIcon,
+  ArrowUpIcon,
   ChartBarIcon,
   CoinsIcon,
+  CopyIcon,
   ExternalLinkIcon,
   FilterIcon,
-  PackageIcon,
   SearchIcon,
+  SquareIcon,
+  SquareStackIcon,
   XIcon,
 } from "lucide-react";
 import { use, useState } from "react";
@@ -38,6 +42,7 @@ import type {
   CompletionCountMode,
   CompletionEntry,
   CompletionGroupBy,
+  PricedCard,
 } from "@/hooks/use-collection-stats";
 import { computeCompletion, filterByScope, useCollectionStats } from "@/hooks/use-collection-stats";
 import { useCollections } from "@/hooks/use-collections";
@@ -56,17 +61,43 @@ import { useDisplayStore } from "@/stores/display-store";
 
 function StatsHeroStats({ stats }: { stats: CollectionStats }) {
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <Card>
         <CardHeader>
           <CardTitle className="text-muted-foreground flex items-center gap-1.5">
-            <PackageIcon className="size-4" />
+            <SquareIcon className="size-4" />
+            Unique Cards
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-2xl font-semibold tabular-nums">
+            {stats.uniqueCards.toLocaleString()}
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-muted-foreground flex items-center gap-1.5">
+            <SquareStackIcon className="size-4" />
             Total Copies
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-2xl font-semibold tabular-nums">
             {stats.totalCopies.toLocaleString()}
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-muted-foreground flex items-center gap-1.5">
+            <CopyIcon className="size-4" />
+            Printings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-2xl font-semibold tabular-nums">
+            {stats.uniquePrintings.toLocaleString()}
           </p>
         </CardContent>
       </Card>
@@ -531,8 +562,7 @@ function DomainDistribution({ data, totalCopies }: { data: DomainCount[]; totalC
   }
 
   return (
-    <section>
-      <h3 className="mb-2 text-sm font-medium">Domain Distribution</h3>
+    <div>
       <TooltipProvider>
         <div className="mb-3 flex h-4 overflow-hidden rounded-full">
           {data.map((entry) => {
@@ -576,7 +606,86 @@ function DomainDistribution({ data, totalCopies }: { data: DomainCount[]; totalC
           );
         })}
       </div>
-    </section>
+    </div>
+  );
+}
+
+// ── Price Extremes ────────────────────────────────────────────────────────
+
+function PriceExtremes({
+  cheapest,
+  mostExpensive,
+  formatPrice,
+}: {
+  cheapest: PricedCard | null;
+  mostExpensive: PricedCard | null;
+  formatPrice: (value?: number | null) => string;
+}) {
+  if (!cheapest && !mostExpensive) {
+    return null;
+  }
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {cheapest && (
+        <Link
+          to="/cards/$cardSlug"
+          params={{ cardSlug: cheapest.cardSlug }}
+          className="block no-underline"
+        >
+          <Card className="hover:bg-muted/50 transition-colors">
+            <CardHeader>
+              <CardTitle className="text-muted-foreground flex items-center gap-1.5">
+                <ArrowDownIcon className="size-4" />
+                Cheapest Printing
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center gap-3">
+              {cheapest.thumbnail && (
+                <img src={cheapest.thumbnail} alt="" className="h-16 w-auto shrink-0 rounded" />
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{cheapest.name}</p>
+                <p className="text-muted-foreground text-xs tabular-nums">
+                  {formatPrice(cheapest.price)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+      {mostExpensive && (
+        <Link
+          to="/cards/$cardSlug"
+          params={{ cardSlug: mostExpensive.cardSlug }}
+          className="block no-underline"
+        >
+          <Card className="hover:bg-muted/50 transition-colors">
+            <CardHeader>
+              <CardTitle className="text-muted-foreground flex items-center gap-1.5">
+                <ArrowUpIcon className="size-4" />
+                Most Expensive Printing
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center gap-3">
+              {mostExpensive.thumbnail && (
+                <img
+                  src={mostExpensive.thumbnail}
+                  alt=""
+                  className="h-16 w-auto shrink-0 rounded"
+                />
+              )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{mostExpensive.name}</p>
+                <p className="text-muted-foreground text-xs tabular-nums">
+                  {formatPrice(mostExpensive.price)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+    </div>
   );
 }
 
@@ -760,26 +869,50 @@ function CollectionStatsContent() {
           <section className="space-y-4">
             <h2 className="text-base font-semibold">Stats</h2>
             <StatsHeroStats stats={stats} />
-            <DomainDistribution data={stats.domainDistribution} totalCopies={stats.totalCopies} />
+            <PriceExtremes
+              cheapest={stats.cheapestPrinting}
+              mostExpensive={stats.mostExpensivePrinting}
+              formatPrice={stats.formatPrice}
+            />
+            <Card>
+              <CardHeader>
+                <CardTitle>Domain Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <DomainDistribution
+                  data={stats.domainDistribution}
+                  totalCopies={stats.totalCopies}
+                />
+              </CardContent>
+            </Card>
 
             {(stats.energyCurve.length > 0 || stats.powerCurve.length > 0) && (
-              <section>
-                <h3 className="mb-2 text-sm font-medium">Energy &amp; Power</h3>
-                <EnergyPowerChart
-                  energyData={stats.energyCurve}
-                  energyStacks={stats.energyCurveStacks}
-                  averageEnergy={stats.averageEnergy}
-                  powerData={stats.powerCurve}
-                  powerStacks={stats.powerCurveStacks}
-                  averagePower={stats.averagePower}
-                />
-              </section>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Energy &amp; Power</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <EnergyPowerChart
+                    energyData={stats.energyCurve}
+                    energyStacks={stats.energyCurveStacks}
+                    averageEnergy={stats.averageEnergy}
+                    powerData={stats.powerCurve}
+                    powerStacks={stats.powerCurveStacks}
+                    averagePower={stats.averagePower}
+                  />
+                </CardContent>
+              </Card>
             )}
 
             {stats.typeBreakdown.length > 0 && (
-              <section>
-                <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
-              </section>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Type Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
+                </CardContent>
+              </Card>
             )}
           </section>
         </div>
