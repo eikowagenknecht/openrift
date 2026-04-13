@@ -748,3 +748,12 @@ export const MARKETPLACE_GROUPS = {
 export const TCGPLAYER_OGS_GROUP = MARKETPLACE_GROUPS["tcgplayer_24439"];
 /** Cardmarket group for OGS */
 export const CARDMARKET_OGS_GROUP = MARKETPLACE_GROUPS["cardmarket_6289"];
+
+// -- Synthetic errata and bans ------------------------------------------------
+
+/** Card with synthetic errata: Annie, Fiery */
+export const ERRATA_CARD = CARDS["annie-fiery"];
+/** Card with synthetic ban: Blast of Power */
+export const BANNED_CARD = CARDS["blast-of-power"];
+/** Format used for the synthetic ban */
+export const BAN_FORMAT_ID = "freeform";

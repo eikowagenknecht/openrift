@@ -82,7 +82,7 @@ function toInsert(table: string, rows: Record<string, unknown>[]): string {
 console.log(`Querying ${SET_SLUG} data from local DB...`);
 
 const sets = await sql<Record<string, unknown>[]>`
-  SELECT id, slug, name, printed_total, sort_order, released_at
+  SELECT id, slug, name, set_type, printed_total, sort_order, released_at
   FROM sets WHERE slug = ${SET_SLUG}
 `;
 
@@ -173,7 +173,208 @@ const cardNameAliases = await sql<Record<string, unknown>[]>`
   ORDER BY cna.card_id
 `;
 
+// ---------------------------------------------------------------------------
+// Reference / lookup tables (all rows, no set filter)
+// ---------------------------------------------------------------------------
+
+console.log("Querying reference tables...");
+
+const domains = await sql<Record<string, unknown>[]>`
+  SELECT slug, label, sort_order, is_well_known, color
+  FROM domains ORDER BY sort_order
+`;
+
+const rarities = await sql<Record<string, unknown>[]>`
+  SELECT slug, label, sort_order, is_well_known, color
+  FROM rarities ORDER BY sort_order
+`;
+
+const cardTypes = await sql<Record<string, unknown>[]>`
+  SELECT slug, label, sort_order, is_well_known
+  FROM card_types ORDER BY sort_order
+`;
+
+const superTypes = await sql<Record<string, unknown>[]>`
+  SELECT slug, label, sort_order, is_well_known
+  FROM super_types ORDER BY sort_order
+`;
+
+const finishes = await sql<Record<string, unknown>[]>`
+  SELECT slug, label, sort_order, is_well_known
+  FROM finishes ORDER BY sort_order
+`;
+
+const artVariants = await sql<Record<string, unknown>[]>`
+  SELECT slug, label, sort_order, is_well_known
+  FROM art_variants ORDER BY sort_order
+`;
+
+const languages = await sql<Record<string, unknown>[]>`
+  SELECT code, name, sort_order
+  FROM languages ORDER BY sort_order
+`;
+
+const formats = await sql<Record<string, unknown>[]>`
+  SELECT id, name
+  FROM formats ORDER BY id
+`;
+
+const deckFormats = await sql<Record<string, unknown>[]>`
+  SELECT slug, label, sort_order, is_well_known
+  FROM deck_formats ORDER BY sort_order
+`;
+
+const deckZones = await sql<Record<string, unknown>[]>`
+  SELECT slug, label, sort_order, is_well_known
+  FROM deck_zones ORDER BY sort_order
+`;
+
+const keywordStyles = await sql<Record<string, unknown>[]>`
+  SELECT name, color, dark_text
+  FROM keyword_styles ORDER BY name
+`;
+
+const keywordTranslations = await sql<Record<string, unknown>[]>`
+  SELECT keyword_name, language, label
+  FROM keyword_translations ORDER BY keyword_name, language
+`;
+
+// ---------------------------------------------------------------------------
+// OGS-scoped: images, snapshots, rules
+// ---------------------------------------------------------------------------
+
+console.log("Querying images, snapshots, rules...");
+
+const printingImages = await sql<Record<string, unknown>[]>`
+  SELECT pi.id, pi.printing_id, pi.image_file_id, pi.face, pi.provider, pi.is_active
+  FROM printing_images pi
+  JOIN printings p ON p.id = pi.printing_id
+  JOIN sets s ON s.id = p.set_id
+  WHERE s.slug = ${SET_SLUG}
+  ORDER BY pi.printing_id, pi.face
+`;
+
+const imageFileIds = printingImages.map((pi) => pi.image_file_id as string);
+const imageFiles =
+  imageFileIds.length > 0
+    ? await sql<Record<string, unknown>[]>`
+        SELECT id, original_url, rehosted_url, rotation
+        FROM image_files WHERE id = ANY(${imageFileIds})
+        ORDER BY id
+      `
+    : [];
+
+const marketplaceSnapshots = await sql<Record<string, unknown>[]>`
+  SELECT id, variant_id, recorded_at,
+    market_cents, low_cents, mid_cents, high_cents,
+    trend_cents, avg1_cents, avg7_cents, avg30_cents
+  FROM (
+    SELECT ms.*,
+      ROW_NUMBER() OVER (PARTITION BY ms.variant_id ORDER BY ms.recorded_at DESC) AS rn
+    FROM marketplace_snapshots ms
+    JOIN marketplace_product_variants mpv ON mpv.id = ms.variant_id
+    JOIN printings p ON p.id = mpv.printing_id
+    JOIN sets s ON s.id = p.set_id
+    WHERE s.slug = ${SET_SLUG}
+  ) ranked
+  WHERE rn <= 5
+  ORDER BY variant_id, recorded_at
+`;
+
+const ruleVersions = await sql<Record<string, unknown>[]>`
+  SELECT version, source_type, source_url, published_at
+  FROM rule_versions ORDER BY version
+`;
+
+const rules = await sql<Record<string, unknown>[]>`
+  SELECT id, version, rule_number, sort_order, depth, rule_type, content, change_type
+  FROM rules ORDER BY version, sort_order
+`;
+
 await sql.end();
+
+// ---------------------------------------------------------------------------
+// Synthetic data: card_errata and card_bans (OGS has none in dev DB)
+// ---------------------------------------------------------------------------
+
+console.log("Generating synthetic data...");
+
+// Feature flags: all known flags, enabled so e2e tests cover all UI.
+// Keep in sync with KNOWN_FLAGS in apps/web/src/components/admin/feature-flags-page.tsx
+const syntheticFeatureFlags: Record<string, unknown>[] = [
+  {
+    key: "copies-tracked",
+    enabled: true,
+    description: "Show the total copies tracked counter on the landing page",
+  },
+  { key: "help", enabled: true, description: "Show help articles gated behind this flag" },
+  { key: "rules", enabled: true, description: "Show the game rules page and header link" },
+  {
+    key: "price-history",
+    enabled: true,
+    description: "Show the Value Over Time chart on the collection stats page",
+  },
+  {
+    key: "stats",
+    enabled: true,
+    description: "Show the collection statistics page and sidebar link",
+  },
+];
+
+interface SyntheticCardRow {
+  id: string;
+  slug: string;
+  name: string;
+}
+
+const typedCardsForSynthetic = cards as unknown as SyntheticCardRow[];
+
+// Pick the first two cards for errata, first card for a ban
+const errataCard1 = typedCardsForSynthetic[0];
+const errataCard2 = typedCardsForSynthetic[1];
+const bannedCard = typedCardsForSynthetic[2];
+
+interface FormatRow {
+  id: string;
+}
+const typedFormats = formats as unknown as FormatRow[];
+const banFormatId = typedFormats[0]?.id ?? "standard";
+
+const syntheticCardErrata: Record<string, unknown>[] = [];
+if (errataCard1) {
+  syntheticCardErrata.push({
+    id: "019713f0-0000-7000-8000-000000000001",
+    card_id: errataCard1.id,
+    corrected_rules_text: "Deal 3 damage to target unit. (Corrected from 2)",
+    corrected_effect_text: null,
+    source: "official-errata",
+    source_url: null,
+    effective_date: "2025-01-15",
+  });
+}
+if (errataCard2) {
+  syntheticCardErrata.push({
+    id: "019713f0-0000-7000-8000-000000000002",
+    card_id: errataCard2.id,
+    corrected_rules_text: null,
+    corrected_effect_text: "When this unit enters play, draw a card.",
+    source: "official-errata",
+    source_url: "https://example.com/errata",
+    effective_date: "2025-03-01",
+  });
+}
+
+const syntheticCardBans: Record<string, unknown>[] = [];
+if (bannedCard) {
+  syntheticCardBans.push({
+    id: "019713f0-0000-7000-8000-000000000003",
+    card_id: bannedCard.id,
+    format_id: banFormatId,
+    banned_at: "2025-06-01",
+    unbanned_at: null,
+    reason: "Dominated the meta with a 65% win rate in competitive play",
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Generate seed.sql
@@ -184,23 +385,68 @@ const seedSql = [
   `-- Source: local DB, set ${SET_SLUG} (${sets[0]?.name})`,
   `-- Generated: ${new Date().toISOString()}`,
   "",
+  "-- Reference / lookup tables",
+  toInsert("domains", domains),
+  toInsert("rarities", rarities),
+  toInsert("card_types", cardTypes),
+  toInsert("super_types", superTypes),
+  toInsert("finishes", finishes),
+  toInsert("art_variants", artVariants),
+  toInsert("languages", languages),
+  toInsert("formats", formats),
+  toInsert("deck_formats", deckFormats),
+  toInsert("deck_zones", deckZones),
+  toInsert("keyword_styles", keywordStyles),
+  toInsert("keyword_translations", keywordTranslations),
+  "",
+  "-- Sets and cards",
   toInsert("sets", sets),
   toInsert("cards", cards),
   toInsert("card_super_types", cardSuperTypes),
   toInsert("card_domains", cardDomains),
+  toInsert("card_name_aliases", cardNameAliases),
+  toInsert("card_errata", syntheticCardErrata),
+  "",
+  "-- Printings and images",
   toInsert("promo_types", promoTypes),
   toInsert("printings", printings),
+  toInsert("image_files", imageFiles),
+  toInsert("printing_images", printingImages),
+  "",
+  "-- Card bans",
+  toInsert("card_bans", syntheticCardBans),
+  "",
+  "-- Marketplace",
   toInsert("marketplace_groups", marketplaceGroups),
   toInsert("marketplace_products", marketplaceProducts),
   toInsert("marketplace_product_variants", marketplaceProductVariants),
-  toInsert("card_name_aliases", cardNameAliases),
+  toInsert("marketplace_snapshots", marketplaceSnapshots),
+  "",
+  "-- Feature flags",
+  toInsert("feature_flags", syntheticFeatureFlags),
+  "",
+  "-- Rules",
+  toInsert("rule_versions", ruleVersions),
+  toInsert("rules", rules),
 ].join("\n");
 
 // oxlint-disable-next-line typescript/no-non-null-assertion -- dirname is always defined when running as a script
 const dir = resolve(import.meta.dirname!);
 writeFileSync(resolve(dir, "seed.sql"), seedSql);
 console.log(
-  `Wrote seed.sql (${sets.length} sets, ${cards.length} cards, ${cardSuperTypes.length} super types, ${cardDomains.length} domains, ${printings.length} printings, ${marketplaceGroups.length} marketplace groups, ${marketplaceProducts.length} marketplace products, ${marketplaceProductVariants.length} marketplace variants, ${cardNameAliases.length} aliases)`,
+  [
+    `Wrote seed.sql:`,
+    `  Reference: ${domains.length} domains, ${rarities.length} rarities, ${cardTypes.length} card types, ${superTypes.length} super types,`,
+    `    ${finishes.length} finishes, ${artVariants.length} art variants, ${languages.length} languages, ${formats.length} formats,`,
+    `    ${deckFormats.length} deck formats, ${deckZones.length} deck zones, ${keywordStyles.length} keyword styles, ${keywordTranslations.length} keyword translations`,
+    `  Catalog: ${sets.length} sets, ${cards.length} cards, ${cardSuperTypes.length} card super types, ${cardDomains.length} card domains,`,
+    `    ${cardNameAliases.length} aliases, ${syntheticCardErrata.length} errata (synthetic), ${promoTypes.length} promo types`,
+    `  Printings: ${printings.length} printings, ${imageFiles.length} image files, ${printingImages.length} printing images`,
+    `  Bans: ${syntheticCardBans.length} card bans (synthetic)`,
+    `  Marketplace: ${marketplaceGroups.length} groups, ${marketplaceProducts.length} products, ${marketplaceProductVariants.length} variants, ${marketplaceSnapshots.length} snapshots`,
+    `  Feature flags: ${syntheticFeatureFlags.length} (synthetic, all enabled)`,
+    `  Rules: ${ruleVersions.length} rule versions, ${rules.length} rules`,
+  ].join("\n"),
 );
 
 // ---------------------------------------------------------------------------
@@ -320,6 +566,12 @@ ${marketplaceGroups
 export const TCGPLAYER_OGS_GROUP = MARKETPLACE_GROUPS["tcgplayer_24439"];
 /** Cardmarket group for OGS */
 export const CARDMARKET_OGS_GROUP = MARKETPLACE_GROUPS["cardmarket_6289"];
+
+// -- Synthetic errata and bans ------------------------------------------------
+
+${errataCard1 ? `/** Card with synthetic errata: ${errataCard1.name} */\nexport const ERRATA_CARD = CARDS[${JSON.stringify(errataCard1.slug)}];` : ""}
+${bannedCard ? `/** Card with synthetic ban: ${bannedCard.name} */\nexport const BANNED_CARD = CARDS[${JSON.stringify(bannedCard.slug)}];` : ""}
+${typedFormats[0] ? `/** Format used for the synthetic ban */\nexport const BAN_FORMAT_ID = ${JSON.stringify(banFormatId)};` : ""}
 `;
 
 writeFileSync(resolve(dir, "constants.ts"), constantsTs);
