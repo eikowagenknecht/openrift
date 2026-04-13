@@ -182,7 +182,7 @@ describe("matchEntries — isPromo flag", () => {
     id: "promo-nexus",
     shortCode: "OGN-001",
     finish: "foil",
-    promoType: { slug: "nexus", name: "Nexus" },
+    promoType: { id: "pt-nexus", slug: "nexus", label: "Nexus" },
   });
 
   it("auto-resolves to the single promo printing when isPromo is set", () => {
@@ -197,7 +197,7 @@ describe("matchEntries — isPromo flag", () => {
       id: "promo-release",
       shortCode: "OGN-001",
       finish: "foil",
-      promoType: { slug: "release", name: "Release" },
+      promoType: { id: "pt-release", slug: "release", label: "Release" },
     });
     const entries = [makeEntry({ finish: "foil", language: "EN", isPromo: true })];
     const results = matchEntries(entries, [basePrinting, promoPrinting, promoRelease]);
