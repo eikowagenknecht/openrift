@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   Select,
   SelectContent,
@@ -89,7 +89,7 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
   );
 }
 
-// ── Scope Filter Popover ───────────────────────────────────────────────────
+// ── Scope Filter ──────────────────────────────────────────────────────────
 
 function ScopeFilterBadge({
   label,
@@ -107,12 +107,54 @@ function ScopeFilterBadge({
   );
 }
 
-function ScopeFilterPopover({
+function ScopeFilterToggle({
+  scope,
+  expanded,
+  onToggle,
+}: {
+  scope: CompletionScopePreference;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const hasActiveFilters =
+    (scope.languages && scope.languages.length > 0) ||
+    (scope.finishes && scope.finishes.length > 0) ||
+    (scope.artVariants && scope.artVariants.length > 0) ||
+    scope.promos !== undefined;
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="gap-1.5 text-xs"
+      onClick={onToggle}
+      aria-label={expanded ? "Hide scope filters" : "Show scope filters"}
+      aria-expanded={expanded}
+    >
+      <FilterIcon className="size-3.5" />
+      Scope
+      {hasActiveFilters && (
+        <span className="bg-primary text-primary-foreground flex size-4 items-center justify-center rounded-full text-[10px]">
+          {(scope.languages?.length ?? 0) +
+            (scope.finishes?.length ?? 0) +
+            (scope.artVariants?.length ?? 0) +
+            (scope.promos ? 1 : 0)}
+        </span>
+      )}
+    </Button>
+  );
+}
+
+function ScopeFilterPanel({
   scope,
   onScopeChange,
+  expanded,
+  onExpandedChange,
 }: {
   scope: CompletionScopePreference;
   onScopeChange: (scope: CompletionScopePreference) => void;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
 }) {
   const { orders, labels } = useEnumOrders();
   const languageList = useLanguageList();
@@ -125,117 +167,101 @@ function ScopeFilterPopover({
 
   function toggleIn(current: string[] | undefined, value: string): string[] | undefined {
     if (!current || current.length === 0) {
-      // First click: selecting one value means "only this one"
       return [value];
     }
     if (current.includes(value)) {
       const next = current.filter((item) => item !== value);
-      // If empty, clear the filter (include all)
       return next.length > 0 ? next : undefined;
     }
     return [...current, value];
   }
 
   return (
-    <Popover>
-      <PopoverTrigger
-        render={
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-            <FilterIcon className="size-3.5" />
-            Scope
-            {hasActiveFilters && (
-              <span className="bg-primary text-primary-foreground flex size-4 items-center justify-center rounded-full text-[10px]">
-                {(scope.languages?.length ?? 0) +
-                  (scope.finishes?.length ?? 0) +
-                  (scope.artVariants?.length ?? 0) +
-                  (scope.promos ? 1 : 0)}
-              </span>
-            )}
-          </Button>
-        }
-      />
-      <PopoverContent align="end" className="w-80 space-y-3">
-        <div>
-          <p className="text-muted-foreground mb-1.5 text-xs font-medium">Language</p>
-          <div className="flex flex-wrap gap-1">
-            {languageList.map((lang) => (
-              <ScopeFilterBadge
-                key={lang.code}
-                label={lang.name}
-                active={scope.languages?.includes(lang.code) ?? false}
-                onClick={() =>
-                  onScopeChange({ ...scope, languages: toggleIn(scope.languages, lang.code) })
-                }
-              />
-            ))}
+    <Collapsible open={expanded} onOpenChange={onExpandedChange} className="mb-3">
+      <CollapsibleContent className="h-(--collapsible-panel-height) space-y-3 overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
+          <div>
+            <p className="text-muted-foreground mb-1.5 text-xs font-medium">Language</p>
+            <div className="flex flex-wrap gap-1">
+              {languageList.map((lang) => (
+                <ScopeFilterBadge
+                  key={lang.code}
+                  label={lang.name}
+                  active={scope.languages?.includes(lang.code) ?? false}
+                  onClick={() =>
+                    onScopeChange({ ...scope, languages: toggleIn(scope.languages, lang.code) })
+                  }
+                />
+              ))}
+            </div>
           </div>
-        </div>
-        <div>
-          <p className="text-muted-foreground mb-1.5 text-xs font-medium">Finish</p>
-          <div className="flex flex-wrap gap-1">
-            {orders.finishes.map((finish) => (
-              <ScopeFilterBadge
-                key={finish}
-                label={labels.finishes[finish] ?? finish}
-                active={scope.finishes?.includes(finish) ?? false}
-                onClick={() =>
-                  onScopeChange({ ...scope, finishes: toggleIn(scope.finishes, finish) })
-                }
-              />
-            ))}
+          <div>
+            <p className="text-muted-foreground mb-1.5 text-xs font-medium">Finish</p>
+            <div className="flex flex-wrap gap-1">
+              {orders.finishes.map((finish) => (
+                <ScopeFilterBadge
+                  key={finish}
+                  label={labels.finishes[finish] ?? finish}
+                  active={scope.finishes?.includes(finish) ?? false}
+                  onClick={() =>
+                    onScopeChange({ ...scope, finishes: toggleIn(scope.finishes, finish) })
+                  }
+                />
+              ))}
+            </div>
           </div>
-        </div>
-        <div>
-          <p className="text-muted-foreground mb-1.5 text-xs font-medium">Art Variant</p>
-          <div className="flex flex-wrap gap-1">
-            {orders.artVariants.map((variant) => (
-              <ScopeFilterBadge
-                key={variant}
-                label={labels.artVariants[variant] ?? variant}
-                active={scope.artVariants?.includes(variant) ?? false}
-                onClick={() =>
-                  onScopeChange({ ...scope, artVariants: toggleIn(scope.artVariants, variant) })
-                }
-              />
-            ))}
+          <div>
+            <p className="text-muted-foreground mb-1.5 text-xs font-medium">Art Variant</p>
+            <div className="flex flex-wrap gap-1">
+              {orders.artVariants.map((variant) => (
+                <ScopeFilterBadge
+                  key={variant}
+                  label={labels.artVariants[variant] ?? variant}
+                  active={scope.artVariants?.includes(variant) ?? false}
+                  onClick={() =>
+                    onScopeChange({ ...scope, artVariants: toggleIn(scope.artVariants, variant) })
+                  }
+                />
+              ))}
+            </div>
           </div>
-        </div>
-        <div>
-          <p className="text-muted-foreground mb-1.5 text-xs font-medium">Promos</p>
-          <div className="flex flex-wrap gap-1">
-            <Badge
-              variant={scope.promos === undefined ? "outline" : "default"}
-              className="cursor-pointer"
-              onClick={() => {
-                const next =
-                  scope.promos === undefined
-                    ? "only"
-                    : scope.promos === "only"
-                      ? "exclude"
-                      : undefined;
-                onScopeChange({ ...scope, promos: next });
-              }}
+          <div>
+            <p className="text-muted-foreground mb-1.5 text-xs font-medium">Promos</p>
+            <div className="flex flex-wrap gap-1">
+              <Badge
+                variant={scope.promos === undefined ? "outline" : "default"}
+                className="cursor-pointer"
+                onClick={() => {
+                  const next =
+                    scope.promos === undefined
+                      ? "only"
+                      : scope.promos === "only"
+                        ? "exclude"
+                        : undefined;
+                  onScopeChange({ ...scope, promos: next });
+                }}
+              >
+                {scope.promos === "only"
+                  ? "Only promos"
+                  : scope.promos === "exclude"
+                    ? "No promos"
+                    : "Promo"}
+              </Badge>
+            </div>
+          </div>
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="self-end text-xs"
+              onClick={() => onScopeChange({})}
             >
-              {scope.promos === "only"
-                ? "Only promos"
-                : scope.promos === "exclude"
-                  ? "No promos"
-                  : "Promo"}
-            </Badge>
-          </div>
+              Clear all
+            </Button>
+          )}
         </div>
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-xs"
-            onClick={() => onScopeChange({})}
-          >
-            Clear all
-          </Button>
-        )}
-      </PopoverContent>
-    </Popover>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 
@@ -621,6 +647,7 @@ function CollectionStatsContent() {
 
   const [groupBy, setGroupBy] = useState<CompletionGroupBy>("set");
   const [countMode, setCountMode] = useState<CompletionCountMode>("cards");
+  const [scopeExpanded, setScopeExpanded] = useState(false);
   const scope = useDisplayStore((state) => state.completionScope);
   const setCompletionScope = useDisplayStore((state) => state.setCompletionScope);
 
@@ -675,9 +702,19 @@ function CollectionStatsContent() {
               ))}
             </ButtonGroup>
           </TooltipProvider>
-          <ScopeFilterPopover scope={scope} onScopeChange={setCompletionScope} />
+          <ScopeFilterToggle
+            scope={scope}
+            expanded={scopeExpanded}
+            onToggle={() => setScopeExpanded(!scopeExpanded)}
+          />
         </div>
       </div>
+      <ScopeFilterPanel
+        scope={scope}
+        onScopeChange={setCompletionScope}
+        expanded={scopeExpanded}
+        onExpandedChange={setScopeExpanded}
+      />
 
       {stats.totalCopies === 0 ? (
         <EmptyState />
