@@ -7,12 +7,14 @@ test.describe("card detail", () => {
     // Wait for a known card name from seed data to appear
     await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 15_000 });
 
-    // Click the card's image area (the aspect-card placeholder), not the
-    // label text which is inside a nested button that stops propagation.
+    // Click the card's image placeholder area (not the label, which has
+    // a nested button with stopPropagation)
     const cardImageArea = page.locator(".aspect-card").first();
     await cardImageArea.click();
 
-    // Clicking a card opens a detail panel (adds printingId to URL search params)
-    await expect(page).toHaveURL(/printingId=/, { timeout: 5000 });
+    // Clicking a card opens a detail pane on the right. The detail pane
+    // shows the card name in a heading. Look for a second occurrence of
+    // the card name (the first is in the grid label).
+    await expect(page.locator("h2, h3").getByText("Annie")).toBeVisible({ timeout: 5000 });
   });
 });
