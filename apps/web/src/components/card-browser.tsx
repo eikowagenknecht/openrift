@@ -208,19 +208,20 @@ export function CardBrowser() {
         : item.printing;
 
     let aboveCard: ReactNode | undefined;
-    if (showStrip) {
-      const count =
-        view === "cards"
-          ? (siblings?.reduce(
-              (sum, p) => sum + adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
-              0,
-            ) ?? 0)
-          : adjustedCount(displayPrinting.id, ownedCountByPrinting?.[displayPrinting.id] ?? 0);
+    const ownedCount = showStrip
+      ? view === "cards"
+        ? (siblings?.reduce(
+            (sum, p) => sum + adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
+            0,
+          ) ?? 0)
+        : adjustedCount(displayPrinting.id, ownedCountByPrinting?.[displayPrinting.id] ?? 0)
+      : undefined;
 
+    if (ownedCount !== undefined) {
       aboveCard = handleQuickAdd ? (
         <CollectionAddStrip
           printing={displayPrinting}
-          ownedCount={count}
+          ownedCount={ownedCount}
           hasVariants={view === "cards" && (siblings?.length ?? 0) > 1}
           onQuickAdd={handleQuickAdd}
           onUndoAdd={handleUndoAdd}
@@ -228,7 +229,7 @@ export function CardBrowser() {
         />
       ) : (
         <OwnedCountStrip
-          count={count}
+          count={ownedCount}
           printingId={displayPrinting.id}
           cardName={displayPrinting.card.name}
           shortCode={displayPrinting.shortCode}
@@ -244,6 +245,7 @@ export function CardBrowser() {
         showImages={showImages}
         isSelected={ctx.isSelected}
         isFlashing={ctx.isFlashing}
+        dimmed={ownedCount === 0}
         siblings={view === "cards" ? siblings : undefined}
         priceRange={priceRangeByCardId?.get(cardId)}
         view={view}
