@@ -85,10 +85,10 @@ describe("GET /api/v1/collection-events", () => {
     expect(json.nextCursor).toBeNull();
   });
 
-  it("defaults limit to 50 when not provided", async () => {
+  it("defaults limit to 100 when not provided", async () => {
     mockCollectionEventsRepo.listForUser.mockResolvedValue([]);
     await app.request("/api/v1/collection-events");
-    expect(mockCollectionEventsRepo.listForUser).toHaveBeenCalledWith(USER_ID, 50, undefined);
+    expect(mockCollectionEventsRepo.listForUser).toHaveBeenCalledWith(USER_ID, 100, undefined);
   });
 
   it("passes cursor and limit query params", async () => {
@@ -102,7 +102,7 @@ describe("GET /api/v1/collection-events", () => {
   });
 
   it("returns nextCursor when hasMore events", async () => {
-    const items = Array.from({ length: 51 }, (_, idx) => ({
+    const items = Array.from({ length: 101 }, (_, idx) => ({
       ...dbEvent,
       id: `a0000000-0001-4000-a000-${String(idx).padStart(12, "0")}`,
       createdAt: new Date(now.getTime() - idx * 1000),
@@ -111,12 +111,12 @@ describe("GET /api/v1/collection-events", () => {
     const res = await app.request("/api/v1/collection-events");
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.items).toHaveLength(50);
+    expect(json.items).toHaveLength(100);
     expect(json.nextCursor).toBeTruthy();
   });
 
   it("returns null nextCursor when items exactly equal limit", async () => {
-    const items = Array.from({ length: 50 }, (_, idx) => ({
+    const items = Array.from({ length: 100 }, (_, idx) => ({
       ...dbEvent,
       id: `a0000000-0001-4000-a000-${String(idx).padStart(12, "0")}`,
       createdAt: new Date(now.getTime() - idx * 1000),
@@ -124,7 +124,7 @@ describe("GET /api/v1/collection-events", () => {
     mockCollectionEventsRepo.listForUser.mockResolvedValue(items);
     const res = await app.request("/api/v1/collection-events");
     const json = await res.json();
-    expect(json.items).toHaveLength(50);
+    expect(json.items).toHaveLength(100);
     expect(json.nextCursor).toBeNull();
   });
 
