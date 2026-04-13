@@ -45,6 +45,10 @@ export const queryKeys = {
     byPrinting: (printingId: string, range: TimeRange) =>
       ["priceHistory", printingId, range] as const,
   },
+  collectionValueHistory: {
+    byParams: (marketplace: string, range: TimeRange, collectionId?: string, scope?: string) =>
+      ["collectionValueHistory", marketplace, range, collectionId, scope] as const,
+  },
   decks: {
     all: ["decks"] as const,
     detail: (id: string) => ["decks", id] as const,

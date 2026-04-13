@@ -29,6 +29,11 @@ export type {
 export type { CollectionEventListResponse, CollectionEventResponse } from "./collection-event.js";
 
 export type {
+  CollectionValueHistoryPoint,
+  CollectionValueHistoryResponse,
+} from "./collection-value-history.js";
+
+export type {
   CollectionListResponse,
   CollectionResponse,
   CopyCollectionBreakdownEntry,

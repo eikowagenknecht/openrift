@@ -19,6 +19,7 @@ import type { PieSectorDataItem } from "recharts";
 import { Label, Pie, PieChart, Sector } from "recharts";
 
 import { CardIcon } from "@/components/card-icon";
+import { CollectionValueChart } from "@/components/collection/collection-value-chart";
 import { CostToCompleteChart } from "@/components/collection/cost-to-complete-chart";
 import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
 import { ActiveFilters } from "@/components/filters/active-filters";
@@ -774,6 +775,7 @@ function CollectionStatsContent() {
   const [collectionScope, setCollectionScope] = useState("all");
   const collectionId = collectionScope === "all" ? undefined : collectionScope;
   const stats = useCollectionStats(collectionId);
+  const priceHistoryEnabled = useFeatureEnabled("price-history");
 
   const [groupBy, setGroupBy] = useState<CompletionGroupBy>("set");
   const [countMode, setCountMode] = useState<CompletionCountMode>("cards");
@@ -902,6 +904,22 @@ function CollectionStatsContent() {
               marketplace={stats.marketplace}
             />
           </section>
+
+          {priceHistoryEnabled && (
+            <>
+              <Separator />
+
+              {/* ── Value Over Time ─────────────────────────────── */}
+              <section className="space-y-4">
+                <h2 className="text-base font-semibold">Value Over Time</h2>
+                <Card>
+                  <CardContent className="pt-6">
+                    <CollectionValueChart collectionId={collectionId} scope={scope} />
+                  </CardContent>
+                </Card>
+              </section>
+            </>
+          )}
 
           <Separator />
 
