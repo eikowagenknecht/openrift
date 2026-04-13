@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createMockDb } from "../test/mock-db.js";
-import { copiesRepo } from "./copies.js";
+import { buildCopiesCursor, copiesRepo } from "./copies.js";
 
 const COPY_ROW = {
   id: "cp-1",
@@ -9,6 +9,13 @@ const COPY_ROW = {
   collectionId: "col-1",
   createdAt: new Date(),
 };
+
+describe("buildCopiesCursor", () => {
+  it("encodes createdAt and id into a single string", () => {
+    const cursor = buildCopiesCursor(new Date("2026-01-15T12:30:00.000Z"), "abc-123");
+    expect(cursor).toBe("2026-01-15T12:30:00.000Z_abc-123");
+  });
+});
 
 describe("copiesRepo", () => {
   it("listForUser returns copies without cursor", async () => {
@@ -20,7 +27,7 @@ describe("copiesRepo", () => {
   it("listForUser applies cursor filter", async () => {
     const db = createMockDb([]);
     const repo = copiesRepo(db);
-    expect(await repo.listForUser("u1", 20, "2026-01-01T00:00:00Z")).toEqual([]);
+    expect(await repo.listForUser("u1", 20, "2026-01-01T00:00:00.000Z_cp-last")).toEqual([]);
   });
 
   it("getByIdForUser returns a copy", async () => {
@@ -54,7 +61,9 @@ describe("copiesRepo", () => {
   it("listForCollection applies cursor filter", async () => {
     const db = createMockDb([]);
     const repo = copiesRepo(db);
-    expect(await repo.listForCollection("col-1", 20, "2026-01-01T00:00:00Z")).toEqual([]);
+    expect(await repo.listForCollection("col-1", 20, "2026-01-01T00:00:00.000Z_cp-last")).toEqual(
+      [],
+    );
   });
 
   it("insertBatch returns inserted copies", async () => {

@@ -17,6 +17,7 @@ import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
+import { buildCopiesCursor } from "../../repositories/copies.js";
 import type { Variables } from "../../types.js";
 import { assertFound } from "../../utils/assertions.js";
 import { toCollection, toCopy } from "../../utils/mappers.js";
@@ -211,13 +212,14 @@ export const collectionsRoute = collectionsApp
     const collection = await collections.exists(id, userId);
     assertFound(collection, "Not found");
 
-    const effectiveLimit = limit ?? 500;
+    const effectiveLimit = limit ?? 1000;
     const rows = await copies.listForCollection(id, effectiveLimit, cursor);
     const hasMore = rows.length > effectiveLimit;
     const items = rows.slice(0, effectiveLimit);
+    const lastItem = items.at(-1);
 
     return c.json({
       items: items.map((row) => toCopy(row)),
-      nextCursor: hasMore ? (items.at(-1)?.createdAt.toISOString() ?? null) : null,
+      nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
     } satisfies CopyListResponse);
   });

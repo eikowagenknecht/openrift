@@ -44,8 +44,8 @@ export const collectionEventsQuerySchema = z.object({
 });
 
 export const copiesQuerySchema = z.object({
-  cursor: z.string().datetime().optional(),
-  limit: z.coerce.number().int().min(1).max(5000).optional(),
+  cursor: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(1000).optional(),
 });
 
 export const decksQuerySchema = z.object({

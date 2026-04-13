@@ -36,16 +36,13 @@ const fetchCopies = createServerFn({ method: "GET" })
     let cursor: string | null = null;
 
     // Paginate through all pages to ensure we fetch every copy.
-    // The cursor is timestamp-based, so we pass a high per-page limit
-    // to minimize round-trips and avoid the timestamp-collision issue
-    // where copies sharing a createdAt get skipped by strict < comparison.
-    const pageSize = 5000;
     do {
-      const params = new URLSearchParams({ limit: String(pageSize) });
+      const params = new URLSearchParams();
       if (cursor) {
         params.set("cursor", cursor);
       }
-      const url = `${baseUrl}?${params.toString()}`;
+      const query = params.toString();
+      const url = query ? `${baseUrl}?${query}` : baseUrl;
       const res = await fetch(url, {
         headers: { cookie: context.cookie },
       });

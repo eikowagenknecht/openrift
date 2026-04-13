@@ -5,6 +5,24 @@ import type { CopiesTable, Database } from "../db/index.js";
 /** Slim copy row — printing details are resolved client-side from the catalog. */
 type CopyRow = Pick<Selectable<CopiesTable>, "id" | "printingId" | "collectionId" | "createdAt">;
 
+const CURSOR_SEPARATOR = "_";
+
+/**
+ * Builds an opaque keyset cursor from a timestamp and id.
+ * @returns A cursor string encoding both values.
+ */
+export function buildCopiesCursor(createdAt: Date, id: string): string {
+  return `${createdAt.toISOString()}${CURSOR_SEPARATOR}${id}`;
+}
+
+function parseCursor(cursor: string): { time: Date; id: string } {
+  const separatorIndex = cursor.indexOf(CURSOR_SEPARATOR);
+  return {
+    time: new Date(cursor.slice(0, separatorIndex)),
+    id: cursor.slice(separatorIndex + 1),
+  };
+}
+
 /**
  * Read-only queries for user copy data.
  *
@@ -24,7 +42,13 @@ export function copiesRepo(db: Kysely<Database>) {
         query = query.limit(limit + 1);
       }
       if (cursor) {
-        query = query.where("createdAt", "<", new Date(cursor));
+        const { time, id } = parseCursor(cursor);
+        query = query.where((eb) =>
+          eb.or([
+            eb("createdAt", "<", time),
+            eb.and([eb("createdAt", "=", time), eb("id", ">", id)]),
+          ]),
+        );
       }
       return query.execute();
     },
@@ -85,7 +109,13 @@ export function copiesRepo(db: Kysely<Database>) {
         query = query.limit(limit + 1);
       }
       if (cursor) {
-        query = query.where("createdAt", "<", new Date(cursor));
+        const { time, id } = parseCursor(cursor);
+        query = query.where((eb) =>
+          eb.or([
+            eb("createdAt", "<", time),
+            eb.and([eb("createdAt", "=", time), eb("id", ">", id)]),
+          ]),
+        );
       }
       return query.execute();
     },
