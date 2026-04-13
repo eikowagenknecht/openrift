@@ -829,6 +829,7 @@ function CollectionStatsContent() {
                     powerData={stats.powerCurve}
                     powerStacks={stats.powerCurveStacks}
                     averagePower={stats.averagePower}
+                    singleColor
                   />
                 </CardContent>
               </Card>
@@ -840,7 +841,11 @@ function CollectionStatsContent() {
                   <CardTitle>Type Breakdown</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
+                  <TypeBreakdown
+                    data={stats.typeBreakdown}
+                    domains={stats.typeBreakdownDomains}
+                    singleColor
+                  />
                 </CardContent>
               </Card>
             )}

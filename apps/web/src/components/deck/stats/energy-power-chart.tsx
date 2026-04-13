@@ -13,6 +13,8 @@ interface EnergyPowerChartProps {
   powerData: PowerCount[];
   powerStacks: DomainCombo[];
   averagePower: number | null;
+  /** When true, render a single primary-colored bar instead of domain-colored stacks. */
+  singleColor?: boolean;
 }
 
 /**
@@ -117,6 +119,7 @@ export function EnergyPowerChart({
   powerData,
   powerStacks,
   averagePower,
+  singleColor,
 }: EnergyPowerChartProps) {
   const domainColors = useDomainColors();
 
@@ -126,6 +129,89 @@ export function EnergyPowerChart({
 
   const energyMap = new Map(energyData.map((entry) => [Number(entry.energy), entry]));
   const energyMax = Math.max(8, ...energyData.map((entry) => Number(entry.energy)));
+
+  const powerMap = new Map(powerData.map((entry) => [Number(entry.power), entry]));
+  const powerMax = Math.max(4, ...powerData.map((entry) => Number(entry.power)));
+
+  if (singleColor) {
+    const singleConfig: ChartConfig = {
+      energy_total: { label: "Count", color: "var(--color-primary)" },
+      power_total: { label: "Count", color: "var(--color-primary)" },
+    };
+
+    const energyChartData = Array.from({ length: energyMax + 1 }, (_, value) => {
+      const entry = energyMap.get(value);
+      let total = 0;
+      if (entry) {
+        for (const stack of energyStacks) {
+          total += (entry[stack.key] as number) ?? 0;
+        }
+      }
+      return { value: String(value), energy_total: total };
+    });
+
+    const powerChartData = Array.from({ length: powerMax + 1 }, (_, value) => {
+      const entry = powerMap.get(value);
+      let total = 0;
+      if (entry) {
+        for (const stack of powerStacks) {
+          total += (entry[stack.key] as number) ?? 0;
+        }
+      }
+      return { value: String(value), power_total: total };
+    });
+
+    return (
+      <div className="space-y-3">
+        {energyData.length > 0 && (
+          <div>
+            <div className="mb-1 flex items-center text-xs">
+              <h4 className="font-medium">Energy</h4>
+              {averageEnergy !== null && (
+                <span className="text-muted-foreground ml-auto">Ø {averageEnergy.toFixed(1)}</span>
+              )}
+            </div>
+            <ChartContainer config={singleConfig} className="aspect-auto h-20 w-full">
+              <BarChart data={energyChartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                <Bar
+                  dataKey="energy_total"
+                  fill="var(--color-primary)"
+                  activeBar={{ opacity: 0.8 }}
+                  radius={[3, 3, 0, 0]}
+                />
+              </BarChart>
+            </ChartContainer>
+          </div>
+        )}
+
+        {powerData.length > 0 && (
+          <div>
+            <div className="mb-1 flex items-center text-xs">
+              <h4 className="font-medium">Power</h4>
+              {averagePower !== null && (
+                <span className="text-muted-foreground ml-auto">Ø {averagePower.toFixed(1)}</span>
+              )}
+            </div>
+            <ChartContainer config={singleConfig} className="aspect-auto h-20 w-full">
+              <BarChart data={powerChartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+                <Bar
+                  dataKey="power_total"
+                  fill="var(--color-primary)"
+                  activeBar={{ opacity: 0.8 }}
+                  radius={[3, 3, 0, 0]}
+                />
+              </BarChart>
+            </ChartContainer>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const energyChartData = Array.from({ length: energyMax + 1 }, (_, value) => {
     const entry = energyMap.get(value);
     const row: Record<string, string | number> = { value: String(value) };
@@ -135,8 +221,6 @@ export function EnergyPowerChart({
     return row;
   });
 
-  const powerMap = new Map(powerData.map((entry) => [Number(entry.power), entry]));
-  const powerMax = Math.max(4, ...powerData.map((entry) => Number(entry.power)));
   const powerChartData = Array.from({ length: powerMax + 1 }, (_, value) => {
     const entry = powerMap.get(value);
     const row: Record<string, string | number> = { value: String(value) };

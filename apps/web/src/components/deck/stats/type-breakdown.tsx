@@ -10,6 +10,8 @@ import { getDomainColor } from "@/lib/domain";
 interface TypeBreakdownProps {
   data: TypeCount[];
   domains: Domain[];
+  /** When true, render a single primary-colored bar instead of domain-colored stacks. */
+  singleColor?: boolean;
 }
 
 function buildChartConfig(domains: Domain[], colors: Record<string, string>): ChartConfig {
@@ -20,20 +22,43 @@ function buildChartConfig(domains: Domain[], colors: Record<string, string>): Ch
   return config;
 }
 
-export function TypeBreakdown({ data, domains }: TypeBreakdownProps) {
+export function TypeBreakdown({ data, domains, singleColor }: TypeBreakdownProps) {
   const domainColors = useDomainColors();
 
   if (data.length === 0) {
     return null;
   }
 
-  const chartConfig = buildChartConfig(domains, domainColors);
-
   // Add a label with count + pluralized type name
   const labeledData = data.map((entry) => ({
     ...entry,
     label: `${entry.total} ${entry.total === 1 ? entry.type : `${entry.type}s`}`,
   }));
+
+  if (singleColor) {
+    const singleConfig: ChartConfig = {
+      total: { label: "Count", color: "var(--color-primary)" },
+    };
+
+    return (
+      <div>
+        <ChartContainer config={singleConfig} className="aspect-auto h-20 w-full">
+          <BarChart data={labeledData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+            <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+            <Bar
+              dataKey="total"
+              fill="var(--color-primary)"
+              activeBar={{ opacity: 0.8 }}
+              radius={[3, 3, 0, 0]}
+            />
+          </BarChart>
+        </ChartContainer>
+      </div>
+    );
+  }
+
+  const chartConfig = buildChartConfig(domains, domainColors);
 
   return (
     <div>
