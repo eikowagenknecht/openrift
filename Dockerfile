@@ -10,6 +10,7 @@ COPY bun.lock package.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
 COPY packages/shared/package.json packages/shared/
+COPY packages/e2e/package.json packages/e2e/
 
 # Stub .git so lefthook postinstall doesn't fail (real .git is copied below)
 RUN git init
