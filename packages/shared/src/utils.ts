@@ -121,14 +121,21 @@ export function compareWithLanguagePreference(
   setOrderMap: Map<string, number>,
   languageOrder?: string[],
 ): number {
-  if (languageOrder && languageOrder.length > 1) {
-    const aIdx = languageOrder.indexOf(a.language);
-    const bIdx = languageOrder.indexOf(b.language);
-    const aPos = aIdx === -1 ? languageOrder.length : aIdx;
-    const bPos = bIdx === -1 ? languageOrder.length : bIdx;
-    const langCompare = aPos - bPos;
-    if (langCompare !== 0) {
-      return langCompare;
+  // Default to EN-first when no preference is set
+  const effectiveOrder = languageOrder && languageOrder.length > 0 ? languageOrder : ["EN"];
+  const aIdx = effectiveOrder.indexOf(a.language);
+  const bIdx = effectiveOrder.indexOf(b.language);
+  const aPos = aIdx === -1 ? effectiveOrder.length : aIdx;
+  const bPos = bIdx === -1 ? effectiveOrder.length : bIdx;
+  const langCompare = aPos - bPos;
+  if (langCompare !== 0) {
+    return langCompare;
+  }
+  // Both unlisted — sort alphabetically so the order is deterministic
+  if (aIdx === -1 && bIdx === -1) {
+    const alphaCompare = a.language.localeCompare(b.language);
+    if (alphaCompare !== 0) {
+      return alphaCompare;
     }
   }
   return comparePrintings(toComparable(a, setOrderMap), toComparable(b, setOrderMap));
