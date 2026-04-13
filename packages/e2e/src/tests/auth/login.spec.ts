@@ -19,17 +19,21 @@ test.describe("login page", () => {
   test("shows error for invalid credentials", async ({ page }) => {
     await page.goto("/login");
 
-    // Wait for hydration: the button is disabled while React isn't ready,
-    // or we can wait for a client-side-only element. Filling + clicking
-    // before hydration causes a native form GET submission.
-    await page.waitForFunction(() => document.querySelector("#password") !== null);
+    // Wait for React hydration: check that the form's onsubmit handler
+    // is attached by checking for a React internal property on the form.
+    const form = page.locator("form").first();
+    await form.waitFor({ state: "attached" });
+    await page.waitForFunction(
+      () => {
+        const formEl = document.querySelector("form");
+        // React attaches __reactFiber or __reactEvents after hydration
+        return formEl && Object.keys(formEl).some((key) => key.startsWith("__react"));
+      },
+      { timeout: 10_000 },
+    );
 
     await page.locator("#email").fill("nonexistent@test.com");
     await page.locator("#password").fill("WrongPassword123!");
-
-    // Use page.evaluate to submit via the button click after ensuring
-    // React has attached its handlers (wait for next idle).
-    await page.waitForTimeout(500);
     await page.getByRole("button", { name: /login/i }).click();
 
     // better-auth returns "Invalid email or password."
@@ -58,8 +62,15 @@ test.describe("login page", () => {
     }
 
     await page.goto("/login");
-    await page.waitForFunction(() => document.querySelector("#password") !== null);
-    await page.waitForTimeout(500);
+
+    // Wait for React hydration
+    await page.waitForFunction(
+      () => {
+        const formEl = document.querySelector("form");
+        return formEl && Object.keys(formEl).some((key) => key.startsWith("__react"));
+      },
+      { timeout: 10_000 },
+    );
 
     await page.locator("#email").fill(testEmail);
     await page.locator("#password").fill(testPassword);
