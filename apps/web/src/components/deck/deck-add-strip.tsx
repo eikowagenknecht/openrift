@@ -9,6 +9,7 @@ interface DeckAddStripProps {
   deckQuantity: number;
   maxReached?: boolean;
   addLabel?: string;
+  removeLabel?: string;
   shiftHeld?: boolean;
   remainingCount?: number;
   onQuickAdd: (printing: Printing, event: React.MouseEvent) => void;
@@ -26,11 +27,31 @@ export function DeckAddStrip({
   deckQuantity,
   maxReached,
   addLabel,
+  removeLabel,
   shiftHeld,
   remainingCount,
   onQuickAdd,
   onRemove,
 }: DeckAddStripProps) {
+  // Single-card zone with a labeled remove: show only a destructive button
+  if (removeLabel && deckQuantity > 0 && onRemove) {
+    return (
+      <div className="relative z-10 mb-1 flex h-5 items-center justify-end">
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove(printing, event);
+          }}
+          className="bg-destructive text-destructive-foreground hover:bg-destructive/90 flex items-center justify-center rounded px-2 py-0.5 text-xs font-semibold transition-colors"
+        >
+          {removeLabel}
+        </button>
+      </div>
+    );
+  }
+
   const showBulkAdd = shiftHeld && !addLabel && remainingCount !== undefined && remainingCount > 1;
   const showBulkRemove = shiftHeld && deckQuantity > 1;
   return (
