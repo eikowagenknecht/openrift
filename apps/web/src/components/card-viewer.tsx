@@ -60,7 +60,9 @@ export function CardViewer({
 }: CardViewerProps) {
   const hydrated = useHydrated();
   const toolbarRef = useRef<HTMLDivElement>(null);
+  const aboveGridRef = useRef<HTMLDivElement>(null);
   const [toolbarHeight, setToolbarHeight] = useState(0);
+  const [aboveGridHeight, setAboveGridHeight] = useState(0);
 
   useLayoutEffect(() => {
     const el = toolbarRef.current;
@@ -75,7 +77,22 @@ export function CardViewer({
     return () => observer.disconnect();
   }, []);
 
-  const stickyOffset = APP_HEADER_HEIGHT + toolbarHeight;
+  useLayoutEffect(() => {
+    const el = aboveGridRef.current;
+    if (!el) {
+      setAboveGridHeight(0);
+      return;
+    }
+    const observer = new ResizeObserver(([entry]) => {
+      const height = entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
+      setAboveGridHeight(Math.round(height));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const toolbarOffset = APP_HEADER_HEIGHT + toolbarHeight;
+  const stickyOffset = toolbarOffset + aboveGridHeight;
 
   return (
     <div className="@container flex flex-1 flex-col">
@@ -97,7 +114,13 @@ export function CardViewer({
             stale ? "opacity-60" : "opacity-100",
           )}
         >
-          {aboveGrid}
+          <div
+            ref={aboveGridRef}
+            className="bg-background/80 sticky z-15 backdrop-blur-lg"
+            style={{ top: toolbarOffset }}
+          >
+            {aboveGrid}
+          </div>
           {hydrated ? (
             <CardGrid
               items={items}
