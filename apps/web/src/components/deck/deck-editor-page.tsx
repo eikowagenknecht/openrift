@@ -1,7 +1,7 @@
 import { useDndContext } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
 import { EllipsisVerticalIcon, PencilIcon, PrinterIcon, Share2Icon, XIcon } from "lucide-react";
-import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
+import { useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -34,6 +34,7 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { filterParsers } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { useDeckDetail, useSaveDeckCards } from "@/hooks/use-decks";
@@ -118,30 +119,6 @@ function HoveredCardPreview({
   );
 }
 
-// Parsers for all filter keys so zone switches clear stale params
-const zoneFilterParsers = {
-  search: parseAsString.withDefault(""),
-  sets: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  rarities: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  types: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  superTypes: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  domains: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  artVariants: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  finishes: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  energyMin: parseAsInteger,
-  energyMax: parseAsInteger,
-  mightMin: parseAsInteger,
-  mightMax: parseAsInteger,
-  powerMin: parseAsInteger,
-  powerMax: parseAsInteger,
-  priceMin: parseAsFloat,
-  priceMax: parseAsFloat,
-  signed: parseAsString,
-  promo: parseAsString,
-  banned: parseAsString,
-  errata: parseAsString,
-};
-
 function buildZoneFilterUpdate(
   zone: DeckZone,
   deckCards: DeckBuilderCard[],
@@ -197,11 +174,11 @@ function buildZoneFilterUpdate(
     }
     case "main":
     case "sideboard": {
-      // Don't filter by domains in URL — the browser does strict domain filtering
-      // (all card domains must be within legend's domains, not just any match)
+      const legendDomains = legend ? legend.domains : [];
       return {
         ...cleared,
         types: ["Unit", "Spell", "Gear"],
+        domains: legendDomains.length > 0 ? [...legendDomains, "Colorless"] : null,
       };
     }
     default: {
@@ -241,7 +218,7 @@ function DeckEditorContent({
   const deckCards = useDeckBuilderStore((state) => state.cards);
   const isDirty = useDeckBuilderStore((state) => state.isDirty);
   const markSaved = useDeckBuilderStore((state) => state.markSaved);
-  const [, setZoneFilters] = useQueryStates(zoneFilterParsers, { history: "push" });
+  const [, setZoneFilters] = useQueryStates(filterParsers, { history: "push" });
   const setZoneFiltersRef = useRef(setZoneFilters);
   setZoneFiltersRef.current = setZoneFilters;
   const lastSuggestedZone = useRef<DeckZone | null>(null);
