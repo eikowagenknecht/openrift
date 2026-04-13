@@ -200,9 +200,14 @@ try {
   const seedSql = readFileSync(resolve(import.meta.dirname!, "fixtures/seed.sql"), "utf8");
   const sql = postgres(testUrl, { onnotice: noop });
   await sql.unsafe(seedSql);
+
+  // 4. Refresh materialized views (migrations create them before seed data)
+  console.log("Refreshing materialized views...");
+  await sql`REFRESH MATERIALIZED VIEW mv_card_aggregates`;
+  await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`;
   await sql.end();
 
-  // 4. Insert test users
+  // 5. Insert test users
   console.log("Inserting test users...");
   for (const user of TEST_USERS) {
     await db
@@ -222,7 +227,7 @@ try {
 
   await db.destroy();
 
-  // 5. Run tests
+  // 6. Run tests
   const env = { ...process.env, INTEGRATION_DB_URL: testUrl };
   let failed = false;
 
@@ -283,7 +288,7 @@ try {
 
   console.log("\nAll integration tests passed!");
 } finally {
-  // 6. Drop temp database
+  // 7. Drop temp database
   if (tempDbName) {
     console.log(`\nDropping ${tempDbName}...`);
     await dropTempDb(DATABASE_URL, tempDbName);
