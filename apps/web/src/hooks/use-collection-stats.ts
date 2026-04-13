@@ -76,12 +76,6 @@ export interface CollectionStats {
   marketplace: Marketplace;
 }
 
-export interface CompletionData {
-  entries: CompletionEntry[];
-  groupBy: CompletionGroupBy;
-  countMode: CompletionCountMode;
-}
-
 // ── Target copies per card type (for "copies" mode) ────────────────────────
 
 /** Max copies of a card allowed in a deck, by card type. */

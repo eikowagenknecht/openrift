@@ -23,7 +23,7 @@ const fetchCardDetail = createServerFn({ method: "GET" })
       }),
   );
 
-export interface EnrichedCardDetail {
+interface EnrichedCardDetail {
   card: CardDetailResponse["card"];
   printings: Printing[];
   setOrderMap: Map<string, number>;

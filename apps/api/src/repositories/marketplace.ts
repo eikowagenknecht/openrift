@@ -3,13 +3,13 @@ import { sql } from "kysely";
 
 import type { Database, MarketplaceSnapshotsTable } from "../db/index.js";
 
-export interface CollectionValueHistoryPoint {
+interface CollectionValueHistoryPoint {
   date: string;
   valueCents: number;
   copyCount: number;
 }
 
-export interface ScopeFilter {
+interface ScopeFilter {
   sets?: string[];
   languages?: string[];
   domains?: string[];
