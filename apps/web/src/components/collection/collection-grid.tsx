@@ -1,5 +1,5 @@
 import type { Marketplace, Printing } from "@openrift/shared";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import {
   CheckIcon,
   CheckSquareIcon,
@@ -10,7 +10,6 @@ import {
   Trash2Icon,
   XIcon,
 } from "lucide-react";
-import { parseAsBoolean, useQueryState } from "nuqs";
 import { use, useEffect, useDeferredValue, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
@@ -129,7 +128,8 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const favoriteMarketplace = marketplaceOrder[0] ?? "tcgplayer";
 
   // ── Mode state ──────────────────────────────────────────────────────
-  const [browsing, setBrowsing] = useQueryState("browsing", parseAsBoolean.withDefault(false));
+  const { browsing: browsingParam } = useSearch({ strict: false });
+  const browsing = browsingParam ?? false;
   const [selectMode, setSelectMode] = useState(false);
   const mode = browsing ? "add" : selectMode ? "select" : "browse";
 
@@ -288,7 +288,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       clearSelection();
     }
     if (collectionId) {
-      void setBrowsing(true);
+      void navigate({
+        to: ".",
+        search: (prev) => ({ ...prev, browsing: true }),
+        replace: true,
+      });
     } else if (inboxId) {
       void navigate({
         to: "/collections/$collectionId",
@@ -300,7 +304,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   const handleCloseBrowsing = () => {
     clearAllFilters();
-    void setBrowsing(null);
+    void navigate({
+      to: ".",
+      search: ({ browsing: _, ...rest }) => rest,
+      replace: true,
+    });
     useSelectionStore.getState().closeDetail();
     useAddModeStore.getState().reset();
     setTopPrintingOverrides(new Map());

@@ -10,18 +10,25 @@ import {
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { createContext, useState } from "react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
 import type { CardDragData } from "@/components/collection/dnd-types";
 import { Footer } from "@/components/layout/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
+import { FilterSearchProvider, filterSearchSchema } from "@/lib/search-schemas";
 
 /** Portal slot for the full-width top bar rendered above the sidebar + content row. */
 export const TopBarSlotContext = createContext<HTMLDivElement | null>(null);
 
+const collectionsSearchSchema = filterSearchSchema.extend({
+  browsing: z.boolean().optional(),
+});
+
 export const Route = createFileRoute("/_app/_authenticated/collections")({
   staticData: { hideFooter: true },
+  validateSearch: collectionsSearchSchema,
   component: CollectionLayout,
 });
 
@@ -51,6 +58,7 @@ const snapCenterToCursor: Modifier = ({
 };
 
 function CollectionLayout() {
+  const search = Route.useSearch();
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
   const [activeDrag, setActiveDrag] = useState<CardDragData | null>(null);
   const moveCopies = useMoveCopies();
@@ -91,26 +99,28 @@ function CollectionLayout() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div ref={setTopBarSlot} className="px-3 pt-3" />
-      <SidebarProvider className="flex-1">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={pointerWithin}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={() => setActiveDrag(null)}
-        >
-          <TopBarSlotContext value={topBarSlot}>
-            <CollectionSidebar />
-            <CollectionContent />
-          </TopBarSlotContext>
-          <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
-            {activeDrag && <DragPreview drag={activeDrag} />}
-          </DragOverlay>
-        </DndContext>
-      </SidebarProvider>
-    </div>
+    <FilterSearchProvider value={search}>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div ref={setTopBarSlot} className="px-3 pt-3" />
+        <SidebarProvider className="flex-1">
+          <DndContext
+            sensors={sensors}
+            collisionDetection={pointerWithin}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={() => setActiveDrag(null)}
+          >
+            <TopBarSlotContext value={topBarSlot}>
+              <CollectionSidebar />
+              <CollectionContent />
+            </TopBarSlotContext>
+            <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
+              {activeDrag && <DragPreview drag={activeDrag} />}
+            </DragOverlay>
+          </DndContext>
+        </SidebarProvider>
+      </div>
+    </FilterSearchProvider>
   );
 }
 

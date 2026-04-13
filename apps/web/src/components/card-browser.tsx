@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { PackageIcon, PackagePlusIcon } from "lucide-react";
-import { parseAsString, useQueryState } from "nuqs";
 import type { ReactNode } from "react";
 import { useEffect, useDeferredValue, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -144,7 +144,8 @@ export function CardBrowser() {
   const findBy = view === "cards" ? "card" : ("printing" as const);
 
   // Deep-link: open a specific printing when navigating from e.g. activity page
-  const [linkedPrintingId, setLinkedPrintingId] = useQueryState("printingId", parseAsString);
+  const { printingId: linkedPrintingId } = useSearch({ from: "/_app/cards" });
+  const navigateCards = useNavigate();
   const deepLinkHandled = useRef(false);
 
   useEffect(() => {
@@ -155,9 +156,13 @@ export function CardBrowser() {
     if (printing) {
       deepLinkHandled.current = true;
       useSelectionStore.getState().selectCard(printing, items, "printing");
-      void setLinkedPrintingId(null);
+      void navigateCards({
+        to: ".",
+        search: ({ printingId: _, ...rest }) => rest,
+        replace: true,
+      });
     }
-  }, [linkedPrintingId, printingsById, items, setLinkedPrintingId]);
+  }, [linkedPrintingId, printingsById, items, navigateCards]);
 
   // Cmd+K / Ctrl+K shortcut to open quick-add palette
   useEffect(() => {

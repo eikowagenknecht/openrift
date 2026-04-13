@@ -104,7 +104,6 @@ export default defineConfig(({ mode, command }) => {
               id.includes("react-hook-form") ||
               id.includes("@hookform/") ||
               id.includes("/zod/") ||
-              id.includes("/nuqs/") ||
               id.includes("/sonner/") ||
               id.includes("lucide-react") ||
               id.includes("class-variance-authority") ||

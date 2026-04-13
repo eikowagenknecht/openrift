@@ -5,10 +5,12 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { deckDetailQueryOptions } from "@/hooks/use-decks";
 import { initQueryOptions } from "@/hooks/use-init";
+import { FilterSearchProvider, filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/_authenticated/decks/$deckId")({
+  validateSearch: filterSearchSchema,
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Deck Editor", noIndex: true }),
   staticData: { hideFooter: true },
   loader: async ({ context, params }) => {
@@ -24,5 +26,10 @@ export const Route = createFileRoute("/_app/_authenticated/decks/$deckId")({
 
 function DeckEditor() {
   const { deckId } = Route.useParams();
-  return <DeckEditorPage deckId={deckId} />;
+  const search = Route.useSearch();
+  return (
+    <FilterSearchProvider value={search}>
+      <DeckEditorPage deckId={deckId} />
+    </FilterSearchProvider>
+  );
 }
