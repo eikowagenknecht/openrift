@@ -15,8 +15,12 @@ export function buildCopiesCursor(createdAt: Date, id: string): string {
   return `${createdAt.toISOString()}${CURSOR_SEPARATOR}${id}`;
 }
 
-function parseCursor(cursor: string): { time: Date; id: string } {
+function parseCursor(cursor: string): { time: Date; id: string | null } {
   const separatorIndex = cursor.indexOf(CURSOR_SEPARATOR);
+  if (separatorIndex === -1) {
+    // Legacy timestamp-only cursor (backward compat during deploys)
+    return { time: new Date(cursor), id: null };
+  }
   return {
     time: new Date(cursor.slice(0, separatorIndex)),
     id: cursor.slice(separatorIndex + 1),
@@ -43,12 +47,14 @@ export function copiesRepo(db: Kysely<Database>) {
       }
       if (cursor) {
         const { time, id } = parseCursor(cursor);
-        query = query.where((eb) =>
-          eb.or([
-            eb("createdAt", "<", time),
-            eb.and([eb("createdAt", "=", time), eb("id", ">", id)]),
-          ]),
-        );
+        query = id
+          ? query.where((eb) =>
+              eb.or([
+                eb("createdAt", "<", time),
+                eb.and([eb("createdAt", "=", time), eb("id", ">", id)]),
+              ]),
+            )
+          : query.where("createdAt", "<", time);
       }
       return query.execute();
     },
@@ -110,12 +116,14 @@ export function copiesRepo(db: Kysely<Database>) {
       }
       if (cursor) {
         const { time, id } = parseCursor(cursor);
-        query = query.where((eb) =>
-          eb.or([
-            eb("createdAt", "<", time),
-            eb.and([eb("createdAt", "=", time), eb("id", ">", id)]),
-          ]),
-        );
+        query = id
+          ? query.where((eb) =>
+              eb.or([
+                eb("createdAt", "<", time),
+                eb.and([eb("createdAt", "=", time), eb("id", ">", id)]),
+              ]),
+            )
+          : query.where("createdAt", "<", time);
       }
       return query.execute();
     },

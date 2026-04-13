@@ -39,7 +39,7 @@ export const marketplaceGroupParamSchema = z.object({
 });
 
 export const collectionEventsQuerySchema = z.object({
-  cursor: z.string().datetime().optional(),
+  cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 

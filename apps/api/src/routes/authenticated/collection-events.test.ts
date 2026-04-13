@@ -160,7 +160,7 @@ describe("GET /api/v1/collection-events", () => {
     expect(mockCollectionEventsRepo.listForUser).toHaveBeenCalledWith(USER_ID, 25, undefined);
   });
 
-  it("returns nextCursor as ISO string from the last item createdAt", async () => {
+  it("returns compound cursor from last item createdAt and id", async () => {
     const lastDate = new Date("2026-03-16T12:00:00Z");
     const items = Array.from({ length: 11 }, (_, idx) => ({
       ...dbEvent,
@@ -171,7 +171,8 @@ describe("GET /api/v1/collection-events", () => {
     const res = await app.request("/api/v1/collection-events?limit=10");
     const json = await res.json();
     expect(json.items).toHaveLength(10);
-    // The last item in the sliced array (index 9) has createdAt = lastDate - 9s
-    expect(json.nextCursor).toBe(new Date(lastDate.getTime() - 9000).toISOString());
+    // Last item in the sliced array (index 9): createdAt = lastDate - 9s, id = ...000000000009
+    const expectedTime = new Date(lastDate.getTime() - 9000).toISOString();
+    expect(json.nextCursor).toBe(`${expectedTime}_a0000000-0001-4000-a000-000000000009`);
   });
 });
