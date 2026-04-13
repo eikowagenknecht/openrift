@@ -213,18 +213,11 @@ export function DeckCardBrowser() {
     prevZoneKey.current = key;
     const update = buildZoneFilterUpdate(activeZone, legend?.domains ?? [], legend?.tags[0]);
     void setFilterState(update);
-  }, [activeZone, legendDomainsKey, legend?.domains, legend?.tags, setFilterState]);
-
-  // Clear zone filters on unmount (navigating away from deck editor).
-  // Defined AFTER the sync effect so its cleanup resets prevZoneKey before
-  // the sync effect re-fires on Strict Mode remount.
-  useEffect(
-    () => () => {
+    // Reset ref on cleanup so Strict Mode remount re-applies filters
+    return () => {
       prevZoneKey.current = "";
-      void setFilterState(CLEARED_FILTERS);
-    },
-    [setFilterState],
-  );
+    };
+  }, [activeZone, legendDomainsKey, legend?.domains, legend?.tags, setFilterState]);
 
   const filters = urlFilters;
 
@@ -400,6 +393,7 @@ export function DeckCardBrowser() {
                   : "Choose"
                 : undefined
             }
+            removeLabel={isSingleCardZone && deckQty > 0 ? "Remove" : undefined}
             shiftHeld={shiftHeld}
             remainingCount={
               activeZone === "runes"
