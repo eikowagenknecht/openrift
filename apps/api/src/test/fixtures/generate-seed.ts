@@ -75,6 +75,24 @@ function toInsert(table: string, rows: Record<string, unknown>[]): string {
   return `${header}\n${values.join(",\n")};\n`;
 }
 
+/**
+ * Generate an INSERT ... ON CONFLICT (pk) DO UPDATE SET ... statement.
+ * Used for reference tables that are partially seeded by migrations.
+ *
+ * @returns The upsert SQL string, or empty string if rows is empty
+ */
+function toUpsert(table: string, rows: Record<string, unknown>[], pkCols: string[]): string {
+  if (rows.length === 0) {
+    return "";
+  }
+  const cols = Object.keys(rows[0]);
+  const header = `INSERT INTO ${table} (${cols.join(", ")}) VALUES`;
+  const values = rows.map((r) => `  (${cols.map((c) => escapeValue(r[c])).join(", ")})`);
+  const updateCols = cols.filter((c) => !pkCols.includes(c));
+  const setClauses = updateCols.map((c) => `${c} = EXCLUDED.${c}`).join(", ");
+  return `${header}\n${values.join(",\n")}\n  ON CONFLICT (${pkCols.join(", ")}) DO UPDATE SET ${setClauses};\n`;
+}
+
 // ---------------------------------------------------------------------------
 // Queries
 // ---------------------------------------------------------------------------
@@ -385,19 +403,19 @@ const seedSql = [
   `-- Source: local DB, set ${SET_SLUG} (${sets[0]?.name})`,
   `-- Generated: ${new Date().toISOString()}`,
   "",
-  "-- Reference / lookup tables",
-  toInsert("domains", domains),
-  toInsert("rarities", rarities),
-  toInsert("card_types", cardTypes),
-  toInsert("super_types", superTypes),
-  toInsert("finishes", finishes),
-  toInsert("art_variants", artVariants),
-  toInsert("languages", languages),
-  toInsert("formats", formats),
-  toInsert("deck_formats", deckFormats),
-  toInsert("deck_zones", deckZones),
-  toInsert("keyword_styles", keywordStyles),
-  toInsert("keyword_translations", keywordTranslations),
+  "-- Reference / lookup tables (upsert to merge with migration-seeded rows)",
+  toUpsert("domains", domains, ["slug"]),
+  toUpsert("rarities", rarities, ["slug"]),
+  toUpsert("card_types", cardTypes, ["slug"]),
+  toUpsert("super_types", superTypes, ["slug"]),
+  toUpsert("finishes", finishes, ["slug"]),
+  toUpsert("art_variants", artVariants, ["slug"]),
+  toUpsert("languages", languages, ["code"]),
+  toUpsert("formats", formats, ["id"]),
+  toUpsert("deck_formats", deckFormats, ["slug"]),
+  toUpsert("deck_zones", deckZones, ["slug"]),
+  toUpsert("keyword_styles", keywordStyles, ["name"]),
+  toUpsert("keyword_translations", keywordTranslations, ["keyword_name", "language"]),
   "",
   "-- Sets and cards",
   toInsert("sets", sets),
