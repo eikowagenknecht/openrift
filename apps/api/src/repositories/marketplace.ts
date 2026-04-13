@@ -493,9 +493,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         currentDay.setUTCDate(currentDay.getUTCDate() + 1);
       }
 
-      // Trim leading days with zero value (no price data yet)
-      const firstNonZero = series.findIndex((point) => point.valueCents > 0);
-      return firstNonZero > 0 ? series.slice(firstNonZero) : series;
+      return series;
     },
 
     /**
