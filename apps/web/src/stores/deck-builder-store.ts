@@ -32,7 +32,7 @@ interface DeckBuilderState {
   deckId: string | null;
   format: DeckFormat;
   cards: DeckBuilderCard[];
-  activeZone: DeckZone;
+  activeZone: DeckZone | null;
   isDirty: boolean;
   violations: DeckViolation[];
   runesByDomain: Map<string, DeckBuilderCard[]>;
@@ -43,7 +43,7 @@ interface DeckBuilderState {
   moveCard: (cardId: string, fromZone: DeckZone, toZone: DeckZone) => void;
   moveOneCard: (cardId: string, fromZone: DeckZone, toZone: DeckZone) => void;
   setQuantity: (cardId: string, zone: DeckZone, quantity: number) => void;
-  setActiveZone: (zone: DeckZone) => void;
+  setActiveZone: (zone: DeckZone | null) => void;
   setLegend: (card: DeckBuilderCard, runesByDomain?: Map<string, DeckBuilderCard[]>) => void;
   setRunesByDomain: (runesByDomain: Map<string, DeckBuilderCard[]>) => void;
   markSaved: () => void;
@@ -178,7 +178,7 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
   deckId: null,
   format: "constructed",
   cards: [],
-  activeZone: "main",
+  activeZone: null,
   isDirty: false,
   violations: [],
   runesByDomain: new Map(),
@@ -195,6 +195,9 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
   addCard: (card, zone, count) =>
     set((state) => {
       const targetZone = zone ?? state.activeZone;
+      if (!targetZone) {
+        return state;
+      }
 
       // Reject cards whose type doesn't belong in this zone
       if (!isCardAllowedInZone(card, targetZone)) {
@@ -463,7 +466,7 @@ export const useDeckBuilderStore = create<DeckBuilderState>()((set) => ({
       deckId: null,
       format: "constructed",
       cards: [],
-      activeZone: "main",
+      activeZone: null,
       isDirty: false,
       violations: [],
       runesByDomain: new Map(),

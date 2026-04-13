@@ -63,7 +63,7 @@ type ArrayKey =
  * @returns The current filter, sort, and view state.
  */
 export function useFilterValues() {
-  const [filterState, setFilterState] = useQueryStates(filterParsers, {
+  const [filterState] = useQueryStates(filterParsers, {
     history: "push",
   });
   const searchScope = useSearchScopeStore((s) => s.scope);
@@ -139,7 +139,6 @@ export function useFilterValues() {
     hasActiveFilters,
     filterState,
     searchScope,
-    setFilterState,
   };
 }
 

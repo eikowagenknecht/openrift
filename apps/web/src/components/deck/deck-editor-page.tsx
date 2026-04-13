@@ -33,6 +33,7 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { useFilterActions } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { useDeckDetail, useSaveDeckCards } from "@/hooks/use-decks";
@@ -147,7 +148,6 @@ function DeckEditorContent({
   const deckCards = useDeckBuilderStore((state) => state.cards);
   const isDirty = useDeckBuilderStore((state) => state.isDirty);
   const markSaved = useDeckBuilderStore((state) => state.markSaved);
-  const lastSuggestedZone = useRef<DeckZone | null>(null);
   const saveDeckCards = useSaveDeckCards();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
@@ -176,7 +176,6 @@ function DeckEditorContent({
         .map((card) => toDeckBuilderCard(card, cardsById))
         .filter((card): card is DeckBuilderCard => card !== null);
       init(deckId, data.deck.format, builderCards);
-      lastSuggestedZone.current = null;
     }
   }, [data, deckId, storeId, init, cardsById]);
 
@@ -212,33 +211,6 @@ function DeckEditorContent({
     };
   }, [isDirty, deckId, storeId, saveDeckCards, markSaved]);
 
-  // Auto-suggest the active zone based on what's missing in the deck.
-  // Filter sync is handled by DeckCardBrowser's zone sync effect.
-  useEffect(() => {
-    if (storeId !== deckId) {
-      return;
-    }
-
-    const hasLegend = deckCards.some((card) => card.zone === "legend");
-    const hasChampion = deckCards.some((card) => card.zone === "champion");
-
-    let nextSuggestion: DeckZone;
-    if (hasLegend && hasChampion) {
-      nextSuggestion = "main";
-    } else if (hasLegend) {
-      nextSuggestion = "champion";
-    } else {
-      nextSuggestion = "legend";
-    }
-
-    if (nextSuggestion === lastSuggestedZone.current) {
-      return;
-    }
-    lastSuggestedZone.current = nextSuggestion;
-
-    useDeckBuilderStore.getState().setActiveZone(nextSuggestion);
-  }, [storeId, deckId, deckCards]);
-
   // Reset store on unmount
   useEffect(
     () => () => {
@@ -259,7 +231,61 @@ function DeckEditorContent({
     return () => globalThis.removeEventListener("beforeunload", handler);
   }, []);
 
+  const { setArrayFilters, setSearch } = useFilterActions();
+
   const handleZoneClick = (zone: DeckZone) => {
+    // Clear search from a previous zone (e.g. champion tag search),
+    // then apply the new preset. Runs in an event handler so nuqs
+    // commits synchronously (no leaking to other pages).
+    setSearch("");
+
+    const legend = deckCards.find((card) => card.zone === "legend");
+    const legendDomains = legend?.domains ?? [];
+    const domainsWithColorless = legendDomains.length > 0 ? [...legendDomains, "Colorless"] : [];
+
+    switch (zone) {
+      case "legend": {
+        setArrayFilters({ types: ["Legend"], superTypes: [], domains: [] });
+        break;
+      }
+      case "champion": {
+        setArrayFilters({
+          types: ["Unit"],
+          superTypes: ["Champion"],
+          domains: domainsWithColorless,
+        });
+        if (legend?.tags[0]) {
+          setSearch(`t:${legend.tags[0]}`);
+        }
+        break;
+      }
+      case "runes": {
+        setArrayFilters({ types: ["Rune"], superTypes: [], domains: legendDomains });
+        break;
+      }
+      case "battlefield": {
+        setArrayFilters({ types: ["Battlefield"], superTypes: [], domains: [] });
+        break;
+      }
+      case "main":
+      case "sideboard": {
+        setArrayFilters({
+          types: ["Unit", "Spell", "Gear"],
+          superTypes: [],
+          domains: domainsWithColorless,
+        });
+        break;
+      }
+      case "overflow": {
+        setArrayFilters({
+          types: ["Unit", "Spell", "Gear", "Battlefield"],
+          superTypes: [],
+          domains: domainsWithColorless,
+        });
+        break;
+      }
+    }
+
     useDeckBuilderStore.getState().setActiveZone(zone);
     if (isMobile) {
       setOpenMobile(false);
@@ -319,7 +345,7 @@ function DeckEditorContent({
             <PageTopBarBack to="/decks" />
             <PageTopBarTitle onToggleSidebar={toggleSidebar}>
               <span className="md:hidden">
-                {ZONE_LABELS[activeZone]}
+                {activeZone ? ZONE_LABELS[activeZone] : "Deck"}
                 <span className="text-muted-foreground ml-1">({zoneCount})</span>
               </span>
               <span className="hidden md:inline">{data.deck.name}</span>
