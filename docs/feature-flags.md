@@ -44,12 +44,9 @@ if (flag?.enabled) {
 
 ## Active flags
 
-| Key     | Description                         | Gated areas                         |
-| ------- | ----------------------------------- | ----------------------------------- |
-| `rules` | Game rules page                     | Header nav link, `/rules` route     |
-| `help`  | Show unfinished/draft help articles | Help index page, help article pages |
+The canonical list of known flags lives in the `KNOWN_FLAGS` array in `apps/web/src/components/admin/feature-flags-page.tsx`. Unconfigured known flags appear in the admin UI under "Available flags" for easy setup.
 
-Keep this table up to date when adding or removing flags.
+When adding a new flag, add an entry to `KNOWN_FLAGS` so it shows up in the admin panel with a description and one-click setup.
 
 ## Lifecycle
 
