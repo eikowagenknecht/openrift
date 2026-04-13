@@ -4,13 +4,12 @@ test.describe("card detail", () => {
   test("opens card detail panel when clicking a card", async ({ page }) => {
     await page.goto("/cards");
 
-    // Wait for card names to appear (images may not exist in seed data,
-    // but card name labels are always rendered)
-    const cardName = page.locator("[data-index] button").first();
-    await expect(cardName).toBeVisible({ timeout: 15_000 });
+    // Wait for a known card name from seed data to appear
+    const cardLabel = page.getByText("Annie, Fiery");
+    await expect(cardLabel).toBeVisible({ timeout: 15_000 });
 
-    // Click the first card's clickable area
-    await cardName.click();
+    // Click the card name to open its detail panel
+    await cardLabel.click();
 
     // Clicking a card opens a detail panel (adds printingId to URL search params)
     await expect(page).toHaveURL(/printingId=/, { timeout: 5000 });
