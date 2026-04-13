@@ -36,6 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { catalogQueryOptions, useCards } from "@/hooks/use-cards";
 import { collectionsQueryOptions, useCollections } from "@/hooks/use-collections";
 import { copiesQueryOptions } from "@/hooks/use-copies";
+import { useLanguageList } from "@/hooks/use-enums";
 import { useImportFlow } from "@/hooks/use-import-flow";
 import { downloadCSV, generateExportCSV } from "@/lib/csv-export";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
@@ -77,7 +78,9 @@ function ImportExportPage() {
         <ExportSection />
         <InputStep
           rawText={flow.rawText}
+          fallbackLanguage={flow.fallbackLanguage}
           onTextChange={flow.handleRawTextChange}
+          onFallbackLanguageChange={flow.handleFallbackLanguageChange}
           onParse={flow.handleParse}
           onFileUpload={flow.handleFileUpload}
           fileRef={flow.fileRef}
@@ -252,19 +255,25 @@ function ExportSection() {
 
 function InputStep({
   rawText,
+  fallbackLanguage,
   onTextChange,
+  onFallbackLanguageChange,
   onParse,
   onFileUpload,
   fileRef,
   parseErrors,
 }: {
   rawText: string;
+  fallbackLanguage: string;
   onTextChange: (text: string) => void;
+  onFallbackLanguageChange: (language: string) => void;
   onParse: (text: string) => void;
   onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   fileRef: React.RefObject<HTMLInputElement | null>;
   parseErrors: string[];
 }) {
+  const languages = useLanguageList();
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -318,7 +327,7 @@ function InputStep({
           className="min-h-[200px] font-mono text-xs"
         />
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button onClick={() => onParse(rawText)} disabled={rawText.trim().length === 0}>
             <UploadIcon className="mr-2 size-4" />
             Parse
@@ -337,6 +346,33 @@ function InputStep({
             onChange={onFileUpload}
             className="hidden"
           />
+
+          <div className="ml-auto flex items-center gap-2">
+            <label className="text-muted-foreground text-sm" htmlFor="fallback-language">
+              Language
+            </label>
+            <Select
+              value={fallbackLanguage}
+              onValueChange={(value) => onFallbackLanguageChange(value ?? "")}
+              items={{
+                "": "Auto-detect",
+                ...Object.fromEntries(languages.map((lang) => [lang.code, lang.name])),
+              }}
+            >
+              <SelectTrigger className="w-[150px]" id="fallback-language">
+                <SelectValue placeholder="Auto-detect" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Auto-detect</SelectItem>
+                <SelectSeparator />
+                {languages.map((lang) => (
+                  <SelectItem key={lang.code} value={lang.code}>
+                    {lang.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 

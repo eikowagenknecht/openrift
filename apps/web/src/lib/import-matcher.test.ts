@@ -143,3 +143,30 @@ describe("matchEntries — language + finish combination", () => {
     expect(results[0].resolvedPrinting?.id).toBe("zh-foil");
   });
 });
+
+describe("matchEntries — fallbackLanguage", () => {
+  const enPrinting = makePrinting({ id: "en-1", shortCode: "OGN-001", language: "EN" });
+  const zhPrinting = makePrinting({ id: "zh-1", shortCode: "OGN-001", language: "ZH" });
+  const allPrintings = [enPrinting, zhPrinting];
+
+  it("uses fallbackLanguage when entry has no language", () => {
+    const entries = [makeEntry({ language: undefined })];
+    const results = matchEntries(entries, allPrintings, "EN");
+    expect(results[0].status).toBe("exact");
+    expect(results[0].resolvedPrinting?.id).toBe("en-1");
+  });
+
+  it("entry language takes precedence over fallbackLanguage", () => {
+    const entries = [makeEntry({ language: "ZH" })];
+    const results = matchEntries(entries, allPrintings, "EN");
+    expect(results[0].status).toBe("exact");
+    expect(results[0].resolvedPrinting?.id).toBe("zh-1");
+  });
+
+  it("falls back to all candidates when fallbackLanguage matches nothing", () => {
+    const entries = [makeEntry({ language: undefined })];
+    const results = matchEntries(entries, allPrintings, "FR");
+    expect(results[0].status).toBe("needs-review");
+    expect(results[0].candidates).toHaveLength(2);
+  });
+});

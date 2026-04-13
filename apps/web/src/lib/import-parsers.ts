@@ -354,7 +354,7 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
 /**
  * Parses an OpenRift CSV export (the format produced by our own export).
  *
- * Columns: Card ID, Card Name, Rarity, Type, Domain, Finish, Art Variant, Promo, Quantity
+ * Columns: Card ID, Card Name, Rarity, Type, Domain, Finish, Art Variant, Promo, Language, Quantity
  *
  * All fields map directly to internal types, so no translation is needed.
  * The Promo column may be empty (non-promo) or contain a promo slug like "nexus".
@@ -414,6 +414,7 @@ function parseOpenRift(text: string): ParseResult {
       cardName,
       sourceCode: cardId,
       promoSlug,
+      language: record["Language"]?.trim() || undefined,
       rawFields: buildRawFields({
         "Source Code": cardId,
         Rarity: record["Rarity"],
@@ -422,6 +423,7 @@ function parseOpenRift(text: string): ParseResult {
         Finish: record["Finish"],
         "Art Variant": record["Art Variant"],
         Promo: record["Promo"],
+        Language: record["Language"],
       }),
     });
   }

@@ -14,6 +14,7 @@ function makeStack(overrides: {
   finish?: string;
   artVariant?: string;
   promoType?: { id: string; slug: string; label: string } | null;
+  language?: string;
   copyCount?: number;
 }): StackedEntry {
   const printing = {
@@ -22,6 +23,7 @@ function makeStack(overrides: {
     finish: overrides.finish ?? "normal",
     artVariant: overrides.artVariant ?? "normal",
     promoType: overrides.promoType ?? null,
+    language: overrides.language ?? "EN",
     card: {
       name: overrides.name ?? "Test Card",
       type: overrides.type ?? "Unit",
@@ -40,7 +42,9 @@ describe("generateExportCSV", () => {
   it("includes the Promo column in headers", () => {
     const csv = generateExportCSV([]);
     const headers = csv.split("\n")[0];
-    expect(headers).toBe("Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Quantity");
+    expect(headers).toBe(
+      "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity",
+    );
   });
 
   it("exports promo slug when present", () => {
@@ -52,14 +56,14 @@ describe("generateExportCSV", () => {
     });
     const csv = generateExportCSV([stack]);
     const lines = csv.split("\n");
-    expect(lines[1]).toBe("OGN-042,Promo Card,Common,Unit,Arcane,normal,normal,nexus,2");
+    expect(lines[1]).toBe("OGN-042,Promo Card,Common,Unit,Arcane,normal,normal,nexus,EN,2");
   });
 
   it("exports empty promo field for non-promo cards", () => {
     const stack = makeStack({ shortCode: "OGN-001", name: "Regular Card" });
     const csv = generateExportCSV([stack]);
     const lines = csv.split("\n");
-    expect(lines[1]).toBe("OGN-001,Regular Card,Common,Unit,Arcane,normal,normal,,1");
+    expect(lines[1]).toBe("OGN-001,Regular Card,Common,Unit,Arcane,normal,normal,,EN,1");
   });
 
   it("escapes fields with commas", () => {
