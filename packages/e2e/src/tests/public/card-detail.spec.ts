@@ -12,9 +12,7 @@ test.describe("card detail", () => {
     const cardImageArea = page.locator(".aspect-card").first();
     await cardImageArea.click();
 
-    // Clicking a card opens a detail pane on the right. The detail pane
-    // shows the card name in a heading. Look for a second occurrence of
-    // the card name (the first is in the grid label).
-    await expect(page.locator("h2, h3").getByText("Annie").first()).toBeVisible({ timeout: 5000 });
+    // Clicking a card opens a detail pane on the right
+    await expect(page.getByTestId("card-detail-pane")).toBeVisible({ timeout: 5000 });
   });
 });

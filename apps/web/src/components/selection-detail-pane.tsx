@@ -54,7 +54,7 @@ export function SelectionDetailPane({
       : undefined;
 
   return (
-    <Pane className="@md:block">
+    <Pane className="@md:block" data-testid="card-detail-pane">
       <Suspense fallback={<CardDetailSkeleton />}>
         <CardDetail
           printing={selectedCard}
