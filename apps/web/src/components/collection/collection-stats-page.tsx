@@ -479,9 +479,11 @@ function DistributionDonut({ data, config }: { data: DonutEntry[]; config: Chart
             innerRadius="55%"
             outerRadius="90%"
             strokeWidth={2}
-            activeIndex={activeIndex}
-            activeShape={(props: PieSectorDataItem) => (
-              <Sector {...props} outerRadius={(props.outerRadius ?? 0) + 4} />
+            shape={(props: PieSectorDataItem & { isActive: boolean }) => (
+              <Sector
+                {...props}
+                outerRadius={(props.outerRadius ?? 0) + (props.isActive ? 4 : 0)}
+              />
             )}
             onMouseEnter={(_, index) => setActiveIndex(index)}
             onMouseLeave={() => setActiveIndex(undefined)}

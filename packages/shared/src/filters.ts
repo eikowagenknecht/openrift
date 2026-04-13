@@ -351,7 +351,7 @@ export interface GetAvailableFiltersOptions {
    * supplemental sets for dimmed styling. When omitted, sets appear in
    * insertion order and `supplementalSets` is empty.
    */
-  sets?: readonly { slug: string; setType: string }[];
+  sets?: readonly { slug: string; setType?: string }[];
   /**
    * Resolves the latest market price for a printing. Used to compute the
    * available price range. Defaults to `() => undefined` (no prices known),

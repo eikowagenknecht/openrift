@@ -473,10 +473,11 @@ export function CostToCompleteChart({
             strokeWidth={2}
             fill="url(#costToCompleteFill)"
             dot={false}
-            activeDot={(props: { cx: number; cy: number; payload: CurvePoint }) => {
-              if (!props.payload.label) {
+            activeDot={(props: { cx?: number; cy?: number; payload: CurvePoint }) => {
+              if (!props.payload.label || props.cx === undefined || props.cy === undefined) {
                 return null;
               }
+              const { cx, cy } = props;
               const size = 20;
               return (
                 <g
@@ -488,16 +489,16 @@ export function CostToCompleteChart({
                   }}
                 >
                   <circle
-                    cx={props.cx}
-                    cy={props.cy}
+                    cx={cx}
+                    cy={cy}
                     r={size / 2 + 1}
                     fill="var(--color-background)"
                     opacity={0.9}
                   />
                   {/* Lucide ExternalLink icon scaled into a 20x20 area */}
                   <svg
-                    x={props.cx - size / 2}
-                    y={props.cy - size / 2}
+                    x={cx - size / 2}
+                    y={cy - size / 2}
                     width={size}
                     height={size}
                     viewBox="0 0 24 24"
