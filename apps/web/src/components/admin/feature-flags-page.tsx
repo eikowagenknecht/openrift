@@ -52,6 +52,10 @@ const KNOWN_FLAGS: KnownFlag[] = [
     description: "Show the game rules page and header link",
   },
   {
+    key: "price-history",
+    description: "Show the Value Over Time chart on the collection stats page",
+  },
+  {
     key: "stats",
     description: "Show the collection statistics page and sidebar link",
   },
