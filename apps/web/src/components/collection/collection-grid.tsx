@@ -172,7 +172,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     languageOrder: languageFilter,
   });
 
-  // ── Catalog data (add mode — skip expensive computation in browse/select) ──
+  // ── Catalog data (used by add mode grid + quick-add palette in all modes) ──
   const isAddMode = mode === "add";
   const {
     availableFilters: catalogAvailableFilters,
@@ -192,7 +192,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     ownedCountByPrinting,
     favoriteMarketplace,
     prices,
-    enabled: isAddMode,
     keywordReverseMap,
   });
 
