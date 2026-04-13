@@ -106,7 +106,9 @@ export function CardBrowser() {
   const view = rawView === "copies" ? "printings" : rawView;
   const keywordReverseMap = useKeywordReverseMap();
 
-  const languageFilter = filters.languages.length > 0 ? filters.languages : undefined;
+  // Language filter: URL param takes precedence, display store preference is fallback
+  const preferredLanguages = useDisplayStore((s) => s.languages);
+  const languageFilter = filters.languages.length > 0 ? filters.languages : preferredLanguages;
 
   const {
     availableFilters,
