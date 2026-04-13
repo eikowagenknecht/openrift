@@ -65,7 +65,7 @@ interface ComparablePrinting {
 /**
  * Compare two printings for canonical ordering.
  * Sort order:
- *   1. Set release date (by `setOrder` when available, else `setId` string)
+ *   1. Set sort order from DB (by `setOrder` when available, else `setId` string)
  *   2. Short code (alphabetical — base variants sort before alt-art/overnumbered)
  *   3. Non-promo first
  *   4. Normal finish before foil
@@ -156,6 +156,29 @@ export function deduplicateByCard(
     }
   }
   return [...seen.values()];
+}
+
+/**
+ * Pick the single best printing for a card from a list of candidates,
+ * respecting language preference and canonical ordering.
+ * Use this whenever you need "the" printing to display for a card.
+ * @returns The preferred printing, or `undefined` if the array is empty.
+ */
+export function preferredPrinting(
+  printings: Printing[],
+  setOrderMap: Map<string, number>,
+  languageOrder?: string[],
+): Printing | undefined {
+  if (printings.length === 0) {
+    return undefined;
+  }
+  let best = printings[0];
+  for (let i = 1; i < printings.length; i++) {
+    if (compareWithLanguagePreference(printings[i], best, setOrderMap, languageOrder) < 0) {
+      best = printings[i];
+    }
+  }
+  return best;
 }
 
 /**

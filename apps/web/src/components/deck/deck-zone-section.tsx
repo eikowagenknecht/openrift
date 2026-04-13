@@ -10,7 +10,7 @@ import type {
   DeckDropData,
 } from "@/components/deck/deck-dnd-context";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useCards } from "@/hooks/use-cards";
+import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
@@ -79,7 +79,7 @@ export function DeckZoneSection({
   const addCard = useDeckBuilderStore((state) => state.addCard);
   const setQuantity = useDeckBuilderStore((state) => state.setQuantity);
   const allCards = useDeckBuilderStore((state) => state.cards);
-  const { allPrintings } = useCards();
+  const { getPreferredPrinting } = usePreferredPrinting();
 
   // Check if the currently dragged card is allowed in this zone
   const { active } = useDndContext();
@@ -136,16 +136,7 @@ export function DeckZoneSection({
   });
 
   const handleCardClick = (card: DeckBuilderCard) => {
-    // Pick canonical printing: short code → non-promo → normal finish
-    const candidates = allPrintings
-      .filter((entry) => entry.cardId === card.cardId)
-      .toSorted(
-        (a, b) =>
-          a.shortCode.localeCompare(b.shortCode) ||
-          Number(Boolean(a.promoType)) - Number(Boolean(b.promoType)) ||
-          Number(a.finish !== "normal") - Number(b.finish !== "normal"),
-      );
-    const match = candidates[0];
+    const match = getPreferredPrinting(card.cardId);
     if (match) {
       useSelectionStore.getState().selectCard(match, [], "card");
     }

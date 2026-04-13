@@ -38,6 +38,7 @@ import { useCards } from "@/hooks/use-cards";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { useDeckDetail, useSaveDeckCards } from "@/hooks/use-decks";
 import { useOwnedCount } from "@/hooks/use-owned-count";
+import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession } from "@/lib/auth-session";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
@@ -233,6 +234,7 @@ function DeckEditorContent({
 }) {
   const { data } = useDeckDetail(deckId);
   const { cardsById, allPrintings } = useCards();
+  const { getPreferredPrinting } = usePreferredPrinting();
   const init = useDeckBuilderStore((state) => state.init);
   const reset = useDeckBuilderStore((state) => state.reset);
   const storeId = useDeckBuilderStore((state) => state.deckId);
@@ -406,17 +408,11 @@ function DeckEditorContent({
     if (!hoveredCardId || isMobile) {
       return null;
     }
-    // Pick canonical printing: short code → non-promo → normal finish
-    const candidates = allPrintings
-      .filter((entry) => entry.cardId === hoveredCardId)
-      .toSorted(
-        (a, b) =>
-          a.shortCode.localeCompare(b.shortCode) ||
-          Number(Boolean(a.promoType)) - Number(Boolean(b.promoType)) ||
-          Number(a.finish !== "normal") - Number(b.finish !== "normal"),
-      );
-    const printing = candidates[0];
-    const frontImage = printing?.images.find((img) => img.face === "front");
+    const printing = getPreferredPrinting(hoveredCardId);
+    if (!printing) {
+      return null;
+    }
+    const frontImage = printing.images.find((img) => img.face === "front");
     if (!frontImage) {
       return null;
     }

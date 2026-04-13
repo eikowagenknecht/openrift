@@ -12,6 +12,7 @@ interface UseCardsResult {
   cardsById: Record<string, Card>;
   printingsById: Record<string, Printing>;
   printingsByCardId: Map<string, Printing[]>;
+  setOrderMap: Map<string, number>;
   sets: SetInfo[];
   totalCopies: number;
 }
@@ -52,12 +53,14 @@ function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
   }
 
   const printingsByCardId = Map.groupBy(allPrintings, (p) => p.cardId);
+  const setOrderMap = new Map(catalog.sets.map((s, i) => [s.id, i]));
 
   return {
     allPrintings,
     cardsById,
     printingsById,
     printingsByCardId,
+    setOrderMap,
     sets: catalog.sets,
     totalCopies: catalog.totalCopies,
   };

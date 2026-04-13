@@ -58,6 +58,7 @@ import {
   useUpdateDeck,
 } from "@/hooks/use-decks";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
@@ -169,38 +170,6 @@ function FannedPreview({
 }
 
 /**
- * Resolves the front image URL for a card from the catalog printings.
- * Picks the canonical printing: preferred language first, then normal art variant, non-promo, normal finish.
- * @returns The front image URL, or null if not found.
- */
-function resolveCardImage(
-  allPrintings: ReturnType<typeof useCards>["allPrintings"],
-  cardId: string,
-  languageOrder?: string[],
-): PrintingImage | null {
-  const candidates = allPrintings
-    .filter((entry) => entry.cardId === cardId)
-    .toSorted((a, b) => {
-      if (languageOrder && languageOrder.length > 1) {
-        const aIdx = languageOrder.indexOf(a.language);
-        const bIdx = languageOrder.indexOf(b.language);
-        const aPos = aIdx === -1 ? languageOrder.length : aIdx;
-        const bPos = bIdx === -1 ? languageOrder.length : bIdx;
-        const langCompare = aPos - bPos;
-        if (langCompare !== 0) {
-          return langCompare;
-        }
-      }
-      return (
-        a.shortCode.localeCompare(b.shortCode) ||
-        Number(Boolean(a.promoType)) - Number(Boolean(b.promoType)) ||
-        Number(a.finish !== "normal") - Number(b.finish !== "normal")
-      );
-    });
-  return candidates[0]?.images.find((img) => img.face === "front") ?? null;
-}
-
-/**
  * Visual tile for a single deck in the deck grid.
  * @returns The deck tile element.
  */
@@ -218,9 +187,8 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const navigate = useNavigate();
   const cloneDeck = useCloneDeck();
   const updateDeck = useUpdateDeck();
-  const { allPrintings } = useCards();
+  const { getPreferredPrinting, getPreferredFrontImage } = usePreferredPrinting();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
-  const languages = useDisplayStore((state) => state.languages);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
@@ -228,25 +196,11 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
   const [renameName, setRenameName] = useState(deck.name);
   const deleteDeck = useDeleteDeck();
 
-  // Filter printings by user's language preferences
-  const filteredPrintings =
-    languages.length > 0
-      ? allPrintings.filter((entry) => languages.includes(entry.language))
-      : allPrintings;
-
   // Resolve legend/champion card details from catalog
-  const legendCard = legendCardId
-    ? filteredPrintings.find((entry) => entry.cardId === legendCardId)?.card
-    : undefined;
-  const championCard = championCardId
-    ? filteredPrintings.find((entry) => entry.cardId === championCardId)?.card
-    : undefined;
-  const legendImage = legendCardId
-    ? resolveCardImage(filteredPrintings, legendCardId, languages)
-    : null;
-  const championImage = championCardId
-    ? resolveCardImage(filteredPrintings, championCardId, languages)
-    : null;
+  const legendCard = legendCardId ? getPreferredPrinting(legendCardId)?.card : undefined;
+  const championCard = championCardId ? getPreferredPrinting(championCardId)?.card : undefined;
+  const legendImage = legendCardId ? (getPreferredFrontImage(legendCardId) ?? null) : null;
+  const championImage = championCardId ? (getPreferredFrontImage(championCardId) ?? null) : null;
 
   // Lazy-fetch full card detail only when export/proxy dialogs are open
   const needsDetail = exportOpen || proxyOpen;
