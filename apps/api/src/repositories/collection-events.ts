@@ -1,5 +1,6 @@
 import type { ActivityAction, CardType } from "@openrift/shared/types";
 import type { Kysely, Selectable } from "kysely";
+import { sql } from "kysely";
 
 import type { CollectionEventsTable, Database, PrintingsTable } from "../db/index.js";
 import { imageUrl, superTypesArray } from "./query-helpers.js";
@@ -92,14 +93,12 @@ export function collectionEventsRepo(db: Kysely<Database>) {
         .limit(limit + 1);
       if (cursor) {
         const { time, id } = parseCursor(cursor);
+        const tsMs = sql<Date>`date_trunc('milliseconds', ${sql.ref("ce.createdAt")})`;
         query = id
           ? query.where((eb) =>
-              eb.or([
-                eb("ce.createdAt", "<", time),
-                eb.and([eb("ce.createdAt", "=", time), eb("ce.id", "<", id)]),
-              ]),
+              eb.or([eb(tsMs, "<", time), eb.and([eb(tsMs, "=", time), eb("ce.id", "<", id)])]),
             )
-          : query.where("ce.createdAt", "<", time);
+          : query.where(tsMs, "<", time);
       }
       return query.execute();
     },
