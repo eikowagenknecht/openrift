@@ -12,6 +12,7 @@ import type { CompletionCountMode } from "@/hooks/use-collection-stats";
 import { filterByScope } from "@/hooks/use-collection-stats";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { compactFormatterForMarketplace } from "@/lib/format";
+import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,8 @@ interface CurvePoint {
   label?: string;
   /** Price of this individual item. */
   itemPrice?: number;
+  /** Thumbnail URL of the cheapest printing for this item. */
+  thumbnail?: string;
 }
 
 interface MilestonePoint {
@@ -106,7 +109,7 @@ function computeForCards(
   // For each missing card, find the cheapest printing in scope
   const printingsByCard = Map.groupBy(scopedPrintings, (printing) => printing.card.slug);
 
-  const missingItems: { label: string; price: number }[] = [];
+  const missingItems: MissingItem[] = [];
   let unpricedMissing = 0;
 
   for (const slug of allCardSlugs) {
@@ -115,18 +118,24 @@ function computeForCards(
     }
     const cardPrintings = printingsByCard.get(slug) ?? [];
     let cheapest: number | undefined;
+    let cheapestPrinting: Printing | undefined;
     let cardName = slug;
     for (const printing of cardPrintings) {
       cardName = printing.card.name;
       const price = prices.get(printing.id, marketplace);
       if (price !== undefined && (cheapest === undefined || price < cheapest)) {
         cheapest = price;
+        cheapestPrinting = printing;
       }
     }
     if (cheapest === undefined) {
       unpricedMissing++;
     } else {
-      missingItems.push({ label: cardName, price: cheapest });
+      missingItems.push({
+        label: cardName,
+        price: cheapest,
+        thumbnail: cheapestPrinting?.images[0]?.thumbnail,
+      });
     }
   }
 
@@ -146,7 +155,7 @@ function computeForPrintings(
     ownedPrintingIds.add(stack.printingId);
   }
 
-  const missingItems: { label: string; price: number }[] = [];
+  const missingItems: MissingItem[] = [];
   let unpricedMissing = 0;
 
   for (const printing of scopedPrintings) {
@@ -157,7 +166,11 @@ function computeForPrintings(
     if (price === undefined) {
       unpricedMissing++;
     } else {
-      missingItems.push({ label: printing.card.name, price });
+      missingItems.push({
+        label: printing.card.name,
+        price,
+        thumbnail: printing.images[0]?.thumbnail,
+      });
     }
   }
 
@@ -193,7 +206,7 @@ function computeForCopies(
   // Cheapest printing per card for pricing missing copies
   const printingsByCard = Map.groupBy(scopedPrintings, (printing) => printing.card.slug);
 
-  const missingItems: { label: string; price: number }[] = [];
+  const missingItems: MissingItem[] = [];
   let unpricedMissing = 0;
   let totalItems = 0;
   let ownedItems = 0;
@@ -212,18 +225,21 @@ function computeForCopies(
     // Find cheapest printing for this card
     const cardPrintings = printingsByCard.get(slug) ?? [];
     let cheapest: number | undefined;
+    let cheapestPrinting: Printing | undefined;
     for (const printing of cardPrintings) {
       const price = prices.get(printing.id, marketplace);
       if (price !== undefined && (cheapest === undefined || price < cheapest)) {
         cheapest = price;
+        cheapestPrinting = printing;
       }
     }
 
     if (cheapest === undefined) {
       unpricedMissing += missing;
     } else {
+      const thumb = cheapestPrinting?.images[0]?.thumbnail;
       for (let index = 0; index < missing; index++) {
-        missingItems.push({ label: card.name, price: cheapest });
+        missingItems.push({ label: card.name, price: cheapest, thumbnail: thumb });
       }
     }
   }
@@ -231,8 +247,14 @@ function computeForCopies(
   return buildCurve(missingItems, totalItems, ownedItems, unpricedMissing);
 }
 
+interface MissingItem {
+  label: string;
+  price: number;
+  thumbnail?: string;
+}
+
 function buildCurve(
-  missingItems: { label: string; price: number }[],
+  missingItems: MissingItem[],
   totalItems: number,
   ownedItems: number,
   unpricedMissing: number,
@@ -257,6 +279,7 @@ function buildCurve(
       percent,
       label: item.label,
       itemPrice: item.price,
+      thumbnail: item.thumbnail,
     });
   }
 
@@ -347,27 +370,32 @@ function CostToCompleteTooltipContent({
   const point = payload[0].payload;
 
   return (
-    <div className="border-border/50 bg-background min-w-36 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
-      {point.label ? (
-        <p className="mb-1 font-medium">{point.label}</p>
-      ) : (
-        <p className="mb-1 font-medium">Current collection</p>
+    <div className="border-border/50 bg-background flex min-w-36 gap-2.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
+      {point.thumbnail && (
+        <img src={point.thumbnail} alt="" className="h-16 w-auto shrink-0 rounded" />
       )}
-      <div className="text-muted-foreground space-y-0.5">
-        <p>
-          Completion:{" "}
-          <span className="text-foreground font-medium">{point.percent.toFixed(1)}%</span>
-        </p>
-        {point.itemPrice !== undefined && (
-          <p>
-            Card price:{" "}
-            <span className="text-foreground font-medium">{formatPrice(point.itemPrice)}</span>
-          </p>
+      <div>
+        {point.label ? (
+          <p className="mb-1 font-medium">{point.label}</p>
+        ) : (
+          <p className="mb-1 font-medium">Current collection</p>
         )}
-        <p>
-          Total spent:{" "}
-          <span className="text-foreground font-medium">{formatPrice(point.cost)}</span>
-        </p>
+        <div className="text-muted-foreground space-y-0.5">
+          <p>
+            Completion:{" "}
+            <span className="text-foreground font-medium">{point.percent.toFixed(1)}%</span>
+          </p>
+          {point.itemPrice !== undefined && (
+            <p>
+              Card price:{" "}
+              <span className="text-foreground font-medium">{formatPrice(point.itemPrice)}</span>
+            </p>
+          )}
+          <p>
+            Total spent:{" "}
+            <span className="text-foreground font-medium">{formatPrice(point.cost)}</span>
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -420,6 +448,8 @@ export function CostToCompleteChart({
     );
   }
 
+  const searchUrl = MARKETPLACE_META[marketplace].searchUrl;
+
   return (
     <div>
       <ChartContainer config={chartConfig} className="aspect-auto h-52 w-full">
@@ -450,6 +480,7 @@ export function CostToCompleteChart({
           <XAxis
             dataKey="cost"
             type="number"
+            domain={[0, "dataMax"]}
             tickFormatter={(value: number) => formatPrice(value)}
             tick={{ fontSize: 10 }}
             axisLine={false}
@@ -458,7 +489,7 @@ export function CostToCompleteChart({
           <YAxis
             dataKey="percent"
             type="number"
-            domain={[0, 100]}
+            domain={[Math.floor(data.startPercent / 5) * 5, 100]}
             tickFormatter={(value: number) => `${value}%`}
             tick={{ fontSize: 10 }}
             axisLine={false}
@@ -476,7 +507,45 @@ export function CostToCompleteChart({
             strokeWidth={2}
             fill="url(#costToCompleteFill)"
             dot={false}
-            activeDot={{ r: 3, fill: "var(--color-primary)" }}
+            activeDot={(props: { cx: number; cy: number; payload: CurvePoint }) => {
+              if (!props.payload.label) {
+                return null;
+              }
+              const size = 20;
+              return (
+                <g
+                  className="cursor-pointer"
+                  onClick={() => {
+                    if (props.payload.label) {
+                      window.open(searchUrl(props.payload.label), "_blank", "noreferrer");
+                    }
+                  }}
+                >
+                  <circle
+                    cx={props.cx}
+                    cy={props.cy}
+                    r={size / 2 + 1}
+                    fill="var(--color-background)"
+                    opacity={0.9}
+                  />
+                  {/* Lucide ExternalLink icon scaled into a 20x20 area */}
+                  <svg
+                    x={props.cx - size / 2}
+                    y={props.cy - size / 2}
+                    width={size}
+                    height={size}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="var(--color-primary)"
+                    strokeWidth={2.5}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  </svg>
+                </g>
+              );
+            }}
           />
           {/* "You are here" marker */}
           <ReferenceDot
