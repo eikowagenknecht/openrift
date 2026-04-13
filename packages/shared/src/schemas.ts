@@ -43,6 +43,23 @@ export const collectionEventsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
+export const collectionValueHistoryQuerySchema = z.object({
+  range: z.enum(["7d", "30d", "90d", "all"]).default("30d"),
+  marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]).default("tcgplayer"),
+  collectionIds: z.string().min(1).optional(),
+  sets: z.string().min(1).optional(),
+  languages: z.string().min(1).optional(),
+  domains: z.string().min(1).optional(),
+  types: z.string().min(1).optional(),
+  rarities: z.string().min(1).optional(),
+  finishes: z.string().min(1).optional(),
+  artVariants: z.string().min(1).optional(),
+  promos: z.enum(["only", "exclude"]).optional(),
+  signed: z.enum(["true", "false"]).optional(),
+  banned: z.enum(["true", "false"]).optional(),
+  errata: z.enum(["true", "false"]).optional(),
+});
+
 export const copiesQuerySchema = z.object({
   cursor: z.string().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(1000).optional(),

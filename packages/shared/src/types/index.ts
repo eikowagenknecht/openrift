@@ -117,6 +117,8 @@ export type {
 export type {
   CollectionEventListResponse,
   CollectionEventResponse,
+  CollectionValueHistoryPoint,
+  CollectionValueHistoryResponse,
   CollectionListResponse,
   CollectionResponse,
   CopyCollectionBreakdownEntry,

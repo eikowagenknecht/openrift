@@ -685,3 +685,17 @@ export const rulesListResponseSchema = z
 export const ruleVersionsListResponseSchema = z
   .object({ versions: z.array(ruleVersionResponseSchema) })
   .openapi("RuleVersionsListResponse");
+
+// ── Collection Value History ────────────────────────────────────────────────
+
+export const collectionValueHistoryResponseSchema = z
+  .object({
+    series: z.array(
+      z.object({
+        date: z.string().openapi({ example: "2026-03-15" }),
+        valueCents: z.number().openapi({ example: 125_000 }),
+        copyCount: z.number().openapi({ example: 42 }),
+      }),
+    ),
+  })
+  .openapi("CollectionValueHistoryResponse");

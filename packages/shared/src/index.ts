@@ -43,6 +43,8 @@ export type {
   ClearPricesResponse,
   CleanupOrphanedResponse,
   ClearRehostedResponse,
+  CollectionValueHistoryPoint,
+  CollectionValueHistoryResponse,
   CompletionScopePreference,
   CollectionListResponse,
   CollectionResponse,
