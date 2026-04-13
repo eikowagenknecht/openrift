@@ -3,10 +3,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:e2e": "bunx playwright test",
-    "test:e2e:ui": "bunx playwright test --ui",
-    "test:e2e:headed": "bunx playwright test --headed",
-    "test:e2e:debug": "bunx playwright test --debug"
+    "test:e2e": "bunx --env-file=../../.env playwright test",
+    "test:e2e:ui": "bunx --env-file=../../.env playwright test --ui",
+    "test:e2e:headed": "bunx --env-file=../../.env playwright test --headed",
+    "test:e2e:debug": "bunx --env-file=../../.env playwright test --debug"
   },
   "devDependencies": {
     "@playwright/test": "1.52.0",
