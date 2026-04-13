@@ -45,6 +45,16 @@ const STATUS_SORT_ORDER: Record<DeckMatchStatus, number> = {
   unresolved: 2,
 };
 
+/** @returns Display name for sorting purposes. */
+function entryDisplayName(entry: DeckMatchedEntry): string {
+  return (
+    entry.resolvedCard?.cardName ??
+    entry.entry.cardName ??
+    entry.entry.shortCode ??
+    ""
+  ).toLowerCase();
+}
+
 export const Route = createFileRoute("/_app/_authenticated/decks/import")({
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Import Deck", noIndex: true }),
   loader: async ({ context }) => {
@@ -158,6 +168,11 @@ function DeckImportPage() {
       const zoneDiff = (zoneIndex[entryA.zone] ?? 99) - (zoneIndex[entryB.zone] ?? 99);
       if (zoneDiff !== 0) {
         return zoneDiff;
+      }
+      const nameA = entryDisplayName(entryA);
+      const nameB = entryDisplayName(entryB);
+      if (nameA !== nameB) {
+        return nameA.localeCompare(nameB);
       }
       return STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status];
     });

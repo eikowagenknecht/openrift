@@ -68,7 +68,7 @@ describe("parseDeckImportData — piltover format", () => {
     expect(championEntry?.explicitZone).toBe("champion");
   });
 
-  it("only subtracts 1 even when library returns multiple entries for the champion", () => {
+  it("consolidates duplicate mainDeck entries and subtracts 1 for champion", () => {
     // The library can return the same card at different count levels
     mockGetDeckFromCode.mockReturnValue({
       mainDeck: [
@@ -81,12 +81,12 @@ describe("parseDeckImportData — piltover format", () => {
 
     const { entries } = parseDeckImportData("FAKECODE", "piltover");
 
-    // Should subtract 1 from the first entry only: (2-1) + 1 = 2 in main
+    // Consolidated total is 3, minus 1 for champion = 2 in a single main entry
     const mainEntries = entries.filter(
       (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "mainDeck",
     );
-    const totalMain = mainEntries.reduce((sum, entry) => sum + entry.quantity, 0);
-    expect(totalMain).toBe(2);
+    expect(mainEntries).toHaveLength(1);
+    expect(mainEntries[0].quantity).toBe(2);
 
     const championEntry = entries.find(
       (entry) => entry.shortCode === "OGN-007" && entry.sourceSlot === "chosenChampion",

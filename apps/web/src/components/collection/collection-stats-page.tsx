@@ -444,7 +444,7 @@ function CompletionSection({
   }
 
   return (
-    <section className="space-y-3">
+    <section>
       <CompletionTotalRow entries={entries} />
 
       {mainEntries.length === 0 && supplementalEntries.length === 0 ? (
