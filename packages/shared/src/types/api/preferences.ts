@@ -18,6 +18,10 @@ export interface CompletionScopePreference {
   artVariants?: string[];
   /** Tri-state: undefined = all, "only" = promos only, "exclude" = no promos. */
   promos?: "only" | "exclude";
+  /** Tri-state boolean filters: true = only, false = exclude, undefined = all. */
+  signed?: boolean;
+  banned?: boolean;
+  errata?: boolean;
 }
 
 export interface UserPreferencesResponse {
