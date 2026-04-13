@@ -562,7 +562,19 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
  */
 export function filterByScope(printings: Printing[], scope: CompletionScopePreference): Printing[] {
   "use memo";
-  const { sets, languages, domains, types, rarities, finishes, artVariants, promos } = scope;
+  const {
+    sets,
+    languages,
+    domains,
+    types,
+    rarities,
+    finishes,
+    artVariants,
+    promos,
+    signed,
+    banned,
+    errata,
+  } = scope;
   const hasSets = sets && sets.length > 0;
   const hasLanguages = languages && languages.length > 0;
   const hasDomains = domains && domains.length > 0;
@@ -579,7 +591,10 @@ export function filterByScope(printings: Printing[], scope: CompletionScopePrefe
     !hasRarities &&
     !hasFinishes &&
     !hasArtVariants &&
-    !promos
+    promos === undefined &&
+    signed === undefined &&
+    banned === undefined &&
+    errata === undefined
   ) {
     return printings;
   }
@@ -612,17 +627,48 @@ export function filterByScope(printings: Printing[], scope: CompletionScopePrefe
     if (promos === "only" && printing.promoType === null) {
       return false;
     }
+    if (signed === true && !printing.isSigned) {
+      return false;
+    }
+    if (signed === false && printing.isSigned) {
+      return false;
+    }
+    if (banned === true && printing.card.bans.length === 0) {
+      return false;
+    }
+    if (banned === false && printing.card.bans.length > 0) {
+      return false;
+    }
+    if (errata === true && printing.card.errata === null) {
+      return false;
+    }
+    if (errata === false && printing.card.errata !== null) {
+      return false;
+    }
     return true;
   });
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function filterStacksByScope(
+export function filterStacksByScope(
   stacks: StackedEntry[],
   scope: CompletionScopePreference,
 ): StackedEntry[] {
-  const { sets, languages, domains, types, rarities, finishes, artVariants, promos } = scope;
+  // Reuse filterByScope logic: filter stacks whose printing matches the scope
+  const {
+    sets,
+    languages,
+    domains,
+    types,
+    rarities,
+    finishes,
+    artVariants,
+    promos,
+    signed,
+    banned,
+    errata,
+  } = scope;
   const hasSets = sets && sets.length > 0;
   const hasLanguages = languages && languages.length > 0;
   const hasDomains = domains && domains.length > 0;
@@ -639,7 +685,10 @@ function filterStacksByScope(
     !hasRarities &&
     !hasFinishes &&
     !hasArtVariants &&
-    !promos
+    promos === undefined &&
+    signed === undefined &&
+    banned === undefined &&
+    errata === undefined
   ) {
     return stacks;
   }
@@ -671,6 +720,24 @@ function filterStacksByScope(
       return false;
     }
     if (promos === "only" && printing.promoType === null) {
+      return false;
+    }
+    if (signed === true && !printing.isSigned) {
+      return false;
+    }
+    if (signed === false && printing.isSigned) {
+      return false;
+    }
+    if (banned === true && printing.card.bans.length === 0) {
+      return false;
+    }
+    if (banned === false && printing.card.bans.length > 0) {
+      return false;
+    }
+    if (errata === true && printing.card.errata === null) {
+      return false;
+    }
+    if (errata === false && printing.card.errata !== null) {
       return false;
     }
     return true;

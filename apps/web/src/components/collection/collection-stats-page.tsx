@@ -80,6 +80,19 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-muted-foreground flex items-center gap-1.5">
+            <CopyIcon className="size-4" />
+            Unique Printings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-2xl font-semibold tabular-nums">
+            {stats.uniquePrintings.toLocaleString()}
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-muted-foreground flex items-center gap-1.5">
             <SquareStackIcon className="size-4" />
             Total Copies
           </CardTitle>
@@ -87,19 +100,6 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
         <CardContent>
           <p className="text-2xl font-semibold tabular-nums">
             {stats.totalCopies.toLocaleString()}
-          </p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-muted-foreground flex items-center gap-1.5">
-            <CopyIcon className="size-4" />
-            Printings
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-semibold tabular-nums">
-            {stats.uniquePrintings.toLocaleString()}
           </p>
         </CardContent>
       </Card>
@@ -177,6 +177,15 @@ function useScopeFromFilters(): CompletionScopePreference {
     scope.promos = "only";
   } else if (filters.isPromo === false) {
     scope.promos = "exclude";
+  }
+  if (filters.isSigned !== null) {
+    scope.signed = filters.isSigned;
+  }
+  if (filters.isBanned !== null) {
+    scope.banned = filters.isBanned;
+  }
+  if (filters.hasErrata !== null) {
+    scope.errata = filters.hasErrata;
   }
   return scope;
 }
@@ -327,9 +336,7 @@ function CompletionSection({
   const mainEntries =
     groupBy === "set" ? entries.filter((entry) => entry.setType === "main") : entries;
   const supplementalEntries =
-    groupBy === "set"
-      ? entries.filter((entry) => entry.setType === "supplemental" && entry.owned > 0)
-      : [];
+    groupBy === "set" ? entries.filter((entry) => entry.setType === "supplemental") : [];
 
   function rowBarColor(key: string): string | undefined {
     if (groupBy === "domain") {
@@ -391,6 +398,15 @@ function CompletionSection({
       params.set("promo", "true");
     } else if (scope.promos === "exclude") {
       params.set("promo", "false");
+    }
+    if (scope.signed !== undefined) {
+      params.set("signed", String(scope.signed));
+    }
+    if (scope.banned !== undefined) {
+      params.set("banned", String(scope.banned));
+    }
+    if (scope.errata !== undefined) {
+      params.set("errata", String(scope.errata));
     }
     return `/cards?${params.toString()}`;
   }
