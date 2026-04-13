@@ -142,7 +142,7 @@ export function createAuth(deps: {
     advanced: {
       defaultCookieAttributes: {
         sameSite: "lax",
-        secure: true,
+        secure: !config.isDev,
       },
     },
     trustedOrigins: (request) => {

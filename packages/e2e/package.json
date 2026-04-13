@@ -1,0 +1,17 @@
+{
+  "name": "e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.52.0",
+    "kysely": "0.28.15",
+    "kysely-postgres-js": "3.0.0",
+    "postgres": "3.4.9"
+  }
+}

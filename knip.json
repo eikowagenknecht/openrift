@@ -27,6 +27,10 @@
     },
     "packages/shared": {
       "ignore": ["src/**/*.test.ts"]
+    },
+    "packages/e2e": {
+      "entry": ["src/**/*.spec.ts", "src/**/*.setup.ts", "playwright.config.ts"],
+      "ignore": []
     }
   },
   "ignoreBinaries": ["wait"]
