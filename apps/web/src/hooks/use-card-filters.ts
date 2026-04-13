@@ -12,6 +12,7 @@ import type {
 } from "@openrift/shared";
 import { useRouter } from "@tanstack/react-router";
 
+import { trackEvent } from "@/lib/analytics";
 import type { FilterSearch } from "@/lib/search-schemas";
 import { useFilterSearch } from "@/lib/search-schemas";
 import { useSearchScopeStore } from "@/stores/search-scope-store";
@@ -211,6 +212,7 @@ export function useFilterActions() {
   };
 
   const toggleArrayFilter = (key: ArrayKey, value: string) => {
+    trackEvent("filter-apply", { type: key });
     void router.navigate({
       to: ".",
       search: (prev) => {
@@ -228,6 +230,7 @@ export function useFilterActions() {
   };
 
   const setArrayFilter = (key: ArrayKey, values: string[]) => {
+    trackEvent("filter-apply", { type: key });
     updateSearch({ [key]: values.length > 0 ? values : undefined });
   };
 
@@ -239,13 +242,16 @@ export function useFilterActions() {
     updateSearch(patch);
   };
 
-  const setRange = (key: RangeKey, min: number | null, max: number | null) =>
-    updateSearch({
+  const setRange = (key: RangeKey, min: number | null, max: number | null) => {
+    trackEvent("filter-apply", { type: key });
+    return updateSearch({
       [`${key}Min`]: min ?? undefined,
       [`${key}Max`]: max ?? undefined,
     } as Partial<FilterSearch>);
+  };
 
   const toggleOwned = () => {
+    trackEvent("filter-apply", { type: "owned" });
     const next =
       filterState.owned === null ? "true" : filterState.owned === "true" ? "false" : undefined;
     updateSearch({ owned: next });
@@ -253,11 +259,13 @@ export function useFilterActions() {
   const clearOwned = () => updateSearch({ owned: undefined });
 
   const toggleSigned = () => {
+    trackEvent("filter-apply", { type: "signed" });
     const next =
       filterState.signed === null ? "true" : filterState.signed === "true" ? "false" : undefined;
     updateSearch({ signed: next });
   };
   const togglePromo = () => {
+    trackEvent("filter-apply", { type: "promo" });
     const next =
       filterState.promo === null ? "true" : filterState.promo === "true" ? "false" : undefined;
     updateSearch({ promo: next });
@@ -265,11 +273,13 @@ export function useFilterActions() {
   const clearSigned = () => updateSearch({ signed: undefined });
   const clearPromo = () => updateSearch({ promo: undefined });
   const toggleBanned = () => {
+    trackEvent("filter-apply", { type: "banned" });
     const next =
       filterState.banned === null ? "true" : filterState.banned === "true" ? "false" : undefined;
     updateSearch({ banned: next });
   };
   const toggleErrata = () => {
+    trackEvent("filter-apply", { type: "errata" });
     const next =
       filterState.errata === null ? "true" : filterState.errata === "true" ? "false" : undefined;
     updateSearch({ errata: next });

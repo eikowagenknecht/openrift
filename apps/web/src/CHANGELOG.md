@@ -2,6 +2,7 @@
 
 ## 2026-04-13
 
+- feat: Search queries, collection actions, and filter usage are now tracked with privacy-friendly Umami analytics to help us understand which features matter most
 - feat: Cards you don't own are now dimmed in the card browser when showing owned counts or in add mode, making it easy to spot gaps in your collection
 - feat: You can now import collections from RiftMana CSV exports, with support for normal/foil splits, alt art, promos, and language detection
 - feat: Importing from Piltover Archive now uses the Language column to automatically match the correct language variant, so English imports no longer collide with Chinese or French printings

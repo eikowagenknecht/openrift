@@ -9,6 +9,7 @@ import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 import { useCallback, useRef } from "react";
 
+import { trackEvent } from "@/lib/analytics";
 import { queryKeys } from "@/lib/query-keys";
 import type { CopiesResponse } from "@/lib/server-fns/api-types";
 import { API_URL } from "@/lib/server-fns/api-url";
@@ -182,6 +183,8 @@ export function useAddCopies() {
       copies: { printingId: string; collectionId?: string }[];
     }): Promise<AddCopyResult[]> => addCopiesFn({ data: body }),
     onSuccess: (data) => {
+      trackEvent("collection-add", { count: data.length });
+
       const now = new Date().toISOString();
       const newCopies: CopyResponse[] = data.map((item) => ({
         id: item.id,
@@ -515,6 +518,9 @@ export function useDisposeCopies() {
       updateCollectionCopyCounts(queryClient, collectionDeltas);
 
       return { prevCopies, prevOwnedBreakdown, prevCollections, prevByCollection };
+    },
+    onSuccess: (_data, variables) => {
+      trackEvent("collection-remove", { count: variables.copyIds.length });
     },
     onError: (_error, _variables, context) => {
       if (context?.prevCopies) {

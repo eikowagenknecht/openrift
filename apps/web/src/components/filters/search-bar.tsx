@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useDebounce } from "@/hooks/use-debounce";
+import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
 const SEARCH_FIELD_LABELS: Record<SearchField, { label: string; prefix: string }> = {
@@ -39,6 +40,8 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
   const debouncedSearch = useDebounce(localSearch, 200);
 
   const prevFilterSearch = useRef(filterState.search);
+  const filteredCountRef = useRef(filteredCount);
+  filteredCountRef.current = filteredCount;
 
   const showScopeChips = searchFocused;
   const hasPrefixes = parseSearchTerms(localSearch).some((t) => t.field !== null);
@@ -59,6 +62,9 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
     if (debouncedSearch !== filterState.search) {
       prevFilterSearch.current = debouncedSearch;
       setSearch(debouncedSearch);
+      if (debouncedSearch) {
+        trackEvent("search", { query: debouncedSearch, resultCount: filteredCountRef.current });
+      }
     }
   }, [debouncedSearch, filterState.search, setSearch]);
 
