@@ -4,12 +4,14 @@ import { useState } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { catalogQueryOptions } from "@/hooks/use-cards";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { cn } from "@/lib/utils";
 
 import { HeroBackground } from "./hero-background";
 
 export function LandingPage() {
   const { data } = useQuery(catalogQueryOptions);
+  const copiesTracked = useFeatureEnabled("copies-tracked");
   const [spinning, setSpinning] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [hinting, setHinting] = useState(false);
@@ -64,9 +66,17 @@ export function LandingPage() {
             <span className="text-foreground font-semibold">{uniqueCards.toLocaleString()}</span>{" "}
             cards &middot;{" "}
             <span className="text-foreground font-semibold">{printings.toLocaleString()}</span>{" "}
-            printings &middot;{" "}
-            <span className="text-foreground font-semibold">{copies.toLocaleString()}</span> copies
-            tracked
+            printings
+            {copiesTracked && (
+              <>
+                {" "}
+                &middot;{" "}
+                <span className="text-foreground font-semibold">
+                  {copies.toLocaleString()}
+                </span>{" "}
+                copies tracked
+              </>
+            )}
           </p>
         )}
       </div>
