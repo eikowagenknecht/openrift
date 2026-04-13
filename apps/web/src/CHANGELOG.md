@@ -2,6 +2,7 @@
 
 ## 2026-04-13
 
+- feat: Clicking the minus button on a card you already own in add mode now explains why it can't be removed and how to manage existing copies
 - feat: Active filters bar in the card browser now stays visible as you scroll, so you always see which filters are applied
 - feat: New "Cost to Complete" chart on the Statistics page shows how much you'd spend to reach 100% completion, with cards sorted cheapest-first so you can see where diminishing returns kick in
 - fix: Collections with many cards added at the same time no longer risk skipping some cards when loading your collection

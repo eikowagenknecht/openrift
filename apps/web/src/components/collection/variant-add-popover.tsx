@@ -57,14 +57,21 @@ export function VariantAddPopover({
               tabIndex={-1}
               onClick={(e) => {
                 e.stopPropagation();
-                onUndoAdd(printing);
+                if (sessionAdded) {
+                  onUndoAdd(printing);
+                }
               }}
-              disabled={!sessionAdded}
+              disabled={!sessionAdded && !owned}
+              title={
+                !sessionAdded && owned ? "These copies were added before this session" : undefined
+              }
               className={cn(
                 "flex size-5 shrink-0 items-center justify-center rounded transition-colors",
                 sessionAdded
                   ? "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  : "text-muted-foreground/30",
+                  : owned
+                    ? "text-muted-foreground/50 cursor-not-allowed"
+                    : "text-muted-foreground/30",
               )}
             >
               <svg viewBox="0 0 16 16" fill="currentColor" className="size-3">
