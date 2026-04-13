@@ -125,7 +125,7 @@ export function ActiveFilters({
   }
 
   return (
-    <div className="bg-muted/50 mb-1.5 flex items-center gap-2 rounded-lg px-1.5 py-1.5 sm:mb-3">
+    <div className="bg-muted/50 mb-1.5 flex items-center gap-2 rounded-lg py-1.5 pr-1.5 pl-3 sm:mb-3">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-2">
         {filterState.search && (
           <div className="flex items-center gap-1">
