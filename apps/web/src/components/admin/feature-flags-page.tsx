@@ -1,8 +1,11 @@
 import type { FeatureFlagResponse } from "@openrift/shared";
+import { PlusIcon } from "lucide-react";
+import { useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useAdminUsers } from "@/hooks/use-admin-users";
@@ -27,6 +30,29 @@ interface FlagDraft {
 
 const KEBAB_RE = /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/;
 
+// ── Known flags ──────────────────────────────────────────────────────────────
+// Flags that application code checks. Other keys are stored but have no effect.
+
+interface KnownFlag {
+  key: string;
+  description: string;
+}
+
+const KNOWN_FLAGS: KnownFlag[] = [
+  {
+    key: "stats",
+    description: "Show the collection statistics page and sidebar link",
+  },
+  {
+    key: "rules",
+    description: "Show the game rules page and header link",
+  },
+  {
+    key: "help",
+    description: "Show help articles gated behind this flag (e.g. Why OpenRift?)",
+  },
+];
+
 function GlobalFlagsSection() {
   const { data } = useFeatureFlags();
   const toggleMutation = useToggleFeatureFlag();
@@ -34,11 +60,22 @@ function GlobalFlagsSection() {
   const deleteMutation = useDeleteFeatureFlag();
   const { flags } = data;
 
+  const existingKeys = new Set(flags.map((flag) => flag.key));
+  const missingKnown = KNOWN_FLAGS.filter((kf) => !existingKeys.has(kf.key));
+
   const columns: AdminColumnDef<FeatureFlagResponse, FlagDraft>[] = [
     {
       header: "Key",
       sortValue: (f) => f.key,
-      cell: (f) => <span className="font-mono text-sm">{f.key}</span>,
+      cell: (f) => {
+        const known = KNOWN_FLAGS.find((kf) => kf.key === f.key);
+        return (
+          <div>
+            <span className="font-mono text-sm">{f.key}</span>
+            {known && <p className="text-muted-foreground mt-0.5 text-xs">{known.description}</p>}
+          </div>
+        );
+      },
       addCell: (d, set) => (
         <Input
           value={d.key}
@@ -83,39 +120,100 @@ function GlobalFlagsSection() {
   ];
 
   return (
-    <AdminTable
-      columns={columns}
-      data={flags}
-      getRowKey={(f) => f.key}
-      emptyText="No feature flags yet."
-      toolbar={
-        <p className="text-muted-foreground text-sm">
-          Feature flags take effect on the next page load for all users.
-        </p>
-      }
-      add={{
-        emptyDraft: { key: "", description: "" },
-        onSave: (d) =>
-          createMutation.mutateAsync({
-            key: d.key.trim(),
-            description: d.description.trim() || null,
-          }),
-        validate: (d) => {
-          const key = d.key.trim();
-          if (!key) {
-            return "Key is required";
-          }
-          if (!KEBAB_RE.test(key)) {
-            return "Key must be kebab-case (e.g. deck-builder)";
-          }
-          return null;
-        },
-        label: "Add Flag",
-      }}
-      delete={{
-        onDelete: (f) => deleteMutation.mutateAsync(f.key),
-      }}
-    />
+    <div className="space-y-6">
+      <AdminTable
+        columns={columns}
+        data={flags}
+        getRowKey={(f) => f.key}
+        emptyText="No feature flags yet."
+        toolbar={
+          <p className="text-muted-foreground text-sm">
+            Feature flags take effect on the next page load for all users.
+          </p>
+        }
+        add={{
+          emptyDraft: { key: "", description: "" },
+          onSave: (d) =>
+            createMutation.mutateAsync({
+              key: d.key.trim(),
+              description: d.description.trim() || null,
+            }),
+          validate: (d) => {
+            const key = d.key.trim();
+            if (!key) {
+              return "Key is required";
+            }
+            if (!KEBAB_RE.test(key)) {
+              return "Key must be kebab-case (e.g. deck-builder)";
+            }
+            return null;
+          },
+          label: "Add Custom Flag",
+        }}
+        delete={{
+          onDelete: (f) => deleteMutation.mutateAsync(f.key),
+        }}
+      />
+
+      {missingKnown.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-muted-foreground text-sm font-medium">Available flags</h3>
+          <div className="divide-border divide-y rounded-md border">
+            {missingKnown.map((known) => (
+              <KnownFlagRow
+                key={known.key}
+                known={known}
+                onCreate={(description) =>
+                  createMutation.mutateAsync({
+                    key: known.key,
+                    description,
+                  })
+                }
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Known flag placeholder row ──────────────────────────────────────────────
+
+function KnownFlagRow({
+  known,
+  onCreate,
+}: {
+  known: KnownFlag;
+  onCreate: (description: string) => Promise<unknown>;
+}) {
+  const [pending, setPending] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  async function handleCreate() {
+    setPending(true);
+    setSaveError("");
+    try {
+      await onCreate(known.description);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Creation failed");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-4 px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <span className="text-muted-foreground font-mono text-sm">{known.key}</span>
+        <p className="text-muted-foreground mt-0.5 text-xs">{known.description}</p>
+      </div>
+      <Button variant="ghost" size="sm" onClick={handleCreate} disabled={pending}>
+        <PlusIcon className="mr-1 h-3.5 w-3.5" />
+        Set up
+      </Button>
+      {saveError && <span className="text-destructive text-xs">{saveError}</span>}
+    </div>
   );
 }
 
