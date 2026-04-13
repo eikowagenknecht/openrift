@@ -10,16 +10,14 @@ import { connectToDb, createTempDb, replaceDbName } from "./helpers/db.js";
 const repoRoot = resolve(import.meta.dirname, "../../..");
 
 /**
- * Wait for a URL to respond with a 200 status, polling every second.
+ * Wait for a URL to respond (any non-network-error status), polling every second.
  */
 async function waitForServer(url: string, timeoutMs: number) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
-      const response = await fetch(url);
-      if (response.ok) {
-        return;
-      }
+      await fetch(url, { redirect: "manual" });
+      return;
     } catch {
       // Server not up yet
     }
@@ -103,7 +101,7 @@ export default async function globalSetup(_config: FullConfig) {
     }
   });
 
-  await waitForServer(`${API_BASE_URL}/health`, 120_000);
+  await waitForServer(`${API_BASE_URL}/api/health`, 120_000);
   console.log("[e2e] API server is ready");
 
   // ── 3. Start web dev server ─────────────────────────────────────────────
