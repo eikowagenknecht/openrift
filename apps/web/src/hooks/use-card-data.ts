@@ -134,12 +134,6 @@ export function useCardData({
   const setSlugToName = new Map(sets.map((s) => [s.slug, s.name]));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
   const setOrderMap = new Map(sets.map((s, i) => [s.id, i]));
-  // Sort order for set filter: main sets first (in sortOrder), then supplemental.
-  const setSlugOrder = new Map(
-    sets
-      .toSorted((a, b) => (a.setType === b.setType ? 0 : a.setType === "main" ? -1 : 1))
-      .map((s, i) => [s.slug, i]),
-  );
 
   // Language is a display preference, not a hard filter — it controls which
   // printing variant deduplicateByCard / groupPrintingsByCardId prefer, but
@@ -152,13 +146,7 @@ export function useCardData({
   const lookup = prices ?? EMPTY_PRICE_LOOKUP;
   const getPrice = (p: Printing) => lookup.get(p.id, favoriteMarketplace);
 
-  const availableFilters = getAvailableFilters(langFiltered, { getPrice });
-  availableFilters.sets.sort(
-    (a, b) => (setSlugOrder.get(a) ?? Infinity) - (setSlugOrder.get(b) ?? Infinity),
-  );
-  availableFilters.supplementalSets = new Set(
-    sets.filter((s) => s.setType === "supplemental").map((s) => s.slug),
-  );
+  const availableFilters = getAvailableFilters(langFiltered, { sets, getPrice });
   let filteredCards = filterCards(langFiltered, filters, { keywordReverseMap, getPrice });
 
   // Apply ownership filter (frontend-only, needs user copy data)

@@ -661,7 +661,7 @@ function CollectionStatsContent() {
 
   const availableLanguages = [...new Set(stats.allPrintings.map((printing) => printing.language))];
 
-  const availableFilters = getAvailableFilters(stats.allPrintings);
+  const availableFilters = getAvailableFilters(stats.allPrintings, { sets: stats.sets });
 
   const topBarPortal =
     topBarSlot &&

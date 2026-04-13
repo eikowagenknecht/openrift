@@ -347,6 +347,12 @@ export interface GetAvailableFiltersOptions {
   /** Override the default enum sort orders. */
   orders?: EnumOrders;
   /**
+   * Set metadata used to sort sets (main before supplemental) and to mark
+   * supplemental sets for dimmed styling. When omitted, sets appear in
+   * insertion order and `supplementalSets` is empty.
+   */
+  sets?: readonly { slug: string; setType: string }[];
+  /**
    * Resolves the latest market price for a printing. Used to compute the
    * available price range. Defaults to `() => undefined` (no prices known),
    * which yields a `{ min: 0, max: 0 }` range.
@@ -374,8 +380,16 @@ export function getAvailableFilters(
 ): AvailableFilters {
   const orders = options.orders ?? DEFAULT_ENUM_ORDERS;
   const getPrice = options.getPrice;
-  // Sets are not sorted but shown in insertion order.
+  const setMeta = options.sets;
   const sets = unique(printings.map((p) => p.setSlug));
+  if (setMeta) {
+    const setSlugOrder = new Map(
+      setMeta
+        .toSorted((a, b) => (a.setType === b.setType ? 0 : a.setType === "main" ? -1 : 1))
+        .map((s, i) => [s.slug, i]),
+    );
+    sets.sort((a, b) => (setSlugOrder.get(a) ?? Infinity) - (setSlugOrder.get(b) ?? Infinity));
+  }
   const domains = unique(printings.flatMap((p) => p.card.domains)).sort(
     (a, b) => orderIndex(orders.domains, a) - orderIndex(orders.domains, b),
   );
@@ -400,7 +414,9 @@ export function getAvailableFilters(
 
   return {
     sets,
-    supplementalSets: new Set<string>(),
+    supplementalSets: setMeta
+      ? new Set(setMeta.filter((s) => s.setType === "supplemental").map((s) => s.slug))
+      : new Set<string>(),
     domains,
     types,
     superTypes,
