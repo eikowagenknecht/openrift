@@ -148,6 +148,7 @@ describe("parseImportData — RiftMana format", () => {
     expect(entry.cardName).toBe("Buff");
     expect(entry.sourceCode).toBe("OGN-XXX");
     expect(entry.language).toBe("EN");
+    expect(entry.isPromo).toBeUndefined();
   });
 
   it("splits normal and foil into separate entries", () => {
@@ -191,18 +192,20 @@ describe("parseImportData — RiftMana format", () => {
     expect(result.entries[0].sourceCode).toBe("OGN-301*");
   });
 
-  it("strips lowercase -p promo suffix from Card ID", () => {
+  it("strips lowercase -p promo suffix and sets isPromo", () => {
     const csv = `${header}\n0,8,Blazing Scorcher,OGN-001-p,Promotional Cards,Fury,Common,0.00,0.24,,NM:4;HP:3;SEAL:1,,English`;
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
     expect(result.entries[0].sourceCode).toBe("OGN-001");
     expect(result.entries[0].setPrefix).toBe("OGN");
+    expect(result.entries[0].isPromo).toBe(true);
   });
 
-  it("strips uppercase -P promo suffix from Card ID", () => {
+  it("strips uppercase -P promo suffix and sets isPromo", () => {
     const csv = `${header}\n0,2,Buff,OGN-XXX-P,Promotional Cards,,Common,0.00,125.33,,NM:2,,English`;
     const result = parseImportData(csv);
     expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].isPromo).toBe(true);
     expect(result.entries[0].sourceCode).toBe("OGN-XXX");
   });
 

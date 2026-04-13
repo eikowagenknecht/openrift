@@ -18,6 +18,8 @@ export interface ImportEntry {
   sourceCode: string;
   /** Resolved promo slug for matching (e.g. "nexus", "release"). Provider-specific mapping is done in the parser. */
   promoSlug?: string;
+  /** True when the source indicates a promo card but doesn't specify which type (e.g. RiftMana's `-p` suffix). */
+  isPromo?: boolean;
   /** Two-letter language code from the source CSV (e.g. "EN", "ZH"), used to prefer the correct language printing. */
   language?: string;
   /** Pass-through of interesting fields from the source CSV, for display in the detail panel. */
@@ -703,7 +705,7 @@ function parseRiftMana(text: string): ParseResult {
         quantity: normalQty,
         cardName,
         sourceCode: parsed.shortCode,
-        promoSlug: undefined,
+        isPromo: parsed.isPromo || undefined,
         language,
         rawFields: buildRawFields({
           ...baseRawFields,
@@ -721,7 +723,7 @@ function parseRiftMana(text: string): ParseResult {
         quantity: foilQty,
         cardName,
         sourceCode: parsed.shortCode,
-        promoSlug: undefined,
+        isPromo: parsed.isPromo || undefined,
         language,
         rawFields: buildRawFields({
           ...baseRawFields,
@@ -740,6 +742,8 @@ interface RiftManaCardParts {
   artVariant: ArtVariant;
   /** Normalized short code, e.g. "OGN-007a". Promo suffix is stripped. */
   shortCode: string;
+  /** True when a `-p`/`-P` promo suffix was stripped. */
+  isPromo: boolean;
 }
 
 /**
@@ -750,9 +754,11 @@ interface RiftManaCardParts {
  */
 function parseRiftManaCardId(cardId: string): RiftManaCardParts | null {
   let code = cardId;
+  let isPromo = false;
 
   // Strip promo suffix (-p or -P)
   if (/^.+-[pP]$/.test(code)) {
+    isPromo = true;
     code = code.slice(0, -2);
   }
 
@@ -761,5 +767,5 @@ function parseRiftManaCardId(cardId: string): RiftManaCardParts | null {
     return null;
   }
 
-  return { setPrefix: match[1], ...resolveCardModifier(match[1], match[2], match[3]) };
+  return { setPrefix: match[1], isPromo, ...resolveCardModifier(match[1], match[2], match[3]) };
 }
