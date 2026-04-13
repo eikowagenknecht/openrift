@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { useDeferredValue, useEffect, useState } from "react";
+import type { DeckZone, Printing } from "@openrift/shared";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -58,6 +58,83 @@ function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCa
   return runesByDomain;
 }
 
+/** Filter keys to clear when switching zones (excludes sort/view/group). */
+const CLEARED_FILTERS: Record<string, null> = {
+  search: null,
+  sets: null,
+  rarities: null,
+  types: null,
+  superTypes: null,
+  domains: null,
+  artVariants: null,
+  finishes: null,
+  energyMin: null,
+  energyMax: null,
+  mightMin: null,
+  mightMax: null,
+  powerMin: null,
+  powerMax: null,
+  priceMin: null,
+  priceMax: null,
+  signed: null,
+  promo: null,
+  banned: null,
+  errata: null,
+};
+
+/**
+ * Build the URL filter update for a given deck zone.
+ * @returns A record of filter keys to set (or null to clear).
+ */
+function buildZoneFilterUpdate(
+  zone: DeckZone,
+  legendDomains: string[],
+  legendTag?: string,
+): Record<string, string[] | string | null> {
+  switch (zone) {
+    case "legend": {
+      return { ...CLEARED_FILTERS, types: ["Legend"] };
+    }
+    case "champion": {
+      return {
+        ...CLEARED_FILTERS,
+        types: ["Unit"],
+        superTypes: ["Champion"],
+        domains: legendDomains.length > 0 ? [...legendDomains, "Colorless"] : null,
+        search: legendTag ? `t:${legendTag}` : null,
+      };
+    }
+    case "runes": {
+      return {
+        ...CLEARED_FILTERS,
+        types: ["Rune"],
+        domains: legendDomains.length > 0 ? legendDomains : null,
+      };
+    }
+    case "battlefield": {
+      return { ...CLEARED_FILTERS, types: ["Battlefield"] };
+    }
+    case "main":
+    case "sideboard": {
+      return {
+        ...CLEARED_FILTERS,
+        types: ["Unit", "Spell", "Gear"],
+        domains: legendDomains.length > 0 ? [...legendDomains, "Colorless"] : null,
+      };
+    }
+    case "overflow": {
+      return {
+        ...CLEARED_FILTERS,
+        types: ["Unit", "Spell", "Gear", "Battlefield"],
+        domains: legendDomains.length > 0 ? [...legendDomains, "Colorless"] : null,
+      };
+    }
+    default: {
+      return { ...CLEARED_FILTERS };
+    }
+  }
+}
+
 /**
  * Full card browser for the deck editor — reuses the same filter UI, search bar,
  * and card grid as the catalog browser. Clicking + on a card adds it to the active zone.
@@ -77,6 +154,7 @@ export function DeckCardBrowser() {
     groupBy,
     groupDir,
     hasActiveFilters,
+    setFilterState,
   } = useFilterValues();
   const { setSearch } = useFilterActions();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
@@ -120,6 +198,33 @@ export function DeckCardBrowser() {
   const deckCards = useDeckBuilderStore((state) => state.cards);
   const singleCardZoneOccupied =
     isSingleCardZone && deckCards.some((card) => card.zone === activeZone);
+
+  // Sync URL filters when the active zone or legend changes.
+  // Using setFilterState from the SAME useQueryStates instance that provides
+  // urlFilters avoids cross-hook sync issues during React Strict Mode.
+  const legend = deckCards.find((card) => card.zone === "legend");
+  const legendDomainsKey = legend ? [...legend.domains].sort().join(",") : "";
+  const prevZoneKey = useRef("");
+  useEffect(() => {
+    const key = `${activeZone}:${legendDomainsKey}`;
+    if (key === prevZoneKey.current) {
+      return;
+    }
+    prevZoneKey.current = key;
+    const update = buildZoneFilterUpdate(activeZone, legend?.domains ?? [], legend?.tags[0]);
+    void setFilterState(update);
+  }, [activeZone, legendDomainsKey, legend?.domains, legend?.tags, setFilterState]);
+
+  // Clear zone filters on unmount (navigating away from deck editor).
+  // Defined AFTER the sync effect so its cleanup resets prevZoneKey before
+  // the sync effect re-fires on Strict Mode remount.
+  useEffect(
+    () => () => {
+      prevZoneKey.current = "";
+      void setFilterState(CLEARED_FILTERS);
+    },
+    [setFilterState],
+  );
 
   const filters = urlFilters;
 

@@ -1,7 +1,6 @@
 import { useDndContext } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
 import { EllipsisVerticalIcon, PencilIcon, PrinterIcon, Share2Icon, XIcon } from "lucide-react";
-import { useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -34,7 +33,6 @@ import {
   SidebarProvider,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { filterParsers } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { useDeckDetail, useSaveDeckCards } from "@/hooks/use-decks";
@@ -118,75 +116,6 @@ function HoveredCardPreview({
     </div>
   );
 }
-
-function buildZoneFilterUpdate(
-  zone: DeckZone,
-  deckCards: DeckBuilderCard[],
-): Record<string, string[] | string | null> {
-  const cleared: Record<string, string | string[] | null> = {
-    search: null,
-    sets: null,
-    rarities: null,
-    types: null,
-    superTypes: null,
-    domains: null,
-    artVariants: null,
-    finishes: null,
-    energyMin: null,
-    energyMax: null,
-    mightMin: null,
-    mightMax: null,
-    powerMin: null,
-    powerMax: null,
-    priceMin: null,
-    priceMax: null,
-    signed: null,
-    promo: null,
-    banned: null,
-    errata: null,
-  };
-
-  const legend = deckCards.find((card) => card.zone === "legend");
-
-  switch (zone) {
-    case "legend": {
-      return { ...cleared, types: ["Legend"] };
-    }
-    case "champion": {
-      const legendTag = legend?.tags[0];
-      return {
-        ...cleared,
-        types: ["Unit"],
-        superTypes: ["Champion"],
-        search: legendTag ? `t:${legendTag}` : null,
-      };
-    }
-    case "runes": {
-      const legendDomains = legend ? legend.domains : [];
-      return {
-        ...cleared,
-        types: ["Rune"],
-        domains: legendDomains.length > 0 ? legendDomains : null,
-      };
-    }
-    case "battlefield": {
-      return { ...cleared, types: ["Battlefield"] };
-    }
-    case "main":
-    case "sideboard": {
-      const legendDomains = legend ? legend.domains : [];
-      return {
-        ...cleared,
-        types: ["Unit", "Spell", "Gear"],
-        domains: legendDomains.length > 0 ? [...legendDomains, "Colorless"] : null,
-      };
-    }
-    default: {
-      return cleared;
-    }
-  }
-}
-
 const AUTO_SAVE_DELAY = 1000;
 
 export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
@@ -218,9 +147,6 @@ function DeckEditorContent({
   const deckCards = useDeckBuilderStore((state) => state.cards);
   const isDirty = useDeckBuilderStore((state) => state.isDirty);
   const markSaved = useDeckBuilderStore((state) => state.markSaved);
-  const [, setZoneFilters] = useQueryStates(filterParsers, { history: "push" });
-  const setZoneFiltersRef = useRef(setZoneFilters);
-  setZoneFiltersRef.current = setZoneFilters;
   const lastSuggestedZone = useRef<DeckZone | null>(null);
   const saveDeckCards = useSaveDeckCards();
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -286,7 +212,8 @@ function DeckEditorContent({
     };
   }, [isDirty, deckId, storeId, saveDeckCards, markSaved]);
 
-  // Auto-suggest filters based on what's missing in the deck.
+  // Auto-suggest the active zone based on what's missing in the deck.
+  // Filter sync is handled by DeckCardBrowser's zone sync effect.
   useEffect(() => {
     if (storeId !== deckId) {
       return;
@@ -310,34 +237,11 @@ function DeckEditorContent({
     lastSuggestedZone.current = nextSuggestion;
 
     useDeckBuilderStore.getState().setActiveZone(nextSuggestion);
-    void setZoneFiltersRef.current(buildZoneFilterUpdate(nextSuggestion, deckCards));
   }, [storeId, deckId, deckCards]);
 
-  // Clear filters on unmount
+  // Reset store on unmount
   useEffect(
     () => () => {
-      void setZoneFiltersRef.current({
-        search: null,
-        sets: null,
-        rarities: null,
-        types: null,
-        superTypes: null,
-        domains: null,
-        artVariants: null,
-        finishes: null,
-        energyMin: null,
-        energyMax: null,
-        mightMin: null,
-        mightMax: null,
-        powerMin: null,
-        powerMax: null,
-        priceMin: null,
-        priceMax: null,
-        signed: null,
-        promo: null,
-        banned: null,
-        errata: null,
-      });
       reset();
     },
     [reset],
@@ -357,7 +261,6 @@ function DeckEditorContent({
 
   const handleZoneClick = (zone: DeckZone) => {
     useDeckBuilderStore.getState().setActiveZone(zone);
-    void setZoneFilters(buildZoneFilterUpdate(zone, deckCards));
     if (isMobile) {
       setOpenMobile(false);
     }
