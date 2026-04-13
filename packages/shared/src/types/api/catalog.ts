@@ -1,4 +1,10 @@
-import type { Card, CardImageVariants, PrintingImage, PromoType } from "../catalog.js";
+import type {
+  Card,
+  CardImageVariants,
+  PrintingImage,
+  PromoType,
+  PromoTypeWithCount,
+} from "../catalog.js";
 import type { ArtVariant, Finish, Rarity, SetType } from "../enums.js";
 import type { PriceMap } from "./pricing.js";
 
@@ -76,6 +82,13 @@ export interface SetDetailResponse {
    * Latest market prices for the printings in this set, per marketplace.
    * Used for SSR JSON-LD; runtime UI reads through `usePrices()`.
    */
+  prices: PriceMap;
+}
+
+export interface PromoListResponse {
+  promoTypes: PromoTypeWithCount[];
+  cards: Record<string, CatalogCardResponse>;
+  printings: CatalogPrintingResponse[];
   prices: PriceMap;
 }
 

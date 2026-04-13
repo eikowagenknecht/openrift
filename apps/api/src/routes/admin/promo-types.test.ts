@@ -48,6 +48,7 @@ const dbPromoType = {
   id: "a0000000-0001-4000-a000-000000000010",
   slug: "nexus-night",
   label: "Nexus Night",
+  description: "Annual community event promo",
   createdAt: now,
   updatedAt: now,
 };
@@ -56,6 +57,7 @@ const dbPromoType2 = {
   id: "a0000000-0001-4000-a000-000000000020",
   slug: "shadow-promo",
   label: "Shadow Promo",
+  description: null,
   createdAt: now,
   updatedAt: now,
 };
@@ -79,6 +81,7 @@ describe("GET /api/v1/promo-types", () => {
       id: dbPromoType.id,
       slug: "nexus-night",
       label: "Nexus Night",
+      description: "Annual community event promo",
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     });
@@ -104,6 +107,7 @@ describe("POST /api/v1/promo-types", () => {
       id: dbPromoType.id,
       slug: "nexus-night",
       label: "Nexus Night",
+      description: "Annual community event promo",
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     };
@@ -111,7 +115,11 @@ describe("POST /api/v1/promo-types", () => {
     const res = await app.request("/api/v1/promo-types", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug: "nexus-night", label: "Nexus Night" }),
+      body: JSON.stringify({
+        slug: "nexus-night",
+        label: "Nexus Night",
+        description: "Annual community event promo",
+      }),
     });
     expect(res.status).toBe(201);
     const json = await res.json();
@@ -119,6 +127,7 @@ describe("POST /api/v1/promo-types", () => {
     expect(mockRepo.create).toHaveBeenCalledWith({
       slug: "nexus-night",
       label: "Nexus Night",
+      description: "Annual community event promo",
     });
   });
 

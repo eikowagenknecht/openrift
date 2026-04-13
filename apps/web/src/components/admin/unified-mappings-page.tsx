@@ -121,7 +121,9 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
     rarity: p.rarity as Rarity,
     artVariant: p.artVariant as ArtVariant,
     isSigned: p.isSigned,
-    promoType: p.promoTypeSlug ? { id: "", slug: p.promoTypeSlug, label: p.promoTypeSlug } : null,
+    promoType: p.promoTypeSlug
+      ? { id: "", slug: p.promoTypeSlug, label: p.promoTypeSlug, description: null }
+      : null,
     finish: p.finish as Finish,
     images: p.imageUrl ? [toAdminImage(p.imageUrl)] : [],
     artist: "",

@@ -16,18 +16,22 @@ export function promoTypesRepo(db: Kysely<Database>) {
       return db.selectFrom("promoTypes").selectAll().where("slug", "=", slug).executeTakeFirst();
     },
 
-    create(values: { slug: string; label: string }) {
+    create(values: { slug: string; label: string; description?: string | null }) {
       return db
         .insertInto("promoTypes")
         .values({
           slug: values.slug,
           label: values.label,
+          description: values.description ?? null,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
     },
 
-    update(id: string, updates: { slug?: string; label?: string; updatedAt?: Date }) {
+    update(
+      id: string,
+      updates: { slug?: string; label?: string; description?: string | null; updatedAt?: Date },
+    ) {
       return db
         .updateTable("promoTypes")
         .set(updates)

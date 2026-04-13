@@ -22,6 +22,7 @@ export type {
   Printing,
   PrintingImage,
   PromoType,
+  PromoTypeWithCount,
 } from "./catalog.js";
 
 export type {
@@ -80,6 +81,7 @@ export type {
   PriceRefreshUpsertCounts,
   CandidatePrintingGroupResponse,
   CandidatePrintingResponse,
+  PromoListResponse,
   PromoTypeResponse,
   ProviderSettingResponse,
   ProviderStatsResponse,

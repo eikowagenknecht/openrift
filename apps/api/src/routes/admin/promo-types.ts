@@ -14,6 +14,7 @@ const promoTypeSchema = z.object({
   id: z.string().openapi({ example: "019d4999-4219-72f6-b7bb-64004e1b1bff" }),
   slug: z.string().openapi({ example: "prerift" }),
   label: z.string().openapi({ example: "Pre-Rift Promo" }),
+  description: z.string().nullable().openapi({ example: "Cards from the Pre-Rift event" }),
   createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
   updatedAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
 });
@@ -95,6 +96,7 @@ export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
           id: r.id,
           slug: r.slug,
           label: r.label,
+          description: r.description,
           createdAt: r.createdAt.toISOString(),
           updatedAt: r.updatedAt.toISOString(),
         }),
@@ -106,14 +108,14 @@ export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   .openapi(createPromoType, async (c) => {
     const { promoTypes: repo } = c.get("repos");
-    const { slug, label } = c.req.valid("json");
+    const { slug, label, description } = c.req.valid("json");
 
     const existing = await repo.getBySlug(slug);
     if (existing) {
       throw new AppError(409, ERROR_CODES.CONFLICT, `Promo type "${slug}" already exists`);
     }
 
-    const created = await repo.create({ slug, label });
+    const created = await repo.create({ slug, label, description });
     return c.json({ promoType: created }, 201);
   })
 

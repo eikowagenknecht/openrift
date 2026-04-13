@@ -89,6 +89,7 @@ export const createPromoTypeSchema = z.object({
     .min(1)
     .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, "Slug must be kebab-case (e.g. nexus-night)"),
   label: z.string().min(1),
+  description: z.string().min(1).nullable().optional(),
 });
 
 export const updatePromoTypeSchema = z.object({
@@ -98,6 +99,7 @@ export const updatePromoTypeSchema = z.object({
     .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, "Slug must be kebab-case")
     .optional(),
   label: z.string().min(1).optional(),
+  description: z.string().min(1).nullable().optional(),
 });
 
 // ── Provider Settings ──────────────────────────────────────────────────────

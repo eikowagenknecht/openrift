@@ -13,7 +13,7 @@ function makeStack(overrides: {
   domains?: string[];
   finish?: string;
   artVariant?: string;
-  promoType?: { id: string; slug: string; label: string } | null;
+  promoType?: { id: string; slug: string; label: string; description: string | null } | null;
   language?: string;
   copyCount?: number;
 }): StackedEntry {
@@ -51,7 +51,7 @@ describe("generateExportCSV", () => {
     const stack = makeStack({
       shortCode: "OGN-042",
       name: "Promo Card",
-      promoType: { id: "pt-1", slug: "nexus", label: "Nexus" },
+      promoType: { id: "pt-1", slug: "nexus", label: "Nexus", description: null },
       copyCount: 2,
     });
     const csv = generateExportCSV([stack]);

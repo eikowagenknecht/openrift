@@ -346,6 +346,26 @@ export const setDetailResponseSchema = z
   })
   .openapi("SetDetailResponse");
 
+// ── Promo Types (public) ───────────────────────────────────────────────────
+
+const promoTypeWithCountSchema = z.object({
+  id: z.string().openapi({ example: "019d4999-4219-72f6-b7bb-64004e1b1bff" }),
+  slug: z.string().openapi({ example: "nexus-night" }),
+  label: z.string().openapi({ example: "Nexus Night" }),
+  description: z.string().nullable().openapi({ example: "Cards from the Nexus Night event" }),
+  cardCount: z.number().openapi({ example: 12 }),
+  printingCount: z.number().openapi({ example: 24 }),
+});
+
+export const promoListResponseSchema = z
+  .object({
+    promoTypes: z.array(promoTypeWithCountSchema),
+    cards: z.record(z.string(), catalogCardResponseSchema),
+    printings: z.array(catalogPrintingResponseSchema),
+    prices: z.record(z.string(), marketplacePriceMapSchema),
+  })
+  .openapi("PromoListResponse");
+
 // ── Sitemap Data ────────────────────────────────────────────────────────────
 
 const sitemapEntrySchema = z.object({

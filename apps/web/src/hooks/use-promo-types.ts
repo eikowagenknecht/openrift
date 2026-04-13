@@ -29,7 +29,7 @@ export function usePromoTypes() {
 }
 
 const createPromoTypeFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { slug: string; label: string }) => input)
+  .inputValidator((input: { slug: string; label: string; description?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const res = await fetch(`${API_URL}/api/v1/admin/promo-types`, {
@@ -45,19 +45,26 @@ const createPromoTypeFn = createServerFn({ method: "POST" })
 
 export function useCreatePromoType() {
   return useMutationWithInvalidation({
-    mutationFn: (vars: { slug: string; label: string }) => createPromoTypeFn({ data: vars }),
+    mutationFn: (vars: { slug: string; label: string; description?: string | null }) =>
+      createPromoTypeFn({ data: vars }),
     invalidates: [queryKeys.admin.promoTypes],
   });
 }
 
 const updatePromoTypeFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string; slug?: string; label?: string }) => input)
+  .inputValidator(
+    (input: { id: string; slug?: string; label?: string; description?: string | null }) => input,
+  )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const res = await fetch(`${API_URL}/api/v1/admin/promo-types/${encodeURIComponent(data.id)}`, {
       method: "PATCH",
       headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ slug: data.slug, label: data.label }),
+      body: JSON.stringify({
+        slug: data.slug,
+        label: data.label,
+        description: data.description,
+      }),
     });
     if (!res.ok) {
       throw new Error(`Update promo type failed: ${res.status}`);
@@ -66,8 +73,12 @@ const updatePromoTypeFn = createServerFn({ method: "POST" })
 
 export function useUpdatePromoType() {
   return useMutationWithInvalidation({
-    mutationFn: (vars: { id: string; slug?: string; label?: string }) =>
-      updatePromoTypeFn({ data: vars }),
+    mutationFn: (vars: {
+      id: string;
+      slug?: string;
+      label?: string;
+      description?: string | null;
+    }) => updatePromoTypeFn({ data: vars }),
     invalidates: [queryKeys.admin.promoTypes],
   });
 }
