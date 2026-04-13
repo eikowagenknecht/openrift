@@ -4,12 +4,13 @@ test.describe("card detail", () => {
   test("opens card detail panel when clicking a card", async ({ page }) => {
     await page.goto("/cards");
 
-    // Wait for card art images to load (they're inside picture > source/img elements)
-    const cardImage = page.locator("button > picture img, button > img[alt]").first();
-    await expect(cardImage).toBeVisible({ timeout: 15_000 });
+    // Wait for card names to appear (images may not exist in seed data,
+    // but card name labels are always rendered)
+    const cardName = page.locator("[data-index] button").first();
+    await expect(cardName).toBeVisible({ timeout: 15_000 });
 
-    // Click the card image directly (not the label area which has nested buttons)
-    await cardImage.click();
+    // Click the first card's clickable area
+    await cardName.click();
 
     // Clicking a card opens a detail panel (adds printingId to URL search params)
     await expect(page).toHaveURL(/printingId=/, { timeout: 5000 });
