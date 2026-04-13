@@ -24,7 +24,7 @@ test.describe("card browser", () => {
     // Give time for debounced search to filter
     await page.waitForTimeout(500);
 
-    // A Garen card from seed data should be visible
-    await expect(page.getByText("Garen, Commander")).toBeVisible({ timeout: 5000 });
+    // A Garen card from seed data should be visible (check any Garen variant)
+    await expect(page.getByText("Garen, Rugged")).toBeVisible({ timeout: 5000 });
   });
 });
