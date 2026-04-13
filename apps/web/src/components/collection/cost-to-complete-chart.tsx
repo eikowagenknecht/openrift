@@ -9,7 +9,7 @@ import { Area, AreaChart, ReferenceArea, ReferenceDot, XAxis, YAxis } from "rech
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { CompletionCountMode } from "@/hooks/use-collection-stats";
-import { filterByScope } from "@/hooks/use-collection-stats";
+import { filterByScope, filterStacksByScope } from "@/hooks/use-collection-stats";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { compactFormatterForMarketplace } from "@/lib/format";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
@@ -318,40 +318,6 @@ function buildCurve(
 
 // ── Scope filtering (duplicated from use-collection-stats to avoid circular) ─
 
-function filterStacksByScope(
-  stacks: StackedEntry[],
-  scope: CompletionScopePreference,
-): StackedEntry[] {
-  const { languages, finishes, artVariants, promos } = scope;
-  const hasLanguages = languages && languages.length > 0;
-  const hasFinishes = finishes && finishes.length > 0;
-  const hasArtVariants = artVariants && artVariants.length > 0;
-
-  if (!hasLanguages && !hasFinishes && !hasArtVariants && !promos) {
-    return stacks;
-  }
-
-  return stacks.filter((stack) => {
-    const { printing } = stack;
-    if (hasLanguages && !languages.includes(printing.language)) {
-      return false;
-    }
-    if (hasFinishes && !finishes.includes(printing.finish)) {
-      return false;
-    }
-    if (hasArtVariants && !artVariants.includes(printing.artVariant)) {
-      return false;
-    }
-    if (promos === "exclude" && printing.promoType !== null) {
-      return false;
-    }
-    if (promos === "only" && printing.promoType === null) {
-      return false;
-    }
-    return true;
-  });
-}
-
 // ── Custom tooltip ─────────────────────────────────────────────────────────
 
 function CostToCompleteTooltipContent({
@@ -556,28 +522,6 @@ export function CostToCompleteChart({
             stroke="var(--color-background)"
             strokeWidth={2}
           />
-          {/* Milestone markers */}
-          {data.milestones.map((milestone) => (
-            <ReferenceDot
-              key={milestone.label}
-              x={milestone.cost}
-              y={milestone.percent}
-              r={3}
-              fill="var(--color-background)"
-              stroke="var(--color-primary)"
-              strokeWidth={2}
-            >
-              <text
-                x={0}
-                y={0}
-                dy={-10}
-                textAnchor="middle"
-                className="fill-muted-foreground text-[10px]"
-              >
-                {milestone.label}
-              </text>
-            </ReferenceDot>
-          ))}
           {/* Unpriced gap: hatched band from priced ceiling to 100% */}
           {data.unpricedMissing > 0 && data.maxPricedPercent < 100 && (
             <ReferenceArea
@@ -602,7 +546,7 @@ export function CostToCompleteChart({
           You are here: {data.startPercent.toFixed(1)}%
         </span>
         <span className="text-muted-foreground">
-          Priced completion: {formatPrice(data.totalCost)}
+          Cost to complete: {formatPrice(data.totalCost)}
         </span>
         {data.unpricedMissing > 0 && (
           <span className="text-muted-foreground flex items-center gap-1.5">
