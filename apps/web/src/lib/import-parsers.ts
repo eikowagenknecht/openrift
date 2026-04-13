@@ -75,7 +75,7 @@ function normalizeLanguage(language: string | undefined): string | undefined {
 interface ParseResult {
   entries: ImportEntry[];
   errors: string[];
-  source: "openrift" | "piltover-archive" | "riftcore";
+  source: "openrift" | "piltover-archive" | "riftcore" | "riftmana";
   /** Number of data rows in the source CSV (before deduplication). */
   rowCount: number;
 }
@@ -99,6 +99,10 @@ export function parseImportData(text: string): ParseResult {
     return parsePiltoverArchive(trimmed);
   }
 
+  if (firstLine.includes("Normal Qty")) {
+    return parseRiftMana(trimmed);
+  }
+
   if (firstLine.includes("Art Variant")) {
     return parseOpenRift(trimmed);
   }
@@ -106,7 +110,7 @@ export function parseImportData(text: string): ParseResult {
   return {
     entries: [],
     errors: [
-      "Couldn't recognize this format. We currently support OpenRift, Piltover Archive, and RiftCore CSV exports.",
+      "Couldn't recognize this format. We currently support OpenRift, Piltover Archive, RiftCore, and RiftMana CSV exports.",
     ],
     source: "piltover-archive",
     rowCount: 0,
@@ -620,4 +624,142 @@ function parseRiftCoreCardId(cardId: string): RiftCoreCardParts | null {
   const modifier = rawModifier === "s" ? "*" : rawModifier;
 
   return { setPrefix: match[1], ...resolveCardModifier(match[1], match[2], modifier) };
+}
+
+// ---------------------------------------------------------------------------
+// RiftMana
+// ---------------------------------------------------------------------------
+
+/**
+ * Parses a RiftMana CSV export.
+ *
+ * Columns: Normal Qty, Foil Qty, Card Name, Card ID, Set, Color, Rarity,
+ *          Normal Price, Foil Price, Normal Condition, Foil Condition, Notes, Language
+ *
+ * Normal and foil quantities are separate columns. Alt art uses lowercase letter
+ * suffix on Card ID (e.g. "OGN-007a"), overnumbered uses "*" (e.g. "OGN-301*").
+ * Promo cards have a `-p` or `-P` suffix (e.g. "OGN-001-p", "OGN-XXX-P").
+ * Condition columns encode quantity per condition (e.g. "NM:2;HP:3;SEAL:1").
+ * @returns Parsed entries and any parse errors.
+ */
+function parseRiftMana(text: string): ParseResult {
+  const records = parseCSVWithHeaders(text);
+  const errors: string[] = [];
+
+  if (records.length === 0) {
+    return { entries: [], errors: ["No data rows found."], source: "riftmana", rowCount: 0 };
+  }
+
+  const required = ["Normal Qty", "Card Name", "Card ID"];
+  const firstRecord = records[0];
+  for (const col of required) {
+    if (!(col in firstRecord)) {
+      errors.push(`Missing required column: "${col}".`);
+    }
+  }
+  if (errors.length > 0) {
+    return { entries: [], errors, source: "riftmana", rowCount: 0 };
+  }
+
+  const entries: ImportEntry[] = [];
+  let rowCount = 0;
+
+  for (const record of records) {
+    const cardId = record["Card ID"]?.trim() ?? "";
+    const cardName = record["Card Name"]?.trim() ?? "";
+    const normalQty = Number.parseInt(record["Normal Qty"] ?? "0", 10);
+    const foilQty = Number.parseInt(record["Foil Qty"] ?? "0", 10);
+
+    if (!cardId || (normalQty <= 0 && foilQty <= 0)) {
+      continue;
+    }
+
+    rowCount++;
+
+    const parsed = parseRiftManaCardId(cardId);
+    if (!parsed) {
+      errors.push(`Could not parse Card ID: "${cardId}"`);
+      continue;
+    }
+
+    const rarity = (record["Rarity"]?.trim() ?? "").toLowerCase();
+    const alwaysFoil = rarity === "rare" || rarity === "epic" || rarity === "showcase";
+    const language = normalizeLanguage(record["Language"]);
+
+    const baseRawFields: Record<string, string | undefined> = {
+      "Source Code": cardId,
+      Set: record["Set"],
+      Color: record["Color"],
+      Rarity: record["Rarity"],
+      Language: record["Language"],
+    };
+
+    if (normalQty > 0) {
+      const finish: Finish = alwaysFoil ? "foil" : "normal";
+      entries.push({
+        setPrefix: parsed.setPrefix,
+        finish,
+        artVariant: parsed.artVariant,
+        quantity: normalQty,
+        cardName,
+        sourceCode: parsed.shortCode,
+        promoSlug: undefined,
+        language,
+        rawFields: buildRawFields({
+          ...baseRawFields,
+          Finish: finish === "foil" ? "Foil" : "Normal",
+          Condition: record["Normal Condition"],
+        }),
+      });
+    }
+
+    if (foilQty > 0) {
+      entries.push({
+        setPrefix: parsed.setPrefix,
+        finish: "foil",
+        artVariant: parsed.artVariant,
+        quantity: foilQty,
+        cardName,
+        sourceCode: parsed.shortCode,
+        promoSlug: undefined,
+        language,
+        rawFields: buildRawFields({
+          ...baseRawFields,
+          Finish: "Foil",
+          Condition: record["Foil Condition"],
+        }),
+      });
+    }
+  }
+
+  return { entries, errors, source: "riftmana", rowCount };
+}
+
+interface RiftManaCardParts {
+  setPrefix: string;
+  artVariant: ArtVariant;
+  /** Normalized short code, e.g. "OGN-007a". Promo suffix is stripped. */
+  shortCode: string;
+}
+
+/**
+ * Parses a RiftMana Card ID like "OGN-001", "OGN-007a", "OGN-301*",
+ * "OGN-XXX-P", or "OGN-001-p". Strips the promo `-p`/`-P` suffix and
+ * normalizes the modifier for matching.
+ * @returns Parsed parts, or null if the format is unrecognized.
+ */
+function parseRiftManaCardId(cardId: string): RiftManaCardParts | null {
+  let code = cardId;
+
+  // Strip promo suffix (-p or -P)
+  if (/^.+-[pP]$/.test(code)) {
+    code = code.slice(0, -2);
+  }
+
+  const match = code.match(/^([A-Z]{3})-([A-Z0-9]{3})([a-z*]?)$/);
+  if (!match) {
+    return null;
+  }
+
+  return { setPrefix: match[1], ...resolveCardModifier(match[1], match[2], match[3]) };
 }

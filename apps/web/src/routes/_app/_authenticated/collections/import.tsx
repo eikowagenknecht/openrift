@@ -297,6 +297,15 @@ function InputStep({
           >
             RiftCore
           </a>
+          ,{" "}
+          <a
+            href="https://riftmana.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-foreground underline"
+          >
+            RiftMana
+          </a>
           , or OpenRift itself. Having trouble or need support for another source? Let us know on{" "}
           <a
             href="https://discord.gg/Qb6RcjXq6z"

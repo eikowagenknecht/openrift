@@ -2,6 +2,7 @@
 
 ## 2026-04-13
 
+- feat: You can now import collections from RiftMana CSV exports, with support for normal/foil splits, alt art, promos, and language detection
 - feat: Importing from Piltover Archive now uses the Language column to automatically match the correct language variant, so English imports no longer collide with Chinese or French printings
 - feat: Cards without artwork now show a branded placeholder image instead of a blank space
 - feat: New "Value Over Time" chart on the Statistics page shows how your collection's total value has changed over time, with support for all filters, time ranges, and marketplace selection

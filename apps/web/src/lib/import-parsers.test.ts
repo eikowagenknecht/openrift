@@ -124,6 +124,167 @@ describe("parseImportData — OpenRift format", () => {
   });
 });
 
+describe("parseImportData — RiftMana format", () => {
+  const header =
+    "Normal Qty,Foil Qty,Card Name,Card ID,Set,Color,Rarity,Normal Price,Foil Price,Normal Condition,Foil Condition,Notes,Language";
+
+  it("detects RiftMana format by Normal Qty header", () => {
+    const csv = `${header}\n1,0,Buff,OGN-XXX,Origins,,Common,0.21,0.00,NM:1,,,English`;
+    const result = parseImportData(csv);
+    expect(result.source).toBe("riftmana");
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it("parses normal quantity row", () => {
+    const csv = `${header}\n1,0,Buff,OGN-XXX,Origins,,Common,0.21,0.00,NM:1,,,English`;
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(1);
+
+    const entry = result.entries[0];
+    expect(entry.setPrefix).toBe("OGN");
+    expect(entry.finish).toBe("normal");
+    expect(entry.artVariant).toBe("normal");
+    expect(entry.quantity).toBe(1);
+    expect(entry.cardName).toBe("Buff");
+    expect(entry.sourceCode).toBe("OGN-XXX");
+    expect(entry.language).toBe("EN");
+  });
+
+  it("splits normal and foil into separate entries", () => {
+    const csv = `${header}\n1,2,Blazing Scorcher,OGN-001,Origins,Fury,Common,0.11,0.25,NM:1,NM:2,,English`;
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(2);
+
+    const normal = result.entries[0];
+    expect(normal.finish).toBe("normal");
+    expect(normal.quantity).toBe(1);
+
+    const foil = result.entries[1];
+    expect(foil.finish).toBe("foil");
+    expect(foil.quantity).toBe(2);
+  });
+
+  it("parses foil-only row", () => {
+    const csv = `${header}\n0,3,Get Excited!,OGN-008,Origins,Fury,Common,0.09,0.34,,NM:3,,English`;
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(1);
+
+    const entry = result.entries[0];
+    expect(entry.finish).toBe("foil");
+    expect(entry.quantity).toBe(3);
+    expect(entry.cardName).toBe("Get Excited!");
+  });
+
+  it("handles alt art suffix", () => {
+    const csv = `${header}\n0,1,Fury Rune,OGN-007a,Origins,Fury,Showcase,0.48,9.41,,NM:1,,English`;
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].artVariant).toBe("altart");
+    expect(result.entries[0].sourceCode).toBe("OGN-007a");
+  });
+
+  it("handles overnumbered suffix", () => {
+    const csv = `${header}\n0,1,Jinx Loose Cannon,OGN-301*,Origins,Fury Chaos,Showcase,0.00,960.52,,NM:1,,English`;
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].artVariant).toBe("overnumbered");
+    expect(result.entries[0].sourceCode).toBe("OGN-301*");
+  });
+
+  it("strips lowercase -p promo suffix from Card ID", () => {
+    const csv = `${header}\n0,8,Blazing Scorcher,OGN-001-p,Promotional Cards,Fury,Common,0.00,0.24,,NM:4;HP:3;SEAL:1,,English`;
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].sourceCode).toBe("OGN-001");
+    expect(result.entries[0].setPrefix).toBe("OGN");
+  });
+
+  it("strips uppercase -P promo suffix from Card ID", () => {
+    const csv = `${header}\n0,2,Buff,OGN-XXX-P,Promotional Cards,,Common,0.00,125.33,,NM:2,,English`;
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].sourceCode).toBe("OGN-XXX");
+  });
+
+  it("treats rare/epic/showcase normal qty as foil", () => {
+    const csv = `${header}\n1,0,Immortal Phoenix,OGN-037,Origins,Fury,Epic,0.00,27.99,NM:1,,,English`;
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].finish).toBe("foil");
+  });
+
+  it("normalizes language from full name", () => {
+    const csv = `${header}\n2,0,Buff,OGN-XXX,Origins,,Common,0.00,0.00,NM:2,,,Chinese`;
+    const result = parseImportData(csv);
+    expect(result.entries[0].language).toBe("ZH");
+  });
+
+  it("skips rows with both quantities at zero", () => {
+    const csv = `${header}\n0,0,Invisible Card,OGN-999,Origins,,Common,0.00,0.00,,,,English`;
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(0);
+  });
+
+  it("reports errors for unparseable card IDs", () => {
+    const csv = `${header}\n1,0,Bad Card,INVALID,Origins,,Common,0.00,0.00,NM:1,,,English`;
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(0);
+    expect(result.errors).toContain('Could not parse Card ID: "INVALID"');
+  });
+
+  it("populates rawFields for display", () => {
+    const csv = `${header}\n1,0,Buff,OGN-XXX,Origins,,Common,0.21,0.00,NM:1,,,English`;
+    const result = parseImportData(csv);
+    const raw = result.entries[0].rawFields;
+    expect(raw["Source Code"]).toBe("OGN-XXX");
+    expect(raw["Set"]).toBe("Origins");
+    expect(raw["Rarity"]).toBe("Common");
+    expect(raw["Language"]).toBe("English");
+    expect(raw["Condition"]).toBe("NM:1");
+  });
+
+  it("returns empty entries for missing required columns", () => {
+    const csv = "Normal Qty,Foil Qty,Card Name\n1,0,Test";
+    const result = parseImportData(csv);
+    expect(result.source).toBe("riftmana");
+    expect(result.entries).toHaveLength(0);
+    expect(result.errors).toContain('Missing required column: "Card ID".');
+  });
+
+  it("parses the full sample data", () => {
+    const csv = [
+      header,
+      "1,0,Buff,OGN-XXX,Origins,,Common,0.21,0.00,NM:1,,,English",
+      "1,2,Blazing Scorcher,OGN-001,Origins,Fury,Common,0.11,0.25,NM:1,NM:2,,English",
+      "0,1,Fury Rune,OGN-007a,Origins,Fury,Showcase,0.48,9.41,,NM:1,,English",
+      "0,3,Get Excited!,OGN-008,Origins,Fury,Common,0.09,0.34,,NM:3,,English",
+      "0,1,Immortal Phoenix,OGN-037,Origins,Fury,Epic,0.00,27.99,,NM:1,,English",
+      "0,1,Kadregrin the Infernal,OGN-038,Origins,Fury,Epic,0.00,18.21,,NM:1,,English",
+      "0,1,Volibear Furious,OGN-041a,Origins,Fury,Showcase,0.00,5.25,,NM:1,,English",
+      "0,1,Caitlyn Patrolling,OGN-068,Origins,Calm,Rare,0.00,0.39,,,,English",
+      "0,1,Jinx Loose Cannon,OGN-301*,Origins,Fury Chaos,Showcase,0.00,960.52,,NM:1,,English",
+      "0,1,Darius Hand of Noxus,OGN-302,Origins,Fury Order,Showcase,0.00,53.60,,NM:1,,English",
+      "0,1,Darius Hand of Noxus,OGN-302*,Origins,Fury Order,Showcase,0.00,619.99,,NM:1,,English",
+      "0,1,Ahri Nine-Tailed Fox,OGN-303,Origins,Calm Mind,Showcase,0.00,222.58,,NM:1,,English",
+      "2,0,Buff,OGN-XXX,Origins,,Common,0.00,0.00,NM:2,,,Chinese",
+      "1,2,Brazen Buccaneer,OGN-002,Origins,Fury,Common,0.00,0.00,NM:1,NM:2,,Chinese",
+      "1,2,Chemtech Enforcer,OGN-003,Origins,Fury,Common,0.00,0.00,NM:1,NM:2,,Chinese",
+      "0,2,Buff,OGN-XXX-P,Promotional Cards,,Common,0.00,125.33,,NM:2,,English",
+      "0,8,Blazing Scorcher,OGN-001-p,Promotional Cards,Fury,Common,0.00,0.24,,NM:4;HP:3;SEAL:1,,English",
+      "0,1,Pouty Poro,OGN-013-p,Promotional Cards,Fury,Common,0.00,0.44,,NM:1,,English",
+      "0,5,Caitlyn Patrolling,OGN-068a,Promotional Cards,Calm,Showcase,0.00,0.00,,,,Chinese",
+    ].join("\n");
+    const result = parseImportData(csv);
+    expect(result.source).toBe("riftmana");
+    expect(result.errors).toHaveLength(0);
+    expect(result.rowCount).toBe(19);
+    // Rows with both normal+foil: Blazing Scorcher, Brazen Buccaneer, Chemtech Enforcer = 3 rows → 6 entries
+    // Rows with only one qty: 16 rows → 16 entries
+    // Total: 22 entries
+    expect(result.entries).toHaveLength(22);
+  });
+});
+
 describe("parseImportData — Piltover Archive language", () => {
   const header =
     "Variant Number,Card Name,Set,Set Prefix,Rarity,Variant Type,Variant Label,Quantity,Language,Condition";
@@ -171,6 +332,13 @@ describe("parseImportData — format detection", () => {
       "RIFTCORE COLLECTION EXPORT\n\n\n\n\n\nCard ID,Card Name,Standard Qty,Foil Qty\nOGN-001,Test,1,0";
     const result = parseImportData(csv);
     expect(result.source).toBe("riftcore");
+  });
+
+  it("still detects RiftMana format", () => {
+    const csv =
+      "Normal Qty,Foil Qty,Card Name,Card ID,Set,Color,Rarity,Normal Price,Foil Price,Normal Condition,Foil Condition,Notes,Language\n1,0,Test,OGN-001,Origins,,Common,0.00,0.00,NM:1,,,English";
+    const result = parseImportData(csv);
+    expect(result.source).toBe("riftmana");
   });
 
   it("returns error for unrecognized format", () => {
