@@ -108,6 +108,20 @@ describe("parseImportData — OpenRift format", () => {
     expect(result.entries).toHaveLength(0);
     expect(result.errors).toContain('Missing required column: "Quantity".');
   });
+
+  it("parses language column when present", () => {
+    const headerWithLang =
+      "Card ID,Card Name,Rarity,Type,Domain,Finish,Art Variant,Promo,Language,Quantity";
+    const csv = `${headerWithLang}\nOGN-001,Test Card,Common,Unit,Arcane,normal,normal,,ZH,1`;
+    const result = parseImportData(csv);
+    expect(result.entries[0].language).toBe("ZH");
+  });
+
+  it("returns undefined language for older exports without Language column", () => {
+    const csv = `${header}\nOGN-001,Test Card,Common,Unit,Arcane,normal,normal,,1`;
+    const result = parseImportData(csv);
+    expect(result.entries[0].language).toBeUndefined();
+  });
 });
 
 describe("parseImportData — Piltover Archive language", () => {

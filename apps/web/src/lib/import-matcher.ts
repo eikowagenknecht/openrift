@@ -143,9 +143,13 @@ class PrintingIndex {
  * Matches a list of import entries against the catalog.
  * @returns Matched entries with resolution status.
  */
-export function matchEntries(entries: ImportEntry[], allPrintings: Printing[]): MatchedEntry[] {
+export function matchEntries(
+  entries: ImportEntry[],
+  allPrintings: Printing[],
+  fallbackLanguage?: string,
+): MatchedEntry[] {
   const index = buildPrintingIndex(allPrintings);
-  return entries.map((entry) => matchSingleEntry(entry, index));
+  return entries.map((entry) => matchSingleEntry(entry, index, fallbackLanguage));
 }
 
 /**
@@ -161,13 +165,19 @@ function narrowByLanguage(candidates: Printing[], language?: string): Printing[]
   return filtered.length > 0 ? filtered : candidates;
 }
 
-function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntry {
+function matchSingleEntry(
+  entry: ImportEntry,
+  index: PrintingIndex,
+  fallbackLanguage?: string,
+): MatchedEntry {
+  const language = entry.language ?? fallbackLanguage;
+
   // Step 1: Look up by short code
   const codeMatches = index.lookupByCode(entry.sourceCode);
 
   if (codeMatches.length > 0) {
     // Narrow by language first, then by finish
-    const langMatches = narrowByLanguage(codeMatches, entry.language);
+    const langMatches = narrowByLanguage(codeMatches, language);
     const finishMatches = langMatches.filter((printing) => printing.finish === entry.finish);
 
     // If the entry has a promo slug, match by promo type across language-narrowed matches (finish
@@ -245,7 +255,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
   // Step 2: Try fuzzy name match
   const fuzzy = index.fuzzyMatchByName(entry.cardName);
   if (fuzzy) {
-    const langMatches = narrowByLanguage(fuzzy.printings, entry.language);
+    const langMatches = narrowByLanguage(fuzzy.printings, language);
 
     // Try to find the specific printing within the fuzzy match
     const finishMatches = langMatches.filter(
@@ -274,7 +284,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
   // Step 3: Try extracting a base code from suffixed source codes (e.g. "OGN-249-Release" → "OGN-249")
   const baseCodeMatches = index.lookupByBaseCode(entry.sourceCode);
   if (baseCodeMatches.length > 0) {
-    const langMatches = narrowByLanguage(baseCodeMatches, entry.language);
+    const langMatches = narrowByLanguage(baseCodeMatches, language);
     return {
       entry,
       status: "needs-review",

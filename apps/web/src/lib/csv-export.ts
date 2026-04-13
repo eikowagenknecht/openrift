@@ -9,6 +9,7 @@ const HEADERS = [
   "Finish",
   "Art Variant",
   "Promo",
+  "Language",
   "Quantity",
 ] as const;
 
@@ -37,6 +38,7 @@ export function generateExportCSV(stacks: StackedEntry[]): string {
       printing.finish,
       printing.artVariant,
       printing.promoType?.slug ?? "",
+      printing.language,
       String(stack.copyIds.length),
     ].map((field) => escapeField(field));
     lines.push(row.join(","));

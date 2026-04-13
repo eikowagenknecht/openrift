@@ -9,6 +9,7 @@ import { useAddCopies } from "@/hooks/use-copies";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
 import { matchEntries } from "@/lib/import-matcher";
 import { parseImportData } from "@/lib/import-parsers";
+import { useDisplayStore } from "@/stores/display-store";
 
 const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
   exact: 0,
@@ -28,9 +29,11 @@ export function useImportFlow() {
   const addCopies = useAddCopies();
   const createCollection = useCreateCollection();
   const navigate = useNavigate();
+  const preferredLanguages = useDisplayStore((state) => state.languages);
 
   const [step, setStep] = useState<ImportStep>("input");
   const [rawText, setRawText] = useState("");
+  const [fallbackLanguage, setFallbackLanguage] = useState("");
   const [matchedEntries, setMatchedEntries] = useState<MatchedEntry[]>([]);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [collectionId, setCollectionId] = useState("");
@@ -51,7 +54,8 @@ export function useImportFlow() {
       return;
     }
 
-    const matched = matchEntries(entries, allPrintings);
+    const effectiveLanguage = fallbackLanguage || preferredLanguages[0];
+    const matched = matchEntries(entries, allPrintings, effectiveLanguage);
     const sorted = matched.toSorted((entryA, entryB) => {
       const statusDiff = STATUS_SORT_ORDER[entryA.status] - STATUS_SORT_ORDER[entryB.status];
       if (statusDiff !== 0) {
@@ -193,6 +197,7 @@ export function useImportFlow() {
     // State
     step,
     rawText,
+    fallbackLanguage,
     matchedEntries,
     parseErrors,
     collectionId,
@@ -212,6 +217,7 @@ export function useImportFlow() {
 
     // Actions
     handleRawTextChange: setRawText,
+    handleFallbackLanguageChange: setFallbackLanguage,
     handleCollectionChange: setCollectionId,
     handleNewCollectionNameChange: setNewCollectionName,
     handleParse,
