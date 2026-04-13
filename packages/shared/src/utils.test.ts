@@ -1,7 +1,10 @@
 import { describe, expect, it } from "bun:test";
 
+import type { Printing } from "./types/index";
 import {
   boundsOf,
+  compareWithLanguagePreference,
+  deduplicateByCard,
   formatPrintingLabel,
   centsToDollars,
   comparePrintings,
@@ -11,9 +14,48 @@ import {
   getOrientation,
   mostCommonValue,
   normalizeNameForMatching,
+  preferredPrinting,
   toCents,
   unique,
 } from "./utils";
+
+function makePrinting(overrides: Partial<Printing> & { language: string }): Printing {
+  return {
+    id: "p1",
+    cardId: "card1",
+    shortCode: "SET-001",
+    setId: "SET-A",
+    setSlug: "set-a",
+    rarity: "common",
+    artVariant: "standard",
+    isSigned: false,
+    promoType: null,
+    finish: "normal",
+    images: [],
+    artist: "Artist",
+    publicCode: "001",
+    printedRulesText: null,
+    printedEffectText: null,
+    flavorText: null,
+    printedName: null,
+    card: {
+      slug: "card-1",
+      name: "Card 1",
+      type: "Unit",
+      superTypes: [],
+      domains: [],
+      might: null,
+      energy: null,
+      power: null,
+      keywords: [],
+      tags: [],
+      mightBonus: null,
+      errata: null,
+      bans: [],
+    },
+    ...overrides,
+  };
+}
 
 describe("unique", () => {
   it("returns empty array for empty input", () => {
@@ -394,5 +436,103 @@ describe("formatShortCodes", () => {
 
   it("handles codes with variant suffixes", () => {
     expect(formatShortCodes(["OGN-027a", "OGN-027", "OGN-027a"])).toBe("OGN-027a ×2, OGN-027");
+  });
+});
+
+describe("compareWithLanguagePreference", () => {
+  const setOrderMap = new Map([["SET-A", 0]]);
+  const enPrinting = makePrinting({ id: "en", language: "EN" });
+  const zhPrinting = makePrinting({ id: "zh", language: "ZH" });
+
+  it("prefers EN over ZH with single-language preference ['EN']", () => {
+    expect(compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, ["EN"])).toBeLessThan(
+      0,
+    );
+    expect(
+      compareWithLanguagePreference(zhPrinting, enPrinting, setOrderMap, ["EN"]),
+    ).toBeGreaterThan(0);
+  });
+
+  it("prefers ZH over EN with single-language preference ['ZH']", () => {
+    expect(compareWithLanguagePreference(zhPrinting, enPrinting, setOrderMap, ["ZH"])).toBeLessThan(
+      0,
+    );
+    expect(
+      compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, ["ZH"]),
+    ).toBeGreaterThan(0);
+  });
+
+  it("prefers EN over ZH with multi-language preference ['EN', 'ZH']", () => {
+    expect(
+      compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, ["EN", "ZH"]),
+    ).toBeLessThan(0);
+  });
+
+  it("returns 0 for same language", () => {
+    expect(compareWithLanguagePreference(enPrinting, enPrinting, setOrderMap, ["EN"])).toBe(0);
+  });
+
+  it("sorts unlisted languages alphabetically after listed ones", () => {
+    const dePrinting = makePrinting({ id: "de", language: "DE" });
+    const frPrinting = makePrinting({ id: "fr", language: "FR" });
+    // Preference is EN only — DE and FR are both unlisted, should sort alphabetically
+    expect(compareWithLanguagePreference(dePrinting, frPrinting, setOrderMap, ["EN"])).toBeLessThan(
+      0,
+    );
+    expect(
+      compareWithLanguagePreference(frPrinting, dePrinting, setOrderMap, ["EN"]),
+    ).toBeGreaterThan(0);
+  });
+
+  it("defaults to EN-first when no language preference is given", () => {
+    expect(compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap)).toBeLessThan(0);
+    expect(compareWithLanguagePreference(zhPrinting, enPrinting, setOrderMap)).toBeGreaterThan(0);
+  });
+
+  it("defaults to EN-first when language preference is empty", () => {
+    expect(compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, [])).toBeLessThan(0);
+  });
+
+  it("sorts non-EN languages alphabetically when no preference is given", () => {
+    const dePrinting = makePrinting({ id: "de", language: "DE" });
+    const frPrinting = makePrinting({ id: "fr", language: "FR" });
+    expect(compareWithLanguagePreference(dePrinting, frPrinting, setOrderMap)).toBeLessThan(0);
+    expect(compareWithLanguagePreference(frPrinting, dePrinting, setOrderMap)).toBeGreaterThan(0);
+  });
+});
+
+describe("deduplicateByCard", () => {
+  const setOrderMap = new Map([["SET-A", 0]]);
+
+  it("picks EN printing when language preference is ['EN']", () => {
+    const enPrinting = makePrinting({ id: "en", language: "EN" });
+    const zhPrinting = makePrinting({ id: "zh", language: "ZH" });
+    // ZH first in array to prove deduplication respects preference, not insertion order
+    const result = deduplicateByCard([zhPrinting, enPrinting], setOrderMap, ["EN"]);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("en");
+  });
+
+  it("picks ZH printing when language preference is ['ZH']", () => {
+    const enPrinting = makePrinting({ id: "en", language: "EN" });
+    const zhPrinting = makePrinting({ id: "zh", language: "ZH" });
+    const result = deduplicateByCard([enPrinting, zhPrinting], setOrderMap, ["ZH"]);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("zh");
+  });
+});
+
+describe("preferredPrinting", () => {
+  const setOrderMap = new Map([["SET-A", 0]]);
+
+  it("returns EN printing with single-language preference ['EN']", () => {
+    const enPrinting = makePrinting({ id: "en", language: "EN" });
+    const zhPrinting = makePrinting({ id: "zh", language: "ZH" });
+    const result = preferredPrinting([zhPrinting, enPrinting], setOrderMap, ["EN"]);
+    expect(result?.id).toBe("en");
+  });
+
+  it("returns undefined for empty array", () => {
+    expect(preferredPrinting([], setOrderMap, ["EN"])).toBeUndefined();
   });
 });
