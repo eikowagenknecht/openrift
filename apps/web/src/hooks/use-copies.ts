@@ -53,7 +53,6 @@ const fetchCopies = createServerFn({ method: "GET" })
       allItems.push(...page.items);
       cursor = page.nextCursor;
     } while (cursor);
-
     return { items: allItems, nextCursor: null };
   });
 

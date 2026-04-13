@@ -1,4 +1,5 @@
 import type { Insertable, Kysely, Selectable } from "kysely";
+import { sql } from "kysely";
 
 import type { CopiesTable, Database } from "../db/index.js";
 
@@ -47,14 +48,13 @@ export function copiesRepo(db: Kysely<Database>) {
       }
       if (cursor) {
         const { time, id } = parseCursor(cursor);
+        // Truncate to milliseconds so PostgreSQL's µs precision matches JS Date's ms precision
+        const tsMs = sql<Date>`date_trunc('milliseconds', ${sql.ref("createdAt")})`;
         query = id
           ? query.where((eb) =>
-              eb.or([
-                eb("createdAt", "<", time),
-                eb.and([eb("createdAt", "=", time), eb("id", ">", id)]),
-              ]),
+              eb.or([eb(tsMs, "<", time), eb.and([eb(tsMs, "=", time), eb("id", ">", id)])]),
             )
-          : query.where("createdAt", "<", time);
+          : query.where(tsMs, "<", time);
       }
       return query.execute();
     },
@@ -116,14 +116,12 @@ export function copiesRepo(db: Kysely<Database>) {
       }
       if (cursor) {
         const { time, id } = parseCursor(cursor);
+        const tsMs = sql<Date>`date_trunc('milliseconds', ${sql.ref("createdAt")})`;
         query = id
           ? query.where((eb) =>
-              eb.or([
-                eb("createdAt", "<", time),
-                eb.and([eb("createdAt", "=", time), eb("id", ">", id)]),
-              ]),
+              eb.or([eb(tsMs, "<", time), eb.and([eb(tsMs, "=", time), eb("id", ">", id)])]),
             )
-          : query.where("createdAt", "<", time);
+          : query.where(tsMs, "<", time);
       }
       return query.execute();
     },
