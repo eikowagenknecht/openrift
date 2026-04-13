@@ -7,12 +7,20 @@ import type { E2eState } from "./helpers/constants.js";
 import { STATE_FILE } from "./helpers/constants.js";
 import { connectToDb } from "./helpers/db.js";
 
-setup("create authenticated sessions", async ({ request }) => {
+setup("authenticate as regular user", async ({ request }) => {
   const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf8"));
   const sql = connectToDb(state.tempDbUrl);
-
   try {
     await setupRegularUser(request, sql);
+  } finally {
+    await sql.end();
+  }
+});
+
+setup("authenticate as admin user", async ({ request }) => {
+  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  const sql = connectToDb(state.tempDbUrl);
+  try {
     await setupAdminUser(request, sql);
   } finally {
     await sql.end();
