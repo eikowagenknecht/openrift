@@ -124,7 +124,7 @@ export default defineConfig(({ mode, command }) => {
       // These can't go through server functions. In production, nginx handles
       // this proxy (see nginx/web.conf location /api/).
       proxy: {
-        "/api/auth": { target: "http://localhost:3000" },
+        "/api/auth": { target: env.VITE_API_PROXY_TARGET || "http://localhost:3000" },
       },
     },
     resolve: {

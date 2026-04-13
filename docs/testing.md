@@ -147,6 +147,77 @@ bun test --coverage --coverage-reporter=lcov --cwd packages/shared
 bun run --cwd apps/web -- vitest run --coverage --coverage.reporter=lcov
 ```
 
+## E2E Tests (Playwright)
+
+End-to-end tests run in a real Chromium browser against a temporary PostgreSQL database. They live in `packages/e2e/`.
+
+### Prerequisites
+
+- Docker database running (`docker compose up db`)
+- Chromium installed for Playwright: `bunx playwright install chromium` (run once, from `packages/e2e/`)
+
+### Running
+
+```bash
+# From repo root
+bun run test:e2e
+
+# From packages/e2e/ directly
+bunx playwright test              # headless
+bunx playwright test --headed     # watch the browser
+bunx playwright test --ui         # interactive UI mode
+bunx playwright test --debug      # step-through debugger
+```
+
+### What happens when you run E2E tests
+
+1. **Global setup** creates a temporary database (`openrift_test_e2e_<timestamp>`), runs all migrations, and loads seed data from `apps/api/src/test/fixtures/seed.sql`
+2. The API server starts on port **3100** and the web dev server on port **5174** (dedicated ports to avoid colliding with your dev servers on 3000/5173)
+3. An **auth setup** project signs up two test users (`e2e-user@test.com` and `e2e-admin@test.com`), bypasses email verification via direct DB update, and saves authenticated browser sessions to `.auth/` files
+4. Test specs run in Chromium using the pre-authenticated sessions
+5. **Global teardown** kills both servers and drops the temporary database
+
+### Writing new E2E tests
+
+Test files go in `packages/e2e/src/tests/` and use the `.spec.ts` suffix:
+
+```
+packages/e2e/src/tests/
+  public/          # Pages that don't require login
+  auth/            # Login, signup, logout flows
+  authenticated/   # Pages behind auth
+```
+
+For tests that need an authenticated browser, import from the custom fixture:
+
+```ts
+import { test, expect } from "../../fixtures/test.js";
+
+test("my test", async ({ authenticatedPage: page }) => {
+  await page.goto("/collections");
+  await expect(page.getByText("All Cards")).toBeVisible();
+});
+```
+
+Available fixtures: `authenticatedPage` (regular user) and `adminPage` (admin user). For public pages, use the standard Playwright import:
+
+```ts
+import { expect, test } from "@playwright/test";
+```
+
+### Ports
+
+| Service | E2E port | Dev port | Why separate                     |
+| ------- | -------- | -------- | -------------------------------- |
+| API     | 3100     | 3000     | Run E2E while dev servers are up |
+| Web     | 5174     | 5173     | Same                             |
+
+### Debugging failures
+
+- HTML report: `packages/e2e/playwright-report/index.html` (generated after each run)
+- Traces: saved on first retry, viewable with `bunx playwright show-trace <trace.zip>`
+- Screenshots: captured on failure in `packages/e2e/test-results/`
+
 ## What to Test
 
 Aim for high coverage on pure logic and utility functions.

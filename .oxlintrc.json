@@ -137,6 +137,17 @@
         "promise/prefer-await-to-callbacks": "off",
         "unicorn/no-useless-undefined": "off"
       }
+    },
+    {
+      "files": ["packages/e2e/**/*.ts"],
+      "rules": {
+        "import/no-nodejs-modules": "off",
+        "react-hooks/rules-of-hooks": "off",
+        "promise/avoid-new": "off",
+        "no-promise-executor-return": "off",
+        "no-empty-function": "off",
+        "no-restricted-imports": "off"
+      }
     }
   ]
 }
