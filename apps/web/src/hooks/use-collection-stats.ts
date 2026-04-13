@@ -116,7 +116,6 @@ interface CompletionInput {
  * @returns Sorted completion entries.
  */
 export function computeCompletion(input: CompletionInput): CompletionEntry[] {
-  "use memo";
   const { stacks, scopedPrintings, scope, sets, groupBy, countMode, orders } = input;
 
   // Filter owned stacks to only those matching the scope
@@ -335,7 +334,6 @@ interface ComputeInput {
  * @returns The full set of collection statistics.
  */
 export function computeCollectionStats(input: ComputeInput): Omit<CollectionStats, "formatPrice"> {
-  "use memo";
   const { stacks, totalCopies, sets, prices, marketplace, orders } = input;
 
   // ── Hero stats ─────────────────────────────────────────────────────────
@@ -578,7 +576,6 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
  * @returns Only the printings matching all active scope filters.
  */
 export function filterByScope(printings: Printing[], scope: CompletionScopePreference): Printing[] {
-  "use memo";
   const {
     sets,
     languages,

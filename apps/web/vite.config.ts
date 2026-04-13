@@ -5,6 +5,7 @@ import { createReadStream, existsSync } from "node:fs";
 // oxlint-disable-next-line import/no-nodejs-modules -- Vite config runs in Node.js
 import path from "node:path";
 
+import babel from "@rolldown/plugin-babel";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
@@ -60,11 +61,9 @@ export default defineConfig(({ mode, command }) => {
       // See https://github.com/TanStack/router/issues/6556
       command === "build" && nitro({ preset: "bun" }),
       tailwindcss(),
-      react({
-        babel: {
-          presets: [reactCompilerPreset()],
-          plugins: [],
-        },
+      react(),
+      babel({
+        presets: [reactCompilerPreset()],
         exclude: /node_modules|packages\//,
       }),
       // Sentry source map upload — only active when SENTRY_AUTH_TOKEN is set (CI builds).
