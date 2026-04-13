@@ -1,4 +1,5 @@
 import type { CompletionScopePreference, Domain } from "@openrift/shared";
+import { getAvailableFilters } from "@openrift/shared";
 import { Link, Navigate } from "@tanstack/react-router";
 import {
   ArrowDownIcon,
@@ -7,11 +8,10 @@ import {
   CoinsIcon,
   CopyIcon,
   ExternalLinkIcon,
-  FilterIcon,
   SearchIcon,
+  SlidersHorizontalIcon,
   SquareIcon,
   SquareStackIcon,
-  XIcon,
 } from "lucide-react";
 import { use, useState } from "react";
 import { createPortal } from "react-dom";
@@ -20,8 +20,9 @@ import { CardIcon } from "@/components/card-icon";
 import { CostToCompleteChart } from "@/components/collection/cost-to-complete-chart";
 import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
+import { ActiveFilters } from "@/components/filters/active-filters";
+import { FilterBadgeSections } from "@/components/filters/filter-panel-content";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +37,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useFilterValues } from "@/hooks/use-card-filters";
 import type {
   CollectionStats,
   CollectionStatsResult,
@@ -47,15 +49,15 @@ import type {
 import { computeCompletion, filterByScope, useCollectionStats } from "@/hooks/use-collection-stats";
 import { useCollections } from "@/hooks/use-collections";
 import { useDomainColors } from "@/hooks/use-domain-colors";
-import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { usePrices } from "@/hooks/use-prices";
 import { getDomainColor } from "@/lib/domain";
 import { getFilterIconPath } from "@/lib/icons";
+import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 import type { DomainCount } from "@/lib/stat-types";
 import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
-import { useDisplayStore } from "@/stores/display-store";
 
 // ── Hero Stats ─────────────────────────────────────────────────────────────
 
@@ -101,210 +103,82 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
           </p>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-muted-foreground flex items-center gap-1.5">
-            <CoinsIcon className="size-4" />
-            Estimated Value
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-semibold tabular-nums">
-            {stats.formatPrice(stats.estimatedValue)}
-          </p>
-          {stats.unpricedCount > 0 && (
-            <p className="text-muted-foreground text-xs">
-              {stats.unpricedCount} {stats.unpricedCount === 1 ? "copy" : "copies"} unpriced
+      <a
+        href={MARKETPLACE_META[stats.marketplace].searchUrl("riftbound")}
+        target="_blank"
+        rel="noreferrer"
+        className="no-underline"
+      >
+        <Card className="hover:bg-muted/50 h-full transition-colors">
+          <CardHeader>
+            <CardTitle className="text-muted-foreground flex items-center gap-1.5">
+              <CoinsIcon className="size-4" />
+              Estimated Value
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold tabular-nums">
+              {stats.formatPrice(stats.estimatedValue)}
             </p>
-          )}
-        </CardContent>
-      </Card>
+            <p className="text-muted-foreground flex items-center gap-1 text-xs">
+              <img
+                src={MARKETPLACE_META[stats.marketplace].icon}
+                alt=""
+                className="h-3 invert dark:invert-0"
+              />
+              {MARKETPLACE_META[stats.marketplace].label}
+              {stats.unpricedCount > 0 && (
+                <span>
+                  &middot; {stats.unpricedCount} {stats.unpricedCount === 1 ? "copy" : "copies"}{" "}
+                  unpriced
+                </span>
+              )}
+            </p>
+          </CardContent>
+        </Card>
+      </a>
     </div>
   );
 }
 
-// ── Scope Filter ──────────────────────────────────────────────────────────
+// ── Scope from URL filters ────────────────────────────────────────────────
 
-function ScopeFilterBadge({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Badge variant={active ? "default" : "outline"} className="cursor-pointer" onClick={onClick}>
-      {label}
-    </Badge>
-  );
-}
+const HIDDEN_FILTER_SECTIONS = new Set(["owned", "superTypes"]);
 
-function ScopeFilterToggle({
-  scope,
-  expanded,
-  onToggle,
-}: {
-  scope: CompletionScopePreference;
-  expanded: boolean;
-  onToggle: () => void;
-}) {
-  const hasActiveFilters =
-    (scope.languages && scope.languages.length > 0) ||
-    (scope.finishes && scope.finishes.length > 0) ||
-    (scope.artVariants && scope.artVariants.length > 0) ||
-    scope.promos !== undefined;
-
-  return (
-    <Button
-      variant="outline"
-      className="gap-1.5"
-      onClick={onToggle}
-      aria-label={expanded ? "Hide scope filters" : "Show scope filters"}
-      aria-expanded={expanded}
-    >
-      <FilterIcon className="size-3.5" />
-      Scope
-      {hasActiveFilters && (
-        <span className="bg-primary text-primary-foreground flex size-4 items-center justify-center rounded-full text-[10px]">
-          {(scope.languages?.length ?? 0) +
-            (scope.finishes?.length ?? 0) +
-            (scope.artVariants?.length ?? 0) +
-            (scope.promos ? 1 : 0)}
-        </span>
-      )}
-    </Button>
-  );
-}
-
-function ScopeFilterPanel({
-  scope,
-  onScopeChange,
-  expanded,
-  onExpandedChange,
-}: {
-  scope: CompletionScopePreference;
-  onScopeChange: (scope: CompletionScopePreference) => void;
-  expanded: boolean;
-  onExpandedChange: (expanded: boolean) => void;
-}) {
-  const { orders, labels } = useEnumOrders();
-  const languageList = useLanguageList();
-
-  const hasActiveFilters =
-    (scope.languages && scope.languages.length > 0) ||
-    (scope.finishes && scope.finishes.length > 0) ||
-    (scope.artVariants && scope.artVariants.length > 0) ||
-    scope.promos !== undefined;
-
-  function toggleIn(current: string[] | undefined, value: string): string[] | undefined {
-    if (!current || current.length === 0) {
-      return [value];
-    }
-    if (current.includes(value)) {
-      const next = current.filter((item) => item !== value);
-      return next.length > 0 ? next : undefined;
-    }
-    return [...current, value];
+/**
+ * Builds a CompletionScopePreference from the standard URL filter state.
+ * @returns A scope object for filterByScope / computeCompletion.
+ */
+function useScopeFromFilters(): CompletionScopePreference {
+  const { filters } = useFilterValues();
+  const scope: CompletionScopePreference = {};
+  if (filters.sets.length > 0) {
+    scope.sets = filters.sets;
   }
-
-  return (
-    <Collapsible open={expanded} onOpenChange={onExpandedChange} className="mb-3">
-      <CollapsibleContent className="h-(--collapsible-panel-height) space-y-3 overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
-        <TooltipProvider>
-          <div className="flex flex-wrap items-start gap-x-6 gap-y-2">
-            <div>
-              <p className="text-muted-foreground mb-1.5 text-xs font-medium">Language</p>
-              <div className="flex flex-wrap gap-1">
-                {languageList.map((lang) => (
-                  <ScopeFilterBadge
-                    key={lang.code}
-                    label={lang.name}
-                    active={scope.languages?.includes(lang.code) ?? false}
-                    onClick={() =>
-                      onScopeChange({ ...scope, languages: toggleIn(scope.languages, lang.code) })
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-1.5 text-xs font-medium">Finish</p>
-              <div className="flex flex-wrap gap-1">
-                {orders.finishes.map((finish) => (
-                  <ScopeFilterBadge
-                    key={finish}
-                    label={labels.finishes[finish] ?? finish}
-                    active={scope.finishes?.includes(finish) ?? false}
-                    onClick={() =>
-                      onScopeChange({ ...scope, finishes: toggleIn(scope.finishes, finish) })
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-1.5 text-xs font-medium">Art Variant</p>
-              <div className="flex flex-wrap gap-1">
-                {orders.artVariants.map((variant) => (
-                  <ScopeFilterBadge
-                    key={variant}
-                    label={labels.artVariants[variant] ?? variant}
-                    active={scope.artVariants?.includes(variant) ?? false}
-                    onClick={() =>
-                      onScopeChange({ ...scope, artVariants: toggleIn(scope.artVariants, variant) })
-                    }
-                  />
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-muted-foreground mb-1.5 text-xs font-medium">Promos</p>
-              <div className="flex flex-wrap gap-1">
-                <Badge
-                  variant={scope.promos === undefined ? "outline" : "default"}
-                  className="cursor-pointer"
-                  onClick={() => {
-                    const next =
-                      scope.promos === undefined
-                        ? "only"
-                        : scope.promos === "only"
-                          ? "exclude"
-                          : undefined;
-                    onScopeChange({ ...scope, promos: next });
-                  }}
-                >
-                  {scope.promos === "only"
-                    ? "Only promos"
-                    : scope.promos === "exclude"
-                      ? "No promos"
-                      : "Promo"}
-                </Badge>
-              </div>
-            </div>
-            {hasActiveFilters && (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      variant="destructive"
-                      size="icon-sm"
-                      className="ml-auto shrink-0 self-start"
-                      onClick={() => onScopeChange({})}
-                    />
-                  }
-                >
-                  <XIcon className="size-4" />
-                </TooltipTrigger>
-                <TooltipContent>Clear scope filters</TooltipContent>
-              </Tooltip>
-            )}
-          </div>
-        </TooltipProvider>
-      </CollapsibleContent>
-    </Collapsible>
-  );
+  if (filters.languages.length > 0) {
+    scope.languages = filters.languages;
+  }
+  if (filters.domains.length > 0) {
+    scope.domains = filters.domains;
+  }
+  if (filters.types.length > 0) {
+    scope.types = filters.types;
+  }
+  if (filters.rarities.length > 0) {
+    scope.rarities = filters.rarities;
+  }
+  if (filters.finishes.length > 0) {
+    scope.finishes = filters.finishes;
+  }
+  if (filters.artVariants.length > 0) {
+    scope.artVariants = filters.artVariants;
+  }
+  if (filters.isPromo === true) {
+    scope.promos = "only";
+  } else if (filters.isPromo === false) {
+    scope.promos = "exclude";
+  }
+  return scope;
 }
 
 // ── Completion Section ─────────────────────────────────────────────────────
@@ -499,14 +373,24 @@ function CompletionSection({
       }
     }
     // Pass scope filters so the card browser matches the completion view
-    if (scope.languages && scope.languages.length > 0) {
-      params.set("languages", scope.languages.join(","));
+    const arrayFields = [
+      ["sets", scope.sets],
+      ["languages", scope.languages],
+      ["domains", scope.domains],
+      ["types", scope.types],
+      ["rarities", scope.rarities],
+      ["finishes", scope.finishes],
+      ["artVariants", scope.artVariants],
+    ] as const;
+    for (const [paramName, values] of arrayFields) {
+      if (values && values.length > 0) {
+        params.set(paramName, values.join(","));
+      }
     }
-    if (scope.finishes && scope.finishes.length > 0) {
-      params.set("finishes", scope.finishes.join(","));
-    }
-    if (scope.artVariants && scope.artVariants.length > 0) {
-      params.set("artVariants", scope.artVariants.join(","));
+    if (scope.promos === "only") {
+      params.set("promo", "true");
+    } else if (scope.promos === "exclude") {
+      params.set("promo", "false");
     }
     return `/cards?${params.toString()}`;
   }
@@ -767,10 +651,17 @@ function CollectionStatsContent() {
 
   const [groupBy, setGroupBy] = useState<CompletionGroupBy>("set");
   const [countMode, setCountMode] = useState<CompletionCountMode>("cards");
-  const [scopeExpanded, setScopeExpanded] = useState(false);
-  const scope = useDisplayStore((state) => state.completionScope);
-  const setCompletionScope = useDisplayStore((state) => state.setCompletionScope);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const { hasActiveFilters } = useFilterValues();
+  const scope = useScopeFromFilters();
   const prices = usePrices();
+
+  const slugToName = new Map(stats.sets.map((set) => [set.slug, set.name]));
+  const setDisplayLabel = (slug: string) => slugToName.get(slug) ?? slug;
+
+  const availableLanguages = [...new Set(stats.allPrintings.map((printing) => printing.language))];
+
+  const availableFilters = getAvailableFilters(stats.allPrintings);
 
   const topBarPortal =
     topBarSlot &&
@@ -819,19 +710,42 @@ function CollectionStatsContent() {
               ))}
             </ButtonGroup>
           </TooltipProvider>
-          <ScopeFilterToggle
-            scope={scope}
-            expanded={scopeExpanded}
-            onToggle={() => setScopeExpanded(!scopeExpanded)}
-          />
+          <Button
+            variant="outline"
+            size="icon"
+            className="relative"
+            onClick={() => setFiltersExpanded(!filtersExpanded)}
+            aria-label={filtersExpanded ? "Hide filters" : "Show filters"}
+            aria-expanded={filtersExpanded}
+          >
+            <SlidersHorizontalIcon className="size-4" />
+            {hasActiveFilters && !filtersExpanded && (
+              <span className="bg-primary absolute -top-1 -right-1 size-2 rounded-full" />
+            )}
+          </Button>
         </div>
       </div>
-      <ScopeFilterPanel
-        scope={scope}
-        onScopeChange={setCompletionScope}
-        expanded={scopeExpanded}
-        onExpandedChange={setScopeExpanded}
-      />
+      <Collapsible open={filtersExpanded} onOpenChange={setFiltersExpanded} className="mb-3">
+        <CollapsibleContent className="h-(--collapsible-panel-height) space-y-3 overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-3 lg:grid-cols-2">
+            <FilterBadgeSections
+              availableFilters={availableFilters}
+              availableLanguages={availableLanguages}
+              setDisplayLabel={setDisplayLabel}
+              hiddenSections={HIDDEN_FILTER_SECTIONS}
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+      {hasActiveFilters && (
+        <div className="mb-3">
+          <ActiveFilters
+            availableFilters={availableFilters}
+            setDisplayLabel={setDisplayLabel}
+            hiddenSections={HIDDEN_FILTER_SECTIONS}
+          />
+        </div>
+      )}
 
       {stats.totalCopies === 0 ? (
         <EmptyState />

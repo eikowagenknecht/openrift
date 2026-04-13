@@ -562,17 +562,42 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
  */
 export function filterByScope(printings: Printing[], scope: CompletionScopePreference): Printing[] {
   "use memo";
-  const { languages, finishes, artVariants, promos } = scope;
+  const { sets, languages, domains, types, rarities, finishes, artVariants, promos } = scope;
+  const hasSets = sets && sets.length > 0;
   const hasLanguages = languages && languages.length > 0;
+  const hasDomains = domains && domains.length > 0;
+  const hasTypes = types && types.length > 0;
+  const hasRarities = rarities && rarities.length > 0;
   const hasFinishes = finishes && finishes.length > 0;
   const hasArtVariants = artVariants && artVariants.length > 0;
 
-  if (!hasLanguages && !hasFinishes && !hasArtVariants && !promos) {
+  if (
+    !hasSets &&
+    !hasLanguages &&
+    !hasDomains &&
+    !hasTypes &&
+    !hasRarities &&
+    !hasFinishes &&
+    !hasArtVariants &&
+    !promos
+  ) {
     return printings;
   }
 
   return printings.filter((printing) => {
+    if (hasSets && !sets.includes(printing.setSlug)) {
+      return false;
+    }
     if (hasLanguages && !languages.includes(printing.language)) {
+      return false;
+    }
+    if (hasDomains && !printing.card.domains.some((domain) => domains.includes(domain))) {
+      return false;
+    }
+    if (hasTypes && !types.includes(printing.card.type)) {
+      return false;
+    }
+    if (hasRarities && !rarities.includes(printing.rarity)) {
       return false;
     }
     if (hasFinishes && !finishes.includes(printing.finish)) {
@@ -597,18 +622,43 @@ function filterStacksByScope(
   stacks: StackedEntry[],
   scope: CompletionScopePreference,
 ): StackedEntry[] {
-  const { languages, finishes, artVariants, promos } = scope;
+  const { sets, languages, domains, types, rarities, finishes, artVariants, promos } = scope;
+  const hasSets = sets && sets.length > 0;
   const hasLanguages = languages && languages.length > 0;
+  const hasDomains = domains && domains.length > 0;
+  const hasTypes = types && types.length > 0;
+  const hasRarities = rarities && rarities.length > 0;
   const hasFinishes = finishes && finishes.length > 0;
   const hasArtVariants = artVariants && artVariants.length > 0;
 
-  if (!hasLanguages && !hasFinishes && !hasArtVariants && !promos) {
+  if (
+    !hasSets &&
+    !hasLanguages &&
+    !hasDomains &&
+    !hasTypes &&
+    !hasRarities &&
+    !hasFinishes &&
+    !hasArtVariants &&
+    !promos
+  ) {
     return stacks;
   }
 
   return stacks.filter((stack) => {
     const { printing } = stack;
+    if (hasSets && !sets.includes(printing.setSlug)) {
+      return false;
+    }
     if (hasLanguages && !languages.includes(printing.language)) {
+      return false;
+    }
+    if (hasDomains && !printing.card.domains.some((domain) => domains.includes(domain))) {
+      return false;
+    }
+    if (hasTypes && !types.includes(printing.card.type)) {
+      return false;
+    }
+    if (hasRarities && !rarities.includes(printing.rarity)) {
       return false;
     }
     if (hasFinishes && !finishes.includes(printing.finish)) {

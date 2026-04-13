@@ -9,7 +9,11 @@ export type Theme = "light" | "dark" | "auto";
  */
 /** Scope filters for collection completion tracking. */
 export interface CompletionScopePreference {
+  sets?: string[];
   languages?: string[];
+  domains?: string[];
+  types?: string[];
+  rarities?: string[];
   finishes?: string[];
   artVariants?: string[];
   /** Tri-state: undefined = all, "only" = promos only, "exclude" = no promos. */
