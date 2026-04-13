@@ -1,0 +1,507 @@
+import type {
+  CompletionScopePreference,
+  Marketplace,
+  PriceLookup,
+  Printing,
+} from "@openrift/shared";
+import { Area, AreaChart, ReferenceDot, XAxis, YAxis } from "recharts";
+
+import type { ChartConfig } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
+import type { CompletionCountMode } from "@/hooks/use-collection-stats";
+import { filterByScope } from "@/hooks/use-collection-stats";
+import type { StackedEntry } from "@/hooks/use-stacked-copies";
+import { compactFormatterForMarketplace } from "@/lib/format";
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+interface CurvePoint {
+  /** Cumulative cost to reach this point. */
+  cost: number;
+  /** Completion percentage at this point. */
+  percent: number;
+  /** Card/printing name at this step (undefined for the starting "you are here" point). */
+  label?: string;
+  /** Price of this individual item. */
+  itemPrice?: number;
+}
+
+interface MilestonePoint {
+  cost: number;
+  percent: number;
+  label: string;
+}
+
+interface CostToCompleteData {
+  curve: CurvePoint[];
+  milestones: MilestonePoint[];
+  startPercent: number;
+  totalCost: number;
+  unpricedMissing: number;
+}
+
+// ── Target copies per card type (for "copies" mode) ────────────────────────
+
+const COPIES_TARGET: Record<string, number> = {
+  Legend: 1,
+  Battlefield: 1,
+};
+const DEFAULT_COPIES_TARGET = 3;
+
+function targetForType(cardType: string): number {
+  return COPIES_TARGET[cardType] ?? DEFAULT_COPIES_TARGET;
+}
+
+// ── Data computation ───────────────────────────────────────────────────────
+
+interface ComputeInput {
+  allPrintings: Printing[];
+  stacks: StackedEntry[];
+  scope: CompletionScopePreference;
+  countMode: CompletionCountMode;
+  prices: PriceLookup;
+  marketplace: Marketplace;
+}
+
+/**
+ * Builds the cumulative cost-to-complete curve data.
+ * @returns Curve points, milestone markers, and summary stats.
+ */
+function computeCostToComplete(input: ComputeInput): CostToCompleteData {
+  "use memo";
+  const { allPrintings, stacks, scope, countMode, prices, marketplace } = input;
+
+  const scopedPrintings = filterByScope(allPrintings, scope);
+  const scopedStacks = filterStacksByScope(stacks, scope);
+
+  if (countMode === "printings") {
+    return computeForPrintings(scopedPrintings, scopedStacks, prices, marketplace);
+  }
+  if (countMode === "copies") {
+    return computeForCopies(scopedPrintings, scopedStacks, prices, marketplace);
+  }
+  return computeForCards(scopedPrintings, scopedStacks, prices, marketplace);
+}
+
+function computeForCards(
+  scopedPrintings: Printing[],
+  stacks: StackedEntry[],
+  prices: PriceLookup,
+  marketplace: Marketplace,
+): CostToCompleteData {
+  // All unique card slugs in scope
+  const allCardSlugs = new Set<string>();
+  for (const printing of scopedPrintings) {
+    allCardSlugs.add(printing.card.slug);
+  }
+
+  // Owned card slugs
+  const ownedSlugs = new Set<string>();
+  for (const stack of stacks) {
+    ownedSlugs.add(stack.printing.card.slug);
+  }
+
+  // For each missing card, find the cheapest printing in scope
+  const printingsByCard = Map.groupBy(scopedPrintings, (printing) => printing.card.slug);
+
+  const missingItems: { label: string; price: number }[] = [];
+  let unpricedMissing = 0;
+
+  for (const slug of allCardSlugs) {
+    if (ownedSlugs.has(slug)) {
+      continue;
+    }
+    const cardPrintings = printingsByCard.get(slug) ?? [];
+    let cheapest: number | undefined;
+    let cardName = slug;
+    for (const printing of cardPrintings) {
+      cardName = printing.card.name;
+      const price = prices.get(printing.id, marketplace);
+      if (price !== undefined && (cheapest === undefined || price < cheapest)) {
+        cheapest = price;
+      }
+    }
+    if (cheapest === undefined) {
+      unpricedMissing++;
+    } else {
+      missingItems.push({ label: cardName, price: cheapest });
+    }
+  }
+
+  const totalItems = allCardSlugs.size;
+  const ownedItems = ownedSlugs.size;
+  return buildCurve(missingItems, totalItems, ownedItems, unpricedMissing);
+}
+
+function computeForPrintings(
+  scopedPrintings: Printing[],
+  stacks: StackedEntry[],
+  prices: PriceLookup,
+  marketplace: Marketplace,
+): CostToCompleteData {
+  const ownedPrintingIds = new Set<string>();
+  for (const stack of stacks) {
+    ownedPrintingIds.add(stack.printingId);
+  }
+
+  const missingItems: { label: string; price: number }[] = [];
+  let unpricedMissing = 0;
+
+  for (const printing of scopedPrintings) {
+    if (ownedPrintingIds.has(printing.id)) {
+      continue;
+    }
+    const price = prices.get(printing.id, marketplace);
+    if (price === undefined) {
+      unpricedMissing++;
+    } else {
+      missingItems.push({ label: printing.card.name, price });
+    }
+  }
+
+  const totalItems = scopedPrintings.length;
+  const ownedItems = ownedPrintingIds.size;
+  return buildCurve(missingItems, totalItems, ownedItems, unpricedMissing);
+}
+
+function computeForCopies(
+  scopedPrintings: Printing[],
+  stacks: StackedEntry[],
+  prices: PriceLookup,
+  marketplace: Marketplace,
+): CostToCompleteData {
+  // Total target copies per card
+  const allCardSlugs = new Map<string, { name: string; type: string }>();
+  for (const printing of scopedPrintings) {
+    if (!allCardSlugs.has(printing.card.slug)) {
+      allCardSlugs.set(printing.card.slug, {
+        name: printing.card.name,
+        type: printing.card.type,
+      });
+    }
+  }
+
+  // Owned copies per card slug
+  const ownedCopiesBySlug = new Map<string, number>();
+  for (const stack of stacks) {
+    const slug = stack.printing.card.slug;
+    ownedCopiesBySlug.set(slug, (ownedCopiesBySlug.get(slug) ?? 0) + stack.copyIds.length);
+  }
+
+  // Cheapest printing per card for pricing missing copies
+  const printingsByCard = Map.groupBy(scopedPrintings, (printing) => printing.card.slug);
+
+  const missingItems: { label: string; price: number }[] = [];
+  let unpricedMissing = 0;
+  let totalItems = 0;
+  let ownedItems = 0;
+
+  for (const [slug, card] of allCardSlugs) {
+    const target = targetForType(card.type);
+    const owned = Math.min(ownedCopiesBySlug.get(slug) ?? 0, target);
+    const missing = target - owned;
+    totalItems += target;
+    ownedItems += owned;
+
+    if (missing <= 0) {
+      continue;
+    }
+
+    // Find cheapest printing for this card
+    const cardPrintings = printingsByCard.get(slug) ?? [];
+    let cheapest: number | undefined;
+    for (const printing of cardPrintings) {
+      const price = prices.get(printing.id, marketplace);
+      if (price !== undefined && (cheapest === undefined || price < cheapest)) {
+        cheapest = price;
+      }
+    }
+
+    if (cheapest === undefined) {
+      unpricedMissing += missing;
+    } else {
+      for (let index = 0; index < missing; index++) {
+        missingItems.push({ label: card.name, price: cheapest });
+      }
+    }
+  }
+
+  return buildCurve(missingItems, totalItems, ownedItems, unpricedMissing);
+}
+
+function buildCurve(
+  missingItems: { label: string; price: number }[],
+  totalItems: number,
+  ownedItems: number,
+  unpricedMissing: number,
+): CostToCompleteData {
+  // Sort by price ascending
+  missingItems.sort((a, b) => a.price - b.price);
+
+  const startPercent = totalItems > 0 ? (ownedItems / totalItems) * 100 : 0;
+
+  // Build cumulative curve, starting with the "you are here" point
+  const curve: CurvePoint[] = [{ cost: 0, percent: startPercent }];
+
+  let cumulativeCost = 0;
+  let currentOwned = ownedItems;
+
+  for (const item of missingItems) {
+    cumulativeCost += item.price;
+    currentOwned++;
+    const percent = totalItems > 0 ? (currentOwned / totalItems) * 100 : 0;
+    curve.push({
+      cost: cumulativeCost,
+      percent,
+      label: item.label,
+      itemPrice: item.price,
+    });
+  }
+
+  // Compute milestones (only those ahead of startPercent)
+  const milestoneThresholds = [25, 50, 75, 90, 95, 100];
+  const milestones: MilestonePoint[] = [];
+
+  for (const threshold of milestoneThresholds) {
+    if (threshold <= startPercent) {
+      continue;
+    }
+    // Find the first curve point that reaches this threshold
+    const point = curve.find((curvePoint) => curvePoint.percent >= threshold);
+    if (point) {
+      milestones.push({
+        cost: point.cost,
+        percent: point.percent,
+        label: `${threshold}%`,
+      });
+    }
+  }
+
+  return {
+    curve,
+    milestones,
+    startPercent,
+    totalCost: cumulativeCost,
+    unpricedMissing,
+  };
+}
+
+// ── Scope filtering (duplicated from use-collection-stats to avoid circular) ─
+
+function filterStacksByScope(
+  stacks: StackedEntry[],
+  scope: CompletionScopePreference,
+): StackedEntry[] {
+  const { languages, finishes, artVariants, promos } = scope;
+  const hasLanguages = languages && languages.length > 0;
+  const hasFinishes = finishes && finishes.length > 0;
+  const hasArtVariants = artVariants && artVariants.length > 0;
+
+  if (!hasLanguages && !hasFinishes && !hasArtVariants && !promos) {
+    return stacks;
+  }
+
+  return stacks.filter((stack) => {
+    const { printing } = stack;
+    if (hasLanguages && !languages.includes(printing.language)) {
+      return false;
+    }
+    if (hasFinishes && !finishes.includes(printing.finish)) {
+      return false;
+    }
+    if (hasArtVariants && !artVariants.includes(printing.artVariant)) {
+      return false;
+    }
+    if (promos === "exclude" && printing.promoType !== null) {
+      return false;
+    }
+    if (promos === "only" && printing.promoType === null) {
+      return false;
+    }
+    return true;
+  });
+}
+
+// ── Custom tooltip ─────────────────────────────────────────────────────────
+
+function CostToCompleteTooltipContent({
+  active,
+  payload,
+  formatPrice,
+}: {
+  active?: boolean;
+  payload?: { payload: CurvePoint }[];
+  formatPrice: (value: number) => string;
+}) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+
+  const point = payload[0].payload;
+
+  return (
+    <div className="border-border/50 bg-background min-w-36 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
+      {point.label ? (
+        <p className="mb-1 font-medium">{point.label}</p>
+      ) : (
+        <p className="mb-1 font-medium">Current collection</p>
+      )}
+      <div className="text-muted-foreground space-y-0.5">
+        <p>
+          Completion:{" "}
+          <span className="text-foreground font-medium">{point.percent.toFixed(1)}%</span>
+        </p>
+        {point.itemPrice !== undefined && (
+          <p>
+            Card price:{" "}
+            <span className="text-foreground font-medium">{formatPrice(point.itemPrice)}</span>
+          </p>
+        )}
+        <p>
+          Total spent:{" "}
+          <span className="text-foreground font-medium">{formatPrice(point.cost)}</span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Chart component ────────────────────────────────────────────────────────
+
+const chartConfig = {
+  percent: {
+    label: "Completion",
+    color: "var(--color-primary)",
+  },
+} satisfies ChartConfig;
+
+interface CostToCompleteChartProps {
+  allPrintings: Printing[];
+  stacks: StackedEntry[];
+  scope: CompletionScopePreference;
+  countMode: CompletionCountMode;
+  prices: PriceLookup;
+  marketplace: Marketplace;
+}
+
+export function CostToCompleteChart({
+  allPrintings,
+  stacks,
+  scope,
+  countMode,
+  prices,
+  marketplace,
+}: CostToCompleteChartProps) {
+  const formatPrice = compactFormatterForMarketplace(marketplace);
+
+  const data = computeCostToComplete({
+    allPrintings,
+    stacks,
+    scope,
+    countMode,
+    prices,
+    marketplace,
+  });
+
+  if (data.curve.length <= 1) {
+    return (
+      <p className="text-muted-foreground py-4 text-center text-sm">
+        {data.startPercent >= 100
+          ? "Collection is complete!"
+          : "No price data available for missing items."}
+      </p>
+    );
+  }
+
+  return (
+    <div>
+      <ChartContainer config={chartConfig} className="aspect-auto h-52 w-full">
+        <AreaChart data={data.curve} margin={{ top: 16, right: 12, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id="costToCompleteFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.3} />
+              <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0.05} />
+            </linearGradient>
+          </defs>
+          <XAxis
+            dataKey="cost"
+            type="number"
+            tickFormatter={(value: number) => formatPrice(value)}
+            tick={{ fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            dataKey="percent"
+            type="number"
+            domain={[0, 100]}
+            tickFormatter={(value: number) => `${value}%`}
+            tick={{ fontSize: 10 }}
+            axisLine={false}
+            tickLine={false}
+            width={40}
+          />
+          <ChartTooltip
+            cursor={{ stroke: "var(--color-border)", strokeDasharray: "4 4" }}
+            content={<CostToCompleteTooltipContent formatPrice={formatPrice} />}
+          />
+          <Area
+            dataKey="percent"
+            type="stepAfter"
+            stroke="var(--color-primary)"
+            strokeWidth={2}
+            fill="url(#costToCompleteFill)"
+            dot={false}
+            activeDot={{ r: 3, fill: "var(--color-primary)" }}
+          />
+          {/* "You are here" marker */}
+          <ReferenceDot
+            x={0}
+            y={data.startPercent}
+            r={5}
+            fill="var(--color-primary)"
+            stroke="var(--color-background)"
+            strokeWidth={2}
+          />
+          {/* Milestone markers */}
+          {data.milestones.map((milestone) => (
+            <ReferenceDot
+              key={milestone.label}
+              x={milestone.cost}
+              y={milestone.percent}
+              r={3}
+              fill="var(--color-background)"
+              stroke="var(--color-primary)"
+              strokeWidth={2}
+            >
+              <text
+                x={0}
+                y={0}
+                dy={-10}
+                textAnchor="middle"
+                className="fill-muted-foreground text-[10px]"
+              >
+                {milestone.label}
+              </text>
+            </ReferenceDot>
+          ))}
+        </AreaChart>
+      </ChartContainer>
+      {/* Legend below chart */}
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+        <span className="text-muted-foreground flex items-center gap-1.5">
+          <span className="bg-primary inline-block size-2.5 rounded-full" />
+          You are here: {data.startPercent.toFixed(1)}%
+        </span>
+        <span className="text-muted-foreground">
+          Full completion: {formatPrice(data.totalCost)}
+        </span>
+        {data.unpricedMissing > 0 && (
+          <span className="text-muted-foreground">
+            {data.unpricedMissing} unpriced {data.unpricedMissing === 1 ? "item" : "items"} excluded
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
