@@ -4,7 +4,7 @@ import type {
   PriceLookup,
   Printing,
 } from "@openrift/shared";
-import { Area, AreaChart, ReferenceDot, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, ReferenceArea, ReferenceDot, XAxis, YAxis } from "recharts";
 
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
@@ -36,6 +36,8 @@ interface CostToCompleteData {
   curve: CurvePoint[];
   milestones: MilestonePoint[];
   startPercent: number;
+  /** The highest completion % reachable by buying all priced missing items. */
+  maxPricedPercent: number;
   totalCost: number;
   unpricedMissing: number;
 }
@@ -258,7 +260,11 @@ function buildCurve(
     });
   }
 
-  // Compute milestones (only those ahead of startPercent)
+  // The highest % reachable by buying all priced items
+  const maxPricedPercent =
+    totalItems > 0 ? ((ownedItems + missingItems.length) / totalItems) * 100 : 0;
+
+  // Compute milestones (only those ahead of startPercent and reachable)
   const milestoneThresholds = [25, 50, 75, 90, 95, 100];
   const milestones: MilestonePoint[] = [];
 
@@ -281,6 +287,7 @@ function buildCurve(
     curve,
     milestones,
     startPercent,
+    maxPricedPercent,
     totalCost: cumulativeCost,
     unpricedMissing,
   };
@@ -422,6 +429,23 @@ export function CostToCompleteChart({
               <stop offset="0%" stopColor="var(--color-primary)" stopOpacity={0.3} />
               <stop offset="100%" stopColor="var(--color-primary)" stopOpacity={0.05} />
             </linearGradient>
+            <pattern
+              id="unpricedHatch"
+              patternUnits="userSpaceOnUse"
+              width={6}
+              height={6}
+              patternTransform="rotate(45)"
+            >
+              <line
+                x1={0}
+                y1={0}
+                x2={0}
+                y2={6}
+                stroke="var(--color-muted-foreground)"
+                strokeWidth={1}
+                strokeOpacity={0.25}
+              />
+            </pattern>
           </defs>
           <XAxis
             dataKey="cost"
@@ -485,6 +509,21 @@ export function CostToCompleteChart({
               </text>
             </ReferenceDot>
           ))}
+          {/* Unpriced gap: hatched band from priced ceiling to 100% */}
+          {data.unpricedMissing > 0 && data.maxPricedPercent < 100 && (
+            <ReferenceArea
+              y1={data.maxPricedPercent}
+              y2={100}
+              fill="url(#unpricedHatch)"
+              fillOpacity={1}
+              stroke="none"
+              label={{
+                value: `${data.unpricedMissing} unpriced`,
+                position: "insideTopRight",
+                className: "fill-muted-foreground text-[10px]",
+              }}
+            />
+          )}
         </AreaChart>
       </ChartContainer>
       {/* Legend below chart */}
@@ -494,11 +533,34 @@ export function CostToCompleteChart({
           You are here: {data.startPercent.toFixed(1)}%
         </span>
         <span className="text-muted-foreground">
-          Full completion: {formatPrice(data.totalCost)}
+          Priced completion: {formatPrice(data.totalCost)}
         </span>
         {data.unpricedMissing > 0 && (
-          <span className="text-muted-foreground">
-            {data.unpricedMissing} unpriced {data.unpricedMissing === 1 ? "item" : "items"} excluded
+          <span className="text-muted-foreground flex items-center gap-1.5">
+            <svg className="inline-block size-2.5" viewBox="0 0 10 10">
+              <rect width={10} height={10} fill="url(#unpricedHatchLegend)" />
+              <defs>
+                <pattern
+                  id="unpricedHatchLegend"
+                  patternUnits="userSpaceOnUse"
+                  width={3}
+                  height={3}
+                  patternTransform="rotate(45)"
+                >
+                  <line
+                    x1={0}
+                    y1={0}
+                    x2={0}
+                    y2={3}
+                    stroke="currentColor"
+                    strokeWidth={1}
+                    strokeOpacity={0.5}
+                  />
+                </pattern>
+              </defs>
+            </svg>
+            {data.unpricedMissing} unpriced {data.unpricedMissing === 1 ? "card" : "cards"} (no
+            market data)
           </span>
         )}
       </div>
