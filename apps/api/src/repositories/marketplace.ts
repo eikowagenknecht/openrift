@@ -488,7 +488,11 @@ export function marketplaceRepo(db: Kysely<Database>) {
           copyCount += count;
         }
 
-        series.push({ date: dayStr, valueCents, copyCount });
+        // Only emit points once the collection has cards (skip days where
+        // all adds were cancelled by removes, e.g. early testing activity).
+        if (copyCount > 0 || series.length > 0) {
+          series.push({ date: dayStr, valueCents, copyCount });
+        }
 
         currentDay.setUTCDate(currentDay.getUTCDate() + 1);
       }
