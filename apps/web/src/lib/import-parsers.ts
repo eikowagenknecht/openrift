@@ -18,6 +18,8 @@ export interface ImportEntry {
   sourceCode: string;
   /** Resolved promo slug for matching (e.g. "nexus", "release"). Provider-specific mapping is done in the parser. */
   promoSlug?: string;
+  /** Two-letter language code from the source CSV (e.g. "EN", "ZH"), used to prefer the correct language printing. */
+  language?: string;
   /** Pass-through of interesting fields from the source CSV, for display in the detail panel. */
   rawFields: Record<string, string>;
 }
@@ -36,6 +38,38 @@ function buildRawFields(fields: Record<string, string | undefined>): Record<stri
     }
   }
   return result;
+}
+
+/**
+ * Maps a human-readable language name (as used in CSV exports) to the
+ * two-letter code used internally (e.g. "English" → "EN").
+ * @returns The two-letter code, or undefined if unrecognized.
+ */
+function normalizeLanguage(language: string | undefined): string | undefined {
+  if (!language) {
+    return undefined;
+  }
+  const trimmed = language.trim().toLowerCase();
+  switch (trimmed) {
+    case "en":
+    case "english": {
+      return "EN";
+    }
+    case "fr":
+    case "french":
+    case "français": {
+      return "FR";
+    }
+    case "zh":
+    case "chinese":
+    case "chinese (simplified)":
+    case "chinese (traditional)": {
+      return "ZH";
+    }
+    default: {
+      return undefined;
+    }
+  }
 }
 
 interface ParseResult {
@@ -235,6 +269,7 @@ function parsePiltoverArchive(text: string): ParseResult {
       promoSlug: parsed?.promoSuffix
         ? resolvePiltoverPromoSlug(parsed.promoSuffix, variantLabel)
         : undefined,
+      language: normalizeLanguage(record["Language"]),
       rawFields,
     };
 

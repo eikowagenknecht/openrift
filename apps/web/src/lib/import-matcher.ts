@@ -148,18 +148,32 @@ export function matchEntries(entries: ImportEntry[], allPrintings: Printing[]): 
   return entries.map((entry) => matchSingleEntry(entry, index));
 }
 
+/**
+ * If the import entry has a language, filter candidates to that language.
+ * Falls back to the full list when no language is specified or no candidates match.
+ * @returns The narrowed list, or the original if narrowing would eliminate all candidates.
+ */
+function narrowByLanguage(candidates: Printing[], language?: string): Printing[] {
+  if (!language || candidates.length === 0) {
+    return candidates;
+  }
+  const filtered = candidates.filter((printing) => printing.language === language);
+  return filtered.length > 0 ? filtered : candidates;
+}
+
 function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntry {
   // Step 1: Look up by short code
   const codeMatches = index.lookupByCode(entry.sourceCode);
 
   if (codeMatches.length > 0) {
-    // Narrow by finish
-    const finishMatches = codeMatches.filter((printing) => printing.finish === entry.finish);
+    // Narrow by language first, then by finish
+    const langMatches = narrowByLanguage(codeMatches, entry.language);
+    const finishMatches = langMatches.filter((printing) => printing.finish === entry.finish);
 
-    // If the entry has a promo slug, match by promo type across ALL code matches (finish in
-    // the CSV may not reflect the actual finish of the promo printing in the catalog)
+    // If the entry has a promo slug, match by promo type across language-narrowed matches (finish
+    // in the CSV may not reflect the actual finish of the promo printing in the catalog)
     if (entry.promoSlug) {
-      const promoMatches = codeMatches.filter(
+      const promoMatches = langMatches.filter(
         (printing) => printing.promoType?.slug === entry.promoSlug,
       );
       if (promoMatches.length === 1) {
@@ -167,16 +181,16 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
           entry,
           status: "exact",
           resolvedPrinting: promoMatches[0],
-          candidates: codeMatches,
+          candidates: langMatches,
         };
       }
-      // Promo slug didn't narrow to one — show all code matches as ambiguous
+      // Promo slug didn't narrow to one — show language-narrowed matches as ambiguous
       if (promoMatches.length > 1) {
         return {
           entry,
           status: "needs-review",
           resolvedPrinting: null,
-          candidates: codeMatches,
+          candidates: langMatches,
         };
       }
       // promoSlug didn't match any printing (renamed?) — show as ambiguous, don't auto-resolve to non-promo
@@ -184,17 +198,17 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
         entry,
         status: "needs-review",
         resolvedPrinting: null,
-        candidates: codeMatches,
+        candidates: langMatches,
       };
     }
 
     if (finishMatches.length === 1) {
-      // Exact match — include all code matches as candidates for manual override
+      // Exact match — include language-narrowed matches as candidates for manual override
       return {
         entry,
         status: "exact",
         resolvedPrinting: finishMatches[0],
-        candidates: codeMatches,
+        candidates: langMatches,
       };
     }
 
@@ -206,7 +220,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
           entry,
           status: "exact",
           resolvedPrinting: base[0],
-          candidates: codeMatches,
+          candidates: langMatches,
         };
       }
 
@@ -219,20 +233,22 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
       };
     }
 
-    // No finish match — present all code matches as candidates
+    // No finish match — present language-narrowed matches as candidates
     return {
       entry,
       status: "needs-review",
       resolvedPrinting: null,
-      candidates: codeMatches,
+      candidates: langMatches,
     };
   }
 
   // Step 2: Try fuzzy name match
   const fuzzy = index.fuzzyMatchByName(entry.cardName);
   if (fuzzy) {
+    const langMatches = narrowByLanguage(fuzzy.printings, entry.language);
+
     // Try to find the specific printing within the fuzzy match
-    const finishMatches = fuzzy.printings.filter(
+    const finishMatches = langMatches.filter(
       (printing) => printing.finish === entry.finish && printing.artVariant === entry.artVariant,
     );
 
@@ -241,7 +257,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
         entry,
         status: "needs-review",
         resolvedPrinting: finishMatches[0],
-        candidates: fuzzy.printings,
+        candidates: langMatches,
         suggestedName: fuzzy.cardName,
       };
     }
@@ -250,7 +266,7 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
       entry,
       status: "needs-review",
       resolvedPrinting: null,
-      candidates: fuzzy.printings,
+      candidates: langMatches,
       suggestedName: fuzzy.cardName,
     };
   }
@@ -258,11 +274,12 @@ function matchSingleEntry(entry: ImportEntry, index: PrintingIndex): MatchedEntr
   // Step 3: Try extracting a base code from suffixed source codes (e.g. "OGN-249-Release" → "OGN-249")
   const baseCodeMatches = index.lookupByBaseCode(entry.sourceCode);
   if (baseCodeMatches.length > 0) {
+    const langMatches = narrowByLanguage(baseCodeMatches, entry.language);
     return {
       entry,
       status: "needs-review",
       resolvedPrinting: null,
-      candidates: baseCodeMatches,
+      candidates: langMatches,
     };
   }
 

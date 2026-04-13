@@ -110,6 +110,41 @@ describe("parseImportData — OpenRift format", () => {
   });
 });
 
+describe("parseImportData — Piltover Archive language", () => {
+  const header =
+    "Variant Number,Card Name,Set,Set Prefix,Rarity,Variant Type,Variant Label,Quantity,Language,Condition";
+
+  it("normalizes English to EN", () => {
+    const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,,1,English,NM`;
+    const result = parseImportData(csv);
+    expect(result.entries[0].language).toBe("EN");
+  });
+
+  it("normalizes French to FR", () => {
+    const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,,1,French,NM`;
+    const result = parseImportData(csv);
+    expect(result.entries[0].language).toBe("FR");
+  });
+
+  it("normalizes Chinese to ZH", () => {
+    const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,,1,Chinese,NM`;
+    const result = parseImportData(csv);
+    expect(result.entries[0].language).toBe("ZH");
+  });
+
+  it("handles two-letter code directly", () => {
+    const csv = `${header}\nOGN-001,Test,Origins,OGN,Common,Standard,,1,EN,NM`;
+    const result = parseImportData(csv);
+    expect(result.entries[0].language).toBe("EN");
+  });
+
+  it("returns undefined for missing language column", () => {
+    const csv = "Variant Number,Card Name,Quantity\nOGN-001,Test,1";
+    const result = parseImportData(csv);
+    expect(result.entries[0].language).toBeUndefined();
+  });
+});
+
 describe("parseImportData — format detection", () => {
   it("still detects Piltover Archive format", () => {
     const csv = "Variant Number,Card Name,Quantity\nOGN-001,Test,1";
