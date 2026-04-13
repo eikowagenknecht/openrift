@@ -14,6 +14,7 @@ interface PromoTypeDraft {
   id: string;
   slug: string;
   label: string;
+  description: string;
 }
 
 const KEBAB_RE = /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/;
@@ -59,6 +60,27 @@ export function PromoTypesPage() {
         />
       ),
     },
+    {
+      header: "Description",
+      sortValue: (pt) => pt.description ?? "",
+      cell: (pt) => <span className="text-muted-foreground text-sm">{pt.description ?? "—"}</span>,
+      editCell: (d, set) => (
+        <Input
+          value={d.description}
+          onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
+          placeholder="Optional description"
+          className="h-8"
+        />
+      ),
+      addCell: (d, set) => (
+        <Input
+          value={d.description}
+          onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
+          placeholder="Optional description"
+          className="h-8"
+        />
+      ),
+    },
   ];
 
   return (
@@ -73,11 +95,12 @@ export function PromoTypesPage() {
         </p>
       }
       add={{
-        emptyDraft: { id: "", slug: "", label: "" },
+        emptyDraft: { id: "", slug: "", label: "", description: "" },
         onSave: (d) =>
           createMutation.mutateAsync({
             slug: d.slug.trim(),
             label: d.label.trim(),
+            description: d.description.trim() || null,
           }),
         validate: (d) => {
           const slug = d.slug.trim();
@@ -97,11 +120,13 @@ export function PromoTypesPage() {
           id: pt.id,
           slug: pt.slug,
           label: pt.label,
+          description: pt.description ?? "",
         }),
         onSave: (d) =>
           updateMutation.mutateAsync({
             id: d.id,
             label: d.label.trim() || undefined,
+            description: d.description.trim() || null,
           }),
       }}
       delete={{

@@ -20,6 +20,7 @@ export type {
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
   CatalogSetResponse,
+  PromoListResponse,
   SetDetailResponse,
   SetListEntry,
   SetListResponse,

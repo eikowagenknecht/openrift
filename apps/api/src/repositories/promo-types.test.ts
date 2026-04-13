@@ -7,6 +7,7 @@ const ROW = {
   id: "pt-1",
   slug: "promo",
   label: "Promo",
+  description: "A test promo",
   createdAt: new Date(),
   updatedAt: new Date(),
 };

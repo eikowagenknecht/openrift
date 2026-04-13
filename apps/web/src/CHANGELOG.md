@@ -2,6 +2,8 @@
 
 ## 2026-04-13
 
+- feat: New Promo Cards page shows all promotional printings grouped by promo type, with descriptions and card grids
+- feat: Promo types now support an optional description, visible on the Promo Cards page and editable in the admin panel
 - feat: Card and printing counts on the landing page now animate up from zero when the page loads
 - feat: Search queries, collection actions, and filter usage are now tracked with privacy-friendly Umami analytics to help us understand which features matter most
 - feat: Cards you don't own are now dimmed in the card browser when showing owned counts or in add mode, making it easy to spot gaps in your collection

@@ -33,6 +33,7 @@ import { featureFlagsRoute } from "./routes/public/feature-flags.js";
 import { healthRoute } from "./routes/public/health.js";
 import { initRoute } from "./routes/public/init.js";
 import { pricesRoute } from "./routes/public/prices.js";
+import { promosRoute } from "./routes/public/promos.js";
 import { rulesRoute } from "./routes/public/rules.js";
 import { setsRoute } from "./routes/public/sets.js";
 import { siteSettingsRoute } from "./routes/public/site-settings.js";
@@ -274,6 +275,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", catalogRoute)
       .route("/api/v1", cardsRoute)
       .route("/api/v1", setsRoute)
+      .route("/api/v1", promosRoute)
       .route("/api/v1", sitemapDataRoute)
       .route("/api/v1", pricesRoute)
       .route("/api/v1", featureFlagsRoute)

@@ -34,11 +34,17 @@ describe("catalogRepo", () => {
         promoTypeId: "pt-1",
         promoTypeSlug: "promo",
         promoTypeLabel: "Promo",
+        promoTypeDescription: "A test promo",
       },
     ]);
     const result = await catalogRepo(db).printings();
     expect(result).toHaveLength(1);
-    expect(result[0].promoType).toEqual({ id: "pt-1", slug: "promo", label: "Promo" });
+    expect(result[0].promoType).toEqual({
+      id: "pt-1",
+      slug: "promo",
+      label: "Promo",
+      description: "A test promo",
+    });
   });
 
   it("printings returns null promoType when promoTypeId is null", async () => {
@@ -61,6 +67,7 @@ describe("catalogRepo", () => {
         promoTypeId: null,
         promoTypeSlug: null,
         promoTypeLabel: null,
+        promoTypeDescription: null,
       },
     ]);
     const result = await catalogRepo(db).printings();

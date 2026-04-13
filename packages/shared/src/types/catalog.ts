@@ -4,6 +4,12 @@ export interface PromoType {
   id: string;
   slug: string;
   label: string;
+  description: string | null;
+}
+
+export interface PromoTypeWithCount extends PromoType {
+  cardCount: number;
+  printingCount: number;
 }
 
 export interface CardBan {

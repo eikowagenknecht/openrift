@@ -222,7 +222,7 @@ describe("formatPrintingLabel", () => {
       artVariant: "altart",
       finish: "foil",
       isSigned: true,
-      promoType: { id: "1", slug: "promo", label: "Promo" },
+      promoType: { id: "1", slug: "promo", label: "Promo", description: null },
     });
     expect(formatPrintingLabel(p)).toBe("Alt Art · Foil · Signed · Promo");
   });
@@ -239,7 +239,7 @@ describe("formatPrintingLabel", () => {
   });
 
   it("includes attributes that differ among siblings", () => {
-    const promoType = { id: "1", slug: "promo", label: "Promo" };
+    const promoType = { id: "1", slug: "promo", label: "Promo", description: null };
     const p = stub({ isSigned: true, promoType });
     const siblings = [p, stub({ isSigned: false, promoType })];
     expect(formatPrintingLabel(p, siblings)).toBe("Signed");

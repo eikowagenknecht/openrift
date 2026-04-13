@@ -581,6 +581,8 @@ export interface PromoTypesTable {
   slug: string;
   /** CHECK: <> '' */
   label: string;
+  /** CHECK: <> '' */
+  description: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

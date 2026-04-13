@@ -548,7 +548,7 @@ describe("filterCards", () => {
   it("filters by isPromo=true", () => {
     const withPromo = [
       makePrinting({
-        promoType: { id: "1", slug: "promo", label: "Promo" },
+        promoType: { id: "1", slug: "promo", label: "Promo", description: null },
         cardId: "p",
         card: {
           name: "Promo Card",
@@ -751,7 +751,7 @@ describe("filterCards", () => {
   it("filters by isPromo=false excludes promo cards", () => {
     const cards = [
       makePrinting({
-        promoType: { id: "1", slug: "promo", label: "Promo" },
+        promoType: { id: "1", slug: "promo", label: "Promo", description: null },
         cardId: "p1",
         card: { name: "Promo Card" },
       }),
@@ -982,12 +982,12 @@ describe("filterCards", () => {
   it("filters by promoTypes when isPromo is null (type-only filter)", () => {
     const cards = [
       makePrinting({
-        promoType: { id: "1", slug: "nexus-night", label: "Nexus Night" },
+        promoType: { id: "1", slug: "nexus-night", label: "Nexus Night", description: null },
         cardId: "p1",
         card: { name: "Nexus Card" },
       }),
       makePrinting({
-        promoType: { id: "2", slug: "launch-day", label: "Launch Day" },
+        promoType: { id: "2", slug: "launch-day", label: "Launch Day", description: null },
         cardId: "p2",
         card: { name: "Launch Card" },
       }),
@@ -1006,12 +1006,12 @@ describe("filterCards", () => {
   it("filters by isPromo=true with specific promoTypes", () => {
     const cards = [
       makePrinting({
-        promoType: { id: "1", slug: "nexus-night", label: "Nexus Night" },
+        promoType: { id: "1", slug: "nexus-night", label: "Nexus Night", description: null },
         cardId: "p1",
         card: { name: "Nexus Card" },
       }),
       makePrinting({
-        promoType: { id: "2", slug: "launch-day", label: "Launch Day" },
+        promoType: { id: "2", slug: "launch-day", label: "Launch Day", description: null },
         cardId: "p2",
         card: { name: "Launch Card" },
       }),
@@ -1024,7 +1024,7 @@ describe("filterCards", () => {
   it("filters by isPromo=true with empty promoTypes returns all promos", () => {
     const cards = [
       makePrinting({
-        promoType: { id: "1", slug: "nexus-night", label: "Nexus Night" },
+        promoType: { id: "1", slug: "nexus-night", label: "Nexus Night", description: null },
         cardId: "p1",
         card: { name: "Nexus Card" },
       }),
@@ -1265,7 +1265,7 @@ describe("getAvailableFilters", () => {
 
   it("computes hasPromo true when promo printings exist", () => {
     const result = getAvailableFilters([
-      makePrinting({ promoType: { id: "1", slug: "promo", label: "Promo" } }),
+      makePrinting({ promoType: { id: "1", slug: "promo", label: "Promo", description: null } }),
       makePrinting({ promoType: null }),
     ]);
     expect(result.hasPromo).toBe(true);

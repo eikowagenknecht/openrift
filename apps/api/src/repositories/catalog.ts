@@ -46,7 +46,7 @@ type CatalogPrintingRow = Omit<
 > & {
   printedName: string | null;
   language: string;
-  promoType: { id: string; slug: string; label: string } | null;
+  promoType: { id: string; slug: string; label: string; description: string | null } | null;
 };
 
 /**
@@ -187,6 +187,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "promoTypes.id as promoTypeId",
           "promoTypes.slug as promoTypeSlug",
           "promoTypes.label as promoTypeLabel",
+          "promoTypes.description as promoTypeDescription",
         ])
         .orderBy("printings.setId")
         .orderBy("printings.shortCode")
@@ -210,7 +211,12 @@ export function catalogRepo(db: Kysely<Database>) {
         printedName: row.printedName,
         language: row.language,
         promoType: row.promoTypeId
-          ? { id: row.promoTypeId, slug: row.promoTypeSlug ?? "", label: row.promoTypeLabel ?? "" }
+          ? {
+              id: row.promoTypeId,
+              slug: row.promoTypeSlug ?? "",
+              label: row.promoTypeLabel ?? "",
+              description: row.promoTypeDescription ?? null,
+            }
           : null,
       }));
     },
@@ -298,6 +304,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "promoTypes.id as promoTypeId",
           "promoTypes.slug as promoTypeSlug",
           "promoTypes.label as promoTypeLabel",
+          "promoTypes.description as promoTypeDescription",
         ])
         .where("printings.cardId", "=", cardId)
         .orderBy(sql`(printings.language = 'EN') DESC`)
@@ -323,7 +330,12 @@ export function catalogRepo(db: Kysely<Database>) {
         printedName: row.printedName,
         language: row.language,
         promoType: row.promoTypeId
-          ? { id: row.promoTypeId, slug: row.promoTypeSlug ?? "", label: row.promoTypeLabel ?? "" }
+          ? {
+              id: row.promoTypeId,
+              slug: row.promoTypeSlug ?? "",
+              label: row.promoTypeLabel ?? "",
+              description: row.promoTypeDescription ?? null,
+            }
           : null,
       }));
     },
@@ -422,6 +434,7 @@ export function catalogRepo(db: Kysely<Database>) {
           "promoTypes.id as promoTypeId",
           "promoTypes.slug as promoTypeSlug",
           "promoTypes.label as promoTypeLabel",
+          "promoTypes.description as promoTypeDescription",
         ])
         .where("printings.setId", "=", setId)
         .orderBy("printings.shortCode")
@@ -445,7 +458,12 @@ export function catalogRepo(db: Kysely<Database>) {
         printedName: row.printedName,
         language: row.language,
         promoType: row.promoTypeId
-          ? { id: row.promoTypeId, slug: row.promoTypeSlug ?? "", label: row.promoTypeLabel ?? "" }
+          ? {
+              id: row.promoTypeId,
+              slug: row.promoTypeSlug ?? "",
+              label: row.promoTypeLabel ?? "",
+              description: row.promoTypeDescription ?? null,
+            }
           : null,
       }));
     },
@@ -551,6 +569,90 @@ export function catalogRepo(db: Kysely<Database>) {
           { cardCount: Number(r.cardCount), printingCount: Number(r.printingCount) },
         ]),
       );
+    },
+
+    /** @returns All promo types, ordered by label. */
+    promoTypesList(): Promise<
+      { id: string; slug: string; label: string; description: string | null }[]
+    > {
+      return db
+        .selectFrom("promoTypes")
+        .select(["id", "slug", "label", "description"])
+        .orderBy("label")
+        .execute();
+    },
+
+    /** @returns Active printing images for a list of printing IDs. */
+    printingImagesByPrintingIds(printingIds: string[]): Promise<CatalogPrintingImageRow[]> {
+      if (printingIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("printingImages")
+        .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+        .select(["printingImages.printingId", "printingImages.face", imageUrl("ci").as("url")])
+        .where("printingImages.printingId", "in", printingIds)
+        .where("printingImages.isActive", "=", true)
+        .where(sql`${imageUrl("ci")}`, "is not", null)
+        .orderBy("printingImages.printingId")
+        .orderBy("printingImages.face")
+        .execute() as Promise<CatalogPrintingImageRow[]>;
+    },
+
+    /** @returns All printings that have a promo type assigned. */
+    async promoPrintings(): Promise<CatalogPrintingRow[]> {
+      const rows = await db
+        .selectFrom("printings")
+        .innerJoin("promoTypes", "promoTypes.id", "printings.promoTypeId")
+        .select([
+          "printings.id",
+          "printings.cardId",
+          "printings.setId",
+          "printings.shortCode",
+          "printings.rarity",
+          "printings.artVariant",
+          "printings.isSigned",
+          "printings.finish",
+          "printings.artist",
+          "printings.publicCode",
+          "printings.printedRulesText",
+          "printings.printedEffectText",
+          "printings.flavorText",
+          "printings.printedName",
+          "printings.language",
+          "promoTypes.id as promoTypeId",
+          "promoTypes.slug as promoTypeSlug",
+          "promoTypes.label as promoTypeLabel",
+          "promoTypes.description as promoTypeDescription",
+        ])
+        .orderBy("promoTypes.label")
+        .orderBy("printings.shortCode")
+        .orderBy("printings.finish", "desc")
+        .execute();
+
+      return rows.map((row) => ({
+        id: row.id,
+        cardId: row.cardId,
+        setId: row.setId,
+        shortCode: row.shortCode,
+        rarity: row.rarity,
+        artVariant: row.artVariant,
+        isSigned: row.isSigned,
+        finish: row.finish,
+        artist: row.artist,
+        publicCode: row.publicCode,
+        printedRulesText: row.printedRulesText,
+        printedEffectText: row.printedEffectText,
+        flavorText: row.flavorText,
+        printedName: row.printedName,
+        language: row.language,
+        promoType: {
+          id: row.promoTypeId,
+          slug: row.promoTypeSlug ?? "",
+          label: row.promoTypeLabel ?? "",
+          description: row.promoTypeDescription ?? null,
+        },
+      }));
     },
 
     /** @returns All card sitemap entries (slug + updatedAt). */
