@@ -232,6 +232,15 @@ export function useFilterActions() {
     void setFilterState({ [key]: values.length > 0 ? values : null });
   };
 
+  const setArrayFilters = (updates: Partial<Record<ArrayKey, string[]>>) => {
+    const patch: Record<string, string[] | null> = {};
+    for (const [key, values] of Object.entries(updates) as [ArrayKey, string[]][]) {
+      pendingRef.current[key] = values;
+      patch[key] = values.length > 0 ? values : null;
+    }
+    void setFilterState(patch);
+  };
+
   const setRange = (key: RangeKey, min: number | null, max: number | null) =>
     void setFilterState({ [`${key}Min`]: min, [`${key}Max`]: max });
 
@@ -291,6 +300,7 @@ export function useFilterActions() {
     setSearch,
     toggleArrayFilter,
     setArrayFilter,
+    setArrayFilters,
     setRange,
     toggleOwned,
     clearOwned,

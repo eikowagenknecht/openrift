@@ -1,5 +1,5 @@
-import type { CardType, DeckZone, Printing, SuperType } from "@openrift/shared";
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import type { Printing } from "@openrift/shared";
+import { useDeferredValue, useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
@@ -58,42 +58,6 @@ function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCa
   return runesByDomain;
 }
 
-/** Default filter presets per zone. Applied to URL params on zone switch. */
-const MAIN_TYPES: CardType[] = ["Unit", "Spell", "Gear"];
-
-function getZonePresets(
-  zone: DeckZone,
-  legendDomains?: string[],
-): { types?: CardType[]; superTypes?: SuperType[]; domains?: string[] } {
-  switch (zone) {
-    case "legend": {
-      return { types: ["Legend"] };
-    }
-    case "champion": {
-      return { superTypes: ["Champion"] };
-    }
-    case "runes": {
-      return { types: ["Rune"] };
-    }
-    case "battlefield": {
-      return { types: ["Battlefield"] };
-    }
-    case "main":
-    case "sideboard": {
-      return {
-        types: MAIN_TYPES,
-        domains: legendDomains ? [...legendDomains, "Colorless"] : [],
-      };
-    }
-    case "overflow": {
-      return { types: MAIN_TYPES };
-    }
-    default: {
-      return {};
-    }
-  }
-}
-
 /**
  * Full card browser for the deck editor — reuses the same filter UI, search bar,
  * and card grid as the catalog browser. Clicking + on a card adds it to the active zone.
@@ -114,7 +78,7 @@ export function DeckCardBrowser() {
     groupDir,
     hasActiveFilters,
   } = useFilterValues();
-  const { setSearch, setArrayFilter } = useFilterActions();
+  const { setSearch } = useFilterActions();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const addCard = useDeckBuilderStore((state) => state.addCard);
   const removeCard = useDeckBuilderStore((state) => state.removeCard);
@@ -157,22 +121,6 @@ export function DeckCardBrowser() {
   const singleCardZoneOccupied =
     isSingleCardZone && deckCards.some((card) => card.zone === activeZone);
 
-  // Apply zone presets to URL params when the zone or legend changes.
-  const legend = deckCards.find((card) => card.zone === "legend");
-  const legendDomainsKey = legend ? [...legend.domains].sort().join(",") : "";
-  const prevZoneKey = useRef("");
-  useEffect(() => {
-    const zoneKey = `${activeZone}:${legendDomainsKey}`;
-    if (zoneKey === prevZoneKey.current) {
-      return;
-    }
-    prevZoneKey.current = zoneKey;
-    const presets = getZonePresets(activeZone, legend?.domains);
-    setArrayFilter("types", presets.types ?? []);
-    setArrayFilter("superTypes", presets.superTypes ?? []);
-    setArrayFilter("domains", presets.domains ?? []);
-  }, [activeZone, legendDomainsKey, legend?.domains, setArrayFilter]);
-
   const filters = urlFilters;
 
   // Build a map of cardId → total quantity across all zones
@@ -184,6 +132,11 @@ export function DeckCardBrowser() {
   // Always use "cards" view in deckbuilder — printings/copies modes don't apply
   const view = "cards" as const;
   const keywordReverseMap = useKeywordReverseMap();
+
+  // Language filter: URL param takes precedence, display store preference is fallback
+  const preferredLanguages = useDisplayStore((s) => s.languages);
+  const languageFilter =
+    urlFilters.languages.length > 0 ? urlFilters.languages : preferredLanguages;
 
   const {
     availableFilters,
@@ -197,7 +150,7 @@ export function DeckCardBrowser() {
   } = useCardData({
     allPrintings,
     sets,
-    languageFilter: urlFilters.languages.length > 0 ? urlFilters.languages : undefined,
+    languageFilter,
     filters,
     isOwned: filters.isOwned,
     sortBy,

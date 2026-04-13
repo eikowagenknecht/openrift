@@ -601,11 +601,13 @@ export function MobileFilterContent({
   availableLanguages,
   setDisplayLabel,
   hiddenSections,
+  filterOverrides,
 }: {
   availableFilters: AvailableFilters;
   availableLanguages?: string[];
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
+  filterOverrides?: Partial<Record<string, string[]>>;
 }) {
   return (
     <div className="border-t pt-4">
@@ -616,6 +618,7 @@ export function MobileFilterContent({
           availableLanguages={availableLanguages}
           setDisplayLabel={setDisplayLabel}
           hiddenSections={hiddenSections}
+          filterOverrides={filterOverrides}
         />
       </div>
     </div>

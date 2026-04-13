@@ -61,6 +61,8 @@ interface FilterPanelContentProps {
   availableLanguages?: string[];
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
+  /** Override selected values for array filters (e.g. zone presets in the deck builder). */
+  filterOverrides?: Partial<Record<string, string[]>>;
 }
 
 export function FilterPanelContent({
@@ -68,6 +70,7 @@ export function FilterPanelContent({
   availableLanguages,
   setDisplayLabel,
   hiddenSections,
+  filterOverrides,
 }: FilterPanelContentProps) {
   return (
     <>
@@ -76,6 +79,7 @@ export function FilterPanelContent({
         availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
         hiddenSections={hiddenSections}
+        filterOverrides={filterOverrides}
       />
       <FilterRangeSections availableFilters={availableFilters} />
     </>
@@ -87,12 +91,19 @@ export function FilterBadgeSections({
   availableLanguages,
   setDisplayLabel,
   hiddenSections,
+  filterOverrides,
 }: FilterPanelContentProps) {
   const { labels } = useEnumOrders();
   const { filterState } = useFilterValues();
   const { toggleOwned, toggleArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
     useFilterActions();
   const languageLabels = useLanguageLabels();
+  // Use overrides when URL state is empty (zone presets that aren't in the URL)
+  const selected = (key: keyof typeof filterState) => {
+    const urlValue = filterState[key];
+    const arr = Array.isArray(urlValue) ? urlValue : [];
+    return arr.length > 0 ? arr : (filterOverrides?.[key] ?? []);
+  };
   return (
     <>
       {!hiddenSections?.has("owned") && (
@@ -127,7 +138,7 @@ export function FilterBadgeSections({
         <FilterSection
           label="Domain"
           options={availableFilters.domains}
-          selected={filterState.domains}
+          selected={selected("domains")}
           onToggle={(v) => toggleArrayFilter("domains", v)}
           iconPath={(v) => getFilterIconPath("domains", v)}
           displayLabel={formatDomainFilterLabel}
@@ -137,7 +148,7 @@ export function FilterBadgeSections({
         <FilterSection
           label="Type"
           options={availableFilters.types}
-          selected={filterState.types}
+          selected={selected("types")}
           onToggle={(v) => toggleArrayFilter("types", v)}
           iconPath={(v) => getFilterIconPath("types", v)}
         />
@@ -146,7 +157,7 @@ export function FilterBadgeSections({
         <FilterSection
           label="Super Type"
           options={availableFilters.superTypes}
-          selected={filterState.superTypes}
+          selected={selected("superTypes")}
           onToggle={(v) => toggleArrayFilter("superTypes", v)}
           iconPath={(v) => getFilterIconPath("superTypes", v)}
         />

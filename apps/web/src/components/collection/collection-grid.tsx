@@ -141,6 +141,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
+  // Language filter: URL param takes precedence, display store preference is fallback
+  const preferredLanguages = useDisplayStore((s) => s.languages);
+  const languageFilter = filters.languages.length > 0 ? filters.languages : preferredLanguages;
+
   // "copies" is a collection-only UI concept — at the data level it behaves like "printings"
   const dataView = view === "copies" ? "printings" : view;
   const keywordReverseMap = useKeywordReverseMap();
@@ -165,7 +169,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     favoriteMarketplace,
     prices,
     keywordReverseMap,
-    languageOrder: useDisplayStore((s) => s.languages),
+    languageOrder: languageFilter,
   });
 
   // ── Catalog data (add mode — skip expensive computation in browse/select) ──
@@ -180,7 +184,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   } = useCardData({
     allPrintings,
     sets,
-    languageFilter: useDisplayStore((s) => s.languages),
+    languageFilter,
     filters,
     sortBy,
     sortDir,

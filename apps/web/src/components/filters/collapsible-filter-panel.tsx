@@ -14,6 +14,7 @@ interface CollapsibleFilterPanelProps {
   availableLanguages?: string[];
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
+  filterOverrides?: Partial<Record<string, string[]>>;
 }
 
 /**
@@ -27,6 +28,7 @@ export function CollapsibleFilterPanel({
   availableLanguages,
   setDisplayLabel,
   hiddenSections,
+  filterOverrides,
 }: CollapsibleFilterPanelProps) {
   const filtersExpanded = useDisplayStore((state) => state.filtersExpanded);
   const setFiltersExpanded = useDisplayStore((state) => state.setFiltersExpanded);
@@ -44,6 +46,7 @@ export function CollapsibleFilterPanel({
             availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
             hiddenSections={hiddenSections}
+            filterOverrides={filterOverrides}
           />
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 lg:grid-cols-4">
