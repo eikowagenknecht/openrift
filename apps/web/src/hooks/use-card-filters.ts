@@ -15,7 +15,7 @@ import { useEffect, useRef } from "react";
 
 import { useSearchScopeStore } from "@/stores/search-scope-store";
 
-export const filterParsers = {
+const filterParsers = {
   search: parseAsString.withDefault(""),
   sets: parseAsArrayOf(parseAsString, ",").withDefault([]),
   languages: parseAsArrayOf(parseAsString, ",").withDefault([]),
@@ -63,7 +63,7 @@ type ArrayKey =
  * @returns The current filter, sort, and view state.
  */
 export function useFilterValues() {
-  const [filterState] = useQueryStates(filterParsers, {
+  const [filterState, setFilterState] = useQueryStates(filterParsers, {
     history: "push",
   });
   const searchScope = useSearchScopeStore((s) => s.scope);
@@ -139,6 +139,7 @@ export function useFilterValues() {
     hasActiveFilters,
     filterState,
     searchScope,
+    setFilterState,
   };
 }
 
