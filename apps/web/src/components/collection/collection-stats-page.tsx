@@ -636,7 +636,7 @@ function PriceExtremes({
             <CardContent className="flex items-center gap-3">
               {cheapest.thumbnail && (
                 <HoverCard>
-                  <HoverCardTrigger>
+                  <HoverCardTrigger render={<span />}>
                     <img src={cheapest.thumbnail} alt="" className="h-32 w-auto shrink-0 rounded" />
                   </HoverCardTrigger>
                   {cheapest.fullImage && (
@@ -672,7 +672,7 @@ function PriceExtremes({
             <CardContent className="flex items-center gap-3">
               {mostExpensive.thumbnail && (
                 <HoverCard>
-                  <HoverCardTrigger>
+                  <HoverCardTrigger render={<span />}>
                     <img
                       src={mostExpensive.thumbnail}
                       alt=""
