@@ -15,12 +15,12 @@ import {
 } from "lucide-react";
 import { use, useState } from "react";
 import { createPortal } from "react-dom";
-import { Pie, PieChart } from "recharts";
+import type { PieSectorDataItem } from "recharts";
+import { Label, Pie, PieChart, Sector } from "recharts";
 
 import { CardIcon } from "@/components/card-icon";
 import { CostToCompleteChart } from "@/components/collection/cost-to-complete-chart";
 import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
-import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import { FilterBadgeSections } from "@/components/filters/filter-panel-content";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
@@ -28,8 +28,9 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ChartConfig } from "@/components/ui/chart";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartContainer } from "@/components/ui/chart";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import {
   Select,
   SelectContent,
@@ -457,6 +458,81 @@ function CompletionSection({
 
 // ── Distribution Donut Charts ─────────────────────────────────────────────
 
+interface DonutEntry {
+  name: string;
+  value: number;
+  fill: string;
+}
+
+function DistributionDonut({ data, config }: { data: DonutEntry[]; config: ChartConfig }) {
+  const [activeIndex, setActiveIndex] = useState<number>();
+  const active = activeIndex === undefined ? undefined : data[activeIndex];
+
+  return (
+    <div>
+      <ChartContainer config={config} className="mx-auto aspect-square max-h-36">
+        <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="name"
+            innerRadius="55%"
+            outerRadius="90%"
+            strokeWidth={2}
+            activeIndex={activeIndex}
+            activeShape={(props: PieSectorDataItem) => (
+              <Sector {...props} outerRadius={(props.outerRadius ?? 0) + 4} />
+            )}
+            onMouseEnter={(_, index) => setActiveIndex(index)}
+            onMouseLeave={() => setActiveIndex(undefined)}
+          >
+            <Label
+              content={({ viewBox }) => {
+                if (!viewBox || !("cx" in viewBox) || !("cy" in viewBox)) {
+                  return null;
+                }
+                return (
+                  <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                    {active ? (
+                      <>
+                        <tspan
+                          x={viewBox.cx}
+                          y={(viewBox.cy ?? 0) - 6}
+                          className="fill-foreground text-sm font-bold"
+                        >
+                          {active.value.toLocaleString()}
+                        </tspan>
+                        <tspan
+                          x={viewBox.cx}
+                          y={(viewBox.cy ?? 0) + 10}
+                          className="fill-muted-foreground text-[10px]"
+                        >
+                          {active.name}
+                        </tspan>
+                      </>
+                    ) : null}
+                  </text>
+                );
+              }}
+            />
+          </Pie>
+        </PieChart>
+      </ChartContainer>
+      <div className="mt-2 flex flex-wrap justify-center gap-x-3 gap-y-1">
+        {data.map((entry) => (
+          <div key={entry.name} className="flex items-center gap-1.5 text-xs">
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: entry.fill }}
+            />
+            <span className="text-muted-foreground">{entry.name}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function DomainDistributionChart({ data }: { data: DomainCount[] }) {
   const domainColors = useDomainColors();
 
@@ -464,9 +540,9 @@ function DomainDistributionChart({ data }: { data: DomainCount[] }) {
     return null;
   }
 
-  const chartConfig: ChartConfig = {};
-  const chartData = data.map((entry) => {
-    chartConfig[entry.domain] = {
+  const config: ChartConfig = {};
+  const chartData: DonutEntry[] = data.map((entry) => {
+    config[entry.domain] = {
       label: entry.domain,
       color: getDomainColor(entry.domain, domainColors),
     };
@@ -477,21 +553,7 @@ function DomainDistributionChart({ data }: { data: DomainCount[] }) {
     };
   });
 
-  return (
-    <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-36">
-      <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-        <Pie
-          data={chartData}
-          dataKey="value"
-          nameKey="name"
-          innerRadius="60%"
-          outerRadius="95%"
-          strokeWidth={2}
-        />
-      </PieChart>
-    </ChartContainer>
-  );
+  return <DistributionDonut data={chartData} config={config} />;
 }
 
 function RarityDistributionChart({ data }: { data: RarityCount[] }) {
@@ -501,29 +563,15 @@ function RarityDistributionChart({ data }: { data: RarityCount[] }) {
     return null;
   }
 
-  const chartConfig: ChartConfig = {};
-  const chartData = data.map((entry) => {
+  const config: ChartConfig = {};
+  const chartData: DonutEntry[] = data.map((entry) => {
     const label = labels.rarities[entry.rarity] ?? entry.rarity;
     const color = rarityColors[entry.rarity] ?? "var(--color-muted-foreground)";
-    chartConfig[entry.rarity] = { label, color };
-    return { name: entry.rarity, label, value: entry.count, fill: color };
+    config[entry.rarity] = { label, color };
+    return { name: label, value: entry.count, fill: color };
   });
 
-  return (
-    <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-36">
-      <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="label" />} />
-        <Pie
-          data={chartData}
-          dataKey="value"
-          nameKey="label"
-          innerRadius="60%"
-          outerRadius="95%"
-          strokeWidth={2}
-        />
-      </PieChart>
-    </ChartContainer>
-  );
+  return <DistributionDonut data={chartData} config={config} />;
 }
 
 const TYPE_CHART_COLORS = [
@@ -541,29 +589,15 @@ function TypeDistributionChart({ data }: { data: { type: string; total: number }
     return null;
   }
 
-  const chartConfig: ChartConfig = {};
-  const chartData = data.map((entry, index) => {
+  const config: ChartConfig = {};
+  const chartData: DonutEntry[] = data.map((entry, index) => {
     const label = labels.cardTypes[entry.type] ?? entry.type;
     const color = TYPE_CHART_COLORS[index % TYPE_CHART_COLORS.length];
-    chartConfig[entry.type] = { label, color };
-    return { name: entry.type, label, value: entry.total, fill: color };
+    config[entry.type] = { label, color };
+    return { name: label, value: entry.total, fill: color };
   });
 
-  return (
-    <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-36">
-      <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-        <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="label" />} />
-        <Pie
-          data={chartData}
-          dataKey="value"
-          nameKey="label"
-          innerRadius="60%"
-          outerRadius="95%"
-          strokeWidth={2}
-        />
-      </PieChart>
-    </ChartContainer>
-  );
+  return <DistributionDonut data={chartData} config={config} />;
 }
 
 // ── Price Extremes ────────────────────────────────────────────────────────
@@ -598,7 +632,16 @@ function PriceExtremes({
             </CardHeader>
             <CardContent className="flex items-center gap-3">
               {cheapest.thumbnail && (
-                <img src={cheapest.thumbnail} alt="" className="h-16 w-auto shrink-0 rounded" />
+                <HoverCard>
+                  <HoverCardTrigger>
+                    <img src={cheapest.thumbnail} alt="" className="h-32 w-auto shrink-0 rounded" />
+                  </HoverCardTrigger>
+                  {cheapest.fullImage && (
+                    <HoverCardContent side="right" className="w-auto p-1">
+                      <img src={cheapest.fullImage} alt="" className="h-80 w-auto rounded" />
+                    </HoverCardContent>
+                  )}
+                </HoverCard>
               )}
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{cheapest.name}</p>
@@ -625,11 +668,20 @@ function PriceExtremes({
             </CardHeader>
             <CardContent className="flex items-center gap-3">
               {mostExpensive.thumbnail && (
-                <img
-                  src={mostExpensive.thumbnail}
-                  alt=""
-                  className="h-16 w-auto shrink-0 rounded"
-                />
+                <HoverCard>
+                  <HoverCardTrigger>
+                    <img
+                      src={mostExpensive.thumbnail}
+                      alt=""
+                      className="h-32 w-auto shrink-0 rounded"
+                    />
+                  </HoverCardTrigger>
+                  {mostExpensive.fullImage && (
+                    <HoverCardContent side="left" className="w-auto p-1">
+                      <img src={mostExpensive.fullImage} alt="" className="h-80 w-auto rounded" />
+                    </HoverCardContent>
+                  )}
+                </HoverCard>
               )}
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium">{mostExpensive.name}</p>
@@ -855,11 +907,6 @@ function CollectionStatsContent() {
           <section className="space-y-4">
             <h2 className="text-base font-semibold">Stats</h2>
             <StatsHeroStats stats={stats} />
-            <PriceExtremes
-              cheapest={stats.cheapestPrinting}
-              mostExpensive={stats.mostExpensivePrinting}
-              formatPrice={stats.formatPrice}
-            />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Card>
                 <CardHeader>
@@ -886,6 +933,11 @@ function CollectionStatsContent() {
                 </CardContent>
               </Card>
             </div>
+            <PriceExtremes
+              cheapest={stats.cheapestPrinting}
+              mostExpensive={stats.mostExpensivePrinting}
+              formatPrice={stats.formatPrice}
+            />
 
             {(stats.energyCurve.length > 0 || stats.powerCurve.length > 0) && (
               <Card>
@@ -900,21 +952,6 @@ function CollectionStatsContent() {
                     powerData={stats.powerCurve}
                     powerStacks={stats.powerCurveStacks}
                     averagePower={stats.averagePower}
-                    singleColor
-                  />
-                </CardContent>
-              </Card>
-            )}
-
-            {stats.typeBreakdown.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Type Breakdown</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <TypeBreakdown
-                    data={stats.typeBreakdown}
-                    domains={stats.typeBreakdownDomains}
                     singleColor
                   />
                 </CardContent>

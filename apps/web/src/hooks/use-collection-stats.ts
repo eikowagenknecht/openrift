@@ -48,6 +48,7 @@ export interface PricedCard {
   setSlug: string;
   cardSlug: string;
   thumbnail?: string;
+  fullImage?: string;
 }
 
 export interface CollectionStats {
@@ -362,6 +363,7 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
           setSlug: stack.printing.setSlug,
           cardSlug: stack.printing.card.slug,
           thumbnail: stack.printing.images[0]?.thumbnail,
+          fullImage: stack.printing.images[0]?.full,
         };
       }
       if (mostExpensivePrinting === null || price > mostExpensivePrinting.price) {
@@ -372,6 +374,7 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
           setSlug: stack.printing.setSlug,
           cardSlug: stack.printing.card.slug,
           thumbnail: stack.printing.images[0]?.thumbnail,
+          fullImage: stack.printing.images[0]?.full,
         };
       }
     }
