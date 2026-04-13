@@ -15,7 +15,7 @@ import { useEffect, useRef } from "react";
 
 import { useSearchScopeStore } from "@/stores/search-scope-store";
 
-const filterParsers = {
+export const filterParsers = {
   search: parseAsString.withDefault(""),
   sets: parseAsArrayOf(parseAsString, ",").withDefault([]),
   languages: parseAsArrayOf(parseAsString, ",").withDefault([]),
