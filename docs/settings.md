@@ -102,13 +102,7 @@ These are set automatically by the test harness and should not be in `.env`.
 
 Feature flags gate incomplete or experimental features. They are stored in the `feature_flags` database table and managed from the admin panel at `/admin/feature-flags`. Changes take effect on the next page load with no rebuild needed.
 
-See [feature-flags.md](feature-flags.md) for the full lifecycle, code usage, and API details.
-
-### Current Flags
-
-| Flag         | Description                                                        |
-| ------------ | ------------------------------------------------------------------ |
-| `collection` | Enables the card collection UI (collection tracking, sidebar link) |
+See [feature-flags.md](feature-flags.md) for the full lifecycle, code usage, and API details. The canonical list of known flags lives in the `KNOWN_FLAGS` array in `apps/web/src/components/admin/feature-flags-page.tsx`.
 
 ## Site Settings
 
