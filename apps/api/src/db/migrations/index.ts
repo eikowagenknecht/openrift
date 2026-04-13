@@ -31,7 +31,6 @@ import * as m082 from "./082-set-type.js";
 import * as m083 from "./083-rename-card-images-to-media.js";
 import * as m084 from "./084-rarity-color.js";
 import * as m085 from "./085-materialized-views.js";
-import * as m086 from "./086-price-history-flag.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -122,5 +121,4 @@ export const migrations: Record<string, Migration> = {
   "083-rename-card-images-to-media": m083,
   "084-rarity-color": m084,
   "085-materialized-views": m085,
-  "086-price-history-flag": m086,
 };
