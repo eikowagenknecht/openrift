@@ -17,6 +17,7 @@ import {
 
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
+import { buildCopiesCursor } from "../../repositories/copies.js";
 import type { Variables } from "../../types.js";
 import { toCopy } from "../../utils/mappers.js";
 
@@ -90,15 +91,16 @@ export const copiesRoute = copiesApp
   .openapi(listCopies, async (c) => {
     const { copies } = c.get("repos");
     const { cursor, limit } = c.req.valid("query");
-    const effectiveLimit = limit ?? 500;
+    const effectiveLimit = limit ?? 1000;
 
     const rows = await copies.listForUser(getUserId(c), effectiveLimit, cursor);
     const hasMore = rows.length > effectiveLimit;
     const items = rows.slice(0, effectiveLimit);
+    const lastItem = items.at(-1);
 
     return c.json({
       items: items.map((row) => toCopy(row)),
-      nextCursor: hasMore ? (items.at(-1)?.createdAt.toISOString() ?? null) : null,
+      nextCursor: hasMore && lastItem ? buildCopiesCursor(lastItem.createdAt, lastItem.id) : null,
     } satisfies CopyListResponse);
   })
 

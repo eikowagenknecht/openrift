@@ -3,6 +3,7 @@
 ## 2026-04-13
 
 - feat: New "Cost to Complete" chart on the Statistics page shows how much you'd spend to reach 100% completion, with cards sorted cheapest-first so you can see where diminishing returns kick in
+- fix: Collections with many cards added at the same time no longer risk skipping some cards when loading your collection
 
 ## 2026-04-12
 
