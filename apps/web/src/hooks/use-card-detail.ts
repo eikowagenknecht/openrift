@@ -23,9 +23,10 @@ const fetchCardDetail = createServerFn({ method: "GET" })
       }),
   );
 
-interface EnrichedCardDetail {
+export interface EnrichedCardDetail {
   card: CardDetailResponse["card"];
   printings: Printing[];
+  setOrderMap: Map<string, number>;
   sets: CardDetailResponse["sets"];
 }
 
@@ -45,7 +46,7 @@ function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
         { ...b, setOrder: setOrderMap.get(b.setId), promoTypeSlug: b.promoType?.slug },
       ),
     );
-  return { card: response.card, printings, sets: response.sets };
+  return { card: response.card, printings, setOrderMap, sets: response.sets };
 }
 
 /** @returns Query options for a single card detail, enriched with set slugs. */

@@ -169,6 +169,7 @@ export {
   formatShortCodes,
   getOrientation,
   groupPrintingsByCardId,
+  preferredPrinting,
   mostCommonValue,
   normalizeNameForMatching,
   slugifyName,

@@ -1,5 +1,11 @@
 import type { CardErrata, Marketplace, Printing, TimeRange } from "@openrift/shared";
-import { ALL_MARKETPLACES, EUR_MARKETPLACES, snapshotHeadline, WellKnown } from "@openrift/shared";
+import {
+  ALL_MARKETPLACES,
+  EUR_MARKETPLACES,
+  preferredPrinting,
+  snapshotHeadline,
+  WellKnown,
+} from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import {
@@ -35,8 +41,11 @@ export const Route = createLazyFileRoute("/_app/cards_/$cardSlug")({
 function CardDetailPage() {
   const { cardSlug } = Route.useParams();
   const { data } = useSuspenseQuery(cardDetailQueryOptions(cardSlug));
-  const { card, printings, sets } = data;
-  const [selectedPrinting, setSelectedPrinting] = useState<Printing>(printings[0]);
+  const { card, printings, setOrderMap, sets } = data;
+  const languages = useDisplayStore((state) => state.languages);
+  const [selectedPrinting, setSelectedPrinting] = useState<Printing>(
+    () => preferredPrinting(printings, setOrderMap, languages) ?? printings[0],
+  );
   const setById = new Map(sets.map((s) => [s.id, s]));
   const domainColors = useDomainColors();
   const languageLabels = useLanguageLabels();

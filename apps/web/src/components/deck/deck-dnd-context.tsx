@@ -13,7 +13,7 @@ import type { DeckZone } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import { useCards } from "@/hooks/use-cards";
+import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 
@@ -285,15 +285,10 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     dragInfo !== null &&
     (dragInfo.fromBrowser ? browserRemaining > 1 : dragInfo.quantity > 1);
 
-  const { printingsByCardId } = useCards();
-  const dragImageUrl = (() => {
-    if (!dragInfo) {
-      return null;
-    }
-    const printing = printingsByCardId.get(dragInfo.cardId)?.[0];
-    const frontImage = printing?.images.find((img) => img.face === "front");
-    return frontImage?.thumbnail ?? null;
-  })();
+  const { getPreferredFrontImage } = usePreferredPrinting();
+  const dragImageUrl = dragInfo
+    ? (getPreferredFrontImage(dragInfo.cardId)?.thumbnail ?? null)
+    : null;
 
   const dragCount = moveAll
     ? dragInfo?.fromBrowser
