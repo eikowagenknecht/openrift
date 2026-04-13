@@ -1,7 +1,7 @@
 import type { APIRequestContext } from "@playwright/test";
 import type postgres from "postgres";
 
-import { API_BASE_URL, TEST_USERS } from "./constants.js";
+import { API_BASE_URL, TEST_USERS, WEB_BASE_URL } from "./constants.js";
 
 /**
  * Sign up a test user via the better-auth API, bypass email verification
@@ -13,8 +13,11 @@ async function setupTestUser(
   user: { email: string; password: string; name: string },
   storageStatePath: string,
 ) {
+  const headers = { Origin: WEB_BASE_URL };
+
   // 1. Sign up via the real auth endpoint
   const signUpResponse = await request.post(`${API_BASE_URL}/api/auth/sign-up/email`, {
+    headers,
     data: { email: user.email, password: user.password, name: user.name },
   });
 
@@ -28,6 +31,7 @@ async function setupTestUser(
 
   // 3. Sign in to get session cookies
   const signInResponse = await request.post(`${API_BASE_URL}/api/auth/sign-in/email`, {
+    headers,
     data: { email: user.email, password: user.password },
   });
 
