@@ -1,15 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
 
 import { CardBrowser } from "@/components/card-browser";
 import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { catalogQueryOptions } from "@/hooks/use-cards";
 import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
+import { FilterSearchProvider, filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
+const cardsSearchSchema = filterSearchSchema.extend({
+  printingId: z.string().optional(),
+});
+
 export const Route = createFileRoute("/_app/cards")({
+  validateSearch: cardsSearchSchema,
   head: () =>
     seoHead({
       siteUrl: getSiteUrl(),
@@ -25,11 +32,14 @@ export const Route = createFileRoute("/_app/cards")({
 });
 
 function CardsPage() {
+  const search = Route.useSearch();
   useHideScrollbar();
   return (
-    <div className={`flex flex-1 flex-col ${PAGE_PADDING_NO_TOP}`}>
-      <CardBrowser />
-    </div>
+    <FilterSearchProvider value={search}>
+      <div className={`flex flex-1 flex-col ${PAGE_PADDING_NO_TOP}`}>
+        <CardBrowser />
+      </div>
+    </FilterSearchProvider>
   );
 }
 

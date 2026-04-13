@@ -1,16 +1,15 @@
 import { renderHook, act } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { createElement } from "react";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
-// Mock nuqs — track the state and setFilterState calls
-const mockSetFilterState = vi.fn();
-let mockFilterState: Record<string, unknown> = {};
+// Mock TanStack Router — track navigate calls
+const mockNavigate = vi.fn();
 
-vi.mock("nuqs", () => ({
-  parseAsString: { withDefault: (d: string) => d },
-  parseAsArrayOf: (_p: unknown, _sep: string) => ({ withDefault: (d: unknown[]) => d }),
-  parseAsInteger: null,
-  parseAsFloat: null,
-  useQueryStates: () => [mockFilterState, mockSetFilterState],
+vi.mock("@tanstack/react-router", () => ({
+  useRouter: () => ({
+    navigate: mockNavigate,
+  }),
 }));
 
 // Mock useSearchScopeStore
@@ -21,49 +20,48 @@ vi.mock("@/stores/search-scope-store", () => ({
 }));
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
+import { FilterSearchProvider } from "@/lib/search-schemas";
+
+// oxlint-disable-next-line import/first -- must import after vi.mock
 import { useCardFilters } from "./use-card-filters";
 
-function defaultFilterState() {
-  return {
-    search: "",
-    sets: [],
-    languages: [],
-    rarities: [],
-    types: [],
-    superTypes: [],
-    domains: [],
-    artVariants: [],
-    finishes: [],
-    energyMin: null,
-    energyMax: null,
-    mightMin: null,
-    mightMax: null,
-    powerMin: null,
-    powerMax: null,
-    priceMin: null,
-    priceMax: null,
-    owned: null,
-    signed: null,
-    promo: null,
-    banned: null,
-    errata: null,
-    sort: "id",
-    sortDir: "asc",
-    view: "cards",
-    groupBy: "set",
-    groupDir: "asc",
-  };
+let mockSearch: Record<string, unknown> = {};
+
+/**
+ * Wrapper that provides FilterSearchProvider with the current mock search state.
+ * @returns The wrapped component.
+ */
+function wrapper({ children }: { children: ReactNode }) {
+  return createElement(FilterSearchProvider, { value: mockSearch }, children);
+}
+
+function defaultSearchState() {
+  return {};
+}
+
+/**
+ * Extract the resolved `search` value from the most recent `router.navigate` call.
+ * Handles both plain objects and `(prev) => next` callback forms.
+ * @returns The search params from the last navigate call.
+ */
+function lastNavigateSearch(): Record<string, unknown> {
+  const call = mockNavigate.mock.calls.at(-1)?.[0];
+  const search = call?.search;
+  if (typeof search === "function") {
+    return search(mockSearch) as Record<string, unknown>;
+  }
+  return search ?? {};
 }
 
 describe("useCardFilters", () => {
   beforeEach(() => {
-    mockFilterState = defaultFilterState();
-    mockSetFilterState.mockClear();
+    mockSearch = defaultSearchState();
+    mockNavigate.mockClear();
     mockToggleSearchField.mockClear();
   });
 
   it("returns default filters when no URL params are set", () => {
-    const { result } = renderHook(() => useCardFilters());
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     expect(result.current.filters.search).toBe("");
     expect(result.current.filters.sets).toEqual([]);
@@ -73,238 +71,212 @@ describe("useCardFilters", () => {
   });
 
   it("detects active filters when search is non-empty", () => {
-    mockFilterState = { ...defaultFilterState(), search: "dragon" };
-    const { result } = renderHook(() => useCardFilters());
+    mockSearch = { search: "dragon" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
   it("detects active filters when arrays are non-empty", () => {
-    mockFilterState = { ...defaultFilterState(), rarities: ["Rare"] };
-    const { result } = renderHook(() => useCardFilters());
+    mockSearch = { rarities: ["Rare"] };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
   it("detects active filters when a range min is set", () => {
-    mockFilterState = { ...defaultFilterState(), energyMin: 3 };
-    const { result } = renderHook(() => useCardFilters());
+    mockSearch = { energyMin: 3 };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
-  it("setSearch calls setFilterState with search value", () => {
-    const { result } = renderHook(() => useCardFilters());
+  it("setSearch calls navigate with search value", () => {
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.setSearch("dragon"));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ search: "dragon" });
+    expect(lastNavigateSearch()).toMatchObject({ search: "dragon" });
   });
 
-  it("setSearch passes null for empty string", () => {
-    const { result } = renderHook(() => useCardFilters());
+  it("setSearch strips search key for empty string", () => {
+    mockSearch = { search: "old" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.setSearch(""));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ search: null });
+    expect(lastNavigateSearch()).not.toHaveProperty("search");
   });
 
   it("toggleArrayFilter adds a value to an empty array", () => {
-    const { result } = renderHook(() => useCardFilters());
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.toggleArrayFilter("sets", "RB1"));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ sets: ["RB1"] });
+    expect(lastNavigateSearch()).toMatchObject({ sets: ["RB1"] });
   });
 
   it("toggleArrayFilter removes a value that already exists", () => {
-    mockFilterState = { ...defaultFilterState(), sets: ["RB1", "RB2"] };
-    const { result } = renderHook(() => useCardFilters());
+    mockSearch = { sets: ["RB1", "RB2"] };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.toggleArrayFilter("sets", "RB1"));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ sets: ["RB2"] });
+    expect(lastNavigateSearch()).toMatchObject({ sets: ["RB2"] });
   });
 
-  it("toggleArrayFilter passes null when removing the last value", () => {
-    mockFilterState = { ...defaultFilterState(), rarities: ["Rare"] };
-    const { result } = renderHook(() => useCardFilters());
+  it("toggleArrayFilter strips key when removing the last value", () => {
+    mockSearch = { rarities: ["Rare"] };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.toggleArrayFilter("rarities", "Rare"));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ rarities: null });
+    expect(lastNavigateSearch()).not.toHaveProperty("rarities");
   });
 
-  it("clearAllFilters resets all filter state to null", () => {
-    mockFilterState = {
-      ...defaultFilterState(),
-      search: "test",
-      sets: ["RB1"],
-      energyMin: 2,
-    };
-    const { result } = renderHook(() => useCardFilters());
+  it("clearAllFilters removes all filter keys from search", () => {
+    mockSearch = { search: "test", sets: ["RB1"], energyMin: 2 };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.clearAllFilters());
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({
-      search: null,
-      sets: null,
-      languages: null,
-      rarities: null,
-      types: null,
-      superTypes: null,
-      domains: null,
-      artVariants: null,
-      finishes: null,
-      energyMin: null,
-      energyMax: null,
-      mightMin: null,
-      mightMax: null,
-      powerMin: null,
-      powerMax: null,
-      priceMin: null,
-      priceMax: null,
-      owned: null,
-      signed: null,
-      promo: null,
-      banned: null,
-      errata: null,
-      sort: null,
-      sortDir: null,
-    });
+    const search = lastNavigateSearch();
+    expect(search).not.toHaveProperty("search");
+    expect(search).not.toHaveProperty("sets");
+    expect(search).not.toHaveProperty("energyMin");
   });
 
   it("setRange sets both min and max for energy", () => {
-    const { result } = renderHook(() => useCardFilters());
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.setRange("energy", 1, 5));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ energyMin: 1, energyMax: 5 });
+    expect(lastNavigateSearch()).toMatchObject({ energyMin: 1, energyMax: 5 });
   });
 
   it("setRange sets both min and max for might", () => {
-    const { result } = renderHook(() => useCardFilters());
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.setRange("might", 2, 8));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ mightMin: 2, mightMax: 8 });
+    expect(lastNavigateSearch()).toMatchObject({ mightMin: 2, mightMax: 8 });
   });
 
   it("setRange sets both min and max for power", () => {
-    const { result } = renderHook(() => useCardFilters());
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.setRange("power", 0, 10));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ powerMin: 0, powerMax: 10 });
+    expect(lastNavigateSearch()).toMatchObject({ powerMin: 0, powerMax: 10 });
   });
 
   it("setRange sets both min and max for price", () => {
-    const { result } = renderHook(() => useCardFilters());
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.setRange("price", 0.5, 99.99));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ priceMin: 0.5, priceMax: 99.99 });
+    expect(lastNavigateSearch()).toMatchObject({ priceMin: 0.5, priceMax: 99.99 });
   });
 
   it("toggleSigned cycles null → 'true' → 'false' → null", () => {
-    const { result } = renderHook(() => useCardFilters());
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.toggleSigned());
-    expect(mockSetFilterState).toHaveBeenCalledWith({ signed: "true" });
+    expect(lastNavigateSearch()).toMatchObject({ signed: "true" });
 
-    mockFilterState = { ...defaultFilterState(), signed: "true" };
-    mockSetFilterState.mockClear();
-    const { result: r2 } = renderHook(() => useCardFilters());
+    mockSearch = { signed: "true" };
+    mockNavigate.mockClear();
+    const { result: r2 } = renderHook(() => useCardFilters(), { wrapper });
     act(() => r2.current.toggleSigned());
-    expect(mockSetFilterState).toHaveBeenCalledWith({ signed: "false" });
+    expect(lastNavigateSearch()).toMatchObject({ signed: "false" });
 
-    mockFilterState = { ...defaultFilterState(), signed: "false" };
-    mockSetFilterState.mockClear();
-    const { result: r3 } = renderHook(() => useCardFilters());
+    mockSearch = { signed: "false" };
+    mockNavigate.mockClear();
+    const { result: r3 } = renderHook(() => useCardFilters(), { wrapper });
     act(() => r3.current.toggleSigned());
-    expect(mockSetFilterState).toHaveBeenCalledWith({ signed: null });
+    expect(lastNavigateSearch()).not.toHaveProperty("signed");
   });
 
-  it("clearSigned resets signed to null", () => {
-    mockFilterState = { ...defaultFilterState(), signed: "false" };
-    const { result } = renderHook(() => useCardFilters());
+  it("clearSigned removes signed from search", () => {
+    mockSearch = { signed: "false" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.clearSigned());
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ signed: null });
+    expect(lastNavigateSearch()).not.toHaveProperty("signed");
   });
 
   it("togglePromo cycles null → 'true' → 'false' → null", () => {
-    const { result } = renderHook(() => useCardFilters());
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.togglePromo());
-    expect(mockSetFilterState).toHaveBeenCalledWith({ promo: "true" });
+    expect(lastNavigateSearch()).toMatchObject({ promo: "true" });
 
-    mockFilterState = { ...defaultFilterState(), promo: "true" };
-    mockSetFilterState.mockClear();
-    const { result: r2 } = renderHook(() => useCardFilters());
+    mockSearch = { promo: "true" };
+    mockNavigate.mockClear();
+    const { result: r2 } = renderHook(() => useCardFilters(), { wrapper });
     act(() => r2.current.togglePromo());
-    expect(mockSetFilterState).toHaveBeenCalledWith({ promo: "false" });
+    expect(lastNavigateSearch()).toMatchObject({ promo: "false" });
 
-    mockFilterState = { ...defaultFilterState(), promo: "false" };
-    mockSetFilterState.mockClear();
-    const { result: r3 } = renderHook(() => useCardFilters());
+    mockSearch = { promo: "false" };
+    mockNavigate.mockClear();
+    const { result: r3 } = renderHook(() => useCardFilters(), { wrapper });
     act(() => r3.current.togglePromo());
-    expect(mockSetFilterState).toHaveBeenCalledWith({ promo: null });
+    expect(lastNavigateSearch()).not.toHaveProperty("promo");
   });
 
-  it("clearPromo resets promo to null", () => {
-    mockFilterState = { ...defaultFilterState(), promo: "false" };
-    const { result } = renderHook(() => useCardFilters());
+  it("clearPromo removes promo from search", () => {
+    mockSearch = { promo: "false" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.clearPromo());
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ promo: null });
+    expect(lastNavigateSearch()).not.toHaveProperty("promo");
   });
 
   it("detects active filters when signed is set", () => {
-    mockFilterState = { ...defaultFilterState(), signed: "true" };
-    const { result } = renderHook(() => useCardFilters());
+    mockSearch = { signed: "true" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
   it("detects active filters when promo is set", () => {
-    mockFilterState = { ...defaultFilterState(), promo: "true" };
-    const { result } = renderHook(() => useCardFilters());
+    mockSearch = { promo: "true" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
-  it("setSortBy passes null for default sort ('id')", () => {
-    const { result } = renderHook(() => useCardFilters());
+  it("setSortBy strips key for default sort ('id')", () => {
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.setSortBy("id"));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ sort: null });
+    expect(lastNavigateSearch()).not.toHaveProperty("sort");
   });
 
   it("setSortBy passes the sort option for non-default values", () => {
-    const { result } = renderHook(() => useCardFilters());
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.setSortBy("name"));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ sort: "name" });
+    expect(lastNavigateSearch()).toMatchObject({ sort: "name" });
   });
 
-  it("setSortDir passes null for default direction ('asc')", () => {
-    const { result } = renderHook(() => useCardFilters());
+  it("setSortDir strips key for default direction ('asc')", () => {
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.setSortDir("asc"));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ sortDir: null });
+    expect(lastNavigateSearch()).not.toHaveProperty("sortDir");
   });
 
   it("setSortDir passes the direction for 'desc'", () => {
-    const { result } = renderHook(() => useCardFilters());
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.setSortDir("desc"));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ sortDir: "desc" });
+    expect(lastNavigateSearch()).toMatchObject({ sortDir: "desc" });
   });
 
   it("exposes searchScope and toggleSearchField from useSearchScope", () => {
-    const { result } = renderHook(() => useCardFilters());
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     expect(result.current.searchScope).toEqual(["name"]);
 
@@ -313,74 +285,42 @@ describe("useCardFilters", () => {
     expect(mockToggleSearchField).toHaveBeenCalledWith("cardText");
   });
 
-  it("setView passes null for default view ('cards')", () => {
-    const { result } = renderHook(() => useCardFilters());
+  it("setView strips key for default view ('cards')", () => {
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.setView("cards"));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ view: null });
+    expect(lastNavigateSearch()).not.toHaveProperty("view");
   });
 
   it("setView passes the view value for 'printings'", () => {
-    const { result } = renderHook(() => useCardFilters());
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.setView("printings"));
 
-    expect(mockSetFilterState).toHaveBeenCalledWith({ view: "printings" });
+    expect(lastNavigateSearch()).toMatchObject({ view: "printings" });
   });
 
   it("exposes view from filterState", () => {
-    mockFilterState = { ...defaultFilterState(), view: "printings" };
-    const { result } = renderHook(() => useCardFilters());
+    mockSearch = { view: "printings" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
     expect(result.current.view).toBe("printings");
   });
 
-  it("pending ref effect clears entries when filterState catches up", () => {
-    // Start with empty types, toggle to add "Unit"
-    mockFilterState = { ...defaultFilterState(), types: [] };
-    const { result, rerender } = renderHook(() => useCardFilters());
+  it("toggleArrayFilter reads latest router state for sequential calls", () => {
+    mockSearch = {};
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
 
+    // First toggle: adds "Unit"
     act(() => result.current.toggleArrayFilter("types", "Unit"));
-    expect(mockSetFilterState).toHaveBeenCalledWith({ types: ["Unit"] });
+    expect(lastNavigateSearch()).toMatchObject({ types: ["Unit"] });
 
-    // Simulate nuqs catching up — filterState now includes "Unit"
-    mockFilterState = { ...defaultFilterState(), types: ["Unit"] };
-    rerender();
+    // Simulate router state updating synchronously after navigate
+    mockSearch = { types: ["Unit"] };
+    mockNavigate.mockClear();
 
-    // After rerender the pending ref should have been cleared.
-    // Toggling "Spell" should now base off filterState (["Unit"]), not a stale pending ref.
-    mockSetFilterState.mockClear();
+    // Second toggle: should see ["Unit"] and add "Spell"
     act(() => result.current.toggleArrayFilter("types", "Spell"));
-    expect(mockSetFilterState).toHaveBeenCalledWith({ types: ["Unit", "Spell"] });
-  });
-
-  it("pending ref effect keeps entry when filterState has not caught up", () => {
-    mockFilterState = { ...defaultFilterState(), types: [] };
-    const { result, rerender } = renderHook(() => useCardFilters());
-
-    act(() => result.current.toggleArrayFilter("types", "Unit"));
-
-    // filterState does NOT update (nuqs hasn't flushed yet)
-    rerender();
-
-    // Pending ref should still hold ["Unit"], so toggling "Spell" should produce ["Unit", "Spell"]
-    mockSetFilterState.mockClear();
-    act(() => result.current.toggleArrayFilter("types", "Spell"));
-    expect(mockSetFilterState).toHaveBeenCalledWith({ types: ["Unit", "Spell"] });
-  });
-
-  it("toggleArrayFilter uses pending ref for rapid successive calls", () => {
-    mockFilterState = { ...defaultFilterState(), types: [] };
-    const { result } = renderHook(() => useCardFilters());
-
-    // Rapid successive toggles before filterState updates from nuqs
-    act(() => {
-      result.current.toggleArrayFilter("types", "Unit");
-      result.current.toggleArrayFilter("types", "Spell");
-    });
-
-    // Second call should include both — the pending ref tracks the intermediate state
-    expect(mockSetFilterState).toHaveBeenCalledTimes(2);
-    expect(mockSetFilterState).toHaveBeenLastCalledWith({ types: ["Unit", "Spell"] });
+    expect(lastNavigateSearch()).toMatchObject({ types: ["Unit", "Spell"] });
   });
 });

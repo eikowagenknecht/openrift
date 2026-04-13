@@ -10,40 +10,11 @@ import type {
   SortOption,
   SuperType,
 } from "@openrift/shared";
-import { parseAsArrayOf, parseAsFloat, parseAsInteger, parseAsString, useQueryStates } from "nuqs";
-import { useEffect, useRef } from "react";
+import { useRouter } from "@tanstack/react-router";
 
+import type { FilterSearch } from "@/lib/search-schemas";
+import { useFilterSearch } from "@/lib/search-schemas";
 import { useSearchScopeStore } from "@/stores/search-scope-store";
-
-const filterParsers = {
-  search: parseAsString.withDefault(""),
-  sets: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  languages: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  rarities: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  types: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  superTypes: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  domains: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  artVariants: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  finishes: parseAsArrayOf(parseAsString, ",").withDefault([]),
-  energyMin: parseAsInteger,
-  energyMax: parseAsInteger,
-  mightMin: parseAsInteger,
-  mightMax: parseAsInteger,
-  powerMin: parseAsInteger,
-  powerMax: parseAsInteger,
-  priceMin: parseAsFloat,
-  priceMax: parseAsFloat,
-  owned: parseAsString,
-  signed: parseAsString,
-  promo: parseAsString,
-  banned: parseAsString,
-  errata: parseAsString,
-  sort: parseAsString.withDefault("id"),
-  sortDir: parseAsString.withDefault("asc"),
-  view: parseAsString.withDefault("cards"),
-  groupBy: parseAsString.withDefault("set"),
-  groupDir: parseAsString.withDefault("asc"),
-};
 
 type ArrayKey =
   | "sets"
@@ -56,6 +27,44 @@ type ArrayKey =
   | "finishes";
 
 /**
+ * Build a `filterState` object from raw search params that matches the shape
+ * consumers expect (defaults applied, `undefined` mapped to `null` for
+ * nullable fields).
+ * @returns The filter state with defaults applied.
+ */
+function toFilterState(raw: FilterSearch) {
+  return {
+    search: raw.search ?? "",
+    sets: raw.sets ?? [],
+    languages: raw.languages ?? [],
+    rarities: raw.rarities ?? [],
+    types: raw.types ?? [],
+    superTypes: raw.superTypes ?? [],
+    domains: raw.domains ?? [],
+    artVariants: raw.artVariants ?? [],
+    finishes: raw.finishes ?? [],
+    energyMin: raw.energyMin ?? null,
+    energyMax: raw.energyMax ?? null,
+    mightMin: raw.mightMin ?? null,
+    mightMax: raw.mightMax ?? null,
+    powerMin: raw.powerMin ?? null,
+    powerMax: raw.powerMax ?? null,
+    priceMin: raw.priceMin ?? null,
+    priceMax: raw.priceMax ?? null,
+    owned: raw.owned ?? null,
+    signed: raw.signed ?? null,
+    promo: raw.promo ?? null,
+    banned: raw.banned ?? null,
+    errata: raw.errata ?? null,
+    sort: raw.sort ?? "id",
+    sortDir: raw.sortDir ?? "asc",
+    view: raw.view ?? "cards",
+    groupBy: raw.groupBy ?? "set",
+    groupDir: raw.groupDir ?? "asc",
+  };
+}
+
+/**
  * Returns the read-only filter, sort, and view state derived from URL query
  * parameters. Components that only need to read (not write) filter state should
  * prefer this hook — it avoids subscribing to the setter functions, which are
@@ -63,9 +72,8 @@ type ArrayKey =
  * @returns The current filter, sort, and view state.
  */
 export function useFilterValues() {
-  const [filterState] = useQueryStates(filterParsers, {
-    history: "push",
-  });
+  const raw = useFilterSearch();
+  const filterState = toFilterState(raw);
   const searchScope = useSearchScopeStore((s) => s.scope);
 
   const filters = {
@@ -145,155 +153,148 @@ export function useFilterValues() {
 /**
  * Returns only the setter / action functions for filter state.
  *
- * NOTE: This hook still subscribes to `filterState` values internally (for
- * `toggleSigned`, `togglePromo`, and the `pendingRef` sync effect), so it
- * will re-render when filter values change. The benefit over `useCardFilters`
- * is that it does not compute derived state (`filters`, `ranges`, etc.).
- *
- * The `pendingRef` / `useEffect` coordination for `toggleArrayFilter` lives
- * here because it is tightly coupled to the setter logic.
+ * Uses TanStack Router's `navigate({ search: (prev) => ... })` for updates.
+ * The `prev` callback always receives the latest router state, so rapid clicks
+ * are handled correctly without a pending-state workaround.
  * @returns The filter action functions.
  */
 export function useFilterActions() {
-  const [filterState, setFilterState] = useQueryStates(filterParsers, {
-    history: "push",
-  });
+  const raw = useFilterSearch();
+  const filterState = toFilterState(raw);
+  const router = useRouter();
   const toggleSearchField = useSearchScopeStore((s) => s.toggleField);
   const selectAllSearchFields = useSearchScopeStore((s) => s.selectAll);
   const selectOnlySearchField = useSearchScopeStore((s) => s.selectOnly);
 
-  // nuqs uses startTransition for history pushes, so filterState may lag behind
-  // rapid successive clicks. Track the latest intended array values in a ref so
-  // toggleArrayFilter always operates on the most recently written state.
-  const pendingRef = useRef<Partial<Record<ArrayKey, string[]>>>({});
-
-  // Clear pending entries once filterState has caught up from the URL.
-  useEffect(() => {
-    const keys = Object.keys(pendingRef.current) as ArrayKey[];
-    for (const key of keys) {
-      const pending = pendingRef.current[key];
-      if (!pending) {
-        continue;
-      }
-      const synced = filterState[key];
-      const pendingSorted = pending.toSorted();
-      const syncedSorted = synced.toSorted();
-      if (
-        pendingSorted.length === syncedSorted.length &&
-        pendingSorted.every((v, i) => v === syncedSorted[i])
-      ) {
-        pendingRef.current[key] = undefined;
-      }
-    }
-  }, [filterState]);
+  /** Merge a partial update into the current search params via the router. */
+  const updateSearch = (patch: Partial<FilterSearch>) => {
+    void router.navigate({
+      to: ".",
+      search: (prev) =>
+        Object.fromEntries(
+          Object.entries({ ...prev, ...patch }).filter(([, v]) => v !== undefined),
+        ),
+    });
+  };
 
   const clearAllFilters = () => {
-    void setFilterState({
-      search: null,
-      sets: null,
-      languages: null,
-      rarities: null,
-      types: null,
-      superTypes: null,
-      domains: null,
-      artVariants: null,
-      finishes: null,
-      energyMin: null,
-      energyMax: null,
-      mightMin: null,
-      mightMax: null,
-      powerMin: null,
-      powerMax: null,
-      priceMin: null,
-      priceMax: null,
-      owned: null,
-      signed: null,
-      promo: null,
-      banned: null,
-      errata: null,
-      sort: null,
-      sortDir: null,
+    updateSearch({
+      search: undefined,
+      sets: undefined,
+      languages: undefined,
+      rarities: undefined,
+      types: undefined,
+      superTypes: undefined,
+      domains: undefined,
+      artVariants: undefined,
+      finishes: undefined,
+      energyMin: undefined,
+      energyMax: undefined,
+      mightMin: undefined,
+      mightMax: undefined,
+      powerMin: undefined,
+      powerMax: undefined,
+      priceMin: undefined,
+      priceMax: undefined,
+      owned: undefined,
+      signed: undefined,
+      promo: undefined,
+      banned: undefined,
+      errata: undefined,
+      sort: undefined,
+      sortDir: undefined,
     });
   };
 
   const setSearch = (search: string) => {
-    void setFilterState({ search: search || null });
+    updateSearch({ search: search || undefined });
   };
 
   const toggleArrayFilter = (key: ArrayKey, value: string) => {
-    const current = pendingRef.current[key] ?? filterState[key];
-    const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
-    pendingRef.current[key] = next;
-    void setFilterState({ [key]: next.length > 0 ? next : null });
+    void router.navigate({
+      to: ".",
+      search: (prev) => {
+        const current = (prev[key as keyof typeof prev] as string[] | undefined) ?? [];
+        const next = current.includes(value)
+          ? current.filter((v) => v !== value)
+          : [...current, value];
+        return Object.fromEntries(
+          Object.entries({ ...prev, [key]: next.length > 0 ? next : undefined }).filter(
+            ([, v]) => v !== undefined,
+          ),
+        );
+      },
+    });
   };
 
   const setArrayFilter = (key: ArrayKey, values: string[]) => {
-    pendingRef.current[key] = values;
-    void setFilterState({ [key]: values.length > 0 ? values : null });
+    updateSearch({ [key]: values.length > 0 ? values : undefined });
   };
 
   const setArrayFilters = (updates: Partial<Record<ArrayKey, string[]>>) => {
-    const patch: Record<string, string[] | null> = {};
+    const patch: Partial<FilterSearch> = {};
     for (const [key, values] of Object.entries(updates) as [ArrayKey, string[]][]) {
-      pendingRef.current[key] = values;
-      patch[key] = values.length > 0 ? values : null;
+      (patch as Record<string, unknown>)[key] = values.length > 0 ? values : undefined;
     }
-    void setFilterState(patch);
+    updateSearch(patch);
   };
 
   const setRange = (key: RangeKey, min: number | null, max: number | null) =>
-    void setFilterState({ [`${key}Min`]: min, [`${key}Max`]: max });
+    updateSearch({
+      [`${key}Min`]: min ?? undefined,
+      [`${key}Max`]: max ?? undefined,
+    } as Partial<FilterSearch>);
 
   const toggleOwned = () => {
     const next =
-      filterState.owned === null ? "true" : filterState.owned === "true" ? "false" : null;
-    void setFilterState({ owned: next });
+      filterState.owned === null ? "true" : filterState.owned === "true" ? "false" : undefined;
+    updateSearch({ owned: next });
   };
-  const clearOwned = () => void setFilterState({ owned: null });
+  const clearOwned = () => updateSearch({ owned: undefined });
 
   const toggleSigned = () => {
     const next =
-      filterState.signed === null ? "true" : filterState.signed === "true" ? "false" : null;
-    void setFilterState({ signed: next });
+      filterState.signed === null ? "true" : filterState.signed === "true" ? "false" : undefined;
+    updateSearch({ signed: next });
   };
   const togglePromo = () => {
     const next =
-      filterState.promo === null ? "true" : filterState.promo === "true" ? "false" : null;
-    void setFilterState({ promo: next });
+      filterState.promo === null ? "true" : filterState.promo === "true" ? "false" : undefined;
+    updateSearch({ promo: next });
   };
-  const clearSigned = () => void setFilterState({ signed: null });
-  const clearPromo = () => void setFilterState({ promo: null });
+  const clearSigned = () => updateSearch({ signed: undefined });
+  const clearPromo = () => updateSearch({ promo: undefined });
   const toggleBanned = () => {
     const next =
-      filterState.banned === null ? "true" : filterState.banned === "true" ? "false" : null;
-    void setFilterState({ banned: next });
+      filterState.banned === null ? "true" : filterState.banned === "true" ? "false" : undefined;
+    updateSearch({ banned: next });
   };
   const toggleErrata = () => {
     const next =
-      filterState.errata === null ? "true" : filterState.errata === "true" ? "false" : null;
-    void setFilterState({ errata: next });
+      filterState.errata === null ? "true" : filterState.errata === "true" ? "false" : undefined;
+    updateSearch({ errata: next });
   };
-  const clearBanned = () => void setFilterState({ banned: null });
-  const clearErrata = () => void setFilterState({ errata: null });
+  const clearBanned = () => updateSearch({ banned: undefined });
+  const clearErrata = () => updateSearch({ errata: undefined });
 
   const setSortBy = (sort: SortOption) => {
-    void setFilterState({ sort: sort === "id" ? null : sort });
+    updateSearch({ sort: sort === "id" ? undefined : sort });
   };
 
   const setSortDir = (dir: SortDirection) => {
-    void setFilterState({ sortDir: dir === "asc" ? null : dir });
+    updateSearch({ sortDir: dir === "asc" ? undefined : dir });
   };
 
   const setView = (v: "cards" | "printings" | "copies") => {
-    void setFilterState({ view: v === "cards" ? null : v });
+    updateSearch({ view: v === "cards" ? undefined : v });
   };
 
   const setGroupBy = (groupBy: GroupByField) => {
-    void setFilterState({ groupBy: groupBy === "set" ? null : groupBy });
+    updateSearch({ groupBy: groupBy === "set" ? undefined : groupBy });
   };
 
   const setGroupDir = (dir: SortDirection) => {
-    void setFilterState({ groupDir: dir === "asc" ? null : dir });
+    updateSearch({ groupDir: dir === "asc" ? undefined : dir });
   };
 
   return {

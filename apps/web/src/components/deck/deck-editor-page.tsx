@@ -235,8 +235,7 @@ function DeckEditorContent({
 
   const handleZoneClick = (zone: DeckZone) => {
     // Clear search from a previous zone (e.g. champion tag search),
-    // then apply the new preset. Runs in an event handler so nuqs
-    // commits synchronously (no leaking to other pages).
+    // then apply the new preset.
     setSearch("");
 
     const legend = deckCards.find((card) => card.zone === "legend");

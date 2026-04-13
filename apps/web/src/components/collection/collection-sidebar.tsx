@@ -1,5 +1,5 @@
 import { useDndContext } from "@dnd-kit/core";
-import { Link, useMatches, useParams } from "@tanstack/react-router";
+import { Link, useMatches, useParams, useSearch } from "@tanstack/react-router";
 import {
   BookOpenIcon,
   ChartBarIcon,
@@ -10,7 +10,6 @@ import {
   PlusIcon,
   XIcon,
 } from "lucide-react";
-import { parseAsBoolean, useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -51,7 +50,8 @@ export function CollectionSidebar() {
   const matches = useMatches();
   const currentPath = matches.at(-1)?.fullPath;
   const { collectionId } = useParams({ strict: false }) as { collectionId?: string };
-  const [browsing] = useQueryState("browsing", parseAsBoolean.withDefault(false));
+  const { browsing: browsingParam } = useSearch({ strict: false });
+  const browsing = browsingParam ?? false;
   const { isMobile, setOpenMobile } = useSidebar();
   const { data: collections } = useCollections();
   const statsEnabled = useFeatureEnabled("stats");

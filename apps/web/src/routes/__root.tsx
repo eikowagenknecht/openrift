@@ -2,7 +2,6 @@ import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
-import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { lazy } from "react";
 
 import { Analytics } from "@/components/analytics";
@@ -136,13 +135,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   return (
-    <NuqsAdapter>
+    <>
       <div className="bg-background text-foreground flex min-h-screen flex-col">
         <Outlet />
         <Toaster position="bottom-right" />
       </div>
       <Analytics />
       <TanStackRouterDevtools />
-    </NuqsAdapter>
+    </>
   );
 }
