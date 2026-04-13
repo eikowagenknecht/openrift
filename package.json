@@ -11,7 +11,7 @@
     "dev": "bun run dev:web & bun run dev:api & wait",
     "dev:web": "turbo run dev --filter=web",
     "format": "oxfmt",
-    "lint": "turbo run build && bun run lint:oxlint && bun run lint:oxfmt",
+    "lint": "bun run lint:oxlint && bun run lint:oxfmt",
     "lint:oxlint": "oxlint --deny-warnings",
     "lint:oxfmt": "oxfmt ./apps ./packages --check",
     "lefthook": "lefthook",
