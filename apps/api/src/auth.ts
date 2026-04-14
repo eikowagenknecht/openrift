@@ -86,6 +86,8 @@ export function createAuth(deps: {
       modelName: "users",
     },
     session: {
+      expiresIn: 60 * 60 * 24 * 365,
+      updateAge: 60 * 60 * 24,
       fields: {
         userId: "user_id",
         expiresAt: "expires_at",
