@@ -225,8 +225,11 @@ export function createApp(deps: AppDeps) {
 
   // ── Auth ────────────────────────────────────────────────────────────────
   // Apply rate limiting only to sensitive auth endpoints (sign-in, sign-up, etc.).
+  // DISABLE_AUTH_RATE_LIMIT lets the e2e harness opt out — auth.setup re-runs
+  // in tight succession would otherwise trip the limiter and fail.
+  const authRateLimitDisabled = process.env.DISABLE_AUTH_RATE_LIMIT === "1";
   app.use("/api/auth/*", async (c, next) => {
-    if (rateLimitedAuthPrefixes.some((p) => c.req.path.startsWith(p))) {
+    if (!authRateLimitDisabled && rateLimitedAuthPrefixes.some((p) => c.req.path.startsWith(p))) {
       return authRateLimit(c, next);
     }
     await next();

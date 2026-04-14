@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import type { FullConfig } from "@playwright/test";
+import { chromium } from "@playwright/test";
 
 import { API_BASE_URL, API_PORT, STATE_FILE, WEB_BASE_URL, WEB_PORT } from "./helpers/constants.js";
 import { connectToDb, createTempDb, replaceDbName } from "./helpers/db.js";
@@ -24,6 +25,34 @@ async function waitForServer(url: string, timeoutMs: number) {
     await new Promise((_resolve) => setTimeout(_resolve, 1000));
   }
   throw new Error(`Server at ${url} did not start within ${timeoutMs}ms`);
+}
+
+/**
+ * Wait for the API's /health endpoint to report status "ok" — i.e. the
+ * database is reachable, migrated, and has seed data. Protects against tests
+ * firing before the backend has fully warmed up.
+ */
+async function waitForApiHealthy(url: string, timeoutMs: number) {
+  const start = Date.now();
+  let lastStatus: string | undefined;
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        const body = (await res.json()) as { status?: string };
+        lastStatus = body.status;
+        if (body.status === "ok") {
+          return;
+        }
+      }
+    } catch {
+      // Server not up yet
+    }
+    await new Promise((_resolve) => setTimeout(_resolve, 500));
+  }
+  throw new Error(
+    `API at ${url} did not become healthy within ${timeoutMs}ms (last status: ${lastStatus ?? "unreachable"})`,
+  );
 }
 
 /**
@@ -91,6 +120,10 @@ export default async function globalSetup(_config: FullConfig) {
       BETTER_AUTH_SECRET: "e2e-test-secret-not-real",
       BETTER_AUTH_URL: WEB_BASE_URL,
       CORS_ORIGIN: WEB_BASE_URL,
+      // auth.setup + login tests do several sign-in/sign-up calls in quick
+      // succession; the prod 10/min limit would trip during UI iteration.
+      // The limiter itself is covered by an API integration test.
+      DISABLE_AUTH_RATE_LIMIT: "1",
     },
   });
 
@@ -107,7 +140,7 @@ export default async function globalSetup(_config: FullConfig) {
     }
   });
 
-  await waitForServer(`${API_BASE_URL}/api/health`, 120_000);
+  await waitForApiHealthy(`${API_BASE_URL}/api/health`, 120_000);
   console.log("[e2e] API server is ready");
 
   // ── 3. Start web dev server ─────────────────────────────────────────────
@@ -121,6 +154,7 @@ export default async function globalSetup(_config: FullConfig) {
       PORT: String(WEB_PORT),
       API_INTERNAL_URL: API_BASE_URL,
       VITE_API_PROXY_TARGET: API_BASE_URL,
+      VITE_DISABLE_DEVTOOLS: "1",
       SITE_URL: WEB_BASE_URL,
     },
   });
@@ -140,6 +174,29 @@ export default async function globalSetup(_config: FullConfig) {
 
   await waitForServer(`${WEB_BASE_URL}`, 60_000);
   console.log("[e2e] Web server is ready");
+
+  // Warm up the landing route in a real browser. Fetching HTML alone only
+  // warms the SSR module graph — the first test still pays the cost of Vite
+  // compiling the client JS bundle, which makes the initial render/hydration
+  // slow enough that scatter visibility effects don't settle within test
+  // timeouts. Driving a real browser through the page exercises both SSR and
+  // client bundles, matching what tests actually do.
+  console.log("[e2e] Warming up landing page in browser...");
+  const warmupStart = Date.now();
+  const browser = await chromium.launch();
+  try {
+    const context = await browser.newContext({ viewport: { width: 1920, height: 1200 } });
+    const page = await context.newPage();
+    await page.goto(WEB_BASE_URL, { waitUntil: "networkidle", timeout: 120_000 });
+    // Confirm the scatter is interactive — if this passes, the client bundle
+    // compiled and hydration ran through the layout-effect that gates card
+    // visibility. After this, repeat runs of the same page are nearly instant.
+    await page.locator('[data-card-index="0"]').waitFor({ state: "attached", timeout: 30_000 });
+    await context.close();
+  } finally {
+    await browser.close();
+  }
+  console.log(`[e2e]   → warmed in ${Date.now() - warmupStart}ms`);
 
   // ── 4. Persist state for teardown ───────────────────────────────────────
 

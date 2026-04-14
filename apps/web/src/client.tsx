@@ -5,7 +5,7 @@ import { hydrateRoot } from "react-dom/client";
 import { preventIOSOverscroll } from "./lib/ios-overscroll-prevention";
 import { initSentry } from "./lib/sentry";
 
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV && !import.meta.env.VITE_DISABLE_DEVTOOLS) {
   const { scan } = await import("react-scan");
   scan({ enabled: true });
 }

@@ -1,4 +1,4 @@
-import { readFileSync, rmSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
 import type { FullConfig } from "@playwright/test";
 
@@ -50,6 +50,10 @@ export default async function globalTeardown(_config: FullConfig) {
   console.log(`[e2e] Dropping ${state.tempDbName}...`);
   await dropTempDb(state.databaseUrl, state.tempDbName);
 
-  rmSync(STATE_FILE, { force: true });
+  // Intentionally do NOT delete STATE_FILE: dropping the DB can take several
+  // seconds, and in that window a fresh UI session's global-setup may have
+  // already written a new state file. Deleting here would wipe it and break
+  // auth.setup with ENOENT on the next run. The file is overwritten on every
+  // global-setup, so leaving the stale pointer is harmless.
   console.log("[e2e] Global teardown complete");
 }

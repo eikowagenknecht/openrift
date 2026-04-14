@@ -6,6 +6,10 @@ import { API_BASE_URL, TEST_USERS, WEB_BASE_URL } from "./constants.js";
 /**
  * Sign up a test user via the better-auth API, bypass email verification
  * by updating the database directly, then sign in to get session cookies.
+ *
+ * The auth rate limiter is disabled in e2e via `DISABLE_AUTH_RATE_LIMIT=1`
+ * (set in global-setup) — see `apps/api/src/app.ts`. The limiter itself is
+ * covered by `apps/api/src/auth-rate-limit.integration.test.ts`.
  */
 async function setupTestUser(
   request: APIRequestContext,
@@ -15,7 +19,9 @@ async function setupTestUser(
 ) {
   const headers = { Origin: WEB_BASE_URL };
 
-  // 1. Sign up via the real auth endpoint
+  // 1. Sign up via the real auth endpoint. Tolerate "user already exists"
+  // because the temp DB persists across UI sessions while .auth/*.json lives
+  // on disk — re-running auth.setup is expected.
   const signUpResponse = await request.post(`${API_BASE_URL}/api/auth/sign-up/email`, {
     headers,
     data: { email: user.email, password: user.password, name: user.name },
@@ -23,7 +29,9 @@ async function setupTestUser(
 
   if (!signUpResponse.ok()) {
     const body = await signUpResponse.text();
-    throw new Error(`Sign-up failed for ${user.email}: ${signUpResponse.status()} ${body}`);
+    if (!body.toLowerCase().includes("already exists")) {
+      throw new Error(`Sign-up failed for ${user.email}: ${signUpResponse.status()} ${body}`);
+    }
   }
 
   // 2. Mark email as verified directly in the database
