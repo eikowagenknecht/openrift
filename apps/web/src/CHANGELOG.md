@@ -6,6 +6,8 @@
 - feat: The Promo Cards page now shows all printings (including multiple languages of the same card) with a language filter at the top so you can narrow to what you want to see
 - feat: The landing page now shows actual card art in the background instead of abstract card shapes, with a different random selection every visit
 - feat: The landing page now explains what OpenRift is and has sign up, browse, and sign in buttons all in one place, plus three feature blocks describing what you can do
+- fix: Cards at the top of the page no longer stay gray on first load
+- fix: Foil effect no longer briefly flashes on cards when you've disabled it in preferences
 - fix: The language filter now actually hides printings and cards outside your selected languages, and defaults to your language preferences when you first open the card browser
 - fix: Signing out, changing your display name, changing your email, and deleting your account now update the UI immediately instead of requiring a page refresh
 

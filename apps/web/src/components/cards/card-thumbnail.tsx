@@ -10,6 +10,7 @@ import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image"
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePrices } from "@/hooks/use-prices";
 import { getDomainGradientStyle } from "@/lib/domain";
@@ -89,6 +90,13 @@ function CardImageContent({
               style={LANDSCAPE_ROTATION_STYLE}
             >
               <img
+                ref={(node) => {
+                  // Cover cached/instant-load images where the browser fires
+                  // load before React attaches the onLoad listener.
+                  if (node?.complete && node.naturalWidth > 0) {
+                    onImgLoad();
+                  }
+                }}
                 src={thumbnailUrl}
                 srcSet={srcSet}
                 sizes={sizes}
@@ -103,6 +111,13 @@ function CardImageContent({
             </div>
           ) : (
             <img
+              ref={(node) => {
+                // Cover cached/instant-load images where the browser fires
+                // load before React attaches the onLoad listener.
+                if (node?.complete && node.naturalWidth > 0) {
+                  onImgLoad();
+                }
+              }}
               src={thumbnailUrl}
               srcSet={srcSet}
               sizes={sizes}
@@ -259,7 +274,11 @@ export const CardThumbnail = memo(function CardThumbnail({
   const fancyFan = useDisplayStore((s) => s.fancyFan);
   const foilEffect = useDisplayStore((s) => s.foilEffect);
   const cardTilt = useDisplayStore((s) => s.cardTilt);
-  const gridFoil = foilEffect;
+  // Foil is preference-driven, so SSR can't know the user's setting. Defer
+  // rendering the overlay until after hydration to avoid flashing foil on a
+  // user who has disabled it while the client catches up.
+  const hydrated = useHydrated();
+  const gridFoil = foilEffect && hydrated;
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const favoriteMarketplace = marketplaceOrder[0] ?? "tcgplayer";
   const prices = usePrices();
