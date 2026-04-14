@@ -1,3 +1,5 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 
 import {
@@ -14,12 +16,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth-client";
+import { sessionQueryOptions } from "@/lib/auth-session";
 
 export function DangerZoneSection() {
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const router = useRouter();
 
   async function handleDelete() {
     if (!password) {
@@ -34,7 +39,8 @@ export function DangerZoneSection() {
       setError(deleteError.message ?? "Failed to delete account.");
       return;
     }
-    globalThis.location.href = "/";
+    await queryClient.resetQueries({ queryKey: sessionQueryOptions().queryKey });
+    void router.navigate({ to: "/" });
   }
 
   return (

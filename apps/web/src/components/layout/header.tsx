@@ -50,7 +50,7 @@ import {
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { signOut } from "@/lib/auth-client";
-import { useSession } from "@/lib/auth-session";
+import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { useGravatarUrl } from "@/lib/gravatar";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme-store";
@@ -186,7 +186,7 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
 
   const handleSignOut = async () => {
     await signOut();
-    queryClient.clear();
+    await queryClient.resetQueries({ queryKey: sessionQueryOptions().queryKey });
     void router.navigate({ to: "/cards" });
   };
 

@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod/v4";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { authClient } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
+import { sessionQueryOptions } from "@/lib/auth-session";
 
 const displayNameSchema = z.object({
   name: z.string().min(1, "Name is required."),
@@ -46,6 +48,7 @@ export function AccountInfoSection({
 function DisplayNameForm({ defaultName, userId }: { defaultName: string; userId: string }) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const queryClient = useQueryClient();
   const form = useForm<DisplayNameValues>({
     resolver: zodResolver(displayNameSchema),
     defaultValues: { name: defaultName },
@@ -60,6 +63,7 @@ function DisplayNameForm({ defaultName, userId }: { defaultName: string; userId:
       setServerError(form, error);
       return;
     }
+    await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
     setSuccess(true);
   }
 
@@ -107,6 +111,7 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
   const [success, setSuccess] = useState(false);
+  const queryClient = useQueryClient();
 
   function resetFlow() {
     setStep("input");
@@ -182,6 +187,7 @@ function EmailForm({ currentEmail }: { currentEmail: string }) {
       }
       return;
     }
+    await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
     setSuccess(true);
     setStep("input");
     setNewEmail("");
