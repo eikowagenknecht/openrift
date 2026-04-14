@@ -10,6 +10,12 @@ _Built with Fury. Maintained with Calm._
 
 ![OpenRift card browser](docs/assets/screenshot.webp)
 
+## Why
+
+I wanted to track my collection, and nothing I tried fit. One site was missing cards, another felt slow on mobile and dropped cards mid-edit, a third had every feature but the basics didn't feel solid. And none of them worked well on both desktop and mobile. So I built the card browser I wanted to use.
+
+The [honest comparison](https://openrift.app/help/why-openrift) lays out where OpenRift stands next to the alternatives.
+
 ## What it does
 
 - **Every card, every printing.** Complete catalog including Chinese printings and promos, with daily prices from TCGplayer, Cardmarket, and CardTrader shown side by side.
