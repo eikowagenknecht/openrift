@@ -2,22 +2,12 @@ import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { CardScatter } from "./card-scatter";
-
 export function HeroBackground({
   children,
   className,
-  cardResetKey,
-  cardHinting,
-  cardImageUrls,
-  onAllCollected,
 }: {
   children: ReactNode;
   className?: string;
-  cardResetKey?: number;
-  cardHinting?: boolean;
-  cardImageUrls?: string[];
-  onAllCollected?: () => void;
 }) {
   return (
     <div className={cn("relative flex flex-1 flex-col overflow-hidden", className)}>
@@ -35,13 +25,6 @@ export function HeroBackground({
           backgroundSize: "32px 32px",
         }}
         aria-hidden="true"
-      />
-      <CardScatter
-        key={cardResetKey}
-        flyIn={cardResetKey !== undefined && cardResetKey > 0}
-        hinting={cardHinting}
-        imageUrls={cardImageUrls}
-        onAllCollected={onAllCollected}
       />
       <div className="pointer-events-none relative flex flex-1 flex-col [&_a]:pointer-events-auto [&_button]:pointer-events-auto">
         {children}

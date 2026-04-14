@@ -10,6 +10,7 @@ import { useCountUp } from "@/hooks/use-count-up";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { cn } from "@/lib/utils";
 
+import { CardScatter } from "./card-scatter";
 import { FeatureHighlights } from "./feature-highlights";
 import { HeroBackground } from "./hero-background";
 
@@ -63,13 +64,15 @@ export function LandingPage() {
   }
 
   return (
-    <HeroBackground
-      cardResetKey={resetKey}
-      cardHinting={hinting}
-      cardImageUrls={cardImageUrls}
-      onAllCollected={handleAllCollected}
-    >
-      <div className="flex min-h-[calc(100svh-var(--header-height))] flex-col items-center justify-center p-4">
+    <HeroBackground>
+      <div className="relative flex min-h-[calc(100svh-var(--header-height))] flex-col items-center justify-center p-4">
+        <CardScatter
+          key={resetKey}
+          flyIn={resetKey > 0}
+          hinting={hinting}
+          imageUrls={cardImageUrls}
+          onAllCollected={handleAllCollected}
+        />
         <div
           data-card-blocker=""
           className="flex flex-col items-center gap-3 rounded-2xl px-8 py-10"
