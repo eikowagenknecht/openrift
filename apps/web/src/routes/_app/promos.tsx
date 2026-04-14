@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
+import { initQueryOptions } from "@/hooks/use-init";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
@@ -16,7 +17,11 @@ export const Route = createFileRoute("/_app/promos")({
       path: "/promos",
     });
   },
-  loader: ({ context }) => context.queryClient.ensureQueryData(publicPromoListQueryOptions),
+  loader: ({ context }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(publicPromoListQueryOptions),
+      context.queryClient.ensureQueryData(initQueryOptions),
+    ]),
   component: () => null,
   pendingComponent: () => null,
   errorComponent: RouteErrorFallback,

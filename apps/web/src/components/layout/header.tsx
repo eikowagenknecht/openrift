@@ -5,6 +5,7 @@ import {
   CircleHelpIcon,
   ExternalLinkIcon,
   GavelIcon,
+  GiftIcon,
   EllipsisVerticalIcon,
   HeartIcon,
   LayersIcon,
@@ -33,9 +34,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   NavigationMenu,
+  NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
+  NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -138,19 +141,35 @@ function DesktopNav({
             </NavigationMenuLink>
           </NavigationMenuItem>
         )}
-        {showRules && (
-          <NavigationMenuItem>
-            <NavigationMenuLink
-              render={<Link to="/rules" />}
-              className={cn(
-                navigationMenuTriggerStyle(),
-                "data-[status=active]:bg-muted data-[status=active]:font-semibold",
+        <NavigationMenuItem>
+          <NavigationMenuTrigger>More</NavigationMenuTrigger>
+          <NavigationMenuContent>
+            <ul className="grid w-64 gap-1 p-1">
+              {showRules && (
+                <li>
+                  <NavigationMenuLink render={<Link to="/rules" />}>
+                    <GavelIcon />
+                    <div>
+                      <div className="font-medium">Rules</div>
+                      <div className="text-muted-foreground text-xs">Official rules reference</div>
+                    </div>
+                  </NavigationMenuLink>
+                </li>
               )}
-            >
-              Rules
-            </NavigationMenuLink>
-          </NavigationMenuItem>
-        )}
+              <li>
+                <NavigationMenuLink render={<Link to="/promos" />}>
+                  <GiftIcon />
+                  <div>
+                    <div className="font-medium">Promos</div>
+                    <div className="text-muted-foreground text-xs">
+                      Alternate printings from events and giveaways
+                    </div>
+                  </div>
+                </NavigationMenuLink>
+              </li>
+            </ul>
+          </NavigationMenuContent>
+        </NavigationMenuItem>
       </NavigationMenuList>
     </NavigationMenu>
   );
@@ -334,6 +353,9 @@ function MobileNav({
               Rules
             </MobileNavLink>
           )}
+          <MobileNavLink to="/promos" icon={<GiftIcon className="text-muted-foreground size-5" />}>
+            Promos
+          </MobileNavLink>
           {showCollection && (
             <MobileNavLink
               to="/collections"
