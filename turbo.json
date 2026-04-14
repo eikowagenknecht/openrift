@@ -34,6 +34,18 @@
       "inputs": ["src/**", "playwright.config.ts"],
       "cache": false
     },
+    "test:e2e:ui": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "playwright.config.ts"],
+      "cache": false,
+      "persistent": true
+    },
+    "test:e2e:debug": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "playwright.config.ts"],
+      "cache": false,
+      "persistent": true
+    },
     "lint": {},
     "dev": {
       "cache": false,
