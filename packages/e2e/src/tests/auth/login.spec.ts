@@ -219,7 +219,7 @@ test.describe("login page", () => {
       await page.locator("#password").fill(password);
       await page.getByRole("button", { name: /login/i }).click();
 
-      await expect(page).toHaveURL(`${WEB_BASE_URL}/`, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/cards/, { timeout: 15_000 });
     });
 
     test("pre-fills email from ?email= param", async ({ page }) => {
@@ -231,6 +231,8 @@ test.describe("login page", () => {
   });
 
   test.describe("OTP tab", () => {
+    test.describe.configure({ mode: "serial" });
+
     test("preserves the typed email when switching tabs", async ({ page }) => {
       await page.goto("/login");
       await waitForHydration(page);
