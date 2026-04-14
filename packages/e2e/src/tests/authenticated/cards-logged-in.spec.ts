@@ -209,13 +209,25 @@ test.describe("cards /cards (logged in)", () => {
     await expect(page.getByText("×1").first()).toBeVisible({ timeout: 10_000 });
 
     // Reload clears the local add-mode store — a persisting count has come from the API.
-    // Re-enable Add mode to re-render the strip (Off → Count → Add).
+    // catalogMode is persisted in localStorage (display-store), so the mode
+    // after reload depends on where the pre-reload cycle ended. Drive the
+    // cycle by observing the button's title until we reach Add mode.
     await page.reload();
     await waitForCards(page);
     await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
     await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 10_000 });
-    await catalogModeButton(page).click();
-    await catalogModeButton(page).click();
+
+    const modeButton = catalogModeButton(page);
+    for (let i = 0; i < 3; i++) {
+      const title = await modeButton.getAttribute("title");
+      if (title === "Turn off") {
+        break;
+      }
+      await modeButton.click();
+      // Wait for the title to change so the next iteration doesn't read stale state.
+      await expect(modeButton).not.toHaveAttribute("title", title ?? "", { timeout: 5000 });
+    }
+    await expect(modeButton).toHaveAttribute("title", "Turn off");
 
     await expect(page.getByText("×1").first()).toBeVisible({ timeout: 10_000 });
   });
