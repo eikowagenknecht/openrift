@@ -2,22 +2,12 @@ import { Link } from "@tanstack/react-router";
 import { siDiscord } from "simple-icons";
 
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { PAGE_PADDING } from "@/lib/utils";
 
-import type { HelpArticle } from "./articles";
 import { helpArticleList } from "./articles";
 
-function useVisibleArticles(): HelpArticle[] {
-  const helpEnabled = useFeatureEnabled("help");
-
-  return helpArticleList.filter(
-    (article) => !article.featureFlag || (article.featureFlag === "help" && helpEnabled),
-  );
-}
-
 export function HelpIndexPage() {
-  const articles = useVisibleArticles();
+  const articles = helpArticleList.filter((article) => !article.featureFlag);
 
   return (
     <div className={`mx-auto w-full max-w-2xl flex-1 ${PAGE_PADDING}`}>
