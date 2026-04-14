@@ -578,6 +578,7 @@ export function catalogRepo(db: Kysely<Database>) {
       return db
         .selectFrom("promoTypes")
         .select(["id", "slug", "label", "description"])
+        .orderBy("sortOrder")
         .orderBy("label")
         .execute();
     },

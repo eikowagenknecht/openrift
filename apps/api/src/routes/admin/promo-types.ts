@@ -15,6 +15,7 @@ const promoTypeSchema = z.object({
   slug: z.string().openapi({ example: "prerift" }),
   label: z.string().openapi({ example: "Pre-Rift Promo" }),
   description: z.string().nullable().openapi({ example: "Cards from the Pre-Rift event" }),
+  sortOrder: z.number().openapi({ example: 0 }),
   createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
   updatedAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
 });
@@ -81,6 +82,24 @@ const deletePromoType = createRoute({
   },
 });
 
+const reorderPromoTypes = createRoute({
+  method: "put",
+  path: "/promo-types/reorder",
+  tags: ["Admin - Promo Types"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({ ids: z.array(z.string().min(1)).min(1) }),
+        },
+      },
+    },
+  },
+  responses: {
+    204: { description: "Promo types reordered" },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
@@ -97,11 +116,46 @@ export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
           slug: r.slug,
           label: r.label,
           description: r.description,
+          sortOrder: r.sortOrder,
           createdAt: r.createdAt.toISOString(),
           updatedAt: r.updatedAt.toISOString(),
         }),
       ),
     });
+  })
+
+  // ── PUT /admin/promo-types/reorder ──────────────────────────────────────
+
+  .openapi(reorderPromoTypes, async (c) => {
+    const { promoTypes: repo } = c.get("repos");
+    const { ids } = c.req.valid("json");
+
+    const uniqueIds = new Set(ids);
+    if (uniqueIds.size !== ids.length) {
+      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Duplicate ids in reorder list.");
+    }
+
+    const all = await repo.listAll();
+    if (ids.length !== all.length) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        `Expected ${all.length} ids, got ${ids.length}.`,
+      );
+    }
+
+    const knownIds = new Set(all.map((pt) => pt.id));
+    const unknown = ids.filter((id) => !knownIds.has(id));
+    if (unknown.length > 0) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        `Unknown promo type ids: ${unknown.join(", ")}`,
+      );
+    }
+
+    await repo.reorder(ids);
+    return c.body(null, 204);
   })
 
   // ── POST /admin/promo-types ─────────────────────────────────────────────
@@ -115,7 +169,14 @@ export const adminPromoTypesRoute = new OpenAPIHono<{ Variables: Variables }>()
       throw new AppError(409, ERROR_CODES.CONFLICT, `Promo type "${slug}" already exists`);
     }
 
-    const created = await repo.create({ slug, label, description });
+    // Append to the end of the sort order so new entries don't collide.
+    const maxSortOrder = await repo.getMaxSortOrder();
+    const created = await repo.create({
+      slug,
+      label,
+      description,
+      sortOrder: maxSortOrder + 1,
+    });
     return c.json({ promoType: created }, 201);
   })
 

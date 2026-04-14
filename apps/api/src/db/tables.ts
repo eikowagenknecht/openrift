@@ -583,6 +583,7 @@ export interface PromoTypesTable {
   label: string;
   /** CHECK: <> '' */
   description: string | null;
+  sortOrder: Generated<number>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

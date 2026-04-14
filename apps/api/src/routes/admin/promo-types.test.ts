@@ -12,10 +12,12 @@ const mockRepo = {
   listAll: vi.fn(),
   getBySlug: vi.fn(),
   getById: vi.fn(),
+  getMaxSortOrder: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
   deleteById: vi.fn(),
   isInUse: vi.fn(),
+  reorder: vi.fn(),
 };
 
 // ---------------------------------------------------------------------------
@@ -49,6 +51,7 @@ const dbPromoType = {
   slug: "nexus-night",
   label: "Nexus Night",
   description: "Annual community event promo",
+  sortOrder: 0,
   createdAt: now,
   updatedAt: now,
 };
@@ -58,6 +61,7 @@ const dbPromoType2 = {
   slug: "shadow-promo",
   label: "Shadow Promo",
   description: null,
+  sortOrder: 1,
   createdAt: now,
   updatedAt: now,
 };
@@ -82,6 +86,7 @@ describe("GET /api/v1/promo-types", () => {
       slug: "nexus-night",
       label: "Nexus Night",
       description: "Annual community event promo",
+      sortOrder: 0,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     });
@@ -103,11 +108,13 @@ describe("POST /api/v1/promo-types", () => {
 
   it("returns 201 with created promo type", async () => {
     mockRepo.getBySlug.mockResolvedValue(undefined);
+    mockRepo.getMaxSortOrder.mockResolvedValue(4);
     const created = {
       id: dbPromoType.id,
       slug: "nexus-night",
       label: "Nexus Night",
       description: "Annual community event promo",
+      sortOrder: 5,
       createdAt: now.toISOString(),
       updatedAt: now.toISOString(),
     };
@@ -128,6 +135,7 @@ describe("POST /api/v1/promo-types", () => {
       slug: "nexus-night",
       label: "Nexus Night",
       description: "Annual community event promo",
+      sortOrder: 5,
     });
   });
 
