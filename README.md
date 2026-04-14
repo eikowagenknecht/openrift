@@ -12,7 +12,7 @@ _Built with Fury. Maintained with Calm._
 
 ## Why
 
-I wanted to track my collection, and nothing I tried fit. One site was missing cards, another felt slow on mobile and dropped cards mid-edit, a third had every feature but the basics didn't feel solid. And none of them worked well on both desktop and mobile. So I built the card browser I wanted to use.
+I wanted to track my collection, and nothing I tried fit. One site was missing cards, another felt slow on mobile and dropped cards mid-edit, a third had every feature but the basics didn't feel solid. And none of them worked well on both desktop and mobile. So naturally, after a full week of patient, rigorous evaluation, I did the only reasonable thing and built a competing product from scratch.
 
 The [honest comparison](https://openrift.app/help/why-openrift) lays out where OpenRift stands next to the alternatives.
 

@@ -1,13 +1,13 @@
 import {
   ArrowRightLeftIcon,
   CheckCircle2Icon,
-  ChevronDownIcon,
+  ChevronRightIcon,
   CircleHelpIcon,
   Code2Icon,
-  GaugeIcon,
+  HammerIcon,
   HeartIcon,
   SparklesIcon,
-  UsersIcon,
+  SproutIcon,
   XIcon,
 } from "lucide-react";
 import { useState } from "react";
@@ -30,9 +30,10 @@ export default function WhyOpenRiftArticle() {
             but they don&apos;t sync with anything you can use at a desk.
           </p>
           <p>
-            Eventually I gave up waiting for one of them to be what I wanted, and started building.
-            OpenRift is the card browser I wanted to use. The comparison below is an honest look at
-            where it stands against the alternatives, which you can judge for yourself.
+            So naturally, after a full week of patient, rigorous evaluation, I did the only
+            reasonable thing and built a competing product from scratch. OpenRift is on its way to
+            being the card browser I wanted to use. The comparison below is an honest look at where
+            it stands against the alternatives, which you can judge for yourself.
           </p>
         </div>
       </section>
@@ -99,14 +100,14 @@ export default function WhyOpenRiftArticle() {
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <GapCard
-            icon={<UsersIcon className="size-4" />}
-            title="Community adoption"
-            description="We're new and small. No network effects, no large user base yet. But hey, join now and you can tell your grandchildren you were here before it was cool."
+            icon={<SproutIcon className="size-4" />}
+            title="We're the new kid"
+            description="Every Riftbound player knows Piltover Archive. We don't have that recognition or the network effects yet. Give us a minute. Join now and you can tell your grandchildren you were here before it was cool."
           />
           <GapCard
-            icon={<GaugeIcon className="size-4" />}
-            title="Brand recognition"
-            description="'OpenRift' doesn't have the name recognition of established sites. We're earning it one feature at a time."
+            icon={<HammerIcon className="size-4" />}
+            title="Not battle-tested"
+            description="Every feature here works, but 'works' and 'has been stress-tested by 10,000 users for one year' are not the same thing. Expect the occasional rough edge."
           />
         </div>
       </section>
@@ -115,16 +116,21 @@ export default function WhyOpenRiftArticle() {
       <section>
         <h2 className="mb-3 text-lg font-semibold">Feature comparison</h2>
         <p className="text-muted-foreground mb-3">
-          Compared against other Riftbound card browsers we&apos;re aware of. A checkmark means the
-          feature is available; a half circle means partial support; an X means not available; a
-          question mark means we&apos;re not sure.
+          Compared against the most popular Riftbound card browsers. We picked these four because
+          they&apos;re the ones you&apos;re most likely to have tried. A checkmark means the feature
+          is available; a half circle means partial support; an X means not available; a question
+          mark means we&apos;re not sure.
+        </p>
+        <p className="text-muted-foreground mb-3">
+          Last verified on 2026-04-14. When you&apos;re reading this it&apos;s probably already
+          slightly out of date, as counts and features change regularly.
         </p>
 
         <div className="border-border overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <thead>
               <tr className="border-border bg-muted/50 border-b">
-                <th className="px-3 py-2.5 text-left font-medium">Feature</th>
+                <th className="w-2/5 px-3 py-2.5 text-left font-medium">Feature</th>
                 <th className="bg-primary/5 px-3 py-2.5 text-center font-medium">
                   <span className="text-primary">OpenRift</span>
                 </th>
@@ -137,162 +143,246 @@ export default function WhyOpenRiftArticle() {
             <tbody className="divide-border divide-y">
               <ComparisonSection title="Data & Pricing" />
               <ComparisonRow
-                feature="Card database"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{
-                  general: "Every card from every released set, updated when new sets drop.",
-                }}
-              />
-              <ComparisonRow
-                feature="All printings / variants"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                feature="English printings tracked"
+                values={[1504, 1365, 1085, 1085, 1032]}
                 detail={{
                   general:
-                    "Each printing tracked separately (standard, foil, promos, alternate art, etc.).",
-                }}
-              />
-              <ComparisonRow
-                feature="Multiple price sources"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{
-                  general:
-                    "TCGPlayer, Cardmarket, and CardTrader prices side by side. Most sites only show one marketplace.",
-                }}
-              />
-              <ComparisonRow
-                feature="Price history charts"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{
-                  general:
-                    "Daily price snapshots with charts. History goes back to when we started tracking (February 2026).",
+                    "Count of English-language printings in each site's catalog as of 2026-04-14. Covers all sets released to date; higher is more complete.",
+                  riftmana:
+                    "Common/uncommon normal and foil variants are merged into single entries, so the effective count is higher.",
                 }}
               />
               <ComparisonRow
                 feature="Multi-language printings"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={[1411, "partial", "partial", "partial", "no"]}
                 detail={{
                   general:
-                    "English, French, and Chinese card text where available. More languages as they're released.",
+                    "Printings in languages other than English tracked by each site, as of 2026-04-14.",
+                  openrift: "1410 Chinese printings plus 1 French printing.",
+                  piltoverArchive: "A few Chinese printings available, like the ARC set.",
+                  riftmana:
+                    "Chinese printings are available in collections but not in the card browser.",
+                  riftboundGg: "A few Chinese printings available, like the ARC set.",
+                }}
+              />
+              <ComparisonRow
+                feature="All printings / variants"
+                values={["yes", "yes", "partial", "partial", "partial"]}
+                detail={{
+                  general:
+                    "Each printing tracked separately (standard, foil, promos, alternate art, etc.).",
+                  piltoverArchive: "Can filter by Foil, Alt Art, Overnumbered, Signed, and Promo.",
+                  riftmana:
+                    "Can filter by Foil, Alt Art, Overnumbered, Signed, and Promo, but common/uncommon normal and foil variants are merged into single entries.",
+                  riftboundGg: "Can filter by Alt Art and Promo only.",
+                  riftcore:
+                    "Only Promo is distinguished in the card browser. Foil is tracked in collections but not in the browser.",
+                }}
+              />
+              <ComparisonRow
+                feature="Price sources"
+                values={[3, 2, 2, 2, 1]}
+                detail={{
+                  general: "Number of marketplaces shown side by side for each printing.",
+                  openrift: "TCGplayer, Cardmarket, and CardTrader.",
+                  piltoverArchive: "TCGplayer and Cardmarket.",
+                  riftmana: "TCGplayer and Cardmarket.",
+                  riftboundGg: "TCGplayer and Cardmarket.",
+                  riftcore: "Cardmarket only.",
+                }}
+              />
+              <ComparisonRow
+                feature="Price history charts"
+                values={["yes", "no", "yes", "yes", "yes"]}
+                detail={{
+                  general: "Daily price snapshots shown as a chart.",
+                  openrift:
+                    "History goes back to February 2026 when we started tracking, with some earlier data backfilled from external sources.",
+                  piltoverArchive: "Shows a trend value, but no chart.",
+                }}
+              />
+              <ComparisonRow
+                feature="Card text coverage"
+                values={["yes", "yes", "yes", "partial", "yes"]}
+                detail={{
+                  general:
+                    "Which parts of a card's text are shown: rules text, effect text, and flavor text.",
+                  openrift:
+                    "Rules, effect, and flavor text, with consistent formatting, OCR-verified from actual card scans.",
+                  riftboundGg: "Rules and effect text; no flavor text.",
                 }}
               />
               <ComparisonRow
                 feature="Errata tracking"
-                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "partial", "no", "no", "yes"]}
                 detail={{
                   general:
-                    "We show the printed card text but don't track official errata or rules corrections yet. On the roadmap.",
+                    "Tracking official errata and rules corrections as separate data, beyond just showing the current text.",
+                  openrift:
+                    "All published errata, a filter for cards with errata, and a side-by-side comparison of old and new text.",
+                  piltoverArchive:
+                    "Flags cards that have been erratad, but doesn't show the pre-errata text.",
+                  riftmana:
+                    "Shows the current (post-errata) text but doesn't flag which cards were erratad.",
+                  riftboundGg:
+                    "Shows the current (post-errata) text but doesn't flag which cards were erratad.",
                 }}
               />
 
               <ComparisonSection title="Collection" />
               <ComparisonRow
                 feature="Collection tracking"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "yes", "yes", "yes", "yes"]}
                 detail={{
-                  general: "Track which cards you own, how many copies, and in which condition.",
+                  general: "Track which cards you own and how many copies.",
+                }}
+              />
+              <ComparisonRow
+                feature="Condition tracking"
+                values={["no", "yes", "yes", "no", "no"]}
+                detail={{
+                  general:
+                    "Track the physical condition of each copy (mint, played, damaged, etc.) alongside quantity.",
                 }}
               />
               <ComparisonRow
                 feature="Multiple collections"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "yes", "yes", "no", "partial"]}
                 detail={{
                   general:
                     "Create named collections like 'Trade binder', 'Main deck staples', etc. Move cards between them.",
+                  piltoverArchive: "Called binders.",
+                  riftmana: "Called binders.",
+                  riftcore:
+                    "View-only binders generated from rules, not user-created named collections.",
                 }}
               />
               <ComparisonRow
                 feature="Collection sharing"
-                values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{ general: "Not yet. Sharing collections via link is planned." }}
+                values={["no", "yes", "yes", "yes", "yes"]}
+                detail={{
+                  general: "Share a collection via public link.",
+                  openrift: "Not supported yet; planned.",
+                }}
               />
               <ComparisonRow
-                feature="Collection value"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                feature="Collection stats"
+                values={["yes", "yes", "yes", "yes", "yes"]}
                 detail={{
                   general:
-                    "See the total market value of your collection across all three marketplaces.",
+                    "Total value, completion tracking, and other statistics about your collection.",
+                  openrift:
+                    "Exhaustive, custom-filterable stats: deck value and more on the stats page.",
+                  piltoverArchive: "Deck value, completion by set, rarity, and type (per binder).",
+                  riftmana: "Deck value, missing value, completion by rarity and type.",
+                  riftboundGg:
+                    "Collection value, completion by set, domain, regular/promo/rune, and rarity.",
+                  riftcore:
+                    "Collection value, completion by rarity, domain, and set (per binder), domain distribution, and value over time.",
                 }}
               />
               <ComparisonRow
                 feature="Portfolio value over time"
-                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "no", "no", "no", "yes"]}
+                detail={{
+                  general: "Chart how your collection's total market value changes over time.",
+                }}
+              />
+              <ComparisonRow
+                feature="Completion curve"
+                values={["yes", "no", "no", "no", "no"]}
                 detail={{
                   general:
-                    "We show current value but don't chart how your collection's value changes over time yet.",
+                    "A chart showing which missing cards give you the most completion progress if added next, so you can see what to collect for the biggest gains.",
                 }}
               />
               <ComparisonRow
                 feature="Activity history"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "no", "no", "no", "partial"]}
                 detail={{
                   general: "A timeline of every add, remove, and move across your collections.",
+                  riftcore:
+                    "Has 'sessions' that track additions on demand, but not a continuous timeline.",
                 }}
               />
               <ComparisonRow
                 feature="CSV import / export"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "yes", "yes", "yes", "yes"]}
                 detail={{
                   general:
                     "Import from spreadsheets or other tools. Export your full collection to CSV any time.",
                 }}
               />
               <ComparisonRow
-                feature="Wish list"
-                values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{ general: "A dedicated want list for cards you're looking for. Planned." }}
+                feature="Wish / trade lists"
+                values={["no", "yes", "yes", "yes", "yes"]}
+                detail={{
+                  general:
+                    "Dedicated lists for cards you want, and sometimes cards you're willing to trade away.",
+                  openrift: "Not supported yet; planned.",
+                  piltoverArchive: "Single wish list, not shareable.",
+                  riftmana: "One wish list and one trade list, not shareable.",
+                  riftboundGg: "One wish list and one trade list, both shareable.",
+                  riftcore: "Automatic trade binder plus multiple manual and dynamic want lists.",
+                }}
               />
 
               <ComparisonSection title="Deck Building" />
               <ComparisonRow
                 feature="Deck builder"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "yes", "yes", "yes", "yes"]}
                 detail={{
-                  general:
-                    "Visual deck editor with drag & drop, card search, and real-time updates.",
+                  general: "Visual deck editor with card search to build decks.",
+                  riftmana: "No drag & drop for adding or moving cards.",
+                  riftboundGg: "No drag & drop for adding or moving cards.",
                 }}
               />
               <ComparisonRow
                 feature="Format validation"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "yes", "yes", "no", "partial"]}
                 detail={{
                   general: "Checks deck size, card limits, and ban lists for each format.",
+                  riftcore: "Checks deck size and card limits, but doesn't enforce the ban list.",
                 }}
               />
               <ComparisonRow
                 feature="Deck statistics"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "yes", "yes", "yes", "yes"]}
                 detail={{ general: "Energy curve, domain distribution, cost breakdown, and more." }}
               />
               <ComparisonRow
-                feature="Deck code sharing"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{ general: "Export and import decks as compact text codes." }}
+                feature="Deck code import / export"
+                values={["yes", "yes", "yes", "partial", "no"]}
+                detail={{
+                  general: "Share decks as compact text codes. Both import and export supported.",
+                  riftboundGg: "Export only; no import.",
+                }}
+              />
+              <ComparisonRow
+                feature="Text import / export"
+                values={["yes", "yes", "yes", "yes", "yes"]}
+                detail={{
+                  general: "Import and export decks as human-readable text (one card per line).",
+                }}
+              />
+              <ComparisonRow
+                feature="TTS import / export"
+                values={["yes", "yes", "yes", "no", "yes"]}
+                detail={{
+                  general:
+                    "Import and export decks in Tabletop Simulator format so you can play them online.",
+                  riftcore: "Also supports Pixelborn import and export.",
+                }}
               />
 
               <ComparisonSection title="User Experience" />
               <ComparisonRow
-                feature="Fast performance"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{
-                  general:
-                    "Virtualized scrolling, minimal bundle size, and snappy filters. No loading spinners where they aren't needed.",
-                }}
-              />
-              <ComparisonRow
-                feature="Dark mode"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-              />
-              <ComparisonRow
-                feature="Mobile-friendly"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{ general: "Fully responsive. Works on phones, tablets, and desktops." }}
-              />
-              <ComparisonRow
                 feature="Native mobile app"
-                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                values={["no", "no", "no", "no", "partial"]}
                 detail={{
                   general:
-                    "No native iOS or Android app. The website is mobile-friendly, but there's no app store presence.",
+                    "A native iOS or Android app installable from the app store, in addition to the website.",
+                  riftcore: "Android app available; no iOS version.",
                 }}
               />
               <ComparisonRow
@@ -303,33 +393,28 @@ export default function WhyOpenRiftArticle() {
                 }}
               />
               <ComparisonRow
-                feature="Accessibility"
-                values={["partial", "unknown", "unknown", "unknown", "unknown"]}
+                feature="Card scanning"
+                values={["no", "no", "no", "no", "partial"]}
                 detail={{
                   general:
-                    "We use semantic HTML and ARIA attributes via shadcn/ui, but haven't done a dedicated accessibility audit yet.",
-                }}
-              />
-              <ComparisonRow
-                feature="Card scanning"
-                values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{
-                  general: "No camera-based card recognition. You add cards by searching.",
+                    "Camera-based card recognition to add cards to your collection without searching.",
+                  riftcore: "Has card scanning, but recognition accuracy is limited in practice.",
                 }}
               />
               <ComparisonRow
                 feature="No account required to browse"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "yes", "partial", "yes", "yes"]}
                 detail={{
                   general:
                     "Browse the full card database, prices, and deck codes without signing up. Accounts are only needed for collections and decks.",
+                  riftmana: "Chinese printings are only viewable to logged-in users.",
                 }}
               />
 
               <ComparisonSection title="Openness & Transparency" />
               <ComparisonRow
                 feature="Open source"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "no", "no", "no", "no"]}
                 detail={{
                   general:
                     "Full source code on GitHub under AGPL-3.0. Inspect, fork, or contribute.",
@@ -337,110 +422,103 @@ export default function WhyOpenRiftArticle() {
               />
               <ComparisonRow
                 feature="Self-hostable"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "no", "no", "no", "no"]}
                 detail={{
                   general:
                     "Run the entire stack yourself (frontend, API, and database). Fully documented.",
                 }}
               />
               <ComparisonRow
-                feature="Public API"
-                values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{
-                  general:
-                    "No documented public API yet. The internal API exists but isn't versioned or stable for third-party use.",
-                }}
-              />
-              <ComparisonRow
                 feature="Ad-free"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "partial", "partial", "partial", "partial"]}
                 detail={{
                   general: "No banner ads, no sponsored content, no affiliate-gated features.",
+                  piltoverArchive:
+                    "No visible ads yet, but 'No ads on site' is listed as a perk of paid community tiers on Metafy.gg.",
+                  riftmana: "No visible ads yet, but ad network trackers are already in place.",
+                  riftboundGg: "No visible ads yet, but ad network trackers are already in place.",
+                  riftcore: "No visible ads yet, but Google ad scripts are present.",
                 }}
               />
               <ComparisonRow
-                feature="No tracking"
-                values={["partial", "unknown", "unknown", "unknown", "unknown"]}
+                feature="Third-party ad trackers"
+                values={[0, 1, 24, 43, 3]}
                 detail={{
                   general:
-                    "We use Umami for privacy-focused, cookie-free analytics. No third-party trackers, no data sold.",
+                    "Number of third-party ad trackers detected by Blacklight (themarkup.org/blacklight). Lower is better; 0 means none detected. Third-party cookies are listed per-site below.",
+                  openrift:
+                    "0 trackers, 0 third-party cookies. Uses first-party Umami for cookie-free analytics.",
+                  piltoverArchive: "1 tracker (Alphabet), 0 third-party cookies.",
+                  riftmana:
+                    "24 trackers (Verizon Media, Criteo, and 20 others), 21 third-party cookies.",
+                  riftboundGg:
+                    "43 trackers (Sovrn, YieldMo, and 38 others), 50 third-party cookies.",
+                  riftcore: "3 trackers (Alphabet), 1 third-party cookie.",
                 }}
               />
               <ComparisonRow
-                feature="Free data export"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                feature="Fully free"
+                values={["yes", "partial", "yes", "partial", "partial"]}
                 detail={{
-                  general:
-                    "Export your collections and decks any time. Your data is never held hostage.",
-                }}
-              />
-              <ComparisonRow
-                feature="Transparent pricing"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{
-                  general: "OpenRift is free. If that ever changes, we'll be upfront about it.",
+                  general: "Every feature available without paying.",
+                  openrift: "Fully free. If this ever changes, we'll be upfront about it.",
+                  piltoverArchive:
+                    "Pay-what-you-want community tiers on Metafy.gg unlock perks like 'no ads' and profile badges. Base site is free.",
+                  riftboundGg:
+                    "$4.99/month or $19.99/year DotGG Premium subscription removes ads across the DotGG Network. Base site is free.",
+                  riftcore:
+                    "Paid tiers from $5 to $20 per month gate AI tools (deck builder, judge, card scanner), voice input, and early access to new features.",
                 }}
               />
               <ComparisonRow
                 feature="Public roadmap"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
+                values={["yes", "yes", "unknown", "unknown", "unknown"]}
                 detail={{
                   general:
-                    "Our roadmap is public on the site. You can see what we're working on and what's next.",
-                }}
-              />
-              <ComparisonRow
-                feature="Community contributions welcome"
-                values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{
-                  general: "Open to issues, feature requests, and pull requests on GitHub.",
+                    "A public roadmap on the site showing what's being worked on and what's planned.",
                 }}
               />
 
               <ComparisonSection title="Community & Freshness" />
               <ComparisonRow
                 feature="Shared decklists"
-                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                values={["no", "yes", "yes", "yes", "yes"]}
                 detail={{
-                  general:
-                    "No public decklist hub yet. Deck code sharing works, but there's no browsable community list.",
+                  general: "A public hub where users can browse community-submitted decks.",
+                  openrift: "Deck code sharing works but no browsable community list yet.",
                 }}
               />
               <ComparisonRow
                 feature="Meta / tournament data"
-                values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{ general: "No tournament results or meta analysis. Planned for later." }}
+                values={["no", "yes", "partial", "yes", "partial"]}
+                detail={{
+                  general: "Tournament results and meta analysis.",
+                  openrift: "Not available yet; planned.",
+                  piltoverArchive: "Tournament decklists shown.",
+                  riftmana: "Tournament decklists available, but not organized per tournament.",
+                  riftboundGg: "Tournament data plus decklists.",
+                  riftcore: "A mix of tournament and community data; sourcing is unclear.",
+                }}
               />
               <ComparisonRow
                 feature="AI-powered tools"
-                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                values={["no", "no", "no", "no", "yes"]}
                 detail={{
                   general:
-                    "No AI deck suggestions or natural language search. Not currently planned.",
+                    "AI features like deck suggestions, natural language search, or card scanning.",
+                  openrift: "Not currently planned.",
+                  riftcore:
+                    "AI deck builder, AI judge, AI card scanner, voice input, and an AI binder assistant. All gated behind paid tiers.",
                 }}
               />
               <ComparisonRow
-                feature="User community"
-                values={["no", "unknown", "unknown", "unknown", "unknown"]}
+                feature="Discord members"
+                values={[2, 9772, 182, 1624, 307]}
                 detail={{
                   general:
-                    "No forums, no Discord, no social features. We're a tool, not a social network.",
-                }}
-              />
-              <ComparisonRow
-                feature="New set support speed"
-                values={["unknown", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{
-                  general:
-                    "We add new sets as they release, but we're too new to have a track record here.",
-                }}
-              />
-              <ComparisonRow
-                feature="Ban list update speed"
-                values={["unknown", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{
-                  general:
-                    "Same. We update ban lists, but can't promise a specific turnaround time yet.",
+                    "Approximate member count of each site's official Discord server, as a rough proxy for community size.",
+                  riftboundGg:
+                    "Not a Riftbound-specific server; covers the whole DotGG Network, so the count overstates Riftbound-specific reach.",
                 }}
               />
             </tbody>
@@ -527,7 +605,7 @@ function GapCard({
   );
 }
 
-type CellValue = "yes" | "no" | "partial" | "unknown";
+type CellValue = "yes" | "no" | "partial" | "unknown" | number;
 
 const SITE_NAMES = ["OpenRift", "Piltover Archive", "Riftmana", "Riftbound.gg", "Riftcore"];
 
@@ -578,10 +656,10 @@ function ComparisonRow({
           <span className="flex items-center gap-1.5">
             {feature}
             {clickable && (
-              <ChevronDownIcon
+              <ChevronRightIcon
                 className={cn(
                   "text-muted-foreground/50 size-3.5 shrink-0 transition-transform",
-                  open && "rotate-180",
+                  open && "rotate-90",
                 )}
               />
             )}
@@ -634,6 +712,9 @@ function ComparisonSection({ title }: { title: string }) {
 }
 
 function ComparisonCell({ value }: { value: CellValue }) {
+  if (typeof value === "number") {
+    return <span className="tabular-nums">{value.toLocaleString()}</span>;
+  }
   if (value === "yes") {
     return <CheckCircle2Icon className="inline size-4 text-emerald-600 dark:text-emerald-400" />;
   }
@@ -647,7 +728,7 @@ function ComparisonCell({ value }: { value: CellValue }) {
   if (value === "unknown") {
     return <CircleHelpIcon className="text-muted-foreground/50 inline size-4" />;
   }
-  return <XIcon className="text-muted-foreground/50 inline size-4" />;
+  return <XIcon className="inline size-4 text-red-600 dark:text-red-400" />;
 }
 
 function TechRow({ label, children }: { label: string; children: React.ReactNode }) {
