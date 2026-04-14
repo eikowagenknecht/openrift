@@ -15,10 +15,32 @@ import { useState } from "react";
 export default function WhyOpenRiftArticle() {
   return (
     <div className="space-y-8">
+      <section>
+        <h2 className="mb-3 text-lg font-semibold">Why this exists</h2>
+        <div className="text-muted-foreground space-y-3">
+          <p>Honestly? I just wanted to track my collection.</p>
+          <p>
+            I tried what was already out there, but each site fell short in a different way. One was
+            missing cards. Another felt slow every time I pulled it up on my phone and sometimes
+            dropped cards mid-edit. A third had every feature you could want, but the basics
+            didn&apos;t feel solid underneath.
+          </p>
+          <p>
+            And nothing really worked well on both desktop and mobile. There are good mobile apps,
+            but they don&apos;t sync with anything you can use at a desk.
+          </p>
+          <p>
+            Eventually I gave up waiting for one of them to be what I wanted, and started building.
+            OpenRift is the card browser I wanted to use. The comparison below is an honest look at
+            where it stands against the alternatives, which you can judge for yourself.
+          </p>
+        </div>
+      </section>
+
       <p className="text-muted-foreground">
-        A transparent comparison with other Riftbound card browsers. This reflects our opinions as
-        of early 2026, not marketing. Features change and we may have missed things. If you run one
-        of these sites and believe something is inaccurate, please{" "}
+        This comparison reflects our opinions as of early 2026, not marketing. Features change and
+        we may have missed things. If you run one of these sites and believe something is
+        inaccurate, please{" "}
         <a
           href="mailto:support@openrift.app"
           className="text-primary hover:underline"
