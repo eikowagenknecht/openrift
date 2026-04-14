@@ -56,6 +56,12 @@ interface DisplayState {
   // Nullable overrides — persisted to localStorage and synced to DB
   overrides: DisplayOverrides;
 
+  // True once server prefs have been merged (or we know none exist). Consumers
+  // that depend on authoritative prefs (e.g. seeding URL filters on mount) can
+  // wait on this rather than reading potentially-stale localStorage values.
+  prefsHydrated: boolean;
+  markPrefsHydrated: () => void;
+
   // Setters (explicitly set a preference)
   setShowImages: (value: boolean) => void;
   setFancyFan: (value: boolean) => void;
@@ -103,6 +109,8 @@ export const useDisplayStore = create<DisplayState>()(
       // Start with all defaults (overrides all null)
       ...resolveAll(NULL_OVERRIDES),
       overrides: { ...NULL_OVERRIDES },
+      prefsHydrated: false,
+      markPrefsHydrated: () => set({ prefsHydrated: true }),
 
       setShowImages: (value) =>
         set((state) => ({
@@ -170,7 +178,7 @@ export const useDisplayStore = create<DisplayState>()(
                 ? state.overrides.completionScope
                 : incoming.completionScope,
           };
-          return { overrides: merged, ...resolveAll(merged) };
+          return { overrides: merged, ...resolveAll(merged), prefsHydrated: true };
         }),
 
       maxColumns: null,
