@@ -12,7 +12,9 @@ test.describe("card detail", () => {
     const cardImageArea = page.locator(".aspect-card").first();
     await cardImageArea.click();
 
-    // Clicking a card opens a detail pane on the right
-    await expect(page.getByTestId("card-detail-pane")).toBeVisible({ timeout: 5000 });
+    // Clicking a card opens a detail pane on the right with the card heading
+    await expect(page.getByRole("heading", { level: 2, name: /Annie, Fiery/ })).toBeVisible({
+      timeout: 5000,
+    });
   });
 });
