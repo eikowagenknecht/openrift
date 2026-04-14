@@ -9,12 +9,14 @@ export function HeroBackground({
   className,
   cardResetKey,
   cardHinting,
+  cardImageUrls,
   onAllCollected,
 }: {
   children: ReactNode;
   className?: string;
   cardResetKey?: number;
   cardHinting?: boolean;
+  cardImageUrls?: string[];
   onAllCollected?: () => void;
 }) {
   return (
@@ -38,9 +40,10 @@ export function HeroBackground({
         key={cardResetKey}
         flyIn={cardResetKey !== undefined && cardResetKey > 0}
         hinting={cardHinting}
+        imageUrls={cardImageUrls}
         onAllCollected={onAllCollected}
       />
-      <div className="pointer-events-none relative flex flex-1 [&_a]:pointer-events-auto [&_button]:pointer-events-auto">
+      <div className="pointer-events-none relative flex flex-1 flex-col [&_a]:pointer-events-auto [&_button]:pointer-events-auto">
         {children}
       </div>
     </div>

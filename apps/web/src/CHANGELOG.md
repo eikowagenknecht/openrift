@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-14
+
+- feat: The landing page now shows actual card art in the background instead of abstract card shapes, with a different random selection every visit
+- feat: The landing page now explains what OpenRift is and has sign up, browse, and sign in buttons all in one place, plus three feature blocks describing what you can do
+
 ## 2026-04-13
 
 - feat: New Promo Cards page shows all promotional printings grouped by promo type, with descriptions and card grids

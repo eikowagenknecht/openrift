@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 
+import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
 // [x%, y%, rotation°] — desktop uses an 8000×3000 landscape canvas,
@@ -82,15 +83,26 @@ function CardShape({
   active,
   hinting,
   shimmerDelay,
+  imageUrl,
   onToggle,
 }: {
   angle: number;
   active: boolean;
   hinting?: boolean;
   shimmerDelay: number;
+  imageUrl?: string;
   onToggle: () => void;
 }) {
   const [wobbling, setWobbling] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // Handle cached images where onLoad may not fire
+  useEffect(() => {
+    if (imgRef.current?.complete) {
+      setLoaded(true);
+    }
+  }, [imageUrl]);
 
   function handleClick() {
     onToggle();
@@ -101,7 +113,8 @@ function CardShape({
     <button
       type="button"
       className={cn(
-        "border-primary/10 bg-background hover:border-primary/40 dark:border-primary/15 dark:hover:border-primary/50 pointer-events-auto aspect-[5/7] w-14 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-lg border transition-[border-color] duration-300 md:w-16",
+        "border-primary/10 hover:border-primary/40 dark:border-primary/15 dark:hover:border-primary/50 pointer-events-auto relative aspect-[5/7] w-14 -translate-x-1/2 -translate-y-1/2 cursor-pointer overflow-hidden rounded-lg border transition-[border-color] duration-300 md:w-16",
+        !imageUrl && "bg-background",
         wobbling && "animate-wobble",
         hinting && "border-primary/40 dark:border-primary/50",
       )}
@@ -109,6 +122,19 @@ function CardShape({
       onClick={handleClick}
       onAnimationEnd={() => setWobbling(false)}
     >
+      {imageUrl && (
+        <img
+          ref={imgRef}
+          src={imageUrl}
+          alt=""
+          draggable={false}
+          className={cn(
+            "pointer-events-none absolute inset-0 h-full w-full rounded-[inherit] object-cover transition-opacity duration-500",
+            loaded ? "opacity-100" : "opacity-0",
+          )}
+          onLoad={() => setLoaded(true)}
+        />
+      )}
       <div
         className={cn(
           "bg-foil animate-foil-shimmer absolute inset-0 rounded-[inherit] bg-[length:200%_200%] transition-opacity duration-700",
@@ -120,17 +146,51 @@ function CardShape({
   );
 }
 
+/**
+ * Fisher-Yates shuffle seeded by a numeric value so the result is
+ * deterministic for the same seed + input, but varies across mounts.
+ *
+ * @returns A shuffled copy of `urls`, or an empty array if input is empty.
+ */
+function shuffleUrls(urls: string[], seed: number): string[] {
+  if (urls.length === 0) {
+    return [];
+  }
+  const result = [...urls];
+  // Seeded PRNG (mulberry32) — bitwise ops intentionally coerce to int32
+  let state = Math.trunc(seed * 2_654_435_761);
+  for (let i = result.length - 1; i > 0; i--) {
+    // oxlint-disable-next-line unicorn/prefer-math-trunc -- int32 coercion required for PRNG
+    state = (state + 0x6d_2b_79_f5) | 0;
+    let temp = Math.imul(state ^ (state >>> 15), 1 | state);
+    temp ^= temp + Math.imul(temp ^ (temp >>> 7), 61 | temp);
+    // oxlint-disable-next-line unicorn/prefer-math-trunc -- uint32 coercion required for PRNG
+    const random = ((temp ^ (temp >>> 14)) >>> 0) / 4_294_967_296;
+    const j = Math.floor(random * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
 export function CardScatter({
   className,
   flyIn,
   hinting,
+  imageUrls,
   onAllCollected,
 }: {
   className?: string;
   flyIn?: boolean;
   hinting?: boolean;
+  imageUrls?: string[];
   onAllCollected?: () => void;
 }) {
+  const hydrated = useHydrated();
+  // Stable random seed per mount — useState initializer runs once, useHydrated
+  // gates the shuffle so SSR renders plain shapes (no images yet).
+  // oxlint-disable-next-line react/hook-use-state -- setter intentionally unused; seed is write-once
+  const [seed] = useState(() => Math.random());
+  const shuffled = hydrated ? shuffleUrls(imageUrls ?? [], seed) : [];
   const [activated, setActivated] = useState<Set<number>>(() => new Set());
   const [flyingAway, setFlyingAway] = useState<Set<number>>(() => new Set());
   const [gone, setGone] = useState<Set<number>>(() => new Set());
@@ -166,7 +226,14 @@ export function CardScatter({
       const visTop = Math.max(cb.top, 0);
       const visRight = Math.min(cb.right, window.innerWidth);
       const visBottom = Math.min(cb.bottom, window.innerHeight);
+      // Blockers (e.g. glass panels) occlude scatter cards from the minigame
+      // tally — cards mostly hidden behind a blocker are still rendered (so
+      // they show through translucent panels) but excluded from reachable.
+      const blockers = [...document.querySelectorAll("[data-card-blocker]")].map((b) =>
+        b.getBoundingClientRect(),
+      );
       const nextVisible = new Set<number>();
+      let reachable = 0;
       for (const child of el.children) {
         const idx = Number((child as HTMLElement).dataset.cardIndex);
         if (Number.isNaN(idx) || gone.has(idx)) {
@@ -178,17 +245,35 @@ export function CardScatter({
         if (rect.width === 0 || rect.height === 0) {
           continue;
         }
-        // Show cards that are at least 50% within the visible area
         const overlapX = Math.max(0, Math.min(rect.right, visRight) - Math.max(rect.left, visLeft));
         const overlapY = Math.max(0, Math.min(rect.bottom, visBottom) - Math.max(rect.top, visTop));
-        const visibleArea = overlapX * overlapY;
+        const viewportArea = overlapX * overlapY;
         const totalArea = rect.width * rect.height;
-        if (totalArea > 0 && visibleArea / totalArea >= 0.5) {
+        if (totalArea === 0) {
+          continue;
+        }
+        // In viewport: render (fade in). Reachable: also not blocked.
+        if (viewportArea / totalArea >= 0.5) {
           nextVisible.add(idx);
+          let unblockedArea = viewportArea;
+          for (const blocker of blockers) {
+            const bx = Math.max(
+              0,
+              Math.min(rect.right, blocker.right) - Math.max(rect.left, blocker.left),
+            );
+            const by = Math.max(
+              0,
+              Math.min(rect.bottom, blocker.bottom) - Math.max(rect.top, blocker.top),
+            );
+            unblockedArea -= bx * by;
+          }
+          if (unblockedArea / totalArea >= 0.5) {
+            reachable++;
+          }
         }
       }
       setVisibleCards(nextVisible);
-      setReachableCount(nextVisible.size + gone.size);
+      setReachableCount(reachable + gone.size);
     }
     countVisible();
     // Re-check periodically so drifting cards fade in/out at edges.
@@ -291,6 +376,7 @@ export function CardScatter({
                 active={activated.has(i)}
                 hinting={hinting}
                 shimmerDelay={((x * 7 + y * 13) % 40) / 10}
+                imageUrl={shuffled.length > 0 ? shuffled[i % shuffled.length] : undefined}
                 onToggle={() => toggle(i)}
               />
             </div>
