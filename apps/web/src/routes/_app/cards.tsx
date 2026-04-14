@@ -22,7 +22,7 @@ export const Route = createFileRoute("/_app/cards")({
       siteUrl: getSiteUrl(),
       title: "Cards",
       description:
-        "Browse all Riftbound cards with filters for set, domain, rarity, cost, and more. View card art, stats, and pricing.",
+        "Complete Riftbound TCG card database with marketplace price comparison. Filter by set, domain, rarity, cost, and keyword to browse every card and printing.",
       path: "/cards",
     }),
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQueryOptions),
