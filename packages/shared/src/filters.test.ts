@@ -68,6 +68,7 @@ function emptyFilters(overrides: Partial<CardFilters> = {}): CardFilters {
     search: "",
     searchScope: ["name"],
     sets: [],
+    languages: [],
     rarities: [],
     types: [],
     superTypes: [],
@@ -380,6 +381,38 @@ describe("filterCards", () => {
   it("filters by multiple sets (OR)", () => {
     const result = filterCards(printings, emptyFilters({ sets: ["Set Alpha", "Set Beta"] }));
     expect(result).toHaveLength(3);
+  });
+
+  // -- Language filter --
+
+  it("filters by language", () => {
+    const catalog = [
+      makePrinting({ id: "en-printing", language: "EN", card: { slug: "c1", name: "Alpha" } }),
+      makePrinting({ id: "de-printing", language: "DE", card: { slug: "c2", name: "Beta" } }),
+      makePrinting({ id: "ja-printing", language: "JA", card: { slug: "c3", name: "Gamma" } }),
+    ];
+    const result = filterCards(catalog, emptyFilters({ languages: ["EN"] }));
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("en-printing");
+  });
+
+  it("filters by multiple languages (OR)", () => {
+    const catalog = [
+      makePrinting({ id: "en-printing", language: "EN", card: { slug: "c1", name: "Alpha" } }),
+      makePrinting({ id: "de-printing", language: "DE", card: { slug: "c2", name: "Beta" } }),
+      makePrinting({ id: "ja-printing", language: "JA", card: { slug: "c3", name: "Gamma" } }),
+    ];
+    const result = filterCards(catalog, emptyFilters({ languages: ["EN", "DE"] }));
+    expect(result).toHaveLength(2);
+  });
+
+  it("shows all printings when languages filter is empty", () => {
+    const catalog = [
+      makePrinting({ id: "en-printing", language: "EN", card: { slug: "c1", name: "Alpha" } }),
+      makePrinting({ id: "de-printing", language: "DE", card: { slug: "c2", name: "Beta" } }),
+    ];
+    const result = filterCards(catalog, emptyFilters({ languages: [] }));
+    expect(result).toHaveLength(2);
   });
 
   // -- Rarity filter --

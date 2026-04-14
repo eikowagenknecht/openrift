@@ -135,19 +135,18 @@ export function useCardData({
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
   const setOrderMap = new Map(sets.map((s, i) => [s.id, i]));
 
-  // Language is a display preference, not a hard filter — it controls which
-  // printing variant deduplicateByCard / groupPrintingsByCardId prefer, but
-  // never hides cards or printings that only exist in other languages.
-  const langFiltered = allPrintings;
-
   // getPrice resolves a printing's price on the user's favorite marketplace.
   // Filters, sorting, and the available-price-range histogram all read prices
   // through this dependency rather than reading a field off the printing.
   const lookup = prices ?? EMPTY_PRICE_LOOKUP;
   const getPrice = (p: Printing) => lookup.get(p.id, favoriteMarketplace);
 
-  const availableFilters = getAvailableFilters(langFiltered, { sets, getPrice });
-  let filteredCards = filterCards(langFiltered, filters, { keywordReverseMap, getPrice });
+  // Language is a hard filter applied via `filters.languages` inside
+  // `filterCards`. The `languageFilter` prop is the canonical-ordering
+  // preference, used by deduplicateByCard / groupPrintingsByCardId to pick
+  // which printing represents a card when several languages remain.
+  const availableFilters = getAvailableFilters(allPrintings, { sets, getPrice });
+  let filteredCards = filterCards(allPrintings, filters, { keywordReverseMap, getPrice });
 
   // Apply ownership filter (frontend-only, needs user copy data)
   if (isOwned !== null && isOwned !== undefined && ownedCountByPrinting) {
@@ -194,11 +193,11 @@ export function useCardData({
   const sortedCards = sortCards(displayCards, sortBy, sortOptions);
 
   const ownedCounts = ownedCountByPrinting
-    ? buildOwnedCounts(langFiltered, displayCards, ownedCountByPrinting, view)
+    ? buildOwnedCounts(allPrintings, displayCards, ownedCountByPrinting, view)
     : undefined;
 
   const totalUniqueCards =
-    view === "cards" ? new Set(langFiltered.map((c) => c.cardId)).size : langFiltered.length;
+    view === "cards" ? new Set(allPrintings.map((c) => c.cardId)).size : allPrintings.length;
 
   // Available languages are derived from ALL printings (before language filtering)
   // so the filter UI always shows every language that exists in the catalog.
