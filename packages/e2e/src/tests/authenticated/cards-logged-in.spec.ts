@@ -53,6 +53,25 @@ async function deleteUser(email: string) {
   }
 }
 
+async function seedInboxCopy(email: string, cardName: string): Promise<void> {
+  const sql = loadDb();
+  try {
+    await sql`
+      INSERT INTO copies (user_id, collection_id, printing_id)
+      SELECT u.id, c.id, p.id
+      FROM users u
+      JOIN collections c ON c.user_id = u.id AND c.is_inbox = true
+      JOIN printings p ON p.card_id = (
+        SELECT id FROM cards WHERE name = ${cardName} LIMIT 1
+      )
+      WHERE u.email = ${email}
+      LIMIT 1
+    `;
+  } finally {
+    await sql.end();
+  }
+}
+
 async function findCardWithMultiplePrintings(): Promise<string> {
   const sql = loadDb();
   try {
@@ -132,13 +151,15 @@ test.describe("cards /cards (logged in)", () => {
 
   test("Count mode shows an owned-count strip on cards", async ({ page }) => {
     userEmail = await createAndLogin(page);
+    await seedInboxCopy(userEmail, "Annie, Fiery");
     await page.goto("/cards");
     await waitForCards(page);
 
     await catalogModeButton(page).click();
 
-    // A user with no copies sees "×0" labels above cards (OwnedCountStrip span fallback).
-    await expect(page.getByText("×0").first()).toBeVisible({ timeout: 10_000 });
+    // OwnedCollectionsPopover only renders when the user owns >= 1 copy of a printing;
+    // with one seeded copy of Annie, Fiery, its strip shows "×1".
+    await expect(page.getByText("×1").first()).toBeVisible({ timeout: 10_000 });
   });
 
   test("Add mode: clicking + increments count and persists after reload", async ({ page }) => {
