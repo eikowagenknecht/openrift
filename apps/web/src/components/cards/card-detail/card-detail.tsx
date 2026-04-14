@@ -105,7 +105,12 @@ export function CardDetail({
       {onClose && (
         <div className="border-border/30 sticky top-0 z-10 border-b p-4 backdrop-blur md:hidden">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon-sm" onClick={onClose}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onClose}
+              aria-label="Close card details"
+            >
               <ArrowLeftIcon className="size-4" />
             </Button>
             <CardDetailHeading
@@ -133,7 +138,12 @@ export function CardDetail({
             shortCode={printing.shortCode}
           />
           {onClose && (
-            <Button variant="ghost" size="icon-sm" onClick={onClose}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onClose}
+              aria-label="Close card details"
+            >
               <XIcon className="size-4" />
             </Button>
           )}
