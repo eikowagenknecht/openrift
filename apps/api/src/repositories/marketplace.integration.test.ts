@@ -184,7 +184,11 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
     // We inserted snapshots for our TCG product, so it should appear
     expect(prices.length).toBeGreaterThanOrEqual(1);
 
-    const anniePrice = prices.find((p) => p.printingId === anniePrintingId);
+    // Filter by our test marketplace so seed-data rows for the same printing
+    // in other marketplaces (e.g. cardmarket) don't shadow our inserted price.
+    const anniePrice = prices.find(
+      (p) => p.printingId === anniePrintingId && p.marketplace === mpTcg,
+    );
     expect(anniePrice).toBeDefined();
     // The latest snapshot is snap2 with marketCents=120
     expect(anniePrice!.marketCents).toBe(120);
