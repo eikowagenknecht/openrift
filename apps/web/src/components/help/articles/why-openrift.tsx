@@ -1,27 +1,14 @@
-import { Link } from "@tanstack/react-router";
 import {
-  AlertTriangleIcon,
-  BookOpenIcon,
+  ArrowRightLeftIcon,
   CheckCircle2Icon,
   ChevronDownIcon,
   CircleHelpIcon,
   Code2Icon,
-  DollarSignIcon,
-  EyeIcon,
-  EyeOffIcon,
   GaugeIcon,
-  GlobeIcon,
   HeartIcon,
-  LibraryIcon,
-  MailIcon,
-  ServerIcon,
-  ShieldIcon,
   SparklesIcon,
-  SwordsIcon,
   UsersIcon,
-  WrenchIcon,
   XIcon,
-  ZapIcon,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -29,11 +16,11 @@ export default function WhyOpenRiftArticle() {
   return (
     <div className="space-y-8">
       <p className="text-muted-foreground">
-        A transparent look at how OpenRift compares to other Riftbound card browsers. This is based
-        on our honest assessment as of early 2026, not marketing. If you run one of these sites and
-        feel misrepresented, please{" "}
+        A transparent comparison with other Riftbound card browsers. This reflects our opinions as
+        of early 2026, not marketing. Features change and we may have missed things. If you run one
+        of these sites and believe something is inaccurate, please{" "}
         <a
-          href="mailto:openrift@eiko.dev"
+          href="mailto:support@openrift.app"
           className="text-primary hover:underline"
           rel="noreferrer"
         >
@@ -42,103 +29,42 @@ export default function WhyOpenRiftArticle() {
         and we&apos;ll correct it or add your statement.
       </p>
 
-      <div className="border-border rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
-        <p className="text-muted-foreground flex items-start gap-2 text-sm">
-          <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-amber-500" />
-          <span>
-            These comparisons reflect <strong className="text-foreground">our opinions</strong> and
-            may not be perfectly accurate. Features change, and we may have missed something. Take
-            this as a starting point, not gospel.
-          </span>
-        </p>
-      </div>
-
-      {/* Where we shine */}
+      {/* Our philosophy */}
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Where we shine</h2>
+        <h2 className="mb-3 text-lg font-semibold">Our philosophy</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <FeatureCard
             icon={<Code2Icon className="size-4" />}
             title="Open source"
-            description="Full source code on GitHub (AGPL-3.0). Inspect, fork, self-host, contribute — no black boxes."
-          />
-          <FeatureCard
-            icon={<EyeOffIcon className="size-4" />}
-            title="No ads, privacy-first"
             description={
               <>
-                No banner ads, no data sold. Analytics are cookie-free and privacy-focused (
+                Full source code on{" "}
                 <a
-                  href="https://umami.is"
+                  href="https://github.com/eikowagenknecht/openrift"
                   target="_blank"
                   rel="noreferrer"
                   className="text-primary hover:underline"
                 >
-                  Umami
-                </a>
-                ). Your collection data stays yours.
-              </>
-            }
-          />
-          <FeatureCard
-            icon={<DollarSignIcon className="size-4" />}
-            title="3 price sources"
-            description={
-              <>
-                <a
-                  href="https://partner.tcgplayer.com/openrift"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  TCGPlayer
-                </a>
-                ,{" "}
-                <a
-                  href="https://www.cardmarket.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  Cardmarket
-                </a>
-                , and{" "}
-                <a
-                  href="https://www.cardtrader.com?share_code=openrift"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  CardTrader
+                  GitHub
                 </a>{" "}
-                side by side. Most sites show one marketplace at best.
+                under AGPL-3.0. Inspect, fork, self-host, or open an issue. We read every one.
               </>
             }
           />
           <FeatureCard
-            icon={<ZapIcon className="size-4" />}
-            title="Fast & responsive"
-            description="Virtualized scrolling, snappy filters, and a lightweight UI that feels instant."
+            icon={<ArrowRightLeftIcon className="size-4" />}
+            title="Data import / export"
+            description="Bring your collection in via CSV and take it out the same way. Your data is never held hostage."
           />
           <FeatureCard
-            icon={<LibraryIcon className="size-4" />}
-            title="Rich collection management"
-            description="Multiple named collections, drag & drop, activity history, import/export, and market value tracking."
+            icon={<HeartIcon className="size-4" />}
+            title="No forums, no social network"
+            description="Shared decklists and wishlists are coming, but we won't run forums or other features that need full-time content moderation. We're a tool, not a social space."
           />
           <FeatureCard
-            icon={<SwordsIcon className="size-4" />}
-            title="Full deck builder"
-            description="Format validation, energy curves, domain distribution, deck codes — not just a card list."
-          />
-          <FeatureCard
-            icon={<ShieldIcon className="size-4" />}
-            title="No vendor lock-in"
-            description="Export your data any time. Self-host if you want. Your collection isn't held hostage."
-          />
-          <FeatureCard
-            icon={<GlobeIcon className="size-4" />}
-            title="Multi-language"
-            description="View card printings in English, French, and Chinese — with more languages as they're released."
+            icon={<SparklesIcon className="size-4" />}
+            title="No AI gimmicks"
+            description="No AI deck suggestions or natural language search. We don't think everything needs AI shoehorned into it — though we do use it to build the site."
           />
         </div>
       </section>
@@ -147,60 +73,13 @@ export default function WhyOpenRiftArticle() {
       <section>
         <h2 className="mb-3 text-lg font-semibold">Where we&apos;re catching up</h2>
         <p className="text-muted-foreground mb-3">
-          We believe in being honest about our gaps. Here&apos;s what we don&apos;t have yet:
+          Beyond the feature gaps below, there are two things a table can&apos;t capture:
         </p>
         <div className="grid gap-3 sm:grid-cols-2">
           <GapCard
             icon={<UsersIcon className="size-4" />}
             title="Community adoption"
             description="We're new and small. No network effects, no large user base yet. But hey — join now and you can tell your grandchildren you were here before it was cool."
-          />
-          <GapCard
-            icon={<EyeIcon className="size-4" />}
-            title="Meta & tournament data"
-            description={
-              <>
-                No top decks or tournament results yet. We&apos;re planning to add tournament
-                decklists — see our{" "}
-                <Link to="/roadmap" className="text-primary hover:underline">
-                  roadmap
-                </Link>
-                .
-              </>
-            }
-          />
-          <GapCard
-            icon={<BookOpenIcon className="size-4" />}
-            title="Card rulings"
-            description={
-              <>
-                We show card text but don&apos;t have a searchable rules reference or errata yet.
-                It&apos;s on the{" "}
-                <Link to="/roadmap" className="text-primary hover:underline">
-                  roadmap
-                </Link>
-                .
-              </>
-            }
-          />
-          <GapCard
-            icon={<HeartIcon className="size-4" />}
-            title="Social features"
-            description={
-              <>
-                Shared decklists and wishlists are{" "}
-                <Link to="/roadmap" className="text-primary hover:underline">
-                  coming
-                </Link>
-                . We won&apos;t do forums or other features that need content moderation —
-                that&apos;s a full-time job.
-              </>
-            }
-          />
-          <GapCard
-            icon={<SparklesIcon className="size-4" />}
-            title="AI-powered tools"
-            description="No AI deck suggestions or natural language search. We don't think everything needs AI shoehorned into it — though we do use it to build the site."
           />
           <GapCard
             icon={<GaugeIcon className="size-4" />}
@@ -213,7 +92,7 @@ export default function WhyOpenRiftArticle() {
       {/* Comparison table */}
       <section>
         <h2 className="mb-3 text-lg font-semibold">Feature comparison</h2>
-        <p className="text-muted-foreground mb-3 text-sm">
+        <p className="text-muted-foreground mb-3">
           Compared against other Riftbound card browsers we&apos;re aware of. A checkmark means the
           feature is available; a half circle means partial support; an X means not available; a
           question mark means we&apos;re not sure.
@@ -553,62 +432,35 @@ export default function WhyOpenRiftArticle() {
         <p className="text-muted-foreground mb-3">
           For the technically curious, or if you&apos;re thinking about contributing:
         </p>
-        <div className="border-border divide-border divide-y rounded-lg border text-sm">
-          <TechRow label="Runtime" value="Bun" />
-          <TechRow label="Language" value="TypeScript end-to-end" />
-          <TechRow label="Frontend" value="React + Vite" />
-          <TechRow label="API" value="Hono" />
-          <TechRow label="Database" value="PostgreSQL" />
-          <TechRow label="Styling" value="Tailwind CSS + shadcn/ui" />
-          <TechRow label="Monorepo" value="Turborepo (web, api, shared)" />
-          <TechRow label="Linting" value="oxlint + oxfmt" />
-        </div>
-        <p className="text-muted-foreground mt-3 text-sm">
-          Modern, fast, and TypeScript all the way through. The tradeoff: some of these tools (Bun,
-          Hono, oxlint) are newer and less widely known, which may raise the bar for contributors
-          compared to Express/ESLint stacks.
-        </p>
-      </section>
-
-      {/* Help us improve */}
-      <section>
-        <h2 className="mb-3 text-lg font-semibold">Help us improve</h2>
-        <p className="text-muted-foreground">
-          OpenRift is built in the open. If you find a bug, want a feature, or want to contribute
-          code:
-        </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <FeatureCard
-            icon={<WrenchIcon className="size-4" />}
-            title="Report issues & ideas"
-            description="Open an issue on GitHub. We read every one."
-          />
-          <FeatureCard
-            icon={<ServerIcon className="size-4" />}
-            title="Self-host"
-            description="Run your own instance. The full stack is open and documented."
-          />
+        <div className="border-border divide-border divide-y rounded-lg border">
+          <TechRow label="Runtime">
+            <TechLink href="https://bun.com">Bun</TechLink>
+          </TechRow>
+          <TechRow label="Language">
+            <TechLink href="https://www.typescriptlang.org">TypeScript</TechLink> end-to-end
+          </TechRow>
+          <TechRow label="Frontend">
+            <TechLink href="https://react.dev">React</TechLink> +{" "}
+            <TechLink href="https://vite.dev">Vite</TechLink>
+          </TechRow>
+          <TechRow label="API">
+            <TechLink href="https://hono.dev">Hono</TechLink>
+          </TechRow>
+          <TechRow label="Database">
+            <TechLink href="https://www.postgresql.org">PostgreSQL</TechLink>
+          </TechRow>
+          <TechRow label="Styling">
+            <TechLink href="https://tailwindcss.com">Tailwind CSS</TechLink> +{" "}
+            <TechLink href="https://ui.shadcn.com">shadcn/ui</TechLink>
+          </TechRow>
+          <TechRow label="Monorepo">
+            <TechLink href="https://turborepo.com">Turborepo</TechLink> (web, api, shared)
+          </TechRow>
+          <TechRow label="Linting">
+            <TechLink href="https://oxc.rs">oxlint + oxfmt</TechLink>
+          </TechRow>
         </div>
       </section>
-
-      {/* Disclaimer */}
-      <div className="border-border bg-muted/30 rounded-lg border p-3">
-        <p className="text-muted-foreground flex items-start gap-2 text-xs">
-          <MailIcon className="mt-0.5 size-3.5 shrink-0" />
-          <span>
-            This comparison reflects our honest opinions as of early 2026. If you run one of the
-            sites listed here and believe something is inaccurate, please{" "}
-            <a
-              href="mailto:openrift@eiko.dev"
-              className="text-primary hover:underline"
-              rel="noreferrer"
-            >
-              reach out
-            </a>{" "}
-            and we&apos;ll happily correct it or include your response.
-          </span>
-        </p>
-      </div>
     </div>
   );
 }
@@ -626,9 +478,9 @@ function FeatureCard({
     <div className="border-border bg-background rounded-lg border p-3">
       <div className="mb-1 flex items-center gap-2">
         <span className="text-primary">{icon}</span>
-        <span className="text-sm font-medium">{title}</span>
+        <span className="font-medium">{title}</span>
       </div>
-      <p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
+      <p className="text-muted-foreground leading-relaxed">{description}</p>
     </div>
   );
 }
@@ -646,9 +498,9 @@ function GapCard({
     <div className="border-border bg-background rounded-lg border border-dashed p-3">
       <div className="mb-1 flex items-center gap-2">
         <span className="text-muted-foreground">{icon}</span>
-        <span className="text-sm font-medium">{title}</span>
+        <span className="font-medium">{title}</span>
       </div>
-      <p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
+      <p className="text-muted-foreground leading-relaxed">{description}</p>
     </div>
   );
 }
@@ -723,12 +575,12 @@ function ComparisonRow({
         <tr>
           <td colSpan={6} className="bg-muted/20 px-3 py-2">
             {detailObj.general && (
-              <p className="text-muted-foreground text-xs leading-relaxed">{detailObj.general}</p>
+              <p className="text-muted-foreground leading-relaxed">{detailObj.general}</p>
             )}
             {siteNotes.length > 0 && (
               <ul
                 className={cn(
-                  "text-muted-foreground space-y-0.5 text-xs leading-relaxed",
+                  "text-muted-foreground space-y-0.5 leading-relaxed",
                   detailObj.general && "mt-1.5",
                 )}
               >
@@ -751,7 +603,7 @@ function ComparisonSection({ title }: { title: string }) {
     <tr className="bg-muted/30">
       <td
         colSpan={6}
-        className="text-muted-foreground px-3 py-1.5 text-[11px] font-medium tracking-wider uppercase"
+        className="text-muted-foreground px-3 py-1.5 font-medium tracking-wider uppercase"
       >
         {title}
       </td>
@@ -776,12 +628,20 @@ function ComparisonCell({ value }: { value: CellValue }) {
   return <XIcon className="text-muted-foreground/50 inline size-4" />;
 }
 
-function TechRow({ label, value }: { label: string; value: string }) {
+function TechRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex gap-3 px-3 py-2.5">
       <span className="w-24 shrink-0 font-medium">{label}</span>
-      <span className="text-muted-foreground">{value}</span>
+      <span className="text-muted-foreground">{children}</span>
     </div>
+  );
+}
+
+function TechLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+      {children}
+    </a>
   );
 }
 
