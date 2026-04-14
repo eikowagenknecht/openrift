@@ -159,9 +159,15 @@ test.describe("cards /cards (logged in)", () => {
   });
 
   test("Add mode: clicking + increments count and persists after reload", async ({ page }) => {
-    userEmail = await createAndLogin(page);
+    const email = await createAndLogin(page);
+    userEmail = email;
     await page.goto("/cards");
     await waitForCards(page);
+
+    // Narrow the grid to one card so the + button is unambiguous and the
+    // virtualizer doesn't shift rows while Playwright clicks.
+    await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 10_000 });
 
     // Off → Count → Add
     const button = catalogModeButton(page);
@@ -170,19 +176,44 @@ test.describe("cards /cards (logged in)", () => {
 
     // The CollectionAddStrip's + button is tabindex=-1 with an inline SVG
     // whose path starts with "M8 2a1 1 0 0 1 1 1v4h4" (see collection-add-strip.tsx).
-    const addButtons = page.locator(
-      'button[tabindex="-1"]:has(svg path[d^="M8 2a1 1 0 0 1 1 1v4h4"])',
-    );
-    await expect(addButtons.first()).toBeVisible({ timeout: 10_000 });
-    await addButtons.first().click();
+    const addButton = page
+      .locator('button[tabindex="-1"]:has(svg path[d^="M8 2a1 1 0 0 1 1 1v4h4"])')
+      .first();
+    await expect(addButton).toBeVisible({ timeout: 10_000 });
+    await addButton.click();
 
-    // Optimistic add: the strip's ×N text should reach ×1.
+    // The add is batched (300ms) before the POST; poll the DB to confirm the
+    // copy was persisted before asserting on the UI.
+    await expect
+      .poll(
+        async () => {
+          const sql = loadDb();
+          try {
+            const rows = (await sql`
+              SELECT COUNT(*)::int AS count
+              FROM copies cp
+              JOIN users u ON u.id = cp.user_id
+              JOIN collections c ON c.id = cp.collection_id
+              WHERE u.email = ${email} AND c.is_inbox = true
+            `) as { count: number }[];
+            return rows[0].count;
+          } finally {
+            await sql.end();
+          }
+        },
+        { timeout: 10_000 },
+      )
+      .toBe(1);
+
+    // With a copy persisted, the Add strip shows ×1.
     await expect(page.getByText("×1").first()).toBeVisible({ timeout: 10_000 });
 
     // Reload clears the local add-mode store — a persisting count has come from the API.
     // Re-enable Add mode to re-render the strip (Off → Count → Add).
     await page.reload();
     await waitForCards(page);
+    await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 10_000 });
     await catalogModeButton(page).click();
     await catalogModeButton(page).click();
 
@@ -280,9 +311,11 @@ test.describe("cards /cards (logged in)", () => {
     await expect(variantButton).toBeVisible({ timeout: 10_000 });
     await variantButton.click();
 
-    // VariantAddPopover is a shadow-lg container with per-printing rarity thumbnails.
+    // VariantAddPopover is a shadow-lg container with per-printing card-ID labels
+    // (font-mono). Rarity thumbnails only render when printings have mixed rarities,
+    // so they aren't a reliable selector.
     const popover = page.locator("div.shadow-lg").filter({
-      has: page.locator('img[src*="/images/rarities/"]'),
+      has: page.locator("span.font-mono"),
     });
     await expect(popover.first()).toBeVisible({ timeout: 5000 });
 
