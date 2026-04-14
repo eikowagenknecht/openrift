@@ -37,6 +37,7 @@ export function PrintingPicker({
             <button
               key={p.id}
               type="button"
+              aria-pressed={isActive}
               onClick={() => onSelect(p)}
               className={cn(
                 "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
