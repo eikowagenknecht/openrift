@@ -5,7 +5,6 @@ import { XIcon } from "lucide-react";
 import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { formatDomainFilterLabel } from "@/lib/domain";
@@ -240,21 +239,15 @@ export function ActiveFilters({
           </div>
         )}
       </div>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="destructive"
-              size="icon-sm"
-              className="shrink-0 self-start"
-              onClick={clearAllFilters}
-            />
-          }
-        >
-          <XIcon className="size-4" />
-        </TooltipTrigger>
-        <TooltipContent>Clear all filters</TooltipContent>
-      </Tooltip>
+      <Button
+        variant="destructive"
+        size="icon-sm"
+        className="shrink-0 self-start"
+        onClick={clearAllFilters}
+        title="Clear all filters"
+      >
+        <XIcon className="size-4" />
+      </Button>
     </div>
   );
 }

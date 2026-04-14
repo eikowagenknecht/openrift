@@ -121,13 +121,12 @@ test.describe("card filter panel (desktop)", () => {
     await expect(page.getByText("Type:", { exact: true })).toBeVisible();
 
     // The clear-all button is the last button in the active-filters bar and
-    // exposes its label via the tooltip content ("Clear all filters").
+    // exposes its label via the native title attribute ("Clear all filters").
     const activeFiltersBar = page.locator(String.raw`div.bg-muted\/50`).filter({
       hasText: "Domain:",
     });
     const clearAllButton = activeFiltersBar.getByRole("button").last();
-    await clearAllButton.hover();
-    await expect(page.getByText("Clear all filters", { exact: true })).toBeVisible();
+    await expect(clearAllButton).toHaveAttribute("title", "Clear all filters");
     await clearAllButton.click();
 
     await expect(page).not.toHaveURL(/[?&]domains=/);

@@ -24,7 +24,6 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -124,26 +123,18 @@ function SortGroupControls({
   const groupLabel = groupByOptions.find((o) => o.value === groupBy)?.label ?? groupBy;
 
   const dirToggle = (dir: "asc" | "desc", onToggle: (v: "asc" | "desc") => void) => (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <button
-            type="button"
-            className="text-muted-foreground hover:text-foreground -mr-1 rounded p-0.5 transition-colors"
-            onClick={() => onToggle(dir === "asc" ? "desc" : "asc")}
-          />
-        }
-      >
-        {dir === "asc" ? (
-          <ArrowDownNarrowWideIcon className="size-3.5" />
-        ) : (
-          <ArrowUpNarrowWideIcon className="size-3.5" />
-        )}
-      </TooltipTrigger>
-      <TooltipContent>
-        {dir === "asc" ? "Ascending — click to reverse" : "Descending — click to reverse"}
-      </TooltipContent>
-    </Tooltip>
+    <button
+      type="button"
+      className="text-muted-foreground hover:text-foreground -mr-1 rounded p-0.5 transition-colors"
+      onClick={() => onToggle(dir === "asc" ? "desc" : "asc")}
+      title={dir === "asc" ? "Ascending, click to reverse" : "Descending, click to reverse"}
+    >
+      {dir === "asc" ? (
+        <ArrowDownNarrowWideIcon className="size-3.5" />
+      ) : (
+        <ArrowUpNarrowWideIcon className="size-3.5" />
+      )}
+    </button>
   );
 
   if (compact) {
@@ -263,20 +254,14 @@ function ViewModeToggle({
           Cards
         </Button>
       ) : (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant={view === "cards" ? "default" : "outline"}
-                size="icon"
-                onClick={() => onViewChange("cards")}
-              />
-            }
-          >
-            <SquareIcon className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent>One per card</TooltipContent>
-        </Tooltip>
+        <Button
+          variant={view === "cards" ? "default" : "outline"}
+          size="icon"
+          onClick={() => onViewChange("cards")}
+          title="One per card"
+        >
+          <SquareIcon className="size-4" />
+        </Button>
       )}
       {compact ? (
         <Button
@@ -289,20 +274,14 @@ function ViewModeToggle({
           Printings
         </Button>
       ) : (
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                variant={view === "printings" ? "default" : "outline"}
-                size="icon"
-                onClick={() => onViewChange("printings")}
-              />
-            }
-          >
-            <CopyIcon className="size-4" />
-          </TooltipTrigger>
-          <TooltipContent>Every printing</TooltipContent>
-        </Tooltip>
+        <Button
+          variant={view === "printings" ? "default" : "outline"}
+          size="icon"
+          onClick={() => onViewChange("printings")}
+          title="Every printing"
+        >
+          <CopyIcon className="size-4" />
+        </Button>
       )}
       {showCopies &&
         (compact ? (
@@ -316,20 +295,14 @@ function ViewModeToggle({
             Copies
           </Button>
         ) : (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant={view === "copies" ? "default" : "outline"}
-                  size="icon"
-                  onClick={() => onViewChange("copies")}
-                />
-              }
-            >
-              <SquareStackIcon className="size-4" />
-            </TooltipTrigger>
-            <TooltipContent>Every individual copy</TooltipContent>
-          </Tooltip>
+          <Button
+            variant={view === "copies" ? "default" : "outline"}
+            size="icon"
+            onClick={() => onViewChange("copies")}
+            title="Every individual copy"
+          >
+            <SquareStackIcon className="size-4" />
+          </Button>
         ))}
     </ButtonGroup>
   );
@@ -374,27 +347,21 @@ function ColumnControls({
       >
         <MinusIcon className={compact ? undefined : "size-4"} />
       </Button>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <ButtonGroupText
-              className={
-                compact
-                  ? "flex min-w-7 cursor-pointer items-center justify-center text-xs tabular-nums"
-                  : "min-w-10 cursor-pointer justify-center tabular-nums"
-              }
-              onClick={() => {
-                if (maxColumns !== null) {
-                  onMaxColumnsChange(null);
-                }
-              }}
-            />
+      <ButtonGroupText
+        className={
+          compact
+            ? "flex min-w-7 cursor-pointer items-center justify-center text-xs tabular-nums"
+            : "min-w-10 cursor-pointer justify-center tabular-nums"
+        }
+        onClick={() => {
+          if (maxColumns !== null) {
+            onMaxColumnsChange(null);
           }
-        >
-          {maxColumns === null ? "Auto" : maxColumns}
-        </TooltipTrigger>
-        <TooltipContent>{maxColumns === null ? "Auto columns" : "Reset to auto"}</TooltipContent>
-      </Tooltip>
+        }}
+        title={maxColumns === null ? "Auto columns" : "Reset to auto"}
+      >
+        {maxColumns === null ? "Auto" : maxColumns}
+      </ButtonGroupText>
       <Button
         variant="outline"
         size={compact ? "sm" : "icon"}

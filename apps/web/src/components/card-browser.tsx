@@ -31,7 +31,6 @@ import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
@@ -265,29 +264,25 @@ export function CardBrowser() {
         <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
         <DesktopOptionsBar className="hidden sm:flex" />
         {isLoggedIn && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant={catalogMode === "off" ? "outline" : "default"}
-                  size="icon"
-                  className="hidden sm:flex"
-                  onClick={cycleCatalogMode}
-                />
-              }
-            >
-              {catalogMode === "add" ? (
-                <PackagePlusIcon className="size-4" />
-              ) : (
-                <PackageIcon className="size-4" />
-              )}
-            </TooltipTrigger>
-            <TooltipContent>
-              {catalogMode === "off" && "Show owned count"}
-              {catalogMode === "count" && "Switch to add mode"}
-              {catalogMode === "add" && "Turn off"}
-            </TooltipContent>
-          </Tooltip>
+          <Button
+            variant={catalogMode === "off" ? "outline" : "default"}
+            size="icon"
+            className="hidden sm:flex"
+            onClick={cycleCatalogMode}
+            title={
+              catalogMode === "off"
+                ? "Show owned count"
+                : catalogMode === "count"
+                  ? "Switch to add mode"
+                  : "Turn off"
+            }
+          >
+            {catalogMode === "add" ? (
+              <PackagePlusIcon className="size-4" />
+            ) : (
+              <PackageIcon className="size-4" />
+            )}
+          </Button>
         )}
         <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <MobileOptionsDrawer

@@ -128,25 +128,21 @@ test.describe("cards /cards (logged in)", () => {
     const button = catalogModeButton(page);
     await expect(button).toBeVisible();
 
-    // Off: tooltip reads "Show owned count"
-    await button.hover();
-    await expect(page.getByRole("tooltip")).toHaveText("Show owned count");
+    // Off: native title reads "Show owned count"
+    await expect(button).toHaveAttribute("title", "Show owned count");
     await button.click();
 
-    // Count: tooltip reads "Switch to add mode"
-    await button.hover();
-    await expect(page.getByRole("tooltip")).toHaveText("Switch to add mode");
+    // Count: title reads "Switch to add mode"
+    await expect(button).toHaveAttribute("title", "Switch to add mode");
     await button.click();
 
-    // Add: tooltip reads "Turn off". Icon changes to PackagePlusIcon.
-    await button.hover();
-    await expect(page.getByRole("tooltip")).toHaveText("Turn off");
+    // Add: title reads "Turn off". Icon changes to PackagePlusIcon.
+    await expect(button).toHaveAttribute("title", "Turn off");
     await expect(page.locator("svg.lucide-package-plus")).toBeVisible();
     await button.click();
 
     // Back to Off
-    await button.hover();
-    await expect(page.getByRole("tooltip")).toHaveText("Show owned count");
+    await expect(button).toHaveAttribute("title", "Show owned count");
   });
 
   test("Count mode shows an owned-count strip on cards", async ({ page }) => {
