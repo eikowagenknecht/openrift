@@ -64,7 +64,7 @@ export default function WhyOpenRiftArticle() {
           <FeatureCard
             icon={<SparklesIcon className="size-4" />}
             title="No AI gimmicks"
-            description="No AI deck suggestions or natural language search. We don't think everything needs AI shoehorned into it — though we do use it to build the site."
+            description="No AI deck suggestions or natural language search. We don't think everything needs AI shoehorned into it, though we do use it to build the site."
           />
         </div>
       </section>
@@ -79,7 +79,7 @@ export default function WhyOpenRiftArticle() {
           <GapCard
             icon={<UsersIcon className="size-4" />}
             title="Community adoption"
-            description="We're new and small. No network effects, no large user base yet. But hey — join now and you can tell your grandchildren you were here before it was cool."
+            description="We're new and small. No network effects, no large user base yet. But hey, join now and you can tell your grandchildren you were here before it was cool."
           />
           <GapCard
             icon={<GaugeIcon className="size-4" />}
@@ -126,7 +126,7 @@ export default function WhyOpenRiftArticle() {
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
                 detail={{
                   general:
-                    "Each printing tracked separately — standard, foil, promos, alternate art, etc.",
+                    "Each printing tracked separately (standard, foil, promos, alternate art, etc.).",
                 }}
               />
               <ComparisonRow
@@ -181,7 +181,7 @@ export default function WhyOpenRiftArticle() {
               <ComparisonRow
                 feature="Collection sharing"
                 values={["no", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{ general: "Not yet — sharing collections via link is planned." }}
+                detail={{ general: "Not yet. Sharing collections via link is planned." }}
               />
               <ComparisonRow
                 feature="Collection value"
@@ -263,7 +263,7 @@ export default function WhyOpenRiftArticle() {
               <ComparisonRow
                 feature="Mobile-friendly"
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
-                detail={{ general: "Fully responsive — works on phones, tablets, and desktops." }}
+                detail={{ general: "Fully responsive. Works on phones, tablets, and desktops." }}
               />
               <ComparisonRow
                 feature="Native mobile app"
@@ -318,7 +318,7 @@ export default function WhyOpenRiftArticle() {
                 values={["yes", "unknown", "unknown", "unknown", "unknown"]}
                 detail={{
                   general:
-                    "Run the entire stack yourself — frontend, API, and database. Fully documented.",
+                    "Run the entire stack yourself (frontend, API, and database). Fully documented.",
                 }}
               />
               <ComparisonRow
@@ -418,7 +418,7 @@ export default function WhyOpenRiftArticle() {
                 values={["unknown", "unknown", "unknown", "unknown", "unknown"]}
                 detail={{
                   general:
-                    "Same — we update ban lists, but can't promise a specific turnaround time yet.",
+                    "Same. We update ban lists, but can't promise a specific turnaround time yet.",
                 }}
               />
             </tbody>
