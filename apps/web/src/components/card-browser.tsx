@@ -41,6 +41,7 @@ import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
+import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -106,9 +107,11 @@ export function CardBrowser() {
   const view = rawView === "copies" ? "printings" : rawView;
   const keywordReverseMap = useKeywordReverseMap();
 
-  // Language filter: URL param takes precedence, display store preference is fallback
-  const preferredLanguages = useDisplayStore((s) => s.languages);
-  const languageFilter = filters.languages.length > 0 ? filters.languages : preferredLanguages;
+  // On first mount, seed the URL from user prefs if no languages are set.
+  // After seeding, `filters.languages` is the single source of truth — empty
+  // means "show all" (the user cleared every language within this session).
+  useSeedLanguagesFromPrefs(filters.languages);
+  const languageFilter = filters.languages;
 
   const {
     availableFilters,

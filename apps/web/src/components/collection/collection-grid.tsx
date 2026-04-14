@@ -62,6 +62,7 @@ import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
+import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
 import { formatterForMarketplace } from "@/lib/format";
@@ -141,9 +142,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
-  // Language filter: URL param takes precedence, display store preference is fallback
-  const preferredLanguages = useDisplayStore((s) => s.languages);
-  const languageFilter = filters.languages.length > 0 ? filters.languages : preferredLanguages;
+  // On first mount, seed the URL from user prefs if no languages are set.
+  // After seeding, `filters.languages` is the single source of truth — empty
+  // means "show all" (the user cleared every language within this session).
+  useSeedLanguagesFromPrefs(filters.languages);
+  const languageFilter = filters.languages;
 
   // "copies" is a collection-only UI concept — at the data level it behaves like "printings"
   const dataView = view === "copies" ? "printings" : view;

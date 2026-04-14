@@ -57,6 +57,7 @@ export interface CardFilters {
   search: string;
   searchScope: SearchField[];
   sets: string[];
+  languages: string[];
   rarities: Rarity[];
   types: CardType[];
   superTypes: SuperType[];

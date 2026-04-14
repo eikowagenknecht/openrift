@@ -292,6 +292,7 @@ export function filterCards(
     return (
       matchesSearch(printing, terms, hasPrefixes, filters.searchScope, options.keywordReverseMap) &&
       includes(filters.sets, printing.setSlug) &&
+      includes(filters.languages, printing.language) &&
       matchesDomains(filters.domains, card.domains) &&
       includes(filters.types, card.type) &&
       overlaps(filters.superTypes, card.superTypes) &&
