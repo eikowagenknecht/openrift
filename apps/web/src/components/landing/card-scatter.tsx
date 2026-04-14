@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useHydrated } from "@/hooks/use-hydrated";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@/lib/utils";
 
 // [x%, y%, rotation°] — desktop uses an 8000×3000 landscape canvas,
@@ -62,20 +63,6 @@ const mobileCards = [
   [40, 65, 14],
   [60, 66, -25],
 ] as const;
-
-const mobileQuery =
-  typeof globalThis.matchMedia === "function" ? globalThis.matchMedia("(max-width: 767px)") : null;
-
-function useIsMobile() {
-  return useSyncExternalStore(
-    (subscribe) => {
-      mobileQuery?.addEventListener("change", subscribe);
-      return () => mobileQuery?.removeEventListener("change", subscribe);
-    },
-    () => mobileQuery?.matches ?? false,
-    () => false,
-  );
-}
 
 function CardShape({
   angle,

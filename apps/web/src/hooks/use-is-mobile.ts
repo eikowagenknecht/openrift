@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 
-const MOBILE_QUERY = "(max-width: 767px)";
+const MOBILE_BREAKPOINT = 768;
+const MOBILE_QUERY = `(max-width: ${MOBILE_BREAKPOINT - 1}px)`;
 
 const mql =
   typeof globalThis.matchMedia === "function" ? globalThis.matchMedia(MOBILE_QUERY) : null;
@@ -19,7 +20,7 @@ function getServerSnapshot(): boolean {
 }
 
 /**
- * Reactively tracks the `(max-width: 767px)` media query (Tailwind `md` breakpoint).
+ * Reactively tracks the mobile media query (viewport below Tailwind's `md` breakpoint).
  * @returns Whether the viewport currently matches the mobile breakpoint.
  */
 export function useIsMobile(): boolean {
