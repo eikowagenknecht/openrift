@@ -257,6 +257,7 @@ export interface PromoTypeResponse {
   slug: string;
   label: string;
   description: string | null;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }

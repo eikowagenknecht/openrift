@@ -8,6 +8,7 @@ const ROW = {
   slug: "promo",
   label: "Promo",
   description: "A test promo",
+  sortOrder: 0,
   createdAt: new Date(),
   updatedAt: new Date(),
 };

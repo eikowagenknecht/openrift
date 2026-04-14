@@ -32,6 +32,7 @@ import * as m083 from "./083-rename-card-images-to-media.js";
 import * as m084 from "./084-rarity-color.js";
 import * as m085 from "./085-materialized-views.js";
 import * as m086 from "./086-promo-type-description.js";
+import * as m087 from "./087-promo-type-sort-order.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -123,4 +124,5 @@ export const migrations: Record<string, Migration> = {
   "084-rarity-color": m084,
   "085-materialized-views": m085,
   "086-promo-type-description": m086,
+  "087-promo-type-sort-order": m087,
 };

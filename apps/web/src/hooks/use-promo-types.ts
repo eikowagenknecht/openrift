@@ -102,3 +102,24 @@ export function useDeletePromoType() {
     invalidates: [queryKeys.admin.promoTypes],
   });
 }
+
+const reorderPromoTypesFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { ids: string[] }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/promo-types/reorder`, {
+      method: "PUT",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify({ ids: data.ids }),
+    });
+    if (!res.ok) {
+      throw new Error(`Reorder promo types failed: ${res.status}`);
+    }
+  });
+
+export function useReorderPromoTypes() {
+  return useMutationWithInvalidation({
+    mutationFn: (ids: string[]) => reorderPromoTypesFn({ data: { ids } }),
+    invalidates: [queryKeys.admin.promoTypes, queryKeys.promos.all],
+  });
+}
