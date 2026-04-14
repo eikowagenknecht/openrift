@@ -72,11 +72,22 @@ export function usePreferencesSync(enabled: boolean) {
   const saving = useRef(false);
   const debounceTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
-  const { data } = useQuery({
+  const { data, isError } = useQuery({
     queryKey: queryKeys.preferences.all,
     queryFn: () => fetchPreferencesFn(),
     enabled,
   });
+
+  // Logged-out users never hit the server, so there's nothing to wait for —
+  // mark prefs hydrated immediately. If the server fetch errors for a
+  // logged-in user, fall back to whatever localStorage/defaults resolved to
+  // rather than blocking downstream consumers (e.g. the language-seed hook)
+  // forever.
+  useEffect(() => {
+    if (!enabled || isError) {
+      useDisplayStore.getState().markPrefsHydrated();
+    }
+  }, [enabled, isError]);
 
   // Hydrate stores when server data arrives (skip if we just saved)
   useEffect(() => {
