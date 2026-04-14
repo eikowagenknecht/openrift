@@ -20,8 +20,8 @@ const listAllOverrides = createRoute({
             overrides: z.array(
               z.object({
                 userId: z.string().openapi({ example: "V07rIX7hwiXgRxHwxo1HtV1ybv8Z7iyK" }),
-                userName: z.string().nullable().openapi({ example: "Eiko Wagenknecht" }),
-                userEmail: z.string().openapi({ example: "eiko@example.com" }),
+                userName: z.string().nullable().openapi({ example: "Example Player" }),
+                userEmail: z.string().openapi({ example: "player@example.com" }),
                 flagKey: z.string().openapi({ example: "collection" }),
                 enabled: z.boolean().openapi({ example: true }),
               }),

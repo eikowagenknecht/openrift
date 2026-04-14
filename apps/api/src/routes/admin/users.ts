@@ -18,8 +18,8 @@ const listUsers = createRoute({
             users: z.array(
               z.object({
                 id: z.string().openapi({ example: "V07rIX7hwiXgRxHwxo1HtV1ybv8Z7iyK" }),
-                email: z.string().openapi({ example: "eiko@example.com" }),
-                name: z.string().nullable().openapi({ example: "Eiko Wagenknecht" }),
+                email: z.string().openapi({ example: "player@example.com" }),
+                name: z.string().nullable().openapi({ example: "Example Player" }),
                 image: z.string().nullable().openapi({ example: "https://example.com/avatar.jpg" }),
                 isAdmin: z.boolean().openapi({ example: true }),
                 cardCount: z.number().openapi({ example: 342 }),
