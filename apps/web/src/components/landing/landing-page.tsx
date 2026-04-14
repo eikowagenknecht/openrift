@@ -72,7 +72,7 @@ export function LandingPage() {
       <div className="flex min-h-[calc(100svh-var(--header-height))] flex-col items-center justify-center p-4">
         <div
           data-card-blocker=""
-          className="bg-background/70 flex flex-col items-center gap-3 rounded-2xl px-8 py-10 backdrop-blur-sm"
+          className="flex flex-col items-center gap-3 rounded-2xl px-8 py-10"
         >
           <button type="button" className="cursor-pointer" onClick={handleLogoTap}>
             <img

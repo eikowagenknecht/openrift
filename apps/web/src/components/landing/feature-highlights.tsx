@@ -1,33 +1,40 @@
 import { Link } from "@tanstack/react-router";
-import { LayersIcon, PackageIcon, SearchIcon } from "lucide-react";
+import { LayersIcon, PackageIcon, SearchIcon, UnlockIcon } from "lucide-react";
 
 const features = [
   {
     icon: SearchIcon,
-    title: "Browse every card",
+    title: "Every card, every printing",
     description:
-      "Search and filter the full Riftbound catalog — by set, domain, rarity, energy cost, and more.",
+      "Complete catalog, Chinese printings and promos included. Prices from TCGplayer, Cardmarket, and CardTrader on every printing.",
     to: "/cards",
   },
   {
     icon: PackageIcon,
-    title: "Track your collection",
+    title: "Your collection, tracked",
     description:
-      "Know exactly what you own across multiple collections. Import from other tools or add cards one by one.",
+      "Keep multiple collections side by side, down to the individual printing. See value over time and what it'd cost to finish any set.",
     to: "/collections",
   },
   {
     icon: LayersIcon,
-    title: "Build decks",
+    title: "Build with what you own",
     description:
-      "Drag-and-drop deck builder with rule validation, stats, and proxy printing for playtesting.",
+      "Validated as you build, cross-referenced with your collections. You see what you own, what's missing, and can print the rest as proxies.",
     to: "/decks",
+  },
+  {
+    icon: UnlockIcon,
+    title: "Open, not locked in",
+    description:
+      "Open source and free. Import from Piltover Archive, Riftcore, or Riftmana, and export to CSV whenever you want.",
+    to: "/collections/import",
   },
 ] as const;
 
 export function FeatureHighlights() {
   return (
-    <section className="mx-auto grid w-full max-w-3xl gap-8 px-6 py-12 md:grid-cols-3 md:gap-6 md:py-16">
+    <section className="mx-auto grid w-full max-w-5xl gap-8 px-6 py-12 md:grid-cols-2 md:gap-6 md:py-16 lg:grid-cols-4">
       {features.map((feature) => (
         <Link
           key={feature.title}

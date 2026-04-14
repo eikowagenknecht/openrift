@@ -58,10 +58,10 @@ const desktopCards = [
 // Mobile: 4 cards on a 1200×1800 portrait canvas, scattered asymmetrically
 // around the hero content. Subtle enough to discover by accident.
 const mobileCards = [
-  [38, 31, -14],
-  [63, 37, 8],
-  [35, 64, 12],
-  [60, 69, -6],
+  [40, 15, -14],
+  [60, 14, 20],
+  [60, 47, -25],
+  [40, 48, 14],
 ] as const;
 
 const mobileQuery =
