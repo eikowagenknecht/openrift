@@ -6,7 +6,7 @@ import type {
 
 import type { Repos } from "../deps.js";
 
-export interface MarkerChannelMaps {
+interface MarkerChannelMaps {
   markerBySlug: Map<string, Marker>;
   channelsByPrinting: Map<string, PrintingDistributionChannel[]>;
 }

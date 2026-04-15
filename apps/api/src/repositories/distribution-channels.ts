@@ -3,7 +3,7 @@ import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
 
-export type DistributionChannelKind = "event" | "product";
+type DistributionChannelKind = "event" | "product";
 
 export function distributionChannelsRepo(db: Kysely<Database>) {
   return {
