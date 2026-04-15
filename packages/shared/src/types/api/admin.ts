@@ -490,16 +490,9 @@ export interface UnifiedMappingGroupResponse {
 export interface AssignableCardResponse {
   cardId: string;
   cardName: string;
-  setId: string;
   setName: string;
-  printings: {
-    printingId: string;
-    shortCode: string;
-    finish: string;
-    language: string;
-    isSigned: boolean;
-    externalId: number | null;
-  }[];
+  /** Short codes of this card's printings (first one, sorted, is shown in the assign dropdown). */
+  shortCodes: string[];
 }
 
 export interface AdminUserResponse {

@@ -65,9 +65,7 @@ export function StagedProductCard({
           .filter((g) => g.cardName.toLowerCase().includes(cardSearchQuery.toLowerCase()))
           .slice(0, 10)
           .map((g) => {
-            const firstId = g.printings.toSorted((a, b) =>
-              a.shortCode.localeCompare(b.shortCode),
-            )[0].shortCode;
+            const firstId = g.shortCodes.toSorted((a, b) => a.localeCompare(b))[0] ?? "";
             return { id: g.cardId, label: g.cardName, sublabel: firstId, detail: g.setName };
           })
       : [];
