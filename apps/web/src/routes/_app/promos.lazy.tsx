@@ -6,6 +6,7 @@ import { LayoutGridIcon, ListIcon } from "lucide-react";
 import { useState } from "react";
 
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
+import { MarkdownText } from "@/components/markdown-text";
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -178,7 +179,10 @@ function PromosPage() {
               <div className="mb-3">
                 <h2 className="text-xl font-semibold">{promoType.label}</h2>
                 {promoType.description && (
-                  <p className="text-muted-foreground text-sm">{promoType.description}</p>
+                  <MarkdownText
+                    text={promoType.description}
+                    className="text-muted-foreground text-sm"
+                  />
                 )}
                 <p className="text-muted-foreground text-xs">
                   {sortedPrintings.length} {sortedPrintings.length === 1 ? "printing" : "printings"}

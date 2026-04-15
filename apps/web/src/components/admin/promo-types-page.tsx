@@ -80,7 +80,7 @@ export function PromoTypesPage() {
         <Input
           value={d.description}
           onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Optional description"
+          placeholder="Optional description (supports markdown links)"
           className="h-8"
         />
       ),
@@ -88,7 +88,7 @@ export function PromoTypesPage() {
         <Input
           value={d.description}
           onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Optional description"
+          placeholder="Optional description (supports markdown links)"
           className="h-8"
         />
       ),

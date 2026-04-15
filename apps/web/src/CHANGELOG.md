@@ -2,6 +2,7 @@
 
 ## 2026-04-15
 
+- feat: Promo type descriptions on the Promo Cards page now support markdown, so links and basic formatting render inline
 - fix: The card browser no longer errors out when you have multiple languages (or other filters) selected in the URL
 
 ## 2026-04-14
