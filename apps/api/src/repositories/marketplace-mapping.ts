@@ -485,6 +485,27 @@ export function marketplaceMappingRepo(db: Db) {
         WITH aliases AS (
           SELECT unnest(${normNames}::text[]) AS norm_name
         ),
+        -- Each branch joins staging against the alias CTE so the planner can use
+        -- the GIN trigram index on marketplace_staging.norm_name. A single OR'd
+        -- EXISTS forces a seq scan because the index can't be pushed through it.
+        candidate_ids AS (
+          SELECT s.id
+          FROM marketplace_staging s
+          JOIN marketplace_staging_card_overrides ov
+            ON ov.marketplace = s.marketplace
+           AND ov.external_id = s.external_id
+           AND ov.finish = s.finish
+           AND ov.language = s.language
+          WHERE ov.card_id = ${cardId}
+          UNION
+          SELECT s.id
+          FROM marketplace_staging s, aliases a
+          WHERE a.norm_name <> '' AND s.norm_name LIKE a.norm_name || '%'
+          UNION
+          SELECT s.id
+          FROM marketplace_staging s, aliases a
+          WHERE length(a.norm_name) >= 5 AND s.norm_name LIKE '%' || a.norm_name || '%'
+        ),
         matched AS (
           SELECT DISTINCT ON (s.marketplace, s.external_id, s.finish, s.language)
             s.marketplace,
@@ -497,29 +518,7 @@ export function marketplaceMappingRepo(db: Db) {
             s.low_cents,
             s.recorded_at
           FROM marketplace_staging s
-          WHERE (
-            EXISTS (
-              SELECT 1 FROM marketplace_staging_card_overrides ov
-              WHERE ov.marketplace = s.marketplace
-                AND ov.external_id = s.external_id
-                AND ov.finish = s.finish
-                AND ov.language = s.language
-                AND ov.card_id = ${cardId}
-            )
-            OR EXISTS (
-              SELECT 1 FROM aliases a
-              WHERE a.norm_name <> ''
-                AND (
-                  lower(regexp_replace(s.product_name, '[^a-zA-Z0-9]', '', 'g'))
-                    LIKE a.norm_name || '%'
-                  OR (
-                    length(a.norm_name) >= 5
-                    AND lower(regexp_replace(s.product_name, '[^a-zA-Z0-9]', '', 'g'))
-                      LIKE '%' || a.norm_name || '%'
-                  )
-                )
-            )
-          )
+          WHERE s.id IN (SELECT id FROM candidate_ids)
           AND NOT EXISTS (
             SELECT 1 FROM marketplace_ignored_products ip
             WHERE ip.marketplace = s.marketplace
