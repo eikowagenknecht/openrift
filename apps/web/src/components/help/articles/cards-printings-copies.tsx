@@ -1,4 +1,5 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { CardText } from "@/components/cards/card-text";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
@@ -14,8 +15,11 @@ const COPY_COUNTS: Record<string, number> = {
 };
 
 function useFuryRuneImages() {
-  const { data } = useSuspenseQuery(cardDetailQueryOptions("fury-rune"));
+  const { data } = useQuery(cardDetailQueryOptions("fury-rune"));
   const imageByCode = new Map<string, string>();
+  if (!data) {
+    return imageByCode;
+  }
   for (const printing of data.printings) {
     if (DIAGRAM_SHORT_CODES.includes(printing.shortCode) && !imageByCode.has(printing.shortCode)) {
       const thumbnail = printing.images[0]?.thumbnail;
@@ -85,17 +89,22 @@ export default function CardsPrintingsCopiesArticle() {
                       style={{ width: 48 + (count - 1) * 4, height: 68 + (count - 1) * 4 }}
                     >
                       {Array.from({ length: Math.min(count, 3) }, (_, index) => (
-                        <img
+                        <div
                           key={index}
-                          src={image}
-                          alt={`${code} copy ${index + 1}`}
-                          className="absolute w-12 rounded shadow-sm"
+                          className="absolute w-12"
                           style={{
                             top: index * 4,
                             left: index * 4,
                             zIndex: index,
+                            height: 68,
                           }}
-                        />
+                        >
+                          <CardImage
+                            src={image}
+                            alt={`${code} copy ${index + 1}`}
+                            className="h-full w-full shadow-sm"
+                          />
+                        </div>
                       ))}
                     </div>
                     <span className="text-primary text-xs font-semibold">&times;{count}</span>
@@ -265,14 +274,39 @@ export default function CardsPrintingsCopiesArticle() {
 function PrintingCard({ image, code, label }: { image?: string; code: string; label: string }) {
   return (
     <div className="bg-background border-border flex flex-1 items-center gap-2 rounded-md border px-3 py-2">
-      {image && <img src={image} alt={`Fury Rune ${code}`} className="w-10 rounded" />}
+      <CardImage src={image} alt={`Fury Rune ${code}`} className="h-14 w-10" />
       <div>
         <span className="font-medium">{code}</span>
-        <span
-          className="text-muted-foreground block text-xs"
-          dangerouslySetInnerHTML={{ __html: label }}
-        />
+        <span className="text-muted-foreground block" dangerouslySetInnerHTML={{ __html: label }} />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Renders a card image with a skeleton placeholder while loading, or if the
+ * image source is missing or fails to load.
+ *
+ * @returns An img with skeleton fallback.
+ */
+function CardImage({ src, alt, className }: { src?: string; alt: string; className: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [errored, setErrored] = useState(false);
+  const showSkeleton = !src || errored || !loaded;
+  return (
+    <div className={`relative overflow-hidden rounded ${className}`}>
+      {showSkeleton && (
+        <div className="bg-muted absolute inset-0 animate-pulse" aria-hidden="true" />
+      )}
+      {src && !errored && (
+        <img
+          src={src}
+          alt={alt}
+          className={`absolute inset-0 h-full w-full transition-opacity ${loaded ? "opacity-100" : "opacity-0"}`}
+          onLoad={() => setLoaded(true)}
+          onError={() => setErrored(true)}
+        />
+      )}
     </div>
   );
 }
