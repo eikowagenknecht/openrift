@@ -31,13 +31,11 @@ const fetchCatalog = createServerFn({ method: "GET" }).handler(
     }),
 );
 
-// Client-side catalog fetch goes directly to /api/v1/catalog with no cookies
-// so Cloudflare's edge cache treats it as anonymous and serves from cache.
-// The API already sets `Cache-Control: public, max-age=3600, swr=86400`. Routing
-// through the Start server function instead would re-enter origin for every VU,
-// which is exactly what we're avoiding.
+// Client-side catalog fetch goes directly to /api/v1/catalog so Cloudflare
+// can serve it from the edge cache. Routing through the Start server function
+// would re-enter origin for every VU, which is exactly what we're avoiding.
 async function fetchCatalogFromEdge(): Promise<CatalogResponse> {
-  const res = await fetch("/api/v1/catalog", { credentials: "omit" });
+  const res = await fetch("/api/v1/catalog");
   if (!res.ok) {
     throw new Error(`Catalog fetch failed: ${res.status}`);
   }
