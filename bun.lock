@@ -127,6 +127,7 @@
     "packages/e2e": {
       "name": "e2e",
       "devDependencies": {
+        "@piltoverarchive/riftbound-deck-codes": "1.2.0",
         "@playwright/test": "1.52.0",
         "postgres": "3.4.9",
       },
