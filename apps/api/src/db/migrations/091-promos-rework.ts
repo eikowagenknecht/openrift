@@ -27,11 +27,20 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     FOR EACH ROW EXECUTE FUNCTION set_updated_at()
   `.execute(db);
 
-  // Seed only the generic 'promo' marker. Finer markers (top-8, prerelease, …)
-  // are added via the admin UI as needed.
+  // Seed the generic 'promo' marker plus a marker per existing promo_type so
+  // each existing promo printing keeps its own visual identity (no collisions
+  // when two printings share card/short_code/finish/language but had different
+  // promo_types). Operators can later consolidate via the admin UI.
   await sql`
     INSERT INTO markers (slug, label, description, sort_order)
     VALUES ('promo', 'Promo', 'Generic promo stamp', 0)
+  `.execute(db);
+
+  await sql`
+    INSERT INTO markers (slug, label, description, sort_order)
+    SELECT slug, label, description, sort_order
+    FROM promo_types
+    ON CONFLICT (slug) DO NOTHING
   `.execute(db);
 
   // ── printing_markers join ─────────────────────────────────────────────
@@ -197,28 +206,11 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .execute();
 
   // ── data migration ────────────────────────────────────────────────────
-  // Pre-flight: collapsing every promo printing to a single 'promo' marker
-  // would collide if two printings differed only by promo_type_id (otherwise
-  // identical card/short_code/finish/language). Detect and abort loudly.
-  await sql`
-    DO $$
-    DECLARE collisions int;
-    BEGIN
-      SELECT count(*) INTO collisions FROM (
-        SELECT card_id, short_code, finish, language
-        FROM printings
-        WHERE promo_type_id IS NOT NULL
-        GROUP BY card_id, short_code, finish, language
-        HAVING count(*) > 1
-      ) t;
-      IF collisions > 0 THEN
-        RAISE EXCEPTION
-          'Migration 090 would collapse % printing identity bucket(s) by mapping all promos to the single ''promo'' marker. Resolve by manually distinguishing those printings (different short_code/finish/art_variant) before re-running.',
-          collisions;
-      END IF;
-    END $$;
-  `.execute(db);
-
+  // Each printing.promo_type_id becomes (a) a printing_distribution_channels
+  // row and (b) a printing_markers row pointing at the marker that shares the
+  // promo_type's slug (seeded above). 1:1 mapping preserves visual identity
+  // even when two printings share card/short_code/finish/language but had
+  // different promo_types — no collisions on the new uniqueness constraint.
   await sql`
     INSERT INTO printing_distribution_channels (printing_id, channel_id)
     SELECT id, promo_type_id FROM printings WHERE promo_type_id IS NOT NULL
@@ -226,9 +218,10 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
   await sql`
     INSERT INTO printing_markers (printing_id, marker_id)
-    SELECT p.id, (SELECT id FROM markers WHERE slug = 'promo')
+    SELECT p.id, m.id
     FROM printings p
-    WHERE p.promo_type_id IS NOT NULL
+    JOIN promo_types pt ON pt.id = p.promo_type_id
+    JOIN markers m ON m.slug = pt.slug
   `.execute(db);
 
   // ── drop materialized view (rebuild after schema swap) ────────────────
