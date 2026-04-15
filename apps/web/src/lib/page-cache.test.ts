@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { maybeApplyPublicCache } from "./page-cache";
+import { applyPageCacheControl } from "./page-cache";
+
+const PUBLIC = "public, max-age=60, stale-while-revalidate=300";
+const PRIVATE = "private, no-cache";
 
 function htmlResponse(extraHeaders: Record<string, string> = {}, status = 200): Response {
   return new Response("<html></html>", {
@@ -24,79 +27,82 @@ function getRequest(
   });
 }
 
-describe("maybeApplyPublicCache", () => {
-  it("rewrites Cache-Control for anonymous GET to a cacheable public page", () => {
-    const result = maybeApplyPublicCache(getRequest("/cards"), htmlResponse());
-    expect(result.headers.get("Cache-Control")).toBe(
-      "public, max-age=60, stale-while-revalidate=300",
-    );
+describe("applyPageCacheControl", () => {
+  it("emits public cache headers for anonymous GETs on cacheable public pages", () => {
+    const result = applyPageCacheControl(getRequest("/cards"), htmlResponse());
+    expect(result.headers.get("Cache-Control")).toBe(PUBLIC);
   });
 
   it("caches card and set detail pages via prefix match", () => {
-    const cardDetail = maybeApplyPublicCache(getRequest("/cards/lux"), htmlResponse());
-    const setDetail = maybeApplyPublicCache(getRequest("/sets/origins"), htmlResponse());
-    expect(cardDetail.headers.get("Cache-Control")).toBe(
-      "public, max-age=60, stale-while-revalidate=300",
-    );
-    expect(setDetail.headers.get("Cache-Control")).toBe(
-      "public, max-age=60, stale-while-revalidate=300",
-    );
+    const cardDetail = applyPageCacheControl(getRequest("/cards/lux"), htmlResponse());
+    const setDetail = applyPageCacheControl(getRequest("/sets/origins"), htmlResponse());
+    expect(cardDetail.headers.get("Cache-Control")).toBe(PUBLIC);
+    expect(setDetail.headers.get("Cache-Control")).toBe(PUBLIC);
   });
 
-  it("leaves logged-in responses alone so personalized nav is not cached", () => {
-    const request = getRequest("/cards", { cookie: "better-auth.session_token=abc123" });
-    const result = maybeApplyPublicCache(request, htmlResponse());
-    expect(result.headers.get("Cache-Control")).toBe("no-cache");
+  it("applies cache headers to HEAD requests too", () => {
+    const result = applyPageCacheControl(getRequest("/cards", {}, "HEAD"), htmlResponse());
+    expect(result.headers.get("Cache-Control")).toBe(PUBLIC);
+  });
+
+  it("forces private no-cache for logged-in users on public pages", () => {
+    const result = applyPageCacheControl(
+      getRequest("/cards", { cookie: "better-auth.session_token=abc123" }),
+      htmlResponse(),
+    );
+    expect(result.headers.get("Cache-Control")).toBe(PRIVATE);
   });
 
   it("matches the __Secure- prefixed session cookie too", () => {
-    const request = getRequest("/cards", {
-      cookie: "__Secure-better-auth.session_token=abc123",
-    });
-    const result = maybeApplyPublicCache(request, htmlResponse());
-    expect(result.headers.get("Cache-Control")).toBe("no-cache");
+    const result = applyPageCacheControl(
+      getRequest("/cards", { cookie: "__Secure-better-auth.session_token=abc123" }),
+      htmlResponse(),
+    );
+    expect(result.headers.get("Cache-Control")).toBe(PRIVATE);
   });
 
-  it("leaves non-cacheable paths alone", () => {
-    const result = maybeApplyPublicCache(getRequest("/login"), htmlResponse());
-    expect(result.headers.get("Cache-Control")).toBe("no-cache");
+  it("forces private no-cache on non-cacheable paths like /login", () => {
+    const result = applyPageCacheControl(getRequest("/login"), htmlResponse());
+    expect(result.headers.get("Cache-Control")).toBe(PRIVATE);
   });
 
-  it("leaves responses with Set-Cookie alone to avoid caching session-bearing responses", () => {
-    const response = htmlResponse({ "Set-Cookie": "foo=bar" });
-    const result = maybeApplyPublicCache(getRequest("/cards"), response);
-    expect(result.headers.get("Cache-Control")).toBe("no-cache");
+  it("forces private no-cache when the response carries Set-Cookie", () => {
+    const result = applyPageCacheControl(
+      getRequest("/cards"),
+      htmlResponse({ "Set-Cookie": "foo=bar" }),
+    );
+    expect(result.headers.get("Cache-Control")).toBe(PRIVATE);
   });
 
-  it("leaves non-HTML responses alone", () => {
+  it("forces private no-cache on non-200 responses so errors are not cached", () => {
+    const result = applyPageCacheControl(getRequest("/cards"), htmlResponse({}, 500));
+    expect(result.headers.get("Cache-Control")).toBe(PRIVATE);
+  });
+
+  it("forces private no-cache on non-GET, non-HEAD HTML responses", () => {
+    const result = applyPageCacheControl(getRequest("/cards", {}, "POST"), htmlResponse());
+    expect(result.headers.get("Cache-Control")).toBe(PRIVATE);
+  });
+
+  it("leaves non-HTML responses alone so JSON server-fn responses are untouched", () => {
     const response = new Response("{}", {
       status: 200,
       headers: { "Content-Type": "application/json", "Cache-Control": "no-cache" },
     });
-    const result = maybeApplyPublicCache(getRequest("/cards"), response);
-    expect(result.headers.get("Cache-Control")).toBe("no-cache");
-  });
-
-  it("leaves non-200 responses alone", () => {
-    const result = maybeApplyPublicCache(getRequest("/cards"), htmlResponse({}, 500));
-    expect(result.headers.get("Cache-Control")).toBe("no-cache");
-  });
-
-  it("leaves non-GET, non-HEAD methods alone", () => {
-    const result = maybeApplyPublicCache(getRequest("/cards", {}, "POST"), htmlResponse());
-    expect(result.headers.get("Cache-Control")).toBe("no-cache");
-  });
-
-  it("applies cache headers to HEAD requests too", () => {
-    const result = maybeApplyPublicCache(getRequest("/cards", {}, "HEAD"), htmlResponse());
-    expect(result.headers.get("Cache-Control")).toBe(
-      "public, max-age=60, stale-while-revalidate=300",
-    );
-  });
-
-  it("returns the original response object when not rewriting", () => {
-    const response = htmlResponse();
-    const result = maybeApplyPublicCache(getRequest("/login"), response);
+    const result = applyPageCacheControl(getRequest("/cards"), response);
     expect(result).toBe(response);
+    expect(result.headers.get("Cache-Control")).toBe("no-cache");
+  });
+
+  it("replaces any existing Cache-Control rather than appending", () => {
+    // Regression test for the double-header bug: nginx used to add a second
+    // Cache-Control on top of the one this wrapper set, which broke CF caching.
+    // Proves Headers.set() replaces and the response has exactly one value.
+    const result = applyPageCacheControl(getRequest("/cards"), htmlResponse());
+    const allHeaders = [...result.headers.entries()].filter(
+      ([key]) => key.toLowerCase() === "cache-control",
+    );
+    expect(allHeaders).toHaveLength(1);
+    expect(allHeaders[0]?.[1]).toBe(PUBLIC);
   });
 });

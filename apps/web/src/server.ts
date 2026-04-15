@@ -6,7 +6,7 @@ import path from "node:path";
 import type { SitemapDataResponse } from "@openrift/shared";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
-import { maybeApplyPublicCache } from "./lib/page-cache";
+import { applyPageCacheControl } from "./lib/page-cache";
 
 const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
@@ -172,7 +172,7 @@ export default createServerEntry({
     const t0 = LOG_SSR_TIMINGS ? performance.now() : 0;
     const response = await handler.fetch(request);
     const tHandler = LOG_SSR_TIMINGS ? performance.now() : 0;
-    const finalResponse = maybeApplyPublicCache(request, response);
+    const finalResponse = applyPageCacheControl(request, response);
     if (LOG_SSR_TIMINGS) {
       const tEnd = performance.now();
       // oxlint-disable-next-line no-console -- opt-in SSR timing instrumentation, see LOG_SSR_TIMINGS flag above.
