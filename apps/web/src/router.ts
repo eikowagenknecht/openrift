@@ -4,7 +4,6 @@ import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query
 import { RouterErrorFallback } from "./components/error-fallback";
 import { NotFoundFallback } from "./components/error-message";
 import { createQueryClient } from "./lib/query-client";
-import { parseSearch, stringifySearch } from "./lib/search-serialization";
 import { routeTree } from "./routeTree.gen";
 
 export function getRouter() {
@@ -17,8 +16,6 @@ export function getRouter() {
     defaultErrorComponent: RouterErrorFallback,
     defaultNotFoundComponent: NotFoundFallback,
     scrollRestoration: true,
-    parseSearch,
-    stringifySearch,
   });
 
   setupRouterSsrQueryIntegration({ router, queryClient, wrapQueryClient: true });
