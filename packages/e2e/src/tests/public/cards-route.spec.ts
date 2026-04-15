@@ -95,6 +95,16 @@ test.describe("/cards route essentials", () => {
   });
 
   test("renders the error fallback when the catalog fetch fails", async ({ page }) => {
+    // Client-side navigations fetch /api/v1/catalog directly (for edge
+    // caching); SSR/server-fn paths still hit _serverFn. Fail both so the
+    // test works regardless of which path the loader takes.
+    await page.route("**/api/v1/catalog*", async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "catalog unavailable" }),
+      });
+    });
     await page.route("**/_serverFn/**", async (route) => {
       if (isCatalogServerFn(route.request().url())) {
         await route.fulfill({

@@ -1,7 +1,22 @@
+/* oxlint-disable unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch */
 import { createContext, useContext } from "react";
 import { z } from "zod";
 
-const stringArray = () => z.array(z.string()).optional();
+// Each field uses `.catch(undefined)` so malformed URL values (wrong type,
+// unparseable) are silently dropped rather than crashing the route. Unknown
+// keys are stripped by zod's default object parsing. Flag fields accept both
+// string and boolean since TanStack Router's default parser JSON-decodes
+// `?promo=true` into the boolean `true`.
+const stringField = () => z.string().optional().catch(undefined);
+const numberField = () => z.number().optional().catch(undefined);
+const stringArray = () => z.array(z.string()).optional().catch(undefined);
+const boolFlag = () =>
+  z
+    .union([z.string(), z.boolean()])
+    .transform((value) => (typeof value === "boolean" ? String(value) : value))
+    .pipe(z.enum(["true", "false"]))
+    .optional()
+    .catch(undefined);
 
 /**
  * Search param schema for routes that use the card filter system.
@@ -9,7 +24,7 @@ const stringArray = () => z.array(z.string()).optional();
  * @returns Zod schema for filter search params.
  */
 export const filterSearchSchema = z.object({
-  search: z.string().optional(),
+  search: stringField(),
   sets: stringArray(),
   languages: stringArray(),
   rarities: stringArray(),
@@ -18,24 +33,24 @@ export const filterSearchSchema = z.object({
   domains: stringArray(),
   artVariants: stringArray(),
   finishes: stringArray(),
-  energyMin: z.number().optional(),
-  energyMax: z.number().optional(),
-  mightMin: z.number().optional(),
-  mightMax: z.number().optional(),
-  powerMin: z.number().optional(),
-  powerMax: z.number().optional(),
-  priceMin: z.number().optional(),
-  priceMax: z.number().optional(),
-  owned: z.string().optional(),
-  signed: z.string().optional(),
-  promo: z.string().optional(),
-  banned: z.string().optional(),
-  errata: z.string().optional(),
-  sort: z.string().optional(),
-  sortDir: z.string().optional(),
-  view: z.string().optional(),
-  groupBy: z.string().optional(),
-  groupDir: z.string().optional(),
+  energyMin: numberField(),
+  energyMax: numberField(),
+  mightMin: numberField(),
+  mightMax: numberField(),
+  powerMin: numberField(),
+  powerMax: numberField(),
+  priceMin: numberField(),
+  priceMax: numberField(),
+  owned: boolFlag(),
+  signed: boolFlag(),
+  promo: boolFlag(),
+  banned: boolFlag(),
+  errata: boolFlag(),
+  sort: stringField(),
+  sortDir: stringField(),
+  view: stringField(),
+  groupBy: stringField(),
+  groupDir: stringField(),
 });
 
 export type FilterSearch = z.infer<typeof filterSearchSchema>;

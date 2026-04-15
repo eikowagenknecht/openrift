@@ -273,9 +273,14 @@ test.describe("promos", () => {
 
   test.describe("pending", () => {
     test("renders the skeleton while the promo list query is in flight", async ({ page }) => {
+      // Loader delay must comfortably exceed the router's defaultPendingMs
+      // (1000ms) so PromosPending has time to mount and stay visible. The
+      // router preloads on hover (defaultPreload: "intent"), so the pending
+      // window starts narrowing as soon as Playwright moves the mouse over
+      // the link — keep this generous.
       await page.route("**/_serverFn/**", async (route) => {
         if (isPromoListServerFn(route.request().url())) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 5000));
         }
         await route.continue();
       });
@@ -292,9 +297,9 @@ test.describe("promos", () => {
 
       // PromosPending renders Skeleton elements (data-slot="skeleton") before
       // the loader resolves; the real PromosPage h1 only mounts after.
-      await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible({ timeout: 1500 });
+      await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible({ timeout: 4000 });
       await expect(page.getByRole("heading", { level: 1, name: "Promo Cards" })).toBeVisible({
-        timeout: 10_000,
+        timeout: 15_000,
       });
     });
   });

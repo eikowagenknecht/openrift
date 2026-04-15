@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { CardBrowser } from "@/components/card-browser";
@@ -11,12 +11,29 @@ import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 const cardsSearchSchema = filterSearchSchema.extend({
-  printingId: z.string().optional(),
+  // oxlint-disable-next-line unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch
+  printingId: z.string().optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/_app/cards")({
   ssr: "data-only",
   validateSearch: cardsSearchSchema,
+  beforeLoad: ({ search, location }) => {
+    // Strip unknown / malformed search params from the URL. If the raw query
+    // string has keys that the validator dropped (unknown keys, invalid
+    // types), redirect to the same route with only the validated search.
+    const rawKeys = new Set(new URLSearchParams(location.searchStr).keys());
+    const validKeys = new Set(
+      Object.entries(search)
+        .filter(([, value]) => value !== undefined)
+        .map(([key]) => key),
+    );
+    const hasExtraneous =
+      rawKeys.size !== validKeys.size || [...rawKeys].some((key) => !validKeys.has(key));
+    if (hasExtraneous) {
+      throw redirect({ to: "/cards", search, replace: true });
+    }
+  },
   head: () =>
     seoHead({
       siteUrl: getSiteUrl(),

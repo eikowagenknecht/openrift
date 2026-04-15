@@ -133,6 +133,17 @@ test.describe("card browser URL params", () => {
     await expect(page.getByText(/\d+ printings\b/)).toBeVisible({ timeout: LOAD_TIMEOUT });
   });
 
+  test("unknown and malformed params are silently stripped from the URL", async ({ page }) => {
+    await page.goto("/cards?bogus=x&promo=nonsense&priceMin=abc");
+
+    // Grid still renders (no error boundary) and a known card is visible
+    await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
+    // All invalid params get stripped from the URL
+    await expect.poll(() => page.url()).not.toContain("bogus=");
+    await expect.poll(() => page.url()).not.toContain("promo=");
+    await expect.poll(() => page.url()).not.toContain("priceMin=");
+  });
+
   test("?printingId=<id> opens the detail pane and strips the param", async ({ page }) => {
     // Annie, Fiery OGS-001 EN normal printing from the seed
     const printingId = "019cfc3b-03d6-74cf-adec-1dce41f631eb";

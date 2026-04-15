@@ -138,12 +138,14 @@ test.describe("card browser — options bar", () => {
 
     // Order with asc: DEFAULT_ENUM_ORDERS.cardTypes is
     // ["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield", "Other"].
-    // Only Legend / Unit / Spell are present in seed, so asc order is
-    // Legend → Unit → Spell.
-    const readHeaders = () =>
-      page.getByRole("button", { name: /^(Legend|Unit|Spell)$/ }).allTextContents();
+    // Only Legend / Unit / Spell are present in seed, so asc order starts
+    // with Legend; flipping should put Spell first. The grid is window-
+    // virtualized (see card-grid.tsx), so headers below the fold aren't in
+    // the DOM — assert on the first rendered header rather than the full
+    // list.
+    const firstHeader = page.getByRole("button", { name: /^(Legend|Unit|Spell)$/ }).first();
 
-    await expect.poll(readHeaders).toEqual(["Legend", "Unit", "Spell"]);
+    await expect(firstHeader).toHaveText("Legend");
 
     // Re-open the popover and flip the Group by direction. The action button
     // sits in the "Group by" section header next to the title span — the only
@@ -153,6 +155,6 @@ test.describe("card browser — options bar", () => {
     await groupByRow.getByRole("button").click();
     await page.keyboard.press("Escape");
 
-    await expect.poll(readHeaders).toEqual(["Spell", "Unit", "Legend"]);
+    await expect(firstHeader).toHaveText("Spell");
   });
 });
