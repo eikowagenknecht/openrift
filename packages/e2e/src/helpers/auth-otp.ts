@@ -7,7 +7,7 @@ import type { E2eState } from "./constants.js";
 import { API_BASE_URL, STATE_FILE, WEB_BASE_URL } from "./constants.js";
 import { connectToDb } from "./db.js";
 
-export type Sql = ReturnType<typeof connectToDb>;
+type Sql = ReturnType<typeof connectToDb>;
 
 export function loadDb(): Sql {
   const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf8"));
