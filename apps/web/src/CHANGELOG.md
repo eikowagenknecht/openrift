@@ -10,6 +10,7 @@
 - feat: Clicking a card on the Promo Cards page now opens the card detail view with that exact printing already selected, instead of defaulting to your preferred language printing
 - feat: Promo type descriptions on the Promo Cards page now support markdown, so links and basic formatting render inline
 - feat: The active filters bar no longer duplicates language chips, since the language picker above already shows what you've selected
+- fix: Help article page titles now include "OpenRift" in the browser tab, even for articles whose title already mentions the name
 - fix: The card browser no longer errors out when you have multiple languages (or other filters) selected in the URL
 - fix: Cardmarket now shows its market average as the headline price (with the cheapest listing available as a separate line on the price chart), matching how TCGplayer is displayed
 - fix: The card browser search field no longer silently drops or scrambles letters when you type quickly

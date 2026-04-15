@@ -35,7 +35,10 @@ export function seoHead(options: SeoOptions) {
   const { siteUrl, title, path, ogType = "website", noIndex } = options;
   const ogImage = options.ogImage ?? `${siteUrl}/og-image.png`;
   const description = options.description ?? DEFAULT_DESCRIPTION;
-  const fullTitle = title.includes(SITE_NAME) ? title : `${title} — ${SITE_NAME}`;
+  const siteSuffix = ` — ${SITE_NAME}`;
+  const alreadyBranded =
+    title === SITE_NAME || title.startsWith(`${SITE_NAME} `) || title.endsWith(siteSuffix);
+  const fullTitle = alreadyBranded ? title : `${title}${siteSuffix}`;
   const canonicalUrl = path ? `${siteUrl}${path}` : undefined;
 
   const meta: Record<string, string>[] = [
