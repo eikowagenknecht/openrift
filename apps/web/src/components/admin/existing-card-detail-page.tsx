@@ -5,7 +5,7 @@ import type {
   CandidatePrintingResponse,
 } from "@openrift/shared";
 import { useHotkey } from "@tanstack/react-hotkeys";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ArrowRightIcon,
   BanIcon,
@@ -396,11 +396,11 @@ export function ExistingCardDetailPage({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
-                onClick={() =>
-                  void navigate({
-                    to: "/admin/cards/$cardSlug/printings/create",
-                    params: { cardSlug: cardId },
-                  })
+                render={
+                  <Link
+                    to="/admin/cards/$cardSlug/printings/create"
+                    params={{ cardSlug: cardId }}
+                  />
                 }
               >
                 <PlusIcon className="mr-2" />

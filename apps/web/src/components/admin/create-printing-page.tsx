@@ -24,8 +24,9 @@ import { useSets } from "@/hooks/use-sets";
 export function CreatePrintingPage({ cardSlug }: { cardSlug: string }) {
   const navigate = useNavigate();
   const createPrinting = useCreatePrinting();
-  const { data: cardDetail } = useAdminCardDetail(cardSlug) as {
+  const { data: cardDetail, isLoading } = useAdminCardDetail(cardSlug) as {
     data: AdminCardDetailResponse | undefined;
+    isLoading: boolean;
   };
   const { data: setsData } = useSets();
   const { data: promoTypesData } = usePromoTypes();
@@ -115,6 +116,9 @@ export function CreatePrintingPage({ cardSlug }: { cardSlug: string }) {
     );
   }
 
+  if (isLoading) {
+    return <p className="text-muted-foreground">Loading…</p>;
+  }
   if (!card) {
     return <p className="text-muted-foreground">Card not found.</p>;
   }
