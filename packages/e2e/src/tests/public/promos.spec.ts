@@ -3,19 +3,27 @@ import { expect, test } from "@playwright/test";
 
 import { API_BASE_URL, WEB_BASE_URL } from "../../helpers/constants.js";
 
-const PROMOS_TITLE = "Promo Cards — Riftbound";
+const PROMOS_TITLE = "Promo Cards — Riftbound — OpenRift";
 const PROMOS_DESCRIPTION =
   "Browse all promotional card printings for the Riftbound trading card game, grouped by promo type.";
+
+interface PromoFixtureChannel {
+  id: string;
+  slug: string;
+  label: string;
+  description: string | null;
+  kind: string;
+}
 
 interface PromoFixturePrinting {
   id: string;
   cardId: string;
   language: string;
-  promoType: { id: string; slug: string; label: string; description: string | null } | null;
+  distributionChannels: { channel: PromoFixtureChannel; distributionNote: string | null }[];
 }
 
 interface PromoFixture {
-  promoTypes: { id: string; slug: string; label: string; description: string | null }[];
+  channels: PromoFixtureChannel[];
   cards: Record<string, unknown>;
   printings: PromoFixturePrinting[];
   prices: Record<string, unknown>;
@@ -87,29 +95,33 @@ test.describe("promos", () => {
 
     test("renders at least one promo type section with h2 and printing count", async ({ page }) => {
       const data = await fetchPromoList();
-      test.skip(data.promoTypes.length === 0, "seed has no promo types");
-      const firstPromo = data.promoTypes[0];
+      const eventChannels = data.channels.filter((c) => c.kind === "event");
+      test.skip(eventChannels.length === 0, "seed has no event channels");
+      const firstChannel = eventChannels[0];
       const expectedCount = data.printings.filter(
-        (p) => p.promoType?.id === firstPromo.id && p.language === "EN",
+        (p) =>
+          p.language === "EN" &&
+          p.distributionChannels.some((link) => link.channel.id === firstChannel.id),
       ).length;
+      test.skip(expectedCount === 0, "first event channel has no EN printings");
 
       await page.goto("/promos");
 
-      await expect(page.getByRole("heading", { level: 2, name: firstPromo.label })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 2, name: firstChannel.label })).toBeVisible();
 
       // Printing count paragraph sits directly under the h2, singular vs
       // plural based on count. With the default EN filter, only EN printings
-      // are in view for this promo type.
+      // are in view for this channel.
       const section = page
         .locator("section")
-        .filter({ has: page.getByRole("heading", { level: 2, name: firstPromo.label }) });
+        .filter({ has: page.getByRole("heading", { level: 2, name: firstChannel.label }) });
       const countText = expectedCount === 1 ? "1 printing" : `${expectedCount} printings`;
       await expect(section.getByText(countText, { exact: true })).toBeVisible();
     });
   });
 
   test.describe("empty state", () => {
-    test("renders 'No promo types yet.' and hides the language filter", async ({ page }) => {
+    test("renders 'No event channels yet.' and hides the language filter", async ({ page }) => {
       await page.route("**/_serverFn/**", async (route) => {
         if (isPromoListServerFn(route.request().url())) {
           // Plain JSON with no `x-tss-serialized` header — the client reads
@@ -119,7 +131,7 @@ test.describe("promos", () => {
             status: 200,
             contentType: "application/json",
             body: JSON.stringify({
-              promoTypes: [],
+              channels: [],
               cards: {},
               printings: [],
               prices: {},
@@ -132,7 +144,7 @@ test.describe("promos", () => {
 
       await clientSideNavigateToPromos(page);
 
-      await expect(page.getByText("No promo types yet.")).toBeVisible();
+      await expect(page.getByText("No event channels yet.")).toBeVisible();
       await expect(page.getByText(/^Languages:$/)).toHaveCount(0);
       // No h2 sections rendered.
       await expect(page.getByRole("heading", { level: 2 })).toHaveCount(0);
@@ -218,7 +230,10 @@ test.describe("promos", () => {
   test.describe("navigation", () => {
     test("grid thumbnails navigate to /cards/<slug>", async ({ page }) => {
       const data = await fetchPromoList();
-      test.skip(data.promoTypes.length === 0, "seed has no promo types");
+      test.skip(
+        data.channels.filter((c) => c.kind === "event").length === 0,
+        "seed has no event channels",
+      );
 
       await page.goto("/promos");
       await expect(page.getByRole("heading", { level: 1, name: "Promo Cards" })).toBeVisible();
@@ -231,7 +246,10 @@ test.describe("promos", () => {
 
     test("list-view rows navigate to /cards/<slug>", async ({ page }) => {
       const data = await fetchPromoList();
-      test.skip(data.promoTypes.length === 0, "seed has no promo types");
+      test.skip(
+        data.channels.filter((c) => c.kind === "event").length === 0,
+        "seed has no event channels",
+      );
 
       await page.goto("/promos");
       await page.getByRole("button", { name: "List view" }).click();
