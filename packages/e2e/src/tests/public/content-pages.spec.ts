@@ -42,7 +42,7 @@ test.describe("/legal-notice", () => {
 
   test("links to the privacy policy", async ({ page }) => {
     await page.goto("/legal-notice");
-    await page.getByRole("link", { name: "Privacy Policy" }).click();
+    await page.getByRole("article").getByRole("link", { name: "Privacy Policy" }).click();
     await expect(page).toHaveURL("/privacy-policy");
   });
 });
