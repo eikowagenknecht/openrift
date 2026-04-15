@@ -441,6 +441,24 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       return db.selectFrom("markers").select(["id", "slug"]).where("id", "in", ids).execute();
     },
 
+    /**
+     * @returns One row per (printing, channel) link with the channel slug,
+     *          for the given printing IDs.
+     */
+    distributionChannelSlugsForPrintings(
+      printingIds: string[],
+    ): Promise<{ printingId: string; channelSlug: string }[]> {
+      if (printingIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("printingDistributionChannels as pdc")
+        .innerJoin("distributionChannels as dc", "dc.id", "pdc.channelId")
+        .select(["pdc.printingId", "dc.slug as channelSlug"])
+        .where("pdc.printingId", "in", printingIds)
+        .execute();
+    },
+
     /** @returns Printing images for detail page, only fields the frontend needs. */
     printingImagesForDetail(printingIds: string[]): Promise<
       {

@@ -19,6 +19,7 @@ import {
   useUncheckCandidatePrinting,
 } from "@/hooks/use-admin-card-mutations";
 import { useDistinctArtists } from "@/hooks/use-distinct-artists";
+import { useDistributionChannels } from "@/hooks/use-distribution-channels";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useIgnoreCandidateCard, useIgnoreCandidatePrinting } from "@/hooks/use-ignored-candidates";
 import { useLanguages } from "@/hooks/use-languages";
@@ -38,6 +39,9 @@ export function useCardDetailData() {
   const { data: markersData } = useMarkers();
   const markers = markersData?.markers ?? [];
 
+  const { data: channelsData } = useDistributionChannels();
+  const distributionChannels = channelsData?.distributionChannels ?? [];
+
   const { data: languagesData } = useLanguages();
   const languagesList = languagesData?.languages ?? [];
 
@@ -47,10 +51,10 @@ export function useCardDetailData() {
     orders,
     labels,
     markers
-      .map((m) => ({
-        value: m.slug,
-        label: m.label,
-      }))
+      .map((m) => ({ value: m.slug, label: m.label }))
+      .toSorted((a, b) => a.label.localeCompare(b.label)),
+    distributionChannels
+      .map((c) => ({ value: c.slug, label: c.label }))
       .toSorted((a, b) => a.label.localeCompare(b.label)),
     artistSuggestions,
     languagesList.map((lang: { code: string; name: string }) => ({

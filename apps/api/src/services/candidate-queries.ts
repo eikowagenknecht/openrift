@@ -402,11 +402,23 @@ async function buildDetailResponse(
     }
   }
 
+  const channelLinks = await repo.distributionChannelSlugsForPrintings(printings.map((p) => p.id));
+  const channelSlugsByPrinting = new Map<string, string[]>();
+  for (const link of channelLinks) {
+    const list = channelSlugsByPrinting.get(link.printingId);
+    if (list) {
+      list.push(link.channelSlug);
+    } else {
+      channelSlugsByPrinting.set(link.printingId, [link.channelSlug]);
+    }
+  }
+
   const formattedPrintings = printings.map(({ setId, ...p }) => ({
     ...p,
     setId: setSlugMap.get(setId) ?? setId,
     setName: setNameMap.get(setId) ?? null,
     setSlug: setSlugMap.get(setId) ?? setId,
+    distributionChannelSlugs: channelSlugsByPrinting.get(p.id) ?? [],
     expectedPrintingId: formatPrintingLabel(p.shortCode, p.markerSlugs, p.finish, p.language),
   }));
 

@@ -105,12 +105,13 @@ export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels)
   ];
 }
 
-/** Build candidate printing fields with marker options populated from the database.
+/** Build candidate printing fields with marker + channel options populated from the database.
  * @returns The field definitions for candidate printings. */
 export function buildCandidatePrintingFields(
   orders: EnumOrders,
   labels: EnumLabels,
   markers: readonly { value: string; label: string }[],
+  distributionChannels: readonly { value: string; label: string }[],
   artistSuggestions?: readonly string[],
   languages?: readonly { value: string; label: string }[],
 ): FieldDef[] {
@@ -140,6 +141,13 @@ export function buildCandidatePrintingFields(
       key: "markerSlugs",
       label: "Markers",
       labeledOptions: markers.length > 0 ? markers : undefined,
+      array: true,
+    },
+    {
+      key: "distributionChannelSlugs",
+      label: "Distribution",
+      labeledOptions: distributionChannels.length > 0 ? distributionChannels : undefined,
+      array: true,
     },
     {
       key: "artist",
