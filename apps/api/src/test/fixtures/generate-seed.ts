@@ -26,6 +26,13 @@ const sql = postgres(DATABASE_URL);
 
 const SET_SLUG = "OGS"; // Proving Grounds — smallest set, 24 cards
 
+/**
+ * Extra cards to include beyond the primary set. Useful for tests that need
+ * cross-set data (e.g. the cards-printings-copies help article references
+ * fury-rune, which has printings in OGN and SFD).
+ */
+const EXTRA_CARD_SLUGS = ["fury-rune"];
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -101,7 +108,15 @@ console.log(`Querying ${SET_SLUG} data from local DB...`);
 
 const sets = await sql<Record<string, unknown>[]>`
   SELECT id, slug, name, set_type, printed_total, sort_order, released_at
-  FROM sets WHERE slug = ${SET_SLUG}
+  FROM sets
+  WHERE slug = ${SET_SLUG}
+     OR id IN (
+       SELECT DISTINCT p.set_id
+       FROM printings p
+       JOIN cards c ON c.id = p.card_id
+       WHERE c.slug = ANY(${EXTRA_CARD_SLUGS})
+     )
+  ORDER BY sort_order
 `;
 
 const cards = await sql<Record<string, unknown>[]>`
@@ -111,7 +126,7 @@ const cards = await sql<Record<string, unknown>[]>`
   FROM cards c
   JOIN printings p ON p.card_id = c.id
   JOIN sets s ON s.id = p.set_id
-  WHERE s.slug = ${SET_SLUG}
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ORDER BY c.slug
 `;
 
@@ -121,7 +136,7 @@ const cardSuperTypes = await sql<Record<string, unknown>[]>`
   JOIN cards c ON c.id = cst.card_id
   JOIN printings p ON p.card_id = c.id
   JOIN sets s ON s.id = p.set_id
-  WHERE s.slug = ${SET_SLUG}
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ORDER BY cst.card_id, cst.super_type_slug
 `;
 
@@ -131,7 +146,7 @@ const cardDomains = await sql<Record<string, unknown>[]>`
   JOIN cards c ON c.id = cd.card_id
   JOIN printings p ON p.card_id = c.id
   JOIN sets s ON s.id = p.set_id
-  WHERE s.slug = ${SET_SLUG}
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ORDER BY cd.card_id, cd.ordinal
 `;
 
@@ -142,7 +157,8 @@ const printings = await sql<Record<string, unknown>[]>`
     p.marker_slugs, p.language, p.printed_name
   FROM printings p
   JOIN sets s ON s.id = p.set_id
-  WHERE s.slug = ${SET_SLUG}
+  JOIN cards c ON c.id = p.card_id
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ORDER BY p.short_code
 `;
 
@@ -158,7 +174,8 @@ const marketplaceProducts = await sql<Record<string, unknown>[]>`
   JOIN marketplace_product_variants mpv ON mpv.marketplace_product_id = mp.id
   JOIN printings p ON p.id = mpv.printing_id
   JOIN sets s ON s.id = p.set_id
-  WHERE s.slug = ${SET_SLUG}
+  JOIN cards c ON c.id = p.card_id
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ORDER BY mp.marketplace, mp.external_id
 `;
 
@@ -168,7 +185,8 @@ const marketplaceProductVariants = await sql<Record<string, unknown>[]>`
   JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
   JOIN printings p ON p.id = mpv.printing_id
   JOIN sets s ON s.id = p.set_id
-  WHERE s.slug = ${SET_SLUG}
+  JOIN cards c ON c.id = p.card_id
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ORDER BY mp.marketplace, mp.external_id, mpv.finish, mpv.language
 `;
 
@@ -178,27 +196,41 @@ const distributionChannels = await sql<Record<string, unknown>[]>`
   JOIN printing_distribution_channels pdc ON pdc.channel_id = dc.id
   JOIN printings p ON p.id = pdc.printing_id
   JOIN sets s ON s.id = p.set_id
-  WHERE s.slug = ${SET_SLUG}
+  JOIN cards c ON c.id = p.card_id
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ORDER BY dc.slug
 `;
 
+const markers = await sql<Record<string, unknown>[]>`
+  SELECT DISTINCT m.id, m.slug, m.label, m.description, m.sort_order
+  FROM markers m
+  JOIN printing_markers pm ON pm.marker_id = m.id
+  JOIN printings p ON p.id = pm.printing_id
+  JOIN sets s ON s.id = p.set_id
+  JOIN cards c ON c.id = p.card_id
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
+  ORDER BY m.slug
+`;
+
 const printingMarkers = await sql<Record<string, unknown>[]>`
-  SELECT pm.printing_id, pm.marker_id, m.slug AS marker_slug
+  SELECT pm.printing_id, pm.marker_id
   FROM printing_markers pm
   JOIN markers m ON m.id = pm.marker_id
   JOIN printings p ON p.id = pm.printing_id
   JOIN sets s ON s.id = p.set_id
-  WHERE s.slug = ${SET_SLUG}
+  JOIN cards c ON c.id = p.card_id
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ORDER BY pm.printing_id, m.slug
 `;
 
 const printingDistributionChannels = await sql<Record<string, unknown>[]>`
-  SELECT pdc.printing_id, pdc.channel_id, dc.slug AS channel_slug, pdc.distribution_note
+  SELECT pdc.printing_id, pdc.channel_id, pdc.distribution_note
   FROM printing_distribution_channels pdc
   JOIN distribution_channels dc ON dc.id = pdc.channel_id
   JOIN printings p ON p.id = pdc.printing_id
   JOIN sets s ON s.id = p.set_id
-  WHERE s.slug = ${SET_SLUG}
+  JOIN cards c ON c.id = p.card_id
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ORDER BY pdc.printing_id, dc.slug
 `;
 
@@ -208,7 +240,7 @@ const cardNameAliases = await sql<Record<string, unknown>[]>`
   JOIN cards c ON c.id = cna.card_id
   JOIN printings p ON p.card_id = c.id
   JOIN sets s ON s.id = p.set_id
-  WHERE s.slug = ${SET_SLUG}
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ORDER BY cna.card_id
 `;
 
@@ -289,7 +321,8 @@ const printingImages = await sql<Record<string, unknown>[]>`
   FROM printing_images pi
   JOIN printings p ON p.id = pi.printing_id
   JOIN sets s ON s.id = p.set_id
-  WHERE s.slug = ${SET_SLUG}
+  JOIN cards c ON c.id = p.card_id
+  WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ORDER BY pi.printing_id, pi.face
 `;
 
@@ -314,7 +347,8 @@ const marketplaceSnapshots = await sql<Record<string, unknown>[]>`
     JOIN marketplace_product_variants mpv ON mpv.id = ms.variant_id
     JOIN printings p ON p.id = mpv.printing_id
     JOIN sets s ON s.id = p.set_id
-    WHERE s.slug = ${SET_SLUG}
+    JOIN cards c ON c.id = p.card_id
+    WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ) ranked
   WHERE rn <= 5
   ORDER BY variant_id, recorded_at
@@ -420,7 +454,7 @@ if (bannedCard) {
 
 const seedSql = [
   "-- Auto-generated by generate-seed.ts — do not edit manually.",
-  `-- Source: local DB, set ${SET_SLUG} (${sets[0]?.name})`,
+  `-- Source: local DB, set ${SET_SLUG} (${sets.find((s) => s.slug === SET_SLUG)?.name})${EXTRA_CARD_SLUGS.length > 0 ? ` + extra cards: ${EXTRA_CARD_SLUGS.join(", ")}` : ""}`,
   `-- Generated: ${new Date().toISOString()}`,
   "",
   "-- Reference / lookup tables (upsert to merge with migration-seeded rows)",
@@ -446,7 +480,8 @@ const seedSql = [
   toInsert("card_errata", syntheticCardErrata),
   "",
   "-- Printings and images",
-  toInsert("distribution_channels", distributionChannels),
+  toUpsert("distribution_channels", distributionChannels, ["slug"]),
+  toUpsert("markers", markers, ["slug"]),
   toInsert("printings", printings),
   toInsert("printing_markers", printingMarkers),
   toInsert("printing_distribution_channels", printingDistributionChannels),
@@ -536,7 +571,7 @@ const constantsTs = `/**
 // -- Set -----------------------------------------------------------------------
 
 export const OGS_SET = {
-  id: ${JSON.stringify(sets[0]?.id)},
+  id: ${JSON.stringify(sets.find((s) => s.slug === SET_SLUG)?.id)},
   slug: "OGS",
   name: "Proving Grounds",
 } as const;
