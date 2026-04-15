@@ -216,12 +216,14 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     SELECT id, promo_type_id FROM printings WHERE promo_type_id IS NOT NULL
   `.execute(db);
 
+  // promo_types has already been renamed to distribution_channels by this
+  // point in the migration; join through the new name.
   await sql`
     INSERT INTO printing_markers (printing_id, marker_id)
     SELECT p.id, m.id
     FROM printings p
-    JOIN promo_types pt ON pt.id = p.promo_type_id
-    JOIN markers m ON m.slug = pt.slug
+    JOIN distribution_channels dc ON dc.id = p.promo_type_id
+    JOIN markers m ON m.slug = dc.slug
   `.execute(db);
 
   // ── drop materialized view (rebuild after schema swap) ────────────────
