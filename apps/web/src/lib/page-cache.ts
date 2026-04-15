@@ -1,4 +1,5 @@
 const PUBLIC_PAGE_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300";
+const PRIVATE_PAGE_CACHE_CONTROL = "private, no-cache";
 
 const EXACT_PATHS = new Set(["/", "/cards", "/sets", "/rules", "/privacy-policy", "/promos"]);
 const PREFIX_PATHS = ["/cards/", "/sets/"];
@@ -20,41 +21,49 @@ function hasSessionCookie(request: Request): boolean {
   return /better-auth\.session_token/.test(cookie);
 }
 
-/**
- * Rewrites `Cache-Control` on anonymous responses for a narrow allowlist of
- * public pages so Cloudflare can cache them at the edge. The SSR layer
- * otherwise emits `no-cache`, which defeats edge caching entirely.
- *
- * We only cache when it is safe to: GET, 200 OK, HTML, no incoming session
- * cookie, no outgoing `Set-Cookie`. Logged-in users continue to receive
- * `no-cache` so their personalized nav is not served from a stale cache.
- *
- * @returns A response with rewritten headers when cacheable, otherwise the original response unchanged.
- */
-export function maybeApplyPublicCache(request: Request, response: Response): Response {
+function isAnonymousCacheable(request: Request, response: Response, pathname: string): boolean {
   if (request.method !== "GET" && request.method !== "HEAD") {
-    return response;
+    return false;
   }
   if (response.status !== 200) {
-    return response;
+    return false;
   }
   if (response.headers.has("set-cookie")) {
-    return response;
+    return false;
   }
+  if (!isCacheablePublicPath(pathname)) {
+    return false;
+  }
+  return !hasSessionCookie(request);
+}
+
+/**
+ * Sets `Cache-Control` on HTML responses so the app is the single source of
+ * truth for cacheability. Anonymous GETs on the public allowlist become edge-
+ * cacheable; everything else is forced to `private, no-cache`. Non-HTML
+ * responses pass through untouched.
+ *
+ * This must be the only place in the stack that sets `Cache-Control` on SSR
+ * responses: the nginx catch-all proxy previously added `no-cache`
+ * unconditionally, which combined with the app's `public, max-age=60` into a
+ * single merged header and kept Cloudflare's edge cache permanently in the
+ * `UPDATING` state.
+ *
+ * @returns A response with `Cache-Control` rewritten when the response is HTML, otherwise the original response.
+ */
+export function applyPageCacheControl(request: Request, response: Response): Response {
   const contentType = response.headers.get("content-type") ?? "";
   if (!contentType.includes("text/html")) {
     return response;
   }
+
   const url = new URL(request.url);
-  if (!isCacheablePublicPath(url.pathname)) {
-    return response;
-  }
-  if (hasSessionCookie(request)) {
-    return response;
-  }
+  const cacheControl = isAnonymousCacheable(request, response, url.pathname)
+    ? PUBLIC_PAGE_CACHE_CONTROL
+    : PRIVATE_PAGE_CACHE_CONTROL;
 
   const headers = new Headers(response.headers);
-  headers.set("Cache-Control", PUBLIC_PAGE_CACHE_CONTROL);
+  headers.set("Cache-Control", cacheControl);
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
