@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { scrollUntilVisible } from "../../helpers/virtualized.js";
+
 // Deep-link tests for /cards search-param parsing. Each test hits /cards with
 // one URL param group and asserts the grid reflects it — either by a known
 // seed card appearing/disappearing, the count label changing, or the empty
@@ -100,6 +102,9 @@ test.describe("card browser URL params", () => {
   });
 
   test("?sort=name&sortDir=desc reverses the grid order", async ({ page }) => {
+    // Tall viewport so the whole seed fits without the window virtualizer
+    // unmounting either end of the list.
+    await page.setViewportSize({ width: 1280, height: 4000 });
     await page.goto("/cards?sort=name&sortDir=desc");
 
     const zephyr = page.getByText("Zephyr Sage").first();
@@ -121,12 +126,14 @@ test.describe("card browser URL params", () => {
 
     // Group headers render as buttons whose accessible name is the group label.
     // Filter panel type options use Badge (non-button), so these locators
-    // unambiguously target the headers at the default viewport.
-    await expect(page.getByRole("button", { name: "Unit", exact: true })).toBeVisible({
-      timeout: LOAD_TIMEOUT,
-    });
-    await expect(page.getByRole("button", { name: "Spell", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Legend", exact: true })).toBeVisible();
+    // unambiguously target the headers. The grid is window-virtualized
+    // (see card-grid.tsx), so headers below the fold need to be scrolled
+    // into view first.
+    for (const name of ["Unit", "Spell", "Legend"]) {
+      await scrollUntilVisible(page, page.getByRole("button", { name, exact: true }), {
+        timeout: LOAD_TIMEOUT,
+      });
+    }
   });
 
   test("?view=printings changes the count label unit", async ({ page }) => {

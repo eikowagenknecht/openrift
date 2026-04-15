@@ -19,19 +19,23 @@ export const Route = createFileRoute("/_app/cards")({
   ssr: "data-only",
   validateSearch: cardsSearchSchema,
   beforeLoad: ({ search, location }) => {
-    // Strip unknown / malformed search params from the URL. If the raw query
-    // string has keys that the validator dropped (unknown keys, invalid
-    // types), redirect to the same route with only the validated search.
+    // Strip unknown / malformed search params from the URL. TanStack merges
+    // raw URL keys onto the validated search (Object.assign in buildLocation),
+    // so unknown keys appear in `search` here too — re-parse with the schema
+    // to get the clean object, then redirect if the raw URL had any keys the
+    // validator would drop.
+    const parsed = cardsSearchSchema.safeParse(search);
+    const cleaned = parsed.success ? parsed.data : {};
     const rawKeys = new Set(new URLSearchParams(location.searchStr).keys());
-    const validKeys = new Set(
-      Object.entries(search)
+    const cleanedKeys = new Set(
+      Object.entries(cleaned)
         .filter(([, value]) => value !== undefined)
         .map(([key]) => key),
     );
     const hasExtraneous =
-      rawKeys.size !== validKeys.size || [...rawKeys].some((key) => !validKeys.has(key));
+      rawKeys.size !== cleanedKeys.size || [...rawKeys].some((key) => !cleanedKeys.has(key));
     if (hasExtraneous) {
-      throw redirect({ to: "/cards", search, replace: true });
+      throw redirect({ to: "/cards", search: cleaned, replace: true });
     }
   },
   head: () =>
