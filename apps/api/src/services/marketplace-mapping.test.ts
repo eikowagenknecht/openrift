@@ -556,7 +556,7 @@ describe("getMappingOverview", () => {
 
     expect(result.allCards).toHaveLength(1);
     expect(result.allCards[0].cardId).toBe("card-1");
-    expect(result.allCards[0].printings).toHaveLength(1);
+    expect(result.allCards[0].shortCodes).toHaveLength(1);
   });
 
   it("builds ignored variants list with group name lookups", async () => {

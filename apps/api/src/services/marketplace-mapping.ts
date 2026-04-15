@@ -457,20 +457,15 @@ export async function getMappingOverview(
     mapStagedRow,
   );
 
-  // Lightweight card list for manual assignment
+  // Lightweight card list for the manual-assign dropdown. The UI only needs
+  // card identity, set name (shown as detail), and short codes (the smallest
+  // one labels each dropdown row). Keeping only those fields shrinks this
+  // section of the response by ~4×.
   const allCards = [...cardGroups.values()].map((g) => ({
     cardId: g.cardId,
     cardName: g.cardName,
-    setId: g.setId,
     setName: g.setName,
-    printings: g.printings.map((p) => ({
-      printingId: p.printingId,
-      shortCode: p.shortCode,
-      finish: p.finish,
-      language: p.language,
-      isSigned: p.isSigned,
-      externalId: p.externalId,
-    })),
+    shortCodes: g.printings.map((p) => p.shortCode),
   }));
 
   return { groups, unmatchedProducts, ignoredProducts, allCards };
