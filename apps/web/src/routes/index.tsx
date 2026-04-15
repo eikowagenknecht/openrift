@@ -1,6 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { catalogQueryOptions } from "@/hooks/use-cards";
 import { sessionQueryOptions } from "@/lib/auth-session";
 import { seoHead, websiteJsonLd } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
@@ -24,8 +23,5 @@ export const Route = createFileRoute("/")({
     if (session?.user) {
       throw redirect({ to: "/cards" });
     }
-  },
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(catalogQueryOptions);
   },
 });

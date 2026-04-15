@@ -118,12 +118,13 @@ export default defineConfig(({ mode, command }) => {
     server: {
       port: 5173,
       forwardConsole: true,
-      // Proxy only /api/auth to the API server. better-auth's browser client
-      // makes direct HTTP calls for OAuth redirects, cookie setting, OTP, etc.
-      // These can't go through server functions. In production, nginx handles
-      // this proxy (see nginx/web.conf location /api/).
+      // Proxy /api/auth (better-auth browser client) and /api/v1/* (direct
+      // client fetches for endpoints we want CF to edge-cache, e.g. the
+      // catalog in use-cards.ts) to the API server. In production, nginx
+      // handles all /api/* (see nginx/web.conf location /api/).
       proxy: {
         "/api/auth": { target: env.VITE_API_PROXY_TARGET || "http://localhost:3000" },
+        "/api/v1": { target: env.VITE_API_PROXY_TARGET || "http://localhost:3000" },
       },
     },
     resolve: {

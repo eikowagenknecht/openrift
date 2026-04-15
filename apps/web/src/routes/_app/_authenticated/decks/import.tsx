@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { catalogQueryOptions, useCards } from "@/hooks/use-cards";
+import { useCards } from "@/hooks/use-cards";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
 import { useZoneOrder } from "@/hooks/use-enums";
@@ -56,12 +56,10 @@ function entryDisplayName(entry: DeckMatchedEntry): string {
 }
 
 export const Route = createFileRoute("/_app/_authenticated/decks/import")({
+  ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Import Deck", noIndex: true }),
   loader: async ({ context }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData(catalogQueryOptions),
-      context.queryClient.ensureQueryData(initQueryOptions),
-    ]);
+    await context.queryClient.ensureQueryData(initQueryOptions);
   },
   component: DeckImportPage,
 });

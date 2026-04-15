@@ -2,6 +2,7 @@
 
 ## 2026-04-15
 
+- feat: The card browser, collections, and decks now load faster when you're signed in
 - feat: The card detail page now shows where each printing was distributed (tournaments, prerelease events, etc.) so you know how to find a copy
 - feat: A printing can now carry multiple stamps at once (e.g. a promo + Top 8 placement), and stacking these is treated as its own visually distinct printing with its own price
 - feat: The Promo Cards page now groups by distribution event, so a card given out at multiple tournaments shows up under each one instead of being assigned to whichever it was tagged with first

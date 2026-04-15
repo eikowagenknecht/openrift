@@ -4,7 +4,6 @@ import { z } from "zod";
 import { CardBrowser } from "@/components/card-browser";
 import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
-import { catalogQueryOptions } from "@/hooks/use-cards";
 import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
 import { FilterSearchProvider, filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
@@ -16,6 +15,7 @@ const cardsSearchSchema = filterSearchSchema.extend({
 });
 
 export const Route = createFileRoute("/_app/cards")({
+  ssr: "data-only",
   validateSearch: cardsSearchSchema,
   head: () =>
     seoHead({
@@ -25,7 +25,6 @@ export const Route = createFileRoute("/_app/cards")({
         "Complete Riftbound TCG card database with marketplace price comparison. Filter by set, domain, rarity, cost, and keyword to browse every card and printing.",
       path: "/cards",
     }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(catalogQueryOptions),
   component: CardsPage,
   pendingComponent: CardsPending,
   errorComponent: RouteErrorFallback,

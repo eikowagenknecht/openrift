@@ -3,19 +3,18 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { CollectionGrid } from "@/components/collection/collection-grid";
 import { CollectionPending } from "@/components/collection/collection-pending";
 import { RouteErrorFallback } from "@/components/error-message";
-import { catalogQueryOptions } from "@/hooks/use-cards";
 import { collectionsQueryOptions, useCollectionsMap } from "@/hooks/use-collections";
 import { copiesQueryOptions } from "@/hooks/use-copies";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
 export const Route = createFileRoute("/_app/_authenticated/collections/$collectionId")({
+  ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Collection", noIndex: true }),
   loader: async ({ context, params }) => {
     const [collections] = await Promise.all([
       context.queryClient.ensureQueryData(collectionsQueryOptions),
       context.queryClient.ensureQueryData(copiesQueryOptions(params.collectionId)),
-      context.queryClient.ensureQueryData(catalogQueryOptions),
     ]);
     if (!collections.items.some((col) => col.id === params.collectionId)) {
       throw notFound();

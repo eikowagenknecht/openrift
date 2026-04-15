@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/select";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
-import { catalogQueryOptions, useCards } from "@/hooks/use-cards";
+import { useCards } from "@/hooks/use-cards";
 import { collectionsQueryOptions, useCollections } from "@/hooks/use-collections";
 import { copiesQueryOptions } from "@/hooks/use-copies";
 import { useLanguageList } from "@/hooks/use-enums";
@@ -46,12 +46,10 @@ import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 
 export const Route = createFileRoute("/_app/_authenticated/collections/import")({
+  ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Import / Export", noIndex: true }),
   loader: async ({ context }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData(catalogQueryOptions),
-      context.queryClient.ensureQueryData(collectionsQueryOptions),
-    ]);
+    await context.queryClient.ensureQueryData(collectionsQueryOptions);
   },
   component: ImportExportPage,
 });
