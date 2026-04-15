@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict Eg8cNt2rWespBuM24dkv3T6d9SOVNl1QJ8imYXWd7y2JeHUikQHuvBW1EOX0fj2
+\restrict 4lxd0TurnbARCaqWOzj8BhRmSgJvCiVpG6AnnsBGsYJ9fGbg18pUkWlpVoNjP6x
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1769,7 +1769,7 @@ ALTER TABLE ONLY public.printings
 --
 
 ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT uq_printings_variant UNIQUE (short_code, art_variant, is_signed, promo_type_id, rarity, finish);
+    ADD CONSTRAINT uq_printings_variant UNIQUE (short_code, art_variant, is_signed, promo_type_id, rarity, finish, language);
 
 
 --
@@ -2986,5 +2986,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict Eg8cNt2rWespBuM24dkv3T6d9SOVNl1QJ8imYXWd7y2JeHUikQHuvBW1EOX0fj2
+\unrestrict 4lxd0TurnbARCaqWOzj8BhRmSgJvCiVpG6AnnsBGsYJ9fGbg18pUkWlpVoNjP6x
 

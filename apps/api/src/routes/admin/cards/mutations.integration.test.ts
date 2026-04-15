@@ -840,6 +840,65 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       );
       expect(res.status).toBe(400);
     });
+
+    it("sets promoTypeId on a non-EN printing when an EN sibling already has that promoTypeId", async () => {
+      // Two printings sharing (shortCode, artVariant, isSigned, rarity, finish)
+      // but differing in language. Setting the same promoTypeId on both must
+      // succeed — the uq_printings_variant constraint includes language.
+      const [enRow] = await db
+        .insertInto("printings")
+        .values({
+          cardId,
+          setId,
+          shortCode: "CSM-LANG-UQ",
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId,
+          finish: "normal",
+          artist: "Artist A",
+          publicCode: "CSM",
+          language: "EN",
+        })
+        .returning("id")
+        .execute();
+
+      const [zhRow] = await db
+        .insertInto("printings")
+        .values({
+          cardId,
+          setId,
+          shortCode: "CSM-LANG-UQ",
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          promoTypeId: null,
+          finish: "normal",
+          artist: "Artist A",
+          publicCode: "CSM",
+          language: "ZH",
+        })
+        .returning("id")
+        .execute();
+
+      const res = await app.fetch(
+        req("POST", `${P}/printing/${zhRow.id}/accept-field`, {
+          field: "promoTypeId",
+          value: promoTypeId,
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const updated = await db
+        .selectFrom("printings")
+        .select("promoTypeId")
+        .where("id", "=", zhRow.id)
+        .executeTakeFirstOrThrow();
+      expect(updated.promoTypeId).toBe(promoTypeId);
+
+      // Cleanup
+      await db.deleteFrom("printings").where("id", "in", [enRow.id, zhRow.id]).execute();
+    });
   });
 
   // ── Accept new card from unmatched sources ──────────────────────────────
