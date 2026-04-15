@@ -6,7 +6,7 @@ import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
-import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { formatPriceIntegerForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
@@ -36,7 +36,6 @@ export function ActiveFilters({
   hiddenSections,
 }: ActiveFiltersProps) {
   const { labels } = useEnumOrders();
-  const languageLabels = useLanguageLabels();
   const { filterState, ranges } = useFilterValues();
   const {
     toggleArrayFilter,
@@ -61,7 +60,6 @@ export function ActiveFilters({
   ];
   type FilterKey =
     | "sets"
-    | "languages"
     | "rarities"
     | "types"
     | "superTypes"
@@ -76,12 +74,6 @@ export function ActiveFilters({
     displayLabel?: (v: string) => string;
   }[] = [
     { key: "sets", label: "Set", values: filterState.sets },
-    {
-      key: "languages",
-      label: "Language",
-      values: filterState.languages,
-      displayLabel: (v: string) => languageLabels[v] ?? v,
-    },
     { key: "rarities", label: "Rarity", values: filterState.rarities },
     { key: "types", label: "Type", values: filterState.types },
     { key: "superTypes", label: "Super Type", values: filterState.superTypes },
@@ -145,7 +137,7 @@ export function ActiveFilters({
           <div key={key} className="flex min-w-0 flex-wrap items-center gap-1">
             <span className="text-muted-foreground text-xs">{label}:</span>
             {values.map((value) => {
-              const icon = key === "languages" ? undefined : getFilterIconPath(key, value);
+              const icon = getFilterIconPath(key, value);
               const displayFn =
                 groupDisplayLabel ??
                 (key === "sets" && setDisplayLabel ? setDisplayLabel : formatDomainFilterLabel);
