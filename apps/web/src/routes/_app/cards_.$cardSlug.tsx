@@ -1,11 +1,16 @@
 import type { CardDetailResponse } from "@openrift/shared";
 import { createFileRoute } from "@tanstack/react-router";
+import { z } from "zod";
 
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { buildCardMetaDescription, getCardFrontImageFullUrl } from "@/lib/card-meta";
 import { breadcrumbJsonLd, productJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
+
+const cardDetailSearchSchema = z.object({
+  printingId: z.string().optional(),
+});
 
 function toAbsoluteUrl(siteUrl: string, imageUrl: string | undefined): string | undefined {
   if (!imageUrl) {
@@ -18,6 +23,7 @@ function toAbsoluteUrl(siteUrl: string, imageUrl: string | undefined): string | 
 }
 
 export const Route = createFileRoute("/_app/cards_/$cardSlug")({
+  validateSearch: cardDetailSearchSchema,
   head: ({ loaderData }) => {
     const siteUrl = getSiteUrl();
     const data = loaderData as CardDetailResponse | undefined;

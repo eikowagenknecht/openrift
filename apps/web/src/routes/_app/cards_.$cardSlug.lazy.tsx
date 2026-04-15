@@ -7,7 +7,7 @@ import {
   WellKnown,
 } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link, createLazyFileRoute } from "@tanstack/react-router";
+import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
   PaintbrushIcon,
@@ -17,7 +17,7 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { CardText } from "@/components/cards/card-text";
 import { PriceHistoryChart, TIME_RANGES } from "@/components/cards/price-history-chart";
@@ -40,12 +40,34 @@ export const Route = createLazyFileRoute("/_app/cards_/$cardSlug")({
 
 function CardDetailPage() {
   const { cardSlug } = Route.useParams();
+  const { printingId: linkedPrintingId } = Route.useSearch();
+  const navigate = useNavigate();
   const { data } = useSuspenseQuery(cardDetailQueryOptions(cardSlug));
   const { card, printings, setOrderMap, sets } = data;
   const languages = useDisplayStore((state) => state.languages);
-  const [selectedPrinting, setSelectedPrinting] = useState<Printing>(
-    () => preferredPrinting(printings, setOrderMap, languages) ?? printings[0],
-  );
+  const [selectedPrinting, setSelectedPrinting] = useState<Printing>(() => {
+    if (linkedPrintingId) {
+      const match = printings.find((p) => p.id === linkedPrintingId);
+      if (match) {
+        return match;
+      }
+    }
+    return preferredPrinting(printings, setOrderMap, languages) ?? printings[0];
+  });
+
+  // Strip the deep-link param after applying so the canonical URL is /cards/$cardSlug.
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (!linkedPrintingId || deepLinkHandled.current) {
+      return;
+    }
+    deepLinkHandled.current = true;
+    void navigate({
+      to: ".",
+      search: ({ printingId: _, ...rest }) => rest,
+      replace: true,
+    });
+  }, [linkedPrintingId, navigate]);
   const setById = new Map(sets.map((s) => [s.id, s]));
   const domainColors = useDomainColors();
   const languageLabels = useLanguageLabels();

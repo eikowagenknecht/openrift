@@ -75,7 +75,11 @@ function PromosPage() {
   const printingsByPromo = Map.groupBy(data.printings, (p) => p.promoType?.id ?? "");
 
   const handleCardClick = (printing: Printing) => {
-    void navigate({ to: "/cards/$cardSlug", params: { cardSlug: printing.card.slug } });
+    void navigate({
+      to: "/cards/$cardSlug",
+      params: { cardSlug: printing.card.slug },
+      search: { printingId: printing.id },
+    });
   };
 
   const compareForDisplay = (a: Printing, b: Printing) => {

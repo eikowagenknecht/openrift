@@ -2,6 +2,7 @@
 
 ## 2026-04-15
 
+- feat: Clicking a card on the Promo Cards page now opens the card detail view with that exact printing already selected, instead of defaulting to your preferred language printing
 - feat: Promo type descriptions on the Promo Cards page now support markdown, so links and basic formatting render inline
 - fix: The card browser no longer errors out when you have multiple languages (or other filters) selected in the URL
 
