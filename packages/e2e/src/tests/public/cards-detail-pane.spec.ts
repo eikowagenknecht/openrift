@@ -25,15 +25,18 @@ test.describe("card detail pane", () => {
     const cardImage = page.getByAltText(MULTI_PRINTING_CARD).first();
     const wrapper = page.locator(".group", { has: page.getByAltText(MULTI_PRINTING_CARD) }).first();
 
-    // Before selection: wrapper has no domain-gradient background applied.
-    await expect(wrapper).toHaveCSS("background-image", "none");
+    // Before selection: wrapper has no domain tint (transparent background).
+    // Single-domain cards get `backgroundColor` and multi-domain cards get a
+    // linear-gradient `background-image`, so check background-color — it
+    // transitions from transparent to a visible domain color on selection.
+    await expect(wrapper).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
 
     await cardImage.click();
     await expect(page.getByRole("complementary")).toBeVisible();
 
-    // After selection: the card renders a visible gradient background.
+    // After selection: the card renders a visible domain-tinted background.
     // This is the same cue a user sees to know which card is active.
-    await expect(wrapper).not.toHaveCSS("background-image", "none");
+    await expect(wrapper).not.toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   });
 
   test("closing the detail pane returns to the grid-only layout", async ({ page }) => {
