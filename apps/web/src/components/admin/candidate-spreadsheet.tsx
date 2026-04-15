@@ -260,10 +260,18 @@ function resolveLabel(field: FieldDef, value: unknown): string {
     return "\u2014";
   }
   if (field.labeledOptions) {
+    if (Array.isArray(value)) {
+      return value
+        .map((v) => field.labeledOptions?.find((o) => o.value === String(v))?.label ?? String(v))
+        .join(", ");
+    }
     const match = field.labeledOptions.find((o) => o.value === String(value));
     if (match) {
       return match.label;
     }
+  }
+  if (Array.isArray(value)) {
+    return value.join(", ");
   }
   return String(value);
 }
@@ -554,12 +562,14 @@ export function CandidateSpreadsheet({
                         render={
                           <button
                             type="button"
-                            className="flex w-full items-center gap-1 rounded px-1 text-sm"
+                            className="flex w-full items-center gap-1 rounded text-left text-sm"
                             onClick={(e) => e.stopPropagation()}
                           />
                         }
                       >
-                        {hasValue(activeValue) ? formatValue(activeValue) : "— select —"}
+                        <span className={cn(!hasValue(activeValue) && "text-muted-foreground")}>
+                          {hasValue(activeValue) ? resolveLabel(field, activeValue) : "— select —"}
+                        </span>
                         <ChevronDownIcon className="ml-auto size-3.5 opacity-50" />
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start">
