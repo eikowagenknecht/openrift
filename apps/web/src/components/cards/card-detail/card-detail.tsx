@@ -289,7 +289,7 @@ export function CardDetail({
           <PrintingPicker current={printing} printings={printings} onSelect={onSelectPrinting} />
         )}
 
-        {/* View full page link (only in side pane, not on standalone page) */}
+        {/* Card details link (only in side pane, not on standalone page) */}
         {onClose && (
           <Link
             to="/cards/$cardSlug"
@@ -297,7 +297,7 @@ export function CardDetail({
             className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
           >
             <ExternalLinkIcon className="size-3" />
-            View full page
+            View card details
           </Link>
         )}
       </div>
