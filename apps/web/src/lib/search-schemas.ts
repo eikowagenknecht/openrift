@@ -1,6 +1,12 @@
 import { createContext, useContext } from "react";
 import { z } from "zod";
 
+// query-string's `arrayFormat: "comma"` returns a single string (not an array)
+// when only one value is present, e.g. `?languages=EN` → `"EN"`. Coerce to an
+// array so schemas validating `z.array(z.string())` still accept these URLs.
+const stringArray = () =>
+  z.preprocess((v) => (typeof v === "string" ? [v] : v), z.array(z.string())).optional();
+
 /**
  * Search param schema for routes that use the card filter system.
  * Applied individually to /cards, /collections, and /decks routes.
@@ -8,14 +14,14 @@ import { z } from "zod";
  */
 export const filterSearchSchema = z.object({
   search: z.string().optional(),
-  sets: z.array(z.string()).optional(),
-  languages: z.array(z.string()).optional(),
-  rarities: z.array(z.string()).optional(),
-  types: z.array(z.string()).optional(),
-  superTypes: z.array(z.string()).optional(),
-  domains: z.array(z.string()).optional(),
-  artVariants: z.array(z.string()).optional(),
-  finishes: z.array(z.string()).optional(),
+  sets: stringArray(),
+  languages: stringArray(),
+  rarities: stringArray(),
+  types: stringArray(),
+  superTypes: stringArray(),
+  domains: stringArray(),
+  artVariants: stringArray(),
+  finishes: stringArray(),
   energyMin: z.number().optional(),
   energyMax: z.number().optional(),
   mightMin: z.number().optional(),

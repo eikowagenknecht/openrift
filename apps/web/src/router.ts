@@ -1,10 +1,10 @@
-import { createRouter, parseSearchWith, stringifySearchWith } from "@tanstack/react-router";
+import { createRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
-import qs from "query-string";
 
 import { RouterErrorFallback } from "./components/error-fallback";
 import { NotFoundFallback } from "./components/error-message";
 import { createQueryClient } from "./lib/query-client";
+import { parseSearch, stringifySearch } from "./lib/search-serialization";
 import { routeTree } from "./routeTree.gen";
 
 export function getRouter() {
@@ -17,8 +17,8 @@ export function getRouter() {
     defaultErrorComponent: RouterErrorFallback,
     defaultNotFoundComponent: NotFoundFallback,
     scrollRestoration: true,
-    parseSearch: parseSearchWith((value) => qs.parse(value, { arrayFormat: "comma" })),
-    stringifySearch: stringifySearchWith((value) => qs.stringify(value, { arrayFormat: "comma" })),
+    parseSearch,
+    stringifySearch,
   });
 
   setupRouterSsrQueryIntegration({ router, queryClient, wrapQueryClient: true });
