@@ -123,6 +123,6 @@ export const cardsRoute = cardsApp
       prices,
     };
 
-    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
     return c.json(content);
   });

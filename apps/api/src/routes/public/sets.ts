@@ -70,7 +70,7 @@ export const setsRoute = setsApp
     });
 
     const content: SetListResponse = { sets: entries };
-    c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
     return c.json(content);
   })
   /**
@@ -159,6 +159,6 @@ export const setsRoute = setsApp
     }));
 
     const content: SetDetailResponse = { set, cards, printings, prices };
-    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
     return c.json(content);
   });
