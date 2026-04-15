@@ -145,6 +145,8 @@ export interface AdminPrintingResponse {
   artVariant: string;
   isSigned: boolean;
   markerSlugs: string[];
+  /** Flat list of channel slugs the printing is currently linked to. */
+  distributionChannelSlugs: string[];
   /** Optional: only populated by endpoints that need to render the channel admin UI. */
   markerIds?: string[];
   /** Optional: only populated by endpoints that need to render the channel admin UI. */

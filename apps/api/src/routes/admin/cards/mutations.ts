@@ -12,6 +12,7 @@ import { acceptFavoriteNewCard } from "../../../services/accept-gallery.js";
 import {
   acceptPrinting,
   deletePrinting,
+  updatePrintingDistributionChannels,
   updatePrintingMarkers,
 } from "../../../services/printing-admin.js";
 import { recordPrintingChangeEvent } from "../../../services/record-printing-event.js";
@@ -837,6 +838,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       "artVariant",
       "isSigned",
       "markerSlugs",
+      "distributionChannelSlugs",
       "finish",
       "artist",
       "publicCode",
@@ -894,6 +896,20 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
         ]);
       }
 
+      return c.body(null, 204);
+    }
+
+    // Same pattern for distribution channels (rows in printing_distribution_channels).
+    if (field === "distributionChannelSlugs") {
+      const { candidateMutations, distributionChannels: channelsRepo } = c.get("repos");
+      const newSlugs = Array.isArray(normalizedValue)
+        ? (normalizedValue as string[]).filter((s) => typeof s === "string")
+        : [];
+      await updatePrintingDistributionChannels(
+        { candidateMutations, distributionChannels: channelsRepo },
+        printingId,
+        newSlugs,
+      );
       return c.body(null, 204);
     }
 

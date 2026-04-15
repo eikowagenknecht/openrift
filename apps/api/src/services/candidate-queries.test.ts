@@ -36,6 +36,7 @@ function createMockRepo(overrides: Record<string, unknown> = {}) {
     setInfoByIds: vi.fn().mockResolvedValue([]),
     setPrintedTotalBySlugs: vi.fn().mockResolvedValue([]),
     markerSlugsByIds: vi.fn().mockResolvedValue([]),
+    distributionChannelSlugsForPrintings: vi.fn().mockResolvedValue([]),
     printingImagesForDetail: vi.fn().mockResolvedValue([]),
     ...overrides,
   } as any;
