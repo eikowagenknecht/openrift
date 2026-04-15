@@ -1,11 +1,12 @@
 import { readFileSync } from "node:fs";
 
-import type { APIRequestContext, Locator, Page } from "@playwright/test";
+import type { APIRequestContext, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
 import type { E2eState } from "../../helpers/constants.js";
 import { API_BASE_URL, STATE_FILE, WEB_BASE_URL } from "../../helpers/constants.js";
 import { connectToDb } from "../../helpers/db.js";
+import { dndDrag } from "../../helpers/dnd.js";
 
 type Sql = ReturnType<typeof connectToDb>;
 
@@ -150,25 +151,6 @@ function isServerFn(url: string, fnName: string): boolean {
   } catch {
     return false;
   }
-}
-
-async function dndDrag(page: Page, source: Locator, target: Locator) {
-  const sourceBox = await source.boundingBox();
-  const targetBox = await target.boundingBox();
-  if (!sourceBox || !targetBox) {
-    throw new Error("dnd source/target not visible");
-  }
-  const startX = sourceBox.x + sourceBox.width / 2;
-  const startY = sourceBox.y + sourceBox.height / 2;
-  const endX = targetBox.x + targetBox.width / 2;
-  const endY = targetBox.y + targetBox.height / 2;
-  await page.mouse.move(startX, startY);
-  await page.mouse.down();
-  // First move must exceed the 8px activation distance — a small intermediate
-  // move transitions dnd-kit's PointerSensor from "pending" to "active".
-  await page.mouse.move(startX + 20, startY, { steps: 5 });
-  await page.mouse.move(endX, endY, { steps: 20 });
-  await page.mouse.up();
 }
 
 function watchMoveRequests(page: Page): { fired: () => boolean } {
