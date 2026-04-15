@@ -410,6 +410,7 @@ export function CandidateSpreadsheet({
   });
 
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [pendingMultiSelect, setPendingMultiSelect] = useState<string[] | null>(null);
   const [collapsed, setCollapsed] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -550,56 +551,79 @@ export function CandidateSpreadsheet({
                   }}
                 >
                   {editingField === field.key && isMultiSelect(field) ? (
-                    <DropdownMenu
-                      open
-                      onOpenChange={(open) => {
-                        if (!open) {
-                          setEditingField(null);
-                        }
-                      }}
-                    >
-                      <DropdownMenuTrigger
-                        render={
-                          <button
-                            type="button"
-                            className="flex w-full items-center gap-1 rounded text-left text-sm"
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        }
-                      >
-                        <span className={cn(!hasValue(activeValue) && "text-muted-foreground")}>
-                          {hasValue(activeValue) ? resolveLabel(field, activeValue) : "— select —"}
-                        </span>
-                        <ChevronDownIcon className="ml-auto size-3.5 opacity-50" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        {(field.labeledOptions
-                          ? field.labeledOptions.map((lo) => ({ value: lo.value, label: lo.label }))
-                          : (field.options ?? []).map((opt) => ({ value: opt, label: opt }))
-                        ).map(({ value, label }) => {
-                          const selected =
-                            Array.isArray(activeValue) && activeValue.includes(value);
-                          return (
-                            <DropdownMenuCheckboxItem
-                              key={value}
-                              checked={selected}
-                              onSelect={(e) => e.preventDefault()}
-                              onCheckedChange={() => {
-                                const current = Array.isArray(activeValue)
-                                  ? (activeValue as string[])
-                                  : [];
-                                const next = selected
-                                  ? current.filter((v) => v !== value)
-                                  : [...current, value];
-                                onActiveChange?.(field.key, next.length > 0 ? next : null);
-                              }}
+                    (() => {
+                      const originalValues = Array.isArray(activeValue)
+                        ? (activeValue as string[])
+                        : [];
+                      const draftValues = pendingMultiSelect ?? originalValues;
+                      return (
+                        <DropdownMenu
+                          open
+                          onOpenChange={(open) => {
+                            if (open) {
+                              return;
+                            }
+                            const originalSet = new Set(originalValues);
+                            const changed =
+                              draftValues.length !== originalValues.length ||
+                              draftValues.some((v) => !originalSet.has(v));
+                            if (changed) {
+                              onActiveChange?.(
+                                field.key,
+                                draftValues.length > 0 ? draftValues : null,
+                              );
+                            }
+                            setEditingField(null);
+                            setPendingMultiSelect(null);
+                          }}
+                        >
+                          <DropdownMenuTrigger
+                            render={
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-1 rounded text-left text-sm"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            }
+                          >
+                            <span
+                              className={cn(draftValues.length === 0 && "text-muted-foreground")}
                             >
-                              {label}
-                            </DropdownMenuCheckboxItem>
-                          );
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                              {draftValues.length > 0
+                                ? resolveLabel(field, draftValues)
+                                : "— select —"}
+                            </span>
+                            <ChevronDownIcon className="ml-auto size-3.5 opacity-50" />
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            {(field.labeledOptions
+                              ? field.labeledOptions.map((lo) => ({
+                                  value: lo.value,
+                                  label: lo.label,
+                                }))
+                              : (field.options ?? []).map((opt) => ({ value: opt, label: opt }))
+                            ).map(({ value, label }) => {
+                              const selected = draftValues.includes(value);
+                              return (
+                                <DropdownMenuCheckboxItem
+                                  key={value}
+                                  checked={selected}
+                                  onSelect={(e) => e.preventDefault()}
+                                  onCheckedChange={() => {
+                                    const next = selected
+                                      ? draftValues.filter((v) => v !== value)
+                                      : [...draftValues, value];
+                                    setPendingMultiSelect(next);
+                                  }}
+                                >
+                                  {label}
+                                </DropdownMenuCheckboxItem>
+                              );
+                            })}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      );
+                    })()
                   ) : editingField === field.key && hasDropdown(field) ? (
                     <Select
                       value={hasValue(activeValue) ? String(activeValue) : ""}
