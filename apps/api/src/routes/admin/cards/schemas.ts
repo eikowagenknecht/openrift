@@ -59,6 +59,19 @@ export const acceptNewCardSchema = z.object({
   }),
 });
 
+export const createCardSchema = z.object({
+  id: cardFieldRules.slug,
+  name: cardFieldRules.name,
+  type: cardFieldRules.type,
+  superTypes: cardFieldRules.superTypes.optional(),
+  domains: cardFieldRules.domains,
+  might: cardFieldRules.might.optional(),
+  energy: cardFieldRules.energy.optional(),
+  power: cardFieldRules.power.optional(),
+  mightBonus: cardFieldRules.mightBonus.optional(),
+  tags: cardFieldRules.tags.optional(),
+});
+
 export const upsertErrataSchema = z.object({
   correctedRulesText: cardErrataFieldRules.correctedRulesText,
   correctedEffectText: cardErrataFieldRules.correctedEffectText,
@@ -112,6 +125,25 @@ export const acceptPrintingSchema = z.object({
     printedName: z.string().min(1).optional().nullable(),
   }),
   candidatePrintingIds: z.array(z.string()),
+});
+
+export const createPrintingSchema = z.object({
+  shortCode: printingFieldRules.shortCode,
+  setId: setFieldRules.slug,
+  setName: setFieldRules.name.optional().nullable(),
+  rarity: printingFieldRules.rarity.optional().nullable(),
+  artVariant: printingFieldRules.artVariant.optional(),
+  isSigned: z.boolean().optional(),
+  promoTypeId: z.string().nullable().optional(),
+  finish: printingFieldRules.finish.optional(),
+  artist: printingFieldRules.artist,
+  publicCode: printingFieldRules.publicCode,
+  printedRulesText: printingFieldRules.printedRulesText.optional(),
+  printedEffectText: printingFieldRules.printedEffectText.optional(),
+  flavorText: printingFieldRules.flavorText.optional(),
+  imageUrl: candidatePrintingFieldRules.imageUrl.optional(),
+  language: z.string().min(1).max(5).optional(),
+  printedName: z.string().min(1).optional().nullable(),
 });
 
 export const setImageSchema = z.object({

@@ -145,13 +145,6 @@ export async function acceptPrinting(
   printingFields: AcceptPrintingFields,
   candidatePrintingIds: string[],
 ): Promise<string> {
-  if (candidatePrintingIds.length === 0) {
-    throw new AppError(
-      400,
-      ERROR_CODES.BAD_REQUEST,
-      "printingFields and candidatePrintingIds[] required",
-    );
-  }
   if (!printingFields.setId) {
     throw new AppError(400, ERROR_CODES.BAD_REQUEST, "printingFields.setId is required");
   }
@@ -189,7 +182,10 @@ export async function acceptPrinting(
     );
   }
 
-  const firstPs = await mut.getProviderNameForCandidatePrinting(candidatePrintingIds[0]);
+  const firstPs =
+    candidatePrintingIds.length > 0
+      ? await mut.getProviderNameForCandidatePrinting(candidatePrintingIds[0])
+      : null;
 
   let insertedId = "";
 
@@ -256,10 +252,12 @@ export async function acceptPrinting(
       );
     }
 
-    await trxRepos.candidateMutations.linkAndCheckCandidatePrintings(
-      candidatePrintingIds,
-      insertedId,
-    );
+    if (candidatePrintingIds.length > 0) {
+      await trxRepos.candidateMutations.linkAndCheckCandidatePrintings(
+        candidatePrintingIds,
+        insertedId,
+      );
+    }
   });
 
   // Record "new printing" event (best-effort, outside transaction)

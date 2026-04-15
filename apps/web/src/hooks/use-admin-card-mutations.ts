@@ -444,6 +444,60 @@ export function useAcceptNewCard() {
   });
 }
 
+const createCardFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { cardFields: Record<string, unknown> }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards/`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify(data.cardFields),
+    });
+    if (!res.ok) {
+      throw new Error(`Create card failed: ${res.status}`);
+    }
+    return (await res.json()) as { cardSlug: string };
+  });
+
+export function useCreateCard() {
+  return useMutationWithInvalidation({
+    mutationFn: (cardFields: AcceptNewCardBody["cardFields"]) =>
+      createCardFn({ data: { cardFields } }),
+    invalidates: [queryKeys.admin.cards.all],
+  });
+}
+
+const createPrintingFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { cardId: string; printingFields: Record<string, unknown> }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const res = await fetch(
+      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/printings`,
+      {
+        method: "POST",
+        headers: { cookie: context.cookie, "content-type": "application/json" },
+        body: JSON.stringify(data.printingFields),
+      },
+    );
+    if (!res.ok) {
+      throw new Error(`Create printing failed: ${res.status}`);
+    }
+    return (await res.json()) as { printingId: string };
+  });
+
+export function useCreatePrinting() {
+  return useMutationWithInvalidation({
+    mutationFn: ({
+      cardId,
+      printingFields,
+    }: {
+      cardId: string;
+      printingFields: AcceptPrintingBody["printingFields"];
+    }) => createPrintingFn({ data: { cardId, printingFields } }),
+    invalidates: [queryKeys.admin.cards.all],
+  });
+}
+
 export function useAcceptFavoriteNewCard() {
   return useMutationWithInvalidation({
     mutationFn: async (name: string) => {

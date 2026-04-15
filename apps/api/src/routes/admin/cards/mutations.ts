@@ -24,6 +24,8 @@ import {
   cardFieldRules,
   checkAllCandidatePrintingsSchema,
   copyCandidatePrintingSchema,
+  createCardSchema,
+  createPrintingSchema,
   linkCandidatePrintingsSchema,
   linkUnmatchedSchema,
   patchCandidatePrintingSchema,
@@ -316,6 +318,49 @@ const acceptPrintingRoute = createRoute({
         },
       },
       description: "Printing accepted",
+    },
+  },
+});
+
+const createCard = createRoute({
+  method: "post",
+  path: "/",
+  tags: ["Admin - Cards"],
+  request: {
+    body: { content: { "application/json": { schema: createCardSchema } } },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            cardSlug: z.string().openapi({ example: "jinx-rebel" }),
+          }),
+        },
+      },
+      description: "Card created",
+    },
+  },
+});
+
+const createPrintingRoute = createRoute({
+  method: "post",
+  path: "/{cardId}/printings",
+  tags: ["Admin - Cards"],
+  request: {
+    params: z.object({ cardId: z.string().uuid() }),
+    body: { content: { "application/json": { schema: createPrintingSchema } } },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            printingId: z.string().openapi({ example: "019cfc3b-03d3-7dac-86c9-27900cd43727" }),
+          }),
+        },
+      },
+      description: "Printing created",
     },
   },
 });
@@ -1035,6 +1080,45 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       cardId,
       printingFields,
       candidatePrintingIds,
+    );
+
+    return c.json({ printingId });
+  })
+
+  // ── POST / ────────────────────────────────────────────────────────────────
+  // Create a new card from scratch (no candidate sources)
+  .openapi(createCard, async (c) => {
+    const cardFields = c.req.valid("json");
+
+    await c.get("transact")(async (trxRepos) => {
+      await trxRepos.candidateMutations.acceptNewCardFromSources(
+        cardFields as typeof cardFields & {
+          type: CardType;
+          domains: Domain[];
+          superTypes?: SuperType[];
+        },
+        normalizeNameForMatching(cardFields.name),
+      );
+    });
+
+    await c.get("repos").catalog.refreshCardAggregates();
+
+    return c.json({ cardSlug: cardFields.id });
+  })
+
+  // ── POST /:cardId/printings ───────────────────────────────────────────────
+  // Create a new printing from scratch (no candidate sources) for an existing card
+  .openapi(createPrintingRoute, async (c) => {
+    const { candidateMutations, printingImages, promoTypes, printingEvents } = c.get("repos");
+    const cardId = c.req.valid("param").cardId;
+    const printingFields = c.req.valid("json");
+
+    const printingId = await acceptPrinting(
+      c.get("transact"),
+      { candidateMutations, printingImages, promoTypes, printingEvents },
+      cardId,
+      printingFields,
+      [],
     );
 
     return c.json({ printingId });

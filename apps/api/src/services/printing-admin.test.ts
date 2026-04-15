@@ -187,21 +187,6 @@ describe("acceptPrinting", () => {
     vi.resetAllMocks();
   });
 
-  it("throws when candidatePrintingIds is empty", async () => {
-    const transact = mockTransact({});
-    const repos = { candidateMutations: {}, printingImages: {}, promoTypes: {} };
-
-    await expect(
-      acceptPrinting(
-        transact,
-        repos as any,
-        "card-uuid",
-        { shortCode: "OGN-001", artist: "A", publicCode: "001" },
-        [],
-      ),
-    ).rejects.toThrow("printingFields and candidatePrintingIds[] required");
-  });
-
   it("throws when setId is missing", async () => {
     const transact = mockTransact({});
     const repos = { candidateMutations: {}, printingImages: {}, promoTypes: {} };
@@ -321,6 +306,58 @@ describe("acceptPrinting", () => {
     expect(upsertPrinting).toHaveBeenCalledTimes(1);
     expect(insertImage).toHaveBeenCalledWith("p-uuid", "https://example.com/img.png", "gallery");
     expect(linkAndCheckCandidatePrintings).toHaveBeenCalledWith(["cp-1"], "p-uuid");
+  });
+
+  it("creates a printing with no candidate sources (manual entry)", async () => {
+    const upsertPrinting = vi.fn(async () => "p-uuid");
+    const getProviderNameForCandidatePrinting = vi.fn(async () => ({ provider: "gallery" }));
+    const linkAndCheckCandidatePrintings = vi.fn(async () => {});
+
+    const repos = {
+      candidateMutations: {
+        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
+        getPrintingCardIdByComposite: vi.fn(async () => null),
+        getProviderNameForCandidatePrinting,
+        upsertPrinting,
+        linkAndCheckCandidatePrintings,
+      },
+      printingImages: {},
+      promoTypes: {},
+      sets: {
+        upsert: vi.fn(async () => {}),
+        getPrintedTotal: vi.fn(async () => null),
+      },
+    };
+
+    const trxRepos = {
+      ...repos,
+      candidateMutations: {
+        ...repos.candidateMutations,
+        getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
+        recomputeKeywordsForPrintingCard: vi.fn(async () => {}),
+      },
+    };
+
+    const transact = mockTransact(trxRepos);
+
+    const result = await acceptPrinting(
+      transact,
+      repos as any,
+      "card-uuid",
+      {
+        shortCode: "OGN-001",
+        setId: "ogn",
+        rarity: "Common",
+        artist: "Artist A",
+        publicCode: "001",
+      },
+      [],
+    );
+
+    expect(result).toBe("p-uuid");
+    expect(upsertPrinting).toHaveBeenCalledTimes(1);
+    expect(getProviderNameForCandidatePrinting).not.toHaveBeenCalled();
+    expect(linkAndCheckCandidatePrintings).not.toHaveBeenCalled();
   });
 
   it("throws BAD_REQUEST for invalid rarity", async () => {

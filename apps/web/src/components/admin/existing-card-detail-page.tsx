@@ -17,6 +17,7 @@ import {
   CopyCheckIcon,
   EllipsisVerticalIcon,
   LoaderIcon,
+  PlusIcon,
   RefreshCwIcon,
   Trash2Icon,
 } from "lucide-react";
@@ -394,6 +395,17 @@ export function ExistingCardDetailPage({
               <EllipsisVerticalIcon />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() =>
+                  void navigate({
+                    to: "/admin/cards/$cardSlug/printings/create",
+                    params: { cardSlug: cardId },
+                  })
+                }
+              >
+                <PlusIcon className="mr-2" />
+                Create printing
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setShowBanForm(true)}>
                 <BanIcon className="mr-2" />
                 Add ban
