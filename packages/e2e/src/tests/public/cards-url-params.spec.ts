@@ -18,18 +18,18 @@ test.describe("card browser URL params", () => {
   });
 
   test("?sets=<known slug> keeps matching cards visible", async ({ page }) => {
-    await page.goto("/cards?sets=OGS");
+    await page.goto(`/cards?sets=${encodeURIComponent(JSON.stringify(["OGS"]))}`);
     await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
   });
 
   test("?sets=<unknown slug> shows the empty state", async ({ page }) => {
-    await page.goto("/cards?sets=__nonexistent__");
+    await page.goto(`/cards?sets=${encodeURIComponent(JSON.stringify(["__nonexistent__"]))}`);
     await expect(page.getByText(/No cards found/i)).toBeVisible({ timeout: LOAD_TIMEOUT });
     await expect(page.getByText("Annie, Fiery")).not.toBeVisible();
   });
 
   test("?rarities=Epic narrows the grid to Epic printings", async ({ page }) => {
-    await page.goto("/cards?rarities=Epic");
+    await page.goto(`/cards?rarities=${encodeURIComponent(JSON.stringify(["Epic"]))}`);
 
     // Annie, Fiery has an Epic printing in the seed
     await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
@@ -38,7 +38,7 @@ test.describe("card browser URL params", () => {
   });
 
   test("?domains=Fury narrows the grid to Fury cards", async ({ page }) => {
-    await page.goto("/cards?domains=Fury");
+    await page.goto(`/cards?domains=${encodeURIComponent(JSON.stringify(["Fury"]))}`);
 
     await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
     // Lux, Illuminated is a Mind card, filtered out
@@ -46,7 +46,7 @@ test.describe("card browser URL params", () => {
   });
 
   test("?types=Legend narrows the grid to Legend cards", async ({ page }) => {
-    await page.goto("/cards?types=Legend");
+    await page.goto(`/cards?types=${encodeURIComponent(JSON.stringify(["Legend"]))}`);
 
     await expect(page.getByText("Dark Child, Starter")).toBeVisible({ timeout: LOAD_TIMEOUT });
     // Unit/Spell cards are filtered out
@@ -64,10 +64,9 @@ test.describe("card browser URL params", () => {
   });
 
   test("?priceMin=&priceMax= narrows the grid", async ({ page }) => {
-    // The seed has no marketplace price data, so every printing has a null
-    // price and a numeric range filters them all out — which is exactly the
-    // "filter is applied" assertion we want.
-    await page.goto("/cards?priceMin=1&priceMax=100");
+    // Use a range no seeded printing can satisfy so the grid empties regardless
+    // of how prices evolve in the seed.
+    await page.goto("/cards?priceMin=999999&priceMax=1000000");
 
     await expect(page.getByText(/No cards found/i)).toBeVisible({ timeout: LOAD_TIMEOUT });
   });

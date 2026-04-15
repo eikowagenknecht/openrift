@@ -124,17 +124,20 @@ test.describe("promos", () => {
     test("renders 'No event channels yet.' and hides the language filter", async ({ page }) => {
       await page.route("**/_serverFn/**", async (route) => {
         if (isPromoListServerFn(route.request().url())) {
-          // Plain JSON with no `x-tss-serialized` header — the client reads
-          // the payload directly without going through the seroval
-          // deserializer. See serverFnFetcher.ts.
+          // Plain JSON with no `x-tss-serialized` header — skips the seroval
+          // deserializer in serverFnFetcher.ts. The payload must still be
+          // wrapped in the `{result}` envelope that createServerFn's client
+          // middleware unwraps (see createServerFn.ts → `return result.result`).
           await route.fulfill({
             status: 200,
             contentType: "application/json",
             body: JSON.stringify({
-              channels: [],
-              cards: {},
-              printings: [],
-              prices: {},
+              result: {
+                channels: [],
+                cards: {},
+                printings: [],
+                prices: {},
+              },
             }),
           });
           return;
@@ -201,6 +204,9 @@ test.describe("promos", () => {
     test("defaults to grid view and toggles to list view", async ({ page }) => {
       await page.goto("/promos");
       await expect(page.getByRole("heading", { level: 1, name: "Promo Cards" })).toBeVisible();
+      // Wait for hydration before clicking — without this the click can land
+      // on the static SSR button before React attaches the onClick handler.
+      await page.waitForLoadState("networkidle");
 
       const gridButton = page.getByRole("button", { name: "Grid view" });
       const listButton = page.getByRole("button", { name: "List view" });
@@ -237,6 +243,7 @@ test.describe("promos", () => {
 
       await page.goto("/promos");
       await expect(page.getByRole("heading", { level: 1, name: "Promo Cards" })).toBeVisible();
+      await page.waitForLoadState("networkidle");
 
       await page.locator(".aspect-card").first().click();
 
@@ -252,6 +259,8 @@ test.describe("promos", () => {
       );
 
       await page.goto("/promos");
+      await expect(page.getByRole("heading", { level: 1, name: "Promo Cards" })).toBeVisible();
+      await page.waitForLoadState("networkidle");
       await page.getByRole("button", { name: "List view" }).click();
       const firstRow = page.locator("table tbody tr").first();
       await expect(firstRow).toBeVisible();

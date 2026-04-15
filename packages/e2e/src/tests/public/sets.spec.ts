@@ -175,12 +175,14 @@ test.describe("sets", () => {
       }
 
       await page.goto(`/sets/${knownSet.slug}`);
+      await page.waitForLoadState("networkidle");
 
       const tile = page.getByRole("button", { name: firstCard.name }).first();
       await expect(tile).toBeVisible({ timeout: 10_000 });
 
       await tile.click();
 
+      await page.waitForURL(/\/cards\/[^/?#]+$/, { timeout: 10_000 });
       await expect(page).toHaveURL(/\/cards\/[^/?#]+$/);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     });
