@@ -7,6 +7,48 @@ import type {
 import type { Repos } from "../deps.js";
 import type { MarketplaceConfig } from "../routes/admin/marketplace-configs.js";
 
+type UnifiedCardRow = Awaited<
+  ReturnType<Repos["marketplaceMapping"]["allCardsWithPrintingsUnified"]>
+>[number];
+type MatchedCardsRow = Awaited<
+  ReturnType<Repos["marketplaceMapping"]["allCardsWithPrintings"]>
+>[number];
+
+/**
+ * Derive the per-marketplace `matchedCards` shape from the unified cards query.
+ *
+ * Mirrors the SQL filter of `allCardsWithPrintings(marketplace)`:
+ * - Keep printings with at least one variant in the requested marketplace
+ *   (one row per matching variant).
+ * - Keep printings with NO variants in any marketplace (one row, NULL variant
+ *   columns).
+ * - Drop printings whose only variants are in OTHER marketplaces.
+ * @returns Per-marketplace matchedCards rows in the same shape as the legacy query.
+ */
+function deriveCardsForMarketplace(
+  unifiedRows: UnifiedCardRow[],
+  marketplace: string,
+): MatchedCardsRow[] {
+  const byPrinting = Map.groupBy(unifiedRows, (r) => r.printingId);
+  const result: MatchedCardsRow[] = [];
+  for (const rows of byPrinting.values()) {
+    const matchingVariants = rows.filter((r) => r.variantMarketplace === marketplace);
+    if (matchingVariants.length > 0) {
+      for (const row of matchingVariants) {
+        const { variantMarketplace: _, ...rest } = row;
+        result.push(rest);
+      }
+      continue;
+    }
+    const hasAnyVariant = rows.some((r) => r.variantMarketplace !== null);
+    if (!hasAnyVariant) {
+      const { variantMarketplace: _, ...rest } = rows[0];
+      result.push(rest);
+    }
+  }
+  return result;
+}
+
 interface MappingOverviewResult {
   groups: {
     cardId: string;
@@ -62,13 +104,26 @@ export async function buildUnifiedMappingsResponse(
   tcgplayerConfig: MarketplaceConfig,
   cardmarketConfig: MarketplaceConfig,
   cardtraderConfig: MarketplaceConfig,
-  getMappingOverview: (repos: Repos, config: MarketplaceConfig) => Promise<MappingOverviewResult>,
+  getMappingOverview: (
+    repos: Repos,
+    config: MarketplaceConfig,
+    options?: { matchedCards?: MatchedCardsRow[] },
+  ) => Promise<MappingOverviewResult>,
   showAll: boolean,
 ): Promise<UnifiedMappingsResponse> {
+  // Fetch the heavy cards × printings × images join once for all three marketplaces
+  // and project per-marketplace in JS, instead of running it 3× from the DB.
+  const unifiedRows = await repos.marketplaceMapping.allCardsWithPrintingsUnified();
   const [tcgResult, cmResult, ctResult] = await Promise.all([
-    getMappingOverview(repos, tcgplayerConfig),
-    getMappingOverview(repos, cardmarketConfig),
-    getMappingOverview(repos, cardtraderConfig),
+    getMappingOverview(repos, tcgplayerConfig, {
+      matchedCards: deriveCardsForMarketplace(unifiedRows, tcgplayerConfig.marketplace),
+    }),
+    getMappingOverview(repos, cardmarketConfig, {
+      matchedCards: deriveCardsForMarketplace(unifiedRows, cardmarketConfig.marketplace),
+    }),
+    getMappingOverview(repos, cardtraderConfig, {
+      matchedCards: deriveCardsForMarketplace(unifiedRows, cardtraderConfig.marketplace),
+    }),
   ]);
 
   // Merge by cardId — combine data from all marketplaces per card

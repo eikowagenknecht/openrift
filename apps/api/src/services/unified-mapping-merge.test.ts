@@ -62,7 +62,9 @@ describe("buildUnifiedMappingsResponse", () => {
   });
 
   it("returns empty groups when all marketplaces have no data", async () => {
-    const repos = {} as Repos;
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
     const getMappingOverview = vi.fn(async () => makeMappingResult());
 
     const result = await buildUnifiedMappingsResponse(
@@ -83,7 +85,9 @@ describe("buildUnifiedMappingsResponse", () => {
   });
 
   it("merges a card from TCGplayer only", async () => {
-    const repos = {} as Repos;
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
     const tcgGroup = makeGroup();
     const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
       if (config.marketplace === "tcgplayer") {
@@ -109,7 +113,9 @@ describe("buildUnifiedMappingsResponse", () => {
   });
 
   it("merges external IDs from all three marketplaces into the same card", async () => {
-    const repos = {} as Repos;
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
     const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
       if (config.marketplace === "tcgplayer") {
         return makeMappingResult({ groups: [makeGroup()] });
@@ -144,7 +150,9 @@ describe("buildUnifiedMappingsResponse", () => {
   });
 
   it("creates separate groups for cards that only appear in CM or CT", async () => {
-    const repos = {} as Repos;
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
     const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
       if (config.marketplace === "cardmarket") {
         return makeMappingResult({
@@ -175,7 +183,9 @@ describe("buildUnifiedMappingsResponse", () => {
   });
 
   it("filters to only incomplete mappings when showAll is false", async () => {
-    const repos = {} as Repos;
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
     const fullyMappedGroup = makeGroup({
       cardId: "fully-mapped",
       printings: [
@@ -260,7 +270,9 @@ describe("buildUnifiedMappingsResponse", () => {
   });
 
   it("keeps groups with staged products even when fully mapped", async () => {
-    const repos = {} as Repos;
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
     const groupWithStaged = makeGroup({
       cardId: "with-staged",
       stagedProducts: [{ id: "staged-1" }],
@@ -307,7 +319,9 @@ describe("buildUnifiedMappingsResponse", () => {
   });
 
   it("sorts groups by primaryShortCode", async () => {
-    const repos = {} as Repos;
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
     const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
       if (config.marketplace === "tcgplayer") {
         return makeMappingResult({
@@ -340,7 +354,9 @@ describe("buildUnifiedMappingsResponse", () => {
   });
 
   it("uses the longest allCards list from any marketplace", async () => {
-    const repos = {} as Repos;
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
     const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
       if (config.marketplace === "tcgplayer") {
         return makeMappingResult({ allCards: [{ cardId: "c1" }] });
@@ -364,7 +380,9 @@ describe("buildUnifiedMappingsResponse", () => {
   });
 
   it("collects unmatched products from all marketplaces", async () => {
-    const repos = {} as Repos;
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
     const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
       if (config.marketplace === "tcgplayer") {
         return makeMappingResult({ unmatchedProducts: [{ id: "tcg-unmatched" }] });
