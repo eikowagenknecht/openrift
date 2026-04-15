@@ -65,7 +65,7 @@ export const pricesRoute = pricesApp
       entry[row.marketplace as Marketplace] = centsToDollars(row.marketCents);
     }
 
-    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
     return c.json({ prices } satisfies PricesResponse);
   })
   /**
@@ -187,6 +187,6 @@ export const pricesRoute = pricesApp
       },
     };
 
-    c.header("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
     return c.json(response);
   });

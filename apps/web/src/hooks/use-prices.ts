@@ -21,9 +21,19 @@ const fetchPrices = createServerFn({ method: "GET" }).handler(
     }),
 );
 
+// Client-side fetch goes directly to /api/v1/prices so Cloudflare can serve
+// it from the edge cache — same pattern as use-cards.ts.
+async function fetchPricesFromEdge(): Promise<PricesResponse> {
+  const res = await fetch("/api/v1/prices");
+  if (!res.ok) {
+    throw new Error(`Prices fetch failed: ${res.status}`);
+  }
+  return res.json() as Promise<PricesResponse>;
+}
+
 const pricesQueryOptions = queryOptions({
   queryKey: queryKeys.prices.all,
-  queryFn: () => fetchPrices(),
+  queryFn: () => (globalThis.window === undefined ? fetchPrices() : fetchPricesFromEdge()),
   // Prices refresh once per day, so a long staleTime is fine. The server cache
   // and react-query refetch policies handle propagation when prices do change.
   staleTime: 30 * 60 * 1000, // 30 minutes

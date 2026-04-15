@@ -141,7 +141,9 @@ describe("GET /api/v1/prices", () => {
   it("returns ETag and Cache-Control headers", async () => {
     const res = await app.request("/api/v1/prices");
     expect(res.headers.get("ETag")).toBeTruthy();
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60, stale-while-revalidate=300");
+    expect(res.headers.get("Cache-Control")).toBe(
+      "public, max-age=3600, stale-while-revalidate=86400",
+    );
   });
 
   it("returns 304 when If-None-Match matches current ETag", async () => {
@@ -241,7 +243,9 @@ describe("GET /api/v1/prices/:printingId/history", () => {
   it("returns ETag and Cache-Control headers", async () => {
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     expect(res.headers.get("ETag")).toBeTruthy();
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=60, stale-while-revalidate=300");
+    expect(res.headers.get("Cache-Control")).toBe(
+      "public, max-age=3600, stale-while-revalidate=86400",
+    );
   });
 
   it("returns 304 when If-None-Match matches current ETag", async () => {

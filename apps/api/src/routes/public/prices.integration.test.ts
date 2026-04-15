@@ -248,7 +248,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
     it("returns Cache-Control header", async () => {
       const res = await app.fetch(req("GET", "/prices"));
       expect(res.headers.get("Cache-Control")).toBe(
-        "public, max-age=60, stale-while-revalidate=300",
+        "public, max-age=3600, stale-while-revalidate=86400",
       );
     });
   });
@@ -358,7 +358,7 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
     it("returns Cache-Control header", async () => {
       const res = await app.fetch(req("GET", `/prices/${printingId}/history`));
       expect(res.headers.get("Cache-Control")).toBe(
-        "public, max-age=60, stale-while-revalidate=300",
+        "public, max-age=3600, stale-while-revalidate=86400",
       );
     });
 
