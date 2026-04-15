@@ -317,10 +317,7 @@ test.describe("decks list", () => {
       await expect(tile.getByText("Freeform")).toBeVisible();
       await expect(tile.getByText(/\b0 cards\b/)).toBeVisible();
 
-      // Menu trigger has no accessible name today (EllipsisVerticalIcon with no
-      // aria-label on the Button). It's the only button inside the tile, so we
-      // scope by role — see PR description for the a11y gap.
-      await expect(tile.getByRole("button")).toBeVisible();
+      await expect(tile.getByRole("button", { name: "Deck actions" })).toBeVisible();
     });
 
     test("clicking the tile navigates to /decks/<id>", async ({ page }) => {
@@ -356,7 +353,7 @@ test.describe("decks list", () => {
 
       await page.goto("/decks");
       const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await tile.getByRole("button").click();
+      await tile.getByRole("button", { name: "Deck actions" }).click();
       await page.getByRole("menuitem", { name: "Rename" }).click();
 
       const dialog = page.getByRole("dialog");
@@ -372,7 +369,7 @@ test.describe("decks list", () => {
 
       await page.goto("/decks");
       const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await tile.getByRole("button").click();
+      await tile.getByRole("button", { name: "Deck actions" }).click();
       await page.getByRole("menuitem", { name: "Rename" }).click();
 
       const dialog = page.getByRole("dialog");
@@ -393,7 +390,7 @@ test.describe("decks list", () => {
 
       await page.goto("/decks");
       const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await tile.getByRole("button").click();
+      await tile.getByRole("button", { name: "Deck actions" }).click();
       await page.getByRole("menuitem", { name: "Rename" }).click();
 
       const dialog = page.getByRole("dialog");
@@ -428,7 +425,7 @@ test.describe("decks list", () => {
 
       await page.goto("/decks");
       const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await tile.getByRole("button").click();
+      await tile.getByRole("button", { name: "Deck actions" }).click();
       await page.getByRole("menuitem", { name: "Delete" }).click();
 
       const alert = page.getByRole("alertdialog");
@@ -446,7 +443,7 @@ test.describe("decks list", () => {
 
       await page.goto("/decks");
       const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await tile.getByRole("button").click();
+      await tile.getByRole("button", { name: "Deck actions" }).click();
       await page.getByRole("menuitem", { name: "Delete" }).click();
 
       const alert = page.getByRole("alertdialog");
@@ -465,7 +462,7 @@ test.describe("decks list", () => {
 
       await page.goto("/decks");
       const tile = page.locator(`a[href="/decks/${deckId}"]`);
-      await tile.getByRole("button").click();
+      await tile.getByRole("button", { name: "Deck actions" }).click();
       await page.getByRole("menuitem", { name: "Delete" }).click();
 
       const alert = page.getByRole("alertdialog");

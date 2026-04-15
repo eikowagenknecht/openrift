@@ -352,7 +352,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
             <span className="flex-1" />
             <DropdownMenu>
               <DropdownMenuTrigger
-                render={<Button variant="ghost" size="icon-sm" />}
+                render={<Button variant="ghost" size="icon-sm" aria-label="Deck actions" />}
                 onClick={(event: React.MouseEvent) => {
                   event.preventDefault();
                   event.stopPropagation();
