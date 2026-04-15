@@ -154,6 +154,60 @@ export function marketplaceMappingRepo(db: Db) {
       );
     },
 
+    /**
+     * Like `allCardsWithPrintings` but returns variant rows for every marketplace
+     * in a single query. Lets the unified mapping endpoint fetch the heavy
+     * cards × printings × images joins once instead of three times. The caller
+     * must filter rows down to the per-marketplace shape (see deriveCardsForMarketplace).
+     * @returns One row per (printing × variant), plus one row per printing with no variant in any marketplace.
+     */
+    allCardsWithPrintingsUnified() {
+      return db
+        .selectFrom("cards as c")
+        .innerJoin("printings as p", "p.cardId", "c.id")
+        .innerJoin("sets as s", "s.id", "p.setId")
+        .leftJoin("marketplaceProductVariants as mpv", "mpv.printingId", "p.id")
+        .leftJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .leftJoin("printingImages as pi", (join) =>
+          join
+            .onRef("pi.printingId", "=", "p.id")
+            .on("pi.face", "=", "front")
+            .on("pi.isActive", "=", true),
+        )
+        .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
+        .leftJoin("promoTypes as pt", "pt.id", "p.promoTypeId")
+        .select([
+          "c.id as cardId",
+          "c.slug as cardSlug",
+          "c.name as cardName",
+          "c.type as cardType",
+          domainsArray("c.id").as("domains"),
+          superTypesArray("c.id").as("superTypes"),
+          "c.energy",
+          "c.might",
+          "p.id as printingId",
+          "s.slug as setId",
+          "p.shortCode",
+          "p.rarity",
+          "s.name as setName",
+          "p.artVariant",
+          "p.isSigned",
+          "pt.slug as promoTypeSlug",
+          "p.finish",
+          "p.language",
+          imageUrlWithOriginal("ci").as("imageUrl"),
+          "mp.marketplace as variantMarketplace",
+          "mp.externalId as externalId",
+          "mp.groupId as sourceGroupId",
+          "mpv.language as sourceLanguage",
+        ])
+        .orderBy("s.slug")
+        .orderBy("c.name")
+        .orderBy("p.shortCode")
+        .orderBy("p.finish", "desc")
+        .execute();
+    },
+
     /** @returns Manual card overrides for a marketplace. */
     stagingCardOverrides(marketplace: string) {
       return db

@@ -276,20 +276,40 @@ function buildResponseGroups(
 
 // ── getMappingOverview ───────────────────────────────────────────────────────
 
-export async function getMappingOverview(repos: Repos, config: MarketplaceConfig) {
+type MatchedCardsRow = Awaited<
+  ReturnType<Repos["marketplaceMapping"]["allCardsWithPrintings"]>
+>[number];
+
+interface GetMappingOverviewOptions {
+  /**
+   * Pre-fetched cards-with-printings rows for this marketplace. The unified
+   * mapping endpoint passes this to avoid running the heavy
+   * cards × printings × images joins three times (once per marketplace).
+   */
+  matchedCards?: MatchedCardsRow[];
+}
+
+export async function getMappingOverview(
+  repos: Repos,
+  config: MarketplaceConfig,
+  options?: GetMappingOverviewOptions,
+) {
   const repo = repos.marketplaceMapping;
 
   // All independent queries fire in parallel — none depend on each other,
   // and serializing them was wasting ~30ms per marketplace.
-  const [ignoredProductRows, ignoredVariantRows, staged, groupRows, matchedCards, overrideRows] =
+  const [ignoredProductRows, ignoredVariantRows, staged, groupRows, fetchedCards, overrideRows] =
     await Promise.all([
       repo.ignoredProducts(config.marketplace),
       repo.ignoredVariants(config.marketplace),
       repo.allStaging(config.marketplace),
       repo.groupNames(config.marketplace),
-      repo.allCardsWithPrintings(config.marketplace),
+      options?.matchedCards
+        ? Promise.resolve(options.matchedCards)
+        : repo.allCardsWithPrintings(config.marketplace),
       repo.stagingCardOverrides(config.marketplace),
     ]);
+  const matchedCards = fetchedCards;
 
   const ignoredProductIds = new Set(ignoredProductRows.map((r) => r.externalId));
   const ignoredVariantKeys = new Set(
