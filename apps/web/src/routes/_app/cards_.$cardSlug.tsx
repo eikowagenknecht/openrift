@@ -74,7 +74,6 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
   },
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug)),
-  pendingMs: 100,
   component: () => null,
   pendingComponent: CardDetailPending,
   errorComponent: RouteErrorFallback,
