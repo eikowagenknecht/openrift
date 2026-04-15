@@ -111,13 +111,19 @@ function cardTile(page: Page, cardName: string): Locator {
 
 /**
  * Locates the DeckAddStrip row inside a card tile (the h-5 flex row at the top
- * that holds owned/in-deck text plus the +/- buttons). The buttons themselves
- * have no aria-labels, so tests index into them by position: `.last()` is the +
- * button; when there are two, `.first()` is the - button.
+ * that holds owned/in-deck text plus the +/- buttons).
  * @returns The strip locator.
  */
 function strip(tile: Locator): Locator {
   return tile.locator("div.h-5.mb-1").first();
+}
+
+function addCardButton(tile: Locator): Locator {
+  return strip(tile).getByRole("button", { name: "Add to deck" });
+}
+
+function removeCardButton(tile: Locator): Locator {
+  return strip(tile).getByRole("button", { name: "Remove from deck" });
 }
 
 async function waitForCardsLoaded(page: Page) {
@@ -256,15 +262,15 @@ test.describe("deck editor card browser", () => {
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
 
-      const row = strip(cardTile(page, "Annie, Fiery"));
-      const addButton = row.locator("button").last();
+      const tile = cardTile(page, "Annie, Fiery");
+      const row = strip(tile);
 
       // Intercept the debounced save before the click that triggers it.
       const saveRequest = page.waitForRequest(
         (request) => request.method() === "POST" && isServerFn(request.url(), "saveDeckCardsFn"),
       );
 
-      await addButton.click();
+      await addCardButton(tile).click();
       await expect(row.getByText("1 in deck")).toBeVisible();
 
       // Main Deck sidebar row reflects the new count (Main Deck shows "N/39").
@@ -273,11 +279,10 @@ test.describe("deck editor card browser", () => {
       // Amber "Unsaved" dot appears in the top bar while the save is pending.
       await expect(page.locator("span.bg-amber-500").first()).toBeVisible();
 
-      await addButton.click();
+      await addCardButton(tile).click();
       await expect(row.getByText("2 in deck")).toBeVisible();
 
-      // Now there are two buttons in the strip; .first() is the - button.
-      await row.locator("button").first().click();
+      await removeCardButton(tile).click();
       await expect(row.getByText("1 in deck")).toBeVisible();
 
       // Save fires after the 1s debounce — confirm it lands.
@@ -299,15 +304,15 @@ test.describe("deck editor card browser", () => {
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
 
-      const row = strip(cardTile(page, "Annie, Fiery"));
-      await row.locator("button").last().click();
+      const tile = cardTile(page, "Annie, Fiery");
+      await addCardButton(tile).click();
 
       // Sideboard row count increments; Main Deck stays at 0.
       await expect(page.getByRole("button", { name: /Sideboard.*\b1\b/ }).first()).toBeVisible();
       await expect(page.getByRole("button", { name: /Main Deck.*\b0\/39\b/ })).toBeVisible();
 
       // A second + still adds to Sideboard.
-      await row.locator("button").last().click();
+      await addCardButton(tile).click();
       await expect(page.getByRole("button", { name: /Sideboard.*\b2\b/ }).first()).toBeVisible();
     });
   });
@@ -325,14 +330,14 @@ test.describe("deck editor card browser", () => {
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
 
-      const row = strip(cardTile(page, "Annie, Fiery"));
-      const addButton = row.locator("button").last();
-      await addButton.click();
-      await addButton.click();
-      await addButton.click();
+      const tile = cardTile(page, "Annie, Fiery");
+      const row = strip(tile);
+      await addCardButton(tile).click();
+      await addCardButton(tile).click();
+      await addCardButton(tile).click();
 
       await expect(row.getByText("3 in deck")).toBeVisible();
-      await expect(addButton).toBeDisabled();
+      await expect(addCardButton(tile)).toBeDisabled();
 
       // Freeform: no 3-copy cap.
       const freeformId = await createDeckViaApi(page, `Max Free ${Date.now()}`, "freeform");
@@ -341,13 +346,12 @@ test.describe("deck editor card browser", () => {
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
 
-      const freeRow = strip(cardTile(page, "Annie, Fiery"));
-      const freeAdd = freeRow.locator("button").last();
+      const freeTile = cardTile(page, "Annie, Fiery");
       for (let index = 0; index < 5; index++) {
-        await freeAdd.click();
+        await addCardButton(freeTile).click();
       }
-      await expect(freeRow.getByText("5 in deck")).toBeVisible();
-      await expect(freeAdd).toBeEnabled();
+      await expect(strip(freeTile).getByText("5 in deck")).toBeVisible();
+      await expect(addCardButton(freeTile)).toBeEnabled();
     });
   });
 
@@ -360,14 +364,14 @@ test.describe("deck editor card browser", () => {
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
 
-      const row = strip(cardTile(page, "Annie, Fiery"));
-      const addButton = row.locator("button").last();
+      const tile = cardTile(page, "Annie, Fiery");
+      const row = strip(tile);
 
       // Start at 1 so remainingCount = 2, triggering the bulk-add affordance.
-      await addButton.click();
+      await addCardButton(tile).click();
       await expect(row.getByText("1 in deck")).toBeVisible();
 
-      await addButton.click({ modifiers: ["Shift"] });
+      await addCardButton(tile).click({ modifiers: ["Shift"] });
       await expect(row.getByText("3 in deck")).toBeVisible();
     });
 
@@ -379,17 +383,13 @@ test.describe("deck editor card browser", () => {
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
 
-      const row = strip(cardTile(page, "Annie, Fiery"));
-      const addButton = row.locator("button").last();
-      await addButton.click();
-      await addButton.click();
+      const tile = cardTile(page, "Annie, Fiery");
+      const row = strip(tile);
+      await addCardButton(tile).click();
+      await addCardButton(tile).click();
       await expect(row.getByText("2 in deck")).toBeVisible();
 
-      // Now there are two buttons in the strip; .first() is the - button.
-      await row
-        .locator("button")
-        .first()
-        .click({ modifiers: ["Shift"] });
+      await removeCardButton(tile).click({ modifiers: ["Shift"] });
       await expect(row.getByText(/in deck/)).toBeHidden();
     });
   });
@@ -428,8 +428,7 @@ test.describe("deck editor card browser", () => {
         (request) => request.method() === "POST" && isServerFn(request.url(), "saveDeckCardsFn"),
       );
 
-      const row = strip(cardTile(page, "Annie, Fiery"));
-      await row.locator("button").last().click();
+      await addCardButton(cardTile(page, "Annie, Fiery")).click();
 
       // Immediately after the click, isDirty → amber dot visible.
       await expect(page.locator("span.bg-amber-500").first()).toBeVisible();

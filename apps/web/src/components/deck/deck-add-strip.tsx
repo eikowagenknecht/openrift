@@ -80,6 +80,7 @@ export function DeckAddStrip({
                 <button
                   type="button"
                   tabIndex={-1}
+                  aria-label="Remove from deck"
                   onClick={(event) => {
                     event.stopPropagation();
                     onRemove(printing, event);
@@ -111,6 +112,7 @@ export function DeckAddStrip({
                 type="button"
                 tabIndex={-1}
                 disabled={maxReached}
+                aria-label={addLabel ? `${addLabel} card` : "Add to deck"}
                 onClick={(event) => {
                   event.stopPropagation();
                   onQuickAdd(printing, event);
