@@ -139,7 +139,9 @@ test.describe("/cards route essentials", () => {
         .map((heading) => heading.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`))
         .join("|"),
     );
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(headingPattern, {
+    // Scope by name so we don't race against the home page's <h1> during the
+    // client-side transition — otherwise strict mode sees two h1s briefly.
+    await expect(page.getByRole("heading", { level: 1, name: headingPattern })).toBeVisible({
       timeout: 10_000,
     });
 

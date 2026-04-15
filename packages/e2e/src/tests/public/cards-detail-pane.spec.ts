@@ -8,7 +8,7 @@ test.describe("card detail pane", () => {
     await page.goto("/cards");
     await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
 
-    await page.locator(".aspect-card").first().click();
+    await page.getByAltText(MULTI_PRINTING_CARD).first().click();
 
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
@@ -22,15 +22,13 @@ test.describe("card detail pane", () => {
     await page.goto("/cards");
     await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
 
-    const firstCard = page.locator(".aspect-card").first();
-    const wrapper = firstCard.locator(
-      "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' group ')][1]",
-    );
+    const cardImage = page.getByAltText(MULTI_PRINTING_CARD).first();
+    const wrapper = page.locator(".group", { has: page.getByAltText(MULTI_PRINTING_CARD) }).first();
 
     // Before selection: wrapper has no domain-gradient background applied.
     await expect(wrapper).toHaveCSS("background-image", "none");
 
-    await firstCard.click();
+    await cardImage.click();
     await expect(page.getByRole("complementary")).toBeVisible();
 
     // After selection: the card renders a visible gradient background.
@@ -42,7 +40,7 @@ test.describe("card detail pane", () => {
     await page.goto("/cards");
     await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
 
-    await page.locator(".aspect-card").first().click();
+    await page.getByAltText(MULTI_PRINTING_CARD).first().click();
 
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
@@ -61,14 +59,11 @@ test.describe("card detail pane", () => {
     await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
 
     // Open the detail pane so we can observe printing changes.
-    await page.locator(".aspect-card").first().click();
+    await page.getByAltText(MULTI_PRINTING_CARD).first().click();
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
 
-    const firstCard = page.locator(".aspect-card").first();
-    const wrapper = firstCard.locator(
-      "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' group ')][1]",
-    );
+    const wrapper = page.locator(".group", { has: page.getByAltText(MULTI_PRINTING_CARD) }).first();
 
     // Hover reveals the fan: the wrapper's `--fan` custom property animates to 1,
     // which rotates the sibling printings outward. Reading the computed property
@@ -89,7 +84,13 @@ test.describe("card detail pane", () => {
     const allPrintings = pane.locator("button[aria-pressed]");
     await expect(allPrintings).toHaveCount(2);
 
-    const inactive = pane.locator('button[aria-pressed="false"]').first();
+    // Pin the inactive row by index, not by its state attribute — a locator
+    // keyed on `aria-pressed="false"` re-resolves after the click to whichever
+    // button is *currently* false (the previously-active one), so the
+    // follow-up `toHaveAttribute("true")` assertion would never pass.
+    const firstPressed = await allPrintings.nth(0).getAttribute("aria-pressed");
+    const inactiveIndex = firstPressed === "false" ? 0 : 1;
+    const inactive = allPrintings.nth(inactiveIndex);
     await expect(inactive).toBeVisible();
     await inactive.click();
 
@@ -102,7 +103,7 @@ test.describe("card detail pane", () => {
     await page.goto("/cards");
     await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
 
-    await page.locator(".aspect-card").first().click();
+    await page.getByAltText(MULTI_PRINTING_CARD).first().click();
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
 
