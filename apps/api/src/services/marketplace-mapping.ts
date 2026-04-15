@@ -293,18 +293,10 @@ export async function getMappingOverview(repos: Repos, config: MarketplaceConfig
     ignoredProductIds.has(row.externalId) ||
     ignoredVariantKeys.has(`${row.externalId}::${row.finish}::${row.language}`);
 
-  // 2. Fetch & deduplicate staged products
+  // 2. Fetch staged products. allStaging returns one row per distinct variant
+  // (latest snapshot), so only the ignored filter is needed here.
   const staged = await repo.allStaging(config.marketplace);
-
-  const seenStagingKeys = new Set<string>();
-  const uniqueStaged = staged.filter((row) => {
-    const key = `${row.externalId}::${row.finish}::${row.language}`;
-    if (isIgnored(row) || seenStagingKeys.has(key)) {
-      return false;
-    }
-    seenStagingKeys.add(key);
-    return true;
-  });
+  const uniqueStaged = staged.filter((row) => !isIgnored(row));
 
   // 3. Build group display name lookup
   const groupRows = await repo.groupNames(config.marketplace);

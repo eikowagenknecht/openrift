@@ -39,14 +39,51 @@ export function marketplaceMappingRepo(db: Db) {
         .execute();
     },
 
-    /** @returns All staging rows for a marketplace, ordered by newest first. */
-    allStaging(marketplace: string) {
-      return db
-        .selectFrom("marketplaceStaging")
-        .selectAll()
-        .where("marketplace", "=", marketplace)
-        .orderBy("recordedAt", "desc")
-        .execute();
+    /**
+     * Latest staging snapshot per (external_id, finish, language) for a marketplace.
+     * Historical price snapshots are deduped at the DB so the caller doesn't ship
+     * ~20× more rows than it actually uses.
+     * @returns One row per distinct variant, holding the most recent recorded_at.
+     */
+    async allStaging(marketplace: string) {
+      const result = await sql<{
+        marketplace: string;
+        externalId: number;
+        groupId: number;
+        productName: string;
+        finish: string;
+        language: string;
+        recordedAt: Date;
+        marketCents: number | null;
+        lowCents: number | null;
+        midCents: number | null;
+        highCents: number | null;
+        trendCents: number | null;
+        avg1Cents: number | null;
+        avg7Cents: number | null;
+        avg30Cents: number | null;
+      }>`
+        SELECT DISTINCT ON (external_id, finish, language)
+          marketplace,
+          external_id as "externalId",
+          group_id as "groupId",
+          product_name as "productName",
+          finish,
+          language,
+          recorded_at as "recordedAt",
+          market_cents as "marketCents",
+          low_cents as "lowCents",
+          mid_cents as "midCents",
+          high_cents as "highCents",
+          trend_cents as "trendCents",
+          avg1_cents as "avg1Cents",
+          avg7_cents as "avg7Cents",
+          avg30_cents as "avg30Cents"
+        FROM marketplace_staging
+        WHERE marketplace = ${marketplace}
+        ORDER BY external_id, finish, language, recorded_at DESC
+      `.execute(db);
+      return result.rows;
     },
 
     /** @returns Group display names for a marketplace. */

@@ -311,22 +311,6 @@ describe("getMappingOverview", () => {
     expect(result.ignoredProducts[0].finish).toBeNull();
   });
 
-  it("deduplicates staged products by externalId+finish key", async () => {
-    const mappingRepo = createMockMappingRepo({
-      allStaging: vi
-        .fn()
-        .mockResolvedValue([
-          makeStagingRow({ externalId: 123, finish: "normal" }),
-          makeStagingRow({ externalId: 123, finish: "normal" }),
-        ]),
-    });
-    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
-    const config = createMockConfig();
-
-    const result = await getMappingOverview(repos, config);
-    expect(result.unmatchedProducts).toHaveLength(1);
-  });
-
   it("builds group name lookup from groupNames repo", async () => {
     const mappingRepo = createMockMappingRepo({
       groupNames: vi.fn().mockResolvedValue([{ gid: 1, name: "Group One" }]),
