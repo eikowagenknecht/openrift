@@ -81,25 +81,38 @@ export const updateGroupSchema = z.object({
   name: z.string().nullable(),
 });
 
-// ── Promo Types ────────────────────────────────────────────────────────────
+// ── Markers ────────────────────────────────────────────────────────────────
 
-export const createPromoTypeSchema = z.object({
-  slug: z
-    .string()
-    .min(1)
-    .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, "Slug must be kebab-case (e.g. nexus-night)"),
+const slugRegex = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+
+export const createMarkerSchema = z.object({
+  slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case (e.g. top-8)"),
   label: z.string().min(1),
   description: z.string().min(1).nullable().optional(),
 });
 
-export const updatePromoTypeSchema = z.object({
-  slug: z
-    .string()
-    .min(1)
-    .regex(/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/, "Slug must be kebab-case")
-    .optional(),
+export const updateMarkerSchema = z.object({
+  slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case").optional(),
   label: z.string().min(1).optional(),
   description: z.string().min(1).nullable().optional(),
+});
+
+// ── Distribution Channels ──────────────────────────────────────────────────
+
+const distributionChannelKindEnum = z.enum(["event", "product"]);
+
+export const createDistributionChannelSchema = z.object({
+  slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case (e.g. nexus-night-2025)"),
+  label: z.string().min(1),
+  description: z.string().min(1).nullable().optional(),
+  kind: distributionChannelKindEnum.optional(),
+});
+
+export const updateDistributionChannelSchema = z.object({
+  slug: z.string().min(1).regex(slugRegex, "Slug must be kebab-case").optional(),
+  label: z.string().min(1).optional(),
+  description: z.string().min(1).nullable().optional(),
+  kind: distributionChannelKindEnum.optional(),
 });
 
 // ── Provider Settings ──────────────────────────────────────────────────────

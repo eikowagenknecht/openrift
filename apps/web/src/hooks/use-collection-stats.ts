@@ -629,10 +629,10 @@ export function filterByScope(printings: Printing[], scope: CompletionScopePrefe
     if (hasArtVariants && !artVariants.includes(printing.artVariant)) {
       return false;
     }
-    if (promos === "exclude" && printing.promoType !== null) {
+    if (promos === "exclude" && printing.markers.length > 0) {
       return false;
     }
-    if (promos === "only" && printing.promoType === null) {
+    if (promos === "only" && printing.markers.length === 0) {
       return false;
     }
     if (signed === true && !printing.isSigned) {
@@ -724,10 +724,10 @@ export function filterStacksByScope(
     if (hasArtVariants && !artVariants.includes(printing.artVariant)) {
       return false;
     }
-    if (promos === "exclude" && printing.promoType !== null) {
+    if (promos === "exclude" && printing.markers.length > 0) {
       return false;
     }
-    if (promos === "only" && printing.promoType === null) {
+    if (promos === "only" && printing.markers.length === 0) {
       return false;
     }
     if (signed === true && !printing.isSigned) {

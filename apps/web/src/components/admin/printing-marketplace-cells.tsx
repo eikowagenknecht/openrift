@@ -319,7 +319,7 @@ function MarketplaceCellRow({
             p.finish === printing.finish &&
             p.artVariant === printing.artVariant &&
             p.isSigned === printing.isSigned &&
-            p.promoTypeId === printing.promoTypeId,
+            [...p.markerSlugs].sort().join(",") === [...printing.markerSlugs].sort().join(","),
         ),
     );
     if (siblingOwner) {

@@ -14,11 +14,10 @@ describe("catalogRepo", () => {
     expect(await catalogRepo(db).cards()).toHaveLength(1);
   });
 
-  it("printings returns printings with promoType resolved", async () => {
+  it("printings returns printings with markerSlugs passed through", async () => {
     const db = createMockDb([
       {
         id: "p-1",
-        slug: "OGS-001-N",
         cardId: "c-1",
         setId: "s-1",
         shortCode: "OGS-001",
@@ -31,27 +30,18 @@ describe("catalogRepo", () => {
         printedRulesText: null,
         printedEffectText: null,
         flavorText: null,
-        promoTypeId: "pt-1",
-        promoTypeSlug: "promo",
-        promoTypeLabel: "Promo",
-        promoTypeDescription: "A test promo",
+        markerSlugs: ["promo"],
       },
     ]);
     const result = await catalogRepo(db).printings();
     expect(result).toHaveLength(1);
-    expect(result[0].promoType).toEqual({
-      id: "pt-1",
-      slug: "promo",
-      label: "Promo",
-      description: "A test promo",
-    });
+    expect(result[0].markerSlugs).toEqual(["promo"]);
   });
 
-  it("printings returns null promoType when promoTypeId is null", async () => {
+  it("printings returns empty markerSlugs for unmarked printings", async () => {
     const db = createMockDb([
       {
         id: "p-1",
-        slug: "OGS-001-N",
         cardId: "c-1",
         setId: "s-1",
         shortCode: "OGS-001",
@@ -64,14 +54,11 @@ describe("catalogRepo", () => {
         printedRulesText: null,
         printedEffectText: null,
         flavorText: null,
-        promoTypeId: null,
-        promoTypeSlug: null,
-        promoTypeLabel: null,
-        promoTypeDescription: null,
+        markerSlugs: [],
       },
     ]);
     const result = await catalogRepo(db).printings();
-    expect(result[0].promoType).toBeNull();
+    expect(result[0].markerSlugs).toEqual([]);
   });
 
   it("printingImages returns active images", async () => {

@@ -16,7 +16,8 @@ function makePrinting(overrides: Partial<Printing> & { id: string; shortCode: st
     rarity: "common",
     artVariant: "normal",
     isSigned: false,
-    promoType: null,
+    markers: [],
+    distributionChannels: [],
     finish: "normal",
     images: [],
     artist: "Test",
@@ -176,13 +177,15 @@ describe("matchEntries — isPromo flag", () => {
     id: "base",
     shortCode: "OGN-001",
     finish: "foil",
-    promoType: null,
+    markers: [],
+    distributionChannels: [],
   });
   const promoPrinting = makePrinting({
     id: "promo-nexus",
     shortCode: "OGN-001",
     finish: "foil",
-    promoType: { id: "pt-nexus", slug: "nexus", label: "Nexus", description: null },
+    markers: [{ id: "pt-nexus", slug: "nexus", label: "Nexus", description: null }],
+    distributionChannels: [],
   });
 
   it("auto-resolves to the single promo printing when isPromo is set", () => {
@@ -197,14 +200,15 @@ describe("matchEntries — isPromo flag", () => {
       id: "promo-release",
       shortCode: "OGN-001",
       finish: "foil",
-      promoType: { id: "pt-release", slug: "release", label: "Release", description: null },
+      markers: [{ id: "pt-release", slug: "release", label: "Release", description: null }],
+      distributionChannels: [],
     });
     const entries = [makeEntry({ finish: "foil", language: "EN", isPromo: true })];
     const results = matchEntries(entries, [basePrinting, promoPrinting, promoRelease]);
     expect(results[0].status).toBe("needs-review");
     // Candidates should only include promo printings, not the base
     expect(results[0].candidates).toHaveLength(2);
-    expect(results[0].candidates.every((c) => c.promoType !== null)).toBe(true);
+    expect(results[0].candidates.every((c) => c.markers.length > 0)).toBe(true);
   });
 
   it("falls back to all candidates when no promo printings exist", () => {

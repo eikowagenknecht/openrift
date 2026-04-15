@@ -12,6 +12,7 @@ import { collectionsRepo } from "./repositories/collections.js";
 import { copiesRepo } from "./repositories/copies.js";
 import { deckZonesRepo } from "./repositories/deck-zones.js";
 import { decksRepo } from "./repositories/decks.js";
+import { distributionChannelsRepo } from "./repositories/distribution-channels.js";
 import { domainsRepo } from "./repositories/domains.js";
 import { enumsRepo } from "./repositories/enums.js";
 import { featureFlagsRepo } from "./repositories/feature-flags.js";
@@ -21,6 +22,7 @@ import { ignoredCandidatesRepo } from "./repositories/ignored-candidates.js";
 import { ingestRepo } from "./repositories/ingest.js";
 import { keywordStylesRepo } from "./repositories/keyword-styles.js";
 import { languagesRepo } from "./repositories/languages.js";
+import { markersRepo } from "./repositories/markers.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
 import { marketplaceMappingRepo } from "./repositories/marketplace-mapping.js";
 import { marketplaceTransferRepo } from "./repositories/marketplace-transfer.js";
@@ -28,7 +30,6 @@ import { marketplaceRepo } from "./repositories/marketplace.js";
 import { priceRefreshRepo } from "./repositories/price-refresh.js";
 import { printingEventsRepo } from "./repositories/printing-events.js";
 import { printingImagesRepo } from "./repositories/printing-images.js";
-import { promoTypesRepo } from "./repositories/promo-types.js";
 import { providerSettingsRepo } from "./repositories/provider-settings.js";
 import { raritiesRepo } from "./repositories/rarities.js";
 import { rulesRepo } from "./repositories/rules.js";
@@ -73,7 +74,8 @@ export interface Repos {
   marketplace: ReturnType<typeof marketplaceRepo>;
   marketplaceAdmin: ReturnType<typeof marketplaceAdminRepo>;
   printingImages: ReturnType<typeof printingImagesRepo>;
-  promoTypes: ReturnType<typeof promoTypesRepo>;
+  markers: ReturnType<typeof markersRepo>;
+  distributionChannels: ReturnType<typeof distributionChannelsRepo>;
   rarities: ReturnType<typeof raritiesRepo>;
   rules: ReturnType<typeof rulesRepo>;
   sets: ReturnType<typeof setsRepo>;
@@ -129,7 +131,8 @@ export function createRepos(db: Kysely<Database>): Repos {
     marketplace: marketplaceRepo(db),
     marketplaceAdmin: marketplaceAdminRepo(db),
     printingImages: printingImagesRepo(db),
-    promoTypes: promoTypesRepo(db),
+    markers: markersRepo(db),
+    distributionChannels: distributionChannelsRepo(db),
     rarities: raritiesRepo(db),
     rules: rulesRepo(db),
     sets: setsRepo(db),

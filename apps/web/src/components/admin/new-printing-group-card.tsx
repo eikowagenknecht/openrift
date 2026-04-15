@@ -31,7 +31,6 @@ const REQUIRED_PRINTING_KEYS = [
 export function NewPrintingGroupCard({
   group,
   existingPrintings,
-  promoTypes,
   providerLabels,
   providerNames,
   providerSettings,
@@ -49,7 +48,6 @@ export function NewPrintingGroupCard({
 }: {
   group: PrintingGroup & { groupKey: string };
   existingPrintings: AdminPrintingResponse[];
-  promoTypes: { id: string; slug: string }[];
   providerLabels: Record<string, string>;
   providerNames: Record<string, string>;
   providerSettings: ProviderSettingResponse[];
@@ -92,13 +90,13 @@ export function NewPrintingGroupCard({
     return v !== undefined && v !== null && v !== "";
   });
 
-  const promoSlug = activePrinting.promoTypeId
-    ? (promoTypes.find((pt) => pt.id === activePrinting.promoTypeId)?.slug ?? null)
-    : null;
+  const markerSlugs = Array.isArray(activePrinting.markerSlugs)
+    ? (activePrinting.markerSlugs as string[])
+    : [];
   const printingLabel = hasRequired
     ? formatPrintingLabel(
         activePrinting.shortCode as string,
-        promoSlug,
+        markerSlugs,
         activePrinting.finish as string,
         (activePrinting.language as string | undefined) ?? null,
       )

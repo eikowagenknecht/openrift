@@ -54,8 +54,11 @@ export type IgnoredProductsResponse = InferResponseType<
 export type MarketplaceGroupsResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["marketplace-groups"]["$get"]
 >;
-export type AdminPromoTypesResponse = InferResponseType<
-  Client["api"]["v1"]["admin"]["promo-types"]["$get"]
+export type AdminMarkersResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["markers"]["$get"]
+>;
+export type AdminDistributionChannelsResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["distribution-channels"]["$get"]
 >;
 export type AdminLanguagesResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["languages"]["$get"]

@@ -2,6 +2,9 @@
 
 ## 2026-04-15
 
+- feat: The card detail page now shows where each printing was distributed (tournaments, prerelease events, etc.) so you know how to find a copy
+- feat: A printing can now carry multiple stamps at once (e.g. a promo + Top 8 placement), and stacking these is treated as its own visually distinct printing with its own price
+- feat: The Promo Cards page now groups by distribution event, so a card given out at multiple tournaments shows up under each one instead of being assigned to whichever it was tagged with first
 - feat: Public pages like the home, card browser, and individual card and set pages now load noticeably faster for visitors who aren't signed in
 - feat: Clicking a card on the Promo Cards page now opens the card detail view with that exact printing already selected, instead of defaulting to your preferred language printing
 - feat: Promo type descriptions on the Promo Cards page now support markdown, so links and basic formatting render inline

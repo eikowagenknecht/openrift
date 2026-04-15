@@ -46,7 +46,7 @@ const catalogPages = [
 ];
 
 const taxonomyPages = [
-  { to: "/admin/promo-types" as const, icon: TagIcon, title: "Promo Types" },
+  { to: "/admin/markers" as const, icon: TagIcon, title: "Markers" },
   { to: "/admin/domains" as const, icon: PaletteIcon, title: "Domains" },
   { to: "/admin/deck-zones" as const, icon: LayoutListIcon, title: "Deck Zones" },
   { to: "/admin/rarities" as const, icon: SparklesIcon, title: "Rarities" },

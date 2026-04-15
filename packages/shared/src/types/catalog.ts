@@ -1,15 +1,36 @@
 import type { ArtVariant, CardFace, CardType, Domain, Finish, Rarity, SuperType } from "./enums.js";
 
-export interface PromoType {
+export interface Marker {
   id: string;
   slug: string;
   label: string;
   description: string | null;
 }
 
-export interface PromoTypeWithCount extends PromoType {
+export interface MarkerWithCount extends Marker {
   cardCount: number;
   printingCount: number;
+}
+
+export type DistributionChannelKind = "event" | "product";
+
+export interface DistributionChannel {
+  id: string;
+  slug: string;
+  label: string;
+  description: string | null;
+  kind: DistributionChannelKind;
+}
+
+export interface DistributionChannelWithCount extends DistributionChannel {
+  cardCount: number;
+  printingCount: number;
+}
+
+/** A channel a printing was distributed through, plus optional per-printing note. */
+export interface PrintingDistributionChannel {
+  channel: DistributionChannel;
+  distributionNote: string | null;
 }
 
 export interface CardBan {
@@ -63,7 +84,8 @@ export interface Printing {
   rarity: Rarity;
   artVariant: ArtVariant;
   isSigned: boolean;
-  promoType: PromoType | null;
+  markers: Marker[];
+  distributionChannels: PrintingDistributionChannel[];
   finish: Finish;
   images: PrintingImage[];
   artist: string;

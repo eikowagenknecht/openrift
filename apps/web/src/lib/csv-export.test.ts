@@ -13,7 +13,7 @@ function makeStack(overrides: {
   domains?: string[];
   finish?: string;
   artVariant?: string;
-  promoType?: { id: string; slug: string; label: string; description: string | null } | null;
+  markers?: { id: string; slug: string; label: string; description: string | null }[];
   language?: string;
   copyCount?: number;
 }): StackedEntry {
@@ -22,14 +22,15 @@ function makeStack(overrides: {
     rarity: overrides.rarity ?? "Common",
     finish: overrides.finish ?? "normal",
     artVariant: overrides.artVariant ?? "normal",
-    promoType: overrides.promoType ?? null,
+    markers: overrides.markers ?? [],
+    distributionChannels: [],
     language: overrides.language ?? "EN",
     card: {
       name: overrides.name ?? "Test Card",
       type: overrides.type ?? "Unit",
       domains: overrides.domains ?? ["Arcane"],
     },
-  } as Printing;
+  } as unknown as Printing;
 
   return {
     printingId: "fake-id",
@@ -51,7 +52,7 @@ describe("generateExportCSV", () => {
     const stack = makeStack({
       shortCode: "OGN-042",
       name: "Promo Card",
-      promoType: { id: "pt-1", slug: "nexus", label: "Nexus", description: null },
+      markers: [{ id: "pt-1", slug: "nexus", label: "Nexus", description: null }],
       copyCount: 2,
     });
     const csv = generateExportCSV([stack]);

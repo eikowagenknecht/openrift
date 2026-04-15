@@ -3,9 +3,10 @@ import { AppError, ERROR_CODES } from "../errors.js";
 import type { Io } from "../io.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
+import type { distributionChannelsRepo } from "../repositories/distribution-channels.js";
+import type { markersRepo } from "../repositories/markers.js";
 import type { printingEventsRepo } from "../repositories/printing-events.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
-import type { promoTypesRepo } from "../repositories/promo-types.js";
 import { rehostImages } from "./image-rehost.js";
 import { acceptPrinting } from "./printing-admin.js";
 
@@ -13,7 +14,8 @@ type CandidateCardsRepo = ReturnType<typeof candidateCardsRepo>;
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
 type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
-type PromoTypesRepo = ReturnType<typeof promoTypesRepo>;
+type MarkersRepo = ReturnType<typeof markersRepo>;
+type DistributionChannelsRepo = ReturnType<typeof distributionChannelsRepo>;
 
 interface SkippedGroup {
   shortCode: string;
@@ -34,7 +36,8 @@ export async function acceptFavoritePrintingsForCard(
     candidateCards: CandidateCardsRepo;
     candidateMutations: CandidateMutationsRepo;
     printingImages: PrintingImagesRepo;
-    promoTypes: PromoTypesRepo;
+    markers: MarkersRepo;
+    distributionChannels: DistributionChannelsRepo;
     printingEvents?: PrintingEventsRepo;
   },
   cardSlug: string,
@@ -72,10 +75,11 @@ export async function acceptFavoritePrintingsForCard(
     return { printingsCreated: 0, skipped: [] };
   }
 
-  // 5. Group by shortCode|finish|promoTypeId|language
+  // 5. Group by shortCode|finish|markerSlugs|language
   const groupMap = new Map<string, typeof unlinkedPrintings>();
   for (const cp of unlinkedPrintings) {
-    const key = `${cp.shortCode}|${cp.finish ?? ""}|${cp.promoTypeId ?? ""}|${cp.language ?? "EN"}`;
+    const slugKey = [...(cp.markerSlugs ?? [])].sort().join(",");
+    const key = `${cp.shortCode}|${cp.finish ?? ""}|${slugKey}|${cp.language ?? "EN"}`;
     let arr = groupMap.get(key);
     if (!arr) {
       arr = [];
@@ -118,7 +122,7 @@ export async function acceptFavoritePrintingsForCard(
     const existing = await mut.getPrintingCardIdByComposite(
       shortCode,
       finish,
-      first.promoTypeId ?? null,
+      first.markerSlugs ?? [],
       first.language ?? "EN",
     );
     if (existing) {
@@ -138,7 +142,7 @@ export async function acceptFavoritePrintingsForCard(
           rarity,
           artVariant: first.artVariant ?? "normal",
           isSigned: first.isSigned ?? false,
-          promoTypeId: first.promoTypeId,
+          markerSlugs: first.markerSlugs ?? [],
           finish,
           artist: first.artist ?? "",
           publicCode: first.publicCode ?? "",

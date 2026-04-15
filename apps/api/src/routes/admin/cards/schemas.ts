@@ -113,7 +113,8 @@ export const acceptPrintingSchema = z.object({
     rarity: printingFieldRules.rarity.optional().nullable(),
     artVariant: printingFieldRules.artVariant.optional(),
     isSigned: z.boolean().optional(),
-    promoTypeId: z.string().nullable().optional(),
+    markerSlugs: z.array(z.string().min(1)).optional().default([]),
+    distributionChannelSlugs: z.array(z.string().min(1)).optional().default([]),
     finish: printingFieldRules.finish.optional(),
     artist: printingFieldRules.artist,
     publicCode: printingFieldRules.publicCode,
@@ -134,7 +135,8 @@ export const createPrintingSchema = z.object({
   rarity: printingFieldRules.rarity.optional().nullable(),
   artVariant: printingFieldRules.artVariant.optional(),
   isSigned: z.boolean().optional(),
-  promoTypeId: z.string().nullable().optional(),
+  markerSlugs: z.array(z.string().min(1)).optional().default([]),
+  distributionChannelSlugs: z.array(z.string().min(1)).optional().default([]),
   finish: printingFieldRules.finish.optional(),
   artist: printingFieldRules.artist,
   publicCode: printingFieldRules.publicCode,
@@ -187,7 +189,10 @@ const ingestPrintingSchema = z.object({
   rarity: nullStr,
   art_variant: nullStr,
   is_signed: z.boolean().optional().default(false),
-  is_promo: z.boolean().optional().default(false), // kept for backward compat in uploads; resolved to promo_type_id during ingest
+  /** Marker slugs stamped on this printing (e.g. ["promo"], ["top-8"]). */
+  marker_slugs: z.array(z.string().min(1)).optional().default([]),
+  /** Distribution channel slugs (events/products) the printing was distributed through. */
+  distribution_channel_slugs: z.array(z.string().min(1)).optional().default([]),
   finish: nullStr,
   artist: nullStr,
   public_code: nullStr,

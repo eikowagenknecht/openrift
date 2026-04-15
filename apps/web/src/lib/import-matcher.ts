@@ -183,8 +183,8 @@ function matchSingleEntry(
     // If the entry has a promo slug, match by promo type across language-narrowed matches (finish
     // in the CSV may not reflect the actual finish of the promo printing in the catalog)
     if (entry.promoSlug) {
-      const promoMatches = langMatches.filter(
-        (printing) => printing.promoType?.slug === entry.promoSlug,
+      const promoMatches = langMatches.filter((printing) =>
+        printing.markers.some((m) => m.slug === entry.promoSlug),
       );
       if (promoMatches.length === 1) {
         return {
@@ -215,7 +215,7 @@ function matchSingleEntry(
     // If the entry is known to be a promo (e.g. RiftMana's -p suffix) but without a specific slug,
     // prefer promo printings and avoid auto-resolving to the non-promo base
     if (entry.isPromo) {
-      const promoMatches = langMatches.filter((printing) => printing.promoType);
+      const promoMatches = langMatches.filter((printing) => printing.markers.length > 0);
       if (promoMatches.length === 1) {
         return {
           entry,
@@ -244,7 +244,9 @@ function matchSingleEntry(
 
     if (finishMatches.length > 1) {
       // Prefer the non-promo, non-signed base printing when CSV doesn't distinguish
-      const base = finishMatches.filter((printing) => !printing.promoType && !printing.isSigned);
+      const base = finishMatches.filter(
+        (printing) => printing.markers.length === 0 && !printing.isSigned,
+      );
       if (base.length === 1) {
         return {
           entry,

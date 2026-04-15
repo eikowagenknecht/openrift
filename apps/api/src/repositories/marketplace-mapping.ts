@@ -115,7 +115,6 @@ export function marketplaceMappingRepo(db: Db) {
               .on("pi.isActive", "=", true),
           )
           .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
-          .leftJoin("promoTypes as pt", "pt.id", "p.promoTypeId")
           .select([
             "c.id as cardId",
             "c.slug as cardSlug",
@@ -132,7 +131,7 @@ export function marketplaceMappingRepo(db: Db) {
             "s.name as setName",
             "p.artVariant",
             "p.isSigned",
-            "pt.slug as promoTypeSlug",
+            "p.markerSlugs",
             "p.finish",
             "p.language",
             imageUrlWithOriginal("ci").as("imageUrl"),
@@ -175,7 +174,6 @@ export function marketplaceMappingRepo(db: Db) {
             .on("pi.isActive", "=", true),
         )
         .leftJoin("imageFiles as ci", "ci.id", "pi.imageFileId")
-        .leftJoin("promoTypes as pt", "pt.id", "p.promoTypeId")
         .select([
           "c.id as cardId",
           "c.slug as cardSlug",
@@ -192,7 +190,7 @@ export function marketplaceMappingRepo(db: Db) {
           "s.name as setName",
           "p.artVariant",
           "p.isSigned",
-          "pt.slug as promoTypeSlug",
+          "p.markerSlugs",
           "p.finish",
           "p.language",
           imageUrlWithOriginal("ci").as("imageUrl"),
@@ -515,7 +513,7 @@ export function marketplaceMappingRepo(db: Db) {
           AND source.finish = target.finish
           AND source.art_variant = target.art_variant
           AND source.is_signed = target.is_signed
-          AND source.promo_type_id IS NOT DISTINCT FROM target.promo_type_id
+          AND source.marker_slugs = target.marker_slugs
         JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
         WHERE target.card_id = ${cardId}

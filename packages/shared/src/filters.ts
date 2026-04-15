@@ -1,9 +1,10 @@
 import type {
   CardFilters,
+  DistributionChannel,
   EnumOrders,
   FilterRange,
+  Marker,
   Printing,
-  PromoType,
   SearchField,
   SortDirection,
   SortOption,
@@ -183,25 +184,29 @@ function matchesFlag(filter: boolean | null, actual: boolean): boolean {
   return filter === null || actual === filter;
 }
 
-function matchesPromo(
-  isPromo: boolean | null,
-  promoTypes: string[],
-  actualSlug: string | null,
+function matchesMarkers(
+  hasAnyMarker: boolean | null,
+  markerSlugs: string[],
+  actualSlugs: string[],
 ): boolean {
-  if (isPromo === null && promoTypes.length === 0) {
+  const hasMarker = actualSlugs.length > 0;
+  if (hasAnyMarker === false) {
+    return !hasMarker;
+  }
+  if (hasAnyMarker === true && !hasMarker) {
+    return false;
+  }
+  if (markerSlugs.length === 0) {
     return true;
   }
-  if (isPromo === false) {
-    return actualSlug === null;
+  return markerSlugs.some((slug) => actualSlugs.includes(slug));
+}
+
+function matchesDistributionChannels(channelSlugs: string[], actualSlugs: string[]): boolean {
+  if (channelSlugs.length === 0) {
+    return true;
   }
-  if (isPromo === true) {
-    if (actualSlug === null) {
-      return false;
-    }
-    return promoTypes.length === 0 || promoTypes.includes(actualSlug);
-  }
-  // isPromo is null but promoTypes has values — filter by type
-  return actualSlug !== null && promoTypes.includes(actualSlug);
+  return channelSlugs.some((slug) => actualSlugs.includes(slug));
 }
 
 /**
@@ -300,7 +305,15 @@ export function filterCards(
       includes(filters.artVariants, printing.artVariant || "normal") &&
       includes(filters.finishes, printing.finish) &&
       matchesFlag(filters.isSigned, printing.isSigned) &&
-      matchesPromo(filters.isPromo, filters.promoTypes, printing.promoType?.slug ?? null) &&
+      matchesMarkers(
+        filters.hasAnyMarker,
+        filters.markerSlugs,
+        printing.markers.map((m) => m.slug),
+      ) &&
+      matchesDistributionChannels(
+        filters.distributionChannelSlugs,
+        printing.distributionChannels.map((dc) => dc.channel.slug),
+      ) &&
       matchesRange(card.energy, filters.energy) &&
       matchesRange(card.might, filters.might) &&
       matchesRange(card.power, filters.power) &&
@@ -331,13 +344,14 @@ export interface AvailableFilters {
   artVariants: string[];
   finishes: string[];
   hasSigned: boolean;
-  hasPromo: boolean;
+  hasAnyMarker: boolean;
   hasBanned: boolean;
   hasErrata: boolean;
   hasNullEnergy: boolean;
   hasNullMight: boolean;
   hasNullPower: boolean;
-  promoTypes: PromoType[];
+  markers: Marker[];
+  distributionChannels: DistributionChannel[];
   energy: { min: number; max: number };
   might: { min: number; max: number };
   power: { min: number; max: number };
@@ -425,20 +439,20 @@ export function getAvailableFilters(
     artVariants,
     finishes,
     hasSigned: printings.some((p) => p.isSigned),
-    hasPromo: printings.some((p) => p.promoType !== null),
+    hasAnyMarker: printings.some((p) => p.markers.length > 0),
     hasBanned: printings.some((p) => p.card.bans.length > 0),
     hasErrata: printings.some((p) => p.card.errata !== null),
     hasNullEnergy: printings.some((p) => p.card.energy === null),
     hasNullMight: printings.some((p) => p.card.might === null),
     hasNullPower: printings.some((p) => p.card.power === null),
-    promoTypes: [
+    markers: [
+      ...new Map(printings.flatMap((p) => p.markers.map((m) => [m.slug, m] as const))).values(),
+    ].sort((a, b) => a.slug.localeCompare(b.slug)),
+    distributionChannels: [
       ...new Map(
-        printings
-          .filter(
-            (p): p is typeof p & { promoType: NonNullable<typeof p.promoType> } =>
-              p.promoType !== null,
-          )
-          .map((p) => [p.promoType.slug, p.promoType]),
+        printings.flatMap((p) =>
+          p.distributionChannels.map((dc) => [dc.channel.slug, dc.channel] as const),
+        ),
       ).values(),
     ].sort((a, b) => a.slug.localeCompare(b.slug)),
     energy: boundsOf(energies),

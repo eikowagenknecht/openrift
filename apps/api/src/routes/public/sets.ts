@@ -15,6 +15,7 @@ import { z } from "zod";
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 import { toCardImageVariants } from "../../utils/card-image.js";
+import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
 const setSlugParamSchema = z.object({ setSlug: z.string() });
 
@@ -77,7 +78,8 @@ export const setsRoute = setsApp
    */
   .openapi(getSetDetail, async (c) => {
     const { setSlug } = c.req.valid("param");
-    const { catalog, marketplace } = c.get("repos");
+    const repos = c.get("repos");
+    const { catalog, marketplace } = repos;
 
     const set = await catalog.setBySlug(setSlug);
     if (!set) {
@@ -92,12 +94,14 @@ export const setsRoute = setsApp
     // Get unique card IDs and printing IDs for scoped lookups
     const cardIds = [...new Set(printingRows.map((p) => p.cardId))];
     const printingIds = printingRows.map((p) => p.id);
-    const [cardRows, banRows, errataRows, priceRows] = await Promise.all([
+    const [cardRows, banRows, errataRows, priceRows, markerChannelMaps] = await Promise.all([
       catalog.cardsByIds(cardIds),
       catalog.cardBansByCardIds(cardIds),
       catalog.cardErrataByCardIds(cardIds),
       marketplace.latestPricesForPrintings(printingIds),
+      loadMarkerAndChannelMaps(repos, printingIds),
     ]);
+    const { markerBySlug, channelsByPrinting } = markerChannelMaps;
 
     // Build card lookup with errata and bans
     const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
@@ -144,9 +148,11 @@ export const setsRoute = setsApp
 
     const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
-    const printings: CatalogPrintingResponse[] = printingRows.map((row) => ({
-      ...row,
-      images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({
+    const printings: CatalogPrintingResponse[] = printingRows.map(({ markerSlugs, ...rest }) => ({
+      ...rest,
+      markers: resolveMarkers(markerSlugs, markerBySlug),
+      distributionChannels: channelsByPrinting.get(rest.id) ?? [],
+      images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
         face: i.face,
         ...toCardImageVariants(i.url),
       })),

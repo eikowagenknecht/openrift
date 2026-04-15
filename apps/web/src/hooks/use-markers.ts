@@ -1,64 +1,68 @@
+import type { MarkerResponse } from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import type { AdminPromoTypesResponse } from "@/lib/server-fns/api-types";
 import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-const fetchPromoTypes = createServerFn({ method: "GET" })
+interface AdminMarkersResponse {
+  markers: MarkerResponse[];
+}
+
+const fetchMarkers = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminPromoTypesResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/promo-types`, {
+  .handler(async ({ context }): Promise<AdminMarkersResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/markers`, {
       headers: { cookie: context.cookie },
     });
     if (!res.ok) {
-      throw new Error(`Promo types fetch failed: ${res.status}`);
+      throw new Error(`Markers fetch failed: ${res.status}`);
     }
-    return res.json() as Promise<AdminPromoTypesResponse>;
+    return res.json() as Promise<AdminMarkersResponse>;
   });
 
-export const adminPromoTypesQueryOptions = queryOptions({
-  queryKey: queryKeys.admin.promoTypes,
-  queryFn: () => fetchPromoTypes(),
+export const adminMarkersQueryOptions = queryOptions({
+  queryKey: queryKeys.admin.markers,
+  queryFn: () => fetchMarkers(),
   staleTime: 30 * 60 * 1000,
 });
 
-export function usePromoTypes() {
-  return useSuspenseQuery(adminPromoTypesQueryOptions);
+export function useMarkers() {
+  return useSuspenseQuery(adminMarkersQueryOptions);
 }
 
-const createPromoTypeFn = createServerFn({ method: "POST" })
+const createMarkerFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string; description?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/promo-types`, {
+    const res = await fetch(`${API_URL}/api/v1/admin/markers`, {
       method: "POST",
       headers: { cookie: context.cookie, "content-type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!res.ok) {
-      throw new Error(`Create promo type failed: ${res.status}`);
+      throw new Error(`Create marker failed: ${res.status}`);
     }
     return res.json();
   });
 
-export function useCreatePromoType() {
+export function useCreateMarker() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { slug: string; label: string; description?: string | null }) =>
-      createPromoTypeFn({ data: vars }),
-    invalidates: [queryKeys.admin.promoTypes],
+      createMarkerFn({ data: vars }),
+    invalidates: [queryKeys.admin.markers],
   });
 }
 
-const updatePromoTypeFn = createServerFn({ method: "POST" })
+const updateMarkerFn = createServerFn({ method: "POST" })
   .inputValidator(
     (input: { id: string; slug?: string; label?: string; description?: string | null }) => input,
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/promo-types/${encodeURIComponent(data.id)}`, {
+    const res = await fetch(`${API_URL}/api/v1/admin/markers/${encodeURIComponent(data.id)}`, {
       method: "PATCH",
       headers: { cookie: context.cookie, "content-type": "application/json" },
       body: JSON.stringify({
@@ -68,59 +72,59 @@ const updatePromoTypeFn = createServerFn({ method: "POST" })
       }),
     });
     if (!res.ok) {
-      throw new Error(`Update promo type failed: ${res.status}`);
+      throw new Error(`Update marker failed: ${res.status}`);
     }
   });
 
-export function useUpdatePromoType() {
+export function useUpdateMarker() {
   return useMutationWithInvalidation({
     mutationFn: (vars: {
       id: string;
       slug?: string;
       label?: string;
       description?: string | null;
-    }) => updatePromoTypeFn({ data: vars }),
-    invalidates: [queryKeys.admin.promoTypes],
+    }) => updateMarkerFn({ data: vars }),
+    invalidates: [queryKeys.admin.markers],
   });
 }
 
-const deletePromoTypeFn = createServerFn({ method: "POST" })
+const deleteMarkerFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/promo-types/${encodeURIComponent(data.id)}`, {
+    const res = await fetch(`${API_URL}/api/v1/admin/markers/${encodeURIComponent(data.id)}`, {
       method: "DELETE",
       headers: { cookie: context.cookie },
     });
     if (!res.ok) {
-      throw new Error(`Delete promo type failed: ${res.status}`);
+      throw new Error(`Delete marker failed: ${res.status}`);
     }
   });
 
-export function useDeletePromoType() {
+export function useDeleteMarker() {
   return useMutationWithInvalidation({
-    mutationFn: (id: string) => deletePromoTypeFn({ data: { id } }),
-    invalidates: [queryKeys.admin.promoTypes],
+    mutationFn: (id: string) => deleteMarkerFn({ data: { id } }),
+    invalidates: [queryKeys.admin.markers],
   });
 }
 
-const reorderPromoTypesFn = createServerFn({ method: "POST" })
+const reorderMarkersFn = createServerFn({ method: "POST" })
   .inputValidator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/promo-types/reorder`, {
+    const res = await fetch(`${API_URL}/api/v1/admin/markers/reorder`, {
       method: "PUT",
       headers: { cookie: context.cookie, "content-type": "application/json" },
       body: JSON.stringify({ ids: data.ids }),
     });
     if (!res.ok) {
-      throw new Error(`Reorder promo types failed: ${res.status}`);
+      throw new Error(`Reorder markers failed: ${res.status}`);
     }
   });
 
-export function useReorderPromoTypes() {
+export function useReorderMarkers() {
   return useMutationWithInvalidation({
-    mutationFn: (ids: string[]) => reorderPromoTypesFn({ data: { ids } }),
-    invalidates: [queryKeys.admin.promoTypes, queryKeys.promos.all],
+    mutationFn: (ids: string[]) => reorderMarkersFn({ data: { ids } }),
+    invalidates: [queryKeys.admin.markers, queryKeys.promos.all],
   });
 }

@@ -106,7 +106,7 @@ describe("candidateMutationsRepo", () => {
       flavorText: null,
       externalId: "ext-1",
       extraData: null,
-      promoTypeId: null,
+      markerSlugs: [],
       checkedAt: null,
       normName: "annie",
       createdAt: new Date(),
@@ -117,7 +117,7 @@ describe("candidateMutationsRepo", () => {
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
-      promoTypeId: null,
+      markerSlugs: [],
       finish: "normal",
     };
     const db = createMockDb([]);
@@ -140,12 +140,7 @@ describe("candidateMutationsRepo", () => {
   it("getPrintingCardIdByComposite returns cardId", async () => {
     const db = createMockDb([{ cardId: "c-1" }]);
     expect(
-      await candidateMutationsRepo(db).getPrintingCardIdByComposite(
-        "OGS-001",
-        "normal",
-        null,
-        "EN",
-      ),
+      await candidateMutationsRepo(db).getPrintingCardIdByComposite("OGS-001", "normal", [], "EN"),
     ).toEqual({ cardId: "c-1" });
   });
 
@@ -299,7 +294,7 @@ describe("candidateMutationsRepo", () => {
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
-      promoTypeId: null,
+      markerSlugs: [],
       finish: "normal",
       artist: "Artist",
       publicCode: "OGS-001",

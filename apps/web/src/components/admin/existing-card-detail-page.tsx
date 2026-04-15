@@ -98,7 +98,6 @@ export function ExistingCardDetailPage({
   // --- Shared hooks ---
   const {
     providerSettings,
-    promoTypes,
     candidateCardFields,
     printingSourceFields,
     checkCandidateCard,
@@ -801,7 +800,6 @@ export function ExistingCardDetailPage({
             key={group.groupKey}
             group={group}
             existingPrintings={printings}
-            promoTypes={promoTypes}
             providerLabels={sourceLabels}
             providerNames={sourceNames}
             providerSettings={providerSettings}

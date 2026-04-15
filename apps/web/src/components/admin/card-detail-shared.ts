@@ -22,7 +22,7 @@ import { useDistinctArtists } from "@/hooks/use-distinct-artists";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useIgnoreCandidateCard, useIgnoreCandidatePrinting } from "@/hooks/use-ignored-candidates";
 import { useLanguages } from "@/hooks/use-languages";
-import { usePromoTypes } from "@/hooks/use-promo-types";
+import { useMarkers } from "@/hooks/use-markers";
 import { useProviderSettings } from "@/hooks/use-provider-settings";
 
 // ---------------------------------------------------------------------------
@@ -35,8 +35,8 @@ export function useCardDetailData() {
   const { data: providerSettingsData } = useProviderSettings();
   const providerSettings = providerSettingsData?.providerSettings ?? [];
 
-  const { data: promoTypesData } = usePromoTypes();
-  const promoTypes = promoTypesData?.promoTypes ?? [];
+  const { data: markersData } = useMarkers();
+  const markers = markersData?.markers ?? [];
 
   const { data: languagesData } = useLanguages();
   const languagesList = languagesData?.languages ?? [];
@@ -46,10 +46,10 @@ export function useCardDetailData() {
   const printingSourceFields: FieldDef[] = buildCandidatePrintingFields(
     orders,
     labels,
-    promoTypes
-      .map((pt: { id: string; label: string }) => ({
-        value: pt.id,
-        label: pt.label,
+    markers
+      .map((m) => ({
+        value: m.slug,
+        label: m.label,
       }))
       .toSorted((a, b) => a.label.localeCompare(b.label)),
     artistSuggestions,
@@ -71,7 +71,7 @@ export function useCardDetailData() {
 
   return {
     providerSettings,
-    promoTypes,
+    markers,
     candidateCardFields,
     printingSourceFields,
     checkCandidateCard,

@@ -7,6 +7,7 @@ import type { Variables } from "../../types.js";
 import { adminCardsRoute } from "./cards/index.js";
 import { catalogRoute } from "./catalog.js";
 import { adminDeckZonesRoute } from "./deck-zones.js";
+import { adminDistributionChannelsRoute } from "./distribution-channels.js";
 import { adminDomainsRoute } from "./domains.js";
 import { adminFeatureFlagsRoute } from "./feature-flags.js";
 import { adminFinishesRoute } from "./finishes.js";
@@ -16,9 +17,9 @@ import { ignoredProductsRoute } from "./ignored-products.js";
 import { imagesRoute } from "./images.js";
 import { adminKeywordsRoute } from "./keywords.js";
 import { adminLanguagesRoute } from "./languages.js";
+import { adminMarkersRoute } from "./markers.js";
 import { marketplaceGroupsRoute } from "./marketplace-groups.js";
 import { operationsRoute } from "./operations.js";
-import { adminPromoTypesRoute } from "./promo-types.js";
 import { adminProviderSettingsRoute } from "./provider-settings.js";
 import { adminRaritiesRoute } from "./rarities.js";
 import { adminRulesRoute } from "./rules.js";
@@ -110,7 +111,8 @@ export const adminRoute = app
   .route("/admin", marketplaceGroupsRoute)
   .route("/admin", unifiedMappingsRoute)
   .route("/admin", adminLanguagesRoute)
-  .route("/admin", adminPromoTypesRoute)
+  .route("/admin", adminMarkersRoute)
+  .route("/admin", adminDistributionChannelsRoute)
   .route("/admin", adminProviderSettingsRoute)
   .route("/admin", adminSiteSettingsRoute)
   .route("/admin", stagingCardOverridesRoute)

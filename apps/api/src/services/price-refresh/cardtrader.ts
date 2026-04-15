@@ -287,12 +287,13 @@ function buildSiblingLookup(
     artVariant: string;
     isSigned: boolean;
     language: string;
-    promoTypeId: string | null;
+    markerSlugs: string[];
   }[],
 ): Map<string, Map<string, string>> {
   const byIdentity = new Map<string, Map<string, string>>();
   for (const p of printings) {
-    const identity = `${p.cardId}|${p.setId}|${p.shortCode}|${p.finish}|${p.artVariant}|${p.isSigned}|${p.promoTypeId ?? ""}`;
+    const slugKey = [...p.markerSlugs].sort().join(",");
+    const identity = `${p.cardId}|${p.setId}|${p.shortCode}|${p.finish}|${p.artVariant}|${p.isSigned}|${slugKey}`;
     let byLang = byIdentity.get(identity);
     if (!byLang) {
       byLang = new Map<string, string>();
@@ -339,7 +340,8 @@ async function autoMatchBlueprints(
   const siblingByIdentity = buildSiblingLookup(allPrintings);
   const identityByPrintingId = new Map<string, string>();
   for (const p of allPrintings) {
-    const identity = `${p.cardId}|${p.setId}|${p.shortCode}|${p.finish}|${p.artVariant}|${p.isSigned}|${p.promoTypeId ?? ""}`;
+    const slugKey = [...p.markerSlugs].sort().join(",");
+    const identity = `${p.cardId}|${p.setId}|${p.shortCode}|${p.finish}|${p.artVariant}|${p.isSigned}|${slugKey}`;
     identityByPrintingId.set(p.id, identity);
   }
 

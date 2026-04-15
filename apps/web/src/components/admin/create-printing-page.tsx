@@ -18,7 +18,7 @@ import { useCreatePrinting } from "@/hooks/use-admin-card-mutations";
 import { useAdminCardDetail } from "@/hooks/use-admin-card-queries";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useLanguages } from "@/hooks/use-languages";
-import { usePromoTypes } from "@/hooks/use-promo-types";
+import { useMarkers } from "@/hooks/use-markers";
 import { useSets } from "@/hooks/use-sets";
 
 export function CreatePrintingPage({ cardSlug }: { cardSlug: string }) {
@@ -29,12 +29,12 @@ export function CreatePrintingPage({ cardSlug }: { cardSlug: string }) {
     isLoading: boolean;
   };
   const { data: setsData } = useSets();
-  const { data: promoTypesData } = usePromoTypes();
+  const { data: markersData } = useMarkers();
   const { data: languagesData } = useLanguages();
   const { orders, labels } = useEnumOrders();
 
   const sets = setsData.sets;
-  const promoTypes = promoTypesData.promoTypes;
+  const markers = markersData.markers;
   const languages = languagesData.languages;
 
   const firstSet = sets[0]?.slug ?? "";
@@ -45,7 +45,7 @@ export function CreatePrintingPage({ cardSlug }: { cardSlug: string }) {
   const [artVariant, setArtVariant] = useState<string>(orders.artVariants[0] ?? "normal");
   const [finish, setFinish] = useState<string>(orders.finishes[0] ?? "normal");
   const [isSigned, setIsSigned] = useState(false);
-  const [promoTypeId, setPromoTypeId] = useState<string>("");
+  const [selectedMarkerSlugs, setSelectedMarkerSlugs] = useState<string[]>([]);
   const [artist, setArtist] = useState("");
   const [publicCode, setPublicCode] = useState("");
   const [language, setLanguage] = useState<string>(languages[0]?.code ?? "EN");
@@ -84,8 +84,8 @@ export function CreatePrintingPage({ cardSlug }: { cardSlug: string }) {
       publicCode: publicCode.trim(),
       language,
     };
-    if (promoTypeId) {
-      printingFields.promoTypeId = promoTypeId;
+    if (selectedMarkerSlugs.length > 0) {
+      printingFields.markerSlugs = selectedMarkerSlugs;
     }
     if (printedName.trim()) {
       printingFields.printedName = printedName.trim();
@@ -231,29 +231,32 @@ export function CreatePrintingPage({ cardSlug }: { cardSlug: string }) {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label>Promo type</Label>
-            <Select
-              value={promoTypeId || "__none__"}
-              onValueChange={(value) => setPromoTypeId(value === "__none__" || !value ? "" : value)}
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {(value: string) =>
-                    value === "__none__"
-                      ? "None"
-                      : (promoTypes.find((p) => p.id === value)?.label ?? value)
-                  }
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">None</SelectItem>
-                {promoTypes.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>Markers</Label>
+            <div className="flex flex-wrap gap-2">
+              {markers.length === 0 ? (
+                <span className="text-muted-foreground">No markers defined</span>
+              ) : (
+                markers.map((m) => {
+                  const selected = selectedMarkerSlugs.includes(m.slug);
+                  return (
+                    <label key={m.slug} className="flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={(e) => {
+                          setSelectedMarkerSlugs((prev) =>
+                            e.target.checked
+                              ? [...prev, m.slug].sort()
+                              : prev.filter((s) => s !== m.slug),
+                          );
+                        }}
+                      />
+                      <span>{m.label}</span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
           </div>
           <div className="flex items-end space-y-1">
             <label className="flex items-center gap-2">

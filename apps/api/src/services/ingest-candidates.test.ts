@@ -36,20 +36,9 @@ function createMockIngestRepo(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function createMockPromoTypesRepo(overrides: Record<string, unknown> = {}) {
-  return {
-    getBySlug: vi.fn().mockResolvedValue({ id: "promo-type-id", slug: "promo" }),
-    ...overrides,
-  };
-}
-
-function createMockRepos(
-  ingestOverrides: Record<string, unknown> = {},
-  promoOverrides: Record<string, unknown> = {},
-): Repos {
+function createMockRepos(ingestOverrides: Record<string, unknown> = {}): Repos {
   return {
     ingest: createMockIngestRepo(ingestOverrides),
-    promoTypes: createMockPromoTypesRepo(promoOverrides),
   } as unknown as Repos;
 }
 
@@ -82,7 +71,7 @@ function makePrinting(overrides: Record<string, unknown> = {}) {
     rarity: "Common",
     art_variant: "normal",
     is_signed: false,
-    is_promo: false,
+    marker_slugs: [],
     finish: "normal",
     artist: "Jane Doe",
     public_code: "001",
@@ -341,7 +330,7 @@ describe("ingestCandidates", () => {
         {
           shortCode: "OGN-001",
           finish: "normal",
-          promoTypeId: null,
+          markerSlugs: [],
           id: "printing-uuid",
           language: "EN",
         },
@@ -367,7 +356,7 @@ describe("ingestCandidates", () => {
         {
           shortCode: "OGN-001",
           finish: "normal",
-          promoTypeId: null,
+          markerSlugs: [],
           id: "printing-uuid",
           language: "EN",
         },
@@ -383,28 +372,28 @@ describe("ingestCandidates", () => {
     expect(insertCall.printingId).toBe("printing-uuid");
   });
 
-  it("sets promoTypeId when is_promo is true", async () => {
+  it("passes marker_slugs through to candidate printing insert", async () => {
     const repos = createMockRepos();
     const transact = mockTransact(repos);
     const card = makeCard({
-      printings: [makePrinting({ is_promo: true })],
+      printings: [makePrinting({ marker_slugs: ["promo"] })],
     });
     await ingestCandidates(transact, "gallery", [card]);
 
     const insertCall = (repos.ingest as any).insertCandidatePrinting.mock.calls[0][0];
-    expect(insertCall.promoTypeId).toBe("promo-type-id");
+    expect(insertCall.markerSlugs).toEqual(["promo"]);
   });
 
-  it("sets promoTypeId to null when is_promo is false", async () => {
+  it("leaves marker_slugs empty when the upload has none", async () => {
     const repos = createMockRepos();
     const transact = mockTransact(repos);
     const card = makeCard({
-      printings: [makePrinting({ is_promo: false })],
+      printings: [makePrinting({ marker_slugs: [] })],
     });
     await ingestCandidates(transact, "gallery", [card]);
 
     const insertCall = (repos.ingest as any).insertCandidatePrinting.mock.calls[0][0];
-    expect(insertCall.promoTypeId).toBeNull();
+    expect(insertCall.markerSlugs).toEqual([]);
   });
 
   it("sets printingId to null when card not matched", async () => {
@@ -513,7 +502,7 @@ describe("ingestCandidates", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
+          markerSlugs: [],
           finish: "normal",
           artist: "Old Artist",
           publicCode: "001",
@@ -570,7 +559,7 @@ describe("ingestCandidates", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
+          markerSlugs: [],
           finish: "normal",
           artist: "Jane Doe",
           publicCode: "001",
@@ -623,7 +612,7 @@ describe("ingestCandidates", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
+          markerSlugs: [],
           finish: "normal",
           artist: "Jane Doe",
           publicCode: "001",
@@ -640,7 +629,7 @@ describe("ingestCandidates", () => {
         {
           shortCode: "OGN-001",
           finish: "normal",
-          promoTypeId: null,
+          markerSlugs: [],
           id: "printing-uuid",
           language: "EN",
         },
@@ -706,7 +695,7 @@ describe("ingestCandidates", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
+          markerSlugs: [],
           finish: "normal",
           artist: "Old Artist",
           publicCode: "001",
@@ -723,7 +712,7 @@ describe("ingestCandidates", () => {
         {
           shortCode: "OGN-001",
           finish: "normal",
-          promoTypeId: null,
+          markerSlugs: [],
           id: "printing-uuid",
           language: "EN",
         },
@@ -771,7 +760,7 @@ describe("ingestCandidates", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
+          markerSlugs: [],
           finish: "normal",
           artist: "Old Artist",
           publicCode: "001",
@@ -788,7 +777,7 @@ describe("ingestCandidates", () => {
         {
           shortCode: "OGN-001",
           finish: "normal",
-          promoTypeId: null,
+          markerSlugs: [],
           id: "printing-uuid",
           language: "EN",
         },
@@ -869,7 +858,7 @@ describe("ingestCandidates", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
+          markerSlugs: [],
           finish: "normal",
           artist: "A",
           publicCode: "001",
@@ -925,7 +914,7 @@ describe("ingestCandidates", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
+          markerSlugs: [],
           finish: "normal",
           artist: "A",
           publicCode: "001",
@@ -945,19 +934,7 @@ describe("ingestCandidates", () => {
     expect(result.removedPrintingDetails[0].name).toBe("unknown");
   });
 
-  // ── Default promo type ──────────────────────────────────────────────────
-
-  it("handles null default promo type gracefully", async () => {
-    const repos = createMockRepos({}, { getBySlug: vi.fn().mockResolvedValue(null) });
-    const transact = mockTransact(repos);
-    const card = makeCard({
-      printings: [makePrinting({ is_promo: true })],
-    });
-    await ingestCandidates(transact, "gallery", [card]);
-
-    const insertCall = (repos.ingest as any).insertCandidatePrinting.mock.calls[0][0];
-    expect(insertCall.promoTypeId).toBeNull();
-  });
+  // (promo type resolution removed — markers come from the upload payload directly)
 
   // ── Empty rules_text normalization ──────────────────────────────────────
 
@@ -1040,7 +1017,7 @@ describe("ingestCandidates", () => {
         {
           shortCode: "OGN-001",
           finish: "normal",
-          promoTypeId: "promo-type-id",
+          markerSlugs: ["promo"],
           id: "promo-printing-uuid",
           language: "EN",
         },
@@ -1048,7 +1025,7 @@ describe("ingestCandidates", () => {
     });
     const transact = mockTransact(repos);
     const card = makeCard({
-      printings: [makePrinting({ is_promo: true, rarity: "Common", finish: "normal" })],
+      printings: [makePrinting({ marker_slugs: ["promo"], rarity: "Common", finish: "normal" })],
     });
     await ingestCandidates(transact, "gallery", [card]);
 
@@ -1209,7 +1186,7 @@ describe("ingestCandidates", () => {
         {
           shortCode: "OGN-001",
           finish: "normal",
-          promoTypeId: null,
+          markerSlugs: [],
           id: "auto-uuid",
           language: "EN",
         },

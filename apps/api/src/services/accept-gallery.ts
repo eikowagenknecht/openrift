@@ -5,9 +5,10 @@ import type { Transact } from "../deps.js";
 import type { Io } from "../io.js";
 import type { candidateCardsRepo } from "../repositories/candidate-cards.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
+import type { distributionChannelsRepo } from "../repositories/distribution-channels.js";
+import type { markersRepo } from "../repositories/markers.js";
 import type { printingEventsRepo } from "../repositories/printing-events.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
-import type { promoTypesRepo } from "../repositories/promo-types.js";
 import { rehostImages } from "./image-rehost.js";
 import { acceptPrinting } from "./printing-admin.js";
 
@@ -15,7 +16,8 @@ type CandidateCardsRepo = ReturnType<typeof candidateCardsRepo>;
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
 type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
-type PromoTypesRepo = ReturnType<typeof promoTypesRepo>;
+type MarkersRepo = ReturnType<typeof markersRepo>;
+type DistributionChannelsRepo = ReturnType<typeof distributionChannelsRepo>;
 
 /**
  * Accept a new card from favorite-provider candidate data: create the card,
@@ -32,7 +34,8 @@ export async function acceptFavoriteNewCard(
     candidateCards: CandidateCardsRepo;
     candidateMutations: CandidateMutationsRepo;
     printingImages: PrintingImagesRepo;
-    promoTypes: PromoTypesRepo;
+    markers: MarkersRepo;
+    distributionChannels: DistributionChannelsRepo;
     printingEvents?: PrintingEventsRepo;
   },
   normalizedName: string,
@@ -86,10 +89,11 @@ export async function acceptFavoriteNewCard(
   const candidatePrintings =
     await repos.candidateCards.allCandidatePrintingsForCandidateCards(favCandidateIds);
 
-  // 4. Group by shortCode + finish + promoTypeId + language and create each printing
+  // 4. Group by shortCode + finish + markerSlugs + language and create each printing
   const groupMap = new Map<string, typeof candidatePrintings>();
   for (const cp of candidatePrintings) {
-    const key = `${cp.shortCode}|${cp.finish ?? ""}|${cp.promoTypeId ?? ""}|${cp.language ?? "EN"}`;
+    const slugKey = [...(cp.markerSlugs ?? [])].sort().join(",");
+    const key = `${cp.shortCode}|${cp.finish ?? ""}|${slugKey}|${cp.language ?? "EN"}`;
     let arr = groupMap.get(key);
     if (!arr) {
       arr = [];
@@ -120,7 +124,7 @@ export async function acceptFavoriteNewCard(
           rarity: first.rarity,
           artVariant: first.artVariant ?? "normal",
           isSigned: first.isSigned ?? false,
-          promoTypeId: first.promoTypeId,
+          markerSlugs: first.markerSlugs ?? [],
           finish: first.finish ?? "normal",
           artist: first.artist ?? "",
           publicCode: first.publicCode ?? "",

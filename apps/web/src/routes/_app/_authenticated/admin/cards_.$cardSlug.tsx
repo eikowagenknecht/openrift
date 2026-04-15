@@ -5,7 +5,7 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { adminCardDetailQueryOptions, allCardsQueryOptions } from "@/hooks/use-admin-card-queries";
 import { adminDistinctArtistsQueryOptions } from "@/hooks/use-distinct-artists";
 import { adminLanguagesQueryOptions } from "@/hooks/use-languages";
-import { adminPromoTypesQueryOptions } from "@/hooks/use-promo-types";
+import { adminMarkersQueryOptions } from "@/hooks/use-markers";
 import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
 
 const FOCUSABLE_MARKETPLACES = new Set(["tcgplayer", "cardmarket", "cardtrader"]);
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
   loader: async ({ context, params }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(adminCardDetailQueryOptions(params.cardSlug)),
-      context.queryClient.ensureQueryData(adminPromoTypesQueryOptions),
+      context.queryClient.ensureQueryData(adminMarkersQueryOptions),
       context.queryClient.ensureQueryData(providerSettingsQueryOptions),
       context.queryClient.ensureQueryData(allCardsQueryOptions),
       context.queryClient.ensureQueryData(adminDistinctArtistsQueryOptions),

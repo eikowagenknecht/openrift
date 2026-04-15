@@ -68,7 +68,7 @@ export function priceRefreshRepo(db: Db) {
           "artVariant",
           "isSigned",
           "language",
-          "promoTypeId",
+          "markerSlugs",
         ])
         .execute();
     },

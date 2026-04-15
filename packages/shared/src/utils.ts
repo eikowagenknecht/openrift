@@ -27,15 +27,17 @@ export function unique<T>(values: T[]): T[] {
 /**
  * Format a human-readable printing label from its component fields.
  * Non-EN languages get a trailing `:LANG` suffix; EN (the default) is omitted.
- * @returns Display label: "{short_code}:{finish}:{promo_type_slug|}[:LANG]"
+ * Marker slugs are joined with `+` (e.g. `top-8+promo`) and the segment is
+ * empty for unmarked printings.
+ * @returns Display label: "{short_code}:{finish}:{marker_slugs|}[:LANG]"
  */
 export function formatPrintingLabel(
   shortCode: string,
-  promoTypeSlug: string | null,
+  markerSlugs: readonly string[],
   finish: string,
   language?: string | null,
 ): string {
-  const base = `${shortCode}:${finish}:${promoTypeSlug ?? ""}`;
+  const base = `${shortCode}:${finish}:${markerSlugs.join("+")}`;
   if (language && language !== "EN") {
     return `${base}:${language}`;
   }
@@ -58,7 +60,7 @@ interface ComparablePrinting {
   setId?: string | null;
   setOrder?: number;
   shortCode: string;
-  promoTypeSlug?: string | null;
+  markerSlugs?: readonly string[];
   finish?: string;
 }
 
@@ -93,10 +95,12 @@ export function comparePrintings(
         : bFinishIdx === -1
           ? -1
           : aFinishIdx - bFinishIdx;
+  const aHasMarker = (a.markerSlugs?.length ?? 0) > 0;
+  const bHasMarker = (b.markerSlugs?.length ?? 0) > 0;
   return (
     setCompare ||
     a.shortCode.localeCompare(b.shortCode) ||
-    Number(Boolean(a.promoTypeSlug)) - Number(Boolean(b.promoTypeSlug)) ||
+    Number(aHasMarker) - Number(bHasMarker) ||
     finishCompare
   );
 }
@@ -105,7 +109,7 @@ function toComparable(printing: Printing, setOrderMap: Map<string, number>): Com
   return {
     ...printing,
     setOrder: setOrderMap.get(printing.setId),
-    promoTypeSlug: printing.promoType?.slug,
+    markerSlugs: printing.markers.map((m) => m.slug),
   };
 }
 
