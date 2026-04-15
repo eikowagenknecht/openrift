@@ -141,7 +141,7 @@ test.describe("card detail pane", () => {
       await page.goto("/cards");
       await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
 
-      await page.locator(".aspect-card").first().click();
+      await page.getByAltText(MULTI_PRINTING_CARD).first().click();
 
       // The desktop Pane (role=complementary) stays hidden on mobile; the mobile
       // overlay is a fullscreen sibling that renders the same CardDetail heading.

@@ -74,7 +74,7 @@ test.describe("card browser URL params", () => {
   });
 
   test("?promo=true shows only cards with at least one marker", async ({ page }) => {
-    await page.goto(`/cards?promo=${encodeURIComponent(JSON.stringify("true"))}`);
+    await page.goto(`/cards?promo=${encodeURIComponent(JSON.stringify(true))}`);
 
     // Annie, Fiery has a nexus-marked printing (OGS-001 foil) in the seed.
     // Firestorm (OGS-002) has no marker on any printing, so it should be
@@ -85,7 +85,7 @@ test.describe("card browser URL params", () => {
   });
 
   test("?banned=true shows only banned cards", async ({ page }) => {
-    await page.goto(`/cards?banned=${encodeURIComponent(JSON.stringify("true"))}`);
+    await page.goto(`/cards?banned=${encodeURIComponent(JSON.stringify(true))}`);
 
     // Blast of Power is the only banned card in the seed
     await expect(page.getByText("Blast of Power")).toBeVisible({ timeout: LOAD_TIMEOUT });
@@ -93,7 +93,7 @@ test.describe("card browser URL params", () => {
   });
 
   test("?errata=true shows only cards with errata", async ({ page }) => {
-    await page.goto(`/cards?errata=${encodeURIComponent(JSON.stringify("true"))}`);
+    await page.goto(`/cards?errata=${encodeURIComponent(JSON.stringify(true))}`);
 
     // Annie, Fiery has errata in the seed
     await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
