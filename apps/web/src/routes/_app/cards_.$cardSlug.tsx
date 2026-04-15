@@ -3,10 +3,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { buildCardMetaDescription, getCardFrontImageFullUrl } from "@/lib/card-meta";
 import { breadcrumbJsonLd, productJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
+import { PAGE_PADDING } from "@/lib/utils";
 
 const cardDetailSearchSchema = z.object({
   printingId: z.string().optional(),
@@ -72,8 +74,31 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
   },
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug)),
+  pendingMs: 100,
   component: () => null,
-  pendingComponent: () => null,
+  pendingComponent: CardDetailPending,
   errorComponent: RouteErrorFallback,
   notFoundComponent: RouteNotFoundFallback,
 });
+
+function CardDetailPending() {
+  return (
+    <div className={`${PAGE_PADDING} mx-auto flex max-w-6xl flex-col gap-4`}>
+      <Skeleton className="h-5 w-24" />
+      <div>
+        <Skeleton className="mb-1 h-8 w-48" />
+        <Skeleton className="h-5 w-32" />
+      </div>
+      <div className="flex flex-col gap-6 md:flex-row">
+        <Skeleton className="aspect-card w-full rounded-xl md:w-80" />
+        <div className="flex flex-1 flex-col gap-4">
+          <div className="flex gap-1.5">
+            <Skeleton className="h-7 w-16 rounded-md" />
+            <Skeleton className="h-7 w-16 rounded-md" />
+          </div>
+          <Skeleton className="h-20 w-full rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+}

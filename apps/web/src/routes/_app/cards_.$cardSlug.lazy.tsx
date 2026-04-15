@@ -23,7 +23,6 @@ import { CardText } from "@/components/cards/card-text";
 import { PriceHistoryChart, TIME_RANGES } from "@/components/cards/price-history-chart";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useLanguageLabels } from "@/hooks/use-enums";
@@ -35,7 +34,6 @@ import { useDisplayStore } from "@/stores/display-store";
 
 export const Route = createLazyFileRoute("/_app/cards_/$cardSlug")({
   component: CardDetailPage,
-  pendingComponent: CardDetailPending,
 });
 
 function CardDetailPage() {
@@ -731,28 +729,6 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
             </div>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function CardDetailPending() {
-  return (
-    <div className={`${PAGE_PADDING} mx-auto flex max-w-6xl flex-col gap-4`}>
-      <Skeleton className="h-5 w-24" />
-      <div>
-        <Skeleton className="mb-1 h-8 w-48" />
-        <Skeleton className="h-5 w-32" />
-      </div>
-      <div className="flex flex-col gap-6 md:flex-row">
-        <Skeleton className="aspect-card w-full rounded-xl md:w-80" />
-        <div className="flex flex-1 flex-col gap-4">
-          <div className="flex gap-1.5">
-            <Skeleton className="h-7 w-16 rounded-md" />
-            <Skeleton className="h-7 w-16 rounded-md" />
-          </div>
-          <Skeleton className="h-20 w-full rounded-lg" />
-        </div>
       </div>
     </div>
   );
