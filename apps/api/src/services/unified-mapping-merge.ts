@@ -1,4 +1,5 @@
 import type {
+  AssignableCardResponse,
   StagedProductResponse,
   UnifiedMappingGroupResponse,
   UnifiedMappingsResponse,
@@ -77,20 +78,7 @@ interface MappingOverviewResult {
     assignedProducts: StagedProductResponse[];
   }[];
   unmatchedProducts: StagedProductResponse[];
-  allCards: {
-    cardId: string;
-    cardName: string;
-    setId: string;
-    setName: string;
-    printings: {
-      printingId: string;
-      shortCode: string;
-      finish: string;
-      language: string;
-      isSigned: boolean;
-      externalId: number | null;
-    }[];
-  }[];
+  allCards: AssignableCardResponse[];
 }
 
 /**
