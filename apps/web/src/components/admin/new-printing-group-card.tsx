@@ -15,7 +15,6 @@ import { buildPrintingNormalizer, useCardDetailData } from "@/components/admin/c
 import { GroupImagePreview } from "@/components/admin/image-preview";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 const REQUIRED_PRINTING_KEYS = [
   "shortCode",
@@ -108,15 +107,10 @@ export function NewPrintingGroupCard({
   const matchingExisting = existingPrintings.find((p) => p.expectedPrintingId === guessedId);
 
   return (
-    <div
-      className={cn(
-        "rounded-md border border-dashed",
-        group.candidates.every((s) => s.checkedAt) ? "border-green-600/40" : "border-yellow-500/60",
-      )}
-    >
+    <div className="overflow-hidden rounded-md border border-dashed">
       {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- contains nested buttons, can't use <button> */}
       <div
-        className="flex cursor-pointer flex-wrap items-center gap-3 px-3 py-2 hover:opacity-70"
+        className="flex cursor-pointer flex-wrap items-center gap-3 bg-purple-50 px-3 py-2 hover:opacity-90 dark:bg-purple-950/30"
         onClick={onToggle}
       >
         <span className="flex items-center gap-2 text-sm font-medium">

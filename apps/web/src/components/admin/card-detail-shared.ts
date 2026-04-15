@@ -1,4 +1,5 @@
 import type {
+  AdminPrintingResponse,
   CandidateCardResponse,
   CandidatePrintingGroupResponse,
   CandidatePrintingResponse,
@@ -188,6 +189,83 @@ export function sortByProviderOrder(providerSettings: ProviderSettingResponse[])
 // ---------------------------------------------------------------------------
 // Utility: normalize candidate printing values for comparison
 // ---------------------------------------------------------------------------
+
+function candidateHasValue(value: unknown): boolean {
+  if (value === null || value === undefined || value === "") {
+    return false;
+  }
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+  return true;
+}
+
+function isValidFieldOption(field: FieldDef, value: unknown): boolean {
+  if (field.labeledOptions) {
+    return Array.isArray(value)
+      ? value.every((v) => field.labeledOptions?.some((o) => o.value === String(v)))
+      : field.labeledOptions.some((o) => o.value === String(value));
+  }
+  if (field.options) {
+    return Array.isArray(value)
+      ? value.every((v) => field.options?.includes(String(v)))
+      : field.options.includes(String(value));
+  }
+  return true;
+}
+
+/**
+ * Determine if a printing's accepted values match its favorited candidate sources.
+ * Mirrors the "yellow cell" logic in CandidateSpreadsheet: a mismatch exists when a
+ * favorited-provider candidate has a valid value for a writable field that differs
+ * from the accepted printing value (after normalization).
+ *
+ * @returns `"match"` when no favorited source mismatches, `"mismatch"` otherwise.
+ */
+export function computePrintingMatchStatus(
+  printing: AdminPrintingResponse,
+  candidatePrintings: readonly CandidatePrintingResponse[],
+  providerLabels: Record<string, string>,
+  providerSettings: readonly ProviderSettingResponse[],
+  printingFields: readonly FieldDef[],
+  setTotals: Record<string, number>,
+): "match" | "mismatch" {
+  const favoriteProviders = new Set(
+    providerSettings.filter((s) => s.isFavorite).map((s) => s.provider),
+  );
+  const favoritedSources = candidatePrintings.filter((ps) =>
+    favoriteProviders.has(providerLabels[ps.candidateCardId] ?? ""),
+  );
+  if (favoritedSources.length === 0) {
+    return "match";
+  }
+  const normalize = buildPrintingNormalizer(setTotals, printing.setSlug);
+  const printingRecord = printing as unknown as Record<string, unknown>;
+  for (const field of printingFields) {
+    if (field.readOnly) {
+      continue;
+    }
+    const activeValue = printingRecord[field.key];
+    const activeJson = JSON.stringify(activeValue);
+    for (const source of favoritedSources) {
+      const candidateValue = (source as unknown as Record<string, unknown>)[field.key];
+      if (!candidateHasValue(candidateValue)) {
+        continue;
+      }
+      const hasDropdown =
+        (field.options !== undefined && field.options.length > 0) ||
+        (field.labeledOptions !== undefined && field.labeledOptions.length > 0);
+      if (hasDropdown && !isValidFieldOption(field, candidateValue)) {
+        continue;
+      }
+      const normalized = normalize(field.key, candidateValue);
+      if (JSON.stringify(normalized) !== activeJson) {
+        return "mismatch";
+      }
+    }
+  }
+  return "match";
+}
 
 /** Fields where `fixTypography()` is applied with default options on accept. */
 const TYPOGRAPHY_FIELDS = new Set(["printedRulesText", "printedEffectText"]);

@@ -30,6 +30,7 @@ import {
   buildPrintingGroups,
   buildPrintingNormalizer,
   buildSourceLabels,
+  computePrintingMatchStatus,
   deduplicateSourceImages,
   useCardDetailData,
 } from "@/components/admin/card-detail-shared";
@@ -597,7 +598,18 @@ export function ExistingCardDetailPage({
             imageUrl: activeImage?.originalUrl ?? null,
           };
 
-          const allChecked = allSources.every((ps) => ps.checkedAt);
+          const matchStatus = computePrintingMatchStatus(
+            printing,
+            allSources,
+            sourceLabels,
+            providerSettings,
+            printingSourceFields,
+            setTotals,
+          );
+          const headerBgClass =
+            matchStatus === "match"
+              ? "bg-green-50 dark:bg-green-950/30"
+              : "bg-yellow-50 dark:bg-yellow-950/30";
 
           // Deduplicate source images not yet accepted as printing images
           const sourceImagesForSwitcher = deduplicateSourceImages(
@@ -615,11 +627,14 @@ export function ExistingCardDetailPage({
             <div
               key={printingId}
               data-printing-id={printingId}
-              className={cn("rounded-md border", allChecked && "border-green-600/40")}
+              className="overflow-hidden rounded-md border"
             >
               {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- contains nested buttons, can't use <button> */}
               <div
-                className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium hover:opacity-70"
+                className={cn(
+                  "flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium hover:opacity-90",
+                  headerBgClass,
+                )}
                 onClick={() => togglePrinting(printingId)}
               >
                 <span className="flex items-center gap-2">
@@ -629,7 +644,6 @@ export function ExistingCardDetailPage({
                     ({allSources.length} source
                     {allSources.length === 1 ? "" : "s"})
                   </span>
-                  {allChecked && <CheckCheckIcon className="text-green-600" />}
                   {!activeImage && <Badge variant="destructive">no image</Badge>}
                   <PrintingMarketplaceBadges
                     printingId={printingId}
