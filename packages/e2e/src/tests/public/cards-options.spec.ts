@@ -1,6 +1,8 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 
+import { scrollUntilVisible } from "../../helpers/virtualized.js";
+
 // The SortGroupControls popover trigger renders as "<Group> · <Sort>" (e.g.
 // "Set · ID") when a group is active. Default state has groupBy="set", so the
 // middot is always present in baseline tests here.
@@ -123,9 +125,11 @@ test.describe("card browser — options bar", () => {
 
     // Group headers are rendered as buttons (GroupHeaderLabel) with the group
     // name as the accessible name. Seed data has Legend, Unit, Spell types.
-    await expect(page.getByRole("button", { name: "Legend", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Unit", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Spell", exact: true })).toBeVisible();
+    // The grid is window-virtualized (see card-grid.tsx), so headers below
+    // the fold are not in the DOM until scrolled into view.
+    for (const name of ["Legend", "Unit", "Spell"]) {
+      await scrollUntilVisible(page, page.getByRole("button", { name, exact: true }));
+    }
   });
 
   test("flipping group direction reverses the header order", async ({ page }) => {
