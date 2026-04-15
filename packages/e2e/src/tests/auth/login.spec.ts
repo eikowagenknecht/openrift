@@ -1,49 +1,8 @@
-import { readFileSync } from "node:fs";
-
-import type { APIRequestContext, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 
 import { test } from "../../fixtures/test.js";
-import type { E2eState } from "../../helpers/constants.js";
-import { API_BASE_URL, STATE_FILE, WEB_BASE_URL } from "../../helpers/constants.js";
-import { connectToDb } from "../../helpers/db.js";
+import { createVerifiedUser, loadDb, signUp, waitForHydration } from "../../helpers/auth-otp.js";
 import { fetchLatestOtp } from "../../helpers/otp.js";
-
-type Sql = ReturnType<typeof connectToDb>;
-
-function loadDb(): Sql {
-  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf8"));
-  return connectToDb(state.tempDbUrl);
-}
-
-async function waitForHydration(page: Page) {
-  await page.locator("form").first().waitFor({ state: "attached" });
-  await page.waitForFunction(
-    () => {
-      const formEl = document.querySelector("form");
-      return formEl !== null && Object.keys(formEl).some((key) => key.startsWith("__react"));
-    },
-    { timeout: 10_000 },
-  );
-}
-
-async function signUp(request: APIRequestContext, email: string, password: string) {
-  const response = await request.post(`${API_BASE_URL}/api/auth/sign-up/email`, {
-    headers: { Origin: WEB_BASE_URL },
-    data: { email, password, name: "Login E2E" },
-  });
-  expect(response.ok()).toBeTruthy();
-}
-
-async function createVerifiedUser(
-  request: APIRequestContext,
-  sql: Sql,
-  email: string,
-  password: string,
-) {
-  await signUp(request, email, password);
-  await sql`UPDATE users SET email_verified = true WHERE email = ${email}`;
-}
 
 test.describe("login page", () => {
   test.describe("password tab", () => {
