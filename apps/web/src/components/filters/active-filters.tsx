@@ -179,7 +179,7 @@ export function ActiveFilters({
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground text-xs">Owned:</span>
             <Badge variant="secondary" className="gap-1">
-              {filterState.owned === "false" ? "Missing" : "Owned"}
+              {filterState.owned === false ? "Missing" : "Owned"}
               <button type="button" onClick={clearOwned} className="hover:text-foreground ml-0.5">
                 <XIcon className="size-3" />
               </button>
@@ -190,7 +190,7 @@ export function ActiveFilters({
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground text-xs">Flag:</span>
             <Badge variant="secondary" className="gap-1">
-              {filterState.signed === "false" ? "Not Signed" : "Signed"}
+              {filterState.signed === false ? "Not Signed" : "Signed"}
               <button type="button" onClick={clearSigned} className="hover:text-foreground ml-0.5">
                 <XIcon className="size-3" />
               </button>
@@ -201,7 +201,7 @@ export function ActiveFilters({
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground text-xs">Flag:</span>
             <Badge variant="secondary" className="gap-1">
-              {filterState.promo === "false" ? "Not Promo" : "Promo"}
+              {filterState.promo === false ? "Not Promo" : "Promo"}
               <button type="button" onClick={clearPromo} className="hover:text-foreground ml-0.5">
                 <XIcon className="size-3" />
               </button>
@@ -212,7 +212,7 @@ export function ActiveFilters({
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground text-xs">Flag:</span>
             <Badge variant="secondary" className="gap-1">
-              {filterState.banned === "false" ? "Not Banned" : "Banned"}
+              {filterState.banned === false ? "Not Banned" : "Banned"}
               <button type="button" onClick={clearBanned} className="hover:text-foreground ml-0.5">
                 <XIcon className="size-3" />
               </button>
@@ -223,7 +223,7 @@ export function ActiveFilters({
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground text-xs">Flag:</span>
             <Badge variant="secondary" className="gap-1">
-              {filterState.errata === "false" ? "No Errata" : "Errata"}
+              {filterState.errata === false ? "No Errata" : "Errata"}
               <button type="button" onClick={clearErrata} className="hover:text-foreground ml-0.5">
                 <XIcon className="size-3" />
               </button>
