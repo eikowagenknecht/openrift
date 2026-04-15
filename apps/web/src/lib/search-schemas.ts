@@ -8,7 +8,7 @@ import { z } from "zod";
 const stringField = () => z.string().optional().catch(undefined);
 const numberField = () => z.number().optional().catch(undefined);
 const stringArray = () => z.array(z.string()).optional().catch(undefined);
-const boolFlag = () => z.enum(["true", "false"]).optional().catch(undefined);
+const boolFlag = () => z.boolean().optional().catch(undefined);
 
 /**
  * Search param schema for routes that use the card filter system.

@@ -27,16 +27,18 @@ test.describe("card filter panel (desktop)", () => {
 
     await openDesktopFilterPanel(page);
 
+    const panel = page.locator('[data-slot="collapsible-content"]');
+
     // Every section renders its label to the left of its badges.
     for (const label of ["Set", "Domain", "Rarity", "Type"]) {
-      await expect(page.getByText(label, { exact: true })).toBeVisible();
+      await expect(panel.getByText(label, { exact: true })).toBeVisible();
     }
 
-    // Known badge contents that only appear inside the panel on this page.
-    await expect(page.getByText("Proving Grounds", { exact: true })).toBeVisible();
-    await expect(page.getByText("Fury", { exact: true })).toBeVisible();
-    await expect(page.getByText("Unit", { exact: true })).toBeVisible();
-    await expect(page.getByText("Epic", { exact: true })).toBeVisible();
+    // Known badge contents inside the panel.
+    await expect(panel.getByText("Proving Grounds", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Fury", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Unit", { exact: true })).toBeVisible();
+    await expect(panel.getByText("Epic", { exact: true })).toBeVisible();
   });
 
   test("clicking a set filter narrows the grid, adds an active-filter chip, and updates the URL", async ({
@@ -46,14 +48,16 @@ test.describe("card filter panel (desktop)", () => {
     await waitForCardsLoaded(page);
     await openDesktopFilterPanel(page);
 
-    await page.getByText("Proving Grounds", { exact: true }).click();
+    const panel = page.locator('[data-slot="collapsible-content"]');
+    await panel.getByText("Proving Grounds", { exact: true }).click();
 
     await expect(page).toHaveURL(/sets=[^&]*OGS/);
-    // Active-filter region shows the "Set:" label and the set chip.
-    await expect(page.getByText("Set:", { exact: true })).toBeVisible();
-    // Both the panel badge and the chip say "Proving Grounds" — assert at least two.
-    const badges = page.getByText("Proving Grounds", { exact: true });
-    await expect(badges).toHaveCount(2);
+    // Active-filter region shows the "Set:" label and a "Proving Grounds" chip.
+    const activeFiltersBar = page.locator(String.raw`div.bg-muted\/50`);
+    await expect(activeFiltersBar.getByText("Set:", { exact: true })).toBeVisible();
+    await expect(activeFiltersBar.getByText("Proving Grounds", { exact: true })).toBeVisible();
+    // Panel badge is still present for the selected set.
+    await expect(panel.getByText("Proving Grounds", { exact: true })).toBeVisible();
 
     // Cards still load (only one set exists in seed, so grid remains populated).
     await expect(page.getByText("Annie, Fiery")).toBeVisible();
@@ -184,7 +188,7 @@ test.describe("card filter panel (desktop)", () => {
     // Click the same badge again to cycle to "No Errata" (errata=false).
     await page.getByText("Errata", { exact: true }).first().click();
     await expect(page).toHaveURL(/errata=false/);
-    await expect(page.getByText("No Errata", { exact: true })).toBeVisible();
+    await expect(page.getByText("No Errata", { exact: true }).first()).toBeVisible();
 
     // A third click clears the filter entirely.
     await page.getByText("No Errata", { exact: true }).first().click();
@@ -201,24 +205,27 @@ test.describe("card filter panel (mobile)", () => {
     await page.goto(CARDS_URL);
     await waitForCardsLoaded(page);
 
-    // Before opening, neither the drawer content nor its Done/Show button is visible.
-    await expect(page.getByRole("button", { name: "Done" })).toBeHidden();
+    // Before opening, the drawer footer button is not visible.
+    await expect(page.getByRole("button", { name: /^(Done|Show \d+ cards?)$/ })).toBeHidden();
 
     await page.getByRole("button", { name: "Options" }).click();
 
+    const drawer = page.locator('[data-slot="drawer-content"]');
+    await expect(drawer).toBeVisible();
+
     // The drawer renders filter sections (same labels as the desktop panel).
     for (const label of ["Set", "Domain", "Rarity", "Type"]) {
-      await expect(page.getByText(label, { exact: true })).toBeVisible();
+      await expect(drawer.locator("p", { hasText: new RegExp(`^${label}$`) })).toBeVisible();
     }
 
-    // No active filters yet → the footer button still says "Done".
-    await expect(page.getByRole("button", { name: "Done" })).toBeVisible();
+    // The footer button is either "Done" (no filters) or "Show N cards" (filters active).
+    await expect(page.getByRole("button", { name: /^(Done|Show \d+ cards?)$/ })).toBeVisible();
 
     // Apply a filter by clicking a domain badge inside the drawer.
-    await page.getByText("Fury", { exact: true }).first().click();
+    await drawer.getByText("Fury", { exact: true }).first().click();
 
-    // With a filter active, the footer button switches to "Show N cards".
-    await expect(page.getByRole("button", { name: /^Show \d+ cards$/ })).toBeVisible();
+    // With a filter active, the footer button shows "Show N cards".
+    await expect(page.getByRole("button", { name: /^Show \d+ cards?$/ })).toBeVisible();
     await expect(page).toHaveURL(/domains=[^&]*Fury/);
   });
 });

@@ -113,7 +113,7 @@ export function FilterBadgeSections({
             className="cursor-pointer"
             onClick={toggleOwned}
           >
-            {filterState.owned === "false" ? "Missing" : "Owned"}
+            {filterState.owned === false ? "Missing" : "Owned"}
           </Badge>
         </FilterSection>
       )}
@@ -198,7 +198,7 @@ export function FilterBadgeSections({
               className="cursor-pointer"
               onClick={toggleSigned}
             >
-              {filterState.signed === "false" ? "Not Signed" : "Signed"}
+              {filterState.signed === false ? "Not Signed" : "Signed"}
             </Badge>
           )}
           {availableFilters.hasAnyMarker && (
@@ -207,7 +207,7 @@ export function FilterBadgeSections({
               className="cursor-pointer"
               onClick={togglePromo}
             >
-              {filterState.promo === "false" ? "Not Promo" : "Promo"}
+              {filterState.promo === false ? "Not Promo" : "Promo"}
             </Badge>
           )}
           {availableFilters.hasBanned && (
@@ -216,7 +216,7 @@ export function FilterBadgeSections({
               className="cursor-pointer"
               onClick={toggleBanned}
             >
-              {filterState.banned === "false" ? "Not Banned" : "Banned"}
+              {filterState.banned === false ? "Not Banned" : "Banned"}
             </Badge>
           )}
           {availableFilters.hasErrata && (
@@ -225,7 +225,7 @@ export function FilterBadgeSections({
               className="cursor-pointer"
               onClick={toggleErrata}
             >
-              {filterState.errata === "false" ? "No Errata" : "Errata"}
+              {filterState.errata === false ? "No Errata" : "Errata"}
             </Badge>
           )}
         </FilterSection>

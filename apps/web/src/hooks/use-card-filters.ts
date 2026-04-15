@@ -88,14 +88,13 @@ export function useFilterValues() {
     domains: filterState.domains as Domain[],
     artVariants: filterState.artVariants as ArtVariant[],
     finishes: filterState.finishes as Finish[],
-    isOwned: filterState.owned === "true" ? true : filterState.owned === "false" ? false : null,
-    isSigned: filterState.signed === "true" ? true : filterState.signed === "false" ? false : null,
-    hasAnyMarker:
-      filterState.promo === "true" ? true : filterState.promo === "false" ? false : null,
+    isOwned: filterState.owned ?? null,
+    isSigned: filterState.signed ?? null,
+    hasAnyMarker: filterState.promo ?? null,
     markerSlugs: [],
     distributionChannelSlugs: [],
-    isBanned: filterState.banned === "true" ? true : filterState.banned === "false" ? false : null,
-    hasErrata: filterState.errata === "true" ? true : filterState.errata === "false" ? false : null,
+    isBanned: filterState.banned ?? null,
+    hasErrata: filterState.errata ?? null,
     energy: { min: filterState.energyMin, max: filterState.energyMax },
     might: { min: filterState.mightMin, max: filterState.mightMax },
     power: { min: filterState.powerMin, max: filterState.powerMax },
@@ -254,8 +253,7 @@ export function useFilterActions() {
 
   const toggleOwned = () => {
     trackEvent("filter-apply", { type: "owned" });
-    const next =
-      filterState.owned === null ? "true" : filterState.owned === "true" ? "false" : undefined;
+    const next = filterState.owned === null ? true : filterState.owned === true ? false : undefined;
     updateSearch({ owned: next });
   };
   const clearOwned = () => updateSearch({ owned: undefined });
@@ -263,13 +261,12 @@ export function useFilterActions() {
   const toggleSigned = () => {
     trackEvent("filter-apply", { type: "signed" });
     const next =
-      filterState.signed === null ? "true" : filterState.signed === "true" ? "false" : undefined;
+      filterState.signed === null ? true : filterState.signed === true ? false : undefined;
     updateSearch({ signed: next });
   };
   const togglePromo = () => {
     trackEvent("filter-apply", { type: "promo" });
-    const next =
-      filterState.promo === null ? "true" : filterState.promo === "true" ? "false" : undefined;
+    const next = filterState.promo === null ? true : filterState.promo === true ? false : undefined;
     updateSearch({ promo: next });
   };
   const clearSigned = () => updateSearch({ signed: undefined });
@@ -277,13 +274,13 @@ export function useFilterActions() {
   const toggleBanned = () => {
     trackEvent("filter-apply", { type: "banned" });
     const next =
-      filterState.banned === null ? "true" : filterState.banned === "true" ? "false" : undefined;
+      filterState.banned === null ? true : filterState.banned === true ? false : undefined;
     updateSearch({ banned: next });
   };
   const toggleErrata = () => {
     trackEvent("filter-apply", { type: "errata" });
     const next =
-      filterState.errata === null ? "true" : filterState.errata === "true" ? "false" : undefined;
+      filterState.errata === null ? true : filterState.errata === true ? false : undefined;
     updateSearch({ errata: next });
   };
   const clearBanned = () => updateSearch({ banned: undefined });

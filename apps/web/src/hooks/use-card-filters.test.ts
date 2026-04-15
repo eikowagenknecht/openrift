@@ -175,19 +175,19 @@ describe("useCardFilters", () => {
     expect(lastNavigateSearch()).toMatchObject({ priceMin: 0.5, priceMax: 99.99 });
   });
 
-  it("toggleSigned cycles null → 'true' → 'false' → null", () => {
+  it("toggleSigned cycles null → true → false → null", () => {
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.toggleSigned());
-    expect(lastNavigateSearch()).toMatchObject({ signed: "true" });
+    expect(lastNavigateSearch()).toMatchObject({ signed: true });
 
-    mockSearch = { signed: "true" };
+    mockSearch = { signed: true };
     mockNavigate.mockClear();
     const { result: r2 } = renderHook(() => useCardFilters(), { wrapper });
     act(() => r2.current.toggleSigned());
-    expect(lastNavigateSearch()).toMatchObject({ signed: "false" });
+    expect(lastNavigateSearch()).toMatchObject({ signed: false });
 
-    mockSearch = { signed: "false" };
+    mockSearch = { signed: false };
     mockNavigate.mockClear();
     const { result: r3 } = renderHook(() => useCardFilters(), { wrapper });
     act(() => r3.current.toggleSigned());
@@ -195,7 +195,7 @@ describe("useCardFilters", () => {
   });
 
   it("clearSigned removes signed from search", () => {
-    mockSearch = { signed: "false" };
+    mockSearch = { signed: false };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.clearSigned());
@@ -203,19 +203,19 @@ describe("useCardFilters", () => {
     expect(lastNavigateSearch()).not.toHaveProperty("signed");
   });
 
-  it("togglePromo cycles null → 'true' → 'false' → null", () => {
+  it("togglePromo cycles null → true → false → null", () => {
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.togglePromo());
-    expect(lastNavigateSearch()).toMatchObject({ promo: "true" });
+    expect(lastNavigateSearch()).toMatchObject({ promo: true });
 
-    mockSearch = { promo: "true" };
+    mockSearch = { promo: true };
     mockNavigate.mockClear();
     const { result: r2 } = renderHook(() => useCardFilters(), { wrapper });
     act(() => r2.current.togglePromo());
-    expect(lastNavigateSearch()).toMatchObject({ promo: "false" });
+    expect(lastNavigateSearch()).toMatchObject({ promo: false });
 
-    mockSearch = { promo: "false" };
+    mockSearch = { promo: false };
     mockNavigate.mockClear();
     const { result: r3 } = renderHook(() => useCardFilters(), { wrapper });
     act(() => r3.current.togglePromo());
@@ -223,7 +223,7 @@ describe("useCardFilters", () => {
   });
 
   it("clearPromo removes promo from search", () => {
-    mockSearch = { promo: "false" };
+    mockSearch = { promo: false };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
     act(() => result.current.clearPromo());
@@ -232,13 +232,13 @@ describe("useCardFilters", () => {
   });
 
   it("detects active filters when signed is set", () => {
-    mockSearch = { signed: "true" };
+    mockSearch = { signed: true };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
     expect(result.current.hasActiveFilters).toBe(true);
   });
 
   it("detects active filters when promo is set", () => {
-    mockSearch = { promo: "true" };
+    mockSearch = { promo: true };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
     expect(result.current.hasActiveFilters).toBe(true);
   });
