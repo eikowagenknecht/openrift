@@ -339,7 +339,7 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     expect(json.cardtrader.snapshots).toEqual([]);
   });
 
-  it("uses Cardmarket's lowest listing as the headline market price", async () => {
+  it("returns Cardmarket's avg as market and its low listing as low", async () => {
     const cmSnapshot = {
       id: "snap-cm-1",
       variantId: "ms-cm-1",
@@ -355,11 +355,8 @@ describe("GET /api/v1/prices/:printingId/history", () => {
     });
     const res = await app.request("/api/v1/prices/a0000000-0001-4000-a000-000000000001/history");
     const json = await res.json();
-    // Headline = lowCents (1.50), not marketCents (3.00). CM's `avg` field
-    // can be polluted by anomalous sales, so we display the cheapest listing.
-    expect(json.cardmarket.snapshots[0].market).toBe(1.5);
+    expect(json.cardmarket.snapshots[0].market).toBe(3);
     expect(json.cardmarket.snapshots[0].low).toBe(1.5);
-    // trend/avg1/avg7/avg30 are no longer returned
     expect(json.cardmarket.snapshots[0].trend).toBeUndefined();
     expect(json.cardmarket.snapshots[0].avg1).toBeUndefined();
     expect(json.cardmarket.snapshots[0].date).toBe("2026-03-02");
