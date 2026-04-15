@@ -1,12 +1,12 @@
 import type { SearchField } from "@openrift/shared";
 import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
 import { SearchIcon, XIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
-import { useDebounce } from "@/hooks/use-debounce";
+import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { trackEvent } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
@@ -35,13 +35,21 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
 
   const unitLabel = view === "cards" ? "cards" : view === "copies" ? "copies" : "printings";
 
-  const [localSearch, setLocalSearch] = useState(filterState.search);
   const [searchFocused, setSearchFocused] = useState(false);
-  const debouncedSearch = useDebounce(localSearch, 200);
-
-  const prevFilterSearch = useRef(filterState.search);
   const filteredCountRef = useRef(filteredCount);
   filteredCountRef.current = filteredCount;
+
+  const commitSearch = (value: string) => {
+    setSearch(value);
+    if (value) {
+      trackEvent("search", { query: value, resultCount: filteredCountRef.current });
+    }
+  };
+
+  const [localSearch, setLocalSearch] = useSearchUrlSync({
+    urlValue: filterState.search,
+    onCommit: commitSearch,
+  });
 
   const showScopeChips = searchFocused;
   const hasPrefixes = parseSearchTerms(localSearch).some((t) => t.field !== null);
@@ -49,24 +57,6 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
   const placeholder = allSelected
     ? "Search cards..."
     : `Search by ${searchScope.map((f) => SEARCH_FIELD_LABELS[f].label.toLowerCase()).join(", ")}...`;
-
-  useEffect(() => {
-    // External change (e.g. clear all, clear search badge): sync local state
-    if (prevFilterSearch.current !== filterState.search) {
-      prevFilterSearch.current = filterState.search;
-      setLocalSearch(filterState.search);
-      return;
-    }
-
-    // Local change via debounce: push to URL
-    if (debouncedSearch !== filterState.search) {
-      prevFilterSearch.current = debouncedSearch;
-      setSearch(debouncedSearch);
-      if (debouncedSearch) {
-        trackEvent("search", { query: debouncedSearch, resultCount: filteredCountRef.current });
-      }
-    }
-  }, [debouncedSearch, filterState.search, setSearch]);
 
   const cardCountLabel = hasActiveFilters ? `${filteredCount} / ${totalCards}` : String(totalCards);
 
