@@ -154,7 +154,7 @@ export function decksRepo(db: Kysely<Database>) {
             WHERE p.card_id = dc.card_id
             ORDER BY
               (p.art_variant = 'normal')::int DESC,
-              (p.promo_type_id IS NULL)::int DESC,
+              (cardinality(p.marker_slugs) = 0)::int DESC,
               (p.is_signed = false)::int DESC,
               (p.finish = 'normal')::int DESC,
               s.sort_order ASC,

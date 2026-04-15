@@ -15,6 +15,11 @@ const mockCatalogRepo = {
   cardBans: vi.fn(() => Promise.resolve([])),
   cardErrata: vi.fn(() => Promise.resolve([])),
   totalCopies: vi.fn(() => Promise.resolve(0)),
+  markersList: vi.fn(() => Promise.resolve([])),
+};
+
+const mockDistributionChannelsRepo = {
+  listForPrintingIds: vi.fn(() => Promise.resolve([])),
 };
 
 // oxlint-disable-next-line -- test mock doesn't match full Repos type
@@ -22,6 +27,7 @@ const app = new Hono()
   .use("*", async (c, next) => {
     c.set("repos", {
       catalog: mockCatalogRepo,
+      distributionChannels: mockDistributionChannelsRepo,
     } as never);
     await next();
   })
@@ -57,7 +63,7 @@ const dbPrintingRow = {
   rarity: "Rare",
   artVariant: "normal",
   isSigned: false,
-  promoType: null,
+  markerSlugs: [],
   finish: "normal",
   artist: "Alice",
   publicCode: "ABCD",
@@ -88,6 +94,8 @@ function seedDefaults(overrides?: {
   mockCatalogRepo.cardBans.mockResolvedValue([]);
   mockCatalogRepo.cardErrata.mockResolvedValue([]);
   mockCatalogRepo.totalCopies.mockResolvedValue(overrides?.totalCopies ?? 42);
+  mockCatalogRepo.markersList.mockResolvedValue([]);
+  mockDistributionChannelsRepo.listForPrintingIds.mockResolvedValue([]);
 }
 
 // ---------------------------------------------------------------------------
@@ -192,7 +200,8 @@ describe("GET /api/v1/catalog", () => {
     expect(printing.publicCode).toBe("ABCD");
     expect(printing.artVariant).toBe("normal");
     expect(printing.isSigned).toBe(false);
-    expect(printing.promoType).toBeNull();
+    expect(printing.markers).toEqual([]);
+    expect(printing.distributionChannels).toEqual([]);
     expect(printing.finish).toBe("normal");
     expect(printing.artist).toBe("Alice");
     expect(printing.cardId).toBe("OGS-001");

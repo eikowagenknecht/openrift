@@ -121,9 +121,13 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
     rarity: p.rarity as Rarity,
     artVariant: p.artVariant as ArtVariant,
     isSigned: p.isSigned,
-    promoType: p.promoTypeSlug
-      ? { id: "", slug: p.promoTypeSlug, label: p.promoTypeSlug, description: null }
-      : null,
+    markers: p.markerSlugs.map((slug) => ({
+      id: "",
+      slug,
+      label: slug,
+      description: null,
+    })),
+    distributionChannels: [],
     finish: p.finish as Finish,
     images: p.imageUrl ? [toAdminImage(p.imageUrl)] : [],
     artist: "",
@@ -449,7 +453,7 @@ function UnifiedExpandedDetail({
                         ? " · Overnumbered"
                         : ""}
                       {p.isSigned ? " · Signed" : ""}
-                      {p.promoTypeSlug ? ` · ${p.promoTypeSlug}` : ""}
+                      {p.markerSlugs.length > 0 ? ` · ${p.markerSlugs.join("+")}` : ""}
                     </span>
                   </div>
 

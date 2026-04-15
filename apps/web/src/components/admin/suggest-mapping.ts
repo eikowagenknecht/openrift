@@ -117,7 +117,7 @@ function scorePrintingProduct(
 
   const promo = inferIsPromo(suffix);
   if (promo !== null) {
-    const isPromo = printing.promoTypeSlug !== null;
+    const isPromo = printing.markerSlugs.length > 0;
     if (promo === isPromo) {
       score += 50;
     } else {

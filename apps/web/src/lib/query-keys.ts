@@ -102,7 +102,8 @@ export const queryKeys = {
     finishes: ["admin", "finishes"] as const,
     rarities: ["admin", "rarities"] as const,
     formats: ["admin", "formats"] as const,
-    promoTypes: ["admin", "promo-types"] as const,
+    markers: ["admin", "markers"] as const,
+    distributionChannels: ["admin", "distribution-channels"] as const,
     distinctArtists: ["admin", "distinct-artists"] as const,
     providerSettings: ["admin", "provider-settings"] as const,
     cardBans: Object.assign((cardId: string) => ["admin", "card-bans", cardId] as const, {

@@ -1,9 +1,10 @@
 import type {
   Card,
   CardImageVariants,
+  DistributionChannelWithCount,
+  Marker,
+  PrintingDistributionChannel,
   PrintingImage,
-  PromoType,
-  PromoTypeWithCount,
 } from "../catalog.js";
 import type { ArtVariant, Finish, Rarity, SetType } from "../enums.js";
 import type { PriceMap } from "./pricing.js";
@@ -27,7 +28,8 @@ export interface CatalogPrintingResponse {
   rarity: Rarity;
   artVariant: ArtVariant;
   isSigned: boolean;
-  promoType: PromoType | null;
+  markers: Marker[];
+  distributionChannels: PrintingDistributionChannel[];
   finish: Finish;
   images: PrintingImage[];
   artist: string;
@@ -85,8 +87,12 @@ export interface SetDetailResponse {
   prices: PriceMap;
 }
 
-export interface PromoListResponse {
-  promoTypes: PromoTypeWithCount[];
+/**
+ * Public "promos" page: cards distributed through `kind = 'event'` channels.
+ * The page groups by channel and lists which printings appeared at each.
+ */
+export interface PromosListResponse {
+  channels: DistributionChannelWithCount[];
   cards: Record<string, CatalogCardResponse>;
   printings: CatalogPrintingResponse[];
   prices: PriceMap;

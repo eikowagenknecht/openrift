@@ -1,4 +1,4 @@
-import type { Printing, PromoListResponse } from "@openrift/shared";
+import type { Printing, PromosListResponse } from "@openrift/shared";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -7,7 +7,7 @@ import { serverCache } from "@/lib/server-cache";
 import { API_URL } from "@/lib/server-fns/api-url";
 
 const fetchPromoList = createServerFn({ method: "GET" }).handler(
-  (): Promise<PromoListResponse> =>
+  (): Promise<PromosListResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "promos"],
       queryFn: async () => {
@@ -15,25 +15,25 @@ const fetchPromoList = createServerFn({ method: "GET" }).handler(
         if (!res.ok) {
           throw new Error(`Promos fetch failed: ${res.status}`);
         }
-        return res.json() as Promise<PromoListResponse>;
+        return res.json() as Promise<PromosListResponse>;
       },
     }),
 );
 
 interface EnrichedPromoList {
-  promoTypes: PromoListResponse["promoTypes"];
+  channels: PromosListResponse["channels"];
   printings: Printing[];
-  cards: PromoListResponse["cards"];
+  cards: PromosListResponse["cards"];
 }
 
-function enrichPromoList(response: PromoListResponse): EnrichedPromoList {
+function enrichPromoList(response: PromosListResponse): EnrichedPromoList {
   const setSlugPlaceholder = "";
   const printings: Printing[] = response.printings.map((p) => ({
     ...p,
     setSlug: setSlugPlaceholder,
     card: response.cards[p.cardId],
   }));
-  return { promoTypes: response.promoTypes, printings, cards: response.cards };
+  return { channels: response.channels, printings, cards: response.cards };
 }
 
 export const publicPromoListQueryOptions = queryOptions({

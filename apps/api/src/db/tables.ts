@@ -100,7 +100,11 @@ export interface PrintingsTable {
   /** FK → art_variants(slug) */
   artVariant: ArtVariant;
   isSigned: boolean;
-  promoTypeId: string | null;
+  /**
+   * Sorted slug array maintained by trigger from `printing_markers`.
+   * Empty array `{}` means "no markers" (regular printing).
+   */
+  markerSlugs: Generated<string[]>;
   /** FK → finishes(slug) */
   finish: Finish;
   /** CHECK: <> '' */
@@ -465,7 +469,7 @@ export interface CandidatePrintingsTable {
   /** CHECK: <> '' */
   artVariant: string | null;
   isSigned: boolean | null;
-  promoTypeId: string | null;
+  markerSlugs: Generated<string[]>;
   /** CHECK: <> '' */
   finish: string | null;
   /** CHECK: <> '' */
@@ -573,9 +577,13 @@ export interface LanguagesTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── Promo types (migration 034) ──────────────────────────────────────────────
+// ─── Markers (migration 090) ──────────────────────────────────────────────────
 
-export interface PromoTypesTable {
+/**
+ * Visual markers stamped/printed on a card (e.g. "promo", "top-8", "prerelease").
+ * Identity-bearing: two printings with different marker sets are distinct.
+ */
+export interface MarkersTable {
   id: Generated<string>;
   /** CHECK: <> '' */
   slug: string;
@@ -586,6 +594,44 @@ export interface PromoTypesTable {
   sortOrder: Generated<number>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
+}
+
+export interface PrintingMarkersTable {
+  /** PK part 1 — FK ON DELETE CASCADE */
+  printingId: string;
+  /** PK part 2 — FK ON DELETE RESTRICT */
+  markerId: string;
+}
+
+// ─── Distribution channels (migration 090, renamed from promo_types/034) ─────
+
+/**
+ * Where a printing was distributed: tournament events, retail products,
+ * starter decks, etc. Many-to-many with printings via `printing_distribution_channels`.
+ * Not identity-bearing — two printings can share visuals but differ in distribution.
+ */
+export interface DistributionChannelsTable {
+  id: Generated<string>;
+  /** CHECK: <> '' */
+  slug: string;
+  /** CHECK: <> '' */
+  label: string;
+  /** CHECK: <> '' */
+  description: string | null;
+  /** CHECK: kind IN ('event', 'product') */
+  kind: Generated<"event" | "product">;
+  sortOrder: Generated<number>;
+  createdAt: CreatedAt;
+  updatedAt: UpdatedAt;
+}
+
+export interface PrintingDistributionChannelsTable {
+  /** PK part 1 — FK ON DELETE CASCADE */
+  printingId: string;
+  /** PK part 2 — FK ON DELETE RESTRICT */
+  channelId: string;
+  /** CHECK: <> '' — e.g. "Top 8 reward at Worlds 2025" */
+  distributionNote: string | null;
 }
 
 // ─── Provider settings (migration 035, renamed in 038) ───────────────────────
@@ -840,8 +886,11 @@ export interface Database {
   // Languages (migration 054)
   languages: LanguagesTable;
 
-  // Promo types (migration 034)
-  promoTypes: PromoTypesTable;
+  // Markers + distribution channels (migration 090, renamed from promo_types/034)
+  markers: MarkersTable;
+  printingMarkers: PrintingMarkersTable;
+  distributionChannels: DistributionChannelsTable;
+  printingDistributionChannels: PrintingDistributionChannelsTable;
 
   // Provider settings (migration 035, renamed in 038)
   providerSettings: ProviderSettingsTable;

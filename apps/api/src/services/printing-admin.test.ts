@@ -3,28 +3,25 @@
    unicorn/no-useless-undefined,
    import/first
    -- test file: mocks require empty fns, explicit undefined, and vi.mock before imports */
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Transact } from "../deps.js";
 import type { Io } from "../io.js";
-import { acceptPrinting, deletePrinting, updatePrintingPromoType } from "./printing-admin.js";
+import { acceptPrinting, deletePrinting, updatePrintingMarkers } from "./printing-admin.js";
 
-// ── Mock image-rehost to avoid pulling in fs/sharp ──────────────────────
 vi.mock("./image-rehost.js", () => ({
   deleteRehostFiles: vi.fn(async () => {}),
 }));
 
 import { deleteRehostFiles } from "./image-rehost.js";
 
-// ── Helpers ─────────────────────────────────────────────────────────────
-
 function mockTransact(trxRepos: unknown): Transact {
   return (fn) => fn(trxRepos as any) as any;
 }
 
-// ── updatePrintingPromoType ─────────────────────────────────────────────
+// ── updatePrintingMarkers ───────────────────────────────────────────────
 
-describe("updatePrintingPromoType", () => {
+describe("updatePrintingMarkers", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
@@ -34,15 +31,15 @@ describe("updatePrintingPromoType", () => {
       candidateMutations: {
         getPrintingById: vi.fn(async () => null),
       },
-      promoTypes: {},
+      markers: {},
     };
 
-    await expect(updatePrintingPromoType(repos as any, "p-missing", null)).rejects.toThrow(
+    await expect(updatePrintingMarkers(repos as any, "p-missing", ["promo"])).rejects.toThrow(
       "Printing not found",
     );
   });
 
-  it("throws BAD_REQUEST when promoTypeId is invalid", async () => {
+  it("throws BAD_REQUEST when any marker slug is unknown", async () => {
     const repos = {
       candidateMutations: {
         getPrintingById: vi.fn(async () => ({
@@ -51,18 +48,19 @@ describe("updatePrintingPromoType", () => {
           finish: "normal",
         })),
       },
-      promoTypes: {
-        getById: vi.fn(async () => null),
+      markers: {
+        listBySlugs: vi.fn(async () => [{ id: "m-1", slug: "promo" }]),
+        setForPrinting: vi.fn(async () => {}),
       },
     };
 
-    await expect(updatePrintingPromoType(repos as any, "p-uuid", "bad-promo")).rejects.toThrow(
-      "Invalid promoTypeId",
-    );
+    await expect(
+      updatePrintingMarkers(repos as any, "p-uuid", ["promo", "unknown"]),
+    ).rejects.toThrow("Unknown marker slug(s): unknown");
   });
 
-  it("updates printing with new promo type", async () => {
-    const updatePrintingById = vi.fn(async () => {});
+  it("clears markers when the slug list is empty", async () => {
+    const setForPrinting = vi.fn(async () => {});
     const repos = {
       candidateMutations: {
         getPrintingById: vi.fn(async () => ({
@@ -70,22 +68,17 @@ describe("updatePrintingPromoType", () => {
           shortCode: "OGN-001",
           finish: "normal",
         })),
-        updatePrintingById,
       },
-      promoTypes: {
-        getById: vi.fn(async () => ({ slug: "promo-a" })),
-      },
+      markers: { setForPrinting },
     };
 
-    await updatePrintingPromoType(repos as any, "p-uuid", "promo-a-id");
+    await updatePrintingMarkers(repos as any, "p-uuid", []);
 
-    expect(updatePrintingById).toHaveBeenCalledWith("p-uuid", {
-      promoTypeId: "promo-a-id",
-    });
+    expect(setForPrinting).toHaveBeenCalledWith("p-uuid", []);
   });
 
-  it("clears promo type when newPromoTypeId is null", async () => {
-    const updatePrintingById = vi.fn(async () => {});
+  it("syncs markers via the join table for a non-empty slug list", async () => {
+    const setForPrinting = vi.fn(async () => {});
     const repos = {
       candidateMutations: {
         getPrintingById: vi.fn(async () => ({
@@ -93,16 +86,16 @@ describe("updatePrintingPromoType", () => {
           shortCode: "OGN-001",
           finish: "normal",
         })),
-        updatePrintingById,
       },
-      promoTypes: {},
+      markers: {
+        listBySlugs: vi.fn(async () => [{ id: "m-1", slug: "promo" }]),
+        setForPrinting,
+      },
     };
 
-    await updatePrintingPromoType(repos as any, "p-uuid", null);
+    await updatePrintingMarkers(repos as any, "p-uuid", ["promo"]);
 
-    expect(updatePrintingById).toHaveBeenCalledWith("p-uuid", {
-      promoTypeId: null,
-    });
+    expect(setForPrinting).toHaveBeenCalledWith("p-uuid", ["m-1"]);
   });
 });
 
@@ -187,9 +180,46 @@ describe("acceptPrinting", () => {
     vi.resetAllMocks();
   });
 
+  function baseRepos(overrides: Record<string, unknown> = {}) {
+    return {
+      candidateMutations: {
+        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
+        getPrintingCardIdByComposite: vi.fn(async () => null),
+        getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
+        upsertPrinting: vi.fn(async () => "p-uuid"),
+        linkAndCheckCandidatePrintings: vi.fn(async () => {}),
+      },
+      printingImages: { insertImage: vi.fn(async () => {}) },
+      markers: {
+        listBySlugs: vi.fn(async () => []),
+        setForPrinting: vi.fn(async () => {}),
+      },
+      distributionChannels: {
+        listBySlugs: vi.fn(async () => []),
+        setForPrinting: vi.fn(async () => {}),
+      },
+      sets: {
+        upsert: vi.fn(async () => {}),
+        getPrintedTotal: vi.fn(async () => null),
+      },
+      ...overrides,
+    };
+  }
+
+  function withTrxExtras(repos: ReturnType<typeof baseRepos>) {
+    return {
+      ...repos,
+      candidateMutations: {
+        ...repos.candidateMutations,
+        getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
+        recomputeKeywordsForPrintingCard: vi.fn(async () => {}),
+      },
+    };
+  }
+
   it("throws when setId is missing", async () => {
     const transact = mockTransact({});
-    const repos = { candidateMutations: {}, printingImages: {}, promoTypes: {} };
+    const repos = baseRepos();
 
     await expect(
       acceptPrinting(
@@ -202,17 +232,14 @@ describe("acceptPrinting", () => {
     ).rejects.toThrow("printingFields.setId is required");
   });
 
-  it("throws BAD_REQUEST when promoTypeId is invalid", async () => {
-    const repos = {
-      candidateMutations: {
-        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
+  it("throws BAD_REQUEST when any marker slug is unknown", async () => {
+    const repos = baseRepos({
+      markers: {
+        listBySlugs: vi.fn(async () => []),
+        setForPrinting: vi.fn(async () => {}),
       },
-      printingImages: {},
-      promoTypes: {
-        getById: vi.fn(async () => null),
-      },
-    };
-    const transact = mockTransact(repos);
+    });
+    const transact = mockTransact(withTrxExtras(repos));
 
     await expect(
       acceptPrinting(
@@ -224,23 +251,21 @@ describe("acceptPrinting", () => {
           setId: "ogn",
           artist: "A",
           publicCode: "001",
-          promoTypeId: "bad-promo",
+          markerSlugs: ["bogus"],
         },
         ["cp-1"],
       ),
-    ).rejects.toThrow("Invalid promoTypeId");
+    ).rejects.toThrow("Unknown marker slug(s): bogus");
   });
 
   it("throws CONFLICT when printing identity belongs to a different card", async () => {
-    const repos = {
+    const repos = baseRepos({
       candidateMutations: {
         getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => ({ cardId: "other-card-uuid" })),
       },
-      printingImages: {},
-      promoTypes: {},
-    };
-    const transact = mockTransact(repos);
+    });
+    const transact = mockTransact(withTrxExtras(repos));
 
     await expect(
       acceptPrinting(
@@ -253,37 +278,18 @@ describe("acceptPrinting", () => {
     ).rejects.toThrow("already belongs to a different card");
   });
 
-  it("creates a printing successfully with all fields", async () => {
-    const upsertPrinting = vi.fn(async () => "p-uuid");
-    const insertImage = vi.fn(async () => {});
-    const linkAndCheckCandidatePrintings = vi.fn(async () => {});
-
-    const repos = {
-      candidateMutations: {
-        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
-        getPrintingCardIdByComposite: vi.fn(async () => null),
-        getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
-        upsertPrinting,
-        linkAndCheckCandidatePrintings,
+  it("creates a printing and syncs marker/channel joins", async () => {
+    const repos = baseRepos({
+      markers: {
+        listBySlugs: vi.fn(async () => [{ id: "m-1", slug: "promo" }]),
+        setForPrinting: vi.fn(async () => {}),
       },
-      printingImages: { insertImage },
-      promoTypes: {},
-      sets: {
-        upsert: vi.fn(async () => {}),
-        getPrintedTotal: vi.fn(async () => null),
+      distributionChannels: {
+        listBySlugs: vi.fn(async () => [{ id: "ch-1", slug: "worlds-2025" }]),
+        setForPrinting: vi.fn(async () => {}),
       },
-    };
-
-    // Need trxRepos with the setId lookup
-    const trxRepos = {
-      ...repos,
-      candidateMutations: {
-        ...repos.candidateMutations,
-        getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
-        recomputeKeywordsForPrintingCard: vi.fn(async () => {}),
-      },
-    };
-
+    });
+    const trxRepos = withTrxExtras(repos);
     const transact = mockTransact(trxRepos);
 
     const result = await acceptPrinting(
@@ -298,14 +304,26 @@ describe("acceptPrinting", () => {
         artist: "Artist A",
         publicCode: "001",
         imageUrl: "https://example.com/img.png",
+        markerSlugs: ["promo"],
+        distributionChannelSlugs: ["worlds-2025"],
       },
       ["cp-1"],
     );
 
     expect(result).toBe("p-uuid");
-    expect(upsertPrinting).toHaveBeenCalledTimes(1);
-    expect(insertImage).toHaveBeenCalledWith("p-uuid", "https://example.com/img.png", "gallery");
-    expect(linkAndCheckCandidatePrintings).toHaveBeenCalledWith(["cp-1"], "p-uuid");
+    expect(trxRepos.markers.setForPrinting).toHaveBeenCalledWith("p-uuid", ["m-1"]);
+    expect(trxRepos.distributionChannels.setForPrinting).toHaveBeenCalledWith("p-uuid", [
+      { channelId: "ch-1" },
+    ]);
+    expect(repos.printingImages.insertImage).toHaveBeenCalledWith(
+      "p-uuid",
+      "https://example.com/img.png",
+      "gallery",
+    );
+    expect(repos.candidateMutations.linkAndCheckCandidatePrintings).toHaveBeenCalledWith(
+      ["cp-1"],
+      "p-uuid",
+    );
   });
 
   it("creates a printing with no candidate sources (manual entry)", async () => {
@@ -322,7 +340,14 @@ describe("acceptPrinting", () => {
         linkAndCheckCandidatePrintings,
       },
       printingImages: {},
-      promoTypes: {},
+      markers: {
+        listBySlugs: vi.fn(async () => []),
+        setForPrinting: vi.fn(async () => {}),
+      },
+      distributionChannels: {
+        listBySlugs: vi.fn(async () => []),
+        setForPrinting: vi.fn(async () => {}),
+      },
       sets: {
         upsert: vi.fn(async () => {}),
         getPrintedTotal: vi.fn(async () => null),
@@ -361,21 +386,8 @@ describe("acceptPrinting", () => {
   });
 
   it("throws BAD_REQUEST for invalid rarity", async () => {
-    const repos = {
-      candidateMutations: {
-        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
-        getPrintingCardIdByComposite: vi.fn(async () => null),
-        getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
-        getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
-      },
-      printingImages: {},
-      promoTypes: {},
-      sets: {
-        upsert: vi.fn(async () => {}),
-        getPrintedTotal: vi.fn(async () => null),
-      },
-    };
-    const transact = mockTransact(repos);
+    const repos = baseRepos();
+    const transact = mockTransact(withTrxExtras(repos));
 
     await expect(
       acceptPrinting(
@@ -394,83 +406,17 @@ describe("acceptPrinting", () => {
     ).rejects.toThrow("Invalid rarity");
   });
 
-  it("creates a printing with a valid promoTypeId", async () => {
-    const upsertPrinting = vi.fn(async () => "p-uuid");
-    const insertImage = vi.fn(async () => {});
-    const linkAndCheckCandidatePrintings = vi.fn(async () => {});
-
-    const repos = {
-      candidateMutations: {
-        getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
-        getPrintingCardIdByComposite: vi.fn(async () => null),
-        getProviderNameForCandidatePrinting: vi.fn(async () => ({ provider: "gallery" })),
-        upsertPrinting,
-        linkAndCheckCandidatePrintings,
-      },
-      printingImages: { insertImage },
-      promoTypes: {
-        getById: vi.fn(async () => ({ slug: "showcase" })),
-      },
-      sets: {
-        upsert: vi.fn(async () => {}),
-        getPrintedTotal: vi.fn(async () => null),
-      },
-    };
-
-    const trxRepos = {
-      ...repos,
-      candidateMutations: {
-        ...repos.candidateMutations,
-        getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
-        recomputeKeywordsForPrintingCard: vi.fn(async () => {}),
-      },
-    };
-
-    const transact = mockTransact(trxRepos);
-
-    const result = await acceptPrinting(
-      transact,
-      repos as any,
-      "card-slug",
-      {
-        shortCode: "OGN-001",
-        setId: "ogn",
-        setName: "Origins",
-        rarity: "Common",
-        artist: "Artist A",
-        publicCode: "001",
-        promoTypeId: "promo-uuid",
-      },
-      ["cp-1"],
-    );
-
-    expect(result).toBe("p-uuid");
-    expect(repos.promoTypes.getById).toHaveBeenCalledWith("promo-uuid");
-  });
-
   it("does not insert image when imageUrl is absent", async () => {
-    const upsertPrinting = vi.fn(async () => "p-uuid");
-    const insertImage = vi.fn(async () => {});
-    const linkAndCheckCandidatePrintings = vi.fn(async () => {});
-
-    const repos = {
+    const repos = baseRepos({
       candidateMutations: {
         getCardById: vi.fn(async () => ({ id: "card-uuid", name: "Test", slug: "test" })),
         getPrintingCardIdByComposite: vi.fn(async () => null),
         getProviderNameForCandidatePrinting: vi.fn(async () => null),
-        upsertPrinting,
-        linkAndCheckCandidatePrintings,
-        getSetIdBySlug: vi.fn(async () => ({ id: "set-uuid" })),
-        recomputeKeywordsForPrintingCard: vi.fn(async () => {}),
+        upsertPrinting: vi.fn(async () => "p-uuid"),
+        linkAndCheckCandidatePrintings: vi.fn(async () => {}),
       },
-      printingImages: { insertImage },
-      promoTypes: {},
-      sets: {
-        upsert: vi.fn(async () => {}),
-        getPrintedTotal: vi.fn(async () => null),
-      },
-    };
-    const transact = mockTransact(repos);
+    });
+    const transact = mockTransact(withTrxExtras(repos));
 
     await acceptPrinting(
       transact,
@@ -485,6 +431,6 @@ describe("acceptPrinting", () => {
       ["cp-1"],
     );
 
-    expect(insertImage).not.toHaveBeenCalled();
+    expect(repos.printingImages.insertImage).not.toHaveBeenCalled();
   });
 });

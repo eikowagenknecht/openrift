@@ -26,7 +26,8 @@ function groupSiblings(
 ): UnifiedMappingPrintingResponse[][] {
   const groups = new Map<string, UnifiedMappingPrintingResponse[]>();
   for (const printing of printings) {
-    const key = `${printing.shortCode}|${printing.finish}|${printing.artVariant}|${printing.isSigned ? 1 : 0}|${printing.promoTypeSlug ?? ""}`;
+    const slugKey = [...printing.markerSlugs].sort().join("+");
+    const key = `${printing.shortCode}|${printing.finish}|${printing.artVariant}|${printing.isSigned ? 1 : 0}|${slugKey}`;
     let bucket = groups.get(key);
     if (!bucket) {
       bucket = [];

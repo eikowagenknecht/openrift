@@ -29,7 +29,8 @@ function makePrinting(overrides: Partial<Printing> & { language: string }): Prin
     rarity: "common",
     artVariant: "standard",
     isSigned: false,
-    promoType: null,
+    markers: [],
+    distributionChannels: [],
     finish: "normal",
     images: [],
     artist: "Artist",
@@ -80,40 +81,42 @@ describe("unique", () => {
 });
 
 describe("formatPrintingLabel", () => {
-  it("builds a basic non-promo slug", () => {
-    expect(formatPrintingLabel("OGN-001", null, "normal")).toBe("OGN-001:normal:");
+  it("builds a basic unmarked slug", () => {
+    expect(formatPrintingLabel("OGN-001", [], "normal")).toBe("OGN-001:normal:");
   });
 
-  it("includes promo type slug when provided", () => {
-    expect(formatPrintingLabel("OGN-001", "promo", "foil")).toBe("OGN-001:foil:promo");
+  it("includes a single marker slug", () => {
+    expect(formatPrintingLabel("OGN-001", ["promo"], "foil")).toBe("OGN-001:foil:promo");
   });
 
-  it("includes specific promo type slug", () => {
-    expect(formatPrintingLabel("OGN-001", "nexus-night", "foil")).toBe("OGN-001:foil:nexus-night");
+  it("joins multiple marker slugs with +", () => {
+    expect(formatPrintingLabel("OGN-001", ["promo", "top-8"], "foil")).toBe(
+      "OGN-001:foil:promo+top-8",
+    );
   });
 
   it("preserves finish value", () => {
-    expect(formatPrintingLabel("OGN-105", null, "normal")).toBe("OGN-105:normal:");
+    expect(formatPrintingLabel("OGN-105", [], "normal")).toBe("OGN-105:normal:");
   });
 
   it("omits language suffix for EN (default)", () => {
-    expect(formatPrintingLabel("OGN-001", null, "normal", "EN")).toBe("OGN-001:normal:");
+    expect(formatPrintingLabel("OGN-001", [], "normal", "EN")).toBe("OGN-001:normal:");
   });
 
   it("omits language suffix when language is null", () => {
-    expect(formatPrintingLabel("OGN-001", null, "normal", null)).toBe("OGN-001:normal:");
+    expect(formatPrintingLabel("OGN-001", [], "normal", null)).toBe("OGN-001:normal:");
   });
 
   it("omits language suffix when language is undefined", () => {
-    expect(formatPrintingLabel("OGN-001", null, "normal", undefined)).toBe("OGN-001:normal:");
+    expect(formatPrintingLabel("OGN-001", [], "normal", undefined)).toBe("OGN-001:normal:");
   });
 
   it("appends language suffix for non-EN languages", () => {
-    expect(formatPrintingLabel("OGN-001", null, "normal", "FR")).toBe("OGN-001:normal::FR");
+    expect(formatPrintingLabel("OGN-001", [], "normal", "FR")).toBe("OGN-001:normal::FR");
   });
 
-  it("appends language suffix with promo type", () => {
-    expect(formatPrintingLabel("OGN-001", "promo", "foil", "ZH")).toBe("OGN-001:foil:promo:ZH");
+  it("appends language suffix with marker", () => {
+    expect(formatPrintingLabel("OGN-001", ["promo"], "foil", "ZH")).toBe("OGN-001:foil:promo:ZH");
   });
 });
 
@@ -218,16 +221,16 @@ describe("comparePrintings", () => {
     expect(comparePrintings(altart, normal)).toBeGreaterThan(0);
   });
 
-  it("sorts non-promo before promo", () => {
-    const normal = { ...base, promoTypeSlug: null };
-    const promo = { ...base, promoTypeSlug: "promo" };
+  it("sorts unmarked before marked", () => {
+    const normal = { ...base, markerSlugs: [] as string[] };
+    const promo = { ...base, markerSlugs: ["promo"] };
     expect(comparePrintings(normal, promo)).toBeLessThan(0);
     expect(comparePrintings(promo, normal)).toBeGreaterThan(0);
   });
 
-  it("treats missing promoTypeSlug as non-promo", () => {
+  it("treats missing markerSlugs as unmarked", () => {
     const noPromo = { ...base };
-    const promo = { ...base, promoTypeSlug: "promo" };
+    const promo = { ...base, markerSlugs: ["promo"] };
     expect(comparePrintings(noPromo, promo)).toBeLessThan(0);
   });
 
@@ -252,8 +255,8 @@ describe("comparePrintings", () => {
 
   it("applies tiebreakers in correct priority order", () => {
     // Same set and shortCode — promo status decides before finish
-    const a = { ...base, promoTypeSlug: null, finish: "foil" };
-    const b = { ...base, promoTypeSlug: "promo", finish: "normal" };
+    const a = { ...base, markerSlugs: [] as string[], finish: "foil" };
+    const b = { ...base, markerSlugs: ["promo"], finish: "normal" };
     expect(comparePrintings(a, b)).toBeLessThan(0);
   });
 });

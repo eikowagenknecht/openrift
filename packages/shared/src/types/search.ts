@@ -69,8 +69,15 @@ export interface CardFilters {
   artVariants: ArtVariant[];
   finishes: Finish[];
   isSigned: boolean | null;
-  isPromo: boolean | null;
-  promoTypes: string[];
+  /**
+   * Replaces the old `isPromo` boolean. `true` = printing has at least one
+   * marker (any stamp); `false` = unmarked printing; `null` = no constraint.
+   */
+  hasAnyMarker: boolean | null;
+  /** Filter to printings that have at least one of these marker slugs. */
+  markerSlugs: string[];
+  /** Filter to printings distributed through at least one of these channel slugs. */
+  distributionChannelSlugs: string[];
   isBanned: boolean | null;
   hasErrata: boolean | null;
 }

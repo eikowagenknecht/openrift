@@ -1,17 +1,17 @@
-import type { PromoTypeResponse } from "@openrift/shared";
+import type { MarkerResponse } from "@openrift/shared";
 
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { Input } from "@/components/ui/input";
 import {
-  useCreatePromoType,
-  useDeletePromoType,
-  usePromoTypes,
-  useReorderPromoTypes,
-  useUpdatePromoType,
-} from "@/hooks/use-promo-types";
+  useCreateMarker,
+  useDeleteMarker,
+  useMarkers,
+  useReorderMarkers,
+  useUpdateMarker,
+} from "@/hooks/use-markers";
 
-interface PromoTypeDraft {
+interface MarkerDraft {
   id: string;
   slug: string;
   label: string;
@@ -20,42 +20,42 @@ interface PromoTypeDraft {
 
 const KEBAB_RE = /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/;
 
-export function PromoTypesPage() {
-  const { data } = usePromoTypes();
-  const createMutation = useCreatePromoType();
-  const updateMutation = useUpdatePromoType();
-  const deleteMutation = useDeletePromoType();
-  const reorderMutation = useReorderPromoTypes();
-  const promoTypes = data.promoTypes;
+export function MarkersPage() {
+  const { data } = useMarkers();
+  const createMutation = useCreateMarker();
+  const updateMutation = useUpdateMarker();
+  const deleteMutation = useDeleteMarker();
+  const reorderMutation = useReorderMarkers();
+  const markers = data.markers;
 
-  function movePromoType(index: number, direction: -1 | 1) {
+  function moveMarker(index: number, direction: -1 | 1) {
     const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= promoTypes.length) {
+    if (newIndex < 0 || newIndex >= markers.length) {
       return;
     }
-    const reordered = promoTypes.map((pt) => pt.id);
+    const reordered = markers.map((m) => m.id);
     [reordered[index], reordered[newIndex]] = [reordered[newIndex], reordered[index]];
     reorderMutation.mutate(reordered);
   }
 
-  const columns: AdminColumnDef<PromoTypeResponse, PromoTypeDraft>[] = [
+  const columns: AdminColumnDef<MarkerResponse, MarkerDraft>[] = [
     {
       header: "Slug",
-      sortValue: (pt) => pt.slug,
-      cell: (pt) => <span className="font-mono text-sm">{pt.slug}</span>,
+      sortValue: (m) => m.slug,
+      cell: (m) => <span className="font-mono text-sm">{m.slug}</span>,
       addCell: (d, set) => (
         <Input
           value={d.slug}
           onChange={(e) => set((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
-          placeholder="nexus-night"
+          placeholder="top-8"
           className="h-8 w-48 font-mono"
         />
       ),
     },
     {
       header: "Label",
-      sortValue: (pt) => pt.label,
-      cell: (pt) => <span className="text-sm">{pt.label}</span>,
+      sortValue: (m) => m.label,
+      cell: (m) => <span>{m.label}</span>,
       editCell: (d, set) => (
         <Input
           value={d.label}
@@ -67,27 +67,27 @@ export function PromoTypesPage() {
         <Input
           value={d.label}
           onChange={(e) => set((prev) => ({ ...prev, label: e.target.value }))}
-          placeholder="Nexus Night"
+          placeholder="Top 8"
           className="h-8"
         />
       ),
     },
     {
       header: "Description",
-      sortValue: (pt) => pt.description ?? "",
-      cell: (pt) => (
+      sortValue: (m) => m.description ?? "",
+      cell: (m) => (
         <span
-          className="text-muted-foreground block max-w-xs truncate text-sm"
-          title={pt.description ?? undefined}
+          className="text-muted-foreground block max-w-xs truncate"
+          title={m.description ?? undefined}
         >
-          {pt.description ?? "—"}
+          {m.description ?? "—"}
         </span>
       ),
       editCell: (d, set) => (
         <Input
           value={d.description}
           onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Optional description (supports markdown links)"
+          placeholder="Optional description"
           className="h-8"
         />
       ),
@@ -95,7 +95,7 @@ export function PromoTypesPage() {
         <Input
           value={d.description}
           onChange={(e) => set((prev) => ({ ...prev, description: e.target.value }))}
-          placeholder="Optional description (supports markdown links)"
+          placeholder="Optional description"
           className="h-8"
         />
       ),
@@ -105,12 +105,13 @@ export function PromoTypesPage() {
   return (
     <AdminTable
       columns={columns}
-      data={promoTypes}
-      getRowKey={(pt) => pt.id}
-      emptyText="No promo types yet."
+      data={markers}
+      getRowKey={(m) => m.id}
+      emptyText="No markers yet."
       toolbar={
-        <p className="text-muted-foreground text-sm">
-          Promo types classify promotional printings (e.g. Summoner Skirmish, Nexus Night).
+        <p className="text-muted-foreground">
+          Markers describe what is physically printed on a card (e.g. promo stamp, Top 8 placement).
+          Two printings with different markers are visually distinct and have separate prices.
         </p>
       }
       add={{
@@ -128,18 +129,18 @@ export function PromoTypesPage() {
             return "Slug and label are required";
           }
           if (!KEBAB_RE.test(slug)) {
-            return "Slug must be kebab-case (e.g. nexus-night)";
+            return "Slug must be kebab-case (e.g. top-8)";
           }
           return null;
         },
-        label: "Add Promo Type",
+        label: "Add Marker",
       }}
       edit={{
-        toDraft: (pt) => ({
-          id: pt.id,
-          slug: pt.slug,
-          label: pt.label,
-          description: pt.description ?? "",
+        toDraft: (m) => ({
+          id: m.id,
+          slug: m.slug,
+          label: m.label,
+          description: m.description ?? "",
         }),
         onSave: (d) =>
           updateMutation.mutateAsync({
@@ -149,11 +150,11 @@ export function PromoTypesPage() {
           }),
       }}
       reorder={{
-        onMove: movePromoType,
+        onMove: moveMarker,
         isPending: reorderMutation.isPending,
       }}
       delete={{
-        onDelete: (pt) => deleteMutation.mutateAsync(pt.id),
+        onDelete: (m) => deleteMutation.mutateAsync(m.id),
       }}
     />
   );

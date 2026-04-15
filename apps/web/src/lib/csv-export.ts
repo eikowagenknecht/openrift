@@ -37,7 +37,7 @@ export function generateExportCSV(stacks: StackedEntry[]): string {
       printing.card.domains.join(" / "),
       printing.finish,
       printing.artVariant,
-      printing.promoType?.slug ?? "",
+      printing.markers.map((m) => m.slug).join("+"),
       printing.language,
       String(stack.copyIds.length),
     ].map((field) => escapeField(field));

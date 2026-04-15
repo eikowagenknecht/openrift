@@ -29,19 +29,19 @@ export function ingestRepo(db: Db) {
       return db.selectFrom("cardNameAliases").select(["normName", "cardId"]).execute();
     },
 
-    /** @returns All printings (id + shortCode + finish + promoTypeId + language) for composite-key resolution. */
+    /** @returns All printings (id + shortCode + finish + markerSlugs + language) for composite-key resolution. */
     allPrintingKeys(): Promise<
       {
         id: string;
         shortCode: string;
         finish: string;
-        promoTypeId: string | null;
+        markerSlugs: string[];
         language: string;
       }[]
     > {
       return db
         .selectFrom("printings")
-        .select(["id", "shortCode", "finish", "promoTypeId", "language"])
+        .select(["id", "shortCode", "finish", "markerSlugs", "language"])
         .execute();
     },
 

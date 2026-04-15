@@ -42,8 +42,8 @@ function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
     }))
     .toSorted((a, b) =>
       comparePrintings(
-        { ...a, setOrder: setOrderMap.get(a.setId), promoTypeSlug: a.promoType?.slug },
-        { ...b, setOrder: setOrderMap.get(b.setId), promoTypeSlug: b.promoType?.slug },
+        { ...a, setOrder: setOrderMap.get(a.setId), markerSlugs: a.markers.map((m) => m.slug) },
+        { ...b, setOrder: setOrderMap.get(b.setId), markerSlugs: b.markers.map((m) => m.slug) },
       ),
     );
   return { card: response.card, printings, setOrderMap, sets: response.sets };

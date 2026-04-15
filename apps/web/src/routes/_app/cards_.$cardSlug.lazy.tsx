@@ -169,12 +169,22 @@ function CardDetailPage() {
                     </span>,
                   ]);
                 }
-                if (selectedPrinting.promoType) {
+                if (selectedPrinting.markers.length > 0) {
                   leftRows.push([
-                    "Promo",
-                    <span key="promo" className="inline-flex items-center gap-1">
+                    "Markers",
+                    <span key="markers" className="inline-flex items-center gap-1">
                       <TagIcon className="size-3.5" />
-                      {selectedPrinting.promoType.label}
+                      {selectedPrinting.markers.map((m) => m.label).join(", ")}
+                    </span>,
+                  ]);
+                }
+                if (selectedPrinting.distributionChannels.length > 0) {
+                  leftRows.push([
+                    "Available at",
+                    <span key="channels">
+                      {selectedPrinting.distributionChannels
+                        .map((dc) => dc.channel.label)
+                        .join(", ")}
                     </span>,
                   ]);
                 }
@@ -501,11 +511,14 @@ function PrintingCard({
       </span>,
     );
   }
-  if (printing.promoType) {
+  if (printing.markers.length > 0) {
     badges.push(
-      <span key="promo" className="text-muted-foreground inline-flex items-center gap-0.5 text-xs">
+      <span
+        key="markers"
+        className="text-muted-foreground inline-flex items-center gap-0.5 text-xs"
+      >
         <TagIcon className="size-3" />
-        {printing.promoType.label}
+        {printing.markers.map((m) => m.label).join(", ")}
       </span>,
     );
   }
@@ -623,7 +636,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
       <h2 className="mb-3 text-lg font-semibold">
         Price History — {formatPublicCode(printing)}
         {printing.finish !== WellKnown.finish.NORMAL && ` ${printing.finish}`}
-        {printing.promoType && ` (${printing.promoType.label})`}
+        {printing.markers.length > 0 && ` (${printing.markers.map((m) => m.label).join(", ")})`}
         {printing.language !== "EN" && ` [${printing.language}]`}
       </h2>
 

@@ -63,8 +63,8 @@ export function formatPrintingLabel(
   if (printing.isSigned && !allSame((c) => c.isSigned)) {
     parts.push("Signed");
   }
-  if (printing.promoType && !allSame((c) => c.promoType?.slug)) {
-    parts.push(printing.promoType.label);
+  if (printing.markers.length > 0 && !allSame((c) => c.markers.map((m) => m.slug).join("+"))) {
+    parts.push(printing.markers.map((m) => m.label).join(" + "));
   }
   return parts.length > 0 ? parts.join(" · ") : "Standard";
 }

@@ -105,12 +105,12 @@ export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels)
   ];
 }
 
-/** Build candidate printing fields with promo type options populated from the database.
+/** Build candidate printing fields with marker options populated from the database.
  * @returns The field definitions for candidate printings. */
 export function buildCandidatePrintingFields(
   orders: EnumOrders,
   labels: EnumLabels,
-  promoTypes: readonly { value: string; label: string }[],
+  markers: readonly { value: string; label: string }[],
   artistSuggestions?: readonly string[],
   languages?: readonly { value: string; label: string }[],
 ): FieldDef[] {
@@ -137,9 +137,9 @@ export function buildCandidatePrintingFields(
     },
     { key: "isSigned", label: "Signed", type: "boolean" },
     {
-      key: "promoTypeId",
-      label: "Promo Type",
-      labeledOptions: promoTypes.length > 0 ? promoTypes : undefined,
+      key: "markerSlugs",
+      label: "Markers",
+      labeledOptions: markers.length > 0 ? markers : undefined,
     },
     {
       key: "artist",

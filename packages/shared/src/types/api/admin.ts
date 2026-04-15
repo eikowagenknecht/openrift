@@ -1,4 +1,4 @@
-import type { CardErrata } from "../catalog.js";
+import type { CardErrata, DistributionChannelKind } from "../catalog.js";
 import type { CardFace, SetType } from "../enums.js";
 
 export interface CandidateCardResponse {
@@ -31,7 +31,7 @@ export interface CandidatePrintingResponse {
   rarity: string | null;
   artVariant: string | null;
   isSigned: boolean | null;
-  promoTypeId: string | null;
+  markerSlugs: string[];
   finish: string | null;
   artist: string | null;
   publicCode: string | null;
@@ -144,7 +144,11 @@ export interface AdminPrintingResponse {
   rarity: string;
   artVariant: string;
   isSigned: boolean;
-  promoTypeId: string | null;
+  markerSlugs: string[];
+  /** Optional: only populated by endpoints that need to render the channel admin UI. */
+  markerIds?: string[];
+  /** Optional: only populated by endpoints that need to render the channel admin UI. */
+  distributionChannels?: AdminPrintingDistributionChannelResponse[];
   finish: string;
   artist: string;
   publicCode: string;
@@ -252,7 +256,7 @@ export interface SiteSettingResponse {
   updatedAt: string;
 }
 
-export interface PromoTypeResponse {
+export interface MarkerResponse {
   id: string;
   slug: string;
   label: string;
@@ -260,6 +264,24 @@ export interface PromoTypeResponse {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface DistributionChannelResponse {
+  id: string;
+  slug: string;
+  label: string;
+  description: string | null;
+  kind: DistributionChannelKind;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Per-printing channel link as exposed by admin endpoints. */
+export interface AdminPrintingDistributionChannelResponse {
+  channelId: string;
+  channelSlug: string;
+  distributionNote: string | null;
 }
 
 export interface LanguageResponse {
@@ -423,7 +445,7 @@ export interface MappingPrintingResponse {
   rarity: string;
   artVariant: string;
   isSigned: boolean;
-  promoTypeSlug: string | null;
+  markerSlugs: string[];
   finish: string;
   language: string;
   imageUrl: string | null;

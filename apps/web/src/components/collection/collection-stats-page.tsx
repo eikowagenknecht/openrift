@@ -178,9 +178,9 @@ function useScopeFromFilters(): CompletionScopePreference {
   if (filters.artVariants.length > 0) {
     scope.artVariants = filters.artVariants;
   }
-  if (filters.isPromo === true) {
+  if (filters.hasAnyMarker === true) {
     scope.promos = "only";
-  } else if (filters.isPromo === false) {
+  } else if (filters.hasAnyMarker === false) {
     scope.promos = "exclude";
   }
   if (filters.isSigned !== null) {

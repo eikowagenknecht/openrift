@@ -12,7 +12,7 @@ import { acceptFavoriteNewCard } from "../../../services/accept-gallery.js";
 import {
   acceptPrinting,
   deletePrinting,
-  updatePrintingPromoType,
+  updatePrintingMarkers,
 } from "../../../services/printing-admin.js";
 import { recordPrintingChangeEvent } from "../../../services/record-printing-event.js";
 import type { Variables } from "../../../types.js";
@@ -644,7 +644,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const allowedFields = [
       "artVariant",
       "isSigned",
-      "promoTypeId",
+      "markerSlugs",
       "finish",
       "setId",
       "shortCode",
@@ -836,7 +836,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       "rarity",
       "artVariant",
       "isSigned",
-      "promoTypeId",
+      "markerSlugs",
       "finish",
       "artist",
       "publicCode",
@@ -877,21 +877,20 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const printingBefore = await mut.getFullPrintingById(printingId);
     assertFound(printingBefore, "Printing not found");
 
-    // When promoTypeId changes, update via dedicated function
-    if (field === "promoTypeId") {
-      const { candidateMutations, promoTypes } = c.get("repos");
-      await updatePrintingPromoType(
-        { candidateMutations, promoTypes },
-        printingId,
-        (normalizedValue as string) || null,
-      );
+    // When markerSlugs changes, update via dedicated function (printing_markers
+    // join is the source of truth; the trigger keeps printings.marker_slugs in sync).
+    if (field === "markerSlugs") {
+      const { candidateMutations, markers } = c.get("repos");
+      const newSlugs = Array.isArray(normalizedValue)
+        ? (normalizedValue as string[]).filter((s) => typeof s === "string")
+        : [];
+      await updatePrintingMarkers({ candidateMutations, markers }, printingId, newSlugs);
 
-      // Record change event
-      const oldValue = printingBefore.promoTypeId;
-      const newValue = (normalizedValue as string) || null;
-      if (oldValue !== newValue) {
+      const oldValue = [...printingBefore.markerSlugs].sort();
+      const newValue = [...newSlugs].sort();
+      if (oldValue.join(",") !== newValue.join(",")) {
         await recordPrintingChangeEvent(printingEvents, printingId, [
-          { field: "promoTypeId", from: oldValue, to: newValue },
+          { field: "markerSlugs", from: oldValue, to: newValue },
         ]);
       }
 
@@ -1000,7 +999,8 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       candidateCards,
       candidateMutations,
       printingImages,
-      promoTypes,
+      markers,
+      distributionChannels,
       providerSettings,
       printingEvents,
     } = c.get("repos");
@@ -1010,7 +1010,14 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const result = await acceptFavoriteNewCard(
       c.get("transact"),
       c.get("io"),
-      { candidateCards, candidateMutations, printingImages, promoTypes, printingEvents },
+      {
+        candidateCards,
+        candidateMutations,
+        printingImages,
+        markers,
+        distributionChannels,
+        printingEvents,
+      },
       normalizedName,
       favoriteProviders,
     );
@@ -1027,7 +1034,8 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       candidateCards,
       candidateMutations,
       printingImages,
-      promoTypes,
+      markers,
+      distributionChannels,
       providerSettings,
       printingEvents,
     } = c.get("repos");
@@ -1038,7 +1046,14 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const result = await acceptFavoritePrintingsForCard(
       c.get("transact"),
       c.get("io"),
-      { candidateCards, candidateMutations, printingImages, promoTypes, printingEvents },
+      {
+        candidateCards,
+        candidateMutations,
+        printingImages,
+        markers,
+        distributionChannels,
+        printingEvents,
+      },
       cardSlug,
       favoriteProviders,
     );
@@ -1070,13 +1085,14 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // ── POST /:cardId/accept-printing ─────────────────────────────────────────
   // Create a new printing from admin-selected fields, link all candidates in the group
   .openapi(acceptPrintingRoute, async (c) => {
-    const { candidateMutations, printingImages, promoTypes, printingEvents } = c.get("repos");
+    const { candidateMutations, printingImages, markers, distributionChannels, printingEvents } =
+      c.get("repos");
     const cardId = c.req.valid("param").cardId;
     const { printingFields, candidatePrintingIds } = c.req.valid("json");
 
     const printingId = await acceptPrinting(
       c.get("transact"),
-      { candidateMutations, printingImages, promoTypes, printingEvents },
+      { candidateMutations, printingImages, markers, distributionChannels, printingEvents },
       cardId,
       printingFields,
       candidatePrintingIds,
@@ -1109,13 +1125,14 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
   // ── POST /:cardId/printings ───────────────────────────────────────────────
   // Create a new printing from scratch (no candidate sources) for an existing card
   .openapi(createPrintingRoute, async (c) => {
-    const { candidateMutations, printingImages, promoTypes, printingEvents } = c.get("repos");
+    const { candidateMutations, printingImages, markers, distributionChannels, printingEvents } =
+      c.get("repos");
     const cardId = c.req.valid("param").cardId;
     const printingFields = c.req.valid("json");
 
     const printingId = await acceptPrinting(
       c.get("transact"),
-      { candidateMutations, printingImages, promoTypes, printingEvents },
+      { candidateMutations, printingImages, markers, distributionChannels, printingEvents },
       cardId,
       printingFields,
       [],

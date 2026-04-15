@@ -68,7 +68,7 @@ interface MappingOverviewResult {
       rarity: string;
       artVariant: string;
       isSigned: boolean;
-      promoTypeSlug: string | null;
+      markerSlugs: string[];
       finish: string;
       language: string;
       imageUrl: string | null;
@@ -136,7 +136,7 @@ export async function buildUnifiedMappingsResponse(
         rarity: p.rarity,
         artVariant: p.artVariant,
         isSigned: p.isSigned,
-        promoTypeSlug: p.promoTypeSlug,
+        markerSlugs: p.markerSlugs,
         finish: p.finish,
         language: p.language,
         imageUrl: p.imageUrl,
@@ -184,7 +184,7 @@ export async function buildUnifiedMappingsResponse(
           rarity: p.rarity,
           artVariant: p.artVariant,
           isSigned: p.isSigned,
-          promoTypeSlug: p.promoTypeSlug,
+          markerSlugs: p.markerSlugs,
           finish: p.finish,
           language: p.language,
           imageUrl: p.imageUrl,
@@ -232,7 +232,7 @@ export async function buildUnifiedMappingsResponse(
           rarity: p.rarity,
           artVariant: p.artVariant,
           isSigned: p.isSigned,
-          promoTypeSlug: p.promoTypeSlug,
+          markerSlugs: p.markerSlugs,
           finish: p.finish,
           language: p.language,
           imageUrl: p.imageUrl,

@@ -168,7 +168,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
     getPrintingDifferentiatorsById(id: string) {
       return db
         .selectFrom("printings")
-        .select(["id", "finish", "artVariant", "isSigned", "promoTypeId", "rarity"])
+        .select(["id", "finish", "artVariant", "isSigned", "markerSlugs", "rarity"])
         .where("id", "=", id)
         .executeTakeFirst();
     },
@@ -181,7 +181,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         rarity: string | null;
         artVariant: string | null;
         isSigned: boolean;
-        promoTypeId: string | null;
+        markerSlugs: string[];
         finish: string;
       },
     ): Promise<void> {
@@ -196,7 +196,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
           rarity: target.rarity as Rarity | null,
           artVariant: target.artVariant as ArtVariant | null,
           isSigned: target.isSigned,
-          promoTypeId: target.promoTypeId,
+          markerSlugs: target.markerSlugs,
           finish: target.finish as Finish,
           artist: ps.artist,
           publicCode: ps.publicCode,
@@ -228,19 +228,20 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       return db.selectFrom("printings").selectAll().where("id", "=", id).executeTakeFirst();
     },
 
-    /** @returns A printing's cardId by composite key (shortCode, finish, promoTypeId, language). */
+    /** @returns A printing's cardId by composite key (shortCode, finish, markerSlugs, language). */
     getPrintingCardIdByComposite(
       shortCode: string,
       finish: Finish,
-      promoTypeId: string | null,
+      markerSlugs: string[],
       language: string,
     ): Promise<{ cardId: string } | undefined> {
+      const sortedSlugs = [...markerSlugs].sort();
       return db
         .selectFrom("printings")
         .select("cardId")
         .where("shortCode", "=", shortCode)
         .where("finish", "=", finish)
-        .where("promoTypeId", promoTypeId ? "=" : "is", promoTypeId)
+        .where("markerSlugs", "=", sortedSlugs)
         .where("language", "=", language)
         .executeTakeFirst();
     },
@@ -597,7 +598,10 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
 
     /**
      * Insert or update a printing.
-     * Uses composite unique constraint on (cardId, shortCode, finish, promoTypeId).
+     * Uses composite unique constraint on (cardId, shortCode, finish, markerSlugs, language).
+     * `markerSlugs` is set on the printing directly; callers are responsible for
+     * syncing the `printing_markers` join afterwards (the maintenance trigger
+     * keeps marker_slugs canonical once the join is populated).
      * @returns The new or existing printing UUID.
      */
     async upsertPrinting(values: {
@@ -607,7 +611,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       rarity: Rarity;
       artVariant: ArtVariant;
       isSigned: boolean;
-      promoTypeId: string | null;
+      markerSlugs: string[];
       finish: Finish;
       artist: string;
       publicCode: string;
@@ -617,12 +621,13 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       language: string;
       printedName: string | null;
     }): Promise<string> {
+      const sortedSlugs = [...values.markerSlugs].sort();
       const result = await db
         .insertInto("printings")
-        .values(values)
+        .values({ ...values, markerSlugs: sortedSlugs })
         .onConflict((oc) =>
           oc
-            .columns(["cardId", "shortCode", "finish", "promoTypeId", "language"])
+            .columns(["cardId", "shortCode", "finish", "markerSlugs", "language"])
             .doUpdateSet((eb) => ({
               artist: eb.ref("excluded.artist"),
               publicCode: eb.ref("excluded.publicCode"),

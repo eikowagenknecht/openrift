@@ -39,15 +39,40 @@ type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId
   url: string;
 };
 
-/** Printing row returned by the catalog, with promoType resolved from the join. */
+/**
+ * Printing row returned by the catalog. `markerSlugs` is the printing's
+ * denormalized sorted marker array (empty for unmarked printings).
+ * Marker metadata (label/description) and distribution channels are resolved
+ * separately by the route layer using the catalog's `markersList()` and
+ * the distribution-channels repo.
+ */
 type CatalogPrintingRow = Omit<
   Selectable<PrintingsTable>,
-  "comment" | "createdAt" | "updatedAt" | "promoTypeId"
+  "comment" | "createdAt" | "updatedAt"
 > & {
   printedName: string | null;
   language: string;
-  promoType: { id: string; slug: string; label: string; description: string | null } | null;
+  markerSlugs: string[];
 };
+
+const PRINTING_COLUMNS = [
+  "printings.id",
+  "printings.cardId",
+  "printings.setId",
+  "printings.shortCode",
+  "printings.rarity",
+  "printings.artVariant",
+  "printings.isSigned",
+  "printings.finish",
+  "printings.artist",
+  "printings.publicCode",
+  "printings.printedRulesText",
+  "printings.printedEffectText",
+  "printings.flavorText",
+  "printings.printedName",
+  "printings.language",
+  "printings.markerSlugs",
+] as const;
 
 /**
  * Read-only queries for the card catalog (sets + printings + cards).
@@ -163,62 +188,15 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All printings ordered by set, collector number, finish, with promoType resolved. */
-    async printings(): Promise<CatalogPrintingRow[]> {
-      const rows = await db
+    /** @returns All printings ordered by set, collector number, finish. */
+    printings(): Promise<CatalogPrintingRow[]> {
+      return db
         .selectFrom("printings")
-        .leftJoin("promoTypes", "promoTypes.id", "printings.promoTypeId")
-        .select([
-          "printings.id",
-          "printings.cardId",
-          "printings.setId",
-          "printings.shortCode",
-          "printings.rarity",
-          "printings.artVariant",
-          "printings.isSigned",
-          "printings.finish",
-          "printings.artist",
-          "printings.publicCode",
-          "printings.printedRulesText",
-          "printings.printedEffectText",
-          "printings.flavorText",
-          "printings.printedName",
-          "printings.language",
-          "promoTypes.id as promoTypeId",
-          "promoTypes.slug as promoTypeSlug",
-          "promoTypes.label as promoTypeLabel",
-          "promoTypes.description as promoTypeDescription",
-        ])
+        .select(PRINTING_COLUMNS)
         .orderBy("printings.setId")
         .orderBy("printings.shortCode")
         .orderBy("printings.finish", "desc")
         .execute();
-
-      return rows.map((row) => ({
-        id: row.id,
-        cardId: row.cardId,
-        setId: row.setId,
-        shortCode: row.shortCode,
-        rarity: row.rarity,
-        artVariant: row.artVariant,
-        isSigned: row.isSigned,
-        finish: row.finish,
-        artist: row.artist,
-        publicCode: row.publicCode,
-        printedRulesText: row.printedRulesText,
-        printedEffectText: row.printedEffectText,
-        flavorText: row.flavorText,
-        printedName: row.printedName,
-        language: row.language,
-        promoType: row.promoTypeId
-          ? {
-              id: row.promoTypeId,
-              slug: row.promoTypeSlug ?? "",
-              label: row.promoTypeLabel ?? "",
-              description: row.promoTypeDescription ?? null,
-            }
-          : null,
-      }));
     },
 
     /** @returns All active printing images (front and back), ordered by printing then face. */
@@ -281,63 +259,16 @@ export function catalogRepo(db: Kysely<Database>) {
      * `printings[0]` is the canonical printing for SSR meta tags and the UI's
      * default selected printing.
      */
-    async printingsByCardId(cardId: string): Promise<CatalogPrintingRow[]> {
-      const rows = await db
+    printingsByCardId(cardId: string): Promise<CatalogPrintingRow[]> {
+      return db
         .selectFrom("printings")
-        .leftJoin("promoTypes", "promoTypes.id", "printings.promoTypeId")
-        .select([
-          "printings.id",
-          "printings.cardId",
-          "printings.setId",
-          "printings.shortCode",
-          "printings.rarity",
-          "printings.artVariant",
-          "printings.isSigned",
-          "printings.finish",
-          "printings.artist",
-          "printings.publicCode",
-          "printings.printedRulesText",
-          "printings.printedEffectText",
-          "printings.flavorText",
-          "printings.printedName",
-          "printings.language",
-          "promoTypes.id as promoTypeId",
-          "promoTypes.slug as promoTypeSlug",
-          "promoTypes.label as promoTypeLabel",
-          "promoTypes.description as promoTypeDescription",
-        ])
+        .select(PRINTING_COLUMNS)
         .where("printings.cardId", "=", cardId)
         .orderBy(sql`(printings.language = 'EN') DESC`)
         .orderBy("printings.setId")
         .orderBy("printings.shortCode")
         .orderBy("printings.finish", "desc")
         .execute();
-
-      return rows.map((row) => ({
-        id: row.id,
-        cardId: row.cardId,
-        setId: row.setId,
-        shortCode: row.shortCode,
-        rarity: row.rarity,
-        artVariant: row.artVariant,
-        isSigned: row.isSigned,
-        finish: row.finish,
-        artist: row.artist,
-        publicCode: row.publicCode,
-        printedRulesText: row.printedRulesText,
-        printedEffectText: row.printedEffectText,
-        flavorText: row.flavorText,
-        printedName: row.printedName,
-        language: row.language,
-        promoType: row.promoTypeId
-          ? {
-              id: row.promoTypeId,
-              slug: row.promoTypeSlug ?? "",
-              label: row.promoTypeLabel ?? "",
-              description: row.promoTypeDescription ?? null,
-            }
-          : null,
-      }));
     },
 
     /** @returns Printing images for a given card's printings. */
@@ -411,61 +342,14 @@ export function catalogRepo(db: Kysely<Database>) {
     },
 
     /** @returns All printings for a given set ID. */
-    async printingsBySetId(setId: string): Promise<CatalogPrintingRow[]> {
-      const rows = await db
+    printingsBySetId(setId: string): Promise<CatalogPrintingRow[]> {
+      return db
         .selectFrom("printings")
-        .leftJoin("promoTypes", "promoTypes.id", "printings.promoTypeId")
-        .select([
-          "printings.id",
-          "printings.cardId",
-          "printings.setId",
-          "printings.shortCode",
-          "printings.rarity",
-          "printings.artVariant",
-          "printings.isSigned",
-          "printings.finish",
-          "printings.artist",
-          "printings.publicCode",
-          "printings.printedRulesText",
-          "printings.printedEffectText",
-          "printings.flavorText",
-          "printings.printedName",
-          "printings.language",
-          "promoTypes.id as promoTypeId",
-          "promoTypes.slug as promoTypeSlug",
-          "promoTypes.label as promoTypeLabel",
-          "promoTypes.description as promoTypeDescription",
-        ])
+        .select(PRINTING_COLUMNS)
         .where("printings.setId", "=", setId)
         .orderBy("printings.shortCode")
         .orderBy("printings.finish", "desc")
         .execute();
-
-      return rows.map((row) => ({
-        id: row.id,
-        cardId: row.cardId,
-        setId: row.setId,
-        shortCode: row.shortCode,
-        rarity: row.rarity,
-        artVariant: row.artVariant,
-        isSigned: row.isSigned,
-        finish: row.finish,
-        artist: row.artist,
-        publicCode: row.publicCode,
-        printedRulesText: row.printedRulesText,
-        printedEffectText: row.printedEffectText,
-        flavorText: row.flavorText,
-        printedName: row.printedName,
-        language: row.language,
-        promoType: row.promoTypeId
-          ? {
-              id: row.promoTypeId,
-              slug: row.promoTypeSlug ?? "",
-              label: row.promoTypeLabel ?? "",
-              description: row.promoTypeDescription ?? null,
-            }
-          : null,
-      }));
     },
 
     /** @returns Cards matching the given IDs. */
@@ -571,12 +455,12 @@ export function catalogRepo(db: Kysely<Database>) {
       );
     },
 
-    /** @returns All promo types, ordered by label. */
-    promoTypesList(): Promise<
+    /** @returns All markers, ordered by sort order then label. */
+    markersList(): Promise<
       { id: string; slug: string; label: string; description: string | null }[]
     > {
       return db
-        .selectFrom("promoTypes")
+        .selectFrom("markers")
         .select(["id", "slug", "label", "description"])
         .orderBy("sortOrder")
         .orderBy("label")
@@ -600,60 +484,27 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute() as Promise<CatalogPrintingImageRow[]>;
     },
 
-    /** @returns All printings that have a promo type assigned. */
-    async promoPrintings(): Promise<CatalogPrintingRow[]> {
-      const rows = await db
+    /**
+     * @returns All printings distributed through at least one event channel,
+     * ordered by their first event channel's label then short code.
+     */
+    eventDistributedPrintings(): Promise<CatalogPrintingRow[]> {
+      return db
         .selectFrom("printings")
-        .innerJoin("promoTypes", "promoTypes.id", "printings.promoTypeId")
-        .select([
-          "printings.id",
-          "printings.cardId",
-          "printings.setId",
-          "printings.shortCode",
-          "printings.rarity",
-          "printings.artVariant",
-          "printings.isSigned",
-          "printings.finish",
-          "printings.artist",
-          "printings.publicCode",
-          "printings.printedRulesText",
-          "printings.printedEffectText",
-          "printings.flavorText",
-          "printings.printedName",
-          "printings.language",
-          "promoTypes.id as promoTypeId",
-          "promoTypes.slug as promoTypeSlug",
-          "promoTypes.label as promoTypeLabel",
-          "promoTypes.description as promoTypeDescription",
-        ])
-        .orderBy("promoTypes.label")
+        .select(PRINTING_COLUMNS)
+        .where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom("printingDistributionChannels as pdc")
+              .innerJoin("distributionChannels as dc", "dc.id", "pdc.channelId")
+              .select(sql`1`.as("one"))
+              .where("dc.kind", "=", "event")
+              .whereRef("pdc.printingId", "=", "printings.id"),
+          ),
+        )
         .orderBy("printings.shortCode")
         .orderBy("printings.finish", "desc")
         .execute();
-
-      return rows.map((row) => ({
-        id: row.id,
-        cardId: row.cardId,
-        setId: row.setId,
-        shortCode: row.shortCode,
-        rarity: row.rarity,
-        artVariant: row.artVariant,
-        isSigned: row.isSigned,
-        finish: row.finish,
-        artist: row.artist,
-        publicCode: row.publicCode,
-        printedRulesText: row.printedRulesText,
-        printedEffectText: row.printedEffectText,
-        flavorText: row.flavorText,
-        printedName: row.printedName,
-        language: row.language,
-        promoType: {
-          id: row.promoTypeId,
-          slug: row.promoTypeSlug ?? "",
-          label: row.promoTypeLabel ?? "",
-          description: row.promoTypeDescription ?? null,
-        },
-      }));
     },
 
     /** @returns All card sitemap entries (slug + updatedAt). */

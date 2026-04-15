@@ -97,13 +97,13 @@ describe("candidateCardsRepo", () => {
     expect(await candidateCardsRepo(createMockDb([])).candidatePrintingsForDetail([])).toEqual([]);
   });
 
-  it("promoTypeSlugsByIds returns slugs", async () => {
+  it("markerSlugsByIds returns slugs", async () => {
     const db = createMockDb([{ id: "pt-1", slug: "promo" }]);
-    expect(await candidateCardsRepo(db).promoTypeSlugsByIds(["pt-1"])).toHaveLength(1);
+    expect(await candidateCardsRepo(db).markerSlugsByIds(["pt-1"])).toHaveLength(1);
   });
 
-  it("promoTypeSlugsByIds returns [] for empty input", async () => {
-    expect(await candidateCardsRepo(createMockDb([])).promoTypeSlugsByIds([])).toEqual([]);
+  it("markerSlugsByIds returns [] for empty input", async () => {
+    expect(await candidateCardsRepo(createMockDb([])).markerSlugsByIds([])).toEqual([]);
   });
 
   it("printingImagesForDetail returns detail fields", async () => {

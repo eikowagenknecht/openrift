@@ -72,7 +72,21 @@ function PromosPage() {
     setSelectedLanguages(allSelected ? new Set() : new Set(presentLanguages));
   };
 
-  const printingsByPromo = Map.groupBy(data.printings, (p) => p.promoType?.id ?? "");
+  // Index printings by every event channel they were distributed through.
+  const printingsByChannel = new Map<string, Printing[]>();
+  for (const printing of data.printings) {
+    for (const link of printing.distributionChannels) {
+      if (link.channel.kind !== "event") {
+        continue;
+      }
+      const list = printingsByChannel.get(link.channel.id);
+      if (list) {
+        list.push(printing);
+      } else {
+        printingsByChannel.set(link.channel.id, [printing]);
+      }
+    }
+  }
 
   const handleCardClick = (printing: Printing) => {
     void navigate({
@@ -88,13 +102,13 @@ function PromosPage() {
         setId: a.setId,
         shortCode: a.shortCode,
         finish: a.finish,
-        promoTypeSlug: a.promoType?.slug,
+        markerSlugs: a.markers.map((m) => m.slug),
       },
       {
         setId: b.setId,
         shortCode: b.shortCode,
         finish: b.finish,
-        promoTypeSlug: b.promoType?.slug,
+        markerSlugs: b.markers.map((m) => m.slug),
       },
     );
     if (canonical !== 0) {
@@ -163,14 +177,14 @@ function PromosPage() {
         </div>
       </div>
 
-      {data.promoTypes.length === 0 && (
-        <p className="text-muted-foreground text-sm">No promo types yet.</p>
+      {data.channels.length === 0 && (
+        <p className="text-muted-foreground text-sm">No event channels yet.</p>
       )}
 
       <div className="space-y-10">
-        {data.promoTypes.map((promoType) => {
-          const allPromoPrintings = printingsByPromo.get(promoType.id) ?? [];
-          const filteredPrintings = allPromoPrintings.filter((p) =>
+        {data.channels.map((channel) => {
+          const allChannelPrintings = printingsByChannel.get(channel.id) ?? [];
+          const filteredPrintings = allChannelPrintings.filter((p) =>
             selectedLanguages.has(p.language),
           );
           if (filteredPrintings.length === 0) {
@@ -179,12 +193,12 @@ function PromosPage() {
           const sortedPrintings = filteredPrintings.toSorted(compareForDisplay);
 
           return (
-            <section key={promoType.id}>
+            <section key={channel.id}>
               <div className="mb-3">
-                <h2 className="text-xl font-semibold">{promoType.label}</h2>
-                {promoType.description && (
+                <h2 className="text-xl font-semibold">{channel.label}</h2>
+                {channel.description && (
                   <MarkdownText
-                    text={promoType.description}
+                    text={channel.description}
                     className="text-muted-foreground text-sm"
                   />
                 )}

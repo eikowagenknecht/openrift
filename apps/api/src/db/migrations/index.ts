@@ -36,6 +36,7 @@ import * as m087 from "./087-promo-type-sort-order.js";
 import * as m088 from "./088-printings-variant-include-language.js";
 import * as m089 from "./089-marketplace-staging-norm-name.js";
 import * as m090 from "./090-cardmarket-headline-market.js";
+import * as m091 from "./091-promos-rework.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -131,4 +132,5 @@ export const migrations: Record<string, Migration> = {
   "088-printings-variant-include-language": m088,
   "089-marketplace-staging-norm-name": m089,
   "090-cardmarket-headline-market": m090,
+  "091-promos-rework": m091,
 };

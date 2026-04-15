@@ -14,6 +14,7 @@ import { z } from "zod";
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 import { toCardImageVariants } from "../../utils/card-image.js";
+import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
 const cardSlugParamSchema = z.object({ cardSlug: z.string() });
 
@@ -42,7 +43,8 @@ export const cardsRoute = cardsApp
    */
   .openapi(getCardDetail, async (c) => {
     const { cardSlug } = c.req.valid("param");
-    const { catalog, marketplace } = c.get("repos");
+    const repos = c.get("repos");
+    const { catalog, marketplace } = repos;
 
     const card = await catalog.cardBySlug(cardSlug);
     if (!card) {
@@ -59,10 +61,12 @@ export const cardsRoute = cardsApp
     // Collect unique set IDs from printings
     const setIds = [...new Set(printingRows.map((p) => p.setId))];
     const printingIds = printingRows.map((p) => p.id);
-    const [sets, priceRows] = await Promise.all([
+    const [sets, priceRows, markerChannelMaps] = await Promise.all([
       catalog.setsByIds(setIds),
       marketplace.latestPricesForPrintings(printingIds),
+      loadMarkerAndChannelMaps(repos, printingIds),
     ]);
+    const { markerBySlug, channelsByPrinting } = markerChannelMaps;
 
     // Per-printing price map. Returned as a sibling field on the response so
     // SSR head() can synchronously read it for Schema.org Product/Offer JSON-LD;
@@ -102,9 +106,11 @@ export const cardsRoute = cardsApp
       })),
     };
 
-    const printings: CatalogPrintingResponse[] = printingRows.map((row) => ({
-      ...row,
-      images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({
+    const printings: CatalogPrintingResponse[] = printingRows.map(({ markerSlugs, ...rest }) => ({
+      ...rest,
+      markers: resolveMarkers(markerSlugs, markerBySlug),
+      distributionChannels: channelsByPrinting.get(rest.id) ?? [],
+      images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
         face: i.face,
         ...toCardImageVariants(i.url),
       })),

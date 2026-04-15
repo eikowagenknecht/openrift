@@ -90,8 +90,10 @@ export function useFilterValues() {
     finishes: filterState.finishes as Finish[],
     isOwned: filterState.owned === "true" ? true : filterState.owned === "false" ? false : null,
     isSigned: filterState.signed === "true" ? true : filterState.signed === "false" ? false : null,
-    isPromo: filterState.promo === "true" ? true : filterState.promo === "false" ? false : null,
-    promoTypes: [],
+    hasAnyMarker:
+      filterState.promo === "true" ? true : filterState.promo === "false" ? false : null,
+    markerSlugs: [],
+    distributionChannelSlugs: [],
     isBanned: filterState.banned === "true" ? true : filterState.banned === "false" ? false : null,
     hasErrata: filterState.errata === "true" ? true : filterState.errata === "false" ? false : null,
     energy: { min: filterState.energyMin, max: filterState.energyMax },

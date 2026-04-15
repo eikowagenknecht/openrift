@@ -76,7 +76,7 @@ interface MockPrinting {
   artVariant?: string;
   isSigned?: boolean;
   language?: string;
-  promoTypeId?: string | null;
+  markerSlugs?: string[];
 }
 
 interface MockReposConfig {
@@ -137,7 +137,7 @@ function createMockRepos(config: MockReposConfig = {}) {
       artVariant: "normal",
       isSigned: false,
       language: src.language,
-      promoTypeId: null,
+      markerSlugs: [],
     }));
 
   const printings = synthesized.map((p) => ({
@@ -150,7 +150,7 @@ function createMockRepos(config: MockReposConfig = {}) {
     artVariant: p.artVariant ?? "normal",
     isSigned: p.isSigned ?? false,
     language: p.language ?? "EN",
-    promoTypeId: p.promoTypeId ?? null,
+    markerSlugs: p.markerSlugs ?? [],
   }));
 
   const repos = {

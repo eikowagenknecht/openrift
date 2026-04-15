@@ -213,7 +213,8 @@ export async function ingestCandidates(
     const allPrintings = await repo.allPrintingKeys();
     const printingByKey = new Map<string, string>();
     for (const p of allPrintings) {
-      printingByKey.set(`${p.shortCode}:${p.finish}:${p.promoTypeId ?? ""}:${p.language}`, p.id);
+      const slugKey = [...p.markerSlugs].sort().join(",");
+      printingByKey.set(`${p.shortCode}:${p.finish}:${slugKey}:${p.language}`, p.id);
     }
 
     // 1e. All existing candidate_printings for candidate_cards owned by this provider.
@@ -255,9 +256,7 @@ export async function ingestCandidates(
       linkOverrides.set(`${r.externalId}:${r.finish}`, r.printingId);
     }
 
-    // 1h. Default promo type ID (for is_promo=true in upload data)
-    const defaultPromoType = await trxRepos.promoTypes.getBySlug("promo");
-    const defaultPromoTypeId = defaultPromoType?.id ?? null;
+    // 1h. (no-op — markers come straight from the upload payload as slugs)
 
     // ── Phase 2: Process each card (writes only) ───────────────────────────
 
@@ -397,9 +396,11 @@ export async function ingestCandidates(
           continue;
         }
 
+        const sortedSlugs = [...(p.marker_slugs ?? [])].sort();
+        const slugKey = sortedSlugs.join(",");
         const printingKey =
           effectiveCardId && p.rarity && p.finish
-            ? `${p.short_code}:${p.finish}:${p.is_promo ? (defaultPromoTypeId ?? "") : ""}:${p.language ?? "EN"}`
+            ? `${p.short_code}:${p.finish}:${slugKey}:${p.language ?? "EN"}`
             : null;
 
         // Check for a manual link override (survives delete + re-upload)
@@ -417,7 +418,7 @@ export async function ingestCandidates(
           rarity: p.rarity,
           artVariant: p.art_variant,
           isSigned: p.is_signed,
-          promoTypeId: p.is_promo ? defaultPromoTypeId : null,
+          markerSlugs: sortedSlugs,
           finish: p.finish,
           artist: p.artist,
           publicCode: p.public_code,

@@ -9,6 +9,7 @@ import { etag } from "hono/etag";
 
 import type { Variables } from "../../types.js";
 import { toCardImageVariants } from "../../utils/card-image.js";
+import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
 const getCatalog = createRoute({
   method: "get",
@@ -37,7 +38,8 @@ export const catalogRoute = catalogApp
    * Clients compose the two via the `useCards()` + `usePrices()` hook pair.
    */
   .openapi(getCatalog, async (c) => {
-    const { catalog } = c.get("repos");
+    const repos = c.get("repos");
+    const { catalog } = repos;
 
     const [sets, cardRows, printingRows, imageRows, banRows, errataRows, totalCopies] =
       await Promise.all([
@@ -49,6 +51,11 @@ export const catalogRoute = catalogApp
         catalog.cardErrata(),
         catalog.totalCopies(),
       ]);
+
+    const { markerBySlug, channelsByPrinting } = await loadMarkerAndChannelMaps(
+      repos,
+      printingRows.map((p) => p.id),
+    );
 
     // Group active bans by card
     const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
@@ -85,9 +92,11 @@ export const catalogRoute = catalogApp
     const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
     const printings: Record<string, CatalogResponsePrintingValue> = {};
-    for (const { id, ...rest } of printingRows) {
+    for (const { id, markerSlugs, ...rest } of printingRows) {
       printings[id] = {
         ...rest,
+        markers: resolveMarkers(markerSlugs, markerBySlug),
+        distributionChannels: channelsByPrinting.get(id) ?? [],
         images: (imagesByPrinting.get(id) ?? []).map((i) => ({
           face: i.face,
           ...toCardImageVariants(i.url),

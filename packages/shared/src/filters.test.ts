@@ -33,7 +33,8 @@ function makePrinting(
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,
-    promoType: null,
+    markers: [],
+    distributionChannels: [],
     finish: "normal",
     images: [{ face: "front", full: "thumb-full.webp", thumbnail: "thumb-400w.webp" }],
     artist: "Jane Doe",
@@ -80,8 +81,9 @@ function emptyFilters(overrides: Partial<CardFilters> = {}): CardFilters {
     artVariants: [],
     finishes: [],
     isSigned: null,
-    isPromo: null,
-    promoTypes: [],
+    hasAnyMarker: null,
+    markerSlugs: [],
+    distributionChannelSlugs: [],
     isBanned: null,
     hasErrata: null,
     ...overrides,
@@ -576,12 +578,12 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Signed Card");
   });
 
-  // -- promoType filter --
+  // -- markers filter --
 
-  it("filters by isPromo=true", () => {
+  it("filters by hasAnyMarker=true", () => {
     const withPromo = [
       makePrinting({
-        promoType: { id: "1", slug: "promo", label: "Promo", description: null },
+        markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
         cardId: "p",
         card: {
           name: "Promo Card",
@@ -598,7 +600,7 @@ describe("filterCards", () => {
         },
       }),
       makePrinting({
-        promoType: null,
+        markers: [],
         cardId: "r",
         card: {
           name: "Regular Card",
@@ -615,7 +617,7 @@ describe("filterCards", () => {
         },
       }),
     ];
-    const result = filterCards(withPromo, emptyFilters({ isPromo: true }));
+    const result = filterCards(withPromo, emptyFilters({ hasAnyMarker: true }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Promo Card");
   });
@@ -779,22 +781,22 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Unsigned Card");
   });
 
-  // -- Edge cases: isPromo filter set to false --
+  // -- Edge cases: hasAnyMarker filter set to false --
 
-  it("filters by isPromo=false excludes promo cards", () => {
+  it("filters by hasAnyMarker=false excludes marked cards", () => {
     const cards = [
       makePrinting({
-        promoType: { id: "1", slug: "promo", label: "Promo", description: null },
+        markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
         cardId: "p1",
         card: { name: "Promo Card" },
       }),
       makePrinting({
-        promoType: null,
+        markers: [],
         cardId: "p2",
         card: { name: "Regular Card" },
       }),
     ];
-    const result = filterCards(cards, emptyFilters({ isPromo: false }));
+    const result = filterCards(cards, emptyFilters({ hasAnyMarker: false }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Regular Card");
   });
@@ -1010,77 +1012,93 @@ describe("filterCards", () => {
     expect(result[0].card.name).toBe("Fire Dragon");
   });
 
-  // -- promoType filter: detailed branch coverage --
+  // -- markers / channels filter: detailed branch coverage --
 
-  it("filters by promoTypes when isPromo is null (type-only filter)", () => {
+  it("filters by distributionChannelSlugs (channel-only filter)", () => {
+    const channelNexus = {
+      id: "1",
+      slug: "nexus-night",
+      label: "Nexus Night",
+      description: null,
+      kind: "event" as const,
+    };
+    const channelLaunch = {
+      id: "2",
+      slug: "launch-day",
+      label: "Launch Day",
+      description: null,
+      kind: "event" as const,
+    };
     const cards = [
       makePrinting({
-        promoType: { id: "1", slug: "nexus-night", label: "Nexus Night", description: null },
+        markers: [{ id: "m", slug: "promo", label: "Promo", description: null }],
+        distributionChannels: [{ channel: channelNexus, distributionNote: null }],
         cardId: "p1",
         card: { name: "Nexus Card" },
       }),
       makePrinting({
-        promoType: { id: "2", slug: "launch-day", label: "Launch Day", description: null },
+        markers: [{ id: "m", slug: "promo", label: "Promo", description: null }],
+        distributionChannels: [{ channel: channelLaunch, distributionNote: null }],
         cardId: "p2",
         card: { name: "Launch Card" },
       }),
       makePrinting({
-        promoType: null,
+        markers: [],
+        distributionChannels: [],
         cardId: "p3",
         card: { name: "Regular Card" },
       }),
     ];
-    // isPromo null + promoTypes = filter by slug only
-    const result = filterCards(cards, emptyFilters({ isPromo: null, promoTypes: ["nexus-night"] }));
+    const result = filterCards(cards, emptyFilters({ distributionChannelSlugs: ["nexus-night"] }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Nexus Card");
   });
 
-  it("filters by isPromo=true with specific promoTypes", () => {
+  it("filters by hasAnyMarker=true with specific markerSlugs", () => {
     const cards = [
       makePrinting({
-        promoType: { id: "1", slug: "nexus-night", label: "Nexus Night", description: null },
+        markers: [{ id: "1", slug: "top-8", label: "Top 8", description: null }],
         cardId: "p1",
-        card: { name: "Nexus Card" },
+        card: { name: "Top 8 Card" },
       }),
       makePrinting({
-        promoType: { id: "2", slug: "launch-day", label: "Launch Day", description: null },
+        markers: [{ id: "2", slug: "promo", label: "Promo", description: null }],
         cardId: "p2",
-        card: { name: "Launch Card" },
+        card: { name: "Promo Card" },
       }),
     ];
-    const result = filterCards(cards, emptyFilters({ isPromo: true, promoTypes: ["nexus-night"] }));
+    const result = filterCards(cards, emptyFilters({ hasAnyMarker: true, markerSlugs: ["top-8"] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Nexus Card");
+    expect(result[0].card.name).toBe("Top 8 Card");
   });
 
-  it("filters by isPromo=true with empty promoTypes returns all promos", () => {
+  it("filters by hasAnyMarker=true with empty markerSlugs returns all marked", () => {
     const cards = [
       makePrinting({
-        promoType: { id: "1", slug: "nexus-night", label: "Nexus Night", description: null },
+        markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
         cardId: "p1",
-        card: { name: "Nexus Card" },
+        card: { name: "Promo Card" },
       }),
       makePrinting({
-        promoType: null,
+        markers: [],
         cardId: "p2",
         card: { name: "Regular Card" },
       }),
     ];
-    const result = filterCards(cards, emptyFilters({ isPromo: true, promoTypes: [] }));
+    const result = filterCards(cards, emptyFilters({ hasAnyMarker: true, markerSlugs: [] }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Nexus Card");
+    expect(result[0].card.name).toBe("Promo Card");
   });
 
-  it("promoTypes filter excludes non-promo cards when isPromo is null", () => {
+  it("markerSlugs filter excludes unmarked cards", () => {
     const cards = [
       makePrinting({
-        promoType: null,
+        markers: [],
         cardId: "r",
         card: { name: "Regular Card" },
       }),
     ];
-    const result = filterCards(cards, emptyFilters({ isPromo: null, promoTypes: ["nexus-night"] }));
+    const result = filterCards(cards, emptyFilters({ markerSlugs: ["promo"] }));
     expect(result).toHaveLength(0);
   });
 
@@ -1296,20 +1314,22 @@ describe("getAvailableFilters", () => {
     expect(result.hasSigned).toBe(false);
   });
 
-  it("computes hasPromo true when promo printings exist", () => {
+  it("computes hasAnyMarker true when marked printings exist", () => {
     const result = getAvailableFilters([
-      makePrinting({ promoType: { id: "1", slug: "promo", label: "Promo", description: null } }),
-      makePrinting({ promoType: null }),
+      makePrinting({
+        markers: [{ id: "1", slug: "promo", label: "Promo", description: null }],
+      }),
+      makePrinting({ markers: [] }),
     ]);
-    expect(result.hasPromo).toBe(true);
-    expect(result.promoTypes).toHaveLength(1);
-    expect(result.promoTypes[0].slug).toBe("promo");
+    expect(result.hasAnyMarker).toBe(true);
+    expect(result.markers).toHaveLength(1);
+    expect(result.markers[0].slug).toBe("promo");
   });
 
-  it("computes hasPromo false when no promo printings", () => {
-    const result = getAvailableFilters([makePrinting({ promoType: null })]);
-    expect(result.hasPromo).toBe(false);
-    expect(result.promoTypes).toHaveLength(0);
+  it("computes hasAnyMarker false when no marked printings", () => {
+    const result = getAvailableFilters([makePrinting({ markers: [] })]);
+    expect(result.hasAnyMarker).toBe(false);
+    expect(result.markers).toHaveLength(0);
   });
 
   it("handles printings with null energy/might/power", () => {

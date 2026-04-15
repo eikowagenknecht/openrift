@@ -68,7 +68,7 @@ function formatCandidatePrinting(
     | "rarity"
     | "artVariant"
     | "isSigned"
-    | "promoTypeId"
+    | "markerSlugs"
     | "finish"
     | "artist"
     | "publicCode"
@@ -402,29 +402,12 @@ async function buildDetailResponse(
     }
   }
 
-  // Resolve promo type IDs → slugs for computing expected printing IDs
-  const promoTypeIds = [
-    ...new Set(
-      [
-        ...printings.map((p) => p.promoTypeId),
-        ...candidatePrintings.map((cp) => cp.promoTypeId),
-      ].filter(Boolean),
-    ),
-  ] as string[];
-  const promoTypeRows = promoTypeIds.length > 0 ? await repo.promoTypeSlugsByIds(promoTypeIds) : [];
-  const promoSlugMap = new Map(promoTypeRows.map((pt) => [pt.id, pt.slug]));
-
   const formattedPrintings = printings.map(({ setId, ...p }) => ({
     ...p,
     setId: setSlugMap.get(setId) ?? setId,
     setName: setNameMap.get(setId) ?? null,
     setSlug: setSlugMap.get(setId) ?? setId,
-    expectedPrintingId: formatPrintingLabel(
-      p.shortCode,
-      p.promoTypeId ? (promoSlugMap.get(p.promoTypeId) ?? null) : null,
-      p.finish,
-      p.language,
-    ),
+    expectedPrintingId: formatPrintingLabel(p.shortCode, p.markerSlugs, p.finish, p.language),
   }));
 
   // Images for accepted printings — used to show thumbnails and manage rehosting
@@ -482,7 +465,8 @@ async function buildDetailResponse(
   const unlinkedCP = candidatePrintings.filter((cp) => !cp.printingId);
   const cpGroupMap = new Map<string, typeof unlinkedCP>();
   for (const cp of unlinkedCP) {
-    const key = `${cp.shortCode}|${cp.finish ?? ""}|${cp.promoTypeId ?? ""}|${cp.language ?? ""}`;
+    const slugKey = [...(cp.markerSlugs ?? [])].sort().join(",");
+    const key = `${cp.shortCode}|${cp.finish ?? ""}|${slugKey}|${cp.language ?? ""}`;
     let arr = cpGroupMap.get(key);
     if (!arr) {
       arr = [];
@@ -495,17 +479,20 @@ async function buildDetailResponse(
   // the admin can accept as new printings or match to existing ones
   const filteredGroups: CandidatePrintingGroupResponse[] = [];
   for (const [, groupCandidates] of cpGroupMap) {
-    // All candidates in a group share the same variant traits; use the first as representative
     const first = groupCandidates[0];
     const mcShortCode = mostCommonValue(groupCandidates.map((s) => s.shortCode));
     const finish = resolveFinish(first.finish, first.rarity);
-    const promoTypeSlug = first.promoTypeId ? (promoSlugMap.get(first.promoTypeId) ?? null) : null;
     const language = mostCommonValue(groupCandidates.map((s) => s.language ?? "")) || null;
 
     filteredGroups.push({
       mostCommonShortCode: mcShortCode,
       shortCodes: groupCandidates.map((s) => s.id),
-      expectedPrintingId: formatPrintingLabel(mcShortCode, promoTypeSlug, finish, language),
+      expectedPrintingId: formatPrintingLabel(
+        mcShortCode,
+        first.markerSlugs ?? [],
+        finish,
+        language,
+      ),
       language,
     });
   }

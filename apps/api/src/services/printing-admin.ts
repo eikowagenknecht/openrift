@@ -6,9 +6,10 @@ import type { Transact } from "../deps.js";
 import { AppError, ERROR_CODES } from "../errors.js";
 import type { Io } from "../io.js";
 import type { candidateMutationsRepo } from "../repositories/candidate-mutations.js";
+import type { distributionChannelsRepo } from "../repositories/distribution-channels.js";
+import type { markersRepo } from "../repositories/markers.js";
 import type { printingEventsRepo } from "../repositories/printing-events.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
-import type { promoTypesRepo } from "../repositories/promo-types.js";
 import { assertFound } from "../utils/assertions.js";
 import { deleteRehostFiles } from "./image-rehost.js";
 import { recordNewPrintingEvent } from "./record-printing-event.js";
@@ -16,49 +17,86 @@ import { recordNewPrintingEvent } from "./record-printing-event.js";
 type CandidateMutationsRepo = ReturnType<typeof candidateMutationsRepo>;
 type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
-type PromoTypesRepo = ReturnType<typeof promoTypesRepo>;
+type MarkersRepo = ReturnType<typeof markersRepo>;
+type DistributionChannelsRepo = ReturnType<typeof distributionChannelsRepo>;
 
-// ── updatePrintingPromoType ──────────────────────────────────────────────────
+// ── updatePrintingMarkers ────────────────────────────────────────────────────
 
 /**
- * Update a printing's promoTypeId.
- * @returns Resolves when the printing has been updated.
+ * Replace a printing's marker set. Looks up marker ids by slug, syncs the
+ * `printing_markers` join table, then lets the maintenance trigger update
+ * `printings.marker_slugs`.
  */
-export async function updatePrintingPromoType(
-  repos: {
-    candidateMutations: CandidateMutationsRepo;
-    promoTypes: PromoTypesRepo;
-  },
+export async function updatePrintingMarkers(
+  repos: { candidateMutations: CandidateMutationsRepo; markers: MarkersRepo },
   printingId: string,
-  newPromoTypeId: string | null,
+  newSlugs: readonly string[],
 ): Promise<void> {
   const printing = await repos.candidateMutations.getPrintingById(printingId);
   assertFound(printing, "Printing not found");
 
-  if (newPromoTypeId) {
-    const pt = await repos.promoTypes.getById(newPromoTypeId);
-    if (!pt) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Invalid promoTypeId");
-    }
+  if (newSlugs.length === 0) {
+    await repos.markers.setForPrinting(printingId, []);
+    return;
   }
 
-  await repos.candidateMutations.updatePrintingById(printing.id, {
-    promoTypeId: newPromoTypeId,
-  });
+  const markerRows = await repos.markers.listBySlugs(newSlugs);
+  const known = new Set(markerRows.map((m) => m.slug));
+  const missing = newSlugs.filter((s) => !known.has(s));
+  if (missing.length > 0) {
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      `Unknown marker slug(s): ${missing.join(", ")}`,
+    );
+  }
+
+  await repos.markers.setForPrinting(
+    printingId,
+    markerRows.map((m) => m.id),
+  );
+}
+
+/**
+ * Replace a printing's distribution channel set by slug.
+ */
+export async function updatePrintingDistributionChannels(
+  repos: {
+    candidateMutations: CandidateMutationsRepo;
+    distributionChannels: DistributionChannelsRepo;
+  },
+  printingId: string,
+  newSlugs: readonly string[],
+): Promise<void> {
+  const printing = await repos.candidateMutations.getPrintingById(printingId);
+  assertFound(printing, "Printing not found");
+
+  if (newSlugs.length === 0) {
+    await repos.distributionChannels.setForPrinting(printingId, []);
+    return;
+  }
+
+  const channelRows = await repos.distributionChannels.listBySlugs(newSlugs);
+  const known = new Set(channelRows.map((c) => c.slug));
+  const missing = newSlugs.filter((s) => !known.has(s));
+  if (missing.length > 0) {
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      `Unknown distribution channel slug(s): ${missing.join(", ")}`,
+    );
+  }
+
+  await repos.distributionChannels.setForPrinting(
+    printingId,
+    channelRows.map((c) => ({ channelId: c.id })),
+  );
 }
 
 // ── deletePrinting ──────────────────────────────────────────────────────────
 
 /**
- * Delete a printing and clean up all related data:
- * - Unlink candidate_printings (set printing_id to null)
- * - Delete printing_images rows
- * - Delete printing_link_overrides rows
- * - Delete the printing itself
- * - Clean up rehosted image files on disk
- *
- * Throws if the printing has user copies, wish-list items, or other
- * hard references (the DB FK constraints will reject the delete).
+ * Delete a printing and clean up all related data.
  */
 export async function deletePrinting(
   transact: Transact,
@@ -68,36 +106,25 @@ export async function deletePrinting(
 ): Promise<void> {
   const mut = repos.candidateMutations;
 
-  // Validate outside the transaction
   const printing = await mut.getPrintingById(printingId);
   assertFound(printing, "Printing not found");
 
   const deletedImageFileIds = await transact(async (trxRepos) => {
     const trxMut = trxRepos.candidateMutations;
 
-    // Unlink candidate_printings so they become "unmatched" again
     await trxMut.unlinkCandidatePrintingsByPrintingId(printing.id);
-
-    // Delete printing_images rows and collect imageFileIds for cleanup
     const images = await trxMut.deletePrintingImagesByPrintingId(printing.id);
-
-    // Delete link overrides
     await trxMut.deletePrintingLinkOverridesById(printing.id);
-
-    // Delete the printing itself (will throw if FK-constrained by copies, etc.)
     await trxMut.deletePrintingById(printing.id);
 
     return images.map((img) => img.imageFileId);
   });
 
-  // Clean up orphaned image_files and their disk files (outside transaction, best-effort)
   for (const imageFileId of deletedImageFileIds) {
-    // Look up the image_file to get its rehostedUrl before potentially deleting it
     const imageFile = await repos.candidateMutations.getImageFileById(imageFileId);
     if (!imageFile) {
       continue;
     }
-    // Check if any other printing_images still reference this image_file
     const stillReferenced = await repos.candidateMutations.isImageFileReferenced(imageFileId);
     if (!stillReferenced) {
       if (imageFile.rehostedUrl) {
@@ -117,7 +144,8 @@ interface AcceptPrintingFields {
   rarity?: string | null;
   artVariant?: string;
   isSigned?: boolean;
-  promoTypeId?: string | null;
+  markerSlugs?: string[];
+  distributionChannelSlugs?: string[];
   finish?: string;
   artist: string;
   publicCode: string;
@@ -138,7 +166,8 @@ export async function acceptPrinting(
   repos: {
     candidateMutations: CandidateMutationsRepo;
     printingImages: PrintingImagesRepo;
-    promoTypes: PromoTypesRepo;
+    markers: MarkersRepo;
+    distributionChannels: DistributionChannelsRepo;
     printingEvents?: PrintingEventsRepo;
   },
   cardId: string,
@@ -151,27 +180,42 @@ export async function acceptPrinting(
 
   const mut = repos.candidateMutations;
 
-  if (printingFields.promoTypeId) {
-    const pt = await repos.promoTypes.getById(printingFields.promoTypeId);
-    if (!pt) {
-      throw new AppError(400, ERROR_CODES.BAD_REQUEST, "Invalid promoTypeId");
-    }
+  const markerSlugs = [...(printingFields.markerSlugs ?? [])].sort();
+  const channelSlugs = printingFields.distributionChannelSlugs ?? [];
+
+  const markerRows = await repos.markers.listBySlugs(markerSlugs);
+  if (markerRows.length !== markerSlugs.length) {
+    const known = new Set(markerRows.map((m) => m.slug));
+    const missing = markerSlugs.filter((s) => !known.has(s));
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      `Unknown marker slug(s): ${missing.join(", ")}`,
+    );
   }
 
-  // Guard: card must exist
+  const channelRows = await repos.distributionChannels.listBySlugs(channelSlugs);
+  if (channelRows.length !== channelSlugs.length) {
+    const known = new Set(channelRows.map((c) => c.slug));
+    const missing = channelSlugs.filter((s) => !known.has(s));
+    throw new AppError(
+      400,
+      ERROR_CODES.BAD_REQUEST,
+      `Unknown distribution channel slug(s): ${missing.join(", ")}`,
+    );
+  }
+
   const card = await mut.getCardById(cardId);
   if (!card) {
     throw new AppError(404, ERROR_CODES.NOT_FOUND, "Card not found");
   }
 
   const finish = (printingFields.finish ?? "normal") as Finish;
-
-  // Guard: reject if this identity already belongs to a different card
   const language = printingFields.language ?? "EN";
   const existing = await mut.getPrintingCardIdByComposite(
     printingFields.shortCode,
     finish,
-    printingFields.promoTypeId ?? null,
+    markerSlugs,
     language,
   );
   if (existing && existing.cardId !== cardId) {
@@ -227,7 +271,7 @@ export async function acceptPrinting(
       rarity: normalizedRarity as Rarity,
       artVariant: (printingFields.artVariant ?? "normal") as ArtVariant,
       isSigned: printingFields.isSigned ?? false,
-      promoTypeId: printingFields.promoTypeId ?? null,
+      markerSlugs,
       finish,
       artist: printingFields.artist,
       publicCode: appendSetTotal(printingFields.publicCode, setPrintedTotal),
@@ -237,11 +281,20 @@ export async function acceptPrinting(
         italicParens: false,
         keywordGlyphs: false,
       }),
-      language: printingFields.language ?? "EN",
+      language,
       printedName: printingFields.printedName ?? null,
     });
 
-    // Recompute card-level keywords from all printing texts
+    // Sync the M2M joins to match the requested marker/channel slugs.
+    await trxRepos.markers.setForPrinting(
+      insertedId,
+      markerRows.map((m) => m.id),
+    );
+    await trxRepos.distributionChannels.setForPrinting(
+      insertedId,
+      channelRows.map((c) => ({ channelId: c.id })),
+    );
+
     await trxRepos.candidateMutations.recomputeKeywordsForPrintingCard(insertedId);
 
     if (printingFields.imageUrl) {
@@ -260,7 +313,6 @@ export async function acceptPrinting(
     }
   });
 
-  // Record "new printing" event (best-effort, outside transaction)
   if (repos.printingEvents) {
     await recordNewPrintingEvent(repos.printingEvents, insertedId);
   }

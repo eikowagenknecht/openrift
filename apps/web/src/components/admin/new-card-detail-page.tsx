@@ -292,7 +292,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
                                       setId: t.setId,
                                       artVariant: t.artVariant,
                                       isSigned: t.isSigned,
-                                      promoTypeId: t.promoTypeId,
+                                      markerSlugs: t.markerSlugs,
                                       rarity: t.rarity,
                                       finish: t.finish,
                                     },

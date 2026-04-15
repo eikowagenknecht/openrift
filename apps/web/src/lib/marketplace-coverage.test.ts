@@ -12,7 +12,7 @@ function printing(
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,
-    promoTypeSlug: null,
+    markerSlugs: [],
     finish: "normal",
     language: "EN",
     imageUrl: null,

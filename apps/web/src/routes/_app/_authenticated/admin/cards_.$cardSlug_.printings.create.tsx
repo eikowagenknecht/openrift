@@ -5,7 +5,7 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { adminCardDetailQueryOptions } from "@/hooks/use-admin-card-queries";
 import { initQueryOptions } from "@/hooks/use-init";
 import { adminLanguagesQueryOptions } from "@/hooks/use-languages";
-import { adminPromoTypesQueryOptions } from "@/hooks/use-promo-types";
+import { adminMarkersQueryOptions } from "@/hooks/use-markers";
 import { setsQueryOptions } from "@/hooks/use-sets";
 
 export const Route = createFileRoute(
@@ -16,7 +16,7 @@ export const Route = createFileRoute(
     await Promise.all([
       context.queryClient.ensureQueryData(adminCardDetailQueryOptions(params.cardSlug)),
       context.queryClient.ensureQueryData(setsQueryOptions),
-      context.queryClient.ensureQueryData(adminPromoTypesQueryOptions),
+      context.queryClient.ensureQueryData(adminMarkersQueryOptions),
       context.queryClient.ensureQueryData(adminLanguagesQueryOptions),
       context.queryClient.ensureQueryData(initQueryOptions),
     ]);

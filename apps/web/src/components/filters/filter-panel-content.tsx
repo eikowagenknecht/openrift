@@ -188,7 +188,7 @@ export function FilterBadgeSections({
         />
       )}
       {(availableFilters.hasSigned ||
-        availableFilters.hasPromo ||
+        availableFilters.hasAnyMarker ||
         availableFilters.hasBanned ||
         availableFilters.hasErrata) && (
         <FilterSection label="Special">
@@ -201,7 +201,7 @@ export function FilterBadgeSections({
               {filterState.signed === "false" ? "Not Signed" : "Signed"}
             </Badge>
           )}
-          {availableFilters.hasPromo && (
+          {availableFilters.hasAnyMarker && (
             <Badge
               variant={filterState.promo === null ? "outline" : "default"}
               className="cursor-pointer"

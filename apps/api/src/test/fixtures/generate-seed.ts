@@ -139,7 +139,7 @@ const printings = await sql<Record<string, unknown>[]>`
   SELECT p.id, p.card_id, p.set_id, p.short_code, p.rarity,
     p.art_variant, p.is_signed, p.finish, p.artist, p.public_code,
     p.printed_rules_text, p.printed_effect_text, p.flavor_text, p.comment,
-    p.promo_type_id, p.language, p.printed_name
+    p.marker_slugs, p.language, p.printed_name
   FROM printings p
   JOIN sets s ON s.id = p.set_id
   WHERE s.slug = ${SET_SLUG}
@@ -172,13 +172,34 @@ const marketplaceProductVariants = await sql<Record<string, unknown>[]>`
   ORDER BY mp.marketplace, mp.external_id, mpv.finish, mpv.language
 `;
 
-const promoTypes = await sql<Record<string, unknown>[]>`
-  SELECT DISTINCT pt.id, pt.slug, pt.label
-  FROM promo_types pt
-  JOIN printings p ON p.promo_type_id = pt.id
+const distributionChannels = await sql<Record<string, unknown>[]>`
+  SELECT DISTINCT dc.id, dc.slug, dc.label, dc.kind
+  FROM distribution_channels dc
+  JOIN printing_distribution_channels pdc ON pdc.channel_id = dc.id
+  JOIN printings p ON p.id = pdc.printing_id
   JOIN sets s ON s.id = p.set_id
   WHERE s.slug = ${SET_SLUG}
-  ORDER BY pt.slug
+  ORDER BY dc.slug
+`;
+
+const printingMarkers = await sql<Record<string, unknown>[]>`
+  SELECT pm.printing_id, pm.marker_id, m.slug AS marker_slug
+  FROM printing_markers pm
+  JOIN markers m ON m.id = pm.marker_id
+  JOIN printings p ON p.id = pm.printing_id
+  JOIN sets s ON s.id = p.set_id
+  WHERE s.slug = ${SET_SLUG}
+  ORDER BY pm.printing_id, m.slug
+`;
+
+const printingDistributionChannels = await sql<Record<string, unknown>[]>`
+  SELECT pdc.printing_id, pdc.channel_id, dc.slug AS channel_slug, pdc.distribution_note
+  FROM printing_distribution_channels pdc
+  JOIN distribution_channels dc ON dc.id = pdc.channel_id
+  JOIN printings p ON p.id = pdc.printing_id
+  JOIN sets s ON s.id = p.set_id
+  WHERE s.slug = ${SET_SLUG}
+  ORDER BY pdc.printing_id, dc.slug
 `;
 
 const cardNameAliases = await sql<Record<string, unknown>[]>`
@@ -425,8 +446,10 @@ const seedSql = [
   toInsert("card_errata", syntheticCardErrata),
   "",
   "-- Printings and images",
-  toInsert("promo_types", promoTypes),
+  toInsert("distribution_channels", distributionChannels),
   toInsert("printings", printings),
+  toInsert("printing_markers", printingMarkers),
+  toInsert("printing_distribution_channels", printingDistributionChannels),
   toInsert("image_files", imageFiles),
   toInsert("printing_images", printingImages),
   "",
@@ -457,8 +480,8 @@ console.log(
     `    ${finishes.length} finishes, ${artVariants.length} art variants, ${languages.length} languages, ${formats.length} formats,`,
     `    ${deckFormats.length} deck formats, ${deckZones.length} deck zones, ${keywordStyles.length} keyword styles, ${keywordTranslations.length} keyword translations`,
     `  Catalog: ${sets.length} sets, ${cards.length} cards, ${cardSuperTypes.length} card super types, ${cardDomains.length} card domains,`,
-    `    ${cardNameAliases.length} aliases, ${syntheticCardErrata.length} errata (synthetic), ${promoTypes.length} promo types`,
-    `  Printings: ${printings.length} printings, ${imageFiles.length} image files, ${printingImages.length} printing images`,
+    `    ${cardNameAliases.length} aliases, ${syntheticCardErrata.length} errata (synthetic), ${distributionChannels.length} distribution channels`,
+    `  Printings: ${printings.length} printings, ${imageFiles.length} image files, ${printingImages.length} printing images, ${printingMarkers.length} marker links, ${printingDistributionChannels.length} channel links`,
     `  Bans: ${syntheticCardBans.length} card bans (synthetic)`,
     `  Marketplace: ${marketplaceGroups.length} groups, ${marketplaceProducts.length} products, ${marketplaceProductVariants.length} variants, ${marketplaceSnapshots.length} snapshots`,
     `  Feature flags: ${syntheticFeatureFlags.length} (synthetic, all enabled)`,
@@ -476,7 +499,7 @@ interface PrintingRow {
   short_code: string;
   rarity: string;
   finish: string;
-  promo_type_id: string | null;
+  marker_slugs: string[];
   language: string | null;
 }
 
@@ -534,7 +557,8 @@ ${typedCards
 export const PRINTINGS = {
 ${typedPrintings
   .map((p) => {
-    const key = `${p.short_code}:${p.rarity.toLowerCase()}:${p.finish}:${p.promo_type_id ?? ""}:${p.language ?? ""}`;
+    const slugKey = [...(p.marker_slugs ?? [])].sort().join("+");
+    const key = `${p.short_code}:${p.rarity.toLowerCase()}:${p.finish}:${slugKey}:${p.language ?? ""}`;
     return `  ${JSON.stringify(key)}: { id: ${JSON.stringify(p.id)}, cardId: ${JSON.stringify(p.card_id)}, rarity: ${JSON.stringify(p.rarity)}, finish: ${JSON.stringify(p.finish)} },`;
   })
   .join("\n")}

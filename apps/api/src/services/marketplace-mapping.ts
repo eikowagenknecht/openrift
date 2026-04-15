@@ -17,7 +17,7 @@ interface PrintingRow {
   rarity: string;
   artVariant: string;
   isSigned: boolean;
-  promoTypeSlug: string | null;
+  markerSlugs: string[];
   finish: string;
   language: string;
   imageUrl: string | null;
@@ -64,7 +64,7 @@ function buildCardIndex(
     setName: string;
     artVariant: string;
     isSigned: boolean;
-    promoTypeSlug: string | null;
+    markerSlugs: string[];
     finish: string;
     language: string;
     imageUrl: string | null;
@@ -100,7 +100,7 @@ function buildCardIndex(
       rarity: row.rarity,
       artVariant: row.artVariant,
       isSigned: row.isSigned,
-      promoTypeSlug: row.promoTypeSlug,
+      markerSlugs: [...(row.markerSlugs ?? [])],
       finish: row.finish,
       language: row.language,
       imageUrl: row.imageUrl,

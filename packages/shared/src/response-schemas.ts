@@ -223,10 +223,24 @@ export const catalogSetResponseSchema = z.object({
   setType: z.enum(["main", "supplemental"]).openapi({ example: "main" }),
 });
 
-const promoTypeSchema = z.object({
+const markerSchema = z.object({
   id: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000001" }),
-  slug: z.string().openapi({ example: "prerelease" }),
-  label: z.string().openapi({ example: "Prerelease" }),
+  slug: z.string().openapi({ example: "promo" }),
+  label: z.string().openapi({ example: "Promo" }),
+  description: z.string().nullable().openapi({ example: null }),
+});
+
+const distributionChannelSchema = z.object({
+  id: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000002" }),
+  slug: z.string().openapi({ example: "nexus-night" }),
+  label: z.string().openapi({ example: "Nexus Night" }),
+  description: z.string().nullable().openapi({ example: null }),
+  kind: z.enum(["event", "product"]).openapi({ example: "event" }),
+});
+
+const printingDistributionChannelSchema = z.object({
+  channel: distributionChannelSchema,
+  distributionNote: z.string().nullable().openapi({ example: null }),
 });
 
 const cardImageVariantsSchema = z.object({
@@ -288,7 +302,8 @@ export const catalogPrintingResponseSchema = z.object({
   rarity: raritySchema,
   artVariant: artVariantSchema,
   isSigned: z.boolean().openapi({ example: false }),
-  promoType: promoTypeSchema.nullable().openapi({ example: null }),
+  markers: z.array(markerSchema).openapi({ example: [] }),
+  distributionChannels: z.array(printingDistributionChannelSchema).openapi({ example: [] }),
   finish: finishSchema,
   images: z.array(printingImageSchema),
   artist: z.string().openapi({ example: "Kudos Productions" }),
@@ -346,25 +361,21 @@ export const setDetailResponseSchema = z
   })
   .openapi("SetDetailResponse");
 
-// ── Promo Types (public) ───────────────────────────────────────────────────
+// ── Promos page (public — distribution channels with kind=event) ───────────
 
-const promoTypeWithCountSchema = z.object({
-  id: z.string().openapi({ example: "019d4999-4219-72f6-b7bb-64004e1b1bff" }),
-  slug: z.string().openapi({ example: "nexus-night" }),
-  label: z.string().openapi({ example: "Nexus Night" }),
-  description: z.string().nullable().openapi({ example: "Cards from the Nexus Night event" }),
+const distributionChannelWithCountSchema = distributionChannelSchema.extend({
   cardCount: z.number().openapi({ example: 12 }),
   printingCount: z.number().openapi({ example: 24 }),
 });
 
-export const promoListResponseSchema = z
+export const promosListResponseSchema = z
   .object({
-    promoTypes: z.array(promoTypeWithCountSchema),
+    channels: z.array(distributionChannelWithCountSchema),
     cards: z.record(z.string(), catalogCardResponseSchema),
     printings: z.array(catalogPrintingResponseSchema),
     prices: z.record(z.string(), marketplacePriceMapSchema),
   })
-  .openapi("PromoListResponse");
+  .openapi("PromosListResponse");
 
 // ── Sitemap Data ────────────────────────────────────────────────────────────
 

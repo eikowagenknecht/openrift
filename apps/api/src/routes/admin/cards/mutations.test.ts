@@ -7,7 +7,7 @@ import { acceptFavoriteNewCard } from "../../../services/accept-gallery.js";
 import {
   acceptPrinting,
   deletePrinting,
-  updatePrintingPromoType,
+  updatePrintingMarkers,
 } from "../../../services/printing-admin.js";
 import { mutationsRoute } from "./mutations";
 
@@ -18,7 +18,7 @@ import { mutationsRoute } from "./mutations";
 vi.mock("../../../services/printing-admin.js", () => ({
   acceptPrinting: vi.fn(),
   deletePrinting: vi.fn(),
-  updatePrintingPromoType: vi.fn(),
+  updatePrintingMarkers: vi.fn(),
 }));
 
 vi.mock("../../../services/accept-gallery.js", () => ({
@@ -33,7 +33,7 @@ vi.mock("@openrift/shared", async (importOriginal) => ({
 
 const mockAcceptPrinting = vi.mocked(acceptPrinting);
 const mockDeletePrinting = vi.mocked(deletePrinting);
-const mockUpdatePrintingPromoType = vi.mocked(updatePrintingPromoType);
+const mockUpdatePrintingMarkers = vi.mocked(updatePrintingMarkers);
 const mockAcceptFavoriteNewCard = vi.mocked(acceptFavoriteNewCard);
 const mockFixTypography = vi.mocked(fixTypography);
 const mockAppendSetTotal = vi.mocked(appendSetTotal);
@@ -80,7 +80,14 @@ const mockMut = {
 
 const mockCandidateCards = {};
 const mockPrintingImages = {};
-const mockPromoTypes = {};
+const mockMarkers = {
+  listBySlugs: vi.fn(async () => []),
+  setForPrinting: vi.fn(async () => {}),
+};
+const mockDistributionChannels = {
+  listBySlugs: vi.fn(async () => []),
+  setForPrinting: vi.fn(async () => {}),
+};
 const mockPrintingEvents = {
   recordNewPrinting: vi.fn(),
   recordPrintingChange: vi.fn(),
@@ -123,7 +130,8 @@ const app = new Hono()
       candidateCards: mockCandidateCards,
       catalog: { refreshCardAggregates: vi.fn() },
       printingImages: mockPrintingImages,
-      promoTypes: mockPromoTypes,
+      markers: mockMarkers,
+      distributionChannels: mockDistributionChannels,
       printingEvents: mockPrintingEvents,
       providerSettings: { favoriteProviders: vi.fn().mockResolvedValue(new Set(["gallery"])) },
       sets: mockSets,
@@ -798,7 +806,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      promoTypeId: null,
+      markerSlugs: [],
       finish: "normal",
       artist: "Original Artist",
       publicCode: "001",
@@ -859,42 +867,42 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
     expect(json.error).toContain("Invalid field");
   });
 
-  it("delegates to updatePrintingPromoType when field is promoTypeId", async () => {
-    mockUpdatePrintingPromoType.mockResolvedValue(undefined);
+  it("delegates to updatePrintingMarkers when field is markerSlugs", async () => {
+    mockUpdatePrintingMarkers.mockResolvedValue(undefined);
 
     const res = await app.request(
       "/api/v1/printing/00000000-0000-4000-a000-000000000013/accept-field",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ field: "promoTypeId", value: "promo-type-1" }),
+        body: JSON.stringify({ field: "markerSlugs", value: ["promo"] }),
       },
     );
     expect(res.status).toBe(204);
-    expect(mockUpdatePrintingPromoType).toHaveBeenCalledWith(
+    expect(mockUpdatePrintingMarkers).toHaveBeenCalledWith(
       expect.objectContaining({ candidateMutations: mockMut }),
       "00000000-0000-4000-a000-000000000013",
-      "promo-type-1",
+      ["promo"],
     );
     expect(mockMut.updatePrintingFieldById).not.toHaveBeenCalled();
   });
 
-  it("passes null to updatePrintingPromoType when value is empty string", async () => {
-    mockUpdatePrintingPromoType.mockResolvedValue(undefined);
+  it("passes [] to updatePrintingMarkers when value is an empty array", async () => {
+    mockUpdatePrintingMarkers.mockResolvedValue(undefined);
 
     const res = await app.request(
       "/api/v1/printing/00000000-0000-4000-a000-000000000013/accept-field",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ field: "promoTypeId", value: "" }),
+        body: JSON.stringify({ field: "markerSlugs", value: [] }),
       },
     );
     expect(res.status).toBe(204);
-    expect(mockUpdatePrintingPromoType).toHaveBeenCalledWith(
+    expect(mockUpdatePrintingMarkers).toHaveBeenCalledWith(
       expect.anything(),
       "00000000-0000-4000-a000-000000000013",
-      null,
+      [],
     );
   });
 

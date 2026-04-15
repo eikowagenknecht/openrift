@@ -143,21 +143,17 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     listPrintingsForSourceList(): Promise<
       Pick<Selectable<PrintingsTable>, "cardId" | "shortCode" | "language">[]
     > {
-      return (
-        db
-          .selectFrom("printings as p")
-          .innerJoin("finishes as f", "f.slug", "p.finish")
-          .leftJoin("promoTypes as pt", "pt.id", "p.promoTypeId")
-          .innerJoin("languages as l", "l.code", "p.language")
-          .select(["p.cardId", "p.shortCode", "p.language"])
-          .orderBy("p.shortCode")
-          .orderBy("f.sortOrder")
-          // oxlint-disable-next-line promise/prefer-await-to-then -- Kysely CASE/WHEN/THEN, not Promise.then
-          .orderBy((eb) => eb.case().when("pt.slug", "is", null).then(0).else(1).end())
-          .orderBy("pt.slug")
-          .orderBy("l.sortOrder")
-          .execute()
-      );
+      return db
+        .selectFrom("printings as p")
+        .innerJoin("finishes as f", "f.slug", "p.finish")
+        .innerJoin("languages as l", "l.code", "p.language")
+        .select(["p.cardId", "p.shortCode", "p.language"])
+        .orderBy("p.shortCode")
+        .orderBy("f.sortOrder")
+        .orderBy(sql`cardinality(p.marker_slugs)`)
+        .orderBy(sql`array_to_string(p.marker_slugs, ',')`)
+        .orderBy("l.sortOrder")
+        .execute();
     },
 
     /** @returns Cards where at least one printing has no active front-face image. */
@@ -190,30 +186,26 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         "candidateCardId" | "shortCode" | "checkedAt" | "printingId" | "language"
       >[]
     > {
-      return (
-        db
-          .selectFrom("candidatePrintings as ps")
-          .innerJoin("candidateCards as cs", "cs.id", "ps.candidateCardId")
-          .leftJoin("finishes as f", "f.slug", "ps.finish")
-          .leftJoin("promoTypes as pt", "pt.id", "ps.promoTypeId")
-          .leftJoin("languages as l", "l.code", "ps.language")
-          .select([
-            "ps.candidateCardId",
-            "ps.shortCode",
-            "ps.checkedAt",
-            "ps.printingId",
-            "ps.language",
-          ])
-          .where(notIgnoredPrinting("ps", "cs"))
-          .where(notHiddenSource("cs"))
-          .orderBy("ps.shortCode")
-          .orderBy("f.sortOrder")
-          // oxlint-disable-next-line promise/prefer-await-to-then -- Kysely CASE/WHEN/THEN, not Promise.then
-          .orderBy((eb) => eb.case().when("pt.slug", "is", null).then(0).else(1).end())
-          .orderBy("pt.slug")
-          .orderBy("l.sortOrder")
-          .execute()
-      );
+      return db
+        .selectFrom("candidatePrintings as ps")
+        .innerJoin("candidateCards as cs", "cs.id", "ps.candidateCardId")
+        .leftJoin("finishes as f", "f.slug", "ps.finish")
+        .leftJoin("languages as l", "l.code", "ps.language")
+        .select([
+          "ps.candidateCardId",
+          "ps.shortCode",
+          "ps.checkedAt",
+          "ps.printingId",
+          "ps.language",
+        ])
+        .where(notIgnoredPrinting("ps", "cs"))
+        .where(notHiddenSource("cs"))
+        .orderBy("ps.shortCode")
+        .orderBy("f.sortOrder")
+        .orderBy(sql`cardinality(ps.marker_slugs)`)
+        .orderBy(sql`array_to_string(ps.marker_slugs, ',')`)
+        .orderBy("l.sortOrder")
+        .execute();
     },
 
     /** @returns Distinct artist names from published printings, ordered alphabetically. */
@@ -352,7 +344,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "rarity",
           "artVariant",
           "isSigned",
-          "promoTypeId",
+          "markerSlugs",
           "finish",
           "artist",
           "publicCode",
@@ -386,7 +378,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         | "rarity"
         | "artVariant"
         | "isSigned"
-        | "promoTypeId"
+        | "markerSlugs"
         | "finish"
         | "artist"
         | "publicCode"
@@ -417,7 +409,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "ps.rarity",
           "ps.artVariant",
           "ps.isSigned",
-          "ps.promoTypeId",
+          "ps.markerSlugs",
           "ps.finish",
           "ps.artist",
           "ps.publicCode",
@@ -441,12 +433,12 @@ export function candidateCardsRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Promo type ID → slug mapping for given IDs. */
-    promoTypeSlugsByIds(ids: string[]): Promise<{ id: string; slug: string }[]> {
+    /** @returns Marker ID → slug mapping for given IDs. */
+    markerSlugsByIds(ids: string[]): Promise<{ id: string; slug: string }[]> {
       if (ids.length === 0) {
         return Promise.resolve([]);
       }
-      return db.selectFrom("promoTypes").select(["id", "slug"]).where("id", "in", ids).execute();
+      return db.selectFrom("markers").select(["id", "slug"]).where("id", "in", ids).execute();
     },
 
     /** @returns Printing images for detail page, only fields the frontend needs. */

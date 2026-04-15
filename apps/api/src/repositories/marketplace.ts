@@ -106,7 +106,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
           AND source.finish = target.finish
           AND source.art_variant = target.art_variant
           AND source.is_signed = target.is_signed
-          AND source.promo_type_id IS NOT DISTINCT FROM target.promo_type_id
+          AND source.marker_slugs = target.marker_slugs
         JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
         WHERE target.id = ${printingId}
@@ -267,9 +267,9 @@ export function marketplaceRepo(db: Kysely<Database>) {
         );
       }
       if (scope.promos === "only") {
-        scopeClauses.push(sql`AND p.promo_type_id IS NOT NULL`);
+        scopeClauses.push(sql`AND cardinality(p.marker_slugs) > 0`);
       } else if (scope.promos === "exclude") {
-        scopeClauses.push(sql`AND p.promo_type_id IS NULL`);
+        scopeClauses.push(sql`AND cardinality(p.marker_slugs) = 0`);
       }
       if (scope.signed === true) {
         scopeClauses.push(sql`AND p.is_signed = true`);
@@ -343,7 +343,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
           AND source.finish = target.finish
           AND source.art_variant = target.art_variant
           AND source.is_signed = target.is_signed
-          AND source.promo_type_id IS NOT DISTINCT FROM target.promo_type_id
+          AND source.marker_slugs = target.marker_slugs
         JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
         JOIN marketplace_snapshots snap ON snap.variant_id = mpv.id

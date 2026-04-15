@@ -285,103 +285,119 @@ INSERT INTO card_errata (id, card_id, corrected_rules_text, corrected_effect_tex
 
 
 -- Printings and images
-INSERT INTO promo_types (id, slug, label) VALUES
-  ('019d02a7-1639-7700-a279-2e6f4f6dc91c', 'nexus', 'Nexus Night Promo');
+-- Distribution channel (event kind) — what used to be a promo_type.
+INSERT INTO distribution_channels (id, slug, label, kind) VALUES
+  ('019d02a7-1639-7700-a279-2e6f4f6dc91c', 'nexus', 'Nexus Night Promo', 'event');
 
-INSERT INTO printings (id, card_id, set_id, short_code, rarity, art_variant, is_signed, finish, artist, public_code, printed_rules_text, printed_effect_text, flavor_text, comment, promo_type_id, language, printed_name) VALUES
-  ('019d17a1-2723-733a-a21e-4630e4370046', '019cfc3b-038a-7c0c-a76c-e0a5e2f46b18', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-001', 'Epic', 'normal', FALSE, 'foil', 'Polar Engine Studio', 'OGS-001/024', 'Your spells and abilities deal 1 Bonus Damage. _(Each instance of damage they deal is increased by 1.)_', NULL, '“I never play with matches.”', NULL, '019d02a7-1639-7700-a279-2e6f4f6dc91c', 'EN', 'Annie, Fiery'),
-  ('019cfc3b-03d6-74cf-adec-1dce41f631eb', '019cfc3b-038a-7c0c-a76c-e0a5e2f46b18', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-001', 'Epic', 'normal', FALSE, 'normal', 'Polar Engine Studio', 'OGS-001/024', 'Your spells and abilities deal 1 Bonus Damage. _(Each instance of damage they deal is increased by 1.)_', NULL, '“I never play with matches.”', NULL, NULL, 'EN', 'Annie, Fiery'),
-  ('019d6d05-930d-7af7-9eb5-1bbefadba3a4', '019cfc3b-038a-7c0c-a76c-e0a5e2f46b18', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-001', 'Epic', 'normal', FALSE, 'normal', 'Polar Engine Studio', 'OGS-001/024', '你的法术和技能造成的伤害+1（每段伤害都+1）。', NULL, '“我从来不玩火柴。”', NULL, NULL, 'ZH', '安妮, 汹涌烈焰'),
+-- Promo marker (visual stamp). `markers.promo` is already seeded by the migration,
+-- so look it up below when attaching to printings.
+
+INSERT INTO printings (id, card_id, set_id, short_code, rarity, art_variant, is_signed, finish, artist, public_code, printed_rules_text, printed_effect_text, flavor_text, comment, marker_slugs, language, printed_name) VALUES
+  ('019d17a1-2723-733a-a21e-4630e4370046', '019cfc3b-038a-7c0c-a76c-e0a5e2f46b18', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-001', 'Epic', 'normal', FALSE, 'foil', 'Polar Engine Studio', 'OGS-001/024', 'Your spells and abilities deal 1 Bonus Damage. _(Each instance of damage they deal is increased by 1.)_', NULL, '“I never play with matches.”', NULL, ARRAY['promo'], 'EN', 'Annie, Fiery'),
+  ('019cfc3b-03d6-74cf-adec-1dce41f631eb', '019cfc3b-038a-7c0c-a76c-e0a5e2f46b18', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-001', 'Epic', 'normal', FALSE, 'normal', 'Polar Engine Studio', 'OGS-001/024', 'Your spells and abilities deal 1 Bonus Damage. _(Each instance of damage they deal is increased by 1.)_', NULL, '“I never play with matches.”', NULL, '{}', 'EN', 'Annie, Fiery'),
+  ('019d6d05-930d-7af7-9eb5-1bbefadba3a4', '019cfc3b-038a-7c0c-a76c-e0a5e2f46b18', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-001', 'Epic', 'normal', FALSE, 'normal', 'Polar Engine Studio', 'OGS-001/024', '你的法术和技能造成的伤害+1（每段伤害都+1）。', NULL, '“我从来不玩火柴。”', NULL, '{}', 'ZH', '安妮, 汹涌烈焰'),
   ('019d6d05-9935-76e8-a805-ea6541cb99dd', '019cfc3b-038a-7e00-b828-03d838e5edab', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-002', 'Uncommon', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-002/024', '对一处战场的所有敌方单位各造成3点伤害。', NULL, '“小妞妞，放火球！”
-——安妮', NULL, NULL, 'ZH', '烈火风暴'),
+——安妮', NULL, '{}', 'ZH', '烈火风暴'),
   ('019cfc3b-03d5-768e-91cf-8ac59b20fb0e', '019cfc3b-038a-7e00-b828-03d838e5edab', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-002', 'Uncommon', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-002/024', 'Deal 3 to all enemy units at a battlefield.', NULL, '“Eeny, meeny, miny, burn!”
-—Annie', NULL, NULL, 'EN', 'Firestorm'),
+—Annie', NULL, '{}', 'EN', 'Firestorm'),
   ('019cfc3b-03d6-74e0-bdbe-4aca898a0bbd', '019cfc3b-0389-7de9-8860-226f4c8947d8', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-003', 'Common', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-003/024', '[Action] _(Play on your turn or in showdowns.)_
 Deal 2 to a unit at a battlefield.', NULL, '“You smell like burning!”
-—Annie', NULL, NULL, 'EN', 'Incinerate'),
+—Annie', NULL, '{}', 'EN', 'Incinerate'),
   ('019d6d05-9a7a-7234-aa16-3d519c8131c9', '019cfc3b-0389-7de9-8860-226f4c8947d8', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-003', 'Common', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-003/024', '[迅捷]（可在你的回合或法术对决中打出。）
 对战场上的一名单位造成2点伤害。', NULL, '“你闻起来就像……烧焦了一样！”
-——安妮', NULL, NULL, 'ZH', '焚烧'),
-  ('019d6d05-a758-7fce-aadd-aafcc11baebe', '019cfc3b-038a-7c1e-a8eb-57c9b27608ca', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-004', 'Rare', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-004/024', '如果你拥有不少于八枚符文，则我获得:rb_might:+4。', NULL, '“愤怒，带来冲动。”', NULL, NULL, 'ZH', '易, 禅心大道'),
-  ('019cfc3b-03d6-74f2-bcff-7bd89d0061f5', '019cfc3b-038a-7c1e-a8eb-57c9b27608ca', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-004', 'Rare', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-004/024', 'While you have 8+ runes, I have +4 :rb_might:.', NULL, '“Anger gives motivation without purpose.”', NULL, NULL, 'EN', 'Master Yi, Meditative'),
-  ('019d17a6-13f6-74f3-bcaa-6974580b57db', '019cfc3b-038a-7c1e-a8eb-57c9b27608ca', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-004', 'Rare', 'normal', FALSE, 'foil', 'Kudos Productions', 'OGS-004/024', 'While you have 8+ runes, I have +4 :rb_might:.', NULL, '“Anger gives motivation without purpose.”', NULL, '019d02a7-1639-7700-a279-2e6f4f6dc91c', 'EN', 'Master Yi, Meditative'),
-  ('019d6d05-aa97-77be-8913-cae20a56f25f', '019cfc3b-038a-7e10-b8d4-6e8b9646a975', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-005', 'Uncommon', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-005/024', '[坚守]（如果我是防守方，则:rb_might:+1。）', NULL, '“真正的大师，永远都怀着一颗学徒的心。”——易', NULL, NULL, 'ZH', '和风贤者'),
+——安妮', NULL, '{}', 'ZH', '焚烧'),
+  ('019d6d05-a758-7fce-aadd-aafcc11baebe', '019cfc3b-038a-7c1e-a8eb-57c9b27608ca', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-004', 'Rare', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-004/024', '如果你拥有不少于八枚符文，则我获得:rb_might:+4。', NULL, '“愤怒，带来冲动。”', NULL, '{}', 'ZH', '易, 禅心大道'),
+  ('019cfc3b-03d6-74f2-bcff-7bd89d0061f5', '019cfc3b-038a-7c1e-a8eb-57c9b27608ca', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-004', 'Rare', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-004/024', 'While you have 8+ runes, I have +4 :rb_might:.', NULL, '“Anger gives motivation without purpose.”', NULL, '{}', 'EN', 'Master Yi, Meditative'),
+  ('019d17a6-13f6-74f3-bcaa-6974580b57db', '019cfc3b-038a-7c1e-a8eb-57c9b27608ca', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-004', 'Rare', 'normal', FALSE, 'foil', 'Kudos Productions', 'OGS-004/024', 'While you have 8+ runes, I have +4 :rb_might:.', NULL, '“Anger gives motivation without purpose.”', NULL, ARRAY['promo'], 'EN', 'Master Yi, Meditative'),
+  ('019d6d05-aa97-77be-8913-cae20a56f25f', '019cfc3b-038a-7e10-b8d4-6e8b9646a975', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-005', 'Uncommon', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-005/024', '[坚守]（如果我是防守方，则:rb_might:+1。）', NULL, '“真正的大师，永远都怀着一颗学徒的心。”——易', NULL, '{}', 'ZH', '和风贤者'),
   ('019cfc3b-03d6-7502-b5c1-a9e422f91ac7', '019cfc3b-038a-7e10-b8d4-6e8b9646a975', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-005', 'Uncommon', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-005/024', '[Shield] _(+1 :rb_might: while I’m a defender.)_', NULL, '“A true master is an eternal student.”
-—Master Yi', NULL, NULL, 'EN', 'Zephyr Sage'),
-  ('019d1be8-3681-73b5-bf13-078b7e3c9096', '019cfc3b-038a-7aab-b290-3ac99454fe0e', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-006', 'Rare', 'normal', FALSE, 'foil', 'Six More Vodka', 'OGS-006/024', 'When you play a spell that costs :rb_energy_5: or more, give me +3 :rb_might: this turn.', NULL, '“No more holding back!”', NULL, '019d02a7-1639-7700-a279-2e6f4f6dc91c', 'EN', 'Lux, Illuminated'),
-  ('019d6d05-b0ac-79e3-8edc-0d6d436d148b', '019cfc3b-038a-7aab-b290-3ac99454fe0e', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-006', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-006/024', '每当你打出费用不低于:rb_energy_5:的法术时，让我本回合内:rb_might:+3。', NULL, '“毫无保留！”', NULL, NULL, 'ZH', '拉克丝, 明丽光华'),
-  ('019cfc3b-03d6-7514-9347-be4597ff1eee', '019cfc3b-038a-7aab-b290-3ac99454fe0e', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-006', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-006/024', 'When you play a spell that costs :rb_energy_5: or more, give me +3 :rb_might: this turn.', NULL, '“No more holding back!”', NULL, NULL, 'EN', 'Lux, Illuminated'),
-  ('019d1bee-0857-793a-b76b-50b6ead8ddbb', '019cfc3b-038a-7c30-8616-613222ef6b01', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-007', 'Rare', 'normal', FALSE, 'foil', 'Six More Vodka', 'OGS-007/024', '[Assault 2], [Shield 2] _(+2 :rb_might: while I’m an attacker or defender.)_', NULL, '“Fear is the first of many foes.”', NULL, '019d02a7-1639-7700-a279-2e6f4f6dc91c', 'EN', 'Garen, Rugged'),
-  ('019cfc3b-03d6-752a-adc5-19033009d65d', '019cfc3b-038a-7c30-8616-613222ef6b01', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-007', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-007/024', '[Assault 2], [Shield 2] _(+2 :rb_might: while I’m an attacker or defender.)_', NULL, '“Fear is the first of many foes.”', NULL, NULL, 'EN', 'Garen, Rugged'),
+—Master Yi', NULL, '{}', 'EN', 'Zephyr Sage'),
+  ('019d1be8-3681-73b5-bf13-078b7e3c9096', '019cfc3b-038a-7aab-b290-3ac99454fe0e', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-006', 'Rare', 'normal', FALSE, 'foil', 'Six More Vodka', 'OGS-006/024', 'When you play a spell that costs :rb_energy_5: or more, give me +3 :rb_might: this turn.', NULL, '“No more holding back!”', NULL, ARRAY['promo'], 'EN', 'Lux, Illuminated'),
+  ('019d6d05-b0ac-79e3-8edc-0d6d436d148b', '019cfc3b-038a-7aab-b290-3ac99454fe0e', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-006', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-006/024', '每当你打出费用不低于:rb_energy_5:的法术时，让我本回合内:rb_might:+3。', NULL, '“毫无保留！”', NULL, '{}', 'ZH', '拉克丝, 明丽光华'),
+  ('019cfc3b-03d6-7514-9347-be4597ff1eee', '019cfc3b-038a-7aab-b290-3ac99454fe0e', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-006', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-006/024', 'When you play a spell that costs :rb_energy_5: or more, give me +3 :rb_might: this turn.', NULL, '“No more holding back!”', NULL, '{}', 'EN', 'Lux, Illuminated'),
+  ('019d1bee-0857-793a-b76b-50b6ead8ddbb', '019cfc3b-038a-7c30-8616-613222ef6b01', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-007', 'Rare', 'normal', FALSE, 'foil', 'Six More Vodka', 'OGS-007/024', '[Assault 2], [Shield 2] _(+2 :rb_might: while I’m an attacker or defender.)_', NULL, '“Fear is the first of many foes.”', NULL, ARRAY['promo'], 'EN', 'Garen, Rugged'),
+  ('019cfc3b-03d6-752a-adc5-19033009d65d', '019cfc3b-038a-7c30-8616-613222ef6b01', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-007', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-007/024', '[Assault 2], [Shield 2] _(+2 :rb_might: while I’m an attacker or defender.)_', NULL, '“Fear is the first of many foes.”', NULL, '{}', 'EN', 'Garen, Rugged'),
   ('019d6d05-b656-79e4-b3df-2c0c6414f64b', '019cfc3b-038a-7c30-8616-613222ef6b01', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-007', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-007/024', '[强攻2]（如果我是进攻方，则:rb_might:+2。）
-[坚守2]（如果我是防守方，则:rb_might:+2。）', NULL, '“恐惧，是万敌之首。”', NULL, NULL, 'ZH', '盖伦, 身经百战'),
+[坚守2]（如果我是防守方，则:rb_might:+2。）', NULL, '“恐惧，是万敌之首。”', NULL, '{}', 'ZH', '盖伦, 身经百战'),
   ('019cfc3b-03d6-753c-9ec3-7cf48219b1e8', '019cfc3b-038a-7e20-b240-25edfa53cbca', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-008', 'Common', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-008/024', '[Action] _(Play on your turn or in showdowns.)_
-Give a friendly unit +3 :rb_might: this turn. Then choose an enemy unit. They deal damage equal to their Mights to each other.', NULL, 'A proper and formal way to kill your enemies.', NULL, NULL, 'EN', 'Gentlemen''s Duel'),
+Give a friendly unit +3 :rb_might: this turn. Then choose an enemy unit. They deal damage equal to their Mights to each other.', NULL, 'A proper and formal way to kill your enemies.', NULL, '{}', 'EN', 'Gentlemen''s Duel'),
   ('019d6d05-b99e-7e0e-96dd-e1c9da4bdae3', '019cfc3b-038a-7e20-b240-25edfa53cbca', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-008', 'Common', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-008/024', '[迅捷]（可在你的回合或法术对决中打出。）
-让一名友方单位本回合内:rb_might:+3。随后，选择一名敌方单位，让这两名单位互相以自身战力给对方造成伤害。', NULL, '体面而正式地干掉你的敌人。', NULL, NULL, 'ZH', '绅士决斗'),
+让一名友方单位本回合内:rb_might:+3。随后，选择一名敌方单位，让这两名单位互相以自身战力给对方造成伤害。', NULL, '体面而正式地干掉你的敌人。', NULL, '{}', 'ZH', '绅士决斗'),
   ('019d6d05-c13a-799a-bda0-efd70a6a1b75', '019cfc3b-038a-7abc-b43e-79b55463b059', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-009', 'Epic', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-009/024', '[游走]（我可以向其他战场进行移动。）
-我以活跃状态进场。', NULL, '“集中起来的意志，可以击穿顽石。”', NULL, NULL, 'ZH', '易, 锋芒毕现'),
+我以活跃状态进场。', NULL, '“集中起来的意志，可以击穿顽石。”', NULL, '{}', 'ZH', '易, 锋芒毕现'),
   ('019cfc3b-03d6-754e-a4de-ca223b302965', '019cfc3b-038a-7abc-b43e-79b55463b059', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-009', 'Epic', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-009/024', '[Ganking] _(I can move from battlefield to battlefield.)_
-I enter ready.', NULL, '“The focused mind can pierce through stone.”', NULL, NULL, 'EN', 'Master Yi, Honed'),
+I enter ready.', NULL, '“The focused mind can pierce through stone.”', NULL, '{}', 'EN', 'Master Yi, Honed'),
   ('019d17ac-724a-732c-b83a-23cd257a74e5', '019cfc3b-038a-7abc-b43e-79b55463b059', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-009', 'Epic', 'normal', FALSE, 'foil', 'Kudos Productions', 'OGS-009/024', '[Ganking] _(I can move from battlefield to battlefield.)_
-I enter ready.', NULL, '“The focused mind can pierce through stone.”', NULL, '019d02a7-1639-7700-a279-2e6f4f6dc91c', 'EN', 'Master Yi, Honed'),
-  ('019d1bf8-97d5-79ac-929e-286838af5508', '019cfc3b-038a-7c41-b170-c9f989adc4a8', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-010', 'Rare', 'normal', FALSE, 'foil', 'League Splash Team', 'OGS-010/024', 'When you play me, return a spell from your trash to your hand.', NULL, '“I want a turn!”', NULL, '019d02a7-1639-7700-a279-2e6f4f6dc91c', 'EN', 'Annie, Stubborn'),
-  ('019cfc3b-03d6-755e-8d42-32464c0bf236', '019cfc3b-038a-7c41-b170-c9f989adc4a8', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-010', 'Rare', 'normal', FALSE, 'normal', 'League Splash Team', 'OGS-010/024', 'When you play me, return a spell from your trash to your hand.', NULL, '“I want a turn!”', NULL, NULL, 'EN', 'Annie, Stubborn'),
-  ('019d6d05-c823-7069-95b6-1cdf23f82a9a', '019cfc3b-038a-7c41-b170-c9f989adc4a8', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-010', 'Rare', 'normal', FALSE, 'normal', 'League Splash Team', 'OGS-010/024', '当你打出我时，让一张法术牌从你的废牌堆返回你的手牌。', NULL, '“该我了！”', NULL, NULL, 'ZH', '安妮, 野火丛生'),
+I enter ready.', NULL, '“The focused mind can pierce through stone.”', NULL, ARRAY['promo'], 'EN', 'Master Yi, Honed'),
+  ('019d1bf8-97d5-79ac-929e-286838af5508', '019cfc3b-038a-7c41-b170-c9f989adc4a8', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-010', 'Rare', 'normal', FALSE, 'foil', 'League Splash Team', 'OGS-010/024', 'When you play me, return a spell from your trash to your hand.', NULL, '“I want a turn!”', NULL, ARRAY['promo'], 'EN', 'Annie, Stubborn'),
+  ('019cfc3b-03d6-755e-8d42-32464c0bf236', '019cfc3b-038a-7c41-b170-c9f989adc4a8', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-010', 'Rare', 'normal', FALSE, 'normal', 'League Splash Team', 'OGS-010/024', 'When you play me, return a spell from your trash to your hand.', NULL, '“I want a turn!”', NULL, '{}', 'EN', 'Annie, Stubborn'),
+  ('019d6d05-c823-7069-95b6-1cdf23f82a9a', '019cfc3b-038a-7c41-b170-c9f989adc4a8', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-010', 'Rare', 'normal', FALSE, 'normal', 'League Splash Team', 'OGS-010/024', '当你打出我时，让一张法术牌从你的废牌堆返回你的手牌。', NULL, '“该我了！”', NULL, '{}', 'ZH', '安妮, 野火丛生'),
   ('019cfc3b-03d6-7570-ac57-ad240fe24183', '019cfc3b-038a-7e2f-a482-917692bfd498', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-011', 'Common', 'normal', FALSE, 'normal', 'Sugar Free', 'OGS-011/024', '[Reaction] _(Play any time, even before spells and abilities resolve.)_
-Move up to 2 friendly units to base.', NULL, '“It’s not running away. It’s strategic repositioning.”', NULL, NULL, 'EN', 'Flash'),
+Move up to 2 friendly units to base.', NULL, '“It’s not running away. It’s strategic repositioning.”', NULL, '{}', 'EN', 'Flash'),
   ('019d6d05-d8e2-7e53-8fe6-54fd10424a8b', '019cfc3b-038a-7e2f-a482-917692bfd498', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-011', 'Common', 'normal', FALSE, 'normal', 'Sugar Free', 'OGS-011/024', '[反应]（可在任意时机打出，甚至先于其他法术和技能的结算。）
-将最多两名友方单位从战场上移动到基地。', NULL, '这不叫逃跑，这叫战术性转移。', NULL, NULL, 'ZH', '闪现'),
+将最多两名友方单位从战场上移动到基地。', NULL, '这不叫逃跑，这叫战术性转移。', NULL, '{}', 'ZH', '闪现'),
   ('019cfc3b-03d6-7581-bf1d-f627860d73b0', '019cfc3b-038a-7acd-8d1e-ff0cd42a7878', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-012', 'Common', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-012/024', '[Action] _(Play on your turn or in showdowns.)_
 Kill a unit at a battlefield.', NULL, '“Illuminate the enemy!”
-—Lux', NULL, NULL, 'EN', 'Blast of Power'),
+—Lux', NULL, '{}', 'EN', 'Blast of Power'),
   ('019d6d05-d9e8-75ca-9545-64d46c8fb6cb', '019cfc3b-038a-7acd-8d1e-ff0cd42a7878', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-012', 'Common', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-012/024', '[迅捷]（可在你的回合或法术对决中打出。）
 摧毁战场上的一名单位。', NULL, '“照亮所有敌人！”
-——拉克丝', NULL, NULL, 'ZH', '爆能术'),
-  ('019d6d05-e5d5-7c5b-8b55-90aeb47adb3e', '019cfc3b-038a-7c52-b7f5-683161fa2c98', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-013', 'Epic', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-013/024', '此处的其他友方单位获得:rb_might:+1。', NULL, '“为了德玛西亚！”', NULL, NULL, 'ZH', '盖伦, 剑尉长'),
-  ('019d1bfd-da4c-73d9-b2c9-a6c628b23bdd', '019cfc3b-038a-7c52-b7f5-683161fa2c98', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-013', 'Epic', 'normal', FALSE, 'foil', 'Six More Vodka', 'OGS-013/024', 'Other friendly units have +1 :rb_might: here.', NULL, '“For Demacia!”', NULL, '019d02a7-1639-7700-a279-2e6f4f6dc91c', 'EN', 'Garen, Commander'),
-  ('019cfc3b-03d6-7592-be7d-af8b5a85a818', '019cfc3b-038a-7c52-b7f5-683161fa2c98', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-013', 'Epic', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-013/024', 'Other friendly units have +1 :rb_might: here.', NULL, '“For Demacia!”', NULL, NULL, 'EN', 'Garen, Commander'),
-  ('019d6d05-f9be-789f-b21f-bfe68b1572d8', '019cfc3b-038a-7e42-8b17-0f904fc6a78c', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-014', 'Epic', 'normal', FALSE, 'normal', 'Envar Studio', 'OGS-014/024', '[横置]：[反应]-[获得]:rb_energy_2:，但仅可用于打出法术。（获得费用资源的技能无法成为其他法术的反应目标。）', NULL, '“我已经压抑自己的光芒太久了。”', NULL, NULL, 'ZH', '拉克丝, 冕卫之光'),
-  ('019cfc3b-03d6-75a3-90b8-c82d7afdc00a', '019cfc3b-038a-7e42-8b17-0f904fc6a78c', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-014', 'Epic', 'normal', FALSE, 'normal', 'Envar Studio', 'OGS-014/024', ':rb_exhaust:: [Reaction] — [Add] :rb_energy_2:. Use only to play spells. _(Abilities that add resources can’t be reacted to.)_', NULL, '“I’ve been hiding my light long enough.”', NULL, NULL, 'EN', 'Lux, Crownguard'),
-  ('019d1c00-e58f-73c9-a402-a822d45df1f9', '019cfc3b-038a-7e42-8b17-0f904fc6a78c', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-014', 'Epic', 'normal', FALSE, 'foil', 'Envar Studio', 'OGS-014/024', ':rb_exhaust:: [Reaction] — [Add] :rb_energy_2:. Use only to play spells. _(Abilities that add resources can’t be reacted to.)_', NULL, '“I’ve been hiding my light long enough.”', NULL, '019d02a7-1639-7700-a279-2e6f4f6dc91c', 'EN', 'Lux, Crownguard'),
+——拉克丝', NULL, '{}', 'ZH', '爆能术'),
+  ('019d6d05-e5d5-7c5b-8b55-90aeb47adb3e', '019cfc3b-038a-7c52-b7f5-683161fa2c98', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-013', 'Epic', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-013/024', '此处的其他友方单位获得:rb_might:+1。', NULL, '“为了德玛西亚！”', NULL, '{}', 'ZH', '盖伦, 剑尉长'),
+  ('019d1bfd-da4c-73d9-b2c9-a6c628b23bdd', '019cfc3b-038a-7c52-b7f5-683161fa2c98', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-013', 'Epic', 'normal', FALSE, 'foil', 'Six More Vodka', 'OGS-013/024', 'Other friendly units have +1 :rb_might: here.', NULL, '“For Demacia!”', NULL, ARRAY['promo'], 'EN', 'Garen, Commander'),
+  ('019cfc3b-03d6-7592-be7d-af8b5a85a818', '019cfc3b-038a-7c52-b7f5-683161fa2c98', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-013', 'Epic', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-013/024', 'Other friendly units have +1 :rb_might: here.', NULL, '“For Demacia!”', NULL, '{}', 'EN', 'Garen, Commander'),
+  ('019d6d05-f9be-789f-b21f-bfe68b1572d8', '019cfc3b-038a-7e42-8b17-0f904fc6a78c', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-014', 'Epic', 'normal', FALSE, 'normal', 'Envar Studio', 'OGS-014/024', '[横置]：[反应]-[获得]:rb_energy_2:，但仅可用于打出法术。（获得费用资源的技能无法成为其他法术的反应目标。）', NULL, '“我已经压抑自己的光芒太久了。”', NULL, '{}', 'ZH', '拉克丝, 冕卫之光'),
+  ('019cfc3b-03d6-75a3-90b8-c82d7afdc00a', '019cfc3b-038a-7e42-8b17-0f904fc6a78c', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-014', 'Epic', 'normal', FALSE, 'normal', 'Envar Studio', 'OGS-014/024', ':rb_exhaust:: [Reaction] — [Add] :rb_energy_2:. Use only to play spells. _(Abilities that add resources can’t be reacted to.)_', NULL, '“I’ve been hiding my light long enough.”', NULL, '{}', 'EN', 'Lux, Crownguard'),
+  ('019d1c00-e58f-73c9-a402-a822d45df1f9', '019cfc3b-038a-7e42-8b17-0f904fc6a78c', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-014', 'Epic', 'normal', FALSE, 'foil', 'Envar Studio', 'OGS-014/024', ':rb_exhaust:: [Reaction] — [Add] :rb_energy_2:. Use only to play spells. _(Abilities that add resources can’t be reacted to.)_', NULL, '“I’ve been hiding my light long enough.”', NULL, ARRAY['promo'], 'EN', 'Lux, Crownguard'),
   ('019d6d05-fee6-7d60-b8f2-ea216d891c59', '019cfc3b-038a-7add-b48d-e16b7614dfda', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-015', 'Uncommon', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-015/024', '[迅捷]（可在你的回合或法术对决中打出。）
 打出四名1:rb_might:的“随从”。（可以将其打出到你的基地或你已控制的战场。）', NULL, '“人在塔在！”
-——盖伦', NULL, NULL, 'ZH', '共同献身'),
+——盖伦', NULL, '{}', 'ZH', '共同献身'),
   ('019cfc3b-03d6-75d8-a0f7-c6fd8a35c6f9', '019cfc3b-038a-7add-b48d-e16b7614dfda', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-015', 'Uncommon', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-015/024', '[Action] _(Play on your turn or in showdowns.)_
 Play four 1 :rb_might: Recruit unit tokens. _(They can be played to your base or to battlefields you control.)_', NULL, '“My heart and sword always for Demacia.”
-—Garen', NULL, NULL, 'EN', 'Recruit the Vanguard'),
-  ('019cfc3b-03d6-75ee-922c-1e736369b5d4', '019cfc3b-038a-7c63-a32a-d4ca63b2bee9', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-016', 'Common', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-016/024', 'I enter ready.', NULL, '“Even the Vanguard needs a first line of defense.”', NULL, NULL, 'EN', 'Vanguard Attendant'),
-  ('019d6d06-0398-7088-8098-0484a6aa2fea', '019cfc3b-038a-7c63-a32a-d4ca63b2bee9', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-016', 'Common', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-016/024', '我以活跃状态进场。', NULL, '就算是先锋，也需要第一道防线。', NULL, NULL, 'ZH', '先锋扈从'),
-  ('019d1c05-bf03-747d-be95-60ee1687b24b', '019cfc3b-038a-7e54-90c3-34a262a17bea', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-017', 'Rare', 'normal', FALSE, 'foil', 'Six More Vodka', 'OGS-017/024', 'At the end of your turn, ready 2 runes.', NULL, NULL, NULL, '019d02a7-1639-7700-a279-2e6f4f6dc91c', 'EN', 'Dark Child, Starter'),
-  ('019d6d06-108e-726f-809e-13b31796be1c', '019cfc3b-038a-7e54-90c3-34a262a17bea', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-017', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-017/024', '在你回合结束时，让两枚符文变为活跃状态。', NULL, NULL, NULL, NULL, 'ZH', '黑暗之女, 入门'),
-  ('019cfc3b-03d6-7600-9bd2-f43441e40ace', '019cfc3b-038a-7e54-90c3-34a262a17bea', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-017', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-017/024', 'At the end of your turn, ready 2 runes.', NULL, NULL, NULL, NULL, 'EN', 'Dark Child, Starter'),
+—Garen', NULL, '{}', 'EN', 'Recruit the Vanguard'),
+  ('019cfc3b-03d6-75ee-922c-1e736369b5d4', '019cfc3b-038a-7c63-a32a-d4ca63b2bee9', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-016', 'Common', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-016/024', 'I enter ready.', NULL, '“Even the Vanguard needs a first line of defense.”', NULL, '{}', 'EN', 'Vanguard Attendant'),
+  ('019d6d06-0398-7088-8098-0484a6aa2fea', '019cfc3b-038a-7c63-a32a-d4ca63b2bee9', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-016', 'Common', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-016/024', '我以活跃状态进场。', NULL, '就算是先锋，也需要第一道防线。', NULL, '{}', 'ZH', '先锋扈从'),
+  ('019d1c05-bf03-747d-be95-60ee1687b24b', '019cfc3b-038a-7e54-90c3-34a262a17bea', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-017', 'Rare', 'normal', FALSE, 'foil', 'Six More Vodka', 'OGS-017/024', 'At the end of your turn, ready 2 runes.', NULL, NULL, NULL, ARRAY['promo'], 'EN', 'Dark Child, Starter'),
+  ('019d6d06-108e-726f-809e-13b31796be1c', '019cfc3b-038a-7e54-90c3-34a262a17bea', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-017', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-017/024', '在你回合结束时，让两枚符文变为活跃状态。', NULL, NULL, NULL, '{}', 'ZH', '黑暗之女, 入门'),
+  ('019cfc3b-03d6-7600-9bd2-f43441e40ace', '019cfc3b-038a-7e54-90c3-34a262a17bea', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-017', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-017/024', 'At the end of your turn, ready 2 runes.', NULL, NULL, NULL, '{}', 'EN', 'Dark Child, Starter'),
   ('019d1c0b-64ab-7160-8bd6-36dfdffb1210', '019cfc3b-038a-7aef-b46a-dc08a7a17008', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-018', 'Epic', 'normal', FALSE, 'foil', 'Polar Engine Studio', 'OGS-018/024', 'When you play me, deal 3 to all units at battlefields.', NULL, '“Bear hug!”
-—Annie', NULL, '019d02a7-1639-7700-a279-2e6f4f6dc91c', 'EN', 'Tibbers'),
+—Annie', NULL, ARRAY['promo'], 'EN', 'Tibbers'),
   ('019d6d06-1dd2-7649-938a-01851a1098ae', '019cfc3b-038a-7aef-b46a-dc08a7a17008', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-018', 'Epic', 'normal', FALSE, 'normal', 'Polar Engine Studio', 'OGS-018/024', '当你打出我时，对所有战场上的单位各造成3点伤害。', NULL, '“你看见过我的小熊吗？”
-——安妮', NULL, NULL, 'ZH', '提伯斯'),
+——安妮', NULL, '{}', 'ZH', '提伯斯'),
   ('019cfc3b-03d8-7309-9eae-0ba9ba5967f3', '019cfc3b-038a-7aef-b46a-dc08a7a17008', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-018', 'Epic', 'normal', FALSE, 'normal', 'Polar Engine Studio', 'OGS-018/024', 'When you play me, deal 3 to all units at battlefields.', NULL, '“Bear hug!”
-—Annie', NULL, NULL, 'EN', 'Tibbers'),
-  ('019d1c0e-5395-709b-a44a-b9b9bc85907b', '019cfc3b-038a-7c85-87b3-452bea9999fb', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-019', 'Rare', 'normal', FALSE, 'foil', 'Grafit Studio/Quy Ho', 'OGS-019/024', 'While a friendly unit defends alone, it gets +2 :rb_might:.', NULL, NULL, NULL, '019d02a7-1639-7700-a279-2e6f4f6dc91c', 'EN', 'Wuju Bladesman, Starter'),
-  ('019d6d06-2149-7ed5-a52b-64215640186a', '019cfc3b-038a-7c85-87b3-452bea9999fb', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-019', 'Rare', 'normal', FALSE, 'normal', 'Grafit Studio&Quy Ho', 'OGS-019/024', '如果你只有一名友方单位防守一处战场，则该单位:rb_might:+2。', NULL, NULL, NULL, NULL, 'ZH', '无极剑圣, 入门'),
-  ('019cfc3b-03d8-731c-8957-4f2dc4f8464f', '019cfc3b-038a-7c85-87b3-452bea9999fb', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-019', 'Rare', 'normal', FALSE, 'normal', 'Grafit Studio/Quy Ho', 'OGS-019/024', 'While a friendly unit defends alone, it gets +2 :rb_might:.', NULL, NULL, NULL, NULL, 'EN', 'Wuju Bladesman, Starter'),
+—Annie', NULL, '{}', 'EN', 'Tibbers'),
+  ('019d1c0e-5395-709b-a44a-b9b9bc85907b', '019cfc3b-038a-7c85-87b3-452bea9999fb', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-019', 'Rare', 'normal', FALSE, 'foil', 'Grafit Studio/Quy Ho', 'OGS-019/024', 'While a friendly unit defends alone, it gets +2 :rb_might:.', NULL, NULL, NULL, ARRAY['promo'], 'EN', 'Wuju Bladesman, Starter'),
+  ('019d6d06-2149-7ed5-a52b-64215640186a', '019cfc3b-038a-7c85-87b3-452bea9999fb', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-019', 'Rare', 'normal', FALSE, 'normal', 'Grafit Studio&Quy Ho', 'OGS-019/024', '如果你只有一名友方单位防守一处战场，则该单位:rb_might:+2。', NULL, NULL, NULL, '{}', 'ZH', '无极剑圣, 入门'),
+  ('019cfc3b-03d8-731c-8957-4f2dc4f8464f', '019cfc3b-038a-7c85-87b3-452bea9999fb', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-019', 'Rare', 'normal', FALSE, 'normal', 'Grafit Studio/Quy Ho', 'OGS-019/024', 'While a friendly unit defends alone, it gets +2 :rb_might:.', NULL, NULL, NULL, '{}', 'EN', 'Wuju Bladesman, Starter'),
   ('019d6d06-2210-7187-b6ea-5d10e2e048ab', '019cfc3b-038a-7e66-ae6d-5c57a250af7e', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-020', 'Epic', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-020/024', '[反应]（可在任意时机打出，甚至先于其他法术和技能的结算。）
-选择一名友方单位。如果该单位在本回合内被摧毁，则改为以休眠状态将其召回。（把该单位送回基地，此行动不算作移动。）', NULL, NULL, NULL, NULL, 'ZH', '高原血统'),
+选择一名友方单位。如果该单位在本回合内被摧毁，则改为以休眠状态将其召回。（把该单位送回基地，此行动不算作移动。）', NULL, NULL, NULL, '{}', 'ZH', '高原血统'),
   ('019cfc3b-03d8-732e-9d55-1e74ebff11dd', '019cfc3b-038a-7e66-ae6d-5c57a250af7e', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-020', 'Epic', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-020/024', '[Reaction] _(Play any time, even before spells and abilities resolve.)_
-Choose a friendly unit. The next time it dies this turn, recall it exhausted instead. _(Send it to base. This isn’t a move.)_', NULL, NULL, NULL, NULL, 'EN', 'Highlander'),
+Choose a friendly unit. The next time it dies this turn, recall it exhausted instead. _(Send it to base. This isn’t a move.)_', NULL, NULL, NULL, '{}', 'EN', 'Highlander'),
   ('019d1c11-4999-78e3-9980-2298b44d436d', '019cfc3b-038a-7e66-ae6d-5c57a250af7e', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-020', 'Epic', 'normal', FALSE, 'foil', 'Kudos Productions', 'OGS-020/024', '[Reaction] _(Play any time, even before spells and abilities resolve.)_
-Choose a friendly unit. The next time it dies this turn, recall it exhausted instead. _(Send it to base. This isn’t a move.)_', NULL, NULL, NULL, '019d02a7-1639-7700-a279-2e6f4f6dc91c', 'EN', 'Highlander'),
-  ('019cfc3b-03d8-7340-8664-d8b5b646ef84', '019cfc3b-038a-7aff-9f64-d915ada7e046', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-021', 'Rare', 'normal', FALSE, 'normal', 'Grafit Studio/Maki Planas Mata', 'OGS-021/024', 'When you play a spell that costs :rb_energy_5: or more, draw 1.', NULL, NULL, NULL, NULL, 'EN', 'Lady of Luminosity, Starter'),
-  ('019d6d06-3071-78cb-871f-945422034de3', '019cfc3b-038a-7aff-9f64-d915ada7e046', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-021', 'Rare', 'normal', FALSE, 'normal', 'Grafit Studio&Maki Planas Mata', 'OGS-021/024', '每当你打出一张费用不低于:rb_energy_5:的法术时，抽一张牌。', NULL, NULL, NULL, NULL, 'ZH', '光辉女郎, 入门'),
+Choose a friendly unit. The next time it dies this turn, recall it exhausted instead. _(Send it to base. This isn’t a move.)_', NULL, NULL, NULL, ARRAY['promo'], 'EN', 'Highlander'),
+  ('019cfc3b-03d8-7340-8664-d8b5b646ef84', '019cfc3b-038a-7aff-9f64-d915ada7e046', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-021', 'Rare', 'normal', FALSE, 'normal', 'Grafit Studio/Maki Planas Mata', 'OGS-021/024', 'When you play a spell that costs :rb_energy_5: or more, draw 1.', NULL, NULL, NULL, '{}', 'EN', 'Lady of Luminosity, Starter'),
+  ('019d6d06-3071-78cb-871f-945422034de3', '019cfc3b-038a-7aff-9f64-d915ada7e046', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-021', 'Rare', 'normal', FALSE, 'normal', 'Grafit Studio&Maki Planas Mata', 'OGS-021/024', '每当你打出一张费用不低于:rb_energy_5:的法术时，抽一张牌。', NULL, NULL, NULL, '{}', 'ZH', '光辉女郎, 入门'),
   ('019d6d06-31c7-75c2-ba60-479deb454553', '019cfc3b-038a-7c96-a595-49eecd42e4bf', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-022', 'Epic', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-022/024', '[迅捷]（可在你的回合或法术对决中打出。）
-对一名单位造成8点伤害。', NULL, NULL, NULL, NULL, 'ZH', '终极闪光'),
+对一名单位造成8点伤害。', NULL, NULL, NULL, '{}', 'ZH', '终极闪光'),
   ('019cfc3b-03d8-7350-b433-2aee587b1912', '019cfc3b-038a-7c96-a595-49eecd42e4bf', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-022', 'Epic', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-022/024', '[Action] _(Play on your turn or in showdowns.)_
-Deal 8 to a unit.', NULL, NULL, NULL, NULL, 'EN', 'Final Spark'),
-  ('019d6d06-3485-71cd-bcef-9c7db6924832', '019cfc3b-038a-7e76-9ea8-f1feb5c9d837', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-023', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-023/024', '当你征服一处战场时，如果你在该战场上拥有不少于四名单位，则抽两张牌。', NULL, NULL, NULL, NULL, 'ZH', '德玛西亚之力, 入门'),
-  ('019cfc3b-03d8-7361-9a9a-915783d54e1c', '019cfc3b-038a-7e76-9ea8-f1feb5c9d837', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-023', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-023/024', 'When you conquer, if you have 4+ units at that battlefield, draw 2.', NULL, NULL, NULL, NULL, 'EN', 'Might of Demacia, Starter'),
+Deal 8 to a unit.', NULL, NULL, NULL, '{}', 'EN', 'Final Spark'),
+  ('019d6d06-3485-71cd-bcef-9c7db6924832', '019cfc3b-038a-7e76-9ea8-f1feb5c9d837', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-023', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-023/024', '当你征服一处战场时，如果你在该战场上拥有不少于四名单位，则抽两张牌。', NULL, NULL, NULL, '{}', 'ZH', '德玛西亚之力, 入门'),
+  ('019cfc3b-03d8-7361-9a9a-915783d54e1c', '019cfc3b-038a-7e76-9ea8-f1feb5c9d837', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-023', 'Rare', 'normal', FALSE, 'normal', 'Six More Vodka', 'OGS-023/024', 'When you conquer, if you have 4+ units at that battlefield, draw 2.', NULL, NULL, NULL, '{}', 'EN', 'Might of Demacia, Starter'),
   ('019cfc3b-03d8-7371-9e2d-f3aa5ad324a9', '019cfc3b-038b-7140-a819-397e9b1eb94e', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-024', 'Epic', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-024/024', '[Action] _(Play on your turn or in showdowns.)_
-Give friendly units +2 :rb_might: this turn.', NULL, NULL, NULL, NULL, 'EN', 'Decisive Strike'),
+Give friendly units +2 :rb_might: this turn.', NULL, NULL, NULL, '{}', 'EN', 'Decisive Strike'),
   ('019d6d06-37a3-7312-bb34-9c497b8b9d64', '019cfc3b-038b-7140-a819-397e9b1eb94e', '019cfc3b-0369-76e1-8643-5310ac59ac33', 'OGS-024', 'Epic', 'normal', FALSE, 'normal', 'Kudos Productions', 'OGS-024/024', '[迅捷]（可在你的回合或法术对决中打出。）
-在本回合内，让所有友方单位:rb_might:+2。', NULL, NULL, NULL, NULL, 'ZH', '致命打击');
+在本回合内，让所有友方单位:rb_might:+2。', NULL, NULL, NULL, '{}', 'ZH', '致命打击');
+
+-- Attach the 'promo' marker to every printing whose marker_slugs carries it,
+-- and link those printings to the 'nexus' distribution channel.
+INSERT INTO printing_markers (printing_id, marker_id)
+SELECT p.id, m.id
+FROM printings p, markers m
+WHERE m.slug = 'promo' AND p.marker_slugs @> ARRAY['promo'];
+
+INSERT INTO printing_distribution_channels (printing_id, channel_id)
+SELECT p.id, dc.id
+FROM printings p, distribution_channels dc
+WHERE dc.slug = 'nexus' AND p.marker_slugs @> ARRAY['promo'];
 
 INSERT INTO image_files (id, original_url, rehosted_url, rotation) VALUES
   ('019d1be8-ad21-7f32-8087-53b4dd439a26', 'https://product-images.s3.cardmarket.com/1655/OGNX/874123/874123.jpg', '/media/cards/26/019d1be8-ad21-7f32-8087-53b4dd439a26', 0),

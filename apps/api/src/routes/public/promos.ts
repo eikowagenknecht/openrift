@@ -3,51 +3,56 @@ import { centsToDollars } from "@openrift/shared";
 import type {
   CatalogCardResponse,
   CatalogPrintingResponse,
+  DistributionChannelWithCount,
   Marketplace,
   PriceMap,
-  PromoListResponse,
-  PromoTypeWithCount,
+  PromosListResponse,
 } from "@openrift/shared";
-import { promoListResponseSchema } from "@openrift/shared/response-schemas";
+import { promosListResponseSchema } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
 
 import type { Variables } from "../../types.js";
 import { toCardImageVariants } from "../../utils/card-image.js";
+import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
-const getPromoList = createRoute({
+const getPromos = createRoute({
   method: "get",
   path: "/promos",
   tags: ["Promos"],
   responses: {
     200: {
-      content: { "application/json": { schema: promoListResponseSchema } },
-      description: "All promo types with their printings and cards",
+      content: { "application/json": { schema: promosListResponseSchema } },
+      description:
+        "All event-distribution channels with their printings and cards (the public 'promos' page)",
     },
   },
 });
 
 const promosApp = new OpenAPIHono<{ Variables: Variables }>();
 promosApp.use("/promos", etag());
-export const promosRoute = promosApp.openapi(getPromoList, async (c) => {
-  const { catalog, marketplace } = c.get("repos");
+export const promosRoute = promosApp.openapi(getPromos, async (c) => {
+  const repos = c.get("repos");
+  const { catalog, marketplace, distributionChannels } = repos;
 
-  const [promoTypeRows, printingRows] = await Promise.all([
-    catalog.promoTypesList(),
-    catalog.promoPrintings(),
+  const [eventChannels, printingRows] = await Promise.all([
+    distributionChannels.listByKind("event"),
+    catalog.eventDistributedPrintings(),
   ]);
 
   const cardIds = [...new Set(printingRows.map((p) => p.cardId))];
   const printingIds = printingRows.map((p) => p.id);
 
-  const [cardRows, banRows, errataRows, imageRows, priceRows] = await Promise.all([
-    catalog.cardsByIds(cardIds),
-    catalog.cardBansByCardIds(cardIds),
-    catalog.cardErrataByCardIds(cardIds),
-    catalog.printingImagesByPrintingIds(printingIds),
-    marketplace.latestPricesForPrintings(printingIds),
-  ]);
+  const [cardRows, banRows, errataRows, imageRows, priceRows, markerChannelMaps] =
+    await Promise.all([
+      catalog.cardsByIds(cardIds),
+      catalog.cardBansByCardIds(cardIds),
+      catalog.cardErrataByCardIds(cardIds),
+      catalog.printingImagesByPrintingIds(printingIds),
+      marketplace.latestPricesForPrintings(printingIds),
+      loadMarkerAndChannelMaps(repos, printingIds),
+    ]);
+  const { markerBySlug, channelsByPrinting } = markerChannelMaps;
 
-  // Build card lookup with errata and bans
   const bansByCard = Map.groupBy(banRows, (r) => r.cardId);
   const errataByCard = new Map(
     errataRows.map((r) => [
@@ -78,7 +83,6 @@ export const promosRoute = promosApp.openapi(getPromoList, async (c) => {
     ]),
   );
 
-  // Per-printing price map
   const prices: PriceMap = {};
   for (const row of priceRows) {
     let entry = prices[row.printingId];
@@ -91,29 +95,47 @@ export const promosRoute = promosApp.openapi(getPromoList, async (c) => {
 
   const imagesByPrinting = Map.groupBy(imageRows, (r) => r.printingId);
 
-  const printings: CatalogPrintingResponse[] = printingRows.map((row) => ({
-    ...row,
-    images: (imagesByPrinting.get(row.id) ?? []).map((i) => ({
+  const printings: CatalogPrintingResponse[] = printingRows.map(({ markerSlugs, ...rest }) => ({
+    ...rest,
+    markers: resolveMarkers(markerSlugs, markerBySlug),
+    distributionChannels: channelsByPrinting.get(rest.id) ?? [],
+    images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
       face: i.face,
       ...toCardImageVariants(i.url),
     })),
   }));
 
-  // Count cards and printings per promo type
-  const printingsByPromo = Map.groupBy(printingRows, (p) => p.promoType?.id ?? "");
-  const promoTypes: PromoTypeWithCount[] = promoTypeRows.map((pt) => {
-    const ptPrintings = printingsByPromo.get(pt.id) ?? [];
+  // Count cards + printings per event channel by walking the resolved links.
+  const channelCounts = new Map<string, { cards: Set<string>; printings: number }>();
+  for (const printing of printings) {
+    for (const link of printing.distributionChannels) {
+      if (link.channel.kind !== "event") {
+        continue;
+      }
+      let entry = channelCounts.get(link.channel.id);
+      if (!entry) {
+        entry = { cards: new Set(), printings: 0 };
+        channelCounts.set(link.channel.id, entry);
+      }
+      entry.cards.add(printing.cardId);
+      entry.printings += 1;
+    }
+  }
+
+  const channels: DistributionChannelWithCount[] = eventChannels.map((ch) => {
+    const counts = channelCounts.get(ch.id);
     return {
-      id: pt.id,
-      slug: pt.slug,
-      label: pt.label,
-      description: pt.description,
-      cardCount: new Set(ptPrintings.map((p) => p.cardId)).size,
-      printingCount: ptPrintings.length,
+      id: ch.id,
+      slug: ch.slug,
+      label: ch.label,
+      description: ch.description,
+      kind: "event",
+      cardCount: counts?.cards.size ?? 0,
+      printingCount: counts?.printings ?? 0,
     };
   });
 
-  const content: PromoListResponse = { promoTypes, cards, printings, prices };
+  const content: PromosListResponse = { channels, cards, printings, prices };
   c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
   return c.json(content);
 });
