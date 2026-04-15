@@ -324,7 +324,7 @@ const acceptPrintingRoute = createRoute({
 
 const createCard = createRoute({
   method: "post",
-  path: "/",
+  path: "/create",
   tags: ["Admin - Cards"],
   request: {
     body: { content: { "application/json": { schema: createCardSchema } } },

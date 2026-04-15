@@ -448,7 +448,7 @@ const createCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { cardFields: Record<string, unknown> }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/`, {
+    const res = await fetch(`${API_URL}/api/v1/admin/cards/create`, {
       method: "POST",
       headers: { cookie: context.cookie, "content-type": "application/json" },
       body: JSON.stringify(data.cardFields),
