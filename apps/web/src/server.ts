@@ -6,6 +6,8 @@ import path from "node:path";
 import type { SitemapDataResponse } from "@openrift/shared";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
+import { maybeApplyPublicCache } from "./lib/page-cache";
+
 const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
 // Local-only helper for `bun run start` smoke tests: when MEDIA_DIR is set,
@@ -13,6 +15,10 @@ const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 // so serveMediaFile() short-circuits to undefined, AND nginx bind-mounts the
 // path in front of the server — so this code is inert there.
 const MEDIA_DIR = process.env.MEDIA_DIR ? path.resolve(process.env.MEDIA_DIR) : undefined;
+
+// Opt-in SSR timing instrumentation. Mirrors the API's LOG_REQUESTS flag:
+// default off, no overhead in prod unless explicitly enabled for benchmarking.
+const LOG_SSR_TIMINGS = process.env.LOG_SSR_TIMINGS === "true";
 
 const MEDIA_MIME: Record<string, string> = {
   ".webp": "image/webp",
@@ -163,6 +169,17 @@ export default createServerEntry({
         return new Response("Sitemap generation failed", { status: 500 });
       }
     }
-    return handler.fetch(request);
+    const t0 = LOG_SSR_TIMINGS ? performance.now() : 0;
+    const response = await handler.fetch(request);
+    const tHandler = LOG_SSR_TIMINGS ? performance.now() : 0;
+    const finalResponse = maybeApplyPublicCache(request, response);
+    if (LOG_SSR_TIMINGS) {
+      const tEnd = performance.now();
+      // oxlint-disable-next-line no-console -- opt-in SSR timing instrumentation, see LOG_SSR_TIMINGS flag above.
+      console.info(
+        `[SSR] ${request.method} ${url.pathname} total=${(tEnd - t0).toFixed(0)}ms handler=${(tHandler - t0).toFixed(0)}ms postprocess=${(tEnd - tHandler).toFixed(0)}ms`,
+      );
+    }
+    return finalResponse;
   },
 });
