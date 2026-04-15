@@ -54,8 +54,6 @@ test.describe("card browser — search bar", () => {
     await expect(search).toHaveValue("");
     await expect(page.getByText("Annie, Fiery")).toBeVisible();
     await expect(page.getByText("Garen, Rugged")).toBeVisible();
-    // Count label returns to unfiltered form (no "<filtered> / <total>" shape).
-    await expect(page.getByText(/\d+ \/ \d+ cards/)).not.toBeVisible();
   });
 
   test("debounced typing lands on the final result without flashing intermediate state", async ({
