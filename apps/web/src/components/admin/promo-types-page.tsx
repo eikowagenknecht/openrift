@@ -75,7 +75,14 @@ export function PromoTypesPage() {
     {
       header: "Description",
       sortValue: (pt) => pt.description ?? "",
-      cell: (pt) => <span className="text-muted-foreground text-sm">{pt.description ?? "—"}</span>,
+      cell: (pt) => (
+        <span
+          className="text-muted-foreground block max-w-xs truncate text-sm"
+          title={pt.description ?? undefined}
+        >
+          {pt.description ?? "—"}
+        </span>
+      ),
       editCell: (d, set) => (
         <Input
           value={d.description}
