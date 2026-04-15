@@ -6,6 +6,7 @@
 - feat: Promo type descriptions on the Promo Cards page now support markdown, so links and basic formatting render inline
 - fix: The card browser no longer errors out when you have multiple languages (or other filters) selected in the URL
 - fix: Screen readers now announce the per-deck actions menu on each deck tile
+- fix: Screen readers now announce the add and remove buttons on each card tile in the deck editor
 
 ## 2026-04-14
 
