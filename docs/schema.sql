@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 4lxd0TurnbARCaqWOzj8BhRmSgJvCiVpG6AnnsBGsYJ9fGbg18pUkWlpVoNjP6x
+\restrict IOzcsozJchECBs8YVpNe0OamBW1zIS637kw0ag8XmIbTnub2m8f6JADKwQbvdi7
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -31,6 +31,20 @@ SET row_security = off;
 --
 
 COMMENT ON SCHEMA public IS '';
+
+
+--
+-- Name: pg_trgm; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
 
 
 --
@@ -81,6 +95,31 @@ CREATE FUNCTION public.cards_set_norm_name() RETURNS trigger
     AS $$
     BEGIN
       NEW.norm_name := lower(regexp_replace(NEW.name, '[^a-zA-Z0-9]', '', 'g'));
+      RETURN NEW;
+    END;
+    $$;
+
+
+--
+-- Name: marketplace_staging_compute_norm_name(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.marketplace_staging_compute_norm_name(product_name text) RETURNS text
+    LANGUAGE sql IMMUTABLE
+    AS $$
+      SELECT lower(regexp_replace(product_name, '[^a-zA-Z0-9]', '', 'g'))
+    $$;
+
+
+--
+-- Name: marketplace_staging_set_norm_name(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.marketplace_staging_set_norm_name() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      NEW.norm_name := marketplace_staging_compute_norm_name(NEW.product_name);
       RETURN NEW;
     END;
     $$;
@@ -793,7 +832,8 @@ CREATE TABLE public.marketplace_staging (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     id uuid DEFAULT uuidv7() CONSTRAINT marketplace_staging_new_id_not_null NOT NULL,
-    language text DEFAULT 'EN'::text NOT NULL
+    language text DEFAULT 'EN'::text NOT NULL,
+    norm_name text DEFAULT ''::text NOT NULL
 );
 
 
@@ -2022,6 +2062,13 @@ CREATE INDEX idx_marketplace_staging_marketplace_group_id ON public.marketplace_
 
 
 --
+-- Name: idx_marketplace_staging_norm_name_trgm; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_marketplace_staging_norm_name_trgm ON public.marketplace_staging USING gin (norm_name public.gin_trgm_ops);
+
+
+--
 -- Name: idx_mv_card_aggregates_pk; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2271,6 +2318,13 @@ CREATE TRIGGER trg_domains_protect_well_known BEFORE DELETE OR UPDATE ON public.
 --
 
 CREATE TRIGGER trg_finishes_protect_well_known BEFORE DELETE OR UPDATE ON public.finishes FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
+
+
+--
+-- Name: marketplace_staging trg_marketplace_staging_set_norm_name; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_marketplace_staging_set_norm_name BEFORE INSERT OR UPDATE OF product_name ON public.marketplace_staging FOR EACH ROW EXECUTE FUNCTION public.marketplace_staging_set_norm_name();
 
 
 --
@@ -2986,5 +3040,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 4lxd0TurnbARCaqWOzj8BhRmSgJvCiVpG6AnnsBGsYJ9fGbg18pUkWlpVoNjP6x
+\unrestrict IOzcsozJchECBs8YVpNe0OamBW1zIS637kw0ag8XmIbTnub2m8f6JADKwQbvdi7
 
