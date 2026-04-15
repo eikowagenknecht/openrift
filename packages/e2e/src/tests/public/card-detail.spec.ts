@@ -311,10 +311,9 @@ test.describe("card detail route — info panel", () => {
     await expect(page.getByText("Printed name", { exact: true })).toBeHidden();
 
     // Switching to the alt-language printing reveals it with the localized name.
-    await page
-      .getByRole("button", { name: new RegExp(altPrinting.publicCode) })
-      .first()
-      .click();
+    // Multiple printings share a publicCode (normal/foil/language variants), so
+    // target the exact printing by id rather than by its visible publicCode text.
+    await page.locator(`button[data-printing-id="${altPrinting.id}"]`).click();
     await expect(page.getByText("Printed name", { exact: true })).toBeVisible();
     await expect(page.getByText(altPrinting.printedName)).toBeVisible();
   });

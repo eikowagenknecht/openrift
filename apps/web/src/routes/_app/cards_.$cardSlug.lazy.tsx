@@ -534,6 +534,8 @@ function PrintingCard({
     <button
       type="button"
       onClick={onSelect}
+      aria-pressed={isSelected}
+      data-printing-id={printing.id}
       className={cn(
         "border-border bg-card flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors",
         isSelected ? "ring-primary ring-2" : "hover:bg-accent",
