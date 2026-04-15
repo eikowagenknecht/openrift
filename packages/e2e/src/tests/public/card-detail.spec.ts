@@ -160,7 +160,7 @@ test.describe("card detail route — essentials", () => {
       await route.continue();
     });
 
-    await page.locator(".aspect-card").first().click();
+    await page.getByAltText(SEED_CARD_NAME).first().click();
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
     await pane.getByRole("link", { name: /view card details/i }).click();
@@ -179,7 +179,7 @@ test.describe("card detail route — essentials", () => {
       await route.continue();
     });
 
-    await page.locator(".aspect-card").first().click();
+    await page.getByAltText(SEED_CARD_NAME).first().click();
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
     await pane.getByRole("link", { name: /view card details/i }).click();
@@ -513,10 +513,18 @@ test.describe("card detail route — printings list", () => {
     // Default selection is EN. The Language row reflects the active printing.
     await expect(page.getByText("EN").first()).toBeVisible();
 
-    await page
-      .getByRole("button", { name: new RegExp(altLang.publicCode) })
-      .first()
-      .click();
+    // Multiple printings can share a publicCode (normal/foil/language variants),
+    // so scope to the unselected one to avoid clicking the already-active printing.
+    // Wait for the printings list to finish loading before clicking — the alt
+    // printing button hydrates after the card's main data, and an early click
+    // can land before React attaches its onClick handler.
+    const altButton = page
+      .locator('button[aria-pressed="false"]', {
+        hasText: new RegExp(altLang.publicCode),
+      })
+      .first();
+    await expect(altButton).toBeVisible();
+    await altButton.click();
     await expect(page.getByText(altLang.language).first()).toBeVisible();
   });
 
