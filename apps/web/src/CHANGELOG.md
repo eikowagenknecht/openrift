@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-15
+
+- fix: The card browser no longer errors out when you have multiple languages (or other filters) selected in the URL
+
 ## 2026-04-14
 
 - feat: The top menu now has a "More" dropdown grouping Rules and the Promo Cards page, making both easier to find
