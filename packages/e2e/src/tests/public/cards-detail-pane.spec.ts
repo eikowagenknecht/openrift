@@ -83,13 +83,13 @@ test.describe("card detail pane", () => {
     // The detail pane's PrintingPicker lists every sibling printing. Clicking a
     // different one than the currently-active row updates the detail view —
     // this is the same handler (onSelectPrinting) the grid fan calls.
-    const picker = pane.getByRole("heading", { name: /printings/i }).locator("..");
-    await expect(picker).toBeVisible();
+    await expect(pane.getByRole("heading", { name: /printings/i })).toBeVisible();
 
-    const allPrintings = picker.getByRole("button");
+    // PrintingPicker rows are the only aria-pressed buttons in the pane.
+    const allPrintings = pane.locator("button[aria-pressed]");
     await expect(allPrintings).toHaveCount(2);
 
-    const inactive = picker.locator('button[aria-pressed="false"]').first();
+    const inactive = pane.locator('button[aria-pressed="false"]').first();
     await expect(inactive).toBeVisible();
     await inactive.click();
 
@@ -113,15 +113,18 @@ test.describe("card detail pane", () => {
     await expect(anyMarketplaceChip.first()).toBeVisible({ timeout: 10_000 });
   });
 
-  test("clicking 'View full page' navigates to /cards/:slug", async ({ page }) => {
+  test("clicking 'View card details' navigates to /cards/:slug", async ({ page }) => {
     await page.goto("/cards");
     await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
 
-    await page.locator(".aspect-card").first().click();
+    await page.getByAltText(MULTI_PRINTING_CARD).first().click();
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
+    await expect(
+      pane.getByRole("heading", { level: 2, name: new RegExp(MULTI_PRINTING_CARD) }),
+    ).toBeVisible({ timeout: 5000 });
 
-    await pane.getByRole("link", { name: /view full page/i }).click();
+    await pane.getByRole("link", { name: /view card details/i }).click();
 
     await expect(page).toHaveURL(/\/cards\/annie-fiery$/);
     await expect(
