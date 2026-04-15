@@ -12,7 +12,7 @@ test.describe("card browser URL params", () => {
   test("?search= pre-fills the search input and filters the grid", async ({ page }) => {
     await page.goto("/cards?search=Garen");
 
-    await expect(page.getByPlaceholder(/search/i)).toHaveValue("Garen");
+    await expect(page.getByPlaceholder(/search/i)).toHaveValue("Garen", { timeout: LOAD_TIMEOUT });
     await expect(page.getByText("Garen, Rugged")).toBeVisible({ timeout: LOAD_TIMEOUT });
     await expect(page.getByText("Annie, Fiery")).not.toBeVisible();
   });
@@ -71,16 +71,19 @@ test.describe("card browser URL params", () => {
     await expect(page.getByText(/No cards found/i)).toBeVisible({ timeout: LOAD_TIMEOUT });
   });
 
-  test("?promo=true shows only promo printings", async ({ page }) => {
-    await page.goto("/cards?promo=true");
+  test("?promo=true shows only cards with at least one marker", async ({ page }) => {
+    await page.goto(`/cards?promo=${encodeURIComponent(JSON.stringify("true"))}`);
 
-    // Annie, Fiery is the only card with a promo printing in the seed
+    // Annie, Fiery has a nexus-marked printing (OGS-001 foil) in the seed.
+    // Firestorm (OGS-002) has no marker on any printing, so it should be
+    // filtered out. Garen, Rugged would also match via its nexus foil, so
+    // pick a genuinely markerless card for the negative assertion.
     await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
-    await expect(page.getByText("Garen, Rugged")).not.toBeVisible();
+    await expect(page.getByText("Firestorm")).not.toBeVisible();
   });
 
   test("?banned=true shows only banned cards", async ({ page }) => {
-    await page.goto("/cards?banned=true");
+    await page.goto(`/cards?banned=${encodeURIComponent(JSON.stringify("true"))}`);
 
     // Blast of Power is the only banned card in the seed
     await expect(page.getByText("Blast of Power")).toBeVisible({ timeout: LOAD_TIMEOUT });
@@ -88,7 +91,7 @@ test.describe("card browser URL params", () => {
   });
 
   test("?errata=true shows only cards with errata", async ({ page }) => {
-    await page.goto("/cards?errata=true");
+    await page.goto(`/cards?errata=${encodeURIComponent(JSON.stringify("true"))}`);
 
     // Annie, Fiery has errata in the seed
     await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
