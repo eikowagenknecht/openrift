@@ -4,19 +4,11 @@ import { z } from "zod";
 
 // Each field uses `.catch(undefined)` so malformed URL values (wrong type,
 // unparseable) are silently dropped rather than crashing the route. Unknown
-// keys are stripped by zod's default object parsing. Flag fields accept both
-// string and boolean since TanStack Router's default parser JSON-decodes
-// `?promo=true` into the boolean `true`.
+// keys are stripped by zod's default object parsing.
 const stringField = () => z.string().optional().catch(undefined);
 const numberField = () => z.number().optional().catch(undefined);
 const stringArray = () => z.array(z.string()).optional().catch(undefined);
-const boolFlag = () =>
-  z
-    .union([z.string(), z.boolean()])
-    .transform((value) => (typeof value === "boolean" ? String(value) : value))
-    .pipe(z.enum(["true", "false"]))
-    .optional()
-    .catch(undefined);
+const boolFlag = () => z.enum(["true", "false"]).optional().catch(undefined);
 
 /**
  * Search param schema for routes that use the card filter system.
