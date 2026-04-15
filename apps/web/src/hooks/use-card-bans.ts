@@ -38,6 +38,7 @@ export function useCardBans(cardId: string) {
       return data.bans;
     },
     enabled: Boolean(cardId),
+    staleTime: 5 * 60 * 1000,
   });
 }
 

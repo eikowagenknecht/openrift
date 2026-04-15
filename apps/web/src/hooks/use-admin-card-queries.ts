@@ -28,6 +28,7 @@ const fetchAdminCardList = createServerFn({ method: "GET" })
 export const adminCardListQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cards.list,
   queryFn: () => fetchAdminCardList(),
+  staleTime: 5 * 60 * 1000,
 });
 
 export function useAdminCardList() {
@@ -74,6 +75,7 @@ const fetchAllCards = createServerFn({ method: "GET" })
 export const allCardsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cards.allCards,
   queryFn: () => fetchAllCards(),
+  staleTime: 5 * 60 * 1000,
 });
 
 export function useAllCards() {
@@ -97,6 +99,7 @@ export function adminCardDetailQueryOptions(cardSlug: string) {
   return queryOptions({
     queryKey: queryKeys.admin.cards.detail(cardSlug),
     queryFn: () => fetchAdminCardDetail({ data: cardSlug }),
+    staleTime: 5 * 60 * 1000,
   });
 }
 

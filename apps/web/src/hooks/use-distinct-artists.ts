@@ -21,6 +21,7 @@ const fetchDistinctArtists = createServerFn({ method: "GET" })
 export const adminDistinctArtistsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.distinctArtists,
   queryFn: () => fetchDistinctArtists(),
+  staleTime: 30 * 60 * 1000,
 });
 
 export function useDistinctArtists() {

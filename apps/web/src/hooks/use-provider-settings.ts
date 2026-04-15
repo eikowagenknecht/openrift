@@ -22,6 +22,7 @@ const fetchProviderSettings = createServerFn({ method: "GET" })
 export const providerSettingsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.providerSettings,
   queryFn: () => fetchProviderSettings(),
+  staleTime: 30 * 60 * 1000,
 });
 
 export function useProviderSettings() {

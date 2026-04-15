@@ -22,6 +22,7 @@ const fetchLanguages = createServerFn({ method: "GET" })
 export const adminLanguagesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.languages,
   queryFn: () => fetchLanguages(),
+  staleTime: 30 * 60 * 1000,
 });
 
 export function useLanguages() {

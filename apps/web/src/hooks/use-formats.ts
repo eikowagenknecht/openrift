@@ -24,5 +24,6 @@ export function useFormats() {
       const data = await fetchFormatsFn();
       return data.formats;
     },
+    staleTime: 30 * 60 * 1000,
   });
 }

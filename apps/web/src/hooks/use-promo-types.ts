@@ -22,6 +22,7 @@ const fetchPromoTypes = createServerFn({ method: "GET" })
 export const adminPromoTypesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.promoTypes,
   queryFn: () => fetchPromoTypes(),
+  staleTime: 30 * 60 * 1000,
 });
 
 export function usePromoTypes() {
