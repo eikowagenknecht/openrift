@@ -325,8 +325,8 @@ export function marketplaceRepo(db: Kysely<Database>) {
       const printingIds = [...new Set(events.rows.map((e) => e.printingId))];
 
       // ── Query B: daily prices for those printings ──────────────────────
-      // Uses the same sibling join + headline CASE as mv_latest_printing_prices,
-      // but over historical snapshots grouped by day.
+      // Mirrors mv_latest_printing_prices' headline rule (market_cents with
+      // low_cents fallback) but over historical snapshots grouped by day.
       const dailyPrices = await sql<{
         printingId: string;
         day: string;
@@ -335,10 +335,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         SELECT DISTINCT ON (target.id, day)
           target.id AS "printingId",
           date_trunc('day', snap.recorded_at)::date::text AS day,
-          CASE
-            WHEN mp.marketplace = 'cardmarket' THEN COALESCE(snap.low_cents, snap.market_cents)
-            ELSE COALESCE(snap.market_cents, snap.low_cents)
-          END AS "headlineCents"
+          COALESCE(snap.market_cents, snap.low_cents) AS "headlineCents"
         FROM printings target
         JOIN printings source
           ON source.card_id = target.card_id
@@ -353,10 +350,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         WHERE target.id IN (${sql.join(printingIds.map((id) => sql`${id}::uuid`))})
           AND mp.marketplace = ${marketplace}
           AND (mpv.language IS NULL OR source.id = target.id)
-          AND CASE
-            WHEN mp.marketplace = 'cardmarket' THEN COALESCE(snap.low_cents, snap.market_cents)
-            ELSE COALESCE(snap.market_cents, snap.low_cents)
-          END IS NOT NULL
+          AND COALESCE(snap.market_cents, snap.low_cents) IS NOT NULL
         ORDER BY target.id, day, snap.recorded_at DESC
       `.execute(db);
 

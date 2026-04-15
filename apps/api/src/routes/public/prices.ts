@@ -141,16 +141,13 @@ export const pricesRoute = pricesApp
 
     const cmSnapshots: PriceHistoryResponse["cardmarket"]["snapshots"] = [];
     for (const r of cmRows) {
-      // Display Cardmarket's cheapest current listing as the headline. Their
-      // `avg` field (stored in market_cents) is a sales-history mean that
-      // occasionally spikes from a single anomalous listing/sale.
-      const headline = r.lowCents ?? r.marketCents;
-      if (headline === null) {
+      const market = r.marketCents ?? r.lowCents;
+      if (market === null) {
         continue;
       }
       cmSnapshots.push({
         date: formatDateUTC(r.recordedAt),
-        market: centsToDollars(headline),
+        market: centsToDollars(market),
         low: centsToDollars(r.lowCents),
       });
     }
