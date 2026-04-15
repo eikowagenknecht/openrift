@@ -163,7 +163,7 @@ test.describe("card detail route — essentials", () => {
     await page.locator(".aspect-card").first().click();
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
-    await pane.getByRole("link", { name: /view full page/i }).click();
+    await pane.getByRole("link", { name: /view card details/i }).click();
 
     await expect(page.getByRole("button", { name: "Reshuffle" })).toBeVisible({ timeout: 10_000 });
   });
@@ -182,7 +182,7 @@ test.describe("card detail route — essentials", () => {
     await page.locator(".aspect-card").first().click();
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
-    await pane.getByRole("link", { name: /view full page/i }).click();
+    await pane.getByRole("link", { name: /view card details/i }).click();
 
     // CardDetailPending renders Skeleton elements (data-slot="skeleton")
     // before the loader resolves and the real h1 mounts.
