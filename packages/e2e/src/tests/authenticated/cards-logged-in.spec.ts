@@ -107,7 +107,9 @@ function catalogModeButton(page: Page) {
 }
 
 async function waitForCards(page: Page) {
-  await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Annie, Fiery", { exact: true }).first()).toBeVisible({
+    timeout: 15_000,
+  });
 }
 
 test.describe("cards /cards (logged in)", () => {
