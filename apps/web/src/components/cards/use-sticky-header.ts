@@ -23,24 +23,23 @@ export function useStickyHeader({
   const [activeHeaderRow, setActiveHeaderRow] = useState<(VRow & { kind: "header" }) | null>(null);
 
   // Mirror refs so the scroll handler reads current values without
-  // re-subscribing every render.
+  // re-subscribing every render. Writes live in an effect so the compiler
+  // can optimize the render phase (refs must not be touched during render).
   const multipleGroupsRef = useRef(multipleGroups);
-  multipleGroupsRef.current = multipleGroups;
-
   const virtualRowsRef = useRef(virtualRows);
-  virtualRowsRef.current = virtualRows;
-
   const rowStartsRef = useRef(rowStarts);
-  rowStartsRef.current = rowStarts;
-
   const virtualizerRef = useRef(virtualizer);
-  virtualizerRef.current = virtualizer;
-
   const scrollMarginRef = useRef(scrollMargin);
-  scrollMarginRef.current = scrollMargin;
-
   const stickyOffsetRef = useRef(stickyOffset);
-  stickyOffsetRef.current = stickyOffset;
+
+  useEffect(() => {
+    multipleGroupsRef.current = multipleGroups;
+    virtualRowsRef.current = virtualRows;
+    rowStartsRef.current = rowStarts;
+    virtualizerRef.current = virtualizer;
+    scrollMarginRef.current = scrollMargin;
+    stickyOffsetRef.current = stickyOffset;
+  });
 
   useEffect(() => {
     if (!multipleGroups) {

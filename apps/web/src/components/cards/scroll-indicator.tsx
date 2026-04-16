@@ -27,7 +27,7 @@ export function ScrollIndicator({
     indicator,
     indicatorRef,
     cardIdRef,
-    dragTopRef,
+    badgeRef,
     isDraggingRef,
     handleIndicatorPointerDown,
     snapPointElsRef,
@@ -59,7 +59,11 @@ export function ScrollIndicator({
         style={{
           right: 20,
           top: 0,
-          transform: `translateY(calc(${indicator.dragging ? dragTopRef.current : indicator.indicatorTop}px - 50%))`,
+          // During drag, the pointer-move handler sets transform directly on
+          // indicatorRef to avoid React re-renders per mousemove. The render
+          // value here only matters at drag-start/end — both moments sync
+          // indicator.indicatorTop with the ref (see use-scroll-indicator).
+          transform: `translateY(calc(${indicator.indicatorTop}px - 50%))`,
           willChange: "transform",
           opacity: indicator.visible ? 1 : 0,
           touchAction: "none",
@@ -95,6 +99,7 @@ export function ScrollIndicator({
           )}
         >
           <div
+            ref={badgeRef}
             className={cn(
               "bg-popover/90 text-popover-foreground inline-flex items-center rounded-md font-mono font-medium whitespace-nowrap shadow-md ring-1 backdrop-blur-sm select-none",
               IS_COARSE_POINTER ? "px-5 py-2 text-base" : "px-5 py-2 text-sm",

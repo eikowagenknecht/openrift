@@ -1,7 +1,7 @@
 import type { SearchField } from "@openrift/shared";
 import { ALL_SEARCH_FIELDS, parseSearchTerms } from "@openrift/shared";
 import { SearchIcon, XIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,9 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
 
   const [searchFocused, setSearchFocused] = useState(false);
   const filteredCountRef = useRef(filteredCount);
-  filteredCountRef.current = filteredCount;
+  useEffect(() => {
+    filteredCountRef.current = filteredCount;
+  }, [filteredCount]);
 
   const commitSearch = (value: string) => {
     setSearch(value);

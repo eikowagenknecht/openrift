@@ -27,7 +27,9 @@ export function useGridKeyboardNav({
   siblingPrintings,
 }: UseGridKeyboardNavParams) {
   const siblingPrintingsRef = useRef(siblingPrintings);
-  siblingPrintingsRef.current = siblingPrintings;
+  useEffect(() => {
+    siblingPrintingsRef.current = siblingPrintings;
+  }, [siblingPrintings]);
 
   useEffect(() => {
     if (!selectedCardId || !onCardClick) {
