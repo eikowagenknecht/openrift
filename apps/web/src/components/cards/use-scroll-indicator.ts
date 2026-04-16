@@ -31,24 +31,23 @@ export function useScrollIndicator({
 }: UseScrollIndicatorParams) {
   // ── Mirror refs (read current values from event handlers) ──────────
   const virtualRowsRef = useRef(virtualRows);
-  virtualRowsRef.current = virtualRows;
-
   const rowStartsRef = useRef(rowStarts);
-  rowStartsRef.current = rowStarts;
-
   const virtualizerRef = useRef(virtualizer);
-  virtualizerRef.current = virtualizer;
-
   const scrollMarginRef = useRef(scrollMargin);
-  scrollMarginRef.current = scrollMargin;
-
   const stickyOffsetRef = useRef(stickyOffset);
-  stickyOffsetRef.current = stickyOffset;
+
+  useEffect(() => {
+    virtualRowsRef.current = virtualRows;
+    rowStartsRef.current = rowStarts;
+    virtualizerRef.current = virtualizer;
+    scrollMarginRef.current = scrollMargin;
+    stickyOffsetRef.current = stickyOffset;
+  });
 
   // ── Indicator state ────────────────────────────────────────────────
   const [indicator, setIndicator] = useState<IndicatorState>({
     cardId: "",
-    indicatorTop: stickyOffsetRef.current + INDICATOR_PAD,
+    indicatorTop: stickyOffset + INDICATOR_PAD,
     visible: false,
     dragging: false,
   });
@@ -67,6 +66,9 @@ export function useScrollIndicator({
   });
   const indicatorRef = useRef<HTMLDivElement>(null);
   const indicatorHRef = useRef(INDICATOR_H_FALLBACK);
+  // State mirror of indicatorHRef so renders that depend on the height
+  // (snap-point computation) can read it without touching the ref.
+  const [indicatorH, setIndicatorH] = useState(INDICATOR_H_FALLBACK);
   const cardIdRef = useRef<HTMLElement>(null);
   const badgeRef = useRef<HTMLDivElement>(null);
   const dragTopRef = useRef(0);
@@ -76,10 +78,20 @@ export function useScrollIndicator({
 
   // ── Measure indicator height ───────────────────────────────────────
   useLayoutEffect(() => {
-    if (indicatorRef.current) {
-      indicatorHRef.current = indicatorRef.current.offsetHeight || INDICATOR_H_FALLBACK;
+    const el = indicatorRef.current;
+    if (!el) {
+      return;
     }
-  });
+    const measure = () => {
+      const h = el.offsetHeight || INDICATOR_H_FALLBACK;
+      indicatorHRef.current = h;
+      setIndicatorH((prev) => (prev === h ? prev : h));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // ── Prevent native touch scrolling during drag ─────────────────────
   useEffect(() => {
@@ -343,11 +355,14 @@ export function useScrollIndicator({
         virtualizer,
         scrollMargin,
         multipleGroups,
-        indicatorH: indicatorHRef.current,
+        indicatorH,
         stickyOffset,
       })
     : [];
-  snapPointsRef.current = snapPoints;
+
+  useEffect(() => {
+    snapPointsRef.current = snapPoints;
+  });
 
   // ── Hover handlers (for the indicator element) ─────────────────────
   const handleMouseEnter = () => {
