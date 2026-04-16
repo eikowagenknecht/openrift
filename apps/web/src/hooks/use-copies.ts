@@ -132,6 +132,8 @@ export function useAddCopies() {
       tempIds?: string[];
     }): Promise<AddCopyResult[]> => {
       const controller = new AbortController();
+      const tempIds = body.tempIds ?? [];
+      const hasTempIds = tempIds.length > 0;
       try {
         const apiResult = await withTimeout(
           addCopiesApi({ copies: body.copies }, controller.signal),
@@ -145,9 +147,9 @@ export function useAddCopies() {
           printingId: item.printingId,
           collectionId: item.collectionId,
         }));
-        if (body.tempIds && body.tempIds.length > 0) {
+        if (hasTempIds) {
           copiesCollection.utils.writeBatch(() => {
-            copiesCollection.utils.writeDelete(body.tempIds ?? []);
+            copiesCollection.utils.writeDelete(tempIds);
             copiesCollection.utils.writeInsert(realRows);
           });
         } else {
@@ -165,8 +167,8 @@ export function useAddCopies() {
         trackEvent("collection-add", { count: apiResult.length });
         return apiResult;
       } catch (error) {
-        if (body.tempIds && body.tempIds.length > 0) {
-          copiesCollection.utils.writeDelete(body.tempIds);
+        if (hasTempIds) {
+          copiesCollection.utils.writeDelete(tempIds);
         }
         throw error;
       }

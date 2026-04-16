@@ -139,9 +139,8 @@ function PaletteInner({
       inputRef.current?.focus();
     } catch {
       toast.error(`Failed to add ${printing.card.name}`);
-    } finally {
-      useAddModeStore.getState().decrementPending(printing.id);
     }
+    useAddModeStore.getState().decrementPending(printing.id);
   };
 
   const handleUndo = (printing: Printing) => {

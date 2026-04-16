@@ -519,8 +519,7 @@ export function CardGrid({
 
   const scrollToCard = (cardId: string) => {
     const rows = virtualRowsRef.current;
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
+    for (const [i, row] of rows.entries()) {
       if (
         row.kind === "cards" &&
         row.items.some((item) => item.id === cardId || item.printing.id === cardId)

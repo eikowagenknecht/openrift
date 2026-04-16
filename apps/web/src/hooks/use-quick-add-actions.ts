@@ -27,9 +27,8 @@ export function useQuickAddActions(collectionId?: string) {
           // Error toast is fired by the global mutation onError handler;
           // swallow the rejection here so it doesn't surface as an uncaught
           // promise in the console.
-        } finally {
-          useAddModeStore.getState().decrementPending(printing.id);
         }
+        useAddModeStore.getState().decrementPending(printing.id);
       }
     : undefined;
 
