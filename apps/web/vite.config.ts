@@ -107,8 +107,10 @@ export default defineConfig(({ mode, command }) => {
       tsconfigPaths: true,
     },
     plugins: [
-      // Needs to be first
-      devtools(),
+      // Needs to be first. Skipped under e2e — the console-pipe SSE channel
+      // keeps the network "busy" forever, which breaks Playwright's
+      // networkidle wait during global-setup warmup.
+      ...(process.env.VITE_DISABLE_DEVTOOLS ? [] : [devtools()]),
       serveMediaPlugin,
       tailwindcss(),
       tanstackStart(),
@@ -129,7 +131,8 @@ export default defineConfig(({ mode, command }) => {
       },
     },
     server: {
-      port: 5173,
+      port: process.env.PORT ? Number(process.env.PORT) : 5173,
+      strictPort: Boolean(process.env.PORT),
       // Proxy /api/auth (better-auth browser client) and /api/v1/* (direct
       // client fetches for endpoints we want CF to edge-cache, e.g. the
       // catalog in use-cards.ts) to the API server. In production, nginx

@@ -134,22 +134,24 @@ function RootComponent() {
         <Outlet />
         <Toaster position="bottom-right" />
       </div>
-      <TanStackDevtools
-        config={{
-          position: "top-right",
-        }}
-        plugins={[
-          {
-            name: "Tanstack Router",
-            render: <TanStackRouterDevtoolsPanel />,
-          },
-          {
-            name: "Tanstack Query",
-            render: <ReactQueryDevtoolsPanel />,
-          },
-          pacerDevtoolsPlugin(),
-        ]}
-      />
+      {!import.meta.env.VITE_DISABLE_DEVTOOLS && (
+        <TanStackDevtools
+          config={{
+            position: "top-right",
+          }}
+          plugins={[
+            {
+              name: "Tanstack Router",
+              render: <TanStackRouterDevtoolsPanel />,
+            },
+            {
+              name: "Tanstack Query",
+              render: <ReactQueryDevtoolsPanel />,
+            },
+            pacerDevtoolsPlugin(),
+          ]}
+        />
+      )}
       <Analytics />
     </>
   );
