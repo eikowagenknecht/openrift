@@ -136,7 +136,10 @@ function PaletteInner({
       const real = await result;
       useAddModeStore.getState().recordAdd(printing, real.id);
       toast.success(`Added 1× ${printing.card.name}`);
-      inputRef.current?.focus();
+      const input = inputRef.current;
+      if (input) {
+        input.focus();
+      }
     } catch {
       toast.error(`Failed to add ${printing.card.name}`);
     }
