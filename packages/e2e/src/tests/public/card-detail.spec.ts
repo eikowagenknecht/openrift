@@ -185,8 +185,12 @@ test.describe("card detail route — essentials", () => {
     await pane.getByRole("link", { name: /view card details/i }).click();
 
     // CardDetailPending renders Skeleton elements (data-slot="skeleton")
-    // before the loader resolves and the real h1 mounts.
-    await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible({ timeout: 1500 });
+    // before the loader resolves and the real h1 mounts. TanStack's
+    // defaults are pendingMs=1000 and pendingMinMs=500, so the skeleton's
+    // window is roughly t=1000ms..2000ms after the click — give the
+    // assertion enough room that navigation-scheduling jitter doesn't
+    // push the skeleton out of the window before we look.
+    await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByRole("heading", { level: 1, name: SEED_CARD_NAME })).toBeVisible({
       timeout: 10_000,
     });
@@ -348,20 +352,30 @@ test.describe("card detail route — info panel", () => {
 
     // Pick the foil promo printing and verify the Markers row appears with the label.
     // (No seed printing has a non-normal artVariant, so the Art variant row stays hidden.)
-    // Multiple printings share the same publicCode, so target by id. Retry the
-    // click: the SSR'd button can receive a click before React attaches
-    // onClick, leaving state unchanged. Scope the marker-label assertion to
-    // the Markers row — the label also appears in printing-button badges and
-    // the price-history heading.
+    // Multiple printings share the same publicCode, so target by id.
     const promoButton = page.locator(`button[data-printing-id="${promoPrinting.id}"]`);
+
+    // Let hydration settle before interacting — clicks that land before React
+    // attaches onClick fire as bare DOM events and do nothing.
+    await page.waitForLoadState("networkidle");
+    await expect(promoButton).toHaveAttribute("aria-pressed", "false");
+
+    // Retry the click using aria-pressed as the signal that state actually
+    // updated. A pre-hydration click leaves aria-pressed unchanged; once
+    // React is attached, clicking flips it to "true".
+    await expect(async () => {
+      await promoButton.click();
+      await expect(promoButton).toHaveAttribute("aria-pressed", "true", { timeout: 1000 });
+    }).toPass({ timeout: 15_000 });
+
+    // Now the Markers row must have rendered. Scope the marker-label
+    // assertion to that row — the label also appears in printing-button
+    // badges and the price-history heading.
     const markersRow = page
       .getByRole("row")
       .filter({ has: page.getByText("Markers", { exact: true }) })
       .first();
-    await expect(async () => {
-      await promoButton.click();
-      await expect(markersRow).toBeVisible({ timeout: 500 });
-    }).toPass({ timeout: 5000 });
+    await expect(markersRow).toBeVisible();
     await expect(markersRow).toContainText(promoMarker.label);
   });
 
@@ -417,9 +431,17 @@ test.describe("card detail route — info panel", () => {
       await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
       await expect(page.getByRole("heading", { level: 1, name: SEED_CARD_NAME })).toBeVisible();
-      await expect(page.getByText("Type", { exact: true }).first()).toBeVisible();
-      await expect(page.getByText("Domains", { exact: true }).first()).toBeVisible();
-      await expect(page.getByText("Energy", { exact: true }).first()).toBeVisible();
+      // On mobile the right-column rows render twice: once in the main table
+      // (hidden via `hidden sm:table-cell`) and once in a separate
+      // `sm:hidden` stacked block. Filter to the visible copy so `.first()`
+      // doesn't land on the hidden one.
+      await expect(page.getByText("Type", { exact: true }).filter({ visible: true })).toBeVisible();
+      await expect(
+        page.getByText("Domains", { exact: true }).filter({ visible: true }),
+      ).toBeVisible();
+      await expect(
+        page.getByText("Energy", { exact: true }).filter({ visible: true }),
+      ).toBeVisible();
     });
   });
 });
