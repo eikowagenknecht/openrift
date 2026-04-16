@@ -116,24 +116,6 @@ async function createCollectionViaApi(request: APIRequestContext, name: string):
   return body.id;
 }
 
-// TanStack Start encodes the server fn id as base64url(JSON) referencing the
-// source file + exported const name. Decoding lets us single out the move or
-// dispose mutation without matching the unrelated session/feature-flag/etc.
-// server fns that fire on the same page.
-function isServerFn(constName: string) {
-  return (url: string) => {
-    const match = url.match(/\/_serverFn\/([^/?#]+)/);
-    if (!match) {
-      return false;
-    }
-    try {
-      return Buffer.from(match[1], "base64url").toString("utf-8").includes(constName);
-    } catch {
-      return false;
-    }
-  };
-}
-
 async function enterSelectMode(page: Page) {
   // The desktop "Select …" top-bar button has a visible text label; its mobile
   // icon-only twin has no accessible name, so role+name picks it unambiguously.
@@ -181,7 +163,7 @@ test.describe("collection actions", () => {
 
       await enterSelectMode(page);
 
-      const checkboxes = page.getByRole("button", { name: /select card/i });
+      const checkboxes = page.getByRole("button", { name: "Select card", exact: true });
       await expect(checkboxes).toHaveCount(2);
 
       // Select first → floating bar shows 1 selected.
@@ -224,10 +206,7 @@ test.describe("collection actions", () => {
       await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible({ timeout: 10_000 });
 
       await enterSelectMode(page);
-      await page
-        .getByRole("button", { name: /select card/i })
-        .first()
-        .click();
+      await page.getByRole("button", { name: "Select card", exact: true }).first().click();
       await expect(page.getByText("2 selected")).toBeVisible();
 
       await page.getByRole("button", { name: /^Move$/ }).click();
@@ -240,8 +219,11 @@ test.describe("collection actions", () => {
       // only "Target" is listed here.
       await expect(dialog.getByRole("button", { name: "Target" })).toBeVisible();
 
-      const movePromise = page.waitForRequest((request) =>
-        isServerFn("moveCopiesFn")(request.url()),
+      const movePromise = page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          response.url().endsWith("/api/v1/copies/move") &&
+          response.ok(),
       );
       await dialog.getByRole("button", { name: "Target" }).click();
       await dialog.getByRole("button", { name: /^Move$/ }).click();
@@ -273,10 +255,7 @@ test.describe("collection actions", () => {
       await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible({ timeout: 10_000 });
 
       await enterSelectMode(page);
-      await page
-        .getByRole("button", { name: /select card/i })
-        .first()
-        .click();
+      await page.getByRole("button", { name: "Select card", exact: true }).first().click();
       await page.getByRole("button", { name: /^Move$/ }).click();
 
       const dialog = page.getByRole("alertdialog");
@@ -293,11 +272,9 @@ test.describe("collection actions", () => {
       const annie = await findPrintingIdForCard(ANNIE_FIERY);
       await seedCopies(page.request, annie, inboxId, 1);
 
-      // Delay the move server fn so the pending state is observable.
-      await page.route("**/_serverFn/**", async (route) => {
-        if (isServerFn("moveCopiesFn")(route.request().url())) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
+      // Delay the move request so the pending state is observable.
+      await page.route("**/api/v1/copies/move", async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         await route.continue();
       });
 
@@ -306,10 +283,7 @@ test.describe("collection actions", () => {
       await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible({ timeout: 10_000 });
 
       await enterSelectMode(page);
-      await page
-        .getByRole("button", { name: /select card/i })
-        .first()
-        .click();
+      await page.getByRole("button", { name: "Select card", exact: true }).first().click();
       await page.getByRole("button", { name: /^Move$/ }).click();
 
       const dialog = page.getByRole("alertdialog");
@@ -343,10 +317,7 @@ test.describe("collection actions", () => {
       await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible({ timeout: 10_000 });
 
       await enterSelectMode(page);
-      await page
-        .getByRole("button", { name: /select card/i })
-        .first()
-        .click();
+      await page.getByRole("button", { name: "Select card", exact: true }).first().click();
       await expect(page.getByText("3 selected")).toBeVisible();
 
       await page.getByRole("button", { name: /^Dispose$/ }).click();
@@ -373,10 +344,7 @@ test.describe("collection actions", () => {
       await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible({ timeout: 10_000 });
 
       await enterSelectMode(page);
-      await page
-        .getByRole("button", { name: /select card/i })
-        .first()
-        .click();
+      await page.getByRole("button", { name: "Select card", exact: true }).first().click();
       await expect(page.getByText("3 selected")).toBeVisible();
 
       await page.getByRole("button", { name: /^Dispose$/ }).click();
@@ -386,8 +354,11 @@ test.describe("collection actions", () => {
       const confirm = dialog.getByRole("button", { name: /^Remove 3 cards$/ });
       await expect(confirm).toBeVisible();
 
-      const disposePromise = page.waitForRequest((request) =>
-        isServerFn("disposeCopiesFn")(request.url()),
+      const disposePromise = page.waitForResponse(
+        (response) =>
+          response.request().method() === "POST" &&
+          response.url().endsWith("/api/v1/copies/dispose") &&
+          response.ok(),
       );
       await confirm.click();
       await disposePromise;
@@ -430,10 +401,7 @@ test.describe("collection actions", () => {
       await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible({ timeout: 10_000 });
 
       await enterSelectMode(page);
-      await page
-        .getByRole("button", { name: /select card/i })
-        .first()
-        .click();
+      await page.getByRole("button", { name: "Select card", exact: true }).first().click();
       await expect(page.getByText("1 selected")).toBeVisible();
 
       await page.getByRole("button", { name: /^Dispose$/ }).click();
@@ -451,10 +419,8 @@ test.describe("collection actions", () => {
       const annie = await findPrintingIdForCard(ANNIE_FIERY);
       await seedCopies(page.request, annie, inboxId, 2);
 
-      await page.route("**/_serverFn/**", async (route) => {
-        if (isServerFn("disposeCopiesFn")(route.request().url())) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
+      await page.route("**/api/v1/copies/dispose", async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         await route.continue();
       });
 
@@ -463,10 +429,7 @@ test.describe("collection actions", () => {
       await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible({ timeout: 10_000 });
 
       await enterSelectMode(page);
-      await page
-        .getByRole("button", { name: /select card/i })
-        .first()
-        .click();
+      await page.getByRole("button", { name: "Select card", exact: true }).first().click();
       await page.getByRole("button", { name: /^Dispose$/ }).click();
 
       const dialog = page.getByRole("alertdialog");

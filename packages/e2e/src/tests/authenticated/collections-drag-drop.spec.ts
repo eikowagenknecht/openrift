@@ -138,25 +138,14 @@ async function countCopiesInCollection(collectionId: string): Promise<number> {
   }
 }
 
-// TanStack Start encodes the server fn id as base64url(JSON) referencing the
-// source file + export name; matching on the decoded payload lets us target a
-// single server fn out of the bundle that fires during a route transition.
-function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
-  if (!match) {
-    return false;
-  }
-  try {
-    return Buffer.from(match[1], "base64url").toString("utf-8").includes(fnName);
-  } catch {
-    return false;
-  }
+function isMoveRequest(req: { method: () => string; url: () => string }): boolean {
+  return req.method() === "POST" && req.url().endsWith("/api/v1/copies/move");
 }
 
 function watchMoveRequests(page: Page): { fired: () => boolean } {
   let moveFired = false;
   page.on("request", (req) => {
-    if (req.method() === "POST" && isServerFn(req.url(), "moveCopiesFn")) {
+    if (isMoveRequest(req)) {
       moveFired = true;
     }
   });
@@ -190,9 +179,7 @@ test.describe("collections drag-drop", () => {
       await expect(cardTile).toBeVisible();
       const targetLink = page.getByRole("link", { name: "Target" });
 
-      const moveRequest = page.waitForRequest(
-        (req) => req.method() === "POST" && isServerFn(req.url(), "moveCopiesFn"),
-      );
+      const moveRequest = page.waitForRequest(isMoveRequest);
       await dndDrag(page, cardTile, targetLink);
       await moveRequest;
 
@@ -233,9 +220,7 @@ test.describe("collections drag-drop", () => {
       await expect(cardTile).toBeVisible();
       const targetLink = page.getByRole("link", { name: "Target" });
 
-      const moveRequest = page.waitForRequest(
-        (req) => req.method() === "POST" && isServerFn(req.url(), "moveCopiesFn"),
-      );
+      const moveRequest = page.waitForRequest(isMoveRequest);
       await dndDrag(page, cardTile, targetLink);
       await moveRequest;
 

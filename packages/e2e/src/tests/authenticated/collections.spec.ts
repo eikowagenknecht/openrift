@@ -9,7 +9,9 @@ test.describe("collections", () => {
     // The collections page should load without redirecting to login
     await expect(page).toHaveURL("/collections");
 
-    // Should show the "All Cards" heading (the default collection grid title)
-    await expect(page.getByText("All Cards")).toBeVisible({ timeout: 15_000 });
+    // Should show the "All Cards" sidebar link (the default collection)
+    await expect(page.getByRole("link", { name: "All Cards", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });

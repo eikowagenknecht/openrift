@@ -112,6 +112,37 @@ async function waitForCards(page: Page) {
   });
 }
 
+/**
+ * Match a TanStack Start server fn response by the source-level function name.
+ * The id in /_serverFn/{id} is a base64url(JSON) blob that references the file
+ * + variable name, so decoding it lets us target a specific fn out of the bundle
+ * that fires during a route transition.
+ * @returns True when the URL belongs to the named server fn.
+ */
+function isServerFn(url: string, fnName: string): boolean {
+  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  if (!match) {
+    return false;
+  }
+  try {
+    return Buffer.from(match[1], "base64url").toString("utf-8").includes(fnName);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Wait until the collections query resolves so `inboxId` is populated on the
+ * client. The Ctrl+K handler in card-browser.tsx is gated on `inboxId`, so
+ * pressing the shortcut before collections loads silently drops the event.
+ * @returns A promise that resolves when the collections response is seen.
+ */
+function waitForCollectionsLoaded(page: Page) {
+  return page.waitForResponse((res) => isServerFn(res.url(), "fetchCollections") && res.ok(), {
+    timeout: 15_000,
+  });
+}
+
 test.describe("cards /cards (logged in)", () => {
   let userEmail: string | undefined;
 
@@ -236,12 +267,11 @@ test.describe("cards /cards (logged in)", () => {
 
   test("Ctrl+K opens the QuickAddPalette and Escape closes it", async ({ page }) => {
     userEmail = await createAndLogin(page);
+    const collectionsLoaded = waitForCollectionsLoaded(page);
     await page.goto("/cards");
     await waitForCards(page);
-    // Confirm isLoggedIn hydrated (catalog button only renders when logged in);
-    // this also gives the collections query time to populate inboxId, which is
-    // what gates the Ctrl+K handler in card-browser.tsx.
     await expect(catalogModeButton(page)).toBeVisible();
+    await collectionsLoaded;
 
     await page.keyboard.press("Control+k");
 
