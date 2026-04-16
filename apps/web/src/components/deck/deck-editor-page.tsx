@@ -163,6 +163,14 @@ function DeckEditorContent({
   deckId: string;
   topBarSlot: HTMLDivElement | null;
 }) {
+  // React Compiler 1.0 + React 19 strict-mode double render produces
+  // "useMemoCache size mismatch" warnings on hovered-card transitions in this
+  // component. ESLint's compiler rule flags the directive as unused because
+  // the compile succeeds, but the runtime output trips the size check during
+  // strict-mode re-invocation. Disabling memoization here silences the
+  // dev-console spam at negligible runtime cost.
+  // eslint-disable-next-line react-compiler/react-compiler -- see comment above
+  "use no memo";
   const queryClient = useQueryClient();
   const { data } = useDeckDetail(deckId);
   const { cardsById, allPrintings } = useCards();
