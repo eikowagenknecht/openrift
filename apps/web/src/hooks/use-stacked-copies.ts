@@ -14,14 +14,17 @@ export interface StackedEntry {
 interface UseStackedCopiesResult {
   stacks: StackedEntry[];
   totalCopies: number;
+  isReady: boolean;
 }
 
 /**
  * Groups copies by printing ID into stacks, sorted by card ID.
- * @returns Sorted stacks and total copy count.
+ * @returns Sorted stacks, total copy count, and a readiness flag that lets
+ * callers distinguish "still loading" from "loaded but empty" so the empty
+ * state doesn't flash before the first fetch resolves.
  */
 export function useStackedCopies(collectionId?: string): UseStackedCopiesResult {
-  const { data: copies } = useCopies(collectionId);
+  const { data: copies, isReady } = useCopies(collectionId);
   const { allPrintings } = useCards();
 
   const printingById = new Map<string, Printing>();
@@ -57,5 +60,5 @@ export function useStackedCopies(collectionId?: string): UseStackedCopiesResult 
 
   const totalCopies = sortedStacks.reduce((sum, stack) => sum + stack.copyIds.length, 0);
 
-  return { stacks: sortedStacks, totalCopies };
+  return { stacks: sortedStacks, totalCopies, isReady };
 }

@@ -38,7 +38,6 @@ export type {
   CollectionListResponse,
   CollectionResponse,
   CopyCollectionBreakdownEntry,
-  CopyCollectionBreakdownResponse,
   CopyListResponse,
   CopyResponse,
 } from "./collection.js";

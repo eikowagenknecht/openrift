@@ -10,16 +10,6 @@ import { copiesRoute } from "./copies";
 
 const mockRepo = {
   listForUser: vi.fn(() => Promise.resolve([] as object[])),
-  countByCollectionForUser: vi.fn(() =>
-    Promise.resolve(
-      [] as {
-        printingId: string;
-        collectionId: string;
-        collectionName: string;
-        count: number;
-      }[],
-    ),
-  ),
 };
 
 const mockAddCopies = vi.fn(() => Promise.resolve([] as object[]));
@@ -109,8 +99,8 @@ describe("GET /api/v1/copies", () => {
     expect(json.nextCursor).toBeTruthy();
   });
 
-  it("caps results at default 1000 limit when none is provided", async () => {
-    const items = Array.from({ length: 1001 }, (_, i) => ({
+  it("caps results at default 10000 limit when none is provided", async () => {
+    const items = Array.from({ length: 10_001 }, (_, i) => ({
       ...dbCopy,
       id: `a0000000-0001-4000-a000-${String(i).padStart(12, "0")}`,
       createdAt: new Date(now.getTime() - i * 1000),
@@ -118,7 +108,7 @@ describe("GET /api/v1/copies", () => {
     mockRepo.listForUser.mockResolvedValue(items);
     const res = await app.request("/api/v1/copies");
     const json = await res.json();
-    expect(json.items).toHaveLength(1000);
+    expect(json.items).toHaveLength(10_000);
     expect(json.nextCursor).toBeTruthy();
   });
 
@@ -183,52 +173,6 @@ describe("POST /api/v1/copies/dispose", () => {
       body: JSON.stringify({ copyIds: [COPY_ID] }),
     });
     expect(res.status).toBe(204);
-  });
-});
-
-describe("GET /api/v1/copies/count-by-collection", () => {
-  beforeEach(() => {
-    mockRepo.countByCollectionForUser.mockReset();
-  });
-
-  it("returns 200 with printingId → breakdown entries map", async () => {
-    mockRepo.countByCollectionForUser.mockResolvedValue([
-      {
-        printingId: "OGS-001:rare:normal:",
-        collectionId: "col-1",
-        collectionName: "Main",
-        count: 2,
-      },
-      {
-        printingId: "OGS-001:rare:normal:",
-        collectionId: "col-2",
-        collectionName: "Trades",
-        count: 1,
-      },
-      {
-        printingId: "OGS-002:common:normal:",
-        collectionId: "col-1",
-        collectionName: "Main",
-        count: 1,
-      },
-    ]);
-    const res = await app.request("/api/v1/copies/count-by-collection");
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.items["OGS-001:rare:normal:"]).toEqual([
-      { collectionId: "col-1", collectionName: "Main", count: 2 },
-      { collectionId: "col-2", collectionName: "Trades", count: 1 },
-    ]);
-    expect(json.items["OGS-002:common:normal:"]).toEqual([
-      { collectionId: "col-1", collectionName: "Main", count: 1 },
-    ]);
-  });
-
-  it("returns empty object when no copies", async () => {
-    mockRepo.countByCollectionForUser.mockResolvedValue([]);
-    const res = await app.request("/api/v1/copies/count-by-collection");
-    const json = await res.json();
-    expect(json.items).toEqual({});
   });
 });
 
@@ -299,9 +243,9 @@ describe("GET /api/v1/copies — default limit", () => {
     mockRepo.listForUser.mockReset();
   });
 
-  it("passes default limit of 1000 to repo when none provided", async () => {
+  it("passes default limit of 10000 to repo when none provided", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
     await app.request("/api/v1/copies");
-    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, 1000, undefined);
+    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, 10_000, undefined);
   });
 });

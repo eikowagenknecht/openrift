@@ -1,13 +1,6 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type {
-  CopyCollectionBreakdownEntry,
-  CopyCollectionBreakdownResponse,
-  CopyListResponse,
-} from "@openrift/shared";
-import {
-  copyCollectionBreakdownResponseSchema,
-  copyListResponseSchema,
-} from "@openrift/shared/response-schemas";
+import type { CopyListResponse } from "@openrift/shared";
+import { copyListResponseSchema } from "@openrift/shared/response-schemas";
 import {
   addCopiesSchema,
   copiesQuerySchema,
@@ -70,18 +63,6 @@ const disposeCopies = createRoute({
   },
 });
 
-const countCopiesByCollection = createRoute({
-  method: "get",
-  path: "/count-by-collection",
-  tags: ["Copies"],
-  responses: {
-    200: {
-      content: { "application/json": { schema: copyCollectionBreakdownResponseSchema } },
-      description: "Success",
-    },
-  },
-});
-
 const copiesApp = new OpenAPIHono<{ Variables: Variables }>().basePath("/copies");
 copiesApp.use(requireAuth);
 export const copiesRoute = copiesApp
@@ -91,7 +72,7 @@ export const copiesRoute = copiesApp
   .openapi(listCopies, async (c) => {
     const { copies } = c.get("repos");
     const { cursor, limit } = c.req.valid("query");
-    const effectiveLimit = limit ?? 1000;
+    const effectiveLimit = limit ?? 10_000;
 
     const rows = await copies.listForUser(getUserId(c), effectiveLimit, cursor);
     const hasMore = rows.length > effectiveLimit;
@@ -140,23 +121,4 @@ export const copiesRoute = copiesApp
     const body = c.req.valid("json");
     await disposeCopiesService(transact, userId, body.copyIds);
     return c.body(null, 204);
-  })
-
-  // ── GET /copies/count-by-collection ─────────────────────────────────────────
-  // Returns per-(printing, collection) copy counts for the authenticated user.
-  // Totals per printing can be derived by summing the entries.
-
-  .openapi(countCopiesByCollection, async (c) => {
-    const { copies } = c.get("repos");
-    const rows = await copies.countByCollectionForUser(getUserId(c));
-
-    const items: Record<string, CopyCollectionBreakdownEntry[]> = {};
-    for (const row of rows) {
-      (items[row.printingId] ??= []).push({
-        collectionId: row.collectionId,
-        collectionName: row.collectionName,
-        count: row.count,
-      });
-    }
-    return c.json({ items } satisfies CopyCollectionBreakdownResponse);
   });

@@ -162,6 +162,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     stackByPrintingId,
     totalUniqueCards: collectionTotalUniqueCards,
     setDisplayLabel: collectionSetDisplayLabel,
+    isReady: copiesReady,
   } = useCollectionCardData({
     collectionId,
     filters,
@@ -783,7 +784,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // ── Empty state ─────────────────────────────────────────────────────
   // Checks the unfiltered stack count, so an empty collection shows this
   // prompt even when filters (including auto-seeded language prefs) are active.
-  if (!isAddMode && stacks.length === 0) {
+  // Gated on `copiesReady` so the empty state doesn't flash while the first
+  // copies fetch is still in flight.
+  if (!isAddMode && copiesReady && stacks.length === 0) {
     return (
       <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-4">
         {topBarPortal}

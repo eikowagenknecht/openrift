@@ -130,7 +130,6 @@ export type {
   CollectionListResponse,
   CollectionResponse,
   CopyCollectionBreakdownEntry,
-  CopyCollectionBreakdownResponse,
   CopyListResponse,
   CopyResponse,
   DeckAvailabilityItemResponse,

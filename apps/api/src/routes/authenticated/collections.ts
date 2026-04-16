@@ -212,7 +212,7 @@ export const collectionsRoute = collectionsApp
     const collection = await collections.exists(id, userId);
     assertFound(collection, "Not found");
 
-    const effectiveLimit = limit ?? 1000;
+    const effectiveLimit = limit ?? 10_000;
     const rows = await copies.listForCollection(id, effectiveLimit, cursor);
     const hasMore = rows.length > effectiveLimit;
     const items = rows.slice(0, effectiveLimit);

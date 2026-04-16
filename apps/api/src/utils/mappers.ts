@@ -156,13 +156,11 @@ export function toCopy(row: {
   id: string;
   printingId: string;
   collectionId: string;
-  createdAt: Date;
 }): CopyResponse {
   return {
     id: row.id,
     printingId: row.printingId,
     collectionId: row.collectionId,
-    createdAt: row.createdAt.toISOString(),
   };
 }
 

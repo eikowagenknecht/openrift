@@ -785,6 +785,7 @@ export interface CollectionStatsResult extends CollectionStats {
   stacks: StackedEntry[];
   sets: SetListEntry[];
   orders: { domains: readonly string[]; rarities: readonly string[]; cardTypes: readonly string[] };
+  isReady: boolean;
 }
 
 /**
@@ -792,7 +793,7 @@ export interface CollectionStatsResult extends CollectionStats {
  * @returns Full stats including hero metrics, completion breakdowns, and charts.
  */
 export function useCollectionStats(collectionId?: string): CollectionStatsResult {
-  const { stacks, totalCopies } = useStackedCopies(collectionId);
+  const { stacks, totalCopies, isReady } = useStackedCopies(collectionId);
   const { allPrintings } = useCards();
   const { data: setList } = useSuspenseQuery(publicSetListQueryOptions);
   const prices = usePrices();
@@ -816,5 +817,6 @@ export function useCollectionStats(collectionId?: string): CollectionStatsResult
     stacks,
     sets: setList.sets,
     orders,
+    isReady,
   };
 }

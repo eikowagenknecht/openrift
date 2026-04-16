@@ -8,7 +8,6 @@ function makeCopy(id: string): CopyResponse {
     id,
     printingId: `print-${id}`,
     collectionId: "col-1",
-    createdAt: "2026-04-16T00:00:00.000Z",
   };
 }
 

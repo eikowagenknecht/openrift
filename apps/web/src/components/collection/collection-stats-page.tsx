@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useFilterValues } from "@/hooks/use-card-filters";
 import type {
@@ -702,6 +703,20 @@ function PriceExtremes({
 
 // ── Empty State ────────────────────────────────────────────────────────────
 
+function StatsSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-48 w-full" />
+      <Skeleton className="h-64 w-full" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Skeleton className="h-40" />
+        <Skeleton className="h-40" />
+        <Skeleton className="h-40" />
+      </div>
+    </div>
+  );
+}
+
 function EmptyState() {
   return (
     <div className="flex flex-col items-center gap-3 py-20 text-center">
@@ -875,110 +890,114 @@ function CollectionStatsContent() {
         </div>
       )}
 
-      {stats.totalCopies === 0 ? (
-        <EmptyState />
-      ) : (
-        <div className="space-y-6">
-          {/* ── Completion ──────────────────────────────────── */}
-          <section className="space-y-4">
-            <h2 className="text-base font-semibold">Completion</h2>
-            <CompletionSection
-              stats={stats}
-              groupBy={groupBy}
-              countMode={countMode}
-              scope={scope}
-            />
-          </section>
+      {stats.isReady ? (
+        stats.totalCopies === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="space-y-6">
+            {/* ── Completion ──────────────────────────────────── */}
+            <section className="space-y-4">
+              <h2 className="text-base font-semibold">Completion</h2>
+              <CompletionSection
+                stats={stats}
+                groupBy={groupBy}
+                countMode={countMode}
+                scope={scope}
+              />
+            </section>
 
-          <Separator />
+            <Separator />
 
-          {/* ── Cost to Complete ────────────────────────────── */}
-          <section className="space-y-4">
-            <h2 className="text-base font-semibold">Cost to Complete</h2>
-            <CostToCompleteChart
-              allPrintings={stats.allPrintings}
-              stacks={stats.stacks}
-              scope={scope}
-              countMode={countMode}
-              prices={prices}
-              marketplace={stats.marketplace}
-            />
-          </section>
+            {/* ── Cost to Complete ────────────────────────────── */}
+            <section className="space-y-4">
+              <h2 className="text-base font-semibold">Cost to Complete</h2>
+              <CostToCompleteChart
+                allPrintings={stats.allPrintings}
+                stacks={stats.stacks}
+                scope={scope}
+                countMode={countMode}
+                prices={prices}
+                marketplace={stats.marketplace}
+              />
+            </section>
 
-          {priceHistoryEnabled && (
-            <>
-              <Separator />
+            {priceHistoryEnabled && (
+              <>
+                <Separator />
 
-              {/* ── Value Over Time ─────────────────────────────── */}
-              <section className="space-y-4">
-                <h2 className="text-base font-semibold">Value Over Time</h2>
+                {/* ── Value Over Time ─────────────────────────────── */}
+                <section className="space-y-4">
+                  <h2 className="text-base font-semibold">Value Over Time</h2>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <CollectionValueChart collectionId={collectionId} scope={scope} />
+                    </CardContent>
+                  </Card>
+                </section>
+              </>
+            )}
+
+            <Separator />
+
+            {/* ── Stats ───────────────────────────────────────── */}
+            <section className="space-y-4">
+              <h2 className="text-base font-semibold">Stats</h2>
+              <StatsHeroStats stats={stats} />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <Card>
-                  <CardContent className="pt-6">
-                    <CollectionValueChart collectionId={collectionId} scope={scope} />
+                  <CardHeader>
+                    <CardTitle>Domain</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <DomainDistributionChart data={stats.domainDistribution} />
                   </CardContent>
                 </Card>
-              </section>
-            </>
-          )}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Rarity</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <RarityDistributionChart data={stats.rarityDistribution} />
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Type</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <TypeDistributionChart data={stats.typeBreakdown} />
+                  </CardContent>
+                </Card>
+              </div>
+              <PriceExtremes
+                cheapest={stats.cheapestPrinting}
+                mostExpensive={stats.mostExpensivePrinting}
+                formatPrice={stats.formatPrice}
+              />
 
-          <Separator />
-
-          {/* ── Stats ───────────────────────────────────────── */}
-          <section className="space-y-4">
-            <h2 className="text-base font-semibold">Stats</h2>
-            <StatsHeroStats stats={stats} />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Domain</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DomainDistributionChart data={stats.domainDistribution} />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Rarity</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RarityDistributionChart data={stats.rarityDistribution} />
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Type</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <TypeDistributionChart data={stats.typeBreakdown} />
-                </CardContent>
-              </Card>
-            </div>
-            <PriceExtremes
-              cheapest={stats.cheapestPrinting}
-              mostExpensive={stats.mostExpensivePrinting}
-              formatPrice={stats.formatPrice}
-            />
-
-            {(stats.energyCurve.length > 0 || stats.powerCurve.length > 0) && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Energy &amp; Power</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <EnergyPowerChart
-                    energyData={stats.energyCurve}
-                    energyStacks={stats.energyCurveStacks}
-                    averageEnergy={stats.averageEnergy}
-                    powerData={stats.powerCurve}
-                    powerStacks={stats.powerCurveStacks}
-                    averagePower={stats.averagePower}
-                    singleColor
-                  />
-                </CardContent>
-              </Card>
-            )}
-          </section>
-        </div>
+              {(stats.energyCurve.length > 0 || stats.powerCurve.length > 0) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Energy &amp; Power</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <EnergyPowerChart
+                      energyData={stats.energyCurve}
+                      energyStacks={stats.energyCurveStacks}
+                      averageEnergy={stats.averageEnergy}
+                      powerData={stats.powerCurve}
+                      powerStacks={stats.powerCurveStacks}
+                      averagePower={stats.averagePower}
+                      singleColor
+                    />
+                  </CardContent>
+                </Card>
+              )}
+            </section>
+          </div>
+        )
+      ) : (
+        <StatsSkeleton />
       )}
     </div>
   );

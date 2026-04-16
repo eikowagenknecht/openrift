@@ -426,8 +426,8 @@ describe("copiesQuerySchema", () => {
     expect(result.limit).toBe(200);
   });
 
-  it("rejects limit over 5000", () => {
-    expect(copiesQuerySchema.safeParse({ limit: 5001 }).success).toBe(false);
+  it("rejects limit over 10000", () => {
+    expect(copiesQuerySchema.safeParse({ limit: 10_001 }).success).toBe(false);
   });
 
   it("rejects limit under 1", () => {

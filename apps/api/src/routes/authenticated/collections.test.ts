@@ -288,9 +288,9 @@ describe("GET /api/v1/collections/:id/copies", () => {
     expect(json.nextCursor).toBeTruthy();
   });
 
-  it("caps results at default 1000 limit when none is provided", async () => {
+  it("caps results at default 10000 limit when none is provided", async () => {
     mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
-    const items = Array.from({ length: 1001 }, (_, idx) => ({
+    const items = Array.from({ length: 10_001 }, (_, idx) => ({
       ...dbCopy,
       id: `a0000000-0001-4000-a000-${String(idx).padStart(12, "0")}`,
       createdAt: new Date(now.getTime() - idx * 1000),
@@ -299,7 +299,7 @@ describe("GET /api/v1/collections/:id/copies", () => {
     const res = await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.items).toHaveLength(1000);
+    expect(json.items).toHaveLength(10_000);
     expect(json.nextCursor).toBeTruthy();
   });
 
@@ -316,11 +316,15 @@ describe("GET /api/v1/collections/:id/copies", () => {
     );
   });
 
-  it("passes default limit of 1000 to repo when none provided", async () => {
+  it("passes default limit of 10000 to repo when none provided", async () => {
     mockCollectionsRepo.exists.mockResolvedValue({ id: dbCollection.id });
     mockCopiesRepo.listForCollection.mockResolvedValue([]);
     await app.request(`/api/v1/collections/${dbCollection.id}/copies`);
-    expect(mockCopiesRepo.listForCollection).toHaveBeenCalledWith(dbCollection.id, 1000, undefined);
+    expect(mockCopiesRepo.listForCollection).toHaveBeenCalledWith(
+      dbCollection.id,
+      10_000,
+      undefined,
+    );
   });
 
   it("returns null nextCursor when items fit within default limit", async () => {

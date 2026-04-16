@@ -149,27 +149,6 @@ describe.skipIf(!ctx)("copiesRepo (integration)", () => {
   });
 
   // ---------------------------------------------------------------------------
-  // countByCollectionForUser
-  // ---------------------------------------------------------------------------
-
-  it("returns rows grouped by (printingId, collectionId)", async () => {
-    const rows = await copies.countByCollectionForUser(userId);
-    expect(rows.length).toBeGreaterThanOrEqual(1);
-
-    for (const row of rows) {
-      expect(row.printingId).toBeDefined();
-      expect(row.collectionId).toBeDefined();
-      expect(row.collectionName).toBeDefined();
-      expect(row.count).toBeGreaterThanOrEqual(1);
-    }
-  });
-
-  it("countByCollectionForUser returns empty for user with no copies", async () => {
-    const result = await copies.countByCollectionForUser("a0000000-9999-4000-a000-000000000001");
-    expect(result).toEqual([]);
-  });
-
-  // ---------------------------------------------------------------------------
   // listWithCollectionName
   // ---------------------------------------------------------------------------
 

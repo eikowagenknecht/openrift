@@ -698,7 +698,6 @@ Source-specific secondary price columns:
 | POST   | `/api/copies`                        | Add copies (acquisition)                             |
 | POST   | `/api/copies/move`                   | Move copies between collections                      |
 | POST   | `/api/copies/dispose`                | Dispose copies                                       |
-| GET    | `/api/copies/count-by-collection`    | Per-(printing, collection) owned copy counts         |
 | GET    | `/api/copies/:id`                    | Get single copy                                      |
 | GET    | `/api/decks`                         | List user's decks                                    |
 | POST   | `/api/decks`                         | Create deck                                          |

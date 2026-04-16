@@ -1,5 +1,5 @@
 import type { CopyResponse } from "@openrift/shared";
-import { createTransaction, eq, useLiveSuspenseQuery } from "@tanstack/react-db";
+import { createTransaction, eq, useLiveQuery } from "@tanstack/react-db";
 import { useBatcher } from "@tanstack/react-pacer";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
@@ -23,11 +23,14 @@ function chunks<T>(array: T[], size: number): T[][] {
   return result;
 }
 
-export function useCopies(collectionId?: string): { data: CopyResponse[] } {
+export function useCopies(collectionId?: string): {
+  data: CopyResponse[];
+  isReady: boolean;
+} {
   const queryClient = useQueryClient();
   const copiesCollection = getCopiesCollection(queryClient);
 
-  const { data } = useLiveSuspenseQuery(
+  const { data, isReady } = useLiveQuery(
     (q) => {
       const base = q.from({ copy: copiesCollection });
       return collectionId === undefined
@@ -37,7 +40,7 @@ export function useCopies(collectionId?: string): { data: CopyResponse[] } {
     [collectionId],
   );
 
-  return { data };
+  return { data: data ?? [], isReady };
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────────
@@ -137,12 +140,10 @@ export function useAddCopies() {
             abortController: controller,
           },
         );
-        const now = new Date().toISOString();
         const realRows: CopyResponse[] = apiResult.map((item) => ({
           id: item.id,
           printingId: item.printingId,
           collectionId: item.collectionId,
-          createdAt: now,
         }));
         if (body.tempIds && body.tempIds.length > 0) {
           copiesCollection.utils.writeBatch(() => {
@@ -289,10 +290,7 @@ export function useBatchedAddCopies() {
       // can record it in session-level "recently added" UI immediately and
       // swap for the real id after the API confirms.
       const tempId = `temp-${crypto.randomUUID()}`;
-      const now = new Date().toISOString();
-      copiesCollection.utils.writeInsert([
-        { id: tempId, printingId, collectionId, createdAt: now },
-      ]);
+      copiesCollection.utils.writeInsert([{ id: tempId, printingId, collectionId }]);
       // oxlint-disable-next-line promise/avoid-new -- deferred pattern needed to batch individual calls into one POST
       const result = new Promise<AddCopyResult>((resolve, reject) => {
         batcher.addItem({ printingId, collectionId, tempId, resolve, reject });

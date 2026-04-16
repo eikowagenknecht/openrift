@@ -69,27 +69,6 @@ export function copiesRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns Per-(printing, collection) copy counts for a user, ordered by collection sort order. */
-    countByCollectionForUser(
-      userId: string,
-    ): Promise<
-      { printingId: string; collectionId: string; collectionName: string; count: number }[]
-    > {
-      return db
-        .selectFrom("copies as cp")
-        .innerJoin("collections as col", "col.id", "cp.collectionId")
-        .select((eb) => [
-          "cp.printingId" as const,
-          "cp.collectionId" as const,
-          "col.name as collectionName",
-          eb.cast<number>(eb.fn.count("cp.id"), "integer").as("count"),
-        ])
-        .where("cp.userId", "=", userId)
-        .groupBy(["cp.printingId", "cp.collectionId", "col.name", "col.sortOrder"])
-        .orderBy("col.sortOrder")
-        .execute();
-    },
-
     /** @returns Whether a copy exists for the given user (for ownership verification), or `undefined`. */
     existsForUser(
       id: string,

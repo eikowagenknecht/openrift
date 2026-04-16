@@ -5,12 +5,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
 import { getCopiesCollection } from "@/lib/copies-collection";
 
-// Owned-count hooks were previously backed by a separate server endpoint
-// (/api/v1/copies/count-by-collection) with its own 60s-stale cache plus
-// manual delta updates from every add/move/dispose mutation. They're now
-// derived directly from the copies collection via live queries — one source
-// of truth, mutations propagate automatically, no server round-trip.
-
 function aggregateTotals(copies: readonly CopyResponse[]): Record<string, number> {
   const totals: Record<string, number> = {};
   for (const copy of copies) {

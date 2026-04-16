@@ -28,13 +28,8 @@ export interface CopyCollectionBreakdownEntry {
   count: number;
 }
 
-export interface CopyCollectionBreakdownResponse {
-  items: Record<string, CopyCollectionBreakdownEntry[]>;
-}
-
 export interface CopyResponse {
   id: string;
   printingId: string;
   collectionId: string;
-  createdAt: string;
 }

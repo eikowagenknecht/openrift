@@ -50,7 +50,7 @@ export function useCollectionCardData({
   languageOrder,
 }: UseCollectionCardDataParams) {
   "use memo";
-  const { stacks, totalCopies } = useStackedCopies(collectionId);
+  const { stacks, totalCopies, isReady } = useStackedCopies(collectionId);
 
   const collectionPrintings = stacks.map((stack) => stack.printing);
   const setOrderMap = new Map(sets.map((set, index) => [set.id, index]));
@@ -108,6 +108,7 @@ export function useCollectionCardData({
     stackByPrintingId,
     totalUniqueCards,
     setDisplayLabel,
+    isReady,
   };
 }
 

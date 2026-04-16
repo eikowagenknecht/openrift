@@ -421,7 +421,6 @@ export const copyResponseSchema = z
     id: z.string(),
     printingId: z.string(),
     collectionId: z.string(),
-    createdAt: z.string(),
   })
   .openapi("CopyResponse");
 
@@ -431,16 +430,6 @@ export const copyListResponseSchema = z
     nextCursor: z.string().nullable(),
   })
   .openapi("CopyListResponse");
-
-const copyCollectionBreakdownEntrySchema = z.object({
-  collectionId: z.string(),
-  collectionName: z.string(),
-  count: z.number(),
-});
-
-export const copyCollectionBreakdownResponseSchema = z
-  .object({ items: z.record(z.string(), z.array(copyCollectionBreakdownEntrySchema)) })
-  .openapi("CopyCollectionBreakdownResponse");
 
 // ── Collection Events ────────────────────────────────────────────────────────
 
