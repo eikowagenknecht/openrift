@@ -50,14 +50,14 @@ async function signIn(context: BrowserContext, user: TestUser) {
 }
 
 async function fetchCollections(context: BrowserContext): Promise<CollectionSummary[]> {
-  const response = await context.request.get(`${API_BASE_URL}/api/collections`);
+  const response = await context.request.get(`${API_BASE_URL}/api/v1/collections`);
   expect(response.ok()).toBeTruthy();
   const body = (await response.json()) as { items: CollectionSummary[] };
   return body.items;
 }
 
 async function createCollection(context: BrowserContext, name: string): Promise<CollectionSummary> {
-  const response = await context.request.post(`${API_BASE_URL}/api/collections`, {
+  const response = await context.request.post(`${API_BASE_URL}/api/v1/collections`, {
     data: { name },
   });
   expect(response.ok()).toBeTruthy();
@@ -74,7 +74,7 @@ async function seedCopies(
     printingId,
     ...(collectionId ? { collectionId } : {}),
   }));
-  const response = await context.request.post(`${API_BASE_URL}/api/copies`, {
+  const response = await context.request.post(`${API_BASE_URL}/api/v1/copies`, {
     data: { copies },
   });
   expect(response.ok()).toBeTruthy();
@@ -310,7 +310,7 @@ test.describe("collections grid", () => {
     test("?domains=Body keeps only Garen visible on /collections", async ({ browser }) => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
-        await page.goto("/collections?domains=Body");
+        await page.goto(`/collections?domains=${encodeURIComponent(JSON.stringify(["Body"]))}`);
 
         await expect(page.getByText("Garen, Rugged")).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText("Annie, Fiery")).toBeHidden();
@@ -340,7 +340,9 @@ test.describe("collections grid", () => {
     }) => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
-        await page.goto(`/collections/${state.inboxId}?domains=Body`);
+        await page.goto(
+          `/collections/${state.inboxId}?domains=${encodeURIComponent(JSON.stringify(["Body"]))}`,
+        );
 
         await expect(page.getByText("Garen, Rugged")).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText("Annie, Fiery")).toBeHidden();
@@ -415,8 +417,12 @@ test.describe("collections grid", () => {
         const page = await context.newPage();
         await page.goto("/collections");
 
-        // "All Cards" appears in the sidebar entry and in the top bar.
-        await expect(page.getByText("All Cards")).toHaveCount(2, { timeout: 15_000 });
+        // Top bar renders "All Cards" as the page heading, and the sidebar
+        // has an "All Cards" link entry.
+        await expect(page.getByRole("heading", { name: "All Cards" })).toBeVisible({
+          timeout: 15_000,
+        });
+        await expect(page.getByRole("link", { name: /All Cards/ })).toBeVisible();
       });
     });
 
@@ -425,8 +431,11 @@ test.describe("collections grid", () => {
         const page = await context.newPage();
         await page.goto(`/collections/${namedCollection.id}`);
 
-        // The collection name appears once in the sidebar and once in the top bar.
-        await expect(page.getByText("Vault of Champions")).toHaveCount(2, { timeout: 15_000 });
+        // The collection name appears as the top bar heading and as a sidebar link.
+        await expect(page.getByRole("heading", { name: "Vault of Champions" })).toBeVisible({
+          timeout: 15_000,
+        });
+        await expect(page.getByRole("link", { name: /Vault of Champions/ })).toBeVisible();
       });
     });
   });

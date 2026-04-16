@@ -115,10 +115,12 @@ async function seedCopies(
 }
 
 async function fetchCopies(request: APIRequestContext, collectionId: string): Promise<CopyEntry[]> {
-  const response = await request.get(`${API_BASE_URL}/api/v1/copies?collectionId=${collectionId}`);
+  // GET /api/v1/copies returns all copies for the user (no server-side
+  // collection filter); filter client-side.
+  const response = await request.get(`${API_BASE_URL}/api/v1/copies`);
   expect(response.ok()).toBeTruthy();
   const body = (await response.json()) as { items: CopyEntry[] };
-  return body.items;
+  return body.items.filter((item) => item.collectionId === collectionId);
 }
 
 // TanStack Start encodes the server fn id as base64url(JSON). Decoding lets us
@@ -456,8 +458,8 @@ test.describe("collections import/export", () => {
       await targetTrigger.click();
       await page.getByRole("option", { name: "Round-trip" }).click();
 
-      const addCopiesPromise = page.waitForRequest((request) =>
-        isServerFn("addCopiesFn")(request.url()),
+      const addCopiesPromise = page.waitForRequest(
+        (request) => request.method() === "POST" && request.url().endsWith("/api/v1/copies"),
       );
       await importButton.click();
       await addCopiesPromise;
@@ -655,8 +657,8 @@ test.describe("collections import/export", () => {
       const createPromise = page.waitForRequest(
         (request) => request.method() === "POST" && isServerFn("createCollectionFn")(request.url()),
       );
-      const addCopiesPromise = page.waitForRequest((request) =>
-        isServerFn("addCopiesFn")(request.url()),
+      const addCopiesPromise = page.waitForRequest(
+        (request) => request.method() === "POST" && request.url().endsWith("/api/v1/copies"),
       );
 
       await page.getByRole("button", { name: /^Import 2 copies$/ }).click();
@@ -682,13 +684,13 @@ test.describe("collections import/export", () => {
       }
     });
 
-    test("shows an error toast when the copies add server fn rejects", async ({ page }) => {
+    test("shows an error toast when the copies add endpoint rejects", async ({ page }) => {
       userEmail = await createAndLogin(page);
       const target = await createCollectionViaApi(page.request, "Target");
 
-      // Fail the first addCopiesFn call with a 500.
-      await page.route("**/_serverFn/**", async (route) => {
-        if (isServerFn("addCopiesFn")(route.request().url())) {
+      // Fail the POST /api/v1/copies call with a 500.
+      await page.route("**/api/v1/copies", async (route) => {
+        if (route.request().method() === "POST") {
           await route.fulfill({
             status: 500,
             contentType: "application/json",

@@ -467,7 +467,9 @@ test.describe("collection stats", () => {
     }) => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
-        await page.goto("/collections/stats?domains=Fury");
+        await page.goto(
+          `/collections/stats?domains=${encodeURIComponent(JSON.stringify(["Fury"]))}`,
+        );
 
         await expect(page.getByRole("heading", { name: "Completion" })).toBeVisible({
           timeout: 15_000,
