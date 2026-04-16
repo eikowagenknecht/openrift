@@ -264,20 +264,6 @@ export function hydrateDeckDraft(
   setStatus(entry, { isSaving: false, isDirty: false, error: null });
 }
 
-export function destroyDeckDraft(queryClient: QueryClient, deckId: string): void {
-  const drafts = cache.get(queryClient);
-  const entry = drafts?.get(deckId);
-  if (!entry) {
-    return;
-  }
-  if (entry.saveTimer) {
-    clearTimeout(entry.saveTimer);
-  }
-  entry.saveController?.abort();
-  void entry.collection.cleanup();
-  drafts?.delete(deckId);
-}
-
 export function useDeckSaveStatus(queryClient: QueryClient, deckId: string): DeckSaveStatus {
   return useSyncExternalStore(
     // oxlint-disable-next-line promise/prefer-await-to-callbacks -- external-store subscribe signature

@@ -44,11 +44,7 @@ import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
-import {
-  destroyDeckDraft,
-  hydrateDeckDraft,
-  useDeckSaveStatus,
-} from "@/lib/deck-builder-collection";
+import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collection";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -186,14 +182,17 @@ function DeckEditorContent({
     }
   }, [data, deckId, hydratedId, queryClient, cardsById]);
 
-  // On unmount: drop the draft collection and reset UI scalars so the next
-  // deck load starts clean.
+  // On unmount, reset UI scalars (active zone, runes catalog) so the next
+  // deck load starts clean. The draft collection itself is intentionally
+  // left alone — child zone/card components still hold live queries against
+  // it during unmount, and calling `cleanup()` would warn. Any debounced /
+  // in-flight save also keeps running so edits made right before navigating
+  // away still persist.
   useEffect(
     () => () => {
-      destroyDeckDraft(queryClient, deckId);
       resetUi();
     },
-    [queryClient, deckId, resetUi],
+    [resetUi],
   );
 
   // Warn on navigation with unsaved changes — read from the save-status ref
