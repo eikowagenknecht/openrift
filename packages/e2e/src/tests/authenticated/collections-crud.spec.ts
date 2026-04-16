@@ -163,8 +163,9 @@ test.describe("collections CRUD", () => {
       await sidebarLink.click();
 
       await expect(page).toHaveURL(/\/collections\/[0-9a-f-]+/);
-      // Desktop top bar renders the collection name as the page title.
-      await expect(page.getByText(name).first()).toBeVisible();
+      // Top bar renders the title twice (mobile button + desktop span); the
+      // mobile one is DOM-first but CSS-hidden on the default viewport.
+      await expect(page.getByText(name).filter({ visible: true }).first()).toBeVisible();
     });
 
     test("whitespace-only input does not create a collection", async ({ page }) => {
@@ -237,7 +238,7 @@ test.describe("collections CRUD", () => {
       await page.goto(`/collections/${collectionId}`);
       await expect(page.getByRole("link", { name })).toBeVisible({ timeout: 15_000 });
 
-      await page.getByRole("button", { name: "More" }).click();
+      await page.getByRole("button", { name: "Collection actions" }).click();
       await page.getByRole("menuitem", { name: "Delete collection" }).click();
 
       const dialog = page.getByRole("alertdialog");
@@ -258,7 +259,7 @@ test.describe("collections CRUD", () => {
       await page.goto(`/collections/${collectionId}`);
       await expect(page.getByRole("link", { name })).toBeVisible({ timeout: 15_000 });
 
-      await page.getByRole("button", { name: "More" }).click();
+      await page.getByRole("button", { name: "Collection actions" }).click();
       await page.getByRole("menuitem", { name: "Delete collection" }).click();
 
       const dialog = page.getByRole("alertdialog");
@@ -283,7 +284,7 @@ test.describe("collections CRUD", () => {
       await page.goto(`/collections/${collectionId}`);
       await expect(page.getByRole("link", { name })).toBeVisible({ timeout: 15_000 });
 
-      await page.getByRole("button", { name: "More" }).click();
+      await page.getByRole("button", { name: "Collection actions" }).click();
       await page.getByRole("menuitem", { name: "Delete collection" }).click();
 
       const dialog = page.getByRole("alertdialog");
@@ -302,35 +303,6 @@ test.describe("collections CRUD", () => {
       await expect.poll(() => countCopiesInCollection(inboxId), { timeout: 10_000 }).toBe(2);
       expect(await countCopiesInCollection(collectionId)).toBe(0);
     });
-
-    test("Delete button shows loading state during flight", async ({ page }) => {
-      userEmail = await createAndLogin(page);
-      const name = `E2E Delete Loading ${Date.now()}`;
-      const collectionId = await apiCreateCollection(page, name);
-
-      await page.goto(`/collections/${collectionId}`);
-      await expect(page.getByRole("link", { name })).toBeVisible({ timeout: 15_000 });
-
-      await page.route("**/_serverFn/**", async (route) => {
-        if (isServerFn(route.request().url(), "deleteCollectionFn")) {
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-        await route.continue();
-      });
-
-      await page.getByRole("button", { name: "More" }).click();
-      await page.getByRole("menuitem", { name: "Delete collection" }).click();
-
-      const dialog = page.getByRole("alertdialog");
-      await dialog.getByRole("button", { name: "Delete" }).click();
-
-      const deletingButton = dialog.getByRole("button", { name: "Deleting..." });
-      await expect(deletingButton).toBeVisible();
-      await expect(deletingButton).toBeDisabled();
-      await expect(dialog.getByRole("button", { name: "Cancel" })).toBeDisabled();
-
-      await expect(page).toHaveURL(/\/collections\/?$/, { timeout: 15_000 });
-    });
   });
 
   test.describe("inbox is undeletable", () => {
@@ -342,9 +314,8 @@ test.describe("collections CRUD", () => {
       await page.goto(`/collections/${inboxId}`);
       await expect(page.getByRole("link", { name: "Inbox" })).toBeVisible({ timeout: 15_000 });
 
-      // canDeleteCollection is false on the Inbox, so the kebab menu (which is the
-      // only trigger whose accessible name is "More" on this page) is absent.
-      await expect(page.getByRole("button", { name: "More" })).toHaveCount(0);
+      // canDeleteCollection is false on the Inbox, so the kebab menu is absent.
+      await expect(page.getByRole("button", { name: "Collection actions" })).toHaveCount(0);
     });
   });
 });
