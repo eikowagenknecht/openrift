@@ -8,7 +8,7 @@ import { STATE_FILE } from "./helpers/constants.js";
 import { connectToDb } from "./helpers/db.js";
 
 setup("authenticate as regular user", async ({ request }) => {
-  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf-8"));
   const sql = connectToDb(state.tempDbUrl);
   try {
     await setupRegularUser(request, sql);
@@ -18,7 +18,7 @@ setup("authenticate as regular user", async ({ request }) => {
 });
 
 setup("authenticate as admin user", async ({ request }) => {
-  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf-8"));
   const sql = connectToDb(state.tempDbUrl);
   try {
     await setupAdminUser(request, sql);

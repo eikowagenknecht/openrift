@@ -95,7 +95,7 @@ export default async function globalSetup(_config: FullConfig) {
   // Load seed data
   console.log("[e2e] Loading seed data...");
   const seedPath = resolve(apiRoot, "test/fixtures/seed.sql");
-  const seedSql = readFileSync(seedPath, "utf8");
+  const seedSql = readFileSync(seedPath, "utf-8");
   const sql = connectToDb(tempDbUrl);
   await sql.unsafe(seedSql);
 

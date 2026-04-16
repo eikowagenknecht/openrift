@@ -159,7 +159,7 @@ test.describe("/changelog", () => {
   const changelogPath = fileURLToPath(
     new URL("../../../../../apps/web/src/CHANGELOG.md", import.meta.url),
   );
-  const changelog = readFileSync(changelogPath, "utf8");
+  const changelog = readFileSync(changelogPath, "utf-8");
   const topDateMatch = changelog.match(/^## (\d{4}-\d{2}-\d{2})/m);
   if (!topDateMatch) {
     throw new Error("Could not find a `## YYYY-MM-DD` heading in CHANGELOG.md");

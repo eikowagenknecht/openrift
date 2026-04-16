@@ -60,6 +60,7 @@
     "import/no-mutable-exports": "off",
     "unicorn/no-null": "off",
     "unicorn/filename-case": "off", // TanStack Router uses $paramName.tsx for dynamic routes
+    "unicorn/text-encoding-identifier-case": ["warn", { "withDash": true }], // Prefer "utf-8" to match HTML spec
 
     // Pedantic Overwrites
     "max-lines-per-function": "off",

@@ -66,7 +66,6 @@ test.describe("root essentials", () => {
       await page.goto("/");
 
       const charset = await page.evaluate(() => document.characterSet);
-      // oxlint-disable-next-line unicorn/text-encoding-identifier-case -- HTML document.characterSet returns "UTF-8"
       expect(charset.toLowerCase()).toBe("utf-8");
 
       await expect(page.locator('meta[name="viewport"]')).toHaveAttribute(

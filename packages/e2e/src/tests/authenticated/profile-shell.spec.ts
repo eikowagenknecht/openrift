@@ -8,7 +8,7 @@ import { API_BASE_URL, STATE_FILE, TEST_USERS, WEB_BASE_URL } from "../../helper
 import { connectToDb } from "../../helpers/db.js";
 
 function loadDb() {
-  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf-8"));
   return connectToDb(state.tempDbUrl);
 }
 

@@ -10,7 +10,7 @@ import { connectToDb } from "../../helpers/db.js";
 type Sql = ReturnType<typeof connectToDb>;
 
 function loadDb(): Sql {
-  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf-8"));
   return connectToDb(state.tempDbUrl);
 }
 
@@ -127,7 +127,7 @@ function isServerFn(constName: string) {
       return false;
     }
     try {
-      return Buffer.from(match[1], "base64url").toString("utf8").includes(constName);
+      return Buffer.from(match[1], "base64url").toString("utf-8").includes(constName);
     } catch {
       return false;
     }

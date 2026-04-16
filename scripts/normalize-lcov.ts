@@ -33,7 +33,7 @@ for (const lcovPath of process.argv.slice(2)) {
   // Bun writes SF: paths relative to the package root (cwd of bun test),
   // not relative to the coverage directory.
   const packageRoot = findPackageRoot(lcovDir);
-  const content = readFileSync(lcovPath, "utf8");
+  const content = readFileSync(lcovPath, "utf-8");
 
   const normalized = content.replaceAll(/^SF:(.+)$/gm, (_match, filePath: string) => {
     const absolute = resolve(packageRoot, filePath);

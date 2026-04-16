@@ -225,7 +225,7 @@ try {
   await migrate(db, noopLogger);
 
   console.log("Loading seed data...");
-  const seedSql = readFileSync(resolve(import.meta.dirname!, "fixtures/seed.sql"), "utf8");
+  const seedSql = readFileSync(resolve(import.meta.dirname!, "fixtures/seed.sql"), "utf-8");
   const sql = postgres(testUrl, { onnotice: noop });
   await sql.unsafe(seedSql);
   await sql.end();

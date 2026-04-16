@@ -18,7 +18,7 @@ const OGS_ANNIE_FIERY_CODE = "OGS-001";
 const OGS_INCINERATE_CODE = "OGS-003";
 
 function loadDb(): Sql {
-  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf-8"));
   return connectToDb(state.tempDbUrl);
 }
 
@@ -70,7 +70,7 @@ function isServerFn(fnName: string) {
       return false;
     }
     try {
-      return Buffer.from(match[1], "base64url").toString("utf8").includes(fnName);
+      return Buffer.from(match[1], "base64url").toString("utf-8").includes(fnName);
     } catch {
       return false;
     }

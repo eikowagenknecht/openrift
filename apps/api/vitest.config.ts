@@ -7,7 +7,7 @@ import { defineConfig } from "vitest/config";
 // Load DATABASE_URL from .env so globalSetup can create the temp DB
 const envPath = resolve(import.meta.dirname ?? ".", "../../.env");
 try {
-  for (const line of readFileSync(envPath, "utf8").split("\n")) {
+  for (const line of readFileSync(envPath, "utf-8").split("\n")) {
     const match = line.match(/^([A-Z_]+)=(.*)$/);
     if (match && !process.env[match[1]]) {
       process.env[match[1]] = match[2].replaceAll(/^["']|["']$/g, "");

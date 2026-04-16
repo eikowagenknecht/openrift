@@ -22,7 +22,7 @@ const TIBBERS_CARD_ID = "019cfc3b-038a-7aef-b46a-dc08a7a17008";
 const TIBBERS_NAME = "Tibbers";
 
 function loadDb(): Sql {
-  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf-8"));
   return connectToDb(state.tempDbUrl);
 }
 

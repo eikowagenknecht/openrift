@@ -45,7 +45,7 @@ function isServerFn(url: string, fnName: string): boolean {
     return false;
   }
   try {
-    return Buffer.from(match[1], "base64url").toString("utf8").includes(fnName);
+    return Buffer.from(match[1], "base64url").toString("utf-8").includes(fnName);
   } catch {
     return false;
   }

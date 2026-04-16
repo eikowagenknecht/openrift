@@ -21,7 +21,7 @@ interface E2eState {
 export default async function globalTeardown(_config: FullConfig) {
   let state: E2eState;
   try {
-    state = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+    state = JSON.parse(readFileSync(STATE_FILE, "utf-8"));
   } catch {
     console.warn("[e2e] No state file found, skipping cleanup");
     return;

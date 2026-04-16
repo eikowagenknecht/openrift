@@ -111,12 +111,12 @@ describe.skipIf(!DATABASE_URL)("schema snapshot matches migrations", () => {
     // Dump the freshly-migrated test database
     const testDump = execSync(
       `docker exec openrift-db-1 pg_dump -U openrift --schema-only --no-owner --no-privileges "${dbName}"`,
-      { encoding: "utf8", timeout: 15_000 },
+      { encoding: "utf-8", timeout: 15_000 },
     );
 
     // Read the committed schema snapshot
     const snapshotPath = resolve(import.meta.dirname, "../../../../../docs/schema.sql");
-    const snapshotDump = readFileSync(snapshotPath, "utf8");
+    const snapshotDump = readFileSync(snapshotPath, "utf-8");
 
     expect(normalizeDump(testDump)).toBe(normalizeDump(snapshotDump));
   });

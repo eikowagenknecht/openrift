@@ -29,7 +29,7 @@ interface CopyEntry {
 }
 
 function loadDb(): Sql {
-  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf-8"));
   return connectToDb(state.tempDbUrl);
 }
 
@@ -130,7 +130,7 @@ function isServerFn(constName: string) {
       return false;
     }
     try {
-      return Buffer.from(match[1], "base64url").toString("utf8").includes(constName);
+      return Buffer.from(match[1], "base64url").toString("utf-8").includes(constName);
     } catch {
       return false;
     }
@@ -189,7 +189,7 @@ async function readDownload(page: Page, trigger: () => Promise<void>) {
   await trigger();
   const download = await downloadPromise;
   const path = await download.path();
-  const csv = await readFile(path, "utf8");
+  const csv = await readFile(path, "utf-8");
   return { filename: download.suggestedFilename(), csv };
 }
 

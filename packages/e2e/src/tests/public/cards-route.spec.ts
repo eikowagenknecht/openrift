@@ -15,7 +15,7 @@ function isCatalogServerFn(url: string): boolean {
     return false;
   }
   try {
-    const decoded = Buffer.from(match[1], "base64url").toString("utf8");
+    const decoded = Buffer.from(match[1], "base64url").toString("utf-8");
     return decoded.includes("fetchCatalog");
   } catch {
     return false;

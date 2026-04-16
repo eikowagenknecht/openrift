@@ -105,7 +105,7 @@ function isCardDetailServerFn(url: string): boolean {
     return false;
   }
   try {
-    return Buffer.from(match[1], "base64url").toString("utf8").includes("fetchCardDetail");
+    return Buffer.from(match[1], "base64url").toString("utf-8").includes("fetchCardDetail");
   } catch {
     return false;
   }

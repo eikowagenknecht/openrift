@@ -10,7 +10,7 @@ import { connectToDb } from "../../helpers/db.js";
 type Sql = ReturnType<typeof connectToDb>;
 
 function loadDb(): Sql {
-  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+  const state: E2eState = JSON.parse(readFileSync(STATE_FILE, "utf-8"));
   return connectToDb(state.tempDbUrl);
 }
 
