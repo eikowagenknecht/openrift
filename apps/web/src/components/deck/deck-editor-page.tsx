@@ -195,21 +195,20 @@ function DeckEditorContent({
     [resetUi],
   );
 
-  // Warn on navigation with unsaved changes — read from the save-status ref
-  // rather than closing over `saveStatus`, which would re-register on every
-  // edit.
-  const saveStatusRef = useRef(saveStatus);
-  saveStatusRef.current = saveStatus;
+  // Warn on navigation with unsaved changes. The handler re-registers only
+  // on the two transitions it actually reads — not on every card edit — so
+  // the cost is a couple of listener swaps per save cycle.
+  const unsavedWarning = saveStatus.isDirty || saveStatus.isSaving;
   useEffect(() => {
+    if (!unsavedWarning) {
+      return;
+    }
     const handler = (event: BeforeUnloadEvent) => {
-      const status = saveStatusRef.current;
-      if (status.isDirty || status.isSaving) {
-        event.preventDefault();
-      }
+      event.preventDefault();
     };
     globalThis.addEventListener("beforeunload", handler);
     return () => globalThis.removeEventListener("beforeunload", handler);
-  }, []);
+  }, [unsavedWarning]);
 
   const { setArrayFilters, setSearch } = useFilterActions();
 
@@ -289,24 +288,17 @@ function DeckEditorContent({
     return () => globalThis.removeEventListener("mousemove", handler);
   }, [hoveredCardId]);
 
-  const hoveredCard = (() => {
-    if (!hoveredCardId || isMobile) {
-      return null;
-    }
-    const printing = getPreferredPrinting(hoveredCardId);
-    if (!printing) {
-      return null;
-    }
-    const frontImage = printing.images.find((img) => img.face === "front");
-    if (!frontImage) {
-      return null;
-    }
-    return {
-      thumbnailUrl: frontImage.thumbnail,
-      fullUrl: frontImage.full,
-      landscape: printing.card.type === "Battlefield",
-    };
-  })();
+  const hoveredPrinting =
+    hoveredCardId && !isMobile ? (getPreferredPrinting(hoveredCardId) ?? null) : null;
+  const hoveredFrontImage = hoveredPrinting?.images.find((image) => image.face === "front") ?? null;
+  const hoveredCard =
+    hoveredPrinting && hoveredFrontImage
+      ? {
+          thumbnailUrl: hoveredFrontImage.thumbnail,
+          fullUrl: hoveredFrontImage.full,
+          landscape: hoveredPrinting.card.type === "Battlefield",
+        }
+      : null;
 
   const zoneCount = deckCards
     .filter((card) => card.zone === activeZone)
