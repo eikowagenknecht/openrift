@@ -392,32 +392,26 @@ export function CardGrid({
   const groups = buildGroups(items, groupBy, setOrder, groupDir, orders);
   const multipleGroups = groups.length > 1;
 
-  // Manual ref cache for virtualRows + rowStarts. React Compiler does not
-  // stabilize these across CardGrid's scroll-driven re-renders (the virtualizer
-  // dispatches a useReducer on every tick to force a render), so without this
-  // cache every scroll frame produces new array references for both, which
-  // breaks the props.equal check in downstream memoized children like
-  // ScrollIndicator and the extracted sticky-header / keyboard-nav hooks.
+  // Manual ref cache for virtualRows. React Compiler does not stabilize this
+  // across CardGrid's scroll-driven re-renders (the virtualizer dispatches a
+  // useReducer on every tick to force a render), so without this cache every
+  // scroll frame produces a new array reference, which breaks the props.equal
+  // check in downstream memoized children like the extracted sticky-header /
+  // keyboard-nav hooks.
   const gridCacheRef = useRef<{
     items: CardViewerItem[];
     setOrder: GroupInfo[] | undefined;
     groupBy: GroupByField;
     groupDir: "asc" | "desc";
     columns: number;
-    thumbWidth: number;
-    addStripHeight: number;
     rows: VRow[];
-    rowStarts: number[];
   }>({
     items: [],
     setOrder: undefined,
     groupBy: "set",
     groupDir: "asc",
     columns: 0,
-    thumbWidth: 0,
-    addStripHeight: 0,
     rows: [],
-    rowStarts: [],
   });
 
   const labelHeight = LABEL_HEIGHT;
@@ -429,10 +423,21 @@ export function CardGrid({
     gridCacheRef.current.groupDir !== groupDir ||
     gridCacheRef.current.columns !== columns;
 
-  const nextRows = rowsInvalid ? buildVirtualRows(groups, columns) : gridCacheRef.current.rows;
+  if (rowsInvalid) {
+    gridCacheRef.current = {
+      items,
+      setOrder,
+      groupBy,
+      groupDir,
+      columns,
+      rows: buildVirtualRows(groups, columns),
+    };
+  }
+
+  const virtualRows = gridCacheRef.current.rows;
 
   const estimateRowHeight = (index: number): number => {
-    const row = nextRows[index];
+    const row = virtualRows[index];
     if (!row) {
       return FALLBACK_ROW_HEIGHT;
     }
@@ -443,29 +448,7 @@ export function CardGrid({
     return Math.round(imgHeight + labelHeight + BUTTON_PAD * 2 + addStripHeight);
   };
 
-  const startsInvalid =
-    rowsInvalid ||
-    gridCacheRef.current.thumbWidth !== thumbWidth ||
-    gridCacheRef.current.addStripHeight !== addStripHeight;
-
-  if (rowsInvalid || startsInvalid) {
-    gridCacheRef.current = {
-      items,
-      setOrder,
-      groupBy,
-      groupDir,
-      columns,
-      thumbWidth,
-      addStripHeight,
-      rows: nextRows,
-      rowStarts: startsInvalid
-        ? computeRowStarts(nextRows, estimateRowHeight)
-        : gridCacheRef.current.rowStarts,
-    };
-  }
-
-  const virtualRows = gridCacheRef.current.rows;
-  const rowStarts = gridCacheRef.current.rowStarts;
+  const rowStarts = computeRowStarts(virtualRows, estimateRowHeight);
 
   // ── Scroll margin (container's document offset) ────────────────────
   const [scrollMargin, setScrollMargin] = useState(0);
