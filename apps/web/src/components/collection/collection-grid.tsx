@@ -822,6 +822,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             ownedCountByPrinting={ownedCountByPrinting}
           />
         )}
+        {currentCollection && !currentCollection.isInbox && (
+          <DeleteCollectionDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            collectionName={currentCollection.name}
+            copyCount={currentCollection.copyCount}
+            onConfirm={handleDeleteCollection}
+            isPending={deleteCollection.isPending}
+          />
+        )}
       </div>
     );
   }
