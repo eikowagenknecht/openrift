@@ -428,8 +428,9 @@ if (errataCard2) {
   syntheticCardErrata.push({
     id: "019713f0-0000-7000-8000-000000000002",
     card_id: errataCard2.id,
-    corrected_rules_text: null,
-    corrected_effect_text: "When this unit enters play, draw a card.",
+    corrected_rules_text:
+      "When you play me, return a spell from your trash to your hand. (Must target a spell with cost 3 or less.)",
+    corrected_effect_text: null,
     source: "official-errata",
     source_url: "https://example.com/errata",
     effective_date: "2025-03-01",
