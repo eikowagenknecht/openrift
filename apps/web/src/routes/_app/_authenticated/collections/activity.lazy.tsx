@@ -1,5 +1,4 @@
 import type { ActivityAction, CollectionEventResponse } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeftRightIcon,
@@ -29,6 +28,7 @@ import { useCollectionEvents } from "@/hooks/use-collection-events";
 import { useCollections } from "@/hooks/use-collections";
 import { usePrices } from "@/hooks/use-prices";
 import { compactFormatterForMarketplace, priceColorClass } from "@/lib/format";
+import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { TopBarSlotContext } from "@/routes/_app/_authenticated/collections/route";
 import { useDisplayStore } from "@/stores/display-store";
@@ -109,17 +109,6 @@ function groupEvents(events: CollectionEventResponse[]): GroupedEvent[] {
     }
   }
   return [...groups.values()];
-}
-
-function getTypeIconPath(type: string, superTypes: string[]): string {
-  if (
-    type === WellKnown.cardType.UNIT &&
-    (superTypes.includes(WellKnown.superType.CHAMPION) ||
-      superTypes.includes(WellKnown.superType.SIGNATURE))
-  ) {
-    return "/images/supertypes/champion.svg";
-  }
-  return `/images/types/${type.toLowerCase()}.svg`;
 }
 
 // ── Components ──────────────────────────────────────────────────────────────
@@ -232,6 +221,7 @@ function EventCard({
     collectionFilter === "all" &&
     (event.toCollectionName ?? event.fromCollectionName);
   const showCollection = isMove || isUnfilteredAddRemove;
+  const typeIconPath = getTypeIconPath(event.cardType, event.cardSuperTypes);
 
   return (
     <Link
@@ -271,16 +261,18 @@ function EventCard({
         </div>
         <p className="text-muted-foreground flex items-center gap-1 text-xs">
           {event.shortCode}
-          <img
-            src={getTypeIconPath(event.cardType, event.cardSuperTypes)}
-            alt={event.cardType}
-            title={
-              event.cardSuperTypes.length > 0
-                ? `${event.cardSuperTypes.join(" ")} ${event.cardType}`
-                : event.cardType
-            }
-            className="size-3.5 brightness-0 dark:invert"
-          />
+          {typeIconPath && (
+            <img
+              src={typeIconPath}
+              alt={event.cardType}
+              title={
+                event.cardSuperTypes.length > 0
+                  ? `${event.cardSuperTypes.join(" ")} ${event.cardType}`
+                  : event.cardType
+              }
+              className="size-3.5 brightness-0 dark:invert"
+            />
+          )}
           <img
             src={`/images/rarities/${event.rarity.toLowerCase()}-28x28.webp`}
             alt={event.rarity}

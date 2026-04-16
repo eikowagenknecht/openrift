@@ -15,6 +15,7 @@ export function CardDetailHeading({
   truncate?: boolean;
 }) {
   const { card } = printing;
+  const typeIconPath = getTypeIconPath(card.type, card.superTypes);
   return (
     <div className={cn(truncate && "min-w-0")}>
       <h2 className={cn("text-lg font-semibold", truncate && "truncate")}>
@@ -30,11 +31,9 @@ export function CardDetailHeading({
       </h2>
       <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm uppercase">
         <span className="inline-flex items-center gap-1">
-          <img
-            src={getTypeIconPath(card.type, card.superTypes)}
-            alt=""
-            className="size-4 brightness-0 dark:invert"
-          />
+          {typeIconPath && (
+            <img src={typeIconPath} alt="" className="size-4 brightness-0 dark:invert" />
+          )}
           {card.superTypes.length > 0 ? `${card.superTypes.join(" ")} ${card.type}` : card.type}
         </span>
         {card.tags.map((tag) => (
