@@ -79,13 +79,14 @@ function MobileSidebarHeader() {
 
 function HoveredCardPreview({
   hoveredCard,
-  mouseY,
+  containerRef,
 }: {
   hoveredCard: { thumbnailUrl: string; fullUrl: string; landscape: boolean } | null;
-  mouseY: number;
+  containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const { active } = useDndContext();
   const [fullLoaded, setFullLoaded] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
   const fullUrl = hoveredCard?.fullUrl ?? null;
 
   // Reset the crossfade whenever the hovered card changes so the next
@@ -95,16 +96,37 @@ function HoveredCardPreview({
     setFullLoaded(false);
   }, [fullUrl]);
 
+  // Track the cursor imperatively — positioning via state would re-render
+  // the entire deck editor on every frame of a hover, which (at minimum)
+  // was enough work to stall the main thread and confused React Compiler's
+  // memo-cache checks with spurious size-mismatch warnings.
+  useEffect(() => {
+    if (!hoveredCard || active) {
+      return;
+    }
+    const handler = (event: MouseEvent) => {
+      const container = containerRef.current;
+      const preview = previewRef.current;
+      if (!container || !preview) {
+        return;
+      }
+      const rect = container.getBoundingClientRect();
+      preview.style.top = `${Math.max(0, event.clientY - rect.top - 96)}px`;
+    };
+    globalThis.addEventListener("mousemove", handler);
+    return () => globalThis.removeEventListener("mousemove", handler);
+  }, [hoveredCard, active, containerRef]);
+
   if (!hoveredCard || active) {
     return null;
   }
   return (
     <div
+      ref={previewRef}
       className={cn(
         "pointer-events-none absolute left-[19.5rem] z-50",
         hoveredCard.landscape ? "w-[560px]" : "w-[400px]",
       )}
-      style={{ top: Math.max(0, mouseY - 96) }}
     >
       <div className="relative">
         <img src={hoveredCard.thumbnailUrl} alt="" className="w-full rounded-lg shadow-lg" />
@@ -271,22 +293,7 @@ function DeckEditorContent({
   };
 
   const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
-  const [mouseY, setMouseY] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!hoveredCardId) {
-      return;
-    }
-    const handler = (event: MouseEvent) => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        setMouseY(event.clientY - rect.top);
-      }
-    };
-    globalThis.addEventListener("mousemove", handler);
-    return () => globalThis.removeEventListener("mousemove", handler);
-  }, [hoveredCardId]);
 
   const hoveredPrinting =
     hoveredCardId && !isMobile ? (getPreferredPrinting(hoveredCardId) ?? null) : null;
@@ -408,7 +415,7 @@ function DeckEditorContent({
             </SidebarContent>
           </NestedSidebar>
 
-          <HoveredCardPreview hoveredCard={hoveredCard} mouseY={mouseY} />
+          <HoveredCardPreview hoveredCard={hoveredCard} containerRef={containerRef} />
 
           <div className="flex min-w-0 flex-1 flex-col pb-3">
             <div className="flex-1">
