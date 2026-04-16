@@ -392,49 +392,9 @@ export function CardGrid({
   const groups = buildGroups(items, groupBy, setOrder, groupDir, orders);
   const multipleGroups = groups.length > 1;
 
-  // Manual ref cache for virtualRows. React Compiler does not stabilize this
-  // across CardGrid's scroll-driven re-renders (the virtualizer dispatches a
-  // useReducer on every tick to force a render), so without this cache every
-  // scroll frame produces a new array reference, which breaks the props.equal
-  // check in downstream memoized children like the extracted sticky-header /
-  // keyboard-nav hooks.
-  const gridCacheRef = useRef<{
-    items: CardViewerItem[];
-    setOrder: GroupInfo[] | undefined;
-    groupBy: GroupByField;
-    groupDir: "asc" | "desc";
-    columns: number;
-    rows: VRow[];
-  }>({
-    items: [],
-    setOrder: undefined,
-    groupBy: "set",
-    groupDir: "asc",
-    columns: 0,
-    rows: [],
-  });
-
   const labelHeight = LABEL_HEIGHT;
 
-  const rowsInvalid =
-    gridCacheRef.current.items !== items ||
-    gridCacheRef.current.setOrder !== setOrder ||
-    gridCacheRef.current.groupBy !== groupBy ||
-    gridCacheRef.current.groupDir !== groupDir ||
-    gridCacheRef.current.columns !== columns;
-
-  if (rowsInvalid) {
-    gridCacheRef.current = {
-      items,
-      setOrder,
-      groupBy,
-      groupDir,
-      columns,
-      rows: buildVirtualRows(groups, columns),
-    };
-  }
-
-  const virtualRows = gridCacheRef.current.rows;
+  const virtualRows = buildVirtualRows(groups, columns);
 
   const estimateRowHeight = (index: number): number => {
     const row = virtualRows[index];
