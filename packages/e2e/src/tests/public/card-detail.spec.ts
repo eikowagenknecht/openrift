@@ -313,8 +313,14 @@ test.describe("card detail route — info panel", () => {
     // Switching to the alt-language printing reveals it with the localized name.
     // Multiple printings share a publicCode (normal/foil/language variants), so
     // target the exact printing by id rather than by its visible publicCode text.
-    await page.locator(`button[data-printing-id="${altPrinting.id}"]`).click();
-    await expect(page.getByText("Printed name", { exact: true })).toBeVisible();
+    // Retry the click: the SSR'd button can receive a click before React
+    // attaches onClick, leaving state unchanged.
+    const altButton = page.locator(`button[data-printing-id="${altPrinting.id}"]`);
+    const printedNameRow = page.getByText("Printed name", { exact: true });
+    await expect(async () => {
+      await altButton.click();
+      await expect(printedNameRow).toBeVisible({ timeout: 500 });
+    }).toPass({ timeout: 5000 });
     await expect(page.getByText(altPrinting.printedName)).toBeVisible();
   });
 
@@ -342,10 +348,21 @@ test.describe("card detail route — info panel", () => {
 
     // Pick the foil promo printing and verify the Markers row appears with the label.
     // (No seed printing has a non-normal artVariant, so the Art variant row stays hidden.)
-    // Multiple printings share the same publicCode, so target by id.
-    await page.locator(`button[data-printing-id="${promoPrinting.id}"]`).click();
-    await expect(page.getByText("Markers", { exact: true })).toBeVisible();
-    await expect(page.getByText(promoMarker.label)).toBeVisible();
+    // Multiple printings share the same publicCode, so target by id. Retry the
+    // click: the SSR'd button can receive a click before React attaches
+    // onClick, leaving state unchanged. Scope the marker-label assertion to
+    // the Markers row — the label also appears in printing-button badges and
+    // the price-history heading.
+    const promoButton = page.locator(`button[data-printing-id="${promoPrinting.id}"]`);
+    const markersRow = page
+      .getByRole("row")
+      .filter({ has: page.getByText("Markers", { exact: true }) })
+      .first();
+    await expect(async () => {
+      await promoButton.click();
+      await expect(markersRow).toBeVisible({ timeout: 500 });
+    }).toPass({ timeout: 5000 });
+    await expect(markersRow).toContainText(promoMarker.label);
   });
 
   test("type / domains / energy / might / power render only when present", async ({ page }) => {
@@ -523,8 +540,14 @@ test.describe("card detail route — printings list", () => {
     // printing by its data-printing-id.
     const altButton = page.locator(`button[data-printing-id="${altLang.id}"]`);
     await expect(altButton).toBeVisible();
-    await altButton.click();
-    await expect(languageRow).toContainText(altLang.language);
+    // Retry click until the info panel reflects the change. The SSR'd button
+    // exists before React hydrates, so a too-eager click can land before the
+    // onClick handler is attached — toPass re-clicks if the first attempt
+    // didn't update the selected printing.
+    await expect(async () => {
+      await altButton.click();
+      await expect(languageRow).toContainText(altLang.language, { timeout: 500 });
+    }).toPass({ timeout: 5000 });
   });
 
   test("foil and promo badges appear on the matching printing button", async ({ page }) => {
