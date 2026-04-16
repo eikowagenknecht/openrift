@@ -2,6 +2,7 @@
 
 ## 2026-04-16
 
+- fix: An empty collection now shows a friendly "No cards yet" prompt to add cards, instead of a misleading "server may be unreachable" error
 - fix: If your connection drops while adding, moving, or removing copies, the action now reverts and shows an error toast instead of silently looking like it worked
 
 ## 2026-04-15

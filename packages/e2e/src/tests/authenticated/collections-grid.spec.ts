@@ -207,6 +207,24 @@ test.describe("collections grid", () => {
         await expect(page.getByText("Garen, Rugged")).toBeHidden();
       });
     });
+
+    test("empty collection shows 'No cards yet' even when a language filter is active", async ({
+      browser,
+    }) => {
+      // Regression: when the URL had any filter (e.g. auto-seeded language prefs),
+      // an empty collection fell through to the card grid and showed the misleading
+      // "Couldn't load cards / server unreachable" message instead of the neutral
+      // empty state.
+      await withSignedInContext(state.user, browser, async (context) => {
+        const empty = await createCollection(context, "Empty Box");
+        const page = await context.newPage();
+        await page.goto(`/collections/${empty.id}?languages=%5B%22EN%22%5D`);
+
+        await expect(page.getByText("No cards yet")).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText("Couldn't load cards")).toBeHidden();
+        await expect(page.getByText("The server may be unreachable.")).toBeHidden();
+      });
+    });
   });
 
   test.describe("view modes: cards | printings | copies", () => {

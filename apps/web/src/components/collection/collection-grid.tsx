@@ -781,7 +781,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     : undefined;
 
   // ── Empty state ─────────────────────────────────────────────────────
-  if (!isAddMode && stacks.length === 0 && !hasActiveFilters) {
+  // Checks the unfiltered stack count, so an empty collection shows this
+  // prompt even when filters (including auto-seeded language prefs) are active.
+  if (!isAddMode && stacks.length === 0) {
     return (
       <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-4">
         {topBarPortal}
