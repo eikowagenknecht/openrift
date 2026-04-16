@@ -1,4 +1,5 @@
 import type { DeckZone, Marketplace } from "@openrift/shared";
+import { LayoutDashboardIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { DeckOwnershipPanel } from "@/components/deck/deck-ownership-panel";
@@ -8,24 +9,29 @@ import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useZoneOrder } from "@/hooks/use-enums";
+import { cn } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 
 interface DeckZonePanelProps {
   deckId: string;
   onZoneClick?: (zone: DeckZone) => void;
+  onOverviewClick?: () => void;
   onHoverCard?: (cardId: string | null) => void;
   ownershipData?: DeckOwnershipData;
   marketplace?: Marketplace;
   onViewMissing?: () => void;
+  hideStatsAndOwnership?: boolean;
 }
 
 export function DeckZonePanel({
   deckId,
   onZoneClick,
+  onOverviewClick,
   onHoverCard,
   ownershipData,
   marketplace,
   onViewMissing,
+  hideStatsAndOwnership,
 }: DeckZonePanelProps) {
   const { zoneOrder } = useZoneOrder();
   const cards = useDeckCards(deckId);
@@ -53,8 +59,23 @@ export function DeckZonePanel({
     };
   }, []);
 
+  const overviewActive = activeZone === null;
+
   return (
     <div className="flex flex-col gap-2">
+      {onOverviewClick && (
+        <button
+          type="button"
+          onClick={onOverviewClick}
+          className={cn(
+            "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition-colors",
+            overviewActive ? "bg-primary/10 font-bold" : "hover:bg-muted/50",
+          )}
+        >
+          <LayoutDashboardIcon className="size-3.5" />
+          <span>Overview</span>
+        </button>
+      )}
       {zoneOrder.map((zone) => (
         <DeckZoneSection
           key={zone}
@@ -68,13 +89,17 @@ export function DeckZonePanel({
           onHoverCard={onHoverCard}
         />
       ))}
-      <DeckStatsPanel deckId={deckId} />
-      {ownershipData && marketplace && onViewMissing && (
-        <DeckOwnershipPanel
-          data={ownershipData}
-          marketplace={marketplace}
-          onViewMissing={onViewMissing}
-        />
+      {!hideStatsAndOwnership && (
+        <>
+          <DeckStatsPanel deckId={deckId} />
+          {ownershipData && marketplace && onViewMissing && (
+            <DeckOwnershipPanel
+              data={ownershipData}
+              marketplace={marketplace}
+              onViewMissing={onViewMissing}
+            />
+          )}
+        </>
       )}
     </div>
   );

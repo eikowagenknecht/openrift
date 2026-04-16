@@ -1,4 +1,4 @@
-import type { DeckZone, Printing } from "@openrift/shared";
+import type { DeckZone, Marketplace, Printing } from "@openrift/shared";
 import { useDeferredValue, useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
@@ -6,6 +6,7 @@ import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { DeckAddStrip } from "@/components/deck/deck-add-strip";
+import { DeckOverview } from "@/components/deck/deck-overview";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import {
   CollapsibleFilterPanel,
@@ -25,6 +26,7 @@ import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
+import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePrices } from "@/hooks/use-prices";
@@ -61,19 +63,41 @@ function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCa
   return runesByDomain;
 }
 
+interface DeckCardBrowserProps {
+  deckId: string;
+  ownershipData?: DeckOwnershipData;
+  marketplace: Marketplace;
+  onZoneClick: (zone: DeckZone) => void;
+  onViewMissing: () => void;
+  onHoverCard?: (cardId: string | null) => void;
+}
+
 /**
  * Full card browser for the deck editor — reuses the same filter UI, search bar,
  * and card grid as the catalog browser. Clicking + on a card adds it to the active zone.
- * @returns The deck card browser view, or an empty state if no zone is selected.
+ * Renders the deck overview dashboard when no zone is selected.
+ * @returns The deck card browser view, or the deck overview if no zone is active.
  */
-export function DeckCardBrowser({ deckId }: { deckId: string }) {
+export function DeckCardBrowser({
+  deckId,
+  ownershipData,
+  marketplace,
+  onZoneClick,
+  onViewMissing,
+  onHoverCard,
+}: DeckCardBrowserProps) {
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
 
   if (!activeZone) {
     return (
-      <div className="flex flex-1 items-center justify-center p-8">
-        <p className="text-muted-foreground text-center text-sm">Select a zone to browse cards</p>
-      </div>
+      <DeckOverview
+        deckId={deckId}
+        ownershipData={ownershipData}
+        marketplace={marketplace}
+        onZoneClick={onZoneClick}
+        onViewMissing={onViewMissing}
+        onHoverCard={onHoverCard}
+      />
     );
   }
 

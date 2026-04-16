@@ -235,6 +235,16 @@ function DeckEditorContent({
   const { setArrayFilters, setSearch } = useFilterActions();
 
   const handleZoneClick = (zone: DeckZone) => {
+    // Clicking the active zone again returns to the overview dashboard.
+    if (zone === activeZone) {
+      setActiveZone(null);
+      setSearch("");
+      if (isMobile) {
+        setOpenMobile(false);
+      }
+      return;
+    }
+
     // Clear search from a previous zone (e.g. champion tag search),
     // then apply the new preset.
     setSearch("");
@@ -406,10 +416,12 @@ function DeckEditorContent({
                 <DeckZonePanel
                   deckId={deckId}
                   onZoneClick={handleZoneClick}
+                  onOverviewClick={() => setActiveZone(null)}
                   onHoverCard={setHoveredCardId}
                   ownershipData={ownershipData}
                   marketplace={marketplace}
                   onViewMissing={() => setMissingOpen(true)}
+                  hideStatsAndOwnership={activeZone === null}
                 />
               </div>
             </SidebarContent>
@@ -419,7 +431,14 @@ function DeckEditorContent({
 
           <div className="flex min-w-0 flex-1 flex-col pb-3">
             <div className="flex-1">
-              <DeckCardBrowser deckId={deckId} />
+              <DeckCardBrowser
+                deckId={deckId}
+                ownershipData={ownershipData}
+                marketplace={marketplace}
+                onZoneClick={handleZoneClick}
+                onViewMissing={() => setMissingOpen(true)}
+                onHoverCard={setHoveredCardId}
+              />
             </div>
             <Footer />
           </div>
