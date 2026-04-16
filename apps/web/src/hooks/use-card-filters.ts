@@ -161,7 +161,6 @@ export function useFilterValues() {
  * @returns The filter action functions.
  */
 export function useFilterActions() {
-  "use no memo";
   const raw = useFilterSearch();
   const filterState = toFilterState(raw);
   const router = useRouter();
