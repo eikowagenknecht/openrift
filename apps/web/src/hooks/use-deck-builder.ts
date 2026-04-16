@@ -1,0 +1,418 @@
+import type { DeckFormat, DeckViolation, DeckZone, Domain } from "@openrift/shared";
+import { validateDeck } from "@openrift/shared";
+import { eq, useLiveQuery } from "@tanstack/react-db";
+import type { Collection } from "@tanstack/react-db";
+import { useQueryClient } from "@tanstack/react-query";
+
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { deckCardKey, isCardAllowedInZone } from "@/lib/deck-builder-card";
+import { getDeckDraftCollection } from "@/lib/deck-builder-collection";
+import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
+
+const RUNE_TARGET = 12;
+const COPY_LIMIT_ZONES: ReadonlySet<DeckZone> = new Set([
+  "main",
+  "sideboard",
+  "overflow",
+  "champion",
+]);
+const EMPTY_CARDS: DeckBuilderCard[] = [];
+
+type DeckCollection = Collection<DeckBuilderCard, string | number>;
+
+function allCards(collection: DeckCollection): DeckBuilderCard[] {
+  return [...collection.values()];
+}
+
+function runeTotalOf(cards: DeckBuilderCard[]): number {
+  let total = 0;
+  for (const card of cards) {
+    if (card.zone === "runes") {
+      total += card.quantity;
+    }
+  }
+  return total;
+}
+
+/**
+ * After a rune is added or removed, adjust a rune of the opposite domain so
+ * the total stays at RUNE_TARGET. When incrementing and no opposite-domain
+ * rune exists in the deck, falls back to the catalog's runesByDomain.
+ *
+ * Operates directly on the collection — each call issues
+ * insert/update/delete on the runes zone.
+ */
+function rebalanceRunes(
+  collection: DeckCollection,
+  changedDomains: Domain[],
+  runesByDomain: Map<string, DeckBuilderCard[]>,
+): void {
+  const cards = allCards(collection);
+  const runeTotal = runeTotalOf(cards);
+  if (runeTotal === RUNE_TARGET) {
+    return;
+  }
+
+  const legend = cards.find((card) => card.zone === "legend");
+  if (!legend || legend.domains.length < 2) {
+    return;
+  }
+
+  const otherDomain = legend.domains.find((domain) => !changedDomains.includes(domain));
+  if (!otherDomain) {
+    return;
+  }
+
+  if (runeTotal > RUNE_TARGET) {
+    const otherRune = cards.find(
+      (card) => card.zone === "runes" && card.domains.some((domain) => domain === otherDomain),
+    );
+    if (!otherRune) {
+      return;
+    }
+    const key = deckCardKey(otherRune.cardId, "runes");
+    if (otherRune.quantity > 1) {
+      collection.update(key, (draft) => {
+        draft.quantity -= 1;
+      });
+    } else {
+      collection.delete(key);
+    }
+    return;
+  }
+
+  // Under target — increment an opposite-domain rune already in the deck,
+  // or add a fresh one from the catalog.
+  const existingOther = cards.find(
+    (card) => card.zone === "runes" && card.domains.some((domain) => domain === otherDomain),
+  );
+  if (existingOther) {
+    collection.update(deckCardKey(existingOther.cardId, "runes"), (draft) => {
+      draft.quantity += 1;
+    });
+    return;
+  }
+  const catalogRunes = runesByDomain.get(otherDomain) ?? [];
+  if (catalogRunes.length > 0) {
+    collection.insert({ ...catalogRunes[0], zone: "runes", quantity: 1 });
+  }
+}
+
+function crossZoneTotal(cards: DeckBuilderCard[], cardId: string): number {
+  let total = 0;
+  for (const card of cards) {
+    if (card.cardId === cardId && COPY_LIMIT_ZONES.has(card.zone)) {
+      total += card.quantity;
+    }
+  }
+  return total;
+}
+
+// ── Action implementations ──────────────────────────────────────────────────
+
+export function addCardAction(
+  collection: DeckCollection,
+  card: DeckBuilderCard,
+  zone: DeckZone,
+  count: number | undefined,
+  runesByDomain: Map<string, DeckBuilderCard[]>,
+): void {
+  if (!isCardAllowedInZone(card, zone)) {
+    return;
+  }
+
+  if (zone === "legend" || zone === "champion") {
+    // Single-card zones: replace whatever is in the zone.
+    for (const existing of allCards(collection)) {
+      if (existing.zone === zone) {
+        collection.delete(deckCardKey(existing.cardId, zone));
+      }
+    }
+    collection.insert({ ...card, zone, quantity: 1 });
+    return;
+  }
+
+  if (zone === "battlefield") {
+    const cards = allCards(collection);
+    const zoneCards = cards.filter((entry) => entry.zone === "battlefield");
+    if (zoneCards.some((entry) => entry.cardId === card.cardId)) {
+      return;
+    }
+    if (zoneCards.length >= 3) {
+      return;
+    }
+    collection.insert({ ...card, zone, quantity: 1 });
+    return;
+  }
+
+  if (zone === "runes") {
+    const addQty = count ?? 1;
+    for (let step = 0; step < addQty; step++) {
+      const cards = allCards(collection);
+      const existing = cards.find(
+        (entry) => entry.cardId === card.cardId && entry.zone === "runes",
+      );
+      if (existing) {
+        collection.update(deckCardKey(card.cardId, "runes"), (draft) => {
+          draft.quantity += 1;
+        });
+      } else {
+        collection.insert({ ...card, zone: "runes", quantity: 1 });
+      }
+      rebalanceRunes(collection, card.domains, runesByDomain);
+      if (runeTotalOf(allCards(collection)) > RUNE_TARGET) {
+        // Rebalance couldn't compensate (e.g. mono-domain legend) — stop.
+        break;
+      }
+    }
+    return;
+  }
+
+  // Main / sideboard / overflow — enforce cross-zone copy cap of 3.
+  const cards = allCards(collection);
+  let addQty = count ?? 1;
+  if (COPY_LIMIT_ZONES.has(zone)) {
+    const total = crossZoneTotal(cards, card.cardId);
+    if (total >= 3) {
+      return;
+    }
+    addQty = Math.min(addQty, 3 - total);
+  }
+
+  const key = deckCardKey(card.cardId, zone);
+  const existing = cards.find((entry) => entry.cardId === card.cardId && entry.zone === zone);
+  if (existing) {
+    collection.update(key, (draft) => {
+      draft.quantity += addQty;
+    });
+  } else {
+    collection.insert({ ...card, zone, quantity: addQty });
+  }
+}
+
+export function removeCardAction(
+  collection: DeckCollection,
+  cardId: string,
+  zone: DeckZone,
+  runesByDomain: Map<string, DeckBuilderCard[]>,
+): void {
+  const key = deckCardKey(cardId, zone);
+  const existing = collection.get(key);
+  if (!existing) {
+    return;
+  }
+  if (existing.quantity > 1) {
+    collection.update(key, (draft) => {
+      draft.quantity -= 1;
+    });
+  } else {
+    collection.delete(key);
+  }
+  if (zone === "runes") {
+    rebalanceRunes(collection, existing.domains, runesByDomain);
+  }
+}
+
+export function moveCardAction(
+  collection: DeckCollection,
+  cardId: string,
+  fromZone: DeckZone,
+  toZone: DeckZone,
+): void {
+  const source = collection.get(deckCardKey(cardId, fromZone));
+  if (!source || !isCardAllowedInZone(source, toZone)) {
+    return;
+  }
+  const targetKey = deckCardKey(cardId, toZone);
+  const target = collection.get(targetKey);
+
+  collection.delete(deckCardKey(cardId, fromZone));
+  if (target) {
+    collection.update(targetKey, (draft) => {
+      draft.quantity += source.quantity;
+    });
+  } else {
+    collection.insert({ ...source, zone: toZone });
+  }
+}
+
+export function moveOneCardAction(
+  collection: DeckCollection,
+  cardId: string,
+  fromZone: DeckZone,
+  toZone: DeckZone,
+): void {
+  const source = collection.get(deckCardKey(cardId, fromZone));
+  if (!source || !isCardAllowedInZone(source, toZone)) {
+    return;
+  }
+  const sourceKey = deckCardKey(cardId, fromZone);
+  if (source.quantity > 1) {
+    collection.update(sourceKey, (draft) => {
+      draft.quantity -= 1;
+    });
+  } else {
+    collection.delete(sourceKey);
+  }
+
+  const targetKey = deckCardKey(cardId, toZone);
+  const target = collection.get(targetKey);
+  if (target) {
+    collection.update(targetKey, (draft) => {
+      draft.quantity += 1;
+    });
+  } else {
+    collection.insert({ ...source, zone: toZone, quantity: 1 });
+  }
+}
+
+export function setQuantityAction(
+  collection: DeckCollection,
+  cardId: string,
+  zone: DeckZone,
+  quantity: number,
+): void {
+  const key = deckCardKey(cardId, zone);
+  const existing = collection.get(key);
+  if (quantity <= 0) {
+    if (existing) {
+      collection.delete(key);
+    }
+    return;
+  }
+  if (existing) {
+    collection.update(key, (draft) => {
+      draft.quantity = quantity;
+    });
+  }
+}
+
+export function setLegendAction(
+  collection: DeckCollection,
+  card: DeckBuilderCard,
+  runesByDomain: Map<string, DeckBuilderCard[]>,
+): void {
+  const cards = allCards(collection);
+
+  // Replace legend slot.
+  for (const existing of cards) {
+    if (existing.zone === "legend") {
+      collection.delete(deckCardKey(existing.cardId, "legend"));
+    }
+  }
+  collection.insert({ ...card, zone: "legend", quantity: 1 });
+
+  // Drop runes that don't match the new legend's domains. Handles both
+  // direct swaps and remove-then-add.
+  const legendDomainSet = new Set(card.domains);
+  const runesAfter = allCards(collection).filter((entry) => entry.zone === "runes");
+  const hasIncompatibleRunes = runesAfter.some(
+    (entry) => !entry.domains.every((domain) => legendDomainSet.has(domain)),
+  );
+  if (hasIncompatibleRunes) {
+    for (const rune of runesAfter) {
+      collection.delete(deckCardKey(rune.cardId, "runes"));
+    }
+  }
+
+  // Auto-populate runes if runes zone is now empty and the legend has two
+  // domains. Distribute 6 slots per domain across available rune cards,
+  // grouping by cardId so each unique rune gets a single entry.
+  const remainingRunes = allCards(collection).filter((entry) => entry.zone === "runes");
+  if (remainingRunes.length > 0 || card.domains.length < 2) {
+    return;
+  }
+
+  const runeEntries = new Map<string, DeckBuilderCard>();
+  const fillDomain = (domain: string, target: number): void => {
+    const runes = runesByDomain.get(domain) ?? [];
+    if (runes.length === 0) {
+      return;
+    }
+    let remaining = target;
+    let index = 0;
+    while (remaining > 0) {
+      const rune = runes[index % runes.length];
+      const already = runeEntries.get(rune.cardId);
+      if (already) {
+        already.quantity += 1;
+      } else {
+        runeEntries.set(rune.cardId, { ...rune, zone: "runes", quantity: 1 });
+      }
+      remaining -= 1;
+      index += 1;
+    }
+  };
+  fillDomain(card.domains[0], 6);
+  fillDomain(card.domains[1], 6);
+  for (const rune of runeEntries.values()) {
+    collection.insert(rune);
+  }
+}
+
+// ── Hooks ───────────────────────────────────────────────────────────────────
+
+export interface DeckBuilderActions {
+  addCard: (card: DeckBuilderCard, zone?: DeckZone, count?: number) => void;
+  removeCard: (cardId: string, zone: DeckZone) => void;
+  moveCard: (cardId: string, fromZone: DeckZone, toZone: DeckZone) => void;
+  moveOneCard: (cardId: string, fromZone: DeckZone, toZone: DeckZone) => void;
+  setQuantity: (cardId: string, zone: DeckZone, quantity: number) => void;
+  setLegend: (card: DeckBuilderCard, runesByDomain?: Map<string, DeckBuilderCard[]>) => void;
+}
+
+export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
+  const queryClient = useQueryClient();
+  const collection = getDeckDraftCollection(queryClient, deckId);
+  const runesByDomain = useDeckBuilderUiStore((state) => state.runesByDomain);
+  const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
+
+  return {
+    addCard: (card, zone, count) => {
+      const target = zone ?? activeZone;
+      if (!target) {
+        return;
+      }
+      addCardAction(collection, card, target, count, runesByDomain);
+    },
+    removeCard: (cardId, zone) => removeCardAction(collection, cardId, zone, runesByDomain),
+    moveCard: (cardId, from, to) => moveCardAction(collection, cardId, from, to),
+    moveOneCard: (cardId, from, to) => moveOneCardAction(collection, cardId, from, to),
+    setQuantity: (cardId, zone, quantity) => setQuantityAction(collection, cardId, zone, quantity),
+    setLegend: (card, rbd) => setLegendAction(collection, card, rbd ?? runesByDomain),
+  };
+}
+
+export function useDeckCards(deckId: string): DeckBuilderCard[] {
+  const queryClient = useQueryClient();
+  const collection = getDeckDraftCollection(queryClient, deckId);
+  const { data } = useLiveQuery((q) => q.from({ card: collection }), [deckId]);
+  return data ?? EMPTY_CARDS;
+}
+
+export function useDeckCardsInZone(deckId: string, zone: DeckZone): DeckBuilderCard[] {
+  const queryClient = useQueryClient();
+  const collection = getDeckDraftCollection(queryClient, deckId);
+  const { data } = useLiveQuery(
+    (q) => q.from({ card: collection }).where(({ card }) => eq(card.zone, zone)),
+    [deckId, zone],
+  );
+  return data ?? EMPTY_CARDS;
+}
+
+export function useDeckViolations(deckId: string, format: DeckFormat): DeckViolation[] {
+  const cards = useDeckCards(deckId);
+  return validateDeck({
+    format,
+    cards: cards.map((card) => ({
+      cardId: card.cardId,
+      zone: card.zone,
+      quantity: card.quantity,
+      cardName: card.cardName,
+      cardType: card.cardType,
+      superTypes: card.superTypes,
+      domains: card.domains,
+      tags: card.tags,
+    })),
+  });
+}

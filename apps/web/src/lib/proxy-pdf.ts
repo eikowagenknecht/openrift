@@ -1,7 +1,7 @@
 import type { Card, CatalogResponse, Printing, Rarity } from "@openrift/shared";
 import { jsPDF } from "jspdf";
 
-import type { DeckBuilderCard } from "@/stores/deck-builder-store";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
 export type ProxyPageSize = "a4" | "letter";
 export type ProxyRenderMode = "image" | "text";

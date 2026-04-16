@@ -8,9 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDomainColor, getDomainGradientStyle } from "@/lib/domain";
 import { cn } from "@/lib/utils";
-import type { DeckBuilderCard } from "@/stores/deck-builder-store";
 
 type ControlMode =
   | "quantity" // +/- with count (main, sideboard, runes)

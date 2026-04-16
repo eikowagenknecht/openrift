@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 import { DeckOwnershipPanel } from "@/components/deck/deck-ownership-panel";
 import { DeckStatsPanel } from "@/components/deck/deck-stats-panel";
 import { DeckZoneSection } from "@/components/deck/deck-zone-section";
+import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
+import { useDeckDetail } from "@/hooks/use-decks";
 import { useZoneOrder } from "@/hooks/use-enums";
-import { useDeckBuilderStore } from "@/stores/deck-builder-store";
+import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 
 interface DeckZonePanelProps {
+  deckId: string;
   onZoneClick?: (zone: DeckZone) => void;
   onHoverCard?: (cardId: string | null) => void;
   ownershipData?: DeckOwnershipData;
@@ -17,6 +20,7 @@ interface DeckZonePanelProps {
 }
 
 export function DeckZonePanel({
+  deckId,
   onZoneClick,
   onHoverCard,
   ownershipData,
@@ -24,9 +28,10 @@ export function DeckZonePanel({
   onViewMissing,
 }: DeckZonePanelProps) {
   const { zoneOrder } = useZoneOrder();
-  const cards = useDeckBuilderStore((state) => state.cards);
-  const violations = useDeckBuilderStore((state) => state.violations);
-  const activeZone = useDeckBuilderStore((state) => state.activeZone);
+  const cards = useDeckCards(deckId);
+  const { data: deckDetail } = useDeckDetail(deckId);
+  const violations = useDeckViolations(deckId, deckDetail.deck.format);
+  const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
 
   const [shiftHeld, setShiftHeld] = useState(false);
   useEffect(() => {
@@ -53,6 +58,7 @@ export function DeckZonePanel({
       {zoneOrder.map((zone) => (
         <DeckZoneSection
           key={zone}
+          deckId={deckId}
           zone={zone}
           cards={cards.filter((card) => card.zone === zone)}
           violations={violations}
@@ -62,7 +68,7 @@ export function DeckZonePanel({
           onHoverCard={onHoverCard}
         />
       ))}
-      <DeckStatsPanel />
+      <DeckStatsPanel deckId={deckId} />
       {ownershipData && marketplace && onViewMissing && (
         <DeckOwnershipPanel
           data={ownershipData}

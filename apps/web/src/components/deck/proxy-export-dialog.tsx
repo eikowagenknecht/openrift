@@ -24,12 +24,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useDeckCards } from "@/hooks/use-deck-builder";
 import { initQueryOptions } from "@/hooks/use-init";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type { ProxyCard, ProxyPageSize, ProxyRenderMode, RenderedCard } from "@/lib/proxy-pdf";
 import { assembleProxyPdf, prerenderImageCards, resolveProxyCards } from "@/lib/proxy-pdf";
 import { queryKeys } from "@/lib/query-keys";
-import type { DeckBuilderCard } from "@/stores/deck-builder-store";
-import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 
 const RENDER_MODE_LABELS: Record<ProxyRenderMode, string> = {
   image: "Card images",
@@ -119,8 +119,14 @@ interface ProxyExportDialogProps {
   open?: boolean;
   /** Called when the dialog wants to change open state. Required when `open` is provided. */
   onOpenChange?: (open: boolean) => void;
-  /** Cards to export. Falls back to the deck builder store when omitted. */
+  /**
+   * Cards to export. Either this or `deckId` must be provided; if both, `cards` wins.
+   */
   cards?: DeckBuilderCard[];
+  /**
+   * Deck id to pull the current draft cards from. Used when `cards` isn't passed.
+   */
+  deckId?: string;
   /** Deck name used to derive the PDF filename. */
   deckName?: string;
 }
@@ -133,6 +139,7 @@ export function ProxyExportDialog({
   open: controlledOpen,
   onOpenChange,
   cards: cardsProp,
+  deckId,
   deckName,
 }: ProxyExportDialogProps = {}) {
   const [internalOpen, setInternalOpen] = useState(false);
@@ -160,9 +167,12 @@ export function ProxyExportDialog({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const cardElementRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  // Hook must run unconditionally; when deckId is absent we still call it
+  // with an empty string and end up reading an empty collection.
+  const liveCards = useDeckCards(deckId ?? "");
 
   const handleGenerate = async () => {
-    const cards = cardsProp ?? useDeckBuilderStore.getState().cards;
+    const cards = cardsProp ?? liveCards;
     if (cards.length === 0) {
       return;
     }

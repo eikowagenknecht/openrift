@@ -10,11 +10,12 @@ import type {
   DeckDropData,
 } from "@/components/deck/deck-dnd-context";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { isCardAllowedInZone } from "@/lib/deck-builder-card";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
-import type { DeckBuilderCard } from "@/stores/deck-builder-store";
-import { isCardAllowedInZone, useDeckBuilderStore } from "@/stores/deck-builder-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
 const ZONE_LABELS: Record<DeckZone, string> = {
@@ -56,6 +57,7 @@ const GROUPED_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow"]);
 const TYPE_GROUP_ORDER: CardType[] = ["Unit", "Spell", "Gear"];
 
 interface DeckZoneSectionProps {
+  deckId: string;
   zone: DeckZone;
   cards: DeckBuilderCard[];
   violations: DeckViolation[];
@@ -66,6 +68,7 @@ interface DeckZoneSectionProps {
 }
 
 export function DeckZoneSection({
+  deckId,
   zone,
   cards,
   violations,
@@ -75,10 +78,8 @@ export function DeckZoneSection({
   onHoverCard,
 }: DeckZoneSectionProps) {
   const [open, setOpen] = useState(zone !== "sideboard" && zone !== "overflow");
-  const removeCard = useDeckBuilderStore((state) => state.removeCard);
-  const addCard = useDeckBuilderStore((state) => state.addCard);
-  const setQuantity = useDeckBuilderStore((state) => state.setQuantity);
-  const allCards = useDeckBuilderStore((state) => state.cards);
+  const { addCard, removeCard, setQuantity } = useDeckBuilderActions(deckId);
+  const allCards = useDeckCards(deckId);
   const { getPreferredPrinting } = usePreferredPrinting();
 
   // Check if the currently dragged card is allowed in this zone

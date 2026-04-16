@@ -22,13 +22,13 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useExportDeck } from "@/hooks/use-decks";
 import { useSession } from "@/lib/auth-session";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type { RegistrationFields, RegistrationPageSize } from "@/lib/registration-pdf";
 import { generateRegistrationPdf } from "@/lib/registration-pdf";
 import { getSiteUrl } from "@/lib/site-config";
-import type { DeckBuilderCard } from "@/stores/deck-builder-store";
-import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 
 type ExportFormat = "piltover" | "text" | "tts";
 type ExportTab = ExportFormat | "registration";
@@ -117,6 +117,7 @@ export function DeckExportDialog({
   const isControlled = controlledOpen !== undefined;
   const exportDeck = useExportDeck();
   const { data: session } = useSession();
+  const liveCards = useDeckCards(deckId);
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<ExportTab>("piltover");
   const [registrationPageSize, setRegistrationPageSize] = useState<RegistrationPageSize>("a4");
@@ -172,7 +173,7 @@ export function DeckExportDialog({
   };
 
   const handleGenerateRegistration = async () => {
-    const cards = cardsProp ?? useDeckBuilderStore.getState().cards;
+    const cards = cardsProp ?? liveCards;
     if (cards.length === 0) {
       return;
     }

@@ -3,7 +3,8 @@ import { CheckIcon, CircleAlertIcon, LoaderCircleIcon } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useDeckBuilderStore } from "@/stores/deck-builder-store";
+import { useDeckViolations } from "@/hooks/use-deck-builder";
+import { useDeckDetail } from "@/hooks/use-decks";
 
 /**
  * Badge showing violation count with a click-to-open popover listing each violation.
@@ -44,9 +45,10 @@ function ViolationBadge({
  * Format badge showing "Constructed ✓", "Freeform", or violation count.
  * @returns The format badge element.
  */
-export function DeckFormatBadge() {
-  const violations = useDeckBuilderStore((state) => state.violations);
-  const format = useDeckBuilderStore((state) => state.format);
+export function DeckFormatBadge({ deckId }: { deckId: string }) {
+  const { data: deckDetail } = useDeckDetail(deckId);
+  const format = deckDetail.deck.format;
+  const violations = useDeckViolations(deckId, format);
 
   const isValid = format === "freeform" || violations.length === 0;
 

@@ -24,13 +24,15 @@ import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
+import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePrices } from "@/hooks/use-prices";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
-import type { DeckBuilderCard } from "@/stores/deck-builder-store";
-import { catalogCardToDeckBuilderCard, useDeckBuilderStore } from "@/stores/deck-builder-store";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { catalogCardToDeckBuilderCard } from "@/lib/deck-builder-card";
+import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
@@ -64,8 +66,8 @@ function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCa
  * and card grid as the catalog browser. Clicking + on a card adds it to the active zone.
  * @returns The deck card browser view, or an empty state if no zone is selected.
  */
-export function DeckCardBrowser() {
-  const activeZone = useDeckBuilderStore((state) => state.activeZone);
+export function DeckCardBrowser({ deckId }: { deckId: string }) {
+  const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
 
   if (!activeZone) {
     return (
@@ -75,10 +77,10 @@ export function DeckCardBrowser() {
     );
   }
 
-  return <DeckCardBrowserInner />;
+  return <DeckCardBrowserInner deckId={deckId} />;
 }
 
-function DeckCardBrowserInner() {
+function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const showImages = useDisplayStore((state) => state.showImages);
   const { allPrintings, sets } = useCards();
   const prices = usePrices();
@@ -95,12 +97,10 @@ function DeckCardBrowserInner() {
   } = useFilterValues();
   const { setSearch } = useFilterActions();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
-  const addCard = useDeckBuilderStore((state) => state.addCard);
-  const removeCard = useDeckBuilderStore((state) => state.removeCard);
-  const setLegend = useDeckBuilderStore((state) => state.setLegend);
-  const setRunesByDomain = useDeckBuilderStore((state) => state.setRunesByDomain);
+  const { addCard, removeCard, setLegend, setQuantity } = useDeckBuilderActions(deckId);
+  const setRunesByDomain = useDeckBuilderUiStore((state) => state.setRunesByDomain);
   // Wrapper only renders this component when activeZone is set
-  const activeZone = useDeckBuilderStore((state) => state.activeZone) as DeckZone;
+  const activeZone = useDeckBuilderUiStore((state) => state.activeZone) as DeckZone;
   const isSingleCardZone = activeZone === "legend" || activeZone === "champion";
 
   // Track Shift key for "add max" visual hint
@@ -133,7 +133,7 @@ function DeckCardBrowserInner() {
     setRunesByDomain(map);
   }, [allPrintings, setRunesByDomain]);
 
-  const deckCards = useDeckBuilderStore((state) => state.cards);
+  const deckCards = useDeckCards(deckId);
   const singleCardZoneOccupied =
     isSingleCardZone && deckCards.some((card) => card.zone === activeZone);
 
@@ -210,8 +210,6 @@ function DeckCardBrowserInner() {
       addCard(builderCard, activeZone, count);
     }
   };
-
-  const setQuantity = useDeckBuilderStore((state) => state.setQuantity);
 
   const handleRemove = (printing: Printing, event?: React.MouseEvent) => {
     const cardId = printing.cardId;

@@ -1,6 +1,6 @@
 import { useDndContext } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
-import { useDebouncedCallback } from "@tanstack/react-pacer";
+import { useQueryClient } from "@tanstack/react-query";
 import { EllipsisVerticalIcon, PencilIcon, PrinterIcon, Share2Icon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -36,14 +36,21 @@ import {
 } from "@/components/ui/sidebar";
 import { useFilterActions } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
+import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
-import { useDeckDetail, useSaveDeckCards } from "@/hooks/use-decks";
+import { useDeckDetail } from "@/hooks/use-decks";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession } from "@/lib/auth-session";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { toDeckBuilderCard } from "@/lib/deck-builder-card";
+import {
+  destroyDeckDraft,
+  hydrateDeckDraft,
+  useDeckSaveStatus,
+} from "@/lib/deck-builder-collection";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
-import type { DeckBuilderCard } from "@/stores/deck-builder-store";
-import { useDeckBuilderStore, toDeckBuilderCard } from "@/stores/deck-builder-store";
+import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
 
 const ZONE_LABELS: Record<DeckZone, string> = {
@@ -118,8 +125,6 @@ function HoveredCardPreview({
     </div>
   );
 }
-const AUTO_SAVE_DELAY = 1000;
-
 export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
 
@@ -140,18 +145,17 @@ function DeckEditorContent({
   deckId: string;
   topBarSlot: HTMLDivElement | null;
 }) {
+  const queryClient = useQueryClient();
   const { data } = useDeckDetail(deckId);
   const { cardsById, allPrintings } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
-  const init = useDeckBuilderStore((state) => state.init);
-  const reset = useDeckBuilderStore((state) => state.reset);
-  const storeId = useDeckBuilderStore((state) => state.deckId);
-  const deckCards = useDeckBuilderStore((state) => state.cards);
-  const isDirty = useDeckBuilderStore((state) => state.isDirty);
-  const markSaved = useDeckBuilderStore((state) => state.markSaved);
-  const saveDeckCards = useSaveDeckCards();
+  const [hydratedId, setHydratedId] = useState<string | null>(null);
+  const deckCards = useDeckCards(deckId);
+  const saveStatus = useDeckSaveStatus(queryClient, deckId);
   const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
-  const activeZone = useDeckBuilderStore((state) => state.activeZone);
+  const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
+  const setActiveZone = useDeckBuilderUiStore((state) => state.setActiveZone);
+  const resetUi = useDeckBuilderUiStore((state) => state.reset);
   const [renameOpen, setRenameOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
@@ -169,54 +173,38 @@ function DeckEditorContent({
     marketplace,
   );
 
-  // Initialize store when deck data loads or changes
+  // Seed the draft from the server's deck detail when the deck id changes or
+  // when a fresh load arrives. The collection's save handler is auto-wired —
+  // any user edit after this debounces a PUT back to the server.
   useEffect(() => {
-    if (data && storeId !== deckId) {
+    if (data && hydratedId !== deckId) {
       const builderCards = data.cards
         .map((card) => toDeckBuilderCard(card, cardsById))
         .filter((card): card is DeckBuilderCard => card !== null);
-      init(deckId, data.deck.format, builderCards);
+      hydrateDeckDraft(queryClient, deckId, builderCards);
+      setHydratedId(deckId);
     }
-  }, [data, deckId, storeId, init, cardsById]);
+  }, [data, deckId, hydratedId, queryClient, cardsById]);
 
-  // Auto-save: debounce saves so every change is persisted
-  const debouncedSave = useDebouncedCallback(
-    () => {
-      const currentCards = useDeckBuilderStore.getState().cards;
-      saveDeckCards.mutate(
-        {
-          deckId,
-          cards: currentCards.map((card) => ({
-            cardId: card.cardId,
-            zone: card.zone,
-            quantity: card.quantity,
-          })),
-        },
-        { onSuccess: () => markSaved() },
-      );
-    },
-    { wait: AUTO_SAVE_DELAY },
-  );
-
-  useEffect(() => {
-    if (isDirty && storeId === deckId) {
-      debouncedSave();
-    }
-  }, [isDirty, deckId, storeId, debouncedSave]);
-
-  // Reset store on unmount
+  // On unmount: drop the draft collection and reset UI scalars so the next
+  // deck load starts clean.
   useEffect(
     () => () => {
-      reset();
+      destroyDeckDraft(queryClient, deckId);
+      resetUi();
     },
-    [reset],
+    [queryClient, deckId, resetUi],
   );
 
-  // Warn on navigation with unsaved changes
+  // Warn on navigation with unsaved changes — read from the save-status ref
+  // rather than closing over `saveStatus`, which would re-register on every
+  // edit.
+  const saveStatusRef = useRef(saveStatus);
+  saveStatusRef.current = saveStatus;
   useEffect(() => {
     const handler = (event: BeforeUnloadEvent) => {
-      const dirty = useDeckBuilderStore.getState().isDirty;
-      if (dirty) {
+      const status = saveStatusRef.current;
+      if (status.isDirty || status.isSaving) {
         event.preventDefault();
       }
     };
@@ -278,7 +266,7 @@ function DeckEditorContent({
       }
     }
 
-    useDeckBuilderStore.getState().setActiveZone(zone);
+    setActiveZone(zone);
     if (isMobile) {
       setOpenMobile(false);
     }
@@ -325,7 +313,7 @@ function DeckEditorContent({
     .filter((card) => card.zone === activeZone)
     .reduce((sum, card) => sum + card.quantity, 0);
 
-  if (storeId !== deckId) {
+  if (hydratedId !== deckId) {
     return null;
   }
 
@@ -342,12 +330,16 @@ function DeckEditorContent({
               </span>
               <span className="hidden md:inline">{data.deck.name}</span>
             </PageTopBarTitle>
-            <DeckFormatBadge />
+            <DeckFormatBadge deckId={deckId} />
             <PageTopBarActions>
-              <DeckSaveStatus isDirty={isDirty} isSaving={saveDeckCards.isPending} />
+              <DeckSaveStatus isDirty={saveStatus.isDirty} isSaving={saveStatus.isSaving} />
               <div className="hidden md:flex md:items-center md:gap-1">
-                <DeckExportDialog deckId={deckId} deckName={data.deck.name} isDirty={isDirty} />
-                <ProxyExportDialog deckName={data.deck.name} />
+                <DeckExportDialog
+                  deckId={deckId}
+                  deckName={data.deck.name}
+                  isDirty={saveStatus.isDirty}
+                />
+                <ProxyExportDialog deckId={deckId} deckName={data.deck.name} />
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
@@ -384,11 +376,16 @@ function DeckEditorContent({
       <DeckExportDialog
         deckId={deckId}
         deckName={data.deck.name}
-        isDirty={isDirty}
+        isDirty={saveStatus.isDirty}
         open={exportOpen}
         onOpenChange={setExportOpen}
       />
-      <ProxyExportDialog open={proxyOpen} onOpenChange={setProxyOpen} deckName={data.deck.name} />
+      <ProxyExportDialog
+        open={proxyOpen}
+        onOpenChange={setProxyOpen}
+        deckId={deckId}
+        deckName={data.deck.name}
+      />
       {ownershipData && (
         <DeckMissingCardsDialog
           open={missingOpen}
@@ -398,7 +395,7 @@ function DeckEditorContent({
           marketplace={marketplace}
         />
       )}
-      <DeckDndContext>
+      <DeckDndContext deckId={deckId}>
         <div ref={containerRef} className={cn(CONTAINER_WIDTH, "relative flex gap-4 px-3")}>
           <NestedSidebar
             className="mt-3 w-(--sidebar-width)!"
@@ -409,6 +406,7 @@ function DeckEditorContent({
             <SidebarContent>
               <div className="p-3">
                 <DeckZonePanel
+                  deckId={deckId}
                   onZoneClick={handleZoneClick}
                   onHoverCard={setHoveredCardId}
                   ownershipData={ownershipData}
@@ -423,7 +421,7 @@ function DeckEditorContent({
 
           <div className="flex min-w-0 flex-1 flex-col pb-3">
             <div className="flex-1">
-              <DeckCardBrowser />
+              <DeckCardBrowser deckId={deckId} />
             </div>
             <Footer />
           </div>
