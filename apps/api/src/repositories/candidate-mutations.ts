@@ -7,6 +7,7 @@ import type {
   Rarity,
   SuperType,
 } from "@openrift/shared/types";
+import { sql } from "kysely";
 import type { DeleteResult, Kysely, Selectable, UpdateResult } from "kysely";
 
 import type { CandidatePrintingsTable, CardsTable, Database, PrintingsTable } from "../db/index.js";
@@ -241,7 +242,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
         .select("cardId")
         .where("shortCode", "=", shortCode)
         .where("finish", "=", finish)
-        .where("markerSlugs", "=", sortedSlugs)
+        .where("markerSlugs", "=", sql<string[]>`${sortedSlugs}::text[]`)
         .where("language", "=", language)
         .executeTakeFirst();
     },
@@ -598,10 +599,15 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
 
     /**
      * Insert or update a printing.
-     * Uses composite unique constraint on (cardId, shortCode, finish, markerSlugs, language).
      * `markerSlugs` is set on the printing directly; callers are responsible for
      * syncing the `printing_markers` join afterwards (the maintenance trigger
      * keeps marker_slugs canonical once the join is populated).
+     *
+     * Uses a manual select-then-insert/update because the matching unique
+     * constraint (`uq_printings_identity`) is DEFERRABLE INITIALLY DEFERRED
+     * (migration 092) and Postgres rejects deferrable constraints as ON
+     * CONFLICT arbiters.
+     *
      * @returns The new or existing printing UUID.
      */
     async upsertPrinting(values: {
@@ -622,21 +628,33 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       printedName: string | null;
     }): Promise<string> {
       const sortedSlugs = [...values.markerSlugs].sort();
+      const existing = await db
+        .selectFrom("printings")
+        .select("id")
+        .where("cardId", "=", values.cardId)
+        .where("shortCode", "=", values.shortCode)
+        .where("finish", "=", values.finish)
+        .where("markerSlugs", "=", sql<string[]>`${sortedSlugs}::text[]`)
+        .where("language", "=", values.language)
+        .executeTakeFirst();
+      if (existing) {
+        await db
+          .updateTable("printings")
+          .set({
+            artist: values.artist,
+            publicCode: values.publicCode,
+            printedRulesText: values.printedRulesText,
+            printedEffectText: values.printedEffectText,
+            flavorText: values.flavorText,
+            printedName: values.printedName,
+          })
+          .where("id", "=", existing.id)
+          .execute();
+        return existing.id;
+      }
       const result = await db
         .insertInto("printings")
         .values({ ...values, markerSlugs: sortedSlugs })
-        .onConflict((oc) =>
-          oc
-            .columns(["cardId", "shortCode", "finish", "markerSlugs", "language"])
-            .doUpdateSet((eb) => ({
-              artist: eb.ref("excluded.artist"),
-              publicCode: eb.ref("excluded.publicCode"),
-              printedRulesText: eb.ref("excluded.printedRulesText"),
-              printedEffectText: eb.ref("excluded.printedEffectText"),
-              flavorText: eb.ref("excluded.flavorText"),
-              printedName: eb.ref("excluded.printedName"),
-            })),
-        )
         .returning("id")
         .executeTakeFirstOrThrow();
       return result.id;

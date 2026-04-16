@@ -165,7 +165,8 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       expect(printing.setId).toBe(SEED_SET_ID);
       expect(printing.shortCode).toBe("OGS-001");
       expect(printing.rarity).toBe("Epic");
-      expect(printing.promoType).toBeNull();
+      expect(printing.markers).toEqual([]);
+      expect(printing.distributionChannels).toEqual([]);
     });
 
     it("printing does not include marketPrice (prices live on /api/v1/prices)", async () => {

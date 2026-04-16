@@ -37,7 +37,7 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(names).toEqual([...names].sort());
   });
 
-  it("printings returns all printings with promoType resolved", async () => {
+  it("printings returns all printings with markerSlugs", async () => {
     const printings = await repo.printings();
     expect(printings.length).toBeGreaterThan(0);
     const first = printings[0];
@@ -46,12 +46,12 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(first).toHaveProperty("setId");
     expect(first).toHaveProperty("rarity");
     expect(first).toHaveProperty("finish");
-    expect(first).toHaveProperty("promoType");
-    // promoType should be null (seed data has no promo types)
-    expect(first.promoType).toBeNull();
+    expect(first).toHaveProperty("markerSlugs");
+    expect(Array.isArray(first.markerSlugs)).toBe(true);
     // Should not include comment or timestamps
     expect(first).not.toHaveProperty("comment");
     expect(first).not.toHaveProperty("createdAt");
+    expect(first).not.toHaveProperty("promoType");
     expect(first).not.toHaveProperty("promoTypeId");
   });
 

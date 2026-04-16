@@ -109,31 +109,39 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .onConflict((oc) => oc.columns(["cardId", "domainSlug"]).doNothing())
       .execute();
 
-    const insertedPrinting = await db
-      .insertInto("printings")
-      .values({
-        cardId: seedCardId,
-        setId: seedSetId,
-        shortCode: "IGT-001",
-        rarity: "Common",
-        artVariant: "normal",
-        isSigned: false,
-        promoTypeId: null,
-        finish: "normal",
-        artist: "Test Artist",
-        publicCode: "IGT-001/010",
-        printedRulesText: null,
-        printedEffectText: null,
-        flavorText: null,
-      })
-      .onConflict((oc) =>
-        oc
-          .columns(["cardId", "shortCode", "finish", "promoTypeId", "language"])
-          .doUpdateSet({ artist: "Test Artist" }),
-      )
-      .returning("id")
-      .executeTakeFirstOrThrow();
-    seedPrintingId = insertedPrinting.id;
+    // uq_printings_identity is now DEFERRABLE (migration 092) and so cannot be
+    // used as an ON CONFLICT arbiter; do a select-or-insert dance instead.
+    const existingPrinting = await db
+      .selectFrom("printings")
+      .select("id")
+      .where("cardId", "=", seedCardId)
+      .where("shortCode", "=", "IGT-001")
+      .where("finish", "=", "normal")
+      .where("language", "=", "EN")
+      .executeTakeFirst();
+    if (existingPrinting) {
+      seedPrintingId = existingPrinting.id;
+    } else {
+      const insertedPrinting = await db
+        .insertInto("printings")
+        .values({
+          cardId: seedCardId,
+          setId: seedSetId,
+          shortCode: "IGT-001",
+          rarity: "Common",
+          artVariant: "normal",
+          isSigned: false,
+          finish: "normal",
+          artist: "Test Artist",
+          publicCode: "IGT-001/010",
+          printedRulesText: null,
+          printedEffectText: null,
+          flavorText: null,
+        })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      seedPrintingId = insertedPrinting.id;
+    }
 
     // Seed a second card only reachable via alias (normName won't match)
     const insertedAliasCard = await db
@@ -262,7 +270,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
             rarity: "Common",
             art_variant: "normal",
             is_signed: false,
-            is_promo: false,
             finish: "normal",
             artist: "Bob Ross",
             public_code: "CWP-001/100",
@@ -477,7 +484,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
             rarity: "Common",
             art_variant: "normal",
             is_signed: false,
-            is_promo: false,
             finish: "normal",
             artist: "Test",
             public_code: "X-001/100",
@@ -519,7 +525,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
             rarity: "Uncommon",
             art_variant: "normal",
             is_signed: false,
-            is_promo: false,
             finish: "normal",
             artist: "Original Artist",
             public_code: "PU-001/050",
@@ -566,7 +571,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
             rarity: "Uncommon",
             art_variant: "normal",
             is_signed: false,
-            is_promo: false,
             finish: "normal",
             artist: "New Artist",
             public_code: "PU-001/050",
@@ -609,7 +613,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
             rarity: "Rare",
             art_variant: "normal",
             is_signed: false,
-            is_promo: false,
             finish: "foil",
             artist: "Steady Artist",
             public_code: "PS-001/100",
@@ -654,7 +657,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
             rarity: "Rare",
             art_variant: "normal",
             is_signed: false,
-            is_promo: false,
             finish: "foil",
             artist: "Steady Artist",
             public_code: "PS-001/100",
@@ -700,7 +702,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
             rarity: "Common",
             art_variant: "normal",
             is_signed: false,
-            is_promo: false,
             finish: "normal",
             artist: "Resolved Artist",
             public_code: "IGT-001/010",
@@ -1101,7 +1102,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
             rarity: "Common",
             art_variant: "normal",
             is_signed: false,
-            is_promo: false,
             finish: "normal",
             artist: "Unknown Artist",
             public_code: "UNK-001/100",
@@ -1154,7 +1154,6 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
             rarity: "Common",
             art_variant: "normal",
             is_signed: false,
-            is_promo: false,
             finish: "normal",
             artist: "Entity Artist",
             public_code: "E-001/100",
@@ -1209,7 +1208,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
             rarity: "Rare",
             art_variant: "altart",
             is_signed: true,
-            is_promo: true,
+            marker_slugs: ["promo"],
             finish: "foil",
             artist: "Full Print Artist",
             public_code: "FP-001/200",
@@ -1241,7 +1240,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     expect(ps.printedRulesText).toBe("Printed rules here.");
     expect(ps.printedEffectText).toBe("Printed effect here.");
     expect(ps.isSigned).toBe(true);
-    expect(ps.promoTypeId).not.toBeNull();
+    expect(ps.markerSlugs).toEqual(["promo"]);
     expect(ps.finish).toBe("foil");
     expect(ps.artVariant).toBe("altart");
   });

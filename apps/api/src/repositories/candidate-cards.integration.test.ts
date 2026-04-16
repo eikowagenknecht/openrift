@@ -286,15 +286,15 @@ describe.skipIf(!ctx)("candidateCardsRepo (integration)", () => {
     expect(result).toEqual([]);
   });
 
-  // ── promoTypeSlugsByIds (lines 689-692) ───────────────────────────────────
+  // ── markerSlugsByIds ──────────────────────────────────────────────────────
 
-  it("promoTypeSlugsByIds returns [] for empty input", async () => {
-    const result = await repo.promoTypeSlugsByIds([]);
+  it("markerSlugsByIds returns [] for empty input", async () => {
+    const result = await repo.markerSlugsByIds([]);
     expect(result).toEqual([]);
   });
 
-  it("promoTypeSlugsByIds returns [] for nonexistent IDs", async () => {
-    const result = await repo.promoTypeSlugsByIds(["00000000-0000-0000-0000-000000000000"]);
+  it("markerSlugsByIds returns [] for nonexistent IDs", async () => {
+    const result = await repo.markerSlugsByIds(["00000000-0000-0000-0000-000000000000"]);
     expect(result).toEqual([]);
   });
 

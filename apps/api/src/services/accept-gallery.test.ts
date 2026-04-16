@@ -56,7 +56,7 @@ function makeCandidatePrinting(overrides: Record<string, unknown> = {}) {
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,
-    promoTypeId: null,
+    markerSlugs: [] as string[],
     finish: "normal",
     artist: "Artist A",
     publicCode: "001",
@@ -92,10 +92,11 @@ function createMockRepos(
   };
 
   const printingImages = {} as any;
-  const promoTypes = {} as any;
+  const distributionChannels = {} as any;
+  const markers = {} as any;
 
   return {
-    repos: { candidateCards, candidateMutations, printingImages, promoTypes },
+    repos: { candidateCards, candidateMutations, printingImages, distributionChannels, markers },
     candidateCards,
     candidateMutations,
   };
@@ -318,20 +319,20 @@ describe("acceptFavoriteNewCard", () => {
     ).resolves.toBeDefined();
   });
 
-  it("groups candidate printings by shortCode + finish + promoTypeId", async () => {
+  it("groups candidate printings by shortCode + finish + markerSlugs", async () => {
     const { repos } = createMockRepos({
       candidatePrintings: [
         makeCandidatePrinting({
           id: "cp-1",
           shortCode: "OGN-001",
           finish: "normal",
-          promoTypeId: null,
+          markerSlugs: [],
         }),
         makeCandidatePrinting({
           id: "cp-2",
           shortCode: "OGN-001",
           finish: "normal",
-          promoTypeId: null,
+          markerSlugs: [],
         }),
       ],
     });

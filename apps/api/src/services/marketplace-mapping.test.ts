@@ -108,7 +108,7 @@ function makeCardPrintingRow(overrides: Record<string, unknown> = {}) {
     setName: "Origin Set",
     artVariant: "normal",
     isSigned: false,
-    promoTypeSlug: null,
+    markerSlugs: [] as string[],
     finish: "normal",
     language: "EN",
     imageUrl: null,

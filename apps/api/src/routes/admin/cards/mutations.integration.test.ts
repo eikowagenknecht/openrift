@@ -25,7 +25,9 @@ let psId = "";
 let psUnlinkedId = "";
 let psForAcceptNewId = "";
 let csForAcceptNewId = "";
-let promoTypeId = "";
+
+// Generic 'promo' marker, seeded by migration 091.
+const PROMO_MARKER_SLUG = "promo";
 
 if (ctx) {
   const { db } = ctx;
@@ -37,14 +39,6 @@ if (ctx) {
     .returning("id")
     .execute();
   setId = setRow.id;
-
-  // Promo type (for accept-printing promo test) — seeded by migration 034
-  const promoTypeRow = await db
-    .selectFrom("promoTypes")
-    .select("id")
-    .where("slug", "=", "promo")
-    .executeTakeFirstOrThrow();
-  promoTypeId = promoTypeRow.id;
 
   // Card
   const [cardRow] = await db
@@ -76,7 +70,6 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      promoTypeId: null,
       finish: "normal",
       artist: "Artist A",
       publicCode: "CSM",
@@ -99,7 +92,6 @@ if (ctx) {
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
-      promoTypeId: null,
       finish: "foil",
       artist: "Artist A",
       publicCode: "CSM",
@@ -172,7 +164,6 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      promoTypeId: null,
       finish: "normal",
       artist: "Artist A",
       publicCode: "CSM",
@@ -199,7 +190,6 @@ if (ctx) {
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
-      promoTypeId: null,
       finish: "normal",
       artist: "Test Artist",
       publicCode: "CSM",
@@ -250,7 +240,6 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      promoTypeId: null,
       finish: "normal",
       artist: "Accept Artist",
       publicCode: "CSM",
@@ -841,10 +830,16 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(400);
     });
 
-    it("sets promoTypeId on a non-EN printing when an EN sibling already has that promoTypeId", async () => {
+    it("sets markerSlugs on a non-EN printing when an EN sibling already has those markers", async () => {
       // Two printings sharing (shortCode, artVariant, isSigned, rarity, finish)
-      // but differing in language. Setting the same promoTypeId on both must
+      // but differing in language. Setting the same markerSlugs on both must
       // succeed — the uq_printings_variant constraint includes language.
+      const promoMarker = await db
+        .selectFrom("markers")
+        .select("id")
+        .where("slug", "=", PROMO_MARKER_SLUG)
+        .executeTakeFirstOrThrow();
+
       const [enRow] = await db
         .insertInto("printings")
         .values({
@@ -854,13 +849,18 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId,
           finish: "normal",
           artist: "Artist A",
           publicCode: "CSM",
           language: "EN",
         })
         .returning("id")
+        .execute();
+
+      // Stamp the EN row with the promo marker (trigger keeps marker_slugs in sync).
+      await db
+        .insertInto("printingMarkers")
+        .values({ printingId: enRow.id, markerId: promoMarker.id })
         .execute();
 
       const [zhRow] = await db
@@ -872,7 +872,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
           finish: "normal",
           artist: "Artist A",
           publicCode: "CSM",
@@ -883,18 +882,18 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
 
       const res = await app.fetch(
         req("POST", `${P}/printing/${zhRow.id}/accept-field`, {
-          field: "promoTypeId",
-          value: promoTypeId,
+          field: "markerSlugs",
+          value: [PROMO_MARKER_SLUG],
         }),
       );
       expect(res.status).toBe(204);
 
       const updated = await db
         .selectFrom("printings")
-        .select("promoTypeId")
+        .select("markerSlugs")
         .where("id", "=", zhRow.id)
         .executeTakeFirstOrThrow();
-      expect(updated.promoTypeId).toBe(promoTypeId);
+      expect(updated.markerSlugs).toEqual([PROMO_MARKER_SLUG]);
 
       // Cleanup
       await db.deleteFrom("printings").where("id", "in", [enRow.id, zhRow.id]).execute();
@@ -1010,7 +1009,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Uncommon",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
           finish: "normal",
           artist: "AP Artist",
           publicCode: "CSM",
@@ -1080,7 +1078,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Epic",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
           finish: "foil",
           artist: "Custom Artist",
           publicCode: "CSM",
@@ -1113,7 +1110,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(json.printingId).toBeTypeOf("string");
     });
 
-    it("accepts a printing with promo and signed flags", async () => {
+    it("accepts a printing with promo marker and signed flags", async () => {
       const [apPs3] = await db
         .insertInto("candidatePrintings")
         .values({
@@ -1125,7 +1122,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: true,
-          promoTypeId,
+          markerSlugs: [PROMO_MARKER_SLUG],
           finish: "foil",
           artist: "Promo Artist",
           publicCode: "CSM",
@@ -1147,7 +1144,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             rarity: "Common",
             finish: "foil",
             isSigned: true,
-            promoTypeId,
+            markerSlugs: [PROMO_MARKER_SLUG],
             artist: "Promo Artist",
             publicCode: "CSM",
           },
@@ -1159,14 +1156,14 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const json = await res.json();
       expect(json.printingId).toBeTypeOf("string");
 
-      // Verify isSigned/promoTypeId on the printing
+      // Verify isSigned/markerSlugs on the printing
       const p = await db
         .selectFrom("printings")
-        .select(["isSigned", "promoTypeId"])
+        .select(["isSigned", "markerSlugs"])
         .where("id", "=", json.printingId)
         .executeTakeFirstOrThrow();
       expect(p.isSigned).toBe(true);
-      expect(p.promoTypeId).toBe(promoTypeId);
+      expect(p.markerSlugs).toEqual([PROMO_MARKER_SLUG]);
     });
 
     it("returns 400 for empty candidatePrintingIds", async () => {
@@ -1210,7 +1207,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
           finish: "normal",
           artist: "A",
           publicCode: "X",
@@ -1606,28 +1602,30 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       expect(res.status).toBe(404);
     });
 
-    it("updates promoTypeId", async () => {
+    it("updates markerSlugs", async () => {
       const res = await app.fetch(
         req("POST", `${P}/printing/${printingId}/accept-field`, {
-          field: "promoTypeId",
-          value: promoTypeId,
+          field: "markerSlugs",
+          value: [PROMO_MARKER_SLUG],
         }),
       );
       expect(res.status).toBe(204);
 
       const row = await db
         .selectFrom("printings")
-        .select("promoTypeId")
+        .select("markerSlugs")
         .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
-      expect(row.promoTypeId).toBe(promoTypeId);
+      expect(row.markerSlugs).toEqual([PROMO_MARKER_SLUG]);
 
-      // Restore: set promoTypeId back to null
-      await db
-        .updateTable("printings")
-        .set({ promoTypeId: null })
-        .where("id", "=", printingId)
-        .execute();
+      // Restore: clear markers via the same route (handles printing_markers cleanup)
+      const restoreRes = await app.fetch(
+        req("POST", `${P}/printing/${printingId}/accept-field`, {
+          field: "markerSlugs",
+          value: [],
+        }),
+      );
+      expect(restoreRes.status).toBe(204);
     });
 
     it("returns 400 for missing field", async () => {
@@ -1655,7 +1653,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
           finish: "normal",
           artist: "Del Artist",
           publicCode: "CSM",
@@ -1696,7 +1693,6 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
           finish: "normal",
           artist: "Del Artist",
           publicCode: "CSM",

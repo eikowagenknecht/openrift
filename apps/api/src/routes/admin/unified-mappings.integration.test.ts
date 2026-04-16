@@ -63,7 +63,6 @@ if (ctx) {
       rarity: "Common",
       artVariant: "normal",
       isSigned: false,
-      promoTypeId: null,
       finish: "normal",
       artist: "Test Artist",
       publicCode: "UNM",
@@ -109,7 +108,6 @@ if (ctx) {
       rarity: "Rare",
       artVariant: "normal",
       isSigned: false,
-      promoTypeId: null,
       finish: "normal",
       artist: "Test Artist",
       publicCode: "UNM",
@@ -620,7 +618,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(printing.rarity).toBe("Common");
       expect(printing.artVariant).toBe("normal");
       expect(printing.isSigned).toBe(false);
-      expect(printing.promoTypeSlug).toBeNull();
+      expect(printing.markerSlugs).toEqual([]);
       expect(printing.finish).toBe("normal");
     });
 
@@ -641,7 +639,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
   // ── allCards structure ──────────────────────────────────────────────────
 
   describe("allCards response field", () => {
-    it("allCards entries have cardId, cardName, setId, setName, and printings", async () => {
+    it("allCards entries have cardId, cardName, setName, and shortCodes", async () => {
       const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
       const json = await res.json();
 
@@ -654,17 +652,10 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(alphaCard).toBeDefined();
       expect(alphaCard.cardId).toBeTypeOf("string");
       expect(alphaCard.cardName).toBe("UNM Alpha Card");
-      expect(alphaCard.setId).toBeTypeOf("string");
       expect(alphaCard.setName).toBe("UNM Unified Test Set");
-      expect(alphaCard.printings).toEqual(expect.any(Array));
-      expect(alphaCard.printings.length).toBeGreaterThanOrEqual(1);
-
-      // allCards printing entries have specific fields
-      const printing = alphaCard.printings[0];
-      expect(printing.printingId).toBeTypeOf("string");
-      expect(printing.shortCode).toBeTypeOf("string");
-      expect(printing.finish).toBeTypeOf("string");
-      expect(typeof printing.isSigned).toBe("boolean");
+      expect(alphaCard.shortCodes).toEqual(expect.any(Array));
+      expect(alphaCard.shortCodes.length).toBeGreaterThanOrEqual(1);
+      expect(alphaCard.shortCodes[0]).toBeTypeOf("string");
     });
   });
 

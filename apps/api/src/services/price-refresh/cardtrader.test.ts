@@ -576,7 +576,7 @@ describe("refreshCardtraderPrices", () => {
 
     it("resolves ZH-CN listings to the ZH sibling printing", async () => {
       // The EN printing and its ZH sibling share the same identity tuple
-      // (card, set, short_code, finish, art_variant, is_signed, promo_type)
+      // (card, set, short_code, finish, art_variant, is_signed, marker_slugs)
       // but differ on language. The TCG cross-reference lands on the EN
       // printing; the matcher walks across the sibling lookup to the ZH one.
       const enPrinting: MockPrinting = {

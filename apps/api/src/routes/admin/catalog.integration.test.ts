@@ -324,7 +324,6 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           rarity: "Common",
           artVariant: "normal",
           isSigned: false,
-          promoTypeId: null,
           finish: "normal",
           artist: "Test",
           publicCode: "CAT",
