@@ -37,7 +37,13 @@ export function computeDeckOwnership(
   marketplace: Marketplace,
   prices: PriceLookup,
 ): DeckOwnershipData {
-  "use memo";
+  // Intentionally NOT `"use memo"`: when React Compiler memoizes a `"use
+  // memo"` helper, it wraps the call site in a cache check. On cache hits
+  // the call is skipped, and the helper's own useMemoCache(N) doesn't fire —
+  // which shifts every later `_c` slot in the parent fiber's memoCache and
+  // produces "previous cache allocated with size X but size Y was requested"
+  // warnings. `useDeckOwnership` already memoizes this call via the outer
+  // compiler, so there's no benefit to marking this as `"use memo"` too.
 
   // Build owned count by cardId (sum across all printings)
   const ownedByCardId = new Map<string, number>();
@@ -138,10 +144,8 @@ export function useDeckOwnership(
   marketplace: Marketplace,
 ): DeckOwnershipData | undefined {
   const prices = usePrices();
-
   if (!ownedCountByPrinting) {
     return undefined;
   }
-
   return computeDeckOwnership(deckCards, allPrintings, ownedCountByPrinting, marketplace, prices);
 }

@@ -2,6 +2,7 @@
 
 ## 2026-04-16
 
+- fix: Moving the mouse over the deck editor's zones sidebar no longer lags, since every card row was being rebuilt on each hover
 - fix: The last edit you make in the deck builder before navigating away now saves reliably, instead of sometimes being dropped when the save was still pending
 - fix: Deleting an empty collection now opens the confirm dialog right away, instead of silently failing and later popping up for the wrong collection
 - fix: An empty collection now shows a friendly "No cards yet" prompt to add cards, instead of a misleading "server may be unreachable" error

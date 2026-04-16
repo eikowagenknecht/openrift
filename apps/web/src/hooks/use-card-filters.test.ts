@@ -1,3 +1,8 @@
+// oxlint-disable-next-line import/no-nodejs-modules -- test reads its sibling source file as text
+import { readFileSync } from "node:fs";
+// oxlint-disable-next-line import/no-nodejs-modules -- test reads its sibling source file as text
+import path from "node:path";
+
 import { renderHook, act } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { createElement } from "react";
@@ -305,6 +310,19 @@ describe("useCardFilters", () => {
     mockSearch = { view: "printings" };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
     expect(result.current.view).toBe("printings");
+  });
+
+  // Regression: React Compiler bails on the entire hook if it encounters a
+  // TemplateLiteral in a computed object-expression key (Todo::lowerExpression).
+  // When that happens, `setRange`, `setSearch`, `setArrayFilters`, etc. return
+  // fresh closures every render and every downstream callback (onZoneClick,
+  // onActivate, onIncrement, …) cascades into a full tree re-render. The
+  // compiler logger in vite.config.ts will surface the CompileError, but this
+  // AST-level guard catches the pattern even when the compiler isn't running
+  // (e.g. in vitest).
+  it("does not use TemplateLiteral computed keys (React Compiler cannot lower them)", () => {
+    const source = readFileSync(path.resolve(__dirname, "./use-card-filters.ts"), "utf-8");
+    expect(source).not.toMatch(/\[`\$\{[^`]+}[^`]*`]\s*:/);
   });
 
   it("toggleArrayFilter reads latest router state for sequential calls", () => {

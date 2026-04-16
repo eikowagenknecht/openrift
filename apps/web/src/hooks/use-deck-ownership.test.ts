@@ -1,3 +1,8 @@
+// oxlint-disable-next-line import/no-nodejs-modules -- test reads its sibling source file as text
+import { readFileSync } from "node:fs";
+// oxlint-disable-next-line import/no-nodejs-modules -- test reads its sibling source file as text
+import path from "node:path";
+
 import { EMPTY_PRICE_LOOKUP } from "@openrift/shared";
 import { describe, expect, it, beforeEach } from "vitest";
 
@@ -207,5 +212,27 @@ describe("computeDeckOwnership", () => {
     expect(result.deckValueCents).toBe(15); // 3*1 + 2*5 + 1*2
     expect(result.ownedValueCents).toBe(3); // 3*1
     expect(result.missingValueCents).toBe(12); // 2*5 + 1*2
+  });
+});
+
+describe("computeDeckOwnership (source-level regression)", () => {
+  // React Compiler must NOT compile `computeDeckOwnership` with its own
+  // useMemoCache. When a `"use memo"` helper is called from another compiled
+  // function, the outer compiler wraps the call in a cache check; on cache
+  // hits the call is skipped and the helper's `_c(N)` never fires. That
+  // shifts every later `_c` slot in the parent fiber's memoCache and
+  // produces "previous cache was allocated with size X but size Y was
+  // requested" warnings.
+  //
+  // `useDeckOwnership` already memoizes this call at its own call site, so
+  // an inner `"use memo"` is redundant — and triggers the bug. Keep it off.
+  it("does not carry a `use memo` directive", () => {
+    const source = readFileSync(path.resolve(__dirname, "./use-deck-ownership.ts"), "utf-8");
+    const body = source.match(/export function computeDeckOwnership[\s\S]+?^}/m);
+    expect(body, "computeDeckOwnership body not found").not.toBeNull();
+    // Strip line comments so the comment referencing `"use memo"` doesn't
+    // trip the guard.
+    const withoutComments = body![0].replaceAll(/\/\/.*$/gm, "");
+    expect(withoutComments).not.toMatch(/^\s*["']use memo["']\s*;/m);
   });
 });

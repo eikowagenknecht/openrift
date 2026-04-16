@@ -40,6 +40,67 @@ const serveMediaPlugin: Plugin = {
   },
 };
 
+// Wraps `reactCompilerPreset()` with a logger so CompileError / CompileSkip /
+// CompileDiagnostic / PipelineError events from babel-plugin-react-compiler
+// surface in the dev-server terminal. The preset already sets rolldown filters
+// and `optimizeDeps` hints we want to keep; this only rewrites the single
+// `["babel-plugin-react-compiler", options]` plugin entry inside.
+//
+// Runs on the Vite server only (dev and build). Nothing from this logger ever
+// reaches the client bundle. See docs: https://react.dev/reference/react-compiler/logger
+// oxlint-disable-next-line @typescript-eslint/no-explicit-any -- preset is a structural type from @rolldown/plugin-babel
+function withReactCompilerLogger(preset: any): any {
+  const innerPreset = preset.preset;
+  preset.preset = (...args: unknown[]) => {
+    const result = innerPreset(...args);
+    result.plugins = result.plugins.map((plugin: unknown) => {
+      if (
+        Array.isArray(plugin) &&
+        typeof plugin[0] === "string" &&
+        plugin[0].includes("react-compiler")
+      ) {
+        return [plugin[0], { ...(plugin[1] as object | undefined), logger: compilerLogger }];
+      }
+      return plugin;
+    });
+    return result;
+  };
+  return preset;
+}
+
+interface CompilerLoggerEvent {
+  kind: string;
+  reason?: string;
+  detail?: {
+    loc?: { start?: { line: number; column: number } } | null;
+  };
+}
+
+const compilerLogger = {
+  logEvent(filename: string | null, event: CompilerLoggerEvent): void {
+    if (
+      event.kind !== "CompileError" &&
+      event.kind !== "CompileSkip" &&
+      event.kind !== "CompileDiagnostic" &&
+      event.kind !== "PipelineError"
+    ) {
+      return;
+    }
+    const short = filename ? filename.split("/").slice(-3).join("/") : "?";
+    const loc = event.detail?.loc?.start;
+    const at = loc ? `:${loc.line}:${loc.column}` : "";
+    // oxlint-disable no-console -- dev-only diagnostic printed to server terminal
+    console.log(`[react-compiler] ${event.kind} ${short}${at}`);
+    if (event.detail) {
+      // `console.dir` with unlimited depth surfaces `suggestions`, nested
+      // `details`, and `SourceLocation` objects that `console.log`'s default
+      // depth=2 would truncate as "[Object]".
+      console.dir(event.detail, { depth: null, colors: true });
+    }
+    // oxlint-enable no-console
+  },
+};
+
 // Sentry source map upload — only active when SENTRY_AUTH_TOKEN is set (CI builds).
 const sentryPlugin = sentryVitePlugin({
   org: process.env.SENTRY_ORG,
@@ -120,7 +181,7 @@ export default defineConfig(({ mode, command }) => {
       command === "build" && nitro({ preset: "bun" }),
       viteReact(),
       babel({
-        presets: [reactCompilerPreset()],
+        presets: [withReactCompilerLogger(reactCompilerPreset())],
       }),
       sentryPlugin,
     ],

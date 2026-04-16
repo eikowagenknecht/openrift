@@ -245,9 +245,14 @@ export function useFilterActions() {
 
   const setRange = (key: RangeKey, min: number | null, max: number | null) => {
     trackEvent("filter-apply", { type: key });
+    // React Compiler cannot lower TemplateLiteral computed keys in object
+    // expressions, which silently bails this entire hook from memoization.
+    // Hoist the keys to identifiers.
+    const minKey = `${key}Min` as const;
+    const maxKey = `${key}Max` as const;
     return updateSearch({
-      [`${key}Min`]: min ?? undefined,
-      [`${key}Max`]: max ?? undefined,
+      [minKey]: min ?? undefined,
+      [maxKey]: max ?? undefined,
     } as Partial<FilterSearch>);
   };
 

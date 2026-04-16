@@ -10,6 +10,11 @@ import { getCookie } from "@tanstack/react-start/server";
 import { Analytics } from "@/components/analytics";
 import { RouteNotFoundFallback } from "@/components/error-message";
 import { Toaster } from "@/components/ui/sonner";
+// Side-effect import: installs a dev-only stack-dumper for React Compiler
+// useMemoCache size-mismatch warnings. Body is `if (DEV)` so the block is
+// stripped from production bundles.
+// oxlint-disable-next-line import/no-unassigned-import -- side-effect tracer
+import "@/lib/debug/memo-cache-trace";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { getIsPreview } from "@/lib/site-config";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
