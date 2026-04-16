@@ -83,6 +83,12 @@ export const catalogQueryOptions = queryOptions({
   staleTime: 5 * 60 * 1000, // 5 minutes
   refetchOnWindowFocus: false,
   select: enrichCatalog,
+  // A catalog 500 means edge cache miss + origin failure — not the kind of
+  // thing that self-heals in a few seconds. One quick retry covers transient
+  // blips; beyond that, surface the error fallback instead of stalling on a
+  // skeleton for the full exponential-backoff window.
+  retry: 1,
+  retryDelay: 500,
 });
 
 export function useCards(): UseCardsResult {
