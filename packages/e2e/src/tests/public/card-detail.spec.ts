@@ -13,7 +13,7 @@ interface PrintingFixture {
   language: string;
   artVariant: string;
   isSigned: boolean;
-  promoType: { slug: string; label: string } | null;
+  markers: { slug: string; label: string }[];
   printedName: string | null;
   printedRulesText: string | null;
   printedEffectText: string | null;
@@ -318,35 +318,34 @@ test.describe("card detail route — info panel", () => {
     await expect(page.getByText(altPrinting.printedName)).toBeVisible();
   });
 
-  test("art-variant and promo rows hide for normal printings and show for the foil promo", async ({
+  test("art-variant and markers rows hide for normal printings and show for the foil promo", async ({
     page,
   }) => {
     const detail = await fetchCardDetail(SEED_CARD_SLUG);
-    const promoPrinting = detail.printings.find((p) => p.finish === "foil" && p.promoType);
+    const promoPrinting = detail.printings.find((p) => p.finish === "foil" && p.markers.length > 0);
     const plainPrinting = detail.printings.find(
-      (p) => p.finish === "normal" && !p.promoType && p.artVariant === "normal",
+      (p) => p.finish === "normal" && p.markers.length === 0 && p.artVariant === "normal",
     );
-    if (!promoPrinting?.promoType || !plainPrinting) {
+    const promoMarker = promoPrinting?.markers[0];
+    if (!promoMarker || !plainPrinting) {
       test.skip(
         true,
-        "expected both a foil promo and a plain (no promo, normal art) seed printing",
+        "expected both a foil promo and a plain (no marker, normal art) seed printing",
       );
       return;
     }
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
-    // Default is plain — Promo / Art variant rows absent.
-    await expect(page.getByText("Promo", { exact: true })).toBeHidden();
+    // Default is plain — Markers / Art variant rows absent.
+    await expect(page.getByText("Markers", { exact: true })).toBeHidden();
     await expect(page.getByText("Art variant", { exact: true })).toBeHidden();
 
-    // Pick the foil promo printing and verify the Promo row appears with the label.
+    // Pick the foil promo printing and verify the Markers row appears with the label.
     // (No seed printing has a non-normal artVariant, so the Art variant row stays hidden.)
-    await page
-      .getByRole("button", { name: new RegExp(promoPrinting.publicCode) })
-      .first()
-      .click();
-    await expect(page.getByText("Promo", { exact: true })).toBeVisible();
-    await expect(page.getByText(promoPrinting.promoType.label)).toBeVisible();
+    // Multiple printings share the same publicCode, so target by id.
+    await page.locator(`button[data-printing-id="${promoPrinting.id}"]`).click();
+    await expect(page.getByText("Markers", { exact: true })).toBeVisible();
+    await expect(page.getByText(promoMarker.label)).toBeVisible();
   });
 
   test("type / domains / energy / might / power render only when present", async ({ page }) => {
@@ -510,40 +509,41 @@ test.describe("card detail route — printings list", () => {
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    // Default selection is EN. The Language row reflects the active printing.
-    await expect(page.getByText("EN").first()).toBeVisible();
-
-    // Multiple printings can share a publicCode (normal/foil/language variants),
-    // so scope to the unselected one to avoid clicking the already-active printing.
-    // Wait for the printings list to finish loading before clicking — the alt
-    // printing button hydrates after the card's main data, and an early click
-    // can land before React attaches its onClick handler.
-    const altButton = page
-      .locator('button[aria-pressed="false"]', {
-        hasText: new RegExp(altLang.publicCode),
-      })
+    // Scope assertions to the info panel's Language row — bare getByText("EN")
+    // would also match the "English" group heading (case-insensitive substring
+    // match) and hide a broken state change.
+    const languageRow = page
+      .getByRole("row")
+      .filter({ has: page.getByText("Language", { exact: true }) })
       .first();
+    await expect(languageRow).toContainText("EN");
+
+    // Sibling printings can share a publicCode (normal/foil/language variants)
+    // and have no visible text that distinguishes them, so target the intended
+    // printing by its data-printing-id.
+    const altButton = page.locator(`button[data-printing-id="${altLang.id}"]`);
     await expect(altButton).toBeVisible();
     await altButton.click();
-    await expect(page.getByText(altLang.language).first()).toBeVisible();
+    await expect(languageRow).toContainText(altLang.language);
   });
 
   test("foil and promo badges appear on the matching printing button", async ({ page }) => {
     const detail = await fetchCardDetail(SEED_CARD_SLUG);
-    const foilPromo = detail.printings.find((p) => p.finish === "foil" && p.promoType);
-    if (!foilPromo?.promoType) {
+    const foilPromo = detail.printings.find((p) => p.finish === "foil" && p.markers.length > 0);
+    const foilMarker = foilPromo?.markers[0];
+    if (!foilPromo || !foilMarker) {
       test.skip(true, "expected a foil promo seed printing");
       return;
     }
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    // Locate the foil-promo printing's button via its public code, then check
-    // its in-button labels.
-    const button = page.getByRole("button", { name: new RegExp(foilPromo.publicCode) }).first();
+    // Multiple printings share the same publicCode (normal/foil + language
+    // variants), so target the specific button by printing id.
+    const button = page.locator(`button[data-printing-id="${foilPromo.id}"]`);
     await expect(button).toBeVisible();
     await expect(button.getByText("Foil", { exact: true })).toBeVisible();
-    await expect(button.getByText(foilPromo.promoType.label)).toBeVisible();
+    await expect(button.getByText(foilMarker.label)).toBeVisible();
   });
 
   test("default-selected printing matches the EN language preference", async ({ page }) => {

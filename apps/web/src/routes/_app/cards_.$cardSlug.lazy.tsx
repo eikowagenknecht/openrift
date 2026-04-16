@@ -693,9 +693,11 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
               <table className="w-full text-sm">
                 <thead className="sticky top-0">
                   <tr className="border-border bg-muted/90 border-b backdrop-blur">
-                    <th className="px-3 py-2 text-left font-medium">Date</th>
+                    <th scope="col" className="px-3 py-2 text-left font-medium">
+                      Date
+                    </th>
                     {availableMarketplaces.map((mp) => (
-                      <th key={mp} className="px-3 py-2 text-right font-medium">
+                      <th key={mp} scope="col" className="px-3 py-2 text-right font-medium">
                         {MARKETPLACE_LABELS_FULL[mp]} ({EUR_MARKETPLACES.has(mp) ? "EUR" : "USD"})
                       </th>
                     ))}

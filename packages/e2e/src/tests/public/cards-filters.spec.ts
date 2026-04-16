@@ -167,8 +167,10 @@ test.describe("card filter panel (desktop)", () => {
       await page.keyboard.press("ArrowLeft");
     }
 
-    await expect(page).toHaveURL(/[?&]energyMin=\d+/);
-    await expect(page).toHaveURL(/[?&]energyMax=\d+/);
+    // energyMin may be -1 (the NONE sentinel) when the min thumb sits at the
+    // left edge and only the max thumb was moved — that's still a URL update.
+    await expect(page).toHaveURL(/[?&]energyMin=-?\d+/);
+    await expect(page).toHaveURL(/[?&]energyMax=-?\d+/);
 
     // The active-filter chip for Energy renders with the "Energy:" label.
     await expect(page.getByText("Energy:", { exact: true })).toBeVisible();

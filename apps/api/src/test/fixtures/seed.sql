@@ -292,7 +292,7 @@ INSERT INTO card_name_aliases (card_id, norm_name) VALUES
 
 INSERT INTO card_errata (id, card_id, corrected_rules_text, corrected_effect_text, source, source_url, effective_date) VALUES
   ('019713f0-0000-7000-8000-000000000001', '019cfc3b-038a-7c0c-a76c-e0a5e2f46b18', 'Deal 3 damage to target unit. (Corrected from 2)', NULL, 'official-errata', NULL, '2025-01-15'),
-  ('019713f0-0000-7000-8000-000000000002', '019cfc3b-038a-7c41-b170-c9f989adc4a8', NULL, 'When this unit enters play, draw a card.', 'official-errata', 'https://example.com/errata', '2025-03-01');
+  ('019713f0-0000-7000-8000-000000000002', '019cfc3b-038a-7c41-b170-c9f989adc4a8', 'When you play me, return a spell from your trash to your hand. (Must target a spell with cost 3 or less.)', NULL, 'official-errata', 'https://example.com/errata', '2025-03-01');
 
 
 -- Printings and images
