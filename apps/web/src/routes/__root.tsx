@@ -1,13 +1,15 @@
+import { TanStackDevtools } from "@tanstack/react-devtools";
+import { pacerDevtoolsPlugin } from "@tanstack/react-pacer-devtools";
 import type { QueryClient } from "@tanstack/react-query";
+import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
-import { lazy } from "react";
 
 import { Analytics } from "@/components/analytics";
 import { RouteNotFoundFallback } from "@/components/error-message";
 import { Toaster } from "@/components/ui/sonner";
-import { PROD } from "@/lib/env";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { getIsPreview } from "@/lib/site-config";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
@@ -15,13 +17,6 @@ import { siteSettingsQueryOptions } from "@/lib/site-settings";
 // CSS ?url import causes a harmless hydration warning in dev (Vite appends
 // ?t=<timestamp> on the client). No effect in production.
 import indexCss from "@/index.css?url";
-
-const TanStackRouterDevtools = PROD
-  ? () => null
-  : lazy(async () => {
-      const mod = await import("@tanstack/react-router-devtools");
-      return { default: mod.TanStackRouterDevtools };
-    });
 
 // Server function that reads the theme cookie and resolves it to "light" or
 // "dark". Returns the resolved theme so `shellComponent` can apply the correct
@@ -140,8 +135,23 @@ function RootComponent() {
         <Outlet />
         <Toaster position="bottom-right" />
       </div>
+      <TanStackDevtools
+        config={{
+          position: "top-right",
+        }}
+        plugins={[
+          {
+            name: "Tanstack Router",
+            render: <TanStackRouterDevtoolsPanel />,
+          },
+          {
+            name: "Tanstack Query",
+            render: <ReactQueryDevtoolsPanel />,
+          },
+          pacerDevtoolsPlugin(),
+        ]}
+      />
       <Analytics />
-      <TanStackRouterDevtools />
     </>
   );
 }

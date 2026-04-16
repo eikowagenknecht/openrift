@@ -8,15 +8,84 @@ import path from "node:path";
 import babel from "@rolldown/plugin-babel";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
+import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
+import type { Plugin } from "vite";
 import { defineConfig, loadEnv } from "vite";
 
 const commitHash = execSync("git rev-parse --short HEAD").toString().trim();
 const mediaDir = path.resolve(__dirname, "../../media");
-
 const repoRoot = path.resolve(__dirname, "../..");
+
+const MEDIA_MIME_TYPES: Record<string, string> = {
+  ".webp": "image/webp",
+  ".png": "image/png",
+};
+
+// Serve /media/ from repo root in dev (in prod, nginx bind mount handles this)
+const serveMediaPlugin: Plugin = {
+  name: "serve-media",
+  configureServer(server) {
+    server.middlewares.use("/media", (req, res, next) => {
+      const filePath = path.join(mediaDir, req.url?.split("?")[0] ?? "");
+      if (!existsSync(filePath)) {
+        return next();
+      }
+      const ext = path.extname(filePath).toLowerCase();
+      res.setHeader("Content-Type", MEDIA_MIME_TYPES[ext] ?? "application/octet-stream");
+      createReadStream(filePath).pipe(res);
+    });
+  },
+};
+
+// Sentry source map upload — only active when SENTRY_AUTH_TOKEN is set (CI builds).
+const sentryPlugin = sentryVitePlugin({
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  release: { name: commitHash },
+  sourcemaps: { filesToDeleteAfterUpload: ["./.output/**/*.map"] },
+  disable: !process.env.SENTRY_AUTH_TOKEN,
+});
+
+// React + TanStack are tightly coupled — keep together to avoid circular chunks.
+const REACT_CHUNK_NEEDLES = [
+  "/node_modules/react/",
+  "/node_modules/react-dom/",
+  "/node_modules/scheduler/",
+  "@tanstack/",
+];
+
+// Stable UI/vendor deps — large but rarely change.
+// Don't use a catch-all here; transitive deps (e.g. use-sync-external-store)
+// must stay with their consumers to avoid circular initialization.
+const UI_CHUNK_NEEDLES = [
+  "@base-ui/",
+  "@floating-ui/",
+  "tailwind-merge",
+  "better-auth",
+  "react-hook-form",
+  "@hookform/",
+  "/zod/",
+  "/sonner/",
+  "lucide-react",
+  "class-variance-authority",
+  "/clsx/",
+];
+
+function manualChunks(id: string): string | undefined {
+  if (!id.includes("node_modules")) {
+    return;
+  }
+  if (REACT_CHUNK_NEEDLES.some((needle) => id.includes(needle))) {
+    return "react";
+  }
+  if (UI_CHUNK_NEEDLES.some((needle) => id.includes(needle))) {
+    return "ui";
+  }
+}
 
 export default defineConfig(({ mode, command }) => {
   // Load .env from the monorepo root into process.env so SSR code can access
@@ -28,107 +97,47 @@ export default defineConfig(({ mode, command }) => {
     }
   }
 
+  const apiProxyTarget = env.VITE_API_PROXY_TARGET || "http://localhost:3000";
+
   return {
-    devtools: false,
     define: {
       __COMMIT_HASH__: JSON.stringify(commitHash),
     },
+    resolve: {
+      tsconfigPaths: true,
+    },
     plugins: [
-      // Serve /media/ from repo root in dev (in prod, nginx bind mount handles this)
-      {
-        name: "serve-media",
-        configureServer(server) {
-          server.middlewares.use("/media", (req, res, next) => {
-            const filePath = path.join(mediaDir, req.url?.split("?")[0] ?? "");
-            if (!existsSync(filePath)) {
-              return next();
-            }
-            const ext = path.extname(filePath).toLowerCase();
-            const mime =
-              ext === ".webp"
-                ? "image/webp"
-                : ext === ".png"
-                  ? "image/png"
-                  : "application/octet-stream";
-            res.setHeader("Content-Type", mime);
-            createReadStream(filePath).pipe(res);
-          });
-        },
-      },
-      tanstackStart({ srcDirectory: "src" }),
+      // Needs to be first
+      devtools(),
+      serveMediaPlugin,
+      tailwindcss(),
+      tanstackStart(),
       // Only enable Nitro for production builds — in dev it caches stale SSR
       // HTML after HMR updates, causing hydration mismatches.
       // See https://github.com/TanStack/router/issues/6556
       command === "build" && nitro({ preset: "bun" }),
-      tailwindcss(),
-      react(),
+      viteReact(),
       babel({
         presets: [reactCompilerPreset()],
-        exclude: /node_modules|packages\//,
       }),
-      // Sentry source map upload — only active when SENTRY_AUTH_TOKEN is set (CI builds).
-      sentryVitePlugin({
-        org: process.env.SENTRY_ORG,
-        project: process.env.SENTRY_PROJECT,
-        authToken: process.env.SENTRY_AUTH_TOKEN,
-        release: { name: commitHash },
-        sourcemaps: { filesToDeleteAfterUpload: ["./.output/**/*.map"] },
-        disable: !process.env.SENTRY_AUTH_TOKEN,
-      }),
+      sentryPlugin,
     ],
     build: {
       sourcemap: true,
       rolldownOptions: {
-        output: {
-          manualChunks(id) {
-            if (!id.includes("node_modules")) {
-              return;
-            }
-            // React + TanStack are tightly coupled — keep together to avoid circular chunks.
-            if (
-              /\/node_modules\/react-dom\//.test(id) ||
-              /\/node_modules\/react\//.test(id) ||
-              /\/node_modules\/scheduler\//.test(id) ||
-              id.includes("@tanstack/")
-            ) {
-              return "react";
-            }
-            // Stable UI/vendor deps — large but rarely change.
-            // Don't use a catch-all here; transitive deps (e.g. use-sync-external-store)
-            // must stay with their consumers to avoid circular initialization.
-            if (
-              id.includes("@base-ui/") ||
-              id.includes("@floating-ui/") ||
-              id.includes("tailwind-merge") ||
-              id.includes("better-auth") ||
-              id.includes("react-hook-form") ||
-              id.includes("@hookform/") ||
-              id.includes("/zod/") ||
-              id.includes("/sonner/") ||
-              id.includes("lucide-react") ||
-              id.includes("class-variance-authority") ||
-              id.includes("/clsx/")
-            ) {
-              return "ui";
-            }
-          },
-        },
+        output: { manualChunks },
       },
     },
     server: {
       port: 5173,
-      forwardConsole: true,
       // Proxy /api/auth (better-auth browser client) and /api/v1/* (direct
       // client fetches for endpoints we want CF to edge-cache, e.g. the
       // catalog in use-cards.ts) to the API server. In production, nginx
       // handles all /api/* (see nginx/web.conf location /api/).
       proxy: {
-        "/api/auth": { target: env.VITE_API_PROXY_TARGET || "http://localhost:3000" },
-        "/api/v1": { target: env.VITE_API_PROXY_TARGET || "http://localhost:3000" },
+        "/api/auth": { target: apiProxyTarget },
+        "/api/v1": { target: apiProxyTarget },
       },
-    },
-    resolve: {
-      tsconfigPaths: true,
     },
   };
 });
