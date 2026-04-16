@@ -9,7 +9,7 @@
 // drafts in a collection lets consumers use live queries (zone filters,
 // violations, stats) in the same shape as server-backed collections.
 
-import type { DeckDetailResponse, DeckListResponse } from "@openrift/shared";
+import type { DeckDetailResponse } from "@openrift/shared";
 import type { Collection } from "@tanstack/react-db";
 import { createCollection, localOnlyCollectionOptions } from "@tanstack/react-db";
 import type { QueryClient } from "@tanstack/react-query";
@@ -23,7 +23,7 @@ import { withTimeout } from "@/lib/with-timeout";
 
 const SAVE_DEBOUNCE_MS = 1000;
 
-export interface DeckSaveStatus {
+interface DeckSaveStatus {
   isSaving: boolean;
   isDirty: boolean;
   error: Error | null;
@@ -275,8 +275,4 @@ export function useDeckSaveStatus(queryClient: QueryClient, deckId: string): Dec
     () => cache.get(queryClient)?.get(deckId)?.status ?? CLEAN_STATUS,
     () => CLEAN_STATUS,
   );
-}
-
-export function peekDeckList(queryClient: QueryClient): DeckListResponse | undefined {
-  return queryClient.getQueryData<DeckListResponse>(queryKeys.decks.all);
 }

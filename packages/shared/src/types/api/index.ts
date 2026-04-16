@@ -98,7 +98,6 @@ export type {
   PricesResponse,
   TcgplayerSnapshot,
 } from "./pricing.js";
-export { snapshotHeadline } from "./pricing.js";
 
 export type {
   AdminCardDetailResponse,

@@ -27,8 +27,6 @@ export const idParamSchema = z.object({ id: z.uuid() });
 
 export const idAndItemIdParamSchema = z.object({ id: z.uuid(), itemId: z.uuid() });
 
-export const slugParamSchema = z.object({ id: z.string().min(1) });
-
 export const keyParamSchema = z.object({ key: z.string().min(1) });
 
 export const providerParamSchema = z.object({ provider: z.string().min(1) });

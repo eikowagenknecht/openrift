@@ -1,6 +1,6 @@
 import type { DeckFormat, DeckViolation, DeckZone, Domain } from "@openrift/shared";
 import { validateDeck } from "@openrift/shared";
-import { eq, useLiveQuery } from "@tanstack/react-db";
+import { useLiveQuery } from "@tanstack/react-db";
 import type { Collection } from "@tanstack/react-db";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -352,7 +352,7 @@ export function setLegendAction(
 
 // ── Hooks ───────────────────────────────────────────────────────────────────
 
-export interface DeckBuilderActions {
+interface DeckBuilderActions {
   addCard: (card: DeckBuilderCard, zone?: DeckZone, count?: number) => void;
   removeCard: (cardId: string, zone: DeckZone) => void;
   moveCard: (cardId: string, fromZone: DeckZone, toZone: DeckZone) => void;
@@ -387,16 +387,6 @@ export function useDeckCards(deckId: string): DeckBuilderCard[] {
   const queryClient = useQueryClient();
   const collection = getDeckDraftCollection(queryClient, deckId);
   const { data } = useLiveQuery((q) => q.from({ card: collection }), [deckId]);
-  return data ?? EMPTY_CARDS;
-}
-
-export function useDeckCardsInZone(deckId: string, zone: DeckZone): DeckBuilderCard[] {
-  const queryClient = useQueryClient();
-  const collection = getDeckDraftCollection(queryClient, deckId);
-  const { data } = useLiveQuery(
-    (q) => q.from({ card: collection }).where(({ card }) => eq(card.zone, zone)),
-    [deckId, zone],
-  );
   return data ?? EMPTY_CARDS;
 }
 

@@ -8,7 +8,6 @@ export type {
   Domain,
   Finish,
   Rarity,
-  SetType,
   SuperType,
 } from "./enums.js";
 export type { EnumOrders } from "./enums.js";
@@ -167,4 +166,3 @@ export type {
   PricesResponse,
   TcgplayerSnapshot,
 } from "./api/index.js";
-export { snapshotHeadline } from "./api/index.js";

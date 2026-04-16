@@ -8,9 +8,9 @@
 // timeout; otherwise the fetch keeps running in the background and the
 // server may still succeed after the UI has already rolled back.
 
-export const DEFAULT_TIMEOUT_MS = 5000;
+const DEFAULT_TIMEOUT_MS = 5000;
 
-export interface WithTimeoutOptions {
+interface WithTimeoutOptions {
   label: string;
   timeoutMs?: number;
   /**

@@ -111,17 +111,6 @@ const keywordStyleEntrySchema = z.object({
     .openapi({ example: { de: "Beschleunigen" } }),
 });
 
-export const keywordStylesResponseSchema = z
-  .object({
-    items: z.record(z.string(), keywordStyleEntrySchema).openapi({
-      example: {
-        Accelerate: { color: "#24705f", darkText: false },
-        Ambush: { color: "#5a2d82", darkText: false },
-      },
-    }),
-  })
-  .openapi("KeywordStylesResponse");
-
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 const enumRowSchema = z.object({
@@ -215,7 +204,7 @@ export const priceHistoryResponseSchema = z
 
 // ── Catalog ──────────────────────────────────────────────────────────────────
 
-export const catalogSetResponseSchema = z.object({
+const catalogSetResponseSchema = z.object({
   id: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
   slug: z.string().openapi({ example: "OGN" }),
   name: z.string().openapi({ example: "Origins" }),
@@ -269,7 +258,7 @@ const cardBanSchema = z.object({
   reason: z.string().nullable().openapi({ example: "Power level" }),
 });
 
-export const catalogCardResponseSchema = z.object({
+const catalogCardResponseSchema = z.object({
   id: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
   slug: z.string().openapi({ example: "jinx-rebel" }),
   name: z.string().openapi({ example: "Jinx, Rebel" }),
@@ -295,7 +284,7 @@ export const catalogCardResponseSchema = z.object({
   bans: z.array(cardBanSchema).openapi({ example: [] }),
 });
 
-export const catalogPrintingResponseSchema = z.object({
+const catalogPrintingResponseSchema = z.object({
   id: z.string().openapi({ example: "019cfc3b-03d3-7dac-86c9-27900cd43727" }),
   shortCode: z.string().openapi({ example: "OGN-202" }),
   setId: z.string().openapi({ example: "019cfc3b-0369-7890-a450-7859471cc3f6" }),
@@ -416,7 +405,7 @@ export const collectionListResponseSchema = z
 
 // ── Copies ───────────────────────────────────────────────────────────────────
 
-export const copyResponseSchema = z
+const copyResponseSchema = z
   .object({
     id: z.string(),
     printingId: z.string(),
