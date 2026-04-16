@@ -27,20 +27,20 @@ describe("updatePrintingMarkers", () => {
   });
 
   it("throws NOT_FOUND when printing does not exist", async () => {
-    const repos = {
+    const trxRepos = {
       candidateMutations: {
         getPrintingById: vi.fn(async () => null),
       },
       markers: {},
     };
 
-    await expect(updatePrintingMarkers(repos as any, "p-missing", ["promo"])).rejects.toThrow(
-      "Printing not found",
-    );
+    await expect(
+      updatePrintingMarkers(mockTransact(trxRepos), "p-missing", ["promo"]),
+    ).rejects.toThrow("Printing not found");
   });
 
   it("throws BAD_REQUEST when any marker slug is unknown", async () => {
-    const repos = {
+    const trxRepos = {
       candidateMutations: {
         getPrintingById: vi.fn(async () => ({
           id: "p-uuid",
@@ -55,13 +55,13 @@ describe("updatePrintingMarkers", () => {
     };
 
     await expect(
-      updatePrintingMarkers(repos as any, "p-uuid", ["promo", "unknown"]),
+      updatePrintingMarkers(mockTransact(trxRepos), "p-uuid", ["promo", "unknown"]),
     ).rejects.toThrow("Unknown marker slug(s): unknown");
   });
 
   it("clears markers when the slug list is empty", async () => {
     const setForPrinting = vi.fn(async () => {});
-    const repos = {
+    const trxRepos = {
       candidateMutations: {
         getPrintingById: vi.fn(async () => ({
           id: "p-uuid",
@@ -72,14 +72,14 @@ describe("updatePrintingMarkers", () => {
       markers: { setForPrinting },
     };
 
-    await updatePrintingMarkers(repos as any, "p-uuid", []);
+    await updatePrintingMarkers(mockTransact(trxRepos), "p-uuid", []);
 
     expect(setForPrinting).toHaveBeenCalledWith("p-uuid", []);
   });
 
   it("syncs markers via the join table for a non-empty slug list", async () => {
     const setForPrinting = vi.fn(async () => {});
-    const repos = {
+    const trxRepos = {
       candidateMutations: {
         getPrintingById: vi.fn(async () => ({
           id: "p-uuid",
@@ -93,7 +93,7 @@ describe("updatePrintingMarkers", () => {
       },
     };
 
-    await updatePrintingMarkers(repos as any, "p-uuid", ["promo"]);
+    await updatePrintingMarkers(mockTransact(trxRepos), "p-uuid", ["promo"]);
 
     expect(setForPrinting).toHaveBeenCalledWith("p-uuid", ["m-1"]);
   });

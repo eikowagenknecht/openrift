@@ -117,6 +117,7 @@ const PARALLEL_FILES = [
   "src/routes/admin/cards/mutations.integration.test.ts",
   "src/services/price-refresh/upsert.integration.test.ts",
   "src/services/ingest-candidates.integration.test.ts",
+  "src/services/printing-admin.integration.test.ts",
   "src/routes/prices.integration.test.ts",
   "src/routes/catalog.integration.test.ts",
   "src/routes/admin/operations.integration.test.ts",

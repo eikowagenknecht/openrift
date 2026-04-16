@@ -23,38 +23,43 @@ type DistributionChannelsRepo = ReturnType<typeof distributionChannelsRepo>;
 // ── updatePrintingMarkers ────────────────────────────────────────────────────
 
 /**
- * Replace a printing's marker set. Looks up marker ids by slug, syncs the
- * `printing_markers` join table, then lets the maintenance trigger update
- * `printings.marker_slugs`.
+ * Replace a printing's marker set. Runs inside a transaction so the sync
+ * trigger's intermediate `marker_slugs = {}` state between DELETE and INSERT
+ * on `printing_markers` only has to satisfy the deferrable uniqueness checks
+ * at commit time, after the final value is in place.
+ *
+ * @returns Promise that resolves when the marker set has been replaced.
  */
 export async function updatePrintingMarkers(
-  repos: { candidateMutations: CandidateMutationsRepo; markers: MarkersRepo },
+  transact: Transact,
   printingId: string,
   newSlugs: readonly string[],
 ): Promise<void> {
-  const printing = await repos.candidateMutations.getPrintingById(printingId);
-  assertFound(printing, "Printing not found");
+  await transact(async (trxRepos) => {
+    const printing = await trxRepos.candidateMutations.getPrintingById(printingId);
+    assertFound(printing, "Printing not found");
 
-  if (newSlugs.length === 0) {
-    await repos.markers.setForPrinting(printingId, []);
-    return;
-  }
+    if (newSlugs.length === 0) {
+      await trxRepos.markers.setForPrinting(printingId, []);
+      return;
+    }
 
-  const markerRows = await repos.markers.listBySlugs(newSlugs);
-  const known = new Set(markerRows.map((m) => m.slug));
-  const missing = newSlugs.filter((s) => !known.has(s));
-  if (missing.length > 0) {
-    throw new AppError(
-      400,
-      ERROR_CODES.BAD_REQUEST,
-      `Unknown marker slug(s): ${missing.join(", ")}`,
+    const markerRows = await trxRepos.markers.listBySlugs(newSlugs);
+    const known = new Set(markerRows.map((m) => m.slug));
+    const missing = newSlugs.filter((s) => !known.has(s));
+    if (missing.length > 0) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        `Unknown marker slug(s): ${missing.join(", ")}`,
+      );
+    }
+
+    await trxRepos.markers.setForPrinting(
+      printingId,
+      markerRows.map((m) => m.id),
     );
-  }
-
-  await repos.markers.setForPrinting(
-    printingId,
-    markerRows.map((m) => m.id),
-  );
+  });
 }
 
 /**

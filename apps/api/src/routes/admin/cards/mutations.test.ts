@@ -880,7 +880,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
     );
     expect(res.status).toBe(204);
     expect(mockUpdatePrintingMarkers).toHaveBeenCalledWith(
-      expect.objectContaining({ candidateMutations: mockMut }),
+      mockTransact,
       "00000000-0000-4000-a000-000000000013",
       ["promo"],
     );

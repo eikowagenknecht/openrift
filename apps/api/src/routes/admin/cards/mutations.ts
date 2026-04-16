@@ -882,11 +882,10 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     // When markerSlugs changes, update via dedicated function (printing_markers
     // join is the source of truth; the trigger keeps printings.marker_slugs in sync).
     if (field === "markerSlugs") {
-      const { candidateMutations, markers } = c.get("repos");
       const newSlugs = Array.isArray(normalizedValue)
         ? (normalizedValue as string[]).filter((s) => typeof s === "string")
         : [];
-      await updatePrintingMarkers({ candidateMutations, markers }, printingId, newSlugs);
+      await updatePrintingMarkers(c.get("transact"), printingId, newSlugs);
 
       const oldValue = [...printingBefore.markerSlugs].sort();
       const newValue = [...newSlugs].sort();
