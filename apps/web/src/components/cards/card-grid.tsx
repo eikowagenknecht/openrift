@@ -509,13 +509,14 @@ export function CardGrid({
 
   // ── Selected-card scroll + flash ───────────────────────────────────
   const virtualRowsRef = useRef(virtualRows);
-  virtualRowsRef.current = virtualRows;
-
   const virtualizerRef = useRef(virtualizer);
-  virtualizerRef.current = virtualizer;
-
   const stickyOffsetRef = useRef(stickyOffset);
-  stickyOffsetRef.current = stickyOffset;
+
+  useEffect(() => {
+    virtualRowsRef.current = virtualRows;
+    virtualizerRef.current = virtualizer;
+    stickyOffsetRef.current = stickyOffset;
+  });
 
   const scrollToCard = (cardId: string) => {
     const rows = virtualRowsRef.current;
