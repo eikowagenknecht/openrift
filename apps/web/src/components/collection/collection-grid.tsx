@@ -1083,7 +1083,7 @@ function CollectionTopBar({
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
                   <EllipsisVerticalIcon className="size-4" />
-                  <span className="sr-only">More</span>
+                  <span className="sr-only">Collection actions</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-auto">
                   <DropdownMenuItem
