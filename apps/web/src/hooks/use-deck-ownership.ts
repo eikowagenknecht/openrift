@@ -1,6 +1,6 @@
 import type { Marketplace, PriceLookup, Printing } from "@openrift/shared";
 
-import type { DeckBuilderCard } from "@/stores/deck-builder-store";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
 import { usePrices } from "./use-prices";
 

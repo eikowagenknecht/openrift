@@ -1,5 +1,6 @@
 import type { Domain } from "@openrift/shared";
 
+import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useEnumOrders } from "@/hooks/use-enums";
 import type {
   DomainCount,
@@ -9,7 +10,6 @@ import type {
   TypeCount,
 } from "@/lib/stat-types";
 import { comboKey, sortCombos } from "@/lib/stat-types";
-import { useDeckBuilderStore } from "@/stores/deck-builder-store";
 
 export type {
   DomainCount,
@@ -44,9 +44,9 @@ const EXCLUDED_CARD_TYPES = new Set(["Legend", "Rune", "Battlefield"]);
  * Excludes overflow, sideboard, legend, runes, and battlefield zones.
  * @returns The deck statistics.
  */
-export function useDeckStats(): DeckStats {
+export function useDeckStats(deckId: string): DeckStats {
   const { orders } = useEnumOrders();
-  const cards = useDeckBuilderStore((state) => state.cards);
+  const cards = useDeckCards(deckId);
 
   const mainCards = cards.filter((card) => MAIN_ZONES.has(card.zone));
 

@@ -52,11 +52,11 @@ function DomainBar({
   );
 }
 
-export function DeckStatsPanel() {
+export function DeckStatsPanel({ deckId }: { deckId: string }) {
   // Start collapsed on mobile where the sidebar is hidden (display: none),
   // so Recharts doesn't render into a zero-sized container and warn.
   const [open, setOpen] = useState(() => globalThis.matchMedia("(min-width: 768px)").matches);
-  const stats = useDeckStats();
+  const stats = useDeckStats(deckId);
   const domainColors = useDomainColors();
 
   return (

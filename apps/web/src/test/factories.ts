@@ -16,7 +16,7 @@ import type {
 import { priceLookupFromMap } from "@openrift/shared";
 
 import type { CardViewerItem } from "@/components/card-viewer-types";
-import type { DeckBuilderCard } from "@/stores/deck-builder-store";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
 let idCounter = 0;
 

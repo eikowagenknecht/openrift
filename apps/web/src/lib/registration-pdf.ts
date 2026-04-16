@@ -1,7 +1,7 @@
 import type { DeckZone } from "@openrift/shared";
 import { jsPDF } from "jspdf";
 
-import type { DeckBuilderCard } from "@/stores/deck-builder-store";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
 export type RegistrationPageSize = "a4" | "letter";
 

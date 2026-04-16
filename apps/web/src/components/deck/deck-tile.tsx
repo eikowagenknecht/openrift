@@ -59,10 +59,10 @@ import {
 } from "@/hooks/use-decks";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatterForMarketplace } from "@/lib/format";
-import type { DeckBuilderCard } from "@/stores/deck-builder-store";
-import { toDeckBuilderCard } from "@/stores/deck-builder-store";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { DeckDomainBar } from "./deck-domain-bar";

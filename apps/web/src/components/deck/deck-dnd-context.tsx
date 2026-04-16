@@ -13,9 +13,9 @@ import type { DeckZone } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
+import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
-import type { DeckBuilderCard } from "@/stores/deck-builder-store";
-import { useDeckBuilderStore } from "@/stores/deck-builder-store";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
 export interface DeckCardDragData {
   type: "deck-card";
@@ -80,8 +80,10 @@ function DndScrollWatcher() {
   return null;
 }
 
-export function DeckDndContext({ children }: { children: ReactNode }) {
+export function DeckDndContext({ deckId, children }: { deckId: string; children: ReactNode }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }));
+  const actions = useDeckBuilderActions(deckId);
+  const deckCards = useDeckCards(deckId);
   const [dragInfo, setDragInfo] = useState<{
     cardId: string;
     cardName: string;
@@ -226,15 +228,13 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
       return;
     }
 
-    const store = useDeckBuilderStore.getState();
-
     // Dropped outside a valid zone — remove from source zone
     if (overData?.type !== "deck-zone") {
       if (activeData.type === "deck-card") {
         if (moveAll || activeData.quantity === 1) {
-          store.setQuantity(activeData.cardId, activeData.fromZone, 0);
+          actions.setQuantity(activeData.cardId, activeData.fromZone, 0);
         } else {
-          store.removeCard(activeData.cardId, activeData.fromZone);
+          actions.removeCard(activeData.cardId, activeData.fromZone);
         }
       }
       return;
@@ -243,15 +243,15 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
     if (activeData.type === "browser-card") {
       if (moveAll) {
         if (overData.zone === "runes") {
-          const runeTotal = store.cards
+          const runeTotal = deckCards
             .filter((card) => card.zone === "runes")
             .reduce((sum, card) => sum + card.quantity, 0);
-          store.addCard(activeData.card, overData.zone, Math.max(0, 12 - runeTotal));
+          actions.addCard(activeData.card, overData.zone, Math.max(0, 12 - runeTotal));
         } else {
-          store.addCard(activeData.card, overData.zone, 3);
+          actions.addCard(activeData.card, overData.zone, 3);
         }
       } else {
-        store.addCard(activeData.card, overData.zone);
+        actions.addCard(activeData.card, overData.zone);
       }
       return;
     }
@@ -261,14 +261,13 @@ export function DeckDndContext({ children }: { children: ReactNode }) {
         return;
       }
       if (moveAll || activeData.quantity === 1) {
-        store.moveCard(activeData.cardId, activeData.fromZone, overData.zone);
+        actions.moveCard(activeData.cardId, activeData.fromZone, overData.zone);
       } else {
-        store.moveOneCard(activeData.cardId, activeData.fromZone, overData.zone);
+        actions.moveOneCard(activeData.cardId, activeData.fromZone, overData.zone);
       }
     }
   };
 
-  const deckCards = useDeckBuilderStore((state) => state.cards);
   const browserRemaining = dragInfo?.fromBrowser
     ? 3 -
       deckCards

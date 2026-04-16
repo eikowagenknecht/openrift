@@ -117,7 +117,7 @@ export function useDeleteDeck() {
   });
 }
 
-const saveDeckCardsFn = createServerFn({ method: "POST" })
+export const saveDeckCardsFn = createServerFn({ method: "POST" })
   .inputValidator(
     (input: { deckId: string; cards: { cardId: string; zone: DeckZone; quantity: number }[] }) =>
       input,
