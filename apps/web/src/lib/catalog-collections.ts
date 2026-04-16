@@ -24,7 +24,7 @@ export type CatalogSetItem = CatalogSetResponse;
 export type CatalogCardItem = CatalogResponseCardValue & { id: string };
 export type CatalogPrintingItem = CatalogResponsePrintingValue & { id: string };
 
-export interface CatalogCollections {
+interface CatalogCollections {
   sets: Collection<CatalogSetItem, string | number>;
   cards: Collection<CatalogCardItem, string | number>;
   printings: Collection<CatalogPrintingItem, string | number>;

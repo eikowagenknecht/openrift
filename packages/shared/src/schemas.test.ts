@@ -16,7 +16,6 @@ import {
   idParamSchema,
   keyParamSchema,
   moveCopiesSchema,
-  slugParamSchema,
   updateCollectionSchema,
   updateDeckCardsSchema,
   updateDeckSchema,
@@ -362,16 +361,6 @@ describe("idAndItemIdParamSchema", () => {
     expect(
       idAndItemIdParamSchema.safeParse({ id: "550e8400-e29b-41d4-a716-446655440000" }).success,
     ).toBe(false);
-  });
-});
-
-describe("slugParamSchema", () => {
-  it("accepts a non-empty string", () => {
-    expect(slugParamSchema.safeParse({ id: "core-set" }).success).toBe(true);
-  });
-
-  it("rejects empty string", () => {
-    expect(slugParamSchema.safeParse({ id: "" }).success).toBe(false);
   });
 });
 
