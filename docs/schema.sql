@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict qyCqcMHGK2DIuwBeKQSRsj8ZPEDPeMsTtxZEahl9T4fXTU3slBcK0hwkNyOkcIE
+\restrict sXaWus0pbvJvnHFhROstICtiL9CtTUQJDfJoxyIczD12QCdwmQNkNKTCg7FegrQ
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -173,6 +173,25 @@ CREATE FUNCTION public.protect_well_known() RETURNS trigger
 
 
 --
+-- Name: recompute_printing_marker_slugs(uuid); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.recompute_printing_marker_slugs(target_printing_id uuid) RETURNS void
+    LANGUAGE sql
+    AS $$
+      UPDATE printings
+      SET marker_slugs = COALESCE(
+        (SELECT array_agg(m.slug ORDER BY m.slug)
+         FROM printing_markers pm
+         JOIN markers m ON m.id = pm.marker_id
+         WHERE pm.printing_id = target_printing_id),
+        '{}'::text[]
+      )
+      WHERE id = target_printing_id;
+    $$;
+
+
+--
 -- Name: set_updated_at(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -184,6 +203,45 @@ CREATE FUNCTION public.set_updated_at() RETURNS trigger
         NEW.updated_at := now();
       END IF;
       RETURN NEW;
+    END;
+    $$;
+
+
+--
+-- Name: trg_markers_slug_change(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trg_markers_slug_change() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+      affected_id uuid;
+    BEGIN
+      IF NEW.slug IS DISTINCT FROM OLD.slug THEN
+        FOR affected_id IN SELECT printing_id FROM printing_markers WHERE marker_id = NEW.id LOOP
+          PERFORM recompute_printing_marker_slugs(affected_id);
+        END LOOP;
+      END IF;
+      RETURN NEW;
+    END;
+    $$;
+
+
+--
+-- Name: trg_printing_markers_sync(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trg_printing_markers_sync() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      IF TG_OP = 'DELETE' THEN
+        PERFORM recompute_printing_marker_slugs(OLD.printing_id);
+        RETURN OLD;
+      ELSE
+        PERFORM recompute_printing_marker_slugs(NEW.printing_id);
+        RETURN NEW;
+      END IF;
     END;
     $$;
 
@@ -302,9 +360,9 @@ CREATE TABLE public.candidate_printings (
     updated_at timestamp with time zone DEFAULT now() CONSTRAINT printing_sources_updated_at_not_null NOT NULL,
     printing_id uuid,
     external_id text CONSTRAINT printing_sources_source_entity_id_not_null NOT NULL,
-    promo_type_id uuid,
     language text,
     printed_name text,
+    marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
     CONSTRAINT chk_candidate_printings_no_empty_art_variant CHECK ((art_variant <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_artist CHECK ((artist <> ''::text)),
     CONSTRAINT chk_candidate_printings_no_empty_external_id CHECK ((external_id <> ''::text)),
@@ -545,6 +603,26 @@ CREATE TABLE public.decks (
 
 
 --
+-- Name: distribution_channels; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.distribution_channels (
+    id uuid DEFAULT uuidv7() CONSTRAINT promo_types_id_not_null NOT NULL,
+    slug text CONSTRAINT promo_types_slug_not_null NOT NULL,
+    label text CONSTRAINT promo_types_label_not_null NOT NULL,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT promo_types_created_at_not_null NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() CONSTRAINT promo_types_updated_at_not_null NOT NULL,
+    description text,
+    sort_order integer DEFAULT 0 CONSTRAINT promo_types_sort_order_not_null NOT NULL,
+    kind text DEFAULT 'event'::text NOT NULL,
+    CONSTRAINT distribution_channels_description_check CHECK ((description <> ''::text)),
+    CONSTRAINT distribution_channels_kind_check CHECK ((kind = ANY (ARRAY['event'::text, 'product'::text]))),
+    CONSTRAINT distribution_channels_label_check CHECK ((label <> ''::text)),
+    CONSTRAINT distribution_channels_slug_check CHECK ((slug <> ''::text))
+);
+
+
+--
 -- Name: domains; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -705,6 +783,24 @@ CREATE TABLE public.languages (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT languages_code_not_empty CHECK ((code <> ''::text)),
     CONSTRAINT languages_name_not_empty CHECK ((name <> ''::text))
+);
+
+
+--
+-- Name: markers; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.markers (
+    id uuid DEFAULT uuidv7() NOT NULL,
+    slug text NOT NULL,
+    label text NOT NULL,
+    description text,
+    sort_order integer DEFAULT 0 NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT markers_description_check CHECK ((description <> ''::text)),
+    CONSTRAINT markers_label_check CHECK ((label <> ''::text)),
+    CONSTRAINT markers_slug_check CHECK ((slug <> ''::text))
 );
 
 
@@ -888,9 +984,9 @@ CREATE TABLE public.printings (
     card_id uuid CONSTRAINT printings_new_card_id_not_null NOT NULL,
     set_id uuid CONSTRAINT printings_new_set_id_not_null NOT NULL,
     comment text,
-    promo_type_id uuid,
     language text DEFAULT 'EN'::text NOT NULL,
     printed_name text,
+    marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
     CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
     CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
     CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
@@ -909,15 +1005,34 @@ CREATE TABLE public.printings (
 CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
  SELECT DISTINCT ON (target.id, mp.marketplace) target.id AS printing_id,
     mp.marketplace,
-    COALESCE(snap.market_cents, snap.low_cents) AS headline_cents
+        CASE
+            WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(snap.low_cents, snap.market_cents)
+            ELSE COALESCE(snap.market_cents, snap.low_cents)
+        END AS headline_cents
    FROM ((((public.printings target
-     JOIN public.printings source ON (((source.card_id = target.card_id) AND (source.short_code = target.short_code) AND (source.finish = target.finish) AND (source.art_variant = target.art_variant) AND (source.is_signed = target.is_signed) AND (NOT (source.promo_type_id IS DISTINCT FROM target.promo_type_id)))))
+     JOIN public.printings source ON (((source.card_id = target.card_id) AND (source.short_code = target.short_code) AND (source.finish = target.finish) AND (source.art_variant = target.art_variant) AND (source.is_signed = target.is_signed) AND (source.marker_slugs = target.marker_slugs))))
      JOIN public.marketplace_product_variants mpv ON ((mpv.printing_id = source.id)))
      JOIN public.marketplace_products mp ON ((mp.id = mpv.marketplace_product_id)))
      JOIN public.marketplace_snapshots snap ON ((snap.variant_id = mpv.id)))
-  WHERE ((COALESCE(snap.market_cents, snap.low_cents) IS NOT NULL) AND ((mpv.language IS NULL) OR (source.id = target.id)))
+  WHERE ((
+        CASE
+            WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(snap.low_cents, snap.market_cents)
+            ELSE COALESCE(snap.market_cents, snap.low_cents)
+        END IS NOT NULL) AND ((mpv.language IS NULL) OR (source.id = target.id)))
   ORDER BY target.id, mp.marketplace, snap.recorded_at DESC
   WITH NO DATA;
+
+
+--
+-- Name: printing_distribution_channels; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.printing_distribution_channels (
+    printing_id uuid NOT NULL,
+    channel_id uuid NOT NULL,
+    distribution_note text,
+    CONSTRAINT printing_distribution_channels_note_check CHECK ((distribution_note <> ''::text))
+);
 
 
 --
@@ -970,20 +1085,12 @@ CREATE TABLE public.printing_link_overrides (
 
 
 --
--- Name: promo_types; Type: TABLE; Schema: public; Owner: -
+-- Name: printing_markers; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE public.promo_types (
-    id uuid DEFAULT uuidv7() NOT NULL,
-    slug text NOT NULL,
-    label text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    description text,
-    sort_order integer DEFAULT 0 NOT NULL,
-    CONSTRAINT promo_types_description_check CHECK ((description <> ''::text)),
-    CONSTRAINT promo_types_label_check CHECK ((label <> ''::text)),
-    CONSTRAINT promo_types_slug_check CHECK ((slug <> ''::text))
+CREATE TABLE public.printing_markers (
+    printing_id uuid NOT NULL,
+    marker_id uuid NOT NULL
 );
 
 
@@ -1422,6 +1529,22 @@ ALTER TABLE ONLY public.decks
 
 
 --
+-- Name: distribution_channels distribution_channels_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.distribution_channels
+    ADD CONSTRAINT distribution_channels_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: distribution_channels distribution_channels_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.distribution_channels
+    ADD CONSTRAINT distribution_channels_slug_key UNIQUE (slug);
+
+
+--
 -- Name: domains domains_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1507,6 +1630,22 @@ ALTER TABLE ONLY public.kysely_migration
 
 ALTER TABLE ONLY public.languages
     ADD CONSTRAINT languages_pkey PRIMARY KEY (code);
+
+
+--
+-- Name: markers markers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.markers
+    ADD CONSTRAINT markers_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: markers markers_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.markers
+    ADD CONSTRAINT markers_slug_key UNIQUE (slug);
 
 
 --
@@ -1606,6 +1745,14 @@ ALTER TABLE ONLY public.marketplace_staging
 
 
 --
+-- Name: printing_distribution_channels printing_distribution_channels_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_distribution_channels
+    ADD CONSTRAINT printing_distribution_channels_pkey PRIMARY KEY (printing_id, channel_id);
+
+
+--
 -- Name: printing_events printing_events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1630,27 +1777,19 @@ ALTER TABLE ONLY public.printing_link_overrides
 
 
 --
+-- Name: printing_markers printing_markers_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_markers
+    ADD CONSTRAINT printing_markers_pkey PRIMARY KEY (printing_id, marker_id);
+
+
+--
 -- Name: printings printings_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.printings
     ADD CONSTRAINT printings_pkey PRIMARY KEY (id);
-
-
---
--- Name: promo_types promo_types_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.promo_types
-    ADD CONSTRAINT promo_types_pkey PRIMARY KEY (id);
-
-
---
--- Name: promo_types promo_types_slug_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.promo_types
-    ADD CONSTRAINT promo_types_slug_key UNIQUE (slug);
 
 
 --
@@ -1794,7 +1933,7 @@ ALTER TABLE ONLY public.keyword_translations
 --
 
 ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT uq_printings_identity UNIQUE NULLS NOT DISTINCT (card_id, short_code, finish, promo_type_id, language);
+    ADD CONSTRAINT uq_printings_identity UNIQUE NULLS NOT DISTINCT (card_id, short_code, finish, marker_slugs, language) DEFERRABLE INITIALLY DEFERRED;
 
 
 --
@@ -1802,7 +1941,7 @@ ALTER TABLE ONLY public.printings
 --
 
 ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT uq_printings_variant UNIQUE (short_code, art_variant, is_signed, promo_type_id, rarity, finish, language);
+    ADD CONSTRAINT uq_printings_variant UNIQUE (short_code, art_variant, is_signed, marker_slugs, rarity, finish, language) DEFERRABLE INITIALLY DEFERRED;
 
 
 --
@@ -2076,6 +2215,13 @@ CREATE UNIQUE INDEX idx_mv_latest_printing_prices_pk ON public.mv_latest_printin
 
 
 --
+-- Name: idx_printing_distribution_channels_channel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_printing_distribution_channels_channel_id ON public.printing_distribution_channels USING btree (channel_id);
+
+
+--
 -- Name: idx_printing_events_status_created; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2104,6 +2250,13 @@ CREATE UNIQUE INDEX idx_printing_images_provider ON public.printing_images USING
 
 
 --
+-- Name: idx_printing_markers_marker_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_printing_markers_marker_id ON public.printing_markers USING btree (marker_id);
+
+
+--
 -- Name: idx_printing_sources_printing_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2115,6 +2268,13 @@ CREATE INDEX idx_printing_sources_printing_id ON public.candidate_printings USIN
 --
 
 CREATE INDEX idx_printings_card_id ON public.printings USING btree (card_id);
+
+
+--
+-- Name: idx_printings_marker_slugs; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_printings_marker_slugs ON public.printings USING gin (marker_slugs);
 
 
 --
@@ -2244,10 +2404,24 @@ CREATE TRIGGER keyword_styles_set_updated_at BEFORE UPDATE ON public.keyword_sty
 
 
 --
+-- Name: markers markers_slug_change; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER markers_slug_change AFTER UPDATE OF slug ON public.markers FOR EACH ROW EXECUTE FUNCTION public.trg_markers_slug_change();
+
+
+--
 -- Name: printing_events printing_events_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
 CREATE TRIGGER printing_events_set_updated_at BEFORE UPDATE ON public.printing_events FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: printing_markers printing_markers_sync_iud; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER printing_markers_sync_iud AFTER INSERT OR DELETE OR UPDATE ON public.printing_markers FOR EACH ROW EXECUTE FUNCTION public.trg_printing_markers_sync();
 
 
 --
@@ -2398,6 +2572,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.decks FOR EACH ROW EXE
 
 
 --
+-- Name: distribution_channels trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.distribution_channels FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: feature_flags trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2423,6 +2604,13 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.keyword_translations F
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.languages FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
+-- Name: markers trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.markers FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -2479,13 +2667,6 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.printing_images FOR EA
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.printings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
--- Name: promo_types trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.promo_types FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -2902,6 +3083,22 @@ ALTER TABLE ONLY public.marketplace_staging_card_overrides
 
 
 --
+-- Name: printing_distribution_channels printing_distribution_channels_channel_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_distribution_channels
+    ADD CONSTRAINT printing_distribution_channels_channel_id_fkey FOREIGN KEY (channel_id) REFERENCES public.distribution_channels(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: printing_distribution_channels printing_distribution_channels_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_distribution_channels
+    ADD CONSTRAINT printing_distribution_channels_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id) ON DELETE CASCADE;
+
+
+--
 -- Name: printing_images printing_images_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2910,19 +3107,27 @@ ALTER TABLE ONLY public.printing_images
 
 
 --
+-- Name: printing_markers printing_markers_marker_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_markers
+    ADD CONSTRAINT printing_markers_marker_id_fkey FOREIGN KEY (marker_id) REFERENCES public.markers(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: printing_markers printing_markers_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.printing_markers
+    ADD CONSTRAINT printing_markers_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id) ON DELETE CASCADE;
+
+
+--
 -- Name: candidate_printings printing_sources_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.candidate_printings
     ADD CONSTRAINT printing_sources_printing_id_fkey FOREIGN KEY (printing_id) REFERENCES public.printings(id);
-
-
---
--- Name: candidate_printings printing_sources_promo_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.candidate_printings
-    ADD CONSTRAINT printing_sources_promo_type_id_fkey FOREIGN KEY (promo_type_id) REFERENCES public.promo_types(id);
 
 
 --
@@ -2939,14 +3144,6 @@ ALTER TABLE ONLY public.printings
 
 ALTER TABLE ONLY public.printings
     ADD CONSTRAINT printings_language_fk FOREIGN KEY (language) REFERENCES public.languages(code);
-
-
---
--- Name: printings printings_promo_type_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.printings
-    ADD CONSTRAINT printings_promo_type_id_fkey FOREIGN KEY (promo_type_id) REFERENCES public.promo_types(id);
 
 
 --
@@ -3033,5 +3230,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict qyCqcMHGK2DIuwBeKQSRsj8ZPEDPeMsTtxZEahl9T4fXTU3slBcK0hwkNyOkcIE
+\unrestrict sXaWus0pbvJvnHFhROstICtiL9CtTUQJDfJoxyIczD12QCdwmQNkNKTCg7FegrQ
 
