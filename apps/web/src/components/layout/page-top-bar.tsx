@@ -37,29 +37,32 @@ interface PageTopBarTitleProps {
 }
 
 /**
- * Page title. On mobile, renders as a button with a chevron that toggles the sidebar.
- * On desktop, renders as static text (sidebar is always visible).
+ * Page title. On mobile, renders as a heading wrapping a button with a chevron
+ * that toggles the sidebar. On desktop, renders as a static heading (sidebar
+ * is always visible).
  * @returns The title element.
  */
 export function PageTopBarTitle({ onToggleSidebar, children }: PageTopBarTitleProps) {
   if (onToggleSidebar) {
     return (
       <>
-        <Button
-          variant="ghost"
-          className="mr-2 gap-1 text-sm font-medium md:hidden"
-          onClick={onToggleSidebar}
-        >
+        <h1 className="md:hidden">
+          <Button
+            variant="ghost"
+            className="mr-2 gap-1 text-sm font-medium"
+            onClick={onToggleSidebar}
+          >
+            {children}
+            <ChevronDownIcon className="text-muted-foreground size-4" />
+          </Button>
+        </h1>
+        <h1 className="mr-2 hidden min-w-0 truncate px-3 text-lg font-semibold md:block">
           {children}
-          <ChevronDownIcon className="text-muted-foreground size-4" />
-        </Button>
-        <span className="mr-2 hidden min-w-0 truncate px-3 text-lg font-semibold md:block">
-          {children}
-        </span>
+        </h1>
       </>
     );
   }
-  return <span className="mr-2 min-w-0 truncate px-3 text-lg font-semibold">{children}</span>;
+  return <h1 className="mr-2 min-w-0 truncate px-3 text-lg font-semibold">{children}</h1>;
 }
 
 /**
