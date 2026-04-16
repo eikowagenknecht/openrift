@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
+import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useId, useRef, useState } from "react";
 
-import { useDebounce } from "@/hooks/use-debounce";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +36,7 @@ export function PrintingSearch({
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
-  const debouncedSearch = useDebounce(search, 150);
+  const [debouncedSearch] = useDebouncedValue(search, { wait: 150 });
 
   const results =
     debouncedSearch.length >= 2

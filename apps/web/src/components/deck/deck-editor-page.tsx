@@ -1,5 +1,6 @@
 import { useDndContext } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { EllipsisVerticalIcon, PencilIcon, PrinterIcon, Share2Icon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -149,7 +150,6 @@ function DeckEditorContent({
   const isDirty = useDeckBuilderStore((state) => state.isDirty);
   const markSaved = useDeckBuilderStore((state) => state.markSaved);
   const saveDeckCards = useSaveDeckCards();
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
   const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const activeZone = useDeckBuilderStore((state) => state.activeZone);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -180,16 +180,8 @@ function DeckEditorContent({
   }, [data, deckId, storeId, init, cardsById]);
 
   // Auto-save: debounce saves so every change is persisted
-  useEffect(() => {
-    if (!isDirty || storeId !== deckId) {
-      return;
-    }
-
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-    }
-
-    saveTimerRef.current = setTimeout(() => {
+  const debouncedSave = useDebouncedCallback(
+    () => {
       const currentCards = useDeckBuilderStore.getState().cards;
       saveDeckCards.mutate(
         {
@@ -202,14 +194,15 @@ function DeckEditorContent({
         },
         { onSuccess: () => markSaved() },
       );
-    }, AUTO_SAVE_DELAY);
+    },
+    { wait: AUTO_SAVE_DELAY },
+  );
 
-    return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-      }
-    };
-  }, [isDirty, deckId, storeId, saveDeckCards, markSaved]);
+  useEffect(() => {
+    if (isDirty && storeId === deckId) {
+      debouncedSave();
+    }
+  }, [isDirty, deckId, storeId, debouncedSave]);
 
   // Reset store on unmount
   useEffect(
