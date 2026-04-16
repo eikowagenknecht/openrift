@@ -1,70 +1,59 @@
-import type { Card, Printing, CatalogResponse } from "@openrift/shared";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { createServerFn } from "@tanstack/react-start";
+import type { Card, Printing } from "@openrift/shared";
+import { useLiveSuspenseQuery } from "@tanstack/react-db";
+import { useQueryClient } from "@tanstack/react-query";
 
-import type { SetInfo } from "@/components/cards/card-grid";
-import { queryKeys } from "@/lib/query-keys";
-import { serverCache } from "@/lib/server-cache";
-import { API_URL } from "@/lib/server-fns/api-url";
+import type {
+  CatalogCardItem,
+  CatalogPrintingItem,
+  CatalogSetItem,
+} from "@/lib/catalog-collections";
+import { getCatalogCollections } from "@/lib/catalog-collections";
+import type { UseCardsResult } from "@/lib/catalog-query";
 
-interface UseCardsResult {
-  allPrintings: Printing[];
-  cardsById: Record<string, Card>;
-  printingsById: Record<string, Printing>;
-  printingsByCardId: Map<string, Printing[]>;
-  setOrderMap: Map<string, number>;
-  sets: SetInfo[];
-  totalCopies: number;
+// Re-export for consumers that import catalogQueryOptions from here
+// (landing-page.tsx uses it for the totalCopies stat).
+export { catalogQueryOptions } from "@/lib/catalog-query";
+
+export function useCards(): UseCardsResult {
+  const queryClient = useQueryClient();
+  const { sets, cards, printings } = getCatalogCollections(queryClient);
+
+  // useLiveSuspenseQuery throws a promise until the collection is ready, so
+  // the calling component's Suspense boundary shows its fallback during cold
+  // start — matching the old useSuspenseQuery behavior.
+  const { data: rawPrintings } = useLiveSuspenseQuery((q) => q.from({ printing: printings }));
+  const { data: rawCards } = useLiveSuspenseQuery((q) => q.from({ card: cards }));
+  const { data: rawSets } = useLiveSuspenseQuery((q) => q.from({ set: sets }));
+
+  return enrichFromCollections(rawPrintings, rawCards, rawSets);
 }
 
-const fetchCatalog = createServerFn({ method: "GET" }).handler(
-  (): Promise<CatalogResponse> =>
-    serverCache.fetchQuery({
-      queryKey: ["server-cache", "catalog"],
-      queryFn: async () => {
-        const res = await fetch(`${API_URL}/api/v1/catalog`);
-        if (!res.ok) {
-          throw new Error(`Catalog fetch failed: ${res.status}`);
-        }
-        return res.json() as Promise<CatalogResponse>;
-      },
-    }),
-);
+function enrichFromCollections(
+  rawPrintings: readonly CatalogPrintingItem[],
+  rawCards: readonly CatalogCardItem[],
+  rawSets: readonly CatalogSetItem[],
+): UseCardsResult {
+  const slugById = new Map(rawSets.map((s) => [s.id, s.slug]));
 
-// Client-side catalog fetch goes directly to /api/v1/catalog so Cloudflare
-// can serve it from the edge cache. Routing through the Start server function
-// would re-enter origin for every VU, which is exactly what we're avoiding.
-async function fetchCatalogFromEdge(): Promise<CatalogResponse> {
-  const res = await fetch("/api/v1/catalog");
-  if (!res.ok) {
-    throw new Error(`Catalog fetch failed: ${res.status}`);
+  const cardsById: Record<string, Card> = {};
+  for (const { id, ...card } of rawCards) {
+    cardsById[id] = card;
   }
-  return res.json() as Promise<CatalogResponse>;
-}
 
-function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
-  const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
-
-  // Cards are already in the right shape — identity lives in the map key.
-  const cardsById: Record<string, Card> = catalog.cards;
-
-  // Join printings with their card and the parent set slug. The printing id
-  // is restored on the object so consumers that iterate `allPrintings` (a
-  // flat array without surrounding keys) still have an identifier.
   const allPrintings: Printing[] = [];
   const printingsById: Record<string, Printing> = {};
-  for (const [id, value] of Object.entries(catalog.printings)) {
-    const setSlug = slugById.get(value.setId);
-    const card = cardsById[value.cardId];
+  for (const raw of rawPrintings) {
+    const setSlug = slugById.get(raw.setId);
+    const card = cardsById[raw.cardId];
     if (setSlug && card) {
-      const printing: Printing = { ...value, id, setSlug, card };
+      const printing: Printing = { ...raw, setSlug, card };
       allPrintings.push(printing);
-      printingsById[id] = printing;
+      printingsById[raw.id] = printing;
     }
   }
 
   const printingsByCardId = Map.groupBy(allPrintings, (p) => p.cardId);
-  const setOrderMap = new Map(catalog.sets.map((s, i) => [s.id, i]));
+  const setOrderMap = new Map(rawSets.map((s, i) => [s.id, i]));
 
   return {
     allPrintings,
@@ -72,27 +61,6 @@ function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
     printingsById,
     printingsByCardId,
     setOrderMap,
-    sets: catalog.sets,
-    totalCopies: catalog.totalCopies,
+    sets: [...rawSets],
   };
-}
-
-export const catalogQueryOptions = queryOptions({
-  queryKey: queryKeys.catalog.all,
-  queryFn: () => (globalThis.window === undefined ? fetchCatalog() : fetchCatalogFromEdge()),
-  staleTime: 5 * 60 * 1000, // 5 minutes
-  refetchOnWindowFocus: false,
-  select: enrichCatalog,
-  // A catalog 500 means edge cache miss + origin failure — not the kind of
-  // thing that self-heals in a few seconds. One quick retry covers transient
-  // blips; beyond that, surface the error fallback instead of stalling on a
-  // skeleton for the full exponential-backoff window.
-  retry: 1,
-  retryDelay: 500,
-});
-
-export function useCards(): UseCardsResult {
-  const { data } = useSuspenseQuery(catalogQueryOptions);
-
-  return data;
 }

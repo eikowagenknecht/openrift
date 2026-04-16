@@ -1,4 +1,4 @@
-import type { Printing } from "@openrift/shared";
+import type { CatalogResponse, Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
@@ -34,6 +34,10 @@ function getCardThumbnailUrls(data: { allPrintings: Printing[] } | undefined): s
 
 export function LandingPage() {
   const { data } = useQuery(catalogQueryOptions);
+  const { data: copies = 0 } = useQuery({
+    ...catalogQueryOptions,
+    select: (catalog: CatalogResponse) => catalog.totalCopies,
+  });
   const copiesTracked = useFeatureEnabled("copies-tracked");
   const [spinning, setSpinning] = useState(false);
   const [resetKey, setResetKey] = useState(0);
@@ -41,7 +45,6 @@ export function LandingPage() {
 
   const uniqueCards = data ? new Set(data.allPrintings.map((p) => p.cardId)).size : 0;
   const printings = data?.allPrintings.length ?? 0;
-  const copies = data?.totalCopies ?? 0;
 
   // Extract front-face thumbnail URLs for the card scatter background
   const cardImageUrls = getCardThumbnailUrls(data);

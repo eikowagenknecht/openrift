@@ -128,13 +128,19 @@ function PaletteInner({
   }, [selectedIndex, expandedCardId, expandedIndex]);
 
   const handleAdd = async (printing: Printing) => {
+    // Increment pending so the "N new" badge reflects the click immediately,
+    // not after the 300ms batch + API round-trip completes.
+    useAddModeStore.getState().incrementPending(printing);
     try {
-      const result = await batchedAdd.add(printing.id, collectionId);
-      useAddModeStore.getState().recordAdd(printing, result.id);
+      const { result } = batchedAdd.add(printing.id, collectionId);
+      const real = await result;
+      useAddModeStore.getState().recordAdd(printing, real.id);
       toast.success(`Added 1× ${printing.card.name}`);
       inputRef.current?.focus();
     } catch {
       toast.error(`Failed to add ${printing.card.name}`);
+    } finally {
+      useAddModeStore.getState().decrementPending(printing.id);
     }
   };
 
@@ -372,7 +378,12 @@ function PaletteInner({
                   {card.printings.map((printing, printingIndex) => {
                     const isPrintingSelected = printingIndex === expandedIndex;
                     const ownedForPrinting = ownedCountByPrinting?.[printing.id] ?? 0;
-                    const sessionAdded = addedItems.get(printing.id)?.quantity ?? 0;
+                    // "N new" reflects both confirmed adds (quantity) and
+                    // in-flight adds (pendingCount) so the badge updates on
+                    // click without waiting for the API.
+                    const addedEntry = addedItems.get(printing.id);
+                    const sessionAdded =
+                      (addedEntry?.quantity ?? 0) + (addedEntry?.pendingCount ?? 0);
                     return (
                       <div
                         key={printing.id}

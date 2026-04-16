@@ -14,7 +14,10 @@ export const Route = createFileRoute("/_app/_authenticated/collections/$collecti
   loader: async ({ context, params }) => {
     const [collections] = await Promise.all([
       context.queryClient.ensureQueryData(collectionsQueryOptions),
-      context.queryClient.ensureQueryData(copiesQueryOptions(params.collectionId)),
+      // Preload all user copies so the copies collection is hydrated. The
+      // per-collection view is a client-side live-query filter, not a separate
+      // cache key.
+      context.queryClient.ensureQueryData(copiesQueryOptions()),
     ]);
     if (!collections.items.some((col) => col.id === params.collectionId)) {
       throw notFound();

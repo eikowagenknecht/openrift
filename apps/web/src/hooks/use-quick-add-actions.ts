@@ -1,33 +1,34 @@
 import type { Printing } from "@openrift/shared";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { useAddModeStore } from "@/stores/add-mode-store";
 
 /**
- * Shared add/undo logic for collection add mode, with optimistic owned-count deltas.
- * Used by both the /cards catalog browser and the /collections add-mode grid.
- * @returns Quick-add actions and optimistic count helpers, or undefined handlers when disabled.
+ * Shared add/undo logic for collection add mode. Optimistic count changes
+ * flow through the copies collection (via TanStack DB writes), so this hook
+ * no longer maintains a parallel optimistic counter. The add-mode-store
+ * keeps its session history for undo (tracking which real copy ids were
+ * added, so undo removes the most recent rather than an arbitrary copy).
+ * @returns Quick-add actions, or undefined handlers when disabled.
  */
 export function useQuickAddActions(collectionId?: string) {
   const batchedAdd = useBatchedAddCopies();
   const disposeCopies = useDisposeCopies();
-  const [countDeltas, setCountDeltas] = useState<Record<string, number>>({});
 
   const handleQuickAdd = collectionId
     ? async (printing: Printing) => {
-        const pid = printing.id;
-        setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) + 1 }));
         useAddModeStore.getState().incrementPending(printing);
         try {
-          const result = await batchedAdd.add(pid, collectionId);
-          // onSuccess already updated the query cache — remove our optimistic delta
-          setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) - 1 }));
-          useAddModeStore.getState().recordAdd(printing, result.id);
+          const { result } = batchedAdd.add(printing.id, collectionId);
+          const real = await result;
+          useAddModeStore.getState().recordAdd(printing, real.id);
         } catch {
-          setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) - 1 }));
+          // Error toast is fired by the global mutation onError handler;
+          // swallow the rejection here so it doesn't surface as an uncaught
+          // promise in the console.
         } finally {
-          useAddModeStore.getState().decrementPending(pid);
+          useAddModeStore.getState().decrementPending(printing.id);
         }
       }
     : undefined;
@@ -35,20 +36,14 @@ export function useQuickAddActions(collectionId?: string) {
   const handleUndoAdd = collectionId
     ? async (printing: Printing) => {
         const entry = useAddModeStore.getState().addedItems.get(printing.id);
-        if (!entry || entry.copyIds.length === 0) {
-          return;
-        }
-        const copyIdToRemove = entry.copyIds.at(-1);
+        const copyIdToRemove = entry?.copyIds.at(-1);
         if (!copyIdToRemove) {
           return;
         }
-        const pid = printing.id;
-        setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) - 1 }));
-        useAddModeStore.getState().recordUndo(pid);
+        useAddModeStore.getState().recordUndo(printing.id);
         try {
           await disposeCopies.mutateAsync({ copyIds: [copyIdToRemove] });
         } catch {
-          setCountDeltas((prev) => ({ ...prev, [pid]: (prev[pid] ?? 0) + 1 }));
           useAddModeStore.getState().recordAdd(printing, copyIdToRemove);
         }
       }
@@ -82,11 +77,12 @@ export function useQuickAddActions(collectionId?: string) {
     : undefined;
 
   /**
-   * Returns the owned count adjusted by optimistic deltas.
-   * @returns The adjusted count.
+   * Kept for API compatibility with callers that want a helper; counts now
+   * come straight from the copies collection via useOwnedCount, so no
+   * adjustment is needed.
+   * @returns The owned count as-is.
    */
-  const adjustedCount = (printingId: string, baseCount: number) =>
-    baseCount + (countDeltas[printingId] ?? 0);
+  const adjustedCount = (_printingId: string, baseCount: number) => baseCount;
 
   /** Close the variant popover and mark it as just-closed to prevent reopen on click-through. */
   const closeVariants = () => {
@@ -102,7 +98,6 @@ export function useQuickAddActions(collectionId?: string) {
     handleUndoAdd,
     handleOpenVariants,
     closeVariants,
-    countDeltas,
     adjustedCount,
   };
 }

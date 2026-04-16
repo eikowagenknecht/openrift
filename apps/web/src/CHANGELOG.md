@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-16
+
+- fix: If your connection drops while adding, moving, or removing copies, the action now reverts and shows an error toast instead of silently looking like it worked
+
 ## 2026-04-15
 
 - feat: The card browser, collections, and decks now load faster when you're signed in
