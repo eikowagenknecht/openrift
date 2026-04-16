@@ -163,9 +163,7 @@ test.describe("collections CRUD", () => {
       await sidebarLink.click();
 
       await expect(page).toHaveURL(/\/collections\/[0-9a-f-]+/);
-      // Top bar renders the title twice (mobile button + desktop span); the
-      // mobile one is DOM-first but CSS-hidden on the default viewport.
-      await expect(page.getByText(name).filter({ visible: true }).first()).toBeVisible();
+      await expect(page.getByRole("heading", { name })).toBeVisible();
     });
 
     test("whitespace-only input does not create a collection", async ({ page }) => {
