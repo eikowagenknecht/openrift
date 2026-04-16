@@ -683,9 +683,12 @@ test.describe("collection activity", () => {
     test.describe.configure({ mode: "serial" });
 
     // The server defaults to limit=100 per page (see collection-events.ts).
-    // Seed 1.5x so the first page is full and fetchNextPage triggers a second fetch.
+    // The seed fixture only has 73 printings, so to exceed PAGE_SIZE we seed
+    // two events per printing (an "added" + a "removed") against the Inbox.
+    // The frontend grouping key is (action, printingId, collectionId), so these
+    // render as distinct cards: 73 * 2 = 146 > PAGE_SIZE.
     const PAGE_SIZE = 100;
-    const SEED_COUNT = 150;
+    let seedCount = 0;
 
     let state: BlockState;
 
@@ -694,22 +697,34 @@ test.describe("collection activity", () => {
       const sql = loadDb();
       try {
         const rows = (await sql`
-          SELECT id::text AS id FROM printings ORDER BY id LIMIT ${SEED_COUNT}
+          SELECT id::text AS id FROM printings ORDER BY id
         `) as { id: string }[];
         const printingIds = rows.map((r) => r.id);
-        expect(printingIds.length).toBe(SEED_COUNT);
+        expect(printingIds.length).toBeGreaterThan(PAGE_SIZE / 2);
 
         // All events on "today", but staggered seconds apart so the cursor
-        // comparison has a stable ordering. Different printings → each event
-        // renders its own card (grouping key includes printingId).
+        // comparison has a stable ordering. Each printing produces one "added"
+        // and one "removed" event against the Inbox so the grouping key
+        // (action, printingId, collectionId) yields a distinct card per event.
         const now = Date.now();
-        const events: DirectEventInput[] = printingIds.map((printingId, idx) => ({
-          action: "added",
-          printingId,
-          toCollectionId: state.inboxId,
-          toCollectionName: "Inbox",
-          createdAt: new Date(now - idx * 1000),
-        }));
+        const events: DirectEventInput[] = printingIds.flatMap((printingId, idx) => [
+          {
+            action: "added",
+            printingId,
+            toCollectionId: state.inboxId,
+            toCollectionName: "Inbox",
+            createdAt: new Date(now - idx * 2000),
+          },
+          {
+            action: "removed",
+            printingId,
+            fromCollectionId: state.inboxId,
+            fromCollectionName: "Inbox",
+            createdAt: new Date(now - idx * 2000 - 1000),
+          },
+        ]);
+        seedCount = events.length;
+        expect(seedCount).toBeGreaterThan(PAGE_SIZE);
         await insertEventsDirectly(sql, state.user.email, events);
       } finally {
         await sql.end();
@@ -733,9 +748,10 @@ test.describe("collection activity", () => {
         const eventCards = page.locator('a[href*="/cards?"]');
         await expect(eventCards).toHaveCount(PAGE_SIZE);
 
-        // Watch for the cursor-paginated follow-up fetch.
+        // Watch for the cursor-paginated follow-up fetch. The server fn is
+        // declared with method "GET" (see use-collection-events.ts).
         const secondPage = page.waitForRequest(
-          (req) => req.method() === "POST" && isServerFn(req.url(), "fetchCollectionEventsFn"),
+          (req) => req.method() === "GET" && isServerFn(req.url(), "fetchCollectionEventsFn"),
           { timeout: 15_000 },
         );
 
@@ -744,7 +760,7 @@ test.describe("collection activity", () => {
         await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
         await secondPage;
 
-        await expect(eventCards).toHaveCount(SEED_COUNT, { timeout: 15_000 });
+        await expect(eventCards).toHaveCount(seedCount, { timeout: 15_000 });
       });
     });
   });
