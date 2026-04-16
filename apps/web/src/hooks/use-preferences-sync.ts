@@ -1,4 +1,5 @@
 import type { UserPreferencesResponse } from "@openrift/shared";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useRef } from "react";
@@ -70,13 +71,22 @@ export function usePreferencesSync(enabled: boolean) {
   const queryClient = useQueryClient();
   const hydrating = useRef(false);
   const saving = useRef(false);
-  const debounceTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   const { data, isError } = useQuery({
     queryKey: queryKeys.preferences.all,
     queryFn: () => fetchPreferencesFn(),
     enabled,
   });
+
+  const debouncedSave = useDebouncedCallback(
+    async () => {
+      const prefs = getPrefsSnapshot();
+      await patchPreferencesFn({ data: { prefs } });
+      saving.current = true;
+      queryClient.setQueryData(queryKeys.preferences.all, prefs);
+    },
+    { wait: 1000 },
+  );
 
   // Logged-out users never hit the server, so there's nothing to wait for —
   // mark prefs hydrated immediately. If the server fetch errors for a
@@ -122,16 +132,7 @@ export function usePreferencesSync(enabled: boolean) {
         return;
       }
       prev = next;
-
-      if (debounceTimer.current !== null) {
-        clearTimeout(debounceTimer.current);
-      }
-      debounceTimer.current = setTimeout(async () => {
-        const prefs = getPrefsSnapshot();
-        await patchPreferencesFn({ data: { prefs } });
-        saving.current = true;
-        queryClient.setQueryData(queryKeys.preferences.all, prefs);
-      }, 1000);
+      debouncedSave();
     }
 
     const unsubDisplay = useDisplayStore.subscribe(onStoreChange);
@@ -140,9 +141,6 @@ export function usePreferencesSync(enabled: boolean) {
     return () => {
       unsubDisplay();
       unsubTheme();
-      if (debounceTimer.current !== null) {
-        clearTimeout(debounceTimer.current);
-      }
     };
-  }, [queryClient]);
+  }, [debouncedSave]);
 }

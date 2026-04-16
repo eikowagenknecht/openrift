@@ -1,6 +1,5 @@
+import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useEffect, useRef, useState } from "react";
-
-import { useDebounce } from "@/hooks/use-debounce";
 
 interface Options {
   urlValue: string;
@@ -24,7 +23,7 @@ interface Options {
  */
 export function useSearchUrlSync({ urlValue, onCommit, delay = 200 }: Options) {
   const [localValue, setLocalValue] = useState(urlValue);
-  const debouncedValue = useDebounce(localValue, delay);
+  const [debouncedValue] = useDebouncedValue(localValue, { wait: delay });
 
   const prevUrlValue = useRef(urlValue);
   const lastSentValue = useRef(urlValue);

@@ -5,9 +5,10 @@ import type {
   CopyListResponse,
   CopyResponse,
 } from "@openrift/shared";
+import { useBatcher } from "@tanstack/react-pacer";
 import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import { queryKeys } from "@/lib/query-keys";
@@ -384,52 +385,40 @@ interface PendingAdd {
  */
 export function useBatchedAddCopies() {
   const addCopies = useAddCopies();
-  const pendingRef = useRef<PendingAdd[]>([]);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  const flush = useCallback(() => {
-    const pending = pendingRef.current;
-    pendingRef.current = [];
-    timerRef.current = null;
-
-    if (pending.length === 0) {
-      return;
-    }
-
-    addCopies.mutate(
-      {
-        copies: pending.map((entry) => ({
-          printingId: entry.printingId,
-          collectionId: entry.collectionId,
-        })),
-      },
-      {
-        onSuccess: (data) => {
-          for (let i = 0; i < pending.length; i++) {
-            pending[i].resolve(data[i]);
-          }
+  const batcher = useBatcher<PendingAdd>(
+    (pending) => {
+      addCopies.mutate(
+        {
+          copies: pending.map((entry) => ({
+            printingId: entry.printingId,
+            collectionId: entry.collectionId,
+          })),
         },
-        onError: (error) => {
-          for (const entry of pending) {
-            entry.reject(error);
-          }
+        {
+          onSuccess: (data) => {
+            for (let i = 0; i < pending.length; i++) {
+              pending[i].resolve(data[i]);
+            }
+          },
+          onError: (error) => {
+            for (const entry of pending) {
+              entry.reject(error);
+            }
+          },
         },
-      },
-    );
-  }, [addCopies]);
+      );
+    },
+    { wait: BATCH_DELAY },
+  );
 
   const add = useCallback(
     (printingId: string, collectionId?: string): Promise<AddCopyResult> =>
       // oxlint-disable-next-line promise/avoid-new -- deferred pattern needed to batch individual calls into one POST
       new Promise<AddCopyResult>((resolve, reject) => {
-        pendingRef.current.push({ printingId, collectionId, resolve, reject });
-
-        if (timerRef.current) {
-          clearTimeout(timerRef.current);
-        }
-        timerRef.current = setTimeout(flush, BATCH_DELAY);
+        batcher.addItem({ printingId, collectionId, resolve, reject });
       }),
-    [flush],
+    [batcher],
   );
 
   return { add, isPending: addCopies.isPending };

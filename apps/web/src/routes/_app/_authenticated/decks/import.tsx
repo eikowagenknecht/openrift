@@ -1,4 +1,5 @@
 import type { DeckFormat, DeckResponse, DeckZone, Printing } from "@openrift/shared";
+import { useDebouncedValue } from "@tanstack/react-pacer";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
@@ -27,7 +28,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
-import { useDebounce } from "@/hooks/use-debounce";
 import { useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
 import { useZoneOrder } from "@/hooks/use-enums";
 import { initQueryOptions } from "@/hooks/use-init";
@@ -798,7 +798,7 @@ function CardSearch({
   const containerRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
-  const debouncedSearch = useDebounce(search, 150);
+  const [debouncedSearch] = useDebouncedValue(search, { wait: 150 });
 
   // Deduplicate to unique cards (not printings)
   const results =

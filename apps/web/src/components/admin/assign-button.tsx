@@ -1,3 +1,4 @@
+import { useDebouncedValue } from "@tanstack/react-pacer";
 import { LinkIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -5,7 +6,6 @@ import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
 import { Button } from "@/components/ui/button";
 import type { useLinkCard } from "@/hooks/use-admin-card-mutations";
-import { useDebounce } from "@/hooks/use-debounce";
 
 export function AssignButton({
   normalizedName,
@@ -18,7 +18,7 @@ export function AssignButton({
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 150);
+  const [debouncedSearch] = useDebouncedValue(search, { wait: 150 });
 
   const results: CardSearchResult[] =
     debouncedSearch.length >= 2
