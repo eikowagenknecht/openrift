@@ -68,6 +68,7 @@ export function useScrollIndicator({
   const indicatorRef = useRef<HTMLDivElement>(null);
   const indicatorHRef = useRef(INDICATOR_H_FALLBACK);
   const cardIdRef = useRef<HTMLElement>(null);
+  const badgeRef = useRef<HTMLDivElement>(null);
   const dragTopRef = useRef(0);
   const dragTargetRowRef = useRef(-1);
   const snapPointsRef = useRef<{ screenY: number; rowIndex: number; firstCardId: string }[]>([]);
@@ -192,7 +193,7 @@ export function useScrollIndicator({
       contentRange: contentEnd - contentStart,
     };
     // Lock the badge width so it doesn't jump as card IDs change length.
-    const badge = cardIdRef.current?.parentElement as HTMLElement | null;
+    const badge = badgeRef.current;
     if (badge) {
       badge.style.width = `${badge.offsetWidth}px`;
     }
@@ -281,7 +282,7 @@ export function useScrollIndicator({
 
     const handleUp = () => {
       isDraggingRef.current = false;
-      const badge = cardIdRef.current?.parentElement as HTMLElement | null;
+      const badge = badgeRef.current;
       if (badge) {
         badge.style.width = "";
       }
@@ -367,7 +368,7 @@ export function useScrollIndicator({
     indicator,
     indicatorRef,
     cardIdRef,
-    dragTopRef,
+    badgeRef,
     isDraggingRef,
     handleIndicatorPointerDown,
     handleMoveRef,
