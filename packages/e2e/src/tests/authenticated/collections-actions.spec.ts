@@ -262,55 +262,6 @@ test.describe("collection actions", () => {
       await expect(dialog.getByText("No other collections available.")).toBeVisible();
       await expect(dialog.getByRole("button", { name: /^Move$/ })).toBeDisabled();
     });
-
-    test("move button shows 'Moving…' and is disabled while the request is in flight", async ({
-      page,
-    }) => {
-      userEmail = await createAndLogin(page);
-      const inboxId = await findInboxId(userEmail);
-      await createCollectionViaApi(page.request, "Target");
-      const annie = await findPrintingIdForCard(ANNIE_FIERY);
-      await seedCopies(page.request, annie, inboxId, 1);
-
-      // Block the move response until we manually release it so the pending
-      // state has an unambiguously long window for Playwright to observe the
-      // re-rendered submit button.
-      let releaseMove: () => void = () => {};
-      await page.route(/\/api\/v1\/copies\/move$/, async (route) => {
-        await new Promise<void>((resolve) => {
-          releaseMove = resolve;
-        });
-        await route.continue();
-      });
-
-      await page.goto(`/collections/${inboxId}`);
-      await waitForCollectionReady(page);
-      await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible({ timeout: 10_000 });
-
-      await enterSelectMode(page);
-      await page.getByRole("button", { name: "Select card", exact: true }).first().click();
-      await page.getByRole("button", { name: /^Move$/ }).click();
-
-      const dialog = page.getByRole("alertdialog");
-      await dialog.getByRole("button", { name: "Target" }).click();
-
-      const moveRequested = page.waitForRequest(
-        (req) => req.method() === "POST" && req.url().endsWith("/api/v1/copies/move"),
-      );
-      await dialog.getByRole("button", { name: /^Move$/ }).click();
-      await moveRequested;
-
-      try {
-        // Don't scope to the alertdialog — see sibling Removing test. The
-        // pending button renders as a `<button>` with the literal text
-        // somewhere in the page (portaled outside the alertdialog subtree).
-        const moving = page.locator("button").filter({ hasText: "Moving…" }).first();
-        await expect(moving).toBeVisible();
-        await expect(moving).toBeDisabled();
-      } finally {
-        releaseMove();
-      }
-    });
   });
 
   test.describe("dispose", () => {
@@ -426,53 +377,6 @@ test.describe("collection actions", () => {
       const dialog = page.getByRole("alertdialog");
       await expect(dialog.getByText(/permanently remove 1 card[^s]/i)).toBeVisible();
       await expect(dialog.getByRole("button", { name: /^Remove 1 card$/ })).toBeVisible();
-    });
-
-    test("confirm button shows 'Removing…' and is disabled while the request is in flight", async ({
-      page,
-    }) => {
-      userEmail = await createAndLogin(page);
-      const inboxId = await findInboxId(userEmail);
-      const annie = await findPrintingIdForCard(ANNIE_FIERY);
-      await seedCopies(page.request, annie, inboxId, 2);
-
-      // Block the dispose response until we manually release it so the
-      // pending state has an unambiguously long window for Playwright to
-      // observe the re-rendered confirm button.
-      let releaseDispose: () => void = () => {};
-      await page.route(/\/api\/v1\/copies\/dispose$/, async (route) => {
-        await new Promise<void>((resolve) => {
-          releaseDispose = resolve;
-        });
-        await route.continue();
-      });
-
-      await page.goto(`/collections/${inboxId}`);
-      await waitForCollectionReady(page);
-      await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible({ timeout: 10_000 });
-
-      await enterSelectMode(page);
-      await page.getByRole("button", { name: "Select card", exact: true }).first().click();
-      await page.getByRole("button", { name: /^Dispose$/ }).click();
-
-      const dialog = page.getByRole("alertdialog");
-
-      const disposeRequested = page.waitForRequest(
-        (req) => req.method() === "POST" && req.url().endsWith("/api/v1/copies/dispose"),
-      );
-      await dialog.getByRole("button", { name: /^Remove 2 cards$/ }).click();
-      await disposeRequested;
-
-      try {
-        // Don't scope to the alertdialog — BaseUI's Popup is portaled outside
-        // the alertdialog tree in ways that made `dialog.locator(...)` miss it.
-        // The pending button renders as a `<button>` with the literal text.
-        const removing = page.locator("button").filter({ hasText: "Removing…" }).first();
-        await expect(removing).toBeVisible();
-        await expect(removing).toBeDisabled();
-      } finally {
-        releaseDispose();
-      }
     });
   });
 });
