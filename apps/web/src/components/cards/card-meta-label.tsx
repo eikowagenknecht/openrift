@@ -40,6 +40,7 @@ export function CardMetaLabel({
   price,
 }: CardMetaLabelProps) {
   const typeLabel = superTypes.length > 0 ? `${superTypes.join(" ")} ${type}` : type;
+  const typeIconPath = getTypeIconPath(type, superTypes);
 
   return (
     // ⚠ space-y-0.5 and py-0.5 are mirrored as META_LINE_GAP / META_LABEL_PY in card-grid-constants.ts — update both together
@@ -51,12 +52,14 @@ export function CardMetaLabel({
       <div className="text-muted-foreground flex min-h-4 items-center justify-between gap-1 text-xs">
         <span className="truncate font-medium">{shortCode}</span>
         <span className="flex shrink-0 items-center gap-1">
-          <img
-            src={getTypeIconPath(type, superTypes)}
-            alt={typeLabel}
-            title={typeLabel}
-            className="size-3.5 brightness-0 dark:invert"
-          />
+          {typeIconPath && (
+            <img
+              src={typeIconPath}
+              alt={typeLabel}
+              title={typeLabel}
+              className="size-3.5 brightness-0 dark:invert"
+            />
+          )}
           <img
             src={`/images/rarities/${rarity.toLowerCase()}-28x28.webp`}
             alt={rarity}

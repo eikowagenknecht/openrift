@@ -215,14 +215,13 @@ export function DeckZoneSection({
     return TYPE_GROUP_ORDER.filter((type) => grouped.has(type)).map((type) => {
       const group = sortedCards(grouped.get(type) ?? []);
       const groupQty = group.reduce((sum, card) => sum + card.quantity, 0);
+      const typeIconPath = getTypeIconPath(type, []);
       return (
         <div key={type} className="flex">
           <div className="flex w-7 shrink-0 flex-col items-center pt-1.5">
-            <img
-              src={getTypeIconPath(type, [])}
-              alt={type}
-              className="size-3.5 brightness-0 dark:invert"
-            />
+            {typeIconPath && (
+              <img src={typeIconPath} alt={type} className="size-3.5 brightness-0 dark:invert" />
+            )}
             <span className="text-muted-foreground text-[10px]">{groupQty}</span>
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -300,18 +299,23 @@ export function DeckZoneSection({
             <div className="flex flex-col gap-1.5">{renderGroupedCards()}</div>
           ) : (
             <div className="flex flex-col gap-0.5">
-              {cards.map((card) => (
-                <div key={`${card.cardId}-${card.zone}`} className="flex">
-                  <div className="flex w-7 shrink-0 items-center justify-center">
-                    <img
-                      src={getTypeIconPath(card.cardType, card.superTypes)}
-                      alt={card.cardType}
-                      className="size-3.5 brightness-0 dark:invert"
-                    />
+              {cards.map((card) => {
+                const typeIconPath = getTypeIconPath(card.cardType, card.superTypes);
+                return (
+                  <div key={`${card.cardId}-${card.zone}`} className="flex">
+                    <div className="flex w-7 shrink-0 items-center justify-center">
+                      {typeIconPath && (
+                        <img
+                          src={typeIconPath}
+                          alt={card.cardType}
+                          className="size-3.5 brightness-0 dark:invert"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">{renderCardRow(card)}</div>
                   </div>
-                  <div className="min-w-0 flex-1">{renderCardRow(card)}</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

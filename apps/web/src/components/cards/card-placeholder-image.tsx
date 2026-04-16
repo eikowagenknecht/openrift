@@ -48,6 +48,7 @@ export function CardPlaceholderImage({
   const domainColors = useDomainColors();
   const primaryDomain = domain[0] ?? WellKnown.domain.COLORLESS;
   const domainIconPath = getFilterIconPath("domains", primaryDomain);
+  const typeIconPath = type ? getTypeIconPath(type, superTypes ?? []) : undefined;
   const bgStyle = getDomainGradientStyle(domain, "", domainColors);
   const noiseId = useId();
 
@@ -128,12 +129,8 @@ export function CardPlaceholderImage({
       {/* Type + Tags */}
       {(type || (tags && tags.length > 0)) && (
         <div className="absolute top-[55%] flex -translate-y-full items-center gap-[1.5cqw] px-[3cqw] pb-[1cqw]">
-          {type && (
-            <img
-              src={getTypeIconPath(type, superTypes ?? [])}
-              alt=""
-              className="size-[4cqw] brightness-0 invert"
-            />
+          {typeIconPath && (
+            <img src={typeIconPath} alt="" className="size-[4cqw] brightness-0 invert" />
           )}
           {type && (
             <span className="relative inline-flex items-center pr-[1.5cqw] pl-[1cqw]">
