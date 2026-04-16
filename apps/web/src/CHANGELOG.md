@@ -2,6 +2,7 @@
 
 ## 2026-04-16
 
+- fix: The last edit you make in the deck builder before navigating away now saves reliably, instead of sometimes being dropped when the save was still pending
 - fix: Deleting an empty collection now opens the confirm dialog right away, instead of silently failing and later popping up for the wrong collection
 - fix: An empty collection now shows a friendly "No cards yet" prompt to add cards, instead of a misleading "server may be unreachable" error
 - fix: If your connection drops while adding, moving, or removing copies, the action now reverts and shows an error toast instead of silently looking like it worked
