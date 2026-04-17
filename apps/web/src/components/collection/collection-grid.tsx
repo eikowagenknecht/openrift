@@ -324,6 +324,14 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     clearSelection();
   };
 
+  // Switching collections drops any in-progress selection — a selected
+  // copy from the previous collection wouldn't be visible in the new grid,
+  // and the floating action bar would operate on invisible rows.
+  useEffect(() => {
+    setSelectMode(false);
+    clearSelection();
+  }, [collectionId, clearSelection]);
+
   // Cmd+K / Ctrl+K shortcut (skip in add mode — it has its own search)
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {

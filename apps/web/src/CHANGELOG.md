@@ -7,6 +7,7 @@
 - feat: Card hover previews in the deck overview now follow your cursor instead of pinning to a fixed spot on the left
 - feat: The deck builder no longer shows the Language filter, since language doesn't matter when picking cards for a deck
 - feat: Card names in the deck's missing-cards dialog now link straight to the product page on TCGplayer, Cardmarket, or CardTrader, instead of a generic search
+- fix: Switching to another collection while in select mode now exits select mode and clears the selection, instead of carrying invisible selected cards from the previous collection
 - fix: Deleting a collection now moves its cards into the Inbox visibly, instead of having them seemingly disappear until you reload the page
 - fix: Clicking a card link (like from the activity feed) now scrolls the grid to that card, instead of opening the detail pane while leaving the grid at the top
 
