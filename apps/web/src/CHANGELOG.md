@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-17
+
+- fix: Clicking a card link (like from the activity feed) now scrolls the grid to that card, instead of opening the detail pane while leaving the grid at the top
+
 ## 2026-04-16
 
 - feat: Opening a deck now shows a dashboard with each zone's progress, card previews, and deck-wide stats, instead of a blank "pick a zone" page. Clicking the active zone again returns to this overview.

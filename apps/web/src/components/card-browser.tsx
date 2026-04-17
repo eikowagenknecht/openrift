@@ -1,6 +1,6 @@
 import type { Printing } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate, useSearch } from "@tanstack/react-router";
+import { useSearch } from "@tanstack/react-router";
 import { PackageIcon, PackagePlusIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useDeferredValue, useRef, useState } from "react";
@@ -32,6 +32,7 @@ import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { Button } from "@/components/ui/button";
 import { useCardData } from "@/hooks/use-card-data";
+import { useCardDeepLink } from "@/hooks/use-card-deep-link";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { collectionsQueryOptions } from "@/hooks/use-collections";
@@ -147,24 +148,7 @@ export function CardBrowser() {
 
   // Deep-link: open a specific printing when navigating from e.g. activity page
   const { printingId: linkedPrintingId } = useSearch({ from: "/_app/cards" });
-  const navigateCards = useNavigate();
-  const deepLinkHandled = useRef(false);
-
-  useEffect(() => {
-    if (!linkedPrintingId || deepLinkHandled.current) {
-      return;
-    }
-    const printing = printingsById[linkedPrintingId];
-    if (printing) {
-      deepLinkHandled.current = true;
-      useSelectionStore.getState().selectCard(printing, items, "printing");
-      void navigateCards({
-        to: ".",
-        search: ({ printingId: _, ...rest }) => rest,
-        replace: true,
-      });
-    }
-  }, [linkedPrintingId, printingsById, items, navigateCards]);
+  useCardDeepLink({ linkedPrintingId, printingsById, items });
 
   // Cmd+K / Ctrl+K shortcut to open quick-add palette
   useEffect(() => {
