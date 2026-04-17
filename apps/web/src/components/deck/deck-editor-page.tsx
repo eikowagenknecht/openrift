@@ -330,14 +330,26 @@ function DeckEditorContent({
     }
   };
 
-  const [hovered, setHovered] = useState<{ id: string; origin: HoverOrigin } | null>(null);
+  const [hovered, setHovered] = useState<{
+    id: string;
+    origin: HoverOrigin;
+    preferredPrintingId: string | null;
+  } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const setHoveredSidebar = (id: string | null) =>
-    setHovered(id ? { id, origin: "sidebar" } : null);
-  const setHoveredMain = (id: string | null) => setHovered(id ? { id, origin: "main" } : null);
+  const setHoveredSidebar = (id: string | null, preferredPrintingId?: string | null) =>
+    setHovered(
+      id ? { id, origin: "sidebar", preferredPrintingId: preferredPrintingId ?? null } : null,
+    );
+  const setHoveredMain = (id: string | null, preferredPrintingId?: string | null) =>
+    setHovered(
+      id ? { id, origin: "main", preferredPrintingId: preferredPrintingId ?? null } : null,
+    );
 
-  const hoveredPrinting = hovered && !isMobile ? (getPreferredPrinting(hovered.id) ?? null) : null;
+  const hoveredPrinting =
+    hovered && !isMobile
+      ? (getPreferredPrinting(hovered.id, hovered.preferredPrintingId) ?? null)
+      : null;
   const hoveredFrontImage = hoveredPrinting?.images.find((image) => image.face === "front") ?? null;
   const hoveredCard =
     hoveredPrinting && hoveredFrontImage

@@ -2,6 +2,7 @@
 
 ## 2026-04-17
 
+- feat: You can now pin a preferred printing per deck row via right-click, so "1 normal + 2 alt art" of the same card show up as separate entries with the art you picked. Piltover deck codes round-trip your variant choices.
 - feat: You can now drag cards between zones straight from the deck overview dashboard, without having to open each zone first
 - feat: The deck overview now shows each zone's full card list with larger thumbnails, a KPI strip for cards, domains, ownership, and value, and the Energy / Power / Types charts as separate cards
 - feat: Card hover previews in the deck overview now follow your cursor instead of pinning to a fixed spot on the left
@@ -9,6 +10,7 @@
 - feat: Card names in the deck's missing-cards dialog now link straight to the product page on TCGplayer, Cardmarket, or CardTrader, instead of a generic search
 - fix: Switching to another collection while in select mode now exits select mode and clears the selection, instead of carrying invisible selected cards from the previous collection
 - fix: Deleting a collection now moves its cards into the Inbox visibly, instead of having them seemingly disappear until you reload the page
+- fix: Card thumbs in the deck overview no longer jump around when you change quantities or drag, since they now follow the same sort order as the sidebar (type group, then energy, power, and name)
 - fix: Clicking a card link (like from the activity feed) now scrolls the grid to that card, instead of opening the detail pane while leaving the grid at the top
 
 ## 2026-04-16

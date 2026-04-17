@@ -38,6 +38,8 @@ export interface DeckCardResponse {
   cardId: string;
   zone: DeckZone;
   quantity: number;
+  /** Optional pin to a specific printing for display. Null means "default art". */
+  preferredPrintingId: string | null;
 }
 
 export interface DeckDetailResponse {
@@ -67,6 +69,8 @@ export interface DeckImportCardPreview {
   cardType: CardType;
   superTypes: SuperType[];
   domains: Domain[];
+  /** Printing resolved from the imported code, when the format carries printing info. */
+  preferredPrintingId: string | null;
 }
 
 export interface DeckImportPreviewResponse {

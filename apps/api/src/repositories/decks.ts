@@ -6,12 +6,15 @@ import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/ind
 import { domainsArray, superTypesArray } from "./query-helpers.js";
 
 /** Slim deck card row — card metadata is resolved client-side from the catalog. */
-type DeckCardRow = Pick<Selectable<DeckCardsTable>, "cardId" | "zone" | "quantity">;
+type DeckCardRow = Pick<
+  Selectable<DeckCardsTable>,
+  "cardId" | "zone" | "quantity" | "preferredPrintingId"
+>;
 
 /** Full deck card row with card details, used for list-page aggregation (type counts, domains, validation). */
 type DeckCardDetailRow = Pick<
   Selectable<DeckCardsTable>,
-  "id" | "deckId" | "cardId" | "zone" | "quantity"
+  "id" | "deckId" | "cardId" | "zone" | "quantity" | "preferredPrintingId"
 > &
   Pick<Selectable<CardsTable>, "energy" | "might" | "power"> & {
     cardName: string;
@@ -117,7 +120,7 @@ export function decksRepo(db: Kysely<Database>) {
       return db
         .selectFrom("deckCards as dc")
         .innerJoin("decks as d", "d.id", "dc.deckId")
-        .select(["dc.cardId", "dc.zone", "dc.quantity"])
+        .select(["dc.cardId", "dc.zone", "dc.quantity", "dc.preferredPrintingId"])
         .where("dc.deckId", "=", deckId)
         .where("d.userId", "=", userId)
         .execute();
@@ -135,6 +138,7 @@ export function decksRepo(db: Kysely<Database>) {
           "dc.cardId",
           "dc.zone",
           "dc.quantity",
+          "dc.preferredPrintingId",
           "c.name as cardName",
           "c.type as cardType",
           "c.tags",
@@ -181,6 +185,7 @@ export function decksRepo(db: Kysely<Database>) {
           "dc.cardId",
           "dc.zone",
           "dc.quantity",
+          "dc.preferredPrintingId",
           "c.name as cardName",
           "c.type as cardType",
           domainsArray("c.id").as("domains"),
@@ -233,7 +238,12 @@ export function decksRepo(db: Kysely<Database>) {
     /** Replaces all cards in a deck within a transaction. Deletes existing cards, inserts new ones, and touches updatedAt. */
     async replaceCards(
       deckId: string,
-      cards: { cardId: string; zone: DeckZone; quantity: number }[],
+      cards: {
+        cardId: string;
+        zone: DeckZone;
+        quantity: number;
+        preferredPrintingId: string | null;
+      }[],
     ): Promise<void> {
       await db.transaction().execute(async (trx) => {
         await trx.deleteFrom("deckCards").where("deckId", "=", deckId).execute();
@@ -283,7 +293,7 @@ export function decksRepo(db: Kysely<Database>) {
 
         const sourceCards = await trx
           .selectFrom("deckCards")
-          .select(["cardId", "zone", "quantity"])
+          .select(["cardId", "zone", "quantity", "preferredPrintingId"])
           .where("deckId", "=", id)
           .execute();
 

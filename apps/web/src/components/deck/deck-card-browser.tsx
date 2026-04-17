@@ -69,7 +69,7 @@ interface DeckCardBrowserProps {
   marketplace: Marketplace;
   onZoneClick: (zone: DeckZone) => void;
   onViewMissing: () => void;
-  onHoverCard?: (cardId: string | null) => void;
+  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
 }
 
 /**
@@ -237,11 +237,11 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const handleRemove = (printing: Printing, event?: React.MouseEvent) => {
     const cardId = printing.cardId;
 
-    // Shift+click removes all copies across all zones
+    // Shift+click removes all copies across all zones (every printing row)
     if (event?.shiftKey) {
       for (const card of deckCards) {
         if (card.cardId === cardId) {
-          setQuantity(cardId, card.zone, 0);
+          setQuantity(cardId, card.zone, 0, card.preferredPrintingId);
         }
       }
       return;

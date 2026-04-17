@@ -35,6 +35,25 @@ function runeTotalOf(cards: DeckBuilderCard[]): number {
 }
 
 /**
+ * Picks the best row matching (cardId, zone) when the caller didn't specify a
+ * printing. Prefers the default-art row (preferredPrintingId === null), so that
+ * pinned printings stay sticky when users decrement via the card browser.
+ *
+ * @returns The chosen row or undefined if no match exists.
+ */
+function findRowForCardInZone(
+  cards: DeckBuilderCard[],
+  cardId: string,
+  zone: DeckZone,
+): DeckBuilderCard | undefined {
+  const matches = cards.filter((c) => c.cardId === cardId && c.zone === zone);
+  if (matches.length === 0) {
+    return undefined;
+  }
+  return matches.find((c) => c.preferredPrintingId === null) ?? matches[0];
+}
+
+/**
  * After a rune is added or removed, adjust a rune of the opposite domain so
  * the total stays at RUNE_TARGET. When incrementing and no opposite-domain
  * rune exists in the deck, falls back to the catalog's runesByDomain.
@@ -70,7 +89,7 @@ function rebalanceRunes(
     if (!otherRune) {
       return;
     }
-    const key = deckCardKey(otherRune.cardId, "runes");
+    const key = deckCardKey(otherRune.cardId, "runes", otherRune.preferredPrintingId);
     if (otherRune.quantity > 1) {
       collection.update(key, (draft) => {
         draft.quantity -= 1;
@@ -87,14 +106,22 @@ function rebalanceRunes(
     (card) => card.zone === "runes" && card.domains.some((domain) => domain === otherDomain),
   );
   if (existingOther) {
-    collection.update(deckCardKey(existingOther.cardId, "runes"), (draft) => {
-      draft.quantity += 1;
-    });
+    collection.update(
+      deckCardKey(existingOther.cardId, "runes", existingOther.preferredPrintingId),
+      (draft) => {
+        draft.quantity += 1;
+      },
+    );
     return;
   }
   const catalogRunes = runesByDomain.get(otherDomain) ?? [];
   if (catalogRunes.length > 0) {
-    collection.insert({ ...catalogRunes[0], zone: "runes", quantity: 1 });
+    collection.insert({
+      ...catalogRunes[0],
+      zone: "runes",
+      quantity: 1,
+      preferredPrintingId: null,
+    });
   }
 }
 
@@ -120,15 +147,16 @@ export function addCardAction(
   if (!isCardAllowedInZone(card, zone)) {
     return;
   }
+  const preferredPrintingId = card.preferredPrintingId;
 
   if (zone === "legend" || zone === "champion") {
-    // Single-card zones: replace whatever is in the zone.
+    // Single-card zones: replace whatever is in the zone, across any printing.
     for (const existing of allCards(collection)) {
       if (existing.zone === zone) {
-        collection.delete(deckCardKey(existing.cardId, zone));
+        collection.delete(deckCardKey(existing.cardId, zone, existing.preferredPrintingId));
       }
     }
-    collection.insert({ ...card, zone, quantity: 1 });
+    collection.insert({ ...card, zone, quantity: 1, preferredPrintingId });
     return;
   }
 
@@ -141,7 +169,7 @@ export function addCardAction(
     if (zoneCards.length >= 3) {
       return;
     }
-    collection.insert({ ...card, zone, quantity: 1 });
+    collection.insert({ ...card, zone, quantity: 1, preferredPrintingId });
     return;
   }
 
@@ -150,14 +178,17 @@ export function addCardAction(
     for (let step = 0; step < addQty; step++) {
       const cards = allCards(collection);
       const existing = cards.find(
-        (entry) => entry.cardId === card.cardId && entry.zone === "runes",
+        (entry) =>
+          entry.cardId === card.cardId &&
+          entry.zone === "runes" &&
+          entry.preferredPrintingId === preferredPrintingId,
       );
       if (existing) {
-        collection.update(deckCardKey(card.cardId, "runes"), (draft) => {
+        collection.update(deckCardKey(card.cardId, "runes", preferredPrintingId), (draft) => {
           draft.quantity += 1;
         });
       } else {
-        collection.insert({ ...card, zone: "runes", quantity: 1 });
+        collection.insert({ ...card, zone: "runes", quantity: 1, preferredPrintingId });
       }
       rebalanceRunes(collection, card.domains, runesByDomain);
       if (runeTotalOf(allCards(collection)) > RUNE_TARGET) {
@@ -179,29 +210,43 @@ export function addCardAction(
     addQty = Math.min(addQty, 3 - total);
   }
 
-  const key = deckCardKey(card.cardId, zone);
-  const existing = cards.find((entry) => entry.cardId === card.cardId && entry.zone === zone);
+  const key = deckCardKey(card.cardId, zone, preferredPrintingId);
+  const existing = cards.find(
+    (entry) =>
+      entry.cardId === card.cardId &&
+      entry.zone === zone &&
+      entry.preferredPrintingId === preferredPrintingId,
+  );
   if (existing) {
     collection.update(key, (draft) => {
       draft.quantity += addQty;
     });
   } else {
-    collection.insert({ ...card, zone, quantity: addQty });
+    collection.insert({ ...card, zone, quantity: addQty, preferredPrintingId });
   }
 }
 
+/**
+ * Decrements (or removes) one copy of a card in a zone. When preferredPrintingId
+ * is undefined, operates on the default-art row first (or any row if no default
+ * exists), so the card browser's minus button leaves pinned printings alone.
+ */
 export function removeCardAction(
   collection: DeckCollection,
   cardId: string,
   zone: DeckZone,
   runesByDomain: Map<string, DeckBuilderCard[]>,
+  preferredPrintingId?: string | null,
 ): void {
-  const key = deckCardKey(cardId, zone);
-  const existing = collection.get(key);
-  if (!existing) {
+  const target =
+    preferredPrintingId === undefined
+      ? findRowForCardInZone(allCards(collection), cardId, zone)
+      : collection.get(deckCardKey(cardId, zone, preferredPrintingId));
+  if (!target) {
     return;
   }
-  if (existing.quantity > 1) {
+  const key = deckCardKey(target.cardId, target.zone, target.preferredPrintingId);
+  if (target.quantity > 1) {
     collection.update(key, (draft) => {
       draft.quantity -= 1;
     });
@@ -209,7 +254,7 @@ export function removeCardAction(
     collection.delete(key);
   }
   if (zone === "runes") {
-    rebalanceRunes(collection, existing.domains, runesByDomain);
+    rebalanceRunes(collection, target.domains, runesByDomain);
   }
 }
 
@@ -218,15 +263,17 @@ export function moveCardAction(
   cardId: string,
   fromZone: DeckZone,
   toZone: DeckZone,
+  preferredPrintingId: string | null,
 ): void {
-  const source = collection.get(deckCardKey(cardId, fromZone));
+  const sourceKey = deckCardKey(cardId, fromZone, preferredPrintingId);
+  const source = collection.get(sourceKey);
   if (!source || !isCardAllowedInZone(source, toZone)) {
     return;
   }
-  const targetKey = deckCardKey(cardId, toZone);
+  const targetKey = deckCardKey(cardId, toZone, preferredPrintingId);
   const target = collection.get(targetKey);
 
-  collection.delete(deckCardKey(cardId, fromZone));
+  collection.delete(sourceKey);
   if (target) {
     collection.update(targetKey, (draft) => {
       draft.quantity += source.quantity;
@@ -241,12 +288,13 @@ export function moveOneCardAction(
   cardId: string,
   fromZone: DeckZone,
   toZone: DeckZone,
+  preferredPrintingId: string | null,
 ): void {
-  const source = collection.get(deckCardKey(cardId, fromZone));
+  const sourceKey = deckCardKey(cardId, fromZone, preferredPrintingId);
+  const source = collection.get(sourceKey);
   if (!source || !isCardAllowedInZone(source, toZone)) {
     return;
   }
-  const sourceKey = deckCardKey(cardId, fromZone);
   if (source.quantity > 1) {
     collection.update(sourceKey, (draft) => {
       draft.quantity -= 1;
@@ -255,7 +303,7 @@ export function moveOneCardAction(
     collection.delete(sourceKey);
   }
 
-  const targetKey = deckCardKey(cardId, toZone);
+  const targetKey = deckCardKey(cardId, toZone, preferredPrintingId);
   const target = collection.get(targetKey);
   if (target) {
     collection.update(targetKey, (draft) => {
@@ -266,24 +314,78 @@ export function moveOneCardAction(
   }
 }
 
+/**
+ * Sets the row's quantity to an absolute value, or deletes it if <=0. When
+ * preferredPrintingId is undefined, operates on the default-art row first.
+ */
 export function setQuantityAction(
   collection: DeckCollection,
   cardId: string,
   zone: DeckZone,
   quantity: number,
+  preferredPrintingId?: string | null,
 ): void {
-  const key = deckCardKey(cardId, zone);
-  const existing = collection.get(key);
-  if (quantity <= 0) {
-    if (existing) {
-      collection.delete(key);
-    }
+  const target =
+    preferredPrintingId === undefined
+      ? findRowForCardInZone(allCards(collection), cardId, zone)
+      : collection.get(deckCardKey(cardId, zone, preferredPrintingId));
+  if (!target) {
     return;
   }
-  if (existing) {
-    collection.update(key, (draft) => {
-      draft.quantity = quantity;
+  const key = deckCardKey(target.cardId, target.zone, target.preferredPrintingId);
+  if (quantity <= 0) {
+    collection.delete(key);
+    return;
+  }
+  collection.update(key, (draft) => {
+    draft.quantity = quantity;
+  });
+}
+
+/**
+ * Changes the preferred printing of a specific row, optionally splitting off
+ * only some copies. When the target printing already has a row at the same
+ * (cardId, zone), quantities merge.
+ *
+ * @param countToConvert - How many copies to move onto the target printing.
+ *   When equal to the source row's full quantity, the source row is removed.
+ */
+export function changePreferredPrintingAction(
+  collection: DeckCollection,
+  cardId: string,
+  zone: DeckZone,
+  fromPrintingId: string | null,
+  toPrintingId: string | null,
+  countToConvert: number,
+): void {
+  if (fromPrintingId === toPrintingId) {
+    return;
+  }
+  const sourceKey = deckCardKey(cardId, zone, fromPrintingId);
+  const source = collection.get(sourceKey);
+  if (!source) {
+    return;
+  }
+  const take = Math.max(1, Math.min(countToConvert, source.quantity));
+
+  // Adjust or remove the source row
+  if (take >= source.quantity) {
+    collection.delete(sourceKey);
+  } else {
+    collection.update(sourceKey, (draft) => {
+      draft.quantity -= take;
     });
+  }
+
+  // Merge into or create the target row
+  const targetKey = deckCardKey(cardId, zone, toPrintingId);
+  const target = collection.get(targetKey);
+  if (target) {
+    collection.update(targetKey, (draft) => {
+      draft.quantity += take;
+    });
+  } else {
+    collection.insert({ ...source, quantity: take, preferredPrintingId: toPrintingId });
   }
 }
 
@@ -294,13 +396,18 @@ export function setLegendAction(
 ): void {
   const cards = allCards(collection);
 
-  // Replace legend slot.
+  // Replace legend slot (across all printings).
   for (const existing of cards) {
     if (existing.zone === "legend") {
-      collection.delete(deckCardKey(existing.cardId, "legend"));
+      collection.delete(deckCardKey(existing.cardId, "legend", existing.preferredPrintingId));
     }
   }
-  collection.insert({ ...card, zone: "legend", quantity: 1 });
+  collection.insert({
+    ...card,
+    zone: "legend",
+    quantity: 1,
+    preferredPrintingId: card.preferredPrintingId,
+  });
 
   // Drop runes that don't match the new legend's domains. Handles both
   // direct swaps and remove-then-add.
@@ -311,7 +418,7 @@ export function setLegendAction(
   );
   if (hasIncompatibleRunes) {
     for (const rune of runesAfter) {
-      collection.delete(deckCardKey(rune.cardId, "runes"));
+      collection.delete(deckCardKey(rune.cardId, "runes", rune.preferredPrintingId));
     }
   }
 
@@ -337,7 +444,12 @@ export function setLegendAction(
       if (already) {
         already.quantity += 1;
       } else {
-        runeEntries.set(rune.cardId, { ...rune, zone: "runes", quantity: 1 });
+        runeEntries.set(rune.cardId, {
+          ...rune,
+          zone: "runes",
+          quantity: 1,
+          preferredPrintingId: null,
+        });
       }
       remaining -= 1;
       index += 1;
@@ -354,10 +466,32 @@ export function setLegendAction(
 
 interface DeckBuilderActions {
   addCard: (card: DeckBuilderCard, zone?: DeckZone, count?: number) => void;
-  removeCard: (cardId: string, zone: DeckZone) => void;
-  moveCard: (cardId: string, fromZone: DeckZone, toZone: DeckZone) => void;
-  moveOneCard: (cardId: string, fromZone: DeckZone, toZone: DeckZone) => void;
-  setQuantity: (cardId: string, zone: DeckZone, quantity: number) => void;
+  removeCard: (cardId: string, zone: DeckZone, preferredPrintingId?: string | null) => void;
+  moveCard: (
+    cardId: string,
+    fromZone: DeckZone,
+    toZone: DeckZone,
+    preferredPrintingId: string | null,
+  ) => void;
+  moveOneCard: (
+    cardId: string,
+    fromZone: DeckZone,
+    toZone: DeckZone,
+    preferredPrintingId: string | null,
+  ) => void;
+  setQuantity: (
+    cardId: string,
+    zone: DeckZone,
+    quantity: number,
+    preferredPrintingId?: string | null,
+  ) => void;
+  changePreferredPrinting: (
+    cardId: string,
+    zone: DeckZone,
+    fromPrintingId: string | null,
+    toPrintingId: string | null,
+    countToConvert: number,
+  ) => void;
   setLegend: (card: DeckBuilderCard, runesByDomain?: Map<string, DeckBuilderCard[]>) => void;
 }
 
@@ -375,10 +509,23 @@ export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
       }
       addCardAction(collection, card, target, count, runesByDomain);
     },
-    removeCard: (cardId, zone) => removeCardAction(collection, cardId, zone, runesByDomain),
-    moveCard: (cardId, from, to) => moveCardAction(collection, cardId, from, to),
-    moveOneCard: (cardId, from, to) => moveOneCardAction(collection, cardId, from, to),
-    setQuantity: (cardId, zone, quantity) => setQuantityAction(collection, cardId, zone, quantity),
+    removeCard: (cardId, zone, preferredPrintingId) =>
+      removeCardAction(collection, cardId, zone, runesByDomain, preferredPrintingId),
+    moveCard: (cardId, from, to, preferredPrintingId) =>
+      moveCardAction(collection, cardId, from, to, preferredPrintingId),
+    moveOneCard: (cardId, from, to, preferredPrintingId) =>
+      moveOneCardAction(collection, cardId, from, to, preferredPrintingId),
+    setQuantity: (cardId, zone, quantity, preferredPrintingId) =>
+      setQuantityAction(collection, cardId, zone, quantity, preferredPrintingId),
+    changePreferredPrinting: (cardId, zone, fromPrintingId, toPrintingId, countToConvert) =>
+      changePreferredPrintingAction(
+        collection,
+        cardId,
+        zone,
+        fromPrintingId,
+        toPrintingId,
+        countToConvert,
+      ),
     setLegend: (card, rbd) => setLegendAction(collection, card, rbd ?? runesByDomain),
   };
 }

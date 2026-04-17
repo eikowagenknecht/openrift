@@ -23,6 +23,7 @@ export interface DeckCardDragData {
   cardName: string;
   fromZone: DeckZone;
   quantity: number;
+  preferredPrintingId: string | null;
 }
 
 export interface BrowserCardDragData {
@@ -232,9 +233,18 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     if (overData?.type !== "deck-zone") {
       if (activeData.type === "deck-card") {
         if (moveAll || activeData.quantity === 1) {
-          actions.setQuantity(activeData.cardId, activeData.fromZone, 0);
+          actions.setQuantity(
+            activeData.cardId,
+            activeData.fromZone,
+            0,
+            activeData.preferredPrintingId,
+          );
         } else {
-          actions.removeCard(activeData.cardId, activeData.fromZone);
+          actions.removeCard(
+            activeData.cardId,
+            activeData.fromZone,
+            activeData.preferredPrintingId,
+          );
         }
       }
       return;
@@ -261,9 +271,19 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
         return;
       }
       if (moveAll || activeData.quantity === 1) {
-        actions.moveCard(activeData.cardId, activeData.fromZone, overData.zone);
+        actions.moveCard(
+          activeData.cardId,
+          activeData.fromZone,
+          overData.zone,
+          activeData.preferredPrintingId,
+        );
       } else {
-        actions.moveOneCard(activeData.cardId, activeData.fromZone, overData.zone);
+        actions.moveOneCard(
+          activeData.cardId,
+          activeData.fromZone,
+          overData.zone,
+          activeData.preferredPrintingId,
+        );
       }
     }
   };

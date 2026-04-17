@@ -8,6 +8,7 @@ import { resetIdCounter, stubDeckBuilderCard } from "@/test/factories";
 
 import {
   addCardAction,
+  changePreferredPrintingAction,
   moveCardAction,
   moveOneCardAction,
   removeCardAction,
@@ -366,5 +367,157 @@ describe("setLegendAction", () => {
     const runes = cardsOf(collection).filter((c) => c.zone === "runes");
     const totalQty = runes.reduce((sum, r) => sum + r.quantity, 0);
     expect(totalQty).toBe(12);
+  });
+});
+
+// ── preferred printing split rows ───────────────────────────────────────────
+
+describe("preferred printings", () => {
+  it("keeps separate rows when the same card is added with distinct printings", () => {
+    const base = stubDeckBuilderCard({
+      cardId: "c1",
+      cardType: "Unit",
+      preferredPrintingId: null,
+    });
+    const alt = stubDeckBuilderCard({
+      cardId: "c1",
+      cardType: "Unit",
+      preferredPrintingId: "printing-alt",
+    });
+    addCardAction(collection, base, "main", 2, EMPTY_RUNES);
+    addCardAction(collection, alt, "main", 1, EMPTY_RUNES);
+    const cards = cardsOf(collection).filter((c) => c.zone === "main");
+    expect(cards).toHaveLength(2);
+    const totalsByPrinting = Map.groupBy(cards, (c) => c.preferredPrintingId ?? "default");
+    expect(totalsByPrinting.get("default")?.[0]?.quantity).toBe(2);
+    expect(totalsByPrinting.get("printing-alt")?.[0]?.quantity).toBe(1);
+  });
+
+  it("enforces the 3-copy cap across distinct printings of the same card", () => {
+    const base = stubDeckBuilderCard({
+      cardId: "c1",
+      cardType: "Unit",
+      preferredPrintingId: null,
+    });
+    const alt = stubDeckBuilderCard({
+      cardId: "c1",
+      cardType: "Unit",
+      preferredPrintingId: "printing-alt",
+    });
+    addCardAction(collection, base, "main", 2, EMPTY_RUNES);
+    addCardAction(collection, alt, "main", 2, EMPTY_RUNES); // only 1 should fit
+    const total = cardsOf(collection)
+      .filter((c) => c.cardId === "c1" && c.zone === "main")
+      .reduce((sum, c) => sum + c.quantity, 0);
+    expect(total).toBe(3);
+  });
+
+  it("removeCard targets the default-art row when no printing is passed", () => {
+    const base = stubDeckBuilderCard({
+      cardId: "c1",
+      cardType: "Unit",
+      zone: "main",
+      preferredPrintingId: null,
+      quantity: 2,
+    });
+    const alt = stubDeckBuilderCard({
+      cardId: "c1",
+      cardType: "Unit",
+      zone: "main",
+      preferredPrintingId: "printing-alt",
+      quantity: 1,
+    });
+    collection = createDraftCollection([base, alt]);
+    removeCardAction(collection, "c1", "main", EMPTY_RUNES);
+    const cards = cardsOf(collection);
+    const baseRow = cards.find((c) => c.preferredPrintingId === null);
+    const altRow = cards.find((c) => c.preferredPrintingId === "printing-alt");
+    expect(baseRow?.quantity).toBe(1);
+    expect(altRow?.quantity).toBe(1);
+  });
+
+  it("removeCard targets a specific row when preferredPrintingId is passed", () => {
+    const alt = stubDeckBuilderCard({
+      cardId: "c1",
+      cardType: "Unit",
+      zone: "main",
+      preferredPrintingId: "printing-alt",
+      quantity: 2,
+    });
+    collection = createDraftCollection([alt]);
+    removeCardAction(collection, "c1", "main", EMPTY_RUNES, "printing-alt");
+    expect(cardsOf(collection)[0].quantity).toBe(1);
+  });
+
+  describe("changePreferredPrintingAction", () => {
+    it("repoints the whole row when count equals the row's quantity", () => {
+      const row = stubDeckBuilderCard({
+        cardId: "c1",
+        cardType: "Unit",
+        zone: "main",
+        preferredPrintingId: null,
+        quantity: 3,
+      });
+      collection = createDraftCollection([row]);
+      changePreferredPrintingAction(collection, "c1", "main", null, "printing-alt", 3);
+      const cards = cardsOf(collection);
+      expect(cards).toHaveLength(1);
+      expect(cards[0].preferredPrintingId).toBe("printing-alt");
+      expect(cards[0].quantity).toBe(3);
+    });
+
+    it("splits into two rows when count is less than the source quantity", () => {
+      const row = stubDeckBuilderCard({
+        cardId: "c1",
+        cardType: "Unit",
+        zone: "main",
+        preferredPrintingId: null,
+        quantity: 3,
+      });
+      collection = createDraftCollection([row]);
+      changePreferredPrintingAction(collection, "c1", "main", null, "printing-alt", 2);
+      const cards = cardsOf(collection);
+      expect(cards).toHaveLength(2);
+      const base = cards.find((c) => c.preferredPrintingId === null);
+      const alt = cards.find((c) => c.preferredPrintingId === "printing-alt");
+      expect(base?.quantity).toBe(1);
+      expect(alt?.quantity).toBe(2);
+    });
+
+    it("merges into an existing target row at the same (card, zone)", () => {
+      const base = stubDeckBuilderCard({
+        cardId: "c1",
+        cardType: "Unit",
+        zone: "main",
+        preferredPrintingId: null,
+        quantity: 2,
+      });
+      const alt = stubDeckBuilderCard({
+        cardId: "c1",
+        cardType: "Unit",
+        zone: "main",
+        preferredPrintingId: "printing-alt",
+        quantity: 1,
+      });
+      collection = createDraftCollection([base, alt]);
+      changePreferredPrintingAction(collection, "c1", "main", null, "printing-alt", 2);
+      const cards = cardsOf(collection);
+      expect(cards).toHaveLength(1);
+      expect(cards[0].preferredPrintingId).toBe("printing-alt");
+      expect(cards[0].quantity).toBe(3);
+    });
+
+    it("no-ops when from and to printings match", () => {
+      const row = stubDeckBuilderCard({
+        cardId: "c1",
+        cardType: "Unit",
+        zone: "main",
+        preferredPrintingId: "printing-alt",
+        quantity: 2,
+      });
+      collection = createDraftCollection([row]);
+      changePreferredPrintingAction(collection, "c1", "main", "printing-alt", "printing-alt", 2);
+      expect(cardsOf(collection)[0].quantity).toBe(2);
+    });
   });
 });

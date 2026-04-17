@@ -1,7 +1,8 @@
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DeckZone, Marketplace } from "@openrift/shared";
-import { AlertTriangleIcon, CheckCircle2Icon, PackageSearchIcon } from "lucide-react";
+import { AlertTriangleIcon, CheckCircle2Icon, PackageSearchIcon, PencilIcon } from "lucide-react";
 
+import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
 import type {
   BrowserCardDragData,
   DeckCardDragData,
@@ -21,9 +22,11 @@ import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { isCardAllowedInZone } from "@/lib/deck-builder-card";
+import { getDeckCardKey, isCardAllowedInZone } from "@/lib/deck-builder-card";
+import { GROUPED_ZONES, sortOverviewCards, TYPE_GROUP_ORDER } from "@/lib/deck-card-sort";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { formatterForMarketplace } from "@/lib/format";
+import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 const ZONE_EXPECTED: Partial<Record<DeckZone, number>> = {
@@ -67,7 +70,7 @@ interface DeckOverviewProps {
   marketplace: Marketplace;
   onZoneClick: (zone: DeckZone) => void;
   onViewMissing: () => void;
-  onHoverCard?: (cardId: string | null) => void;
+  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
 }
 
 /**
@@ -199,6 +202,7 @@ export function DeckOverview({
           {SMALL_ZONES.map((zone) => (
             <ZoneTile
               key={zone}
+              deckId={deckId}
               zone={zone}
               label={ZONE_LABELS[zone]}
               cards={cards.filter((card) => card.zone === zone)}
@@ -211,11 +215,14 @@ export function DeckOverview({
               className={SMALL_ZONE_SPAN[zone]}
               onClick={() => onZoneClick(zone)}
               onHoverCard={onHoverCard}
-              getThumbnail={(cardId) => getPreferredFrontImage(cardId)?.thumbnail}
+              getThumbnail={(cardId, preferredPrintingId) =>
+                getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
+              }
             />
           ))}
         </div>
         <ZoneTile
+          deckId={deckId}
           zone="main"
           label={ZONE_LABELS.main}
           cards={cards.filter((card) => card.zone === "main")}
@@ -227,9 +234,12 @@ export function DeckOverview({
           )}
           onClick={() => onZoneClick("main")}
           onHoverCard={onHoverCard}
-          getThumbnail={(cardId) => getPreferredFrontImage(cardId)?.thumbnail}
+          getThumbnail={(cardId, preferredPrintingId) =>
+            getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
+          }
         />
         <ZoneTile
+          deckId={deckId}
           zone="sideboard"
           label={ZONE_LABELS.sideboard}
           cards={cards.filter((card) => card.zone === "sideboard")}
@@ -241,10 +251,13 @@ export function DeckOverview({
           )}
           onClick={() => onZoneClick("sideboard")}
           onHoverCard={onHoverCard}
-          getThumbnail={(cardId) => getPreferredFrontImage(cardId)?.thumbnail}
+          getThumbnail={(cardId, preferredPrintingId) =>
+            getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
+          }
         />
         {cards.some((card) => card.zone === "overflow") && (
           <ZoneTile
+            deckId={deckId}
             zone="overflow"
             label={ZONE_LABELS.overflow}
             cards={cards.filter((card) => card.zone === "overflow")}
@@ -256,7 +269,9 @@ export function DeckOverview({
             )}
             onClick={() => onZoneClick("overflow")}
             onHoverCard={onHoverCard}
-            getThumbnail={(cardId) => getPreferredFrontImage(cardId)?.thumbnail}
+            getThumbnail={(cardId, preferredPrintingId) =>
+              getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
+            }
           />
         )}
       </div>
@@ -396,6 +411,7 @@ const COPY_LIMIT_ZONES: ReadonlySet<DeckZone> = new Set([
 ]);
 
 interface ZoneTileProps {
+  deckId: string;
   zone: DeckZone;
   label: string;
   cards: DeckBuilderCard[];
@@ -405,11 +421,12 @@ interface ZoneTileProps {
   hasViolation: boolean;
   className?: string;
   onClick: () => void;
-  onHoverCard?: (cardId: string | null) => void;
-  getThumbnail: (cardId: string) => string | undefined;
+  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
 }
 
 function ZoneTile({
+  deckId,
   zone,
   label,
   cards,
@@ -427,12 +444,10 @@ function ZoneTile({
   const isComplete = !hasViolation && expected !== undefined && quantity === expected;
   const isLandscape = LANDSCAPE_ZONES.has(zone);
 
-  const sortedCards = cards.toSorted((a, b) => {
-    if (b.quantity !== a.quantity) {
-      return b.quantity - a.quantity;
-    }
-    return a.cardName.localeCompare(b.cardName);
-  });
+  // Match the sidebar's sort: grouped zones order by type (Unit → Spell → Gear)
+  // and curve (energy → power → name); single-card zones use the API-provided
+  // order (alphabetical by card name within the zone).
+  const sortedCards = sortOverviewCards(cards, zone);
 
   // Drop-target wiring — mirrors the logic in deck-zone-section.tsx so the
   // sidebar and overview reject the same drags (copy limit, battlefield
@@ -487,13 +502,10 @@ function ZoneTile({
   });
 
   return (
-    <button
+    <div
       ref={dropRef}
-      type="button"
-      onClick={onClick}
       className={cn(
-        "group bg-card flex flex-col gap-2 rounded-lg border p-3 text-left transition-colors",
-        "hover:border-primary/50 hover:bg-muted/40",
+        "group bg-card relative flex flex-col gap-2 rounded-lg border p-3 transition-colors",
         hasViolation && "border-destructive/50",
         isOver && !dropDisabled && "ring-primary/60 ring-2",
         dropDisabled && "opacity-40",
@@ -517,16 +529,26 @@ function ZoneTile({
 
       {isEmpty ? (
         <p className="text-muted-foreground text-xs">{emptyHint}</p>
+      ) : GROUPED_ZONES.has(zone) ? (
+        <GroupedThumbs
+          deckId={deckId}
+          zone={zone}
+          cards={sortedCards}
+          isLandscape={isLandscape}
+          onHoverCard={onHoverCard}
+          getThumbnail={getThumbnail}
+        />
       ) : (
         <div className="flex flex-wrap items-center gap-1.5">
           {sortedCards.map((card) => {
-            const thumbnail = getThumbnail(card.cardId);
+            const thumbnail = getThumbnail(card.cardId, card.preferredPrintingId);
             if (!thumbnail) {
               return null;
             }
             return (
               <ZoneThumb
-                key={card.cardId}
+                key={getDeckCardKey(card)}
+                deckId={deckId}
                 card={card}
                 zone={zone}
                 thumbnail={thumbnail}
@@ -537,22 +559,105 @@ function ZoneTile({
           })}
         </div>
       )}
-    </button>
+
+      <button
+        type="button"
+        onClick={onClick}
+        aria-label={`Edit ${label}`}
+        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute right-2 bottom-2 flex size-7 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+      >
+        <PencilIcon className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Renders grouped thumbs for main / sideboard / overflow zones. Each type
+ * group (Unit / Spell / Gear / other) gets its own row with an icon + name +
+ * count header above a flex-wrap of thumbs, mirroring the sidebar's grouped
+ * layout but with thumbnails instead of list rows.
+ * @returns Stacked type-group sections.
+ */
+function GroupedThumbs({
+  deckId,
+  zone,
+  cards,
+  isLandscape,
+  onHoverCard,
+  getThumbnail,
+}: {
+  deckId: string;
+  zone: DeckZone;
+  cards: DeckBuilderCard[];
+  isLandscape: boolean;
+  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
+}) {
+  const grouped = Map.groupBy(cards, (card) => card.cardType);
+  const presentTypes = [
+    ...TYPE_GROUP_ORDER.filter((type) => grouped.has(type)),
+    // Any card types outside TYPE_GROUP_ORDER still get a row at the end,
+    // preserving the deck's sort order.
+    ...[...grouped.keys()].filter((type) => !TYPE_GROUP_ORDER.includes(type)),
+  ];
+
+  return (
+    <div className="flex flex-wrap items-start gap-x-5 gap-y-3">
+      {presentTypes.map((type) => {
+        const group = grouped.get(type) ?? [];
+        const count = group.reduce((sum, card) => sum + card.quantity, 0);
+        const iconPath = getTypeIconPath(type, []);
+        return (
+          <div key={type} className="flex flex-col gap-1.5">
+            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              {iconPath && (
+                <img src={iconPath} alt="" className="size-3.5 brightness-0 dark:invert" />
+              )}
+              <span className="whitespace-nowrap">
+                {type}s <span className="text-muted-foreground/60">· {count}</span>
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {group.map((card) => {
+                const thumbnail = getThumbnail(card.cardId, card.preferredPrintingId);
+                if (!thumbnail) {
+                  return null;
+                }
+                return (
+                  <ZoneThumb
+                    key={getDeckCardKey(card)}
+                    deckId={deckId}
+                    card={card}
+                    zone={zone}
+                    thumbnail={thumbnail}
+                    isLandscape={isLandscape}
+                    onHoverCard={onHoverCard}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
 function ZoneThumb({
+  deckId,
   card,
   zone,
   thumbnail,
   isLandscape,
   onHoverCard,
 }: {
+  deckId: string;
   card: DeckBuilderCard;
   zone: DeckZone;
   thumbnail: string;
   isLandscape: boolean;
-  onHoverCard?: (cardId: string | null) => void;
+  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
 }) {
   const isMobile = useIsMobile();
   const enableDrag = !isMobile && DRAG_SOURCE_ZONES.has(zone);
@@ -563,38 +668,44 @@ function ZoneThumb({
     cardName: card.cardName,
     fromZone: zone,
     quantity: card.quantity,
+    preferredPrintingId: card.preferredPrintingId,
   };
 
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
-    id: `overview-thumb-${card.cardId}-${zone}`,
+    id: `overview-thumb-${card.cardId}-${zone}-${card.preferredPrintingId ?? "default"}`,
     data: dragData,
     disabled: !enableDrag,
   });
 
   return (
-    <div
-      ref={enableDrag ? setNodeRef : undefined}
-      className={cn(
-        "relative shrink-0",
-        enableDrag && "cursor-grab active:cursor-grabbing",
-        isDragging && card.quantity === 1 && "opacity-40",
-      )}
-      onMouseEnter={() => onHoverCard?.(card.cardId)}
-      onMouseLeave={() => onHoverCard?.(null)}
-      {...(enableDrag ? listeners : {})}
-      {...(enableDrag ? attributes : {})}
-    >
-      <img
-        src={thumbnail}
-        alt={card.cardName}
-        className={cn("rounded-md object-cover shadow-sm", isLandscape ? "h-20 w-28" : "h-28 w-20")}
-        draggable={false}
-      />
-      {card.quantity > 1 && (
-        <span className="bg-background/90 text-foreground absolute right-0.5 bottom-0.5 rounded px-1 text-[10px] leading-tight font-medium tabular-nums">
-          ×{card.quantity}
-        </span>
-      )}
-    </div>
+    <DeckCardPrintingMenu deckId={deckId} card={card}>
+      <div
+        ref={enableDrag ? setNodeRef : undefined}
+        className={cn(
+          "relative shrink-0",
+          enableDrag && "cursor-grab active:cursor-grabbing",
+          isDragging && card.quantity === 1 && "opacity-40",
+        )}
+        onMouseEnter={() => onHoverCard?.(card.cardId, card.preferredPrintingId)}
+        onMouseLeave={() => onHoverCard?.(null)}
+        {...(enableDrag ? listeners : {})}
+        {...(enableDrag ? attributes : {})}
+      >
+        <img
+          src={thumbnail}
+          alt={card.cardName}
+          className={cn(
+            "rounded-md object-cover shadow-sm",
+            isLandscape ? "h-20 w-28" : "h-28 w-20",
+          )}
+          draggable={false}
+        />
+        {card.quantity > 1 && (
+          <span className="bg-background/90 text-foreground absolute right-0.5 bottom-0.5 rounded px-1 text-[10px] leading-tight font-medium tabular-nums">
+            ×{card.quantity}
+          </span>
+        )}
+      </div>
+    </DeckCardPrintingMenu>
   );
 }

@@ -369,7 +369,12 @@ export const decksRoute = decksApp
 
     await decks.replaceCards(
       id,
-      body.cards.map((card) => ({ ...card, zone: card.zone as DeckZone })),
+      body.cards.map((card) => ({
+        cardId: card.cardId,
+        zone: card.zone as DeckZone,
+        quantity: card.quantity,
+        preferredPrintingId: card.preferredPrintingId ?? null,
+      })),
     );
 
     const cardRows = await decks.cardsForDeck(id, userId);
@@ -436,14 +441,17 @@ export const decksRoute = decksApp
     ]);
     assertFound(deck, "Not found");
 
-    const cardIds = [...new Set(cardRows.map((row) => row.cardId))];
-    const shortCodes = await canonicalPrintings.canonicalShortCodesByCardIds(cardIds);
-    const shortCodeMap = new Map(shortCodes.map((sc) => [sc.cardId, sc.shortCode]));
+    const resolvedShortCodes = await canonicalPrintings.shortCodesForRows(
+      cardRows.map((row) => ({
+        cardId: row.cardId,
+        preferredPrintingId: row.preferredPrintingId,
+      })),
+    );
 
     const warnings: string[] = [];
     const codecCards: TextCodecCard[] = [];
-    for (const row of cardRows) {
-      const shortCode = shortCodeMap.get(row.cardId);
+    for (const [index, row] of cardRows.entries()) {
+      const shortCode = resolvedShortCodes[index]?.shortCode;
       if (!shortCode) {
         warnings.push(`Skipped "${row.cardName}": no canonical printing found`);
         continue;
@@ -457,6 +465,7 @@ export const decksRoute = decksApp
         superTypes: row.superTypes,
         domains: row.domains,
         cardName: row.cardName,
+        preferredPrintingId: row.preferredPrintingId,
       });
     }
 
@@ -498,12 +507,15 @@ export const decksRoute = decksApp
       {
         cardId: string;
         shortCode: string;
+        printingId: string;
         cardName: string;
         cardType: CardType;
         superTypes: SuperType[];
         domains: Domain[];
       }
     >;
+    // Piltover and TTS codes carry variant-level printing info; text does not.
+    const formatCarriesPrinting = format !== "text";
 
     if (format === "text") {
       const decoded = decodeText(body.code);
@@ -571,6 +583,7 @@ export const decksRoute = decksApp
         cardType: card.cardType,
         superTypes: card.superTypes,
         domains: card.domains,
+        preferredPrintingId: formatCarriesPrinting ? card.printingId : null,
       });
     }
 

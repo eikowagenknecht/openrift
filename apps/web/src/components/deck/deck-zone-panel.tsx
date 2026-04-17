@@ -16,7 +16,7 @@ interface DeckZonePanelProps {
   deckId: string;
   onZoneClick?: (zone: DeckZone) => void;
   onOverviewClick?: () => void;
-  onHoverCard?: (cardId: string | null) => void;
+  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   ownershipData?: DeckOwnershipData;
   marketplace?: Marketplace;
   onViewMissing?: () => void;
