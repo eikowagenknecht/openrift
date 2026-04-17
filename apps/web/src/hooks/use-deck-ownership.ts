@@ -12,6 +12,11 @@ export interface CardOwnership {
   owned: number;
   shortfall: number;
   cheapestPrice: number | undefined;
+  /**
+   * The printing whose price backed `cheapestPrice` — used to deep-link to the
+   * matching marketplace product. `undefined` when no price was available.
+   */
+  cheapestPrinting: { id: string; language: string } | undefined;
 }
 
 export interface DeckOwnershipData {
@@ -56,14 +61,21 @@ export function computeDeckOwnership(
     }
   }
 
-  // Build cheapest price by cardId
-  const cheapestByCardId = new Map<string, number>();
+  // Build cheapest price by cardId, remembering which printing supplied it so
+  // the missing-cards dialog can deep-link to the matching marketplace product.
+  const cheapestByCardId = new Map<
+    string,
+    { price: number; printing: { id: string; language: string } }
+  >();
   for (const printing of allPrintings) {
     const price = prices.get(printing.id, marketplace);
     if (price !== undefined) {
       const existing = cheapestByCardId.get(printing.cardId);
-      if (existing === undefined || price < existing) {
-        cheapestByCardId.set(printing.cardId, price);
+      if (existing === undefined || price < existing.price) {
+        cheapestByCardId.set(printing.cardId, {
+          price,
+          printing: { id: printing.id, language: printing.language },
+        });
       }
     }
   }
@@ -92,7 +104,8 @@ export function computeDeckOwnership(
 
     claimedByCardId.set(card.cardId, alreadyClaimed + ownedInZone);
 
-    const cheapestPrice = cheapestByCardId.get(card.cardId);
+    const cheapest = cheapestByCardId.get(card.cardId);
+    const cheapestPrice = cheapest?.price;
 
     const entry: CardOwnership = {
       cardId: card.cardId,
@@ -102,6 +115,7 @@ export function computeDeckOwnership(
       owned: ownedInZone,
       shortfall,
       cheapestPrice,
+      cheapestPrinting: cheapest?.printing,
     };
 
     byCardZone.set(`${card.cardId}:${card.zone}`, entry);

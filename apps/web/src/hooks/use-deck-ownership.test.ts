@@ -158,6 +158,33 @@ describe("computeDeckOwnership", () => {
     expect(result.missingValueCents).toBe(3);
   });
 
+  it("tracks the printing that supplied the cheapest price", () => {
+    const cardId = "card-1";
+
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
+    const printings = [
+      stubPrinting({ id: "p1", cardId, language: "EN" }),
+      stubPrinting({ id: "p2", cardId, language: "DE" }),
+    ];
+    const prices = stubPriceLookup({
+      p1: { tcgplayer: 5 },
+      p2: { tcgplayer: 3 },
+    });
+
+    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices);
+    const [entry] = result.missingCards;
+    expect(entry?.cheapestPrinting).toEqual({ id: "p2", language: "DE" });
+  });
+
+  it("omits cheapestPrinting when no price is available", () => {
+    const cardId = "card-1";
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
+    const printings = [stubPrinting({ id: "p1", cardId })];
+
+    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", EMPTY_PRICE_LOOKUP);
+    expect(result.missingCards[0]?.cheapestPrinting).toBeUndefined();
+  });
+
   it("returns undefined values when no price data is available", () => {
     const cardId = "card-1";
 

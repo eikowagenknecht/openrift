@@ -48,6 +48,9 @@ export const queryKeys = {
     byPrinting: (printingId: string, range: TimeRange) =>
       ["priceHistory", printingId, range] as const,
   },
+  marketplaceInfo: {
+    byPrintings: (printingIds: readonly string[]) => ["marketplaceInfo", printingIds] as const,
+  },
   collectionValueHistory: {
     byParams: (marketplace: string, range: TimeRange, collectionId?: string, scope?: string) =>
       ["collectionValueHistory", marketplace, range, collectionId, scope] as const,

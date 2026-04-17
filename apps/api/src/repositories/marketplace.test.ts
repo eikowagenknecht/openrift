@@ -18,6 +18,27 @@ describe("marketplaceRepo", () => {
     expect(await repo.sourcesForPrinting("p1")).toEqual(rows);
   });
 
+  it("sourcesForPrintings short-circuits on empty input", async () => {
+    const db = createMockDb([]);
+    const repo = marketplaceRepo(db);
+    expect(await repo.sourcesForPrintings([])).toEqual([]);
+  });
+
+  it("sourcesForPrintings returns batched product sources", async () => {
+    const rows = [
+      {
+        printingId: "p1",
+        externalId: 12_345,
+        marketplace: "tcgplayer",
+        languageAggregate: false,
+      },
+      { printingId: "p2", externalId: 67_890, marketplace: "cardmarket", languageAggregate: true },
+    ];
+    const db = createMockDb(rows);
+    const repo = marketplaceRepo(db);
+    expect(await repo.sourcesForPrintings(["p1", "p2"])).toEqual(rows);
+  });
+
   it("snapshots without cutoff returns all snapshots", async () => {
     const rows = [{ recordedAt: new Date(), marketCents: 1500 }];
     const db = createMockDb(rows);

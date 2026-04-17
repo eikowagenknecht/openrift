@@ -179,28 +179,42 @@ const cardtraderSnapshotSchema = z.object({
   low: z.number().openapi({ example: 3.9 }),
 });
 
+const marketplaceInfoSchema = z.object({
+  available: z.boolean().openapi({ example: true }),
+  productId: z.number().nullable().openapi({ example: 582_391 }),
+  languageAggregate: z.boolean().openapi({ example: false }),
+});
+
 export const priceHistoryResponseSchema = z
   .object({
-    tcgplayer: z.object({
-      available: z.boolean().openapi({ example: true }),
-      productId: z.number().nullable().openapi({ example: 582_391 }),
-      snapshots: z.array(tcgplayerSnapshotSchema),
-      languageAggregate: z.boolean().openapi({ example: false }),
-    }),
-    cardmarket: z.object({
-      available: z.boolean().openapi({ example: true }),
-      productId: z.number().nullable().openapi({ example: 748_215 }),
-      snapshots: z.array(cardmarketSnapshotSchema),
-      languageAggregate: z.boolean().openapi({ example: true }),
-    }),
-    cardtrader: z.object({
-      available: z.boolean().openapi({ example: false }),
-      productId: z.number().nullable().openapi({ example: null }),
-      snapshots: z.array(cardtraderSnapshotSchema),
-      languageAggregate: z.boolean().openapi({ example: false }),
-    }),
+    tcgplayer: marketplaceInfoSchema.extend({ snapshots: z.array(tcgplayerSnapshotSchema) }),
+    cardmarket: marketplaceInfoSchema.extend({ snapshots: z.array(cardmarketSnapshotSchema) }),
+    cardtrader: marketplaceInfoSchema.extend({ snapshots: z.array(cardtraderSnapshotSchema) }),
   })
   .openapi("PriceHistoryResponse");
+
+export const marketplaceInfoResponseSchema = z
+  .object({
+    infos: z
+      .record(
+        z.string(),
+        z.object({
+          tcgplayer: marketplaceInfoSchema,
+          cardmarket: marketplaceInfoSchema,
+          cardtrader: marketplaceInfoSchema,
+        }),
+      )
+      .openapi({
+        example: {
+          "019cfc3b-03d3-7dac-86c9-27900cd43727": {
+            tcgplayer: { available: true, productId: 582_391, languageAggregate: false },
+            cardmarket: { available: true, productId: 748_215, languageAggregate: true },
+            cardtrader: { available: false, productId: null, languageAggregate: false },
+          },
+        },
+      }),
+  })
+  .openapi("MarketplaceInfoResponse");
 
 // ── Catalog ──────────────────────────────────────────────────────────────────
 

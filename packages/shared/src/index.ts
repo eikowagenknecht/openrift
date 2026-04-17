@@ -80,6 +80,8 @@ export type {
   MappingPrintingResponse,
   Marketplace,
   MarketplaceGroupResponse,
+  MarketplaceInfo,
+  MarketplaceInfoResponse,
   PriceHistoryResponse,
   PriceLookup,
   PriceMap,

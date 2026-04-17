@@ -115,6 +115,51 @@ export function marketplaceRepo(db: Kysely<Database>) {
       return result.rows;
     },
 
+    /**
+     * Batch version of {@link sourcesForPrinting}. Returns marketplace source rows
+     * for each given printing, tagged with the target `printingId` so callers can
+     * group by printing without replaying the sibling fan-out join client-side.
+     *
+     * @returns Rows keyed by the requested `printingId`.
+     */
+    async sourcesForPrintings(printingIds: string[]): Promise<
+      {
+        printingId: string;
+        externalId: number;
+        marketplace: string;
+        languageAggregate: boolean;
+      }[]
+    > {
+      if (printingIds.length === 0) {
+        return [];
+      }
+      const result = await sql<{
+        printingId: string;
+        externalId: number;
+        marketplace: string;
+        languageAggregate: boolean;
+      }>`
+        SELECT
+          target.id as "printingId",
+          mp.external_id as "externalId",
+          mp.marketplace as "marketplace",
+          (mpv.language IS NULL) as "languageAggregate"
+        FROM printings target
+        JOIN printings source
+          ON source.card_id = target.card_id
+          AND source.short_code = target.short_code
+          AND source.finish = target.finish
+          AND source.art_variant = target.art_variant
+          AND source.is_signed = target.is_signed
+          AND source.marker_slugs = target.marker_slugs
+        JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
+        JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
+        WHERE target.id = ANY(${printingIds}::uuid[])
+          AND (mpv.language IS NULL OR source.id = target.id)
+      `.execute(db);
+      return result.rows;
+    },
+
     /** @returns Snapshots for a single variant, optionally filtered by a cutoff date, ordered chronologically. */
     snapshots(
       variantId: string,

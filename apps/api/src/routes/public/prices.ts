@@ -1,14 +1,22 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { TIME_RANGE_DAYS, centsToDollars, formatDateUTC } from "@openrift/shared";
-import type { Marketplace, PriceHistoryResponse, PriceMap, PricesResponse } from "@openrift/shared";
+import type {
+  Marketplace,
+  MarketplaceInfo,
+  MarketplaceInfoResponse,
+  PriceHistoryResponse,
+  PriceMap,
+  PricesResponse,
+} from "@openrift/shared";
 import {
+  marketplaceInfoResponseSchema,
   priceHistoryResponseSchema,
   pricesResponseSchema,
 } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
 
 import type { Variables } from "../../types.js";
-import { printingIdParamSchema, rangeQuerySchema } from "./schemas.js";
+import { marketplaceInfoQuerySchema, printingIdParamSchema, rangeQuerySchema } from "./schemas.js";
 
 const getPrices = createRoute({
   method: "get",
@@ -38,9 +46,33 @@ const getPriceHistory = createRoute({
   },
 });
 
+const getMarketplaceInfo = createRoute({
+  method: "get",
+  path: "/prices/marketplace-info",
+  tags: ["Prices"],
+  request: { query: marketplaceInfoQuerySchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: marketplaceInfoResponseSchema } },
+      description: "Marketplace source metadata (productId, languageAggregate) for printings",
+    },
+  },
+});
+
+function emptyMarketplaceInfo(marketplace: Marketplace): MarketplaceInfo {
+  return {
+    available: false,
+    productId: null,
+    // Cardmarket's price guide is a cross-language aggregate; see the history
+    // route for the same default.
+    languageAggregate: marketplace === "cardmarket",
+  };
+}
+
 const pricesApp = new OpenAPIHono<{ Variables: Variables }>();
 pricesApp.use("/prices", etag());
 pricesApp.use("/prices/:printingId/history", etag());
+pricesApp.use("/prices/marketplace-info", etag());
 export const pricesRoute = pricesApp
   /**
    * `GET /prices` — Returns the latest market price per marketplace for every printing.
@@ -189,4 +221,42 @@ export const pricesRoute = pricesApp
 
     c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
     return c.json(response);
+  })
+  /**
+   * `GET /prices/marketplace-info?printings=uuid1,uuid2,...` — Batch variant of
+   * the `productId` / `languageAggregate` fields from the history endpoint.
+   *
+   * Returns source metadata only (no snapshots) so the frontend can craft
+   * deep-link marketplace URLs for an arbitrary set of printings (e.g. every
+   * missing card in a deck) with a single request. Unmapped printings and
+   * unmapped marketplaces get `available: false` and `productId: null`.
+   */
+  .openapi(getMarketplaceInfo, async (c) => {
+    const { marketplace } = c.get("repos");
+    const { printings } = c.req.valid("query");
+
+    const rows = await marketplace.sourcesForPrintings(printings);
+
+    const infos: MarketplaceInfoResponse["infos"] = {};
+    for (const printingId of printings) {
+      infos[printingId] = {
+        tcgplayer: emptyMarketplaceInfo("tcgplayer"),
+        cardmarket: emptyMarketplaceInfo("cardmarket"),
+        cardtrader: emptyMarketplaceInfo("cardtrader"),
+      };
+    }
+    for (const row of rows) {
+      const entry = infos[row.printingId];
+      if (!entry) {
+        continue;
+      }
+      entry[row.marketplace as Marketplace] = {
+        available: true,
+        productId: row.externalId,
+        languageAggregate: row.languageAggregate,
+      };
+    }
+
+    c.header("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
+    return c.json({ infos } satisfies MarketplaceInfoResponse);
   });

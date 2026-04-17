@@ -38,22 +38,39 @@ export interface CardtraderSnapshot {
 }
 
 /**
- * Per-marketplace slice of the price history response. `languageAggregate`
- * is `true` when the marketplace only exposes a single cross-language price
- * (Cardmarket's price guide) — the UI should render an "any language" note
- * next to the price so users understand it doesn't break down per-language.
+ * Metadata describing how a marketplace maps to a printing: whether a mapping
+ * exists, its external product ID (for deep-link URLs), and whether the
+ * marketplace exposes only a cross-language aggregate price (Cardmarket).
  */
-interface PriceHistorySlice<TSnapshot> {
+export interface MarketplaceInfo {
   available: boolean;
   productId: number | null;
-  snapshots: TSnapshot[];
   languageAggregate: boolean;
+}
+
+/**
+ * Per-marketplace slice of the price history response — {@link MarketplaceInfo}
+ * plus the snapshot series.
+ */
+interface PriceHistorySlice<TSnapshot> extends MarketplaceInfo {
+  snapshots: TSnapshot[];
 }
 
 export interface PriceHistoryResponse {
   tcgplayer: PriceHistorySlice<TcgplayerSnapshot>;
   cardmarket: PriceHistorySlice<CardmarketSnapshot>;
   cardtrader: PriceHistorySlice<CardtraderSnapshot>;
+}
+
+export interface MarketplaceInfoResponse {
+  infos: Record<
+    string,
+    {
+      tcgplayer: MarketplaceInfo;
+      cardmarket: MarketplaceInfo;
+      cardtrader: MarketplaceInfo;
+    }
+  >;
 }
 
 export type AnySnapshot = TcgplayerSnapshot | CardmarketSnapshot | CardtraderSnapshot;
