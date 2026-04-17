@@ -1,6 +1,6 @@
 import type { CollectionResponse } from "@openrift/shared";
 import { useLiveQuery } from "@tanstack/react-db";
-import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { getCopiesCollection } from "@/lib/copies-collection";
@@ -117,8 +117,36 @@ const deleteCollectionFn = createServerFn({ method: "POST" })
   });
 
 export function useDeleteCollection() {
-  return useMutationWithInvalidation({
-    mutationFn: (id: string) => deleteCollectionFn({ data: { id } }),
-    invalidates: [queryKeys.collections.all, queryKeys.copies.all],
+  const queryClient = useQueryClient();
+  const copiesCollection = getCopiesCollection(queryClient);
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await deleteCollectionFn({ data: { id } });
+      return id;
+    },
+    onSuccess: (deletedId) => {
+      // Server atomically moved the remaining copies to the inbox before
+      // deleting the collection. Mirror that move in the synced copies
+      // collection so live queries (sidebar counts, owned-count, grids)
+      // reflect it immediately. Invalidating queryKeys.copies.all alone
+      // doesn't work, because the TanStack DB collection is keyed
+      // separately as ["copies-collection"].
+      const cached = queryClient.getQueryData<CollectionsResponse>(queryKeys.collections.all);
+      const inboxId = cached?.items.find((col) => col.isInbox)?.id;
+      if (inboxId) {
+        const affected = copiesCollection.toArray.filter((copy) => copy.collectionId === deletedId);
+        if (affected.length > 0) {
+          copiesCollection.utils.writeUpdate(
+            affected.map((copy) => ({ id: copy.id, collectionId: inboxId })),
+          );
+        }
+      }
+      void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.copies.all,
+        refetchType: "none",
+      });
+    },
   });
 }
