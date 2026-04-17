@@ -513,9 +513,19 @@ export function useCreatePrinting() {
       printingFields,
     }: {
       cardId: string;
+      cardSlug?: string;
       printingFields: AcceptPrintingBody["printingFields"];
     }) => createPrintingFn({ data: { cardId, printingFields } }),
-    invalidates: ({ cardId }) => [queryKeys.admin.cards.detail(cardId), queryKeys.admin.cards.list],
+    invalidates: ({ cardId, cardSlug }) => {
+      const keys: (readonly unknown[])[] = [
+        queryKeys.admin.cards.detail(cardId),
+        queryKeys.admin.cards.list,
+      ];
+      if (cardSlug) {
+        keys.push(queryKeys.admin.cards.detail(cardSlug));
+      }
+      return keys;
+    },
   });
 }
 
