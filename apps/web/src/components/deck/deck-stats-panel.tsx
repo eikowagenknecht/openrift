@@ -8,15 +8,18 @@ import type { DomainCount } from "@/hooks/use-deck-stats";
 import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { getDomainColor } from "@/lib/domain";
+import { cn } from "@/lib/utils";
 
-function DomainBar({
+export function DomainBar({
   data,
   total,
   colors,
+  className,
 }: {
   data: DomainCount[];
   total: number;
   colors: Record<string, string>;
+  className?: string;
 }) {
   if (data.length === 0 || total === 0) {
     return null;
@@ -24,7 +27,7 @@ function DomainBar({
 
   return (
     <TooltipProvider>
-      <div className="flex h-2.5 flex-1 overflow-hidden rounded-full">
+      <div className={cn("flex h-2.5 flex-1 overflow-hidden rounded-full", className)}>
         {data.map((entry) => {
           const count = entry.count;
           if (count === 0) {
@@ -49,6 +52,22 @@ function DomainBar({
         })}
       </div>
     </TooltipProvider>
+  );
+}
+
+export function DeckStatsBody({ stats }: { stats: ReturnType<typeof useDeckStats> }) {
+  return (
+    <div className="space-y-3">
+      <EnergyPowerChart
+        energyData={stats.energyCurve}
+        energyStacks={stats.energyCurveStacks}
+        averageEnergy={stats.averageEnergy}
+        powerData={stats.powerCurve}
+        powerStacks={stats.powerCurveStacks}
+        averagePower={stats.averagePower}
+      />
+      <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
+    </div>
   );
 }
 
@@ -77,16 +96,8 @@ export function DeckStatsPanel({ deckId }: { deckId: string }) {
       </button>
 
       {open && (
-        <div className="space-y-3 border-t px-3 py-3">
-          <EnergyPowerChart
-            energyData={stats.energyCurve}
-            energyStacks={stats.energyCurveStacks}
-            averageEnergy={stats.averageEnergy}
-            powerData={stats.powerCurve}
-            powerStacks={stats.powerCurveStacks}
-            averagePower={stats.averagePower}
-          />
-          <TypeBreakdown data={stats.typeBreakdown} domains={stats.typeBreakdownDomains} />
+        <div className="border-t px-3 py-3">
+          <DeckStatsBody stats={stats} />
         </div>
       )}
     </div>

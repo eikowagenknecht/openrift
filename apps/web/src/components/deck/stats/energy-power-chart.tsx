@@ -17,10 +17,22 @@ interface EnergyPowerChartProps {
   singleColor?: boolean;
 }
 
+interface SingleChartProps {
+  data: (EnergyCostCount | PowerCount)[];
+  stacks: DomainCombo[];
+  average: number | null;
+  label: string;
+  /** Metric axis key: "energy" for EnergyCostCount, "power" for PowerCount. */
+  metric: "energy" | "power";
+  /** Floor for the x-axis max — pads the chart out when the deck is small. */
+  minAxisMax: number;
+  /** When true, render a single primary-colored bar instead of domain-colored stacks. */
+  singleColor?: boolean;
+}
+
 /**
  * Custom bar shape that only rounds top corners when this bar is the topmost
- * visible segment in its stack. Checks all stack keys above this one
- * in the data row — if any have a non-zero value, this bar gets square corners.
+ * visible segment in its stack.
  * @returns A Rectangle with conditional corner rounding.
  */
 function RoundedTopBar({
@@ -78,7 +90,6 @@ function comboFill(stack: DomainCombo, colors: Record<string, string>): string {
 
 /**
  * Renders SVG gradient definitions for all multi-domain combos.
- * Each gradient transitions vertically between the constituent domain colors.
  * @returns An SVG defs element with gradient definitions.
  */
 function GradientDefs({
@@ -112,6 +123,156 @@ function GradientDefs({
   );
 }
 
+/**
+ * Single stacked bar chart for one numeric metric (energy or power).
+ * @returns A single chart with a heading row and stacked bars.
+ */
+function SingleChart({
+  data,
+  stacks,
+  average,
+  label,
+  metric,
+  minAxisMax,
+  singleColor,
+}: SingleChartProps) {
+  const domainColors = useDomainColors();
+  if (data.length === 0) {
+    return null;
+  }
+
+  const valueMap = new Map(data.map((entry) => [Number(entry[metric]), entry]));
+  const maxValue = Math.max(minAxisMax, ...data.map((entry) => Number(entry[metric])));
+
+  const heading = (
+    <div className="mb-1 flex items-center text-xs">
+      <h4 className="font-medium">{label}</h4>
+      {average !== null && (
+        <span className="text-muted-foreground ml-auto">Ø {average.toFixed(1)}</span>
+      )}
+    </div>
+  );
+
+  if (singleColor) {
+    const singleConfig: ChartConfig = {
+      [`${metric}_total`]: { label: "Count", color: "var(--color-primary)" },
+    };
+    const chartData = Array.from({ length: maxValue + 1 }, (_, value) => {
+      const entry = valueMap.get(value);
+      let total = 0;
+      if (entry) {
+        for (const stack of stacks) {
+          total += (entry[stack.key] as number) ?? 0;
+        }
+      }
+      return { value: String(value), [`${metric}_total`]: total };
+    });
+    return (
+      <div>
+        {heading}
+        <ChartContainer config={singleConfig} className="aspect-auto h-20 w-full">
+          <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+            <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+            <Bar
+              dataKey={`${metric}_total`}
+              fill="var(--color-primary)"
+              activeBar={{ opacity: 0.8 }}
+              radius={[3, 3, 0, 0]}
+            />
+          </BarChart>
+        </ChartContainer>
+      </div>
+    );
+  }
+
+  const chartData = Array.from({ length: maxValue + 1 }, (_, value) => {
+    const entry = valueMap.get(value);
+    const row: Record<string, string | number> = { value: String(value) };
+    for (const stack of stacks) {
+      row[`${metric}_${stack.key}`] = (entry?.[stack.key] as number) ?? 0;
+    }
+    return row;
+  });
+  const chartConfig = buildChartConfig(stacks, metric, domainColors);
+  // Reversed for stacking: first rendered = bottom, last = top (outermost)
+  const reversed = stacks.toReversed();
+
+  return (
+    <div>
+      {heading}
+      <ChartContainer config={chartConfig} className="aspect-auto h-20 w-full">
+        <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+          <GradientDefs stacks={stacks} colors={domainColors} />
+          <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+          <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+          {reversed.map((stack, index) => {
+            const aboveKeys = reversed.slice(index + 1).map((candidate) => candidate.key);
+            return (
+              <Bar
+                key={`${metric}_${stack.key}`}
+                dataKey={`${metric}_${stack.key}`}
+                stackId="a"
+                fill={comboFill(stack, domainColors)}
+                activeBar={<RoundedTopBarActive aboveKeys={aboveKeys} prefix={metric} />}
+                shape={<RoundedTopBar aboveKeys={aboveKeys} prefix={metric} />}
+              />
+            );
+          })}
+        </BarChart>
+      </ChartContainer>
+    </div>
+  );
+}
+
+export function EnergyChart({
+  data,
+  stacks,
+  average,
+  singleColor,
+}: {
+  data: EnergyCostCount[];
+  stacks: DomainCombo[];
+  average: number | null;
+  singleColor?: boolean;
+}) {
+  return (
+    <SingleChart
+      data={data}
+      stacks={stacks}
+      average={average}
+      label="Energy"
+      metric="energy"
+      minAxisMax={8}
+      singleColor={singleColor}
+    />
+  );
+}
+
+export function PowerChart({
+  data,
+  stacks,
+  average,
+  singleColor,
+}: {
+  data: PowerCount[];
+  stacks: DomainCombo[];
+  average: number | null;
+  singleColor?: boolean;
+}) {
+  return (
+    <SingleChart
+      data={data}
+      stacks={stacks}
+      average={average}
+      label="Power"
+      metric="power"
+      minAxisMax={4}
+      singleColor={singleColor}
+    />
+  );
+}
+
 export function EnergyPowerChart({
   energyData,
   energyStacks,
@@ -121,185 +282,23 @@ export function EnergyPowerChart({
   averagePower,
   singleColor,
 }: EnergyPowerChartProps) {
-  const domainColors = useDomainColors();
-
   if (energyData.length === 0 && powerData.length === 0) {
     return null;
   }
-
-  const energyMap = new Map(energyData.map((entry) => [Number(entry.energy), entry]));
-  const energyMax = Math.max(8, ...energyData.map((entry) => Number(entry.energy)));
-
-  const powerMap = new Map(powerData.map((entry) => [Number(entry.power), entry]));
-  const powerMax = Math.max(4, ...powerData.map((entry) => Number(entry.power)));
-
-  if (singleColor) {
-    const singleConfig: ChartConfig = {
-      energy_total: { label: "Count", color: "var(--color-primary)" },
-      power_total: { label: "Count", color: "var(--color-primary)" },
-    };
-
-    const energyChartData = Array.from({ length: energyMax + 1 }, (_, value) => {
-      const entry = energyMap.get(value);
-      let total = 0;
-      if (entry) {
-        for (const stack of energyStacks) {
-          total += (entry[stack.key] as number) ?? 0;
-        }
-      }
-      return { value: String(value), energy_total: total };
-    });
-
-    const powerChartData = Array.from({ length: powerMax + 1 }, (_, value) => {
-      const entry = powerMap.get(value);
-      let total = 0;
-      if (entry) {
-        for (const stack of powerStacks) {
-          total += (entry[stack.key] as number) ?? 0;
-        }
-      }
-      return { value: String(value), power_total: total };
-    });
-
-    return (
-      <div className="space-y-3">
-        {energyData.length > 0 && (
-          <div>
-            <div className="mb-1 flex items-center text-xs">
-              <h4 className="font-medium">Energy</h4>
-              {averageEnergy !== null && (
-                <span className="text-muted-foreground ml-auto">Ø {averageEnergy.toFixed(1)}</span>
-              )}
-            </div>
-            <ChartContainer config={singleConfig} className="aspect-auto h-20 w-full">
-              <BarChart data={energyChartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                <Bar
-                  dataKey="energy_total"
-                  fill="var(--color-primary)"
-                  activeBar={{ opacity: 0.8 }}
-                  radius={[3, 3, 0, 0]}
-                />
-              </BarChart>
-            </ChartContainer>
-          </div>
-        )}
-
-        {powerData.length > 0 && (
-          <div>
-            <div className="mb-1 flex items-center text-xs">
-              <h4 className="font-medium">Power</h4>
-              {averagePower !== null && (
-                <span className="text-muted-foreground ml-auto">Ø {averagePower.toFixed(1)}</span>
-              )}
-            </div>
-            <ChartContainer config={singleConfig} className="aspect-auto h-20 w-full">
-              <BarChart data={powerChartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-                <Bar
-                  dataKey="power_total"
-                  fill="var(--color-primary)"
-                  activeBar={{ opacity: 0.8 }}
-                  radius={[3, 3, 0, 0]}
-                />
-              </BarChart>
-            </ChartContainer>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  const energyChartData = Array.from({ length: energyMax + 1 }, (_, value) => {
-    const entry = energyMap.get(value);
-    const row: Record<string, string | number> = { value: String(value) };
-    for (const stack of energyStacks) {
-      row[`energy_${stack.key}`] = (entry?.[stack.key] as number) ?? 0;
-    }
-    return row;
-  });
-
-  const powerChartData = Array.from({ length: powerMax + 1 }, (_, value) => {
-    const entry = powerMap.get(value);
-    const row: Record<string, string | number> = { value: String(value) };
-    for (const stack of powerStacks) {
-      row[`power_${stack.key}`] = (entry?.[stack.key] as number) ?? 0;
-    }
-    return row;
-  });
-
-  const energyConfig = buildChartConfig(energyStacks, "energy", domainColors);
-  const powerConfig = buildChartConfig(powerStacks, "power", domainColors);
-
-  // Reversed for stacking: first rendered = bottom, last = top (outermost)
-  const energyReversed = energyStacks.toReversed();
-  const powerReversed = powerStacks.toReversed();
-
   return (
     <div className="space-y-3">
-      {energyData.length > 0 && (
-        <div>
-          <div className="mb-1 flex items-center text-xs">
-            <h4 className="font-medium">Energy</h4>
-            {averageEnergy !== null && (
-              <span className="text-muted-foreground ml-auto">Ø {averageEnergy.toFixed(1)}</span>
-            )}
-          </div>
-          <ChartContainer config={energyConfig} className="aspect-auto h-20 w-full">
-            <BarChart data={energyChartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-              <GradientDefs stacks={energyStacks} colors={domainColors} />
-              <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-              <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-              {energyReversed.map((stack, index) => {
-                const aboveKeys = energyReversed.slice(index + 1).map((s) => s.key);
-                return (
-                  <Bar
-                    key={`energy_${stack.key}`}
-                    dataKey={`energy_${stack.key}`}
-                    stackId="a"
-                    fill={comboFill(stack, domainColors)}
-                    activeBar={<RoundedTopBarActive aboveKeys={aboveKeys} prefix="energy" />}
-                    shape={<RoundedTopBar aboveKeys={aboveKeys} prefix="energy" />}
-                  />
-                );
-              })}
-            </BarChart>
-          </ChartContainer>
-        </div>
-      )}
-
-      {powerData.length > 0 && (
-        <div>
-          <div className="mb-1 flex items-center text-xs">
-            <h4 className="font-medium">Power</h4>
-            {averagePower !== null && (
-              <span className="text-muted-foreground ml-auto">Ø {averagePower.toFixed(1)}</span>
-            )}
-          </div>
-          <ChartContainer config={powerConfig} className="aspect-auto h-20 w-full">
-            <BarChart data={powerChartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-              <GradientDefs stacks={powerStacks} colors={domainColors} />
-              <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-              <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-              {powerReversed.map((stack, index) => {
-                const aboveKeys = powerReversed.slice(index + 1).map((s) => s.key);
-                return (
-                  <Bar
-                    key={`power_${stack.key}`}
-                    dataKey={`power_${stack.key}`}
-                    stackId="a"
-                    fill={comboFill(stack, domainColors)}
-                    activeBar={<RoundedTopBarActive aboveKeys={aboveKeys} prefix="power" />}
-                    shape={<RoundedTopBar aboveKeys={aboveKeys} prefix="power" />}
-                  />
-                );
-              })}
-            </BarChart>
-          </ChartContainer>
-        </div>
-      )}
+      <EnergyChart
+        data={energyData}
+        stacks={energyStacks}
+        average={averageEnergy}
+        singleColor={singleColor}
+      />
+      <PowerChart
+        data={powerData}
+        stacks={powerStacks}
+        average={averagePower}
+        singleColor={singleColor}
+      />
     </div>
   );
 }

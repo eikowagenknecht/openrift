@@ -45,19 +45,10 @@ import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collection";
+import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 import { useDisplayStore } from "@/stores/display-store";
-
-const ZONE_LABELS: Record<DeckZone, string> = {
-  legend: "Legend",
-  champion: "Chosen Champion",
-  runes: "Runes",
-  battlefield: "Battlefields",
-  main: "Main Deck",
-  sideboard: "Sideboard",
-  overflow: "Overflow",
-};
 
 interface DeckEditorPageProps {
   deckId: string;
@@ -77,16 +68,24 @@ function MobileSidebarHeader() {
   );
 }
 
+type HoverOrigin = "sidebar" | "main";
+
+const SIDEBAR_PREVIEW_LEFT_PX = 312; // 19.5rem
+const CURSOR_OFFSET_PX = 24;
+
 function HoveredCardPreview({
   hoveredCard,
+  origin,
   containerRef,
 }: {
   hoveredCard: { thumbnailUrl: string; fullUrl: string; landscape: boolean } | null;
+  origin: HoverOrigin;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const { active } = useDndContext();
   const [fullLoaded, setFullLoaded] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
+  const cursorRef = useRef({ x: 0, y: 0 });
   const fullUrl = hoveredCard?.fullUrl ?? null;
 
   // Reset the crossfade whenever the hovered card changes so the next
@@ -97,25 +96,54 @@ function HoveredCardPreview({
   }, [fullUrl]);
 
   // Track the cursor imperatively — positioning via state would re-render
-  // the entire deck editor on every frame of a hover, which (at minimum)
-  // was enough work to stall the main thread and confused React Compiler's
-  // memo-cache checks with spurious size-mismatch warnings.
+  // the entire deck editor on every frame of a hover. Sidebar hovers get a
+  // fixed x just right of the sidebar; main-area hovers follow the cursor
+  // with a flip to the left side when the preview would overflow the
+  // container on the right.
   useEffect(() => {
     if (!hoveredCard || active) {
       return;
     }
-    const handler = (event: MouseEvent) => {
+    const previewWidth = hoveredCard.landscape ? 560 : 400;
+    const applyPosition = (clientX: number, clientY: number) => {
       const container = containerRef.current;
       const preview = previewRef.current;
       if (!container || !preview) {
         return;
       }
       const rect = container.getBoundingClientRect();
-      preview.style.top = `${Math.max(0, event.clientY - rect.top - 96)}px`;
+      preview.style.top = `${Math.max(0, clientY - rect.top - 96)}px`;
+      if (origin === "main") {
+        const cursorX = clientX - rect.left;
+        const rightEdge = cursorX + CURSOR_OFFSET_PX + previewWidth;
+        const leftFlip = cursorX - CURSOR_OFFSET_PX - previewWidth;
+        preview.style.left = `${rightEdge <= rect.width ? cursorX + CURSOR_OFFSET_PX : Math.max(0, leftFlip)}px`;
+      } else {
+        preview.style.left = `${SIDEBAR_PREVIEW_LEFT_PX}px`;
+      }
+    };
+
+    // Paint once immediately using the last-known cursor so the preview
+    // doesn't briefly appear at (0, 0) if the cursor is stationary.
+    applyPosition(cursorRef.current.x, cursorRef.current.y);
+
+    const handler = (event: MouseEvent) => {
+      cursorRef.current = { x: event.clientX, y: event.clientY };
+      applyPosition(event.clientX, event.clientY);
     };
     globalThis.addEventListener("mousemove", handler);
     return () => globalThis.removeEventListener("mousemove", handler);
-  }, [hoveredCard, active, containerRef]);
+  }, [hoveredCard, active, containerRef, origin]);
+
+  // Always-on cheap cursor ref update so the first frame of a new hover has
+  // a coordinate to use. Writes a ref only — no re-renders.
+  useEffect(() => {
+    const handler = (event: MouseEvent) => {
+      cursorRef.current = { x: event.clientX, y: event.clientY };
+    };
+    globalThis.addEventListener("mousemove", handler);
+    return () => globalThis.removeEventListener("mousemove", handler);
+  }, []);
 
   if (!hoveredCard || active) {
     return null;
@@ -124,7 +152,7 @@ function HoveredCardPreview({
     <div
       ref={previewRef}
       className={cn(
-        "pointer-events-none absolute left-[19.5rem] z-50",
+        "pointer-events-none absolute z-50",
         hoveredCard.landscape ? "w-[560px]" : "w-[400px]",
       )}
     >
@@ -302,11 +330,14 @@ function DeckEditorContent({
     }
   };
 
-  const [hoveredCardId, setHoveredCardId] = useState<string | null>(null);
+  const [hovered, setHovered] = useState<{ id: string; origin: HoverOrigin } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const hoveredPrinting =
-    hoveredCardId && !isMobile ? (getPreferredPrinting(hoveredCardId) ?? null) : null;
+  const setHoveredSidebar = (id: string | null) =>
+    setHovered(id ? { id, origin: "sidebar" } : null);
+  const setHoveredMain = (id: string | null) => setHovered(id ? { id, origin: "main" } : null);
+
+  const hoveredPrinting = hovered && !isMobile ? (getPreferredPrinting(hovered.id) ?? null) : null;
   const hoveredFrontImage = hoveredPrinting?.images.find((image) => image.face === "front") ?? null;
   const hoveredCard =
     hoveredPrinting && hoveredFrontImage
@@ -417,7 +448,7 @@ function DeckEditorContent({
                   deckId={deckId}
                   onZoneClick={handleZoneClick}
                   onOverviewClick={() => setActiveZone(null)}
-                  onHoverCard={setHoveredCardId}
+                  onHoverCard={setHoveredSidebar}
                   ownershipData={ownershipData}
                   marketplace={marketplace}
                   onViewMissing={() => setMissingOpen(true)}
@@ -427,7 +458,11 @@ function DeckEditorContent({
             </SidebarContent>
           </NestedSidebar>
 
-          <HoveredCardPreview hoveredCard={hoveredCard} containerRef={containerRef} />
+          <HoveredCardPreview
+            hoveredCard={hoveredCard}
+            origin={hovered?.origin ?? "sidebar"}
+            containerRef={containerRef}
+          />
 
           <div className="flex min-w-0 flex-1 flex-col pb-3">
             <div className="flex-1">
@@ -437,7 +472,7 @@ function DeckEditorContent({
                 marketplace={marketplace}
                 onZoneClick={handleZoneClick}
                 onViewMissing={() => setMissingOpen(true)}
-                onHoverCard={setHoveredCardId}
+                onHoverCard={setHoveredMain}
               />
             </div>
             <Footer />

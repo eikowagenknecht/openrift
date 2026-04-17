@@ -14,19 +14,10 @@ import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { isCardAllowedInZone } from "@/lib/deck-builder-card";
+import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 import { useSelectionStore } from "@/stores/selection-store";
-
-const ZONE_LABELS: Record<DeckZone, string> = {
-  legend: "Legend",
-  champion: "Chosen Champion",
-  runes: "Runes",
-  battlefield: "Battlefields",
-  main: "Main Deck",
-  sideboard: "Sideboard",
-  overflow: "Overflow",
-};
 
 const ZONE_EXPECTED: Partial<Record<DeckZone, number>> = {
   legend: 1,

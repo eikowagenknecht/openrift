@@ -35,6 +35,12 @@ export function TypeBreakdown({ data, domains, singleColor }: TypeBreakdownProps
     label: `${entry.total} ${entry.total === 1 ? entry.type : `${entry.type}s`}`,
   }));
 
+  const heading = (
+    <div className="mb-1 flex items-center text-xs">
+      <h4 className="font-medium">Types</h4>
+    </div>
+  );
+
   if (singleColor) {
     const singleConfig: ChartConfig = {
       total: { label: "Count", color: "var(--color-primary)" },
@@ -42,6 +48,7 @@ export function TypeBreakdown({ data, domains, singleColor }: TypeBreakdownProps
 
     return (
       <div>
+        {heading}
         <ChartContainer config={singleConfig} className="aspect-auto h-20 w-full">
           <BarChart data={labeledData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
             <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -62,6 +69,7 @@ export function TypeBreakdown({ data, domains, singleColor }: TypeBreakdownProps
 
   return (
     <div>
+      {heading}
       <ChartContainer config={chartConfig} className="aspect-auto h-20 w-full">
         <BarChart data={labeledData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
           <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
