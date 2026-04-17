@@ -111,13 +111,17 @@ const sentryPlugin = sentryVitePlugin({
   disable: !process.env.SENTRY_AUTH_TOKEN,
 });
 
-// React + TanStack are tightly coupled — keep together to avoid circular chunks.
 const REACT_CHUNK_NEEDLES = [
   "/node_modules/react/",
   "/node_modules/react-dom/",
   "/node_modules/scheduler/",
-  "@tanstack/",
 ];
+
+// TanStack depends on React (one-way), so a separate chunk is safe.
+// Keep all @tanstack/* together so router/query/store share a single chunk
+// rather than fragmenting across routes. Devtools code is stripped in prod
+// by the @tanstack/devtools-vite plugin, so it doesn't bloat this chunk.
+const TANSTACK_CHUNK_NEEDLES = ["@tanstack/"];
 
 // Stable UI/vendor deps — large but rarely change.
 // Don't use a catch-all here; transitive deps (e.g. use-sync-external-store)
@@ -142,6 +146,9 @@ function manualChunks(id: string): string | undefined {
   }
   if (REACT_CHUNK_NEEDLES.some((needle) => id.includes(needle))) {
     return "react";
+  }
+  if (TANSTACK_CHUNK_NEEDLES.some((needle) => id.includes(needle))) {
+    return "tanstack";
   }
   if (UI_CHUNK_NEEDLES.some((needle) => id.includes(needle))) {
     return "ui";
@@ -187,6 +194,10 @@ export default defineConfig(({ mode, command }) => {
     ],
     build: {
       sourcemap: true,
+      // Lifted from 500kB default: `tanstack` (cached vendor) and
+      // `proxy-export-dialog` (lazy, pulled only when the dialog opens) both
+      // legitimately exceed the default. 1000kB catches real regressions.
+      chunkSizeWarningLimit: 1000,
       rolldownOptions: {
         output: { manualChunks },
       },
