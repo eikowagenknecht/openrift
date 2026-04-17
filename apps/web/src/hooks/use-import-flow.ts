@@ -177,12 +177,21 @@ export function useImportFlow() {
 
     // Batch in groups of 500
     const batchSize = 500;
-    try {
-      for (let offset = 0; offset < copies.length; offset += batchSize) {
-        const batch = copies.slice(offset, offset + batchSize);
+    const batches: (typeof copies)[] = [];
+    for (let offset = 0; offset < copies.length; offset += batchSize) {
+      batches.push(copies.slice(offset, offset + batchSize));
+    }
+    const copyLabel = totalCards === 1 ? "copy" : "copies";
+
+    const sendAllBatches = async () => {
+      for (const batch of batches) {
         await addCopies.mutateAsync({ copies: batch });
       }
-      toast.success(`Imported ${totalCards} ${totalCards === 1 ? "copy" : "copies"}.`);
+    };
+
+    try {
+      await sendAllBatches();
+      toast.success(`Imported ${totalCards} ${copyLabel}.`);
       navigate({
         to: "/collections/$collectionId",
         params: { collectionId: targetCollectionId },
