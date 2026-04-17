@@ -160,6 +160,8 @@ export type {
   AnySnapshot,
   CardmarketSnapshot,
   CardtraderSnapshot,
+  MarketplaceInfo,
+  MarketplaceInfoResponse,
   PriceHistoryResponse,
   PriceLookup,
   PriceMap,

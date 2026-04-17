@@ -14,6 +14,7 @@ const mockCatalogRepo = {
 const mockMarketplaceRepo = {
   latestPrices: vi.fn(() => Promise.resolve([] as object[])),
   sourcesForPrinting: vi.fn(() => Promise.resolve([] as object[])),
+  sourcesForPrintings: vi.fn(() => Promise.resolve([] as object[])),
   snapshots: vi.fn(() => Promise.resolve([] as object[])),
 };
 
@@ -408,5 +409,91 @@ describe("GET /api/v1/prices/:printingId/history", () => {
   it("rejects non-UUID printingId with 400", async () => {
     const res = await app.request("/api/v1/prices/not-a-uuid/history");
     expect(res.status).toBe(400);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/v1/prices/marketplace-info
+// ---------------------------------------------------------------------------
+
+describe("GET /api/v1/prices/marketplace-info", () => {
+  const printingA = "a0000000-0001-4000-a000-000000000001";
+  const printingB = "a0000000-0001-4000-a000-000000000002";
+
+  beforeEach(() => {
+    mockMarketplaceRepo.sourcesForPrintings.mockReset().mockResolvedValue([]);
+  });
+
+  it("rejects missing printings query with 400", async () => {
+    const res = await app.request("/api/v1/prices/marketplace-info");
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects invalid uuid with 400", async () => {
+    const res = await app.request("/api/v1/prices/marketplace-info?printings=not-a-uuid");
+    expect(res.status).toBe(400);
+  });
+
+  it("returns unavailable slots when no sources exist", async () => {
+    const res = await app.request(`/api/v1/prices/marketplace-info?printings=${printingA}`);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.infos[printingA]).toEqual({
+      tcgplayer: { available: false, productId: null, languageAggregate: false },
+      cardmarket: { available: false, productId: null, languageAggregate: true },
+      cardtrader: { available: false, productId: null, languageAggregate: false },
+    });
+  });
+
+  it("maps sources to per-marketplace productId and languageAggregate", async () => {
+    mockMarketplaceRepo.sourcesForPrintings.mockResolvedValue([
+      {
+        printingId: printingA,
+        externalId: 12_345,
+        marketplace: "tcgplayer",
+        languageAggregate: false,
+      },
+      {
+        printingId: printingA,
+        externalId: 67_890,
+        marketplace: "cardmarket",
+        languageAggregate: true,
+      },
+      {
+        printingId: printingB,
+        externalId: 11_111,
+        marketplace: "cardtrader",
+        languageAggregate: false,
+      },
+    ]);
+    const res = await app.request(
+      `/api/v1/prices/marketplace-info?printings=${printingA},${printingB}`,
+    );
+    const json = await res.json();
+    expect(json.infos[printingA].tcgplayer).toEqual({
+      available: true,
+      productId: 12_345,
+      languageAggregate: false,
+    });
+    expect(json.infos[printingA].cardmarket).toEqual({
+      available: true,
+      productId: 67_890,
+      languageAggregate: true,
+    });
+    expect(json.infos[printingB].cardtrader).toEqual({
+      available: true,
+      productId: 11_111,
+      languageAggregate: false,
+    });
+    expect(json.infos[printingB].tcgplayer.available).toBe(false);
+  });
+
+  it("dedupes repeated printing ids before querying", async () => {
+    mockMarketplaceRepo.sourcesForPrintings.mockResolvedValue([]);
+    await app.request(
+      `/api/v1/prices/marketplace-info?printings=${printingA},${printingA},${printingB}`,
+    );
+    const ids = mockMarketplaceRepo.sourcesForPrintings.mock.calls[0]?.[0] as string[] | undefined;
+    expect(ids).toEqual([printingA, printingB]);
   });
 });

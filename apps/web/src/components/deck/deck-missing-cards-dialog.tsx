@@ -11,6 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
+import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
 import { formatterForMarketplace } from "@/lib/format";
 import { MARKETPLACE_META } from "@/lib/marketplace-meta";
 
@@ -50,6 +51,22 @@ export function DeckMissingCardsDialog({
     }
     return a.cardName.localeCompare(b.cardName);
   });
+
+  // Fetch marketplace source metadata only when the dialog is open, so we don't
+  // send the extra request until the user actually needs the deep-link URLs.
+  const printingIds = open
+    ? sorted.flatMap((card) => (card.cheapestPrinting ? [card.cheapestPrinting.id] : []))
+    : [];
+  const { data: marketplaceInfo } = useMarketplaceInfo(printingIds);
+
+  const linkFor = (card: CardOwnership): string => {
+    const printing = card.cheapestPrinting;
+    const info = printing ? marketplaceInfo?.infos[printing.id]?.[marketplace] : undefined;
+    if (printing && info?.available && info.productId !== null) {
+      return meta.productUrl(info.productId, printing.language);
+    }
+    return meta.searchUrl(card.cardName);
+  };
 
   const handleCopy = async () => {
     const lines = sorted.map((card) => {
@@ -99,7 +116,7 @@ export function DeckMissingCardsDialog({
                 <tr key={`${card.cardId}:${card.zone}`} className="border-t">
                   <td className="py-1.5">
                     <a
-                      href={meta.searchUrl(card.cardName)}
+                      href={linkFor(card)}
                       target="_blank"
                       rel="noreferrer"
                       className="hover:text-foreground underline decoration-dotted underline-offset-2"
