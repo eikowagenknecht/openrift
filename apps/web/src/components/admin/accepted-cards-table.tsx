@@ -345,7 +345,7 @@ export function AcceptedCardsTable({
   const acceptableCount = data.filter((r) => r.cardSlug && r.hasFavoriteStagingPrintings).length;
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { virtualItems, totalSize } = useRcVirtualizer({
+  const virtualizer = useRcVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT,
@@ -420,8 +420,10 @@ export function AcceptedCardsTable({
                 ))}
               </TableHeader>
               <TableBody>
-                {virtualItems.length > 0 && <tr style={{ height: virtualItems[0].start }} />}
-                {virtualItems.map((virtualRow) => {
+                {virtualizer.getVirtualItems().length > 0 && (
+                  <tr style={{ height: virtualizer.getVirtualItems()[0].start }} />
+                )}
+                {virtualizer.getVirtualItems().map((virtualRow) => {
                   const row = rows[virtualRow.index];
                   return (
                     <TableRow key={row.id} data-index={virtualRow.index}>
@@ -433,8 +435,14 @@ export function AcceptedCardsTable({
                     </TableRow>
                   );
                 })}
-                {virtualItems.length > 0 && (
-                  <tr style={{ height: totalSize - (virtualItems.at(-1)?.end ?? 0) }} />
+                {virtualizer.getVirtualItems().length > 0 && (
+                  <tr
+                    style={{
+                      height:
+                        virtualizer.getTotalSize() -
+                        (virtualizer.getVirtualItems().at(-1)?.end ?? 0),
+                    }}
+                  />
                 )}
               </TableBody>
             </Table>
