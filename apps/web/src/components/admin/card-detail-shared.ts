@@ -51,12 +51,8 @@ export function useCardDetailData(invalidates: readonly (readonly unknown[])[]) 
   const printingSourceFields: FieldDef[] = buildCandidatePrintingFields(
     orders,
     labels,
-    markers
-      .map((m) => ({ value: m.slug, label: m.label }))
-      .toSorted((a, b) => a.label.localeCompare(b.label)),
-    distributionChannels
-      .map((c) => ({ value: c.slug, label: c.label }))
-      .toSorted((a, b) => a.label.localeCompare(b.label)),
+    markers.map((m) => ({ value: m.slug, label: m.label })),
+    distributionChannels.map((c) => ({ value: c.slug, label: c.label })),
     artistSuggestions,
     languagesList.map((lang: { code: string; name: string }) => ({
       value: lang.code,
