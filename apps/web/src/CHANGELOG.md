@@ -2,8 +2,10 @@
 
 ## 2026-04-17
 
+- feat: The Promo Cards page now groups by language first (English, Chinese, French), then by promo type within each language, instead of switching languages from a filter
 - feat: You can now pin a preferred printing per deck row via right-click, so "1 normal + 2 alt art" of the same card show up as separate entries with the art you picked. Piltover deck codes round-trip your variant choices.
 - feat: You can now drag cards between zones straight from the deck overview dashboard, without having to open each zone first
+- feat: The Main, Sideboard, and Overflow tiles on the deck overview now group cards by type (Units, Spells, Gears) with a small icon header, matching the sidebar's grouping
 - feat: The deck overview now shows each zone's full card list with larger thumbnails, a KPI strip for cards, domains, ownership, and value, and the Energy / Power / Types charts as separate cards
 - feat: Card hover previews in the deck overview now follow your cursor instead of pinning to a fixed spot on the left
 - feat: The deck builder no longer shows the Language filter, since language doesn't matter when picking cards for a deck
