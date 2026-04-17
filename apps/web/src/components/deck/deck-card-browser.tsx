@@ -175,7 +175,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
 
   const {
     availableFilters,
-    availableLanguages,
     sortedCards,
     printingsByCardId,
     priceRangeByCardId,
@@ -362,14 +361,12 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
           <MobileOptionsContent />
           <MobileFilterContent
             availableFilters={availableFilters}
-            availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
           />
         </MobileOptionsDrawer>
       </div>
       <CollapsibleFilterPanel
         availableFilters={availableFilters}
-        availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
       />
     </>
@@ -379,11 +376,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     <Pane className="@wide:block px-3">
       <h2 className="pb-4 text-lg font-semibold">Filters</h2>
       <div className="space-y-4 pb-4">
-        <FilterPanelContent
-          availableFilters={availableFilters}
-          availableLanguages={availableLanguages}
-          setDisplayLabel={setDisplayLabel}
-        />
+        <FilterPanelContent availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
       </div>
     </Pane>
   );

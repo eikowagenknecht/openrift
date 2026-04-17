@@ -2,6 +2,7 @@
 
 ## 2026-04-17
 
+- feat: The deck builder no longer shows the Language filter, since language doesn't matter when picking cards for a deck
 - fix: Clicking a card link (like from the activity feed) now scrolls the grid to that card, instead of opening the detail pane while leaving the grid at the top
 
 ## 2026-04-16
