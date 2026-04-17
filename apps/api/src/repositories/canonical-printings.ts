@@ -21,7 +21,7 @@ interface ResolvedCard {
 }
 
 /** Input row for per-row short code resolution. */
-export interface DeckRowForShortCode {
+interface DeckRowForShortCode {
   cardId: string;
   preferredPrintingId: string | null;
 }

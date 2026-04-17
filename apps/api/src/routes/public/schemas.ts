@@ -8,7 +8,7 @@ export const rangeQuerySchema = z.object({
   range: z.enum(Object.keys(TIME_RANGE_DAYS) as [TimeRange, ...TimeRange[]]).default("30d"),
 });
 
-export const MARKETPLACE_INFO_MAX_PRINTINGS = 200;
+const MARKETPLACE_INFO_MAX_PRINTINGS = 200;
 
 export const marketplaceInfoQuerySchema = z.object({
   printings: z.string().transform((value, ctx) => {

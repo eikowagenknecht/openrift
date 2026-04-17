@@ -49,7 +49,7 @@ export function DeckOwnershipPanel({ data, marketplace, onViewMissing }: DeckOwn
   );
 }
 
-export function DeckOwnershipBody({ data, marketplace, onViewMissing }: DeckOwnershipPanelProps) {
+function DeckOwnershipBody({ data, marketplace, onViewMissing }: DeckOwnershipPanelProps) {
   const fmt = formatterForMarketplace(marketplace);
 
   return (

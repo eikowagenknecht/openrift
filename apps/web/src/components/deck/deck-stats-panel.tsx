@@ -55,7 +55,7 @@ export function DomainBar({
   );
 }
 
-export function DeckStatsBody({ stats }: { stats: ReturnType<typeof useDeckStats> }) {
+function DeckStatsBody({ stats }: { stats: ReturnType<typeof useDeckStats> }) {
   return (
     <div className="space-y-3">
       <EnergyPowerChart
