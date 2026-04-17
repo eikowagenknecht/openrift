@@ -15,7 +15,7 @@ import {
   getSortedRowModel,
 } from "@tanstack/react-table";
 import { ImagePlusIcon, LoaderIcon, SearchIcon } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { CardNameCellMeta } from "@/components/admin/card-name-cell";
@@ -39,7 +39,6 @@ import {
   useLinkCard,
 } from "@/hooks/use-admin-card-mutations";
 import { useAllCards } from "@/hooks/use-admin-card-queries";
-import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import { queryKeys } from "@/lib/query-keys";
 import { useRcTable, useRcVirtualizer } from "@/lib/react-compiler-interop";
@@ -164,13 +163,13 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
   });
 
   const navigate = useNavigate({ from: CardsRoute.fullPath });
-  const { sorting, globalFilter, activeStatus } = CardsRoute.useSearch({
+  const { sorting, activeStatus } = CardsRoute.useSearch({
     select: (s) => ({
       sorting: parseSortParam(s.sort),
-      globalFilter: s.q ?? "",
       activeStatus: s.status ?? null,
     }),
   });
+  const [globalFilter, setGlobalFilter] = useState("");
 
   const columnFilters: ColumnFiltersState = activeStatus
     ? [{ id: "status", value: activeStatus }]
@@ -200,24 +199,6 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
     });
   }
 
-  const handleGlobalFilterChange = useCallback(
-    (updater: Updater<string>) => {
-      const next = typeof updater === "function" ? updater(globalFilter) : updater;
-      void navigate({
-        search: (prev) => ({ ...prev, q: next === "" ? undefined : next }),
-        replace: true,
-      });
-    },
-    [globalFilter, navigate],
-  );
-
-  // Debounce URL commits so each keystroke doesn't re-run the route loader,
-  // re-filter the full table, and re-mount virtualizer children.
-  const [searchInput, setSearchInput] = useSearchUrlSync({
-    urlValue: globalFilter,
-    onCommit: (value) => handleGlobalFilterChange(value),
-  });
-
   function handleColumnFiltersChange(updater: Updater<ColumnFiltersState>) {
     const next = typeof updater === "function" ? updater(columnFilters) : updater;
     const statusFilter = next.find((f) => f.id === "status")?.value as StatusFilter | undefined;
@@ -235,7 +216,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
     state: { sorting, columnFilters, globalFilter },
     onSortingChange: handleSortingChange,
     onColumnFiltersChange: handleColumnFiltersChange,
-    onGlobalFilterChange: handleGlobalFilterChange,
+    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -292,8 +273,8 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
           <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
           <Input
             placeholder="Search by name…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
             className="h-8 w-48 pl-8 text-sm"
           />
         </div>

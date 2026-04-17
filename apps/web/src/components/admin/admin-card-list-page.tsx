@@ -34,7 +34,6 @@ export function AdminCardListPage() {
           search: (prev) => ({
             ...prev,
             tab: value === "cards" ? undefined : (value as "candidates" | "unmatched"),
-            q: undefined,
             sort: undefined,
             status: undefined,
           }),

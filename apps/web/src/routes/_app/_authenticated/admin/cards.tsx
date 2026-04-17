@@ -12,7 +12,6 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
   validateSearch: z.object({
     set: z.string().optional(),
     tab: z.enum(["cards", "candidates", "unmatched"]).optional(),
-    q: z.string().optional(),
     sort: z.string().optional(),
     status: z.enum(["unchecked"]).optional(),
   }),

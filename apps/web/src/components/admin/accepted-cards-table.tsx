@@ -10,7 +10,7 @@ import {
   getSortedRowModel,
 } from "@tanstack/react-table";
 import { LoaderIcon, SearchIcon, StarIcon } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { SortableHeader } from "@/components/admin/sortable-header";
@@ -30,7 +30,6 @@ import {
   acceptFavoritePrintingsFn,
   useAcceptFavoritePrintings,
 } from "@/hooks/use-admin-card-mutations";
-import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import type { CardCoverage, MarketplaceCoverage } from "@/lib/marketplace-coverage";
 import { queryKeys } from "@/lib/query-keys";
@@ -308,9 +307,8 @@ export function AcceptedCardsTable({
   });
 
   const navigate = useNavigate({ from: CardsRoute.fullPath });
-  const { sorting, globalFilter } = CardsRoute.useSearch({
-    select: (s) => ({ sorting: parseSortParam(s.sort), globalFilter: s.q ?? "" }),
-  });
+  const sorting = CardsRoute.useSearch({ select: (s) => parseSortParam(s.sort) });
+  const [globalFilter, setGlobalFilter] = useState("");
 
   function handleSortingChange(updater: Updater<SortingState>) {
     const next = typeof updater === "function" ? updater(sorting) : updater;
@@ -320,32 +318,12 @@ export function AcceptedCardsTable({
     });
   }
 
-  const handleGlobalFilterChange = useCallback(
-    (updater: Updater<string>) => {
-      const next = typeof updater === "function" ? updater(globalFilter) : updater;
-      void navigate({
-        search: (prev) => ({ ...prev, q: next === "" ? undefined : next }),
-        replace: true,
-      });
-    },
-    [globalFilter, navigate],
-  );
-
-  // Input renders from local state for keystroke-level responsiveness; the
-  // URL (and therefore the expensive filter + virtualizer pipeline) only
-  // updates after typing pauses, preventing per-keystroke re-renders from
-  // tanking the browser.
-  const [searchInput, setSearchInput] = useSearchUrlSync({
-    urlValue: globalFilter,
-    onCommit: (value) => handleGlobalFilterChange(value),
-  });
-
   const table = useRcTable({
     data,
     columns,
     state: { sorting, globalFilter },
     onSortingChange: handleSortingChange,
-    onGlobalFilterChange: handleGlobalFilterChange,
+    onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -381,8 +359,8 @@ export function AcceptedCardsTable({
           <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
           <Input
             placeholder="Search by name or code…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
             className="h-8 w-56 pl-8 text-sm"
           />
         </div>
