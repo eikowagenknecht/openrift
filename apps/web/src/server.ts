@@ -1,8 +1,3 @@
-// oxlint-disable-next-line import/no-nodejs-modules -- server entry runs in Bun/Node.js
-import { readFile } from "node:fs/promises";
-// oxlint-disable-next-line import/no-nodejs-modules -- server entry runs in Bun/Node.js
-import path from "node:path";
-
 import type { SitemapDataResponse } from "@openrift/shared";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
@@ -10,47 +5,9 @@ import { applyPageCacheControl } from "./lib/page-cache";
 
 const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
 
-// Local-only helper for `bun run start` smoke tests: when MEDIA_DIR is set,
-// serve /media/* from that host directory. In real prod, this env var is unset
-// so serveMediaFile() short-circuits to undefined, AND nginx bind-mounts the
-// path in front of the server — so this code is inert there.
-const MEDIA_DIR = process.env.MEDIA_DIR ? path.resolve(process.env.MEDIA_DIR) : undefined;
-
 // Opt-in SSR timing instrumentation. Mirrors the API's LOG_REQUESTS flag:
 // default off, no overhead in prod unless explicitly enabled for benchmarking.
 const LOG_SSR_TIMINGS = process.env.LOG_SSR_TIMINGS === "true";
-
-const MEDIA_MIME: Record<string, string> = {
-  ".webp": "image/webp",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-};
-
-async function serveMediaFile(pathname: string): Promise<Response | undefined> {
-  if (!MEDIA_DIR) {
-    return undefined;
-  }
-  const relative = decodeURIComponent(pathname.slice("/media/".length));
-  const resolved = path.resolve(MEDIA_DIR, relative);
-  if (!resolved.startsWith(`${MEDIA_DIR}${path.sep}`)) {
-    return new Response("Forbidden", { status: 403 });
-  }
-  let buffer: Buffer;
-  try {
-    buffer = await readFile(resolved);
-  } catch {
-    return new Response("Not Found", { status: 404 });
-  }
-  const bytes = new ArrayBuffer(buffer.byteLength);
-  new Uint8Array(bytes).set(buffer);
-  const mime = MEDIA_MIME[path.extname(resolved).toLowerCase()] ?? "application/octet-stream";
-  return new Response(new Blob([bytes], { type: mime }), {
-    headers: {
-      "Cache-Control": "public, max-age=3600",
-    },
-  });
-}
 
 const DEPLOY_DATE = new Date().toISOString().slice(0, 10);
 
@@ -141,12 +98,6 @@ export default createServerEntry({
     const url = new URL(request.url);
     if (url.pathname === "/health") {
       return new Response("ok", { status: 200 });
-    }
-    if (MEDIA_DIR && url.pathname.startsWith("/media/")) {
-      const response = await serveMediaFile(url.pathname);
-      if (response) {
-        return response;
-      }
     }
     if (url.pathname === "/robots.txt") {
       return new Response(isPreview() ? PREVIEW_ROBOTS_TXT : buildProdRobotsTxt(), {
