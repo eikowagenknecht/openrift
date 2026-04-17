@@ -10,7 +10,7 @@ import {
   getSortedRowModel,
 } from "@tanstack/react-table";
 import { LoaderIcon, SearchIcon, StarIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { SortableHeader } from "@/components/admin/sortable-header";
@@ -30,6 +30,7 @@ import {
   acceptFavoritePrintingsFn,
   useAcceptFavoritePrintings,
 } from "@/hooks/use-admin-card-mutations";
+import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import type { CardCoverage, MarketplaceCoverage } from "@/lib/marketplace-coverage";
 import { queryKeys } from "@/lib/query-keys";
@@ -319,13 +320,25 @@ export function AcceptedCardsTable({
     });
   }
 
-  function handleGlobalFilterChange(updater: Updater<string>) {
-    const next = typeof updater === "function" ? updater(globalFilter) : updater;
-    void navigate({
-      search: (prev) => ({ ...prev, q: next === "" ? undefined : next }),
-      replace: true,
-    });
-  }
+  const handleGlobalFilterChange = useCallback(
+    (updater: Updater<string>) => {
+      const next = typeof updater === "function" ? updater(globalFilter) : updater;
+      void navigate({
+        search: (prev) => ({ ...prev, q: next === "" ? undefined : next }),
+        replace: true,
+      });
+    },
+    [globalFilter, navigate],
+  );
+
+  // Input renders from local state for keystroke-level responsiveness; the
+  // URL (and therefore the expensive filter + virtualizer pipeline) only
+  // updates after typing pauses, preventing per-keystroke re-renders from
+  // tanking the browser.
+  const [searchInput, setSearchInput] = useSearchUrlSync({
+    urlValue: globalFilter,
+    onCommit: (value) => handleGlobalFilterChange(value),
+  });
 
   const table = useRcTable({
     data,
@@ -354,7 +367,7 @@ export function AcceptedCardsTable({
   const acceptableCount = data.filter((r) => r.cardSlug && r.hasFavoriteStagingPrintings).length;
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useRcVirtualizer({
+  const { virtualItems, totalSize } = useRcVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT,
@@ -368,8 +381,8 @@ export function AcceptedCardsTable({
           <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
           <Input
             placeholder="Search by name or code…"
-            value={globalFilter}
-            onChange={(e) => handleGlobalFilterChange(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="h-8 w-56 pl-8 text-sm"
           />
         </div>
@@ -429,10 +442,8 @@ export function AcceptedCardsTable({
                 ))}
               </TableHeader>
               <TableBody>
-                {virtualizer.getVirtualItems().length > 0 && (
-                  <tr style={{ height: virtualizer.getVirtualItems()[0].start }} />
-                )}
-                {virtualizer.getVirtualItems().map((virtualRow) => {
+                {virtualItems.length > 0 && <tr style={{ height: virtualItems[0].start }} />}
+                {virtualItems.map((virtualRow) => {
                   const row = rows[virtualRow.index];
                   return (
                     <TableRow key={row.id} data-index={virtualRow.index}>
@@ -444,14 +455,8 @@ export function AcceptedCardsTable({
                     </TableRow>
                   );
                 })}
-                {virtualizer.getVirtualItems().length > 0 && (
-                  <tr
-                    style={{
-                      height:
-                        virtualizer.getTotalSize() -
-                        (virtualizer.getVirtualItems().at(-1)?.end ?? 0),
-                    }}
-                  />
+                {virtualItems.length > 0 && (
+                  <tr style={{ height: totalSize - (virtualItems.at(-1)?.end ?? 0) }} />
                 )}
               </TableBody>
             </Table>

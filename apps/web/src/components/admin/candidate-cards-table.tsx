@@ -15,7 +15,7 @@ import {
   getSortedRowModel,
 } from "@tanstack/react-table";
 import { ImagePlusIcon, LoaderIcon, SearchIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { CardNameCellMeta } from "@/components/admin/card-name-cell";
@@ -39,6 +39,7 @@ import {
   useLinkCard,
 } from "@/hooks/use-admin-card-mutations";
 import { useAllCards } from "@/hooks/use-admin-card-queries";
+import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import { queryKeys } from "@/lib/query-keys";
 import { useRcTable, useRcVirtualizer } from "@/lib/react-compiler-interop";
@@ -199,13 +200,23 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
     });
   }
 
-  function handleGlobalFilterChange(updater: Updater<string>) {
-    const next = typeof updater === "function" ? updater(globalFilter) : updater;
-    void navigate({
-      search: (prev) => ({ ...prev, q: next === "" ? undefined : next }),
-      replace: true,
-    });
-  }
+  const handleGlobalFilterChange = useCallback(
+    (updater: Updater<string>) => {
+      const next = typeof updater === "function" ? updater(globalFilter) : updater;
+      void navigate({
+        search: (prev) => ({ ...prev, q: next === "" ? undefined : next }),
+        replace: true,
+      });
+    },
+    [globalFilter, navigate],
+  );
+
+  // Debounce URL commits so each keystroke doesn't re-run the route loader,
+  // re-filter the full table, and re-mount virtualizer children.
+  const [searchInput, setSearchInput] = useSearchUrlSync({
+    urlValue: globalFilter,
+    onCommit: (value) => handleGlobalFilterChange(value),
+  });
 
   function handleColumnFiltersChange(updater: Updater<ColumnFiltersState>) {
     const next = typeof updater === "function" ? updater(columnFilters) : updater;
@@ -235,7 +246,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
   const rows = table.getRowModel().rows;
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useRcVirtualizer({
+  const { virtualItems, totalSize } = useRcVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT,
@@ -281,8 +292,8 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
           <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
           <Input
             placeholder="Search by name…"
-            value={globalFilter}
-            onChange={(e) => handleGlobalFilterChange(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             className="h-8 w-48 pl-8 text-sm"
           />
         </div>
@@ -315,10 +326,8 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
               ))}
             </TableHeader>
             <TableBody>
-              {virtualizer.getVirtualItems().length > 0 && (
-                <tr style={{ height: virtualizer.getVirtualItems()[0].start }} />
-              )}
-              {virtualizer.getVirtualItems().map((virtualRow) => {
+              {virtualItems.length > 0 && <tr style={{ height: virtualItems[0].start }} />}
+              {virtualItems.map((virtualRow) => {
                 const row = rows[virtualRow.index];
                 return (
                   <TableRow key={row.id} data-index={virtualRow.index}>
@@ -333,13 +342,8 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
                   </TableRow>
                 );
               })}
-              {virtualizer.getVirtualItems().length > 0 && (
-                <tr
-                  style={{
-                    height:
-                      virtualizer.getTotalSize() - (virtualizer.getVirtualItems().at(-1)?.end ?? 0),
-                  }}
-                />
+              {virtualItems.length > 0 && (
+                <tr style={{ height: totalSize - (virtualItems.at(-1)?.end ?? 0) }} />
               )}
             </TableBody>
           </Table>

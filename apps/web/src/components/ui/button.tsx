@@ -45,8 +45,14 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  render,
+  nativeButton,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  // custom: default nativeButton to false when a `render` prop is supplied.
+  // Render is almost always used to swap in a TanStack <Link> (an <a>), and
+  // Base UI warns at runtime if nativeButton stays true on a non-<button>.
+  const resolvedNativeButton = nativeButton ?? render === undefined;
   return (
     <ButtonPrimitive
       data-slot="button"
@@ -56,6 +62,8 @@ function Button({
       // `disabled` attribute to be absent from SSR HTML while present on the
       // client, triggering a React 19 hydration mismatch warning.
       suppressHydrationWarning
+      render={render}
+      nativeButton={resolvedNativeButton}
       {...props}
     />
   );
