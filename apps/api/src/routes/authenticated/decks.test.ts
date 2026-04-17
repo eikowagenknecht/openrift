@@ -543,7 +543,10 @@ describe("PUT /api/v1/decks/:id/cards — returned cards", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cards }),
     });
-    expect(mockRepo.replaceCards).toHaveBeenCalledWith(DECK_ID, cards);
+    expect(mockRepo.replaceCards).toHaveBeenCalledWith(
+      DECK_ID,
+      cards.map((card) => ({ ...card, preferredPrintingId: null })),
+    );
   });
 });
 
