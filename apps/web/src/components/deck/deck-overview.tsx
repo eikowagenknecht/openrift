@@ -1,6 +1,12 @@
+import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DeckZone, Marketplace } from "@openrift/shared";
 import { AlertTriangleIcon, CheckCircle2Icon, PackageSearchIcon } from "lucide-react";
 
+import type {
+  BrowserCardDragData,
+  DeckCardDragData,
+  DeckDropData,
+} from "@/components/deck/deck-dnd-context";
 import { OwnershipBar, ownershipPercent } from "@/components/deck/deck-ownership-panel";
 import { DomainBar } from "@/components/deck/deck-stats-panel";
 import { EnergyChart, PowerChart } from "@/components/deck/stats/energy-power-chart";
@@ -12,8 +18,10 @@ import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { isCardAllowedInZone } from "@/lib/deck-builder-card";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { formatterForMarketplace } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -194,6 +202,7 @@ export function DeckOverview({
               zone={zone}
               label={ZONE_LABELS[zone]}
               cards={cards.filter((card) => card.zone === zone)}
+              allCards={cards}
               expected={ZONE_EXPECTED[zone]}
               emptyHint={ZONE_EMPTY_HINTS[zone]}
               hasViolation={violations.some(
@@ -210,6 +219,7 @@ export function DeckOverview({
           zone="main"
           label={ZONE_LABELS.main}
           cards={cards.filter((card) => card.zone === "main")}
+          allCards={cards}
           expected={ZONE_EXPECTED.main}
           emptyHint={ZONE_EMPTY_HINTS.main}
           hasViolation={violations.some(
@@ -223,6 +233,7 @@ export function DeckOverview({
           zone="sideboard"
           label={ZONE_LABELS.sideboard}
           cards={cards.filter((card) => card.zone === "sideboard")}
+          allCards={cards}
           expected={ZONE_EXPECTED.sideboard}
           emptyHint={ZONE_EMPTY_HINTS.sideboard}
           hasViolation={violations.some(
@@ -237,6 +248,7 @@ export function DeckOverview({
             zone="overflow"
             label={ZONE_LABELS.overflow}
             cards={cards.filter((card) => card.zone === "overflow")}
+            allCards={cards}
             expected={ZONE_EXPECTED.overflow}
             emptyHint={ZONE_EMPTY_HINTS.overflow}
             hasViolation={violations.some(
@@ -373,10 +385,21 @@ function ValueKpi({
   );
 }
 
+// Zones where cards can be freely re-homed via drag. Mirrors the sidebar's
+// DRAG_ZONES so the two surfaces behave the same.
+const DRAG_SOURCE_ZONES: ReadonlySet<DeckZone> = new Set(["main", "sideboard", "overflow"]);
+const COPY_LIMIT_ZONES: ReadonlySet<DeckZone> = new Set([
+  "main",
+  "sideboard",
+  "overflow",
+  "champion",
+]);
+
 interface ZoneTileProps {
   zone: DeckZone;
   label: string;
   cards: DeckBuilderCard[];
+  allCards: DeckBuilderCard[];
   expected: number | undefined;
   emptyHint: string;
   hasViolation: boolean;
@@ -390,6 +413,7 @@ function ZoneTile({
   zone,
   label,
   cards,
+  allCards,
   expected,
   emptyHint,
   hasViolation,
@@ -410,14 +434,69 @@ function ZoneTile({
     return a.cardName.localeCompare(b.cardName);
   });
 
+  // Drop-target wiring — mirrors the logic in deck-zone-section.tsx so the
+  // sidebar and overview reject the same drags (copy limit, battlefield
+  // dedupe, 12-rune cap, type compatibility).
+  const { active } = useDndContext();
+  const dragData = active?.data.current as DeckCardDragData | BrowserCardDragData | undefined;
+  const draggedCard =
+    dragData?.type === "browser-card"
+      ? dragData.card
+      : dragData?.type === "deck-card"
+        ? allCards.find(
+            (card) => card.cardId === dragData.cardId && card.zone === dragData.fromZone,
+          )
+        : undefined;
+  const isDragging = active !== null;
+  const crossZoneTotal = (cardId: string) =>
+    allCards
+      .filter((entry) => entry.cardId === cardId && COPY_LIMIT_ZONES.has(entry.zone))
+      .reduce((sum, entry) => sum + entry.quantity, 0);
+
+  const isZoneFull = (() => {
+    if (!isDragging || !draggedCard) {
+      return false;
+    }
+    if (COPY_LIMIT_ZONES.has(zone) && crossZoneTotal(draggedCard.cardId) >= 3) {
+      return true;
+    }
+    if (zone === "battlefield") {
+      return allCards.some(
+        (card) => card.cardId === draggedCard.cardId && card.zone === "battlefield",
+      );
+    }
+    if (zone === "runes") {
+      const runeTotal = allCards
+        .filter((card) => card.zone === "runes")
+        .reduce((sum, card) => sum + card.quantity, 0);
+      return runeTotal >= 12;
+    }
+    return false;
+  })();
+
+  const dropDisabled =
+    isDragging &&
+    draggedCard !== undefined &&
+    (!isCardAllowedInZone(draggedCard, zone) || isZoneFull);
+
+  const dropData: DeckDropData = { type: "deck-zone", zone };
+  const { setNodeRef: dropRef, isOver } = useDroppable({
+    id: `overview-zone-${zone}`,
+    data: dropData,
+    disabled: dropDisabled,
+  });
+
   return (
     <button
+      ref={dropRef}
       type="button"
       onClick={onClick}
       className={cn(
         "group bg-card flex flex-col gap-2 rounded-lg border p-3 text-left transition-colors",
         "hover:border-primary/50 hover:bg-muted/40",
         hasViolation && "border-destructive/50",
+        isOver && !dropDisabled && "ring-primary/60 ring-2",
+        dropDisabled && "opacity-40",
         className,
       )}
     >
@@ -446,30 +525,76 @@ function ZoneTile({
               return null;
             }
             return (
-              <div
+              <ZoneThumb
                 key={card.cardId}
-                className="relative shrink-0"
-                onMouseEnter={() => onHoverCard?.(card.cardId)}
-                onMouseLeave={() => onHoverCard?.(null)}
-              >
-                <img
-                  src={thumbnail}
-                  alt={card.cardName}
-                  className={cn(
-                    "rounded-md object-cover shadow-sm",
-                    isLandscape ? "h-20 w-28" : "h-28 w-20",
-                  )}
-                />
-                {card.quantity > 1 && (
-                  <span className="bg-background/90 text-foreground absolute right-0.5 bottom-0.5 rounded px-1 text-[10px] leading-tight font-medium tabular-nums">
-                    ×{card.quantity}
-                  </span>
-                )}
-              </div>
+                card={card}
+                zone={zone}
+                thumbnail={thumbnail}
+                isLandscape={isLandscape}
+                onHoverCard={onHoverCard}
+              />
             );
           })}
         </div>
       )}
     </button>
+  );
+}
+
+function ZoneThumb({
+  card,
+  zone,
+  thumbnail,
+  isLandscape,
+  onHoverCard,
+}: {
+  card: DeckBuilderCard;
+  zone: DeckZone;
+  thumbnail: string;
+  isLandscape: boolean;
+  onHoverCard?: (cardId: string | null) => void;
+}) {
+  const isMobile = useIsMobile();
+  const enableDrag = !isMobile && DRAG_SOURCE_ZONES.has(zone);
+
+  const dragData: DeckCardDragData = {
+    type: "deck-card",
+    cardId: card.cardId,
+    cardName: card.cardName,
+    fromZone: zone,
+    quantity: card.quantity,
+  };
+
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: `overview-thumb-${card.cardId}-${zone}`,
+    data: dragData,
+    disabled: !enableDrag,
+  });
+
+  return (
+    <div
+      ref={enableDrag ? setNodeRef : undefined}
+      className={cn(
+        "relative shrink-0",
+        enableDrag && "cursor-grab active:cursor-grabbing",
+        isDragging && card.quantity === 1 && "opacity-40",
+      )}
+      onMouseEnter={() => onHoverCard?.(card.cardId)}
+      onMouseLeave={() => onHoverCard?.(null)}
+      {...(enableDrag ? listeners : {})}
+      {...(enableDrag ? attributes : {})}
+    >
+      <img
+        src={thumbnail}
+        alt={card.cardName}
+        className={cn("rounded-md object-cover shadow-sm", isLandscape ? "h-20 w-28" : "h-28 w-20")}
+        draggable={false}
+      />
+      {card.quantity > 1 && (
+        <span className="bg-background/90 text-foreground absolute right-0.5 bottom-0.5 rounded px-1 text-[10px] leading-tight font-medium tabular-nums">
+          ×{card.quantity}
+        </span>
+      )}
+    </div>
   );
 }

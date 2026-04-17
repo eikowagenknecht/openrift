@@ -2,6 +2,7 @@
 
 ## 2026-04-17
 
+- feat: You can now drag cards between zones straight from the deck overview dashboard, without having to open each zone first
 - feat: The deck overview now shows each zone's full card list with larger thumbnails, a KPI strip for cards, domains, ownership, and value, and the Energy / Power / Types charts as separate cards
 - feat: Card hover previews in the deck overview now follow your cursor instead of pinning to a fixed spot on the left
 - feat: The deck builder no longer shows the Language filter, since language doesn't matter when picking cards for a deck
