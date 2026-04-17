@@ -21,7 +21,13 @@ import { useLanguages } from "@/hooks/use-languages";
 import { useMarkers } from "@/hooks/use-markers";
 import { useSets } from "@/hooks/use-sets";
 
-export function CreatePrintingPage({ cardSlug }: { cardSlug: string }) {
+export function CreatePrintingPage({
+  cardSlug,
+  duplicateFrom,
+}: {
+  cardSlug: string;
+  duplicateFrom?: string;
+}) {
   const navigate = useNavigate();
   const createPrinting = useCreatePrinting();
   const { data: cardDetail, isLoading } = useAdminCardDetail(cardSlug) as {
@@ -38,21 +44,28 @@ export function CreatePrintingPage({ cardSlug }: { cardSlug: string }) {
   const languages = languagesData.languages;
 
   const firstSet = sets[0]?.slug ?? "";
+  const source = duplicateFrom
+    ? (cardDetail?.printings.find((p) => p.id === duplicateFrom) ?? null)
+    : null;
 
-  const [shortCode, setShortCode] = useState("");
-  const [setId, setSetId] = useState<string>(firstSet);
-  const [rarity, setRarity] = useState<string>(orders.rarities[0] ?? "Common");
-  const [artVariant, setArtVariant] = useState<string>(orders.artVariants[0] ?? "normal");
-  const [finish, setFinish] = useState<string>(orders.finishes[0] ?? "normal");
-  const [isSigned, setIsSigned] = useState(false);
-  const [selectedMarkerSlugs, setSelectedMarkerSlugs] = useState<string[]>([]);
-  const [artist, setArtist] = useState("");
-  const [publicCode, setPublicCode] = useState("");
-  const [language, setLanguage] = useState<string>(languages[0]?.code ?? "EN");
-  const [printedName, setPrintedName] = useState("");
-  const [printedRulesText, setPrintedRulesText] = useState("");
-  const [printedEffectText, setPrintedEffectText] = useState("");
-  const [flavorText, setFlavorText] = useState("");
+  const [shortCode, setShortCode] = useState(source?.shortCode ?? "");
+  const [setId, setSetId] = useState<string>(source?.setSlug ?? firstSet);
+  const [rarity, setRarity] = useState<string>(source?.rarity ?? orders.rarities[0] ?? "Common");
+  const [artVariant, setArtVariant] = useState<string>(
+    source?.artVariant ?? orders.artVariants[0] ?? "normal",
+  );
+  const [finish, setFinish] = useState<string>(source?.finish ?? orders.finishes[0] ?? "normal");
+  const [isSigned, setIsSigned] = useState(source?.isSigned ?? false);
+  const [selectedMarkerSlugs, setSelectedMarkerSlugs] = useState<string[]>(
+    source?.markerSlugs ?? [],
+  );
+  const [artist, setArtist] = useState(source?.artist ?? "");
+  const [publicCode, setPublicCode] = useState(source?.publicCode ?? "");
+  const [language, setLanguage] = useState<string>(source?.language ?? languages[0]?.code ?? "EN");
+  const [printedName, setPrintedName] = useState(source?.printedName ?? "");
+  const [printedRulesText, setPrintedRulesText] = useState(source?.printedRulesText ?? "");
+  const [printedEffectText, setPrintedEffectText] = useState(source?.printedEffectText ?? "");
+  const [flavorText, setFlavorText] = useState(source?.flavorText ?? "");
   const [imageUrl, setImageUrl] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -104,7 +117,7 @@ export function CreatePrintingPage({ cardSlug }: { cardSlug: string }) {
     }
 
     createPrinting.mutate(
-      { cardId, printingFields },
+      { cardId, cardSlug, printingFields },
       {
         onSuccess: () => {
           void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug } });
@@ -126,10 +139,21 @@ export function CreatePrintingPage({ cardSlug }: { cardSlug: string }) {
   return (
     <div className="max-w-2xl space-y-6">
       <div>
-        <h2 className="text-lg font-semibold">Create new printing</h2>
+        <h2 className="text-lg font-semibold">
+          {source ? "Duplicate printing" : "Create new printing"}
+        </h2>
         <p className="text-muted-foreground">
-          Manual entry for <span className="font-medium">{card.name}</span>. No source candidates
-          will be linked.
+          {source ? (
+            <>
+              Duplicating <span className="font-medium">{source.expectedPrintingId}</span> for{" "}
+              <span className="font-medium">{card.name}</span>. Update fields as needed.
+            </>
+          ) : (
+            <>
+              Manual entry for <span className="font-medium">{card.name}</span>. No source
+              candidates will be linked.
+            </>
+          )}
         </p>
       </div>
 

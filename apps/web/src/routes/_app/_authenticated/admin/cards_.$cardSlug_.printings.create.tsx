@@ -8,10 +8,21 @@ import { adminLanguagesQueryOptions } from "@/hooks/use-languages";
 import { adminMarkersQueryOptions } from "@/hooks/use-markers";
 import { setsQueryOptions } from "@/hooks/use-sets";
 
+interface CreatePrintingSearch {
+  duplicateFrom?: string;
+}
+
 export const Route = createFileRoute(
   "/_app/_authenticated/admin/cards_/$cardSlug_/printings/create",
 )({
   staticData: { title: "Create Printing" },
+  validateSearch: (search: Record<string, unknown>): CreatePrintingSearch => {
+    const result: CreatePrintingSearch = {};
+    if (typeof search.duplicateFrom === "string" && search.duplicateFrom.length > 0) {
+      result.duplicateFrom = search.duplicateFrom;
+    }
+    return result;
+  },
   loader: async ({ context, params }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(adminCardDetailQueryOptions(params.cardSlug)),

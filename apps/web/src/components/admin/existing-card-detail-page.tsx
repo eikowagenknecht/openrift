@@ -10,6 +10,7 @@ import {
   ArrowRightIcon,
   BanIcon,
   CheckCheckIcon,
+  CopyIcon,
   FileWarningIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
@@ -699,24 +700,49 @@ export function ExistingCardDetailPage({
                     Check {allSources.filter((ps) => !ps.checkedAt).length} unchecked
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  className="text-destructive hover:text-destructive ml-auto"
-                  disabled={deletePrintingMutation.isPending}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (
-                      globalThis.confirm(
-                        `Delete printing "${printingLabel}"? This cannot be undone.`,
-                      )
-                    ) {
-                      deletePrintingMutation.mutate(printingId);
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="ml-auto"
+                        onClick={(e) => e.stopPropagation()}
+                      />
                     }
-                  }}
-                >
-                  <Trash2Icon className="mr-1" />
-                  Delete
-                </Button>
+                  >
+                    <EllipsisVerticalIcon />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      render={
+                        <Link
+                          to="/admin/cards/$cardSlug/printings/create"
+                          params={{ cardSlug: cardId }}
+                          search={{ duplicateFrom: printingId }}
+                        />
+                      }
+                    >
+                      <CopyIcon className="mr-2" />
+                      Duplicate printing
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={deletePrintingMutation.isPending}
+                      onClick={() => {
+                        if (
+                          globalThis.confirm(
+                            `Delete printing "${printingLabel}"? This cannot be undone.`,
+                          )
+                        ) {
+                          deletePrintingMutation.mutate(printingId);
+                        }
+                      }}
+                    >
+                      <Trash2Icon className="text-destructive mr-2" />
+                      <span className="text-destructive">Delete</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
               {isExpanded && (
                 <div className="flex gap-3 border-t p-3">
