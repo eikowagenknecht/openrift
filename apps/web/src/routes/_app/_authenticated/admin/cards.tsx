@@ -9,7 +9,13 @@ import { unifiedMappingsQueryOptions } from "@/hooks/use-unified-mappings";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
   staticData: { title: "Cards" },
-  validateSearch: z.object({ set: z.string().optional() }),
+  validateSearch: z.object({
+    set: z.string().optional(),
+    tab: z.enum(["cards", "candidates", "unmatched"]).optional(),
+    q: z.string().optional(),
+    sort: z.string().optional(),
+    status: z.enum(["unchecked"]).optional(),
+  }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(adminCardListQueryOptions),

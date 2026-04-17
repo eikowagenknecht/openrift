@@ -1,6 +1,13 @@
 import type { CandidateCardSummaryResponse } from "@openrift/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ColumnDef, ColumnFiltersState, FilterFn, SortingState } from "@tanstack/react-table";
+import { useNavigate } from "@tanstack/react-router";
+import type {
+  ColumnDef,
+  ColumnFiltersState,
+  FilterFn,
+  SortingState,
+  Updater,
+} from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
@@ -34,8 +41,10 @@ import {
   useLinkCard,
 } from "@/hooks/use-admin-card-mutations";
 import { useAllCards } from "@/hooks/use-admin-card-queries";
+import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -154,9 +163,18 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
     },
   });
 
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
+  const navigate = useNavigate({ from: CardsRoute.fullPath });
+  const { sorting, globalFilter, activeStatus } = CardsRoute.useSearch({
+    select: (s) => ({
+      sorting: parseSortParam(s.sort),
+      globalFilter: s.q ?? "",
+      activeStatus: s.status ?? null,
+    }),
+  });
+
+  const columnFilters: ColumnFiltersState = activeStatus
+    ? [{ id: "status", value: activeStatus }]
+    : [];
 
   const uncheckedCount = data.filter(
     (r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
@@ -164,16 +182,38 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
 
   const acceptableCount = data.filter((r) => !r.cardSlug && r.hasFavorite).length;
 
-  const activeStatus = (columnFilters.find((f) => f.id === "status")?.value ??
-    null) as StatusFilter | null;
-
   function toggleStatus(status: StatusFilter) {
-    setColumnFilters((prev) => {
-      const without = prev.filter((f) => f.id !== "status");
-      if (activeStatus === status) {
-        return without;
-      }
-      return [...without, { id: "status", value: status }];
+    void navigate({
+      search: (prev) => ({
+        ...prev,
+        status: activeStatus === status ? undefined : status,
+      }),
+      replace: true,
+    });
+  }
+
+  function handleSortingChange(updater: Updater<SortingState>) {
+    const next = typeof updater === "function" ? updater(sorting) : updater;
+    void navigate({
+      search: (prev) => ({ ...prev, sort: stringifySort(next) }),
+      replace: true,
+    });
+  }
+
+  function handleGlobalFilterChange(updater: Updater<string>) {
+    const next = typeof updater === "function" ? updater(globalFilter) : updater;
+    void navigate({
+      search: (prev) => ({ ...prev, q: next === "" ? undefined : next }),
+      replace: true,
+    });
+  }
+
+  function handleColumnFiltersChange(updater: Updater<ColumnFiltersState>) {
+    const next = typeof updater === "function" ? updater(columnFilters) : updater;
+    const statusFilter = next.find((f) => f.id === "status")?.value as StatusFilter | undefined;
+    void navigate({
+      search: (prev) => ({ ...prev, status: statusFilter }),
+      replace: true,
     });
   }
 
@@ -183,9 +223,9 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
     data,
     columns,
     state: { sorting, columnFilters, globalFilter },
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: handleSortingChange,
+    onColumnFiltersChange: handleColumnFiltersChange,
+    onGlobalFilterChange: handleGlobalFilterChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -243,7 +283,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
           <Input
             placeholder="Search by name…"
             value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
+            onChange={(e) => handleGlobalFilterChange(e.target.value)}
             className="h-8 w-48 pl-8 text-sm"
           />
         </div>
