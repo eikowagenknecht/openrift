@@ -27,7 +27,7 @@
     "@sentry/bun": "10.48.0",
     "better-auth": "1.6.2",
     "croner": "10.0.1",
-    "hono": "4.12.12",
+    "hono": "4.12.14",
     "hono-rate-limiter": "0.5.3",
     "kysely": "0.28.15",
     "kysely-postgres-js": "3.0.0",
