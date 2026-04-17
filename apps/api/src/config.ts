@@ -37,6 +37,11 @@ export function createConfig(env: Record<string, string | undefined>) {
 
     cardtraderApiToken: env.CARDTRADER_API_TOKEN ?? "",
 
+    cloudflare:
+      env.CLOUDFLARE_API_TOKEN && env.CLOUDFLARE_ZONE_ID
+        ? { apiToken: env.CLOUDFLARE_API_TOKEN, zoneId: env.CLOUDFLARE_ZONE_ID }
+        : undefined,
+
     appBaseUrl: env.BETTER_AUTH_URL ?? "",
 
     logRequests: env.LOG_REQUESTS === "true",

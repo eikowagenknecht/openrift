@@ -4,6 +4,7 @@ import {
   BookOpenIcon,
   ActivityIcon,
   CameraIcon,
+  CloudIcon,
   FileWarningIcon,
   GalleryVerticalIcon,
   DatabaseIcon,
@@ -74,6 +75,7 @@ const systemPages = [
   { to: "/admin/users" as const, icon: UsersIcon, title: "Users" },
   { to: "/admin/feature-flags" as const, icon: FlagIcon, title: "Feature Flags" },
   { to: "/admin/site-settings" as const, icon: GlobeIcon, title: "Site Settings" },
+  { to: "/admin/cache" as const, icon: CloudIcon, title: "Cache" },
   { to: "/admin/scan" as const, icon: CameraIcon, title: "Scan Test" },
 ];
 

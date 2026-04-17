@@ -4,6 +4,7 @@ import { z } from "zod";
 import { cronJobs } from "../../cron-jobs.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
+import { adminCacheRoute } from "./cache.js";
 import { adminCardsRoute } from "./cards/index.js";
 import { catalogRoute } from "./catalog.js";
 import { adminDeckZonesRoute } from "./deck-zones.js";
@@ -126,4 +127,5 @@ export const adminRoute = app
   .route("/admin", adminKeywordsRoute)
   .route("/admin", adminFinishesRoute)
   .route("/admin", adminDomainsRoute)
-  .route("/admin", adminRaritiesRoute);
+  .route("/admin", adminRaritiesRoute)
+  .route("/admin", adminCacheRoute);

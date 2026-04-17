@@ -84,6 +84,7 @@ export const queryKeys = {
     siteSettings: ["admin", "site-settings"] as const,
     status: ["admin", "status"] as const,
     cronStatus: ["admin", "cron-status"] as const,
+    cacheStatus: ["admin", "cache-status"] as const,
     rehostStatus: ["admin", "rehost-status"] as const,
     brokenImages: ["admin", "broken-images"] as const,
     lowResImages: ["admin", "low-res-images"] as const,
