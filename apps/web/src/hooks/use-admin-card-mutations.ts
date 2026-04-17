@@ -327,22 +327,30 @@ const deleteProviderFn = createServerFn({ method: "POST" })
   });
 
 // ── Hook exports ─────────────────────────────────────────────────────────────
+//
+// Hooks that operate on a candidate/printing/image ID don't know the owning
+// card slug at mutation time. Callers on card-detail pages pass a narrower
+// `invalidates` list (e.g. [detail(slug), list]); callers without context get
+// the coarse default.
 
-export function useCheckCandidateCard() {
+type Scope = readonly (readonly unknown[])[];
+const defaultScope: Scope = [queryKeys.admin.cards.all];
+
+export function useCheckCandidateCard(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async (candidateCardId: string) => {
       await checkCandidateCardFn({ data: { candidateCardId } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useUncheckCandidateCard() {
+export function useUncheckCandidateCard(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async (candidateCardId: string) => {
       await uncheckCandidateCardFn({ data: { candidateCardId } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
@@ -351,34 +359,34 @@ export function useCheckAllCandidateCards() {
     mutationFn: async (cardId: string) => {
       await checkAllCandidateCardsFn({ data: { cardId } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates: (cardId) => [queryKeys.admin.cards.detail(cardId), queryKeys.admin.cards.list],
   });
 }
 
-export function useCheckCandidatePrinting() {
+export function useCheckCandidatePrinting(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async (id: string) => {
       await checkCandidatePrintingFn({ data: { id } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useUncheckCandidatePrinting() {
+export function useUncheckCandidatePrinting(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async (id: string) => {
       await uncheckCandidatePrintingFn({ data: { id } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useCheckAllCandidatePrintings() {
+export function useCheckAllCandidatePrintings(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async ({ printingId, extraIds }: { printingId?: string; extraIds?: string[] }) => {
       await checkAllCandidatePrintingsFn({ data: { printingId, extraIds } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
@@ -387,7 +395,12 @@ export function useRenameCard() {
     mutationFn: async ({ cardId, newId }: { cardId: string; newId: string }) => {
       await renameCardFn({ data: { cardId, newId } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates: ({ cardId, newId }) => [
+      queryKeys.admin.cards.detail(cardId),
+      queryKeys.admin.cards.detail(newId),
+      queryKeys.admin.cards.list,
+      queryKeys.admin.cards.allCards,
+    ],
   });
 }
 
@@ -406,11 +419,11 @@ export function useAcceptCardField() {
     }) => {
       await acceptCardFieldFn({ data: { cardId, field, value, source } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates: ({ cardId }) => [queryKeys.admin.cards.detail(cardId), queryKeys.admin.cards.list],
   });
 }
 
-export function useAcceptPrintingField() {
+export function useAcceptPrintingField(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async ({
       printingId,
@@ -425,7 +438,7 @@ export function useAcceptPrintingField() {
     }) => {
       await acceptPrintingFieldFn({ data: { printingId, field, value, source } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
@@ -440,7 +453,11 @@ export function useAcceptNewCard() {
     }) => {
       await acceptNewCardFn({ data: { name, cardFields } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates: ({ name }) => [
+      queryKeys.admin.cards.unmatched(name),
+      queryKeys.admin.cards.list,
+      queryKeys.admin.cards.allCards,
+    ],
   });
 }
 
@@ -463,7 +480,11 @@ export function useCreateCard() {
   return useMutationWithInvalidation({
     mutationFn: (cardFields: AcceptNewCardBody["cardFields"]) =>
       createCardFn({ data: { cardFields } }),
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates: (_variables, data) => [
+      queryKeys.admin.cards.detail(data.cardSlug),
+      queryKeys.admin.cards.list,
+      queryKeys.admin.cards.allCards,
+    ],
   });
 }
 
@@ -494,7 +515,7 @@ export function useCreatePrinting() {
       cardId: string;
       printingFields: AcceptPrintingBody["printingFields"];
     }) => createPrintingFn({ data: { cardId, printingFields } }),
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates: ({ cardId }) => [queryKeys.admin.cards.detail(cardId), queryKeys.admin.cards.list],
   });
 }
 
@@ -503,7 +524,11 @@ export function useAcceptFavoriteNewCard() {
     mutationFn: async (name: string) => {
       await acceptFavoritesFn({ data: { name } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates: (name) => [
+      queryKeys.admin.cards.unmatched(name),
+      queryKeys.admin.cards.list,
+      queryKeys.admin.cards.allCards,
+    ],
   });
 }
 
@@ -512,52 +537,57 @@ export function useLinkCard() {
     mutationFn: async ({ name, cardId }: { name: string; cardId: string }) => {
       await linkCardFn({ data: { name, cardId } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates: ({ name, cardId }) => [
+      queryKeys.admin.cards.detail(cardId),
+      queryKeys.admin.cards.unmatched(name),
+      queryKeys.admin.cards.list,
+      queryKeys.admin.cards.allCards,
+    ],
   });
 }
 
-export function useReassignCandidatePrinting() {
+export function useReassignCandidatePrinting(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async ({ id, fields }: { id: string; fields: Record<string, unknown> }) => {
       await reassignCandidatePrintingFn({ data: { id, fields } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useDeleteCandidatePrinting() {
+export function useDeleteCandidatePrinting(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async (id: string) => {
       await deleteCandidatePrintingFn({ data: { id } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useCopyCandidatePrinting() {
+export function useCopyCandidatePrinting(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async ({ id, printingId }: { id: string; printingId: string }) => {
       await copyCandidatePrintingFn({ data: { id, printingId } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useLinkCandidatePrintings() {
+export function useLinkCandidatePrintings(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async (payload: { candidatePrintingIds: string[]; printingId: string | null }) => {
       await linkCandidatePrintingsFn({ data: payload });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useDeletePrinting() {
+export function useDeletePrinting(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async (printingId: string) => {
       await deletePrintingFn({ data: { printingId } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
@@ -575,7 +605,7 @@ export function useAcceptPrintingGroup() {
       acceptPrintingGroupFn({
         data: { cardId, printingFields, candidatePrintingIds },
       }),
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates: ({ cardId }) => [queryKeys.admin.cards.detail(cardId), queryKeys.admin.cards.list],
   });
 }
 
@@ -603,7 +633,7 @@ export const acceptFavoritePrintingsFn = createServerFn({ method: "POST" })
 export function useAcceptFavoritePrintings() {
   return useMutationWithInvalidation({
     mutationFn: (cardSlug: string) => acceptFavoritePrintingsFn({ data: cardSlug }),
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates: (cardSlug) => [queryKeys.admin.cards.detail(cardSlug), queryKeys.admin.cards.list],
   });
 }
 
@@ -656,23 +686,28 @@ const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
     }
   });
 
-export function useSaveMarketplaceMapping() {
+const defaultMarketplaceScope: Scope = [
+  queryKeys.admin.cards.all,
+  queryKeys.admin.unifiedMappings.all,
+];
+
+export function useSaveMarketplaceMapping(invalidates: Scope = defaultMarketplaceScope) {
   return useMutationWithInvalidation({
     mutationFn: (input: {
       marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       printingId: string;
       externalId: number;
     }) => saveMarketplaceMappingFn({ data: input }),
-    invalidates: [queryKeys.admin.cards.all, queryKeys.admin.unifiedMappings.all],
+    invalidates,
   });
 }
 
-export function useUnmapMarketplacePrinting() {
+export function useUnmapMarketplacePrinting(invalidates: Scope = defaultMarketplaceScope) {
   return useMutationWithInvalidation({
     mutationFn: (input: {
       marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       printingId: string;
     }) => unmapMarketplacePrintingFn({ data: input }),
-    invalidates: [queryKeys.admin.cards.all, queryKeys.admin.unifiedMappings.all],
+    invalidates,
   });
 }

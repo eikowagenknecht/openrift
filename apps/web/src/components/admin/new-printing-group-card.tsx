@@ -44,6 +44,7 @@ export function NewPrintingGroupCard({
   isAccepting,
   isLinking,
   printingFields,
+  invalidates,
 }: {
   group: PrintingGroup & { groupKey: string };
   existingPrintings: AdminPrintingResponse[];
@@ -61,9 +62,10 @@ export function NewPrintingGroupCard({
   isAccepting: boolean;
   isLinking?: boolean;
   printingFields: FieldDef[];
+  invalidates: readonly (readonly unknown[])[];
 }) {
   const { checkPrintingSource, uncheckPrintingSource, checkAllCandidatePrintings } =
-    useCardDetailData();
+    useCardDetailData(invalidates);
   const [activePrinting, setActivePrinting] = useState<Record<string, unknown>>({});
 
   /**

@@ -69,6 +69,7 @@ import {
   useAllCards,
   useNextUncheckedCard,
 } from "@/hooks/use-admin-card-queries";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 export function ExistingCardDetailPage({
@@ -84,6 +85,10 @@ export function ExistingCardDetailPage({
 }) {
   const navigate = useNavigate();
   const cardId = identifier;
+
+  // Narrow invalidation so mutations only refetch this card's detail + the
+  // admin card list — not every query under `admin.cards`.
+  const invalidateScope = [queryKeys.admin.cards.detail(cardId), queryKeys.admin.cards.list];
 
   // --- Data fetching ---
   const {
@@ -108,18 +113,18 @@ export function ExistingCardDetailPage({
     checkAllCandidatePrintings,
     ignoreCardSource,
     ignorePrintingSource,
-  } = useCardDetailData();
+  } = useCardDetailData(invalidateScope);
 
   // --- Existing-mode hooks ---
   const checkAllCardSources = useCheckAllCandidateCards();
   const acceptCardField = useAcceptCardField();
-  const acceptPrintingField = useAcceptPrintingField();
+  const acceptPrintingField = useAcceptPrintingField(invalidateScope);
   const renameCard = useRenameCard();
   const acceptPrintingGroup = useAcceptPrintingGroup();
-  const copyPrintingSource = useCopyCandidatePrinting();
-  const deletePrintingSource = useDeleteCandidatePrinting();
-  const linkPrintingSources = useLinkCandidatePrintings();
-  const deletePrintingMutation = useDeletePrinting();
+  const copyPrintingSource = useCopyCandidatePrinting(invalidateScope);
+  const deletePrintingSource = useDeleteCandidatePrinting(invalidateScope);
+  const linkPrintingSources = useLinkCandidatePrintings(invalidateScope);
+  const deletePrintingMutation = useDeletePrinting(invalidateScope);
   const { data: allCards } = useAllCards();
 
   // --- State ---
@@ -691,6 +696,7 @@ export function ExistingCardDetailPage({
                       images={printingImages.filter((pi) => pi.printingId === printingId)}
                       providerSettings={providerSettings}
                       sourceImages={sourceImagesForSwitcher}
+                      invalidates={invalidateScope}
                     />
                     <PrintingMarketplaceCells
                       printing={printing}
@@ -856,6 +862,7 @@ export function ExistingCardDetailPage({
             isAccepting={acceptPrintingGroup.isPending}
             isLinking={linkPrintingSources.isPending}
             printingFields={printingSourceFields}
+            invalidates={invalidateScope}
           />
         ))}
       </section>

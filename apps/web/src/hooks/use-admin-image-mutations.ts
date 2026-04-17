@@ -169,53 +169,60 @@ const uploadCandidatesFn = createServerFn({ method: "POST" })
   });
 
 // ── Hook exports ─────────────────────────────────────────────────────────────
+//
+// Image mutations operate on an imageId or printingId; the owning card slug
+// isn't in the arguments. Callers on a card-detail page pass a narrower
+// `invalidates` list; callers without context get the coarse default.
 
-export function useDeletePrintingImage() {
+type Scope = readonly (readonly unknown[])[];
+const defaultScope: Scope = [queryKeys.admin.cards.all];
+
+export function useDeletePrintingImage(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async (imageId: string) => {
       await deletePrintingImageFn({ data: { imageId } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useActivatePrintingImage() {
+export function useActivatePrintingImage(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async ({ imageId, active }: { imageId: string; active: boolean }) => {
       await activatePrintingImageFn({ data: { imageId, active } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useRehostPrintingImage() {
+export function useRehostPrintingImage(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async (imageId: string) => {
       await rehostPrintingImageFn({ data: { imageId } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useUnrehostPrintingImage() {
+export function useUnrehostPrintingImage(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async (imageId: string) => {
       await unrehostPrintingImageFn({ data: { imageId } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useRotatePrintingImage() {
+export function useRotatePrintingImage(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async ({ imageId, rotation }: { imageId: string; rotation: Rotation }) => {
       await rotatePrintingImageFn({ data: { imageId, rotation } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useAddImageFromUrl() {
+export function useAddImageFromUrl(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: ({
       printingId,
@@ -226,7 +233,7 @@ export function useAddImageFromUrl() {
       source?: string;
       mode?: "main" | "additional";
     }) => addImageFromUrlFn({ data: { printingId, ...body } }),
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
@@ -267,7 +274,7 @@ const uploadPrintingImageFn = createServerFn({ method: "POST" })
     return res.json();
   });
 
-export function useUploadPrintingImage() {
+export function useUploadPrintingImage(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async ({
       printingId,
@@ -286,11 +293,11 @@ export function useUploadPrintingImage() {
         data: { printingId, fileName: file.name, fileType: file.type, fileBase64, provider, mode },
       });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 
-export function useSetCandidatePrintingImage() {
+export function useSetCandidatePrintingImage(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async ({
       candidatePrintingId,
@@ -301,7 +308,7 @@ export function useSetCandidatePrintingImage() {
     }) => {
       await setCandidatePrintingImageFn({ data: { candidatePrintingId, mode } });
     },
-    invalidates: [queryKeys.admin.cards.all],
+    invalidates,
   });
 }
 

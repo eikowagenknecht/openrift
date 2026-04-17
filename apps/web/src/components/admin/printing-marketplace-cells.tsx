@@ -23,6 +23,7 @@ import {
   useSaveMarketplaceMapping,
   useUnmapMarketplacePrinting,
 } from "@/hooks/use-admin-card-mutations";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 import { formatCents, ProductLink } from "./price-mappings-utils";
@@ -162,8 +163,13 @@ export function PrintingMarketplaceCells({
       user arrived here via a "Route to card" click on the Unmatched tab. */
   highlightMarketplace?: AdminMarketplaceName;
 }) {
-  const saveMapping = useSaveMarketplaceMapping();
-  const unmapPrinting = useUnmapMarketplacePrinting();
+  const invalidates = [
+    queryKeys.admin.cards.detail(printing.cardId),
+    queryKeys.admin.cards.list,
+    queryKeys.admin.unifiedMappings.all,
+  ];
+  const saveMapping = useSaveMarketplaceMapping(invalidates);
+  const unmapPrinting = useUnmapMarketplacePrinting(invalidates);
   const cells = buildCellState(mappings, printing.id);
 
   return (
