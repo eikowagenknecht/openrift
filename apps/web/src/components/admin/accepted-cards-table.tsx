@@ -1,8 +1,8 @@
 import type { CandidateCardSummaryResponse } from "@openrift/shared";
 import { formatShortCodesArray } from "@openrift/shared/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import type { ColumnDef, SortingState } from "@tanstack/react-table";
+import { Link, useNavigate } from "@tanstack/react-router";
+import type { ColumnDef, SortingState, Updater } from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
@@ -32,9 +32,11 @@ import {
   acceptFavoritePrintingsFn,
   useAcceptFavoritePrintings,
 } from "@/hooks/use-admin-card-mutations";
+import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import type { CardCoverage, MarketplaceCoverage } from "@/lib/marketplace-coverage";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -305,15 +307,33 @@ export function AcceptedCardsTable({
     },
   });
 
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [globalFilter, setGlobalFilter] = useState("");
+  const navigate = useNavigate({ from: CardsRoute.fullPath });
+  const { sorting, globalFilter } = CardsRoute.useSearch({
+    select: (s) => ({ sorting: parseSortParam(s.sort), globalFilter: s.q ?? "" }),
+  });
+
+  function handleSortingChange(updater: Updater<SortingState>) {
+    const next = typeof updater === "function" ? updater(sorting) : updater;
+    void navigate({
+      search: (prev) => ({ ...prev, sort: stringifySort(next) }),
+      replace: true,
+    });
+  }
+
+  function handleGlobalFilterChange(updater: Updater<string>) {
+    const next = typeof updater === "function" ? updater(globalFilter) : updater;
+    void navigate({
+      search: (prev) => ({ ...prev, q: next === "" ? undefined : next }),
+      replace: true,
+    });
+  }
 
   const table = useReactTable({
     data,
     columns,
     state: { sorting, globalFilter },
-    onSortingChange: setSorting,
-    onGlobalFilterChange: setGlobalFilter,
+    onSortingChange: handleSortingChange,
+    onGlobalFilterChange: handleGlobalFilterChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -350,7 +370,7 @@ export function AcceptedCardsTable({
           <Input
             placeholder="Search by name or code…"
             value={globalFilter}
-            onChange={(e) => setGlobalFilter(e.target.value)}
+            onChange={(e) => handleGlobalFilterChange(e.target.value)}
             className="h-8 w-56 pl-8 text-sm"
           />
         </div>
