@@ -21,15 +21,15 @@
   },
   "dependencies": {
     "@hono/swagger-ui": "0.6.1",
-    "@hono/zod-openapi": "1.2.4",
+    "@hono/zod-openapi": "1.3.0",
     "@openrift/shared": "workspace:*",
     "@piltoverarchive/riftbound-deck-codes": "1.2.0",
-    "@sentry/bun": "10.48.0",
-    "better-auth": "1.6.2",
+    "@sentry/bun": "10.49.0",
+    "better-auth": "1.6.5",
     "croner": "10.0.1",
     "hono": "4.12.14",
     "hono-rate-limiter": "0.5.3",
-    "kysely": "0.28.15",
+    "kysely": "0.28.16",
     "kysely-postgres-js": "3.0.0",
     "nodemailer": "8.0.5",
     "postgres": "3.4.9",
@@ -38,11 +38,11 @@
     "zod": "4.3.6"
   },
   "devDependencies": {
-    "@types/bun": "1.3.11",
+    "@types/bun": "1.3.12",
     "@types/nodemailer": "8.0.0",
-    "@typescript/native-preview": "7.0.0-dev.20260416.1",
+    "@typescript/native-preview": "7.0.0-dev.20260416.2",
     "@vitest/coverage-v8": "4.1.4",
-    "typescript": "6.0.2",
+    "typescript": "6.0.3",
     "vitest": "4.1.4"
   }
 }
