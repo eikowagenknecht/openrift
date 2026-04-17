@@ -44,46 +44,24 @@ function PromosPage() {
     ...[...presentLanguageSet].filter((lang) => !languageOrder.includes(lang)).toSorted(),
   ];
 
-  const [selectedLanguages, setSelectedLanguages] = useState<Set<string>>(() => {
-    if (presentLanguages.length === 0) {
-      return new Set();
-    }
-    const preferred = new Set(languageOrder);
-    const intersection = presentLanguages.filter((lang) => preferred.has(lang));
-    return new Set(intersection.length > 0 ? intersection : presentLanguages);
-  });
-
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
-  const toggleLanguage = (code: string) => {
-    setSelectedLanguages((prev) => {
-      const next = new Set(prev);
-      if (next.has(code)) {
-        next.delete(code);
-      } else {
-        next.add(code);
-      }
-      return next;
-    });
-  };
-
-  const allSelected = selectedLanguages.size === presentLanguages.length;
-  const toggleAll = () => {
-    setSelectedLanguages(allSelected ? new Set() : new Set(presentLanguages));
-  };
-
-  // Index printings by every event channel they were distributed through.
-  const printingsByChannel = new Map<string, Printing[]>();
+  const printingsByLanguageAndChannel = new Map<string, Map<string, Printing[]>>();
   for (const printing of data.printings) {
     for (const link of printing.distributionChannels) {
       if (link.channel.kind !== "event") {
         continue;
       }
-      const list = printingsByChannel.get(link.channel.id);
+      let byChannel = printingsByLanguageAndChannel.get(printing.language);
+      if (!byChannel) {
+        byChannel = new Map();
+        printingsByLanguageAndChannel.set(printing.language, byChannel);
+      }
+      const list = byChannel.get(link.channel.id);
       if (list) {
         list.push(printing);
       } else {
-        printingsByChannel.set(link.channel.id, [printing]);
+        byChannel.set(link.channel.id, [printing]);
       }
     }
   }
@@ -96,8 +74,8 @@ function PromosPage() {
     });
   };
 
-  const compareForDisplay = (a: Printing, b: Printing) => {
-    const canonical = comparePrintings(
+  const compareForDisplay = (a: Printing, b: Printing) =>
+    comparePrintings(
       {
         setId: a.setId,
         shortCode: a.shortCode,
@@ -111,15 +89,6 @@ function PromosPage() {
         markerSlugs: b.markers.map((m) => m.slug),
       },
     );
-    if (canonical !== 0) {
-      return canonical;
-    }
-    const aIdx = languageOrder.indexOf(a.language);
-    const bIdx = languageOrder.indexOf(b.language);
-    const aPos = aIdx === -1 ? languageOrder.length : aIdx;
-    const bPos = bIdx === -1 ? languageOrder.length : bIdx;
-    return aPos - bPos || a.language.localeCompare(b.language);
-  };
 
   return (
     <div className={PAGE_PADDING}>
@@ -127,104 +96,89 @@ function PromosPage() {
         <h1 className="text-2xl font-bold">Promo Cards</h1>
         <p className="text-muted-foreground max-w-prose text-sm">
           Promos are alternate printings distributed outside booster products: prerelease giveaways,
-          store championship prizes, and event exclusives. Each section below covers one promo type,
-          with a printing count so you can see what you&apos;re chasing.
+          store championship prizes, and event exclusives. Sections are grouped by language, then by
+          promo type, with a printing count so you can see what you&apos;re chasing.
         </p>
       </div>
 
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        {presentLanguages.length > 1 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground text-sm">Languages:</span>
-            {presentLanguages.map((code) => {
-              const isSelected = selectedLanguages.has(code);
-              const label = languageLabelMap.get(code) ?? code;
-              return (
-                <Button
-                  key={code}
-                  variant={isSelected ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => toggleLanguage(code)}
-                >
-                  {label}
-                </Button>
-              );
-            })}
-            <Button variant="ghost" size="sm" onClick={toggleAll}>
-              {allSelected ? "Clear all" : "Select all"}
-            </Button>
-          </div>
-        )}
-        <div className="ml-auto flex items-center gap-1">
-          <Button
-            variant={viewMode === "grid" ? "default" : "outline"}
-            size="icon-sm"
-            onClick={() => setViewMode("grid")}
-            aria-label="Grid view"
-            aria-pressed={viewMode === "grid"}
-          >
-            <LayoutGridIcon className="size-4" />
-          </Button>
-          <Button
-            variant={viewMode === "list" ? "default" : "outline"}
-            size="icon-sm"
-            onClick={() => setViewMode("list")}
-            aria-label="List view"
-            aria-pressed={viewMode === "list"}
-          >
-            <ListIcon className="size-4" />
-          </Button>
-        </div>
+      <div className="mb-6 flex items-center justify-end gap-1">
+        <Button
+          variant={viewMode === "grid" ? "default" : "outline"}
+          size="icon-sm"
+          onClick={() => setViewMode("grid")}
+          aria-label="Grid view"
+          aria-pressed={viewMode === "grid"}
+        >
+          <LayoutGridIcon className="size-4" />
+        </Button>
+        <Button
+          variant={viewMode === "list" ? "default" : "outline"}
+          size="icon-sm"
+          onClick={() => setViewMode("list")}
+          aria-label="List view"
+          aria-pressed={viewMode === "list"}
+        >
+          <ListIcon className="size-4" />
+        </Button>
       </div>
 
-      {data.channels.length === 0 && (
-        <p className="text-muted-foreground text-sm">No event channels yet.</p>
+      {presentLanguages.length === 0 && (
+        <p className="text-muted-foreground text-sm">No promos yet.</p>
       )}
 
-      <div className="space-y-10">
-        {data.channels.map((channel) => {
-          const allChannelPrintings = printingsByChannel.get(channel.id) ?? [];
-          const filteredPrintings = allChannelPrintings.filter((p) =>
-            selectedLanguages.has(p.language),
-          );
-          if (filteredPrintings.length === 0) {
+      <div className="space-y-12">
+        {presentLanguages.map((language) => {
+          const byChannel = printingsByLanguageAndChannel.get(language);
+          if (!byChannel || byChannel.size === 0) {
             return null;
           }
-          const sortedPrintings = filteredPrintings.toSorted(compareForDisplay);
+          const languageLabel = languageLabelMap.get(language) ?? language;
 
           return (
-            <section key={channel.id}>
-              <div className="mb-3">
-                <h2 className="text-xl font-semibold">{channel.label}</h2>
-                {channel.description && (
-                  <MarkdownText
-                    text={channel.description}
-                    className="text-muted-foreground text-sm"
-                  />
-                )}
-                <p className="text-muted-foreground text-xs">
-                  {sortedPrintings.length} {sortedPrintings.length === 1 ? "printing" : "printings"}
-                </p>
-              </div>
+            <section key={language}>
+              <h2 className="mb-4 border-b pb-2 text-2xl font-bold">{languageLabel}</h2>
+              <div className="space-y-8">
+                {data.channels.map((channel) => {
+                  const channelPrintings = byChannel.get(channel.id);
+                  if (!channelPrintings || channelPrintings.length === 0) {
+                    return null;
+                  }
+                  const sortedPrintings = channelPrintings.toSorted(compareForDisplay);
 
-              {viewMode === "grid" ? (
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
-                  {sortedPrintings.map((printing) => (
-                    <CardThumbnail
-                      key={printing.id}
-                      printing={printing}
-                      onClick={handleCardClick}
-                      showImages={showImages}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <PromoListView
-                  printings={sortedPrintings}
-                  onRowClick={handleCardClick}
-                  languageLabelMap={languageLabelMap}
-                />
-              )}
+                  return (
+                    <section key={channel.id}>
+                      <div className="mb-3">
+                        <h3 className="text-lg font-semibold">{channel.label}</h3>
+                        {channel.description && (
+                          <MarkdownText
+                            text={channel.description}
+                            className="text-muted-foreground max-w-prose text-sm"
+                          />
+                        )}
+                        <p className="text-muted-foreground text-xs">
+                          {sortedPrintings.length}{" "}
+                          {sortedPrintings.length === 1 ? "printing" : "printings"}
+                        </p>
+                      </div>
+
+                      {viewMode === "grid" ? (
+                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+                          {sortedPrintings.map((printing) => (
+                            <CardThumbnail
+                              key={printing.id}
+                              printing={printing}
+                              onClick={handleCardClick}
+                              showImages={showImages}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        <PromoListView printings={sortedPrintings} onRowClick={handleCardClick} />
+                      )}
+                    </section>
+                  );
+                })}
+              </div>
             </section>
           );
         })}
@@ -236,11 +190,9 @@ function PromosPage() {
 function PromoListView({
   printings,
   onRowClick,
-  languageLabelMap,
 }: {
   printings: Printing[];
   onRowClick: (printing: Printing) => void;
-  languageLabelMap: Map<string, string>;
 }) {
   return (
     <>
@@ -253,7 +205,6 @@ function PromoListView({
               <TableHead className="w-40">Code</TableHead>
               <TableHead className="w-32">Rarity</TableHead>
               <TableHead className="w-32">Finish</TableHead>
-              <TableHead className="w-32">Language</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -275,9 +226,6 @@ function PromoListView({
                     </TableCell>
                     <TableCell className="truncate">{printing.rarity}</TableCell>
                     <TableCell className="truncate">{printing.finish}</TableCell>
-                    <TableCell className="truncate">
-                      {languageLabelMap.get(printing.language) ?? printing.language}
-                    </TableCell>
                   </HoverCardTrigger>
                   {image && (
                     <HoverCardContent
@@ -324,8 +272,7 @@ function PromoListView({
                   {printing.publicCode}
                 </div>
                 <div className="text-muted-foreground truncate text-xs">
-                  {printing.rarity} · {printing.finish} ·{" "}
-                  {languageLabelMap.get(printing.language) ?? printing.language}
+                  {printing.rarity} · {printing.finish}
                 </div>
               </div>
             </button>
