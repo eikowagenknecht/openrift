@@ -31,7 +31,7 @@ import { useProviderSettings } from "@/hooks/use-provider-settings";
 // Shared hook: data + mutations used by both existing and new detail pages
 // ---------------------------------------------------------------------------
 
-export function useCardDetailData() {
+export function useCardDetailData(invalidates: readonly (readonly unknown[])[]) {
   const { orders, labels } = useEnumOrders();
 
   const { data: providerSettingsData } = useProviderSettings();
@@ -66,11 +66,11 @@ export function useCardDetailData() {
 
   const candidateCardFields: FieldDef[] = buildCandidateCardFields(orders, labels);
 
-  const checkCandidateCard = useCheckCandidateCard();
-  const uncheckCandidateCard = useUncheckCandidateCard();
-  const checkPrintingSource = useCheckCandidatePrinting();
-  const uncheckPrintingSource = useUncheckCandidatePrinting();
-  const checkAllCandidatePrintings = useCheckAllCandidatePrintings();
+  const checkCandidateCard = useCheckCandidateCard(invalidates);
+  const uncheckCandidateCard = useUncheckCandidateCard(invalidates);
+  const checkPrintingSource = useCheckCandidatePrinting(invalidates);
+  const uncheckPrintingSource = useUncheckCandidatePrinting(invalidates);
+  const checkAllCandidatePrintings = useCheckAllCandidatePrintings(invalidates);
   const ignoreCardSource = useIgnoreCandidateCard();
   const ignorePrintingSource = useIgnoreCandidatePrinting();
 

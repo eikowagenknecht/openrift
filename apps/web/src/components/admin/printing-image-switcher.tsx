@@ -47,21 +47,23 @@ export function PrintingImageSwitcher({
   images,
   sourceImages,
   providerSettings,
+  invalidates,
 }: {
   printingId: string;
   printingLabel: string;
   images: AdminPrintingImageResponse[];
   sourceImages: DeduplicatedSourceImage[];
   providerSettings: ProviderSettingResponse[];
+  invalidates?: readonly (readonly unknown[])[];
 }) {
-  const deletePrintingImage = useDeletePrintingImage();
-  const activatePrintingImage = useActivatePrintingImage();
-  const rehostPrintingImage = useRehostPrintingImage();
-  const unrehostPrintingImage = useUnrehostPrintingImage();
-  const rotatePrintingImage = useRotatePrintingImage();
-  const addImageFromUrl = useAddImageFromUrl();
-  const uploadPrintingImage = useUploadPrintingImage();
-  const setPrintingSourceImage = useSetCandidatePrintingImage();
+  const deletePrintingImage = useDeletePrintingImage(invalidates);
+  const activatePrintingImage = useActivatePrintingImage(invalidates);
+  const rehostPrintingImage = useRehostPrintingImage(invalidates);
+  const unrehostPrintingImage = useUnrehostPrintingImage(invalidates);
+  const rotatePrintingImage = useRotatePrintingImage(invalidates);
+  const addImageFromUrl = useAddImageFromUrl(invalidates);
+  const uploadPrintingImage = useUploadPrintingImage(invalidates);
+  const setPrintingSourceImage = useSetCandidatePrintingImage(invalidates);
 
   const orderSort = sortByProviderOrder(providerSettings);
   const sortedImages = images.toSorted((a, b) => orderSort(a.provider, b.provider));

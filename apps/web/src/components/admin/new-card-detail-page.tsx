@@ -36,9 +36,19 @@ import {
   useReassignCandidatePrinting,
 } from "@/hooks/use-admin-card-mutations";
 import { useAllCards, useUnmatchedCardDetail } from "@/hooks/use-admin-card-queries";
+import { queryKeys } from "@/lib/query-keys";
 
 export function NewCardDetailPage({ identifier }: { identifier: string }) {
   const navigate = useNavigate();
+
+  // Narrow invalidation to this unmatched group and the admin card list.
+  // `allCards` is included because accepting/linking adds a new accepted card
+  // to the search dropdown.
+  const invalidateScope = [
+    queryKeys.admin.cards.unmatched(identifier),
+    queryKeys.admin.cards.list,
+    queryKeys.admin.cards.allCards,
+  ];
 
   // --- Data fetching ---
   const { data: unmatchedData, isLoading } = useUnmatchedCardDetail(identifier) as {
@@ -56,12 +66,12 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
     checkPrintingSource,
     uncheckPrintingSource,
     ignoreCardSource,
-  } = useCardDetailData();
+  } = useCardDetailData(invalidateScope);
 
   // --- New-mode hooks ---
   const acceptNewCard = useAcceptNewCard();
   const linkCard = useLinkCard();
-  const reassignPrinting = useReassignCandidatePrinting();
+  const reassignPrinting = useReassignCandidatePrinting(invalidateScope);
   const { data: allCards } = useAllCards();
 
   // --- State ---
