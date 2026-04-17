@@ -34,6 +34,23 @@ import { useStickyHeader } from "./use-sticky-header";
 
 export type { SetInfo } from "./card-grid-types";
 
+// React Compiler over-memoizes `virtualizer.getVirtualItems()` and
+// `getTotalSize()` based on the virtualizer's reference stability, but those
+// methods depend on internal subscription state the compiler can't see, so
+// stale results stick — the grid stops producing rows on cold load (items
+// stay at 0 despite scroll). Wrapping in a "use no memo" hook forces fresh
+// calls each render. See https://github.com/TanStack/virtual/issues/736
+function useWindowVirtualWithFreshItems(options: Parameters<typeof useWindowVirtualizer>[0]) {
+  // eslint-disable-next-line react-compiler/react-compiler -- opt this hook out of compilation; see comment above
+  "use no memo";
+  const virtualizer = useWindowVirtualizer(options);
+  return {
+    virtualizer,
+    virtualItems: virtualizer.getVirtualItems(),
+    totalSize: virtualizer.getTotalSize(),
+  };
+}
+
 interface CardGroup {
   group: GroupInfo;
   items: CardViewerItem[];
@@ -422,7 +439,7 @@ export function CardGrid({
   }, [items, containerRef]);
 
   // ── Virtualizer ────────────────────────────────────────────────────
-  const virtualizer = useWindowVirtualizer({
+  const { virtualizer, virtualItems, totalSize } = useWindowVirtualWithFreshItems({
     count: virtualRows.length,
     estimateSize: estimateRowHeight,
     gap: GAP,
@@ -537,25 +554,17 @@ export function CardGrid({
     scrollToCard(anchor);
   }, [columns, selectedItemId]);
 
-  // ── Helpers ────────────────────────────────────────────────────────
-  // Lazy-init ref pattern: scrollToGroup only reads from refs, so a single
-  // stable function suffices for the component's lifetime. Needed so HeaderRow's
-  // `onScrollToGroup` prop stays referentially equal across scroll-driven
-  // re-renders and its memo doesn't bust on every tick.
-  const scrollToGroupRef = useRef<((groupId: string) => void) | null>(null);
-  if (scrollToGroupRef.current === null) {
-    scrollToGroupRef.current = (groupId: string) => {
-      const rowIndex = virtualRowsRef.current.findIndex(
-        (r) => r.kind === "header" && r.group.id === groupId,
-      );
-      if (rowIndex !== -1) {
-        virtualizerRef.current.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
-      }
-    };
-  }
-  const scrollToGroup = scrollToGroupRef.current;
-
-  const virtualItems = virtualizer.getVirtualItems();
+  // Reads only from mirror refs, so the React Compiler memoizes this to a
+  // stable reference — HeaderRow's onScrollToGroup prop stays equal across
+  // scroll-driven re-renders and its memo doesn't bust on every tick.
+  const scrollToGroup = (groupId: string) => {
+    const rowIndex = virtualRowsRef.current.findIndex(
+      (r) => r.kind === "header" && r.group.id === groupId,
+    );
+    if (rowIndex !== -1) {
+      virtualizerRef.current.scrollToIndex(rowIndex, { align: "start", behavior: "auto" });
+    }
+  };
 
   const eagerCount = columns * 2;
 
@@ -624,7 +633,7 @@ export function CardGrid({
           </div>
         )}
       </div>
-      <div style={{ height: `${virtualizer.getTotalSize()}px`, position: "relative" }}>
+      <div style={{ height: `${totalSize}px`, position: "relative" }}>
         {virtualItems.map((vItem) => {
           const row = virtualRows[vItem.index];
           if (!row) {
