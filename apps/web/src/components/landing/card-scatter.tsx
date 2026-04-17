@@ -189,9 +189,9 @@ export function CardScatter({
   const activeCards = isMobile ? mobileCards : desktopCards;
 
   // Reset collection state when switching between mobile/desktop card sets
-  const prevMobileRef = useRef(isMobile);
-  if (prevMobileRef.current !== isMobile) {
-    prevMobileRef.current = isMobile;
+  const [prevMobile, setPrevMobile] = useState(isMobile);
+  if (prevMobile !== isMobile) {
+    setPrevMobile(isMobile);
     setActivated(new Set());
     setFlyingAway(new Set());
     setGone(new Set());
@@ -258,7 +258,12 @@ export function CardScatter({
           }
         }
       }
-      setVisibleCards(nextVisible);
+      setVisibleCards((prev) => {
+        if (prev.size === nextVisible.size && [...nextVisible].every((x) => prev.has(x))) {
+          return prev;
+        }
+        return nextVisible;
+      });
       setReachableCount(reachable + gone.size);
     }
     countVisible();
