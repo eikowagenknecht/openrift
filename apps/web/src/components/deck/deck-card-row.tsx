@@ -29,7 +29,8 @@ interface DeckCardRowProps {
   onDecrement?: (event: React.MouseEvent) => void;
   onRemove?: () => void;
   onClick?: () => void;
-  onHover?: (cardId: string | null) => void;
+  onHover?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  onContextMenu?: (event: React.MouseEvent) => void;
 }
 
 function PowerDomainIcon({
@@ -169,6 +170,7 @@ export function DeckCardRow({
   onRemove,
   onClick,
   onHover,
+  onContextMenu,
 }: DeckCardRowProps) {
   const isMobile = useIsMobile();
   const domainColors = useDomainColors();
@@ -180,10 +182,11 @@ export function DeckCardRow({
     cardName: card.cardName,
     fromZone: card.zone as DeckZone,
     quantity: card.quantity,
+    preferredPrintingId: card.preferredPrintingId,
   };
 
   const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
-    id: `deck-card-${card.cardId}-${card.zone}`,
+    id: `deck-card-${card.cardId}-${card.zone}-${card.preferredPrintingId ?? "default"}`,
     data: dragData,
     disabled: !enableDrag,
   });
@@ -238,7 +241,7 @@ export function DeckCardRow({
   const dragProps = enableDrag ? { ...listeners, ...attributes } : {};
   const hoverProps = onHover
     ? {
-        onMouseEnter: () => onHover(card.cardId),
+        onMouseEnter: () => onHover(card.cardId, card.preferredPrintingId),
         onMouseLeave: () => onHover(null),
       }
     : {};
@@ -258,6 +261,7 @@ export function DeckCardRow({
           className={cn(baseClass, "hover:bg-muted/50 w-full cursor-pointer")}
           style={domainTint}
           onClick={onClick}
+          onContextMenu={onContextMenu}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
@@ -277,6 +281,7 @@ export function DeckCardRow({
       ref={enableDrag ? setNodeRef : undefined}
       className={cn(baseClass, enableDrag && "cursor-grab active:cursor-grabbing")}
       style={domainTint}
+      onContextMenu={onContextMenu}
       {...dragProps}
       {...hoverProps}
     >

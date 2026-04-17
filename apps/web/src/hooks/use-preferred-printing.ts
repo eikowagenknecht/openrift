@@ -5,10 +5,20 @@ import { useCards } from "@/hooks/use-cards";
 import { useDisplayStore } from "@/stores/display-store";
 
 interface PreferredPrintingHelpers {
-  /** Pick the single best printing for a card, respecting language preference. */
-  getPreferredPrinting: (cardId: string) => Printing | undefined;
+  /**
+   * Pick the single best printing for a card. Resolution order:
+   * 1. `preferredPrintingId` when provided and resolvable
+   * 2. Language-preference canonical (existing behavior)
+   */
+  getPreferredPrinting: (
+    cardId: string,
+    preferredPrintingId?: string | null,
+  ) => Printing | undefined;
   /** Shortcut: get the front-face image of the preferred printing. */
-  getPreferredFrontImage: (cardId: string) => PrintingImage | undefined;
+  getPreferredFrontImage: (
+    cardId: string,
+    preferredPrintingId?: string | null,
+  ) => PrintingImage | undefined;
 }
 
 /**
@@ -23,16 +33,28 @@ export function usePreferredPrinting(): PreferredPrintingHelpers {
   const { printingsByCardId, setOrderMap } = useCards();
   const languages = useDisplayStore((state) => state.languages);
 
-  const getPreferredPrinting = (cardId: string): Printing | undefined => {
+  const getPreferredPrinting = (
+    cardId: string,
+    preferredPrintingId?: string | null,
+  ): Printing | undefined => {
     const candidates = printingsByCardId.get(cardId);
     if (!candidates) {
       return undefined;
     }
+    if (preferredPrintingId) {
+      const match = candidates.find((p) => p.id === preferredPrintingId);
+      if (match) {
+        return match;
+      }
+    }
     return preferredPrinting(candidates, setOrderMap, languages);
   };
 
-  const getPreferredFrontImage = (cardId: string): PrintingImage | undefined => {
-    const printing = getPreferredPrinting(cardId);
+  const getPreferredFrontImage = (
+    cardId: string,
+    preferredPrintingId?: string | null,
+  ): PrintingImage | undefined => {
+    const printing = getPreferredPrinting(cardId, preferredPrintingId);
     return printing?.images.find((img) => img.face === "front");
   };
 

@@ -368,6 +368,8 @@ export interface DeckCardsTable {
   zone: DeckZone;
   /** CHECK: > 0 */
   quantity: number;
+  /** Optional FK → printings(id); pins this row's art to a specific printing. */
+  preferredPrintingId: string | null;
 }
 
 export interface WishListsTable {

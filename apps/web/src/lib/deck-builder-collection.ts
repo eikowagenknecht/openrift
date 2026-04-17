@@ -89,6 +89,7 @@ async function runSave(queryClient: QueryClient, entry: DraftEntry): Promise<voi
     cardId: card.cardId,
     zone: card.zone,
     quantity: card.quantity,
+    preferredPrintingId: card.preferredPrintingId,
   }));
 
   setStatus(entry, { isSaving: true, error: null });

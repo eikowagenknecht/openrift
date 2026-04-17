@@ -14,6 +14,11 @@ export interface ResolvedCard {
   domains: Domain[];
   /** A representative short code for display. */
   shortCode: string;
+  /**
+   * The specific printing this entry resolved to, when matched via a
+   * printing-specific identifier (short code). Null for name-based matches.
+   */
+  preferredPrintingId: string | null;
 }
 
 export interface DeckMatchedEntry {
@@ -36,8 +41,8 @@ export interface DeckMatchedEntry {
  * Groups printings by card to deduplicate — decks care about cards, not specific printings.
  */
 class CardIndex {
-  /** shortCode (lowercase) → ResolvedCard */
-  private byShortCode = new Map<string, ResolvedCard>();
+  /** shortCode (lowercase) → {card, printingId} — printing-specific lookup. */
+  private byShortCode = new Map<string, { card: ResolvedCard; printingId: string }>();
   /** normalized card name → ResolvedCard */
   private byNormalizedName = new Map<string, ResolvedCard>();
   /** "normalizedTag:normalizedName" → ResolvedCard (for "Character, Title" lookups) */
@@ -50,18 +55,19 @@ class CardIndex {
     const cardMap = new Map<string, { resolved: ResolvedCard; tags: string[] }>();
 
     for (const printing of allPrintings) {
+      // Index every printing's short code so shortCode lookups preserve printing identity.
+      this.byShortCode.set(printing.shortCode.toLowerCase(), {
+        card: cardFromPrinting(printing),
+        printingId: printing.id,
+      });
+
       if (cardMap.has(printing.cardId)) {
-        // Still index additional short codes for this card
-        const existing = cardMap.get(printing.cardId);
-        if (existing) {
-          this.byShortCode.set(printing.shortCode.toLowerCase(), existing.resolved);
-        }
         continue;
       }
-
-      const resolved = cardFromPrinting(printing);
-      cardMap.set(printing.cardId, { resolved, tags: printing.card.tags });
-      this.byShortCode.set(printing.shortCode.toLowerCase(), resolved);
+      cardMap.set(printing.cardId, {
+        resolved: cardFromPrinting(printing),
+        tags: printing.card.tags,
+      });
     }
 
     this.allCards = [...cardMap.values()].map((entry) => entry.resolved);
@@ -83,11 +89,16 @@ class CardIndex {
   }
 
   /**
-   * Looks up a card by short code.
+   * Looks up a card by short code. Returned ResolvedCard's preferredPrintingId
+   * identifies the specific printing matched.
    * @returns The resolved card, or null if not found.
    */
   lookupByCode(shortCode: string): ResolvedCard | null {
-    return this.byShortCode.get(shortCode.toLowerCase()) ?? null;
+    const match = this.byShortCode.get(shortCode.toLowerCase());
+    if (!match) {
+      return null;
+    }
+    return { ...match.card, preferredPrintingId: match.printingId };
   }
 
   /**
@@ -195,6 +206,7 @@ function cardFromPrinting(printing: Printing): ResolvedCard {
     superTypes: printing.card.superTypes,
     domains: printing.card.domains,
     shortCode: printing.shortCode,
+    preferredPrintingId: null,
   };
 }
 

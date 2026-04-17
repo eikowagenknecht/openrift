@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict sXaWus0pbvJvnHFhROstICtiL9CtTUQJDfJoxyIczD12QCdwmQNkNKTCg7FegrQ
+\restrict jgpO1zMN63so5YJwWUIavSORtUck5nAI1oe78h6wx9dW7Sp2jWP2qnNX87lWddH
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -555,6 +555,7 @@ CREATE TABLE public.deck_cards (
     zone text NOT NULL,
     quantity integer DEFAULT 1 NOT NULL,
     card_id uuid CONSTRAINT deck_cards_new_card_id_not_null NOT NULL,
+    preferred_printing_id uuid,
     CONSTRAINT chk_deck_cards_quantity CHECK ((quantity > 0))
 );
 
@@ -2379,7 +2380,7 @@ CREATE UNIQUE INDEX uq_collections_user_inbox ON public.collections USING btree 
 -- Name: uq_deck_cards; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX uq_deck_cards ON public.deck_cards USING btree (deck_id, card_id, zone);
+CREATE UNIQUE INDEX uq_deck_cards ON public.deck_cards USING btree (deck_id, card_id, zone, preferred_printing_id) NULLS NOT DISTINCT;
 
 
 --
@@ -2891,6 +2892,14 @@ ALTER TABLE ONLY public.deck_cards
 
 
 --
+-- Name: deck_cards deck_cards_preferred_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.deck_cards
+    ADD CONSTRAINT deck_cards_preferred_printing_id_fkey FOREIGN KEY (preferred_printing_id) REFERENCES public.printings(id) ON DELETE SET NULL;
+
+
+--
 -- Name: decks decks_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3230,5 +3239,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict sXaWus0pbvJvnHFhROstICtiL9CtTUQJDfJoxyIczD12QCdwmQNkNKTCg7FegrQ
+\unrestrict jgpO1zMN63so5YJwWUIavSORtUck5nAI1oe78h6wx9dW7Sp2jWP2qnNX87lWddH
 

@@ -3,6 +3,7 @@ import type { CardType, DeckViolation, DeckZone } from "@openrift/shared";
 import { AlertTriangleIcon, BanIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
+import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
 import { DeckCardRow } from "@/components/deck/deck-card-row";
 import type {
   BrowserCardDragData,
@@ -13,7 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { isCardAllowedInZone } from "@/lib/deck-builder-card";
+import { getDeckCardKey, isCardAllowedInZone } from "@/lib/deck-builder-card";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -55,7 +56,7 @@ interface DeckZoneSectionProps {
   isActive: boolean;
   shiftHeld?: boolean;
   onActivate: () => void;
-  onHoverCard?: (cardId: string | null) => void;
+  onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
 }
 
 export function DeckZoneSection({
@@ -81,7 +82,10 @@ export function DeckZoneSection({
       ? dragData.card
       : dragData?.type === "deck-card"
         ? allCards.find(
-            (card) => card.cardId === dragData.cardId && card.zone === dragData.fromZone,
+            (card) =>
+              card.cardId === dragData.cardId &&
+              card.zone === dragData.fromZone &&
+              card.preferredPrintingId === dragData.preferredPrintingId,
           )
         : undefined;
   const isDragging = active !== null;
@@ -128,7 +132,7 @@ export function DeckZoneSection({
   });
 
   const handleCardClick = (card: DeckBuilderCard) => {
-    const match = getPreferredPrinting(card.cardId);
+    const match = getPreferredPrinting(card.cardId, card.preferredPrintingId);
     if (match) {
       useSelectionStore.getState().selectCard(match, [], "card");
     }
@@ -156,37 +160,38 @@ export function DeckZoneSection({
   // Get legend domains for active zone tint — return the stable array from the card
   // or undefined (not a new []) to avoid infinite re-renders from Zustand
   const renderCardRow = (card: DeckBuilderCard) => (
-    <DeckCardRow
-      key={`${card.cardId}-${card.zone}`}
-      card={card}
-      hasViolation={cardViolations.has(card.cardId)}
-      violationMessage={cardViolations.get(card.cardId)}
-      controlMode={isSingleCard || isUniqueOnly ? "remove-only" : "quantity"}
-      draggable={DRAG_ZONES.has(zone)}
-      shiftHeld={zone === "runes" ? undefined : shiftHeld}
-      onIncrement={
-        copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= 3
-          ? undefined
-          : (event) => addCard(card, zone, event.shiftKey ? 3 : undefined)
-      }
-      onDecrement={(event) => {
-        if (event.shiftKey) {
-          onHoverCard?.(null);
-          setQuantity(card.cardId, zone, 0);
-        } else if (card.quantity <= 1) {
-          onHoverCard?.(null);
-          removeCard(card.cardId, zone);
-        } else {
-          removeCard(card.cardId, zone);
+    <DeckCardPrintingMenu key={getDeckCardKey(card)} deckId={deckId} card={card}>
+      <DeckCardRow
+        card={card}
+        hasViolation={cardViolations.has(card.cardId)}
+        violationMessage={cardViolations.get(card.cardId)}
+        controlMode={isSingleCard || isUniqueOnly ? "remove-only" : "quantity"}
+        draggable={DRAG_ZONES.has(zone)}
+        shiftHeld={zone === "runes" ? undefined : shiftHeld}
+        onIncrement={
+          copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= 3
+            ? undefined
+            : (event) => addCard(card, zone, event.shiftKey ? 3 : undefined)
         }
-      }}
-      onRemove={() => {
-        onHoverCard?.(null);
-        removeCard(card.cardId, zone);
-      }}
-      onClick={() => handleCardClick(card)}
-      onHover={onHoverCard}
-    />
+        onDecrement={(event) => {
+          if (event.shiftKey) {
+            onHoverCard?.(null);
+            setQuantity(card.cardId, zone, 0, card.preferredPrintingId);
+          } else if (card.quantity <= 1) {
+            onHoverCard?.(null);
+            removeCard(card.cardId, zone, card.preferredPrintingId);
+          } else {
+            removeCard(card.cardId, zone, card.preferredPrintingId);
+          }
+        }}
+        onRemove={() => {
+          onHoverCard?.(null);
+          removeCard(card.cardId, zone, card.preferredPrintingId);
+        }}
+        onClick={() => handleCardClick(card)}
+        onHover={onHoverCard}
+      />
+    </DeckCardPrintingMenu>
   );
 
   const renderGroupedCards = () => {
@@ -229,7 +234,7 @@ export function DeckZoneSection({
       ref={dropRef}
       className={cn(
         "overflow-hidden rounded-lg border transition-opacity select-none",
-        isActive && "bg-primary/10",
+        isActive && "border-primary bg-primary/15 ring-primary/40 ring-1",
         isOver && !dropDisabled && "ring-primary/60 ring-2",
         dropDisabled && "opacity-40",
       )}
@@ -294,7 +299,7 @@ export function DeckZoneSection({
               {cards.map((card) => {
                 const typeIconPath = getTypeIconPath(card.cardType, card.superTypes);
                 return (
-                  <div key={`${card.cardId}-${card.zone}`} className="flex">
+                  <div key={getDeckCardKey(card)} className="flex">
                     <div className="flex w-7 shrink-0 items-center justify-center">
                       {typeIconPath && (
                         <img

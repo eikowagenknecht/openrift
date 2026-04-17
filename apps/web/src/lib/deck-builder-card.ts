@@ -14,6 +14,8 @@ export interface DeckBuilderCard {
   cardId: string;
   zone: DeckZone;
   quantity: number;
+  /** Printing pinned for display, or null for "default art". */
+  preferredPrintingId: string | null;
   cardName: string;
   cardType: CardType;
   superTypes: SuperType[];
@@ -25,12 +27,20 @@ export interface DeckBuilderCard {
   power: number | null;
 }
 
-export function deckCardKey(cardId: string, zone: DeckZone): string {
-  return `${cardId}|${zone}`;
+export function deckCardKey(
+  cardId: string,
+  zone: DeckZone,
+  preferredPrintingId: string | null,
+): string {
+  return `${cardId}|${zone}|${preferredPrintingId ?? ""}`;
 }
 
-export function getDeckCardKey(card: { cardId: string; zone: DeckZone }): string {
-  return deckCardKey(card.cardId, card.zone);
+export function getDeckCardKey(card: {
+  cardId: string;
+  zone: DeckZone;
+  preferredPrintingId: string | null;
+}): string {
+  return deckCardKey(card.cardId, card.zone, card.preferredPrintingId);
 }
 
 /**
@@ -78,6 +88,7 @@ export function catalogCardToDeckBuilderCard(cardId: string, card: Card): DeckBu
     cardId,
     zone: "main",
     quantity: 1,
+    preferredPrintingId: null,
     cardName: card.name,
     cardType: card.type,
     superTypes: card.superTypes,
@@ -107,6 +118,7 @@ export function toDeckBuilderCard(
     cardId: deckCard.cardId,
     zone: deckCard.zone,
     quantity: deckCard.quantity,
+    preferredPrintingId: deckCard.preferredPrintingId,
     cardName: card.name,
     cardType: card.type,
     superTypes: card.superTypes,

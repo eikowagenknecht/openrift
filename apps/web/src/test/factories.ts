@@ -124,6 +124,7 @@ export function stubDeckBuilderCard(overrides: Partial<DeckBuilderCard> = {}): D
     cardId: overrides.cardId ?? nextId(),
     zone: "main" as DeckZone,
     quantity: 1,
+    preferredPrintingId: null,
     cardName: "Test Card",
     cardType: "Unit" as CardType,
     superTypes: [] as SuperType[],

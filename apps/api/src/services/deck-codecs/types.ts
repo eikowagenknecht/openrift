@@ -9,6 +9,8 @@ export interface DeckCodecCard {
   cardType: CardType;
   superTypes: SuperType[];
   domains: Domain[];
+  /** The printing this row is pinned to, or null for "default art". */
+  preferredPrintingId: string | null;
 }
 
 /** Result of encoding a deck into a code string. */

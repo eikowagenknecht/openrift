@@ -172,11 +172,13 @@ export function toDeckCard(row: {
   cardId: string;
   zone: string;
   quantity: number;
+  preferredPrintingId: string | null;
 }): DeckCardResponse {
   return {
     cardId: row.cardId,
     zone: row.zone as DeckCardResponse["zone"],
     quantity: row.quantity,
+    preferredPrintingId: row.preferredPrintingId,
   };
 }
 

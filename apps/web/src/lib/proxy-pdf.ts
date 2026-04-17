@@ -53,12 +53,16 @@ export function resolveProxyCards(
 
   // First printing per cardId wins, mirroring the previous array-order behavior.
   const printingByCardId = new Map<string, Printing & { setSlug: string }>();
+  // Exact printing lookup for rows that pin a specific printing.
+  const printingById = new Map<string, Printing & { setSlug: string }>();
   for (const [id, printing] of Object.entries(catalog.printings)) {
-    if (!printingByCardId.has(printing.cardId)) {
-      const setSlug = slugById.get(printing.setId);
-      const card = cardsById[printing.cardId];
-      if (setSlug && card) {
-        printingByCardId.set(printing.cardId, { ...printing, id, setSlug, card });
+    const setSlug = slugById.get(printing.setId);
+    const card = cardsById[printing.cardId];
+    if (setSlug && card) {
+      const enriched = { ...printing, id, setSlug, card };
+      printingById.set(id, enriched);
+      if (!printingByCardId.has(printing.cardId)) {
+        printingByCardId.set(printing.cardId, enriched);
       }
     }
   }
@@ -69,7 +73,9 @@ export function resolveProxyCards(
     if (!card) {
       continue;
     }
-    const printing = printingByCardId.get(deckCard.cardId);
+    const printing =
+      (deckCard.preferredPrintingId && printingById.get(deckCard.preferredPrintingId)) ||
+      printingByCardId.get(deckCard.cardId);
     const imageFullUrl = printing?.images[0]?.full ?? null;
     const flavorText = printing?.flavorText ?? null;
     // Use printing-level text (falls back to errata if available)

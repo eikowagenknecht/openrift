@@ -252,13 +252,19 @@ function DeckImportPage() {
 
     setIsImporting(true);
 
-    // Build deck cards payload — group by cardId + zone, summing quantities
-    const cardMap = new Map<string, { cardId: string; zone: DeckZone; quantity: number }>();
+    // Build deck cards payload — group by cardId + zone + preferredPrintingId,
+    // summing quantities. Printing-specific matches (piltover/tts short codes)
+    // become distinct rows from any default-art rows of the same card.
+    const cardMap = new Map<
+      string,
+      { cardId: string; zone: DeckZone; quantity: number; preferredPrintingId: string | null }
+    >();
     for (const entry of readyEntries) {
       if (!entry.resolvedCard) {
         continue;
       }
-      const key = `${entry.resolvedCard.cardId}::${entry.zone}`;
+      const preferredPrintingId = entry.resolvedCard.preferredPrintingId;
+      const key = `${entry.resolvedCard.cardId}::${entry.zone}::${preferredPrintingId ?? ""}`;
       const existing = cardMap.get(key);
       if (existing) {
         existing.quantity += entry.entry.quantity;
@@ -267,6 +273,7 @@ function DeckImportPage() {
           cardId: entry.resolvedCard.cardId,
           zone: entry.zone,
           quantity: entry.entry.quantity,
+          preferredPrintingId,
         });
       }
     }

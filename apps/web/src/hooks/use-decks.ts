@@ -119,8 +119,15 @@ export function useDeleteDeck() {
 
 export const saveDeckCardsFn = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { deckId: string; cards: { cardId: string; zone: DeckZone; quantity: number }[] }) =>
-      input,
+    (input: {
+      deckId: string;
+      cards: {
+        cardId: string;
+        zone: DeckZone;
+        quantity: number;
+        preferredPrintingId: string | null;
+      }[];
+    }) => input,
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
@@ -144,7 +151,12 @@ export function useSaveDeckCards() {
       cards,
     }: {
       deckId: string;
-      cards: { cardId: string; zone: DeckZone; quantity: number }[];
+      cards: {
+        cardId: string;
+        zone: DeckZone;
+        quantity: number;
+        preferredPrintingId: string | null;
+      }[];
     }): Promise<{ cards: DeckCardResponse[] }> => saveDeckCardsFn({ data: { deckId, cards } }),
     onSuccess: (data, variables) => {
       // Update deck detail cache with the returned cards

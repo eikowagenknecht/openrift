@@ -13,10 +13,22 @@ interface CanonicalShortCode {
 interface ResolvedCard {
   shortCode: string;
   cardId: string;
+  printingId: string;
   cardName: string;
   cardType: CardType;
   superTypes: SuperType[];
   domains: Domain[];
+}
+
+/** Input row for per-row short code resolution. */
+export interface DeckRowForShortCode {
+  cardId: string;
+  preferredPrintingId: string | null;
+}
+
+/** A row's resolved short code; `shortCode` is null when neither the preferred printing nor any canonical printing exists. */
+interface ResolvedRowShortCode extends DeckRowForShortCode {
+  shortCode: string | null;
 }
 
 /**
@@ -101,6 +113,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
           .select([
             "p.shortCode",
             "p.cardId",
+            "p.id as printingId",
             "c.name as cardName",
             "c.type as cardType",
             domainsArray("c.id").as("domains"),
@@ -112,6 +125,67 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
       ).execute();
 
       return rows as ResolvedCard[];
+    },
+
+    /**
+     * Resolves a short code per deck row. If a row has a preferredPrintingId,
+     * uses that printing's short code; otherwise falls back to the card's
+     * canonical short code.
+     *
+     * @returns One entry per input row in the same order, with `shortCode` null
+     *   when neither the preferred printing nor any canonical printing exists.
+     */
+    async shortCodesForRows(rows: DeckRowForShortCode[]): Promise<ResolvedRowShortCode[]> {
+      if (rows.length === 0) {
+        return [];
+      }
+
+      const preferredIds = [
+        ...new Set(rows.flatMap((r) => (r.preferredPrintingId ? [r.preferredPrintingId] : []))),
+      ];
+      const preferredMap = new Map<string, string>();
+      if (preferredIds.length > 0) {
+        const preferredRows = await db
+          .selectFrom("printings")
+          .select(["id", "shortCode"])
+          .where("id", "in", preferredIds)
+          .execute();
+        for (const row of preferredRows) {
+          preferredMap.set(row.id, row.shortCode);
+        }
+      }
+
+      const cardIdsNeedingCanonical = [
+        ...new Set(
+          rows
+            .filter((r) => !r.preferredPrintingId || !preferredMap.has(r.preferredPrintingId))
+            .map((r) => r.cardId),
+        ),
+      ];
+      const canonicalMap = new Map<string, string>();
+      if (cardIdsNeedingCanonical.length > 0) {
+        const canonicalRows = await appendCanonicalOrder(
+          baseQuery()
+            .select(["p.cardId", "p.shortCode"])
+            .where("p.cardId", "in", cardIdsNeedingCanonical)
+            .distinctOn("p.cardId")
+            .orderBy("p.cardId"),
+        ).execute();
+        for (const row of canonicalRows) {
+          canonicalMap.set(row.cardId, row.shortCode);
+        }
+      }
+
+      return rows.map((row) => {
+        const fromPreferred = row.preferredPrintingId
+          ? preferredMap.get(row.preferredPrintingId)
+          : undefined;
+        return {
+          cardId: row.cardId,
+          preferredPrintingId: row.preferredPrintingId,
+          shortCode: fromPreferred ?? canonicalMap.get(row.cardId) ?? null,
+        };
+      });
     },
 
     /**
@@ -152,6 +226,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
             .innerJoin("cards as c", "c.id", "p.cardId")
             .select([
               "p.shortCode",
+              "p.id as printingId",
               "c.id as cardId",
               "c.name as cardName",
               "c.type as cardType",
@@ -194,6 +269,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
           .innerJoin("cards as c", "c.id", "p.cardId")
           .select([
             "p.shortCode",
+            "p.id as printingId",
             "c.id as cardId",
             "c.name as cardName",
             "c.type as cardType",

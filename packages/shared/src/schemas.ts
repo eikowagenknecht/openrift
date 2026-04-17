@@ -128,6 +128,7 @@ export const updateDeckCardsSchema = z.object({
         cardId: z.uuid(),
         zone: deckCardFieldRules.zone,
         quantity: deckCardFieldRules.quantity,
+        preferredPrintingId: z.uuid().nullish(),
       }),
     )
     .max(500),
