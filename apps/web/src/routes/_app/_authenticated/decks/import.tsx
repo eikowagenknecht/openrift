@@ -956,6 +956,7 @@ function deduplicateToCards(allPrintings: Printing[], query: string): ResolvedCa
         superTypes: printing.card.superTypes,
         domains: printing.card.domains,
         shortCode: printing.shortCode,
+        preferredPrintingId: null,
       });
     }
   }

@@ -199,7 +199,7 @@ describe("moveCardAction", () => {
       quantity: 2,
     });
     collection = createDraftCollection([card]);
-    moveCardAction(collection, "card-1", "main", "sideboard");
+    moveCardAction(collection, "card-1", "main", "sideboard", null);
     const cards = cardsOf(collection);
     expect(cards.filter((c) => c.zone === "main")).toHaveLength(0);
     expect(cards.find((c) => c.zone === "sideboard")?.quantity).toBe(2);
@@ -219,7 +219,7 @@ describe("moveCardAction", () => {
       quantity: 1,
     });
     collection = createDraftCollection([mainCard, sideCard]);
-    moveCardAction(collection, "card-1", "main", "sideboard");
+    moveCardAction(collection, "card-1", "main", "sideboard", null);
     const cards = cardsOf(collection);
     expect(cards).toHaveLength(1);
     expect(cards[0].zone).toBe("sideboard");
@@ -234,7 +234,7 @@ describe("moveCardAction", () => {
       quantity: 1,
     });
     collection = createDraftCollection([unit]);
-    moveCardAction(collection, "card-1", "main", "legend");
+    moveCardAction(collection, "card-1", "main", "legend", null);
     expect(cardsOf(collection)[0].zone).toBe("main");
   });
 });
@@ -250,7 +250,7 @@ describe("moveOneCardAction", () => {
       quantity: 3,
     });
     collection = createDraftCollection([card]);
-    moveOneCardAction(collection, "card-1", "main", "sideboard");
+    moveOneCardAction(collection, "card-1", "main", "sideboard", null);
     const cards = cardsOf(collection);
     expect(cards.find((c) => c.zone === "main")?.quantity).toBe(2);
     expect(cards.find((c) => c.zone === "sideboard")?.quantity).toBe(1);
@@ -264,7 +264,7 @@ describe("moveOneCardAction", () => {
       quantity: 1,
     });
     collection = createDraftCollection([card]);
-    moveOneCardAction(collection, "card-1", "main", "sideboard");
+    moveOneCardAction(collection, "card-1", "main", "sideboard", null);
     const cards = cardsOf(collection);
     expect(cards.filter((c) => c.zone === "main")).toHaveLength(0);
     expect(cards.find((c) => c.zone === "sideboard")?.quantity).toBe(1);
