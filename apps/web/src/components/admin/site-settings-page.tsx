@@ -270,9 +270,9 @@ function KnownSettingRow({
       await onCreate(value.trim());
       setEditing(false);
       setValue("");
+      setPending(false);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Save failed");
-    } finally {
       setPending(false);
     }
   }

@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller } from "react-hook-form";
 import { z } from "zod/v4";
 
 import { AuthFormCard, SocialAuthButtons } from "@/components/auth-form-shell";
@@ -15,6 +15,7 @@ import { authClient, signIn } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
 import { sessionQueryOptions } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
+import { useRhfForm } from "@/lib/react-compiler-interop";
 
 const signInSchema = z.object({
   email: z.email("Please enter a valid email address."),
@@ -42,7 +43,7 @@ export function LoginForm({
   const [resending, setResending] = useState(false);
 
   // Password form
-  const form = useForm<SignInValues>({
+  const form = useRhfForm<SignInValues>({
     resolver: zodResolver(signInSchema),
     defaultValues: { email: initialEmail, password: "" },
   });

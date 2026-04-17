@@ -199,9 +199,9 @@ function KnownFlagRow({
     setSaveError("");
     try {
       await onCreate(known.description);
+      setPending(false);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Creation failed");
-    } finally {
       setPending(false);
     }
   }

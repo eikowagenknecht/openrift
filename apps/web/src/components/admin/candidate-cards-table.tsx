@@ -13,9 +13,7 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
-  useReactTable,
 } from "@tanstack/react-table";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { ImagePlusIcon, LoaderIcon, SearchIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -43,6 +41,7 @@ import {
 import { useAllCards } from "@/hooks/use-admin-card-queries";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import { queryKeys } from "@/lib/query-keys";
+import { useRcTable, useRcVirtualizer } from "@/lib/react-compiler-interop";
 import { cn } from "@/lib/utils";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
@@ -219,7 +218,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
 
   const columns = makeColumns({ linkCard, acceptFavorite, allCards });
 
-  const table = useReactTable({
+  const table = useRcTable({
     data,
     columns,
     state: { sorting, columnFilters, globalFilter },
@@ -236,7 +235,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
   const rows = table.getRowModel().rows;
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useVirtualizer({
+  const virtualizer = useRcVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT,

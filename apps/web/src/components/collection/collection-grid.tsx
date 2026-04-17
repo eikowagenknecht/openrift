@@ -217,7 +217,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     toggleStack,
     toggleSelectAll,
     clearSelection,
-    lastSelectedItemId,
+    getLastSelectedItemId,
     setLastSelectedItemId,
     addToSelection,
   } = useCardSelection();
@@ -497,11 +497,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     };
 
     const handleShiftSelect = () => {
-      if (lastSelectedItemId === null) {
+      const lastId = getLastSelectedItemId();
+      if (lastId === null) {
         handleToggle();
         return;
       }
-      const startIdx = items.findIndex((i) => i.id === lastSelectedItemId);
+      const startIdx = items.findIndex((i) => i.id === lastId);
       const endIdx = items.findIndex((i) => i.id === item.id);
       if (startIdx === -1 || endIdx === -1) {
         handleToggle();

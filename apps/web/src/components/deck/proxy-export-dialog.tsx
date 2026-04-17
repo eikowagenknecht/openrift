@@ -114,6 +114,124 @@ function waitForRender(): Promise<void> {
   });
 }
 
+interface GenerateProxyPdfParams {
+  cards: DeckBuilderCard[];
+  catalog: CatalogResponse;
+  renderMode: ProxyRenderMode;
+  pageSize: ProxyPageSize;
+  cutLines: boolean;
+  watermark: boolean;
+  deckName: string | undefined;
+  queryClient: ReturnType<typeof useQueryClient>;
+  cardElementRef: React.RefObject<HTMLDivElement | null>;
+  setProgress: (progress: { current: number; total: number }) => void;
+  setRenderingCard: (card: ProxyCard | null) => void;
+  setPreviewUrl: (url: string | null) => void;
+}
+
+/**
+ * Runs the full "deck → rendered cards → assembled PDF" pipeline.
+ *
+ * Lives at module scope (not inside the component) so react-compiler doesn't
+ * try to lower the mixed async/branch/try-catch control flow — the compiler
+ * bails out on "value blocks within try/catch" otherwise.
+ * @param params Generation inputs and UI state setters.
+ * @returns Resolves once the PDF has been assembled and downloaded.
+ */
+async function generateProxyPdf({
+  cards,
+  catalog,
+  renderMode,
+  pageSize,
+  cutLines,
+  watermark,
+  deckName,
+  queryClient,
+  cardElementRef,
+  setProgress,
+  setRenderingCard,
+  setPreviewUrl,
+}: GenerateProxyPdfParams): Promise<void> {
+  // Pre-fetch init data so CardText doesn't suspend during rendering
+  await queryClient.ensureQueryData(initQueryOptions);
+
+  const proxyCards = resolveProxyCards(cards, catalog);
+  const renderedCards = new Map<string, RenderedCard>();
+
+  if (renderMode === "image") {
+    const imageCards = await prerenderImageCards(proxyCards, (current, total) => {
+      setProgress({ current, total });
+    });
+    imageCards.forEach((rendered, cardId) => {
+      renderedCards.set(cardId, rendered);
+    });
+  } else {
+    const uniqueCardIds = new Set<string>();
+    const uniqueCards: ProxyCard[] = [];
+    for (const proxyCard of proxyCards) {
+      if (!uniqueCardIds.has(proxyCard.cardId)) {
+        uniqueCardIds.add(proxyCard.cardId);
+        uniqueCards.push(proxyCard);
+      }
+    }
+
+    for (let cardIdx = 0; cardIdx < uniqueCards.length; cardIdx++) {
+      const proxyCard = uniqueCards[cardIdx];
+      setProgress({ current: cardIdx + 1, total: uniqueCards.length });
+
+      setRenderingCard(proxyCard);
+      await waitForRender();
+
+      const element = cardElementRef.current;
+      if (element) {
+        try {
+          const dataUrl = await captureElement(element);
+          renderedCards.set(proxyCard.cardId, { dataUrl, rotated: false });
+          setPreviewUrl(dataUrl);
+        } catch (error) {
+          console.error(`Failed to capture card "${proxyCard.name}":`, error);
+        }
+      }
+    }
+
+    setRenderingCard(null);
+  }
+
+  if (renderMode === "image") {
+    const missingCards = proxyCards.filter((proxyCard) => !renderedCards.has(proxyCard.cardId));
+    const uniqueMissing = new Map<string, ProxyCard>();
+    for (const proxyCard of missingCards) {
+      if (!uniqueMissing.has(proxyCard.cardId)) {
+        uniqueMissing.set(proxyCard.cardId, proxyCard);
+      }
+    }
+
+    for (const proxyCard of uniqueMissing.values()) {
+      setRenderingCard(proxyCard);
+      await waitForRender();
+      const element = cardElementRef.current;
+      if (element) {
+        try {
+          const dataUrl = await captureElement(element);
+          renderedCards.set(proxyCard.cardId, { dataUrl, rotated: false });
+          setPreviewUrl(dataUrl);
+        } catch (error) {
+          console.error(`Failed to capture fallback card "${proxyCard.name}":`, error);
+        }
+      }
+    }
+    setRenderingCard(null);
+  }
+
+  await assembleProxyPdf(proxyCards, renderedCards, {
+    pageSize,
+    renderMode,
+    cutLines,
+    watermark,
+    deckName,
+  });
+}
+
 interface ProxyExportDialogProps {
   /** When provided, the dialog is controlled externally (no built-in trigger). */
   open?: boolean;
@@ -187,95 +305,28 @@ export function ProxyExportDialog({
     setPreviewUrl(null);
 
     try {
-      // Pre-fetch init data so CardText doesn't suspend during rendering
-      await queryClient.ensureQueryData(initQueryOptions);
-
-      const proxyCards = resolveProxyCards(cards, catalog);
-      const renderedCards = new Map<string, RenderedCard>();
-
-      if (renderMode === "image") {
-        // Image mode: load and convert card images
-        const imageCards = await prerenderImageCards(proxyCards, (current, total) => {
-          setProgress({ current, total });
-        });
-        for (const [cardId, rendered] of imageCards) {
-          renderedCards.set(cardId, rendered);
-        }
-      } else {
-        // Text mode: render each unique card in the React tree, then capture with html2canvas
-        const uniqueCardIds = new Set<string>();
-        const uniqueCards: ProxyCard[] = [];
-        for (const proxyCard of proxyCards) {
-          if (!uniqueCardIds.has(proxyCard.cardId)) {
-            uniqueCardIds.add(proxyCard.cardId);
-            uniqueCards.push(proxyCard);
-          }
-        }
-
-        for (let cardIdx = 0; cardIdx < uniqueCards.length; cardIdx++) {
-          const proxyCard = uniqueCards[cardIdx];
-          setProgress({ current: cardIdx + 1, total: uniqueCards.length });
-
-          // Render the card component in the hidden container (inside the React tree)
-          setRenderingCard(proxyCard);
-
-          await waitForRender();
-
-          // Capture with html2canvas
-          const element = cardElementRef.current;
-          if (element) {
-            try {
-              const dataUrl = await captureElement(element);
-              renderedCards.set(proxyCard.cardId, { dataUrl, rotated: false });
-              setPreviewUrl(dataUrl);
-            } catch (error) {
-              console.error(`Failed to capture card "${proxyCard.name}":`, error);
-            }
-          }
-        }
-
-        setRenderingCard(null);
-      }
-
-      // For image mode, fall back to text mode for cards without images
-      if (renderMode === "image") {
-        const missingCards = proxyCards.filter((proxyCard) => !renderedCards.has(proxyCard.cardId));
-        const uniqueMissing = new Map<string, ProxyCard>();
-        for (const proxyCard of missingCards) {
-          if (!uniqueMissing.has(proxyCard.cardId)) {
-            uniqueMissing.set(proxyCard.cardId, proxyCard);
-          }
-        }
-
-        for (const [, proxyCard] of uniqueMissing) {
-          setRenderingCard(proxyCard);
-          await waitForRender();
-          const element = cardElementRef.current;
-          if (element) {
-            try {
-              const dataUrl = await captureElement(element);
-              renderedCards.set(proxyCard.cardId, { dataUrl, rotated: false });
-              setPreviewUrl(dataUrl);
-            } catch (error) {
-              console.error(`Failed to capture fallback card "${proxyCard.name}":`, error);
-            }
-          }
-        }
-        setRenderingCard(null);
-      }
-
-      await assembleProxyPdf(proxyCards, renderedCards, {
-        pageSize,
+      await generateProxyPdf({
+        cards,
+        catalog,
         renderMode,
+        pageSize,
         cutLines,
         watermark,
         deckName,
+        queryClient,
+        cardElementRef,
+        setProgress,
+        setRenderingCard,
+        setPreviewUrl,
       });
       setOpen(false);
-    } finally {
+    } catch (error) {
       setGenerating(false);
       setRenderingCard(null);
+      throw error;
     }
+    setGenerating(false);
+    setRenderingCard(null);
   };
 
   return (

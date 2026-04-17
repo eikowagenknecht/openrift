@@ -8,9 +8,7 @@ import {
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
-  useReactTable,
 } from "@tanstack/react-table";
-import { useVirtualizer } from "@tanstack/react-virtual";
 import { LoaderIcon, SearchIcon, StarIcon } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -35,6 +33,7 @@ import {
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import type { CardCoverage, MarketplaceCoverage } from "@/lib/marketplace-coverage";
 import { queryKeys } from "@/lib/query-keys";
+import { useRcTable, useRcVirtualizer } from "@/lib/react-compiler-interop";
 import { cn } from "@/lib/utils";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
@@ -328,7 +327,7 @@ export function AcceptedCardsTable({
     });
   }
 
-  const table = useReactTable({
+  const table = useRcTable({
     data,
     columns,
     state: { sorting, globalFilter },
@@ -355,7 +354,7 @@ export function AcceptedCardsTable({
   const acceptableCount = data.filter((r) => r.cardSlug && r.hasFavoriteStagingPrintings).length;
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useVirtualizer({
+  const virtualizer = useRcVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT,

@@ -124,13 +124,13 @@ export function ScanTestPage() {
     try {
       const result = await ocrScan(canvas, allPrintings);
       setOcrResult(result);
+      setOcrRunning(false);
     } catch (error) {
       setOcrResult({
         rawText: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
         elapsed: 0,
         matches: [],
       });
-    } finally {
       setOcrRunning(false);
     }
   }
@@ -147,9 +147,11 @@ export function ScanTestPage() {
       });
       setPhashIndex(index);
       setIndexConfig({ ...phashConfig });
-    } finally {
+    } catch (error) {
       setPhashBuilding(false);
+      throw error;
     }
+    setPhashBuilding(false);
   }
 
   function runPhash() {
@@ -162,9 +164,11 @@ export function ScanTestPage() {
     try {
       const result = phashScan(canvas, phashIndex, phashConfig);
       setPhashResult(result);
-    } finally {
+    } catch (error) {
       setPhashRunning(false);
+      throw error;
     }
+    setPhashRunning(false);
   }
 
   const configMatchesIndex =

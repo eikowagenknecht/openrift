@@ -6,8 +6,8 @@ interface UseCardSelectionResult {
   toggleStack: (copyIds: string[]) => void;
   toggleSelectAll: (allCopyIds: string[]) => void;
   clearSelection: () => void;
-  /** The item ID (not copyId) of the last explicitly selected item, for Shift+click range. */
-  lastSelectedItemId: string | null;
+  /** Reads the item ID (not copyId) of the last explicitly selected item, for Shift+click range. Call from event handlers only — not safe to read during render. */
+  getLastSelectedItemId: () => string | null;
   setLastSelectedItemId: (id: string) => void;
   /** Adds all given IDs to the selection without toggling. */
   addToSelection: (ids: string[]) => void;
@@ -75,13 +75,15 @@ export function useCardSelection(): UseCardSelectionResult {
     lastSelectedItemIdRef.current = id;
   };
 
+  const getLastSelectedItemId = () => lastSelectedItemIdRef.current;
+
   return {
     selected,
     toggleSelect,
     toggleStack,
     toggleSelectAll,
     clearSelection,
-    lastSelectedItemId: lastSelectedItemIdRef.current,
+    getLastSelectedItemId,
     setLastSelectedItemId,
     addToSelection,
   };

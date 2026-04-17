@@ -138,15 +138,92 @@ export function ExistingCardDetailPage({
   // --- Check all & next card ---
   const { fetchNext } = useNextUncheckedCard(identifier);
   const [isCheckingAll, setIsCheckingAll] = useState(false);
-  // oxlint-disable-next-line no-empty-function -- initialized before data is available, set after early returns
+  // oxlint-disable-next-line no-empty-function -- default no-op until the effect below installs the real handler
   const checkAllAndNextRef = useRef<() => void>(() => {});
-  // oxlint-disable-next-line no-empty-function -- initialized after early returns when prevNextCards is available
+  // oxlint-disable-next-line no-empty-function -- default no-op until the effect below installs the real handler
   const prevNextRef = useRef<(dir: "prev" | "next") => void>(() => {});
   useHotkey("Mod+Enter", () => checkAllAndNextRef.current(), {
     enabled: !isCheckingAll,
   });
   useHotkey("Mod+ArrowLeft", () => prevNextRef.current("prev"));
   useHotkey("Mod+ArrowRight", () => prevNextRef.current("next"));
+
+  // Re-point the ref-backed hotkey handlers every render, in effects (react-compiler
+  // forbids ref mutation during render). Declared here with the other hooks so they
+  // run before the early returns below, keeping hook call order stable.
+  async function handleCheckAllAndNext() {
+    if (isCheckingAll || !existingData) {
+      return;
+    }
+    const card = existingData.card;
+    if (!card) {
+      return;
+    }
+    const sources = existingData.sources;
+    const candidatePrintings = existingData.candidatePrintings;
+    const printings = existingData.printings;
+    const ambiguousGroups = buildPrintingGroups(
+      existingData.candidatePrintingGroups,
+      candidatePrintings,
+    );
+
+    // Kick off the mutations outside the try so react-compiler doesn't flag the
+    // for-of + filter + .some() value blocks inside a try/catch statement.
+    const promises: Promise<unknown>[] = [];
+    if (sources.some((s) => !s.checkedAt)) {
+      promises.push(checkAllCardSources.mutateAsync(card.id));
+    }
+    for (const printing of printings) {
+      const relatedSources = candidatePrintings.filter((ps) => ps.printingId === printing.id);
+      if (relatedSources.some((ps) => !ps.checkedAt)) {
+        promises.push(checkAllCandidatePrintings.mutateAsync({ printingId: printing.id }));
+      }
+    }
+    for (const group of ambiguousGroups) {
+      const uncheckedIds = group.candidates.filter((s) => !s.checkedAt).map((s) => s.id);
+      if (uncheckedIds.length > 0) {
+        promises.push(checkAllCandidatePrintings.mutateAsync({ extraIds: uncheckedIds }));
+      }
+    }
+
+    setIsCheckingAll(true);
+    try {
+      await Promise.all(promises);
+
+      const nextSlug = await fetchNext();
+      if (nextSlug) {
+        void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: nextSlug } });
+      } else {
+        toast.success("All cards reviewed!");
+        void navigate({ to: "/admin/cards" });
+      }
+    } catch (error) {
+      setIsCheckingAll(false);
+      throw error;
+    }
+    setIsCheckingAll(false);
+  }
+
+  useEffect(() => {
+    checkAllAndNextRef.current = () => void handleCheckAllAndNext();
+  });
+  useEffect(() => {
+    prevNextRef.current = (dir) => {
+      if (!allCards) {
+        return;
+      }
+      const idx = allCards.findIndex((c: { slug: string }) => c.slug === identifier);
+      let slug: string | null = null;
+      if (dir === "prev" && idx > 0) {
+        slug = allCards[idx - 1].slug;
+      } else if (dir === "next" && idx !== -1 && idx < allCards.length - 1) {
+        slug = allCards[idx + 1].slug;
+      }
+      if (slug) {
+        void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: slug } });
+      }
+    };
+  });
 
   // After accepting a printing, expand it and scroll into view once data refetches
   useEffect(() => {
@@ -280,48 +357,8 @@ export function ExistingCardDetailPage({
   const hasUnchecked =
     sources.some((s) => !s.checkedAt) || candidatePrintings.some((ps) => !ps.checkedAt);
 
-  async function handleCheckAllAndNext() {
-    if (isCheckingAll || !card) {
-      return;
-    }
-    setIsCheckingAll(true);
-    try {
-      const promises: Promise<unknown>[] = [];
-
-      if (sources.some((s) => !s.checkedAt)) {
-        promises.push(checkAllCardSources.mutateAsync(card.id));
-      }
-
-      for (const printing of printings) {
-        const relatedSources = candidatePrintings.filter((ps) => ps.printingId === printing.id);
-        if (relatedSources.some((ps) => !ps.checkedAt)) {
-          promises.push(checkAllCandidatePrintings.mutateAsync({ printingId: printing.id }));
-        }
-      }
-
-      for (const group of ambiguousGroups) {
-        const uncheckedIds = group.candidates.filter((s) => !s.checkedAt).map((s) => s.id);
-        if (uncheckedIds.length > 0) {
-          promises.push(checkAllCandidatePrintings.mutateAsync({ extraIds: uncheckedIds }));
-        }
-      }
-
-      await Promise.all(promises);
-
-      const nextSlug = await fetchNext();
-      if (nextSlug) {
-        void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: nextSlug } });
-      } else {
-        toast.success("All cards reviewed!");
-        void navigate({ to: "/admin/cards" });
-      }
-    } finally {
-      setIsCheckingAll(false);
-    }
-  }
-  checkAllAndNextRef.current = () => void handleCheckAllAndNext();
-
-  // --- Prev / Next card navigation ---
+  // Used by the render for prev/next buttons. The hotkey equivalents live in the
+  // effect above, which recomputes navigation inline from `allCards` + `identifier`.
   const prevNextCards = (() => {
     if (!allCards) {
       return { prev: null, next: null };
@@ -332,12 +369,6 @@ export function ExistingCardDetailPage({
       next: idx !== -1 && idx < allCards.length - 1 ? allCards[idx + 1].slug : null,
     };
   })();
-  prevNextRef.current = (dir) => {
-    const slug = dir === "prev" ? prevNextCards.prev : prevNextCards.next;
-    if (slug) {
-      void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: slug } });
-    }
-  };
 
   // Compute collapse/expand keys once for the toggle button
   const allPrintingKeys = [

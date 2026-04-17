@@ -8,6 +8,31 @@ import { Label } from "@/components/ui/label";
 import type { BulkErrataEntry, BulkErrataUploadResponse } from "@/hooks/use-card-errata";
 import { useUploadErrata } from "@/hooks/use-card-errata";
 
+type ParseResult =
+  | { ok: true; entries: BulkErrataEntry[] }
+  | { ok: false; error: "invalid-json" | "empty-or-wrong-shape" };
+
+/**
+ * Parses a bulk-errata JSON file. Accepts either a bare array or `{ entries: [...] }`.
+ *
+ * Kept as a module-level helper so react-compiler doesn't try to lower the ternary + logical
+ * expressions inside the try/catch (it bails on "value blocks" within try statements).
+ * @param text Raw file contents.
+ * @returns Parsed entries on success; otherwise a tagged error indicating which failure occurred.
+ */
+function parseErrataEntries(text: string): ParseResult {
+  try {
+    const json = JSON.parse(text);
+    const list = Array.isArray(json) ? json : json.entries;
+    if (!Array.isArray(list) || list.length === 0) {
+      return { ok: false, error: "empty-or-wrong-shape" };
+    }
+    return { ok: true, entries: list as BulkErrataEntry[] };
+  } catch {
+    return { ok: false, error: "invalid-json" };
+  }
+}
+
 export function ErrataUploadPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -30,17 +55,16 @@ export function ErrataUploadPage() {
     upload.reset();
 
     const text = await file.text();
-    try {
-      const json = JSON.parse(text);
-      const list = Array.isArray(json) ? json : json.entries;
-      if (!Array.isArray(list) || list.length === 0) {
-        setParseError("JSON must contain a non-empty array of errata entries");
-        return;
-      }
-      setEntries(list as BulkErrataEntry[]);
-    } catch {
-      setParseError("Invalid JSON file");
+    const parsed = parseErrataEntries(text);
+    if (!parsed.ok) {
+      setParseError(
+        parsed.error === "invalid-json"
+          ? "Invalid JSON file"
+          : "JSON must contain a non-empty array of errata entries",
+      );
+      return;
     }
+    setEntries(parsed.entries);
   }
 
   function handlePreview() {

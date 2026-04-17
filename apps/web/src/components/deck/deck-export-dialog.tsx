@@ -190,9 +190,11 @@ export function DeckExportDialog({
     };
     try {
       await generateRegistrationPdf(fields, cards, registrationPageSize, getSiteUrl());
-    } finally {
+    } catch (error) {
       setGenerating(false);
+      throw error;
     }
+    setGenerating(false);
   };
 
   return (

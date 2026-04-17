@@ -201,7 +201,7 @@ export function useRehostImages(onBatchComplete?: () => void) {
         failed: 0,
         errors: [],
       };
-      for (;;) {
+      while (true) {
         const batch = await rehostImagesBatchFn();
         totals.total += batch.total;
         totals.rehosted += batch.rehosted;
@@ -227,7 +227,7 @@ export function useRegenerateImages(onProgress?: (processed: number, totalFiles:
     mutationFn: async (): Promise<RegenerateAccumulator> => {
       const totals: RegenerateAccumulator = { total: 0, regenerated: 0, failed: 0, errors: [] };
       let offset = 0;
-      for (;;) {
+      while (true) {
         const batch = await regenerateImagesBatchFn({ data: { offset } });
         totals.total += batch.total;
         totals.regenerated += batch.regenerated;

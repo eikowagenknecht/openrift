@@ -43,6 +43,31 @@ import { API_URL } from "@/lib/server-fns/api-url";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { cn } from "@/lib/utils";
 
+type ParseResult =
+  | { ok: true; candidates: UploadCandidatesBody["candidates"] }
+  | { ok: false; error: "invalid-json" | "empty-or-wrong-shape" };
+
+/**
+ * Parses a candidates JSON file. Accepts either a bare array or `{ candidates: [...] }`.
+ *
+ * Kept as a module-level helper so react-compiler doesn't try to lower the ternary + logical
+ * expressions inside the try/catch (it bails on "value blocks" within try statements).
+ * @param text Raw file contents.
+ * @returns Parsed candidates on success; otherwise a tagged error indicating which failure occurred.
+ */
+function parseCandidates(text: string): ParseResult {
+  try {
+    const json = JSON.parse(text);
+    const candidates = Array.isArray(json) ? json : json.candidates;
+    if (!Array.isArray(candidates) || candidates.length === 0) {
+      return { ok: false, error: "empty-or-wrong-shape" };
+    }
+    return { ok: true, candidates: candidates as UploadCandidatesBody["candidates"] };
+  } catch {
+    return { ok: false, error: "invalid-json" };
+  }
+}
+
 const exportCardsFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
@@ -81,18 +106,16 @@ export function CandidateUploadPage() {
     setProvider(file.name.replace(/\.json$/i, ""));
 
     const text = await file.text();
-    try {
-      const json = JSON.parse(text);
-      // Support both { candidates: [...] } and bare array
-      const candidates = Array.isArray(json) ? json : json.candidates;
-      if (!Array.isArray(candidates) || candidates.length === 0) {
-        setParseError("JSON must contain a non-empty array of candidates");
-        return;
-      }
-      setFileData(candidates as UploadCandidatesBody["candidates"]);
-    } catch {
-      setParseError("Invalid JSON file");
+    const parsed = parseCandidates(text);
+    if (!parsed.ok) {
+      setParseError(
+        parsed.error === "invalid-json"
+          ? "Invalid JSON file"
+          : "JSON must contain a non-empty array of candidates",
+      );
+      return;
     }
+    setFileData(parsed.candidates);
   }
 
   function handleUpload() {
@@ -417,9 +440,9 @@ function ExportCardsCard() {
       a.download = `cards-export-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
+      setExporting(false);
     } catch (error_) {
       setError(error_ instanceof Error ? error_.message : "Export failed");
-    } finally {
       setExporting(false);
     }
   }
