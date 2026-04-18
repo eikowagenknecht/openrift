@@ -564,7 +564,7 @@ function ZoneTile({
         type="button"
         onClick={onClick}
         aria-label={`Edit ${label}`}
-        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute right-2 bottom-2 flex size-7 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute right-2 bottom-2 flex size-7 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
       >
         <PencilIcon className="size-3.5" />
       </button>
