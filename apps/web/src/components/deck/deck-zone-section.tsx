@@ -29,9 +29,9 @@ const ZONE_EXPECTED: Partial<Record<DeckZone, number>> = {
 };
 
 const ZONE_EMPTY_HINTS: Record<DeckZone, string> = {
-  legend: "Choose a Legend to get started",
-  champion: "Pick a Champion that matches your Legend",
-  runes: "Auto-fills when you set a Legend",
+  legend: "Choose a Legend",
+  champion: "Pick a matching Champion",
+  runes: "Auto-fills from your Legend",
   battlefield: "Choose 3 unique Battlefield cards",
   main: "Add cards from the browser",
   sideboard: "Add up to 8 sideboard cards",

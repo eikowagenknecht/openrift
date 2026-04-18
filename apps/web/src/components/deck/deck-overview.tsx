@@ -1,6 +1,12 @@
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DeckZone, Marketplace } from "@openrift/shared";
-import { AlertTriangleIcon, CheckCircle2Icon, PackageSearchIcon, PencilIcon } from "lucide-react";
+import {
+  AlertTriangleIcon,
+  CheckCircle2Icon,
+  PackageSearchIcon,
+  PencilIcon,
+  PlusIcon,
+} from "lucide-react";
 
 import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
 import type {
@@ -38,9 +44,9 @@ const ZONE_EXPECTED: Partial<Record<DeckZone, number>> = {
 };
 
 const ZONE_EMPTY_HINTS: Record<DeckZone, string> = {
-  legend: "Choose a Legend to get started",
-  champion: "Pick a Champion that matches your Legend",
-  runes: "Auto-fills when you set a Legend",
+  legend: "Choose a Legend",
+  champion: "Pick a matching Champion",
+  runes: "Auto-fills from your Legend",
   battlefield: "Choose 3 unique Battlefield cards",
   main: "Add cards from the browser",
   sideboard: "Add up to 8 sideboard cards",
@@ -505,7 +511,7 @@ function ZoneTile({
     <div
       ref={dropRef}
       className={cn(
-        "group bg-card relative flex flex-col gap-2 rounded-lg border p-3 transition-colors",
+        "bg-card relative flex flex-col gap-2 rounded-lg border p-3 transition-colors",
         hasViolation && "border-destructive/50",
         isOver && !dropDisabled && "ring-primary/60 ring-2",
         dropDisabled && "opacity-40",
@@ -528,7 +534,25 @@ function ZoneTile({
       </div>
 
       {isEmpty ? (
-        <p className="text-muted-foreground text-xs">{emptyHint}</p>
+        zone === "runes" ? (
+          // Runes fills itself when a Legend is set, so the primary path
+          // isn't "click this button" — mirror the CTA styling minus the
+          // icon and interactivity, and rely on the always-visible pencil
+          // for the rare manual-override case.
+          <div className="text-muted-foreground flex items-center justify-center rounded-md border border-dashed px-3 py-4 text-center">
+            {emptyHint}
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onClick}
+            aria-label={`Edit ${label}`}
+            className="text-muted-foreground hover:border-muted-foreground/50 hover:bg-muted/40 hover:text-foreground flex items-center justify-center gap-2 rounded-md border border-dashed px-3 py-4 transition-colors"
+          >
+            <PlusIcon className="size-4" />
+            <span>{emptyHint}</span>
+          </button>
+        )
       ) : GROUPED_ZONES.has(zone) ? (
         <GroupedThumbs
           deckId={deckId}
@@ -560,14 +584,16 @@ function ZoneTile({
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label={`Edit ${label}`}
-        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute right-2 bottom-2 flex size-7 items-center justify-center rounded-md opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
-      >
-        <PencilIcon className="size-3.5" />
-      </button>
+      {(!isEmpty || zone === "runes") && (
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={`Edit ${label}`}
+          className="text-muted-foreground hover:bg-muted hover:text-foreground absolute right-2 bottom-2 flex size-7 items-center justify-center rounded-md"
+        >
+          <PencilIcon className="size-3.5" />
+        </button>
+      )}
     </div>
   );
 }

@@ -376,8 +376,14 @@ function DeckEditorContent({
             <PageTopBarBack to="/decks" />
             <PageTopBarTitle onToggleSidebar={toggleSidebar}>
               <span className="md:hidden">
-                {activeZone ? ZONE_LABELS[activeZone] : "Deck"}
-                <span className="text-muted-foreground ml-1">({zoneCount})</span>
+                {activeZone ? (
+                  <>
+                    {ZONE_LABELS[activeZone]}
+                    <span className="text-muted-foreground ml-1">({zoneCount})</span>
+                  </>
+                ) : (
+                  "Zones"
+                )}
               </span>
               <span className="hidden md:inline">{data.deck.name}</span>
             </PageTopBarTitle>
