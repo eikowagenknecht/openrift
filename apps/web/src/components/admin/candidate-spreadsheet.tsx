@@ -475,7 +475,7 @@ export function CandidateSpreadsheet({
                     >
                       <EllipsisVerticalIcon className="size-3.5" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-max">
+                    <DropdownMenuContent align="end">
                       {onCheck && !isChecked(row) && (
                         <DropdownMenuItem onClick={() => onCheck(row.id)}>
                           <CheckIcon className="mr-2 size-3.5" />
@@ -587,13 +587,21 @@ export function CandidateSpreadsheet({
                             }
                           >
                             <span
-                              className={cn(draftValues.length === 0 && "text-muted-foreground")}
+                              className={cn(
+                                "min-w-0 flex-1 truncate",
+                                draftValues.length === 0 && "text-muted-foreground",
+                              )}
+                              title={
+                                draftValues.length > 0
+                                  ? resolveLabel(field, draftValues)
+                                  : undefined
+                              }
                             >
                               {draftValues.length > 0
                                 ? resolveLabel(field, draftValues)
                                 : "— select —"}
                             </span>
-                            <ChevronDownIcon className="ml-auto size-3.5 opacity-50" />
+                            <ChevronDownIcon className="size-3.5 shrink-0 opacity-50" />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="start">
                             {(field.labeledOptions
@@ -735,7 +743,17 @@ export function CandidateSpreadsheet({
                       </HoverCardContent>
                     </HoverCard>
                   ) : (
-                    <span className={cn(isMissing ? "text-red-400" : "text-muted-foreground")}>
+                    <span
+                      className={cn(
+                        isMissing ? "text-red-400" : "text-muted-foreground",
+                        (hasDropdown(field) || field.array) && "block truncate",
+                      )}
+                      title={
+                        (hasDropdown(field) || field.array) && activeRow && hasValue(activeValue)
+                          ? resolveLabel(field, activeValue)
+                          : undefined
+                      }
+                    >
                       {activeRow
                         ? field.labeledOptions
                           ? resolveLabel(field, activeValue)

@@ -284,7 +284,7 @@ export function NewCardDetailPage({ identifier }: { identifier: string }) {
                     >
                       <EllipsisVerticalIcon className="size-3.5" />
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-max">
+                    <DropdownMenuContent align="end">
                       {groups
                         .filter((g) => g.groupKey !== group.groupKey)
                         .map((target) => {

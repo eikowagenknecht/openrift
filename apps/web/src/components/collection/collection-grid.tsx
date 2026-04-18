@@ -1097,7 +1097,7 @@ function CollectionTopBar({
                   <EllipsisVerticalIcon className="size-4" />
                   <span className="sr-only">Collection actions</span>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-auto">
+                <DropdownMenuContent align="end">
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
                     onClick={onDelete}
