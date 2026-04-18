@@ -2,6 +2,10 @@
 
 ## 2026-04-18
 
+- feat: Your favorite marketplace now stands out with an outlined button style, while the others use a quieter ghost style
+- feat: The printings list under a card now shows only your favorite marketplace's price, keeping each row clean
+- feat: TCGplayer and CardTrader buttons now note "(affiliate link)" in their tooltip, so it's clear where links go
+- feat: The marketplaces setting on your profile now explains the trade-offs: CardTrader separates prices by language and condition (so you see the real Near Mint price), while Cardmarket only shows the overall lowest price and TCGplayer only lists English printings
 - feat: Marketplace links on a card's detail now look like proper buttons with a "Buy on" label, so it's clearer which marketplaces you can jump to
 - feat: The collection page's "Browse & add" button is now the same box icon used on the cards page, so the add-to-collection control looks consistent across both pages
 - feat: The collection mode toggle (count / add) on the cards page is now directly in the mobile toolbar, instead of tucked inside the options drawer

@@ -1,4 +1,4 @@
-import type { Marketplace, Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared";
 import { snapshotHeadline } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
@@ -75,44 +75,27 @@ export function PrintingPicker({
 }
 
 function PrintingPrices({ printing }: { printing: Printing }) {
-  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
+  const favorite = useDisplayStore((s) => s.marketplaceOrder[0] ?? "tcgplayer");
   const prices = usePrices();
   const { data: history } = usePriceHistory(printing.id, "30d");
 
-  function priceFor(marketplace: Marketplace): number | null {
-    // Try inline catalog price first
-    const inline = prices.get(printing.id, marketplace);
-    if (inline !== undefined) {
-      return inline;
-    }
-    // Fall back to latest history snapshot
-    const snapshots = history?.[marketplace]?.snapshots;
-    if (!snapshots?.length) {
-      return null;
-    }
-    // oxlint-disable-next-line no-non-null-assertion -- length check above
-    return snapshotHeadline(snapshots.at(-1)!);
-  }
-
-  const entries: { marketplace: Marketplace; value: number }[] = [];
-  for (const marketplace of marketplaceOrder) {
-    const value = priceFor(marketplace);
-    if (value !== null) {
-      entries.push({ marketplace, value });
+  const inline = prices.get(printing.id, favorite);
+  let value: number | null = inline ?? null;
+  if (value === null) {
+    const snapshots = history?.[favorite]?.snapshots;
+    if (snapshots?.length) {
+      // oxlint-disable-next-line no-non-null-assertion -- length check above
+      value = snapshotHeadline(snapshots.at(-1)!);
     }
   }
 
-  if (entries.length === 0) {
+  if (value === null) {
     return null;
   }
 
   return (
-    <span className="flex shrink-0 items-center gap-1.5">
-      {entries.map(({ marketplace, value }) => (
-        <span key={marketplace} className={cn("text-xs font-semibold", priceColorClass(value))}>
-          {formatterForMarketplace(marketplace)(value)}
-        </span>
-      ))}
+    <span className={cn("shrink-0 text-xs font-semibold", priceColorClass(value))}>
+      {formatterForMarketplace(favorite)(value)}
     </span>
   );
 }

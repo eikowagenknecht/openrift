@@ -18,6 +18,7 @@ interface MarketplaceConfig {
   iconClassName: string;
   formatValue: (v: number) => string;
   getUrl: (productId: number, language?: string | null) => string;
+  isAffiliate?: boolean;
 }
 
 const MARKETPLACE_CONFIG: Record<Marketplace, MarketplaceConfig> = {
@@ -27,6 +28,7 @@ const MARKETPLACE_CONFIG: Record<Marketplace, MarketplaceConfig> = {
     iconClassName: "invert dark:invert-0",
     formatValue: formatPrice,
     getUrl: (id) => affiliateUrl(`https://www.tcgplayer.com/product/${id}`),
+    isAffiliate: true,
   },
   cardmarket: {
     label: "Cardmarket",
@@ -42,6 +44,7 @@ const MARKETPLACE_CONFIG: Record<Marketplace, MarketplaceConfig> = {
     iconClassName: "invert dark:invert-0",
     formatValue: formatPriceEur,
     getUrl: (id) => cardtraderAffiliateUrl(`https://www.cardtrader.com/en/cards/${id}`),
+    isAffiliate: true,
   },
 };
 
@@ -94,7 +97,7 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
       {chips[0]?.marketplace === favorite && (
         <PriceTrend printingId={printing.id} range={range} marketplace={favorite} />
       )}
-      <span className="text-muted-foreground">Buy on</span>
+      <span className="text-muted-foreground text-sm">Buy on</span>
       {chips.map(({ marketplace, value, url, languageAggregate }) => {
         const config = MARKETPLACE_CONFIG[marketplace];
         return (
@@ -107,6 +110,8 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
             url={url}
             formatValue={config.formatValue}
             languageAggregate={languageAggregate}
+            isFavorite={marketplace === favorite}
+            isAffiliate={config.isAffiliate}
           />
         );
       })}
@@ -181,6 +186,8 @@ function PriceChip({
   formatValue = formatPrice,
   iconClassName,
   languageAggregate,
+  isFavorite,
+  isAffiliate,
 }: {
   label: string;
   icon?: string;
@@ -189,6 +196,8 @@ function PriceChip({
   formatValue?: (v: number) => string;
   iconClassName?: string;
   languageAggregate?: boolean;
+  isFavorite?: boolean;
+  isAffiliate?: boolean;
 }) {
   const content = (
     <>
@@ -198,12 +207,10 @@ function PriceChip({
         <span className="text-muted-foreground text-xs font-normal">{label}</span>
       )}
       {formatValue(value)}
-      {languageAggregate && (
-        <span className="text-muted-foreground text-[10px] font-normal">*</span>
-      )}
     </>
   );
 
+  const variant = isFavorite ? "outline" : "ghost";
   const chipClassName = cn("font-semibold", priceColorClass(value));
 
   return (
@@ -212,7 +219,7 @@ function PriceChip({
         render={
           url ? (
             <Button
-              variant="secondary"
+              variant={variant}
               size="sm"
               render={
                 <a href={url} target="_blank" rel="noreferrer" aria-label={`Buy on ${label}`} />
@@ -220,18 +227,19 @@ function PriceChip({
               className={chipClassName}
             />
           ) : (
-            <span
-              className={cn(buttonVariants({ variant: "secondary", size: "sm" }), chipClassName)}
-            />
+            <span className={cn(buttonVariants({ variant, size: "sm" }), chipClassName)} />
           )
         }
       >
         {content}
       </TooltipTrigger>
       <TooltipContent>
-        {label}
+        Buy on {label}
         {languageAggregate && (
           <span className="text-muted-foreground ml-1 text-xs">(any language)</span>
+        )}
+        {isAffiliate && (
+          <span className="text-muted-foreground ml-1 text-xs">(affiliate link)</span>
         )}
       </TooltipContent>
     </Tooltip>
