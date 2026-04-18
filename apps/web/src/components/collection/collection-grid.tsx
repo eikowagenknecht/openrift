@@ -1055,12 +1055,14 @@ function CollectionTopBar({
                   <PackagePlusIcon className="size-4" />
                   Quick add
                 </Button>
-                <Button variant="ghost" size="icon" onClick={onBrowse} className="sm:hidden">
-                  <LibraryBigIcon className="size-4" />
-                </Button>
-                <Button variant="ghost" onClick={onBrowse} className="hidden sm:flex">
-                  <LibraryBigIcon className="size-4" />
-                  Browse & add
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={onBrowse}
+                  title="Browse catalog to add cards"
+                  aria-label="Browse catalog to add cards"
+                >
+                  <PackageIcon className="size-4" />
                 </Button>
               </>
             )}
