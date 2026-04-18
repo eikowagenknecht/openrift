@@ -11,6 +11,7 @@
 - feat: Brand new constructed decks now show a muted "Constructed · Draft" badge instead of an amber "N issues" warning, so the deck doesn't look broken before you've picked a single card
 - feat: On mobile, the deck top bar now reads "Zones" when no zone is selected, instead of "Deck (0)", so it's clearer that tapping opens the zone picker
 - feat: On mobile, empty decks now show a small arrow hint below the top bar pointing at the "Zones" button, so you know where to tap to see all zones
+- fix: The "Browse the card catalog..." message on an empty collection is now centered when it wraps on narrow screens, instead of being left-aligned
 - fix: Exporting a deck as proxies now uses the same printings shown in the deck (your pinned variants, otherwise your preferred language), instead of sometimes producing Chinese or other-language cards
 - fix: Dialogs (like Export deck) on iPhone now scroll inside the dialog when content is taller than the screen, instead of spilling past the top and bottom edges
 - fix: The Export deck dialog no longer has a big empty gap below the Copy button on the Deck Code, Text, and TTS tabs

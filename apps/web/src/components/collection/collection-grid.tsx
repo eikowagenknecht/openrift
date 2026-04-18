@@ -805,7 +805,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         {topBarPortal}
         <PackageIcon className="size-16 opacity-50" />
         <p>No cards yet</p>
-        <p>
+        <p className="text-center">
           Browse the card catalog and add cards to{" "}
           {currentCollection ? `"${currentCollection.name}"` : "your collection"}.
         </p>
