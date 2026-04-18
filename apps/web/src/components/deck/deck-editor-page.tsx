@@ -1,7 +1,14 @@
 import { useDndContext } from "@dnd-kit/core";
 import type { DeckZone } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
-import { EllipsisVerticalIcon, PencilIcon, PrinterIcon, Share2Icon, XIcon } from "lucide-react";
+import {
+  CornerLeftUpIcon,
+  EllipsisVerticalIcon,
+  PencilIcon,
+  PrinterIcon,
+  Share2Icon,
+  XIcon,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -363,6 +370,7 @@ function DeckEditorContent({
   const zoneCount = deckCards
     .filter((card) => card.zone === activeZone)
     .reduce((sum, card) => sum + card.quantity, 0);
+  const totalCards = deckCards.reduce((sum, card) => sum + card.quantity, 0);
 
   if (hydratedId !== deckId) {
     return null;
@@ -482,6 +490,15 @@ function DeckEditorContent({
           />
 
           <div className="flex min-w-0 flex-1 flex-col pb-3">
+            {totalCards === 0 && (
+              <div className="text-muted-foreground flex items-center gap-2 pt-1 pb-2 pl-8 md:hidden">
+                <CornerLeftUpIcon className="size-4 shrink-0" />
+                <span>
+                  Tap <span className="text-foreground font-medium">Zones</span> above to see all
+                  zones
+                </span>
+              </div>
+            )}
             <div className="flex-1">
               <DeckCardBrowser
                 deckId={deckId}
