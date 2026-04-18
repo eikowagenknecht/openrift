@@ -258,7 +258,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const navigate = useNavigate();
 
   // ── Navigation helpers ──────────────────────────────────────────────
-  const inboxId = collections.find((collection) => collection.isInbox)?.id;
+  const inbox = collections.find((collection) => collection.isInbox);
+  const inboxId = inbox?.id;
+  const inboxName = inbox?.name;
   const currentCollection = collectionId ? collectionsMap.get(collectionId) : undefined;
   const addTarget = collectionId ?? inboxId;
 
@@ -291,19 +293,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       setSelectMode(false);
       clearSelection();
     }
-    if (collectionId) {
-      void navigate({
-        to: ".",
-        search: (prev) => ({ ...prev, browsing: true }),
-        replace: true,
-      });
-    } else if (inboxId) {
-      void navigate({
-        to: "/collections/$collectionId",
-        params: { collectionId: inboxId },
-        search: { browsing: true },
-      });
-    }
+    void navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, browsing: true }),
+      replace: true,
+    });
   };
 
   const handleCloseBrowsing = () => {
@@ -692,6 +686,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       unpricedCount={unpricedCount}
       formatValue={formatValue}
       addTarget={addTarget}
+      addTargetLabel={isAddMode && !currentCollection ? inboxName : undefined}
       onQuickAdd={() => setQuickAddOpen(true)}
       onSelectAll={() => toggleSelectAll(stacks.flatMap((stack) => stack.copyIds))}
       onEnterSelect={enterSelectMode}
@@ -811,7 +806,12 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         <p>No cards yet</p>
         <p className="text-center">
           Browse the card catalog and add cards to{" "}
-          {currentCollection ? `"${currentCollection.name}"` : "your collection"}.
+          {currentCollection?.name
+            ? `"${currentCollection.name}"`
+            : inboxName
+              ? `"${inboxName}"`
+              : "your collection"}
+          .
         </p>
         <Link
           to="/help/$slug"
@@ -995,6 +995,7 @@ interface CollectionTopBarProps {
   unpricedCount: number | null | undefined;
   formatValue: (value: number) => string;
   addTarget?: string;
+  addTargetLabel?: string;
   onQuickAdd: () => void;
   onSelectAll: () => void;
   onEnterSelect: () => void;
@@ -1014,6 +1015,7 @@ function CollectionTopBar({
   unpricedCount,
   formatValue,
   addTarget,
+  addTargetLabel,
   onQuickAdd,
   onSelectAll,
   onEnterSelect,
@@ -1027,6 +1029,10 @@ function CollectionTopBar({
   return (
     <PageTopBar>
       <PageTopBarTitle onToggleSidebar={onToggleSidebar}>{title}</PageTopBarTitle>
+
+      {addTargetLabel && (
+        <span className="text-muted-foreground shrink-0 text-xs">→ {addTargetLabel}</span>
+      )}
 
       {/* Browse/select: card count + value */}
       {mode !== "add" && (
