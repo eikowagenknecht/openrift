@@ -671,14 +671,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     0,
   );
 
-  const addedPillDesktop = addedItems.size > 0 && (
-    <AddedPill count={totalAdded} active={showAddedList} size="desktop" />
-  );
-
-  const addedPillMobile = addedItems.size > 0 && (
-    <AddedPill count={totalAdded} active={showAddedList} size="mobile" />
-  );
-
   const formatValue = formatterForMarketplace(favoriteMarketplace as Marketplace);
   const valueCents = currentCollection
     ? currentCollection.totalValueCents
@@ -696,14 +688,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       unpricedCount={unpricedCount}
       formatValue={formatValue}
       addTarget={addTarget}
-      addedPillMobile={addedPillMobile}
-      addedPillDesktop={addedPillDesktop}
       onQuickAdd={() => setQuickAddOpen(true)}
-      onBrowse={startBrowsing}
-      onCloseBrowsing={handleCloseBrowsing}
       onSelectAll={() => toggleSelectAll(stacks.flatMap((stack) => stack.copyIds))}
       onEnterSelect={enterSelectMode}
       onExitSelect={exitSelectMode}
+      hasCards={stacks.length > 0}
       isAllSelected={selected.size === totalCopies}
       view={view}
       canDelete={canDeleteCollection}
@@ -729,6 +718,21 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           }
         />
         <DesktopOptionsBar className="hidden sm:flex" showCopies={mode !== "add"} />
+        {addTarget && (
+          <Button
+            variant={isAddMode ? "default" : "outline"}
+            size="icon"
+            onClick={isAddMode ? handleCloseBrowsing : startBrowsing}
+            title={isAddMode ? "Stop adding" : "Browse catalog to add cards"}
+            aria-label={isAddMode ? "Stop adding" : "Browse catalog to add cards"}
+          >
+            {isAddMode ? (
+              <PackagePlusIcon className="size-4" />
+            ) : (
+              <PackageIcon className="size-4" />
+            )}
+          </Button>
+        )}
         <FilterToggleButton className="@wide:hidden hidden sm:flex" />
         <MobileOptionsDrawer
           doneLabel={
@@ -884,6 +888,14 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           />
         )}
 
+        {/* Floating action bar (add mode) */}
+        {isAddMode && addedItems.size > 0 && (
+          <div className="border-border bg-background fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-lg border px-4 py-2 shadow-lg">
+            <AddedPill count={totalAdded} active={showAddedList} size="desktop" />
+            <Button onClick={handleCloseBrowsing}>Done</Button>
+          </div>
+        )}
+
         {/* Mobile overlays */}
         {isAddMode && showAddedList && addedItems.size > 0 && isMobile && (
           <MobileDetailOverlay>
@@ -979,14 +991,11 @@ interface CollectionTopBarProps {
   unpricedCount: number | null | undefined;
   formatValue: (value: number) => string;
   addTarget?: string;
-  addedPillMobile: React.ReactNode;
-  addedPillDesktop: React.ReactNode;
   onQuickAdd: () => void;
-  onBrowse: () => void;
-  onCloseBrowsing: () => void;
   onSelectAll: () => void;
   onEnterSelect: () => void;
   onExitSelect: () => void;
+  hasCards: boolean;
   isAllSelected: boolean;
   view: string;
   canDelete: boolean;
@@ -1001,14 +1010,11 @@ function CollectionTopBar({
   unpricedCount,
   formatValue,
   addTarget,
-  addedPillMobile,
-  addedPillDesktop,
   onQuickAdd,
-  onBrowse,
-  onCloseBrowsing,
   onSelectAll,
   onEnterSelect,
   onExitSelect,
+  hasCards,
   isAllSelected,
   view,
   canDelete,
@@ -1038,15 +1044,9 @@ function CollectionTopBar({
       )}
 
       <PageTopBarActions>
-        {mode === "add" ? (
+        {mode !== "add" && (
           <div className="flex items-center gap-2">
-            <span className="sm:hidden">{addedPillMobile}</span>
-            <span className="hidden md:flex md:items-center md:gap-2">{addedPillDesktop}</span>
-            <Button onClick={onCloseBrowsing}>Done</Button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            {addTarget && (
+            {addTarget && hasCards && (
               <>
                 <Button variant="ghost" size="icon" onClick={onQuickAdd} className="sm:hidden">
                   <PackagePlusIcon className="size-4" />
@@ -1054,15 +1054,6 @@ function CollectionTopBar({
                 <Button variant="ghost" onClick={onQuickAdd} className="hidden sm:flex">
                   <PackagePlusIcon className="size-4" />
                   Quick add
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={onBrowse}
-                  title="Browse catalog to add cards"
-                  aria-label="Browse catalog to add cards"
-                >
-                  <PackageIcon className="size-4" />
                 </Button>
               </>
             )}
@@ -1083,15 +1074,17 @@ function CollectionTopBar({
                 </Button>
               </>
             ) : (
-              <>
-                <Button variant="ghost" size="icon" onClick={onEnterSelect} className="sm:hidden">
-                  <CheckSquareIcon className="size-4" />
-                </Button>
-                <Button variant="ghost" onClick={onEnterSelect} className="hidden sm:flex">
-                  <CheckSquareIcon className="size-4" />
-                  Select {view}
-                </Button>
-              </>
+              hasCards && (
+                <>
+                  <Button variant="ghost" size="icon" onClick={onEnterSelect} className="sm:hidden">
+                    <CheckSquareIcon className="size-4" />
+                  </Button>
+                  <Button variant="ghost" onClick={onEnterSelect} className="hidden sm:flex">
+                    <CheckSquareIcon className="size-4" />
+                    Select {view}
+                  </Button>
+                </>
+              )
             )}
             {canDelete && (
               <DropdownMenu>
