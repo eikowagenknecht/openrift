@@ -9,6 +9,7 @@ import {
   PackagePlusIcon,
   Trash2Icon,
   XIcon,
+  ZapIcon,
 } from "lucide-react";
 import { use, useEffect, useDeferredValue, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -326,10 +327,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   // Switching collections drops any in-progress selection — a selected
   // copy from the previous collection wouldn't be visible in the new grid,
-  // and the floating action bar would operate on invisible rows.
+  // and the floating action bar would operate on invisible rows. Session
+  // add-mode state is also per-collection (the "N new" counts and copyIds
+  // reference the previous collection), so clear it too.
   useEffect(() => {
     setSelectMode(false);
     clearSelection();
+    useAddModeStore.getState().reset();
   }, [collectionId, clearSelection]);
 
   // Cmd+K / Ctrl+K shortcut (skip in add mode — it has its own search)
@@ -819,7 +823,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         {addTarget && (
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setQuickAddOpen(true)}>
-              <PackagePlusIcon className="mr-1 size-3.5" />
+              <ZapIcon className="mr-1 size-3.5" />
               Quick add
             </Button>
             <Button onClick={startBrowsing}>
@@ -1049,10 +1053,10 @@ function CollectionTopBar({
             {addTarget && hasCards && (
               <>
                 <Button variant="ghost" size="icon" onClick={onQuickAdd} className="sm:hidden">
-                  <PackagePlusIcon className="size-4" />
+                  <ZapIcon className="size-4" />
                 </Button>
                 <Button variant="ghost" onClick={onQuickAdd} className="hidden sm:flex">
-                  <PackagePlusIcon className="size-4" />
+                  <ZapIcon className="size-4" />
                   Quick add
                 </Button>
               </>

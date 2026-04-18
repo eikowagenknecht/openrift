@@ -15,6 +15,11 @@
 - feat: Brand new constructed decks now show a muted "Constructed · Draft" badge instead of an amber "N issues" warning, so the deck doesn't look broken before you've picked a single card
 - feat: On mobile, the deck top bar now reads "Zones" when no zone is selected, instead of "Deck (0)", so it's clearer that tapping opens the zone picker
 - feat: On mobile, empty decks now show a small arrow hint below the top bar pointing at the "Zones" button, so you know where to tap to see all zones
+- fix: The "Quick add" button now uses a lightning bolt icon instead of a box with a plus, so it's no longer visually confused with the "Browse & add" box icon next to it
+- fix: Each printing in the quick-add palette now uses a − N + stepper showing the total owned count, so it's clear how many you have and easy to undo a fresh add
+- fix: The quick-add palette no longer shows keyboard shortcut hints on mobile, where there's no keyboard
+- fix: Rapidly clicking the minus button in the quick-add palette's stepper no longer errors with "Failed to remove" — each click now advances to the next copy instead of racing on the same one
+- fix: The "new this session" count on a collection now resets when you switch to another collection, instead of carrying over from the previous one
 - fix: The "Browse the card catalog..." message on an empty collection is now centered when it wraps on narrow screens, instead of being left-aligned
 - fix: Exporting a deck as proxies now uses the same printings shown in the deck (your pinned variants, otherwise your preferred language), instead of sometimes producing Chinese or other-language cards
 - fix: Dialogs (like Export deck) on iPhone now scroll inside the dialog when content is taller than the screen, instead of spilling past the top and bottom edges
