@@ -1,6 +1,11 @@
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
 import type { ColumnDef, SortingState } from "@tanstack/react-table";
-import { flexRender, getCoreRowModel, getSortedRowModel } from "@tanstack/react-table";
+import {
+  flexRender,
+  getCoreRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
 import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, Trash2Icon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
@@ -24,7 +29,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useRcTable } from "@/lib/react-compiler-interop";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -221,7 +225,7 @@ export function AdminTable<TData, TDraft = TData>({
     : [];
   const [sorting, setSorting] = useState<SortingState>(initialSorting);
 
-  const table = useRcTable({
+  const table = useReactTable({
     data,
     columns: tanStackColumns,
     state: { sorting },

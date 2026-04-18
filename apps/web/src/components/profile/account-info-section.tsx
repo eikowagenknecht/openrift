@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Controller } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod/v4";
 
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { authClient } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
 import { sessionQueryOptions } from "@/lib/auth-session";
-import { useRhfForm } from "@/lib/react-compiler-interop";
 
 const displayNameSchema = z.object({
   name: z.string().min(1, "Name is required."),
@@ -50,7 +49,7 @@ function DisplayNameForm({ defaultName, userId }: { defaultName: string; userId:
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const queryClient = useQueryClient();
-  const form = useRhfForm<DisplayNameValues>({
+  const form = useForm<DisplayNameValues>({
     resolver: zodResolver(displayNameSchema),
     defaultValues: { name: defaultName },
   });

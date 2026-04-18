@@ -1,6 +1,5 @@
 import type { EnumOrders, GroupByField, Printing } from "@openrift/shared";
 import { DEFAULT_ENUM_ORDERS } from "@openrift/shared";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { SearchXIcon, WifiOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -10,6 +9,7 @@ import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
 import { cn } from "@/lib/utils";
+import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { useDisplayStore } from "@/stores/display-store";
 
 import {
@@ -33,23 +33,6 @@ import { useGridKeyboardNav } from "./use-grid-keyboard-nav";
 import { useStickyHeader } from "./use-sticky-header";
 
 export type { SetInfo } from "./card-grid-types";
-
-// React Compiler over-memoizes `virtualizer.getVirtualItems()` and
-// `getTotalSize()` based on the virtualizer's reference stability, but those
-// methods depend on internal subscription state the compiler can't see, so
-// stale results stick — the grid stops producing rows on cold load (items
-// stay at 0 despite scroll). Wrapping in a "use no memo" hook forces fresh
-// calls each render. See https://github.com/TanStack/virtual/issues/736
-function useWindowVirtualWithFreshItems(options: Parameters<typeof useWindowVirtualizer>[0]) {
-  // eslint-disable-next-line react-compiler/react-compiler -- opt this hook out of compilation; see comment above
-  "use no memo";
-  const virtualizer = useWindowVirtualizer(options);
-  return {
-    virtualizer,
-    virtualItems: virtualizer.getVirtualItems(),
-    totalSize: virtualizer.getTotalSize(),
-  };
-}
 
 interface CardGroup {
   group: GroupInfo;
@@ -439,7 +422,7 @@ export function CardGrid({
   }, [items, containerRef]);
 
   // ── Virtualizer ────────────────────────────────────────────────────
-  const { virtualizer, virtualItems, totalSize } = useWindowVirtualWithFreshItems({
+  const { virtualizer, virtualItems, totalSize } = useWindowVirtualizerFresh({
     count: virtualRows.length,
     estimateSize: estimateRowHeight,
     gap: GAP,
