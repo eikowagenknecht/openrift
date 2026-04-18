@@ -2,11 +2,12 @@ import type { Printing } from "@openrift/shared";
 import { WellKnown, getOrientation } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { useDrag } from "@use-gesture/react";
-import { ArrowLeftIcon, ExternalLinkIcon, SparkleIcon, XIcon } from "lucide-react";
+import { ArrowLeftIcon, ExternalLinkIcon, ShieldIcon, SparkleIcon, XIcon } from "lucide-react";
 import { useRef } from "react";
 
 import { CardText } from "@/components/cards/card-text";
 import { Button } from "@/components/ui/button";
+import { useIsAdmin } from "@/hooks/use-admin";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { getDomainGradientStyle, getDomainTintStyle } from "@/lib/domain";
@@ -91,6 +92,8 @@ export function CardDetail({
     mode: tiltMode,
     enabled: cardTilt && (!IS_COARSE_POINTER || isFoil),
   });
+
+  const { data: isAdmin } = useIsAdmin();
 
   const showFoil = isFoil && foilEffect;
   // Detail pane always uses animated foil — shimmers when tilt unavailable.
@@ -291,14 +294,26 @@ export function CardDetail({
 
         {/* Card details link (only in side pane, not on standalone page) */}
         {onClose && (
-          <Link
-            to="/cards/$cardSlug"
-            params={{ cardSlug: card.slug }}
-            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
-          >
-            <ExternalLinkIcon className="size-3" />
-            View card details
-          </Link>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <Link
+              to="/cards/$cardSlug"
+              params={{ cardSlug: card.slug }}
+              className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+            >
+              <ExternalLinkIcon className="size-3" />
+              View card details
+            </Link>
+            {isAdmin && (
+              <Link
+                to="/admin/cards/$cardSlug"
+                params={{ cardSlug: card.slug }}
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs"
+              >
+                <ShieldIcon className="size-3" />
+                Admin view
+              </Link>
+            )}
+          </div>
         )}
       </div>
     </div>
