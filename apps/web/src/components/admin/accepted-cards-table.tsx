@@ -328,6 +328,14 @@ export function AcceptedCardsTable({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getRowId: (r) => r.cardSlug ?? r.normalizedName,
+    // react-table's default `autoResetPageIndex` queues a microtask that calls
+    // `setPagination` (internal setState) after every `getCoreRowModel` /
+    // `getSortedRowModel` / `getFilteredRowModel` run. With a parent that
+    // re-creates the table options each render (via the setOptions call in
+    // useReactTable), those memo deps look "changed" to the library's memo
+    // util even when our data ref is stable, so the internal setState fires
+    // on every render and cascades at ~5Hz. Opt out: we don't use pagination.
+    autoResetPageIndex: false,
     globalFilterFn: (row, _columnId, filterValue) => {
       const query = (filterValue as string).toLowerCase();
       const r = row.original;
@@ -345,7 +353,7 @@ export function AcceptedCardsTable({
   const acceptableCount = data.filter((r) => r.cardSlug && r.hasFavoriteStagingPrintings).length;
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useRcVirtualizer({
+  const { virtualItems, totalSize } = useRcVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT,
@@ -420,10 +428,8 @@ export function AcceptedCardsTable({
                 ))}
               </TableHeader>
               <TableBody>
-                {virtualizer.getVirtualItems().length > 0 && (
-                  <tr style={{ height: virtualizer.getVirtualItems()[0].start }} />
-                )}
-                {virtualizer.getVirtualItems().map((virtualRow) => {
+                {virtualItems.length > 0 && <tr style={{ height: virtualItems[0].start }} />}
+                {virtualItems.map((virtualRow) => {
                   const row = rows[virtualRow.index];
                   return (
                     <TableRow key={row.id} data-index={virtualRow.index}>
@@ -435,14 +441,8 @@ export function AcceptedCardsTable({
                     </TableRow>
                   );
                 })}
-                {virtualizer.getVirtualItems().length > 0 && (
-                  <tr
-                    style={{
-                      height:
-                        virtualizer.getTotalSize() -
-                        (virtualizer.getVirtualItems().at(-1)?.end ?? 0),
-                    }}
-                  />
+                {virtualItems.length > 0 && (
+                  <tr style={{ height: totalSize - (virtualItems.at(-1)?.end ?? 0) }} />
                 )}
               </TableBody>
             </Table>

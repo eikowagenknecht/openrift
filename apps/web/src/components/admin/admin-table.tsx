@@ -230,6 +230,9 @@ export function AdminTable<TData, TDraft = TData>({
     getSortedRowModel: enableSort ? getSortedRowModel() : undefined,
     getRowId: (row) => getRowKey(row),
     enableSorting: enableSort,
+    // See accepted-cards-table.tsx: react-table's autoResetPageIndex
+    // cascades setState at ~5Hz on each render. We don't paginate.
+    autoResetPageIndex: false,
   });
 
   const hasActions = Boolean(edit || del || actions);

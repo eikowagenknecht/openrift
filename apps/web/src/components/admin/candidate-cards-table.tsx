@@ -221,13 +221,16 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getRowId: (r) => r.name,
+    // See accepted-cards-table.tsx for why this is needed: react-table's
+    // autoResetPageIndex cascade re-renders the component at ~5Hz idle.
+    autoResetPageIndex: false,
     globalFilterFn: "includesString",
   });
 
   const rows = table.getRowModel().rows;
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const virtualizer = useRcVirtualizer({
+  const { virtualItems, totalSize } = useRcVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT,
@@ -307,10 +310,8 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
               ))}
             </TableHeader>
             <TableBody>
-              {virtualizer.getVirtualItems().length > 0 && (
-                <tr style={{ height: virtualizer.getVirtualItems()[0].start }} />
-              )}
-              {virtualizer.getVirtualItems().map((virtualRow) => {
+              {virtualItems.length > 0 && <tr style={{ height: virtualItems[0].start }} />}
+              {virtualItems.map((virtualRow) => {
                 const row = rows[virtualRow.index];
                 return (
                   <TableRow key={row.id} data-index={virtualRow.index}>
@@ -325,13 +326,8 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
                   </TableRow>
                 );
               })}
-              {virtualizer.getVirtualItems().length > 0 && (
-                <tr
-                  style={{
-                    height:
-                      virtualizer.getTotalSize() - (virtualizer.getVirtualItems().at(-1)?.end ?? 0),
-                  }}
-                />
+              {virtualItems.length > 0 && (
+                <tr style={{ height: totalSize - (virtualItems.at(-1)?.end ?? 0) }} />
               )}
             </TableBody>
           </Table>

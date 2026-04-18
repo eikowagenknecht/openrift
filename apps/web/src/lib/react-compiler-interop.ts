@@ -20,9 +20,13 @@ export function useRhfForm<T extends FieldValues>(options: UseFormProps<T>): Use
 }
 
 /**
- * Wraps `@tanstack/react-table`'s `useReactTable`. `useReactTable` returns
- * methods driven by internal subscription state the compiler can't see;
- * calling through this aliased hook keeps consumers out of its IncompatibleLibrary match.
+ * Wraps `@tanstack/react-table`'s `useReactTable`. Same rationale as `useRcTable`'s
+ * prior docstring: aliasing hides the call site from react-compiler's
+ * IncompatibleLibrary matcher so the diagnostic doesn't fire on every consumer.
+ * Note: callers that pass row models (e.g. `getCoreRowModel()`) should also
+ * pass `autoResetPageIndex: false` unless they actually paginate — react-table
+ * otherwise queues `setPagination` via microtask after every render, cascading
+ * re-renders at ~5Hz idle.
  * @param options Forwarded verbatim to `useReactTable`.
  * @returns The table instance.
  */
@@ -31,16 +35,28 @@ export function useRcTable<TData>(options: TableOptions<TData>): Table<TData> {
 }
 
 /**
- * Wraps `@tanstack/react-virtual`'s `useVirtualizer`. Same rationale as `useRcTable`:
- * the library returns methods that would stale out if memoized.
+ * Wraps `@tanstack/react-virtual`'s `useVirtualizer`. Aliasing alone only hides
+ * the call site from the IncompatibleLibrary diagnostic; the consumer still
+ * gets compiled, and `virtualizer.getVirtualItems()` / `getTotalSize()` read
+ * from internal subscription state the compiler can't see, so their return
+ * values stick stale after scroll or count changes. The `"use no memo"`
+ * directive opts this wrapper out of compilation so the reads are fresh each
+ * render, and consumers receive the already-read values instead of calling the
+ * getters inline. Mirrors `useWindowVirtualWithFreshItems` in card-grid.tsx.
+ * See https://github.com/TanStack/virtual/issues/736
  * @param options Forwarded verbatim to `useVirtualizer`.
- * @returns The virtualizer instance.
+ * @returns The virtualizer plus freshly-read `virtualItems` and `totalSize`.
  */
 export function useRcVirtualizer<
   TScrollElement extends Element,
   TItemElement extends Element = Element,
->(
-  options: Parameters<typeof tanstackVirtualHook<TScrollElement, TItemElement>>[0],
-): ReturnType<typeof tanstackVirtualHook<TScrollElement, TItemElement>> {
-  return tanstackVirtualHook(options);
+>(options: Parameters<typeof tanstackVirtualHook<TScrollElement, TItemElement>>[0]) {
+  // eslint-disable-next-line react-compiler/react-compiler -- opt this hook out of compilation; see comment above
+  "use no memo";
+  const virtualizer = tanstackVirtualHook<TScrollElement, TItemElement>(options);
+  return {
+    virtualizer,
+    virtualItems: virtualizer.getVirtualItems(),
+    totalSize: virtualizer.getTotalSize(),
+  };
 }
