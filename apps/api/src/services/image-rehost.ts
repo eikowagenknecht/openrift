@@ -121,6 +121,10 @@ async function generateWebpVariants(
     if (rotation !== 0) {
       pipeline = pipeline.rotate(rotation);
     }
+    // Strip uniform white borders (e.g. scans with page padding) before
+    // resizing. Tight threshold so only near-white edges get cropped; card
+    // art with white elements at the edge is preserved.
+    pipeline = pipeline.trim({ background: "white", threshold: 10 });
     pipeline = pipeline.resize(
       isLandscape ? null : size.shortEdge,
       isLandscape ? size.shortEdge : null,

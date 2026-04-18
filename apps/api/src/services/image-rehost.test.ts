@@ -49,6 +49,7 @@ let mockSharpMetadata: { width: number; height: number } = { width: 600, height:
 const mockSharpInstance: any = {};
 mockSharpInstance.resize = vi.fn(() => mockSharpInstance);
 mockSharpInstance.rotate = vi.fn(() => mockSharpInstance);
+mockSharpInstance.trim = vi.fn(() => mockSharpInstance);
 mockSharpInstance.webp = () => mockSharpInstance;
 mockSharpInstance.toBuffer = () => Promise.resolve(Buffer.from("webp"));
 mockSharpInstance.metadata = () => Promise.resolve(mockSharpMetadata);
@@ -104,6 +105,8 @@ beforeEach(() => {
   mockUnlink.mockReset().mockResolvedValue();
   mockStat.mockReset().mockResolvedValue({ size: 1024 });
   mockSharpInstance.resize.mockClear();
+  mockSharpInstance.rotate.mockClear();
+  mockSharpInstance.trim.mockClear();
   mockSharpMetadata = { width: 600, height: 850 };
   mockFetch
     .mockReset()
@@ -248,6 +251,14 @@ describe("processAndSave", () => {
     expect(mockSharpInstance.rotate).toHaveBeenCalledWith(90);
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 400, { withoutEnlargement: true });
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 800, { withoutEnlargement: true });
+  });
+
+  it("trims white borders with a tight threshold before resizing each variant", async () => {
+    await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "trim-1", 0);
+
+    // Called once per SIZES entry (400w + full).
+    expect(mockSharpInstance.trim).toHaveBeenCalledTimes(2);
+    expect(mockSharpInstance.trim).toHaveBeenCalledWith({ background: "white", threshold: 10 });
   });
 
   it("sweeps a pre-existing orig with a different extension before writing", async () => {
