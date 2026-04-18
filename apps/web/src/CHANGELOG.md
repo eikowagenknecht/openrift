@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-18
+
+- fix: Long-pressing a deck card on iPhone no longer pops up iOS's text selection alongside the printing menu
+
 ## 2026-04-17
 
 - feat: The Promo Cards page now groups by language first (English, Chinese, French), then by promo type within each language, instead of switching languages from a filter

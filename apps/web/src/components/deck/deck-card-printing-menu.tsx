@@ -57,7 +57,10 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
 
   return (
     <ContextMenu.Root onOpenChange={(open) => !open && setHoveredId(null)}>
-      <ContextMenu.Trigger className="block" render={<div />}>
+      <ContextMenu.Trigger
+        className="block select-none [-webkit-touch-callout:none]"
+        render={<div />}
+      >
         {children}
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
