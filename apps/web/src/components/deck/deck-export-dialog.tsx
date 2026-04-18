@@ -1,3 +1,4 @@
+import type { DeckExportResponse } from "@openrift/shared";
 import { CheckIcon, CopyIcon, FileTextIcon, Loader2Icon, Share2Icon } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -32,6 +33,11 @@ import { getSiteUrl } from "@/lib/site-config";
 
 type ExportFormat = "piltover" | "text" | "tts";
 type ExportTab = ExportFormat | "registration";
+interface FormatState {
+  data?: DeckExportResponse;
+  loading?: boolean;
+  error?: boolean;
+}
 
 const FORMAT_DESCRIPTIONS: Record<ExportTab, React.ReactNode> = {
   piltover: (
@@ -120,6 +126,7 @@ export function DeckExportDialog({
   const liveCards = useDeckCards(deckId);
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<ExportTab>("piltover");
+  const [formats, setFormats] = useState<Partial<Record<ExportFormat, FormatState>>>({});
   const [registrationPageSize, setRegistrationPageSize] = useState<RegistrationPageSize>("a4");
   const [generating, setGenerating] = useState(false);
 
@@ -134,39 +141,60 @@ export function DeckExportDialog({
   const [deckDesigner, setDeckDesigner] = useState("");
 
   useEffect(() => {
-    if (open && tab !== "registration") {
-      exportDeck.mutate({ deckId, format: tab });
-      setCopied(false);
-    }
     if (!open) {
       exportDeck.reset();
       setTab("piltover");
+      setFormats({});
+      setCopied(false);
+      return;
     }
-    if (open) {
-      setRegDeckName(deckName ?? "");
-      // Prefill first/last name from user profile if not already filled
-      if (!firstName && !lastName && session?.user?.name) {
-        const parts = session.user.name.trim().split(/\s+/);
-        setFirstName(parts[0] ?? "");
-        setLastName(parts.slice(1).join(" "));
-      }
+    setRegDeckName(deckName ?? "");
+    // Prefill first/last name from user profile if not already filled
+    if (!firstName && !lastName && session?.user?.name) {
+      const parts = session.user.name.trim().split(/\s+/);
+      setFirstName(parts[0] ?? "");
+      setLastName(parts.slice(1).join(" "));
     }
   }, [open]); // oxlint-disable-line react-hooks/exhaustive-deps -- only trigger on open/close
+
+  useEffect(() => {
+    if (!open || tab === "registration") {
+      return;
+    }
+    const current = formats[tab];
+    if (current?.data || current?.loading) {
+      return;
+    }
+    setFormats((prev) => ({ ...prev, [tab]: { loading: true } }));
+    exportDeck.mutate(
+      { deckId, format: tab },
+      {
+        onSuccess: (data) => {
+          setFormats((prev) => ({ ...prev, [tab]: { data } }));
+        },
+        onError: () => {
+          setFormats((prev) => ({ ...prev, [tab]: { error: true } }));
+        },
+      },
+    );
+  }, [open, tab]); // oxlint-disable-line react-hooks/exhaustive-deps -- formats read via closure, not reactively
 
   const handleTabChange = (newTab: ExportTab) => {
     setTab(newTab);
     setCopied(false);
-    if (newTab !== "registration") {
-      exportDeck.mutate({ deckId, format: newTab });
-    }
   };
 
+  const currentFormat = tab === "registration" ? {} : (formats[tab] ?? {});
+  const currentData = currentFormat.data;
+  const currentLoading = currentFormat.loading ?? false;
+  const currentError = currentFormat.error ?? false;
+
   const handleCopy = async () => {
-    if (!exportDeck.data?.code) {
+    if (!currentData?.code) {
       return;
     }
     // Use \r\n so line breaks survive iOS Safari's clipboard
-    const text = exportDeck.data.code.replaceAll("\n", "\r\n");
+    const text = currentData.code.replaceAll("\n", "\r\n");
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -335,48 +363,44 @@ export function DeckExportDialog({
           ) : (
             <TabsContent value={tab}>
               <div className="flex min-w-0 flex-col gap-3">
-                {exportDeck.isPending ? (
-                  <div className="flex flex-1 items-center justify-center">
-                    <Loader2Icon className="text-muted-foreground size-6 animate-spin" />
-                  </div>
-                ) : exportDeck.isError ? (
-                  <p className="text-destructive text-sm">Failed to generate export.</p>
-                ) : exportDeck.data ? (
-                  <>
-                    <Textarea
-                      readOnly
-                      value={exportDeck.data.code}
-                      className="[field-sizing:fixed] font-mono text-xs break-all"
-                      rows={8}
-                      onClick={(event) => (event.target as HTMLTextAreaElement).select()}
-                    />
+                <Textarea
+                  readOnly
+                  value={currentData?.code ?? ""}
+                  placeholder={currentError ? "Failed to generate export." : ""}
+                  className="field-sizing-fixed font-mono text-xs break-all"
+                  rows={8}
+                  onClick={(event) => (event.target as HTMLTextAreaElement).select()}
+                />
 
-                    <Button onClick={handleCopy} className="self-end">
-                      {copied ? (
-                        <>
-                          <CheckIcon className="size-4" />
-                          Copied
-                        </>
-                      ) : (
-                        <>
-                          <CopyIcon className="size-4" />
-                          Copy
-                        </>
-                      )}
-                    </Button>
-
-                    {exportDeck.data.warnings.length > 0 && (
-                      <div className="text-muted-foreground text-xs">
-                        <p className="font-medium">Warnings:</p>
-                        <ul className="mt-1 list-inside list-disc">
-                          {exportDeck.data.warnings.map((warning) => (
-                            <li key={warning}>{warning}</li>
-                          ))}
-                        </ul>
-                      </div>
+                <div className="flex items-center gap-2 self-end">
+                  {currentLoading && (
+                    <Loader2Icon className="text-muted-foreground size-4 animate-spin" />
+                  )}
+                  <Button onClick={handleCopy} disabled={!currentData}>
+                    {copied ? (
+                      <>
+                        <CheckIcon className="size-4" />
+                        Copied
+                      </>
+                    ) : (
+                      <>
+                        <CopyIcon className="size-4" />
+                        Copy
+                      </>
                     )}
-                  </>
-                ) : null}
+                  </Button>
+                </div>
+
+                {currentData && currentData.warnings.length > 0 && (
+                  <div className="text-muted-foreground text-xs">
+                    <p className="font-medium">Warnings:</p>
+                    <ul className="mt-1 list-inside list-disc">
+                      {currentData.warnings.map((warning) => (
+                        <li key={warning}>{warning}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </TabsContent>
           )}
