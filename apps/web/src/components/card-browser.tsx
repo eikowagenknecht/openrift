@@ -251,7 +251,6 @@ export function CardBrowser() {
           <Button
             variant={catalogMode === "off" ? "outline" : "default"}
             size="icon"
-            className="hidden sm:flex"
             onClick={cycleCatalogMode}
             title={
               catalogMode === "off"
@@ -278,22 +277,6 @@ export function CardBrowser() {
           className="sm:hidden"
         >
           <MobileOptionsContent />
-          {isLoggedIn && (
-            <div className="flex items-center justify-between border-t pt-4">
-              <span className="text-sm font-medium">Collection mode</span>
-              <Button
-                variant={catalogMode === "off" ? "outline" : "default"}
-                size="sm"
-                className="gap-1.5 text-xs"
-                onClick={cycleCatalogMode}
-              >
-                {catalogMode === "add" ? <PackagePlusIcon /> : <PackageIcon />}
-                {catalogMode === "off" && "Off"}
-                {catalogMode === "count" && "Count"}
-                {catalogMode === "add" && "Add"}
-              </Button>
-            </div>
-          )}
           <MobileFilterContent
             availableFilters={availableFilters}
             availableLanguages={availableLanguages}

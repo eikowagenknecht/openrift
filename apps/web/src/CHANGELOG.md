@@ -2,6 +2,7 @@
 
 ## 2026-04-18
 
+- feat: The collection mode toggle (count / add) on the cards page is now directly in the mobile toolbar, instead of tucked inside the options drawer
 - fix: Exporting a deck as proxies now uses the same printings shown in the deck (your pinned variants, otherwise your preferred language), instead of sometimes producing Chinese or other-language cards
 - fix: Dialogs (like Export deck) on iPhone now scroll inside the dialog when content is taller than the screen, instead of spilling past the top and bottom edges
 - fix: The Export deck dialog no longer has a big empty gap below the Copy button on the Deck Code, Text, and TTS tabs
