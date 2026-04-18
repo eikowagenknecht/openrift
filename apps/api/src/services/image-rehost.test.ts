@@ -46,12 +46,30 @@ const mockFetch = vi.fn(() =>
 // Default: portrait source (width < height). Individual tests can pass a
 // custom `sharp` via `customIo` to simulate landscape or specific metadata.
 let mockSharpMetadata: { width: number; height: number } = { width: 600, height: 850 };
+// When non-null, `toBuffer({ resolveWithObject: true })` returns this as the
+// info object. Leave null to return post-rotation metadata dims (trim no-op).
+let mockTrimInfo: { width: number; height: number } | null = null;
+let mockRotation = 0;
 const mockSharpInstance: any = {};
 mockSharpInstance.resize = vi.fn(() => mockSharpInstance);
-mockSharpInstance.rotate = vi.fn(() => mockSharpInstance);
+mockSharpInstance.rotate = vi.fn((r: number) => {
+  mockRotation = r;
+  return mockSharpInstance;
+});
 mockSharpInstance.trim = vi.fn(() => mockSharpInstance);
+mockSharpInstance.extract = vi.fn(() => mockSharpInstance);
 mockSharpInstance.webp = () => mockSharpInstance;
-mockSharpInstance.toBuffer = () => Promise.resolve(Buffer.from("webp"));
+mockSharpInstance.toBuffer = (opts?: { resolveWithObject?: boolean }) => {
+  if (opts?.resolveWithObject) {
+    const swap = mockRotation === 90 || mockRotation === 270;
+    const info = mockTrimInfo ?? {
+      width: swap ? mockSharpMetadata.height : mockSharpMetadata.width,
+      height: swap ? mockSharpMetadata.width : mockSharpMetadata.height,
+    };
+    return Promise.resolve({ data: Buffer.from("trimmed"), info });
+  }
+  return Promise.resolve(Buffer.from("webp"));
+};
 mockSharpInstance.metadata = () => Promise.resolve(mockSharpMetadata);
 
 const mockIo: Io = {
@@ -107,7 +125,10 @@ beforeEach(() => {
   mockSharpInstance.resize.mockClear();
   mockSharpInstance.rotate.mockClear();
   mockSharpInstance.trim.mockClear();
+  mockSharpInstance.extract.mockClear();
   mockSharpMetadata = { width: 600, height: 850 };
+  mockTrimInfo = null;
+  mockRotation = 0;
   mockFetch
     .mockReset()
     .mockResolvedValue(
@@ -253,12 +274,36 @@ describe("processAndSave", () => {
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 800, { withoutEnlargement: true });
   });
 
-  it("trims white borders with a tight threshold before resizing each variant", async () => {
+  it("trims white borders with a tight threshold before resizing", async () => {
     await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "trim-1", 0);
 
-    // Called once per SIZES entry (400w + full).
-    expect(mockSharpInstance.trim).toHaveBeenCalledTimes(2);
-    expect(mockSharpInstance.trim).toHaveBeenCalledWith({ background: "white", threshold: 10 });
+    // Trim runs once, then variants reuse the prepped buffer.
+    expect(mockSharpInstance.trim).toHaveBeenCalledTimes(1);
+    expect(mockSharpInstance.trim).toHaveBeenCalledWith({ background: "white", threshold: 60 });
+  });
+
+  it("shaves 1 extra px off each side when trim actually cropped", async () => {
+    mockSharpMetadata = { width: 600, height: 900 };
+    // Simulate a scan with a 10px white border on each side → trim reduces to 580x880.
+    mockTrimInfo = { width: 580, height: 880 };
+
+    await processAndSave(mockIo, Buffer.from("b"), ".png", "/tmp/out", "bordered-1", 0);
+
+    expect(mockSharpInstance.extract).toHaveBeenCalledTimes(1);
+    expect(mockSharpInstance.extract).toHaveBeenCalledWith({
+      left: 1,
+      top: 1,
+      width: 578,
+      height: 878,
+    });
+  });
+
+  it("skips the extra 1px shave when trim was a no-op", async () => {
+    mockSharpMetadata = { width: 600, height: 900 };
+    // mockTrimInfo stays null → post-rotation dims unchanged → wasTrimmed=false.
+    await processAndSave(mockIo, Buffer.from("e"), ".png", "/tmp/out", "edge-1", 0);
+
+    expect(mockSharpInstance.extract).not.toHaveBeenCalled();
   });
 
   it("sweeps a pre-existing orig with a different extension before writing", async () => {

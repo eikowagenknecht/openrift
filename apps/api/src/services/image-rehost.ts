@@ -113,24 +113,53 @@ async function generateWebpVariants(
   // 90° and 270° rotations swap width and height — measure orientation post-rotation
   // so short-edge capping stays orientation-aware after rotate.
   const swap = rotation === 90 || rotation === 270;
-  const sourceWidth = swap ? rawHeight : rawWidth;
-  const sourceHeight = swap ? rawWidth : rawHeight;
-  const isLandscape = sourceWidth > sourceHeight;
+  const preTrimWidth = swap ? rawHeight : rawWidth;
+  const preTrimHeight = swap ? rawWidth : rawHeight;
+
+  // Rotate + trim once before resizing. Threshold is tuned to absorb JPEG
+  // compression noise around the card edge — at a lower value, a single
+  // slightly-off-white pixel on the outer column anchors the bbox and leaves
+  // visible white strips on the sides. 60 lands tight against the card on
+  // the straight edges; white inside rounded-corner curves stays, which is
+  // fine since the card itself is the same shape.
+  let prepped = io.sharp(buffer);
+  if (rotation !== 0) {
+    prepped = prepped.rotate(rotation);
+  }
+  const { data: trimmedData, info: trimInfo } = await prepped
+    .trim({ background: "white", threshold: 60 })
+    .toBuffer({ resolveWithObject: true });
+
+  // When trim actually cropped something, shave 1 extra px off each side to
+  // absorb any leftover scanner halo. Skip when trim was a no-op so already-
+  // edge-to-edge art isn't nibbled.
+  const wasTrimmed = trimInfo.width < preTrimWidth || trimInfo.height < preTrimHeight;
+  let preppedBuffer = trimmedData;
+  let preppedWidth = trimInfo.width;
+  let preppedHeight = trimInfo.height;
+  if (wasTrimmed && preppedWidth > 2 && preppedHeight > 2) {
+    preppedBuffer = await io
+      .sharp(trimmedData)
+      .extract({
+        left: 1,
+        top: 1,
+        width: preppedWidth - 2,
+        height: preppedHeight - 2,
+      })
+      .toBuffer();
+    preppedWidth -= 2;
+    preppedHeight -= 2;
+  }
+
+  const isLandscape = preppedWidth > preppedHeight;
   for (const size of SIZES) {
-    let pipeline = io.sharp(buffer);
-    if (rotation !== 0) {
-      pipeline = pipeline.rotate(rotation);
-    }
-    // Strip uniform white borders (e.g. scans with page padding) before
-    // resizing. Tight threshold so only near-white edges get cropped; card
-    // art with white elements at the edge is preserved.
-    pipeline = pipeline.trim({ background: "white", threshold: 10 });
-    pipeline = pipeline.resize(
-      isLandscape ? null : size.shortEdge,
-      isLandscape ? size.shortEdge : null,
-      { withoutEnlargement: true },
-    );
-    const webpBuffer = await pipeline.webp({ quality: size.quality }).toBuffer();
+    const webpBuffer = await io
+      .sharp(preppedBuffer)
+      .resize(isLandscape ? null : size.shortEdge, isLandscape ? size.shortEdge : null, {
+        withoutEnlargement: true,
+      })
+      .webp({ quality: size.quality })
+      .toBuffer();
     await io.fs.writeFile(join(outputDir, `${fileBase}-${size.suffix}.webp`), webpBuffer);
   }
 }
