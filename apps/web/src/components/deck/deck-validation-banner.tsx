@@ -2,7 +2,7 @@ import type { DeckViolation } from "@openrift/shared";
 import { CheckIcon, CircleAlertIcon } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useDeckViolations } from "@/hooks/use-deck-builder";
+import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import { useDeckDetail } from "@/hooks/use-decks";
 
 /**
@@ -48,6 +48,8 @@ export function DeckFormatBadge({ deckId }: { deckId: string }) {
   const { data: deckDetail } = useDeckDetail(deckId);
   const format = deckDetail.deck.format;
   const violations = useDeckViolations(deckId, format);
+  const cards = useDeckCards(deckId);
+  const totalCards = cards.reduce((sum, card) => sum + card.quantity, 0);
 
   const isValid = format === "freeform" || violations.length === 0;
 
@@ -56,6 +58,16 @@ export function DeckFormatBadge({ deckId }: { deckId: string }) {
       <span className="flex shrink-0 items-center gap-1 rounded-md bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">
         {format === "freeform" ? "Freeform" : "Constructed"}
         <CheckIcon className="size-3" />
+      </span>
+    );
+  }
+
+  // Empty decks are drafts — don't scream "5 issues" at a blank slate.
+  // Once the user adds anything, switch to the amber violations badge.
+  if (totalCards === 0) {
+    return (
+      <span className="bg-muted text-muted-foreground flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium">
+        Constructed · Draft
       </span>
     );
   }
