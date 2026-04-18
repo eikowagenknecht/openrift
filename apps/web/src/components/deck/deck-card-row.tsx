@@ -219,7 +219,7 @@ export function DeckCardRow({
       <span className="min-w-0 flex-1 truncate text-left">
         {card.cardName}
         {card.power !== null && card.power > 0 && (
-          <span className="ml-1 inline-flex translate-y-px items-center text-[10px]">
+          <span className="ml-1 inline-flex translate-y-px items-center gap-0.5 text-[10px]">
             {Array.from({ length: card.power }, (_, index) => (
               <PowerDomainIcon key={index} domains={card.domains} colors={domainColors} />
             ))}
