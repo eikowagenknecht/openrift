@@ -334,7 +334,7 @@ export function DeckExportDialog({
             </TabsContent>
           ) : (
             <TabsContent value={tab}>
-              <div className="flex min-h-[252px] min-w-0 flex-col gap-3">
+              <div className="flex min-w-0 flex-col gap-3">
                 {exportDeck.isPending ? (
                   <div className="flex flex-1 items-center justify-center">
                     <Loader2Icon className="text-muted-foreground size-6 animate-spin" />

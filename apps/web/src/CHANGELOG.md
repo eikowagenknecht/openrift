@@ -2,6 +2,8 @@
 
 ## 2026-04-18
 
+- fix: Dialogs (like Export deck) on iPhone now scroll inside the dialog when content is taller than the screen, instead of spilling past the top and bottom edges
+- fix: The Export deck dialog no longer has a big empty gap below the Copy button on the Deck Code, Text, and TTS tabs
 - fix: Power icons on deck zone cards now have a small gap between them, so multi-power cards are easier to read
 - fix: Long-pressing a deck card on iPhone no longer pops up iOS's text selection alongside the printing menu
 - fix: Tapping a printing in the long-press menu on mobile no longer briefly flashes the large hover preview before closing
