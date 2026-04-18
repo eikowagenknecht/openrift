@@ -2,6 +2,7 @@
 
 ## 2026-04-18
 
+- feat: Marketplace links on a card's detail now look like proper buttons with a "Buy on" label, so it's clearer which marketplaces you can jump to
 - feat: The collection page's "Browse & add" button is now the same box icon used on the cards page, so the add-to-collection control looks consistent across both pages
 - feat: The collection mode toggle (count / add) on the cards page is now directly in the mobile toolbar, instead of tucked inside the options drawer
 - feat: The mobile menu now lists Cards, Collection, and Decks first, with Rules and Promos grouped under a "More" heading, matching the desktop navigation order

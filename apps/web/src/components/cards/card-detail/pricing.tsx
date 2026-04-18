@@ -2,6 +2,7 @@ import type { Marketplace, Printing, TimeRange } from "@openrift/shared";
 import { snapshotHeadline } from "@openrift/shared";
 import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { usePrices } from "@/hooks/use-prices";
@@ -93,6 +94,7 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
       {chips[0]?.marketplace === favorite && (
         <PriceTrend printingId={printing.id} range={range} marketplace={favorite} />
       )}
+      <span className="text-muted-foreground">Buy on</span>
       {chips.map(({ marketplace, value, url, languageAggregate }) => {
         const config = MARKETPLACE_CONFIG[marketplace];
         return (
@@ -188,29 +190,43 @@ function PriceChip({
   iconClassName?: string;
   languageAggregate?: boolean;
 }) {
-  const Wrapper = url ? "a" : "span";
-  const linkProps = url ? { href: url, target: "_blank" as const, rel: "noreferrer" } : {};
+  const content = (
+    <>
+      {icon ? (
+        <img src={icon} alt={label} className={cn("h-3", iconClassName)} />
+      ) : (
+        <span className="text-muted-foreground text-xs font-normal">{label}</span>
+      )}
+      {formatValue(value)}
+      {languageAggregate && (
+        <span className="text-muted-foreground text-[10px] font-normal">*</span>
+      )}
+    </>
+  );
+
+  const chipClassName = cn("font-semibold", priceColorClass(value));
 
   return (
     <Tooltip>
-      <TooltipTrigger>
-        <Wrapper
-          {...linkProps}
-          className={cn(
-            `bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold ${priceColorClass(value)}`,
-            url && "transition-opacity hover:opacity-70",
-          )}
-        >
-          {icon ? (
-            <img src={icon} alt={label} className={cn("h-3", iconClassName)} />
+      <TooltipTrigger
+        render={
+          url ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              render={
+                <a href={url} target="_blank" rel="noreferrer" aria-label={`Buy on ${label}`} />
+              }
+              className={chipClassName}
+            />
           ) : (
-            <span className="text-muted-foreground text-xs font-normal">{label}</span>
-          )}
-          {formatValue(value)}
-          {languageAggregate && (
-            <span className="text-muted-foreground text-[10px] font-normal">*</span>
-          )}
-        </Wrapper>
+            <span
+              className={cn(buttonVariants({ variant: "secondary", size: "sm" }), chipClassName)}
+            />
+          )
+        }
+      >
+        {content}
       </TooltipTrigger>
       <TooltipContent>
         {label}
