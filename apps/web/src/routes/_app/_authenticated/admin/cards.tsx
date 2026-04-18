@@ -6,9 +6,11 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { adminCardListQueryOptions, allCardsQueryOptions } from "@/hooks/use-admin-card-queries";
 import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
 import { unifiedMappingsQueryOptions } from "@/hooks/use-unified-mappings";
+import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
   staticData: { title: "Cards" },
+  head: () => adminSeoHead("Cards"),
   validateSearch: z.object({
     set: z.string().optional(),
     tab: z.enum(["cards", "candidates", "unmatched"]).optional(),

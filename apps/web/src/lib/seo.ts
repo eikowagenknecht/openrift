@@ -4,6 +4,8 @@
  * @returns Head meta/link arrays compatible with TanStack Start's `head()` function.
  */
 
+import { getSiteUrl } from "./site-config";
+
 const SITE_NAME = "OpenRift";
 const DEFAULT_DESCRIPTION =
   "Browse, collect, and build decks for the Riftbound trading card game. Search cards, track your collection, compare prices, and share decks.";
@@ -79,6 +81,20 @@ export function seoHead(options: SeoOptions) {
   }
 
   return { meta, links };
+}
+
+/**
+ * Head meta for admin pages. Prefixes the tab title with "Admin · " and
+ * marks the page noindex so admin URLs never show up in search results.
+ *
+ * @returns Head meta/link arrays compatible with TanStack Start's `head()` function.
+ */
+export function adminSeoHead(title: string) {
+  return seoHead({
+    siteUrl: getSiteUrl(),
+    title: `Admin · ${title}`,
+    noIndex: true,
+  });
 }
 
 /**

@@ -7,9 +7,11 @@ import {
   adminFeatureFlagOverridesQueryOptions,
   adminFeatureFlagsQueryOptions,
 } from "@/hooks/use-feature-flags";
+import { adminSeoHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/_app/_authenticated/admin/feature-flags")({
   staticData: { title: "Feature Flags" },
+  head: () => adminSeoHead("Feature Flags"),
   loader: ({ context }) =>
     Promise.all([
       context.queryClient.ensureQueryData(adminFeatureFlagsQueryOptions),

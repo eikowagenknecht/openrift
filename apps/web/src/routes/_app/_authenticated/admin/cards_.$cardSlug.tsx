@@ -1,3 +1,4 @@
+import type { AdminCardDetailResponse } from "@openrift/shared";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AdminPending } from "@/components/admin/admin-route-components";
@@ -7,6 +8,7 @@ import { adminDistinctArtistsQueryOptions } from "@/hooks/use-distinct-artists";
 import { adminLanguagesQueryOptions } from "@/hooks/use-languages";
 import { adminMarkersQueryOptions } from "@/hooks/use-markers";
 import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
+import { adminSeoHead } from "@/lib/seo";
 
 const FOCUSABLE_MARKETPLACES = new Set(["tcgplayer", "cardmarket", "cardtrader"]);
 
@@ -18,6 +20,10 @@ interface CardDetailSearch {
 
 export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlug")({
   staticData: { title: "Card Source" },
+  head: ({ loaderData }) => {
+    const data = loaderData as AdminCardDetailResponse | undefined;
+    return adminSeoHead(data?.displayName ?? "Card");
+  },
   validateSearch: (search: Record<string, unknown>): CardDetailSearch => {
     const result: CardDetailSearch = {};
     if (
@@ -35,7 +41,7 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
     return result;
   },
   loader: async ({ context, params }) => {
-    await Promise.all([
+    const [detail] = await Promise.all([
       context.queryClient.ensureQueryData(adminCardDetailQueryOptions(params.cardSlug)),
       context.queryClient.ensureQueryData(adminMarkersQueryOptions),
       context.queryClient.ensureQueryData(providerSettingsQueryOptions),
@@ -43,6 +49,7 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
       context.queryClient.ensureQueryData(adminDistinctArtistsQueryOptions),
       context.queryClient.ensureQueryData(adminLanguagesQueryOptions),
     ]);
+    return detail;
   },
   pendingComponent: AdminPending,
   errorComponent: RouteErrorFallback,
