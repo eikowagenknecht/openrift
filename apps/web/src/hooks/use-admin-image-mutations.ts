@@ -133,7 +133,6 @@ const addImageFromUrlFn = createServerFn({ method: "POST" })
     if (!res.ok) {
       throw new Error(`Add image from URL failed: ${res.status}`);
     }
-    return res.json();
   });
 
 const setCandidatePrintingImageFn = createServerFn({ method: "POST" })
