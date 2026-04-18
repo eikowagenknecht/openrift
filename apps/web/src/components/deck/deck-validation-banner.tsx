@@ -1,8 +1,7 @@
 import type { DeckViolation } from "@openrift/shared";
-import { CheckIcon, CircleAlertIcon, LoaderCircleIcon } from "lucide-react";
+import { CheckIcon, CircleAlertIcon } from "lucide-react";
 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDeckViolations } from "@/hooks/use-deck-builder";
 import { useDeckDetail } from "@/hooks/use-decks";
 
@@ -62,42 +61,4 @@ export function DeckFormatBadge({ deckId }: { deckId: string }) {
   }
 
   return <ViolationBadge violations={violations} violationCount={violations.length} />;
-}
-
-interface DeckSaveStatusProps {
-  isDirty: boolean;
-  isSaving: boolean;
-}
-
-/**
- * Save status indicator showing "Saving", "Unsaved", or "Saved".
- * @returns The save status element.
- */
-export function DeckSaveStatus({ isDirty, isSaving }: DeckSaveStatusProps) {
-  return (
-    <span className="text-muted-foreground flex shrink-0 items-center text-xs">
-      {isSaving ? (
-        <Tooltip>
-          <TooltipTrigger className="flex items-center">
-            <LoaderCircleIcon className="size-3 animate-spin" />
-          </TooltipTrigger>
-          <TooltipContent>Saving</TooltipContent>
-        </Tooltip>
-      ) : isDirty ? (
-        <Tooltip>
-          <TooltipTrigger className="flex items-center">
-            <span className="size-2 rounded-full bg-amber-500" />
-          </TooltipTrigger>
-          <TooltipContent>Unsaved</TooltipContent>
-        </Tooltip>
-      ) : (
-        <Tooltip>
-          <TooltipTrigger className="flex items-center">
-            <CheckIcon className="size-3" />
-          </TooltipTrigger>
-          <TooltipContent>Saved</TooltipContent>
-        </Tooltip>
-      )}
-    </span>
-  );
 }

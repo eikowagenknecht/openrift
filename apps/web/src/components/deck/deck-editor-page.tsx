@@ -10,7 +10,7 @@ import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
 import { DeckRenameDialog } from "@/components/deck/deck-rename-dialog";
-import { DeckFormatBadge, DeckSaveStatus } from "@/components/deck/deck-validation-banner";
+import { DeckFormatBadge } from "@/components/deck/deck-validation-banner";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { ProxyExportDialog } from "@/components/deck/proxy-export-dialog";
 import { Footer } from "@/components/layout/footer";
@@ -383,7 +383,6 @@ function DeckEditorContent({
             </PageTopBarTitle>
             <DeckFormatBadge deckId={deckId} />
             <PageTopBarActions>
-              <DeckSaveStatus isDirty={saveStatus.isDirty} isSaving={saveStatus.isSaving} />
               <div className="hidden md:flex md:items-center md:gap-1">
                 <DeckExportDialog
                   deckId={deckId}
