@@ -345,17 +345,6 @@ function MobileNav({
           <MobileNavLink to="/cards" icon={<LayersIcon className="text-muted-foreground size-5" />}>
             Cards
           </MobileNavLink>
-          {showRules && (
-            <MobileNavLink
-              to="/rules"
-              icon={<GavelIcon className="text-muted-foreground size-5" />}
-            >
-              Rules
-            </MobileNavLink>
-          )}
-          <MobileNavLink to="/promos" icon={<GiftIcon className="text-muted-foreground size-5" />}>
-            Promos
-          </MobileNavLink>
           {showCollection && (
             <MobileNavLink
               to="/collections"
@@ -372,6 +361,20 @@ function MobileNav({
               Decks
             </MobileNavLink>
           )}
+          <div className="text-muted-foreground mt-3 px-3 pb-1 font-semibold tracking-wide uppercase">
+            More
+          </div>
+          {showRules && (
+            <MobileNavLink
+              to="/rules"
+              icon={<GavelIcon className="text-muted-foreground size-5" />}
+            >
+              Rules
+            </MobileNavLink>
+          )}
+          <MobileNavLink to="/promos" icon={<GiftIcon className="text-muted-foreground size-5" />}>
+            Promos
+          </MobileNavLink>
         </nav>
         <SheetFooter className="border-t px-4 pt-4">
           <a
