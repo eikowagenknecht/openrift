@@ -128,7 +128,7 @@ export function CollectionSidebar() {
                   >
                     {col.isInbox ? <InboxIcon /> : <BookOpenIcon />}
                     <span className="flex-1 truncate">{col.name}</span>
-                    {browsing && collectionId === col.id ? (
+                    {browsing && (collectionId === col.id || (!collectionId && col.isInbox)) ? (
                       <span className="ml-auto size-2.5 animate-pulse rounded-full bg-red-500" />
                     ) : (
                       col.copyCount > 0 && (
