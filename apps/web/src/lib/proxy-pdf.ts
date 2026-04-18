@@ -1,4 +1,5 @@
 import type { Card, CatalogResponse, Printing, Rarity } from "@openrift/shared";
+import { preferredPrinting } from "@openrift/shared";
 import { jsPDF } from "jspdf";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -29,6 +30,7 @@ const PAGE_SIZES = {
 
 export interface ProxyCard {
   cardId: string;
+  printingId: string | null;
   name: string;
   imageFullUrl: string | null;
   card: Card;
@@ -41,29 +43,46 @@ export interface ProxyCard {
 }
 
 /**
+ * Stable identifier for de-duping rendered cards. Two deck rows pinned to
+ * different printings of the same card must render distinct images.
+ * @returns The printing id when resolved, else the cardId as a fallback.
+ */
+export function proxyRenderKey(proxyCard: ProxyCard): string {
+  return proxyCard.printingId ?? proxyCard.cardId;
+}
+
+/**
  * Resolves deck builder cards to full card + printing data needed for proxy generation.
+ *
+ * Picks the same printing the deck UI shows: an explicit `preferredPrintingId`
+ * on the deck row wins; otherwise the user's language preference decides
+ * (defaulting EN-first), via the shared `preferredPrinting` helper.
  * @returns Flat array of ProxyCard entries with quantities expanded (one entry per copy).
  */
 export function resolveProxyCards(
   deckCards: DeckBuilderCard[],
   catalog: CatalogResponse,
+  languages: string[],
 ): ProxyCard[] {
   const slugById = new Map(catalog.sets.map((set) => [set.id, set.slug]));
+  const setOrderMap = new Map(catalog.sets.map((set, index) => [set.id, index]));
   const cardsById: Record<string, Card> = catalog.cards;
 
-  // First printing per cardId wins, mirroring the previous array-order behavior.
-  const printingByCardId = new Map<string, Printing & { setSlug: string }>();
-  // Exact printing lookup for rows that pin a specific printing.
-  const printingById = new Map<string, Printing & { setSlug: string }>();
+  type EnrichedPrinting = Printing & { id: string; setSlug: string };
+  const printingById = new Map<string, EnrichedPrinting>();
+  const printingsByCardId = new Map<string, EnrichedPrinting[]>();
   for (const [id, printing] of Object.entries(catalog.printings)) {
     const setSlug = slugById.get(printing.setId);
     const card = cardsById[printing.cardId];
     if (setSlug && card) {
-      const enriched = { ...printing, id, setSlug, card };
+      const enriched: EnrichedPrinting = { ...printing, id, setSlug, card };
       printingById.set(id, enriched);
-      if (!printingByCardId.has(printing.cardId)) {
-        printingByCardId.set(printing.cardId, enriched);
+      let group = printingsByCardId.get(printing.cardId);
+      if (!group) {
+        group = [];
+        printingsByCardId.set(printing.cardId, group);
       }
+      group.push(enriched);
     }
   }
 
@@ -73,9 +92,20 @@ export function resolveProxyCards(
     if (!card) {
       continue;
     }
-    const printing =
-      (deckCard.preferredPrintingId && printingById.get(deckCard.preferredPrintingId)) ||
-      printingByCardId.get(deckCard.cardId);
+    let printing: EnrichedPrinting | undefined;
+    if (deckCard.preferredPrintingId) {
+      printing = printingById.get(deckCard.preferredPrintingId);
+    }
+    if (!printing) {
+      const candidates = printingsByCardId.get(deckCard.cardId);
+      if (candidates) {
+        // Cast: shared helper returns one of the input items unchanged.
+        printing = preferredPrinting(candidates, setOrderMap, languages) as
+          | EnrichedPrinting
+          | undefined;
+      }
+    }
+
     const imageFullUrl = printing?.images[0]?.full ?? null;
     const flavorText = printing?.flavorText ?? null;
     // Use printing-level text (falls back to errata if available)
@@ -85,6 +115,7 @@ export function resolveProxyCards(
     for (let copy = 0; copy < deckCard.quantity; copy++) {
       result.push({
         cardId: deckCard.cardId,
+        printingId: printing?.id ?? null,
         name: card.name,
         imageFullUrl,
         card,
@@ -146,7 +177,7 @@ async function loadImageAsDataUrl(url: string): Promise<RenderedCard> {
 
 /**
  * Pre-renders image-mode cards. Text-mode cards are rendered by the React component.
- * @returns Map from cardId to RenderedCard for image-mode cards only.
+ * @returns Map from {@link proxyRenderKey} to RenderedCard for image-mode cards only.
  */
 export async function prerenderImageCards(
   proxyCards: ProxyCard[],
@@ -154,8 +185,9 @@ export async function prerenderImageCards(
 ): Promise<Map<string, RenderedCard>> {
   const uniqueCards = new Map<string, ProxyCard>();
   for (const proxyCard of proxyCards) {
-    if (!uniqueCards.has(proxyCard.cardId) && proxyCard.imageFullUrl) {
-      uniqueCards.set(proxyCard.cardId, proxyCard);
+    const key = proxyRenderKey(proxyCard);
+    if (!uniqueCards.has(key) && proxyCard.imageFullUrl) {
+      uniqueCards.set(key, proxyCard);
     }
   }
 
@@ -163,13 +195,13 @@ export async function prerenderImageCards(
   let completed = 0;
   const total = uniqueCards.size;
 
-  for (const [cardId, proxyCard] of uniqueCards) {
+  for (const [key, proxyCard] of uniqueCards) {
     onProgress?.(++completed, total);
     if (!proxyCard.imageFullUrl) {
       continue;
     }
     try {
-      rendered.set(cardId, await loadImageAsDataUrl(proxyCard.imageFullUrl));
+      rendered.set(key, await loadImageAsDataUrl(proxyCard.imageFullUrl));
     } catch (error) {
       console.error(`Failed to render card "${proxyCard.name}":`, error);
     }
@@ -329,7 +361,7 @@ export async function assembleProxyPdf(
       const slotY = marginY + row * CARD_HEIGHT_MM;
 
       const proxyCard = proxyCards[cardIdx];
-      const rendered = renderedCards.get(proxyCard.cardId);
+      const rendered = renderedCards.get(proxyRenderKey(proxyCard));
 
       if (rendered) {
         doc.addImage(rendered.dataUrl, "PNG", slotX, slotY, CARD_WIDTH_MM, CARD_HEIGHT_MM);

@@ -2,6 +2,7 @@
 
 ## 2026-04-18
 
+- fix: Exporting a deck as proxies now uses the same printings shown in the deck (your pinned variants, otherwise your preferred language), instead of sometimes producing Chinese or other-language cards
 - fix: Dialogs (like Export deck) on iPhone now scroll inside the dialog when content is taller than the screen, instead of spilling past the top and bottom edges
 - fix: The Export deck dialog no longer has a big empty gap below the Copy button on the Deck Code, Text, and TTS tabs
 - fix: Power icons on deck zone cards now have a small gap between them, so multi-power cards are easier to read

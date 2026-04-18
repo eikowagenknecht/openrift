@@ -28,8 +28,14 @@ import { useDeckCards } from "@/hooks/use-deck-builder";
 import { initQueryOptions } from "@/hooks/use-init";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type { ProxyCard, ProxyPageSize, ProxyRenderMode, RenderedCard } from "@/lib/proxy-pdf";
-import { assembleProxyPdf, prerenderImageCards, resolveProxyCards } from "@/lib/proxy-pdf";
+import {
+  assembleProxyPdf,
+  prerenderImageCards,
+  proxyRenderKey,
+  resolveProxyCards,
+} from "@/lib/proxy-pdf";
 import { queryKeys } from "@/lib/query-keys";
+import { useDisplayStore } from "@/stores/display-store";
 
 const RENDER_MODE_LABELS: Record<ProxyRenderMode, string> = {
   image: "Card images",
@@ -117,6 +123,7 @@ function waitForRender(): Promise<void> {
 interface GenerateProxyPdfParams {
   cards: DeckBuilderCard[];
   catalog: CatalogResponse;
+  languages: string[];
   renderMode: ProxyRenderMode;
   pageSize: ProxyPageSize;
   cutLines: boolean;
@@ -141,6 +148,7 @@ interface GenerateProxyPdfParams {
 async function generateProxyPdf({
   cards,
   catalog,
+  languages,
   renderMode,
   pageSize,
   cutLines,
@@ -155,22 +163,23 @@ async function generateProxyPdf({
   // Pre-fetch init data so CardText doesn't suspend during rendering
   await queryClient.ensureQueryData(initQueryOptions);
 
-  const proxyCards = resolveProxyCards(cards, catalog);
+  const proxyCards = resolveProxyCards(cards, catalog, languages);
   const renderedCards = new Map<string, RenderedCard>();
 
   if (renderMode === "image") {
     const imageCards = await prerenderImageCards(proxyCards, (current, total) => {
       setProgress({ current, total });
     });
-    imageCards.forEach((rendered, cardId) => {
-      renderedCards.set(cardId, rendered);
+    imageCards.forEach((rendered, key) => {
+      renderedCards.set(key, rendered);
     });
   } else {
-    const uniqueCardIds = new Set<string>();
+    const seenKeys = new Set<string>();
     const uniqueCards: ProxyCard[] = [];
     for (const proxyCard of proxyCards) {
-      if (!uniqueCardIds.has(proxyCard.cardId)) {
-        uniqueCardIds.add(proxyCard.cardId);
+      const key = proxyRenderKey(proxyCard);
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
         uniqueCards.push(proxyCard);
       }
     }
@@ -186,7 +195,7 @@ async function generateProxyPdf({
       if (element) {
         try {
           const dataUrl = await captureElement(element);
-          renderedCards.set(proxyCard.cardId, { dataUrl, rotated: false });
+          renderedCards.set(proxyRenderKey(proxyCard), { dataUrl, rotated: false });
           setPreviewUrl(dataUrl);
         } catch (error) {
           console.error(`Failed to capture card "${proxyCard.name}":`, error);
@@ -198,11 +207,14 @@ async function generateProxyPdf({
   }
 
   if (renderMode === "image") {
-    const missingCards = proxyCards.filter((proxyCard) => !renderedCards.has(proxyCard.cardId));
+    const missingCards = proxyCards.filter(
+      (proxyCard) => !renderedCards.has(proxyRenderKey(proxyCard)),
+    );
     const uniqueMissing = new Map<string, ProxyCard>();
     for (const proxyCard of missingCards) {
-      if (!uniqueMissing.has(proxyCard.cardId)) {
-        uniqueMissing.set(proxyCard.cardId, proxyCard);
+      const key = proxyRenderKey(proxyCard);
+      if (!uniqueMissing.has(key)) {
+        uniqueMissing.set(key, proxyCard);
       }
     }
 
@@ -213,7 +225,7 @@ async function generateProxyPdf({
       if (element) {
         try {
           const dataUrl = await captureElement(element);
-          renderedCards.set(proxyCard.cardId, { dataUrl, rotated: false });
+          renderedCards.set(proxyRenderKey(proxyCard), { dataUrl, rotated: false });
           setPreviewUrl(dataUrl);
         } catch (error) {
           console.error(`Failed to capture fallback card "${proxyCard.name}":`, error);
@@ -285,6 +297,7 @@ export function ProxyExportDialog({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const cardElementRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const languages = useDisplayStore((state) => state.languages);
   // Hook must run unconditionally; when deckId is absent we still call it
   // with an empty string and end up reading an empty collection.
   const liveCards = useDeckCards(deckId ?? "");
@@ -308,6 +321,7 @@ export function ProxyExportDialog({
       await generateProxyPdf({
         cards,
         catalog,
+        languages,
         renderMode,
         pageSize,
         cutLines,
