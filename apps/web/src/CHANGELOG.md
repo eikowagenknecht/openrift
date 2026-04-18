@@ -3,6 +3,7 @@
 ## 2026-04-18
 
 - fix: Long-pressing a deck card on iPhone no longer pops up iOS's text selection alongside the printing menu
+- fix: Tapping a printing in the long-press menu on mobile no longer briefly flashes the large hover preview before closing
 
 ## 2026-04-17
 

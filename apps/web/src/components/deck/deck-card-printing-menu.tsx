@@ -67,7 +67,7 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
         <ContextMenu.Positioner className="isolate z-50 outline-none" sideOffset={4}>
           <ContextMenu.Popup className="data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 ring-foreground/10 bg-popover text-popover-foreground z-50 max-h-[70vh] w-72 origin-(--transform-origin) overflow-y-auto rounded-lg p-1.5 shadow-md ring-1 outline-none">
             <div className="text-muted-foreground px-1.5 pt-1 pb-1.5 text-[10px] font-medium tracking-wide uppercase">
-              Printings
+              Change printing
               {card.quantity > 1 && (
                 <span className="text-muted-foreground/70 ml-1 normal-case">
                   · shift-click to split 1
@@ -120,8 +120,16 @@ function PrintingMenuItem({
         event.stopPropagation();
         onSelect(printing, event);
       }}
-      onMouseEnter={() => onHover(printing.id)}
-      onMouseLeave={() => onHover(null)}
+      onPointerEnter={(event) => {
+        if (event.pointerType === "mouse") {
+          onHover(printing.id);
+        }
+      }}
+      onPointerLeave={(event) => {
+        if (event.pointerType === "mouse") {
+          onHover(null);
+        }
+      }}
     >
       {thumbnail ? (
         <img
