@@ -203,6 +203,7 @@ export default defineConfig(({ mode, command }) => {
       },
     },
     server: {
+      host: true,
       port: process.env.PORT ? Number(process.env.PORT) : 5173,
       strictPort: Boolean(process.env.PORT),
       // Proxy /api/auth (better-auth browser client) and /api/v1/* (direct
