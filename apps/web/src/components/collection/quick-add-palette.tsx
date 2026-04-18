@@ -1,9 +1,10 @@
 import type { Printing } from "@openrift/shared";
 import { getOrientation } from "@openrift/shared";
-import { ChevronRightIcon, SearchIcon, XIcon } from "lucide-react";
+import { ChevronRightIcon, MinusIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Kbd } from "@/components/ui/kbd";
@@ -45,6 +46,7 @@ export function QuickAddPalette({
               collectionName={collectionName}
               printingsByCardId={printingsByCardId}
               ownedCountByPrinting={ownedCountByPrinting}
+              isMobile
             />
           </div>
         </DrawerContent>
@@ -64,6 +66,7 @@ export function QuickAddPalette({
           collectionName={collectionName}
           printingsByCardId={printingsByCardId}
           ownedCountByPrinting={ownedCountByPrinting}
+          isMobile={false}
         />
       </DialogContent>
     </Dialog>
@@ -75,6 +78,7 @@ interface PaletteInnerProps {
   collectionName: string;
   printingsByCardId: Map<string, Printing[]>;
   ownedCountByPrinting?: Record<string, number>;
+  isMobile: boolean;
 }
 
 function PaletteInner({
@@ -82,6 +86,7 @@ function PaletteInner({
   collectionName,
   printingsByCardId,
   ownedCountByPrinting,
+  isMobile,
 }: PaletteInnerProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -146,7 +151,7 @@ function PaletteInner({
     useAddModeStore.getState().decrementPending(printing.id);
   };
 
-  const handleUndo = (printing: Printing) => {
+  const handleUndo = async (printing: Printing) => {
     const entry = useAddModeStore.getState().addedItems.get(printing.id);
     if (!entry || entry.copyIds.length === 0) {
       return;
@@ -155,19 +160,18 @@ function PaletteInner({
     if (!copyIdToRemove) {
       return;
     }
-    disposeCopies.mutate(
-      { copyIds: [copyIdToRemove] },
-      {
-        onSuccess: () => {
-          useAddModeStore.getState().recordUndo(printing.id);
-          toast.success(`Removed 1× ${printing.card.name}`);
-          inputRef.current?.focus();
-        },
-        onError: () => {
-          toast.error(`Failed to remove ${printing.card.name}`);
-        },
-      },
-    );
+    // Pop from the session store optimistically so rapid undo clicks advance
+    // to the next copyId instead of racing on the same one. disposeCopies
+    // already optimistically removes the row from the copies collection.
+    useAddModeStore.getState().recordUndo(printing.id);
+    try {
+      await disposeCopies.mutateAsync({ copyIds: [copyIdToRemove] });
+      toast.success(`Removed 1× ${printing.card.name}`);
+      inputRef.current?.focus();
+    } catch {
+      useAddModeStore.getState().recordAdd(printing, copyIdToRemove);
+      toast.error(`Failed to remove ${printing.card.name}`);
+    }
   };
 
   const clearSearch = () => {
@@ -376,13 +380,14 @@ function PaletteInner({
 
               {/* Expanded printing list */}
               {isExpanded && (
-                <div className="bg-accent/50 border-accent py-1 pr-3 pl-3">
+                <div className="bg-accent/50 border-accent px-1 py-1">
                   {card.printings.map((printing, printingIndex) => {
                     const isPrintingSelected = printingIndex === expandedIndex;
+                    // ownedForPrinting comes from useOwnedCount → useLiveQuery
+                    // on copiesCollection. useBatchedAddCopies optimistically
+                    // inserts a temp row at click time, so this count already
+                    // includes pending adds. Don't add sessionAdded on top.
                     const ownedForPrinting = ownedCountByPrinting?.[printing.id] ?? 0;
-                    // "N new" reflects both confirmed adds (quantity) and
-                    // in-flight adds (pendingCount) so the badge updates on
-                    // click without waiting for the API.
                     const addedEntry = addedItems.get(printing.id);
                     const sessionAdded =
                       (addedEntry?.quantity ?? 0) + (addedEntry?.pendingCount ?? 0);
@@ -391,17 +396,12 @@ function PaletteInner({
                         key={printing.id}
                         data-selected={isPrintingSelected}
                         className={cn(
-                          "flex w-full items-center rounded text-xs transition-colors",
+                          "flex w-full items-center gap-1 rounded text-xs transition-colors",
                           isPrintingSelected && "bg-accent",
                         )}
                         onMouseEnter={() => setExpandedIndex(printingIndex)}
                       >
-                        <button
-                          type="button"
-                          tabIndex={-1}
-                          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-2 py-1.5 text-left"
-                          onClick={() => handleAdd(printing)}
-                        >
+                        <div className="flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5">
                           <img
                             src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
                             alt={printing.rarity}
@@ -410,32 +410,45 @@ function PaletteInner({
                             height={28}
                             className="size-3.5 shrink-0"
                           />
-                          <span className="text-muted-foreground w-16 shrink-0 font-mono text-[11px]">
+                          <span className="text-muted-foreground w-[3.25rem] shrink-0 font-mono text-[11px]">
                             {formatCardId(printing)}
                           </span>
                           <span className="min-w-0 flex-1 truncate">
                             {formatPrintingLabel(printing, card.printings)}
                           </span>
-                        </button>
-                        {sessionAdded > 0 && (
-                          <span className="flex shrink-0 items-center gap-1 rounded-full border border-green-600/30 bg-green-500/10 py-0.5 pr-1 pl-1.5 text-[11px] text-green-600 tabular-nums dark:border-green-400/30 dark:bg-green-400/10 dark:text-green-400">
-                            {sessionAdded} new
-                            <button
-                              type="button"
-                              tabIndex={-1}
-                              onClick={() => handleUndo(printing)}
-                              className="text-red-600 hover:text-red-500 dark:text-red-400 dark:hover:text-red-300"
-                              aria-label={`Undo add ${printing.card.name}`}
-                            >
-                              <XIcon className="size-3" />
-                            </button>
+                        </div>
+                        <div className="mr-1.5 ml-1 flex shrink-0 items-center gap-0.5">
+                          <Button
+                            type="button"
+                            tabIndex={-1}
+                            size="icon-xs"
+                            variant="ghost"
+                            onClick={() => handleUndo(printing)}
+                            disabled={sessionAdded === 0}
+                            aria-label={`Undo add ${printing.card.name}`}
+                          >
+                            <MinusIcon />
+                          </Button>
+                          <span
+                            className={cn(
+                              "w-5 text-center text-[11px] tabular-nums",
+                              sessionAdded > 0
+                                ? "text-green-600 dark:text-green-400"
+                                : "text-muted-foreground",
+                            )}
+                          >
+                            {ownedForPrinting}
                           </span>
-                        )}
-                        {ownedForPrinting > 0 && (
-                          <span className="text-muted-foreground mr-2 ml-1 w-8 shrink-0 text-right text-[11px] tabular-nums">
-                            ×{ownedForPrinting}
-                          </span>
-                        )}
+                          <Button
+                            type="button"
+                            tabIndex={-1}
+                            size="icon-xs"
+                            onClick={() => handleAdd(printing)}
+                            aria-label={`Add ${printing.card.name}`}
+                          >
+                            <PlusIcon />
+                          </Button>
+                        </div>
                       </div>
                     );
                   })}
@@ -446,8 +459,8 @@ function PaletteInner({
         })}
       </div>
 
-      {/* Footer hints */}
-      {results.length > 0 && (
+      {/* Footer hints — keyboard only, hidden on mobile */}
+      {!isMobile && results.length > 0 && (
         <>
           <div className="border-border border-t" />
           <div className="text-muted-foreground flex items-center gap-3 px-3 py-2 text-xs">
