@@ -204,7 +204,7 @@ test.describe("collections drag-drop", () => {
       }
     });
 
-    test("dragging a 3-copy stack moves all 3 copies", async ({ page }) => {
+    test("dragging a 3-copy stack moves 1 by default", async ({ page }) => {
       const email = await createAndLogin(page, "multi");
       userEmail = email;
 
@@ -222,6 +222,48 @@ test.describe("collections drag-drop", () => {
 
       const moveRequest = page.waitForRequest(isMoveRequest);
       await dndDrag(page, cardTile, targetLink);
+      await moveRequest;
+
+      await expect(page.getByText("Moved 1 card", { exact: true })).toBeVisible();
+      expect(await countCopiesInCollection(targetId)).toBe(1);
+      expect(await countCopiesInCollection(inboxId)).toBe(2);
+    });
+
+    test("shift+drag on a 3-copy stack moves all 3 copies", async ({ page }) => {
+      const email = await createAndLogin(page, "multi-shift");
+      userEmail = email;
+
+      const targetId = await apiCreateCollection(page, "Target");
+      const inboxId = await getInboxId(email);
+      const { cardName } = await seedSameCardCopies(email, inboxId, 3);
+
+      await page.goto(`/collections/${inboxId}`);
+      await expect(page.getByRole("link", { name: "Target" })).toBeVisible({ timeout: 15_000 });
+
+      const cardTile = page.getByRole("img", { name: cardName }).first();
+      await expect(cardTile).toBeVisible();
+      const targetLink = page.getByRole("link", { name: "Target" });
+
+      const sourceBox = await cardTile.boundingBox();
+      const targetBox = await targetLink.boundingBox();
+      if (!sourceBox || !targetBox) {
+        throw new Error("source or Target row not visible");
+      }
+      const startX = sourceBox.x + sourceBox.width / 2;
+      const startY = sourceBox.y + sourceBox.height / 2;
+      const endX = targetBox.x + targetBox.width / 2;
+      const endY = targetBox.y + targetBox.height / 2;
+
+      // Press Shift before releasing so the collection DnD handler sees
+      // shiftHeld=true at drop time and keeps every copy in the batch.
+      const moveRequest = page.waitForRequest(isMoveRequest);
+      await page.mouse.move(startX, startY);
+      await page.mouse.down();
+      await page.mouse.move(startX + 20, startY, { steps: 5 });
+      await page.mouse.move(endX, endY, { steps: 20 });
+      await page.keyboard.down("Shift");
+      await page.mouse.up();
+      await page.keyboard.up("Shift");
       await moveRequest;
 
       await expect(page.getByText("Moved 3 cards", { exact: true })).toBeVisible();
@@ -267,6 +309,9 @@ test.describe("collections drag-drop", () => {
       await page.mouse.move(startX + 20, startY, { steps: 5 });
       // Move further into empty grid space so the overlay is clear of the tile.
       await page.mouse.move(startX + 200, startY + 50, { steps: 10 });
+      // Hold Shift so the stack drag shows the "N copies" label + count badge;
+      // without Shift the default drag represents only 1 copy.
+      await page.keyboard.down("Shift");
 
       // DragPreview renders the "N copies" label + a "N" count badge for N > 1.
       await expect(page.getByText("2 copies").first()).toBeVisible();
@@ -287,6 +332,7 @@ test.describe("collections drag-drop", () => {
 
       const moves = watchMoveRequests(page);
       await page.mouse.up();
+      await page.keyboard.up("Shift");
       await page.waitForTimeout(500);
       expect(moves.fired()).toBe(false);
       await expect(page.getByText(/Moved \d+ card/)).toHaveCount(0);

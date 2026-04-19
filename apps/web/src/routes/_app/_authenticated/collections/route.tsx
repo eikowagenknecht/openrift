@@ -8,13 +8,14 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { createContext, useState } from "react";
+import { createContext, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
 import type { CardDragData } from "@/components/collection/dnd-types";
 import { Footer } from "@/components/layout/footer";
+import { PageTopBarHeightContext, useMeasuredHeight } from "@/components/layout/page-top-bar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
 import { FilterSearchProvider, filterSearchSchema } from "@/lib/search-schemas";
@@ -66,20 +67,49 @@ const snapCenterToCursor: Modifier = ({
 function CollectionLayout() {
   const search = Route.useSearch();
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
+  const topBarHeight = useMeasuredHeight(topBarSlot);
   const [activeDrag, setActiveDrag] = useState<CardDragData | null>(null);
+  const [shiftHeld, setShiftHeld] = useState(false);
   const moveCopies = useMoveCopies();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: DRAG_ACTIVATION }));
+
+  // Track Shift during drag so stack drags can "move all" on shift-release,
+  // default to moving a single copy otherwise.
+  useEffect(() => {
+    if (!activeDrag) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Shift") {
+        setShiftHeld(true);
+      }
+    };
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === "Shift") {
+        setShiftHeld(false);
+      }
+    };
+    globalThis.addEventListener("keydown", handleKeyDown);
+    globalThis.addEventListener("keyup", handleKeyUp);
+    return () => {
+      globalThis.removeEventListener("keydown", handleKeyDown);
+      globalThis.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [activeDrag]);
 
   const handleDragStart = (event: DragStartEvent) => {
     const data = event.active.data.current as CardDragData | undefined;
     if (data?.type === "collection-card") {
       setActiveDrag(data);
+      setShiftHeld(false);
     }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
+    const moveAll = shiftHeld;
     setActiveDrag(null);
+    setShiftHeld(false);
 
     const dragData = event.active.data.current as CardDragData | undefined;
     const dropData = event.over?.data.current as { type: string; collectionId: string } | undefined;
@@ -93,9 +123,11 @@ function CollectionLayout() {
       return;
     }
 
-    const count = dragData.copyIds.length;
+    const copyIds =
+      dragData.isStackDrag && !moveAll ? dragData.copyIds.slice(0, 1) : dragData.copyIds;
+    const count = copyIds.length;
     moveCopies.mutate(
-      { copyIds: dragData.copyIds, toCollectionId: dropData.collectionId },
+      { copyIds, toCollectionId: dropData.collectionId },
       {
         onSuccess: () => {
           toast.success(`Moved ${count} card${count > 1 ? "s" : ""}`);
@@ -106,26 +138,31 @@ function CollectionLayout() {
 
   return (
     <FilterSearchProvider value={search}>
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div ref={setTopBarSlot} className="px-3 pt-3" />
-        <SidebarProvider className="flex-1">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={pointerWithin}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDragCancel={() => setActiveDrag(null)}
-          >
-            <TopBarSlotContext value={topBarSlot}>
-              <CollectionSidebar />
-              <CollectionContent />
-            </TopBarSlotContext>
-            <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
-              {activeDrag && <DragPreview drag={activeDrag} />}
-            </DragOverlay>
-          </DndContext>
-        </SidebarProvider>
-      </div>
+      <PageTopBarHeightContext value={topBarHeight}>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div ref={setTopBarSlot} className="px-3" />
+          <SidebarProvider className="flex-1">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={pointerWithin}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={() => {
+                setActiveDrag(null);
+                setShiftHeld(false);
+              }}
+            >
+              <TopBarSlotContext value={topBarSlot}>
+                <CollectionSidebar />
+                <CollectionContent />
+              </TopBarSlotContext>
+              <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
+                {activeDrag && <DragPreview drag={activeDrag} shiftHeld={shiftHeld} />}
+              </DragOverlay>
+            </DndContext>
+          </SidebarProvider>
+        </div>
+      </PageTopBarHeightContext>
     </FilterSearchProvider>
   );
 }
@@ -147,9 +184,9 @@ const FAN_OFFSETS = [
   { x: 24, y: -2, rotate: 12 },
 ];
 
-function DragPreview({ drag }: { drag: CardDragData }) {
+function DragPreview({ drag, shiftHeld }: { drag: CardDragData; shiftHeld: boolean }) {
   const printings = drag.previewPrintings;
-  const count = drag.copyIds.length;
+  const count = drag.isStackDrag && !shiftHeld ? 1 : drag.copyIds.length;
   // Show up to 3 fanned cards, front card on top
   const cards = printings.slice(0, 3);
 

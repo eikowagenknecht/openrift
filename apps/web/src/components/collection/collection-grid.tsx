@@ -585,17 +585,17 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       : 1;
 
     // Resolve which copy IDs this card represents for drag-and-drop
-    const dragCopyIds =
-      mode === "select" && isItemSelected && selected.size > 0
-        ? [...selected]
-        : stacked
-          ? effectiveCopyIds
-          : [item.id];
+    const isFromSelection = mode === "select" && isItemSelected && selected.size > 0;
+    const dragCopyIds = isFromSelection ? [...selected] : stacked ? effectiveCopyIds : [item.id];
+    // Only stack drags get trimmed to 1 on default (non-shift) drop. Explicit
+    // select-mode selections always move every selected copy.
+    const isStackDrag = !isFromSelection && stacked && effectiveCopyIds.length > 1;
 
     return (
       <DraggableCard
         id={item.id}
         copyIds={dragCopyIds}
+        isStackDrag={isStackDrag}
         printing={item.printing}
         previewPrintings={dragPreviewPrintings.length > 0 ? dragPreviewPrintings : [item.printing]}
         sourceCollectionId={collectionId}

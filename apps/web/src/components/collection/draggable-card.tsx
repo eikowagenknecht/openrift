@@ -9,6 +9,7 @@ import type { CardDragData } from "./dnd-types";
 interface DraggableCardProps {
   id: string;
   copyIds: string[];
+  isStackDrag: boolean;
   printing: Printing;
   previewPrintings: Printing[];
   sourceCollectionId: string | undefined;
@@ -18,6 +19,7 @@ interface DraggableCardProps {
 export function DraggableCard({
   id,
   copyIds,
+  isStackDrag,
   printing,
   previewPrintings,
   sourceCollectionId,
@@ -28,6 +30,7 @@ export function DraggableCard({
   const data: CardDragData = {
     type: "collection-card",
     copyIds,
+    isStackDrag,
     printing,
     previewPrintings,
     sourceCollectionId,

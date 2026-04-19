@@ -2,6 +2,7 @@
 
 ## 2026-04-19
 
+- feat: Dragging a card stack between collections now moves just one copy by default, and holding Shift while dropping moves the whole stack, matching how moves work in the deckbuilder
 - feat: In add mode, the minus button now works on cards you already owned before opening add mode, not only on ones you added this session — when you own copies in just one collection it removes the newest; when copies are spread across multiple collections (All Cards view) a small picker lets you choose which collection to take from
 - feat: Generated card placeholders (for cards without an uploaded image) now show a subtle OpenRift logo watermark in the art area
 - feat: The printing info table on a card's detail page is trimmed to just the core attributes, with language moved up next to set and code, and the promo markers, distribution channels, and editor's note now shown in a combined box at the bottom (matching the side detail pane)
