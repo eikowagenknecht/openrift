@@ -680,6 +680,14 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       stackByPrintingId.get(displayPrinting.id)?.copyIds.length ?? 0,
     );
 
+    // When the card has owned copies spread across multiple printings, minus
+    // would silently remove only the displayed variant — route through the
+    // variant popover so the user picks which printing to remove from.
+    const ownedVariantIds = allPrintingIdsByCardId.get(cardId);
+    const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
+    const onUndoAdd =
+      hasAmbiguousRemoval && handleOpenVariants ? handleOpenVariants : handleUndoAdd;
+
     return (
       <CardThumbnail
         printing={displayPrinting}
@@ -702,7 +710,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               totalOwnedCount={totalOwned}
               hasVariants={dataView === "cards" && (siblings?.length ?? 0) > 1}
               onQuickAdd={handleQuickAdd}
-              onUndoAdd={handleUndoAdd}
+              onUndoAdd={onUndoAdd}
               onOpenVariants={handleOpenVariants}
             />
           )
