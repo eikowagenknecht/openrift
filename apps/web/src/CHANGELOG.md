@@ -2,6 +2,7 @@
 
 ## 2026-04-19
 
+- feat: In the deck builder on phones, tapping a card now adds it to the active zone, and long-pressing opens the card's detail view
 - feat: Dragging a card stack between collections now moves just one copy by default, and holding Shift while dropping moves the whole stack, matching how moves work in the deckbuilder
 - feat: In add mode, the minus button now works on cards you already owned before opening add mode, not only on ones you added this session — when you own copies in just one collection it removes the newest; when copies are spread across multiple collections (All Cards view) a small picker lets you choose which collection to take from
 - feat: Generated card placeholders (for cards without an uploaded image) now show a subtle OpenRift logo watermark in the art area
@@ -19,6 +20,7 @@
 - feat: Selecting a printing on a card detail page now updates the URL, and sharing that link unfurls with the matching art and text on Discord, Slack, and social sites
 - feat: The foil shimmer effect on card images is now off by default, and turning it on gives you a smooth, fluid shimmer instead of the stepped version — toggle it in your profile's Display settings
 - feat: The page top bar (back button, title, actions) now stays pinned under the global header as you scroll, so the zone count, export button, and other page-level controls are always within reach
+- fix: The energy and power charts in the deck stats panel now stack domain colors in the same order as the type chart and the domain bar, instead of flipping bottom-to-top
 - fix: The card count next to the search bar no longer shows "407 / 407 cards" when no filters are narrowing the list — it just shows "407 cards"
 - fix: Discord posts announcing new or changed printings now include the card's thumbnail image, and the finish and language fields show their proper display names (e.g. "Metal", "French") instead of the raw slug or code
 - fix: The scroll position badge on touch devices now fades away shortly after you stop scrolling, instead of hovering over the page for a few seconds and getting in the way of taps

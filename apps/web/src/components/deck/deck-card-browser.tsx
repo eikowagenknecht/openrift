@@ -6,6 +6,7 @@ import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { DeckAddStrip } from "@/components/deck/deck-add-strip";
+import { DeckCardDetailMenu } from "@/components/deck/deck-card-detail-menu";
 import { DeckOverview } from "@/components/deck/deck-overview";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import {
@@ -22,11 +23,13 @@ import {
 import { SearchBar } from "@/components/filters/search-bar";
 import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
+import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePrices } from "@/hooks/use-prices";
@@ -106,6 +109,7 @@ export function DeckCardBrowser({
 
 function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const showImages = useDisplayStore((state) => state.showImages);
+  const isMobile = useIsMobile();
   const { allPrintings, sets } = useCards();
   const prices = usePrices();
   const { data: session } = useSession();
@@ -300,10 +304,12 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
 
     const deckQty = deckQuantityByCard.get(cardId) ?? 0;
 
-    return (
+    // On mobile, a tap adds the card (no hover to reach the + button);
+    // long-press (or desktop right-click) opens the detail view via the context menu.
+    const thumbnail = (
       <CardThumbnail
         printing={item.printing}
-        onClick={handleCardClick}
+        onClick={isMobile ? handleQuickAdd : handleCardClick}
         showImages={showImages}
         isSelected={ctx.isSelected}
         isFlashing={ctx.isFlashing}
@@ -345,6 +351,12 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
           />
         }
       />
+    );
+
+    return (
+      <DeckCardDetailMenu onViewDetail={() => handleCardClick(item.printing)}>
+        {thumbnail}
+      </DeckCardDetailMenu>
     );
   };
 
@@ -410,6 +422,15 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       }
       rightPane={rightPane}
       addStripHeight={ADD_STRIP_HEIGHT}
-    />
+    >
+      {isMobile && (
+        <SelectionMobileOverlay
+          items={items}
+          printingsByCardId={printingsByCardId}
+          showImages={showImages}
+          onSearchAndClose={setSearch}
+        />
+      )}
+    </BrowserCardViewer>
   );
 }
