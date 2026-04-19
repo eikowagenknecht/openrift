@@ -20,8 +20,10 @@ export interface EnrichedPrintingEvent {
   shortCode: string | null;
   rarity: string | null;
   finish: string | null;
+  finishLabel: string | null;
   artist: string | null;
   language: string | null;
+  languageName: string | null;
   frontImageUrl: string | null;
 }
 
@@ -74,6 +76,8 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .innerJoin("printings as p", "p.id", "pe.printingId")
         .innerJoin("cards as c", "c.id", "p.cardId")
         .innerJoin("sets as s", "s.id", "p.setId")
+        .leftJoin("finishes as fi", "fi.slug", "p.finish")
+        .leftJoin("languages as lng", "lng.code", "p.language")
         .leftJoin("printingImages as pi", (join) =>
           join
             .onRef("pi.printingId", "=", "p.id")
@@ -93,9 +97,11 @@ export function printingEventsRepo(db: Kysely<Database>) {
           "p.shortCode",
           "p.rarity",
           "p.finish",
+          "fi.label as finishLabel",
           "p.artist",
           "p.language",
-          sql<string | null>`${imageUrl("imgf")}`.as("frontImageUrl"),
+          "lng.name as languageName",
+          sql<string | null>`${imageUrl("imgf")} || '-400w.webp'`.as("frontImageUrl"),
         ])
         .where("pe.status", "=", "pending")
         .orderBy("pe.createdAt", "asc")
