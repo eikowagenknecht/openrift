@@ -3,38 +3,6 @@ import { EUR_MARKETPLACES } from "@openrift/shared";
 
 import type { EnumLabels } from "@/hooks/use-enums";
 
-/** Fallback labels for when DB-derived labels are not available. */
-const DEFAULT_ENUM_LABELS: EnumLabels = {
-  finishes: { normal: "Normal", foil: "Foil" },
-  rarities: {
-    Common: "Common",
-    Uncommon: "Uncommon",
-    Rare: "Rare",
-    Epic: "Epic",
-    Showcase: "Showcase",
-  },
-  domains: {
-    Fury: "Fury",
-    Calm: "Calm",
-    Mind: "Mind",
-    Body: "Body",
-    Chaos: "Chaos",
-    Order: "Order",
-    Colorless: "Colorless",
-  },
-  cardTypes: {
-    Legend: "Legend",
-    Unit: "Unit",
-    Rune: "Rune",
-    Spell: "Spell",
-    Gear: "Gear",
-    Battlefield: "Battlefield",
-    Other: "Other",
-  },
-  superTypes: { Basic: "Basic", Champion: "Champion", Signature: "Signature", Token: "Token" },
-  artVariants: { normal: "Normal", altart: "Alt Art", overnumbered: "Overnumbered" },
-};
-
 /**
  * Human-readable label for a printing's distinguishing attributes.
  * Omits "Normal" defaults and attributes shared by all siblings. When language
@@ -44,8 +12,8 @@ const DEFAULT_ENUM_LABELS: EnumLabels = {
  */
 export function formatPrintingLabel(
   printing: Printing,
-  siblings?: Printing[],
-  labels: EnumLabels = DEFAULT_ENUM_LABELS,
+  siblings: Printing[] | undefined,
+  labels: EnumLabels,
 ): string {
   const allSame = (fn: (c: Printing) => unknown) =>
     siblings ? siblings.every((s) => fn(s) === fn(printing)) : false;

@@ -2,6 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { useAddModeStore } from "@/stores/add-mode-store";
 
@@ -14,6 +15,7 @@ export function AddedCardsList({ onCardClick, onClose }: AddedCardsListProps) {
   const items = useAddModeStore((s) => s.addedItems);
   const entries = [...items.values()].toReversed();
   const totalCount = entries.reduce((sum, entry) => sum + entry.quantity + entry.pendingCount, 0);
+  const { labels } = useEnumOrders();
 
   return (
     <div className="bg-background rounded-lg px-3">
@@ -53,7 +55,7 @@ export function AddedCardsList({ onCardClick, onClose }: AddedCardsListProps) {
                 <p className="text-muted-foreground truncate text-xs">
                   {formatCardId(entry.printing)}
                   {" · "}
-                  {formatPrintingLabel(entry.printing)}
+                  {formatPrintingLabel(entry.printing, undefined, labels)}
                 </p>
               </div>
               {entry.quantity + entry.pendingCount > 1 && (

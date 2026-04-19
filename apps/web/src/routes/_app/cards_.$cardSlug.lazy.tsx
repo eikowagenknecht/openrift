@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useDomainColors } from "@/hooks/use-domain-colors";
-import { useLanguageLabels } from "@/hooks/use-enums";
+import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
@@ -71,6 +71,7 @@ function CardDetailPage() {
   const setById = new Map(sets.map((s) => [s.id, s]));
   const domainColors = useDomainColors();
   const languageLabels = useLanguageLabels();
+  const { labels } = useEnumOrders();
 
   if (!selectedPrinting) {
     return (
@@ -149,16 +150,12 @@ function CardDetailPage() {
                 ]);
                 leftRows.push([
                   "Finish",
-                  selectedPrinting.finish === WellKnown.finish.FOIL ? (
-                    <span key="finish" className="inline-flex items-center gap-1">
+                  <span key="finish" className="inline-flex items-center gap-1">
+                    {selectedPrinting.finish === WellKnown.finish.FOIL && (
                       <SparkleIcon className="size-3.5 fill-amber-400 text-amber-400" />
-                      Foil
-                    </span>
-                  ) : (
-                    <span key="finish" className="capitalize">
-                      {selectedPrinting.finish}
-                    </span>
-                  ),
+                    )}
+                    {labels.finishes[selectedPrinting.finish] ?? selectedPrinting.finish}
+                  </span>,
                 ]);
                 if (selectedPrinting.artVariant !== WellKnown.artVariant.NORMAL) {
                   leftRows.push([
@@ -554,13 +551,14 @@ function PrintingCard({
   const frontImage = printing.images.find((i) => i.face === "front");
   const isFoil = printing.finish === WellKnown.finish.FOIL;
   const showArtVariant = printing.artVariant !== WellKnown.artVariant.NORMAL;
+  const { labels } = useEnumOrders();
 
   const badges: ReactNode[] = [];
   if (isFoil) {
     badges.push(
       <span key="foil" className="inline-flex items-center gap-0.5 text-xs">
         <SparkleIcon className="size-3 fill-amber-400 text-amber-400" />
-        Foil
+        {labels.finishes[printing.finish] ?? printing.finish}
       </span>,
     );
   }
@@ -632,6 +630,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
   const [range, setRange] = useState<TimeRange>("30d");
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const [source, setSource] = useState<Marketplace>(marketplaceOrder[0] ?? "tcgplayer");
+  const { labels } = useEnumOrders();
 
   // Also fetch the active range for the table
   const { data: rangeData } = usePriceHistory(printing.id, range);
@@ -698,7 +697,8 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
     <div>
       <h2 className="mb-3 text-lg font-semibold">
         Price History — {formatPublicCode(printing)}
-        {printing.finish !== WellKnown.finish.NORMAL && ` ${printing.finish}`}
+        {printing.finish !== WellKnown.finish.NORMAL &&
+          ` ${labels.finishes[printing.finish] ?? printing.finish}`}
         {printing.markers.length > 0 && ` (${printing.markers.map((m) => m.label).join(", ")})`}
         {printing.language !== "EN" && ` [${printing.language}]`}
       </h2>

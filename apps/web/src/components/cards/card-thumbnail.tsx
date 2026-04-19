@@ -10,6 +10,7 @@ import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image"
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePrices } from "@/hooks/use-prices";
@@ -288,6 +289,10 @@ export const CardThumbnail = memo(function CardThumbnail({
   const favoritePrice = prices.get(printing.id, favoriteMarketplace);
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
   const isFoilCard = printing.finish === WellKnown.finish.FOIL;
+  const { labels } = useEnumOrders();
+  const foilTitle = isFoilCard
+    ? (labels.finishes[WellKnown.finish.FOIL] ?? WellKnown.finish.FOIL)
+    : undefined;
   const tiltEnabled = cardTilt && !IS_COARSE_POINTER;
   // Destructure into locals: React Compiler's ref-detection heuristic flags
   // property access on the hook result (e.g. `tilt.innerRef`) as a ref-value
@@ -453,7 +458,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         type={card.type}
         superTypes={card.superTypes}
         rarity={printing.rarity}
-        isFoil={isFoilCard}
+        foilTitle={foilTitle}
         bans={showBanOverlay ? undefined : printing.card.bans}
         hasRulesDeviation={printing.card.errata !== null}
         printingComment={printing.comment}

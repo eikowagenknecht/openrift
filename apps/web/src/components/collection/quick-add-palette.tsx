@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import { Kbd } from "@/components/ui/kbd";
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { searchCards } from "@/hooks/use-quick-add-search";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
@@ -98,6 +99,7 @@ function PaletteInner({
   const batchedAdd = useBatchedAddCopies();
   const disposeCopies = useDisposeCopies();
   const addedItems = useAddModeStore((s) => s.addedItems);
+  const { labels } = useEnumOrders();
 
   const results = searchCards(query, printingsByCardId, ownedCountByPrinting);
 
@@ -414,7 +416,7 @@ function PaletteInner({
                             {formatCardId(printing)}
                           </span>
                           <span className="min-w-0 flex-1 truncate">
-                            {formatPrintingLabel(printing, card.printings)}
+                            {formatPrintingLabel(printing, card.printings, labels)}
                           </span>
                         </div>
                         <div className="mr-1.5 ml-1 flex shrink-0 items-center gap-0.5">

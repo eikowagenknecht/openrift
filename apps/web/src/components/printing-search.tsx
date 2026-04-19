@@ -2,6 +2,8 @@ import type { Printing } from "@openrift/shared";
 import { useDebouncedValue } from "@tanstack/react-pacer";
 import { useId, useRef, useState } from "react";
 
+import type { EnumLabels } from "@/hooks/use-enums";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -10,8 +12,8 @@ import { cn } from "@/lib/utils";
  * the variant label (unless it's "Standard", in which case just the ID).
  * @returns A formatted string like "RB1-042 · Foil" or just "RB1-042".
  */
-export function formatImportPrintingLabel(printing: Printing): string {
-  const label = formatPrintingLabel(printing);
+export function formatImportPrintingLabel(printing: Printing, labels: EnumLabels): string {
+  const label = formatPrintingLabel(printing, undefined, labels);
   if (label === "Standard") {
     return formatCardId(printing);
   }
@@ -30,6 +32,7 @@ export function PrintingSearch({
   allPrintings: Printing[];
   onSelect: (printing: Printing) => void;
 }) {
+  const { labels } = useEnumOrders();
   const [search, setSearch] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -152,7 +155,7 @@ export function PrintingSearch({
             >
               <span className="truncate font-medium">{printing.card.name}</span>
               <span className="text-muted-foreground shrink-0">
-                {formatImportPrintingLabel(printing)}
+                {formatImportPrintingLabel(printing, labels)}
               </span>
             </button>
           ))}

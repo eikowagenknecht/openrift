@@ -1,5 +1,6 @@
 import type { Printing } from "@openrift/shared";
 
+import { useEnumOrders } from "@/hooks/use-enums";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
@@ -19,6 +20,7 @@ export function VariantAddPopover({
 }: VariantAddPopoverProps) {
   const addedItems = useAddModeStore((s) => s.addedItems);
   const hasMixedRarities = new Set(printings.map((p) => p.rarity)).size > 1;
+  const { labels } = useEnumOrders();
 
   return (
     // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- popover content, not a standalone interactive element
@@ -49,7 +51,7 @@ export function VariantAddPopover({
                 )}
               </div>
               <span className="block truncate text-[11px]">
-                {formatPrintingLabel(printing, printings) || printing.setSlug}
+                {formatPrintingLabel(printing, printings, labels) || printing.setSlug}
               </span>
             </div>
             <button

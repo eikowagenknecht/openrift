@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { getDomainGradientStyle, getDomainTintStyle } from "@/lib/domain";
 import { formatPublicCode } from "@/lib/format";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
@@ -50,6 +51,7 @@ export function CardDetail({
 }: CardDetailProps) {
   const { card } = printing;
   const domainColors = useDomainColors();
+  const { labels } = useEnumOrders();
   const setNumber = formatPublicCode(printing);
   const imageSwipeRef = useRef<HTMLDivElement>(null);
   const orientation = getOrientation(card.type);
@@ -216,7 +218,7 @@ export function CardDetail({
           {isFoil && (
             <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold">
               <SparkleIcon className="size-3.5 fill-amber-400 text-amber-400" />
-              Foil
+              {labels.finishes[printing.finish] ?? printing.finish}
             </span>
           )}
         </div>

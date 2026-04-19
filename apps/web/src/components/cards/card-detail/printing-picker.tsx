@@ -2,6 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { snapshotHeadline } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
+import { useEnumOrders } from "@/hooks/use-enums";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { usePrices } from "@/hooks/use-prices";
 import {
@@ -23,6 +24,7 @@ export function PrintingPicker({
   onSelect: (printing: Printing) => void;
 }) {
   const hasMixedRarities = new Set(printings.map((p) => p.rarity)).size > 1;
+  const { labels } = useEnumOrders();
 
   return (
     <div className="space-y-2">
@@ -32,7 +34,7 @@ export function PrintingPicker({
       <div className="space-y-1">
         {printings.map((p) => {
           const isActive = p.id === current.id;
-          const label = formatPrintingLabel(p, printings);
+          const label = formatPrintingLabel(p, printings, labels);
           return (
             <button
               key={p.id}

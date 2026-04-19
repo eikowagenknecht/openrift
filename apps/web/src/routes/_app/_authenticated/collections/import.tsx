@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { sortCards } from "@openrift/shared";
+import { sortCards, WellKnown } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -36,7 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import { collectionsQueryOptions, useCollections } from "@/hooks/use-collections";
 import { copiesQueryOptions } from "@/hooks/use-copies";
-import { useLanguageList } from "@/hooks/use-enums";
+import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
 import { useImportFlow } from "@/hooks/use-import-flow";
 import { downloadCSV, generateExportCSV } from "@/lib/csv-export";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
@@ -629,6 +629,8 @@ function ImportEntryRow({
   const ChevronIcon = isExpanded ? ChevronDownIcon : ChevronRightIcon;
   const rawFieldEntries = Object.entries(entry.entry.rawFields);
   const hasCandidates = entry.candidates.length > 0;
+  const { labels } = useEnumOrders();
+  const specialties = formatEntrySpecialties(entry, labels.finishes);
 
   return (
     <div className={cn(isSkipped && "opacity-40")}>
@@ -651,10 +653,8 @@ function ImportEntryRow({
 
         <span className="min-w-0 flex-1 truncate font-medium">
           {entry.entry.cardName}
-          {formatEntrySpecialties(entry) && (
-            <span className="text-muted-foreground ml-1.5 text-xs font-normal">
-              {formatEntrySpecialties(entry)}
-            </span>
+          {specialties && (
+            <span className="text-muted-foreground ml-1.5 text-xs font-normal">{specialties}</span>
           )}
         </span>
 
@@ -722,10 +722,13 @@ function ImportEntryRow({
   );
 }
 
-function formatEntrySpecialties(entry: MatchedEntry): string | null {
+function formatEntrySpecialties(
+  entry: MatchedEntry,
+  finishLabels: Record<string, string>,
+): string | null {
   const parts: string[] = [];
-  if (entry.entry.finish === "foil") {
-    parts.push("Foil");
+  if (entry.entry.finish !== WellKnown.finish.NORMAL) {
+    parts.push(finishLabels[entry.entry.finish] ?? entry.entry.finish);
   }
   if (entry.entry.artVariant === "altart") {
     parts.push("Alt Art");
@@ -745,6 +748,7 @@ function VariantPicker({
   resolved: Printing | null;
   onSelect: (printing: Printing) => void;
 }) {
+  const { labels } = useEnumOrders();
   return (
     <Select
       value={resolved?.id ?? ""}
@@ -755,7 +759,7 @@ function VariantPicker({
         }
       }}
       items={Object.fromEntries(
-        candidates.map((printing) => [printing.id, formatImportPrintingLabel(printing)]),
+        candidates.map((printing) => [printing.id, formatImportPrintingLabel(printing, labels)]),
       )}
     >
       <SelectTrigger size="sm" className="h-7 w-auto text-xs">
@@ -764,7 +768,7 @@ function VariantPicker({
       <SelectContent className="w-auto">
         {candidates.map((printing) => (
           <SelectItem key={printing.id} value={printing.id} className="py-1.5">
-            {formatImportPrintingLabel(printing)}
+            {formatImportPrintingLabel(printing, labels)}
           </SelectItem>
         ))}
       </SelectContent>

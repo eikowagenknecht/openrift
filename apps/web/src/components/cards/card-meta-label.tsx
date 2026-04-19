@@ -12,7 +12,8 @@ interface CardMetaLabelProps {
   type: CardType;
   superTypes: string[];
   rarity: Rarity;
-  isFoil?: boolean;
+  /** When set, renders a foil sparkle icon with this string as its tooltip title. */
+  foilTitle?: string;
   /** Ban records to show as a warning icon with tooltip. */
   bans?: CardBan[];
   /** True when printed rules text differs from the card's current rules text. */
@@ -35,7 +36,7 @@ export function CardMetaLabel({
   type,
   superTypes,
   rarity,
-  isFoil,
+  foilTitle,
   bans,
   hasRulesDeviation,
   printingComment,
@@ -71,8 +72,8 @@ export function CardMetaLabel({
             height={28}
             className="size-3.5"
           />
-          {isFoil && (
-            <span title="Foil" className="inline-flex">
+          {foilTitle && (
+            <span title={foilTitle} className="inline-flex">
               <SparkleIcon className="size-3.5 fill-amber-400 text-amber-400" />
             </span>
           )}

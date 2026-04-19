@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 
 import { useCards } from "@/hooks/use-cards";
 import { useDeckBuilderActions } from "@/hooks/use-deck-builder";
+import { useEnumOrders } from "@/hooks/use-enums";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -108,7 +109,8 @@ function PrintingMenuItem({
   onHover: (id: string | null) => void;
 }) {
   const thumbnail = printing.images.find((img) => img.face === "front")?.thumbnail ?? null;
-  const label = formatPrintingLabel(printing, printings);
+  const { labels } = useEnumOrders();
+  const label = formatPrintingLabel(printing, printings, labels);
 
   return (
     <ContextMenu.Item
