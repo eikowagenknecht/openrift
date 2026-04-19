@@ -2,6 +2,7 @@
 
 ## 2026-04-19
 
+- feat: Your own cards in a collection now show plus/minus buttons above each thumbnail, so you can add or remove copies without switching into add mode
 - feat: In the deck builder on phones, tapping a card now adds it to the active zone, and long-pressing opens the card's detail view
 - feat: Dragging a card stack between collections now moves just one copy by default, and holding Shift while dropping moves the whole stack, matching how moves work in the deckbuilder
 - feat: In add mode, the minus button now works on cards you already owned before opening add mode, not only on ones you added this session — when you own copies in just one collection it removes the newest; when copies are spread across multiple collections (All Cards view) a small picker lets you choose which collection to take from

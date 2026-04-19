@@ -591,6 +591,29 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     // select-mode selections always move every selected copy.
     const isStackDrag = !isFromSelection && stacked && effectiveCopyIds.length > 1;
 
+    // In browse mode, show the +/- add strip (matches add mode). Select mode
+    // keeps the read-only count + collection-breakdown popover.
+    const catalogSiblings = catalogPrintingsByCardId.get(item.printing.cardId);
+    const showAddStrip = mode === "browse" && handleQuickAdd;
+    const aboveCard = showAddStrip ? (
+      <CollectionAddStrip
+        printing={item.printing}
+        ownedCount={ownedCount}
+        hasVariants={dataView === "cards" && (catalogSiblings?.length ?? 0) > 1}
+        onQuickAdd={handleQuickAdd}
+        onUndoAdd={handleUndoAdd}
+        onOpenVariants={handleOpenVariants}
+      />
+    ) : (
+      <OwnedCountStrip
+        count={ownedCount}
+        printingId={item.printing.id}
+        cardName={item.printing.card.name}
+        shortCode={item.printing.shortCode}
+        allPrintingIds={allPrintingIdsByCardId.get(item.printing.cardId)}
+      />
+    );
+
     return (
       <DraggableCard
         id={item.id}
@@ -616,15 +639,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             priority={ctx.priority}
             isSelected={ctx.isSelected}
             isFlashing={ctx.isFlashing}
-            aboveCard={
-              <OwnedCountStrip
-                count={ownedCount}
-                printingId={item.printing.id}
-                cardName={item.printing.card.name}
-                shortCode={item.printing.shortCode}
-                allPrintingIds={allPrintingIdsByCardId.get(item.printing.cardId)}
-              />
-            }
+            aboveCard={aboveCard}
           />
         </div>
       </DraggableCard>
