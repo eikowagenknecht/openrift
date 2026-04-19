@@ -40,9 +40,9 @@ const PARAMS = {
   sideCardWidth: 120.6,
   sideCardHeight: 176.8,
   sideCardRadius: 14,
-  sideCardCenter: { x: 258, y: 316 },
+  sideCardCenter: { x: 275, y: 316 },
   sideCardRotation: -12, // degrees; negative = CCW (top tilts right, bottom tilts left)
-  sideCardGap: 8, // black gap carved around the center card
+  sideCardGap: 12, // black gap carved around the center card
 } as const;
 
 // Original traced logo path. We only reuse the frame subpaths [0..4] and
