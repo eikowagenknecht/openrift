@@ -19,6 +19,7 @@ const channelSchema = z.object({
   childrenLabel: z.string().nullable().openapi({ example: null }),
   createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
   updatedAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
+  printingCount: z.number().openapi({ example: 0 }),
 });
 
 const listChannels = createRoute({
@@ -69,7 +70,15 @@ const deleteChannel = createRoute({
   method: "delete",
   path: "/distribution-channels/{id}",
   tags: ["Admin - Distribution Channels"],
-  request: { params: idParamSchema },
+  request: {
+    params: idParamSchema,
+    query: z.object({
+      force: z
+        .enum(["true", "false"])
+        .optional()
+        .openapi({ description: "When true, also unlinks the channel from all printings." }),
+    }),
+  },
   responses: { 204: { description: "Distribution channel deleted" } },
 });
 
@@ -90,7 +99,8 @@ const reorderChannels = createRoute({
 export const adminDistributionChannelsRoute = new OpenAPIHono<{ Variables: Variables }>()
   .openapi(listChannels, async (c) => {
     const { distributionChannels: repo } = c.get("repos");
-    const rows = await repo.listAll();
+    const [rows, counts] = await Promise.all([repo.listAll(), repo.usageCountsByChannel()]);
+    const countById = new Map(counts.map((row) => [row.channelId, row.count]));
     return c.json({
       distributionChannels: rows.map(
         (r): DistributionChannelResponse => ({
@@ -104,6 +114,7 @@ export const adminDistributionChannelsRoute = new OpenAPIHono<{ Variables: Varia
           childrenLabel: r.childrenLabel,
           createdAt: r.createdAt.toISOString(),
           updatedAt: r.updatedAt.toISOString(),
+          printingCount: countById.get(r.id) ?? 0,
         }),
       ),
     });
@@ -157,7 +168,20 @@ export const adminDistributionChannelsRoute = new OpenAPIHono<{ Variables: Varia
       childrenLabel: childrenLabel ?? null,
       sortOrder: maxSortOrder + 1,
     });
-    return c.json({ distributionChannel: created }, 201);
+    const distributionChannel: DistributionChannelResponse = {
+      id: created.id,
+      slug: created.slug,
+      label: created.label,
+      description: created.description,
+      kind: created.kind,
+      sortOrder: created.sortOrder,
+      parentId: created.parentId,
+      childrenLabel: created.childrenLabel,
+      createdAt: created.createdAt.toISOString(),
+      updatedAt: created.updatedAt.toISOString(),
+      printingCount: 0,
+    };
+    return c.json({ distributionChannel }, 201);
   })
   .openapi(updateChannel, async (c) => {
     const { distributionChannels: repo } = c.get("repos");
@@ -187,15 +211,28 @@ export const adminDistributionChannelsRoute = new OpenAPIHono<{ Variables: Varia
   .openapi(deleteChannel, async (c) => {
     const { distributionChannels: repo } = c.get("repos");
     const { id } = c.req.valid("param");
+    const { force: forceParam } = c.req.valid("query");
+    const force = forceParam === "true";
     const existing = await repo.getById(id);
     assertFound(existing, "Distribution channel not found");
-    const inUse = await repo.isInUse(id);
-    if (inUse) {
+    const childRow = await repo.hasChildren(id);
+    if (childRow) {
       throw new AppError(
         409,
         ERROR_CODES.CONFLICT,
-        "Cannot delete: distribution channel is in use by one or more printings",
+        "Cannot delete: distribution channel has child channels. Remove or reparent them first.",
       );
+    }
+    const usageCount = await repo.countInUse(id);
+    if (usageCount > 0 && !force) {
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        `Cannot delete: distribution channel is in use by ${usageCount} printing${usageCount === 1 ? "" : "s"}. Pass force=true to unlink and delete.`,
+      );
+    }
+    if (usageCount > 0) {
+      await repo.deleteLinksForChannel(id);
     }
     await repo.deleteById(id);
     return c.body(null, 204);
