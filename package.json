@@ -52,6 +52,7 @@
     "lefthook": "2.1.6",
     "oxfmt": "0.45.0",
     "oxlint": "1.60.0",
+    "paper-jsdom": "0.12.18",
     "syncpack": "14.3.0",
     "turbo": "2.9.6"
   },

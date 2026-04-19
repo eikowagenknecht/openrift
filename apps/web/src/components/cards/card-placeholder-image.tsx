@@ -72,6 +72,12 @@ export function CardPlaceholderImage({
         </filter>
         <rect width="100%" height="100%" filter={`url(#${noiseId})`} />
       </svg>
+      <img
+        src="/logo.svg"
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute top-[14%] left-1/2 size-[40cqw] -translate-x-1/2 opacity-15 brightness-0 invert"
+      />
       <div className="absolute top-[4%] left-[6%] flex flex-col items-start gap-[1cqw]">
         {energy !== null && (
           <div
