@@ -127,23 +127,33 @@ function build(): string {
   });
   const sideLeftCarved = sideLeft.subtract(cardOutset) as paper.PathItem;
 
+  // The card shapes punch real holes in the frame so anything behind the
+  // SVG (page background, icon tile, etc.) shows through. The same
+  // shapes are also emitted as separate paths with fill="none" below, so
+  // consumers can optionally paint them a different color.
+  const cardCutout = cardCenter.clone().unite(sideLeftCarved) as paper.PathItem;
+  const cardCutoutMirrored = cardCutout
+    .clone()
+    .scale(-1, 1, new paper.Point(VIEW_BOX.width / 2, 0)) as paper.PathItem;
+  const cardsMask = cardCutout.unite(cardCutoutMirrored) as paper.PathItem;
+  const frameWithCardHoles = frame.subtract(cardsMask) as paper.PathItem;
+
   const zones = {
-    frame: symmetrize(frame),
+    frame: symmetrize(frameWithCardHoles),
     cardSide: symmetrize(sideLeftCarved),
     cardCenter: symmetrize(cardCenter),
     rays: symmetrize(rayLeft),
   };
 
-  // Default fills reproduce the original single-color look: frame and rays
-  // are drawn in currentColor (picks up text color), cards are #fff so
-  // they read as voids against the frame. Override via class on any
-  // consumer: `.zone-card-center { fill: gold }` etc.
+  // Default fills: frame + rays use currentColor; cards are transparent
+  // holes in the frame (fill="none"). Override any zone via its class on
+  // the consumer side for colored exports.
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VIEW_BOX.width} ${VIEW_BOX.height}" fill-rule="nonzero">` +
-    // Paint order: frame → side cards (behind center) → center card → rays.
+    // Paint order: frame (with card holes) → side cards → center card → rays.
     `<path class="zone-frame" fill="currentColor" d="${zones.frame}"/>` +
-    `<path class="zone-card-side" fill="#fff" d="${zones.cardSide}"/>` +
-    `<path class="zone-card-center" fill="#fff" d="${zones.cardCenter}"/>` +
+    `<path class="zone-card-side" fill="none" d="${zones.cardSide}"/>` +
+    `<path class="zone-card-center" fill="none" d="${zones.cardCenter}"/>` +
     `<path class="zone-rays" fill="none" d="${zones.rays}"/>` +
     `</svg>\n`
   );
