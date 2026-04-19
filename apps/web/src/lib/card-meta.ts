@@ -1,6 +1,41 @@
-import type { CardDetailResponse, CatalogPrintingResponse } from "@openrift/shared";
+import type {
+  CardDetailResponse,
+  CatalogPrintingResponse,
+  CatalogSetResponse,
+  Printing,
+} from "@openrift/shared";
+import { PREFERENCE_DEFAULTS, preferredPrinting } from "@openrift/shared";
 
 const META_DESCRIPTION_LIMIT = 155;
+
+/**
+ * Picks the printing whose metadata (rules text, front art) should drive
+ * the page's SSR meta tags. Mirrors the page component's own
+ * `preferredPrinting(printings, setOrderMap, languages)` call, using default
+ * language preferences — so the og:image / og:description a crawler or
+ * social-unfurl bot sees matches what a fresh visitor lands on.
+ *
+ * @returns The preferred printing, or `undefined` when there are none.
+ */
+export function pickCardMetaPrinting(
+  printings: CatalogPrintingResponse[],
+  sets: CatalogSetResponse[],
+): CatalogPrintingResponse | undefined {
+  if (printings.length === 0) {
+    return undefined;
+  }
+  const setOrderMap = new Map(sets.map((s, i) => [s.id, i]));
+  // preferredPrinting only reads fields that exist on CatalogPrintingResponse
+  // (language, finish, shortCode, setId, markers) — never the Printing-only
+  // `setSlug` / `card` fields — so this structural cast is safe.
+  return (
+    preferredPrinting(
+      printings as unknown as Printing[],
+      setOrderMap,
+      PREFERENCE_DEFAULTS.languages,
+    ) ?? printings[0]
+  );
+}
 
 /**
  * Builds a meta-description string for a card-detail SSR head.
@@ -13,7 +48,7 @@ const META_DESCRIPTION_LIMIT = 155;
  */
 export function buildCardMetaDescription(
   card: CardDetailResponse["card"],
-  printings: CatalogPrintingResponse[],
+  printing: CatalogPrintingResponse | undefined,
 ): string {
   const parts: string[] = [];
 
@@ -21,7 +56,7 @@ export function buildCardMetaDescription(
   const typeLine = domains ? `${domains} ${card.type}` : card.type;
   parts.push(`${card.name} is a ${typeLine} card from Riftbound.`);
 
-  const rulesText = printings[0]?.printedRulesText;
+  const rulesText = printing?.printedRulesText;
   if (rulesText) {
     const cleaned = rulesText
       .replaceAll(/\[.*?\]/g, "")
@@ -42,18 +77,12 @@ export function buildCardMetaDescription(
 }
 
 /**
- * Picks the front-face image URL of the first printing — meant for og:image.
- * The API hands back printings with English first, so the first front face
- * is the canonical English art.
+ * Picks the front-face image URL for the given printing — meant for og:image.
  *
- * @returns The full-size front image URL, or undefined when none exists.
+ * @returns The full-size front image URL, or undefined when the printing has none.
  */
-export function getCardFrontImageFullUrl(printings: CatalogPrintingResponse[]): string | undefined {
-  for (const printing of printings) {
-    const front = printing.images.find((i) => i.face === "front");
-    if (front) {
-      return front.full;
-    }
-  }
-  return undefined;
+export function getCardFrontImageFullUrl(
+  printing: CatalogPrintingResponse | undefined,
+): string | undefined {
+  return printing?.images.find((i) => i.face === "front")?.full;
 }

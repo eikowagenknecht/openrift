@@ -1,5 +1,5 @@
 import { WellKnown } from "@openrift/shared";
-import { GemIcon, SparkleIcon, TrophyIcon } from "lucide-react";
+import { AnvilIcon, SparkleIcon, TrophyIcon } from "lucide-react";
 import type { ComponentPropsWithoutRef, ElementType } from "react";
 
 import { cn } from "@/lib/utils";
@@ -12,13 +12,13 @@ interface FinishVisual {
 function getFinishVisual(finish: string): FinishVisual | null {
   switch (finish) {
     case WellKnown.finish.FOIL: {
-      return { Icon: SparkleIcon, colorClass: "fill-amber-400 text-amber-400" };
+      return { Icon: SparkleIcon, colorClass: "text-amber-400" };
     }
     case WellKnown.finish.METAL: {
-      return { Icon: GemIcon, colorClass: "fill-slate-400 text-slate-400" };
+      return { Icon: AnvilIcon, colorClass: "text-slate-400" };
     }
     case WellKnown.finish.METAL_DELUXE: {
-      return { Icon: TrophyIcon, colorClass: "fill-yellow-500 text-yellow-500" };
+      return { Icon: TrophyIcon, colorClass: "text-yellow-500" };
     }
     default: {
       return null;

@@ -5,7 +5,11 @@ import { z } from "zod";
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
-import { buildCardMetaDescription, getCardFrontImageFullUrl } from "@/lib/card-meta";
+import {
+  buildCardMetaDescription,
+  getCardFrontImageFullUrl,
+  pickCardMetaPrinting,
+} from "@/lib/card-meta";
 import { breadcrumbJsonLd, productJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_PADDING } from "@/lib/utils";
@@ -24,17 +28,33 @@ function toAbsoluteUrl(siteUrl: string, imageUrl: string | undefined): string | 
   return `${siteUrl}${imageUrl.startsWith("/") ? "" : "/"}${imageUrl}`;
 }
 
+interface CardDetailLoaderData {
+  data: CardDetailResponse;
+  printingId: string | undefined;
+}
+
 export const Route = createFileRoute("/_app/cards_/$cardSlug")({
   validateSearch: cardDetailSearchSchema,
+  loaderDeps: ({ search }) => ({ printingId: search.printingId }),
   head: ({ loaderData }) => {
     const siteUrl = getSiteUrl();
-    const data = loaderData as CardDetailResponse | undefined;
+    const loaded = loaderData as CardDetailLoaderData | undefined;
+    const data = loaded?.data;
     if (!data) {
       return seoHead({ siteUrl, title: "Card" });
     }
 
-    const imageUrl = toAbsoluteUrl(siteUrl, getCardFrontImageFullUrl(data.printings));
-    const description = buildCardMetaDescription(data.card, data.printings);
+    // If the URL carries `?printingId=X` for a real printing, feature that
+    // variant in the meta tags so shared links unfurl with the matching art
+    // and rules text. Fall back to the EN-first preferred printing otherwise.
+    const linked = loaded?.printingId
+      ? data.printings.find((p) => p.id === loaded.printingId)
+      : undefined;
+    const metaPrinting = linked ?? pickCardMetaPrinting(data.printings, data.sets);
+    const imageUrl = toAbsoluteUrl(siteUrl, getCardFrontImageFullUrl(metaPrinting));
+    const description = buildCardMetaDescription(data.card, metaPrinting);
+    // Canonical always points at the query-less card URL so search engines
+    // consolidate rankings for all variants onto one page.
     const cardPath = `/cards/${data.card.slug}`;
     const head = seoHead({
       siteUrl,
@@ -72,8 +92,10 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       ],
     };
   },
-  loader: ({ context, params }) =>
-    context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug)),
+  loader: async ({ context, params, deps }): Promise<CardDetailLoaderData> => {
+    const data = await context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug));
+    return { data, printingId: deps.printingId };
+  },
   component: () => null,
   pendingComponent: CardDetailPending,
   errorComponent: RouteErrorFallback,

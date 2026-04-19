@@ -10,13 +10,15 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
-  PaintbrushIcon,
+  CheckIcon,
   PaletteIcon,
+  Share2Icon,
   TagIcon,
   TriangleAlertIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import { CardText } from "@/components/cards/card-text";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
@@ -55,19 +57,18 @@ function CardDetailPage() {
     return preferredPrinting(printings, setOrderMap, languages) ?? printings[0];
   });
 
-  // Strip the deep-link param after applying so the canonical URL is /cards/$cardSlug.
-  const deepLinkHandled = useRef(false);
-  useEffect(() => {
-    if (!linkedPrintingId || deepLinkHandled.current) {
-      return;
-    }
-    deepLinkHandled.current = true;
+  // Mirror the selected printing into `?printingId=` so the URL is shareable
+  // (deep-link unfurls read this in the route's `head()`). The canonical tag
+  // still points at `/cards/$cardSlug`, so search engines don't see variants
+  // as duplicates.
+  const selectPrinting = (printing: Printing) => {
+    setSelectedPrinting(printing);
     void navigate({
       to: ".",
-      search: ({ printingId: _, ...rest }) => rest,
+      search: (prev) => ({ ...prev, printingId: printing.id }),
       replace: true,
     });
-  }, [linkedPrintingId, navigate]);
+  };
   const setById = new Map(sets.map((s) => [s.id, s]));
   const domainColors = useDomainColors();
   const languageLabels = useLanguageLabels();
@@ -96,7 +97,10 @@ function CardDetailPage() {
       </div>
 
       {/* Card header */}
-      <h1 className="text-2xl font-bold">{card.name}</h1>
+      <div className="flex items-start justify-between gap-3">
+        <h1 className="text-2xl font-bold">{card.name}</h1>
+        <ShareLinkButton cardName={card.name} />
+      </div>
 
       <div className="flex flex-col gap-6 md:flex-row">
         {/* Left column: card image */}
@@ -214,7 +218,11 @@ function CardDetailPage() {
                   leftRows.push([
                     "Artist",
                     <span key="artist" className="inline-flex items-center gap-1">
-                      <PaintbrushIcon className="size-3.5" />
+                      <img
+                        src="/images/artist.svg"
+                        alt=""
+                        className="size-3.5 brightness-0 dark:invert"
+                      />
                       {selectedPrinting.artist}
                     </span>,
                   ]);
@@ -456,7 +464,7 @@ function CardDetailPage() {
                   key={printing.id}
                   printing={printing}
                   isSelected={printing.id === selectedPrinting.id}
-                  onSelect={() => setSelectedPrinting(printing)}
+                  onSelect={() => selectPrinting(printing)}
                 />
               ))}
             </div>
@@ -586,6 +594,17 @@ function PrintingCard({
     );
   }
 
+  // Channel labels rendered as plain text so crawlers index them alongside
+  // the card name, and long-tail searches ("<card> promo", "<card> <artist>")
+  // can land on this page even without visiting each variant individually.
+  const channelSummary = printing.distributionChannels
+    .map((link) =>
+      link.ancestorLabels.length > 0
+        ? `${link.ancestorLabels.join(" \u203A ")} \u203A ${link.channel.label}`
+        : link.channel.label,
+    )
+    .join(", ");
+
   return (
     <button
       type="button"
@@ -593,7 +612,7 @@ function PrintingCard({
       aria-pressed={isSelected}
       data-printing-id={printing.id}
       className={cn(
-        "border-border bg-card flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors",
+        "border-border bg-card flex w-full items-start gap-3 rounded-lg border px-3 py-2 text-left transition-colors",
         isSelected ? "ring-primary ring-2" : "hover:bg-accent",
       )}
     >
@@ -609,8 +628,25 @@ function PrintingCard({
           <div className="bg-muted/40 size-full" />
         )}
       </div>
-      <p className="min-w-0 text-sm font-medium">{formatPublicCode(printing)}</p>
-      {badges.length > 0 && <div className="flex flex-wrap items-center gap-1.5">{badges}</div>}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className="text-sm font-medium">{formatPublicCode(printing)}</p>
+          {badges}
+        </div>
+        {printing.artist && (
+          <p className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+            <img
+              src="/images/artist.svg"
+              alt=""
+              className="size-3 shrink-0 brightness-0 dark:invert"
+            />
+            <span className="truncate">{printing.artist}</span>
+          </p>
+        )}
+        {channelSummary && (
+          <p className="text-muted-foreground truncate text-xs">{channelSummary}</p>
+        )}
+      </div>
     </button>
   );
 }
@@ -793,5 +829,48 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
         )}
       </div>
     </div>
+  );
+}
+
+function ShareLinkButton({ cardName }: { cardName: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    if (typeof globalThis === "undefined" || !globalThis.location) {
+      return;
+    }
+    const url = globalThis.location.href;
+
+    // Prefer the native share sheet on mobile (iOS Safari, Chrome Android) so
+    // the user can pick Messages / WhatsApp / etc. in one tap. Desktop browsers
+    // mostly don't implement this, so they fall through to clipboard.
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: cardName, url });
+        return;
+      } catch (error) {
+        // AbortError = user dismissed the share sheet; stay silent.
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+        // Any other failure falls through to clipboard below.
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast.success("Link copied");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy link");
+    }
+  };
+
+  return (
+    <Button variant="outline" size="sm" onClick={handleShare} aria-label="Share link">
+      {copied ? <CheckIcon className="size-4" /> : <Share2Icon className="size-4" />}
+      Share
+    </Button>
   );
 }
