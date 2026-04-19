@@ -122,7 +122,7 @@ export default function WhyOpenRiftArticle() {
           mark means we&apos;re not sure.
         </p>
         <p className="text-muted-foreground mb-3">
-          Last verified on 2026-04-14. When you&apos;re reading this it&apos;s probably already
+          Last verified on 2026-04-19. When you&apos;re reading this it&apos;s probably already
           slightly out of date, as counts and features change regularly.
         </p>
 
@@ -432,13 +432,13 @@ export default function WhyOpenRiftArticle() {
               />
               <ComparisonRow
                 feature="Ad-free"
-                values={["yes", "partial", "partial", "partial", "partial"]}
+                values={["yes", "partial", "partial", "no", "partial"]}
                 detail={{
                   general: "No banner ads, no sponsored content, no affiliate-gated features.",
                   piltoverArchive:
                     "No visible ads yet, but 'No ads on site' is listed as a perk of paid community tiers on Metafy.gg.",
                   riftmana: "No visible ads yet, but ad network trackers are already in place.",
-                  riftboundGg: "No visible ads yet, but ad network trackers are already in place.",
+                  riftboundGg: "Banner ads shown throughout the site. Removed by DotGG Premium.",
                   riftcore: "No visible ads yet, but Google ad scripts are present.",
                 }}
               />
