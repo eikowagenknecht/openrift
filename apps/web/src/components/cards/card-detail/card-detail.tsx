@@ -2,10 +2,11 @@ import type { Printing } from "@openrift/shared";
 import { WellKnown, getOrientation } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { useDrag } from "@use-gesture/react";
-import { ArrowLeftIcon, ExternalLinkIcon, ShieldIcon, SparkleIcon, XIcon } from "lucide-react";
+import { ArrowLeftIcon, ExternalLinkIcon, ShieldIcon, XIcon } from "lucide-react";
 import { useRef } from "react";
 
 import { CardText } from "@/components/cards/card-text";
+import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { Button } from "@/components/ui/button";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useCardTilt } from "@/hooks/use-card-tilt";
@@ -215,9 +216,9 @@ export function CardDetail({
             height={28}
             className="size-5"
           />
-          {isFoil && (
+          {hasFinishIcon(printing.finish) && (
             <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold">
-              <SparkleIcon className="size-3.5 fill-amber-400 text-amber-400" />
+              <FinishIcon finish={printing.finish} />
               {labels.finishes[printing.finish] ?? printing.finish}
             </span>
           )}

@@ -2,6 +2,7 @@
 
 ## 2026-04-19
 
+- feat: Metal and metal-deluxe printings now show their own icons (gem for metal, trophy for metal-deluxe) across card grids, the card detail page, and printing menus, instead of being visually indistinguishable from normal printings
 - feat: The admin distribution channels table now shows how many printings are linked to each channel, and deleting a channel that's in use shows a clear confirmation explaining how many printings will be unlinked
 - feat: The Promos page now groups events into a hierarchy (e.g. Regional Event › Houston › Top 1) with collapsible sections and rolled-up counts, and pulls sparse leaves under the same parent into a single compact table for easier scanning
 - feat: The Promos page now also lists product-based distributions (starter decks, bundles, promo packs), not only event-based ones
@@ -11,6 +12,7 @@
 - feat: The card detail page now shows a "Distribution & printing notes" block with markers, the full channel breadcrumb, channel descriptions, and the printing's note when any of these apply
 - fix: The power and might icons on a card's detail page are now visible in light mode, instead of blending into the background
 - fix: Finish labels on card pages now come from the finishes table, so non-foil finishes show their proper display name instead of the raw slug
+- fix: When sharing a card link, the preview image and description now match the printing shown on the page, instead of sometimes pulling from a different variant
 
 ## 2026-04-18
 

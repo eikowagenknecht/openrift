@@ -12,7 +12,6 @@ import {
   ArrowLeftIcon,
   PaintbrushIcon,
   PaletteIcon,
-  SparkleIcon,
   TagIcon,
   TriangleAlertIcon,
 } from "lucide-react";
@@ -20,6 +19,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { CardText } from "@/components/cards/card-text";
+import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { PriceHistoryChart, TIME_RANGES } from "@/components/cards/price-history-chart";
 import { MarkdownText } from "@/components/markdown-text";
 import { Badge } from "@/components/ui/badge";
@@ -151,9 +151,7 @@ function CardDetailPage() {
                 leftRows.push([
                   "Finish",
                   <span key="finish" className="inline-flex items-center gap-1">
-                    {selectedPrinting.finish === WellKnown.finish.FOIL && (
-                      <SparkleIcon className="size-3.5 fill-amber-400 text-amber-400" />
-                    )}
+                    <FinishIcon finish={selectedPrinting.finish} />
                     {labels.finishes[selectedPrinting.finish] ?? selectedPrinting.finish}
                   </span>,
                 ]);
@@ -549,15 +547,14 @@ function PrintingCard({
   onSelect: () => void;
 }) {
   const frontImage = printing.images.find((i) => i.face === "front");
-  const isFoil = printing.finish === WellKnown.finish.FOIL;
   const showArtVariant = printing.artVariant !== WellKnown.artVariant.NORMAL;
   const { labels } = useEnumOrders();
 
   const badges: ReactNode[] = [];
-  if (isFoil) {
+  if (hasFinishIcon(printing.finish)) {
     badges.push(
-      <span key="foil" className="inline-flex items-center gap-0.5 text-xs">
-        <SparkleIcon className="size-3 fill-amber-400 text-amber-400" />
+      <span key="finish" className="inline-flex items-center gap-0.5 text-xs">
+        <FinishIcon finish={printing.finish} iconClassName="size-3" />
         {labels.finishes[printing.finish] ?? printing.finish}
       </span>,
     );

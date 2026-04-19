@@ -40,6 +40,7 @@ import * as m091 from "./091-promos-rework.js";
 import * as m092 from "./092-deferrable-printing-constraints.js";
 import * as m093 from "./093-deck-cards-preferred-printing.js";
 import * as m094 from "./094-distribution-channel-hierarchy.js";
+import * as m095 from "./095-metal-finishes-well-known.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -139,4 +140,5 @@ export const migrations: Record<string, Migration> = {
   "092-deferrable-printing-constraints": m092,
   "093-deck-cards-preferred-printing": m093,
   "094-distribution-channel-hierarchy": m094,
+  "095-metal-finishes-well-known": m095,
 };

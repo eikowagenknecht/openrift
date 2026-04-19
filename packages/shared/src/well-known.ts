@@ -34,6 +34,10 @@ export const WellKnown = {
     NORMAL: "normal",
     /** Triggers foil overlay rendering. */
     FOIL: "foil",
+    /** Metallic premium finish. */
+    METAL: "metal",
+    /** Deluxe metallic premium finish. */
+    METAL_DELUXE: "metal-deluxe",
   },
   artVariant: {
     /** Default art variant when null or unspecified. */

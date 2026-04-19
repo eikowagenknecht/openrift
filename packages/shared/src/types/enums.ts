@@ -51,7 +51,7 @@ export const DEFAULT_ENUM_ORDERS: EnumOrders = {
   domains: ["Fury", "Calm", "Mind", "Body", "Chaos", "Order", "Colorless"],
   rarities: ["Common", "Uncommon", "Rare", "Epic", "Showcase"],
   artVariants: ["normal", "altart", "overnumbered"],
-  finishes: ["normal", "foil"],
+  finishes: ["normal", "foil", "metal", "metal-deluxe"],
   cardTypes: ["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield", "Other"],
   superTypes: ["Basic", "Champion", "Signature", "Token"],
 };

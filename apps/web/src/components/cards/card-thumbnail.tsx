@@ -1,12 +1,12 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { Domain, Printing, Rarity } from "@openrift/shared";
 import { WellKnown, getOrientation } from "@openrift/shared";
-import { SparkleIcon } from "lucide-react";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { memo, useRef, useState } from "react";
 
 import { CardMetaLabel } from "@/components/cards/card-meta-label";
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
+import { FinishIcon } from "@/components/cards/finish-icon";
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { useCardTilt } from "@/hooks/use-card-tilt";
 import { useDomainColors } from "@/hooks/use-domain-colors";
@@ -290,9 +290,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
   const isFoilCard = printing.finish === WellKnown.finish.FOIL;
   const { labels } = useEnumOrders();
-  const foilTitle = isFoilCard
-    ? (labels.finishes[WellKnown.finish.FOIL] ?? WellKnown.finish.FOIL)
-    : undefined;
+  const finishTitle = labels.finishes[printing.finish] ?? printing.finish;
   const tiltEnabled = cardTilt && !IS_COARSE_POINTER;
   // Destructure into locals: React Compiler's ref-detection heuristic flags
   // property access on the hook result (e.g. `tilt.innerRef`) as a ref-value
@@ -370,9 +368,11 @@ export const CardThumbnail = memo(function CardThumbnail({
                 <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
               ))}
             {sibling.finish === WellKnown.finish.FOIL && gridFoil && <FoilOverlay active dim />}
-            {sibling.finish === WellKnown.finish.FOIL && (
-              <SparkleIcon className="absolute top-1.5 right-1.5 z-20 size-4 fill-amber-400 text-amber-400 drop-shadow" />
-            )}
+            <FinishIcon
+              finish={sibling.finish}
+              className="absolute top-1.5 right-1.5 z-20 drop-shadow"
+              iconClassName="size-4"
+            />
           </div>
         );
       })}
@@ -458,7 +458,8 @@ export const CardThumbnail = memo(function CardThumbnail({
         type={card.type}
         superTypes={card.superTypes}
         rarity={printing.rarity}
-        foilTitle={foilTitle}
+        finish={printing.finish}
+        finishTitle={finishTitle}
         bans={showBanOverlay ? undefined : printing.card.bans}
         hasRulesDeviation={printing.card.errata !== null}
         printingComment={printing.comment}

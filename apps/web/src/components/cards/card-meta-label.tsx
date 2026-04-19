@@ -1,7 +1,8 @@
 import type { CardBan, CardType, Rarity } from "@openrift/shared";
-import { InfoIcon, SparkleIcon, TriangleAlertIcon } from "lucide-react";
+import { InfoIcon, TriangleAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { FinishIcon } from "@/components/cards/finish-icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -12,8 +13,10 @@ interface CardMetaLabelProps {
   type: CardType;
   superTypes: string[];
   rarity: Rarity;
-  /** When set, renders a foil sparkle icon with this string as its tooltip title. */
-  foilTitle?: string;
+  /** Finish slug — renders a per-finish icon when it's foil/metal/metal-deluxe. */
+  finish?: string;
+  /** Tooltip title for the finish icon (usually the human-readable finish label). */
+  finishTitle?: string;
   /** Ban records to show as a warning icon with tooltip. */
   bans?: CardBan[];
   /** True when printed rules text differs from the card's current rules text. */
@@ -36,7 +39,8 @@ export function CardMetaLabel({
   type,
   superTypes,
   rarity,
-  foilTitle,
+  finish,
+  finishTitle,
   bans,
   hasRulesDeviation,
   printingComment,
@@ -72,11 +76,7 @@ export function CardMetaLabel({
             height={28}
             className="size-3.5"
           />
-          {foilTitle && (
-            <span title={foilTitle} className="inline-flex">
-              <SparkleIcon className="size-3.5 fill-amber-400 text-amber-400" />
-            </span>
-          )}
+          {finish && <FinishIcon finish={finish} title={finishTitle} />}
           {bans && bans.length > 0 && (
             <Tooltip>
               <TooltipTrigger className="cursor-default">
