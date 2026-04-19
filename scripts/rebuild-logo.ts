@@ -7,10 +7,17 @@
 // `<use>` / transform trickery to preserve.
 //
 // Zones (each becomes a <path class="zone-*">, colorable via CSS):
-//   - zone-frame        — outer rift / heart shape (from traced source)
+//   - zone-frame        — outer rift + echo band + inner silhouette + the
+//                         two ray slivers at the bottom. All traced
+//                         subpaths must stay in one compound path so
+//                         their nonzero-winding interaction carves the
+//                         echo and slivers correctly.
 //   - zone-card-side    — the two fanned side cards (rotated rounded rects)
 //   - zone-card-center  — the center rounded rectangle
-//   - zone-rays         — the bottom decorative rays (from traced source)
+//   - zone-rays         — supplementary overlay covering the bottom ray
+//                         shapes. Empty fill by default so the carved
+//                         slivers show through; set a fill to paint the
+//                         rays in a different color for colored exports.
 //
 // Modes:
 //   bun run scripts/rebuild-logo.ts          — full rebuild from PARAMS
@@ -70,16 +77,20 @@ function symmetrize(shape: paper.PathItem): string {
 function build(): string {
   paper.setup(new paper.Size(VIEW_BOX.width, VIEW_BOX.height));
 
-  // --- Frame: subpaths [0..4] of the traced source (outer rift, echo
-  // band, and inner silhouette — their winding interaction is what
-  // produces the visible echo, so they must stay in the same path) ---
+  // --- Frame: subpaths [0..4] (outer rift, echo band, inner silhouette)
+  // plus the ray subpaths [8..9] whose winding carves the two thin white
+  // slivers visible at the bottom. All must stay in the same compound
+  // path — splitting them out flattens the voids away via paper.js's
+  // boolean unite. ---
   const tracedA = new paper.CompoundPath({ pathData: TRACED_PATH, fillRule: "nonzero" });
   const frame = new paper.CompoundPath({ fillRule: "nonzero" });
-  for (let i = 0; i < 5; i++) {
+  for (const i of [0, 1, 2, 3, 4, 8, 9]) {
     frame.addChild(tracedA.children[i].clone());
   }
 
-  // --- Rays: left decorative ray [8]; right is computed by mirroring ---
+  // --- Rays: supplementary overlay of the left ray subpath [8]; right
+  // is computed by mirroring. Empty fill by default so the frame's
+  // carved slivers show through. ---
   const tracedB = new paper.CompoundPath({ pathData: TRACED_PATH, fillRule: "nonzero" });
   const rayLeft = new paper.CompoundPath({ fillRule: "nonzero" });
   rayLeft.addChild(tracedB.children[8].clone());
@@ -133,7 +144,7 @@ function build(): string {
     `<path class="zone-frame" fill="currentColor" d="${zones.frame}"/>` +
     `<path class="zone-card-side" fill="#fff" d="${zones.cardSide}"/>` +
     `<path class="zone-card-center" fill="#fff" d="${zones.cardCenter}"/>` +
-    `<path class="zone-rays" fill="currentColor" d="${zones.rays}"/>` +
+    `<path class="zone-rays" fill="none" d="${zones.rays}"/>` +
     `</svg>\n`
   );
 }
