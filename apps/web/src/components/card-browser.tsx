@@ -12,6 +12,7 @@ import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
+import { DisposePickerPopover } from "@/components/collection/dispose-picker-popover";
 import { QuickAddPalette } from "@/components/collection/quick-add-palette";
 import { VariantAddPopover } from "@/components/collection/variant-add-popover";
 import { ActiveFilters } from "@/components/filters/active-filters";
@@ -69,11 +70,20 @@ export function CardBrowser() {
   const inboxId = collections?.find((col) => col.isInbox)?.id;
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const isAddMode = isLoggedIn && catalogMode === "add" && Boolean(inboxId);
-  const { handleQuickAdd, handleUndoAdd, handleOpenVariants, closeVariants, adjustedCount } =
-    useQuickAddActions(isAddMode ? inboxId : undefined);
+  const {
+    handleQuickAdd,
+    handleUndoAdd,
+    handleOpenVariants,
+    handleDisposeFromCollection,
+    closeVariants,
+    adjustedCount,
+  } = useQuickAddActions(isAddMode ? inboxId : undefined);
 
   const variantPopover = useAddModeStore((s) => s.variantPopover);
+  const disposePicker = useAddModeStore((s) => s.disposePicker);
+  const closeDisposePicker = useAddModeStore((s) => s.closeDisposePicker);
   const variantPopoverRef = useRef<HTMLDivElement>(null);
+  const disposePickerRef = useRef<HTMLDivElement>(null);
 
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
 
@@ -90,6 +100,19 @@ export function CardBrowser() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [variantPopover, closeVariants]);
+
+  useEffect(() => {
+    if (!disposePicker) {
+      return;
+    }
+    const handleClick = (event: MouseEvent) => {
+      if (disposePickerRef.current && !disposePickerRef.current.contains(event.target as Node)) {
+        closeDisposePicker();
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [disposePicker, closeDisposePicker]);
 
   const {
     filters,
@@ -382,6 +405,20 @@ export function CardBrowser() {
             document.body,
           );
         })()}
+      {disposePicker &&
+        createPortal(
+          <div
+            ref={disposePickerRef}
+            className="fixed z-[100]"
+            style={{ top: disposePicker.pos.top, left: disposePicker.pos.left }}
+          >
+            <DisposePickerPopover
+              printing={disposePicker.printing}
+              onPick={handleDisposeFromCollection}
+            />
+          </div>,
+          document.body,
+        )}
     </BrowserCardViewer>
   );
 }

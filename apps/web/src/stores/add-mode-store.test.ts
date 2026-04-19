@@ -183,6 +183,22 @@ describe("useAddModeStore", () => {
       useAddModeStore.getState().closeVariants();
       expect(useAddModeStore.getState().variantPopover).toBeNull();
     });
+
+    it("openDisposePicker stores printing and position", () => {
+      const printing = stubPrinting({ id: "p1" });
+      useAddModeStore.getState().openDisposePicker(printing, { top: 50, left: 60 });
+
+      const state = useAddModeStore.getState();
+      expect(state.disposePicker?.printing.id).toBe("p1");
+      expect(state.disposePicker?.pos).toEqual({ top: 50, left: 60 });
+    });
+
+    it("closeDisposePicker clears the picker", () => {
+      const printing = stubPrinting({ id: "p1" });
+      useAddModeStore.getState().openDisposePicker(printing, { top: 0, left: 0 });
+      useAddModeStore.getState().closeDisposePicker();
+      expect(useAddModeStore.getState().disposePicker).toBeNull();
+    });
   });
 
   describe("reset", () => {
@@ -191,6 +207,7 @@ describe("useAddModeStore", () => {
       useAddModeStore.getState().recordAdd(printing, "copy-1");
       useAddModeStore.getState().toggleAddedList();
       useAddModeStore.getState().openVariants("card-1", { top: 0, left: 0 });
+      useAddModeStore.getState().openDisposePicker(printing, { top: 0, left: 0 });
 
       useAddModeStore.getState().reset();
 
@@ -198,6 +215,7 @@ describe("useAddModeStore", () => {
       expect(state.addedItems.size).toBe(0);
       expect(state.showAddedList).toBe(false);
       expect(state.variantPopover).toBeNull();
+      expect(state.disposePicker).toBeNull();
     });
   });
 });

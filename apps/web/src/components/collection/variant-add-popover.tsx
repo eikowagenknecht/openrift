@@ -3,13 +3,12 @@ import type { Printing } from "@openrift/shared";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { useAddModeStore } from "@/stores/add-mode-store";
 
 interface VariantAddPopoverProps {
   printings: Printing[];
   ownedCounts?: Record<string, number>;
   onQuickAdd: (printing: Printing) => void;
-  onUndoAdd: (printing: Printing) => void;
+  onUndoAdd: (printing: Printing, anchorEl: HTMLElement) => void;
 }
 
 export function VariantAddPopover({
@@ -18,7 +17,6 @@ export function VariantAddPopover({
   onQuickAdd,
   onUndoAdd,
 }: VariantAddPopoverProps) {
-  const addedItems = useAddModeStore((s) => s.addedItems);
   const hasMixedRarities = new Set(printings.map((p) => p.rarity)).size > 1;
   const { labels } = useEnumOrders();
 
@@ -30,7 +28,6 @@ export function VariantAddPopover({
     >
       {printings.map((printing) => {
         const owned = ownedCounts?.[printing.id] ?? 0;
-        const sessionAdded = addedItems.get(printing.id)?.quantity ?? 0;
 
         return (
           <div key={printing.id} className="flex items-center gap-1 rounded px-1 py-0.5">
@@ -59,21 +56,14 @@ export function VariantAddPopover({
               tabIndex={-1}
               onClick={(e) => {
                 e.stopPropagation();
-                if (sessionAdded) {
-                  onUndoAdd(printing);
-                }
+                onUndoAdd(printing, e.currentTarget);
               }}
-              disabled={!sessionAdded && !owned}
-              title={
-                !sessionAdded && owned ? "These copies were added before this session" : undefined
-              }
+              disabled={owned === 0}
               className={cn(
                 "flex size-5 shrink-0 items-center justify-center rounded transition-colors",
-                sessionAdded
+                owned > 0
                   ? "text-muted-foreground hover:text-foreground hover:bg-muted"
-                  : owned
-                    ? "text-muted-foreground/50 cursor-not-allowed"
-                    : "text-muted-foreground/30",
+                  : "text-muted-foreground/30 cursor-not-allowed",
               )}
             >
               <svg viewBox="0 0 16 16" fill="currentColor" className="size-3">

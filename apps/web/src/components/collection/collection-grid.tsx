@@ -75,6 +75,7 @@ import { useSelectionStore } from "@/stores/selection-store";
 
 import { DeleteCollectionDialog } from "./delete-collection-dialog";
 import { DisposeDialog } from "./dispose-dialog";
+import { DisposePickerPopover } from "./dispose-picker-popover";
 import { DraggableCard } from "./draggable-card";
 import { MoveDialog } from "./move-dialog";
 import { QuickAddPalette } from "./quick-add-palette";
@@ -268,12 +269,21 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const addedItems = useAddModeStore((s) => s.addedItems);
   const showAddedList = useAddModeStore((s) => s.showAddedList);
   const variantPopover = useAddModeStore((s) => s.variantPopover);
-  const { handleQuickAdd, handleUndoAdd, handleOpenVariants, closeVariants, adjustedCount } =
-    useQuickAddActions(addTarget);
+  const disposePicker = useAddModeStore((s) => s.disposePicker);
+  const closeDisposePicker = useAddModeStore((s) => s.closeDisposePicker);
+  const {
+    handleQuickAdd,
+    handleUndoAdd,
+    handleOpenVariants,
+    handleDisposeFromCollection,
+    closeVariants,
+    adjustedCount,
+  } = useQuickAddActions(addTarget, collectionId);
 
   // Fan-card sibling overrides (cards view, add mode)
   const [topPrintingOverrides, setTopPrintingOverrides] = useState<Map<string, string>>(new Map());
   const variantPopoverRef = useRef<HTMLDivElement>(null);
+  const disposePickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!variantPopover) {
@@ -287,6 +297,19 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [variantPopover, closeVariants]);
+
+  useEffect(() => {
+    if (!disposePicker) {
+      return;
+    }
+    const handleClick = (event: MouseEvent) => {
+      if (disposePickerRef.current && !disposePickerRef.current.contains(event.target as Node)) {
+        closeDisposePicker();
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [disposePicker, closeDisposePicker]);
 
   const startBrowsing = () => {
     if (selectMode) {
@@ -967,6 +990,22 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               )}
               onQuickAdd={handleQuickAdd}
               onUndoAdd={handleUndoAdd}
+            />
+          </div>,
+          document.body,
+        )}
+
+      {/* Dispose picker popover (All Cards view, multi-collection minus) */}
+      {disposePicker &&
+        createPortal(
+          <div
+            ref={disposePickerRef}
+            className="fixed z-[100]"
+            style={{ top: disposePicker.pos.top, left: disposePicker.pos.left }}
+          >
+            <DisposePickerPopover
+              printing={disposePicker.printing}
+              onPick={handleDisposeFromCollection}
             />
           </div>,
           document.body,

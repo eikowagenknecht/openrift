@@ -2,6 +2,7 @@
 
 ## 2026-04-19
 
+- feat: In add mode, the minus button now works on cards you already owned before opening add mode, not only on ones you added this session — when you own copies in just one collection it removes the newest; when copies are spread across multiple collections (All Cards view) a small picker lets you choose which collection to take from
 - feat: The printing info table on a card's detail page is trimmed to just the core attributes, with language moved up next to set and code, and the promo markers, distribution channels, and editor's note now shown in a combined box at the bottom (matching the side detail pane)
 - feat: Metal and metal-deluxe printings now show their own icons (anvil for metal, trophy for metal-deluxe) across card grids, the card detail page, and printing menus, instead of being visually indistinguishable from normal printings
 - feat: The admin distribution channels table now shows how many printings are linked to each channel, and deleting a channel that's in use shows a clear confirmation explaining how many printings will be unlinked
