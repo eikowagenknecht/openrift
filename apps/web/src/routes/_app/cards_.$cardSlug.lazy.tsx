@@ -164,7 +164,8 @@ function CardDetailPage() {
                     "Art variant",
                     <span key="art" className="inline-flex items-center gap-1">
                       <PaletteIcon className="size-3.5" />
-                      {selectedPrinting.artVariant}
+                      {labels.artVariants[selectedPrinting.artVariant] ??
+                        selectedPrinting.artVariant}
                     </span>,
                   ]);
                 }
@@ -397,7 +398,7 @@ function CardDetailPage() {
           </table>
 
           {/* Full-width rows: text, errata, bans */}
-          <table className="mt-3 w-full text-sm">
+          <table className="mt-3 w-full table-fixed text-sm">
             <tbody>
               {selectedPrinting.printedRulesText && (
                 <InfoRow label="Rules">
@@ -537,7 +538,7 @@ function ErrataRow({ errata, printing }: { errata: CardErrata; printing: Printin
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <tr>
-      <td className="text-muted-foreground w-20 py-1 pr-2 align-top text-xs font-medium whitespace-nowrap">
+      <td className="text-muted-foreground w-24 py-1 pr-2 align-top text-xs font-medium whitespace-nowrap">
         {label}
       </td>
       <td className="py-1 align-top">{children}</td>
@@ -571,7 +572,7 @@ function PrintingCard({
     badges.push(
       <span key="art" className="text-muted-foreground inline-flex items-center gap-0.5 text-xs">
         <PaletteIcon className="size-3" />
-        {printing.artVariant}
+        {labels.artVariants[printing.artVariant] ?? printing.artVariant}
       </span>,
     );
   }
