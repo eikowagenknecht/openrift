@@ -43,6 +43,7 @@ function makePrinting(
     printedEffectText: null,
     flavorText: null,
     printedName: null,
+    comment: null,
     language: "EN",
     card: {
       slug: cardSlug,
@@ -1036,13 +1037,17 @@ describe("filterCards", () => {
     const cards = [
       makePrinting({
         markers: [{ id: "m", slug: "promo", label: "Promo", description: null }],
-        distributionChannels: [{ channel: channelNexus, distributionNote: null }],
+        distributionChannels: [
+          { channel: channelNexus, distributionNote: null, ancestorLabels: [] },
+        ],
         cardId: "p1",
         card: { name: "Nexus Card" },
       }),
       makePrinting({
         markers: [{ id: "m", slug: "promo", label: "Promo", description: null }],
-        distributionChannels: [{ channel: channelLaunch, distributionNote: null }],
+        distributionChannels: [
+          { channel: channelLaunch, distributionNote: null, ancestorLabels: [] },
+        ],
         cardId: "p2",
         card: { name: "Launch Card" },
       }),

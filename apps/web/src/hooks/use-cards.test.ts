@@ -72,6 +72,7 @@ function stubPrintingValue(
     printedEffectText: null,
     flavorText: null,
     printedName: null,
+    comment: null,
     language: "EN",
     cardId: CARD_A_ID,
     ...overrides,

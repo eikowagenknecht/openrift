@@ -46,13 +46,11 @@ type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId
  * separately by the route layer using the catalog's `markersList()` and
  * the distribution-channels repo.
  */
-type CatalogPrintingRow = Omit<
-  Selectable<PrintingsTable>,
-  "comment" | "createdAt" | "updatedAt"
-> & {
+type CatalogPrintingRow = Omit<Selectable<PrintingsTable>, "createdAt" | "updatedAt"> & {
   printedName: string | null;
   language: string;
   markerSlugs: string[];
+  comment: string | null;
 };
 
 const PRINTING_COLUMNS = [
@@ -72,6 +70,7 @@ const PRINTING_COLUMNS = [
   "printings.printedName",
   "printings.language",
   "printings.markerSlugs",
+  "printings.comment",
 ] as const;
 
 /**

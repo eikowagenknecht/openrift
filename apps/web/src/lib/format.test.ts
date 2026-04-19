@@ -34,6 +34,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
     printedEffectText: null,
     flavorText: null,
     printedName: null,
+    comment: null,
     language: "EN",
     card: {
       slug: "OGS-001",

@@ -22,12 +22,32 @@ export async function loadMarkerAndChannelMaps(
   repos: Repos,
   printingIds: readonly string[],
 ): Promise<MarkerChannelMaps> {
-  const [markerRows, channelRows] = await Promise.all([
+  const [markerRows, channelRows, allChannels] = await Promise.all([
     repos.catalog.markersList(),
     repos.distributionChannels.listForPrintingIds(printingIds),
+    repos.distributionChannels.listAll(),
   ]);
 
   const markerBySlug = new Map<string, Marker>(markerRows.map((m) => [m.slug, m]));
+
+  // Resolve each channel's ancestor label chain (root → direct parent). The
+  // full channel list is small, so an in-memory walk beats a recursive query.
+  const channelById = new Map(allChannels.map((c) => [c.id, c]));
+  function ancestorLabelsFor(startId: string | null): string[] {
+    const labels: string[] = [];
+    let cursor = startId;
+    let depth = 0;
+    while (cursor !== null && depth < 32) {
+      const parent = channelById.get(cursor);
+      if (!parent) {
+        break;
+      }
+      labels.unshift(parent.label);
+      cursor = parent.parentId;
+      depth += 1;
+    }
+    return labels;
+  }
 
   const channelsByPrinting = new Map<string, PrintingDistributionChannel[]>();
   for (const row of channelRows) {
@@ -42,6 +62,7 @@ export async function loadMarkerAndChannelMaps(
         childrenLabel: row.channelChildrenLabel,
       },
       distributionNote: row.distributionNote,
+      ancestorLabels: ancestorLabelsFor(row.channelParentId),
     };
     const list = channelsByPrinting.get(row.printingId);
     if (list) {

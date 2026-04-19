@@ -20,6 +20,7 @@ const mockCatalogRepo = {
 
 const mockDistributionChannelsRepo = {
   listForPrintingIds: vi.fn(() => Promise.resolve([])),
+  listAll: vi.fn(() => Promise.resolve([])),
 };
 
 // oxlint-disable-next-line -- test mock doesn't match full Repos type

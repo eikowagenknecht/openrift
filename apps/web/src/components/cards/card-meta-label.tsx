@@ -1,5 +1,5 @@
 import type { CardBan, CardType, Rarity } from "@openrift/shared";
-import { SparkleIcon, TriangleAlertIcon } from "lucide-react";
+import { InfoIcon, SparkleIcon, TriangleAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -17,6 +17,8 @@ interface CardMetaLabelProps {
   bans?: CardBan[];
   /** True when printed rules text differs from the card's current rules text. */
   hasRulesDeviation?: boolean;
+  /** Editor note about this specific printing. Rendered as an info icon with tooltip. */
+  printingComment?: string | null;
   className?: string;
   /** Optional price element rendered right-aligned on the name line. */
   price?: ReactNode;
@@ -36,6 +38,7 @@ export function CardMetaLabel({
   isFoil,
   bans,
   hasRulesDeviation,
+  printingComment,
   className,
   price,
 }: CardMetaLabelProps) {
@@ -96,6 +99,14 @@ export function CardMetaLabel({
                 <TriangleAlertIcon className="size-3.5 text-yellow-500" />
               </TooltipTrigger>
               <TooltipContent>Printed text differs from current rules</TooltipContent>
+            </Tooltip>
+          )}
+          {printingComment && (
+            <Tooltip>
+              <TooltipTrigger className="cursor-default" aria-label="Printing note">
+                <InfoIcon className="size-3.5" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">{printingComment}</TooltipContent>
             </Tooltip>
           )}
         </span>

@@ -100,6 +100,7 @@ function buildFixture() {
       printedEffectText: null,
       flavorText: null,
       printedName: null,
+      comment: null,
       language: pick(LANGUAGES, r),
       card,
     };

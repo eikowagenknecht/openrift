@@ -39,6 +39,7 @@ function makePrinting(rulesText: string | null): CatalogPrintingResponse {
     printedEffectText: null,
     flavorText: null,
     printedName: null,
+    comment: null,
     language: "EN",
   };
 }

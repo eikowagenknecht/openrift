@@ -35,6 +35,8 @@ export interface DistributionChannelWithCount extends DistributionChannel {
 export interface PrintingDistributionChannel {
   channel: DistributionChannel;
   distributionNote: string | null;
+  /** Ordered labels of the channel's ancestors (root → direct parent), excluding the channel itself. */
+  ancestorLabels: string[];
 }
 
 export interface CardBan {
@@ -99,5 +101,7 @@ export interface Printing {
   flavorText: string | null;
   printedName: string | null;
   language: string;
+  /** Editor note about this specific printing. Surfaced as a small icon + tooltip. */
+  comment: string | null;
   card: Card;
 }

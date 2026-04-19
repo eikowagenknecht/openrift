@@ -21,6 +21,7 @@ import { CardFooter } from "./card-footer";
 import { CardImage } from "./card-image";
 import { ErrataNotice } from "./errata-notice";
 import { OwnedCollectionsPopover } from "./owned-collections-popover";
+import { PrintingNotesSection } from "./printing-notes-section";
 import { PrintingPicker } from "./printing-picker";
 import { StatChip } from "./stat-chip";
 
@@ -283,6 +284,9 @@ export function CardDetail({
             <p className="text-muted-foreground/70 px-1 text-sm italic">{printing.flavorText}</p>
           )}
         </div>
+
+        {/* Distribution & printing notes (markers, channels, per-printing comment) */}
+        <PrintingNotesSection printing={printing} />
 
         {/* Footer */}
         <CardFooter printing={printing} />

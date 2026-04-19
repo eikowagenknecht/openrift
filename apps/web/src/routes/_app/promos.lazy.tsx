@@ -3,10 +3,11 @@ import { comparePrintings } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, LayoutGridIcon, ListIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { MarkdownText } from "@/components/markdown-text";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { useLanguageList } from "@/hooks/use-enums";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
-import { PAGE_PADDING } from "@/lib/utils";
+import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 export const Route = createLazyFileRoute("/_app/promos")({
@@ -35,13 +36,18 @@ interface ChannelNode {
   children: ChannelNode[];
   /** Direct printings on this channel (only leaves carry these). */
   printings: Printing[];
+  /** Printings across this node + all descendants, scoped to the current language. */
+  localPrintingCount: number;
 }
 
 const COMPACT_LEAF_THRESHOLD = 4;
 
 /**
  * Build a tree of event channels with each leaf's printings attached. Sibling
- * order is sortOrder, then label.
+ * order is sortOrder, then label. Each node also carries the count of printings
+ * in the current language across its subtree, so callers can skip empty
+ * branches (e.g. channels present globally but with no printings in this
+ * language).
  *
  * @returns Root nodes of the channel tree.
  */
@@ -63,11 +69,13 @@ function buildPromoTree(
     if (!siblings) {
       return [];
     }
-    return siblings.map((channel) => ({
-      channel,
-      children: build(channel.id),
-      printings: printingsByChannelId.get(channel.id) ?? [],
-    }));
+    return siblings.map((channel) => {
+      const children = build(channel.id);
+      const printings = printingsByChannelId.get(channel.id) ?? [];
+      const localPrintingCount =
+        printings.length + children.reduce((sum, c) => sum + c.localPrintingCount, 0);
+      return { channel, children, printings, localPrintingCount };
+    });
   }
   return build(null);
 }
@@ -88,12 +96,46 @@ function isCompactBranch(node: ChannelNode): boolean {
   );
 }
 
-function formatCounts(counts: { cardCount: number; printingCount: number }): string {
-  const noun = counts.printingCount === 1 ? "printing" : "printings";
-  if (counts.cardCount === counts.printingCount) {
-    return `${counts.printingCount} ${noun}`;
+function formatLocalCount(printingCount: number): string {
+  return `${printingCount} ${printingCount === 1 ? "printing" : "printings"}`;
+}
+
+interface NavEntry {
+  sectionId: string;
+  label: string;
+  depth: number;
+}
+
+/**
+ * Walk the channel tree and collect every section that will render its own
+ * heading, skipping subtrees that a compact parent is about to merge into one
+ * grid/table. Nav depth mirrors page depth so the sidebar can indent.
+ *
+ * @returns Flat list of nav entries in render order.
+ */
+function collectChannelNavEntries(
+  nodes: ChannelNode[],
+  languageSectionId: string,
+  depth: number,
+  entries: NavEntry[],
+): void {
+  for (const node of nodes) {
+    if (node.localPrintingCount === 0) {
+      continue;
+    }
+    entries.push({
+      sectionId: `${languageSectionId}-ch-${node.channel.id}`,
+      label: node.channel.label,
+      depth,
+    });
+    if (node.children.length === 0) {
+      continue;
+    }
+    if (isCompactBranch(node)) {
+      continue;
+    }
+    collectChannelNavEntries(node.children, languageSectionId, depth + 1, entries);
   }
-  return `${counts.printingCount} ${noun} · ${counts.cardCount} cards`;
 }
 
 function PromosPage() {
@@ -137,6 +179,70 @@ function PromosPage() {
     return out;
   }, [data.channels, data.printings]);
 
+  const navEntries = useMemo(() => {
+    const entries: NavEntry[] = [];
+    for (const language of presentLanguages) {
+      const tree = treesByLanguage.get(language);
+      if (!tree || tree.length === 0) {
+        continue;
+      }
+      const languageSectionId = `lang-${language}`;
+      entries.push({
+        sectionId: languageSectionId,
+        label: languageLabelMap.get(language) ?? language,
+        depth: 0,
+      });
+      collectChannelNavEntries(tree, languageSectionId, 1, entries);
+    }
+    return entries;
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- presentLanguages and languageLabelMap are rebuilt every render by value; treesByLanguage is the load-bearing input.
+  }, [treesByLanguage]);
+
+  const [activeSectionId, setActiveSectionId] = useState<string | null>(
+    navEntries[0]?.sectionId ?? null,
+  );
+  const sectionRefs = useRef<Map<string, HTMLElement>>(new Map());
+
+  function setSectionRef(id: string, element: HTMLElement | null) {
+    if (element) {
+      sectionRefs.current.set(id, element);
+    } else {
+      sectionRefs.current.delete(id);
+    }
+  }
+
+  useEffect(() => {
+    const elements = [...sectionRefs.current.values()];
+    if (elements.length === 0) {
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (visible.length > 0) {
+          const id = (visible[0].target as HTMLElement).dataset.section;
+          if (id) {
+            setActiveSectionId(id);
+          }
+        }
+      },
+      { rootMargin: "-80px 0px -60% 0px", threshold: 0 },
+    );
+    for (const element of elements) {
+      observer.observe(element);
+    }
+    return () => observer.disconnect();
+  }, [navEntries]);
+
+  function scrollToSection(sectionId: string) {
+    const element = sectionRefs.current.get(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
   const handleCardClick = (printing: Printing) => {
     void navigate({
       to: "/cards/$cardSlug",
@@ -148,64 +254,102 @@ function PromosPage() {
   return (
     <div className={PAGE_PADDING}>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Promo Cards</h1>
-        <p className="text-muted-foreground max-w-prose text-sm">
-          Printings with a known distribution channel: tournament events (Worlds, prereleases,
-          regional championships) and retail products (starter decks, bundles, promo packs).
-          Sections are grouped by language, then by channel hierarchy.
+        <h1 className="text-2xl font-bold">Promos</h1>
+        <p className="text-muted-foreground text-sm">
+          Promos are all the cards you can&apos;t get by just opening booster packs. Two things vary
+          across them: <strong className="font-semibold">how they look</strong>, shown as markers
+          below each card (like &ldquo;Promo&rdquo; or &ldquo;Champion&rdquo;), and{" "}
+          <strong className="font-semibold">where you can get them</strong>, which is how the
+          sections below are organized (tournament prizes, event exclusives, bundles, or promo
+          packs).
         </p>
       </div>
 
-      <div className="mb-6 flex items-center justify-end gap-1">
-        <Button
-          variant={viewMode === "grid" ? "default" : "outline"}
-          size="icon-sm"
-          onClick={() => setViewMode("grid")}
-          aria-label="Grid view"
-          aria-pressed={viewMode === "grid"}
-        >
-          <LayoutGridIcon className="size-4" />
-        </Button>
-        <Button
-          variant={viewMode === "list" ? "default" : "outline"}
-          size="icon-sm"
-          onClick={() => setViewMode("list")}
-          aria-label="List view"
-          aria-pressed={viewMode === "list"}
-        >
-          <ListIcon className="size-4" />
-        </Button>
-      </div>
+      <div className="flex gap-8">
+        {/* Sidebar nav — hidden on mobile */}
+        <nav className="hidden shrink-0 md:block md:w-52">
+          <div className="sticky top-16 space-y-0.5">
+            {navEntries.map((entry) => (
+              <button
+                key={entry.sectionId}
+                type="button"
+                onClick={() => scrollToSection(entry.sectionId)}
+                style={{ paddingLeft: `${0.75 + entry.depth * 0.75}rem` }}
+                className={cn(
+                  "block w-full rounded-md py-1.5 pr-3 text-left text-sm transition-colors",
+                  activeSectionId === entry.sectionId
+                    ? "bg-muted text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+                )}
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
+        </nav>
 
-      {presentLanguages.length === 0 && (
-        <p className="text-muted-foreground text-sm">No promos yet.</p>
-      )}
+        <div className="min-w-0 flex-1">
+          <div className="mb-6 flex items-center justify-end gap-1">
+            <Button
+              variant={viewMode === "grid" ? "default" : "outline"}
+              size="icon-sm"
+              onClick={() => setViewMode("grid")}
+              aria-label="Grid view"
+              aria-pressed={viewMode === "grid"}
+            >
+              <LayoutGridIcon className="size-4" />
+            </Button>
+            <Button
+              variant={viewMode === "list" ? "default" : "outline"}
+              size="icon-sm"
+              onClick={() => setViewMode("list")}
+              aria-label="List view"
+              aria-pressed={viewMode === "list"}
+            >
+              <ListIcon className="size-4" />
+            </Button>
+          </div>
 
-      <div className="space-y-12">
-        {presentLanguages.map((language) => {
-          const tree = treesByLanguage.get(language);
-          if (!tree || tree.length === 0) {
-            return null;
-          }
-          const languageLabel = languageLabelMap.get(language) ?? language;
-          return (
-            <section key={language}>
-              <h2 className="mb-4 border-b pb-2 text-2xl font-bold">{languageLabel}</h2>
-              <div className="space-y-8">
-                {tree.map((root) => (
-                  <ChannelBranch
-                    key={root.channel.id}
-                    node={root}
-                    depth={0}
-                    viewMode={viewMode}
-                    showImages={showImages}
-                    onCardClick={handleCardClick}
-                  />
-                ))}
-              </div>
-            </section>
-          );
-        })}
+          {presentLanguages.length === 0 && (
+            <p className="text-muted-foreground text-sm">No promos yet.</p>
+          )}
+
+          <div className="space-y-12">
+            {presentLanguages.map((language) => {
+              const tree = treesByLanguage.get(language);
+              if (!tree || tree.length === 0) {
+                return null;
+              }
+              const languageLabel = languageLabelMap.get(language) ?? language;
+              const languageSectionId = `lang-${language}`;
+              return (
+                <section
+                  key={language}
+                  ref={(el) => setSectionRef(languageSectionId, el)}
+                  data-section={languageSectionId}
+                  className="scroll-mt-16"
+                >
+                  <h2 className="mb-4 border-b pb-2 text-2xl font-bold">{languageLabel}</h2>
+                  <div className="space-y-8">
+                    {tree.map((root) => (
+                      <ChannelBranch
+                        key={root.channel.id}
+                        node={root}
+                        depth={0}
+                        ancestors={[]}
+                        languagePrefix={languageSectionId}
+                        registerSection={setSectionRef}
+                        viewMode={viewMode}
+                        showImages={showImages}
+                        onCardClick={handleCardClick}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -214,27 +358,43 @@ function PromosPage() {
 interface BranchProps {
   node: ChannelNode;
   depth: number;
+  ancestors: string[];
+  languagePrefix: string;
+  registerSection: (id: string, el: HTMLElement | null) => void;
   viewMode: ViewMode;
   showImages: boolean;
   onCardClick: (printing: Printing) => void;
 }
 
-function ChannelBranch({ node, depth, viewMode, showImages, onCardClick }: BranchProps) {
+function ChannelBranch({
+  node,
+  depth,
+  ancestors,
+  languagePrefix,
+  registerSection,
+  viewMode,
+  showImages,
+  onCardClick,
+}: BranchProps) {
   const [open, setOpen] = useState(true);
-  if (node.channel.printingCount === 0) {
+  if (node.localPrintingCount === 0) {
     return null;
   }
   const isLeaf = node.children.length === 0;
-  // Compact mode collapses every direct child into one table — only meaningful
-  // in the grid view; the list view keeps its existing flat-table-per-leaf
-  // layout for rows that look the same regardless of grouping.
-  const compact = !isLeaf && viewMode === "grid" && isCompactBranch(node);
+  // Compact mode collapses sparse child leaves onto a single row: a shared
+  // table in list view, side-by-side mini-grids in grid view. Applies whenever
+  // every direct child is a leaf with few enough printings.
+  const compact = !isLeaf && isCompactBranch(node);
+  const sectionId = `${languagePrefix}-ch-${node.channel.id}`;
 
   if (isLeaf) {
     return (
       <ChannelLeafSection
         node={node}
         depth={depth}
+        ancestors={ancestors}
+        languagePrefix={languagePrefix}
+        registerSection={registerSection}
         viewMode={viewMode}
         showImages={showImages}
         onCardClick={onCardClick}
@@ -242,34 +402,52 @@ function ChannelBranch({ node, depth, viewMode, showImages, onCardClick }: Branc
     );
   }
 
+  const childAncestors = [...ancestors, node.channel.label];
+
   return (
-    <section>
+    <section
+      ref={(el) => registerSection(sectionId, el)}
+      data-section={sectionId}
+      className="scroll-mt-16"
+    >
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="hover:bg-muted/50 -mx-2 mb-2 flex w-full items-start gap-2 rounded px-2 py-1 text-left"
+        className="hover:bg-muted/50 relative -mr-2 mb-2 -ml-6 block w-full rounded py-1 pr-2 pl-6 text-left"
         aria-expanded={open}
       >
         {open ? (
-          <ChevronDownIcon className="text-muted-foreground mt-1 size-4 shrink-0" />
+          <ChevronDownIcon
+            aria-hidden
+            className="text-muted-foreground absolute top-2 left-1 size-4"
+          />
         ) : (
-          <ChevronRightIcon className="text-muted-foreground mt-1 size-4 shrink-0" />
+          <ChevronRightIcon
+            aria-hidden
+            className="text-muted-foreground absolute top-2 left-1 size-4"
+          />
         )}
-        <div className="min-w-0 flex-1">
-          <BranchHeading depth={depth}>{node.channel.label}</BranchHeading>
+        <div className="min-w-0">
+          <BranchHeading depth={depth} ancestors={ancestors}>
+            {node.channel.label}
+            <span className="text-muted-foreground ml-2 text-sm font-normal">
+              ({formatLocalCount(node.localPrintingCount)})
+            </span>
+          </BranchHeading>
           {node.channel.description && (
             <MarkdownText
               text={node.channel.description}
-              className="text-muted-foreground max-w-prose text-sm"
+              className="text-muted-foreground text-sm"
             />
           )}
-          <p className="text-muted-foreground">{formatCounts(node.channel)}</p>
         </div>
       </button>
       {open && (
-        <div className={depth >= 0 ? "pl-6" : undefined}>
-          {compact ? (
+        <div>
+          {compact && viewMode === "list" ? (
             <CompactBranchTable node={node} onCardClick={onCardClick} />
+          ) : compact && viewMode === "grid" ? (
+            <CompactBranchGrid node={node} showImages={showImages} onCardClick={onCardClick} />
           ) : (
             <div className="space-y-6">
               {node.children.map((child) => (
@@ -277,6 +455,9 @@ function ChannelBranch({ node, depth, viewMode, showImages, onCardClick }: Branc
                   key={child.channel.id}
                   node={child}
                   depth={depth + 1}
+                  ancestors={childAncestors}
+                  languagePrefix={languagePrefix}
+                  registerSection={registerSection}
                   viewMode={viewMode}
                   showImages={showImages}
                   onCardClick={onCardClick}
@@ -290,31 +471,63 @@ function ChannelBranch({ node, depth, viewMode, showImages, onCardClick }: Branc
   );
 }
 
-function BranchHeading({ depth, children }: { depth: number; children: React.ReactNode }) {
+const BREADCRUMB_SEP = " \u203A ";
+
+function BranchHeading({
+  depth,
+  ancestors,
+  children,
+}: {
+  depth: number;
+  ancestors: string[];
+  children: React.ReactNode;
+}) {
   const Tag = depth === 0 ? "h3" : depth === 1 ? "h4" : "h5";
   const sizeClass = depth === 0 ? "text-lg font-semibold" : "text-base font-semibold";
-  return <Tag className={sizeClass}>{children}</Tag>;
+  return (
+    <Tag className={sizeClass}>
+      {ancestors.length > 0 && (
+        <span className="text-muted-foreground font-normal">
+          {ancestors.join(BREADCRUMB_SEP)}
+          {BREADCRUMB_SEP}
+        </span>
+      )}
+      {children}
+    </Tag>
+  );
 }
 
-function ChannelLeafSection({ node, depth, viewMode, showImages, onCardClick }: BranchProps) {
+function ChannelLeafSection({
+  node,
+  depth,
+  ancestors,
+  languagePrefix,
+  registerSection,
+  viewMode,
+  showImages,
+  onCardClick,
+}: BranchProps) {
   const sortedPrintings = node.printings.toSorted(comparePrintingsForDisplay);
   if (sortedPrintings.length === 0) {
     return null;
   }
+  const sectionId = `${languagePrefix}-ch-${node.channel.id}`;
   return (
-    <section>
+    <section
+      ref={(el) => registerSection(sectionId, el)}
+      data-section={sectionId}
+      className="scroll-mt-16"
+    >
       <div className="mb-3">
-        <BranchHeading depth={depth}>{node.channel.label}</BranchHeading>
+        <BranchHeading depth={depth} ancestors={ancestors}>
+          {node.channel.label}
+          <span className="text-muted-foreground ml-2 text-sm font-normal">
+            ({formatLocalCount(sortedPrintings.length)})
+          </span>
+        </BranchHeading>
         {node.channel.description && (
-          <MarkdownText
-            text={node.channel.description}
-            className="text-muted-foreground max-w-prose text-sm"
-          />
+          <MarkdownText text={node.channel.description} className="text-muted-foreground text-sm" />
         )}
-        <p className="text-muted-foreground">
-          {sortedPrintings.length}
-          {sortedPrintings.length === 1 ? " printing" : " printings"}
-        </p>
       </div>
       {viewMode === "grid" ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
@@ -324,6 +537,7 @@ function ChannelLeafSection({ node, depth, viewMode, showImages, onCardClick }: 
               printing={printing}
               onClick={onCardClick}
               showImages={showImages}
+              belowLabel={<MarkerChips printing={printing} />}
             />
           ))}
         </div>
@@ -331,6 +545,57 @@ function ChannelLeafSection({ node, depth, viewMode, showImages, onCardClick }: 
         <PromoListView printings={sortedPrintings} onRowClick={onCardClick} />
       )}
     </section>
+  );
+}
+
+function CompactBranchGrid({
+  node,
+  showImages,
+  onCardClick,
+}: {
+  node: ChannelNode;
+  showImages: boolean;
+  onCardClick: (printing: Printing) => void;
+}) {
+  // Flatten every leaf's printings into one grid that uses the normal card
+  // sizing, so compact mode is just rows-vs-cols: each card carries a small
+  // label telling you which sibling channel it came from.
+  const entries = node.children.flatMap((child) =>
+    child.printings
+      .toSorted(comparePrintingsForDisplay)
+      .map((printing) => ({ printing, leafLabel: child.channel.label })),
+  );
+  const legend = node.children.filter(
+    (child) => child.channel.description && child.printings.length > 0,
+  );
+  return (
+    <>
+      {legend.length > 0 && (
+        <dl className="mb-3 space-y-0.5 text-sm">
+          {legend.map((child) => (
+            <div key={child.channel.id} className="flex flex-wrap gap-x-2">
+              <dt className="font-semibold">{child.channel.label}</dt>
+              <dd className="text-muted-foreground min-w-0">
+                <MarkdownText text={child.channel.description ?? ""} />
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+        {entries.map(({ printing, leafLabel }) => (
+          <div key={`${leafLabel}-${printing.id}`}>
+            <div className="mb-1 px-1.5 font-semibold">{leafLabel}</div>
+            <CardThumbnail
+              printing={printing}
+              onClick={onCardClick}
+              showImages={showImages}
+              belowLabel={<MarkerChips printing={printing} />}
+            />
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -510,6 +775,21 @@ function PromoListView({
         })}
       </div>
     </>
+  );
+}
+
+function MarkerChips({ printing }: { printing: Printing }) {
+  if (printing.markers.length === 0) {
+    return null;
+  }
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1">
+      {printing.markers.map((marker) => (
+        <Badge key={marker.id} variant="secondary" title={marker.description ?? undefined}>
+          {marker.label}
+        </Badge>
+      ))}
+    </div>
   );
 }
 

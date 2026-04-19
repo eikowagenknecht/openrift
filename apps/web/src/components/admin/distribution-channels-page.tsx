@@ -171,6 +171,14 @@ export function DistributionChannelsPage() {
     {
       header: "Slug",
       cell: (c) => <span className="font-mono">{c.slug}</span>,
+      editCell: (d, set) => (
+        <Input
+          value={d.slug}
+          onChange={(e) => set((prev) => ({ ...prev, slug: e.target.value.toLowerCase() }))}
+          placeholder="nexus-night-2025"
+          className="h-8 w-56 font-mono"
+        />
+      ),
       addCell: (d, set) => (
         <Input
           value={d.slug}
@@ -349,12 +357,24 @@ export function DistributionChannelsPage() {
         onSave: (d) =>
           updateMutation.mutateAsync({
             id: d.id,
+            slug: d.slug.trim() || undefined,
             label: d.label.trim() || undefined,
             description: d.description.trim() || null,
             kind: d.kind,
             parentId: d.parentId,
             childrenLabel: d.childrenLabel.trim() || null,
           }),
+        validate: (d) => {
+          const slug = d.slug.trim();
+          const label = d.label.trim();
+          if (!slug || !label) {
+            return "Slug and label are required";
+          }
+          if (!KEBAB_RE.test(slug)) {
+            return "Slug must be kebab-case (e.g. nexus-night-2025)";
+          }
+          return null;
+        },
       }}
       reorder={{
         onMove: moveChannel,
