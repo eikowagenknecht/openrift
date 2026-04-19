@@ -2,7 +2,7 @@ import type { Printing } from "@openrift/shared";
 import { WellKnown, getOrientation } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { useDrag } from "@use-gesture/react";
-import { ArrowLeftIcon, ExternalLinkIcon, ShieldIcon, XIcon } from "lucide-react";
+import { ExternalLinkIcon, ShieldIcon, XIcon } from "lucide-react";
 import { useRef } from "react";
 
 import { CardText } from "@/components/cards/card-text";
@@ -111,50 +111,58 @@ export function CardDetail({
       {/* Mobile header */}
       {onClose && (
         <div className="border-border/30 sticky top-0 z-10 border-b p-4 backdrop-blur md:hidden">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onClose}
-              aria-label="Close card details"
-            >
-              <ArrowLeftIcon className="size-4" />
-            </Button>
-            <CardDetailHeading
-              printing={printing}
-              setNumber={setNumber}
-              onTagClick={onTagClick}
-              truncate
-            />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onClose}
+            aria-label="Close card details"
+            className="absolute top-4 right-4"
+          >
+            <XIcon className="size-4" />
+          </Button>
+          <CardDetailHeading
+            printing={printing}
+            setNumber={setNumber}
+            onTagClick={onTagClick}
+            truncate
+            titleClassName="pr-8"
+            subtitleTrailing={
+              <OwnedCollectionsPopover
+                printingId={printing.id}
+                cardName={card.name}
+                shortCode={printing.shortCode}
+              />
+            }
+          />
+        </div>
+      )}
+
+      {/* Desktop header */}
+      <div className="relative hidden md:block md:pt-4 md:pb-4">
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onClose}
+            aria-label="Close card details"
+            className="absolute top-4 right-0"
+          >
+            <XIcon className="size-4" />
+          </Button>
+        )}
+        <CardDetailHeading
+          printing={printing}
+          setNumber={setNumber}
+          onTagClick={onTagClick}
+          titleClassName={onClose ? "pr-8" : undefined}
+          subtitleTrailing={
             <OwnedCollectionsPopover
               printingId={printing.id}
               cardName={card.name}
               shortCode={printing.shortCode}
             />
-          </div>
-        </div>
-      )}
-
-      {/* Desktop header */}
-      <div className="hidden md:flex md:items-start md:justify-between md:gap-2 md:pt-4 md:pb-4">
-        <CardDetailHeading printing={printing} setNumber={setNumber} onTagClick={onTagClick} />
-        <div className="flex shrink-0 items-center gap-1">
-          <OwnedCollectionsPopover
-            printingId={printing.id}
-            cardName={card.name}
-            shortCode={printing.shortCode}
-          />
-          {onClose && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onClose}
-              aria-label="Close card details"
-            >
-              <XIcon className="size-4" />
-            </Button>
-          )}
-        </div>
+          }
+        />
       </div>
 
       <div className="space-y-4 p-4 md:p-0 md:pb-4">

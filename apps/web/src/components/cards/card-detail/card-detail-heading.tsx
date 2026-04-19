@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import type { ReactNode } from "react";
 
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -8,17 +9,21 @@ export function CardDetailHeading({
   setNumber,
   onTagClick,
   truncate,
+  titleClassName,
+  subtitleTrailing,
 }: {
   printing: Printing;
   setNumber: string;
   onTagClick?: (tag: string) => void;
   truncate?: boolean;
+  titleClassName?: string;
+  subtitleTrailing?: ReactNode;
 }) {
   const { card } = printing;
   const typeIconPath = getTypeIconPath(card.type, card.superTypes);
   return (
     <div className={cn(truncate && "min-w-0")}>
-      <h2 className={cn("text-lg font-semibold", truncate && "truncate")}>
+      <h2 className={cn("text-lg font-semibold", truncate && "truncate", titleClassName)}>
         {printing.printedName && printing.printedName !== card.name ? (
           <>
             {printing.printedName}
@@ -49,6 +54,7 @@ export function CardDetailHeading({
             </span>
           </button>
         ))}
+        {subtitleTrailing}
       </div>
     </div>
   );
