@@ -70,7 +70,7 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
             <div className="text-muted-foreground px-1.5 pt-1 pb-1.5 text-[10px] font-medium tracking-wide uppercase">
               Change printing
               {card.quantity > 1 && (
-                <span className="text-muted-foreground/70 ml-1 normal-case">
+                <span className="text-muted-foreground/70 ml-1 hidden normal-case md:inline">
                   · shift-click to split 1
                 </span>
               )}

@@ -23,6 +23,7 @@
 - feat: Selecting a printing on a card detail page now updates the URL, and sharing that link unfurls with the matching art and text on Discord, Slack, and social sites
 - feat: The foil shimmer effect on card images is now off by default, and turning it on gives you a smooth, fluid shimmer instead of the stepped version — toggle it in your profile's Display settings
 - feat: The page top bar (back button, title, actions) now stays pinned under the global header as you scroll, so the zone count, export button, and other page-level controls are always within reach
+- fix: The printing picker in the deck builder no longer shows the "shift-click to split 1" hint on phones, where it doesn't apply
 - fix: The owned-count number above each card now stays consistent when you switch between browsing and add mode, instead of jumping to the across-all-collections total in add mode
 - fix: The energy and power charts in the deck stats panel now stack domain colors in the same order as the type chart and the domain bar, instead of flipping bottom-to-top
 - fix: The card count next to the search bar no longer shows "407 / 407 cards" when no filters are narrowing the list — it just shows "407 cards"
