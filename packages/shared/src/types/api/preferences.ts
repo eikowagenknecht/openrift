@@ -51,7 +51,7 @@ export interface ResolvedPreferences {
 export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   showImages: true,
   fancyFan: true,
-  foilEffect: true,
+  foilEffect: false,
   cardTilt: true,
   theme: "auto",
   marketplaceOrder: [...ALL_MARKETPLACES],

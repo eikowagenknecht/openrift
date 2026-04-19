@@ -138,21 +138,27 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      const switches: { label: RegExp; resetLabel: string }[] = [
-        { label: /^Show card images$/, resetLabel: "Reset show images" },
-        { label: /^Fancy card fan$/, resetLabel: "Reset fancy fan" },
-        { label: /^Foil effect$/, resetLabel: "Reset foil effect" },
-        { label: /^Card tilt on hover$/, resetLabel: "Reset card tilt" },
+      const switches: { label: RegExp; resetLabel: string; defaultChecked: boolean }[] = [
+        { label: /^Show card images$/, resetLabel: "Reset show images", defaultChecked: true },
+        { label: /^Fancy card fan$/, resetLabel: "Reset fancy fan", defaultChecked: true },
+        { label: /^Foil effect$/, resetLabel: "Reset foil effect", defaultChecked: false },
+        { label: /^Card tilt on hover$/, resetLabel: "Reset card tilt", defaultChecked: true },
       ];
 
-      for (const { label, resetLabel } of switches) {
+      for (const { label, resetLabel, defaultChecked } of switches) {
         const switchEl = page.getByLabel(label);
-        await expect(switchEl).toBeChecked();
+        await (defaultChecked
+          ? expect(switchEl).toBeChecked()
+          : expect(switchEl).not.toBeChecked());
         await switchEl.click();
-        await expect(switchEl).not.toBeChecked();
+        await (defaultChecked
+          ? expect(switchEl).not.toBeChecked()
+          : expect(switchEl).toBeChecked());
         await expect(page.getByRole("button", { name: resetLabel })).toBeVisible();
         await page.getByRole("button", { name: resetLabel }).click();
-        await expect(switchEl).toBeChecked();
+        await (defaultChecked
+          ? expect(switchEl).toBeChecked()
+          : expect(switchEl).not.toBeChecked());
       }
     });
 
@@ -193,7 +199,7 @@ test.describe("profile preferences", () => {
 
       const req = await patchRequest;
       const body = req.postDataJSON() as { data?: { prefs?: { foilEffect?: unknown } } };
-      expect(body.data?.prefs?.foilEffect).toBe(false);
+      expect(body.data?.prefs?.foilEffect).toBe(true);
     });
   });
 
