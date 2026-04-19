@@ -12,10 +12,7 @@ export function pickNewestCopy(copies: readonly CopyResponse[]): CopyResponse | 
   return copies.toSorted((a, b) => b.id.localeCompare(a.id))[0];
 }
 
-export type RemovalDecision =
-  | { kind: "none" }
-  | { kind: "dispose"; copyId: string }
-  | { kind: "picker" };
+type RemovalDecision = { kind: "none" } | { kind: "dispose"; copyId: string } | { kind: "picker" };
 
 /**
  * Decides what the minus button should do given the user's copies of a
