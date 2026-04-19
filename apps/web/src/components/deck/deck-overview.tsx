@@ -1,5 +1,5 @@
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
-import type { DeckZone, Marketplace } from "@openrift/shared";
+import type { DeckViolation, DeckZone, Marketplace } from "@openrift/shared";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
@@ -19,6 +19,7 @@ import { DomainBar } from "@/components/deck/deck-stats-panel";
 import { EnergyChart, PowerChart } from "@/components/deck/stats/energy-power-chart";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
@@ -141,10 +142,29 @@ export function DeckOverview({
             bar={<ProgressBar pct={cardsPct} />}
             caption={
               hasAnyViolation ? (
-                <span className="text-destructive flex items-center gap-1">
-                  <AlertTriangleIcon className="size-3.5" />
-                  Invalid
-                </span>
+                <Popover>
+                  <PopoverTrigger
+                    render={
+                      <button
+                        type="button"
+                        aria-label="Show deck issues"
+                        className="text-destructive hover:bg-muted/60 flex items-center gap-1 rounded"
+                      />
+                    }
+                  >
+                    <AlertTriangleIcon className="size-3.5" />
+                    Invalid
+                  </PopoverTrigger>
+                  <PopoverContent side="bottom" align="start" className="w-auto max-w-80 p-2">
+                    <ul className="space-y-0.5">
+                      {violations.map((violation) => (
+                        <li key={violation.code} className="text-xs">
+                          {violation.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </PopoverContent>
+                </Popover>
               ) : isComplete ? (
                 <span className="flex items-center gap-1 text-green-600 dark:text-green-500">
                   <CheckCircle2Icon className="size-3.5" />
@@ -215,7 +235,7 @@ export function DeckOverview({
               allCards={cards}
               expected={ZONE_EXPECTED[zone]}
               emptyHint={ZONE_EMPTY_HINTS[zone]}
-              hasViolation={violations.some(
+              zoneViolations={violations.filter(
                 (violation) => violation.zone === zone && !violation.cardId,
               )}
               className={SMALL_ZONE_SPAN[zone]}
@@ -235,7 +255,7 @@ export function DeckOverview({
           allCards={cards}
           expected={ZONE_EXPECTED.main}
           emptyHint={ZONE_EMPTY_HINTS.main}
-          hasViolation={violations.some(
+          zoneViolations={violations.filter(
             (violation) => violation.zone === "main" && !violation.cardId,
           )}
           onClick={() => onZoneClick("main")}
@@ -252,7 +272,7 @@ export function DeckOverview({
           allCards={cards}
           expected={ZONE_EXPECTED.sideboard}
           emptyHint={ZONE_EMPTY_HINTS.sideboard}
-          hasViolation={violations.some(
+          zoneViolations={violations.filter(
             (violation) => violation.zone === "sideboard" && !violation.cardId,
           )}
           onClick={() => onZoneClick("sideboard")}
@@ -270,7 +290,7 @@ export function DeckOverview({
             allCards={cards}
             expected={ZONE_EXPECTED.overflow}
             emptyHint={ZONE_EMPTY_HINTS.overflow}
-            hasViolation={violations.some(
+            zoneViolations={violations.filter(
               (violation) => violation.zone === "overflow" && !violation.cardId,
             )}
             onClick={() => onZoneClick("overflow")}
@@ -424,7 +444,7 @@ interface ZoneTileProps {
   allCards: DeckBuilderCard[];
   expected: number | undefined;
   emptyHint: string;
-  hasViolation: boolean;
+  zoneViolations: DeckViolation[];
   className?: string;
   onClick: () => void;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
@@ -439,12 +459,13 @@ function ZoneTile({
   allCards,
   expected,
   emptyHint,
-  hasViolation,
+  zoneViolations,
   className,
   onClick,
   onHoverCard,
   getThumbnail,
 }: ZoneTileProps) {
+  const hasViolation = zoneViolations.length > 0;
   const quantity = cards.reduce((sum, card) => sum + card.quantity, 0);
   const isEmpty = cards.length === 0;
   const isComplete = !hasViolation && expected !== undefined && quantity === expected;
@@ -521,7 +542,30 @@ function ZoneTile({
       <div className="flex items-center gap-2">
         <span className="text-sm font-medium">{label}</span>
         {isComplete && <CheckCircle2Icon className="size-3.5 text-green-600 dark:text-green-500" />}
-        {hasViolation && <AlertTriangleIcon className="text-destructive size-3.5" />}
+        {hasViolation && (
+          <Popover>
+            <PopoverTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={`Show ${label} issues`}
+                  className="hover:bg-muted/60 flex size-5 shrink-0 items-center justify-center rounded"
+                />
+              }
+            >
+              <AlertTriangleIcon className="text-destructive size-3.5" />
+            </PopoverTrigger>
+            <PopoverContent side="bottom" align="start" className="w-auto max-w-80 p-2">
+              <ul className="space-y-0.5">
+                {zoneViolations.map((violation) => (
+                  <li key={violation.code} className="text-xs">
+                    {violation.message}
+                  </li>
+                ))}
+              </ul>
+            </PopoverContent>
+          </Popover>
+        )}
         <span
           className={cn(
             "ml-auto text-xs tabular-nums",

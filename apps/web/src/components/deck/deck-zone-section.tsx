@@ -10,7 +10,7 @@ import type {
   DeckCardDragData,
   DeckDropData,
 } from "@/components/deck/deck-dnd-context";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -261,21 +261,7 @@ export function DeckZoneSection({
             onActivate();
           }}
         >
-          <span className={cn("flex items-center gap-1", isActive && "font-bold")}>
-            {ZONE_LABELS[zone]}
-            {dropDisabled ? (
-              <BanIcon className="text-muted-foreground size-3.5" />
-            ) : hasZoneViolations ? (
-              <Tooltip>
-                <TooltipTrigger render={<span />}>
-                  <AlertTriangleIcon className="text-destructive size-3.5" />
-                </TooltipTrigger>
-                <TooltipContent>
-                  {zoneViolations.map((violation) => violation.message).join(". ")}
-                </TooltipContent>
-              </Tooltip>
-            ) : null}
-          </span>
+          <span className={cn(isActive && "font-bold")}>{ZONE_LABELS[zone]}</span>
           <span
             className={cn(
               "ml-auto text-xs",
@@ -286,6 +272,32 @@ export function DeckZoneSection({
             {expected !== null && expected !== undefined && `/${expected}`}
           </span>
         </button>
+        {dropDisabled ? (
+          <BanIcon className="text-muted-foreground mr-1.5 ml-1 size-3.5 shrink-0" />
+        ) : hasZoneViolations ? (
+          <Popover>
+            <PopoverTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label="Show zone issues"
+                  className="hover:bg-muted/50 mr-1 ml-1 flex size-5 shrink-0 items-center justify-center rounded"
+                />
+              }
+            >
+              <AlertTriangleIcon className="text-destructive size-3.5" />
+            </PopoverTrigger>
+            <PopoverContent side="bottom" align="start" className="w-auto max-w-80 p-2">
+              <ul className="space-y-0.5">
+                {zoneViolations.map((violation) => (
+                  <li key={violation.code} className="text-xs">
+                    {violation.message}
+                  </li>
+                ))}
+              </ul>
+            </PopoverContent>
+          </Popover>
+        ) : null}
       </div>
 
       {open && (

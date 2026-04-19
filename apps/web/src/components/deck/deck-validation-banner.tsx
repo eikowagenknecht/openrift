@@ -6,25 +6,16 @@ import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import { useDeckDetail } from "@/hooks/use-decks";
 
 /**
- * Badge showing violation count with a click-to-open popover listing each violation.
+ * Badge showing a click-to-open popover listing each violation.
  * @returns The violation badge element.
  */
-function ViolationBadge({
-  violations,
-  violationCount,
-}: {
-  violations: DeckViolation[];
-  violationCount: number;
-}) {
+function ViolationBadge({ violations }: { violations: DeckViolation[] }) {
   return (
     <Popover>
       <PopoverTrigger nativeButton={false} render={<span />}>
-        <span className="flex shrink-0 cursor-default items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+        <span className="flex shrink-0 cursor-pointer items-center gap-1 rounded-md bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
           Constructed
           <CircleAlertIcon className="size-3" />
-          <span>
-            {violationCount} {violationCount === 1 ? "issue" : "issues"}
-          </span>
         </span>
       </PopoverTrigger>
       <PopoverContent side="bottom" align="start" className="w-auto max-w-80 p-2">
@@ -72,5 +63,5 @@ export function DeckFormatBadge({ deckId }: { deckId: string }) {
     );
   }
 
-  return <ViolationBadge violations={violations} violationCount={violations.length} />;
+  return <ViolationBadge violations={violations} />;
 }
