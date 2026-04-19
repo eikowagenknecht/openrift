@@ -23,7 +23,6 @@ import { toast } from "sonner";
 import { CardText } from "@/components/cards/card-text";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { PriceHistoryChart, TIME_RANGES } from "@/components/cards/price-history-chart";
-import { MarkdownText } from "@/components/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -33,6 +32,7 @@ import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
+import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -84,6 +84,97 @@ function CardDetailPage() {
 
   const frontImage = selectedPrinting.images.find((i) => i.face === "front");
 
+  // Info table rows: printing-specific on the left, card-level on the right.
+  // The right column sits beside the left on desktop and stacks below on mobile.
+  const leftRows: [string, ReactNode][] = [
+    [
+      "Set",
+      <Link
+        key="set"
+        to="/sets/$setSlug"
+        params={{ setSlug: selectedPrinting.setSlug }}
+        className="hover:text-foreground underline decoration-dotted underline-offset-2"
+      >
+        {selectedPrinting.setSlug.toUpperCase()}
+        {setById.get(selectedPrinting.setId) && ` (${setById.get(selectedPrinting.setId)?.name})`}
+      </Link>,
+    ],
+    ["Code", formatPublicCode(selectedPrinting)],
+  ];
+  if (selectedPrinting.printedName && selectedPrinting.printedName !== card.name) {
+    leftRows.push(["Printed name", selectedPrinting.printedName]);
+  }
+  leftRows.push([
+    "Language",
+    languageLabels[selectedPrinting.language] ?? selectedPrinting.language,
+  ]);
+  leftRows.push([
+    "Rarity",
+    <span key="rarity" className="inline-flex items-center gap-1.5">
+      <span className="inline-flex w-4 shrink-0 justify-center">
+        <img
+          src={`/images/rarities/${selectedPrinting.rarity.toLowerCase()}-28x28.webp`}
+          alt=""
+          width={28}
+          height={28}
+          className="size-4"
+        />
+      </span>
+      {selectedPrinting.rarity}
+    </span>,
+  ]);
+  leftRows.push([
+    "Finish",
+    <span key="finish" className="inline-flex items-center gap-1.5">
+      <FinishIcon finish={selectedPrinting.finish} className="w-4 shrink-0 justify-center" />
+      {labels.finishes[selectedPrinting.finish] ?? selectedPrinting.finish}
+    </span>,
+  ]);
+  if (selectedPrinting.artVariant !== WellKnown.artVariant.NORMAL) {
+    leftRows.push([
+      "Art variant",
+      <span key="art" className="inline-flex items-center gap-1">
+        <PaletteIcon className="size-3.5" />
+        {labels.artVariants[selectedPrinting.artVariant] ?? selectedPrinting.artVariant}
+      </span>,
+    ]);
+  }
+  if (selectedPrinting.artist) {
+    leftRows.push([
+      "Artist",
+      <span key="artist" className="inline-flex items-center gap-1.5">
+        <span className="inline-flex w-4 shrink-0 justify-center">
+          <img src="/images/artist.svg" alt="" className="size-3.5 brightness-0 dark:invert" />
+        </span>
+        {selectedPrinting.artist}
+      </span>,
+    ]);
+  }
+
+  const rightRows: [string, ReactNode][] = [
+    ["Type", <TypeValue key="type" type={card.type} superTypes={card.superTypes} />],
+  ];
+  if (card.superTypes.length > 0) {
+    rightRows.push(["Supertypes", card.superTypes.join(", ")]);
+  }
+  if (card.domains.length > 0 && !card.domains.includes(WellKnown.domain.COLORLESS)) {
+    rightRows.push(["Domains", <DomainList key="domains" domains={card.domains} />]);
+  }
+  if (card.energy !== null && card.energy > 0) {
+    rightRows.push(["Energy", card.energy]);
+  }
+  if (card.power !== null && card.power > 0) {
+    rightRows.push(["Power", <PowerValue key="power" power={card.power} domains={card.domains} />]);
+  }
+  if (card.might !== null) {
+    rightRows.push(["Might", <MightValue key="might" value={card.might} />]);
+  }
+  if (card.mightBonus !== null && card.mightBonus > 0) {
+    rightRows.push(["Might bonus", <MightValue key="mightbonus" value={card.mightBonus} bonus />]);
+  }
+
+  const infoRowCount = Math.max(leftRows.length, rightRows.length);
+
   return (
     <div className={`${PAGE_PADDING} mx-auto flex max-w-6xl flex-col gap-4`}>
       <div>
@@ -118,278 +209,36 @@ function CardDetailPage() {
         <div className="border-border bg-card min-w-0 flex-1 rounded-lg border p-4">
           <table className="w-full table-fixed text-sm">
             <tbody>
-              {(() => {
-                // Build left (printing) and right (card) rows, then zip them
-                const leftRows: [string, ReactNode][] = [
-                  [
-                    "Set",
-                    <Link
-                      key="set"
-                      to="/sets/$setSlug"
-                      params={{ setSlug: selectedPrinting.setSlug }}
-                      className="hover:text-foreground underline decoration-dotted underline-offset-2"
-                    >
-                      {selectedPrinting.setSlug.toUpperCase()}
-                      {setById.get(selectedPrinting.setId) &&
-                        ` (${setById.get(selectedPrinting.setId)?.name})`}
-                    </Link>,
-                  ],
-                  ["Code", formatPublicCode(selectedPrinting)],
-                ];
-                if (selectedPrinting.printedName && selectedPrinting.printedName !== card.name) {
-                  leftRows.push(["Printed name", selectedPrinting.printedName]);
-                }
-                leftRows.push([
-                  "Rarity",
-                  <span key="rarity" className="inline-flex items-center gap-1.5">
-                    <img
-                      src={`/images/rarities/${selectedPrinting.rarity.toLowerCase()}-28x28.webp`}
-                      alt=""
-                      width={28}
-                      height={28}
-                      className="size-4"
-                    />
-                    {selectedPrinting.rarity}
-                  </span>,
-                ]);
-                leftRows.push([
-                  "Finish",
-                  <span key="finish" className="inline-flex items-center gap-1">
-                    <FinishIcon finish={selectedPrinting.finish} />
-                    {labels.finishes[selectedPrinting.finish] ?? selectedPrinting.finish}
-                  </span>,
-                ]);
-                if (selectedPrinting.artVariant !== WellKnown.artVariant.NORMAL) {
-                  leftRows.push([
-                    "Art variant",
-                    <span key="art" className="inline-flex items-center gap-1">
-                      <PaletteIcon className="size-3.5" />
-                      {labels.artVariants[selectedPrinting.artVariant] ??
-                        selectedPrinting.artVariant}
-                    </span>,
-                  ]);
-                }
-                if (selectedPrinting.markers.length > 0) {
-                  leftRows.push([
-                    "Markers",
-                    <span key="markers" className="flex flex-wrap items-center gap-1">
-                      {selectedPrinting.markers.map((marker) => (
-                        <Badge
-                          key={marker.id}
-                          variant="secondary"
-                          title={marker.description ?? undefined}
-                        >
-                          {marker.label}
-                        </Badge>
-                      ))}
-                    </span>,
-                  ]);
-                }
-                if (selectedPrinting.distributionChannels.length > 0) {
-                  leftRows.push([
-                    "Available at",
-                    <div key="channels" className="space-y-1.5">
-                      {selectedPrinting.distributionChannels.map((link, index) => (
-                        <div key={`${link.channel.id}-${index}`}>
-                          <p>
-                            {link.ancestorLabels.length > 0 && (
-                              <span className="text-muted-foreground">
-                                {link.ancestorLabels.join(" \u203A ")}
-                                {" \u203A "}
-                              </span>
-                            )}
-                            <span className="font-medium">{link.channel.label}</span>
-                          </p>
-                          {link.channel.description && (
-                            <MarkdownText
-                              text={link.channel.description}
-                              className="text-muted-foreground"
-                            />
-                          )}
-                          {link.distributionNote && (
-                            <p className="text-muted-foreground italic">{link.distributionNote}</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>,
-                  ]);
-                }
-                leftRows.push(["Language", selectedPrinting.language]);
-                if (selectedPrinting.artist) {
-                  leftRows.push([
-                    "Artist",
-                    <span key="artist" className="inline-flex items-center gap-1">
-                      <img
-                        src="/images/artist.svg"
-                        alt=""
-                        className="size-3.5 brightness-0 dark:invert"
-                      />
-                      {selectedPrinting.artist}
-                    </span>,
-                  ]);
-                }
-                if (selectedPrinting.comment) {
-                  leftRows.push([
-                    "Note",
-                    <p key="note" className="text-muted-foreground italic">
-                      {selectedPrinting.comment}
-                    </p>,
-                  ]);
-                }
-
-                const rightRows: [string, ReactNode][] = [["Type", card.type]];
-                if (card.superTypes.length > 0) {
-                  rightRows.push(["Supertypes", card.superTypes.join(", ")]);
-                }
-                if (card.domains.length > 0 && !card.domains.includes(WellKnown.domain.COLORLESS)) {
-                  rightRows.push([
-                    "Domains",
-                    <span key="domains" className="inline-flex flex-wrap items-center gap-1.5">
-                      {card.domains.map((domain) => (
-                        <span key={domain} className="inline-flex items-center gap-1">
-                          <img
-                            src={`/images/domains/${domain.toLowerCase()}.webp`}
-                            alt=""
-                            width={64}
-                            height={64}
-                            className="size-4"
-                          />
-                          {domain}
-                        </span>
-                      ))}
-                    </span>,
-                  ]);
-                }
-                if (card.energy !== null && card.energy > 0) {
-                  rightRows.push(["Energy", card.energy]);
-                }
-                if (card.power !== null && card.power > 0) {
-                  rightRows.push([
-                    "Power",
-                    <span key="power" className="inline-flex items-center gap-1">
-                      <img
-                        src="/images/power.svg"
-                        alt=""
-                        className="size-4 brightness-0 dark:invert"
-                      />
-                      {card.power}
-                    </span>,
-                  ]);
-                }
-                if (card.might !== null) {
-                  rightRows.push([
-                    "Might",
-                    <span key="might" className="inline-flex items-center gap-1">
-                      <img
-                        src="/images/might.svg"
-                        alt=""
-                        className="size-4 brightness-0 dark:invert"
-                      />
-                      {card.might}
-                    </span>,
-                  ]);
-                }
-                if (card.mightBonus !== null && card.mightBonus > 0) {
-                  rightRows.push([
-                    "Might bonus",
-                    <span key="mightbonus" className="inline-flex items-center gap-1 font-semibold">
-                      <img
-                        src="/images/might.svg"
-                        alt=""
-                        className="size-4 brightness-0 dark:invert"
-                      />
-                      +{card.mightBonus}
-                    </span>,
-                  ]);
-                }
-
-                const rowCount = Math.max(leftRows.length, rightRows.length);
-                return Array.from({ length: rowCount }, (_, i) => {
-                  const left = leftRows[i];
-                  const right = rightRows[i];
-                  return (
-                    <tr key={i}>
-                      <td className="text-muted-foreground w-24 py-1 pr-2 align-top text-xs font-medium">
-                        {left?.[0]}
-                      </td>
-                      <td className="w-[calc(50%-6rem)] py-1 pr-6 align-top">{left?.[1]}</td>
-                      <td className="text-muted-foreground hidden w-24 py-1 pr-2 align-top text-xs font-medium sm:table-cell">
-                        {right?.[0]}
-                      </td>
-                      <td className="hidden w-[calc(50%-6rem)] py-1 align-top sm:table-cell">
-                        {right?.[1]}
-                      </td>
-                    </tr>
-                  );
-                });
-              })()}
-              {/* Right column rows shown stacked on mobile */}
+              {Array.from({ length: infoRowCount }, (_, i) => {
+                const left = leftRows[i];
+                const right = rightRows[i];
+                return (
+                  <tr key={i}>
+                    <td className="text-muted-foreground w-24 py-1 pr-2 align-top text-xs font-medium">
+                      <div className="flex min-h-6 flex-col justify-center">{left?.[0]}</div>
+                    </td>
+                    <td className="w-[calc(50%-6rem)] py-1 pr-6 align-top">
+                      <div className="flex min-h-6 flex-col justify-center">{left?.[1]}</div>
+                    </td>
+                    <td className="text-muted-foreground hidden w-24 py-1 pr-2 align-top text-xs font-medium sm:table-cell">
+                      <div className="flex min-h-6 flex-col justify-center">{right?.[0]}</div>
+                    </td>
+                    <td className="hidden w-[calc(50%-6rem)] py-1 align-top sm:table-cell">
+                      <div className="flex min-h-6 flex-col justify-center">{right?.[1]}</div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {/* Right column rows stacked on mobile */}
               <tr className="sm:hidden">
                 <td colSpan={2} className="pt-2">
                   <table className="w-full text-sm">
                     <tbody>
-                      <InfoRow label="Type">{card.type}</InfoRow>
-                      {card.superTypes.length > 0 && (
-                        <InfoRow label="Supertypes">{card.superTypes.join(", ")}</InfoRow>
-                      )}
-                      {card.domains.length > 0 &&
-                        !card.domains.includes(WellKnown.domain.COLORLESS) && (
-                          <InfoRow label="Domains">
-                            <span className="inline-flex flex-wrap items-center gap-1.5">
-                              {card.domains.map((domain) => (
-                                <span key={domain} className="inline-flex items-center gap-1">
-                                  <img
-                                    src={`/images/domains/${domain.toLowerCase()}.webp`}
-                                    alt=""
-                                    width={64}
-                                    height={64}
-                                    className="size-4"
-                                  />
-                                  {domain}
-                                </span>
-                              ))}
-                            </span>
-                          </InfoRow>
-                        )}
-                      {card.energy !== null && card.energy > 0 && (
-                        <InfoRow label="Energy">{card.energy}</InfoRow>
-                      )}
-                      {card.power !== null && card.power > 0 && (
-                        <InfoRow label="Power">
-                          <span className="inline-flex items-center gap-1">
-                            <img
-                              src="/images/power.svg"
-                              alt=""
-                              className="size-4 brightness-0 dark:invert"
-                            />
-                            {card.power}
-                          </span>
+                      {rightRows.map(([label, value], i) => (
+                        <InfoRow key={i} label={label}>
+                          {value}
                         </InfoRow>
-                      )}
-                      {card.might !== null && (
-                        <InfoRow label="Might">
-                          <span className="inline-flex items-center gap-1">
-                            <img
-                              src="/images/might.svg"
-                              alt=""
-                              className="size-4 brightness-0 dark:invert"
-                            />
-                            {card.might}
-                          </span>
-                        </InfoRow>
-                      )}
-                      {card.mightBonus !== null && card.mightBonus > 0 && (
-                        <InfoRow label="Might bonus">
-                          <span className="inline-flex items-center gap-1 font-semibold">
-                            <img
-                              src="/images/might.svg"
-                              alt=""
-                              className="size-4 brightness-0 dark:invert"
-                            />
-                            +{card.mightBonus}
-                          </span>
-                        </InfoRow>
-                      )}
+                      ))}
                     </tbody>
                   </table>
                 </td>
@@ -398,7 +247,7 @@ function CardDetailPage() {
           </table>
 
           {/* Full-width rows: text, errata, bans */}
-          <table className="mt-3 w-full table-fixed text-sm">
+          <table className="w-full table-fixed text-sm">
             <tbody>
               {selectedPrinting.printedRulesText && (
                 <InfoRow label="Rules">
@@ -428,6 +277,51 @@ function CardDetailPage() {
               {selectedPrinting.flavorText && (
                 <InfoRow label="Flavor">
                   <p className="text-muted-foreground/70 italic">{selectedPrinting.flavorText}</p>
+                </InfoRow>
+              )}
+              {(selectedPrinting.markers.length > 0 ||
+                selectedPrinting.distributionChannels.length > 0) && (
+                <InfoRow label="Promo">
+                  <div className="border-border/50 bg-muted/30 rounded border px-2.5 py-1.5">
+                    {selectedPrinting.markers.length > 0 && (
+                      <div className="float-right mb-1 ml-2 flex flex-wrap justify-end gap-1">
+                        {selectedPrinting.markers.map((marker) => (
+                          <Badge
+                            key={marker.id}
+                            variant="secondary"
+                            title={marker.description ?? undefined}
+                          >
+                            {marker.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    {selectedPrinting.distributionChannels.length === 1 && (
+                      <ChannelLink
+                        link={selectedPrinting.distributionChannels[0]}
+                        language={selectedPrinting.language}
+                      />
+                    )}
+                    {selectedPrinting.distributionChannels.length > 1 && (
+                      <ul className="space-y-1">
+                        {selectedPrinting.distributionChannels.map((link, index) => (
+                          <li key={`${link.channel.id}-${index}`} className="flex gap-2">
+                            <span aria-hidden className="text-muted-foreground/60 select-none">
+                              &bull;
+                            </span>
+                            <ChannelLink link={link} language={selectedPrinting.language} />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </InfoRow>
+              )}
+              {selectedPrinting.comment && (
+                <InfoRow label="Note">
+                  <div className="border-border/50 bg-muted/30 rounded border px-2.5 py-1.5">
+                    <p className="text-muted-foreground italic">{selectedPrinting.comment}</p>
+                  </div>
                 </InfoRow>
               )}
               {card.errata && <ErrataRow errata={card.errata} printing={selectedPrinting} />}
@@ -538,11 +432,99 @@ function ErrataRow({ errata, printing }: { errata: CardErrata; printing: Printin
 function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <tr>
-      <td className="text-muted-foreground w-24 py-1 pr-2 align-top text-xs font-medium whitespace-nowrap">
-        {label}
+      <td className="text-muted-foreground w-24 py-1 pr-2 align-top text-xs font-medium">
+        <div className="flex min-h-6 flex-col justify-center">{label}</div>
       </td>
-      <td className="py-1 align-top">{children}</td>
+      <td className="py-1 align-top">
+        <div className="flex min-h-6 flex-col justify-center">{children}</div>
+      </td>
     </tr>
+  );
+}
+
+function TypeValue({ type, superTypes }: { type: string; superTypes: string[] }) {
+  const iconPath = getTypeIconPath(type, superTypes);
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="inline-flex w-4 shrink-0 justify-center">
+        {iconPath && <img src={iconPath} alt="" className="size-4 brightness-0 dark:invert" />}
+      </span>
+      {type}
+    </span>
+  );
+}
+
+function DomainList({ domains }: { domains: string[] }) {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      {domains.map((domain) => (
+        <span key={domain} className="inline-flex items-center gap-1">
+          <img
+            src={`/images/domains/${domain.toLowerCase()}.webp`}
+            alt=""
+            width={64}
+            height={64}
+            className="size-4"
+          />
+          {domain}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function MightValue({ value, bonus = false }: { value: number; bonus?: boolean }) {
+  return (
+    <span className={cn("inline-flex items-center gap-1", bonus && "font-semibold")}>
+      <img src="/images/might.svg" alt="" className="size-4 brightness-0 dark:invert" />
+      {bonus ? `+${value}` : value}
+    </span>
+  );
+}
+
+function PowerValue({ power, domains }: { power: number; domains: string[] }) {
+  const primaryDomain = domains[0] ?? WellKnown.domain.COLORLESS;
+  const iconPath = getFilterIconPath("domains", primaryDomain);
+  if (!iconPath) {
+    return <span>{power}</span>;
+  }
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {Array.from({ length: power }, (_, index) => (
+        <img key={index} src={iconPath} alt="" className="size-4" />
+      ))}
+    </span>
+  );
+}
+
+function ChannelLink({
+  link,
+  language,
+}: {
+  link: Printing["distributionChannels"][number];
+  language: string;
+}) {
+  return (
+    <div className="min-w-0 flex-1">
+      <Link
+        to="/promos"
+        hash={`lang-${language}-ch-${link.channel.id}`}
+        className="hover:text-foreground block"
+      >
+        {link.ancestorLabels.length > 0 && (
+          <span className="text-muted-foreground">
+            {link.ancestorLabels.join(" \u203A ")}
+            {" \u203A "}
+          </span>
+        )}
+        <span className="font-semibold underline decoration-dotted underline-offset-2">
+          {link.channel.label}
+        </span>
+      </Link>
+      {link.distributionNote && (
+        <p className="text-muted-foreground italic">{link.distributionNote}</p>
+      )}
+    </div>
   );
 }
 
