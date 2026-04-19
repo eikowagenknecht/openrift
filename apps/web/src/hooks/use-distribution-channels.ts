@@ -102,24 +102,37 @@ export function useUpdateDistributionChannel() {
 }
 
 const deleteChannelFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { id: string }) => input)
+  .inputValidator((input: { id: string; force?: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
+    const query = data.force ? "?force=true" : "";
     const res = await fetch(
-      `${API_URL}/api/v1/admin/distribution-channels/${encodeURIComponent(data.id)}`,
+      `${API_URL}/api/v1/admin/distribution-channels/${encodeURIComponent(data.id)}${query}`,
       {
         method: "DELETE",
         headers: { cookie: context.cookie },
       },
     );
     if (!res.ok) {
-      throw new Error(`Delete distribution channel failed: ${res.status}`);
+      const text = await res.text();
+      let message = `Delete distribution channel failed: ${res.status}`;
+      try {
+        const body = JSON.parse(text) as { error?: string };
+        if (body.error) {
+          message = body.error;
+        }
+      } catch {
+        if (text) {
+          message = text;
+        }
+      }
+      throw new Error(message);
     }
   });
 
 export function useDeleteDistributionChannel() {
   return useMutationWithInvalidation({
-    mutationFn: (id: string) => deleteChannelFn({ data: { id } }),
+    mutationFn: (vars: { id: string; force?: boolean }) => deleteChannelFn({ data: vars }),
     invalidates: [queryKeys.admin.distributionChannels, queryKeys.promos.all],
   });
 }

@@ -90,6 +90,7 @@ export function DistributionChannelsPage() {
             childrenLabel: null,
             createdAt: "",
             updatedAt: "",
+            printingCount: 0,
           }
         : (channels.find((c) => c.id === draft.id) ?? {
             id: draft.id,
@@ -102,6 +103,7 @@ export function DistributionChannelsPage() {
             childrenLabel: null,
             createdAt: "",
             updatedAt: "",
+            printingCount: 0,
           });
     const eligible = tree.filter((n) => canReparent(sourceForChecks, n.channel.id, tree));
     const value = draft.parentId ?? ROOT_VALUE;
@@ -297,6 +299,18 @@ export function DistributionChannelsPage() {
         />
       ),
     },
+    {
+      header: "In use",
+      headerTitle: "Number of printings linked to this channel",
+      align: "right",
+      width: "w-20",
+      cell: (c) =>
+        c.printingCount > 0 ? (
+          <span>{c.printingCount.toLocaleString()}</span>
+        ) : (
+          <span className="text-muted-foreground/60">0</span>
+        ),
+    },
   ];
 
   return (
@@ -381,7 +395,27 @@ export function DistributionChannelsPage() {
         isPending: reorderMutation.isPending,
       }}
       delete={{
-        onDelete: (c) => deleteMutation.mutateAsync(c.id),
+        onDelete: (c) => deleteMutation.mutateAsync({ id: c.id, force: c.printingCount > 0 }),
+        confirm: (c) => {
+          const hasChildren = nodeById.get(c.id)?.hasChildren ?? false;
+          if (hasChildren) {
+            return {
+              title: `Cannot delete "${c.label}"`,
+              description:
+                "This channel has child channels. Remove or reparent them before deleting it.",
+            };
+          }
+          if (c.printingCount > 0) {
+            return {
+              title: `Delete "${c.label}"?`,
+              description: `This channel is linked to ${c.printingCount.toLocaleString()} printing${c.printingCount === 1 ? "" : "s"}. Deleting it will unlink it from ${c.printingCount === 1 ? "that printing" : "all of them"}.`,
+            };
+          }
+          return {
+            title: `Delete "${c.label}"?`,
+            description: "This action cannot be undone.",
+          };
+        },
       }}
     />
   );

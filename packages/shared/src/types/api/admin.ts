@@ -279,6 +279,8 @@ export interface DistributionChannelResponse {
   childrenLabel: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Number of printings currently linked to this channel. */
+  printingCount: number;
 }
 
 /** Per-printing channel link as exposed by admin endpoints. */

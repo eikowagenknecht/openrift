@@ -182,6 +182,34 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    async countInUse(id: string): Promise<number> {
+      const row = await db
+        .selectFrom("printingDistributionChannels")
+        .select((eb) => eb.fn.countAll<string>().as("count"))
+        .where("channelId", "=", id)
+        .executeTakeFirst();
+      return Number(row?.count ?? 0);
+    },
+
+    /**
+     * Printing counts grouped by channel id. Channels with zero printings are
+     * omitted — callers should default missing entries to 0.
+     *
+     * @returns Array of `{ channelId, count }` rows.
+     */
+    async usageCountsByChannel() {
+      const rows = await db
+        .selectFrom("printingDistributionChannels")
+        .select((eb) => ["channelId", eb.fn.countAll<string>().as("count")])
+        .groupBy("channelId")
+        .execute();
+      return rows.map((r) => ({ channelId: r.channelId, count: Number(r.count) }));
+    },
+
+    async deleteLinksForChannel(id: string): Promise<void> {
+      await db.deleteFrom("printingDistributionChannels").where("channelId", "=", id).execute();
+    },
+
     /**
      * Whether this channel has at least one direct child.
      *
