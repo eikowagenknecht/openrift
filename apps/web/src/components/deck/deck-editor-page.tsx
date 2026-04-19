@@ -387,7 +387,9 @@ function DeckEditorContent({
       {topBarSlot &&
         createPortal(
           <PageTopBar>
-            <PageTopBarBack to="/decks" />
+            <div className="hidden md:block">
+              <PageTopBarBack to="/decks" />
+            </div>
             <PageTopBarTitle onToggleSidebar={toggleSidebar}>
               <span className="md:hidden">
                 {activeZone ? (
