@@ -8,6 +8,7 @@
 - feat: Cards on the Promos page show small marker chips ("Promo", "Champion", ...) below each image, so you can tell at a glance what makes each printing distinct
 - feat: Printings with an editor's note now show a small ⓘ icon next to the rarity — hover to read the full note, on any card view across the site
 - feat: The card detail page now shows a "Distribution & printing notes" block with markers, the full channel breadcrumb, channel descriptions, and the printing's note when any of these apply
+- fix: The power and might icons on a card's detail page are now visible in light mode, instead of blending into the background
 
 ## 2026-04-18
 

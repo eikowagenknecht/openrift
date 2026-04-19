@@ -227,7 +227,11 @@ function CardDetailPage() {
                   rightRows.push([
                     "Power",
                     <span key="power" className="inline-flex items-center gap-1">
-                      <img src="/images/power.svg" alt="" className="size-4" />
+                      <img
+                        src="/images/power.svg"
+                        alt=""
+                        className="size-4 brightness-0 dark:invert"
+                      />
                       {card.power}
                     </span>,
                   ]);
@@ -236,7 +240,11 @@ function CardDetailPage() {
                   rightRows.push([
                     "Might",
                     <span key="might" className="inline-flex items-center gap-1">
-                      <img src="/images/might.svg" alt="" className="size-4" />
+                      <img
+                        src="/images/might.svg"
+                        alt=""
+                        className="size-4 brightness-0 dark:invert"
+                      />
                       {card.might}
                     </span>,
                   ]);
@@ -245,7 +253,12 @@ function CardDetailPage() {
                   rightRows.push([
                     "Might bonus",
                     <span key="mightbonus" className="inline-flex items-center gap-1 font-semibold">
-                      <img src="/images/might.svg" alt="" className="size-4" />+{card.mightBonus}
+                      <img
+                        src="/images/might.svg"
+                        alt=""
+                        className="size-4 brightness-0 dark:invert"
+                      />
+                      +{card.mightBonus}
                     </span>,
                   ]);
                 }
@@ -302,7 +315,11 @@ function CardDetailPage() {
                       {card.power !== null && card.power > 0 && (
                         <InfoRow label="Power">
                           <span className="inline-flex items-center gap-1">
-                            <img src="/images/power.svg" alt="" className="size-4" />
+                            <img
+                              src="/images/power.svg"
+                              alt=""
+                              className="size-4 brightness-0 dark:invert"
+                            />
                             {card.power}
                           </span>
                         </InfoRow>
@@ -310,7 +327,11 @@ function CardDetailPage() {
                       {card.might !== null && (
                         <InfoRow label="Might">
                           <span className="inline-flex items-center gap-1">
-                            <img src="/images/might.svg" alt="" className="size-4" />
+                            <img
+                              src="/images/might.svg"
+                              alt=""
+                              className="size-4 brightness-0 dark:invert"
+                            />
                             {card.might}
                           </span>
                         </InfoRow>
@@ -318,8 +339,12 @@ function CardDetailPage() {
                       {card.mightBonus !== null && card.mightBonus > 0 && (
                         <InfoRow label="Might bonus">
                           <span className="inline-flex items-center gap-1 font-semibold">
-                            <img src="/images/might.svg" alt="" className="size-4" />+
-                            {card.mightBonus}
+                            <img
+                              src="/images/might.svg"
+                              alt=""
+                              className="size-4 brightness-0 dark:invert"
+                            />
+                            +{card.mightBonus}
                           </span>
                         </InfoRow>
                       )}
