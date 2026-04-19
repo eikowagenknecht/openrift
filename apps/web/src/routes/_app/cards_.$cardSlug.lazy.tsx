@@ -21,6 +21,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { CardText } from "@/components/cards/card-text";
 import { PriceHistoryChart, TIME_RANGES } from "@/components/cards/price-history-chart";
+import { MarkdownText } from "@/components/markdown-text";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
@@ -109,7 +111,7 @@ function CardDetailPage() {
 
         {/* Right column: card info */}
         <div className="border-border bg-card min-w-0 flex-1 rounded-lg border p-4">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
             <tbody>
               {(() => {
                 // Build left (printing) and right (card) rows, then zip them
@@ -170,20 +172,46 @@ function CardDetailPage() {
                 if (selectedPrinting.markers.length > 0) {
                   leftRows.push([
                     "Markers",
-                    <span key="markers" className="inline-flex items-center gap-1">
-                      <TagIcon className="size-3.5" />
-                      {selectedPrinting.markers.map((m) => m.label).join(", ")}
+                    <span key="markers" className="flex flex-wrap items-center gap-1">
+                      {selectedPrinting.markers.map((marker) => (
+                        <Badge
+                          key={marker.id}
+                          variant="secondary"
+                          title={marker.description ?? undefined}
+                        >
+                          {marker.label}
+                        </Badge>
+                      ))}
                     </span>,
                   ]);
                 }
                 if (selectedPrinting.distributionChannels.length > 0) {
                   leftRows.push([
                     "Available at",
-                    <span key="channels">
-                      {selectedPrinting.distributionChannels
-                        .map((dc) => dc.channel.label)
-                        .join(", ")}
-                    </span>,
+                    <div key="channels" className="space-y-1.5">
+                      {selectedPrinting.distributionChannels.map((link, index) => (
+                        <div key={`${link.channel.id}-${index}`}>
+                          <p>
+                            {link.ancestorLabels.length > 0 && (
+                              <span className="text-muted-foreground">
+                                {link.ancestorLabels.join(" \u203A ")}
+                                {" \u203A "}
+                              </span>
+                            )}
+                            <span className="font-medium">{link.channel.label}</span>
+                          </p>
+                          {link.channel.description && (
+                            <MarkdownText
+                              text={link.channel.description}
+                              className="text-muted-foreground"
+                            />
+                          )}
+                          {link.distributionNote && (
+                            <p className="text-muted-foreground italic">{link.distributionNote}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>,
                   ]);
                 }
                 leftRows.push(["Language", selectedPrinting.language]);
@@ -194,6 +222,14 @@ function CardDetailPage() {
                       <PaintbrushIcon className="size-3.5" />
                       {selectedPrinting.artist}
                     </span>,
+                  ]);
+                }
+                if (selectedPrinting.comment) {
+                  leftRows.push([
+                    "Note",
+                    <p key="note" className="text-muted-foreground italic">
+                      {selectedPrinting.comment}
+                    </p>,
                   ]);
                 }
 
@@ -269,14 +305,16 @@ function CardDetailPage() {
                   const right = rightRows[i];
                   return (
                     <tr key={i}>
-                      <td className="text-muted-foreground w-20 py-1 pr-2 align-top text-xs font-medium whitespace-nowrap">
+                      <td className="text-muted-foreground w-24 py-1 pr-2 align-top text-xs font-medium">
                         {left?.[0]}
                       </td>
-                      <td className="py-1 pr-6 align-top">{left?.[1]}</td>
-                      <td className="text-muted-foreground hidden w-20 py-1 pr-2 align-top text-xs font-medium whitespace-nowrap sm:table-cell">
+                      <td className="w-[calc(50%-6rem)] py-1 pr-6 align-top">{left?.[1]}</td>
+                      <td className="text-muted-foreground hidden w-24 py-1 pr-2 align-top text-xs font-medium sm:table-cell">
                         {right?.[0]}
                       </td>
-                      <td className="hidden py-1 align-top sm:table-cell">{right?.[1]}</td>
+                      <td className="hidden w-[calc(50%-6rem)] py-1 align-top sm:table-cell">
+                        {right?.[1]}
+                      </td>
                     </tr>
                   );
                 });

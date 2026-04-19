@@ -1,7 +1,7 @@
 import type { DistributionChannelWithCount, Printing } from "@openrift/shared";
 import { comparePrintings } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
+import { createLazyFileRoute, useLocation, useNavigate } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, LayoutGridIcon, ListIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -141,6 +141,7 @@ function collectChannelNavEntries(
 function PromosPage() {
   const { data } = useSuspenseQuery(publicPromoListQueryOptions);
   const navigate = useNavigate();
+  const location = useLocation();
   const showImages = useDisplayStore((s) => s.showImages);
   const languageOrder = useDisplayStore((s) => s.languages);
   const languageList = useLanguageList();
@@ -236,6 +237,23 @@ function PromosPage() {
     return () => observer.disconnect();
   }, [navEntries]);
 
+  // Hash-scroll: TanStack Router navigations land before the lazy route's
+  // content is in the DOM, so the native browser scroll-to-hash misses the
+  // target. Re-run whenever the hash changes or the tree finishes loading;
+  // both are stable refs across ordinary re-renders, so scrolling the viewport
+  // or updating the active section won't trigger another jump.
+  useEffect(() => {
+    if (!location.hash) {
+      return;
+    }
+    // oxlint-disable-next-line prefer-query-selector -- our section ids are UUIDs (leading digit), so getElementById avoids CSS-escape gymnastics.
+    const element = document.getElementById(location.hash);
+    if (element) {
+      element.scrollIntoView({ behavior: "auto", block: "start" });
+      setActiveSectionId(location.hash);
+    }
+  }, [location.hash, treesByLanguage]);
+
   function scrollToSection(sectionId: string) {
     const element = sectionRefs.current.get(sectionId);
     if (element) {
@@ -325,6 +343,7 @@ function PromosPage() {
               return (
                 <section
                   key={language}
+                  id={languageSectionId}
                   ref={(el) => setSectionRef(languageSectionId, el)}
                   data-section={languageSectionId}
                   className="scroll-mt-16"
@@ -406,6 +425,7 @@ function ChannelBranch({
 
   return (
     <section
+      id={sectionId}
       ref={(el) => registerSection(sectionId, el)}
       data-section={sectionId}
       className="scroll-mt-16"
@@ -445,9 +465,18 @@ function ChannelBranch({
       {open && (
         <div>
           {compact && viewMode === "list" ? (
-            <CompactBranchTable node={node} onCardClick={onCardClick} />
+            <CompactBranchTable
+              node={node}
+              languagePrefix={languagePrefix}
+              onCardClick={onCardClick}
+            />
           ) : compact && viewMode === "grid" ? (
-            <CompactBranchGrid node={node} showImages={showImages} onCardClick={onCardClick} />
+            <CompactBranchGrid
+              node={node}
+              languagePrefix={languagePrefix}
+              showImages={showImages}
+              onCardClick={onCardClick}
+            />
           ) : (
             <div className="space-y-6">
               {node.children.map((child) => (
@@ -514,6 +543,7 @@ function ChannelLeafSection({
   const sectionId = `${languagePrefix}-ch-${node.channel.id}`;
   return (
     <section
+      id={sectionId}
       ref={(el) => registerSection(sectionId, el)}
       data-section={sectionId}
       className="scroll-mt-16"
@@ -550,20 +580,26 @@ function ChannelLeafSection({
 
 function CompactBranchGrid({
   node,
+  languagePrefix,
   showImages,
   onCardClick,
 }: {
   node: ChannelNode;
+  languagePrefix: string;
   showImages: boolean;
   onCardClick: (printing: Printing) => void;
 }) {
   // Flatten every leaf's printings into one grid that uses the normal card
   // sizing, so compact mode is just rows-vs-cols: each card carries a small
-  // label telling you which sibling channel it came from.
+  // label telling you which sibling channel it came from. Tag the first card
+  // of each leaf with the leaf's section id so cross-route hash links still
+  // scroll to the right cell even though the leaf has no section of its own.
   const entries = node.children.flatMap((child) =>
-    child.printings
-      .toSorted(comparePrintingsForDisplay)
-      .map((printing) => ({ printing, leafLabel: child.channel.label })),
+    child.printings.toSorted(comparePrintingsForDisplay).map((printing, printingIndex) => ({
+      printing,
+      leafLabel: child.channel.label,
+      anchorId: printingIndex === 0 ? `${languagePrefix}-ch-${child.channel.id}` : undefined,
+    })),
   );
   const legend = node.children.filter(
     (child) => child.channel.description && child.printings.length > 0,
@@ -583,8 +619,12 @@ function CompactBranchGrid({
         </dl>
       )}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
-        {entries.map(({ printing, leafLabel }) => (
-          <div key={`${leafLabel}-${printing.id}`}>
+        {entries.map(({ printing, leafLabel, anchorId }) => (
+          <div
+            key={`${leafLabel}-${printing.id}`}
+            id={anchorId}
+            className={anchorId ? "scroll-mt-16" : undefined}
+          >
             <div className="mb-1 px-1.5 font-semibold">{leafLabel}</div>
             <CardThumbnail
               printing={printing}
@@ -601,16 +641,20 @@ function CompactBranchGrid({
 
 function CompactBranchTable({
   node,
+  languagePrefix,
   onCardClick,
 }: {
   node: ChannelNode;
+  languagePrefix: string;
   onCardClick: (printing: Printing) => void;
 }) {
   const columnHeader = node.channel.childrenLabel ?? "Variant";
   const rows = node.children.flatMap((child) =>
-    child.printings
-      .toSorted(comparePrintingsForDisplay)
-      .map((printing) => ({ printing, leafLabel: child.channel.label })),
+    child.printings.toSorted(comparePrintingsForDisplay).map((printing, printingIndex) => ({
+      printing,
+      leafLabel: child.channel.label,
+      anchorId: printingIndex === 0 ? `${languagePrefix}-ch-${child.channel.id}` : undefined,
+    })),
   );
   if (rows.length === 0) {
     return null;
@@ -626,15 +670,16 @@ function CompactBranchTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.map(({ printing, leafLabel }) => {
+        {rows.map(({ printing, leafLabel, anchorId }) => {
           const image = printing.images[0];
           return (
             <HoverCard key={`${leafLabel}-${printing.id}`}>
               <HoverCardTrigger
                 render={
                   <TableRow
+                    id={anchorId}
                     onClick={() => onCardClick(printing)}
-                    className="hover:bg-muted/50 cursor-pointer"
+                    className={cn("hover:bg-muted/50 cursor-pointer", anchorId && "scroll-mt-16")}
                   />
                 }
               >
