@@ -18,9 +18,11 @@ function makeEvent(overrides: Partial<EnrichedPrintingEvent> = {}): EnrichedPrin
     shortCode: "OGN-001",
     rarity: "Common",
     finish: "normal",
+    finishLabel: "Normal",
     artist: "Artist A",
     language: "EN",
-    frontImageUrl: "https://images.openrift.app/cards/OGN-001.webp",
+    languageName: "English",
+    frontImageUrl: "https://images.openrift.app/cards/OGN-001-400w.webp",
     ...overrides,
   };
 }
@@ -47,13 +49,13 @@ describe("buildNewPrintingPayloads", () => {
     expect(payloads[0].embeds[0].url).toBe("https://openrift.app/cards/OGN-001");
   });
 
-  it("includes front image as thumbnail", () => {
+  it("includes front image as thumbnail (400w variant)", () => {
     const events = [makeEvent()];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
     expect(payloads[0].embeds[0].thumbnail?.url).toBe(
-      "https://images.openrift.app/cards/OGN-001.webp",
+      "https://images.openrift.app/cards/OGN-001-400w.webp",
     );
   });
 
@@ -74,13 +76,31 @@ describe("buildNewPrintingPayloads", () => {
     expect(fields.find((f) => f.name === "Finish")).toBeUndefined();
   });
 
-  it("includes finish field when it is not 'normal'", () => {
-    const events = [makeEvent({ finish: "foil" })];
+  it("uses finish label for display (not slug)", () => {
+    const events = [makeEvent({ finish: "metal", finishLabel: "Metal" })];
+
+    const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
+    const fields = payloads[0].embeds[0].fields ?? [];
+
+    expect(fields.find((f) => f.name === "Finish")?.value).toBe("Metal");
+  });
+
+  it("falls back to finish slug when label is missing", () => {
+    const events = [makeEvent({ finish: "foil", finishLabel: null })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
     const fields = payloads[0].embeds[0].fields ?? [];
 
     expect(fields.find((f) => f.name === "Finish")?.value).toBe("foil");
+  });
+
+  it("uses language name for display (not code)", () => {
+    const events = [makeEvent({ language: "FR", languageName: "French" })];
+
+    const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
+    const fields = payloads[0].embeds[0].fields ?? [];
+
+    expect(fields.find((f) => f.name === "Language")?.value).toBe("French");
   });
 
   it("chunks into multiple payloads when more than 10 embeds", () => {
@@ -124,7 +144,7 @@ describe("buildChangedPrintingPayloads", () => {
     expect(payloads[0].embeds[0].title).toBe("Updated: Test Card (OGN-001)");
     expect(payloads[0].embeds[0].url).toBe("https://openrift.app/cards/OGN-001");
     expect(payloads[0].embeds[0].thumbnail?.url).toBe(
-      "https://images.openrift.app/cards/OGN-001.webp",
+      "https://images.openrift.app/cards/OGN-001-400w.webp",
     );
 
     const fields = payloads[0].embeds[0].fields ?? [];

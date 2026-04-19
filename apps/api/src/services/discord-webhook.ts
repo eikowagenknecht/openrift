@@ -100,11 +100,11 @@ export function buildNewPrintingPayloads(
       ...(event.setName ? [{ name: "Set", value: event.setName, inline: true }] : []),
       ...(event.rarity ? [{ name: "Rarity", value: event.rarity, inline: true }] : []),
       ...(event.finish && event.finish !== "normal"
-        ? [{ name: "Finish", value: event.finish, inline: true }]
+        ? [{ name: "Finish", value: event.finishLabel ?? event.finish, inline: true }]
         : []),
       ...(event.artist ? [{ name: "Artist", value: event.artist, inline: true }] : []),
       ...(event.language && event.language !== "EN"
-        ? [{ name: "Language", value: event.language, inline: true }]
+        ? [{ name: "Language", value: event.languageName ?? event.language, inline: true }]
         : []),
     ],
     timestamp: event.createdAt.toISOString(),
