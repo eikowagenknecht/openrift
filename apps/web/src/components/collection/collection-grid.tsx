@@ -594,6 +594,13 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     // In browse mode, show the +/- add strip (matches add mode). Select mode
     // keeps the read-only count + collection-breakdown popover.
     const catalogSiblings = catalogPrintingsByCardId.get(item.printing.cardId);
+    const ownedVariantIds = allPrintingIdsByCardId.get(item.printing.cardId);
+    // In "cards" view the shown count aggregates across owned variants; a blind
+    // minus would only touch the representative printing, so route ambiguous
+    // removals through the variant popover to let the user pick.
+    const hasAmbiguousRemoval = dataView === "cards" && (ownedVariantIds?.length ?? 0) > 1;
+    const onUndoAdd =
+      hasAmbiguousRemoval && handleOpenVariants ? handleOpenVariants : handleUndoAdd;
     const showAddStrip = mode === "browse" && handleQuickAdd;
     const aboveCard = showAddStrip ? (
       <CollectionAddStrip
@@ -601,7 +608,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         ownedCount={ownedCount}
         hasVariants={dataView === "cards" && (catalogSiblings?.length ?? 0) > 1}
         onQuickAdd={handleQuickAdd}
-        onUndoAdd={handleUndoAdd}
+        onUndoAdd={onUndoAdd}
         onOpenVariants={handleOpenVariants}
       />
     ) : (
