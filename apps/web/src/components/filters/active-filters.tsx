@@ -48,7 +48,7 @@ export function ActiveFilters({
     clearAllFilters,
     setSearch,
   } = useFilterActions();
-  const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0] ?? "tcgplayer");
+  const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0] ?? "cardtrader");
 
   const rangeBadgeSections: RangeBadgeSection[] = [
     ...STAT_RANGE_BADGE_SECTIONS,

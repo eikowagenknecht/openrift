@@ -218,7 +218,7 @@ function DeckEditorContent({
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
-  const marketplace = marketplaceOrder[0] ?? "tcgplayer";
+  const marketplace = marketplaceOrder[0] ?? "cardtrader";
   const ownershipData = useDeckOwnership(
     deckCards,
     allPrintings,

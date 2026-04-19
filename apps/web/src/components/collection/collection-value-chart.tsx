@@ -30,7 +30,7 @@ interface CollectionValueChartProps {
 export function CollectionValueChart({ collectionId, scope }: CollectionValueChartProps) {
   const [range, setRange] = useState<TimeRange>("30d");
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
-  const [marketplace, setMarketplace] = useState<Marketplace>(marketplaceOrder[0] ?? "tcgplayer");
+  const [marketplace, setMarketplace] = useState<Marketplace>(marketplaceOrder[0] ?? "cardtrader");
 
   const { data, isLoading, error } = useCollectionValueHistory(
     marketplace,

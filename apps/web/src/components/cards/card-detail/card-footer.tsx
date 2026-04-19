@@ -10,7 +10,7 @@ import { PricingSection } from "./pricing";
 export function CardFooter({ printing }: { printing: Printing }) {
   const [priceRange, setPriceRange] = useState<TimeRange>("30d");
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
-  const favorite = marketplaceOrder[0] ?? "tcgplayer";
+  const favorite = marketplaceOrder[0] ?? "cardtrader";
   const prices = usePrices();
   const hasPrice = prices.get(printing.id, favorite) !== undefined;
 

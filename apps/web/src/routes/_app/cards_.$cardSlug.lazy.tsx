@@ -663,7 +663,7 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
   const [hoveredDate, setHoveredDate] = useState<string | null>(null);
   const [range, setRange] = useState<TimeRange>("30d");
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
-  const [source, setSource] = useState<Marketplace>(marketplaceOrder[0] ?? "tcgplayer");
+  const [source, setSource] = useState<Marketplace>(marketplaceOrder[0] ?? "cardtrader");
   const { labels } = useEnumOrders();
 
   // Also fetch the active range for the table

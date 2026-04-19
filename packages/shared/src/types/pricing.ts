@@ -1,6 +1,6 @@
 export type Marketplace = "tcgplayer" | "cardmarket" | "cardtrader";
 
-export const ALL_MARKETPLACES: readonly Marketplace[] = ["tcgplayer", "cardmarket", "cardtrader"];
+export const ALL_MARKETPLACES: readonly Marketplace[] = ["cardtrader", "tcgplayer", "cardmarket"];
 
 export const EUR_MARKETPLACES: ReadonlySet<Marketplace> = new Set(["cardmarket", "cardtrader"]);
 

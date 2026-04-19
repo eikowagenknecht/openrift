@@ -57,7 +57,7 @@ export function PriceHistoryChart({
   const setRange = onRangeChange ?? setInternalRange;
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
   const [internalSource, setInternalSource] = useState<Marketplace>(
-    marketplaceOrder[0] ?? "tcgplayer",
+    marketplaceOrder[0] ?? "cardtrader",
   );
   const source = controlledSource ?? internalSource;
   const setSource = onSourceChange ?? setInternalSource;

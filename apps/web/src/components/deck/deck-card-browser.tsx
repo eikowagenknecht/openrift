@@ -191,7 +191,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     sortDir,
     view,
     ownedCountByPrinting,
-    favoriteMarketplace: marketplaceOrder[0] ?? "tcgplayer",
+    favoriteMarketplace: marketplaceOrder[0] ?? "cardtrader",
     prices,
     keywordReverseMap,
   });

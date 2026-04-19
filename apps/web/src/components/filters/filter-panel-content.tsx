@@ -245,7 +245,7 @@ export function FilterRangeSections({
 }: Omit<FilterPanelContentProps, "setDisplayLabel">) {
   const { ranges } = useFilterValues();
   const { setRange } = useFilterActions();
-  const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0] ?? "tcgplayer");
+  const favoriteMarketplace = useDisplayStore((s) => s.marketplaceOrder[0] ?? "cardtrader");
 
   // The price section uses a marketplace-aware currency formatter so EUR
   // users see "5 €" instead of "$5". The available range itself already

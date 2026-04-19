@@ -127,7 +127,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const collectionsMap = useCollectionsMap();
   const showImages = useDisplayStore((state) => state.showImages);
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
-  const favoriteMarketplace = marketplaceOrder[0] ?? "tcgplayer";
+  const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
 
   // ── Mode state ──────────────────────────────────────────────────────
   const { browsing: browsingParam } = useSearch({ strict: false });

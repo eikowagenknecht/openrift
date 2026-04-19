@@ -284,7 +284,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   const hydrated = useHydrated();
   const gridFoil = foilEffect && hydrated;
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
-  const favoriteMarketplace = marketplaceOrder[0] ?? "tcgplayer";
+  const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
   const prices = usePrices();
   const favoritePrice = prices.get(printing.id, favoriteMarketplace);
   const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);

@@ -77,7 +77,7 @@ export function PrintingPicker({
 }
 
 function PrintingPrices({ printing }: { printing: Printing }) {
-  const favorite = useDisplayStore((s) => s.marketplaceOrder[0] ?? "tcgplayer");
+  const favorite = useDisplayStore((s) => s.marketplaceOrder[0] ?? "cardtrader");
   const prices = usePrices();
   const { data: history } = usePriceHistory(printing.id, "30d");
 

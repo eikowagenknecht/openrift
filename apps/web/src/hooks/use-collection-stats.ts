@@ -799,7 +799,7 @@ export function useCollectionStats(collectionId?: string): CollectionStatsResult
   const prices = usePrices();
   const { orders } = useEnumOrders();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
-  const marketplace = marketplaceOrder[0] ?? "tcgplayer";
+  const marketplace = marketplaceOrder[0] ?? "cardtrader";
 
   const stats = computeCollectionStats({
     stacks,

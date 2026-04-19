@@ -27,7 +27,7 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
   const [expanded, setExpanded] = useState(false);
   const [range, setRange] = useState<TimeRange>("30d");
   const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
-  const favorite = marketplaceOrder[0] ?? "tcgplayer";
+  const favorite = marketplaceOrder[0] ?? "cardtrader";
   const { data } = usePriceHistory(printingId, "30d");
   const rawSnapshots: AnySnapshot[] = data?.[favorite]?.snapshots ?? [];
   const snapshots = rawSnapshots.map((s) => ({ date: s.date, value: snapshotHeadline(s) }));

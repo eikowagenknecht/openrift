@@ -343,7 +343,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
               <>
                 <span>·</span>
                 <span>
-                  {formatterForMarketplace(marketplaceOrder[0] ?? "tcgplayer")(
+                  {formatterForMarketplace(marketplaceOrder[0] ?? "cardtrader")(
                     totalValueCents / 100,
                   )}
                 </span>

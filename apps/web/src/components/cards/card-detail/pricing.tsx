@@ -90,7 +90,7 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
     return null;
   }
 
-  const favorite = marketplaceOrder[0] ?? "tcgplayer";
+  const favorite = marketplaceOrder[0] ?? "cardtrader";
 
   return (
     <div className="flex items-center justify-end gap-1.5">
