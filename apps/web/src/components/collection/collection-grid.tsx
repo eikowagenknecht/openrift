@@ -656,18 +656,21 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         ? (siblings.find((sibling) => sibling.id === overrideId) ?? item.printing)
         : item.printing;
 
+    // Counts are scoped to the viewing collection so they match what browse
+    // mode shows on the same card — switching modes shouldn't change the number.
     const hasMultipleVariants = dataView === "cards" && (siblings?.length ?? 0) > 1;
     const totalOwned = hasMultipleVariants
       ? siblings?.reduce(
           (sum, printing) =>
-            sum + adjustedCount(printing.id, ownedCountByPrinting?.[printing.id] ?? 0),
+            sum +
+            adjustedCount(printing.id, stackByPrintingId.get(printing.id)?.copyIds.length ?? 0),
           0,
         )
       : undefined;
 
     const ownedCount = adjustedCount(
       displayPrinting.id,
-      ownedCountByPrinting?.[displayPrinting.id] ?? 0,
+      stackByPrintingId.get(displayPrinting.id)?.copyIds.length ?? 0,
     );
 
     return (
@@ -1000,7 +1003,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
               ownedCounts={Object.fromEntries(
                 variantPrintings.map((p) => [
                   p.id,
-                  adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
+                  adjustedCount(p.id, stackByPrintingId.get(p.id)?.copyIds.length ?? 0),
                 ]),
               )}
               onQuickAdd={handleQuickAdd}
