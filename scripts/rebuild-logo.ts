@@ -33,14 +33,16 @@ const PARAMS = {
   cardY: 217.1,
   cardRadius: 14,
 
-  // Side card (left — right is computed by mirroring). Defined as a proper
-  // rounded rectangle rotated outward around its own center, painted under
-  // the center card so only the fanned-out portion is visible.
+  // Side card (left — right is computed by mirroring). A proper rounded
+  // rectangle rotated outward around its own center; the outset of the
+  // center card is subtracted so adjacent cards read as separate
+  // (otherwise all three whites visually merge into one blob).
   sideCardWidth: 120.6,
   sideCardHeight: 176.8,
   sideCardRadius: 14,
-  sideCardCenter: { x: 243, y: 316 },
-  sideCardRotation: -14, // degrees; negative = CCW (top tilts right, bottom tilts left)
+  sideCardCenter: { x: 258, y: 316 },
+  sideCardRotation: -12, // degrees; negative = CCW (top tilts right, bottom tilts left)
+  sideCardGap: 8, // black gap carved around the center card
 } as const;
 
 // Original traced logo path. We only reuse the frame subpaths [0..4] and
@@ -102,9 +104,19 @@ function build(): string {
     new paper.Point(PARAMS.sideCardCenter.x, PARAMS.sideCardCenter.y),
   );
 
+  // Carve an outset of the center card out of the side card so the two
+  // cards read as separate shapes (visible black gap) even when both are
+  // filled the same color.
+  const cardOutset = new paper.Path.Rectangle({
+    point: [cardX - PARAMS.sideCardGap, PARAMS.cardY - PARAMS.sideCardGap],
+    size: [PARAMS.cardWidth + 2 * PARAMS.sideCardGap, PARAMS.cardHeight + 2 * PARAMS.sideCardGap],
+    radius: PARAMS.cardRadius + PARAMS.sideCardGap,
+  });
+  const sideLeftCarved = sideLeft.subtract(cardOutset) as paper.PathItem;
+
   const zones = {
     frame: symmetrize(frame),
-    cardSide: symmetrize(sideLeft),
+    cardSide: symmetrize(sideLeftCarved),
     cardCenter: symmetrize(cardCenter),
     rays: symmetrize(rayLeft),
   };
