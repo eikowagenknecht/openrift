@@ -2,6 +2,7 @@
 
 ## 2026-04-19
 
+- feat: The printing info table on a card's detail page is trimmed to just the core attributes, with language moved up next to set and code, and the promo markers, distribution channels, and editor's note now shown in a combined box at the bottom (matching the side detail pane)
 - feat: Metal and metal-deluxe printings now show their own icons (anvil for metal, trophy for metal-deluxe) across card grids, the card detail page, and printing menus, instead of being visually indistinguishable from normal printings
 - feat: The admin distribution channels table now shows how many printings are linked to each channel, and deleting a channel that's in use shows a clear confirmation explaining how many printings will be unlinked
 - feat: The Promos page now groups events into a hierarchy (e.g. Regional Event › Houston › Top 1) with collapsible sections and rolled-up counts, and pulls sparse leaves under the same parent into a single compact table for easier scanning
@@ -13,6 +14,7 @@
 - feat: Each printing in the variant list on a card's detail page now shows its artist and distribution channel next to the code, so you can tell variants apart without clicking each one
 - feat: Card detail pages now have a Share button that opens the native share sheet on mobile (Messages, WhatsApp, etc.) or copies the link on desktop, and the link points at the exact printing you're currently viewing
 - feat: Selecting a printing on a card detail page now updates the URL, and sharing that link unfurls with the matching art and text on Discord, Slack, and social sites
+- fix: The Language row on a card's detail page now shows the full language name (e.g. "English") instead of the two-letter code
 - fix: On Firefox, promo cards without an uploaded image no longer spill out below the page footer
 - fix: Art variant labels on the card detail page now show their proper display name (e.g. "Overnumbered", "Alt Art") instead of the raw lowercase slug
 - fix: The power and might icons on a card's detail page are now visible in light mode, instead of blending into the background
