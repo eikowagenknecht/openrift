@@ -2,7 +2,7 @@
 
 ## 2026-04-19
 
-- feat: Metal and metal-deluxe printings now show their own icons (gem for metal, trophy for metal-deluxe) across card grids, the card detail page, and printing menus, instead of being visually indistinguishable from normal printings
+- feat: Metal and metal-deluxe printings now show their own icons (anvil for metal, trophy for metal-deluxe) across card grids, the card detail page, and printing menus, instead of being visually indistinguishable from normal printings
 - feat: The admin distribution channels table now shows how many printings are linked to each channel, and deleting a channel that's in use shows a clear confirmation explaining how many printings will be unlinked
 - feat: The Promos page now groups events into a hierarchy (e.g. Regional Event › Houston › Top 1) with collapsible sections and rolled-up counts, and pulls sparse leaves under the same parent into a single compact table for easier scanning
 - feat: The Promos page now also lists product-based distributions (starter decks, bundles, promo packs), not only event-based ones
@@ -10,6 +10,9 @@
 - feat: Cards on the Promos page show small marker chips ("Promo", "Champion", ...) below each image, so you can tell at a glance what makes each printing distinct
 - feat: Printings with an editor's note now show a small ⓘ icon next to the rarity — hover to read the full note, on any card view across the site
 - feat: The card detail page now shows a "Distribution & printing notes" block with markers, the full channel breadcrumb, channel descriptions, and the printing's note when any of these apply
+- feat: Each printing in the variant list on a card's detail page now shows its artist and distribution channel next to the code, so you can tell variants apart without clicking each one
+- feat: Card detail pages now have a Share button that opens the native share sheet on mobile (Messages, WhatsApp, etc.) or copies the link on desktop, and the link points at the exact printing you're currently viewing
+- feat: Selecting a printing on a card detail page now updates the URL, and sharing that link unfurls with the matching art and text on Discord, Slack, and social sites
 - fix: The power and might icons on a card's detail page are now visible in light mode, instead of blending into the background
 - fix: Finish labels on card pages now come from the finishes table, so non-foil finishes show their proper display name instead of the raw slug
 - fix: When sharing a card link, the preview image and description now match the printing shown on the page, instead of sometimes pulling from a different variant
