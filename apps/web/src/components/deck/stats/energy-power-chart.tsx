@@ -195,8 +195,6 @@ function SingleChart({
     return row;
   });
   const chartConfig = buildChartConfig(stacks, metric, domainColors);
-  // Reversed for stacking: first rendered = bottom, last = top (outermost)
-  const reversed = stacks.toReversed();
 
   return (
     <div>
@@ -206,8 +204,8 @@ function SingleChart({
           <GradientDefs stacks={stacks} colors={domainColors} />
           <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
           <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-          {reversed.map((stack, index) => {
-            const aboveKeys = reversed.slice(index + 1).map((candidate) => candidate.key);
+          {stacks.map((stack, index) => {
+            const aboveKeys = stacks.slice(index + 1).map((candidate) => candidate.key);
             return (
               <Bar
                 key={`${metric}_${stack.key}`}
