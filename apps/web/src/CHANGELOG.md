@@ -13,6 +13,8 @@
 - feat: Each printing in the variant list on a card's detail page now shows its artist and distribution channel next to the code, so you can tell variants apart without clicking each one
 - feat: Card detail pages now have a Share button that opens the native share sheet on mobile (Messages, WhatsApp, etc.) or copies the link on desktop, and the link points at the exact printing you're currently viewing
 - feat: Selecting a printing on a card detail page now updates the URL, and sharing that link unfurls with the matching art and text on Discord, Slack, and social sites
+- fix: On Firefox, promo cards without an uploaded image no longer spill out below the page footer
+- fix: Art variant labels on the card detail page now show their proper display name (e.g. "Overnumbered", "Alt Art") instead of the raw lowercase slug
 - fix: The power and might icons on a card's detail page are now visible in light mode, instead of blending into the background
 - fix: Finish labels on card pages now come from the finishes table, so non-foil finishes show their proper display name instead of the raw slug
 - fix: When sharing a card link, the preview image and description now match the printing shown on the page, instead of sometimes pulling from a different variant
