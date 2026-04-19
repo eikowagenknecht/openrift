@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict jgpO1zMN63so5YJwWUIavSORtUck5nAI1oe78h6wx9dW7Sp2jWP2qnNX87lWddH
+\restrict 0piyz6tOUgV8t05QTQ4gpGss6w1Hd3w9bHKy8iJgqHjf15JyCd3V1APo88EAqti
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -208,6 +208,62 @@ CREATE FUNCTION public.set_updated_at() RETURNS trigger
 
 
 --
+-- Name: trg_distribution_channels_validate(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trg_distribution_channels_validate() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    DECLARE
+      parent_kind text;
+      cursor_id uuid;
+      depth int := 0;
+    BEGIN
+      IF NEW.parent_id IS NOT NULL THEN
+        SELECT kind INTO parent_kind FROM distribution_channels WHERE id = NEW.parent_id;
+        IF parent_kind IS NULL THEN
+          RAISE EXCEPTION 'Parent distribution channel % not found', NEW.parent_id;
+        END IF;
+        IF parent_kind <> NEW.kind THEN
+          RAISE EXCEPTION 'Child channel kind (%) must match parent kind (%)',
+            NEW.kind, parent_kind;
+        END IF;
+
+        cursor_id := NEW.parent_id;
+        WHILE cursor_id IS NOT NULL AND depth < 32 LOOP
+          IF cursor_id = NEW.id THEN
+            RAISE EXCEPTION 'Cycle detected in distribution channel hierarchy';
+          END IF;
+          SELECT parent_id INTO cursor_id FROM distribution_channels WHERE id = cursor_id;
+          depth := depth + 1;
+        END LOOP;
+        IF depth >= 32 THEN
+          RAISE EXCEPTION 'Distribution channel hierarchy exceeds maximum depth';
+        END IF;
+
+        IF EXISTS (
+          SELECT 1 FROM printing_distribution_channels WHERE channel_id = NEW.parent_id
+        ) THEN
+          RAISE EXCEPTION 'Cannot attach child under channel % because it already has printings',
+            NEW.parent_id;
+        END IF;
+      END IF;
+
+      IF TG_OP = 'UPDATE' AND NEW.kind IS DISTINCT FROM OLD.kind THEN
+        IF EXISTS (
+          SELECT 1 FROM distribution_channels WHERE parent_id = NEW.id AND kind <> NEW.kind
+        ) THEN
+          RAISE EXCEPTION 'Cannot change kind of % because children have a different kind',
+            NEW.id;
+        END IF;
+      END IF;
+
+      RETURN NEW;
+    END;
+    $$;
+
+
+--
 -- Name: trg_markers_slug_change(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -221,6 +277,23 @@ CREATE FUNCTION public.trg_markers_slug_change() RETURNS trigger
         FOR affected_id IN SELECT printing_id FROM printing_markers WHERE marker_id = NEW.id LOOP
           PERFORM recompute_printing_marker_slugs(affected_id);
         END LOOP;
+      END IF;
+      RETURN NEW;
+    END;
+    $$;
+
+
+--
+-- Name: trg_printing_distribution_channels_validate(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.trg_printing_distribution_channels_validate() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM distribution_channels WHERE parent_id = NEW.channel_id) THEN
+        RAISE EXCEPTION 'Channel % has children; printings can only link to leaf channels',
+          NEW.channel_id;
       END IF;
       RETURN NEW;
     END;
@@ -616,9 +689,13 @@ CREATE TABLE public.distribution_channels (
     description text,
     sort_order integer DEFAULT 0 CONSTRAINT promo_types_sort_order_not_null NOT NULL,
     kind text DEFAULT 'event'::text NOT NULL,
+    parent_id uuid,
+    children_label text,
+    CONSTRAINT distribution_channels_children_label_check CHECK (((children_label IS NULL) OR (children_label <> ''::text))),
     CONSTRAINT distribution_channels_description_check CHECK ((description <> ''::text)),
     CONSTRAINT distribution_channels_kind_check CHECK ((kind = ANY (ARRAY['event'::text, 'product'::text]))),
     CONSTRAINT distribution_channels_label_check CHECK ((label <> ''::text)),
+    CONSTRAINT distribution_channels_no_self_parent CHECK (((parent_id IS NULL) OR (parent_id <> id))),
     CONSTRAINT distribution_channels_slug_check CHECK ((slug <> ''::text))
 );
 
@@ -2153,6 +2230,13 @@ CREATE INDEX idx_decks_user_id ON public.decks USING btree (user_id);
 
 
 --
+-- Name: idx_distribution_channels_parent_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_distribution_channels_parent_id ON public.distribution_channels USING btree (parent_id);
+
+
+--
 -- Name: idx_ignored_candidate_cards_provider_external; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2398,6 +2482,13 @@ CREATE UNIQUE INDEX uq_wish_list_items_printing ON public.wish_list_items USING 
 
 
 --
+-- Name: distribution_channels distribution_channels_validate; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER distribution_channels_validate BEFORE INSERT OR UPDATE ON public.distribution_channels FOR EACH ROW EXECUTE FUNCTION public.trg_distribution_channels_validate();
+
+
+--
 -- Name: keyword_styles keyword_styles_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -2409,6 +2500,13 @@ CREATE TRIGGER keyword_styles_set_updated_at BEFORE UPDATE ON public.keyword_sty
 --
 
 CREATE TRIGGER markers_slug_change AFTER UPDATE OF slug ON public.markers FOR EACH ROW EXECUTE FUNCTION public.trg_markers_slug_change();
+
+
+--
+-- Name: printing_distribution_channels printing_distribution_channels_validate; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER printing_distribution_channels_validate BEFORE INSERT OR UPDATE ON public.printing_distribution_channels FOR EACH ROW EXECUTE FUNCTION public.trg_printing_distribution_channels_validate();
 
 
 --
@@ -2908,6 +3006,14 @@ ALTER TABLE ONLY public.decks
 
 
 --
+-- Name: distribution_channels distribution_channels_parent_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.distribution_channels
+    ADD CONSTRAINT distribution_channels_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES public.distribution_channels(id) ON DELETE RESTRICT;
+
+
+--
 -- Name: cards fk_cards_type; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3239,5 +3345,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict jgpO1zMN63so5YJwWUIavSORtUck5nAI1oe78h6wx9dW7Sp2jWP2qnNX87lWddH
+\unrestrict 0piyz6tOUgV8t05QTQ4gpGss6w1Hd3w9bHKy8iJgqHjf15JyCd3V1APo88EAqti
 

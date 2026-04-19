@@ -275,6 +275,8 @@ export interface DistributionChannelResponse {
   description: string | null;
   kind: DistributionChannelKind;
   sortOrder: number;
+  parentId: string | null;
+  childrenLabel: string | null;
   createdAt: string;
   updatedAt: string;
 }

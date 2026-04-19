@@ -15,6 +15,8 @@ const channelSchema = z.object({
   description: z.string().nullable().openapi({ example: null }),
   kind: z.enum(["event", "product"]).openapi({ example: "event" }),
   sortOrder: z.number().openapi({ example: 0 }),
+  parentId: z.string().nullable().openapi({ example: null }),
+  childrenLabel: z.string().nullable().openapi({ example: null }),
   createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
   updatedAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
 });
@@ -98,6 +100,8 @@ export const adminDistributionChannelsRoute = new OpenAPIHono<{ Variables: Varia
           description: r.description,
           kind: r.kind,
           sortOrder: r.sortOrder,
+          parentId: r.parentId,
+          childrenLabel: r.childrenLabel,
           createdAt: r.createdAt.toISOString(),
           updatedAt: r.updatedAt.toISOString(),
         }),
@@ -133,7 +137,7 @@ export const adminDistributionChannelsRoute = new OpenAPIHono<{ Variables: Varia
   })
   .openapi(createChannel, async (c) => {
     const { distributionChannels: repo } = c.get("repos");
-    const { slug, label, description, kind } = c.req.valid("json");
+    const { slug, label, description, kind, parentId, childrenLabel } = c.req.valid("json");
     const existing = await repo.getBySlug(slug);
     if (existing) {
       throw new AppError(
@@ -142,12 +146,15 @@ export const adminDistributionChannelsRoute = new OpenAPIHono<{ Variables: Varia
         `Distribution channel "${slug}" already exists`,
       );
     }
-    const maxSortOrder = await repo.getMaxSortOrder();
+    const resolvedParentId = parentId ?? null;
+    const maxSortOrder = await repo.getMaxSortOrderForParent(resolvedParentId);
     const created = await repo.create({
       slug,
       label,
       description,
       kind,
+      parentId: resolvedParentId,
+      childrenLabel: childrenLabel ?? null,
       sortOrder: maxSortOrder + 1,
     });
     return c.json({ distributionChannel: created }, 201);
@@ -164,7 +171,17 @@ export const adminDistributionChannelsRoute = new OpenAPIHono<{ Variables: Varia
         throw new AppError(409, ERROR_CODES.CONFLICT, `Slug "${body.slug}" already in use`);
       }
     }
-    await repo.update(id, body);
+    // When the parent changes, append the row to the new sibling group's end so
+    // sort orders don't collide with existing siblings under that parent.
+    const parentChanged =
+      body.parentId !== undefined && (body.parentId ?? null) !== existing.parentId;
+    const updates = { ...body, parentId: body.parentId ?? null };
+    if (parentChanged) {
+      const maxSortOrder = await repo.getMaxSortOrderForParent(updates.parentId);
+      await repo.update(id, { ...updates, sortOrder: maxSortOrder + 1 });
+    } else {
+      await repo.update(id, updates);
+    }
     return c.body(null, 204);
   })
   .openapi(deleteChannel, async (c) => {

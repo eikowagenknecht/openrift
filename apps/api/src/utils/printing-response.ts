@@ -38,6 +38,8 @@ export async function loadMarkerAndChannelMaps(
         label: row.channelLabel,
         description: row.channelDescription,
         kind: row.channelKind as DistributionChannelKind,
+        parentId: row.channelParentId,
+        childrenLabel: row.channelChildrenLabel,
       },
       distributionNote: row.distributionNote,
     };

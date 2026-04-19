@@ -20,6 +20,10 @@ export interface DistributionChannel {
   label: string;
   description: string | null;
   kind: DistributionChannelKind;
+  /** Parent channel id (NULL = root of the tree). */
+  parentId: string | null;
+  /** Column header a /promos compact table uses for this channel's children. */
+  childrenLabel: string | null;
 }
 
 export interface DistributionChannelWithCount extends DistributionChannel {

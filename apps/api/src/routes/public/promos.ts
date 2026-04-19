@@ -122,18 +122,39 @@ export const promosRoute = promosApp.openapi(getPromos, async (c) => {
     }
   }
 
-  const channels: DistributionChannelWithCount[] = eventChannels.map((ch) => {
-    const counts = channelCounts.get(ch.id);
-    return {
-      id: ch.id,
-      slug: ch.slug,
-      label: ch.label,
-      description: ch.description,
-      kind: "event",
-      cardCount: counts?.cards.size ?? 0,
-      printingCount: counts?.printings ?? 0,
-    };
-  });
+  // Roll printing counts from each channel up to its ancestors so a parent
+  // header can display the aggregate without each page having to re-walk the
+  // tree. Cards roll up too, deduplicated by union of child sets.
+  const rollupCards = new Map<string, Set<string>>();
+  const rollupPrintings = new Map<string, number>();
+  const channelById = new Map(eventChannels.map((ch) => [ch.id, ch]));
+  for (const [leafId, leafCounts] of channelCounts) {
+    let cursorId: string | null = leafId;
+    while (cursorId !== null) {
+      let cardSet = rollupCards.get(cursorId);
+      if (!cardSet) {
+        cardSet = new Set();
+        rollupCards.set(cursorId, cardSet);
+      }
+      for (const cardId of leafCounts.cards) {
+        cardSet.add(cardId);
+      }
+      rollupPrintings.set(cursorId, (rollupPrintings.get(cursorId) ?? 0) + leafCounts.printings);
+      cursorId = channelById.get(cursorId)?.parentId ?? null;
+    }
+  }
+
+  const channels: DistributionChannelWithCount[] = eventChannels.map((ch) => ({
+    id: ch.id,
+    slug: ch.slug,
+    label: ch.label,
+    description: ch.description,
+    kind: "event",
+    parentId: ch.parentId,
+    childrenLabel: ch.childrenLabel,
+    cardCount: rollupCards.get(ch.id)?.size ?? 0,
+    printingCount: rollupPrintings.get(ch.id) ?? 0,
+  }));
 
   const content: PromosListResponse = { channels, cards, printings, prices };
   c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");

@@ -26,6 +26,7 @@ import { useIgnoreCandidateCard, useIgnoreCandidatePrinting } from "@/hooks/use-
 import { useLanguages } from "@/hooks/use-languages";
 import { useMarkers } from "@/hooks/use-markers";
 import { useProviderSettings } from "@/hooks/use-provider-settings";
+import { buildChannelTree, leafChannels } from "@/lib/distribution-channel-tree";
 
 // ---------------------------------------------------------------------------
 // Shared hook: data + mutations used by both existing and new detail pages
@@ -42,6 +43,14 @@ export function useCardDetailData(invalidates: readonly (readonly unknown[])[]) 
 
   const { data: channelsData } = useDistributionChannels();
   const distributionChannels = channelsData?.distributionChannels ?? [];
+  // Card-detail can only attach printings to leaf channels. Show the full
+  // breadcrumb (e.g. "Regional Event › Houston › Top 1") so the picker stays
+  // unambiguous when the same leaf label repeats under different parents.
+  const channelTree = buildChannelTree(distributionChannels);
+  const channelPickerOptions = leafChannels(channelTree).map((node) => ({
+    value: node.channel.slug,
+    label: node.breadcrumb,
+  }));
 
   const { data: languagesData } = useLanguages();
   const languagesList = languagesData?.languages ?? [];
@@ -52,7 +61,7 @@ export function useCardDetailData(invalidates: readonly (readonly unknown[])[]) 
     orders,
     labels,
     markers.map((m) => ({ value: m.slug, label: m.label })),
-    distributionChannels.map((c) => ({ value: c.slug, label: c.label })),
+    channelPickerOptions,
     artistSuggestions,
     languagesList.map((lang: { code: string; name: string }) => ({
       value: lang.code,

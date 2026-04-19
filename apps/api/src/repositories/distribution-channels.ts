@@ -34,6 +34,50 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
       return db.selectFrom("distributionChannels").selectAll().where("slug", "in", slugs).execute();
     },
 
+    /**
+     * Channels with no children. Printings can only link to leaves.
+     *
+     * @returns Leaf channels ordered for display.
+     */
+    listLeaves(kind?: DistributionChannelKind) {
+      let query = db
+        .selectFrom("distributionChannels as dc")
+        .selectAll()
+        .where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom("distributionChannels as child")
+                .select(sql`1`.as("one"))
+                .whereRef("child.parentId", "=", "dc.id"),
+            ),
+          ),
+        );
+      if (kind !== undefined) {
+        query = query.where("dc.kind", "=", kind);
+      }
+      return query.orderBy("dc.kind").orderBy("dc.sortOrder").orderBy("dc.label").execute();
+    },
+
+    /**
+     * Self plus all descendants. Used by the admin form to exclude invalid
+     * parent choices from the dropdown.
+     *
+     * @returns Set of channel ids (self + transitive descendants).
+     */
+    async listDescendantIds(id: string): Promise<string[]> {
+      const result = await sql<{ id: string }>`
+        WITH RECURSIVE descendants AS (
+          SELECT id FROM distribution_channels WHERE id = ${id}
+          UNION ALL
+          SELECT c.id FROM distribution_channels c
+          JOIN descendants d ON c.parent_id = d.id
+        )
+        SELECT id FROM descendants
+      `.execute(db);
+      return result.rows.map((r) => r.id);
+    },
+
     getById(id: string) {
       return db
         .selectFrom("distributionChannels")
@@ -50,11 +94,21 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    async getMaxSortOrder(): Promise<number> {
-      const row = await db
+    /**
+     * Max sort order among siblings of a given parent (NULL = root level).
+     * Scoped per-parent so new roots and new children don't collide on ordering.
+     *
+     * @returns The largest sort_order among siblings, or -1 if the group is empty.
+     */
+    async getMaxSortOrderForParent(parentId: string | null): Promise<number> {
+      let query = db
         .selectFrom("distributionChannels")
-        .select((eb) => eb.fn.max("sortOrder").as("maxSortOrder"))
-        .executeTakeFirst();
+        .select((eb) => eb.fn.max("sortOrder").as("maxSortOrder"));
+      query =
+        parentId === null
+          ? query.where("parentId", "is", null)
+          : query.where("parentId", "=", parentId);
+      const row = await query.executeTakeFirst();
       return row?.maxSortOrder ?? -1;
     },
 
@@ -64,6 +118,8 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
       description?: string | null;
       kind?: DistributionChannelKind;
       sortOrder?: number;
+      parentId?: string | null;
+      childrenLabel?: string | null;
     }) {
       return db
         .insertInto("distributionChannels")
@@ -71,6 +127,8 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
           slug: values.slug,
           label: values.label,
           description: values.description ?? null,
+          parentId: values.parentId ?? null,
+          childrenLabel: values.childrenLabel ?? null,
           ...(values.kind === undefined ? {} : { kind: values.kind }),
           ...(values.sortOrder === undefined ? {} : { sortOrder: values.sortOrder }),
         })
@@ -98,6 +156,9 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
         label?: string;
         description?: string | null;
         kind?: DistributionChannelKind;
+        parentId?: string | null;
+        childrenLabel?: string | null;
+        sortOrder?: number;
         updatedAt?: Date;
       },
     ) {
@@ -121,6 +182,20 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
+    /**
+     * Whether this channel has at least one direct child.
+     *
+     * @returns A row when a child exists, undefined otherwise.
+     */
+    hasChildren(id: string) {
+      return db
+        .selectFrom("distributionChannels")
+        .select("id")
+        .where("parentId", "=", id)
+        .limit(1)
+        .executeTakeFirst();
+    },
+
     listForPrinting(printingId: string) {
       return db
         .selectFrom("printingDistributionChannels as pdc")
@@ -131,6 +206,8 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
           "dc.label as channelLabel",
           "dc.description as channelDescription",
           "dc.kind as channelKind",
+          "dc.parentId as channelParentId",
+          "dc.childrenLabel as channelChildrenLabel",
           "pdc.distributionNote",
         ])
         .where("pdc.printingId", "=", printingId)
@@ -154,6 +231,8 @@ export function distributionChannelsRepo(db: Kysely<Database>) {
           "dc.label as channelLabel",
           "dc.description as channelDescription",
           "dc.kind as channelKind",
+          "dc.parentId as channelParentId",
+          "dc.childrenLabel as channelChildrenLabel",
           "pdc.distributionNote",
         ])
         .where("pdc.printingId", "in", printingIds)

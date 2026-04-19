@@ -33,15 +33,17 @@ export function useDistributionChannels() {
   return useSuspenseQuery(adminDistributionChannelsQueryOptions);
 }
 
+interface CreateChannelInput {
+  slug: string;
+  label: string;
+  description?: string | null;
+  kind?: DistributionChannelKind;
+  parentId?: string | null;
+  childrenLabel?: string | null;
+}
+
 const createChannelFn = createServerFn({ method: "POST" })
-  .inputValidator(
-    (input: {
-      slug: string;
-      label: string;
-      description?: string | null;
-      kind?: DistributionChannelKind;
-    }) => input,
-  )
+  .inputValidator((input: CreateChannelInput) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const res = await fetch(`${API_URL}/api/v1/admin/distribution-channels`, {
@@ -50,62 +52,51 @@ const createChannelFn = createServerFn({ method: "POST" })
       body: JSON.stringify(data),
     });
     if (!res.ok) {
-      throw new Error(`Create distribution channel failed: ${res.status}`);
+      const text = await res.text();
+      throw new Error(text || `Create distribution channel failed: ${res.status}`);
     }
     return res.json();
   });
 
 export function useCreateDistributionChannel() {
   return useMutationWithInvalidation({
-    mutationFn: (vars: {
-      slug: string;
-      label: string;
-      description?: string | null;
-      kind?: DistributionChannelKind;
-    }) => createChannelFn({ data: vars }),
+    mutationFn: (vars: CreateChannelInput) => createChannelFn({ data: vars }),
     invalidates: [queryKeys.admin.distributionChannels, queryKeys.promos.all],
   });
 }
 
+interface UpdateChannelInput {
+  id: string;
+  slug?: string;
+  label?: string;
+  description?: string | null;
+  kind?: DistributionChannelKind;
+  parentId?: string | null;
+  childrenLabel?: string | null;
+}
+
 const updateChannelFn = createServerFn({ method: "POST" })
-  .inputValidator(
-    (input: {
-      id: string;
-      slug?: string;
-      label?: string;
-      description?: string | null;
-      kind?: DistributionChannelKind;
-    }) => input,
-  )
+  .inputValidator((input: UpdateChannelInput) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
+    const { id, ...patch } = data;
     const res = await fetch(
-      `${API_URL}/api/v1/admin/distribution-channels/${encodeURIComponent(data.id)}`,
+      `${API_URL}/api/v1/admin/distribution-channels/${encodeURIComponent(id)}`,
       {
         method: "PATCH",
         headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({
-          slug: data.slug,
-          label: data.label,
-          description: data.description,
-          kind: data.kind,
-        }),
+        body: JSON.stringify(patch),
       },
     );
     if (!res.ok) {
-      throw new Error(`Update distribution channel failed: ${res.status}`);
+      const text = await res.text();
+      throw new Error(text || `Update distribution channel failed: ${res.status}`);
     }
   });
 
 export function useUpdateDistributionChannel() {
   return useMutationWithInvalidation({
-    mutationFn: (vars: {
-      id: string;
-      slug?: string;
-      label?: string;
-      description?: string | null;
-      kind?: DistributionChannelKind;
-    }) => updateChannelFn({ data: vars }),
+    mutationFn: (vars: UpdateChannelInput) => updateChannelFn({ data: vars }),
     invalidates: [queryKeys.admin.distributionChannels, queryKeys.promos.all],
   });
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-19
+
+- feat: The Promos page now groups events into a hierarchy (e.g. Regional Event › Houston › Top 1) with collapsible sections and rolled-up counts, and pulls sparse leaves under the same parent into a single compact table for easier scanning
+
 ## 2026-04-18
 
 - feat: Your favorite marketplace now stands out with an outlined button style, while the others use a quieter ghost style

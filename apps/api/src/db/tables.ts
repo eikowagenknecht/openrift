@@ -623,6 +623,10 @@ export interface DistributionChannelsTable {
   /** CHECK: kind IN ('event', 'product') */
   kind: Generated<"event" | "product">;
   sortOrder: Generated<number>;
+  /** FK → distribution_channels.id (ON DELETE RESTRICT). NULL = root channel. */
+  parentId: string | null;
+  /** CHECK: <> '' — optional column header when /promos collapses sparse children. */
+  childrenLabel: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

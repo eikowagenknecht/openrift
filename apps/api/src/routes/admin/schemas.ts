@@ -106,6 +106,8 @@ export const createDistributionChannelSchema = z.object({
   label: z.string().min(1),
   description: z.string().min(1).nullable().optional(),
   kind: distributionChannelKindEnum.optional(),
+  parentId: z.string().uuid().nullable().optional(),
+  childrenLabel: z.string().min(1).nullable().optional(),
 });
 
 export const updateDistributionChannelSchema = z.object({
@@ -113,6 +115,8 @@ export const updateDistributionChannelSchema = z.object({
   label: z.string().min(1).optional(),
   description: z.string().min(1).nullable().optional(),
   kind: distributionChannelKindEnum.optional(),
+  parentId: z.string().uuid().nullable().optional(),
+  childrenLabel: z.string().min(1).nullable().optional(),
 });
 
 // ── Provider Settings ──────────────────────────────────────────────────────

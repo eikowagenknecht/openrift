@@ -239,6 +239,8 @@ const distributionChannelSchema = z.object({
   label: z.string().openapi({ example: "Nexus Night" }),
   description: z.string().nullable().openapi({ example: null }),
   kind: z.enum(["event", "product"]).openapi({ example: "event" }),
+  parentId: z.string().nullable().openapi({ example: null }),
+  childrenLabel: z.string().nullable().openapi({ example: null }),
 });
 
 const printingDistributionChannelSchema = z.object({

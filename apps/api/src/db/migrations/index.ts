@@ -39,6 +39,7 @@ import * as m090 from "./090-cardmarket-headline-market.js";
 import * as m091 from "./091-promos-rework.js";
 import * as m092 from "./092-deferrable-printing-constraints.js";
 import * as m093 from "./093-deck-cards-preferred-printing.js";
+import * as m094 from "./094-distribution-channel-hierarchy.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -137,4 +138,5 @@ export const migrations: Record<string, Migration> = {
   "091-promos-rework": m091,
   "092-deferrable-printing-constraints": m092,
   "093-deck-cards-preferred-printing": m093,
+  "094-distribution-channel-hierarchy": m094,
 };

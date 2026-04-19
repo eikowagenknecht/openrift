@@ -1021,6 +1021,8 @@ describe("filterCards", () => {
       label: "Nexus Night",
       description: null,
       kind: "event" as const,
+      parentId: null,
+      childrenLabel: null,
     };
     const channelLaunch = {
       id: "2",
@@ -1028,6 +1030,8 @@ describe("filterCards", () => {
       label: "Launch Day",
       description: null,
       kind: "event" as const,
+      parentId: null,
+      childrenLabel: null,
     };
     const cards = [
       makePrinting({
