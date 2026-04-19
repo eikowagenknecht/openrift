@@ -7,8 +7,8 @@ import { IS_COARSE_POINTER } from "@/lib/pointer";
 import type { IndicatorState, VRow } from "./card-grid-types";
 import { computeSnapPoints } from "./compute-snap-points";
 
-const HIDE_DELAY = IS_COARSE_POINTER ? 3000 : 800;
-const POST_DRAG_HIDE_DELAY = IS_COARSE_POINTER ? 1500 : 600;
+const HIDE_DELAY = IS_COARSE_POINTER ? 1000 : 800;
+const POST_DRAG_HIDE_DELAY = IS_COARSE_POINTER ? 800 : 600;
 const INDICATOR_H_FALLBACK = 48;
 const INDICATOR_PAD = 4;
 
