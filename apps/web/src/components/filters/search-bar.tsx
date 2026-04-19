@@ -60,7 +60,10 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
     ? "Search cards..."
     : `Search by ${searchScope.map((f) => SEARCH_FIELD_LABELS[f].label.toLowerCase()).join(", ")}...`;
 
-  const cardCountLabel = hasActiveFilters ? `${filteredCount} / ${totalCards}` : String(totalCards);
+  const cardCountLabel =
+    hasActiveFilters && filteredCount !== totalCards
+      ? `${filteredCount} / ${totalCards}`
+      : String(totalCards);
 
   return (
     <div className="min-w-0 flex-1">

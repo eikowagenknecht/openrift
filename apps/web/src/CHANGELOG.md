@@ -19,6 +19,7 @@
 - feat: Selecting a printing on a card detail page now updates the URL, and sharing that link unfurls with the matching art and text on Discord, Slack, and social sites
 - feat: The foil shimmer effect on card images is now off by default, and turning it on gives you a smooth, fluid shimmer instead of the stepped version — toggle it in your profile's Display settings
 - feat: The page top bar (back button, title, actions) now stays pinned under the global header as you scroll, so the zone count, export button, and other page-level controls are always within reach
+- fix: The card count next to the search bar no longer shows "407 / 407 cards" when no filters are narrowing the list — it just shows "407 cards"
 - fix: Discord posts announcing new or changed printings now include the card's thumbnail image, and the finish and language fields show their proper display names (e.g. "Metal", "French") instead of the raw slug or code
 - fix: The scroll position badge on touch devices now fades away shortly after you stop scrolling, instead of hovering over the page for a few seconds and getting in the way of taps
 - fix: When adding cards to a collection, the recording indicator in the sidebar no longer hides the collection's card count — both are shown side by side
