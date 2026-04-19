@@ -2,6 +2,7 @@
 
 ## 2026-04-19
 
+- feat: New accounts start with a "Binder" collection alongside the Inbox, so there's somewhere to sort cards into from the very first booster
 - feat: The mobile card detail view now has a close (X) icon in the top right instead of a back arrow in the top left
 - feat: Your own cards in a collection now show plus/minus buttons above each thumbnail, so you can add or remove copies without switching into add mode
 - feat: When a card in the Cards view has copies of more than one printing (e.g. normal and foil), clicking the minus now opens the variant popover so you can pick which printing to remove — in both browse mode and add mode, instead of silently removing from the displayed variant

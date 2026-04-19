@@ -132,7 +132,16 @@ export function createAuth(deps: {
       user: {
         create: {
           async after(user) {
-            await collectionsRepo(db).ensureInbox(user.id);
+            const collections = collectionsRepo(db);
+            await collections.ensureInbox(user.id);
+            await collections.create({
+              userId: user.id,
+              name: "Binder",
+              description: null,
+              availableForDeckbuilding: true,
+              isInbox: false,
+              sortOrder: 1,
+            });
             const adminEmail = config.auth.adminEmail;
             if (adminEmail && user.email === adminEmail) {
               await adminsRepo(db).autoPromote(user.id);
