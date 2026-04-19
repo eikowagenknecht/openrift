@@ -426,6 +426,8 @@ export default function WhyOpenRiftArticle() {
                 detail={{
                   general:
                     "Run the entire stack yourself (frontend, API, and database). Fully documented.",
+                  openrift:
+                    "To be honest, I don't expect anyone to ever self-host this. But you COULD if you wanted.",
                 }}
               />
               <ComparisonRow
