@@ -18,6 +18,7 @@
 - feat: Card detail pages now have a Share button that opens the native share sheet on mobile (Messages, WhatsApp, etc.) or copies the link on desktop, and the link points at the exact printing you're currently viewing
 - feat: Selecting a printing on a card detail page now updates the URL, and sharing that link unfurls with the matching art and text on Discord, Slack, and social sites
 - feat: The foil shimmer effect on card images is now off by default, and turning it on gives you a smooth, fluid shimmer instead of the stepped version — toggle it in your profile's Display settings
+- feat: The page top bar (back button, title, actions) now stays pinned under the global header as you scroll, so the zone count, export button, and other page-level controls are always within reach
 - fix: The scroll position badge on touch devices now fades away shortly after you stop scrolling, instead of hovering over the page for a few seconds and getting in the way of taps
 - fix: When adding cards to a collection, the recording indicator in the sidebar no longer hides the collection's card count — both are shown side by side
 - fix: The Language row on a card's detail page now shows the full language name (e.g. "English") instead of the two-letter code
