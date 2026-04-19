@@ -1,11 +1,12 @@
 import type { GroupByField, Printing } from "@openrift/shared";
 import type { ReactNode } from "react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { use, useLayoutEffect, useRef, useState } from "react";
 
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { CardGrid } from "@/components/cards/card-grid";
 import { APP_HEADER_HEIGHT } from "@/components/cards/card-grid-constants";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
+import { PageTopBarHeightContext } from "@/components/layout/page-top-bar";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +60,7 @@ export function CardViewer({
   children,
 }: CardViewerProps) {
   const hydrated = useHydrated();
+  const pageTopBarHeight = use(PageTopBarHeightContext);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const aboveGridRef = useRef<HTMLDivElement>(null);
   const [toolbarHeight, setToolbarHeight] = useState(0);
@@ -91,7 +93,8 @@ export function CardViewer({
     return () => observer.disconnect();
   }, []);
 
-  const toolbarOffset = APP_HEADER_HEIGHT + toolbarHeight;
+  const headerOffset = APP_HEADER_HEIGHT + pageTopBarHeight;
+  const toolbarOffset = headerOffset + toolbarHeight;
   const stickyOffset = toolbarOffset + aboveGridHeight;
 
   return (
@@ -102,7 +105,7 @@ export function CardViewer({
           "bg-background/80 sticky z-20 -mx-3 px-3 pt-3 backdrop-blur-lg",
           aboveGridHeight === 0 && "sm:rounded-b-xl",
         )}
-        style={{ top: APP_HEADER_HEIGHT }}
+        style={{ top: headerOffset }}
       >
         {toolbar}
       </div>

@@ -15,7 +15,11 @@ import { z } from "zod";
 import { CollectionSidebar } from "@/components/collection/collection-sidebar";
 import type { CardDragData } from "@/components/collection/dnd-types";
 import { Footer } from "@/components/layout/footer";
-import { PageTopBarHeightContext, useMeasuredHeight } from "@/components/layout/page-top-bar";
+import {
+  PAGE_TOP_BAR_STICKY,
+  PageTopBarHeightContext,
+  useMeasuredHeight,
+} from "@/components/layout/page-top-bar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { useMoveCopies } from "@/hooks/use-copies";
 import { FilterSearchProvider, filterSearchSchema } from "@/lib/search-schemas";
@@ -140,7 +144,7 @@ function CollectionLayout() {
     <FilterSearchProvider value={search}>
       <PageTopBarHeightContext value={topBarHeight}>
         <div className="flex min-h-0 flex-1 flex-col">
-          <div ref={setTopBarSlot} className="px-3" />
+          <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY} />
           <SidebarProvider className="flex-1">
             <DndContext
               sensors={sensors}

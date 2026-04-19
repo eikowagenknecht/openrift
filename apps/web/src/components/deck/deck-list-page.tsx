@@ -3,7 +3,12 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { DownloadIcon, PlusIcon, SwordsIcon } from "lucide-react";
 import { useState } from "react";
 
-import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import {
+  PAGE_TOP_BAR_STICKY,
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarTitle,
+} from "@/components/layout/page-top-bar";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateDeck, useDecks } from "@/hooks/use-decks";
-import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
+import { cn, CONTAINER_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 import { DeckTile } from "./deck-tile";
 
@@ -101,20 +106,22 @@ export function DeckListPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
-    <div className={`${CONTAINER_WIDTH} ${PAGE_PADDING}`}>
-      <PageTopBar className="mb-3">
-        <PageTopBarTitle>Decks</PageTopBarTitle>
-        <PageTopBarActions>
-          <Link to="/decks/import" className={buttonVariants({ variant: "outline" })}>
-            <DownloadIcon className="size-4" />
-            Import
-          </Link>
-          <Button onClick={() => setCreateOpen(true)}>
-            <PlusIcon className="size-4" />
-            New Deck
-          </Button>
-        </PageTopBarActions>
-      </PageTopBar>
+    <div className={`${CONTAINER_WIDTH} ${PAGE_PADDING_NO_TOP}`}>
+      <div className={cn(PAGE_TOP_BAR_STICKY, "-mx-3 mb-3")}>
+        <PageTopBar>
+          <PageTopBarTitle>Decks</PageTopBarTitle>
+          <PageTopBarActions>
+            <Link to="/decks/import" className={buttonVariants({ variant: "outline" })}>
+              <DownloadIcon className="size-4" />
+              Import
+            </Link>
+            <Button onClick={() => setCreateOpen(true)}>
+              <PlusIcon className="size-4" />
+              New Deck
+            </Button>
+          </PageTopBarActions>
+        </PageTopBar>
+      </div>
 
       {deckItems.length === 0 ? (
         <div className="text-muted-foreground flex flex-col items-center gap-2 py-16 text-center">

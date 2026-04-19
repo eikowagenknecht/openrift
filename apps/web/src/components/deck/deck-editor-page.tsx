@@ -22,10 +22,13 @@ import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { ProxyExportDialog } from "@/components/deck/proxy-export-dialog";
 import { Footer } from "@/components/layout/footer";
 import {
+  PAGE_TOP_BAR_STICKY,
   PageTopBar,
   PageTopBarActions,
   PageTopBarBack,
+  PageTopBarHeightContext,
   PageTopBarTitle,
+  useMeasuredHeight,
 } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import {
@@ -180,14 +183,17 @@ function HoveredCardPreview({
 }
 export function DeckEditorPage({ deckId }: DeckEditorPageProps) {
   const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
+  const topBarHeight = useMeasuredHeight(topBarSlot);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div ref={setTopBarSlot} className="px-3 pt-3" />
-      <SidebarProvider defaultOpen>
-        <DeckEditorContent deckId={deckId} topBarSlot={topBarSlot} />
-      </SidebarProvider>
-    </div>
+    <PageTopBarHeightContext value={topBarHeight}>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY} />
+        <SidebarProvider defaultOpen>
+          <DeckEditorContent deckId={deckId} topBarSlot={topBarSlot} />
+        </SidebarProvider>
+      </div>
+    </PageTopBarHeightContext>
   );
 }
 
