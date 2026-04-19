@@ -7,7 +7,8 @@
 // `<use>` / transform trickery to preserve.
 //
 // Zones (each becomes a <path class="zone-*">, colorable via CSS):
-//   - zone-frame        — outer rift / heart shape (from traced source)
+//   - zone-frame        — outer rift shape with its echo-band (traced)
+//   - zone-frame-inner  — the "inner silhouette" behind the cards (traced)
 //   - zone-card-side    — the two fanned side cards (rotated rounded rects)
 //   - zone-card-center  — the center rounded rectangle
 //   - zone-rays         — the bottom decorative rays (from traced source)
@@ -70,11 +71,17 @@ function symmetrize(shape: paper.PathItem): string {
 function build(): string {
   paper.setup(new paper.Size(VIEW_BOX.width, VIEW_BOX.height));
 
-  // --- Frame: subpaths [0..4] of the traced source ---
+  // --- Frame: subpaths [0..2] (outer rift + echo) ---
   const tracedA = new paper.CompoundPath({ pathData: TRACED_PATH, fillRule: "nonzero" });
   const frame = new paper.CompoundPath({ fillRule: "nonzero" });
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 3; i++) {
     frame.addChild(tracedA.children[i].clone());
+  }
+
+  // --- Frame inner: subpaths [3..4] (black silhouette behind the cards) ---
+  const frameInner = new paper.CompoundPath({ fillRule: "nonzero" });
+  for (let i = 3; i < 5; i++) {
+    frameInner.addChild(tracedA.children[i].clone());
   }
 
   // --- Rays: left decorative ray [8]; right is computed by mirroring ---
@@ -116,6 +123,7 @@ function build(): string {
 
   const zones = {
     frame: symmetrize(frame),
+    frameInner: symmetrize(frameInner),
     cardSide: symmetrize(sideLeftCarved),
     cardCenter: symmetrize(cardCenter),
     rays: symmetrize(rayLeft),
@@ -127,8 +135,10 @@ function build(): string {
   // consumer: `.zone-card-center { fill: gold }` etc.
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${VIEW_BOX.width} ${VIEW_BOX.height}" fill-rule="nonzero">` +
-    // Paint order: frame → side cards (behind center) → center card → rays.
+    // Paint order: frame → inner silhouette → side cards (behind center)
+    //   → center card → rays.
     `<path class="zone-frame" fill="currentColor" d="${zones.frame}"/>` +
+    `<path class="zone-frame-inner" fill="currentColor" d="${zones.frameInner}"/>` +
     `<path class="zone-card-side" fill="#fff" d="${zones.cardSide}"/>` +
     `<path class="zone-card-center" fill="#fff" d="${zones.cardCenter}"/>` +
     `<path class="zone-rays" fill="currentColor" d="${zones.rays}"/>` +
