@@ -4,6 +4,10 @@
 
 - feat: The Promos page now groups events into a hierarchy (e.g. Regional Event › Houston › Top 1) with collapsible sections and rolled-up counts, and pulls sparse leaves under the same parent into a single compact table for easier scanning
 - feat: The Promos page now also lists product-based distributions (starter decks, bundles, promo packs), not only event-based ones
+- feat: The Promos page has a sticky sidebar that lists every language and channel heading, so you can jump straight to a section without scrolling through the tree
+- feat: Cards on the Promos page show small marker chips ("Promo", "Champion", ...) below each image, so you can tell at a glance what makes each printing distinct
+- feat: Printings with an editor's note now show a small ⓘ icon next to the rarity — hover to read the full note, on any card view across the site
+- feat: The card detail page now shows a "Distribution & printing notes" block with markers, the full channel breadcrumb, channel descriptions, and the printing's note when any of these apply
 
 ## 2026-04-18
 

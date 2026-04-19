@@ -246,6 +246,7 @@ const distributionChannelSchema = z.object({
 const printingDistributionChannelSchema = z.object({
   channel: distributionChannelSchema,
   distributionNote: z.string().nullable().openapi({ example: null }),
+  ancestorLabels: z.array(z.string()).openapi({ example: [] }),
 });
 
 const cardImageVariantsSchema = z.object({
@@ -318,6 +319,7 @@ const catalogPrintingResponseSchema = z.object({
   flavorText: z.string().nullable().openapi({ example: null }),
   printedName: z.string().nullable().openapi({ example: null }),
   language: z.string().openapi({ example: "EN" }),
+  comment: z.string().nullable().openapi({ example: null }),
   cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
 });
 

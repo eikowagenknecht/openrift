@@ -184,6 +184,8 @@ interface CardThumbnailProps {
   dragId?: string; // custom: @dnd-kit draggable ID
   /** Shows a large diagonal "BANNED" overlay on the card image. */
   showBanOverlay?: boolean; // custom: deckbuilder banned card overlay
+  /** Content rendered below the meta-label row (e.g. marker chips on /promos). */
+  belowLabel?: ReactNode;
 }
 
 // Wrapper that owns the dnd-kit useDraggable subscription. Only mounted when a
@@ -248,6 +250,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   dragData,
   dragId,
   showBanOverlay,
+  belowLabel,
 }: CardThumbnailProps) {
   const card = {
     ...printing.card,
@@ -453,6 +456,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         isFoil={isFoilCard}
         bans={showBanOverlay ? undefined : printing.card.bans}
         hasRulesDeviation={printing.card.errata !== null}
+        printingComment={printing.comment}
         price={priceNode}
       />
     </div>
@@ -508,6 +512,7 @@ export const CardThumbnail = memo(function CardThumbnail({
           {imageSection}
         </button>
         {labelSection}
+        {belowLabel}
       </>
     );
 
@@ -564,6 +569,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         {imageSection}
       </button>
       {labelSection}
+      {belowLabel}
     </div>
   );
 });

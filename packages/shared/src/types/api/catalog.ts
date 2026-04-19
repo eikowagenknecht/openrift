@@ -39,6 +39,7 @@ export interface CatalogPrintingResponse {
   flavorText: string | null;
   printedName: string | null;
   language: string;
+  comment: string | null;
   cardId: string;
 }
 

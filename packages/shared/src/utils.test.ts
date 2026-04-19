@@ -39,6 +39,7 @@ function makePrinting(overrides: Partial<Printing> & { language: string }): Prin
     printedEffectText: null,
     flavorText: null,
     printedName: null,
+    comment: null,
     card: {
       slug: "card-1",
       name: "Card 1",

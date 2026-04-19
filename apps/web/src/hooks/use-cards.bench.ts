@@ -104,6 +104,7 @@ function buildFixtures() {
       printedEffectText: null,
       flavorText: null,
       printedName: null,
+      comment: null,
       language: pick(LANGUAGES, r),
       cardId: `card-${cardIdx}`,
     };

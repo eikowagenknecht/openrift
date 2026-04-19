@@ -86,6 +86,7 @@ export function stubPrinting(
     printedEffectText: null,
     flavorText: null,
     printedName: null,
+    comment: null,
     language: "EN",
     card,
     ...printingOverrides,

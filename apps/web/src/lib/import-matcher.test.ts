@@ -26,6 +26,7 @@ function makePrinting(overrides: Partial<Printing> & { id: string; shortCode: st
     printedEffectText: null,
     flavorText: null,
     printedName: null,
+    comment: null,
     language: "EN",
     card: {
       slug: "test-card",
