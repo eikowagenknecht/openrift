@@ -23,7 +23,7 @@ const getPromos = createRoute({
     200: {
       content: { "application/json": { schema: promosListResponseSchema } },
       description:
-        "All event-distribution channels with their printings and cards (the public 'promos' page)",
+        "All distribution channels (event + product) with their printings and cards (the public 'promos' page)",
     },
   },
 });
@@ -34,9 +34,9 @@ export const promosRoute = promosApp.openapi(getPromos, async (c) => {
   const repos = c.get("repos");
   const { catalog, marketplace, distributionChannels } = repos;
 
-  const [eventChannels, printingRows] = await Promise.all([
-    distributionChannels.listByKind("event"),
-    catalog.eventDistributedPrintings(),
+  const [allChannels, printingRows] = await Promise.all([
+    distributionChannels.listAll(),
+    catalog.channelDistributedPrintings(),
   ]);
 
   const cardIds = [...new Set(printingRows.map((p) => p.cardId))];
@@ -105,13 +105,10 @@ export const promosRoute = promosApp.openapi(getPromos, async (c) => {
     })),
   }));
 
-  // Count cards + printings per event channel by walking the resolved links.
+  // Count cards + printings per channel by walking the resolved links.
   const channelCounts = new Map<string, { cards: Set<string>; printings: number }>();
   for (const printing of printings) {
     for (const link of printing.distributionChannels) {
-      if (link.channel.kind !== "event") {
-        continue;
-      }
       let entry = channelCounts.get(link.channel.id);
       if (!entry) {
         entry = { cards: new Set(), printings: 0 };
@@ -127,7 +124,7 @@ export const promosRoute = promosApp.openapi(getPromos, async (c) => {
   // tree. Cards roll up too, deduplicated by union of child sets.
   const rollupCards = new Map<string, Set<string>>();
   const rollupPrintings = new Map<string, number>();
-  const channelById = new Map(eventChannels.map((ch) => [ch.id, ch]));
+  const channelById = new Map(allChannels.map((ch) => [ch.id, ch]));
   for (const [leafId, leafCounts] of channelCounts) {
     let cursorId: string | null = leafId;
     while (cursorId !== null) {
@@ -144,12 +141,12 @@ export const promosRoute = promosApp.openapi(getPromos, async (c) => {
     }
   }
 
-  const channels: DistributionChannelWithCount[] = eventChannels.map((ch) => ({
+  const channels: DistributionChannelWithCount[] = allChannels.map((ch) => ({
     id: ch.id,
     slug: ch.slug,
     label: ch.label,
     description: ch.description,
-    kind: "event",
+    kind: ch.kind,
     parentId: ch.parentId,
     childrenLabel: ch.childrenLabel,
     cardCount: rollupCards.get(ch.id)?.size ?? 0,
