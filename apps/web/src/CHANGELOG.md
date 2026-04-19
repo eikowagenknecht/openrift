@@ -3,6 +3,7 @@
 ## 2026-04-19
 
 - feat: The Promos page now groups events into a hierarchy (e.g. Regional Event › Houston › Top 1) with collapsible sections and rolled-up counts, and pulls sparse leaves under the same parent into a single compact table for easier scanning
+- feat: The Promos page now also lists product-based distributions (starter decks, bundles, promo packs), not only event-based ones
 
 ## 2026-04-18
 

@@ -366,7 +366,7 @@ export const setDetailResponseSchema = z
   })
   .openapi("SetDetailResponse");
 
-// ── Promos page (public — distribution channels with kind=event) ───────────
+// ── Promos page (public — distribution channels of every kind) ─────────────
 
 const distributionChannelWithCountSchema = distributionChannelSchema.extend({
   cardCount: z.number().openapi({ example: 12 }),

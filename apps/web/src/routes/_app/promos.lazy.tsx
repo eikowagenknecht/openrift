@@ -117,9 +117,6 @@ function PromosPage() {
     const byLang = new Map<string, Map<string, Printing[]>>();
     for (const printing of data.printings) {
       for (const link of printing.distributionChannels) {
-        if (link.channel.kind !== "event") {
-          continue;
-        }
         let perChannel = byLang.get(printing.language);
         if (!perChannel) {
           perChannel = new Map();
@@ -153,9 +150,9 @@ function PromosPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Promo Cards</h1>
         <p className="text-muted-foreground max-w-prose text-sm">
-          Promos are alternate printings distributed outside booster products: prerelease giveaways,
-          store championship prizes, and event exclusives. Sections are grouped by language, then by
-          event hierarchy.
+          Printings with a known distribution channel: tournament events (Worlds, prereleases,
+          regional championships) and retail products (starter decks, bundles, promo packs).
+          Sections are grouped by language, then by channel hierarchy.
         </p>
       </div>
 

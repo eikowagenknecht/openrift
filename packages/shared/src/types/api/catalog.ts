@@ -88,8 +88,9 @@ export interface SetDetailResponse {
 }
 
 /**
- * Public "promos" page: cards distributed through `kind = 'event'` channels.
- * The page groups by channel and lists which printings appeared at each.
+ * Public "promos" page: cards distributed through any channel (event or
+ * product). The page groups by channel and lists which printings appeared at
+ * each.
  */
 export interface PromosListResponse {
   channels: DistributionChannelWithCount[];

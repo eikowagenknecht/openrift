@@ -485,10 +485,10 @@ export function catalogRepo(db: Kysely<Database>) {
     },
 
     /**
-     * @returns All printings distributed through at least one event channel,
-     * ordered by their first event channel's label then short code.
+     * @returns All printings distributed through at least one channel (event or
+     * product), ordered by short code then finish.
      */
-    eventDistributedPrintings(): Promise<CatalogPrintingRow[]> {
+    channelDistributedPrintings(): Promise<CatalogPrintingRow[]> {
       return db
         .selectFrom("printings")
         .select(PRINTING_COLUMNS)
@@ -496,9 +496,7 @@ export function catalogRepo(db: Kysely<Database>) {
           eb.exists(
             eb
               .selectFrom("printingDistributionChannels as pdc")
-              .innerJoin("distributionChannels as dc", "dc.id", "pdc.channelId")
               .select(sql`1`.as("one"))
-              .where("dc.kind", "=", "event")
               .whereRef("pdc.printingId", "=", "printings.id"),
           ),
         )
