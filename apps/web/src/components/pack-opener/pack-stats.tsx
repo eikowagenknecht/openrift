@@ -15,12 +15,22 @@ interface PullStat {
   value: number;
 }
 
+interface UnpricedPull {
+  cardName: string;
+  shortCode: string;
+  rarity: string;
+}
+
 const RARITY_ORDER = ["Common", "Uncommon", "Rare", "Epic", "Showcase"];
+// Cap the "no price data" list so a 500-pack run doesn't spill hundreds of
+// commons into the stats panel. Rare+ pulls are the interesting slice anyway.
+const UNPRICED_INTERESTING_RARITIES = new Set(["Rare", "Epic", "Showcase", "Ultimate"]);
 
 // Aggregate display below the pack grid. Shows totals, rarity counts, and the most valuable pulls.
 export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
   const rarityCounts: Record<string, number> = {};
   const topPulls: PullStat[] = [];
+  const unpricedPulls: UnpricedPull[] = [];
   let totalValue = 0;
   let valuedCount = 0;
 
@@ -45,6 +55,12 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
             rarity: rarityKey,
             value,
           });
+        } else if (UNPRICED_INTERESTING_RARITIES.has(rarityKey)) {
+          unpricedPulls.push({
+            cardName: pull.printing.cardName,
+            shortCode: pull.printing.shortCode,
+            rarity: rarityKey,
+          });
         }
       }
     }
@@ -67,21 +83,32 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
   });
   topPulls.sort((a, b) => b.value - a.value);
   const top = topPulls.slice(0, 5);
+  // Order unpriced by rarity desc so the most interesting ones surface first.
+  unpricedPulls.sort((a, b) => {
+    const rankA = RARITY_ORDER.indexOf(a.rarity);
+    const rankB = RARITY_ORDER.indexOf(b.rarity);
+    return (rankB === -1 ? -1 : rankB) - (rankA === -1 ? -1 : rankA);
+  });
+  const unpriced = unpricedPulls.slice(0, 8);
 
   const fullFmt = marketplace ? formatterForMarketplace(marketplace) : null;
   const compactFmt = marketplace ? compactFormatterForMarketplace(marketplace) : null;
 
+  const totalPulls = packs.length * (packs[0]?.pulls.length ?? 0);
+  const coverageSubtitle =
+    totalPulls > 0 ? `${valuedCount} of ${totalPulls} cards had price data` : undefined;
+
   return (
     <div className="bg-card rounded-xl border p-4">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatTile label="Packs" value={packs.length.toString()} />
         {fullFmt ? (
           <>
             <StatTile label="Total value" value={fullFmt(totalValue)} />
-            <StatTile label="Average per pack" value={fullFmt(averageValue)} />
             <StatTile
-              label="Priced pulls"
-              value={`${valuedCount} / ${packs.length * (packs[0]?.pulls.length ?? 0)}`}
+              label="Average per pack"
+              value={fullFmt(averageValue)}
+              subtitle={coverageSubtitle}
             />
           </>
         ) : (
@@ -92,7 +119,7 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
           />
         )}
       </div>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
+      <div className="mt-4 grid max-w-2xl gap-x-8 gap-y-4 md:grid-cols-2">
         <div>
           <h3 className="mb-2 font-semibold">Rarity breakdown</h3>
           <ul className="space-y-0.5 text-sm">
@@ -124,6 +151,30 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
           </div>
         )}
       </div>
+      {unpriced.length > 0 && (
+        <div className="mt-4 max-w-2xl">
+          <h3 className="mb-2 font-semibold">No price data</h3>
+          <ul className="space-y-0.5 text-sm">
+            {unpriced.map((pull, i) => (
+              <li
+                key={`${pull.shortCode}-${i}`}
+                className="flex items-baseline justify-between gap-2"
+              >
+                <span className="truncate">
+                  {pull.cardName}
+                  <span className="text-muted-foreground ml-1">({pull.shortCode})</span>
+                </span>
+                <span className="text-muted-foreground text-xs">{pull.rarity}</span>
+              </li>
+            ))}
+            {unpricedPulls.length > unpriced.length && (
+              <li className="text-muted-foreground text-xs">
+                …and {unpricedPulls.length - unpriced.length} more
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -132,15 +183,18 @@ function StatTile({
   label,
   value,
   valueClass,
+  subtitle,
 }: {
   label: string;
   value: string;
   valueClass?: string;
+  subtitle?: string;
 }) {
   return (
     <div>
       <div className="text-muted-foreground text-xs tracking-wide uppercase">{label}</div>
       <div className={valueClass ?? "mt-1 text-xl font-semibold tabular-nums"}>{value}</div>
+      {subtitle && <div className="text-muted-foreground mt-0.5 text-xs">{subtitle}</div>}
     </div>
   );
 }

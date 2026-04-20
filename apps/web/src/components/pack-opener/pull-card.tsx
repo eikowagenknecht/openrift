@@ -1,6 +1,8 @@
 import type { CatalogPrintingResponse, PackPull } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
+import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { cn } from "@/lib/utils";
 
 const SLOT_BORDER: Record<PackPull["slot"], string> = {
@@ -27,15 +29,22 @@ interface PullCardProps {
   pull: PackPull;
   image: CatalogPrintingResponse["images"][number] | undefined;
   className?: string;
+  /** When true, the foil overlay animates; otherwise it's static rainbow. */
+  shimmer?: boolean;
 }
 
 // Face-up card in the reveal / bulk grid. Shows the printing image (or a
 // named placeholder when the image isn't available) and links to the card
 // detail page. Shine ring indicates a special-slot pull.
-export function PullCard({ pull, image, className }: PullCardProps) {
+export function PullCard({ pull, image, className, shimmer = true }: PullCardProps) {
   const { printing } = pull;
   const highlight = SLOT_BORDER[pull.slot];
   const glow = SLOT_GLOW[pull.slot];
+  // Pack opener always shows the holo effect on foil-finish pulls, regardless
+  // of the user's global foil preference — the whole point of the simulator is
+  // to make pulls feel exciting. Whether the overlay animates (shimmer) is a
+  // per-page toggle.
+  const showFoil = printing.finish === WellKnown.finish.FOIL;
 
   return (
     <Link
@@ -66,6 +75,7 @@ export function PullCard({ pull, image, className }: PullCardProps) {
             {printing.cardName}
           </div>
         )}
+        {showFoil && <FoilOverlay active shimmer={shimmer} />}
       </div>
       <div className="mt-1 px-0.5 text-xs">
         <div className="text-foreground truncate">{printing.cardName}</div>

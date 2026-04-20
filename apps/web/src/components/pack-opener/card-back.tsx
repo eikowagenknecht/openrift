@@ -36,6 +36,13 @@ export function CardBack({ className, interactive = false }: CardBackProps) {
         </filter>
         <rect width="100%" height="100%" filter={`url(#${noiseId})`} />
       </svg>
+      <div
+        className="pointer-events-none absolute inset-0 opacity-40"
+        style={{
+          background:
+            "radial-gradient(ellipse at center, var(--color-primary) 0%, transparent 55%)",
+        }}
+      />
       <div className="absolute inset-0 flex items-center justify-center">
         <img
           src="/logo.svg"
@@ -44,7 +51,6 @@ export function CardBack({ className, interactive = false }: CardBackProps) {
           className="pointer-events-none size-[45cqw] opacity-80 brightness-0 invert"
         />
       </div>
-      <div className="from-primary/30 absolute inset-x-0 top-[40%] h-[20%] bg-gradient-to-b to-transparent opacity-40" />
     </div>
   );
 }

@@ -8,7 +8,7 @@ import {
 } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { PackagePlusIcon, SparklesIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { PackBulkGrid } from "@/components/pack-opener/pack-bulk-grid";
 import { isBoosterEligible, toPackPrinting } from "@/components/pack-opener/pack-opener-utils";
@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { usePrices } from "@/hooks/use-prices";
 import { publicSetDetailQueryOptions, publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import { useSession } from "@/lib/auth-session";
@@ -67,10 +68,12 @@ export function PackOpenerPage() {
   const [countChoice, setCountChoice] = useState<string>("1");
   const [customCount, setCustomCount] = useState<number>(5);
   const [packs, setPacks] = useState<PackResult[]>([]);
+  const [shimmer, setShimmer] = useState(true);
+  const [autoReveal, setAutoReveal] = useState(false);
 
   const count =
     countChoice === "custom"
-      ? Math.min(100, Math.max(1, Math.floor(customCount || 1)))
+      ? Math.min(500, Math.max(1, Math.floor(customCount || 1)))
       : Number(countChoice);
 
   if (mainSets.length === 0) {
@@ -124,9 +127,40 @@ export function PackOpenerPage() {
         <OpenAction setSlug={setSlug} language={language} count={count} onOpened={setPacks} />
       </div>
 
-      {packs.length === 1 && packs[0] && <SinglePackResult pack={packs[0]} setSlug={setSlug} />}
-      {packs.length > 1 && <BulkPackResult packs={packs} setSlug={setSlug} />}
+      <div className="text-muted-foreground mb-6 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+        <ToggleField label="Foil shimmer" checked={shimmer} onChange={setShimmer} />
+        <ToggleField label="Auto-reveal" checked={autoReveal} onChange={setAutoReveal} />
+      </div>
+
+      {packs.length === 1 && packs[0] && (
+        <SinglePackResult
+          pack={packs[0]}
+          setSlug={setSlug}
+          shimmer={shimmer}
+          autoReveal={autoReveal}
+        />
+      )}
+      {packs.length > 1 && (
+        <BulkPackResult packs={packs} setSlug={setSlug} shimmer={shimmer} autoReveal={autoReveal} />
+      )}
     </div>
+  );
+}
+
+function ToggleField({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="inline-flex cursor-pointer items-center gap-2">
+      <Switch checked={checked} onCheckedChange={onChange} size="sm" />
+      <span>{label}</span>
+    </label>
   );
 }
 
@@ -193,7 +227,7 @@ function LanguageField({
 
 const COUNT_OPTIONS = [
   { value: "1", label: "1 pack" },
-  { value: "24", label: "24 (box)" },
+  { value: "24", label: "24 (booster display)" },
   { value: "custom", label: "Custom\u2026" },
 ] as const;
 
@@ -232,10 +266,14 @@ function CountField({
           <Input
             type="number"
             min={1}
-            max={100}
+            max={500}
             value={custom}
             onChange={(e) => onCustomChange(Number(e.target.value))}
-            className="w-20"
+            // [moz-appearance:textfield] hides Firefox's up/down spinners; the
+            // webkit selectors do the same for Chrome/Safari/Edge. The page's
+            // custom-count input is typed directly — the spinner adds noise
+            // at small sizes without meaningful value.
+            className="w-20 [-moz-appearance:textfield] [&::-webkit-inner-spin-button]:m-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:m-0 [&::-webkit-outer-spin-button]:appearance-none"
             aria-label="Custom pack count"
           />
         )}
@@ -263,7 +301,11 @@ function OpenAction({
   const openable = isPoolOpenable(pool);
 
   return (
-    <div className="flex items-end">
+    <div className="space-y-1">
+      {/* Invisible label keeps this cell's control row aligned with the other fields */}
+      <Label aria-hidden="true" className="invisible select-none">
+        &nbsp;
+      </Label>
       <Button
         size="default"
         className="w-full md:w-auto"
@@ -277,30 +319,100 @@ function OpenAction({
   );
 }
 
-function SinglePackResult({ pack, setSlug }: { pack: PackResult; setSlug: string }) {
+function SinglePackResult({
+  pack,
+  setSlug,
+  shimmer,
+  autoReveal,
+}: {
+  pack: PackResult;
+  setSlug: string;
+  shimmer: boolean;
+  autoReveal: boolean;
+}) {
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
   const imagesByPrintingId = useMemo(
     () => new Map(data.printings.map((p) => [p.id, p.images] as const)),
     [data.printings],
   );
+  // In auto-reveal mode stats are shown immediately; in manual mode they
+  // appear once every card has been flipped.
+  const [statsVisible, setStatsVisible] = useState(autoReveal);
+  // Reset the stats gate whenever a new single-pack result arrives, so the
+  // user starts each pack with the reveal flow again (unless auto-reveal is
+  // on, in which case there's nothing to gate).
+  useEffect(() => {
+    setStatsVisible(autoReveal);
+  }, [pack, autoReveal]);
   return (
     <section className="space-y-6">
-      <PackReveal pack={pack} imagesByPrintingId={imagesByPrintingId} />
-      <ValueStats packs={[pack]} />
+      <PackReveal
+        pack={pack}
+        imagesByPrintingId={imagesByPrintingId}
+        onAllRevealed={() => setStatsVisible(true)}
+        autoReveal={autoReveal}
+        shimmer={shimmer}
+      />
+      {statsVisible && <ValueStats packs={[pack]} />}
     </section>
   );
 }
 
-function BulkPackResult({ packs, setSlug }: { packs: PackResult[]; setSlug: string }) {
+function BulkPackResult({
+  packs,
+  setSlug,
+  shimmer,
+  autoReveal,
+}: {
+  packs: PackResult[];
+  setSlug: string;
+  shimmer: boolean;
+  autoReveal: boolean;
+}) {
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
   const imagesByPrintingId = useMemo(
     () => new Map(data.printings.map((p) => [p.id, p.images] as const)),
     [data.printings],
   );
+  // Track which packs have been fully revealed. Stats only show once every
+  // pack is flipped (auto-reveal skips the gate entirely).
+  const [revealedCount, setRevealedCount] = useState(autoReveal ? packs.length : 0);
+  useEffect(() => {
+    setRevealedCount(autoReveal ? packs.length : 0);
+  }, [packs, autoReveal]);
+  const statsVisible = revealedCount >= packs.length;
+
+  if (autoReveal) {
+    return (
+      <section className="space-y-6">
+        <ValueStats packs={packs} />
+        <PackBulkGrid packs={packs} imagesByPrintingId={imagesByPrintingId} shimmer={shimmer} />
+      </section>
+    );
+  }
+
+  // Click-to-reveal across many packs: render one PackReveal per pack, each
+  // tracking its own flip state. Each section commits toward the stats gate
+  // exactly once.
   return (
     <section className="space-y-6">
-      <ValueStats packs={packs} />
-      <PackBulkGrid packs={packs} imagesByPrintingId={imagesByPrintingId} />
+      {packs.map((pack, i) => (
+        <div key={i}>
+          <div className="mb-2 flex items-baseline justify-between border-b pb-1">
+            <h3 className="font-semibold">Pack {i + 1}</h3>
+            <span className="text-muted-foreground text-xs">
+              {pack.pulls.length} {pack.pulls.length === 1 ? "card" : "cards"}
+            </span>
+          </div>
+          <PackReveal
+            pack={pack}
+            imagesByPrintingId={imagesByPrintingId}
+            shimmer={shimmer}
+            onAllRevealed={() => setRevealedCount((n) => n + 1)}
+          />
+        </div>
+      ))}
+      {statsVisible && <ValueStats packs={packs} />}
     </section>
   );
 }
