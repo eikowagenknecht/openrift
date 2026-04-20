@@ -29,6 +29,7 @@ import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
+import { useDeckDetail } from "@/hooks/use-decks";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
@@ -93,7 +94,7 @@ export function DeckCardBrowser({
 
   if (!activeZone) {
     return (
-      <DeckOverview
+      <DeckOverviewForEditor
         deckId={deckId}
         ownershipData={ownershipData}
         marketplace={marketplace}
@@ -105,6 +106,29 @@ export function DeckCardBrowser({
   }
 
   return <DeckCardBrowserInner deckId={deckId} />;
+}
+
+function DeckOverviewForEditor({
+  deckId,
+  ownershipData,
+  marketplace,
+  onZoneClick,
+  onViewMissing,
+  onHoverCard,
+}: DeckCardBrowserProps) {
+  const { data: deckDetail } = useDeckDetail(deckId);
+  const cards = useDeckCards(deckId);
+  return (
+    <DeckOverview
+      deck={{ id: deckId, name: deckDetail.deck.name, format: deckDetail.deck.format }}
+      cards={cards}
+      ownershipData={ownershipData}
+      marketplace={marketplace}
+      onZoneClick={onZoneClick}
+      onViewMissing={onViewMissing}
+      onHoverCard={onHoverCard}
+    />
+  );
 }
 
 function DeckCardBrowserInner({ deckId }: { deckId: string }) {

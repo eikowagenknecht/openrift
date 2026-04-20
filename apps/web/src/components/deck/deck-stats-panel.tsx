@@ -4,6 +4,7 @@ import { useState } from "react";
 import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
 import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useDeckCards } from "@/hooks/use-deck-builder";
 import type { DomainCount } from "@/hooks/use-deck-stats";
 import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useDomainColors } from "@/hooks/use-domain-colors";
@@ -75,7 +76,8 @@ export function DeckStatsPanel({ deckId }: { deckId: string }) {
   // Start collapsed on mobile where the sidebar is hidden (display: none),
   // so Recharts doesn't render into a zero-sized container and warn.
   const [open, setOpen] = useState(() => globalThis.matchMedia("(min-width: 768px)").matches);
-  const stats = useDeckStats(deckId);
+  const cards = useDeckCards(deckId);
+  const stats = useDeckStats(cards);
   const domainColors = useDomainColors();
 
   return (

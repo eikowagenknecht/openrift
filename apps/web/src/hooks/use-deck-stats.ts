@@ -1,7 +1,7 @@
 import type { Domain } from "@openrift/shared";
 
-import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useEnumOrders } from "@/hooks/use-enums";
+import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type {
   DomainCount,
   DomainCombo,
@@ -39,14 +39,13 @@ const MAIN_ZONES = new Set(["main", "champion"]);
 const EXCLUDED_CARD_TYPES = new Set(["Legend", "Rune", "Battlefield"]);
 
 /**
- * Computes deck statistics from the current deck builder state.
+ * Computes deck statistics from the given deck-builder cards.
  * Covers main deck cards only (includes champion zone).
  * Excludes overflow, sideboard, legend, runes, and battlefield zones.
  * @returns The deck statistics.
  */
-export function useDeckStats(deckId: string): DeckStats {
+export function useDeckStats(cards: DeckBuilderCard[]): DeckStats {
   const { orders } = useEnumOrders();
-  const cards = useDeckCards(deckId);
 
   const mainCards = cards.filter((card) => MAIN_ZONES.has(card.zone));
 

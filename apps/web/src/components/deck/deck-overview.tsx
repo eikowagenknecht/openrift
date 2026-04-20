@@ -1,5 +1,6 @@
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
-import type { DeckViolation, DeckZone, Marketplace } from "@openrift/shared";
+import type { DeckFormat, DeckViolation, DeckZone, Marketplace } from "@openrift/shared";
+import { validateDeck } from "@openrift/shared";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
@@ -21,10 +22,8 @@ import { TypeBreakdown } from "@/components/deck/stats/type-breakdown";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useDeckCards, useDeckViolations } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckStats } from "@/hooks/use-deck-stats";
-import { useDeckDetail } from "@/hooks/use-decks";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
@@ -72,32 +71,49 @@ const SMALL_ZONE_SPAN: Partial<Record<DeckZone, string>> = {
 };
 
 interface DeckOverviewProps {
-  deckId: string;
+  deck: { id: string; name: string; format: DeckFormat };
+  cards: DeckBuilderCard[];
   ownershipData?: DeckOwnershipData;
   marketplace: Marketplace;
-  onZoneClick: (zone: DeckZone) => void;
-  onViewMissing: () => void;
+  /** Omit on read-only views — zone tiles become non-clickable and edit affordances hide. */
+  onZoneClick?: (zone: DeckZone) => void;
+  onViewMissing?: () => void;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  /** Disables DnD wiring, printing-menu popovers, and edit buttons. */
+  readOnly?: boolean;
 }
 
 /**
  * Full-width summary shown in the main content area when no deck zone is active.
  * Acts as both a deck dashboard and zone picker — clicking a zone tile drops
- * the user into that zone's card browser.
+ * the user into that zone's card browser. Read-only mode renders the same
+ * layout without DnD or edit affordances, for the public share page.
  * @returns The deck overview view.
  */
 export function DeckOverview({
-  deckId,
+  deck,
+  cards,
   ownershipData,
   marketplace,
   onZoneClick,
   onViewMissing,
   onHoverCard,
+  readOnly,
 }: DeckOverviewProps) {
-  const { data: deckDetail } = useDeckDetail(deckId);
-  const cards = useDeckCards(deckId);
-  const violations = useDeckViolations(deckId, deckDetail.deck.format);
-  const stats = useDeckStats(deckId);
+  const violations = validateDeck({
+    format: deck.format,
+    cards: cards.map((card) => ({
+      cardId: card.cardId,
+      zone: card.zone,
+      quantity: card.quantity,
+      cardName: card.cardName,
+      cardType: card.cardType,
+      superTypes: card.superTypes,
+      domains: card.domains,
+      tags: card.tags,
+    })),
+  });
+  const stats = useDeckStats(cards);
   const domainColors = useDomainColors();
   const { getPreferredFrontImage } = usePreferredPrinting();
   const fmtPrice = formatterForMarketplace(marketplace);
@@ -122,11 +138,11 @@ export function DeckOverview({
   return (
     <div className="@container flex flex-col gap-6 px-1 pt-2 pb-4">
       <header className="space-y-1">
-        <h2 className="text-2xl font-semibold">{deckDetail.deck.name}</h2>
+        <h2 className="text-2xl font-semibold">{deck.name}</h2>
         <p className="text-muted-foreground text-sm">
-          {deckDetail.deck.format === "constructed" ? "Constructed" : "Freeform"}
+          {deck.format === "constructed" ? "Constructed" : "Freeform"}
         </p>
-        {hint && <p className="text-sm">{hint}</p>}
+        {!readOnly && hint && <p className="text-sm">{hint}</p>}
       </header>
 
       {totalCards > 0 && (
@@ -210,7 +226,7 @@ export function DeckOverview({
               caption={`${ownershipData.totalOwned} / ${ownershipData.totalNeeded} owned`}
             />
           )}
-          {ownershipData?.deckValueCents !== undefined && (
+          {ownershipData?.deckValueCents !== undefined && onViewMissing && (
             <ValueKpi
               deckValueCents={ownershipData.deckValueCents}
               ownedValueCents={ownershipData.ownedValueCents}
@@ -228,7 +244,7 @@ export function DeckOverview({
           {SMALL_ZONES.map((zone) => (
             <ZoneTile
               key={zone}
-              deckId={deckId}
+              deckId={deck.id}
               zone={zone}
               label={ZONE_LABELS[zone]}
               cards={cards.filter((card) => card.zone === zone)}
@@ -239,16 +255,17 @@ export function DeckOverview({
                 (violation) => violation.zone === zone && !violation.cardId,
               )}
               className={SMALL_ZONE_SPAN[zone]}
-              onClick={() => onZoneClick(zone)}
+              onClick={onZoneClick ? () => onZoneClick(zone) : undefined}
               onHoverCard={onHoverCard}
               getThumbnail={(cardId, preferredPrintingId) =>
                 getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
               }
+              readOnly={readOnly}
             />
           ))}
         </div>
         <ZoneTile
-          deckId={deckId}
+          deckId={deck.id}
           zone="main"
           label={ZONE_LABELS.main}
           cards={cards.filter((card) => card.zone === "main")}
@@ -258,14 +275,15 @@ export function DeckOverview({
           zoneViolations={violations.filter(
             (violation) => violation.zone === "main" && !violation.cardId,
           )}
-          onClick={() => onZoneClick("main")}
+          onClick={onZoneClick ? () => onZoneClick("main") : undefined}
           onHoverCard={onHoverCard}
           getThumbnail={(cardId, preferredPrintingId) =>
             getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
           }
+          readOnly={readOnly}
         />
         <ZoneTile
-          deckId={deckId}
+          deckId={deck.id}
           zone="sideboard"
           label={ZONE_LABELS.sideboard}
           cards={cards.filter((card) => card.zone === "sideboard")}
@@ -275,15 +293,16 @@ export function DeckOverview({
           zoneViolations={violations.filter(
             (violation) => violation.zone === "sideboard" && !violation.cardId,
           )}
-          onClick={() => onZoneClick("sideboard")}
+          onClick={onZoneClick ? () => onZoneClick("sideboard") : undefined}
           onHoverCard={onHoverCard}
           getThumbnail={(cardId, preferredPrintingId) =>
             getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
           }
+          readOnly={readOnly}
         />
         {cards.some((card) => card.zone === "overflow") && (
           <ZoneTile
-            deckId={deckId}
+            deckId={deck.id}
             zone="overflow"
             label={ZONE_LABELS.overflow}
             cards={cards.filter((card) => card.zone === "overflow")}
@@ -293,11 +312,12 @@ export function DeckOverview({
             zoneViolations={violations.filter(
               (violation) => violation.zone === "overflow" && !violation.cardId,
             )}
-            onClick={() => onZoneClick("overflow")}
+            onClick={onZoneClick ? () => onZoneClick("overflow") : undefined}
             onHoverCard={onHoverCard}
             getThumbnail={(cardId, preferredPrintingId) =>
               getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
             }
+            readOnly={readOnly}
           />
         )}
       </div>
@@ -446,9 +466,10 @@ interface ZoneTileProps {
   emptyHint: string;
   zoneViolations: DeckViolation[];
   className?: string;
-  onClick: () => void;
+  onClick?: () => void;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
+  readOnly?: boolean;
 }
 
 function ZoneTile({
@@ -464,6 +485,7 @@ function ZoneTile({
   onClick,
   onHoverCard,
   getThumbnail,
+  readOnly,
 }: ZoneTileProps) {
   const hasViolation = zoneViolations.length > 0;
   const quantity = cards.reduce((sum, card) => sum + card.quantity, 0);
@@ -525,17 +547,17 @@ function ZoneTile({
   const { setNodeRef: dropRef, isOver } = useDroppable({
     id: `overview-zone-${zone}`,
     data: dropData,
-    disabled: dropDisabled,
+    disabled: readOnly || dropDisabled,
   });
 
   return (
     <div
-      ref={dropRef}
+      ref={readOnly ? undefined : dropRef}
       className={cn(
         "bg-card relative flex flex-col gap-2 rounded-lg border p-3 transition-colors",
         hasViolation && "border-destructive/50",
-        isOver && !dropDisabled && "ring-primary/60 ring-2",
-        dropDisabled && "opacity-40",
+        !readOnly && isOver && !dropDisabled && "ring-primary/60 ring-2",
+        !readOnly && dropDisabled && "opacity-40",
         className,
       )}
     >
@@ -578,13 +600,14 @@ function ZoneTile({
       </div>
 
       {isEmpty ? (
-        zone === "runes" ? (
+        zone === "runes" || readOnly || !onClick ? (
           // Runes fills itself when a Legend is set, so the primary path
           // isn't "click this button" — mirror the CTA styling minus the
           // icon and interactivity, and rely on the always-visible pencil
-          // for the rare manual-override case.
+          // for the rare manual-override case. Read-only views also land
+          // here since there's no action to take.
           <div className="text-muted-foreground flex items-center justify-center rounded-md border border-dashed px-3 py-4 text-center">
-            {emptyHint}
+            {readOnly ? "Empty" : emptyHint}
           </div>
         ) : (
           <button
@@ -605,6 +628,7 @@ function ZoneTile({
           isLandscape={isLandscape}
           onHoverCard={onHoverCard}
           getThumbnail={getThumbnail}
+          readOnly={readOnly}
         />
       ) : (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -622,13 +646,14 @@ function ZoneTile({
                 thumbnail={thumbnail}
                 isLandscape={isLandscape}
                 onHoverCard={onHoverCard}
+                readOnly={readOnly}
               />
             );
           })}
         </div>
       )}
 
-      {(!isEmpty || zone === "runes") && (
+      {!readOnly && onClick && (!isEmpty || zone === "runes") && (
         <button
           type="button"
           onClick={onClick}
@@ -656,6 +681,7 @@ function GroupedThumbs({
   isLandscape,
   onHoverCard,
   getThumbnail,
+  readOnly,
 }: {
   deckId: string;
   zone: DeckZone;
@@ -663,6 +689,7 @@ function GroupedThumbs({
   isLandscape: boolean;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
+  readOnly?: boolean;
 }) {
   const grouped = Map.groupBy(cards, (card) => card.cardType);
   const presentTypes = [
@@ -703,6 +730,7 @@ function GroupedThumbs({
                     thumbnail={thumbnail}
                     isLandscape={isLandscape}
                     onHoverCard={onHoverCard}
+                    readOnly={readOnly}
                   />
                 );
               })}
@@ -721,6 +749,7 @@ function ZoneThumb({
   thumbnail,
   isLandscape,
   onHoverCard,
+  readOnly,
 }: {
   deckId: string;
   card: DeckBuilderCard;
@@ -728,9 +757,10 @@ function ZoneThumb({
   thumbnail: string;
   isLandscape: boolean;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
+  readOnly?: boolean;
 }) {
   const isMobile = useIsMobile();
-  const enableDrag = !isMobile && DRAG_SOURCE_ZONES.has(zone);
+  const enableDrag = !readOnly && !isMobile && DRAG_SOURCE_ZONES.has(zone);
 
   const dragData: DeckCardDragData = {
     type: "deck-card",
@@ -747,35 +777,40 @@ function ZoneThumb({
     disabled: !enableDrag,
   });
 
+  const thumbBody = (
+    <div
+      ref={enableDrag ? setNodeRef : undefined}
+      className={cn(
+        "relative shrink-0",
+        enableDrag && "cursor-grab active:cursor-grabbing",
+        isDragging && card.quantity === 1 && "opacity-40",
+      )}
+      onMouseEnter={() => onHoverCard?.(card.cardId, card.preferredPrintingId)}
+      onMouseLeave={() => onHoverCard?.(null)}
+      {...(enableDrag ? listeners : {})}
+      {...(enableDrag ? attributes : {})}
+    >
+      <img
+        src={thumbnail}
+        alt={card.cardName}
+        className={cn("rounded-md object-cover shadow-sm", isLandscape ? "h-20 w-28" : "h-28 w-20")}
+        draggable={false}
+      />
+      {card.quantity > 1 && (
+        <span className="bg-background/90 text-foreground absolute right-0.5 bottom-0.5 rounded px-1 text-[10px] leading-tight font-medium tabular-nums">
+          ×{card.quantity}
+        </span>
+      )}
+    </div>
+  );
+
+  if (readOnly) {
+    return thumbBody;
+  }
+
   return (
     <DeckCardPrintingMenu deckId={deckId} card={card}>
-      <div
-        ref={enableDrag ? setNodeRef : undefined}
-        className={cn(
-          "relative shrink-0",
-          enableDrag && "cursor-grab active:cursor-grabbing",
-          isDragging && card.quantity === 1 && "opacity-40",
-        )}
-        onMouseEnter={() => onHoverCard?.(card.cardId, card.preferredPrintingId)}
-        onMouseLeave={() => onHoverCard?.(null)}
-        {...(enableDrag ? listeners : {})}
-        {...(enableDrag ? attributes : {})}
-      >
-        <img
-          src={thumbnail}
-          alt={card.cardName}
-          className={cn(
-            "rounded-md object-cover shadow-sm",
-            isLandscape ? "h-20 w-28" : "h-28 w-20",
-          )}
-          draggable={false}
-        />
-        {card.quantity > 1 && (
-          <span className="bg-background/90 text-foreground absolute right-0.5 bottom-0.5 rounded px-1 text-[10px] leading-tight font-medium tabular-nums">
-            ×{card.quantity}
-          </span>
-        )}
-      </div>
+      {thumbBody}
     </DeckCardPrintingMenu>
   );
 }
