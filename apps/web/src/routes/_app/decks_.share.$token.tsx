@@ -85,7 +85,7 @@ function SharedDeckPage() {
   };
 
   return (
-    <div className={`${PAGE_PADDING} mx-auto flex max-w-6xl flex-col gap-4 py-4`}>
+    <div className={`${PAGE_PADDING} mx-auto flex w-full max-w-6xl flex-col gap-4 py-4`}>
       <header className="border-border flex flex-col gap-2 border-b pb-4">
         <p className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
           <UserIcon className="size-3.5" />
@@ -124,7 +124,7 @@ function SharedDeckPage() {
 
 function SharedDeckPending() {
   return (
-    <div className={`${PAGE_PADDING} mx-auto flex max-w-6xl flex-col gap-4 py-4`}>
+    <div className={`${PAGE_PADDING} mx-auto flex w-full max-w-6xl flex-col gap-4 py-4`}>
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-5 w-32" />
       <Skeleton className="h-96 w-full" />
