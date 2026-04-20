@@ -311,19 +311,9 @@ export const CardThumbnail = memo(function CardThumbnail({
   const [fanReady, setFanReady] = useState(false);
   const fanTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
-  // custom: dim the card and mark it with a corner ribbon when banned in deckbuilder
-  const banOverlay = showBanOverlay && printing.card.bans.length > 0 && (
-    <>
-      <div className="pointer-events-none absolute inset-0 z-20 rounded-[inherit] bg-black/70" />
-      <div
-        className="@container pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-[inherit]"
-        title="Banned in the current format"
-      >
-        <div className="absolute top-[11cqi] -right-[14cqi] w-[60cqi] rotate-[45deg] bg-red-600 py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider text-red-50 uppercase shadow-md select-none">
-          Banned
-        </div>
-      </div>
-    </>
+  // custom: dim the whole card in the deckbuilder so banned cards read as unavailable
+  const banDim = showBanOverlay && printing.card.bans.length > 0 && (
+    <div className="pointer-events-none absolute inset-0 z-20 rounded-[inherit] bg-black/70" />
   );
 
   // Riot TCG community license requires previewed/unreleased cards to be
@@ -336,6 +326,19 @@ export const CardThumbnail = memo(function CardThumbnail({
     >
       <div className="absolute top-[11cqi] -left-[14cqi] w-[60cqi] rotate-[-45deg] bg-amber-500 py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider text-amber-950 uppercase shadow-md select-none">
         Preview
+      </div>
+    </div>
+  );
+
+  // Banned ribbon mirrors the Preview ribbon (top-left) and sits above it at z-40
+  // so the rare previewed-and-banned card still reads as banned.
+  const banRibbon = printing.card.bans.length > 0 && (
+    <div
+      className="@container pointer-events-none absolute inset-0 z-40 overflow-hidden rounded-[inherit]"
+      title="Banned in the current format"
+    >
+      <div className="absolute top-[11cqi] -left-[14cqi] w-[60cqi] rotate-[-45deg] bg-red-600 py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider text-red-50 uppercase shadow-md select-none">
+        Banned
       </div>
     </div>
   );
@@ -415,8 +418,9 @@ export const CardThumbnail = memo(function CardThumbnail({
                 card={card}
                 showFoil={isFoilCard && gridFoil}
               />
-              {banOverlay}
+              {banDim}
               {previewOverlay}
+              {banRibbon}
             </div>
           </div>
         ) : (
@@ -441,8 +445,9 @@ export const CardThumbnail = memo(function CardThumbnail({
                 card={card}
                 showFoil={isFoilCard && gridFoil}
               />
-              {banOverlay}
+              {banDim}
               {previewOverlay}
+              {banRibbon}
             </div>
           </div>
         )}
