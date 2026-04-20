@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  * Thumbnail + two-line label (card ID above variant label) used inside a list
  * item — e.g. the deck builder's "Change printing" menu and the import
  * preview's printing picker. Landscape thumbnail for Battlefields.
- * @returns A fragment with an img (or placeholder) and the label column.
+ * @returns A flex row with the thumbnail and label column.
  */
 export function PrintingOptionContent({
   printing,
@@ -24,7 +24,7 @@ export function PrintingOptionContent({
   const thumbnailSize = landscape ? "h-10 w-14" : "h-14 w-10";
 
   return (
-    <>
+    <div className="flex min-w-0 flex-1 items-center gap-2">
       {thumbnail ? (
         <img
           src={thumbnail}
@@ -39,6 +39,6 @@ export function PrintingOptionContent({
         <span className="text-muted-foreground font-mono text-xs">{formatCardId(printing)}</span>
         <span className="truncate text-xs">{label}</span>
       </span>
-    </>
+    </div>
   );
 }

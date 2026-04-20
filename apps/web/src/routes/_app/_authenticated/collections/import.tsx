@@ -14,7 +14,7 @@ import {
   UploadIcon,
   XCircleIcon,
 } from "lucide-react";
-import { use, useState } from "react";
+import { use, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
@@ -753,6 +753,7 @@ function VariantPicker({
   const { labels } = useEnumOrders();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const hoveredPrinting = hoveredId ? candidates.find((c) => c.id === hoveredId) : null;
+  const popupRef = useRef<HTMLDivElement>(null);
   return (
     <Select
       value={resolved?.id ?? ""}
@@ -770,7 +771,7 @@ function VariantPicker({
       <SelectTrigger size="sm" className="h-7 w-auto text-xs">
         <SelectValue placeholder="Pick printing..." />
       </SelectTrigger>
-      <SelectContent className="w-auto">
+      <SelectContent ref={popupRef} className="w-auto">
         {candidates.map((printing) => (
           <SelectItem
             key={printing.id}
@@ -791,7 +792,7 @@ function VariantPicker({
           </SelectItem>
         ))}
       </SelectContent>
-      {hoveredPrinting && <PrintingHoverPreview printing={hoveredPrinting} />}
+      {hoveredPrinting && <PrintingHoverPreview printing={hoveredPrinting} anchorRef={popupRef} />}
     </Select>
   );
 }
