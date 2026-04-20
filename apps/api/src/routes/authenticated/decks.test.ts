@@ -614,7 +614,7 @@ describe("POST /api/v1/decks/:id/share", () => {
     const res = await app.request(`/api/v1/decks/${DECK_ID}/share`, { method: "POST" });
     expect(res.status).toBe(200);
     const json = await res.json();
-    expect(json.shareToken).toMatch(/^[A-Za-z0-9_-]{10,}$/);
+    expect(json.shareToken).toMatch(/^[A-Za-z0-9]{12}$/);
     expect(json.isPublic).toBe(true);
     expect(mockRepo.setShareToken).toHaveBeenCalledWith(DECK_ID, USER_ID, json.shareToken, true);
   });
