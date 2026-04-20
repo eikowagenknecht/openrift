@@ -366,6 +366,20 @@ export function printingImagesRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Fetch an image_files row by ID.
+     * @returns The image_file's ID and rehostedUrl, or undefined if not found.
+     */
+    getImageFileById(
+      imageFileId: string,
+    ): Promise<{ id: string; rehostedUrl: string | null } | undefined> {
+      return db
+        .selectFrom("imageFiles")
+        .select(["id", "rehostedUrl"])
+        .where("id", "=", imageFileId)
+        .executeTakeFirst();
+    },
+
+    /**
      * Check whether any *other* printing image references the same image_file.
      * Used to guard file deletion: only remove disk files when no other row points to them.
      * @returns Number of other printing images sharing the same image_file.

@@ -75,6 +75,21 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
     expect(found).toBeDefined();
   });
 
+  it("getImageFileById returns the image_file's rehostedUrl", async () => {
+    const imageFileId = await repo.getImageFileId(createdImageIds[0]);
+    expect(imageFileId).toBeDefined();
+    const row = await repo.getImageFileById(imageFileId!);
+    expect(row).toEqual({
+      id: imageFileId,
+      rehostedUrl: "https://cdn.example.com/rehosted.jpg",
+    });
+  });
+
+  it("getImageFileById returns undefined for an unknown id", async () => {
+    const row = await repo.getImageFileById("00000000-0000-4000-a000-000000000000");
+    expect(row).toBeUndefined();
+  });
+
   it("countOthersByImageFileId returns 0 when no other printing image shares the image file", async () => {
     const imageFileId = await repo.getImageFileId(createdImageIds[0]);
     expect(imageFileId).toBeDefined();

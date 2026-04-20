@@ -468,42 +468,36 @@ export async function regenerateImages(
 }
 
 /**
- * Un-rehost a batch of images by printing_image IDs: delete disk files when no
- * other printing_image shares the same image_file, then clear `rehostedUrl`.
- * Disk deletion is idempotent — missing files are silently skipped so broken
- * entries (which are the primary caller) don't fail the pass.
+ * Un-rehost a batch of images by image_file IDs: clear `rehostedUrl` and
+ * delete the associated disk files. The IDs match `findBrokenImages` and the
+ * rest of the rehost pipeline (`listAllRehosted*` all return `image_files.id`
+ * as `imageId`), and `rehostedUrl` lives on `image_files` — so un-rehost is
+ * inherently per-image_file, not per-printing_image. Disk deletion is
+ * idempotent, so broken entries (the primary caller) don't fail the pass.
  * @returns Per-batch counts of total, unrehosted, failed, and any error messages.
  */
 export async function unrehostImages(
   io: Io,
   repo: PrintingImagesRepo,
-  imageIds: string[],
+  imageFileIds: string[],
 ): Promise<UnrehostImagesResponse> {
   const progress: UnrehostImagesResponse = {
-    total: imageIds.length,
+    total: imageFileIds.length,
     unrehosted: 0,
     failed: 0,
     errors: [],
   };
 
   const results = await Promise.allSettled(
-    imageIds.map(async (imageId) => {
-      const image = await repo.getIdAndUrls(imageId);
+    imageFileIds.map(async (imageFileId) => {
+      const image = await repo.getImageFileById(imageFileId);
       if (!image) {
-        throw new Error("printing image not found");
+        throw new Error("image file not found");
       }
       if (!image.rehostedUrl) {
         throw new Error("image is not rehosted");
       }
-      const imageFileId = await repo.getImageFileId(imageId);
-      if (!imageFileId) {
-        throw new Error("image has no associated image file");
-      }
-
-      const othersUsingFiles = await repo.countOthersByImageFileId(imageFileId, imageId);
-      if (othersUsingFiles === 0) {
-        await deleteRehostFiles(io, image.rehostedUrl);
-      }
+      await deleteRehostFiles(io, image.rehostedUrl);
       await repo.updateRehostedUrl(imageFileId, null);
     }),
   );
@@ -516,7 +510,7 @@ export async function unrehostImages(
       progress.failed++;
       const message =
         result.reason instanceof Error ? result.reason.message : String(result.reason);
-      progress.errors.push(`${imageIds[idx]}: ${message}`);
+      progress.errors.push(`${imageFileIds[idx]}: ${message}`);
     }
   }
 

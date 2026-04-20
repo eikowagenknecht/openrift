@@ -440,23 +440,14 @@ describe("rehostImages", () => {
 });
 
 describe("unrehostImages", () => {
-  function makeUnrehostRepo(
-    images: Record<string, { imageFileId: string; rehostedUrl: string | null }>,
-    opts: { othersCount?: (id: string) => number } = {},
-  ) {
+  function makeUnrehostRepo(files: Record<string, { rehostedUrl: string | null }>) {
     const updateRehostedUrl = vi.fn(() => Promise.resolve());
     return {
       updateRehostedUrl,
-      getIdAndUrls: vi.fn((id: string) => {
-        const img = images[id];
-        return Promise.resolve(
-          img ? { id, rehostedUrl: img.rehostedUrl, originalUrl: null } : undefined,
-        );
+      getImageFileById: vi.fn((id: string) => {
+        const file = files[id];
+        return Promise.resolve(file ? { id, rehostedUrl: file.rehostedUrl } : undefined);
       }),
-      getImageFileId: vi.fn((id: string) => Promise.resolve(images[id]?.imageFileId)),
-      countOthersByImageFileId: vi.fn((_fileId: string, id: string) =>
-        Promise.resolve(opts.othersCount?.(id) ?? 0),
-      ),
     } as any;
   }
 
@@ -466,44 +457,43 @@ describe("unrehostImages", () => {
     expect(result).toEqual({ total: 0, unrehosted: 0, failed: 0, errors: [] });
   });
 
-  it("clears rehostedUrl and deletes disk files when no other printing shares the file", async () => {
+  it("clears rehostedUrl and deletes disk files for the image_file", async () => {
     const repo = makeUnrehostRepo({
-      "img-1": { imageFileId: "file-1", rehostedUrl: "/media/cards/01/file-1" },
+      "file-1": { rehostedUrl: "/media/cards/01/file-1" },
     });
     mockReaddir.mockResolvedValue(["file-1-orig.png", "file-1-400w.webp"]);
 
-    const result = await unrehostImages(mockIo, repo, ["img-1"]);
+    const result = await unrehostImages(mockIo, repo, ["file-1"]);
 
     expect(result).toEqual({ total: 1, unrehosted: 1, failed: 0, errors: [] });
     expect(repo.updateRehostedUrl).toHaveBeenCalledWith("file-1", null);
     expect(mockUnlink).toHaveBeenCalledTimes(2);
   });
 
-  it("skips disk deletion when another printing_image shares the image_file", async () => {
-    const repo = makeUnrehostRepo(
-      { "img-1": { imageFileId: "file-1", rehostedUrl: "/media/cards/01/file-1" } },
-      { othersCount: () => 1 },
-    );
+  it("still succeeds when the disk directory is already gone (broken-entry case)", async () => {
+    const repo = makeUnrehostRepo({
+      "file-1": { rehostedUrl: "/media/cards/01/file-1" },
+    });
+    mockReaddir.mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
 
-    const result = await unrehostImages(mockIo, repo, ["img-1"]);
+    const result = await unrehostImages(mockIo, repo, ["file-1"]);
 
-    expect(result.unrehosted).toBe(1);
+    expect(result).toEqual({ total: 1, unrehosted: 1, failed: 0, errors: [] });
     expect(repo.updateRehostedUrl).toHaveBeenCalledWith("file-1", null);
-    expect(mockUnlink).not.toHaveBeenCalled();
   });
 
   it("records a failure when the image is not rehosted", async () => {
     const repo = makeUnrehostRepo({
-      "img-1": { imageFileId: "file-1", rehostedUrl: null },
+      "file-1": { rehostedUrl: null },
     });
-    const result = await unrehostImages(mockIo, repo, ["img-1"]);
+    const result = await unrehostImages(mockIo, repo, ["file-1"]);
     expect(result.unrehosted).toBe(0);
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("not rehosted");
     expect(repo.updateRehostedUrl).not.toHaveBeenCalled();
   });
 
-  it("records a failure when the printing_image is unknown", async () => {
+  it("records a failure when the image_file is unknown", async () => {
     const repo = makeUnrehostRepo({});
     const result = await unrehostImages(mockIo, repo, ["missing-id"]);
     expect(result.failed).toBe(1);
@@ -513,10 +503,14 @@ describe("unrehostImages", () => {
 
   it("continues past per-item errors and reports mixed results", async () => {
     const repo = makeUnrehostRepo({
-      "img-ok": { imageFileId: "file-1", rehostedUrl: "/media/cards/01/file-1" },
-      "img-not-rehosted": { imageFileId: "file-2", rehostedUrl: null },
+      "file-ok": { rehostedUrl: "/media/cards/01/file-ok" },
+      "file-not-rehosted": { rehostedUrl: null },
     });
-    const result = await unrehostImages(mockIo, repo, ["img-ok", "img-not-rehosted", "img-gone"]);
+    const result = await unrehostImages(mockIo, repo, [
+      "file-ok",
+      "file-not-rehosted",
+      "file-gone",
+    ]);
     expect(result.total).toBe(3);
     expect(result.unrehosted).toBe(1);
     expect(result.failed).toBe(2);
