@@ -497,6 +497,13 @@ export async function unrehostImages(
       if (!image.rehostedUrl) {
         throw new Error("image is not rehosted");
       }
+      // image_files has a check constraint requiring at least one of original_url
+      // or rehosted_url. Uploaded images have no originalUrl, so clearing
+      // rehostedUrl would violate it — and there's no source to re-fetch from
+      // anyway, which makes un-rehost meaningless for them.
+      if (!image.originalUrl) {
+        throw new Error("image has no original URL to re-fetch from (uploaded image)");
+      }
       await deleteRehostFiles(io, image.rehostedUrl);
       await repo.updateRehostedUrl(imageFileId, null);
     }),
