@@ -311,17 +311,19 @@ export const CardThumbnail = memo(function CardThumbnail({
   const [fanReady, setFanReady] = useState(false);
   const fanTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
-  // custom: large diagonal "BANNED" overlay for deckbuilder
+  // custom: dim the card and mark it with a corner ribbon when banned in deckbuilder
   const banOverlay = showBanOverlay && printing.card.bans.length > 0 && (
-    <div className="@container pointer-events-none absolute inset-0 z-20 flex items-center justify-center overflow-hidden rounded-[inherit]">
-      <div className="absolute inset-0 bg-black/70" />
-      <span
-        className="relative text-[15cqi] font-black tracking-widest text-red-500 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] select-none"
-        style={{ transform: "rotate(-45deg)" }}
+    <>
+      <div className="pointer-events-none absolute inset-0 z-20 rounded-[inherit] bg-black/70" />
+      <div
+        className="@container pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-[inherit]"
+        title="Banned in the current format"
       >
-        BANNED
-      </span>
-    </div>
+        <div className="absolute top-[11cqi] -right-[14cqi] w-[60cqi] rotate-[45deg] bg-red-600 py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider text-red-50 uppercase shadow-md select-none">
+          Banned
+        </div>
+      </div>
+    </>
   );
 
   // Riot TCG community license requires previewed/unreleased cards to be
@@ -332,7 +334,7 @@ export const CardThumbnail = memo(function CardThumbnail({
       className="@container pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-[inherit]"
       title="Previewed / Unreleased — not yet available in official play"
     >
-      <div className="absolute top-[7%] -left-[18%] w-[60%] rotate-[-45deg] bg-amber-500 py-[1.5%] text-center text-[6cqi] font-black tracking-wider text-amber-950 uppercase shadow-md select-none">
+      <div className="absolute top-[11cqi] -left-[14cqi] w-[60cqi] rotate-[-45deg] bg-amber-500 py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider text-amber-950 uppercase shadow-md select-none">
         Preview
       </div>
     </div>
@@ -418,32 +420,30 @@ export const CardThumbnail = memo(function CardThumbnail({
             </div>
           </div>
         ) : (
-          <div
-            ref={tiltInnerRef}
-            className={cn(
-              "relative overflow-hidden",
-              AFTER_BORDER,
-              "hover:ring-primary/60 hover:ring-2",
-            )}
-            style={{ borderRadius: CARD_BORDER_RADIUS, ...tiltStyle }}
-          >
-            <CardImageContent
-              thumbnailUrl={thumbnailUrl}
-              srcSet={srcSet}
-              sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
-              alt={card.name}
-              priority={Boolean(priority)}
-              imgLoaded={imgLoaded}
-              onImgLoad={() => setImgLoaded(true)}
-              rotated={false}
-              rarity={printing.rarity}
-              publicCode={printing.publicCode}
-              artist={printing.artist}
-              card={card}
-              showFoil={isFoilCard && gridFoil}
-            />
-            {banOverlay}
-            {previewOverlay}
+          <div className="relative overflow-hidden" style={{ borderRadius: CARD_BORDER_RADIUS }}>
+            <div
+              ref={tiltInnerRef}
+              className={cn(AFTER_BORDER, "hover:ring-primary/60 hover:ring-2")}
+              style={{ borderRadius: "inherit", ...tiltStyle }}
+            >
+              <CardImageContent
+                thumbnailUrl={thumbnailUrl}
+                srcSet={srcSet}
+                sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
+                alt={card.name}
+                priority={Boolean(priority)}
+                imgLoaded={imgLoaded}
+                onImgLoad={() => setImgLoaded(true)}
+                rotated={false}
+                rarity={printing.rarity}
+                publicCode={printing.publicCode}
+                artist={printing.artist}
+                card={card}
+                showFoil={isFoilCard && gridFoil}
+              />
+              {banOverlay}
+              {previewOverlay}
+            </div>
           </div>
         )}
       </div>
