@@ -94,7 +94,7 @@ export function PackOpenerPage() {
             Simulator
           </span>
         </div>
-        <p className="text-muted-foreground mt-2 max-w-2xl text-sm">
+        <p className="text-muted-foreground mt-2 text-sm">
           Open virtual Riftbound booster packs. Pull rates match the real booster as published by
           Riot (7 Common, 3 Uncommon, 2 Rare-or-better, 1 Foil, 1 Rune). No cards are added to your
           collection, this is just for fun.
