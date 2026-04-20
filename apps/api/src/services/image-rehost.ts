@@ -12,6 +12,7 @@ import type {
   RehostImageResponse,
   RehostStatusDiskStats,
   RehostStatusResponse,
+  UnrehostImagesResponse,
 } from "@openrift/shared";
 
 import type { Io } from "../io.js";
@@ -460,6 +461,62 @@ export async function regenerateImages(
         result.reason instanceof Error ? result.reason.message : String(result.reason);
       progress.errors.push(`${imageId}: ${message}`);
       console.error(`[regenerate] ${imageId}:`, message);
+    }
+  }
+
+  return progress;
+}
+
+/**
+ * Un-rehost a batch of images by printing_image IDs: delete disk files when no
+ * other printing_image shares the same image_file, then clear `rehostedUrl`.
+ * Disk deletion is idempotent — missing files are silently skipped so broken
+ * entries (which are the primary caller) don't fail the pass.
+ * @returns Per-batch counts of total, unrehosted, failed, and any error messages.
+ */
+export async function unrehostImages(
+  io: Io,
+  repo: PrintingImagesRepo,
+  imageIds: string[],
+): Promise<UnrehostImagesResponse> {
+  const progress: UnrehostImagesResponse = {
+    total: imageIds.length,
+    unrehosted: 0,
+    failed: 0,
+    errors: [],
+  };
+
+  const results = await Promise.allSettled(
+    imageIds.map(async (imageId) => {
+      const image = await repo.getIdAndUrls(imageId);
+      if (!image) {
+        throw new Error("printing image not found");
+      }
+      if (!image.rehostedUrl) {
+        throw new Error("image is not rehosted");
+      }
+      const imageFileId = await repo.getImageFileId(imageId);
+      if (!imageFileId) {
+        throw new Error("image has no associated image file");
+      }
+
+      const othersUsingFiles = await repo.countOthersByImageFileId(imageFileId, imageId);
+      if (othersUsingFiles === 0) {
+        await deleteRehostFiles(io, image.rehostedUrl);
+      }
+      await repo.updateRehostedUrl(imageFileId, null);
+    }),
+  );
+
+  for (let idx = 0; idx < results.length; idx++) {
+    const result = results[idx];
+    if (result.status === "fulfilled") {
+      progress.unrehosted++;
+    } else {
+      progress.failed++;
+      const message =
+        result.reason instanceof Error ? result.reason.message : String(result.reason);
+      progress.errors.push(`${imageIds[idx]}: ${message}`);
     }
   }
 
