@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   CornerLeftUpIcon,
   EllipsisVerticalIcon,
+  LinkIcon,
   PencilIcon,
   PrinterIcon,
   Share2Icon,
@@ -17,6 +18,7 @@ import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
 import { DeckRenameDialog } from "@/components/deck/deck-rename-dialog";
+import { DeckShareDialog } from "@/components/deck/deck-share-dialog";
 import { DeckFormatBadge } from "@/components/deck/deck-validation-banner";
 import { DeckZonePanel } from "@/components/deck/deck-zone-panel";
 import { ProxyExportDialog } from "@/components/deck/proxy-export-dialog";
@@ -49,6 +51,7 @@ import { useCards } from "@/hooks/use-cards";
 import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { useDeckDetail } from "@/hooks/use-decks";
+import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession } from "@/lib/auth-session";
@@ -219,6 +222,8 @@ function DeckEditorContent({
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
   const [missingOpen, setMissingOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const deckSharingEnabled = useFeatureEnabled("deck-sharing");
 
   // Ownership data
   const { data: session } = useSession();
@@ -422,6 +427,12 @@ function DeckEditorContent({
                     <PencilIcon className="size-4" />
                     Rename
                   </DropdownMenuItem>
+                  {deckSharingEnabled && (
+                    <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                      <LinkIcon className="size-4" />
+                      Share deck
+                    </DropdownMenuItem>
+                  )}
                   <div className="md:hidden">
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => setExportOpen(true)}>
@@ -445,6 +456,15 @@ function DeckEditorContent({
         open={renameOpen}
         onOpenChange={setRenameOpen}
       />
+      {deckSharingEnabled && (
+        <DeckShareDialog
+          deckId={deckId}
+          isPublic={data.deck.isPublic}
+          shareToken={data.deck.shareToken}
+          open={shareOpen}
+          onOpenChange={setShareOpen}
+        />
+      )}
       <DeckExportDialog
         deckId={deckId}
         deckName={data.deck.name}

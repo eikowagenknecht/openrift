@@ -8,6 +8,7 @@ import {
   toDeckSummary,
   toDeckAvailabilityItem,
   toDeckCard,
+  toPublicDeck,
   toTradeList,
   toTradeListItem,
   toTradeListItemDetail,
@@ -78,7 +79,33 @@ describe("toCollection", () => {
 // ---------------------------------------------------------------------------
 
 describe("toDeck", () => {
-  it("maps a deck row to slim response", () => {
+  it("maps a deck row, serializing dates and exposing owner-visible fields", () => {
+    const result = toDeck({
+      id: "deck-1",
+      userId: "user-1",
+      name: "Aggro",
+      description: "Fast opener",
+      format: "constructed",
+      isWanted: true,
+      isPublic: true,
+      shareToken: "tok-abc",
+      createdAt: NOW,
+      updatedAt: LATER,
+    });
+    expect(result).toEqual({
+      id: "deck-1",
+      name: "Aggro",
+      description: "Fast opener",
+      format: "constructed",
+      isWanted: true,
+      isPublic: true,
+      shareToken: "tok-abc",
+      createdAt: "2025-06-15T12:00:00.000Z",
+      updatedAt: "2025-06-16T08:30:00.000Z",
+    });
+  });
+
+  it("excludes userId from the response", () => {
     const result = toDeck({
       id: "deck-1",
       userId: "user-1",
@@ -86,16 +113,44 @@ describe("toDeck", () => {
       description: null,
       format: "constructed",
       isWanted: false,
-      isPublic: true,
+      isPublic: false,
       shareToken: null,
+      createdAt: NOW,
+      updatedAt: LATER,
+    });
+    expect("userId" in result).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// toPublicDeck
+// ---------------------------------------------------------------------------
+
+describe("toPublicDeck", () => {
+  it("strips owner-only fields (shareToken, isPublic, userId, isWanted)", () => {
+    const result = toPublicDeck({
+      id: "deck-1",
+      userId: "user-1",
+      name: "Aggro",
+      description: "Fast opener",
+      format: "constructed",
+      isWanted: false,
+      isPublic: true,
+      shareToken: "tok-abc",
       createdAt: NOW,
       updatedAt: LATER,
     });
     expect(result).toEqual({
       id: "deck-1",
       name: "Aggro",
+      description: "Fast opener",
       format: "constructed",
+      createdAt: "2025-06-15T12:00:00.000Z",
+      updatedAt: "2025-06-16T08:30:00.000Z",
     });
+    expect("shareToken" in result).toBe(false);
+    expect("isPublic" in result).toBe(false);
+    expect("userId" in result).toBe(false);
   });
 });
 

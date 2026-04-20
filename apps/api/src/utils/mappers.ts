@@ -6,6 +6,7 @@ import type {
   DeckCardResponse,
   DeckResponse,
   DeckSummaryResponse,
+  PublicDeckResponse,
   TradeListItemDetailResponse,
   TradeListItemResponse,
   TradeListResponse,
@@ -51,7 +52,13 @@ export function toDeck(row: Selectable<DecksTable>): DeckResponse {
   return {
     id: row.id,
     name: row.name,
+    description: row.description,
     format: row.format,
+    isWanted: row.isWanted,
+    isPublic: row.isPublic,
+    shareToken: row.shareToken,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
   };
 }
 
@@ -60,6 +67,18 @@ export function toDeckSummary(row: Selectable<DecksTable>): DeckSummaryResponse 
   return {
     id: row.id,
     name: row.name,
+    format: row.format,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+/** @returns Public-facing deck fields — excludes shareToken, isPublic, and userId. */
+export function toPublicDeck(row: Selectable<DecksTable>): PublicDeckResponse {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
     format: row.format,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

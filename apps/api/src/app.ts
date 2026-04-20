@@ -29,6 +29,7 @@ import { tradeListsRoute } from "./routes/authenticated/trade-lists.js";
 import { wishListsRoute } from "./routes/authenticated/wish-lists.js";
 import { cardsRoute } from "./routes/public/cards.js";
 import { catalogRoute } from "./routes/public/catalog.js";
+import { publicDecksRoute } from "./routes/public/decks.js";
 import { featureFlagsRoute } from "./routes/public/feature-flags.js";
 import { healthRoute } from "./routes/public/health.js";
 import { initRoute } from "./routes/public/init.js";
@@ -285,6 +286,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", initRoute)
       .route("/api/v1", siteSettingsRoute)
       .route("/api/v1", rulesRoute)
+      .route("/api/v1", publicDecksRoute)
 
       // ── Authenticated routes (require a valid session) ──────────────────
       .route("/api/v1", collectionsRoute)

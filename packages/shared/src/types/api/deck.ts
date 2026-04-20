@@ -31,7 +31,13 @@ export interface DeckAvailabilityResponse {
 export interface DeckResponse {
   id: string;
   name: string;
+  description: string | null;
   format: "constructed" | "freeform";
+  isWanted: boolean;
+  isPublic: boolean;
+  shareToken: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DeckCardResponse {
@@ -45,6 +51,31 @@ export interface DeckCardResponse {
 export interface DeckDetailResponse {
   deck: DeckResponse;
   cards: DeckCardResponse[];
+}
+
+/** Deck fields exposed on the public share page — excludes owner-only fields (shareToken, isPublic). */
+export interface PublicDeckResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  format: "constructed" | "freeform";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicDeckDetailResponse {
+  deck: PublicDeckResponse;
+  cards: DeckCardResponse[];
+  owner: { displayName: string };
+}
+
+export interface DeckShareResponse {
+  shareToken: string;
+  isPublic: boolean;
+}
+
+export interface DeckCloneResponse {
+  deckId: string;
 }
 
 export interface DeckAvailabilityItemResponse {

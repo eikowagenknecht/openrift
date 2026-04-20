@@ -1,3 +1,6 @@
+// oxlint-disable-next-line import/no-nodejs-modules -- server-only handler; node:crypto is available in Bun
+import { randomBytes } from "node:crypto";
+
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type {
   CardType,
@@ -17,11 +20,13 @@ import { inferZone, validateDeck } from "@openrift/shared";
 import {
   deckAvailabilityResponseSchema,
   deckCardsResponseSchema,
+  deckCloneResponseSchema,
   deckDetailResponseSchema,
   deckExportResponseSchema,
   deckImportPreviewResponseSchema,
   deckListResponseSchema,
   deckResponseSchema,
+  deckShareResponseSchema,
 } from "@openrift/shared/response-schemas";
 import {
   createDeckSchema,
@@ -33,6 +38,7 @@ import {
   updateDeckSchema,
 } from "@openrift/shared/schemas";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
+import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
@@ -192,6 +198,46 @@ const importPreview = createRoute({
     200: {
       content: { "application/json": { schema: deckImportPreviewResponseSchema } },
       description: "Import preview",
+    },
+  },
+});
+
+const shareTokenParamSchema = z.object({
+  token: z.string().min(1),
+});
+
+const shareDeck = createRoute({
+  method: "post",
+  path: "/{id}/share",
+  tags: ["Decks"],
+  request: { params: idParamSchema },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckShareResponseSchema } },
+      description: "Shared",
+    },
+  },
+});
+
+const unshareDeck = createRoute({
+  method: "delete",
+  path: "/{id}/share",
+  tags: ["Decks"],
+  request: { params: idParamSchema },
+  responses: {
+    204: { description: "No Content" },
+  },
+});
+
+const cloneSharedDeck = createRoute({
+  method: "post",
+  path: "/share/{token}/clone",
+  tags: ["Decks"],
+  request: { params: shareTokenParamSchema },
+  responses: {
+    201: {
+      content: { "application/json": { schema: deckCloneResponseSchema } },
+      description: "Cloned",
     },
   },
 });
@@ -591,4 +637,44 @@ export const decksRoute = decksApp
     }
 
     return c.json({ cards, warnings } satisfies DeckImportPreviewResponse);
+  })
+
+  // ── POST /decks/:id/share ─────────────────────────────────────────────────
+  // Generates (or rotates) the deck's share token and flips is_public=true.
+  .openapi(shareDeck, async (c) => {
+    const { decks } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const token = randomBytes(12).toString("base64url");
+    const updated = await decks.setShareToken(id, userId, token, true);
+    assertFound(updated, "Not found");
+
+    return c.json({ shareToken: token, isPublic: true });
+  })
+
+  // ── DELETE /decks/:id/share ───────────────────────────────────────────────
+  // Nulls the share token and flips is_public=false. Old links 404 forever.
+  .openapi(unshareDeck, async (c) => {
+    const { decks } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+
+    const updated = await decks.setShareToken(id, userId, null, false);
+    assertFound(updated, "Not found");
+
+    return c.body(null, 204);
+  })
+
+  // ── POST /decks/share/:token/clone ────────────────────────────────────────
+  // Any logged-in user can clone a publicly shared deck into their account.
+  .openapi(cloneSharedDeck, async (c) => {
+    const { decks } = c.get("repos");
+    const userId = getUserId(c);
+    const { token } = c.req.valid("param");
+
+    const newDeck = await decks.cloneFromShareToken(token, userId);
+    assertFound(newDeck, "Not found");
+
+    return c.json({ deckId: newDeck.id }, 201);
   });

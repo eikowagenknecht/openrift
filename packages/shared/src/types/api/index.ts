@@ -47,6 +47,7 @@ export type {
   DeckAvailabilityItemResponse,
   DeckAvailabilityResponse,
   DeckCardResponse,
+  DeckCloneResponse,
   DeckDetailResponse,
   DeckExportResponse,
   DeckImportCardPreview,
@@ -54,7 +55,10 @@ export type {
   DeckListItemResponse,
   DeckListResponse,
   DeckResponse,
+  DeckShareResponse,
   DeckSummaryResponse,
+  PublicDeckDetailResponse,
+  PublicDeckResponse,
 } from "./deck.js";
 
 export type { FeatureFlagsResponse } from "./feature-flags.js";

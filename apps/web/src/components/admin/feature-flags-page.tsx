@@ -59,6 +59,10 @@ const KNOWN_FLAGS: KnownFlag[] = [
     key: "packopener",
     description: "Show the booster pack simulator page and More-menu link",
   },
+  {
+    key: "deck-sharing",
+    description: "Enable sharing decks via unlisted links and the public share page",
+  },
 ];
 
 function GlobalFlagsSection() {

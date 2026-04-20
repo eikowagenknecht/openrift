@@ -2,6 +2,7 @@
 
 ## 2026-04-20
 
+- feat: Share a deck by generating a link — friends can view the deck without an account, and if they have one they can copy it into their own decks in a click
 - feat: A new pack opener simulator lets you open virtual Riftbound boosters with the real published pull rates, open one pack and flip each card by clicking, or crack a whole booster display at once and see the rarity breakdown, average value per pack, and your best pulls
 - feat: Admins now have pages under Taxonomy for Art Variants, Card Types, Super Types, and Deck Formats — the same add, rename, reorder, and delete controls that already existed for Finishes and Rarities
 - feat: Cards from sets that Riot has previewed but not yet officially released now carry a visible "Preview" ribbon on the card image, so it's clear which cards aren't yet available in official play

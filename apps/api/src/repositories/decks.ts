@@ -321,5 +321,100 @@ export function decksRepo(db: Kysely<Database>) {
         .where("d.isWanted", "=", true)
         .execute();
     },
+
+    /**
+     * Sets (or nulls) the share_token and is_public on a deck, scoped to the owning user.
+     * @returns The updated deck row, or `undefined` if the deck is not owned by the user.
+     */
+    setShareToken(
+      id: string,
+      userId: string,
+      shareToken: string | null,
+      isPublic: boolean,
+    ): Promise<Selectable<DecksTable> | undefined> {
+      return db
+        .updateTable("decks")
+        .set({ shareToken, isPublic, updatedAt: sql`now()` })
+        .where("id", "=", id)
+        .where("userId", "=", userId)
+        .returningAll()
+        .executeTakeFirst();
+    },
+
+    /**
+     * Looks up a public deck by its share token. Anonymous — no user scoping.
+     * @returns The deck row and owner display name, or `undefined` if the token
+     * doesn't match a public deck.
+     */
+    async findByShareToken(
+      shareToken: string,
+    ): Promise<{ deck: Selectable<DecksTable>; ownerName: string | null } | undefined> {
+      const row = await db
+        .selectFrom("decks as d")
+        .innerJoin("users as u", "u.id", "d.userId")
+        .selectAll("d")
+        .select("u.name as ownerName")
+        .where("d.shareToken", "=", shareToken)
+        .where("d.isPublic", "=", true)
+        .executeTakeFirst();
+
+      if (!row) {
+        return undefined;
+      }
+
+      const { ownerName, ...deck } = row;
+      return { deck, ownerName };
+    },
+
+    /**
+     * Clones a publicly shared deck into `userId`'s account. The new deck is
+     * private (isPublic=false, isWanted=false) and named `Copy of <source name>`.
+     * @returns The new deck row, or `undefined` if the token is not a public deck.
+     */
+    async cloneFromShareToken(
+      shareToken: string,
+      userId: string,
+    ): Promise<Selectable<DecksTable> | undefined> {
+      const source = await db
+        .selectFrom("decks")
+        .selectAll()
+        .where("shareToken", "=", shareToken)
+        .where("isPublic", "=", true)
+        .executeTakeFirst();
+
+      if (!source) {
+        return undefined;
+      }
+
+      return db.transaction().execute(async (trx) => {
+        const newDeck = await trx
+          .insertInto("decks")
+          .values({
+            userId,
+            name: `Copy of ${source.name}`,
+            description: source.description,
+            format: source.format,
+            isWanted: false,
+            isPublic: false,
+          })
+          .returningAll()
+          .executeTakeFirstOrThrow();
+
+        const sourceCards = await trx
+          .selectFrom("deckCards")
+          .select(["cardId", "zone", "quantity", "preferredPrintingId"])
+          .where("deckId", "=", source.id)
+          .execute();
+
+        if (sourceCards.length > 0) {
+          await trx
+            .insertInto("deckCards")
+            .values(sourceCards.map((card) => ({ deckId: newDeck.id, ...card })))
+            .execute();
+        }
+
+        return newDeck;
+      });
+    },
   };
 }

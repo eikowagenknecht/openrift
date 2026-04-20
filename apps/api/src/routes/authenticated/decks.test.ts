@@ -23,6 +23,9 @@ const mockRepo = {
   availableCopiesByCard: vi.fn(() => Promise.resolve([] as object[])),
   replaceCards: vi.fn(() => Promise.resolve()),
   cloneDeck: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  setShareToken: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  findByShareToken: vi.fn(() => Promise.resolve(undefined as object | undefined)),
+  cloneFromShareToken: vi.fn(() => Promise.resolve(undefined as object | undefined)),
 };
 
 const mockMarketplace = {
@@ -597,5 +600,78 @@ describe("GET /api/v1/decks/:id — card details", () => {
     const json = await res.json();
     expect(json.deck.id).toBe(DECK_ID);
     expect(json.cards).toEqual([]);
+  });
+});
+
+describe("POST /api/v1/decks/:id/share", () => {
+  beforeEach(() => {
+    mockRepo.setShareToken.mockReset();
+  });
+
+  it("returns 200 with a fresh share token and isPublic=true", async () => {
+    const sharedDeck = { ...dbDeck, isPublic: true, shareToken: "will-be-replaced" };
+    mockRepo.setShareToken.mockResolvedValue(sharedDeck);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/share`, { method: "POST" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.shareToken).toMatch(/^[A-Za-z0-9_-]{10,}$/);
+    expect(json.isPublic).toBe(true);
+    expect(mockRepo.setShareToken).toHaveBeenCalledWith(DECK_ID, USER_ID, json.shareToken, true);
+  });
+
+  it("returns 404 when the deck is not owned by the caller", async () => {
+    mockRepo.setShareToken.mockResolvedValue(undefined);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/share`, { method: "POST" });
+    expect(res.status).toBe(404);
+  });
+
+  it("mints a different token each call (rotation on re-share)", async () => {
+    mockRepo.setShareToken.mockResolvedValue({ ...dbDeck, isPublic: true });
+    const res1 = await app.request(`/api/v1/decks/${DECK_ID}/share`, { method: "POST" });
+    const r1 = await res1.json();
+    const res2 = await app.request(`/api/v1/decks/${DECK_ID}/share`, { method: "POST" });
+    const r2 = await res2.json();
+    expect(r1.shareToken).not.toBe(r2.shareToken);
+  });
+});
+
+describe("DELETE /api/v1/decks/:id/share", () => {
+  beforeEach(() => {
+    mockRepo.setShareToken.mockReset();
+  });
+
+  it("returns 204 and nulls the token + isPublic=false", async () => {
+    mockRepo.setShareToken.mockResolvedValue({ ...dbDeck, isPublic: false, shareToken: null });
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/share`, { method: "DELETE" });
+    expect(res.status).toBe(204);
+    expect(mockRepo.setShareToken).toHaveBeenCalledWith(DECK_ID, USER_ID, null, false);
+  });
+
+  it("returns 404 when the deck is not owned by the caller", async () => {
+    mockRepo.setShareToken.mockResolvedValue(undefined);
+    const res = await app.request(`/api/v1/decks/${DECK_ID}/share`, { method: "DELETE" });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/decks/share/:token/clone", () => {
+  beforeEach(() => {
+    mockRepo.cloneFromShareToken.mockReset();
+  });
+
+  it("returns 201 with the new deck id when the token resolves to a public deck", async () => {
+    const cloned = { ...dbDeck, id: "a0000000-0001-4000-a000-000000000099" };
+    mockRepo.cloneFromShareToken.mockResolvedValue(cloned);
+    const res = await app.request("/api/v1/decks/share/abc123/clone", { method: "POST" });
+    expect(res.status).toBe(201);
+    const json = await res.json();
+    expect(json.deckId).toBe(cloned.id);
+    expect(mockRepo.cloneFromShareToken).toHaveBeenCalledWith("abc123", USER_ID);
+  });
+
+  it("returns 404 when the token is missing or the deck is not public", async () => {
+    mockRepo.cloneFromShareToken.mockResolvedValue(undefined);
+    const res = await app.request("/api/v1/decks/share/unknown/clone", { method: "POST" });
+    expect(res.status).toBe(404);
   });
 });

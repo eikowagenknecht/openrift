@@ -1,11 +1,14 @@
 import type {
   DeckCardResponse,
+  DeckCloneResponse,
   DeckDetailResponse,
   DeckExportResponse,
   DeckFormat,
   DeckListResponse,
   DeckResponse,
+  DeckShareResponse,
   DeckZone,
+  PublicDeckDetailResponse,
 } from "@openrift/shared";
 import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -284,4 +287,104 @@ export function useExportDeck() {
       invalidates: [],
     },
   );
+}
+
+// ── Deck sharing ────────────────────────────────────────────────────────────
+
+const shareDeckFn = createServerFn({ method: "POST" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: deckId }): Promise<DeckShareResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(deckId)}/share`, {
+      method: "POST",
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Share deck failed: ${res.status}`);
+    }
+    return res.json() as Promise<DeckShareResponse>;
+  });
+
+export function useShareDeck() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (deckId: string) => shareDeckFn({ data: deckId }),
+    onSuccess: (data, deckId) => {
+      queryClient.setQueryData<DeckDetailResponse>(queryKeys.decks.detail(deckId), (old) =>
+        old
+          ? { ...old, deck: { ...old.deck, isPublic: data.isPublic, shareToken: data.shareToken } }
+          : old,
+      );
+    },
+  });
+}
+
+const unshareDeckFn = createServerFn({ method: "POST" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: deckId }) => {
+    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(deckId)}/share`, {
+      method: "DELETE",
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Unshare deck failed: ${res.status}`);
+    }
+  });
+
+export function useUnshareDeck() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (deckId: string) => unshareDeckFn({ data: deckId }),
+    onSuccess: (_, deckId) => {
+      queryClient.setQueryData<DeckDetailResponse>(queryKeys.decks.detail(deckId), (old) =>
+        old ? { ...old, deck: { ...old.deck, isPublic: false, shareToken: null } } : old,
+      );
+    },
+  });
+}
+
+const fetchPublicDeckFn = createServerFn({ method: "GET" })
+  .inputValidator((input: string) => input)
+  .handler(async ({ data: token }): Promise<PublicDeckDetailResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/decks/share/${encodeURIComponent(token)}`);
+    if (res.status === 404) {
+      throw new Error("NOT_FOUND");
+    }
+    if (!res.ok) {
+      throw new Error(`Public deck fetch failed: ${res.status}`);
+    }
+    return res.json() as Promise<PublicDeckDetailResponse>;
+  });
+
+export function publicDeckQueryOptions(token: string) {
+  return queryOptions({
+    queryKey: queryKeys.decks.publicByToken(token),
+    queryFn: () => fetchPublicDeckFn({ data: token }),
+  });
+}
+
+export function usePublicDeck(token: string) {
+  return useSuspenseQuery(publicDeckQueryOptions(token));
+}
+
+const cloneSharedDeckFn = createServerFn({ method: "POST" })
+  .inputValidator((input: string) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data: token }): Promise<DeckCloneResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/decks/share/${encodeURIComponent(token)}/clone`, {
+      method: "POST",
+      headers: { cookie: context.cookie },
+    });
+    if (!res.ok) {
+      throw new Error(`Clone shared deck failed: ${res.status}`);
+    }
+    return res.json() as Promise<DeckCloneResponse>;
+  });
+
+export function useCloneSharedDeck() {
+  return useMutationWithInvalidation<DeckCloneResponse, string>({
+    mutationFn: (token) => cloneSharedDeckFn({ data: token }),
+    invalidates: [queryKeys.decks.all],
+  });
 }

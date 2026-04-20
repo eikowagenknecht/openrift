@@ -276,4 +276,111 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(res.status).toBe(404);
     });
   });
+
+  // ── POST/DELETE /decks/:id/share + GET /decks/share/:token + clone ───────
+
+  describe("Share deck flow", () => {
+    let shareDeckId: string;
+    let shareToken: string;
+
+    it("creates a deck to share", async () => {
+      const res = await app.fetch(
+        req("POST", "/decks", {
+          name: "Shareable",
+          format: "freeform",
+          description: "A friendly deck",
+        }),
+      );
+      expect(res.status).toBe(201);
+      const json = await res.json();
+      shareDeckId = json.id;
+      expect(json.isPublic).toBe(false);
+      expect(json.shareToken).toBeNull();
+    });
+
+    it("generates a share token on POST /decks/:id/share", async () => {
+      const res = await app.fetch(req("POST", `/decks/${shareDeckId}/share`));
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.isPublic).toBe(true);
+      expect(json.shareToken).toBeTypeOf("string");
+      expect(json.shareToken.length).toBeGreaterThan(10);
+      shareToken = json.shareToken;
+    });
+
+    it("reflects isPublic=true and shareToken on GET /decks/:id", async () => {
+      const res = await app.fetch(req("GET", `/decks/${shareDeckId}`));
+      const json = await res.json();
+      expect(json.deck.isPublic).toBe(true);
+      expect(json.deck.shareToken).toBe(shareToken);
+    });
+
+    it("returns the deck to anonymous callers via GET /decks/share/:token", async () => {
+      const res = await app.fetch(req("GET", `/decks/share/${shareToken}`));
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.deck.id).toBe(shareDeckId);
+      expect(json.deck.name).toBe("Shareable");
+      expect(json.deck.description).toBe("A friendly deck");
+      expect(json.owner.displayName).toBeTypeOf("string");
+      expect(json.deck).not.toHaveProperty("shareToken");
+      expect(json.deck).not.toHaveProperty("isPublic");
+    });
+
+    it("clones the shared deck as a second user via POST /decks/share/:token/clone", () => {
+      const otherUser = createTestContext("a0000000-0008-4000-a000-000000000002");
+      if (!otherUser) {
+        return;
+      } // guarded by outer skipIf
+      return (async () => {
+        const res = await otherUser.app.fetch(req("POST", `/decks/share/${shareToken}/clone`));
+        expect(res.status).toBe(201);
+        const json = await res.json();
+        expect(json.deckId).toBeTypeOf("string");
+        expect(json.deckId).not.toBe(shareDeckId);
+
+        // Verify the clone exists under the second user, private, named "Copy of ..."
+        const detail = await otherUser.app.fetch(req("GET", `/decks/${json.deckId}`));
+        expect(detail.status).toBe(200);
+        const detailJson = await detail.json();
+        expect(detailJson.deck.name).toBe("Copy of Shareable");
+        expect(detailJson.deck.isPublic).toBe(false);
+        expect(detailJson.deck.isWanted).toBe(false);
+      })();
+    });
+
+    it("404s the share URL after DELETE /decks/:id/share", async () => {
+      const del = await app.fetch(req("DELETE", `/decks/${shareDeckId}/share`));
+      expect(del.status).toBe(204);
+
+      const get = await app.fetch(req("GET", `/decks/share/${shareToken}`));
+      expect(get.status).toBe(404);
+    });
+
+    it("mints a new token on re-share; the old token stays dead", async () => {
+      const oldToken = shareToken;
+      const res = await app.fetch(req("POST", `/decks/${shareDeckId}/share`));
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.shareToken).not.toBe(oldToken);
+
+      const oldTokenGet = await app.fetch(req("GET", `/decks/share/${oldToken}`));
+      expect(oldTokenGet.status).toBe(404);
+
+      const newTokenGet = await app.fetch(req("GET", `/decks/share/${json.shareToken}`));
+      expect(newTokenGet.status).toBe(200);
+    });
+
+    it("404s share/unshare/clone for non-existent decks or tokens", async () => {
+      const fakeId = "00000000-0000-4000-a000-000000000000";
+      const shareRes = await app.fetch(req("POST", `/decks/${fakeId}/share`));
+      expect(shareRes.status).toBe(404);
+
+      const unshareRes = await app.fetch(req("DELETE", `/decks/${fakeId}/share`));
+      expect(unshareRes.status).toBe(404);
+
+      const cloneRes = await app.fetch(req("POST", "/decks/share/nonexistent-token/clone"));
+      expect(cloneRes.status).toBe(404);
+    });
+  });
 });

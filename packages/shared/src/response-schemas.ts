@@ -474,9 +474,39 @@ export const deckResponseSchema = z
   .object({
     id: z.string(),
     name: z.string(),
+    description: z.string().nullable(),
     format: deckFormatSchema,
+    isWanted: z.boolean(),
+    isPublic: z.boolean(),
+    shareToken: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
   })
   .openapi("DeckResponse");
+
+export const publicDeckResponseSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    description: z.string().nullable(),
+    format: deckFormatSchema,
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  })
+  .openapi("PublicDeckResponse");
+
+export const deckShareResponseSchema = z
+  .object({
+    shareToken: z.string(),
+    isPublic: z.boolean(),
+  })
+  .openapi("DeckShareResponse");
+
+export const deckCloneResponseSchema = z
+  .object({
+    deckId: z.string(),
+  })
+  .openapi("DeckCloneResponse");
 
 const deckSummaryResponseSchema = z
   .object({
@@ -519,6 +549,14 @@ export const deckDetailResponseSchema = z
     cards: z.array(deckCardResponseSchema),
   })
   .openapi("DeckDetailResponse");
+
+export const publicDeckDetailResponseSchema = z
+  .object({
+    deck: publicDeckResponseSchema,
+    cards: z.array(deckCardResponseSchema),
+    owner: z.object({ displayName: z.string() }),
+  })
+  .openapi("PublicDeckDetailResponse");
 
 const deckAvailabilityItemResponseSchema = z.object({
   cardId: z.string(),
