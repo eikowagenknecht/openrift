@@ -22,9 +22,6 @@ interface UnpricedPull {
 }
 
 const RARITY_ORDER = ["Common", "Uncommon", "Rare", "Epic", "Showcase"];
-// Cap the "no price data" list so a 500-pack run doesn't spill hundreds of
-// commons into the stats panel. Rare+ pulls are the interesting slice anyway.
-const UNPRICED_INTERESTING_RARITIES = new Set(["Rare", "Epic", "Showcase", "Ultimate"]);
 
 // Aggregate display below the pack grid. Shows totals, rarity counts, and the most valuable pulls.
 export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
@@ -46,7 +43,13 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
 
       if (marketplace) {
         const value = prices.get(pull.printing.id, marketplace);
-        if (value !== undefined) {
+        if (value === undefined) {
+          unpricedPulls.push({
+            cardName: pull.printing.cardName,
+            shortCode: pull.printing.shortCode,
+            rarity: rarityKey,
+          });
+        } else {
           totalValue += value;
           valuedCount++;
           topPulls.push({
@@ -54,12 +57,6 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
             shortCode: pull.printing.shortCode,
             rarity: rarityKey,
             value,
-          });
-        } else if (UNPRICED_INTERESTING_RARITIES.has(rarityKey)) {
-          unpricedPulls.push({
-            cardName: pull.printing.cardName,
-            shortCode: pull.printing.shortCode,
-            rarity: rarityKey,
           });
         }
       }
