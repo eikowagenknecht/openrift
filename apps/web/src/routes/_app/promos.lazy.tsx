@@ -1,4 +1,4 @@
-import type { DistributionChannelWithCount, Printing } from "@openrift/shared";
+import type { Printing } from "@openrift/shared";
 import { comparePrintings } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, useLocation, useNavigate } from "@tanstack/react-router";
@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/table";
 import { useLanguageList } from "@/hooks/use-enums";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
+import type { ChannelNode } from "@/lib/promos-tree";
+import { buildPromoTree, computeLanguageAggregates } from "@/lib/promos-tree";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -31,54 +33,7 @@ export const Route = createLazyFileRoute("/_app/promos")({
 
 type ViewMode = "grid" | "list";
 
-interface ChannelNode {
-  channel: DistributionChannelWithCount;
-  children: ChannelNode[];
-  /** Direct printings on this channel (only leaves carry these). */
-  printings: Printing[];
-  /** Printings across this node + all descendants, scoped to the current language. */
-  localPrintingCount: number;
-}
-
 const COMPACT_LEAF_THRESHOLD = 4;
-
-/**
- * Build a tree of event channels with each leaf's printings attached. Sibling
- * order is sortOrder, then label. Each node also carries the count of printings
- * in the current language across its subtree, so callers can skip empty
- * branches (e.g. channels present globally but with no printings in this
- * language).
- *
- * @returns Root nodes of the channel tree.
- */
-function buildPromoTree(
-  channels: DistributionChannelWithCount[],
-  printingsByChannelId: Map<string, Printing[]>,
-): ChannelNode[] {
-  const byParent = new Map<string | null, DistributionChannelWithCount[]>();
-  for (const channel of channels) {
-    const list = byParent.get(channel.parentId);
-    if (list) {
-      list.push(channel);
-    } else {
-      byParent.set(channel.parentId, [channel]);
-    }
-  }
-  function build(parentId: string | null): ChannelNode[] {
-    const siblings = byParent.get(parentId);
-    if (!siblings) {
-      return [];
-    }
-    return siblings.map((channel) => {
-      const children = build(channel.id);
-      const printings = printingsByChannelId.get(channel.id) ?? [];
-      const localPrintingCount =
-        printings.length + children.reduce((sum, c) => sum + c.localPrintingCount, 0);
-      return { channel, children, printings, localPrintingCount };
-    });
-  }
-  return build(null);
-}
 
 /**
  * A branch qualifies for compact-table rendering when every direct child is a
@@ -98,6 +53,12 @@ function isCompactBranch(node: ChannelNode): boolean {
 
 function formatLocalCount(printingCount: number): string {
   return `${printingCount} ${printingCount === 1 ? "printing" : "printings"}`;
+}
+
+function formatLanguageAggregate(printingCount: number, cardCount: number): string {
+  const printingWord = printingCount === 1 ? "printing" : "printings";
+  const cardWord = cardCount === 1 ? "card" : "cards";
+  return `${printingCount} ${printingWord} across ${cardCount} ${cardWord}`;
 }
 
 interface NavEntry {
@@ -179,6 +140,11 @@ function PromosPage() {
     }
     return out;
   }, [data.channels, data.printings]);
+
+  const languageAggregates = useMemo(
+    () => computeLanguageAggregates(data.printings),
+    [data.printings],
+  );
 
   const navEntries = useMemo(() => {
     const entries: NavEntry[] = [];
@@ -340,6 +306,7 @@ function PromosPage() {
               }
               const languageLabel = languageLabelMap.get(language) ?? language;
               const languageSectionId = `lang-${language}`;
+              const aggregate = languageAggregates.get(language);
               return (
                 <section
                   key={language}
@@ -348,7 +315,14 @@ function PromosPage() {
                   data-section={languageSectionId}
                   className="scroll-mt-16"
                 >
-                  <h2 className="mb-4 border-b pb-2 text-2xl font-bold">{languageLabel}</h2>
+                  <h2 className="mb-4 flex flex-wrap items-baseline gap-x-3 border-b pb-2 text-2xl font-bold">
+                    {languageLabel}
+                    {aggregate && (
+                      <span className="text-muted-foreground text-sm font-normal">
+                        {formatLanguageAggregate(aggregate.printingCount, aggregate.cardCount)}
+                      </span>
+                    )}
+                  </h2>
                   <div className="space-y-8">
                     {tree.map((root) => (
                       <ChannelBranch
