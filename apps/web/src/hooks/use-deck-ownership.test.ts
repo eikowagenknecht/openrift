@@ -163,8 +163,8 @@ describe("computeDeckOwnership", () => {
 
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
     const printings = [
-      stubPrinting({ id: "p1", cardId, language: "EN" }),
-      stubPrinting({ id: "p2", cardId, language: "DE" }),
+      stubPrinting({ id: "p1", cardId, language: "EN", shortCode: "OGN-001" }),
+      stubPrinting({ id: "p2", cardId, language: "DE", shortCode: "OGN-002" }),
     ];
     const prices = stubPriceLookup({
       p1: { tcgplayer: 5 },
@@ -173,7 +173,7 @@ describe("computeDeckOwnership", () => {
 
     const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices);
     const [entry] = result.missingCards;
-    expect(entry?.cheapestPrinting).toEqual({ id: "p2", language: "DE" });
+    expect(entry?.cheapestPrinting).toEqual({ id: "p2", language: "DE", shortCode: "OGN-002" });
   });
 
   it("omits cheapestPrinting when no price is available", () => {
