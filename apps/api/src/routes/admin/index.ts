@@ -4,9 +4,12 @@ import { z } from "zod";
 import { cronJobs } from "../../cron-jobs.js";
 import { requireAdmin } from "../../middleware/require-admin.js";
 import type { Variables } from "../../types.js";
+import { adminArtVariantsRoute } from "./art-variants.js";
 import { adminCacheRoute } from "./cache.js";
+import { adminCardTypesRoute } from "./card-types.js";
 import { adminCardsRoute } from "./cards/index.js";
 import { catalogRoute } from "./catalog.js";
+import { adminDeckFormatsRoute } from "./deck-formats.js";
 import { adminDeckZonesRoute } from "./deck-zones.js";
 import { adminDistributionChannelsRoute } from "./distribution-channels.js";
 import { adminDomainsRoute } from "./domains.js";
@@ -27,6 +30,7 @@ import { adminRulesRoute } from "./rules.js";
 import { adminSiteSettingsRoute } from "./site-settings.js";
 import { stagingCardOverridesRoute } from "./staging-card-overrides.js";
 import { adminStatusRoute } from "./status.js";
+import { adminSuperTypesRoute } from "./super-types.js";
 import { typographyReviewRoute } from "./typography-review.js";
 import { unifiedMappingsRoute } from "./unified-mappings.js";
 import { adminUserFeatureFlagsRoute } from "./user-feature-flags.js";
@@ -126,6 +130,10 @@ export const adminRoute = app
   .route("/admin", adminStatusRoute)
   .route("/admin", adminKeywordsRoute)
   .route("/admin", adminFinishesRoute)
+  .route("/admin", adminArtVariantsRoute)
   .route("/admin", adminDomainsRoute)
   .route("/admin", adminRaritiesRoute)
+  .route("/admin", adminCardTypesRoute)
+  .route("/admin", adminSuperTypesRoute)
+  .route("/admin", adminDeckFormatsRoute)
   .route("/admin", adminCacheRoute);
