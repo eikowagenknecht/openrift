@@ -2,6 +2,9 @@
 
 ## 2026-04-20
 
+- feat: Each language heading on the Promos page now shows a total of how many distinct printings and cards are covered in that language, so you can see the scope of a language at a glance
+- fix: The Promos page no longer double-counts a printing in its section totals when that printing was distributed through multiple channels (e.g. both a tournament and a bundle), so the roll-up numbers match what you actually see below
+- fix: Printings in the deck builder's "Change printing" menu (and other printing lists) now appear in a consistent order — by set, then card number, then finish — instead of an unpredictable order based on when each printing was added to the database
 - fix: Battlefield thumbnails in the deck builder's printing picker are now shown in their natural landscape orientation instead of being squashed into a portrait frame
 - fix: Promo cards are sized more comfortably across screen widths, and the sidebar only appears on wider desktops so the grid can use the full width on laptop screens
 
