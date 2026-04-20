@@ -87,7 +87,12 @@ export function LandingPage() {
               className={cn("size-36", spinning && "animate-logo-spin")}
             />
           </button>
-          <h1 className="text-4xl font-bold md:text-5xl">OpenRift</h1>
+          <div className="flex flex-col items-center gap-2">
+            <h1 className="text-4xl font-bold md:text-5xl">OpenRift</h1>
+            <span className="bg-primary/10 text-primary rounded px-2 py-1 text-xs leading-none font-semibold uppercase">
+              Unofficial
+            </span>
+          </div>
           <p className="text-muted-foreground text-center text-lg">
             An open-source Riftbound collection tracker &amp; deck builder
           </p>
