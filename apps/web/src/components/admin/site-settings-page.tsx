@@ -1,12 +1,14 @@
 import type { SiteSettingResponse } from "@openrift/shared";
 import { PlusIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminColumnDef } from "@/components/admin/admin-table";
+import { SectionHeading } from "@/components/admin/section-heading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -14,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   useCreateSiteSetting,
   useDeleteSiteSetting,
@@ -241,6 +244,57 @@ export function SiteSettingsPage() {
           </div>
         </div>
       )}
+
+      <div>
+        <SectionHeading>Analytics (this browser)</SectionHeading>
+        <AnalyticsExclusionPanel />
+      </div>
+    </div>
+  );
+}
+
+// ── Analytics exclusion (per-browser localStorage toggle) ───────────────────
+
+const UMAMI_DISABLED_KEY = "umami.disabled";
+
+function AnalyticsExclusionPanel() {
+  const [excluded, setExcluded] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setExcluded(localStorage.getItem(UMAMI_DISABLED_KEY) === "1");
+    setHydrated(true);
+  }, []);
+
+  function handleToggle(next: boolean) {
+    if (next) {
+      localStorage.setItem(UMAMI_DISABLED_KEY, "1");
+    } else {
+      localStorage.removeItem(UMAMI_DISABLED_KEY);
+    }
+    setExcluded(next);
+  }
+
+  return (
+    <div className="rounded-md border px-4 py-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <Label htmlFor="umami-exclude" className="cursor-pointer">
+            Exclude this browser from Umami analytics
+          </Label>
+          <p className="text-muted-foreground mt-0.5 text-xs">
+            Sets <span className="font-mono">localStorage[&quot;umami.disabled&quot;]</span> so
+            Umami skips tracking on this device. Applies to this browser only, clear site data to
+            reset.
+          </p>
+        </div>
+        <Switch
+          id="umami-exclude"
+          checked={excluded}
+          disabled={!hydrated}
+          onCheckedChange={handleToggle}
+        />
+      </div>
     </div>
   );
 }
