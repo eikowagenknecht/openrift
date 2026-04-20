@@ -73,7 +73,7 @@ Physical product variations of a game card (art, rarity, finish, etc.). One card
 | `slug`                | text        | not null, unique                                  |
 | `short_code`          | text        | not null                                          |
 | `rarity`              | text        | not null (Common, Uncommon, Rare, Epic, Showcase) |
-| `art_variant`         | text        | not null (normal, altart, overnumbered)           |
+| `art_variant`         | text        | not null (normal, altart, overnumbered, ultimate) |
 | `is_signed`           | boolean     | not null, default false                           |
 | `finish`              | text        | not null (normal, foil)                           |
 | `artist`              | text        | not null                                          |

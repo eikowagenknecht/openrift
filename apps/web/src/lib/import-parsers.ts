@@ -341,7 +341,9 @@ function parseOpenRift(text: string): ParseResult {
     const finish: Finish = record["Finish"]?.trim() === "foil" ? "foil" : "normal";
     const artVariantRaw = record["Art Variant"]?.trim();
     const artVariant: ArtVariant =
-      artVariantRaw === "altart" || artVariantRaw === "overnumbered" ? artVariantRaw : "normal";
+      artVariantRaw === "altart" || artVariantRaw === "overnumbered" || artVariantRaw === "ultimate"
+        ? artVariantRaw
+        : "normal";
     const promoSlug = record["Promo"]?.trim() || undefined;
 
     entries.push({

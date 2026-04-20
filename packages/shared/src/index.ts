@@ -195,6 +195,32 @@ export { inferZone } from "./zone-inference.js";
 
 export { WellKnown } from "./well-known.js";
 
+export type {
+  PackPool,
+  PackPrinting,
+  PackPull,
+  PackResult,
+  PackSlot,
+} from "./pack-opener/index.js";
+export type { Random as PackRandom } from "./pack-opener/index.js";
+export {
+  COMMONS_PER_PACK,
+  FLEX_EPIC_RATE,
+  FLEX_SLOTS_PER_PACK,
+  FOIL_RARITY_WEIGHTS,
+  SHOWCASE_ALTART_RATE,
+  SHOWCASE_OVERNUMBERED_RATE,
+  SHOWCASE_SIGNED_RATE,
+  ULTIMATE_RATE,
+  UNCOMMONS_PER_PACK,
+  buildPool,
+  isPoolOpenable,
+  mathRandom,
+  mulberry32,
+  openPack,
+  openPacks,
+} from "./pack-opener/index.js";
+
 export { appendSetTotal, fixTypography } from "./fix-typography.js";
 
 export type { DeckCard, DeckState, DeckViolation, DeckRule } from "./deck-rules.js";

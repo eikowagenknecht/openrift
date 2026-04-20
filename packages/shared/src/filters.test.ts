@@ -12,7 +12,7 @@ import { NONE } from "./types";
 const TEST_ORDERS: EnumOrders = {
   domains: ["Fury", "Calm", "Mind", "Body", "Chaos", "Order", "Colorless"],
   rarities: ["Common", "Uncommon", "Rare", "Epic", "Showcase"],
-  artVariants: ["normal", "altart", "overnumbered"],
+  artVariants: ["normal", "altart", "overnumbered", "ultimate"],
   cardTypes: ["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield", "Other"],
   superTypes: ["Basic", "Champion", "Signature", "Token"],
   finishes: ["normal", "foil", "metal", "metal-deluxe"],
