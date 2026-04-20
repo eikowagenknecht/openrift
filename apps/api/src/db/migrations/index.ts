@@ -43,6 +43,7 @@ import * as m094 from "./094-distribution-channel-hierarchy.js";
 import * as m095 from "./095-metal-finishes-well-known.js";
 import * as m096 from "./096-printings-ordered-view.js";
 import * as m097 from "./097-set-released.js";
+import * as m098 from "./098-ultimate-art-variant.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -145,4 +146,5 @@ export const migrations: Record<string, Migration> = {
   "095-metal-finishes-well-known": m095,
   "096-printings-ordered-view": m096,
   "097-set-released": m097,
+  "098-ultimate-art-variant": m098,
 };
