@@ -26,6 +26,8 @@ vi.mock("@/stores/search-scope-store", () => ({
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { FilterSearchProvider } from "@/lib/search-schemas";
+// oxlint-disable-next-line import/first -- must import after vi.mock
+import { useDisplayStore } from "@/stores/display-store";
 
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { useCardFilters } from "./use-card-filters";
@@ -63,6 +65,9 @@ describe("useCardFilters", () => {
     mockSearch = defaultSearchState();
     mockNavigate.mockClear();
     mockToggleSearchField.mockClear();
+    // Pin the URL-fallback view to "cards" so the existing setView/default
+    // assertions remain stable regardless of the shared PREFERENCE_DEFAULTS.
+    useDisplayStore.setState({ defaultCardView: "cards" });
   });
 
   it("returns default filters when no URL params are set", () => {
@@ -310,6 +315,30 @@ describe("useCardFilters", () => {
     mockSearch = { view: "printings" };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
     expect(result.current.view).toBe("printings");
+  });
+
+  it("falls back to the user's defaultCardView pref when URL has no view", () => {
+    useDisplayStore.setState({ defaultCardView: "printings" });
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+    expect(result.current.view).toBe("printings");
+  });
+
+  it("setView strips key when v matches the user's defaultCardView pref", () => {
+    useDisplayStore.setState({ defaultCardView: "printings" });
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.setView("printings"));
+
+    expect(lastNavigateSearch()).not.toHaveProperty("view");
+  });
+
+  it("setView writes 'cards' to URL when pref is 'printings'", () => {
+    useDisplayStore.setState({ defaultCardView: "printings" });
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.setView("cards"));
+
+    expect(lastNavigateSearch()).toMatchObject({ view: "cards" });
   });
 
   // Regression: React Compiler bails on the entire hook if it encounters a

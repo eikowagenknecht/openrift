@@ -1,6 +1,7 @@
 import type {
   ArtVariant,
   CardType,
+  DefaultCardView,
   Domain,
   Finish,
   GroupByField,
@@ -15,6 +16,7 @@ import { useRouter } from "@tanstack/react-router";
 import { trackEvent } from "@/lib/analytics";
 import type { FilterSearch } from "@/lib/search-schemas";
 import { useFilterSearch } from "@/lib/search-schemas";
+import { useDisplayStore } from "@/stores/display-store";
 import { useSearchScopeStore } from "@/stores/search-scope-store";
 
 type ArrayKey =
@@ -33,7 +35,7 @@ type ArrayKey =
  * nullable fields).
  * @returns The filter state with defaults applied.
  */
-function toFilterState(raw: FilterSearch) {
+function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
   return {
     search: raw.search ?? "",
     sets: raw.sets ?? [],
@@ -59,7 +61,7 @@ function toFilterState(raw: FilterSearch) {
     errata: raw.errata ?? null,
     sort: raw.sort ?? "id",
     sortDir: raw.sortDir ?? "asc",
-    view: raw.view ?? "cards",
+    view: raw.view ?? defaultView,
     groupBy: raw.groupBy ?? "set",
     groupDir: raw.groupDir ?? "asc",
   };
@@ -74,7 +76,8 @@ function toFilterState(raw: FilterSearch) {
  */
 export function useFilterValues() {
   const raw = useFilterSearch();
-  const filterState = toFilterState(raw);
+  const defaultView = useDisplayStore((s) => s.defaultCardView);
+  const filterState = toFilterState(raw, defaultView);
   const searchScope = useSearchScopeStore((s) => s.scope);
 
   const filters = {
@@ -162,7 +165,8 @@ export function useFilterValues() {
  */
 export function useFilterActions() {
   const raw = useFilterSearch();
-  const filterState = toFilterState(raw);
+  const defaultView = useDisplayStore((s) => s.defaultCardView);
+  const filterState = toFilterState(raw, defaultView);
   const router = useRouter();
   const toggleSearchField = useSearchScopeStore((s) => s.toggleField);
   const selectAllSearchFields = useSearchScopeStore((s) => s.selectAll);
@@ -300,7 +304,7 @@ export function useFilterActions() {
   };
 
   const setView = (v: "cards" | "printings" | "copies") => {
-    updateSearch({ view: v === "cards" ? undefined : v });
+    updateSearch({ view: v === defaultView ? undefined : v });
   };
 
   const setGroupBy = (groupBy: GroupByField) => {

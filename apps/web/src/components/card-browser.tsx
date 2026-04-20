@@ -43,7 +43,6 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
-import { useSeedViewFromPrefs } from "@/hooks/use-seed-view-from-prefs";
 import { useSession } from "@/lib/auth-session";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
@@ -135,10 +134,6 @@ export function CardBrowser() {
   // After seeding, `filters.languages` is the single source of truth — empty
   // means "show all" (the user cleared every language within this session).
   useSeedLanguagesFromPrefs(filters.languages);
-
-  // Seed the URL view param from the user's default-view preference on fresh
-  // load only. Toggling view on the page writes to the URL, not the pref.
-  useSeedViewFromPrefs();
 
   const {
     availableFilters,
