@@ -3,7 +3,7 @@ import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { CollectionEventsTable, Database, PrintingsTable } from "../db/index.js";
-import { imageUrl, superTypesArray } from "./query-helpers.js";
+import { imageUrl } from "./query-helpers.js";
 
 const CURSOR_SEPARATOR = "_";
 
@@ -63,6 +63,7 @@ export function collectionEventsRepo(db: Kysely<Database>) {
         .selectFrom("collectionEvents as ce")
         .innerJoin("printings as p", "p.id", "ce.printingId")
         .innerJoin("cards as card", "card.id", "p.cardId")
+        .innerJoin("mvCardAggregates as mca", "mca.cardId", "card.id")
         .leftJoin("printingImages as pi", (join) =>
           join
             .onRef("pi.printingId", "=", "p.id")
@@ -85,7 +86,7 @@ export function collectionEventsRepo(db: Kysely<Database>) {
           "p.rarity",
           "card.name as cardName",
           "card.type as cardType",
-          superTypesArray("card.id").as("cardSuperTypes"),
+          "mca.superTypes as cardSuperTypes",
         ])
         .where("ce.userId", "=", userId)
         .orderBy("ce.createdAt", "desc")

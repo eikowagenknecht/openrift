@@ -3,7 +3,6 @@ import type { DeleteResult, Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { CardsTable, Database, DeckCardsTable, DecksTable } from "../db/index.js";
-import { domainsArray, superTypesArray } from "./query-helpers.js";
 
 /** Slim deck card row — card metadata is resolved client-side from the catalog. */
 type DeckCardRow = Pick<
@@ -132,6 +131,7 @@ export function decksRepo(db: Kysely<Database>) {
         .selectFrom("deckCards as dc")
         .innerJoin("decks as d", "d.id", "dc.deckId")
         .innerJoin("cards as c", "c.id", "dc.cardId")
+        .innerJoin("mvCardAggregates as mca", "mca.cardId", "dc.cardId")
         .select([
           "dc.id",
           "dc.deckId",
@@ -146,8 +146,8 @@ export function decksRepo(db: Kysely<Database>) {
           "c.energy",
           "c.might",
           "c.power",
-          domainsArray("dc.cardId").as("domains"),
-          superTypesArray("dc.cardId").as("superTypes"),
+          "mca.domains",
+          "mca.superTypes",
           sql<string | null>`(
             SELECT COALESCE(ci.rehosted_url, ci.original_url)
             FROM printings p
@@ -179,6 +179,7 @@ export function decksRepo(db: Kysely<Database>) {
         .selectFrom("deckCards as dc")
         .innerJoin("decks as d", "d.id", "dc.deckId")
         .innerJoin("cards as c", "c.id", "dc.cardId")
+        .innerJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
         .select([
           "dc.id",
           "dc.deckId",
@@ -188,8 +189,8 @@ export function decksRepo(db: Kysely<Database>) {
           "dc.preferredPrintingId",
           "c.name as cardName",
           "c.type as cardType",
-          domainsArray("c.id").as("domains"),
-          superTypesArray("c.id").as("superTypes"),
+          "mca.domains",
+          "mca.superTypes",
           "c.tags",
           "c.keywords",
           "c.energy",

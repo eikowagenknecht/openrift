@@ -10,7 +10,6 @@ import type {
   CandidatePrintingsTable,
   PrintingsTable,
 } from "../db/index.js";
-import { domainsArray, superTypesArray } from "./query-helpers.js";
 
 /**
  * Reusable WHERE filter: exclude candidate_cards that appear in ignored_candidate_cards.
@@ -286,23 +285,24 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     > {
       return db
         .selectFrom("cards")
+        .innerJoin("mvCardAggregates as mca", "mca.cardId", "cards.id")
         .select([
-          "id",
-          "slug",
-          "name",
-          "normName",
-          "type",
-          "might",
-          "energy",
-          "power",
-          "mightBonus",
-          "keywords",
-          "tags",
-          "comment",
-          domainsArray("cards.id").as("domains"),
-          superTypesArray("cards.id").as("superTypes"),
+          "cards.id",
+          "cards.slug",
+          "cards.name",
+          "cards.normName",
+          "cards.type",
+          "cards.might",
+          "cards.energy",
+          "cards.power",
+          "cards.mightBonus",
+          "cards.keywords",
+          "cards.tags",
+          "cards.comment",
+          "mca.domains",
+          "mca.superTypes",
         ])
-        .where("slug", "=", slug)
+        .where("cards.slug", "=", slug)
         .executeTakeFirst() as Promise<any>;
     },
 
@@ -618,12 +618,10 @@ export function candidateCardsRepo(db: Kysely<Database>) {
     > {
       return db
         .selectFrom("cards")
-        .selectAll()
-        .select([
-          domainsArray("cards.id").as("domains"),
-          superTypesArray("cards.id").as("superTypes"),
-        ])
-        .orderBy("name")
+        .innerJoin("mvCardAggregates as mca", "mca.cardId", "cards.id")
+        .selectAll("cards")
+        .select(["mca.domains", "mca.superTypes"])
+        .orderBy("cards.name")
         .execute() as any;
     },
 

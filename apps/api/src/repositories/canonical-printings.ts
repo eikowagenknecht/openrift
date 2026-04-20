@@ -3,7 +3,6 @@ import type { Kysely, SqlBool } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
-import { domainsArray, superTypesArray } from "./query-helpers.js";
 
 interface CanonicalShortCode {
   cardId: string;
@@ -110,14 +109,15 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
       const rows = await appendCanonicalOrder(
         baseQuery()
           .innerJoin("cards as c", "c.id", "p.cardId")
+          .innerJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
           .select([
             "p.shortCode",
             "p.cardId",
             "p.id as printingId",
             "c.name as cardName",
             "c.type as cardType",
-            domainsArray("c.id").as("domains"),
-            superTypesArray("c.id").as("superTypes"),
+            "mca.domains",
+            "mca.superTypes",
           ])
           .where("p.shortCode", "in", shortCodes)
           .distinctOn("p.shortCode")
@@ -224,14 +224,15 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
         const rows = await appendCanonicalOrder(
           baseQuery()
             .innerJoin("cards as c", "c.id", "p.cardId")
+            .innerJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
             .select([
               "p.shortCode",
               "p.id as printingId",
               "c.id as cardId",
               "c.name as cardName",
               "c.type as cardType",
-              domainsArray("c.id").as("domains"),
-              superTypesArray("c.id").as("superTypes"),
+              "mca.domains",
+              "mca.superTypes",
             ])
             .where((eb) => eb.fn("lower", ["c.name"]), "=", pair.name.toLowerCase())
             .where(sql<SqlBool>`c.tags @> ARRAY[${pair.tag}]::text[]`)
@@ -267,14 +268,15 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
       const rows = await appendCanonicalOrder(
         baseQuery()
           .innerJoin("cards as c", "c.id", "p.cardId")
+          .innerJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
           .select([
             "p.shortCode",
             "p.id as printingId",
             "c.id as cardId",
             "c.name as cardName",
             "c.type as cardType",
-            domainsArray("c.id").as("domains"),
-            superTypesArray("c.id").as("superTypes"),
+            "mca.domains",
+            "mca.superTypes",
           ])
           .where((eb) => eb.fn("lower", ["c.name"]), "in", lowerNames)
           .distinctOn((eb) => eb.fn("lower", ["c.name"]))

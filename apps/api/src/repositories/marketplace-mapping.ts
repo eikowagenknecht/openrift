@@ -2,7 +2,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
-import { domainsArray, imageUrlWithOriginal, superTypesArray } from "./query-helpers.js";
+import { imageUrlWithOriginal } from "./query-helpers.js";
 
 type Db = Kysely<Database>;
 
@@ -102,6 +102,7 @@ export function marketplaceMappingRepo(db: Db) {
           .selectFrom("cards as c")
           .innerJoin("printings as p", "p.cardId", "c.id")
           .innerJoin("sets as s", "s.id", "p.setId")
+          .innerJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
           .leftJoin("marketplaceProductVariants as mpv", "mpv.printingId", "p.id")
           .leftJoin("marketplaceProducts as mp", (join) =>
             join
@@ -120,8 +121,8 @@ export function marketplaceMappingRepo(db: Db) {
             "c.slug as cardSlug",
             "c.name as cardName",
             "c.type as cardType",
-            domainsArray("c.id").as("domains"),
-            superTypesArray("c.id").as("superTypes"),
+            "mca.domains",
+            "mca.superTypes",
             "c.energy",
             "c.might",
             "p.id as printingId",
@@ -165,6 +166,7 @@ export function marketplaceMappingRepo(db: Db) {
         .selectFrom("cards as c")
         .innerJoin("printings as p", "p.cardId", "c.id")
         .innerJoin("sets as s", "s.id", "p.setId")
+        .innerJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
         .leftJoin("marketplaceProductVariants as mpv", "mpv.printingId", "p.id")
         .leftJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
         .leftJoin("printingImages as pi", (join) =>
@@ -179,8 +181,8 @@ export function marketplaceMappingRepo(db: Db) {
           "c.slug as cardSlug",
           "c.name as cardName",
           "c.type as cardType",
-          domainsArray("c.id").as("domains"),
-          superTypesArray("c.id").as("superTypes"),
+          "mca.domains",
+          "mca.superTypes",
           "c.energy",
           "c.might",
           "p.id as printingId",

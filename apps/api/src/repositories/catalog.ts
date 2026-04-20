@@ -11,7 +11,7 @@ import type {
   PrintingsTable,
   SetsTable,
 } from "../db/index.js";
-import { domainsArray, imageUrl, superTypesArray } from "./query-helpers.js";
+import { imageUrl } from "./query-helpers.js";
 
 /** Card columns returned by the catalog (excludes normName and timestamps). */
 type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "updatedAt"> & {
@@ -240,22 +240,23 @@ export function catalogRepo(db: Kysely<Database>) {
     cardBySlug(slug: string): Promise<CatalogCardRow | undefined> {
       return db
         .selectFrom("cards")
+        .innerJoin("mvCardAggregates as mca", "mca.cardId", "cards.id")
         .select([
-          "id",
-          "slug",
-          "name",
-          "type",
-          "might",
-          "energy",
-          "power",
-          "mightBonus",
-          "keywords",
-          "tags",
-          "comment",
-          domainsArray("cards.id").as("domains"),
-          superTypesArray("cards.id").as("superTypes"),
+          "cards.id",
+          "cards.slug",
+          "cards.name",
+          "cards.type",
+          "cards.might",
+          "cards.energy",
+          "cards.power",
+          "cards.mightBonus",
+          "cards.keywords",
+          "cards.tags",
+          "cards.comment",
+          "mca.domains",
+          "mca.superTypes",
         ])
-        .where("slug", "=", slug)
+        .where("cards.slug", "=", slug)
         .executeTakeFirst() as Promise<CatalogCardRow | undefined>;
     },
 
@@ -360,23 +361,24 @@ export function catalogRepo(db: Kysely<Database>) {
       }
       return db
         .selectFrom("cards")
+        .innerJoin("mvCardAggregates as mca", "mca.cardId", "cards.id")
         .select([
-          "id",
-          "slug",
-          "name",
-          "type",
-          "might",
-          "energy",
-          "power",
-          "mightBonus",
-          "keywords",
-          "tags",
-          "comment",
-          domainsArray("cards.id").as("domains"),
-          superTypesArray("cards.id").as("superTypes"),
+          "cards.id",
+          "cards.slug",
+          "cards.name",
+          "cards.type",
+          "cards.might",
+          "cards.energy",
+          "cards.power",
+          "cards.mightBonus",
+          "cards.keywords",
+          "cards.tags",
+          "cards.comment",
+          "mca.domains",
+          "mca.superTypes",
         ])
-        .where("id", "in", ids)
-        .orderBy("name")
+        .where("cards.id", "in", ids)
+        .orderBy("cards.name")
         .execute() as Promise<CatalogCardRow[]>;
     },
 
