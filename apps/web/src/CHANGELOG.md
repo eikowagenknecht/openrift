@@ -2,6 +2,7 @@
 
 ## 2026-04-20
 
+- feat: Hovering a card on a shared deck page now brings up the same large image preview as the deck builder, and signed-in viewers also see the ownership and value tiles for the deck against their own collection
 - feat: Share a deck by generating a link — friends can view the deck without an account, and if they have one they can copy it into their own decks in a click
 - feat: A new pack opener simulator lets you open virtual Riftbound boosters with the real published pull rates, open one pack and flip each card by clicking, or crack a whole booster display at once and see the rarity breakdown, average value per pack, and your best pulls
 - feat: Admins now have pages under Taxonomy for Art Variants, Card Types, Super Types, and Deck Formats — the same add, rename, reorder, and delete controls that already existed for Finishes and Rarities
