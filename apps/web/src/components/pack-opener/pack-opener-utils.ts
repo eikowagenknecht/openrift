@@ -19,7 +19,10 @@ export function toPackPrinting(p: Printing): PackPrinting {
   };
 }
 
-// Booster-eligible: no markers (filters out promos, regionals, judge, etc.).
+// Booster-eligible: no markers (filters out promos, regionals, judge, etc.)
+// and no "Other" type cards — the catalog stores buff cards (which are the
+// printed backsides of other cards, not standalone pulls) under that type,
+// so they'd otherwise show up as fake pulls in the pool.
 export function isBoosterEligible(printing: Printing): boolean {
-  return printing.markers.length === 0;
+  return printing.markers.length === 0 && printing.card.type !== "Other";
 }
