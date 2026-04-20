@@ -6,7 +6,7 @@ import { ArrowLeftIcon } from "lucide-react";
 
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useLanguageList } from "@/hooks/use-enums";
+import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { publicSetDetailQueryOptions } from "@/hooks/use-public-sets";
 import { PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -21,9 +21,7 @@ function SetDetailPage() {
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
   const navigate = useNavigate();
   const showImages = useDisplayStore((s) => s.showImages);
-  const userLanguages = useDisplayStore((s) => s.languages);
-  const defaultLanguages = useLanguageList().map((l) => l.code);
-  const effectiveLanguageOrder = userLanguages.length > 0 ? userLanguages : defaultLanguages;
+  const effectiveLanguageOrder = useEffectiveLanguageOrder();
 
   const uniquePrintings = deduplicateByCard(data.printings, effectiveLanguageOrder);
 

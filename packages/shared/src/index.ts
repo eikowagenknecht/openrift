@@ -174,16 +174,15 @@ export {
   formatPrintingLabel,
   centsToDollars,
   compareWithLanguagePreference,
-  comparePrintings,
   deduplicateByCard,
   formatDateUTC,
   formatShortCodes,
   getOrientation,
-  groupPrintingsByCardId,
   preferredPrinting,
   mostCommonValue,
   normalizeNameForMatching,
   slugifyName,
+  sortByLanguageAndCanonicalRank,
 } from "./utils.js";
 
 export { extractBracketedTerms, extractKeywords } from "./keywords.js";

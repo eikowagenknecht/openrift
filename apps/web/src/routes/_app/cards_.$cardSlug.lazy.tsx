@@ -28,7 +28,8 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useDomainColors } from "@/hooks/use-domain-colors";
-import { useEnumOrders, useLanguageLabels, useLanguageList } from "@/hooks/use-enums";
+import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
+import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
@@ -47,10 +48,7 @@ function CardDetailPage() {
   const { data } = useSuspenseQuery(cardDetailQueryOptions(cardSlug));
   const { card, sets } = data;
   const { labels } = useEnumOrders();
-  const userLanguages = useDisplayStore((state) => state.languages);
-  const defaultLanguageList = useLanguageList();
-  const effectiveLanguageOrder =
-    userLanguages.length > 0 ? userLanguages : defaultLanguageList.map((l) => l.code);
+  const effectiveLanguageOrder = useEffectiveLanguageOrder();
   // Sort by the DB-computed canonicalRank (via the `printings_ordered` view).
   // User language preference overrides the language axis client-side.
   const rankByLang = new Map(effectiveLanguageOrder.map((lang, i) => [lang, i]));

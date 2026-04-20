@@ -1,4 +1,5 @@
 import type { Card, Printing } from "@openrift/shared";
+import { sortByLanguageAndCanonicalRank } from "@openrift/shared";
 import { useLiveSuspenseQuery } from "@tanstack/react-db";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 
@@ -55,8 +56,6 @@ function enrichFromCollections(
     cardsById[id] = card;
   }
 
-  const setOrderMap = new Map(rawSets.map((s, i) => [s.id, i]));
-
   const allPrintings: Printing[] = [];
   const printingsById: Record<string, Printing> = {};
   for (const raw of rawPrintings) {
@@ -74,7 +73,9 @@ function enrichFromCollections(
   // axes (set, shortCode, marker, finish). Default users (no preference) get the
   // DB order from the live query's orderBy above — no JS sort needed.
   const sortedPrintings =
-    userLanguages.length > 0 ? reorderByUserLanguages(allPrintings, userLanguages) : allPrintings;
+    userLanguages.length > 0
+      ? sortByLanguageAndCanonicalRank(allPrintings, userLanguages)
+      : allPrintings;
 
   const printingsByCardId = Map.groupBy(sortedPrintings, (p) => p.cardId);
 
@@ -83,26 +84,6 @@ function enrichFromCollections(
     cardsById,
     printingsById,
     printingsByCardId,
-    setOrderMap,
     sets: [...rawSets],
   };
-}
-
-/**
- * Stable re-sort that bubbles the user's preferred languages to the top while
- * preserving within-language canonical order.
- *
- * @returns A new array ordered by (userLangRank, canonicalRank).
- */
-function reorderByUserLanguages(
-  printings: Printing[],
-  userLanguages: readonly string[],
-): Printing[] {
-  const rankByLang = new Map(userLanguages.map((lang, i) => [lang, i]));
-  const unlistedRank = userLanguages.length;
-  return printings.toSorted((a, b) => {
-    const aRank = rankByLang.get(a.language) ?? unlistedRank;
-    const bRank = rankByLang.get(b.language) ?? unlistedRank;
-    return aRank - bRank || a.canonicalRank - b.canonicalRank;
-  });
 }
