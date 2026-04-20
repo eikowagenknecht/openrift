@@ -16,7 +16,7 @@ export interface CardOwnership {
    * The printing whose price backed `cheapestPrice` — used to deep-link to the
    * matching marketplace product. `undefined` when no price was available.
    */
-  cheapestPrinting: { id: string; language: string } | undefined;
+  cheapestPrinting: { id: string; language: string; shortCode: string } | undefined;
 }
 
 export interface DeckOwnershipData {
@@ -65,7 +65,7 @@ export function computeDeckOwnership(
   // the missing-cards dialog can deep-link to the matching marketplace product.
   const cheapestByCardId = new Map<
     string,
-    { price: number; printing: { id: string; language: string } }
+    { price: number; printing: { id: string; language: string; shortCode: string } }
   >();
   for (const printing of allPrintings) {
     const price = prices.get(printing.id, marketplace);
@@ -74,7 +74,11 @@ export function computeDeckOwnership(
       if (existing === undefined || price < existing.price) {
         cheapestByCardId.set(printing.cardId, {
           price,
-          printing: { id: printing.id, language: printing.language },
+          printing: {
+            id: printing.id,
+            language: printing.language,
+            shortCode: printing.shortCode,
+          },
         });
       }
     }

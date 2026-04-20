@@ -87,14 +87,7 @@ export function DeckMissingCardsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between pr-6">
-            <span>Missing cards ({totalMissing})</span>
-            {totalMissingValue !== undefined && (
-              <span className="text-muted-foreground text-sm font-normal">
-                {fmt(totalMissingValue)}
-              </span>
-            )}
-          </DialogTitle>
+          <DialogTitle>Missing cards ({totalMissing})</DialogTitle>
           <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
             <img src={meta.icon} alt="" className="h-3 invert dark:invert-0" />
             Prices from {meta.label}
@@ -106,6 +99,7 @@ export function DeckMissingCardsDialog({
             <thead className="text-muted-foreground bg-background sticky top-0 text-left text-xs">
               <tr>
                 <th className="pb-2 font-medium">Card</th>
+                <th className="pb-2 font-medium">Code</th>
                 <th className="pb-2 text-center font-medium">Zone</th>
                 <th className="pb-2 text-right font-medium">Qty</th>
                 <th className="pb-2 text-right font-medium">Cost</th>
@@ -124,6 +118,9 @@ export function DeckMissingCardsDialog({
                       {card.cardName}
                     </a>
                   </td>
+                  <td className="text-muted-foreground py-1.5 font-mono">
+                    {card.cheapestPrinting?.shortCode ?? "--"}
+                  </td>
                   <td className="text-muted-foreground py-1.5 text-center text-xs">
                     {ZONE_LABELS[card.zone] ?? card.zone}
                   </td>
@@ -138,6 +135,13 @@ export function DeckMissingCardsDialog({
             </tbody>
           </table>
         </div>
+
+        {totalMissingValue !== undefined && (
+          <div className="text-muted-foreground flex items-center justify-between border-t pt-2 text-sm">
+            <span>Total</span>
+            <span className="text-foreground font-medium">{fmt(totalMissingValue)}</span>
+          </div>
+        )}
 
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={handleCopy}>
