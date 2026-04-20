@@ -55,6 +55,10 @@ const KNOWN_FLAGS: KnownFlag[] = [
     key: "stats",
     description: "Show the collection statistics page and sidebar link",
   },
+  {
+    key: "packopener",
+    description: "Show the booster pack simulator page and More-menu link",
+  },
 ];
 
 function GlobalFlagsSection() {

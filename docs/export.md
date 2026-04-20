@@ -20,7 +20,7 @@ openrift-{collection-name}-{date}.csv
 | 4   | Type        | Card type                                                               | `Legend`, `Unit`, `Rune`, `Spell`, `Gear`, `Battlefield`, `Other` |
 | 5   | Domain      | Card domain(s), separated by `/` for multi-domain cards                 | `Fury`, `Mind / Body`                                             |
 | 6   | Finish      | Card finish                                                             | `normal`, `foil`                                                  |
-| 7   | Art Variant | Art variant type                                                        | `normal`, `altart`, `overnumbered`                                |
+| 7   | Art Variant | Art variant type                                                        | `normal`, `altart`, `overnumbered`, `ultimate`                    |
 | 8   | Quantity    | Number of copies owned                                                  | `1`, `3`                                                          |
 
 ## Card ID format

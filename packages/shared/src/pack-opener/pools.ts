@@ -1,0 +1,81 @@
+import { WellKnown } from "../well-known.js";
+import type { PackPool, PackPrinting } from "./types.js";
+
+/**
+ * Partition a flat list of booster-eligible printings into per-slot pools.
+ * Callers should pre-filter out printings with any markers (promos, regional,
+ * etc.) and pick a single language before calling this — this function does
+ * not apply those filters.
+ * @returns The printings grouped into slot-specific pools.
+ */
+export function buildPool(printings: readonly PackPrinting[]): PackPool {
+  const normalArt = WellKnown.artVariant.NORMAL;
+  const altart = WellKnown.artVariant.ALTART;
+  const overnumbered = WellKnown.artVariant.OVERNUMBERED;
+  const ultimate = WellKnown.artVariant.ULTIMATE;
+  const normalFinish = WellKnown.finish.NORMAL;
+  const foilFinish = WellKnown.finish.FOIL;
+  const runeType = WellKnown.cardType.RUNE;
+
+  const pool: PackPool = {
+    commons: [],
+    uncommons: [],
+    rares: [],
+    epics: [],
+    foilCommons: [],
+    foilUncommons: [],
+    runes: [],
+    showcaseAltart: [],
+    showcaseOvernumbered: [],
+    showcaseSigned: [],
+    ultimates: [],
+  };
+
+  for (const p of printings) {
+    if (p.artVariant === ultimate) {
+      pool.ultimates.push(p);
+      continue;
+    }
+    if (p.rarity === "Showcase") {
+      if (p.isSigned) {
+        pool.showcaseSigned.push(p);
+      } else if (p.artVariant === altart) {
+        pool.showcaseAltart.push(p);
+      } else if (p.artVariant === overnumbered) {
+        pool.showcaseOvernumbered.push(p);
+      }
+      // Plain non-signed Showcase with art=normal is an edge case; ignore it.
+      continue;
+    }
+    if (p.isSigned || p.artVariant !== normalArt) {
+      continue;
+    }
+    if (p.cardType === runeType) {
+      if (p.finish === normalFinish) {
+        pool.runes.push(p);
+      }
+      continue;
+    }
+    if (p.finish === normalFinish) {
+      if (p.rarity === "Common") {
+        pool.commons.push(p);
+      } else if (p.rarity === "Uncommon") {
+        pool.uncommons.push(p);
+      }
+      continue;
+    }
+    if (p.finish === foilFinish) {
+      if (p.rarity === "Common") {
+        pool.foilCommons.push(p);
+      } else if (p.rarity === "Uncommon") {
+        pool.foilUncommons.push(p);
+      } else if (p.rarity === "Rare") {
+        pool.rares.push(p);
+      } else if (p.rarity === "Epic") {
+        pool.epics.push(p);
+      }
+    }
+  }
+
+  return pool;
+}

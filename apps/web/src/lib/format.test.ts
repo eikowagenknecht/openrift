@@ -22,7 +22,12 @@ const TEST_LABELS: EnumLabels = {
   domains: {},
   cardTypes: {},
   superTypes: {},
-  artVariants: { normal: "Normal", altart: "Alt Art", overnumbered: "Overnumbered" },
+  artVariants: {
+    normal: "Normal",
+    altart: "Alt Art",
+    overnumbered: "Overnumbered",
+    ultimate: "Ultimate",
+  },
 };
 
 function stub(overrides: Partial<Printing> = {}): Printing {
