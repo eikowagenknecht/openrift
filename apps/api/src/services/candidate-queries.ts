@@ -552,9 +552,10 @@ async function buildDetailResponse(
       : null,
     displayName,
     sources: candidates.map((s) => formatCandidateCard(s)),
-    printings: formattedPrintings.sort((a, b) =>
-      a.expectedPrintingId.localeCompare(b.expectedPrintingId),
-    ),
+    // `printingsForDetail` already orders by canonicalRank. Kept explicit
+    // here as a safety net against upstream reordering (the spread in
+    // `formattedPrintings` preserves order, but a future refactor might not).
+    printings: formattedPrintings.sort((a, b) => a.canonicalRank - b.canonicalRank),
     candidatePrintings: candidatePrintings.map((cp) => formatCandidatePrinting(cp)),
     candidatePrintingGroups: filteredGroups,
     expectedCardId: deriveExpectedCardId(displayName, card?.slug),

@@ -332,10 +332,13 @@ export function candidateCardsRepo(db: Kysely<Database>) {
       );
     },
 
-    /** @returns Printings for detail page, without timestamps. */
+    /**
+     * @returns Printings for detail page (no timestamps), in canonical order
+     * via the `printings_ordered` view.
+     */
     printingsForDetail(cardId: string) {
       return db
-        .selectFrom("printings")
+        .selectFrom("printingsOrdered")
         .select([
           "id",
           "cardId",
@@ -354,12 +357,10 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "printedName",
           "language",
           "comment",
+          "canonicalRank",
         ])
         .where("cardId", "=", cardId)
-        .orderBy("setId")
-        .orderBy("finish")
-        .orderBy("isSigned")
-        .orderBy("shortCode")
+        .orderBy("canonicalRank")
         .execute();
     },
 

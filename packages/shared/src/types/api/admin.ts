@@ -161,6 +161,8 @@ export interface AdminPrintingResponse {
   language: string;
   comment: string | null;
   expectedPrintingId: string;
+  /** See {@link CatalogPrintingResponse.canonicalRank}. */
+  canonicalRank: number;
 }
 
 export type AdminMarketplaceName = "tcgplayer" | "cardmarket" | "cardtrader";

@@ -991,6 +991,7 @@ describe("buildCardDetail", () => {
           printedEffectText: null,
           flavorText: null,
           comment: null,
+          canonicalRank: 1,
         },
       ]),
       setInfoByIds: vi.fn().mockResolvedValue([
@@ -1051,6 +1052,7 @@ describe("buildCardDetail", () => {
           printedEffectText: null,
           flavorText: null,
           comment: null,
+          canonicalRank: 1,
         },
       ]),
       setInfoByIds: vi
@@ -1718,7 +1720,7 @@ describe("buildCardDetail", () => {
     expect(result.expectedCardId).toBe("nothing");
   });
 
-  it("sorts printings by expectedPrintingId", async () => {
+  it("sorts printings by canonicalRank", async () => {
     const repo = createMockRepo({
       cardForDetailBySlug: vi.fn().mockResolvedValue({
         id: "card-1",
@@ -1738,6 +1740,8 @@ describe("buildCardDetail", () => {
       }),
       cardNameAliases: vi.fn().mockResolvedValue([{ normName: "x" }]),
       candidateCardsForDetail: vi.fn().mockResolvedValue([]),
+      // Mock returns out-of-order by canonicalRank (higher rank first) to
+      // prove the service sorts ascending even when the repo doesn't.
       printingsForDetail: vi.fn().mockResolvedValue([
         {
           id: "p-2",
@@ -1756,6 +1760,7 @@ describe("buildCardDetail", () => {
           printedEffectText: null,
           flavorText: null,
           comment: null,
+          canonicalRank: 2,
         },
         {
           id: "p-1",
@@ -1774,6 +1779,7 @@ describe("buildCardDetail", () => {
           printedEffectText: null,
           flavorText: null,
           comment: null,
+          canonicalRank: 1,
         },
       ]),
       setInfoByIds: vi
@@ -1785,8 +1791,7 @@ describe("buildCardDetail", () => {
     });
 
     const result = await buildCardDetail(repo, mpRepo(), "x");
-    expect(result.printings[0].expectedPrintingId).toBe("OGN-001:normal:");
-    expect(result.printings[1].expectedPrintingId).toBe("OGN-002:normal:");
+    expect(result.printings.map((p) => p.id)).toEqual(["p-1", "p-2"]);
   });
 
   it("includes set totals for accepted printings", async () => {
