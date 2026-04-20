@@ -52,6 +52,8 @@ export function DeckMissingCardsDialog({
     return a.cardName.localeCompare(b.cardName);
   });
 
+  const groupedByZone = [...Map.groupBy(sorted, (card) => card.zone).entries()];
+
   // Fetch marketplace source metadata only when the dialog is open, so we don't
   // send the extra request until the user actually needs the deep-link URLs.
   const printingIds = open
@@ -98,41 +100,50 @@ export function DeckMissingCardsDialog({
           <table className="w-full text-sm">
             <thead className="text-muted-foreground bg-background sticky top-0 text-left text-xs">
               <tr>
-                <th className="pb-2 font-medium">Card</th>
-                <th className="pb-2 font-medium">Code</th>
-                <th className="pb-2 text-center font-medium">Zone</th>
+                <th className="pb-2 font-medium">Printing</th>
                 <th className="pb-2 text-right font-medium">Qty</th>
                 <th className="pb-2 text-right font-medium">Cost</th>
+                <th className="pb-2 text-right font-medium">Total</th>
               </tr>
             </thead>
-            <tbody>
-              {sorted.map((card) => (
-                <tr key={`${card.cardId}:${card.zone}`} className="border-t">
-                  <td className="py-1.5">
-                    <a
-                      href={linkFor(card)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="hover:text-foreground underline decoration-dotted underline-offset-2"
-                    >
-                      {card.cardName}
-                    </a>
-                  </td>
-                  <td className="text-muted-foreground py-1.5 font-mono">
-                    {card.cheapestPrinting?.shortCode ?? "--"}
-                  </td>
-                  <td className="text-muted-foreground py-1.5 text-center text-xs">
-                    {ZONE_LABELS[card.zone] ?? card.zone}
-                  </td>
-                  <td className="py-1.5 text-right">{card.shortfall}</td>
-                  <td className="text-muted-foreground py-1.5 text-right">
-                    {card.cheapestPrice === undefined
-                      ? "--"
-                      : fmt(card.cheapestPrice * card.shortfall)}
-                  </td>
+            {groupedByZone.map(([zone, cards]) => (
+              <tbody key={zone}>
+                <tr>
+                  <th
+                    colSpan={4}
+                    className="text-muted-foreground bg-muted/40 border-t px-2 py-1 text-left font-medium"
+                  >
+                    {ZONE_LABELS[zone] ?? zone}
+                  </th>
                 </tr>
-              ))}
-            </tbody>
+                {cards.map((card) => (
+                  <tr key={`${card.cardId}:${card.zone}`} className="border-t">
+                    <td className="py-1.5">
+                      <a
+                        href={linkFor(card)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hover:text-foreground underline decoration-dotted underline-offset-2"
+                      >
+                        <span className="text-muted-foreground mr-2 font-mono">
+                          {card.cheapestPrinting?.shortCode ?? "--"}
+                        </span>
+                        {card.cardName}
+                      </a>
+                    </td>
+                    <td className="py-1.5 text-right">{card.shortfall}</td>
+                    <td className="text-muted-foreground py-1.5 text-right">
+                      {card.cheapestPrice === undefined ? "--" : fmt(card.cheapestPrice)}
+                    </td>
+                    <td className="py-1.5 text-right">
+                      {card.cheapestPrice === undefined
+                        ? "--"
+                        : fmt(card.cheapestPrice * card.shortfall)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            ))}
           </table>
         </div>
 

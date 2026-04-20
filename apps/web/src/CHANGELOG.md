@@ -2,7 +2,7 @@
 
 ## 2026-04-20
 
-- feat: The deck builder's Missing cards dialog now shows each card's short code (e.g. OGN-001) and moves the total cost to a clearer summary line below the table
+- feat: The deck builder's Missing cards dialog now groups rows by zone with section headings, shows each card's short code inline with its name, and splits pricing into per-copy Cost and line Total columns
 - feat: When a row in the Import Collection preview needs you to pick a printing, the dropdown now shows each candidate's card image, and hovering a candidate brings up a large preview of the card so you can confidently pick the right printing
 - feat: The cards browser and your collections now open to the Printings view by default, so each finish/variant shows up as its own tile — switch back to Cards from the toolbar, or set a permanent default in your profile's Display settings
 - feat: The badge next to the OpenRift logo now reads "Unofficial" instead of "Beta", to make it clearer this is a fan project and not an official Riot product
