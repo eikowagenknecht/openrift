@@ -56,13 +56,42 @@ async function createAndLogin(
   await signIn(page.request, email, password);
 }
 
+/**
+ * Navigates to /profile and waits for the session-gated content to hydrate.
+ *
+ * The profile page returns null until `useSession` resolves, so typing into
+ * inputs immediately after goto silently drops the input because React
+ * remounts the form when the session data arrives.
+ *
+ * @returns resolves once the Account section is rendered.
+ */
+async function gotoProfileReady(page: Page): Promise<void> {
+  await page.goto("/profile");
+  await expect(page.getByRole("heading", { name: "Account", level: 2 })).toBeVisible({
+    timeout: 15_000,
+  });
+  // Wait for React hydration on the Account Info form — the profile page is a
+  // lazy route that renders `null` until `useSession` resolves, then mounts
+  // the form. Typing before hydration silently drops input events.
+  await page.waitForFunction(
+    () => {
+      const form = document.querySelector("form");
+      if (!form) {
+        return false;
+      }
+      return Object.keys(form).some((k) => k.startsWith("__react"));
+    },
+    { timeout: 15_000 },
+  );
+}
+
 test.describe("profile account & security", () => {
   test.describe("display name", () => {
     test("pre-fills the field and disables Save when unchanged", async ({ page }) => {
       const email = uniqueEmail("name-prefill");
       await createAndLogin(page, email, "ProfileTestPassword1!", "Initial Name");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
 
       const nameInput = page.getByLabel("Name", { exact: true });
       await expect(nameInput).toHaveValue("Initial Name", { timeout: 15_000 });
@@ -73,14 +102,15 @@ test.describe("profile account & security", () => {
       const email = uniqueEmail("name-update");
       await createAndLogin(page, email, "ProfileTestPassword1!", "Initial Name");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
 
       const nameInput = page.getByLabel("Name", { exact: true });
       await expect(nameInput).toHaveValue("Initial Name", { timeout: 15_000 });
 
       await nameInput.fill("Updated Name");
+      await expect(nameInput).toHaveValue("Updated Name");
       const save = page.getByRole("button", { name: "Save", exact: true });
-      await expect(save).toBeEnabled();
+      await expect(save).toBeEnabled({ timeout: 10_000 });
 
       const updateRequest = page.waitForResponse(
         (res) => res.url().includes("/api/auth/update-user") && res.request().method() === "POST",
@@ -89,7 +119,10 @@ test.describe("profile account & security", () => {
       await updateRequest;
 
       await expect(page.getByText("Name updated.")).toBeVisible({ timeout: 10_000 });
-      await expect(page.locator('[data-slot="card-title"]')).toHaveText("Updated Name", {
+      // There are multiple card titles on the profile page (Display, Marketplaces,
+      // Account Info, etc.) — scope to the header card (size xl) which shows
+      // the user's display name.
+      await expect(page.locator('[data-slot="card-title"].text-xl')).toHaveText("Updated Name", {
         timeout: 10_000,
       });
     });
@@ -98,7 +131,7 @@ test.describe("profile account & security", () => {
       const email = uniqueEmail("name-empty");
       await createAndLogin(page, email, "ProfileTestPassword1!", "Initial Name");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
 
       const nameInput = page.getByLabel("Name", { exact: true });
       await expect(nameInput).toHaveValue("Initial Name", { timeout: 15_000 });
@@ -114,7 +147,7 @@ test.describe("profile account & security", () => {
       const email = uniqueEmail("name-revert");
       await createAndLogin(page, email, "ProfileTestPassword1!", "Initial Name");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
 
       const nameInput = page.getByLabel("Name", { exact: true });
       await expect(nameInput).toHaveValue("Initial Name", { timeout: 15_000 });
@@ -131,7 +164,7 @@ test.describe("profile account & security", () => {
       const email = uniqueEmail("name-padding");
       await createAndLogin(page, email, "ProfileTestPassword1!", "Initial Name");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
 
       const nameInput = page.getByLabel("Name", { exact: true });
       await expect(nameInput).toHaveValue("Initial Name", { timeout: 15_000 });
@@ -149,7 +182,7 @@ test.describe("profile account & security", () => {
       const password = "EmailTestPassword1!";
       await createAndLogin(page, oldEmail, password, "Email E2E");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
 
       // Step input → send OTP to current email.
       const newEmailInput = page.getByLabel(/^new email$/i);
@@ -220,7 +253,7 @@ test.describe("profile account & security", () => {
       const newEmail = uniqueEmail("email-expired-new");
       await createAndLogin(page, oldEmail, "EmailTestPassword1!", "Email E2E");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
       await page.getByLabel(/^new email$/i).fill(newEmail);
 
       const sendCurrentRequest = page.waitForResponse((res) =>
@@ -254,7 +287,7 @@ test.describe("profile account & security", () => {
       const newEmail = uniqueEmail("email-wrong-new");
       await createAndLogin(page, oldEmail, "EmailTestPassword1!", "Email E2E");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
       await page.getByLabel(/^new email$/i).fill(newEmail);
 
       const sendCurrentRequest = page.waitForResponse((res) =>
@@ -287,7 +320,7 @@ test.describe("profile account & security", () => {
         });
       });
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
       await page.getByLabel(/^new email$/i).fill(newEmail);
       const sendCurrentRequest = page.waitForResponse((res) =>
         res.url().includes("/api/auth/email-otp/send-verification-otp"),
@@ -310,7 +343,7 @@ test.describe("profile account & security", () => {
       const newEmail = uniqueEmail("email-resend-new");
       await createAndLogin(page, oldEmail, "EmailTestPassword1!", "Email E2E");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
       await page.getByLabel(/^new email$/i).fill(newEmail);
 
       const firstSend = page.waitForResponse((res) =>
@@ -331,7 +364,7 @@ test.describe("profile account & security", () => {
       const newEmail = uniqueEmail("email-cancel-new");
       await createAndLogin(page, oldEmail, "EmailTestPassword1!", "Email E2E");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
 
       const newEmailInput = page.getByLabel(/^new email$/i);
       await newEmailInput.fill(newEmail);
@@ -357,7 +390,7 @@ test.describe("profile account & security", () => {
       const email = uniqueEmail("pw-short");
       await createAndLogin(page, email, "OldPassword1!", "Password E2E");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
 
       await page.getByLabel(/^current password$/i).fill("OldPassword1!");
       await page.getByLabel(/^new password$/i).fill("New");
@@ -373,7 +406,7 @@ test.describe("profile account & security", () => {
       const email = uniqueEmail("pw-mismatch");
       await createAndLogin(page, email, "OldPassword1!", "Password E2E");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
 
       await page.getByLabel(/^current password$/i).fill("OldPassword1!");
       await page.getByLabel(/^new password$/i).fill("NewPassword1!");
@@ -387,7 +420,7 @@ test.describe("profile account & security", () => {
       const email = uniqueEmail("pw-success");
       await createAndLogin(page, email, "OldPassword1!", "Password E2E");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
 
       await page.getByLabel(/^current password$/i).fill("OldPassword1!");
       await page.getByLabel(/^new password$/i).fill("NewPassword1!");
@@ -411,7 +444,7 @@ test.describe("profile account & security", () => {
       const email = uniqueEmail("pw-wrong");
       await createAndLogin(page, email, "OldPassword1!", "Password E2E");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
 
       await page.getByLabel(/^current password$/i).fill("NotMyPassword1!");
       await page.getByLabel(/^new password$/i).fill("NewPassword1!");
@@ -430,7 +463,7 @@ test.describe("profile account & security", () => {
       const email = uniqueEmail("pw-applied");
       await createAndLogin(page, email, "OldPassword1!", "Password E2E");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
       await page.getByLabel(/^current password$/i).fill("OldPassword1!");
       await page.getByLabel(/^new password$/i).fill("NewPassword1!");
       await page.getByLabel(/^confirm new password$/i).fill("NewPassword1!");
@@ -467,15 +500,20 @@ test.describe("profile account & security", () => {
       const email = uniqueEmail("connected-empty");
       await createAndLogin(page, email, "ConnectedTestPassword1!", "Connected E2E");
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
 
-      await expect(page.getByText("Connected Accounts")).toBeVisible({ timeout: 15_000 });
-      await expect(page.getByText("Google", { exact: true })).toBeVisible();
-      await expect(page.getByText("Discord", { exact: true })).toBeVisible();
+      // Scope to the Connected Accounts card so we don't match the footer
+      // Discord link by accident.
+      const card = page.locator('[data-slot="card"]', {
+        has: page.getByText("Connected Accounts"),
+      });
+      await expect(card).toBeVisible({ timeout: 15_000 });
+      await expect(card.getByText("Google", { exact: true })).toBeVisible();
+      await expect(card.getByText("Discord", { exact: true })).toBeVisible();
 
       // Both providers offer Connect; neither shows Unlink yet.
-      await expect(page.getByRole("button", { name: /^connect$/i })).toHaveCount(2);
-      await expect(page.getByRole("button", { name: /^unlink$/i })).toHaveCount(0);
+      await expect(card.getByRole("button", { name: /^connect$/i })).toHaveCount(2);
+      await expect(card.getByRole("button", { name: /^unlink$/i })).toHaveCount(0);
     });
 
     test("clicking Connect on Google triggers a link-social redirect to Google", async ({
@@ -487,22 +525,28 @@ test.describe("profile account & security", () => {
       // Stop the browser from actually leaving for accounts.google.com.
       await page.route("https://accounts.google.com/**", (route) => route.abort());
 
-      await page.goto("/profile");
+      // Intercept the link-social response and capture the body before the
+      // browser navigates (otherwise the response body is garbage-collected
+      // and response.json() throws a "No resource with given identifier" error).
+      const capturedUrl = new Promise<string>((resolve) => {
+        void page.route("**/api/auth/link-social", async (route) => {
+          const response = await route.fetch();
+          const body = (await response.json()) as { url?: string };
+          resolve(body.url ?? "");
+          await route.fulfill({ response });
+        });
+      });
+
+      await gotoProfileReady(page);
       await expect(page.getByText("Connected Accounts")).toBeVisible({ timeout: 15_000 });
 
-      const linkResponse = page.waitForResponse((res) =>
-        res.url().includes("/api/auth/link-social"),
-      );
       // The first Connect button corresponds to the first SOCIAL_PROVIDERS entry (Google).
       await page
         .getByRole("button", { name: /^connect$/i })
         .first()
         .click();
-      const response = await linkResponse;
-
-      expect(response.ok()).toBeTruthy();
-      const body = (await response.json()) as { url?: string };
-      expect(body.url ?? "").toContain("accounts.google.com");
+      const url = await capturedUrl;
+      expect(url).toContain("accounts.google.com");
     });
 
     test("can unlink a previously linked Google account", async ({ page }) => {
@@ -527,7 +571,7 @@ test.describe("profile account & security", () => {
       }
       await signIn(page.request, email, password);
 
-      await page.goto("/profile");
+      await gotoProfileReady(page);
       await expect(page.getByText("Connected Accounts")).toBeVisible({ timeout: 15_000 });
 
       const unlink = page.getByRole("button", { name: /^unlink$/i });

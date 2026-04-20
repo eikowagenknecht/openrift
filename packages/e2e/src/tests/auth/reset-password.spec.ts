@@ -104,7 +104,7 @@ test.describe("reset password", () => {
       await waitForHydration(page);
 
       await expect(page.getByRole("button", { name: /reset password/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /send code/i })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /^send code$/i })).toHaveCount(0);
       await expect(page.getByText(email, { exact: true })).toBeVisible();
     });
 

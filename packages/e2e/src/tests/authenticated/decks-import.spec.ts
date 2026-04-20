@@ -303,9 +303,14 @@ test.describe("deck import", () => {
       await savePromise;
 
       // createDeckFn payload includes the default name + constructed format.
-      const createBody = createRequest.postDataJSON() as { data: { name: string; format: string } };
-      expect(createBody.data.name).toBe("Imported Deck");
-      expect(createBody.data.format).toBe("constructed");
+      // TanStack Start server-fn payloads may arrive as `{ data: {...} }` or
+      // directly as `{...}` depending on the version — normalize first.
+      const rawBody = createRequest.postDataJSON() as
+        | { data: { name?: string; format?: string } }
+        | { name?: string; format?: string };
+      const body = ("data" in rawBody ? rawBody.data : rawBody) ?? {};
+      expect(body.name).toBe("Imported Deck");
+      expect(body.format).toBe("constructed");
 
       await expect(page).toHaveURL(/\/decks\/[0-9a-f-]{36}$/, { timeout: 15_000 });
       await expect(
@@ -355,8 +360,11 @@ test.describe("deck import", () => {
       await page.getByRole("button", { name: /^Import \d+ cards?$/ }).click();
       const createRequest = await createPromise;
 
-      const body = createRequest.postDataJSON() as { data: { format: string } };
-      expect(body.data.format).toBe("freeform");
+      const rawBody = createRequest.postDataJSON() as
+        | { data: { format?: string } }
+        | { format?: string };
+      const body = ("data" in rawBody ? rawBody.data : rawBody) ?? {};
+      expect(body.format).toBe("freeform");
     });
   });
 
@@ -479,10 +487,11 @@ test.describe("deck import", () => {
       await page.getByRole("button", { name: /^Import \d+ cards?$/ }).click();
       const saveRequest = await savePromise;
 
-      const savePayload = saveRequest.postDataJSON() as {
-        data: { cards: { cardId: string; zone: string; quantity: number }[] };
-      };
-      const zones = new Set(savePayload.data.cards.map((card) => card.zone));
+      const rawPayload = saveRequest.postDataJSON() as
+        | { data: { cards: { cardId: string; zone: string; quantity: number }[] } }
+        | { cards: { cardId: string; zone: string; quantity: number }[] };
+      const savePayload = ("data" in rawPayload ? rawPayload.data : rawPayload) ?? { cards: [] };
+      const zones = new Set(savePayload.cards.map((card) => card.zone));
       expect(zones.has("legend")).toBe(true);
       expect(zones.has("main")).toBe(true);
 
@@ -523,11 +532,12 @@ test.describe("deck import", () => {
       await page.getByRole("button", { name: /^Import \d+ cards?$/ }).click();
       const saveRequest = await savePromise;
 
-      const savePayload = saveRequest.postDataJSON() as {
-        data: { cards: { cardId: string; zone: string; quantity: number }[] };
-      };
+      const rawPayload = saveRequest.postDataJSON() as
+        | { data: { cards: { cardId: string; zone: string; quantity: number }[] } }
+        | { cards: { cardId: string; zone: string; quantity: number }[] };
+      const savePayload = ("data" in rawPayload ? rawPayload.data : rawPayload) ?? { cards: [] };
       // TTS positional slot 1 becomes the chosen champion → champion zone.
-      const zones = new Set(savePayload.data.cards.map((card) => card.zone));
+      const zones = new Set(savePayload.cards.map((card) => card.zone));
       expect(zones.has("champion")).toBe(true);
 
       await expect(page).toHaveURL(/\/decks\/[0-9a-f-]{36}$/, { timeout: 15_000 });

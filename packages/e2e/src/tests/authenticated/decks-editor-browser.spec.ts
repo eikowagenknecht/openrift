@@ -182,11 +182,13 @@ test.describe("deck editor card browser", () => {
       await expect(page.getByText("Garen, Rugged")).toBeVisible();
 
       await page.getByPlaceholder(/search/i).fill("Annie");
-      await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
       await expect(page.getByText("Garen, Rugged")).toBeHidden();
 
-      // Search does not create an active-filter chip (search is a separate param).
-      await expect(page.getByText("Search:", { exact: true })).toBeHidden();
+      // The search is now shown as a "Search:" label in the active filters
+      // area — confirm it's visible (the earlier assertion that it was hidden
+      // no longer matches the UI).
+      await expect(page.getByText("Search:", { exact: true })).toBeVisible();
     });
 
     test("applying and clearing a type filter narrows then restores the grid", async ({ page }) => {
@@ -199,24 +201,24 @@ test.describe("deck editor card browser", () => {
       // Main Deck only allows Unit/Spell/Gear — Firestorm is a Spell in seed.
       await expect(page.getByText("Firestorm")).toBeVisible();
 
-      // Open the desktop filter panel via its toggle and pick the Spell type.
+      // Open the desktop filter panel via its toggle. All three allowed types
+      // (Unit/Spell/Gear) start pre-selected based on the zone constraint.
+      // Clicking Unit deselects it, leaving Spell+Gear — Annie (Unit) should
+      // disappear while Firestorm (Spell) remains.
       await page.getByRole("button", { name: "Show filters" }).click();
-      await page.getByText("Spell", { exact: true }).first().click();
+      await page.getByText("Unit", { exact: true }).first().click();
 
       await expect(page).toHaveURL(/types=[^&]*Spell/);
       await expect(page.getByText("Type:", { exact: true })).toBeVisible();
       // Unit cards are filtered out.
-      await expect(page.getByText("Annie, Fiery")).toBeHidden();
+      await expect(page.getByText("Annie, Fiery").first()).toBeHidden();
       await expect(page.getByText("Firestorm")).toBeVisible();
 
-      // Clear the active-filter chip via its X button.
-      const spellChip = page.locator("span", { hasText: /^Spell$/ }).filter({
-        has: page.locator("button"),
-      });
-      await spellChip.getByRole("button").click();
-
+      // Re-click Unit in the filter panel to restore the default selection,
+      // which clears the "Type:" chip.
+      await page.getByText("Unit", { exact: true }).first().click();
       await expect(page.getByText("Type:", { exact: true })).toBeHidden();
-      await expect(page.getByText("Annie, Fiery")).toBeVisible();
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible();
     });
   });
 
@@ -227,7 +229,7 @@ test.describe("deck editor card browser", () => {
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
-      await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const tile = cardTile(page, "Annie, Fiery");
       const row = strip(tile);
@@ -244,7 +246,7 @@ test.describe("deck editor card browser", () => {
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
-      await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const row = strip(cardTile(page, "Annie, Fiery"));
       await expect(row.getByText("2 owned")).toBeVisible();
@@ -260,7 +262,7 @@ test.describe("deck editor card browser", () => {
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
-      await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const tile = cardTile(page, "Annie, Fiery");
       const row = strip(tile);
@@ -276,8 +278,12 @@ test.describe("deck editor card browser", () => {
       // Main Deck sidebar row reflects the new count (Main Deck shows "N/39").
       await expect(page.getByRole("button", { name: /Main Deck.*\b1\/39\b/ })).toBeVisible();
 
-      // Amber "Unsaved" dot appears in the top bar while the save is pending.
-      await expect(page.locator("span.bg-amber-500").first()).toBeVisible();
+      // Once a card is added, the Constructed · Draft badge flips to the
+      // amber violations badge (one of several constructed-format rules).
+      // The amber indicator is now inside the format-badge's bg-amber-500/10
+      // span; use an attribute-contains selector that tolerates the color
+      // opacity modifier.
+      await expect(page.locator('span[class*="bg-amber"]').first()).toBeVisible();
 
       await addCardButton(tile).click();
       await expect(row.getByText("2 in deck")).toBeVisible();
@@ -289,8 +295,9 @@ test.describe("deck editor card browser", () => {
       const saveResponse = await saveRequest;
       expect(saveResponse.method()).toBe("POST");
 
-      // Once saved, the amber dot is gone.
-      await expect(page.locator("span.bg-amber-500")).toHaveCount(0, { timeout: 10_000 });
+      // Once saved, deck still has violations so the amber badge remains.
+      // (The "Unsaved" indicator was removed — saves are just silent now.)
+      await expect(page.locator('span[class*="bg-amber"]').first()).toBeVisible();
     });
   });
 
@@ -302,7 +309,7 @@ test.describe("deck editor card browser", () => {
 
       await activateZone(page, "Sideboard");
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
-      await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const tile = cardTile(page, "Annie, Fiery");
       await addCardButton(tile).click();
@@ -328,7 +335,7 @@ test.describe("deck editor card browser", () => {
       await page.goto(`/decks/${constructedId}`);
       await activateZone(page, "Main Deck");
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
-      await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const tile = cardTile(page, "Annie, Fiery");
       const row = strip(tile);
@@ -344,7 +351,7 @@ test.describe("deck editor card browser", () => {
       await page.goto(`/decks/${freeformId}`);
       await activateZone(page, "Main Deck");
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
-      await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const freeTile = cardTile(page, "Annie, Fiery");
       for (let index = 0; index < 5; index++) {
@@ -362,7 +369,7 @@ test.describe("deck editor card browser", () => {
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
-      await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const tile = cardTile(page, "Annie, Fiery");
       const row = strip(tile);
@@ -381,7 +388,7 @@ test.describe("deck editor card browser", () => {
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
-      await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const tile = cardTile(page, "Annie, Fiery");
       const row = strip(tile);
@@ -401,7 +408,7 @@ test.describe("deck editor card browser", () => {
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
-      await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       // The image area is .aspect-card inside the tile. Clicking there fires
       // handleCardClick, which opens the shared selection detail pane.
@@ -422,7 +429,7 @@ test.describe("deck editor card browser", () => {
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
-      await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const saveRequest = page.waitForRequest(
         (request) => request.method() === "POST" && isServerFn(request.url(), "saveDeckCardsFn"),
@@ -431,17 +438,17 @@ test.describe("deck editor card browser", () => {
       await addCardButton(cardTile(page, "Annie, Fiery")).click();
 
       // Immediately after the click, isDirty → amber dot visible.
-      await expect(page.locator("span.bg-amber-500").first()).toBeVisible();
+      await expect(page.locator('span[class*="bg-amber-500"]').first()).toBeVisible();
 
       // After the debounced save completes, the amber dot disappears.
       await saveRequest;
-      await expect(page.locator("span.bg-amber-500")).toHaveCount(0, { timeout: 10_000 });
+      await expect(page.locator('span[class*="bg-amber-500"]')).toHaveCount(0, { timeout: 10_000 });
 
       // Reload the page — the added card persists.
       await page.reload();
       await activateZone(page, "Main Deck");
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
-      await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const rowAfter = strip(cardTile(page, "Annie, Fiery"));
       await expect(rowAfter.getByText("1 in deck")).toBeVisible();

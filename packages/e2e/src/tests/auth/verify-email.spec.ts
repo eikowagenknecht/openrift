@@ -33,7 +33,10 @@ test.describe("verify email page", () => {
     test("renders all expected elements when ?email= is present", async ({ page }) => {
       await page.goto("/verify-email?email=foo@test.com");
 
-      await expect(page.getByRole("img", { name: "OpenRift" })).toBeVisible();
+      // The auth form card renders the OpenRift logo twice — a mobile version
+      // (md:hidden) and a desktop version (hidden md:block). Only one is
+      // visible per viewport, but both exist in the DOM.
+      await expect(page.getByRole("img", { name: "OpenRift" }).first()).toBeVisible();
       await expect(page.getByRole("heading", { name: "Verify your email" })).toBeVisible();
       await expect(page.getByText(/foo@test\.com/)).toBeVisible();
       await expect(page.locator(OTP_INPUT)).toBeVisible();
@@ -213,6 +216,17 @@ test.describe("verify email page", () => {
       await signUp(request, email, "VerifyTestPassword1!");
 
       await page.goto(`/verify-email?email=${encodeURIComponent(email)}`);
+      // Wait for React to hydrate before clicking — the Resend button's
+      // onClick isn't attached until then, and the first click otherwise
+      // fires into the void.
+      await expect(page.getByRole("button", { name: /^resend code$/i })).toBeVisible();
+      await page.waitForFunction(
+        () => {
+          const btn = document.querySelector("button");
+          return btn !== null && Object.keys(btn).some((k) => k.startsWith("__react"));
+        },
+        { timeout: 10_000 },
+      );
 
       const resendRequest = page.waitForRequest((req) => SEND_URL_REGEX.test(req.url()));
       await page.getByRole("button", { name: /^resend code$/i }).click();

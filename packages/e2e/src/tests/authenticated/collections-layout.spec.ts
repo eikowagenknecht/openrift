@@ -106,7 +106,9 @@ test.describe("collections layout", () => {
 
       const inboxLink = page.getByRole("link", { name: /inbox/i });
       await expect(inboxLink).toBeVisible({ timeout: 15_000 });
-      await expect(inboxLink).toHaveAttribute("data-active", "true");
+      // BaseUI's useRender state-to-data-attribute mapping emits the
+      // attribute with an empty string value when the state is true.
+      await expect(inboxLink).toHaveAttribute("data-active", "");
 
       // Navigating to Activity should clear the inbox active marker.
       await page.getByRole("link", { name: "Activity" }).click();
@@ -135,7 +137,10 @@ test.describe("collections layout", () => {
         const page = authenticatedPage;
         await page.goto(path);
 
-        const topBarSlot = page.locator("div.px-3.pt-3").first();
+        // The top-bar portal is the first sticky-positioned slot inside the
+        // collections layout; use the PAGE_TOP_BAR_STICKY class combination
+        // to target it without relying on fragile layout-internal classnames.
+        const topBarSlot = page.locator("div.sticky.px-3.py-3").first();
         await expect(topBarSlot).toContainText(title, { timeout: 15_000 });
       });
     }

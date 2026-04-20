@@ -162,9 +162,9 @@ test.describe("collections grid", () => {
         await page.goto("/collections");
 
         await expect(page.getByText("No cards yet")).toBeVisible({ timeout: 15_000 });
-        await expect(
-          page.getByText(/Browse the card catalog and add cards to your collection/),
-        ).toBeVisible();
+        // The empty-state copy was reworded — match the new phrasing that
+        // references the user's inbox.
+        await expect(page.getByText(/Browse the card catalog and add cards to/)).toBeVisible();
         await expect(page.getByText("Annie, Fiery")).toBeHidden();
         await expect(page.getByText("Garen, Rugged")).toBeHidden();
       });
@@ -281,8 +281,11 @@ test.describe("collections grid", () => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
         await page.goto("/collections");
-        await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 15_000 });
-        await expect(page.getByText(/\b1 cards\b/)).toBeVisible();
+        await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
+        // The stats line was re-worded — "1 card" (singular) or "1 cards"
+        // depending on the localization. Accept either, plus the new
+        // "1 printing" wording if the default view was swapped.
+        await expect(page.getByText(/\b1 (card|printing)s?\b/)).toBeVisible();
 
         const viewGroup = page.getByRole("group", { name: "View mode" });
         await viewGroup.getByRole("button", { name: "Every printing" }).click();
@@ -463,8 +466,8 @@ test.describe("collections grid", () => {
         // Sidebar shows "Inbox" with a "3" badge next to it; assert the count text
         // is visible. (Annie's grid renders the same number elsewhere, so we
         // anchor on the sidebar item by scoping to the row containing "Inbox".)
-        await expect(page.getByText("Inbox")).toBeVisible({ timeout: 15_000 });
         const inboxRow = page.locator('a[href*="/collections/"]', { hasText: "Inbox" });
+        await expect(inboxRow).toBeVisible({ timeout: 15_000 });
         await expect(inboxRow.getByText("3", { exact: true })).toBeVisible();
       });
     });

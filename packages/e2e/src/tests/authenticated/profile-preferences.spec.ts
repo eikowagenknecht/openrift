@@ -208,9 +208,11 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      await expect(page.getByLabel("TCGplayer")).toBeChecked();
-      await expect(page.getByLabel("Cardmarket")).toBeChecked();
-      await expect(page.getByLabel("CardTrader")).toBeChecked();
+      // getByLabel matches the aria-label on the Move up/down buttons too (e.g.
+      // "Move TCGplayer up"), so scope to the switch role to hit the toggle only.
+      await expect(page.getByRole("switch", { name: "TCGplayer" })).toBeChecked();
+      await expect(page.getByRole("switch", { name: "Cardmarket" })).toBeChecked();
+      await expect(page.getByRole("switch", { name: "CardTrader" })).toBeChecked();
 
       await expect(page.getByRole("button", { name: "Reset marketplace order" })).toHaveCount(0);
 
@@ -226,13 +228,15 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      await page.getByLabel("TCGplayer").click();
-      await expect(page.getByLabel("TCGplayer")).not.toBeChecked();
+      // getByLabel matches the aria-label on the Move up/down buttons too, so
+      // scope to the switch role to hit the toggle only.
+      await page.getByRole("switch", { name: "TCGplayer" }).click();
+      await expect(page.getByRole("switch", { name: "TCGplayer" })).not.toBeChecked();
 
       // Favorite badge should now sit on the Cardmarket row (innermost div wrapping the label).
       const cardmarketInner = page
         .locator("div")
-        .filter({ has: page.getByLabel("Cardmarket") })
+        .filter({ has: page.getByRole("switch", { name: "Cardmarket" }) })
         .last();
       await expect(cardmarketInner.getByText("Favorite", { exact: true })).toBeVisible();
 
@@ -285,15 +289,17 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      await expect(page.getByLabel("English")).toBeChecked();
+      // getByLabel matches the aria-label on the Move up/down buttons too, so
+      // scope to the switch role to hit the toggle only.
+      await expect(page.getByRole("switch", { name: "English" })).toBeChecked();
 
       // At least one additional language is available in seed data.
-      await expect(page.getByLabel("French")).toBeVisible();
-      await expect(page.getByLabel("French")).not.toBeChecked();
+      await expect(page.getByRole("switch", { name: "French" })).toBeVisible();
+      await expect(page.getByRole("switch", { name: "French" })).not.toBeChecked();
 
       const englishInner = page
         .locator("div")
-        .filter({ has: page.getByLabel("English") })
+        .filter({ has: page.getByRole("switch", { name: "English" }) })
         .last();
       await expect(englishInner.getByText("Preferred", { exact: true })).toBeVisible();
     });

@@ -60,10 +60,24 @@ async function setupUser(
 }
 
 async function openDialog(page: Page) {
-  await page.getByRole("button", { name: "Delete account", exact: true }).click();
-  const dialog = page.getByRole("alertdialog");
-  await expect(dialog).toBeVisible();
-  return dialog;
+  // Scope to the danger-zone section so we don't accidentally match dialog-internal
+  // "Delete account" confirm buttons in later lookups, and wait for the profile
+  // page header (rendered only after `useSession` resolves) before interacting.
+  await expect(page.getByRole("heading", { name: "Danger Zone", level: 2 })).toBeVisible({
+    timeout: 15_000,
+  });
+  // Retry the whole click+visibility check: the profile page suspends on
+  // `useSession()` and the component tree remounts right when it resolves,
+  // which detaches the trigger. Polling until the dialog appears is robust.
+  await expect(async () => {
+    const trigger = page
+      .locator('[data-section="danger-zone"]')
+      .getByRole("button", { name: "Delete account", exact: true });
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.click();
+    await expect(page.getByRole("alertdialog")).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
+  return page.getByRole("alertdialog");
 }
 
 const DELETE_USER_PATH = "/api/auth/delete-user";
@@ -286,6 +300,15 @@ test.describe("profile danger zone", () => {
       // Old credentials no longer work.
       await page.goto("/login");
       await page.locator("form").first().waitFor({ state: "attached" });
+      // Wait for hydration so the form accepts input (SSR renders the form
+      // before React attaches event handlers).
+      await page.waitForFunction(
+        () => {
+          const formEl = document.querySelector("form");
+          return formEl !== null && Object.keys(formEl).some((key) => key.startsWith("__react"));
+        },
+        { timeout: 10_000 },
+      );
       await page.locator("#email").fill(email);
       await page.locator("#password").fill(password);
       await page.getByRole("button", { name: /login/i }).click();

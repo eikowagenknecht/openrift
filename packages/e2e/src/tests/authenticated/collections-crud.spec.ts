@@ -267,7 +267,7 @@ test.describe("collections CRUD", () => {
       await dialog.getByRole("button", { name: "Delete" }).click();
       await deleteRequest;
 
-      await expect(page).toHaveURL(/\/collections\/?$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/collections(\?.*)?$/, { timeout: 15_000 });
       await expect(page.getByRole("link", { name })).toHaveCount(0);
     });
 

@@ -62,11 +62,12 @@ test.describe("profile shell", () => {
 
       // CardTitle/CardDescription render as <div>s with data-slot attributes,
       // not as headings — asserting by slot keeps the test stable without
-      // adding a testid.
-      await expect(page.locator('[data-slot="card-title"]')).toHaveText(name, {
+      // adding a testid. The profile page has multiple Cards; the header is
+      // the first one in document order.
+      await expect(page.locator('[data-slot="card-title"]').first()).toHaveText(name, {
         timeout: 15_000,
       });
-      await expect(page.locator('[data-slot="card-description"]')).toHaveText(email);
+      await expect(page.locator('[data-slot="card-description"]').first()).toHaveText(email);
 
       // "Joined <localized date>" — match format used by the component.
       const joinedPattern = new RegExp(
@@ -77,13 +78,15 @@ test.describe("profile shell", () => {
       // Avatar: the Gravatar URL uses `d=404` so arbitrary test emails will
       // miss and BaseUI shows the initials fallback. If the image happens to
       // resolve, the fallback stays in the DOM but is hidden — assert on its
-      // text regardless.
+      // text regardless. The global header also renders an avatar-fallback in
+      // the user menu (it comes first in DOM), so target the card's fallback
+      // via .last().
       const initials = name
         .split(/[\s@]/)
         .slice(0, 2)
         .map((part) => part[0]?.toUpperCase() ?? "")
         .join("");
-      await expect(page.locator('[data-slot="avatar-fallback"]')).toHaveText(initials);
+      await expect(page.locator('[data-slot="avatar-fallback"]').last()).toHaveText(initials);
     });
 
     test("falls back to email when name is empty", async ({ page, request }) => {
@@ -102,10 +105,10 @@ test.describe("profile shell", () => {
       await loginViaForm(page, email, password);
       await page.goto("/profile");
 
-      await expect(page.locator('[data-slot="card-title"]')).toHaveText(email, {
+      await expect(page.locator('[data-slot="card-title"]').first()).toHaveText(email, {
         timeout: 15_000,
       });
-      await expect(page.locator('[data-slot="card-description"]')).toHaveText(email);
+      await expect(page.locator('[data-slot="card-description"]').first()).toHaveText(email);
     });
   });
 
@@ -129,9 +132,10 @@ test.describe("profile shell", () => {
       await page.setViewportSize({ width: 390, height: 844 });
       await page.goto("/profile");
 
-      await expect(page.locator('[data-slot="card-title"]')).toHaveText(TEST_USERS.regular.name, {
-        timeout: 15_000,
-      });
+      await expect(page.locator('[data-slot="card-title"]').first()).toHaveText(
+        TEST_USERS.regular.name,
+        { timeout: 15_000 },
+      );
 
       const nav = page.getByRole("navigation").filter({ hasText: "Preferences" });
       await expect(nav).toBeHidden();

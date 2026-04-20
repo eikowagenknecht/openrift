@@ -15,11 +15,14 @@ export function loadDb(): Sql {
 }
 
 export async function waitForHydration(page: Page) {
-  await page.locator("form").first().waitFor({ state: "attached" });
+  // Wait for any interactive element (form, button, or input) to be attached,
+  // then confirm React has hydrated by checking for __react* fiber keys on it.
+  // The reset-password page doesn't have a <form>, so we accept button/input as fallback.
+  await page.locator("form, button, input").first().waitFor({ state: "attached" });
   await page.waitForFunction(
     () => {
-      const formEl = document.querySelector("form");
-      return formEl !== null && Object.keys(formEl).some((key) => key.startsWith("__react"));
+      const el = document.querySelector("form, button, input");
+      return el !== null && Object.keys(el).some((key) => key.startsWith("__react"));
     },
     { timeout: 10_000 },
   );

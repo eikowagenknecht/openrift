@@ -223,7 +223,16 @@ test.describe("sign out", () => {
     await page.goto("/collections");
     await expect(page).toHaveURL(/\/collections/, { timeout: 15_000 });
 
-    await openUserMenu(page);
+    // Collections wraps the page in a nested sidebar whose mobile trigger
+    // is also named "Menu". Target the header banner's user-menu button
+    // specifically, and retry in case the first click lands during sidebar
+    // state transitions.
+    await expect(async () => {
+      await page.getByRole("banner").getByRole("button", { name: "Menu", exact: true }).click();
+      await expect(page.getByRole("menuitem", { name: "Sign out" })).toBeVisible({
+        timeout: 1500,
+      });
+    }).toPass({ timeout: 10_000 });
     await page.getByRole("menuitem", { name: "Sign out" }).click();
 
     await expect(page).toHaveURL(/\/cards$/, { timeout: 15_000 });

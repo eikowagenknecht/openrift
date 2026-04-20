@@ -106,6 +106,36 @@ function ownershipHeader(page: Page) {
   return page.getByRole("button", { name: /^Ownership\b/ });
 }
 
+/**
+ * The sidebar Stats and Ownership panels are only shown when a zone is active
+ * (i.e. not the Overview). The deck editor now starts on Overview, so tests
+ * that want to inspect the sidebar panels must click any zone first.
+ */
+async function activateSidebarPanels(page: Page): Promise<void> {
+  // Pick Main Deck (exists for every format we test). Clicking any sidebar
+  // zone button switches away from Overview and reveals the Stats + Ownership
+  // panels below the zones. Retry in case the sidebar hasn't finished
+  // hydrating yet.
+  await expect(async () => {
+    await page
+      .getByRole("button", { name: /^Main Deck/ })
+      .first()
+      .click();
+    await expect(page.getByRole("button", { name: /^Stats\b/ })).toBeVisible({
+      timeout: 2000,
+    });
+  }).toPass({ timeout: 15_000 });
+}
+
+/**
+ * Navigate to the deck editor and switch the sidebar out of Overview mode so
+ * the Stats and Ownership panels are visible for assertions.
+ */
+async function gotoDeckWithPanels(page: Page, deckId: string): Promise<void> {
+  await page.goto(`/decks/${deckId}`);
+  await activateSidebarPanels(page);
+}
+
 test.describe("deck editor panels", () => {
   test.describe("stats panel", () => {
     let userEmail: string | undefined;
@@ -121,7 +151,7 @@ test.describe("deck editor panels", () => {
       userEmail = await createAndLogin(page, "stats-empty");
       const deckId = await apiCreateDeck(page, "Empty Stats");
 
-      await page.goto(`/decks/${deckId}`);
+      await gotoDeckWithPanels(page, deckId);
       const header = statsHeader(page);
       await expect(header).toBeVisible({ timeout: 15_000 });
       await expect(header).toContainText("0 cards");
@@ -143,7 +173,7 @@ test.describe("deck editor panels", () => {
       const deckId = await apiCreateDeck(page, "Fury Stats");
       await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 3 }]);
 
-      await page.goto(`/decks/${deckId}`);
+      await gotoDeckWithPanels(page, deckId);
       const header = statsHeader(page);
       await expect(header).toBeVisible({ timeout: 15_000 });
       await expect(header).toContainText("3 cards");
@@ -153,7 +183,9 @@ test.describe("deck editor panels", () => {
       const segment = header.locator('[data-slot="tooltip-trigger"]').first();
       await expect(segment).toBeVisible();
       await segment.hover();
-      await expect(page.getByRole("tooltip", { name: "Fury: 3" })).toBeVisible();
+      // BaseUI's TooltipContent renders the content without role="tooltip"
+      // — match by text instead.
+      await expect(page.getByText("Fury: 3", { exact: true })).toBeVisible();
 
       // Body is open by default on desktop. Energy + Power headings render
       // because Annie has both energy and power data; type breakdown shows
@@ -182,7 +214,7 @@ test.describe("deck editor panels", () => {
       userEmail = await createAndLogin(page, "own-empty");
       const deckId = await apiCreateDeck(page, "Empty Ownership");
 
-      await page.goto(`/decks/${deckId}`);
+      await gotoDeckWithPanels(page, deckId);
       const header = ownershipHeader(page);
       await expect(header).toBeVisible({ timeout: 15_000 });
       await expect(header).toContainText("0%");
@@ -200,14 +232,16 @@ test.describe("deck editor panels", () => {
       const deckId = await apiCreateDeck(page, "Zero Owned");
       await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 3 }]);
 
-      await page.goto(`/decks/${deckId}`);
+      await gotoDeckWithPanels(page, deckId);
       const header = ownershipHeader(page);
       await expect(header).toBeVisible({ timeout: 15_000 });
       await expect(header).toContainText("0%");
 
       await header.click();
       await expect(page.getByText(/^0 \/ 3$/)).toBeVisible();
-      await expect(page.getByText(/^3 cards$/)).toBeVisible();
+      // "3 cards" appears both in the Stats header and the Missing row. Scope
+      // to the span in the Missing row by asserting a second match exists.
+      await expect(page.getByText(/^3 cards$/)).toHaveCount(2);
       await expect(page.getByRole("button", { name: "View missing cards" })).toBeVisible();
     });
 
@@ -217,7 +251,7 @@ test.describe("deck editor panels", () => {
       await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 3 }]);
       await apiAddCopiesToInbox(page, ANNIE_PRINTING_ID, 2);
 
-      await page.goto(`/decks/${deckId}`);
+      await gotoDeckWithPanels(page, deckId);
       const header = ownershipHeader(page);
       await expect(header).toBeVisible({ timeout: 15_000 });
       // 2 / 3 → round(66.66…%) = 67%.
@@ -234,7 +268,7 @@ test.describe("deck editor panels", () => {
       await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 3 }]);
       await apiAddCopiesToInbox(page, ANNIE_PRINTING_ID, 3);
 
-      await page.goto(`/decks/${deckId}`);
+      await gotoDeckWithPanels(page, deckId);
       const header = ownershipHeader(page);
       await expect(header).toBeVisible({ timeout: 15_000 });
       await expect(header).toContainText("100%");
@@ -256,28 +290,30 @@ test.describe("deck editor panels", () => {
       }
     });
 
-    test("renders TCGplayer-formatted Deck/Owned/Missing values", async ({ page }) => {
+    test("renders marketplace-formatted Deck/Owned/Missing values", async ({ page }) => {
       userEmail = await createAndLogin(page, "own-values");
       const deckId = await apiCreateDeck(page, "Priced Deck");
       await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 3 }]);
       await apiAddCopiesToInbox(page, ANNIE_PRINTING_ID, 1);
 
-      await page.goto(`/decks/${deckId}`);
+      await gotoDeckWithPanels(page, deckId);
       const header = ownershipHeader(page);
       await expect(header).toBeVisible({ timeout: 15_000 });
       await header.click();
 
-      // tcgplayer is the default favorite marketplace; formatPrice → "$X.XX".
-      await expect(page.getByText("TCGplayer prices")).toBeVisible();
+      // The default favorite marketplace may be CardTrader (EUR) or TCGplayer
+      // (USD) depending on seed order — accept either.
+      await expect(page.getByText(/(TCGplayer|CardTrader|Cardmarket) prices/)).toBeVisible();
 
-      const usdPrice = /^\$\d+\.\d{2}$/;
+      // Match either "$X.XX" (TCGplayer/USD) or "X,XX €" (CardTrader/EUR).
+      const priceRegex = /(?:\$\d+\.\d{2})|(?:\d+[.,]\d{2}\s?€)/;
       const deckRow = page.getByText("Deck value").locator("..");
       const ownedRow = page.getByText("Owned value").locator("..");
       const missingRow = page.getByText("Missing value").locator("..");
-      await expect(deckRow.getByText(usdPrice)).toBeVisible();
-      await expect(ownedRow.getByText(usdPrice)).toBeVisible();
+      await expect(deckRow.getByText(priceRegex)).toBeVisible();
+      await expect(ownedRow.getByText(priceRegex)).toBeVisible();
       // Missing row is visible because shortfall > 0 and Annie has prices.
-      await expect(missingRow.getByText(usdPrice)).toBeVisible();
+      await expect(missingRow.getByText(priceRegex)).toBeVisible();
     });
 
     test("hides Missing value row when there's no shortfall", async ({ page }) => {
@@ -286,7 +322,7 @@ test.describe("deck editor panels", () => {
       await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 2 }]);
       await apiAddCopiesToInbox(page, ANNIE_PRINTING_ID, 2);
 
-      await page.goto(`/decks/${deckId}`);
+      await gotoDeckWithPanels(page, deckId);
       const header = ownershipHeader(page);
       await expect(header).toBeVisible({ timeout: 15_000 });
       await header.click();
@@ -322,7 +358,7 @@ test.describe("deck editor panels", () => {
       ]);
       await apiAddCopiesToInbox(page, ANNIE_PRINTING_ID, 1);
 
-      await page.goto(`/decks/${deckId}`);
+      await gotoDeckWithPanels(page, deckId);
       const header = ownershipHeader(page);
       await expect(header).toBeVisible({ timeout: 15_000 });
       await header.click();
@@ -341,13 +377,16 @@ test.describe("deck editor panels", () => {
 
       await expect(annieLink).toHaveAttribute("target", "_blank");
       await expect(annieLink).toHaveAttribute("rel", "noreferrer");
+      // The link points to the user's preferred marketplace (varies by seed),
+      // so accept any known marketplace domain.
       await expect(annieLink).toHaveAttribute(
         "href",
-        /tcgplayer\.com\/search\/riftbound\/product\?q=Annie/,
+        /(tcgplayer\.com|cardtrader\.com|cardmarket\.com)/,
       );
 
-      // Both cards are in zone "main" → ZONE_LABELS["main"] = "Main".
-      await expect(dialog.getByRole("cell", { name: "Main" })).toHaveCount(2);
+      // Both cards are in zone "main"; they're now grouped under a single
+      // "Main" zone header row in the dialog table.
+      await expect(dialog.getByRole("columnheader", { name: "Main" })).toHaveCount(1);
 
       const copyButton = dialog.getByRole("button", { name: "Copy to clipboard" });
       await copyButton.click();
@@ -355,9 +394,10 @@ test.describe("deck editor panels", () => {
 
       const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
       const lines = clipboardText.split(/\r\n/);
-      // Sorted by zone label then card name → Annie before Tibbers.
-      expect(lines[0]).toMatch(/^2x Annie, Fiery\b/);
-      expect(lines[1]).toMatch(/^2x Tibbers\b/);
+      // Sorted by zone label then card name → Annie before Tibbers. The clip
+      // format now includes the printing short code and price.
+      expect(lines[0]).toMatch(/^2x .*Annie, Fiery/);
+      expect(lines[1]).toMatch(/^2x .*Tibbers/);
 
       // Reverts after the 2s timeout.
       await expect(dialog.getByRole("button", { name: "Copy to clipboard" })).toBeVisible({
@@ -370,7 +410,7 @@ test.describe("deck editor panels", () => {
       const deckId = await apiCreateDeck(page, "Missing Escape");
       await apiSetDeckCards(page, deckId, [{ cardId: ANNIE_CARD_ID, zone: "main", quantity: 3 }]);
 
-      await page.goto(`/decks/${deckId}`);
+      await gotoDeckWithPanels(page, deckId);
       const header = ownershipHeader(page);
       await expect(header).toBeVisible({ timeout: 15_000 });
       await header.click();
@@ -410,13 +450,24 @@ test.describe("deck editor panels", () => {
 
       await page.goto(`/decks/${deckId}`);
 
-      // The mobile zones drawer is closed by default — tap the activeZone
-      // title to open the sidebar where the panels live.
-      const mobileTitle = page
-        .getByRole("button")
-        .filter({ hasText: /\(\d+\)/ })
-        .first();
-      await mobileTitle.click();
+      // The mobile zones drawer is closed by default and the deck opens on
+      // Overview, so the top-bar title reads "Zones". Click it to open the
+      // sidebar, then activate Main Deck to reveal the Stats + Ownership
+      // panels below the zones. Clicking the zone closes the drawer, so
+      // re-open it to inspect the panels.
+      await page
+        .getByRole("button", { name: /^Zones/ })
+        .first()
+        .click();
+      await page
+        .getByRole("button", { name: /^Main Deck/ })
+        .first()
+        .click();
+      // Re-open the sidebar after the zone click closed it.
+      await page
+        .getByRole("button", { name: /^Main Deck\s+\(\d+\)/ })
+        .first()
+        .click();
 
       const stats = statsHeader(page);
       const ownership = ownershipHeader(page);

@@ -35,10 +35,11 @@ function isServerFn(url: string, fnName: string): boolean {
 const BOGUS_DECK_ID = "00000000-0000-0000-0000-0000000dead1";
 
 // The kebab trigger in the editor top bar is an unlabeled icon button; BaseUI's
-// DropdownMenu marks its trigger with aria-haspopup="menu", and it's the only
-// such trigger rendered inside the top-bar portal.
+// DropdownMenu marks its trigger with aria-haspopup="menu". The page header
+// user-avatar menu also uses that attribute now, so scope to the main element
+// (which the header is NOT inside) to find the deck kebab.
 function kebabTrigger(page: Page) {
-  return page.locator('button[aria-haspopup="menu"]').first();
+  return page.locator("main").locator('button[aria-haspopup="menu"]').first();
 }
 
 test.describe("deck editor shell", () => {
@@ -79,7 +80,9 @@ test.describe("deck editor shell", () => {
       await page.goto(`/decks/${deckId}`);
 
       // Title shows the deck name on desktop.
-      await expect(page.getByText("Shell Test Deck").first()).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "Shell Test Deck" }).first()).toBeVisible({
+        timeout: 15_000,
+      });
 
       // Back arrow links to /decks.
       const backLink = page.locator('a[href="/decks"]').first();
@@ -90,12 +93,8 @@ test.describe("deck editor shell", () => {
       // both render text starting with "Constructed".
       await expect(page.getByText(/Constructed/).first()).toBeVisible();
 
-      // Save status: fresh deck, not dirty, not saving → "Saved" tooltip.
-      // The indicator is a non-interactive tooltip trigger; hover it and
-      // assert the tooltip content.
-      const savedTrigger = page.locator('[data-slot="tooltip-trigger"]').first();
-      await savedTrigger.hover();
-      await expect(page.getByRole("tooltip", { name: "Saved" })).toBeVisible();
+      // (The "Saved" status tooltip indicator was removed from the top bar;
+      // the "Constructed · Draft" badge now communicates the unsaved state.)
 
       // Desktop-only action buttons.
       await expect(page.getByRole("button", { name: "Export" })).toBeVisible();
@@ -126,7 +125,12 @@ test.describe("deck editor shell", () => {
       });
 
       await page.goto(`/decks/${deckId}`);
-      await expect(page.getByText("Rename Me").first()).toBeVisible({ timeout: 15_000 });
+      // There are two copies of the deck name in the page top-bar (mobile and
+      // desktop variants) — assert the heading is present, and use a role
+      // lookup to match either the visible h1 or the kebab-menu Rename menu.
+      await expect(page.getByRole("heading", { name: "Rename Me" }).first()).toBeVisible({
+        timeout: 15_000,
+      });
 
       await kebabTrigger(page).click();
       await page.getByRole("menuitem", { name: "Rename" }).click();
@@ -145,7 +149,9 @@ test.describe("deck editor shell", () => {
       await updateRequest;
 
       await expect(dialog).toBeHidden();
-      await expect(page.getByText("Renamed").first()).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "Renamed" }).first()).toBeVisible({
+        timeout: 15_000,
+      });
 
       await page.goto("/decks");
       await expect(page.getByRole("heading", { level: 3, name: "Renamed" })).toBeVisible({
@@ -163,17 +169,20 @@ test.describe("deck editor shell", () => {
       });
 
       await page.goto(`/decks/${deckId}`);
-      await expect(page.getByText("Freeform Badge").first()).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "Freeform Badge" }).first()).toBeVisible({
+        timeout: 15_000,
+      });
 
       // Freeform never produces violations — the valid "Freeform" badge
-      // renders as a plain span with a check icon and no "issues" suffix.
-      await expect(page.getByText(/^Freeform$/)).toBeVisible();
+      // renders as a green span. "Freeform" also appears in the main-area
+      // description paragraph, so scope to the badge span.
+      await expect(
+        page.locator('span[class*="bg-green-500"]').filter({ hasText: /^Freeform$/ }),
+      ).toBeVisible();
       await expect(page.getByText(/issues?/)).toHaveCount(0);
     });
 
-    test("empty constructed deck shows the violation badge with a popover", async ({
-      authenticatedPage,
-    }) => {
+    test("empty constructed deck shows the Draft badge", async ({ authenticatedPage }) => {
       const page = authenticatedPage;
       const deckId = await createDeckViaApi(page.request, {
         name: "Invalid Constructed",
@@ -181,19 +190,13 @@ test.describe("deck editor shell", () => {
       });
 
       await page.goto(`/decks/${deckId}`);
-      await expect(page.getByText("Invalid Constructed").first()).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "Invalid Constructed" }).first()).toBeVisible({
+        timeout: 15_000,
+      });
 
-      // Empty constructed decks fail multiple rules (no legend, missing
-      // cards, etc.) so the amber "N issue(s)" badge always renders.
-      const violationBadge = page.getByText(/\d+ issues?/).first();
-      await expect(violationBadge).toBeVisible();
-
-      await violationBadge.click();
-      const popover = page.locator('[data-slot="popover-content"]').first();
-      await expect(popover).toBeVisible();
-      const firstViolation = popover.locator("li").first();
-      await expect(firstViolation).toBeVisible();
-      await expect(firstViolation).not.toBeEmpty();
+      // Empty constructed decks render the muted "Constructed · Draft" badge
+      // (the "N issue(s)" popover only appears once the deck has cards).
+      await expect(page.getByText("Constructed · Draft")).toBeVisible();
     });
   });
 
@@ -209,11 +212,14 @@ test.describe("deck editor shell", () => {
       });
 
       await page.goto(`/decks/${deckId}`);
-      await expect(page.getByText("Saved Status").first()).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "Saved Status" }).first()).toBeVisible({
+        timeout: 15_000,
+      });
 
-      const savedTrigger = page.locator('[data-slot="tooltip-trigger"]').first();
-      await savedTrigger.hover();
-      await expect(page.getByRole("tooltip", { name: "Saved" })).toBeVisible();
+      // The "Saved" tooltip-trigger indicator was removed from the top bar.
+      // On a fresh, unsaved deck the format badge now reads "Constructed · Draft"
+      // instead — that's the new signal for "no unsaved edits yet".
+      await expect(page.getByText("Constructed · Draft")).toBeVisible();
     });
 
     test.skip("unsaved + saving states require card edits (chunks 3/4)", () => {
@@ -234,7 +240,9 @@ test.describe("deck editor shell", () => {
       });
 
       await page.goto(`/decks/${deckId}`);
-      await expect(page.getByText("Zones Desktop").first()).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole("heading", { name: "Zones Desktop" }).first()).toBeVisible({
+        timeout: 15_000,
+      });
 
       // Zone order comes from the init query, so we assert that each expected
       // zone label appears at least once rather than a strict ordering.
@@ -264,17 +272,21 @@ test.describe("deck editor shell", () => {
 
       await page.goto(`/decks/${deckId}`);
 
+      // Wait for the deck editor to mount (the lazy route loads after goto).
+      // Without this wait, the page snapshot can still be empty when we
+      // start looking for the mobile title.
+      await expect(page.getByRole("heading", { name: "Zones Mobile" }).first()).toBeVisible({
+        timeout: 15_000,
+      });
+
       // Sidebar closed → the "Deck Zones" heading is not visible.
       await expect(page.getByRole("heading", { name: "Deck Zones" })).toBeHidden({
         timeout: 15_000,
       });
 
-      // Mobile title is a button whose text is a zone name (or "Deck" when
-      // activeZone is null) followed by a parenthesized count.
-      const mobileTitle = page
-        .getByRole("button")
-        .filter({ hasText: /\(\d+\)/ })
-        .first();
+      // Mobile title shows "Zones" when no zone is active (the editor now
+      // opens on the Overview), and zone+count once a zone is activated.
+      const mobileTitle = page.getByRole("button", { name: /^Zones/ }).first();
       await expect(mobileTitle).toBeVisible();
 
       // Tapping the title toggles the sidebar open.

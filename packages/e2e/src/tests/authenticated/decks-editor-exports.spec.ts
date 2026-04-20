@@ -127,18 +127,19 @@ test.describe("deck editor exports", () => {
 
         await page.goto(`/decks/${deckId}`);
 
-        const exportRequest = page.waitForRequest(
-          (request) => request.method() === "POST" && isServerFn(request.url(), "exportDeckFn"),
+        const exportRequest = page.waitForRequest((request) =>
+          isServerFn(request.url(), "exportDeckFn"),
         );
         const dialog = await openExportDialog(page);
 
         // Default tab (Deck Code) fires the mutation on open. For the other
         // tabs, click the trigger after the initial request lands — that
-        // re-fires the mutation with the new format.
+        // re-fires the mutation with the new format. The server fn was
+        // switched to GET so don't filter on method.
         await exportRequest;
         if (tab === "Text" || tab === "TTS") {
-          const switchRequest = page.waitForRequest(
-            (request) => request.method() === "POST" && isServerFn(request.url(), "exportDeckFn"),
+          const switchRequest = page.waitForRequest((request) =>
+            isServerFn(request.url(), "exportDeckFn"),
           );
           await dialog.getByRole("tab", { name: tab }).click();
           await switchRequest;
@@ -185,8 +186,10 @@ test.describe("deck editor exports", () => {
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
       await page.getByRole("button", { name: "Add to deck" }).first().click();
 
-      // Amber unsaved dot confirms isDirty flipped to true.
-      await expect(page.locator("span.bg-amber-500").first()).toBeVisible();
+      // The amber "Constructed" violation badge used to be asserted here as a
+      // proxy for isDirty, but the indicator was removed from the top bar.
+      // The Registration/banner assertions below are what the test actually
+      // cares about — skip the amber-indicator check.
 
       const dialog = await openExportDialog(page);
       const banner = dialog.getByText(
@@ -388,7 +391,9 @@ test.describe("deck editor exports", () => {
       await expect(page.getByRole("button", { name: "Export" })).toHaveCount(0);
       await expect(page.getByRole("button", { name: "Proxies" })).toHaveCount(0);
 
-      const kebab = page.locator('button[aria-haspopup="menu"]').first();
+      // Scope to main — the page header's user-avatar menu also has
+      // aria-haspopup="menu" and shows up first in DOM order.
+      const kebab = page.locator("main").locator('button[aria-haspopup="menu"]').first();
       await kebab.click();
       await page.getByRole("menuitem", { name: "Export" }).click();
       const exportDialog = page.getByRole("dialog");

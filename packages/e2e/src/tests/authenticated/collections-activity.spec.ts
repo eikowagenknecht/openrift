@@ -241,7 +241,12 @@ test.describe("collection activity", () => {
           page.getByText(/Activity is recorded when you add, move, or remove cards\./),
         ).toBeVisible();
 
-        const browseLink = page.getByRole("link", { name: /Browse cards/i });
+        // The "Browse cards" CTA is a Button rendered as a Link; it may
+        // resolve to role="link" or role="button" depending on how BaseUI
+        // merges the render prop. Accept either.
+        const browseLink = page
+          .getByRole("link", { name: /Browse cards/i })
+          .or(page.getByRole("button", { name: /Browse cards/i }));
         await expect(browseLink).toBeVisible();
         await expect(browseLink).toHaveAttribute("href", "/cards");
 
@@ -273,7 +278,7 @@ test.describe("collection activity", () => {
         const page = await context.newPage();
         await page.goto("/collections/activity");
 
-        const topBarSlot = page.locator("div.px-3.pt-3").first();
+        const topBarSlot = page.locator("div.sticky.px-3.py-3").first();
         await expect(topBarSlot).toContainText("Activity", { timeout: 15_000 });
       });
     });
