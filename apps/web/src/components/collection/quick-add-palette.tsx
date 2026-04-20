@@ -169,7 +169,10 @@ function PaletteInner({
     try {
       await disposeCopies.mutateAsync({ copyIds: [copyIdToRemove] });
       toast.success(`Removed 1× ${printing.card.name}`);
-      inputRef.current?.focus();
+      const input = inputRef.current;
+      if (input) {
+        input.focus();
+      }
     } catch {
       useAddModeStore.getState().recordAdd(printing, copyIdToRemove);
       toast.error(`Failed to remove ${printing.card.name}`);
