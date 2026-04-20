@@ -39,6 +39,10 @@ Turborepo monorepo: TanStack Start frontend (`apps/web`), Hono API (`apps/api`),
 
 Issues and PRs welcome.
 
+## Legal
+
+OpenRift is an unofficial fan project, not affiliated with or endorsed by Riot Games. Created under Riot's "Legal Jibber Jabber" policy using assets owned by Riot Games.
+
 ## License
 
 [AGPL-3.0](LICENSE)
