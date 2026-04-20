@@ -1,5 +1,4 @@
 import type { EnumOrders, GroupByField, Printing } from "@openrift/shared";
-import { DEFAULT_ENUM_ORDERS } from "@openrift/shared";
 import { SearchXIcon, WifiOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -55,7 +54,7 @@ interface OrderEntry {
 function groupItemsByField(
   items: CardViewerItem[],
   groupBy: Exclude<GroupByField, "none" | "set">,
-  orders: Omit<EnumOrders, "finishes"> = DEFAULT_ENUM_ORDERS,
+  orders: Omit<EnumOrders, "finishes">,
 ): CardGroup[] {
   interface FieldConfig {
     order: readonly string[];
@@ -128,9 +127,9 @@ function groupItemsByField(
 function buildGroups(
   items: CardViewerItem[],
   groupBy: GroupByField,
-  setOrder?: GroupInfo[],
-  groupDir: "asc" | "desc" = "asc",
-  orders?: EnumOrders,
+  setOrder: GroupInfo[] | undefined,
+  groupDir: "asc" | "desc",
+  orders: EnumOrders,
 ): CardGroup[] {
   if (groupBy === "none") {
     return [{ group: { id: "_all", slug: "", name: "" }, items }];

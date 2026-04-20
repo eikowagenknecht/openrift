@@ -9,7 +9,7 @@ import type {
   SortDirection,
   SortOption,
 } from "./types/index.js";
-import { ALL_SEARCH_FIELDS, DEFAULT_ENUM_ORDERS, NONE, SEARCH_PREFIX_MAP } from "./types/index.js";
+import { ALL_SEARCH_FIELDS, NONE, SEARCH_PREFIX_MAP } from "./types/index.js";
 import { boundsOf, unique } from "./utils.js";
 
 export interface ParsedSearchTerm {
@@ -474,8 +474,11 @@ export interface SortCardsOptions {
    * and fall back to shortCode order.
    */
   getPrice?: (p: Printing) => number | null | undefined;
-  /** Override the default enum sort orders. */
-  orders?: EnumOrders;
+  /**
+   * Live rarity sort order from `/api/enums`. Required when `sortBy === "rarity"`;
+   * ignored otherwise.
+   */
+  rarityOrder?: readonly string[];
 }
 
 /**
@@ -509,7 +512,10 @@ export function sortCards(
     return printings.toSorted((a, b) => compareWithFallback(a, b, (p) => p.card.energy, dir));
   }
   if (sortBy === "rarity") {
-    const rarityOrder = options.orders?.rarities ?? DEFAULT_ENUM_ORDERS.rarities;
+    if (!options.rarityOrder) {
+      throw new Error("sortCards: `rarityOrder` is required when sortBy is 'rarity'");
+    }
+    const rarityOrder = options.rarityOrder;
     return printings.toSorted(
       (a, b) =>
         dir * (orderIndex(rarityOrder, a.rarity) - orderIndex(rarityOrder, b.rarity)) ||

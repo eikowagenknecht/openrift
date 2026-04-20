@@ -1,13 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
-import {
-  ALL_SEARCH_FIELDS,
-  DEFAULT_ENUM_ORDERS,
-  DEFAULT_SEARCH_SCOPE,
-  SEARCH_PREFIX_MAP,
-} from "./types";
+import { ALL_SEARCH_FIELDS, DEFAULT_SEARCH_SCOPE, SEARCH_PREFIX_MAP } from "./types";
 import { getOrientation } from "./utils";
-import { WellKnown } from "./well-known";
 
 describe("getOrientation", () => {
   it("returns landscape for Battlefield", () => {
@@ -36,20 +30,6 @@ describe("getOrientation", () => {
 });
 
 describe("constants", () => {
-  it("DEFAULT_ENUM_ORDERS contains the 5 non-finish enum keys (finishes has no fallback)", () => {
-    expect(DEFAULT_ENUM_ORDERS).toHaveProperty("domains");
-    expect(DEFAULT_ENUM_ORDERS).toHaveProperty("rarities");
-    expect(DEFAULT_ENUM_ORDERS).toHaveProperty("artVariants");
-    expect(DEFAULT_ENUM_ORDERS).toHaveProperty("cardTypes");
-    expect(DEFAULT_ENUM_ORDERS).toHaveProperty("superTypes");
-    expect(DEFAULT_ENUM_ORDERS).not.toHaveProperty("finishes");
-  });
-
-  it("DEFAULT_ENUM_ORDERS contains well-known values", () => {
-    expect(DEFAULT_ENUM_ORDERS.domains).toContain(WellKnown.domain.COLORLESS);
-    expect(DEFAULT_ENUM_ORDERS.artVariants).toContain(WellKnown.artVariant.NORMAL);
-  });
-
   it("ALL_SEARCH_FIELDS includes all 8 fields", () => {
     expect(ALL_SEARCH_FIELDS).toHaveLength(8);
     expect(ALL_SEARCH_FIELDS).toContain("name");

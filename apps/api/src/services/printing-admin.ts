@@ -1,6 +1,5 @@
 import { appendSetTotal, fixTypography } from "@openrift/shared";
 import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
-import { DEFAULT_ENUM_ORDERS } from "@openrift/shared/types";
 
 import type { Transact } from "../deps.js";
 import { AppError, ERROR_CODES } from "../errors.js";
@@ -258,14 +257,16 @@ export async function acceptPrinting(
     }
 
     const rawRarity = String(printingFields.rarity || ("Common" satisfies Rarity));
-    const normalizedRarity = DEFAULT_ENUM_ORDERS.rarities.find(
-      (r) => r.toLowerCase() === rawRarity.toLowerCase(),
+    const rarityRows = await trxRepos.rarities.listAll();
+    const raritySlugs = rarityRows.map((row) => row.slug);
+    const normalizedRarity = raritySlugs.find(
+      (slug) => slug.toLowerCase() === rawRarity.toLowerCase(),
     );
     if (!normalizedRarity) {
       throw new AppError(
         400,
         "BAD_REQUEST",
-        `Invalid rarity "${rawRarity}". Must be one of: ${DEFAULT_ENUM_ORDERS.rarities.join(", ")}`,
+        `Invalid rarity "${rawRarity}". Must be one of: ${raritySlugs.join(", ")}`,
       );
     }
 

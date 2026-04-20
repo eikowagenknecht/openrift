@@ -33,6 +33,38 @@ const mockUserPreferences = {
   getByUserId: vi.fn(() => Promise.resolve(undefined)),
 };
 
+const mockEnums = {
+  all: vi.fn(() =>
+    Promise.resolve({
+      cardTypes: [
+        { slug: "Legend", label: "Legend", sortOrder: 1, isWellKnown: true },
+        { slug: "Unit", label: "Unit", sortOrder: 2, isWellKnown: true },
+        { slug: "Rune", label: "Rune", sortOrder: 3, isWellKnown: true },
+        { slug: "Spell", label: "Spell", sortOrder: 4, isWellKnown: true },
+        { slug: "Gear", label: "Gear", sortOrder: 5, isWellKnown: true },
+        { slug: "Battlefield", label: "Battlefield", sortOrder: 6, isWellKnown: true },
+        { slug: "Other", label: "Other", sortOrder: 7, isWellKnown: true },
+      ],
+      domains: [
+        { slug: "Fury", label: "Fury", sortOrder: 1, isWellKnown: true, color: null },
+        { slug: "Calm", label: "Calm", sortOrder: 2, isWellKnown: true, color: null },
+        { slug: "Mind", label: "Mind", sortOrder: 3, isWellKnown: true, color: null },
+        { slug: "Body", label: "Body", sortOrder: 4, isWellKnown: true, color: null },
+        { slug: "Chaos", label: "Chaos", sortOrder: 5, isWellKnown: true, color: null },
+        { slug: "Order", label: "Order", sortOrder: 6, isWellKnown: true, color: null },
+        { slug: "Colorless", label: "Colorless", sortOrder: 7, isWellKnown: true, color: null },
+      ],
+      rarities: [],
+      superTypes: [],
+      finishes: [],
+      artVariants: [],
+      deckFormats: [],
+      deckZones: [],
+      languages: [],
+    }),
+  ),
+};
+
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -46,6 +78,7 @@ const app = new Hono()
       decks: mockRepo,
       marketplace: mockMarketplace,
       userPreferences: mockUserPreferences,
+      enums: mockEnums,
     } as never);
     await next();
   })

@@ -7,10 +7,14 @@ import {
   sortCards,
 } from "./filters";
 import type { Card, CardFilters, EnumOrders, Printing } from "./types";
-import { DEFAULT_ENUM_ORDERS, NONE } from "./types";
+import { NONE } from "./types";
 
 const TEST_ORDERS: EnumOrders = {
-  ...DEFAULT_ENUM_ORDERS,
+  domains: ["Fury", "Calm", "Mind", "Body", "Chaos", "Order", "Colorless"],
+  rarities: ["Common", "Uncommon", "Rare", "Epic", "Showcase"],
+  artVariants: ["normal", "altart", "overnumbered"],
+  cardTypes: ["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield", "Other"],
+  superTypes: ["Basic", "Champion", "Signature", "Token"],
   finishes: ["normal", "foil", "metal", "metal-deluxe"],
 };
 
@@ -1532,7 +1536,7 @@ describe("sortCards", () => {
   });
 
   it("sorts by rarity using RARITY_ORDER, breaking ties by shortCode", () => {
-    const result = sortCards(printings, "rarity");
+    const result = sortCards(printings, "rarity", { rarityOrder: TEST_ORDERS.rarities });
     expect(result.map((p) => p.card.name)).toEqual(["Alpha", "Bravo", "Charlie"]);
   });
 
@@ -1594,7 +1598,10 @@ describe("sortCards", () => {
       }),
     ];
     // desc reverses rarity (Rare first) but tiebreaker stays ascending
-    const result = sortCards(tied, "rarity", { sortDir: "desc" });
+    const result = sortCards(tied, "rarity", {
+      sortDir: "desc",
+      rarityOrder: TEST_ORDERS.rarities,
+    });
     expect(result.map((p) => p.shortCode)).toEqual(["SET1-002", "SET1-001", "SET1-003"]);
   });
 
@@ -2019,7 +2026,7 @@ describe("sortCards", () => {
     expect(sortCards([], "name")).toEqual([]);
     expect(sortCards([], "id")).toEqual([]);
     expect(sortCards([], "energy")).toEqual([]);
-    expect(sortCards([], "rarity")).toEqual([]);
+    expect(sortCards([], "rarity", { rarityOrder: TEST_ORDERS.rarities })).toEqual([]);
     expect(sortCards([], "price")).toEqual([]);
   });
 
@@ -2028,7 +2035,11 @@ describe("sortCards", () => {
     expect(sortCards(single, "name")).toHaveLength(1);
     expect(sortCards(single, "id")).toHaveLength(1);
     expect(sortCards(single, "energy")).toHaveLength(1);
-    expect(sortCards(single, "rarity")).toHaveLength(1);
+    expect(sortCards(single, "rarity", { rarityOrder: TEST_ORDERS.rarities })).toHaveLength(1);
     expect(sortCards(single, "price")).toHaveLength(1);
+  });
+
+  it("throws when sortBy is 'rarity' but no rarityOrder is supplied", () => {
+    expect(() => sortCards([makePrinting()], "rarity")).toThrow(/rarityOrder/);
   });
 });

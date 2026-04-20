@@ -196,6 +196,8 @@ export function useCardData({
     };
   } else if (sortBy === "price") {
     sortOptions.getPrice = getPrice;
+  } else if (sortBy === "rarity") {
+    sortOptions.rarityOrder = orders.rarities;
   }
   const sortedCards = sortCards(displayCards, sortBy, sortOptions);
 

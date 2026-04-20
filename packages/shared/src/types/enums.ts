@@ -32,14 +32,10 @@ export type Finish = string & Record<never, never>;
 
 // ── Enum orders ─────────────────────────────────────────────────────────────
 // Sort orders for reference-table enums. The /api/enums endpoint is the
-// authoritative source at runtime; DEFAULT_ENUM_ORDERS provides fallback
-// ordering for shared code that runs without an API connection (e.g. import
-// parsers, offline sorting).
-//
-// `finishes` deliberately has NO fallback — every sort path that cares about
-// finish order must read the live order from the finishes table via
-// `useEnumOrders().orders.finishes` (or equivalent server-side fetch), so
-// admin re-ordering takes effect everywhere.
+// authoritative source at runtime. Every sort path must read the live order
+// (via `useEnumOrders().orders` in web or the matching repo on the API),
+// so admin re-ordering of the reference tables takes effect everywhere.
+// There is deliberately no fallback constant.
 
 /** Sort-order configuration for all reference-table enums. */
 export interface EnumOrders {
@@ -50,15 +46,6 @@ export interface EnumOrders {
   superTypes: readonly string[];
   artVariants: readonly string[];
 }
-
-/** Fallback sort orders matching the initial database seed. Excludes `finishes` — see note above. */
-export const DEFAULT_ENUM_ORDERS: Omit<EnumOrders, "finishes"> = {
-  domains: ["Fury", "Calm", "Mind", "Body", "Chaos", "Order", "Colorless"],
-  rarities: ["Common", "Uncommon", "Rare", "Epic", "Showcase"],
-  artVariants: ["normal", "altart", "overnumbered"],
-  cardTypes: ["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield", "Other"],
-  superTypes: ["Basic", "Champion", "Signature", "Token"],
-};
 
 // ── Application-level enums ─────────────────────────────────────────────────
 // These are structural to the app and stay hardcoded — adding a value always

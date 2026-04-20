@@ -11,7 +11,6 @@ export type {
   SuperType,
 } from "./enums.js";
 export type { EnumOrders } from "./enums.js";
-export { DEFAULT_ENUM_ORDERS } from "./enums.js";
 
 export type {
   Card,

@@ -13,7 +13,7 @@ import type {
   Domain,
   SuperType,
 } from "@openrift/shared";
-import { DEFAULT_ENUM_ORDERS, inferZone, validateDeck } from "@openrift/shared";
+import { inferZone, validateDeck } from "@openrift/shared";
 import {
   deckAvailabilityResponseSchema,
   deckCardsResponseSchema,
@@ -201,14 +201,15 @@ decksApp.use(requireAuth);
 export const decksRoute = decksApp
   // ── LIST ────────────────────────────────────────────────────────────────────
   .openapi(listDecks, async (c) => {
-    const { decks, marketplace, userPreferences } = c.get("repos");
+    const { decks, marketplace, userPreferences, enums } = c.get("repos");
     const userId = getUserId(c);
     const { wanted } = c.req.valid("query");
 
-    const [deckRows, allCards, prefs] = await Promise.all([
+    const [deckRows, allCards, prefs, enumRows] = await Promise.all([
       decks.listForUser(userId, wanted === "true"),
       decks.allCardsForUser(userId),
       userPreferences.getByUserId(userId),
+      enums.all(),
     ]);
 
     const favMarketplace =
@@ -218,6 +219,8 @@ export const decksRoute = decksApp
     // Group cards by deck
     const cardsByDeckId = Map.groupBy(allCards, (card) => card.deckId);
 
+    const cardTypeOrder = enumRows.cardTypes.map((row) => row.slug);
+    const domainOrder = enumRows.domains.map((row) => row.slug);
     const excludedTypes = new Set<string>(["Legend", "Rune", "Battlefield"]);
     const countedZones = new Set<string>(["main", "champion"]);
 
@@ -242,7 +245,7 @@ export const decksRoute = decksApp
           (typeCountMap.get(card.cardType as CardType) ?? 0) + card.quantity,
         );
       }
-      const typeCounts = DEFAULT_ENUM_ORDERS.cardTypes
+      const typeCounts = cardTypeOrder
         .filter((type) => typeCountMap.has(type as CardType))
         .map((type) => ({
           cardType: type as CardType,
@@ -259,7 +262,7 @@ export const decksRoute = decksApp
           domainCountMap.set(domain, (domainCountMap.get(domain) ?? 0) + card.quantity);
         }
       }
-      const domainDistribution = DEFAULT_ENUM_ORDERS.domains
+      const domainDistribution = domainOrder
         .filter((domain) => domainCountMap.has(domain as Domain))
         .map((domain) => ({
           domain: domain as Domain,
