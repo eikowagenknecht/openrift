@@ -2,6 +2,7 @@
 
 ## 2026-04-20
 
+- fix: Battlefield thumbnails in the deck builder's printing picker are now shown in their natural landscape orientation instead of being squashed into a portrait frame
 - fix: Promo cards are sized more comfortably across screen widths, and the sidebar only appears on wider desktops so the grid can use the full width on laptop screens
 
 ## 2026-04-19

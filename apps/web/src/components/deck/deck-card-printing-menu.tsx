@@ -111,6 +111,8 @@ function PrintingMenuItem({
   const thumbnail = printing.images.find((img) => img.face === "front")?.thumbnail ?? null;
   const { labels } = useEnumOrders();
   const label = formatPrintingLabel(printing, printings, labels);
+  const landscape = printing.card.type === "Battlefield";
+  const thumbnailSize = landscape ? "h-10 w-14" : "h-14 w-10";
 
   return (
     <ContextMenu.Item
@@ -137,11 +139,11 @@ function PrintingMenuItem({
         <img
           src={thumbnail}
           alt=""
-          className="h-14 w-10 shrink-0 rounded object-cover"
+          className={cn(thumbnailSize, "shrink-0 rounded object-cover")}
           draggable={false}
         />
       ) : (
-        <div className="bg-muted h-14 w-10 shrink-0 rounded" />
+        <div className={cn(thumbnailSize, "bg-muted shrink-0 rounded")} />
       )}
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="text-muted-foreground font-mono text-xs">{formatCardId(printing)}</span>
