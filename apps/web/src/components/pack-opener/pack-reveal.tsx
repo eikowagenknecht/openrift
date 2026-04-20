@@ -75,14 +75,25 @@ export function PackReveal({
                 shimmer={shimmer}
               />
             ) : (
-              <button
-                type="button"
-                onClick={() => flip(i)}
-                className="block w-full cursor-pointer"
-                aria-label={`Reveal card ${i + 1}`}
-              >
-                <CardBack interactive />
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => flip(i)}
+                  className="block w-full cursor-pointer"
+                  aria-label={`Reveal card ${i + 1}`}
+                >
+                  <CardBack interactive />
+                </button>
+                {/* Invisible spacer mirroring PullCard's name + short-code row
+                    so the grid doesn't jump when a card flips face-up. */}
+                <div className="mt-1 px-0.5 text-xs" aria-hidden="true">
+                  <div className="invisible truncate">&nbsp;</div>
+                  <div className="invisible flex justify-between">
+                    <span>&nbsp;</span>
+                    <span>&nbsp;</span>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         ))}
