@@ -323,6 +323,48 @@ describe("parseImportData — Piltover Archive language", () => {
   });
 });
 
+describe("parseImportData — Piltover Archive promo", () => {
+  const header =
+    "Variant Number,Card Name,Set,Set Prefix,Rarity,Variant Type,Variant Label,Quantity,Language,Condition";
+
+  it("sets isPromo when a promo suffix is present", () => {
+    const csv = `${header}\nOGN-001-Nexus,Hero,Origins,OGN,Common,Standard,Nexus,1,English,NM`;
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].isPromo).toBe(true);
+    expect(result.entries[0].sourceCode).toBe("OGN-001");
+  });
+
+  it("leaves isPromo undefined for non-promo rows", () => {
+    const csv = `${header}\nOGN-001,Hero,Origins,OGN,Common,Standard,,1,English,NM`;
+    const result = parseImportData(csv);
+    expect(result.entries[0].isPromo).toBeUndefined();
+  });
+
+  it("keeps rows with different promo suffixes separate", () => {
+    const csv = [
+      header,
+      "OGN-001-Nexus,Hero,Origins,OGN,Common,Standard,Nexus,1,English,NM",
+      "OGN-001-Launch,Hero,Origins,OGN,Common,Standard,Launch,2,English,NM",
+    ].join("\n");
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(2);
+    const quantities = result.entries.map((e) => e.quantity).toSorted();
+    expect(quantities).toEqual([1, 2]);
+  });
+
+  it("aggregates rows with the same promo suffix and different conditions", () => {
+    const csv = [
+      header,
+      "OGN-001-Nexus,Hero,Origins,OGN,Common,Standard,Nexus,1,English,NM",
+      "OGN-001-Nexus,Hero,Origins,OGN,Common,Standard,Nexus,2,English,LP",
+    ].join("\n");
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].quantity).toBe(3);
+  });
+});
+
 describe("parseImportData — format detection", () => {
   it("still detects Piltover Archive format", () => {
     const csv = "Variant Number,Card Name,Quantity\nOGN-001,Test,1";

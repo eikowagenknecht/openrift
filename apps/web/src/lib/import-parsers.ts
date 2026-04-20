@@ -124,74 +124,6 @@ export function parseImportData(text: string): ParseResult {
 // ---------------------------------------------------------------------------
 
 /**
- * Maps a Piltover CSV promo suffix (+ variant label for disambiguation) to
- * the promo type slug used in the OpenRift catalog.
- * @returns The resolved slug, or undefined if the suffix is unrecognized.
- */
-function resolvePiltoverPromoSlug(promoSuffix: string, variantLabel: string): string | undefined {
-  const suffix = promoSuffix.toLowerCase();
-  const label = variantLabel.toLowerCase();
-
-  switch (suffix) {
-    case "champion": {
-      return "summoner-champion";
-    }
-    case "competitor": {
-      return "competitor";
-    }
-    case "jdg": {
-      return "judge";
-    }
-    case "learn": {
-      return "learn";
-    }
-    case "launch": {
-      return "launch";
-    }
-    case "nexus": {
-      return "nexus";
-    }
-    case "prerelease":
-    case "prerift": {
-      return "prerift";
-    }
-    case "promo": {
-      if (label.includes("nexus")) {
-        return "nexus";
-      }
-      return undefined;
-    }
-    case "regionals": {
-      if (label.includes("1st")) {
-        return "regionals-1st";
-      }
-      if (label.includes("top")) {
-        return "regionals-top8";
-      }
-      return undefined;
-    }
-    case "release": {
-      return "release";
-    }
-    case "riot": {
-      return "riot";
-    }
-    case "skirmish": {
-      if (label.includes("top")) {
-        return "summoner-top8";
-      }
-      return "summoner";
-    }
-    case "worlds": {
-      return "worlds";
-    }
-    default: {
-      return undefined;
-    }
-  }
-}
-
-/**
  * Parses a Piltover Archive CSV export.
  *
  * Columns: Variant Number, Card Name, Set, Set Prefix, Rarity, Variant Type,
@@ -272,15 +204,15 @@ function parsePiltoverArchive(text: string): ParseResult {
       quantity,
       cardName,
       sourceCode: parsed?.shortCode ?? variantNumber,
-      promoSlug: parsed?.promoSuffix
-        ? resolvePiltoverPromoSlug(parsed.promoSuffix, variantLabel)
-        : undefined,
+      isPromo: parsed?.promoSuffix ? true : undefined,
       language: normalizeLanguage(record["Language"]),
       rawFields,
     };
 
-    // Aggregate duplicates (same variant, different conditions)
-    const key = `${entry.sourceCode}::${entry.finish}::${entry.promoSlug ?? ""}`;
+    // Aggregate duplicates (same variant, different conditions). Include the raw promo suffix
+    // so rows with different promo variants (e.g. "-Nexus" vs "-Launch") stay separate.
+    const promoKey = parsed?.promoSuffix?.toLowerCase() ?? "";
+    const key = `${entry.sourceCode}::${entry.finish}::${promoKey}`;
     const existing = aggregated.get(key);
     if (existing) {
       existing.quantity += entry.quantity;
