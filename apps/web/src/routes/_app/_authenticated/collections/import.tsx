@@ -20,6 +20,7 @@ import { toast } from "sonner";
 
 import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
 import { PrintingOptionContent } from "@/components/cards/printing-option-content";
+import { usePrintingHover } from "@/components/cards/use-printing-hover";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { PrintingSearch, formatImportPrintingLabel } from "@/components/printing-search";
 import { Badge } from "@/components/ui/badge";
@@ -751,13 +752,13 @@ function VariantPicker({
   onSelect: (printing: Printing) => void;
 }) {
   const { labels } = useEnumOrders();
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const { hoveredId, onEnter, onLeave, reset } = usePrintingHover();
   const hoveredPrinting = hoveredId ? candidates.find((c) => c.id === hoveredId) : null;
   const popupRef = useRef<HTMLDivElement>(null);
   return (
     <Select
       value={resolved?.id ?? ""}
-      onOpenChange={(open) => !open && setHoveredId(null)}
+      onOpenChange={(open) => !open && reset()}
       onValueChange={(value) => {
         const printing = candidates.find((candidate) => candidate.id === value);
         if (printing) {
@@ -779,12 +780,12 @@ function VariantPicker({
             className="py-1.5"
             onPointerEnter={(event) => {
               if (event.pointerType === "mouse") {
-                setHoveredId(printing.id);
+                onEnter(printing.id);
               }
             }}
             onPointerLeave={(event) => {
               if (event.pointerType === "mouse") {
-                setHoveredId(null);
+                onLeave();
               }
             }}
           >

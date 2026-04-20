@@ -1,10 +1,11 @@
 import { ContextMenu } from "@base-ui/react/context-menu";
 import type { Printing } from "@openrift/shared";
 import type { MouseEvent, ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
 import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
 import { PrintingOptionContent } from "@/components/cards/printing-option-content";
+import { usePrintingHover } from "@/components/cards/use-printing-hover";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckBuilderActions } from "@/hooks/use-deck-builder";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -37,7 +38,7 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
             languages.includes(printing.language) || printing.id === card.preferredPrintingId,
         )
       : allPrintings;
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const { hoveredId, onEnter, onLeave, reset } = usePrintingHover();
   const popupRef = useRef<HTMLDivElement>(null);
 
   if (printings.length <= 1) {
@@ -55,7 +56,7 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
   const hoveredPrinting = hoveredId ? printings.find((p) => p.id === hoveredId) : null;
 
   return (
-    <ContextMenu.Root onOpenChange={(open) => !open && setHoveredId(null)}>
+    <ContextMenu.Root onOpenChange={(open) => !open && reset()}>
       <ContextMenu.Trigger
         className="block select-none [-webkit-touch-callout:none]"
         render={<div />}
@@ -84,7 +85,8 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
                   printings={printings}
                   isActive={printing.id === card.preferredPrintingId}
                   onSelect={handleSelect}
-                  onHover={setHoveredId}
+                  onHoverEnter={onEnter}
+                  onHoverLeave={onLeave}
                 />
               ))}
             </div>
@@ -101,13 +103,15 @@ function PrintingMenuItem({
   printings,
   isActive,
   onSelect,
-  onHover,
+  onHoverEnter,
+  onHoverLeave,
 }: {
   printing: Printing;
   printings: Printing[];
   isActive: boolean;
   onSelect: (printing: Printing, event: MouseEvent) => void;
-  onHover: (id: string | null) => void;
+  onHoverEnter: (id: string) => void;
+  onHoverLeave: () => void;
 }) {
   return (
     <ContextMenu.Item
@@ -121,12 +125,12 @@ function PrintingMenuItem({
       }}
       onPointerEnter={(event) => {
         if (event.pointerType === "mouse") {
-          onHover(printing.id);
+          onHoverEnter(printing.id);
         }
       }}
       onPointerLeave={(event) => {
         if (event.pointerType === "mouse") {
-          onHover(null);
+          onHoverLeave();
         }
       }}
     >
