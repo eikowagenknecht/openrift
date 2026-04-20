@@ -12,7 +12,6 @@ export interface UseCardsResult {
   cardsById: Record<string, Card>;
   printingsById: Record<string, Printing>;
   printingsByCardId: Map<string, Printing[]>;
-  setOrderMap: Map<string, number>;
   sets: SetInfo[];
 }
 
@@ -47,16 +46,14 @@ function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
   // Cards are already in the right shape — identity lives in the map key.
   const cardsById: Record<string, Card> = catalog.cards;
 
-  const setOrderMap = new Map(catalog.sets.map((s, i) => [s.id, i]));
-
   // Join printings with their card and the parent set slug. The printing id
   // is restored on the object so consumers that iterate `allPrintings` (a
   // flat array without surrounding keys) still have an identifier.
   //
-  // Printings are NOT sorted here: the canonical sort needs the live finish
-  // order from `/api/enums` (see `comparePrintings`), which this select can't
-  // read. The main UI path goes through `useCards()` (see use-cards.ts), which
-  // reads enums via `useEnumOrders()` and sorts there.
+  // `canonicalRank` rides through from the API — each row carries the
+  // server-computed sort key from the `printings_ordered` view. Consumers
+  // that need user-language-aware order layer on top via
+  // `sortByLanguageAndCanonicalRank`.
   const allPrintings: Printing[] = [];
   const printingsById: Record<string, Printing> = {};
   for (const [id, value] of Object.entries(catalog.printings)) {
@@ -76,7 +73,6 @@ function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
     cardsById,
     printingsById,
     printingsByCardId,
-    setOrderMap,
     sets: catalog.sets,
   };
 }

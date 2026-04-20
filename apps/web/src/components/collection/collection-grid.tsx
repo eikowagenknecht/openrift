@@ -190,7 +190,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   } = useCardData({
     allPrintings,
     sets,
-    languageFilter,
     filters,
     sortBy,
     sortDir,

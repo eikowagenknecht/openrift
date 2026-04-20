@@ -2,8 +2,7 @@ import type { Printing, PrintingImage } from "@openrift/shared";
 import { preferredPrinting } from "@openrift/shared";
 
 import { useCards } from "@/hooks/use-cards";
-import { useLanguageList } from "@/hooks/use-enums";
-import { useDisplayStore } from "@/stores/display-store";
+import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 
 interface PreferredPrintingHelpers {
   /**
@@ -32,10 +31,7 @@ export function usePreferredPrinting(): PreferredPrintingHelpers {
   "use memo";
 
   const { printingsByCardId } = useCards();
-  const userLanguages = useDisplayStore((state) => state.languages);
-  const defaultLanguageList = useLanguageList();
-  const effectiveLanguageOrder =
-    userLanguages.length > 0 ? userLanguages : defaultLanguageList.map((l) => l.code);
+  const effectiveLanguageOrder = useEffectiveLanguageOrder();
 
   const getPreferredPrinting = (
     cardId: string,

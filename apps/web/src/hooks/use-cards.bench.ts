@@ -1,17 +1,18 @@
-// Benchmark: useCards() JS-layer cost before vs after the TanStack DB rewire.
+// Benchmark: canonicalRank sort (new) vs 6-axis comparePrintings sort (old).
 //
-// Before: one TanStack Query select (enrichCatalog) runs over the raw blob.
-// After: three useLiveSuspenseQuery reads + JS join (enrichFromCollections).
+// Background: before migration 096 introduced the `printings_ordered` view,
+// the canonical printing order was derived in JS by a 6-axis comparator
+// (set sort_order, shortCode, marker presence, min marker sort_order,
+// finish sort_order). Now the DB computes a single integer `canonical_rank`
+// per printing and the frontend sorts by that integer.
 //
-// This bench isolates the JS enrichment work. It does NOT include the
-// one-time collection-setup / dataflow-graph-build cost of useLiveQuery on
-// first subscription — that's captured by the earlier queryOnce bench. For
-// steady-state re-renders, the JS loop below is the dominant cost.
+// This bench confirms the integer compare is meaningfully faster than the
+// old composite comparator on realistic catalog sizes (~3k printings). It
+// runs in steady-state (fixtures built once, sort array freshly cloned per
+// iteration so both benches measure the same work).
 
 import type {
   Card,
-  CatalogResponse,
-  CatalogResponseCardValue,
   CatalogResponsePrintingValue,
   CatalogSetResponse,
   Printing,
@@ -45,12 +46,8 @@ function pick<T>(arr: readonly T[], r: () => number): T {
   return value;
 }
 
-// Build a raw CatalogResponse (the old fetch shape) and the three array
-// slices (the new collection shape) from the same synthetic source.
-
-function buildFixtures() {
+function buildFixture(): Printing[] {
   const r = seededRandom(42);
-
   const sets: CatalogSetResponse[] = Array.from({ length: SET_COUNT }, (_, i) => ({
     id: `set-${i}`,
     slug: `SET${i + 1}`,
@@ -59,11 +56,12 @@ function buildFixtures() {
     setType: i < 5 ? "main" : "supplemental",
   }));
 
-  const cardsRecord: Record<string, CatalogResponseCardValue> = {};
-  const cardsArray: (Card & { id: string })[] = [];
+  const setSlugById = new Map(sets.map((s) => [s.id, s.slug]));
+
+  const cardById = new Map<string, Card>();
   for (let i = 0; i < CARD_COUNT; i++) {
     const id = `card-${i}`;
-    const card: CatalogResponseCardValue = {
+    cardById.set(id, {
       slug: id,
       name: `Card ${i}`,
       type: pick(TYPES, r),
@@ -77,18 +75,14 @@ function buildFixtures() {
       mightBonus: null,
       errata: null,
       bans: [],
-    };
-    cardsRecord[id] = card;
-    cardsArray.push({ ...card, id });
+    });
   }
 
-  const printingsRecord: Record<string, CatalogResponsePrintingValue> = {};
-  const printingsArray: (CatalogResponsePrintingValue & { id: string })[] = [];
+  const printings: Printing[] = [];
   for (let i = 0; i < PRINTING_COUNT; i++) {
-    const id = `printing-${i}`;
     const cardIdx = i % CARD_COUNT;
     const setIdx = Math.floor(r() * SET_COUNT);
-    const printing: CatalogResponsePrintingValue = {
+    const raw: CatalogResponsePrintingValue = {
       shortCode: `SET-${String(i).padStart(3, "0")}`,
       setId: `set-${setIdx}`,
       rarity: pick(RARITIES, r),
@@ -109,93 +103,50 @@ function buildFixtures() {
       cardId: `card-${cardIdx}`,
       canonicalRank: i + 1,
     };
-    printingsRecord[id] = printing;
-    printingsArray.push({ ...printing, id });
-  }
-
-  const rawCatalog: CatalogResponse = {
-    sets,
-    cards: cardsRecord,
-    printings: printingsRecord,
-    totalCopies: PRINTING_COUNT,
-  };
-
-  return { rawCatalog, sets, cardsArray, printingsArray };
-}
-
-const { rawCatalog, sets, cardsArray, printingsArray } = buildFixtures();
-
-// ── Old path: enrichCatalog (the select on catalogQueryOptions pre-spike) ───
-
-function enrichCatalog(catalog: CatalogResponse) {
-  const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
-  const cardsById: Record<string, Card> = catalog.cards;
-  const setOrderMap = new Map(catalog.sets.map((s, i) => [s.id, i]));
-  const allPrintings: Printing[] = [];
-  const printingsById: Record<string, Printing> = {};
-  for (const [id, value] of Object.entries(catalog.printings)) {
-    const setSlug = slugById.get(value.setId);
-    const card = cardsById[value.cardId];
-    if (setSlug && card) {
-      const printing: Printing = { ...value, id, setSlug, card };
-      allPrintings.push(printing);
-      printingsById[id] = printing;
+    const card = cardById.get(raw.cardId);
+    const setSlug = setSlugById.get(raw.setId);
+    if (!card || !setSlug) {
+      throw new Error("fixture indexing out of range");
     }
+    printings.push({ ...raw, id: `printing-${i}`, setSlug, card });
   }
-  allPrintings.sort((a, b) => a.canonicalRank - b.canonicalRank);
-  const printingsByCardId = Map.groupBy(allPrintings, (p) => p.cardId);
-  return {
-    allPrintings,
-    cardsById,
-    printingsById,
-    printingsByCardId,
-    setOrderMap,
-    sets: catalog.sets,
-  };
+  return printings;
 }
 
-// ── New path: enrichFromCollections (runs every useCards() call) ────────────
+const FINISH_ORDER = ["normal", "foil"] as const;
 
-function enrichFromCollections(
-  rawPrintings: readonly (CatalogResponsePrintingValue & { id: string })[],
-  rawCards: readonly (Card & { id: string })[],
-  rawSets: readonly CatalogSetResponse[],
-) {
-  const slugById = new Map(rawSets.map((s) => [s.id, s.slug]));
-  const cardsById: Record<string, Card> = {};
-  for (const { id, ...card } of rawCards) {
-    cardsById[id] = card;
+/**
+ * The pre-migration-096 comparator: 4 compound axes, each pass touches both
+ * objects. Kept here only for comparison.
+ * @returns Negative if a comes first, positive if b comes first, 0 if equal.
+ */
+function compareByFourAxes(a: Printing, b: Printing): number {
+  const setCmp = a.setId.localeCompare(b.setId);
+  if (setCmp !== 0) {
+    return setCmp;
   }
-  const setOrderMap = new Map(rawSets.map((s, i) => [s.id, i]));
-  const allPrintings: Printing[] = [];
-  const printingsById: Record<string, Printing> = {};
-  for (const raw of rawPrintings) {
-    const setSlug = slugById.get(raw.setId);
-    const card = cardsById[raw.cardId];
-    if (setSlug && card) {
-      const printing: Printing = { ...raw, setSlug, card };
-      allPrintings.push(printing);
-      printingsById[raw.id] = printing;
-    }
+  const codeCmp = a.shortCode.localeCompare(b.shortCode);
+  if (codeCmp !== 0) {
+    return codeCmp;
   }
-  allPrintings.sort((a, b) => a.canonicalRank - b.canonicalRank);
-  const printingsByCardId = Map.groupBy(allPrintings, (p) => p.cardId);
-  return {
-    allPrintings,
-    cardsById,
-    printingsById,
-    printingsByCardId,
-    setOrderMap,
-    sets: [...rawSets],
-  };
+  const aMarker = a.markers.length > 0 ? 1 : 0;
+  const bMarker = b.markers.length > 0 ? 1 : 0;
+  if (aMarker !== bMarker) {
+    return aMarker - bMarker;
+  }
+  const aFinishIdx = FINISH_ORDER.indexOf(a.finish as (typeof FINISH_ORDER)[number]);
+  const bFinishIdx = FINISH_ORDER.indexOf(b.finish as (typeof FINISH_ORDER)[number]);
+  return aFinishIdx - bFinishIdx;
 }
 
-describe("useCards() JS enrichment cost", () => {
-  bench("before: enrichCatalog(rawBlob)", () => {
-    enrichCatalog(rawCatalog);
+const printings = buildFixture();
+
+describe("printing canonical sort", () => {
+  bench("old: 6-axis comparator over ~3k printings", () => {
+    [...printings].sort(compareByFourAxes);
   });
 
-  bench("after: enrichFromCollections(arrays)", () => {
-    enrichFromCollections(printingsArray, cardsArray, sets);
+  bench("new: canonicalRank integer compare over ~3k printings", () => {
+    [...printings].sort((a, b) => a.canonicalRank - b.canonicalRank);
   });
 });

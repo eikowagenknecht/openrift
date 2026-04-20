@@ -7,15 +7,15 @@ import type {
   SortOption,
 } from "@openrift/shared";
 import {
-  deduplicateByCard,
   filterCards,
   getAvailableFilters,
-  groupPrintingsByCardId,
+  sortByLanguageAndCanonicalRank,
   sortCards,
 } from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
-import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
+import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
 
 interface UseCollectionCardDataParams {
@@ -53,7 +53,7 @@ export function useCollectionCardData({
   "use memo";
   const { stacks, totalCopies, isReady } = useStackedCopies(collectionId);
   const { orders } = useEnumOrders();
-  const defaultLanguageList = useLanguageList();
+  const defaultEffectiveLanguageOrder = useEffectiveLanguageOrder();
 
   const collectionPrintings = stacks.map((stack) => stack.printing);
   const setSlugToName = new Map(sets.map((set) => [set.slug, set.name]));
@@ -61,25 +61,34 @@ export function useCollectionCardData({
 
   const getPrice = (p: Printing) => prices.get(p.id, favoriteMarketplace);
 
-  // User preference wins; otherwise fall back to the DB-driven
-  // `languages.sort_order` from /api/enums.
+  // `languageOrder` prop wins (collection UIs can narrow further); otherwise
+  // fall back to the user's display-store pref, otherwise the DB default.
   const effectiveLanguageOrder =
-    languageOrder && languageOrder.length > 0
-      ? languageOrder
-      : defaultLanguageList.map((l) => l.code);
+    languageOrder && languageOrder.length > 0 ? languageOrder : defaultEffectiveLanguageOrder;
 
   const availableFilters = getAvailableFilters(collectionPrintings, { orders, getPrice });
   availableFilters.supplementalSets = new Set(
     sets.filter((s) => s.setType === "supplemental").map((s) => s.slug),
   );
-  const filteredCards = filterCards(collectionPrintings, filters, { keywordReverseMap, getPrice });
 
-  // In "cards" view, deduplicate by cardId (keep canonical printing)
-  const displayCards =
-    view === "cards" ? deduplicateByCard(filteredCards, effectiveLanguageOrder) : filteredCards;
+  // `useStackedCopies` returns printings in shortCode order (for the Copies
+  // view). Pre-sort by (languageRank, canonicalRank) here so dedup/group
+  // below can be first-occurrence and still pick the user-preferred printing
+  // per card.
+  const canonicallyOrderedCollection = sortByLanguageAndCanonicalRank(
+    collectionPrintings,
+    effectiveLanguageOrder,
+  );
+  const filteredCards = filterCards(canonicallyOrderedCollection, filters, {
+    keywordReverseMap,
+    getPrice,
+  });
 
-  // Group all collection printings by cardId for detail pane siblings
-  const printingsByCardId = groupPrintingsByCardId(collectionPrintings, effectiveLanguageOrder);
+  // In "cards" view, keep one printing per cardId (the first = canonical pick).
+  const displayCards = view === "cards" ? firstPrintingPerCard(filteredCards) : filteredCards;
+
+  // Group all collection printings by cardId for detail pane siblings.
+  const printingsByCardId = Map.groupBy(canonicallyOrderedCollection, (p) => p.cardId);
 
   // Price ranges for "cards" view sorting
   const priceRangeByCardId =
@@ -121,6 +130,23 @@ export function useCollectionCardData({
     setDisplayLabel,
     isReady,
   };
+}
+
+/**
+ * Keep the first printing encountered per `cardId`. Relies on the input
+ * being pre-sorted by (languageRank, canonicalRank).
+ * @returns One printing per cardId, in first-occurrence order.
+ */
+function firstPrintingPerCard(printings: Printing[]): Printing[] {
+  const seen = new Set<string>();
+  const result: Printing[] = [];
+  for (const printing of printings) {
+    if (!seen.has(printing.cardId)) {
+      seen.add(printing.cardId);
+      result.push(printing);
+    }
+  }
+  return result;
 }
 
 function computePriceRanges(

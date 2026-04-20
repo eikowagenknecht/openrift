@@ -5,6 +5,7 @@ import { z } from "zod";
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
+import { effectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { initQueryOptions } from "@/hooks/use-init";
 import {
   buildCardMetaDescription,
@@ -103,9 +104,9 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       context.queryClient.ensureQueryData(initQueryOptions),
     ]);
     const languageRows = (init.enums.languages ?? []) as { slug: string; sortOrder: number }[];
-    const languageOrder = languageRows
-      .toSorted((a, b) => a.sortOrder - b.sortOrder)
-      .map((row) => row.slug);
+    // Loader runs for crawlers/anonymous users — no user preference available,
+    // so pass [] and let the helper fall through to the DB default.
+    const languageOrder = effectiveLanguageOrder([], languageRows);
     return { data, printingId: deps.printingId, languageOrder };
   },
   component: () => null,

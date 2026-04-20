@@ -25,21 +25,19 @@ const fetchCardDetail = createServerFn({ method: "GET" })
 interface EnrichedCardDetail {
   card: CardDetailResponse["card"];
   printings: Printing[];
-  setOrderMap: Map<string, number>;
   sets: CardDetailResponse["sets"];
 }
 
 function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
   const slugById = new Map(response.sets.map((s) => [s.id, s.slug]));
-  const setOrderMap = new Map(response.sets.map((s, i) => [s.id, i]));
-  // Printings are not sorted here — consumers sort with the live finish order
-  // from `useEnumOrders()` (select runs outside React, so it can't read hooks).
+  // Printings carry `canonicalRank` from the DB view; consumers layer the
+  // per-user language axis on top via `sortByLanguageAndCanonicalRank`.
   const printings: Printing[] = response.printings.map((p) => ({
     ...p,
     setSlug: slugById.get(p.setId) ?? "",
     card: response.card,
   }));
-  return { card: response.card, printings, setOrderMap, sets: response.sets };
+  return { card: response.card, printings, sets: response.sets };
 }
 
 /** @returns Query options for a single card detail, enriched with set slugs. */

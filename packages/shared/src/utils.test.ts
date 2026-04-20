@@ -7,7 +7,6 @@ import {
   deduplicateByCard,
   formatPrintingLabel,
   centsToDollars,
-  comparePrintings,
   emptyToNull,
   formatDateUTC,
   formatShortCodes,
@@ -15,11 +14,10 @@ import {
   mostCommonValue,
   normalizeNameForMatching,
   preferredPrinting,
+  sortByLanguageAndCanonicalRank,
   toCents,
   unique,
 } from "./utils";
-
-const TEST_FINISH_ORDER = ["normal", "foil", "metal", "metal-deluxe"] as const;
 
 function makePrinting(overrides: Partial<Printing> & { language: string }): Printing {
   return {
@@ -180,88 +178,41 @@ describe("normalizeNameForMatching", () => {
   });
 });
 
-describe("comparePrintings", () => {
-  const base = {
-    setId: "SET-A",
-    shortCode: "SET-A-001",
-  };
-
-  it("returns 0 for identical printings", () => {
-    expect(comparePrintings(base, { ...base }, TEST_FINISH_ORDER)).toBe(0);
+describe("sortByLanguageAndCanonicalRank", () => {
+  it("returns a new array — does not mutate input", () => {
+    const input = [
+      makePrinting({ id: "a", language: "EN", canonicalRank: 2 }),
+      makePrinting({ id: "b", language: "EN", canonicalRank: 1 }),
+    ];
+    const output = sortByLanguageAndCanonicalRank(input, ["EN"]);
+    expect(output).not.toBe(input);
+    expect(input.map((p) => p.id)).toEqual(["a", "b"]);
   });
 
-  it("sorts by setId first", () => {
-    const a = { ...base, setId: "AAA" };
-    const b = { ...base, setId: "ZZZ" };
-    expect(comparePrintings(a, b, TEST_FINISH_ORDER)).toBeLessThan(0);
-    expect(comparePrintings(b, a, TEST_FINISH_ORDER)).toBeGreaterThan(0);
+  it("bubbles preferred-language rows to the top", () => {
+    const de = makePrinting({ id: "de", language: "DE", canonicalRank: 1 });
+    const en = makePrinting({ id: "en", language: "EN", canonicalRank: 5 });
+    expect(sortByLanguageAndCanonicalRank([de, en], ["EN", "DE"]).map((p) => p.id)).toEqual([
+      "en",
+      "de",
+    ]);
   });
 
-  it("sorts by setOrder when provided, ignoring setId", () => {
-    const a = { ...base, setId: "ZZZ", setOrder: 0 };
-    const b = { ...base, setId: "AAA", setOrder: 1 };
-    expect(comparePrintings(a, b, TEST_FINISH_ORDER)).toBeLessThan(0);
-    expect(comparePrintings(b, a, TEST_FINISH_ORDER)).toBeGreaterThan(0);
+  it("preserves canonicalRank order within each language bucket", () => {
+    const en1 = makePrinting({ id: "en1", language: "EN", canonicalRank: 10 });
+    const en2 = makePrinting({ id: "en2", language: "EN", canonicalRank: 20 });
+    const de1 = makePrinting({ id: "de1", language: "DE", canonicalRank: 5 });
+    expect(sortByLanguageAndCanonicalRank([en2, de1, en1], ["EN", "DE"]).map((p) => p.id)).toEqual([
+      "en1",
+      "en2",
+      "de1",
+    ]);
   });
 
-  it("falls back to setId when setOrder is not provided", () => {
-    const a = { ...base, setId: "AAA" };
-    const b = { ...base, setId: "ZZZ", setOrder: 0 };
-    // Only b has setOrder, so falls back to setId string comparison
-    expect(comparePrintings(a, b, TEST_FINISH_ORDER)).toBeLessThan(0);
-  });
-
-  it("sorts by shortCode when setId is equal", () => {
-    const a = { ...base, shortCode: "SET-A-005" };
-    const b = { ...base, shortCode: "SET-A-010" };
-    expect(comparePrintings(a, b, TEST_FINISH_ORDER)).toBeLessThan(0);
-    expect(comparePrintings(b, a, TEST_FINISH_ORDER)).toBeGreaterThan(0);
-  });
-
-  it("sorts base variant before alt-art by short code", () => {
-    const normal = { ...base, shortCode: "OGN-240" };
-    const altart = { ...base, shortCode: "OGN-240a" };
-    expect(comparePrintings(normal, altart, TEST_FINISH_ORDER)).toBeLessThan(0);
-    expect(comparePrintings(altart, normal, TEST_FINISH_ORDER)).toBeGreaterThan(0);
-  });
-
-  it("sorts unmarked before marked", () => {
-    const normal = { ...base, markerSlugs: [] as string[] };
-    const promo = { ...base, markerSlugs: ["promo"] };
-    expect(comparePrintings(normal, promo, TEST_FINISH_ORDER)).toBeLessThan(0);
-    expect(comparePrintings(promo, normal, TEST_FINISH_ORDER)).toBeGreaterThan(0);
-  });
-
-  it("treats missing markerSlugs as unmarked", () => {
-    const noPromo = { ...base };
-    const promo = { ...base, markerSlugs: ["promo"] };
-    expect(comparePrintings(noPromo, promo, TEST_FINISH_ORDER)).toBeLessThan(0);
-  });
-
-  it("sorts normal finish before foil", () => {
-    const normal = { ...base, finish: "normal" };
-    const foil = { ...base, finish: "foil" };
-    expect(comparePrintings(normal, foil, TEST_FINISH_ORDER)).toBeLessThan(0);
-    expect(comparePrintings(foil, normal, TEST_FINISH_ORDER)).toBeGreaterThan(0);
-  });
-
-  it("handles null setId by treating it as empty string", () => {
-    const nullSet = { ...base, setId: null };
-    const emptySet = { ...base, setId: "" };
-    expect(comparePrintings(nullSet, emptySet, TEST_FINISH_ORDER)).toBe(0);
-  });
-
-  it("handles undefined setId by treating it as empty string", () => {
-    const undefinedSet = { ...base, setId: undefined };
-    const emptySet = { ...base, setId: "" };
-    expect(comparePrintings(undefinedSet, emptySet, TEST_FINISH_ORDER)).toBe(0);
-  });
-
-  it("applies tiebreakers in correct priority order", () => {
-    // Same set and shortCode — promo status decides before finish
-    const a = { ...base, markerSlugs: [] as string[], finish: "foil" };
-    const b = { ...base, markerSlugs: ["promo"], finish: "normal" };
-    expect(comparePrintings(a, b, TEST_FINISH_ORDER)).toBeLessThan(0);
+  it("sends unlisted-language rows to the bottom", () => {
+    const en = makePrinting({ id: "en", language: "EN", canonicalRank: 10 });
+    const zh = makePrinting({ id: "zh", language: "ZH", canonicalRank: 1 });
+    expect(sortByLanguageAndCanonicalRank([zh, en], ["EN"]).map((p) => p.id)).toEqual(["en", "zh"]);
   });
 });
 

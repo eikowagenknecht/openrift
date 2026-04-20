@@ -175,7 +175,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   // After seeding, `filters.languages` is the single source of truth — empty
   // means "show all" (the user cleared every language within this session).
   useSeedLanguagesFromPrefs(filters.languages);
-  const languageFilter = filters.languages;
 
   const {
     availableFilters,
@@ -188,7 +187,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   } = useCardData({
     allPrintings,
     sets,
-    languageFilter,
     filters,
     isOwned: filters.isOwned,
     sortBy,

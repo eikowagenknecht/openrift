@@ -55,54 +55,25 @@ export function normalizeNameForMatching(name: string): string {
   return name.toLowerCase().replaceAll(/[^a-z0-9]/g, "");
 }
 
-interface ComparablePrinting {
-  setId?: string | null;
-  setOrder?: number;
-  shortCode: string;
-  markerSlugs?: readonly string[];
-  finish?: string;
-}
-
 /**
- * Compare two printings for canonical ordering.
- * Sort order:
- *   1. Set sort order from DB (by `setOrder` when available, else `setId` string)
- *   2. Short code (alphabetical — base variants sort before alt-art/overnumbered)
- *   3. Non-promo first
- *   4. Finish order from the DB `finishes.sort_order` (required — callers must
- *      thread the live order from `/api/enums` so admin re-ordering takes effect)
- * Use as a comparator for `.sort()` to get canonical printing order.
+ * Sort printings by (languageRank, canonicalRank) — bubbling the user's
+ * preferred languages to the top while preserving canonical order within
+ * each language bucket. Languages not listed in `languageOrder` sort after
+ * listed ones.
  *
- * @returns Negative if a comes first, positive if b comes first, 0 if equal.
+ * @returns A new array in (languageRank, canonicalRank) order.
  */
-export function comparePrintings(
-  a: ComparablePrinting,
-  b: ComparablePrinting,
-  finishOrder: readonly string[],
-): number {
-  const aFinishIdx = finishOrder.indexOf(a.finish ?? "");
-  const bFinishIdx = finishOrder.indexOf(b.finish ?? "");
-  const setCompare =
-    a.setOrder !== undefined && b.setOrder !== undefined
-      ? a.setOrder - b.setOrder
-      : (a.setId ?? "").localeCompare(b.setId ?? "");
-  // Unknown finishes (not in order) sort after known ones; two unknowns are equal.
-  const finishCompare =
-    aFinishIdx === -1 && bFinishIdx === -1
-      ? 0
-      : aFinishIdx === -1
-        ? 1
-        : bFinishIdx === -1
-          ? -1
-          : aFinishIdx - bFinishIdx;
-  const aHasMarker = (a.markerSlugs?.length ?? 0) > 0;
-  const bHasMarker = (b.markerSlugs?.length ?? 0) > 0;
-  return (
-    setCompare ||
-    a.shortCode.localeCompare(b.shortCode) ||
-    Number(aHasMarker) - Number(bHasMarker) ||
-    finishCompare
-  );
+export function sortByLanguageAndCanonicalRank(
+  printings: readonly Printing[],
+  languageOrder: readonly string[],
+): Printing[] {
+  const rankByLang = new Map(languageOrder.map((lang, i) => [lang, i]));
+  const unlistedRank = languageOrder.length;
+  return printings.toSorted((a, b) => {
+    const aRank = rankByLang.get(a.language) ?? unlistedRank;
+    const bRank = rankByLang.get(b.language) ?? unlistedRank;
+    return aRank - bRank || a.canonicalRank - b.canonicalRank;
+  });
 }
 
 /**
@@ -186,30 +157,6 @@ export function preferredPrinting(
     }
   }
   return best;
-}
-
-/**
- * Group all printings by cardId and sort each group by
- * {@link compareWithLanguagePreference}.
- * @returns A map from cardId to sorted printings.
- */
-export function groupPrintingsByCardId(
-  printings: Printing[],
-  languageOrder: readonly string[],
-): Map<string, Printing[]> {
-  const map = new Map<string, Printing[]>();
-  for (const printing of printings) {
-    let group = map.get(printing.cardId);
-    if (!group) {
-      group = [];
-      map.set(printing.cardId, group);
-    }
-    group.push(printing);
-  }
-  for (const group of map.values()) {
-    group.sort((a, b) => compareWithLanguagePreference(a, b, languageOrder));
-  }
-  return map;
 }
 
 /**

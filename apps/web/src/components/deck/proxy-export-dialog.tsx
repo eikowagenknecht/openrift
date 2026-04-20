@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useDeckCards } from "@/hooks/use-deck-builder";
+import { effectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { initQueryOptions } from "@/hooks/use-init";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import type { ProxyCard, ProxyPageSize, ProxyRenderMode, RenderedCard } from "@/lib/proxy-pdf";
@@ -160,16 +161,12 @@ async function generateProxyPdf({
   setRenderingCard,
   setPreviewUrl,
 }: GenerateProxyPdfParams): Promise<void> {
-  // Pre-fetch init data so CardText doesn't suspend during rendering.
-  // Compose the effective language order (user preference wins; otherwise
-  // the live `languages.sort_order` from /api/enums) so `preferredPrinting`
-  // picks variants in the same order the rest of the UI does.
+  // Pre-fetch init data so CardText doesn't suspend during rendering, then
+  // compose the effective language order so `preferredPrinting` picks
+  // variants in the same order the rest of the UI does.
   const init = await queryClient.ensureQueryData(initQueryOptions);
   const languageRows = (init.enums.languages ?? []) as { slug: string; sortOrder: number }[];
-  const defaultLanguageOrder = languageRows
-    .toSorted((a, b) => a.sortOrder - b.sortOrder)
-    .map((row) => row.slug);
-  const languageOrder = languages.length > 0 ? languages : defaultLanguageOrder;
+  const languageOrder = effectiveLanguageOrder(languages, languageRows);
 
   const proxyCards = resolveProxyCards(cards, catalog, languageOrder);
   const renderedCards = new Map<string, RenderedCard>();

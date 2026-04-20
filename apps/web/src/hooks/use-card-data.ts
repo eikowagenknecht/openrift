@@ -6,22 +6,14 @@ import type {
   SortCardsOptions,
   SortOption,
 } from "@openrift/shared";
-import {
-  EMPTY_PRICE_LOOKUP,
-  deduplicateByCard,
-  filterCards,
-  getAvailableFilters,
-  groupPrintingsByCardId,
-  sortCards,
-} from "@openrift/shared";
+import { EMPTY_PRICE_LOOKUP, filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
-import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
+import { useEnumOrders } from "@/hooks/use-enums";
 
 interface UseCardDataParams {
   allPrintings: Printing[];
   sets: SetInfo[];
-  languageFilter?: string[];
   filters: CardFilters;
   /** Tri-state ownership filter: true = owned only, false = missing only, null = all. */
   isOwned?: boolean | null;
@@ -101,10 +93,28 @@ function buildOwnedCounts(
 const EMPTY_PRINTINGS_MAP = new Map<string, Printing[]>();
 const NO_OP_LABEL = (slug: string) => slug;
 
+/**
+ * Keep the first printing encountered per `cardId`. Relies on the input
+ * being pre-sorted in the order the caller wants to break ties in — here,
+ * (userLanguageRank, canonicalRank) from useCards().
+ *
+ * @returns One printing per cardId, in first-occurrence order.
+ */
+function firstPrintingPerCard(printings: Printing[]): Printing[] {
+  const seen = new Set<string>();
+  const result: Printing[] = [];
+  for (const printing of printings) {
+    if (!seen.has(printing.cardId)) {
+      seen.add(printing.cardId);
+      result.push(printing);
+    }
+  }
+  return result;
+}
+
 export function useCardData({
   allPrintings,
   sets,
-  languageFilter,
   filters,
   isOwned,
   sortBy,
@@ -119,7 +129,6 @@ export function useCardData({
   "use memo";
 
   const { orders } = useEnumOrders();
-  const defaultLanguageList = useLanguageList();
 
   if (!enabled) {
     return {
@@ -143,16 +152,9 @@ export function useCardData({
   const lookup = prices ?? EMPTY_PRICE_LOOKUP;
   const getPrice = (p: Printing) => lookup.get(p.id, favoriteMarketplace);
 
-  // Language is a hard filter applied via `filters.languages` inside
-  // `filterCards`. Separately, `effectiveLanguageOrder` is the canonical-
-  // ordering preference passed to deduplicateByCard / groupPrintingsByCardId
-  // to pick which printing represents a card when several languages remain.
-  // User preference wins; otherwise the live `languages.sort_order` from
-  // /api/enums provides the DB-driven default.
-  const effectiveLanguageOrder =
-    languageFilter && languageFilter.length > 0
-      ? languageFilter
-      : defaultLanguageList.map((l) => l.code);
+  // `allPrintings` from useCards() arrives in (userLanguageRank, canonicalRank)
+  // order, so `filterCards` preserves that order and the dedup/group below
+  // can be first-occurrence without re-sorting.
   const availableFilters = getAvailableFilters(allPrintings, { orders, sets, getPrice });
   let filteredCards = filterCards(allPrintings, filters, { keywordReverseMap, getPrice });
 
@@ -176,10 +178,9 @@ export function useCardData({
     }
   }
 
-  const displayCards =
-    view === "cards" ? deduplicateByCard(filteredCards, effectiveLanguageOrder) : filteredCards;
+  const displayCards = view === "cards" ? firstPrintingPerCard(filteredCards) : filteredCards;
 
-  const printingsByCardId = groupPrintingsByCardId(filteredCards, effectiveLanguageOrder);
+  const printingsByCardId = Map.groupBy(filteredCards, (p) => p.cardId);
 
   const priceRangeByCardId =
     view === "cards" ? computePriceRanges(printingsByCardId, lookup, favoriteMarketplace) : null;
