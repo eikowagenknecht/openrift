@@ -13,7 +13,7 @@ export interface ChannelNode {
   localPrintingCount: number;
 }
 
-export interface LanguageAggregate {
+interface LanguageAggregate {
   printingCount: number;
   cardCount: number;
 }
