@@ -56,6 +56,7 @@ function getPrefsSnapshot(): UserPreferencesResponse & { theme?: string | null }
     marketplaceOrder: overrides.marketplaceOrder,
     languages: overrides.languages,
     completionScope: overrides.completionScope,
+    defaultCardView: overrides.defaultCardView,
     theme: preference,
   } as UserPreferencesResponse;
 }

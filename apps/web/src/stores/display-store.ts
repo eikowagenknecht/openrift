@@ -1,4 +1,4 @@
-import type { CompletionScopePreference, Marketplace } from "@openrift/shared";
+import type { CompletionScopePreference, DefaultCardView, Marketplace } from "@openrift/shared";
 import { PREFERENCE_DEFAULTS } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
@@ -15,6 +15,7 @@ export interface DisplayOverrides {
   marketplaceOrder: Marketplace[] | null;
   languages: string[] | null;
   completionScope: CompletionScopePreference | null;
+  defaultCardView: DefaultCardView | null;
 }
 
 const NULL_OVERRIDES: DisplayOverrides = {
@@ -25,6 +26,7 @@ const NULL_OVERRIDES: DisplayOverrides = {
   marketplaceOrder: null,
   languages: null,
   completionScope: null,
+  defaultCardView: null,
 };
 
 // ── Resolve helpers ─────────────────────────────────────────────────────────
@@ -38,6 +40,7 @@ function resolveAll(overrides: DisplayOverrides) {
     marketplaceOrder: overrides.marketplaceOrder ?? [...PREFERENCE_DEFAULTS.marketplaceOrder],
     languages: overrides.languages ?? [...PREFERENCE_DEFAULTS.languages],
     completionScope: overrides.completionScope ?? { ...PREFERENCE_DEFAULTS.completionScope },
+    defaultCardView: overrides.defaultCardView ?? PREFERENCE_DEFAULTS.defaultCardView,
   };
 }
 
@@ -52,6 +55,7 @@ interface DisplayState {
   marketplaceOrder: Marketplace[];
   languages: string[];
   completionScope: CompletionScopePreference;
+  defaultCardView: DefaultCardView;
 
   // Nullable overrides — persisted to localStorage and synced to DB
   overrides: DisplayOverrides;
@@ -70,6 +74,7 @@ interface DisplayState {
   setMarketplaceOrder: (value: Marketplace[]) => void;
   setLanguages: (value: string[]) => void;
   setCompletionScope: (value: CompletionScopePreference) => void;
+  setDefaultCardView: (value: DefaultCardView) => void;
 
   // Reset a top-level preference to its default
   resetPreference: (
@@ -80,7 +85,8 @@ interface DisplayState {
       | "cardTilt"
       | "marketplaceOrder"
       | "languages"
-      | "completionScope",
+      | "completionScope"
+      | "defaultCardView",
   ) => void;
 
   // Hydrate overrides from server data (used by sync hook)
@@ -147,6 +153,11 @@ export const useDisplayStore = create<DisplayState>()(
           completionScope: value,
           overrides: { ...state.overrides, completionScope: value },
         })),
+      setDefaultCardView: (value) =>
+        set((state) => ({
+          defaultCardView: value,
+          overrides: { ...state.overrides, defaultCardView: value },
+        })),
 
       resetPreference: (key) =>
         set((state) => {
@@ -177,6 +188,10 @@ export const useDisplayStore = create<DisplayState>()(
               incoming.completionScope === undefined
                 ? state.overrides.completionScope
                 : incoming.completionScope,
+            defaultCardView:
+              incoming.defaultCardView === undefined
+                ? state.overrides.defaultCardView
+                : incoming.defaultCardView,
           };
           return { overrides: merged, ...resolveAll(merged), prefsHydrated: true };
         }),

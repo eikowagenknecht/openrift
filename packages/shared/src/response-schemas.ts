@@ -570,6 +570,7 @@ export const userPreferencesResponseSchema = z
     cardTilt: z.boolean().optional(),
     theme: z.enum(["light", "dark", "auto"]).optional(),
     marketplaceOrder: z.array(z.enum(["tcgplayer", "cardmarket", "cardtrader"])).optional(),
+    defaultCardView: z.enum(["cards", "printings"]).optional(),
   })
   .openapi("UserPreferencesResponse");
 

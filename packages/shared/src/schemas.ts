@@ -198,6 +198,8 @@ const marketplaceEnum = z.enum(["tcgplayer", "cardmarket", "cardtrader"]);
 
 const themeEnum = z.enum(["light", "dark", "auto"]);
 
+const defaultCardViewEnum = z.enum(["cards", "printings"]);
+
 export const updatePreferencesSchema = z.object({
   showImages: z.boolean().nullable().optional(),
   fancyFan: z.boolean().nullable().optional(),
@@ -215,4 +217,5 @@ export const updatePreferencesSchema = z.object({
     .refine((arr) => new Set(arr).size === arr.length, { message: "Duplicate languages" })
     .nullable()
     .optional(),
+  defaultCardView: defaultCardViewEnum.nullable().optional(),
 });

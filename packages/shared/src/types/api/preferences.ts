@@ -3,6 +3,8 @@ import type { Marketplace } from "../pricing.js";
 
 export type Theme = "light" | "dark" | "auto";
 
+export type DefaultCardView = "cards" | "printings";
+
 /**
  * Stored preferences — all fields optional.
  * Missing fields use `PREFERENCE_DEFAULTS` at read time.
@@ -33,6 +35,7 @@ export interface UserPreferencesResponse {
   marketplaceOrder?: Marketplace[];
   languages?: string[];
   completionScope?: CompletionScopePreference;
+  defaultCardView?: DefaultCardView;
 }
 
 /** Fully resolved preferences — no optional fields. */
@@ -45,6 +48,7 @@ export interface ResolvedPreferences {
   marketplaceOrder: Marketplace[];
   languages: string[];
   completionScope: CompletionScopePreference;
+  defaultCardView: DefaultCardView;
 }
 
 /** Default values for every preference. Used to resolve missing/null fields. */
@@ -57,4 +61,5 @@ export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   marketplaceOrder: [...ALL_MARKETPLACES],
   languages: ["EN"],
   completionScope: {},
+  defaultCardView: "printings",
 };

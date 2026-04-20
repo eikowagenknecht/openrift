@@ -5,6 +5,7 @@ import type { DisplayOverrides } from "@/stores/display-store";
 
 const VALID_MARKETPLACES = new Set<string>(ALL_MARKETPLACES);
 const VALID_THEMES = new Set<string>(["light", "dark", "auto"]);
+const VALID_DEFAULT_CARD_VIEWS = new Set<string>(["cards", "printings"]);
 
 interface SanitizedOverrides {
   overrides: DisplayOverrides;
@@ -91,6 +92,9 @@ export function sanitizeServerResponse(data: unknown): Partial<DisplayOverrides>
   if ("completionScope" in record) {
     result.completionScope = sanitizeCompletionScope(record.completionScope);
   }
+  if ("defaultCardView" in record) {
+    result.defaultCardView = sanitizeDefaultCardView(record.defaultCardView);
+  }
   return result;
 }
 
@@ -116,7 +120,15 @@ function nullOverrides(): DisplayOverrides {
     marketplaceOrder: null,
     languages: null,
     completionScope: null,
+    defaultCardView: null,
   };
+}
+
+function sanitizeDefaultCardView(value: unknown): "cards" | "printings" | null {
+  if (typeof value === "string" && VALID_DEFAULT_CARD_VIEWS.has(value)) {
+    return value as "cards" | "printings";
+  }
+  return null;
 }
 
 function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrides {
@@ -160,6 +172,8 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
 
   const safeCompletionScope = sanitizeCompletionScope(record.completionScope);
 
+  const safeDefaultCardView = sanitizeDefaultCardView(record.defaultCardView);
+
   return {
     showImages,
     fancyFan,
@@ -168,6 +182,7 @@ function sanitizeOverrideFields(record: Record<string, unknown>): DisplayOverrid
     marketplaceOrder: safeOrder,
     languages: safeLanguages,
     completionScope: safeCompletionScope,
+    defaultCardView: safeDefaultCardView,
   };
 }
 

@@ -2,6 +2,7 @@ export type { ApiErrorResponse } from "./error.js";
 
 export type {
   CompletionScopePreference,
+  DefaultCardView,
   ResolvedPreferences,
   Theme,
   UserPreferencesResponse,

@@ -25,6 +25,7 @@ describe("useDisplayStore", () => {
       expect(state.cardTilt).toBe(PREFERENCE_DEFAULTS.cardTilt);
       expect(state.marketplaceOrder).toEqual(PREFERENCE_DEFAULTS.marketplaceOrder);
       expect(state.languages).toEqual(PREFERENCE_DEFAULTS.languages);
+      expect(state.defaultCardView).toBe(PREFERENCE_DEFAULTS.defaultCardView);
     });
 
     it("starts with all overrides as null", () => {
@@ -35,6 +36,7 @@ describe("useDisplayStore", () => {
       expect(overrides.cardTilt).toBeNull();
       expect(overrides.marketplaceOrder).toBeNull();
       expect(overrides.languages).toBeNull();
+      expect(overrides.defaultCardView).toBeNull();
     });
   });
 
@@ -83,6 +85,14 @@ describe("useDisplayStore", () => {
       expect(useDisplayStore.getState().languages).toEqual(["DE", "FR"]);
       expect(useDisplayStore.getState().overrides.languages).toEqual(["DE", "FR"]);
     });
+
+    it("setDefaultCardView updates both resolved value and override", () => {
+      useDisplayStore.getState().setDefaultCardView("cards");
+
+      const state = useDisplayStore.getState();
+      expect(state.defaultCardView).toBe("cards");
+      expect(state.overrides.defaultCardView).toBe("cards");
+    });
   });
 
   describe("resetPreference", () => {
@@ -112,6 +122,14 @@ describe("useDisplayStore", () => {
       expect(useDisplayStore.getState().languages).toEqual(PREFERENCE_DEFAULTS.languages);
       expect(useDisplayStore.getState().overrides.languages).toBeNull();
     });
+
+    it("resets defaultCardView to default", () => {
+      useDisplayStore.getState().setDefaultCardView("cards");
+      useDisplayStore.getState().resetPreference("defaultCardView");
+
+      expect(useDisplayStore.getState().defaultCardView).toBe(PREFERENCE_DEFAULTS.defaultCardView);
+      expect(useDisplayStore.getState().overrides.defaultCardView).toBeNull();
+    });
   });
 
   describe("hydrateOverrides", () => {
@@ -124,6 +142,7 @@ describe("useDisplayStore", () => {
         marketplaceOrder: ["cardmarket"],
         languages: null,
         completionScope: null,
+        defaultCardView: "cards",
       });
 
       const state = useDisplayStore.getState();
@@ -132,6 +151,7 @@ describe("useDisplayStore", () => {
       expect(state.foilEffect).toBe(PREFERENCE_DEFAULTS.foilEffect);
       expect(state.marketplaceOrder).toEqual(["cardmarket"]);
       expect(state.languages).toEqual(PREFERENCE_DEFAULTS.languages);
+      expect(state.defaultCardView).toBe("cards");
     });
   });
 

@@ -109,6 +109,7 @@ export type {
   UnifiedMappingsResponse,
   UnmatchedCardDetailResponse,
   CompletionScopePreference,
+  DefaultCardView,
   ResolvedPreferences,
   Theme,
   UserPreferencesResponse,

@@ -139,6 +139,7 @@ export type {
   UnifiedMappingPrintingResponse,
   UnifiedMappingsResponse,
   UnmatchedCardDetailResponse,
+  DefaultCardView,
   ResolvedPreferences,
   Theme,
   UserPreferencesResponse,

@@ -2,6 +2,7 @@
 
 ## 2026-04-20
 
+- feat: The cards browser and your collections now open to the Printings view by default, so each finish/variant shows up as its own tile — switch back to Cards from the toolbar, or set a permanent default in your profile's Display settings
 - feat: The badge next to the OpenRift logo now reads "Unofficial" instead of "Beta", to make it clearer this is a fan project and not an official Riot product
 - feat: Each language heading on the Promos page now shows a total of how many distinct printings and cards are covered in that language, so you can see the scope of a language at a glance
 - fix: Piltover Archive CSV imports now pick the right promo printing even when the promo type is new or unrecognized, instead of silently matching the non-promo version of the card

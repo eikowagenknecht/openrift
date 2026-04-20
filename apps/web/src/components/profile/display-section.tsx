@@ -1,4 +1,4 @@
-import type { Theme } from "@openrift/shared";
+import type { DefaultCardView, Theme } from "@openrift/shared";
 import { RotateCcwIcon } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +18,8 @@ export function DisplaySection() {
   const setFoilEffect = useDisplayStore((s) => s.setFoilEffect);
   const cardTilt = useDisplayStore((s) => s.cardTilt);
   const setCardTilt = useDisplayStore((s) => s.setCardTilt);
+  const defaultCardView = useDisplayStore((s) => s.defaultCardView);
+  const setDefaultCardView = useDisplayStore((s) => s.setDefaultCardView);
   const overrides = useDisplayStore((s) => s.overrides);
   const resetPreference = useDisplayStore((s) => s.resetPreference);
   const themePreference = useThemeStore((s) => s.preference);
@@ -36,6 +38,19 @@ export function DisplaySection() {
             <ThemePicker value={themePreference} onChange={setTheme} />
             {themePreference !== null && (
               <ResetButton onClick={() => setTheme(null)} label="Reset theme" />
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          <Label>Default card view</Label>
+          <div className="flex items-center gap-1.5">
+            <DefaultCardViewPicker value={defaultCardView} onChange={setDefaultCardView} />
+            {overrides.defaultCardView !== null && (
+              <ResetButton
+                onClick={() => resetPreference("defaultCardView")}
+                label="Reset default card view"
+              />
             )}
           </div>
         </div>
@@ -146,6 +161,39 @@ function ThemePicker({
       {THEME_OPTIONS.map((option) => (
         <button
           key={option.value ?? "auto"}
+          type="button"
+          className={cn(
+            "rounded-sm px-2.5 py-1 text-sm font-medium transition-colors",
+            value === option.value
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          onClick={() => onChange(option.value)}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const DEFAULT_CARD_VIEW_OPTIONS: { value: DefaultCardView; label: string }[] = [
+  { value: "printings", label: "Printings" },
+  { value: "cards", label: "Cards" },
+];
+
+function DefaultCardViewPicker({
+  value,
+  onChange,
+}: {
+  value: DefaultCardView;
+  onChange: (value: DefaultCardView) => void;
+}) {
+  return (
+    <div className="bg-muted inline-flex items-center gap-0.5 rounded-md p-0.5">
+      {DEFAULT_CARD_VIEW_OPTIONS.map((option) => (
+        <button
+          key={option.value}
           type="button"
           className={cn(
             "rounded-sm px-2.5 py-1 text-sm font-medium transition-colors",

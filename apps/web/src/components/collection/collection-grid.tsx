@@ -64,6 +64,7 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
+import { useSeedViewFromPrefs } from "@/hooks/use-seed-view-from-prefs";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
 import { formatterForMarketplace } from "@/lib/format";
@@ -148,6 +149,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // After seeding, `filters.languages` is the single source of truth — empty
   // means "show all" (the user cleared every language within this session).
   useSeedLanguagesFromPrefs(filters.languages);
+
+  // Seed the URL view param from the user's default-view preference on fresh
+  // load only. Toggling view on the page writes to the URL, not the pref.
+  useSeedViewFromPrefs();
   const languageFilter = filters.languages;
 
   // "copies" is a collection-only UI concept — at the data level it behaves like "printings"

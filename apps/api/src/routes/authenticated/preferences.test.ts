@@ -129,6 +129,27 @@ describe("PATCH /api/v1/preferences", () => {
     expect(json.marketplaceOrder).toEqual(["cardmarket", "tcgplayer"]);
   });
 
+  it("updates defaultCardView preference", async () => {
+    mockRepo.upsert.mockResolvedValue({ defaultCardView: "cards" });
+    const res = await app.request("/api/v1/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ defaultCardView: "cards" }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.defaultCardView).toBe("cards");
+  });
+
+  it("rejects invalid defaultCardView value", async () => {
+    const res = await app.request("/api/v1/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ defaultCardView: "copies" }),
+    });
+    expect(res.status).toBe(400);
+  });
+
   it("rejects invalid theme value", async () => {
     const res = await app.request("/api/v1/preferences", {
       method: "PATCH",
