@@ -72,9 +72,11 @@ export function DeckMissingCardsDialog({
 
   const handleCopy = async () => {
     const lines = sorted.map((card) => {
+      const code = card.cheapestPrinting?.shortCode;
+      const namePart = code ? `${code} ${card.cardName}` : card.cardName;
       const price =
         card.cheapestPrice === undefined ? "" : ` - ${fmt(card.cheapestPrice * card.shortfall)}`;
-      return `${card.shortfall}x ${card.cardName}${price}`;
+      return `${card.shortfall}x ${namePart}${price}`;
     });
     // Use \r\n so line breaks survive iOS Safari's clipboard
     const text = lines.join("\r\n");
