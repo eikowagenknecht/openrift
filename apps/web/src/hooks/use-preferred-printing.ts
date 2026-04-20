@@ -2,6 +2,7 @@ import type { Printing, PrintingImage } from "@openrift/shared";
 import { preferredPrinting } from "@openrift/shared";
 
 import { useCards } from "@/hooks/use-cards";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useDisplayStore } from "@/stores/display-store";
 
 interface PreferredPrintingHelpers {
@@ -31,6 +32,7 @@ export function usePreferredPrinting(): PreferredPrintingHelpers {
   "use memo";
 
   const { printingsByCardId, setOrderMap } = useCards();
+  const { orders } = useEnumOrders();
   const languages = useDisplayStore((state) => state.languages);
 
   const getPreferredPrinting = (
@@ -47,7 +49,7 @@ export function usePreferredPrinting(): PreferredPrintingHelpers {
         return match;
       }
     }
-    return preferredPrinting(candidates, setOrderMap, languages);
+    return preferredPrinting(candidates, setOrderMap, orders.finishes, languages);
   };
 
   const getPreferredFrontImage = (

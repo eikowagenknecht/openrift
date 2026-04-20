@@ -1,5 +1,4 @@
 import type { CardType, Printing } from "./types/index.js";
-import { DEFAULT_ENUM_ORDERS } from "./types/index.js";
 import { WellKnown } from "./well-known.js";
 
 /**
@@ -70,7 +69,8 @@ interface ComparablePrinting {
  *   1. Set sort order from DB (by `setOrder` when available, else `setId` string)
  *   2. Short code (alphabetical — base variants sort before alt-art/overnumbered)
  *   3. Non-promo first
- *   4. Normal finish before foil
+ *   4. Finish order from the DB `finishes.sort_order` (required — callers must
+ *      thread the live order from `/api/enums` so admin re-ordering takes effect)
  * Use as a comparator for `.sort()` to get canonical printing order.
  *
  * @returns Negative if a comes first, positive if b comes first, 0 if equal.
@@ -78,7 +78,7 @@ interface ComparablePrinting {
 export function comparePrintings(
   a: ComparablePrinting,
   b: ComparablePrinting,
-  finishOrder: readonly string[] = DEFAULT_ENUM_ORDERS.finishes,
+  finishOrder: readonly string[],
 ): number {
   const aFinishIdx = finishOrder.indexOf(a.finish ?? "");
   const bFinishIdx = finishOrder.indexOf(b.finish ?? "");
@@ -123,6 +123,7 @@ export function compareWithLanguagePreference(
   a: Printing,
   b: Printing,
   setOrderMap: Map<string, number>,
+  finishOrder: readonly string[],
   languageOrder?: string[],
 ): number {
   // Default to EN-first when no preference is set
@@ -142,7 +143,7 @@ export function compareWithLanguagePreference(
       return alphaCompare;
     }
   }
-  return comparePrintings(toComparable(a, setOrderMap), toComparable(b, setOrderMap));
+  return comparePrintings(toComparable(a, setOrderMap), toComparable(b, setOrderMap), finishOrder);
 }
 
 /**
@@ -153,13 +154,17 @@ export function compareWithLanguagePreference(
 export function deduplicateByCard(
   printings: Printing[],
   setOrderMap: Map<string, number>,
+  finishOrder: readonly string[],
   languageOrder?: string[],
 ): Printing[] {
   const seen = new Map<string, Printing>();
   for (const printing of printings) {
     const existing = seen.get(printing.cardId);
     if (existing) {
-      if (compareWithLanguagePreference(printing, existing, setOrderMap, languageOrder) < 0) {
+      if (
+        compareWithLanguagePreference(printing, existing, setOrderMap, finishOrder, languageOrder) <
+        0
+      ) {
         seen.set(printing.cardId, printing);
       }
     } else {
@@ -178,6 +183,7 @@ export function deduplicateByCard(
 export function preferredPrinting(
   printings: Printing[],
   setOrderMap: Map<string, number>,
+  finishOrder: readonly string[],
   languageOrder?: string[],
 ): Printing | undefined {
   if (printings.length === 0) {
@@ -185,7 +191,9 @@ export function preferredPrinting(
   }
   let best = printings[0];
   for (let i = 1; i < printings.length; i++) {
-    if (compareWithLanguagePreference(printings[i], best, setOrderMap, languageOrder) < 0) {
+    if (
+      compareWithLanguagePreference(printings[i], best, setOrderMap, finishOrder, languageOrder) < 0
+    ) {
       best = printings[i];
     }
   }
@@ -200,6 +208,7 @@ export function preferredPrinting(
 export function groupPrintingsByCardId(
   printings: Printing[],
   setOrderMap: Map<string, number>,
+  finishOrder: readonly string[],
   languageOrder?: string[],
 ): Map<string, Printing[]> {
   const map = new Map<string, Printing[]>();
@@ -212,7 +221,9 @@ export function groupPrintingsByCardId(
     group.push(printing);
   }
   for (const group of map.values()) {
-    group.sort((a, b) => compareWithLanguagePreference(a, b, setOrderMap, languageOrder));
+    group.sort((a, b) =>
+      compareWithLanguagePreference(a, b, setOrderMap, finishOrder, languageOrder),
+    );
   }
   return map;
 }

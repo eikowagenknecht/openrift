@@ -36,19 +36,17 @@ describe("getOrientation", () => {
 });
 
 describe("constants", () => {
-  it("DEFAULT_ENUM_ORDERS contains all 6 enum keys", () => {
+  it("DEFAULT_ENUM_ORDERS contains the 5 non-finish enum keys (finishes has no fallback)", () => {
     expect(DEFAULT_ENUM_ORDERS).toHaveProperty("domains");
     expect(DEFAULT_ENUM_ORDERS).toHaveProperty("rarities");
     expect(DEFAULT_ENUM_ORDERS).toHaveProperty("artVariants");
-    expect(DEFAULT_ENUM_ORDERS).toHaveProperty("finishes");
     expect(DEFAULT_ENUM_ORDERS).toHaveProperty("cardTypes");
     expect(DEFAULT_ENUM_ORDERS).toHaveProperty("superTypes");
+    expect(DEFAULT_ENUM_ORDERS).not.toHaveProperty("finishes");
   });
 
   it("DEFAULT_ENUM_ORDERS contains well-known values", () => {
     expect(DEFAULT_ENUM_ORDERS.domains).toContain(WellKnown.domain.COLORLESS);
-    expect(DEFAULT_ENUM_ORDERS.finishes).toContain(WellKnown.finish.NORMAL);
-    expect(DEFAULT_ENUM_ORDERS.finishes).toContain(WellKnown.finish.FOIL);
     expect(DEFAULT_ENUM_ORDERS.artVariants).toContain(WellKnown.artVariant.NORMAL);
   });
 

@@ -15,6 +15,7 @@ import {
 } from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
 
 interface UseCollectionCardDataParams {
@@ -51,6 +52,7 @@ export function useCollectionCardData({
 }: UseCollectionCardDataParams) {
   "use memo";
   const { stacks, totalCopies, isReady } = useStackedCopies(collectionId);
+  const { orders } = useEnumOrders();
 
   const collectionPrintings = stacks.map((stack) => stack.printing);
   const setOrderMap = new Map(sets.map((set, index) => [set.id, index]));
@@ -59,7 +61,7 @@ export function useCollectionCardData({
 
   const getPrice = (p: Printing) => prices.get(p.id, favoriteMarketplace);
 
-  const availableFilters = getAvailableFilters(collectionPrintings, { getPrice });
+  const availableFilters = getAvailableFilters(collectionPrintings, { orders, getPrice });
   availableFilters.supplementalSets = new Set(
     sets.filter((s) => s.setType === "supplemental").map((s) => s.slug),
   );
@@ -67,10 +69,17 @@ export function useCollectionCardData({
 
   // In "cards" view, deduplicate by cardId (keep canonical printing)
   const displayCards =
-    view === "cards" ? deduplicateByCard(filteredCards, setOrderMap, languageOrder) : filteredCards;
+    view === "cards"
+      ? deduplicateByCard(filteredCards, setOrderMap, orders.finishes, languageOrder)
+      : filteredCards;
 
   // Group all collection printings by cardId for detail pane siblings
-  const printingsByCardId = groupPrintingsByCardId(collectionPrintings, setOrderMap, languageOrder);
+  const printingsByCardId = groupPrintingsByCardId(
+    collectionPrintings,
+    setOrderMap,
+    orders.finishes,
+    languageOrder,
+  );
 
   // Price ranges for "cards" view sorting
   const priceRangeByCardId =

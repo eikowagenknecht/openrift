@@ -16,6 +16,7 @@ import type {
   CatalogSetResponse,
   Printing,
 } from "@openrift/shared";
+import { comparePrintings } from "@openrift/shared";
 import { bench, describe } from "vitest";
 
 const SET_COUNT = 7;
@@ -129,6 +130,7 @@ const { rawCatalog, sets, cardsArray, printingsArray } = buildFixtures();
 function enrichCatalog(catalog: CatalogResponse) {
   const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
   const cardsById: Record<string, Card> = catalog.cards;
+  const setOrderMap = new Map(catalog.sets.map((s, i) => [s.id, i]));
   const allPrintings: Printing[] = [];
   const printingsById: Record<string, Printing> = {};
   for (const [id, value] of Object.entries(catalog.printings)) {
@@ -140,8 +142,14 @@ function enrichCatalog(catalog: CatalogResponse) {
       printingsById[id] = printing;
     }
   }
+  allPrintings.sort((a, b) =>
+    comparePrintings(
+      { ...a, setOrder: setOrderMap.get(a.setId), markerSlugs: a.markers.map((m) => m.slug) },
+      { ...b, setOrder: setOrderMap.get(b.setId), markerSlugs: b.markers.map((m) => m.slug) },
+      FINISHES,
+    ),
+  );
   const printingsByCardId = Map.groupBy(allPrintings, (p) => p.cardId);
-  const setOrderMap = new Map(catalog.sets.map((s, i) => [s.id, i]));
   return {
     allPrintings,
     cardsById,
@@ -164,6 +172,7 @@ function enrichFromCollections(
   for (const { id, ...card } of rawCards) {
     cardsById[id] = card;
   }
+  const setOrderMap = new Map(rawSets.map((s, i) => [s.id, i]));
   const allPrintings: Printing[] = [];
   const printingsById: Record<string, Printing> = {};
   for (const raw of rawPrintings) {
@@ -175,8 +184,14 @@ function enrichFromCollections(
       printingsById[raw.id] = printing;
     }
   }
+  allPrintings.sort((a, b) =>
+    comparePrintings(
+      { ...a, setOrder: setOrderMap.get(a.setId), markerSlugs: a.markers.map((m) => m.slug) },
+      { ...b, setOrder: setOrderMap.get(b.setId), markerSlugs: b.markers.map((m) => m.slug) },
+      FINISHES,
+    ),
+  );
   const printingsByCardId = Map.groupBy(allPrintings, (p) => p.cardId);
-  const setOrderMap = new Map(rawSets.map((s, i) => [s.id, i]));
   return {
     allPrintings,
     cardsById,
