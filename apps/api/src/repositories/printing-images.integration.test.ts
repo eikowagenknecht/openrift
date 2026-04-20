@@ -75,12 +75,13 @@ describe.skipIf(!ctx)("printingImagesRepo (integration)", () => {
     expect(found).toBeDefined();
   });
 
-  it("getImageFileById returns the image_file's rehostedUrl", async () => {
+  it("getImageFileById returns the image_file's urls", async () => {
     const imageFileId = await repo.getImageFileId(createdImageIds[0]);
     expect(imageFileId).toBeDefined();
     const row = await repo.getImageFileById(imageFileId!);
     expect(row).toEqual({
       id: imageFileId,
+      originalUrl: "https://example.com/test-img.jpg",
       rehostedUrl: "https://cdn.example.com/rehosted.jpg",
     });
   });

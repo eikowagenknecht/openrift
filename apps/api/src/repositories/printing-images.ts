@@ -367,14 +367,14 @@ export function printingImagesRepo(db: Kysely<Database>) {
 
     /**
      * Fetch an image_files row by ID.
-     * @returns The image_file's ID and rehostedUrl, or undefined if not found.
+     * @returns The image_file's ID, originalUrl, and rehostedUrl, or undefined if not found.
      */
     getImageFileById(
       imageFileId: string,
-    ): Promise<{ id: string; rehostedUrl: string | null } | undefined> {
+    ): Promise<{ id: string; originalUrl: string | null; rehostedUrl: string | null } | undefined> {
       return db
         .selectFrom("imageFiles")
-        .select(["id", "rehostedUrl"])
+        .select(["id", "originalUrl", "rehostedUrl"])
         .where("id", "=", imageFileId)
         .executeTakeFirst();
     },

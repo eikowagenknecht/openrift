@@ -440,13 +440,17 @@ describe("rehostImages", () => {
 });
 
 describe("unrehostImages", () => {
-  function makeUnrehostRepo(files: Record<string, { rehostedUrl: string | null }>) {
+  function makeUnrehostRepo(
+    files: Record<string, { originalUrl: string | null; rehostedUrl: string | null }>,
+  ) {
     const updateRehostedUrl = vi.fn(() => Promise.resolve());
     return {
       updateRehostedUrl,
       getImageFileById: vi.fn((id: string) => {
         const file = files[id];
-        return Promise.resolve(file ? { id, rehostedUrl: file.rehostedUrl } : undefined);
+        return Promise.resolve(
+          file ? { id, originalUrl: file.originalUrl, rehostedUrl: file.rehostedUrl } : undefined,
+        );
       }),
     } as any;
   }
@@ -459,7 +463,7 @@ describe("unrehostImages", () => {
 
   it("clears rehostedUrl and deletes disk files for the image_file", async () => {
     const repo = makeUnrehostRepo({
-      "file-1": { rehostedUrl: "/media/cards/01/file-1" },
+      "file-1": { originalUrl: "https://example.com/x.png", rehostedUrl: "/media/cards/01/file-1" },
     });
     mockReaddir.mockResolvedValue(["file-1-orig.png", "file-1-400w.webp"]);
 
@@ -472,7 +476,7 @@ describe("unrehostImages", () => {
 
   it("still succeeds when the disk directory is already gone (broken-entry case)", async () => {
     const repo = makeUnrehostRepo({
-      "file-1": { rehostedUrl: "/media/cards/01/file-1" },
+      "file-1": { originalUrl: "https://example.com/x.png", rehostedUrl: "/media/cards/01/file-1" },
     });
     mockReaddir.mockRejectedValue(Object.assign(new Error("ENOENT"), { code: "ENOENT" }));
 
@@ -484,13 +488,25 @@ describe("unrehostImages", () => {
 
   it("records a failure when the image is not rehosted", async () => {
     const repo = makeUnrehostRepo({
-      "file-1": { rehostedUrl: null },
+      "file-1": { originalUrl: "https://example.com/x.png", rehostedUrl: null },
     });
     const result = await unrehostImages(mockIo, repo, ["file-1"]);
     expect(result.unrehosted).toBe(0);
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("not rehosted");
     expect(repo.updateRehostedUrl).not.toHaveBeenCalled();
+  });
+
+  it("records a failure for an uploaded image with no originalUrl (can't re-fetch)", async () => {
+    const repo = makeUnrehostRepo({
+      "file-uploaded": { originalUrl: null, rehostedUrl: "/media/cards/ed/file-uploaded" },
+    });
+    const result = await unrehostImages(mockIo, repo, ["file-uploaded"]);
+    expect(result.unrehosted).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(result.errors[0]).toContain("no original URL");
+    expect(repo.updateRehostedUrl).not.toHaveBeenCalled();
+    expect(mockUnlink).not.toHaveBeenCalled();
   });
 
   it("records a failure when the image_file is unknown", async () => {
@@ -503,8 +519,11 @@ describe("unrehostImages", () => {
 
   it("continues past per-item errors and reports mixed results", async () => {
     const repo = makeUnrehostRepo({
-      "file-ok": { rehostedUrl: "/media/cards/01/file-ok" },
-      "file-not-rehosted": { rehostedUrl: null },
+      "file-ok": {
+        originalUrl: "https://example.com/ok.png",
+        rehostedUrl: "/media/cards/01/file-ok",
+      },
+      "file-not-rehosted": { originalUrl: "https://example.com/nr.png", rehostedUrl: null },
     });
     const result = await unrehostImages(mockIo, repo, [
       "file-ok",
