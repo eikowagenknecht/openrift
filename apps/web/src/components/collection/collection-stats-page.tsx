@@ -126,20 +126,21 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
             <p className="text-2xl font-semibold tabular-nums">
               {stats.formatPrice(stats.estimatedValue)}
             </p>
-            <p className="text-muted-foreground flex items-center gap-1 text-xs">
-              <img
-                src={MARKETPLACE_META[stats.marketplace].icon}
-                alt=""
-                className="h-3 invert dark:invert-0"
-              />
-              {MARKETPLACE_META[stats.marketplace].label}
+            <div className="text-muted-foreground text-xs">
+              <p className="flex items-center gap-1">
+                <img
+                  src={MARKETPLACE_META[stats.marketplace].icon}
+                  alt=""
+                  className="h-3 invert dark:invert-0"
+                />
+                {MARKETPLACE_META[stats.marketplace].label}
+              </p>
               {stats.unpricedCount > 0 && (
-                <span>
-                  &middot; {stats.unpricedCount} {stats.unpricedCount === 1 ? "copy" : "copies"}{" "}
-                  unpriced
-                </span>
+                <p>
+                  {stats.unpricedCount} {stats.unpricedCount === 1 ? "copy" : "copies"} unpriced
+                </p>
               )}
-            </p>
+            </div>
           </CardContent>
         </Card>
       </a>

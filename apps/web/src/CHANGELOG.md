@@ -7,6 +7,7 @@
 - feat: The cards browser and your collections now open to the Printings view by default, so each finish/variant shows up as its own tile — switch back to Cards from the toolbar, or set a permanent default in your profile's Display settings
 - feat: The badge next to the OpenRift logo now reads "Unofficial" instead of "Beta", to make it clearer this is a fan project and not an official Riot product
 - feat: Each language heading on the Promos page now shows a total of how many distinct printings and cards are covered in that language, so you can see the scope of a language at a glance
+- fix: The "n copies unpriced" note on the Collection stats page now sits on its own line instead of awkwardly wrapping mid-phrase next to the marketplace label
 - fix: Piltover Archive CSV imports now pick the right promo printing even when the promo type is new or unrecognized, instead of silently matching the non-promo version of the card
 - fix: The collapse caret next to section headings on the Promos page no longer gets clipped off the left edge of the screen on phones
 - fix: The Promos page no longer double-counts a printing in its section totals when that printing was distributed through multiple channels (e.g. both a tournament and a bundle), so the roll-up numbers match what you actually see below
