@@ -2,7 +2,6 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { CandidateCardUploadResponse, CardType, Domain, SuperType } from "@openrift/shared";
 import { appendSetTotal, fixTypography } from "@openrift/shared";
 import { extractKeywords } from "@openrift/shared/keywords";
-import { DEFAULT_ENUM_ORDERS } from "@openrift/shared/types";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 import { z } from "zod";
 
@@ -823,7 +822,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   // ── POST /printing/:printingId/accept-field ──────────────────────────────
   .openapi(acceptPrintingField, async (c) => {
-    const { candidateMutations: mut, printingEvents } = c.get("repos");
+    const { candidateMutations: mut, printingEvents, rarities } = c.get("repos");
     const printingId = c.req.valid("param").printingId;
     const { field, value, source } = c.req.valid("json");
 
@@ -858,8 +857,10 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     // so that case-insensitive input like "common" is accepted)
     let normalizedValue = value;
     if (field === "rarity" && typeof value === "string") {
+      const rarityRows = await rarities.listAll();
+      const raritySlugs = rarityRows.map((row) => row.slug);
       normalizedValue =
-        DEFAULT_ENUM_ORDERS.rarities.find((r) => r.toLowerCase() === value.toLowerCase()) || value;
+        raritySlugs.find((slug) => slug.toLowerCase() === value.toLowerCase()) || value;
     }
 
     // Validate against printingFieldRules when a rule exists for this field

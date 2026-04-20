@@ -135,6 +135,15 @@ const app = new Hono()
       printingEvents: mockPrintingEvents,
       providerSettings: { favoriteProviders: vi.fn().mockResolvedValue(new Set(["gallery"])) },
       sets: mockSets,
+      rarities: {
+        listAll: vi.fn().mockResolvedValue([
+          { slug: "Common", label: "Common", color: null, sortOrder: 1, isWellKnown: true },
+          { slug: "Uncommon", label: "Uncommon", color: null, sortOrder: 2, isWellKnown: true },
+          { slug: "Rare", label: "Rare", color: null, sortOrder: 3, isWellKnown: true },
+          { slug: "Epic", label: "Epic", color: null, sortOrder: 4, isWellKnown: true },
+          { slug: "Showcase", label: "Showcase", color: null, sortOrder: 5, isWellKnown: true },
+        ]),
+      },
     } as never);
     c.set("services", {
       ingestCandidates: mockIngestCandidates,

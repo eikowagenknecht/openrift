@@ -148,7 +148,6 @@ export type {
 export type { EnumOrders } from "./types/index.js";
 export {
   ALL_SEARCH_FIELDS,
-  DEFAULT_ENUM_ORDERS,
   DEFAULT_SEARCH_SCOPE,
   NONE,
   SEARCH_PREFIX_MAP,

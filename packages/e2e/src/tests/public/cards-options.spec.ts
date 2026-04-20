@@ -138,7 +138,7 @@ test.describe("card browser — options bar", () => {
     await page.getByRole("button", { name: "Type", exact: true }).click();
     await page.keyboard.press("Escape");
 
-    // Order with asc: DEFAULT_ENUM_ORDERS.cardTypes is
+    // Order with asc: the seeded card_types table sort_order is
     // ["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield", "Other"].
     // Only Legend / Unit / Spell are present in seed, so asc order starts
     // with Legend; flipping should put Spell first. The grid is window-

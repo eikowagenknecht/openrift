@@ -202,6 +202,15 @@ describe("acceptPrinting", () => {
         upsert: vi.fn(async () => {}),
         getPrintedTotal: vi.fn(async () => null),
       },
+      rarities: {
+        listAll: vi.fn(async () => [
+          { slug: "Common", label: "Common", color: null, sortOrder: 1, isWellKnown: true },
+          { slug: "Uncommon", label: "Uncommon", color: null, sortOrder: 2, isWellKnown: true },
+          { slug: "Rare", label: "Rare", color: null, sortOrder: 3, isWellKnown: true },
+          { slug: "Epic", label: "Epic", color: null, sortOrder: 4, isWellKnown: true },
+          { slug: "Showcase", label: "Showcase", color: null, sortOrder: 5, isWellKnown: true },
+        ]),
+      },
       ...overrides,
     };
   }
@@ -351,6 +360,15 @@ describe("acceptPrinting", () => {
       sets: {
         upsert: vi.fn(async () => {}),
         getPrintedTotal: vi.fn(async () => null),
+      },
+      rarities: {
+        listAll: vi.fn(async () => [
+          { slug: "Common", label: "Common", color: null, sortOrder: 1, isWellKnown: true },
+          { slug: "Uncommon", label: "Uncommon", color: null, sortOrder: 2, isWellKnown: true },
+          { slug: "Rare", label: "Rare", color: null, sortOrder: 3, isWellKnown: true },
+          { slug: "Epic", label: "Epic", color: null, sortOrder: 4, isWellKnown: true },
+          { slug: "Showcase", label: "Showcase", color: null, sortOrder: 5, isWellKnown: true },
+        ]),
       },
     };
 
