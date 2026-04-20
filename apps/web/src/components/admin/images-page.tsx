@@ -28,6 +28,7 @@ import {
   useRehostImages,
   useRehostStatus,
   useRestoreImageUrls,
+  useUnrehostImages,
 } from "@/hooks/use-rehost";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -410,6 +411,7 @@ function MissingImagesSection() {
 function BrokenImagesSection() {
   const [enabled, setEnabled] = useState(false);
   const { data, isLoading } = useBrokenImages(enabled);
+  const unrehostMutation = useUnrehostImages();
 
   if (!enabled) {
     return (
@@ -449,7 +451,6 @@ function BrokenImagesSection() {
     );
   }
 
-  // Group by set for readability
   const bySet = new Map<string, typeof data.broken>();
   for (const entry of data.broken) {
     const list = bySet.get(entry.setSlug) ?? [];
@@ -457,16 +458,43 @@ function BrokenImagesSection() {
     bySet.set(entry.setSlug, list);
   }
 
+  const imageIds = data.broken.map((entry) => entry.imageId);
+
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Broken Images</CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="text-base">Broken Images</CardTitle>
+          <ConfirmClearButton
+            label="Un-rehost all"
+            title={`Un-rehost ${data.broken.length} broken ${data.broken.length === 1 ? "image" : "images"}?`}
+            description="Clears the rehosted URL on each image so the next Rehost missing run re-downloads and regenerates them from the original source."
+            onConfirm={() => unrehostMutation.mutate(imageIds)}
+            disabled={unrehostMutation.isPending}
+            isPending={unrehostMutation.isPending}
+          />
+        </div>
         <CardDescription>
           {data.broken.length} of {data.total} rehosted{" "}
           {data.broken.length === 1 ? "image is" : "images are"} missing files on disk.
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
+        {unrehostMutation.isSuccess && unrehostMutation.data && (
+          <div className="mb-3">
+            <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+              <CheckIcon className="size-4" />
+              Un-rehosted {unrehostMutation.data.unrehosted} / {unrehostMutation.data.total} images
+            </p>
+            <ErrorsList errors={unrehostMutation.data.errors} />
+          </div>
+        )}
+        {unrehostMutation.isError && (
+          <p className="mb-3 flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <XIcon className="size-4" />
+            {unrehostMutation.error?.message}
+          </p>
+        )}
         <div className="space-y-3">
           {[...bySet.entries()].map(([setSlug, entries]) => (
             <div key={setSlug}>

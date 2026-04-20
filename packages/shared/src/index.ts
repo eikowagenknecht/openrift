@@ -114,6 +114,8 @@ export type {
   RehostStatusResponse,
   RehostStatusSetStats,
   RestoreImageUrlsResponse,
+  UnrehostImagesRequest,
+  UnrehostImagesResponse,
   SearchField,
   SetDetailResponse,
   SetListEntry,

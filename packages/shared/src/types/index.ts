@@ -101,6 +101,8 @@ export type {
   RehostStatusResponse,
   RehostStatusSetStats,
   RestoreImageUrlsResponse,
+  UnrehostImagesRequest,
+  UnrehostImagesResponse,
   StagedProductResponse,
   UnifiedMappingGroupResponse,
   UnifiedMappingPrintingResponse,

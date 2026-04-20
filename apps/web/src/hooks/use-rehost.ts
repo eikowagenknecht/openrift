@@ -4,6 +4,7 @@ import type {
   RegenerateImageResponse,
   RehostImageResponse,
   RehostStatusResponse,
+  UnrehostImagesResponse,
 } from "@openrift/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
@@ -100,6 +101,21 @@ const regenerateImagesBatchFn = createServerFn({ method: "POST" })
       throw new Error(`Regenerate images batch failed: ${res.status}`);
     }
     return res.json() as Promise<RegenerateImageResponse>;
+  });
+
+const unrehostImagesFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { imageIds: string[] }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }): Promise<UnrehostImagesResponse> => {
+    const res = await fetch(`${API_URL}/api/v1/admin/unrehost-images`, {
+      method: "POST",
+      headers: { cookie: context.cookie, "content-type": "application/json" },
+      body: JSON.stringify({ imageIds: data.imageIds }),
+    });
+    if (!res.ok) {
+      throw new Error(`Unrehost images failed: ${res.status}`);
+    }
+    return res.json() as Promise<UnrehostImagesResponse>;
   });
 
 const clearRehostedFn = createServerFn({ method: "POST" })
@@ -217,6 +233,17 @@ export function useRehostImages(onBatchComplete?: () => void) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
+    },
+  });
+}
+
+export function useUnrehostImages() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (imageIds: string[]) => unrehostImagesFn({ data: { imageIds } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.brokenImages });
     },
   });
 }

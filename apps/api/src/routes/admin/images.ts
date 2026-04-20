@@ -11,6 +11,7 @@ import {
   migrateImageDirectories,
   regenerateImages,
   rehostImages,
+  unrehostImages,
 } from "../../services/image-rehost.js";
 import type { Variables } from "../../types.js";
 import { restoreImageUrlsSchema } from "./schemas.js";
@@ -86,6 +87,38 @@ const cleanupOrphaned = createRoute({
         },
       },
       description: "Cleanup orphaned files result",
+    },
+  },
+});
+
+const unrehostImagesRoute = createRoute({
+  method: "post",
+  path: "/unrehost-images",
+  tags: ["Admin - Images"],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            imageIds: z.array(z.string().uuid()).min(1).max(1000),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            total: z.number().openapi({ example: 12 }),
+            unrehosted: z.number().openapi({ example: 12 }),
+            failed: z.number().openapi({ example: 0 }),
+            errors: z.array(z.string()).openapi({ example: [] }),
+          }),
+        },
+      },
+      description: "Un-rehost images result",
     },
   },
 });
@@ -312,6 +345,13 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
   .openapi(cleanupOrphaned, async (c) => {
     const { printingImages } = c.get("repos");
     const result = await cleanupOrphanedFiles(c.get("io"), printingImages);
+    return c.json(result);
+  })
+
+  .openapi(unrehostImagesRoute, async (c) => {
+    const { printingImages } = c.get("repos");
+    const { imageIds } = c.req.valid("json");
+    const result = await unrehostImages(c.get("io"), printingImages, imageIds);
     return c.json(result);
   })
 

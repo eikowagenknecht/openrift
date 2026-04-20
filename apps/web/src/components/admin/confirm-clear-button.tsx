@@ -19,17 +19,19 @@ export function ConfirmClearButton({
   onConfirm,
   disabled,
   isPending,
+  label = "Clear",
 }: {
   title: string;
   description: string;
   onConfirm: () => void;
   disabled?: boolean;
   isPending?: boolean;
+  label?: string;
 }) {
   return (
     <AlertDialog>
       <AlertDialogTrigger disabled={disabled} render={<Button variant="destructive" />}>
-        {isPending ? <LoaderIcon className="size-4 animate-spin" /> : "Clear"}
+        {isPending ? <LoaderIcon className="size-4 animate-spin" /> : label}
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -39,7 +41,7 @@ export function ConfirmClearButton({
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogPrimitive.Close render={<Button variant="destructive" />} onClick={onConfirm}>
-            Clear
+            {label}
           </AlertDialogPrimitive.Close>
         </AlertDialogFooter>
       </AlertDialogContent>

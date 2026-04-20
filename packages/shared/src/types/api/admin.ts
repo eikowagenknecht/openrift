@@ -340,6 +340,17 @@ export interface RehostImageResponse {
   errors: string[];
 }
 
+export interface UnrehostImagesRequest {
+  imageIds: string[];
+}
+
+export interface UnrehostImagesResponse {
+  total: number;
+  unrehosted: number;
+  failed: number;
+  errors: string[];
+}
+
 export interface RegenerateImageResponse {
   total: number;
   regenerated: number;

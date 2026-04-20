@@ -9,6 +9,7 @@ import {
   getRehostStatus,
   regenerateImages,
   rehostImages,
+  unrehostImages,
 } from "../../services/image-rehost.js";
 import { imagesRoute } from "./images";
 
@@ -24,6 +25,7 @@ vi.mock("../../services/image-rehost.js", () => ({
   getRehostStatus: vi.fn(),
   findBrokenImages: vi.fn(),
   findLowResImages: vi.fn(),
+  unrehostImages: vi.fn(),
 }));
 
 const mockRehostImages = vi.mocked(rehostImages);
@@ -33,6 +35,7 @@ const mockClearAllRehosted = vi.mocked(clearAllRehosted);
 const mockGetRehostStatus = vi.mocked(getRehostStatus);
 const mockFindBrokenImages = vi.mocked(findBrokenImages);
 const mockFindLowResImages = vi.mocked(findLowResImages);
+const mockUnrehostImages = vi.mocked(unrehostImages);
 
 // ---------------------------------------------------------------------------
 // Mock repos
@@ -165,6 +168,67 @@ describe("POST /api/v1/clear-rehosted", () => {
     const json = await res.json();
     expect(json).toEqual({ cleared: 42 });
     expect(mockClearAllRehosted).toHaveBeenCalledWith(mockIo, mockPrintingImages);
+  });
+});
+
+describe("POST /api/v1/unrehost-images", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const validUuid1 = "a0000000-0001-4000-a000-000000000001";
+  const validUuid2 = "a0000000-0001-4000-a000-000000000002";
+
+  it("returns 200 with unrehost result for valid ids", async () => {
+    const result = { total: 2, unrehosted: 2, failed: 0, errors: [] };
+    mockUnrehostImages.mockResolvedValue(result);
+
+    const res = await app.request("/api/v1/unrehost-images", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageIds: [validUuid1, validUuid2] }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual(result);
+    expect(mockUnrehostImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, [
+      validUuid1,
+      validUuid2,
+    ]);
+  });
+
+  it("rejects an empty imageIds array", async () => {
+    const res = await app.request("/api/v1/unrehost-images", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageIds: [] }),
+    });
+    expect(res.status).toBe(400);
+    expect(mockUnrehostImages).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-uuid ids", async () => {
+    const res = await app.request("/api/v1/unrehost-images", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageIds: ["not-a-uuid"] }),
+    });
+    expect(res.status).toBe(400);
+    expect(mockUnrehostImages).not.toHaveBeenCalled();
+  });
+
+  it("surfaces partial failures in the response", async () => {
+    const result = { total: 2, unrehosted: 1, failed: 1, errors: [`${validUuid2}: not rehosted`] };
+    mockUnrehostImages.mockResolvedValue(result);
+
+    const res = await app.request("/api/v1/unrehost-images", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageIds: [validUuid1, validUuid2] }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual(result);
   });
 });
 
