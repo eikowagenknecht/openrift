@@ -154,8 +154,9 @@ function SingleChart({
   );
 
   if (singleColor) {
+    const totalKey = `${metric}_total`;
     const singleConfig: ChartConfig = {
-      [`${metric}_total`]: { label: "Count", color: "var(--color-primary)" },
+      [totalKey]: { label: "Count", color: "var(--color-primary)" },
     };
     const chartData = Array.from({ length: maxValue + 1 }, (_, value) => {
       const entry = valueMap.get(value);
@@ -165,7 +166,7 @@ function SingleChart({
           total += (entry[stack.key] as number) ?? 0;
         }
       }
-      return { value: String(value), [`${metric}_total`]: total };
+      return { value: String(value), [totalKey]: total };
     });
     return (
       <div>
