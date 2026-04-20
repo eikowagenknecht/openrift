@@ -402,18 +402,18 @@ function ChannelBranch({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="hover:bg-muted/50 relative -mr-2 mb-2 -ml-6 block w-full rounded py-1 pr-2 pl-6 text-left"
+        className="hover:bg-muted/50 relative -mr-2 mb-2 flex w-full items-start gap-1 rounded py-1 pr-2 text-left md:-ml-6 md:block md:pl-6"
         aria-expanded={open}
       >
         {open ? (
           <ChevronDownIcon
             aria-hidden
-            className="text-muted-foreground absolute top-2 left-1 size-4"
+            className="text-muted-foreground mt-1.5 size-4 shrink-0 md:absolute md:top-2 md:left-1 md:mt-0"
           />
         ) : (
           <ChevronRightIcon
             aria-hidden
-            className="text-muted-foreground absolute top-2 left-1 size-4"
+            className="text-muted-foreground mt-1.5 size-4 shrink-0 md:absolute md:top-2 md:left-1 md:mt-0"
           />
         )}
         <div className="min-w-0">
