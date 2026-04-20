@@ -12,12 +12,17 @@ async function openSortPopover(page: Page) {
 
 function cardTiles(page: Page): Locator {
   // The grid renders a shortcode + card name inside each CardMetaLabel.
-  // Short codes all follow "OGS-xxx" in the seed data.
-  return page.getByText(/^OGS-\d{3}$/);
+  // Short codes all follow "OGS-xxx" in the seed data. The scroll indicator
+  // badge also shows the current card id as plain text, so scope to the
+  // grid's CardMetaLabel by requiring the span to sit alongside a card name.
+  // CardMetaLabel renders short codes inside a `.bg-background.rounded-md`
+  // wrapper, while the scroll indicator badge is a positioned `.font-mono`
+  // element. Filter the shortcode span's parent accordingly.
+  return page.locator(".bg-background.rounded-md span", { hasText: /^OGS-\d{3}$/ });
 }
 
 async function waitForCatalogLoaded(page: Page) {
-  await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
 }
 
 test.describe("card browser — search bar", () => {
@@ -25,8 +30,9 @@ test.describe("card browser — search bar", () => {
     await page.goto("/cards");
     await waitForCatalogLoaded(page);
 
-    // Unfiltered: label shows "<N> cards".
-    const countLabel = page.getByText(/\b\d+ cards\b/).first();
+    // Unfiltered: label shows "<N> cards" or "<N> printings" depending on the
+    // default view preference (defaults to "printings").
+    const countLabel = page.getByText(/\b\d+ (cards|printings)\b/).first();
     await expect(countLabel).toBeVisible();
     const initialText = await countLabel.textContent();
     const initialTotal = Number(initialText?.match(/\d+/)?.[0] ?? 0);
@@ -34,11 +40,11 @@ test.describe("card browser — search bar", () => {
 
     await page.getByPlaceholder(/search/i).fill("Garen");
 
-    // Filtered label switches to "<filtered> / <total> cards".
-    const filteredLabel = page.getByText(/\d+ \/ \d+ cards/);
+    // Filtered label switches to "<filtered> / <total> cards|printings".
+    const filteredLabel = page.getByText(/\d+ \/ \d+ (cards|printings)/);
     await expect(filteredLabel).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText("Garen, Rugged")).toBeVisible();
-    await expect(page.getByText("Annie, Fiery")).not.toBeVisible();
+    await expect(page.getByText("Garen, Rugged").first()).toBeVisible();
+    await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
   });
 
   test("clearing the search restores all cards", async ({ page }) => {
@@ -47,13 +53,13 @@ test.describe("card browser — search bar", () => {
 
     const search = page.getByPlaceholder(/search/i);
     await search.fill("Garen");
-    await expect(page.getByText("Annie, Fiery")).not.toBeVisible();
+    await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
 
     await page.getByRole("button", { name: "Clear search" }).click();
 
     await expect(search).toHaveValue("");
-    await expect(page.getByText("Annie, Fiery")).toBeVisible();
-    await expect(page.getByText("Garen, Rugged")).toBeVisible();
+    await expect(page.getByText("Annie, Fiery").first()).toBeVisible();
+    await expect(page.getByText("Garen, Rugged").first()).toBeVisible();
   });
 
   test("debounced typing lands on the final result without flashing intermediate state", async ({
@@ -70,29 +76,30 @@ test.describe("card browser — search bar", () => {
 
     // The debounce only flushes after 200ms of stable input — once it lands,
     // exactly one Garen card remains and no Annie/Lux cards leak in.
-    await expect(page.getByText("Garen, Rugged")).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText("Annie, Fiery")).not.toBeVisible();
-    await expect(page.getByText("Lux, Illuminated")).not.toBeVisible();
+    await expect(page.getByText("Garen, Rugged").first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
+    await expect(page.getByText("Lux, Illuminated").first()).not.toBeVisible();
   });
 });
 
 test.describe("card browser — options bar", () => {
-  test("switching view from cards to printings changes the count label", async ({ page }) => {
+  test("switching view between printings and cards changes the count label", async ({ page }) => {
     await page.goto("/cards");
     await waitForCatalogLoaded(page);
 
-    await expect(page.getByText(/\b\d+ cards\b/)).toBeVisible();
+    // Default view is "printings" — the count label renders as "<N> printings".
+    await expect(page.getByText(/\b\d+ printings\b/)).toBeVisible();
 
     // The ViewMode ButtonGroup has aria-label="View mode"; within it the
     // desktop layout renders [Cards, Printings] as icon-only buttons.
     const viewGroup = page.getByRole("group", { name: "View mode" });
-    await viewGroup.getByRole("button").nth(1).click();
+    // Click the first button (Cards) to switch out of printings view.
+    await viewGroup.getByRole("button").nth(0).click();
 
-    // Label unit switches from "cards" to "printings" — printings ≥ cards in
-    // seed data, so the total should also be no smaller.
-    const printingsLabel = page.getByText(/\b\d+ printings\b/);
-    await expect(printingsLabel).toBeVisible();
-    await expect(page.getByText(/\b\d+ cards\b/)).not.toBeVisible();
+    // Label unit switches from "printings" to "cards".
+    const cardsLabel = page.getByText(/\b\d+ cards\b/);
+    await expect(cardsLabel).toBeVisible();
+    await expect(page.getByText(/\b\d+ printings\b/)).not.toBeVisible();
   });
 
   test("changing sort order updates which card appears first", async ({ page }) => {

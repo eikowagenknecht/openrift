@@ -15,54 +15,56 @@ test.describe("card browser URL params", () => {
     await page.goto("/cards?search=Garen");
 
     await expect(page.getByPlaceholder(/search/i)).toHaveValue("Garen", { timeout: LOAD_TIMEOUT });
-    await expect(page.getByText("Garen, Rugged")).toBeVisible({ timeout: LOAD_TIMEOUT });
-    await expect(page.getByText("Annie, Fiery")).not.toBeVisible();
+    await expect(page.getByText("Garen, Rugged").first()).toBeVisible({ timeout: LOAD_TIMEOUT });
+    await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
   });
 
   test("?sets=<known slug> keeps matching cards visible", async ({ page }) => {
     await page.goto(`/cards?sets=${encodeURIComponent(JSON.stringify(["OGS"]))}`);
-    await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
+    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: LOAD_TIMEOUT });
   });
 
   test("?sets=<unknown slug> shows the empty state", async ({ page }) => {
     await page.goto(`/cards?sets=${encodeURIComponent(JSON.stringify(["__nonexistent__"]))}`);
     await expect(page.getByText(/No cards found/i)).toBeVisible({ timeout: LOAD_TIMEOUT });
-    await expect(page.getByText("Annie, Fiery")).not.toBeVisible();
+    await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
   });
 
   test("?rarities=Epic narrows the grid to Epic printings", async ({ page }) => {
     await page.goto(`/cards?rarities=${encodeURIComponent(JSON.stringify(["Epic"]))}`);
 
     // Annie, Fiery has an Epic printing in the seed
-    await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
+    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: LOAD_TIMEOUT });
     // Flash is a Common Spell, filtered out
-    await expect(page.getByText("Flash")).not.toBeVisible();
+    await expect(page.getByText("Flash").first()).not.toBeVisible();
   });
 
   test("?domains=Fury narrows the grid to Fury cards", async ({ page }) => {
     await page.goto(`/cards?domains=${encodeURIComponent(JSON.stringify(["Fury"]))}`);
 
-    await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
+    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: LOAD_TIMEOUT });
     // Lux, Illuminated is a Mind card, filtered out
-    await expect(page.getByText("Lux, Illuminated")).not.toBeVisible();
+    await expect(page.getByText("Lux, Illuminated").first()).not.toBeVisible();
   });
 
   test("?types=Legend narrows the grid to Legend cards", async ({ page }) => {
     await page.goto(`/cards?types=${encodeURIComponent(JSON.stringify(["Legend"]))}`);
 
-    await expect(page.getByText("Dark Child, Starter")).toBeVisible({ timeout: LOAD_TIMEOUT });
+    await expect(page.getByText("Dark Child, Starter").first()).toBeVisible({
+      timeout: LOAD_TIMEOUT,
+    });
     // Unit/Spell cards are filtered out
-    await expect(page.getByText("Annie, Fiery")).not.toBeVisible();
+    await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
   });
 
   test("?energyMin=2&energyMax=2 shows only 2-cost cards", async ({ page }) => {
     await page.goto("/cards?energyMin=2&energyMax=2");
 
     // Flash and Incinerate are 2-cost Spells
-    await expect(page.getByText("Flash")).toBeVisible({ timeout: LOAD_TIMEOUT });
-    await expect(page.getByText("Incinerate")).toBeVisible();
+    await expect(page.getByText("Flash").first()).toBeVisible({ timeout: LOAD_TIMEOUT });
+    await expect(page.getByText("Incinerate").first()).toBeVisible();
     // Annie, Fiery is 5-cost, filtered out
-    await expect(page.getByText("Annie, Fiery")).not.toBeVisible();
+    await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
   });
 
   test("?priceMin=&priceMax= narrows the grid", async ({ page }) => {
@@ -80,25 +82,25 @@ test.describe("card browser URL params", () => {
     // Firestorm (OGS-002) has no marker on any printing, so it should be
     // filtered out. Garen, Rugged would also match via its nexus foil, so
     // pick a genuinely markerless card for the negative assertion.
-    await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
-    await expect(page.getByText("Firestorm")).not.toBeVisible();
+    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: LOAD_TIMEOUT });
+    await expect(page.getByText("Firestorm").first()).not.toBeVisible();
   });
 
   test("?banned=true shows only banned cards", async ({ page }) => {
     await page.goto(`/cards?banned=${encodeURIComponent(JSON.stringify(true))}`);
 
     // Blast of Power is the only banned card in the seed
-    await expect(page.getByText("Blast of Power")).toBeVisible({ timeout: LOAD_TIMEOUT });
-    await expect(page.getByText("Annie, Fiery")).not.toBeVisible();
+    await expect(page.getByText("Blast of Power").first()).toBeVisible({ timeout: LOAD_TIMEOUT });
+    await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
   });
 
   test("?errata=true shows only cards with errata", async ({ page }) => {
     await page.goto(`/cards?errata=${encodeURIComponent(JSON.stringify(true))}`);
 
     // Annie, Fiery has errata in the seed
-    await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
+    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: LOAD_TIMEOUT });
     // Garen, Rugged has none
-    await expect(page.getByText("Garen, Rugged")).not.toBeVisible();
+    await expect(page.getByText("Garen, Rugged").first()).not.toBeVisible();
   });
 
   test("?sort=name&sortDir=desc reverses the grid order", async ({ page }) => {
@@ -147,7 +149,7 @@ test.describe("card browser URL params", () => {
     await page.goto("/cards?bogus=x&promo=nonsense&priceMin=abc");
 
     // Grid still renders (no error boundary) and a known card is visible
-    await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: LOAD_TIMEOUT });
+    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: LOAD_TIMEOUT });
     // All invalid params get stripped from the URL
     await expect.poll(() => page.url()).not.toContain("bogus=");
     await expect.poll(() => page.url()).not.toContain("promo=");

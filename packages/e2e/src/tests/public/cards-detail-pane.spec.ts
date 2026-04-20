@@ -6,7 +6,7 @@ const MULTI_PRINTING_CARD = "Annie, Fiery";
 test.describe("card detail pane", () => {
   test("clicking a card opens the detail pane with the card's name and image", async ({ page }) => {
     await page.goto("/cards");
-    await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(MULTI_PRINTING_CARD).first()).toBeVisible({ timeout: 15_000 });
 
     await page.getByAltText(MULTI_PRINTING_CARD).first().click();
 
@@ -20,7 +20,7 @@ test.describe("card detail pane", () => {
 
   test("opening the pane marks the card as selected in the grid", async ({ page }) => {
     await page.goto("/cards");
-    await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(MULTI_PRINTING_CARD).first()).toBeVisible({ timeout: 15_000 });
 
     const cardImage = page.getByAltText(MULTI_PRINTING_CARD).first();
     const wrapper = page.locator(".group", { has: page.getByAltText(MULTI_PRINTING_CARD) }).first();
@@ -41,7 +41,7 @@ test.describe("card detail pane", () => {
 
   test("closing the detail pane returns to the grid-only layout", async ({ page }) => {
     await page.goto("/cards");
-    await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(MULTI_PRINTING_CARD).first()).toBeVisible({ timeout: 15_000 });
 
     await page.getByAltText(MULTI_PRINTING_CARD).first().click();
 
@@ -52,14 +52,21 @@ test.describe("card detail pane", () => {
 
     await expect(pane).toBeHidden();
     // Grid is still interactive after close.
-    await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible();
+    await expect(page.getByText(MULTI_PRINTING_CARD).first()).toBeVisible();
   });
 
   test("hovering a multi-printing card reveals the sibling fan and clicking a sibling updates the detail pane", async ({
     page,
   }) => {
     await page.goto("/cards");
-    await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(MULTI_PRINTING_CARD).first()).toBeVisible({ timeout: 15_000 });
+
+    // The fan only makes sense in "One per card" view — in the default
+    // "Every printing" view each printing renders as its own tile, so there
+    // are no siblings to fan out. Switch to cards view via the ViewMode
+    // ButtonGroup (first button = Cards).
+    const viewGroup = page.getByRole("group", { name: "View mode" });
+    await viewGroup.getByRole("button").nth(0).click();
 
     // Open the detail pane so we can observe printing changes.
     await page.getByAltText(MULTI_PRINTING_CARD).first().click();
@@ -104,7 +111,7 @@ test.describe("card detail pane", () => {
 
   test("detail pane renders marketplace price rows when prices exist", async ({ page }) => {
     await page.goto("/cards");
-    await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(MULTI_PRINTING_CARD).first()).toBeVisible({ timeout: 15_000 });
 
     await page.getByAltText(MULTI_PRINTING_CARD).first().click();
     const pane = page.getByRole("complementary");
@@ -119,7 +126,7 @@ test.describe("card detail pane", () => {
 
   test("clicking 'View card details' navigates to /cards/:slug", async ({ page }) => {
     await page.goto("/cards");
-    await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(MULTI_PRINTING_CARD).first()).toBeVisible({ timeout: 15_000 });
 
     await page.getByAltText(MULTI_PRINTING_CARD).first().click();
     const pane = page.getByRole("complementary");
@@ -143,7 +150,7 @@ test.describe("card detail pane", () => {
       page,
     }) => {
       await page.goto("/cards");
-      await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByText(MULTI_PRINTING_CARD).first()).toBeVisible({ timeout: 15_000 });
 
       await page.getByAltText(MULTI_PRINTING_CARD).first().click();
 
@@ -159,7 +166,7 @@ test.describe("card detail pane", () => {
       await page.getByRole("button", { name: /close card details/i }).click();
 
       await expect(mobileHeading).toBeHidden();
-      await expect(page.getByText(MULTI_PRINTING_CARD)).toBeVisible();
+      await expect(page.getByText(MULTI_PRINTING_CARD).first()).toBeVisible();
     });
   });
 });

@@ -5,7 +5,7 @@ test.describe("card browser", () => {
     await page.goto("/cards");
 
     // Wait for a known card name from seed data to appear in the grid
-    await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
 
     // The search input should be visible
     await expect(page.getByPlaceholder(/search/i)).toBeVisible();
@@ -15,7 +15,7 @@ test.describe("card browser", () => {
     await page.goto("/cards");
 
     // Wait for cards to load
-    await expect(page.getByText("Annie, Fiery")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
 
     // Search for a known card from seed data
     const searchInput = page.getByPlaceholder(/search/i);
@@ -25,6 +25,6 @@ test.describe("card browser", () => {
     await page.waitForTimeout(500);
 
     // A Garen card from seed data should be visible (check any Garen variant)
-    await expect(page.getByText("Garen, Rugged")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Garen, Rugged").first()).toBeVisible({ timeout: 5000 });
   });
 });

@@ -73,9 +73,9 @@ test.describe("promos", () => {
     test("renders the page heading and intro paragraph", async ({ page }) => {
       await page.goto("/promos");
 
-      await expect(page.getByRole("heading", { level: 1, name: "Promo Cards" })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible();
       await expect(
-        page.getByText(/Promos are alternate printings distributed outside booster products/),
+        page.getByText(/Promos are all the cards you can.t get by just opening booster packs/),
       ).toBeVisible();
     });
 
@@ -93,7 +93,9 @@ test.describe("promos", () => {
       );
     });
 
-    test("renders at least one promo type section with h2 and printing count", async ({ page }) => {
+    test("renders a per-language h2 and the channel heading with its printing count", async ({
+      page,
+    }) => {
       const data = await fetchPromoList();
       const eventChannels = data.channels.filter((c) => c.kind === "event");
       test.skip(eventChannels.length === 0, "seed has no event channels");
@@ -107,21 +109,24 @@ test.describe("promos", () => {
 
       await page.goto("/promos");
 
-      await expect(page.getByRole("heading", { level: 2, name: firstChannel.label })).toBeVisible();
+      // Top-level sections are now grouped by language — each present language
+      // renders an h2 with the language label (e.g. "English").
+      await expect(page.getByRole("heading", { level: 2, name: "English" })).toBeVisible();
 
-      // Printing count paragraph sits directly under the h2, singular vs
-      // plural based on count. With the default EN filter, only EN printings
-      // are in view for this channel.
-      const section = page
-        .locator("section")
-        .filter({ has: page.getByRole("heading", { level: 2, name: firstChannel.label }) });
+      // Channel headings render as h3/h4/h5 (depending on depth) inside the
+      // language section, with a trailing `(N printings)` span.
+      const channelHeading = page
+        .getByRole("heading")
+        .filter({ hasText: new RegExp(firstChannel.label) })
+        .first();
+      await expect(channelHeading).toBeVisible();
       const countText = expectedCount === 1 ? "1 printing" : `${expectedCount} printings`;
-      await expect(section.getByText(countText, { exact: true })).toBeVisible();
+      await expect(channelHeading).toContainText(countText);
     });
   });
 
   test.describe("empty state", () => {
-    test("renders 'No event channels yet.' and hides the language filter", async ({ page }) => {
+    test("renders 'No promos yet.' when there are no printings", async ({ page }) => {
       await page.route("**/_serverFn/**", async (route) => {
         if (isPromoListServerFn(route.request().url())) {
           // Plain JSON with no `x-tss-serialized` header — skips the seroval
@@ -147,63 +152,16 @@ test.describe("promos", () => {
 
       await clientSideNavigateToPromos(page);
 
-      await expect(page.getByText("No event channels yet.")).toBeVisible();
-      await expect(page.getByText(/^Languages:$/)).toHaveCount(0);
-      // No h2 sections rendered.
+      await expect(page.getByText("No promos yet.")).toBeVisible();
+      // No h2 sections rendered (per-language h2s only exist when there are promos).
       await expect(page.getByRole("heading", { level: 2 })).toHaveCount(0);
-    });
-  });
-
-  test.describe("language filter", () => {
-    test("hides the language filter when only one language is present", async ({ page }) => {
-      // Real seed only has EN promo printings (see apps/api/src/test/fixtures/seed.sql),
-      // which exercises the `presentLanguages.length > 1` gate in promos.lazy.tsx.
-      const data = await fetchPromoList();
-      const languages = new Set(data.printings.map((p) => p.language));
-      test.skip(
-        languages.size !== 1,
-        "seed has multiple promo languages — covered by the multi-language test",
-      );
-
-      await page.goto("/promos");
-      await expect(page.getByRole("heading", { level: 1, name: "Promo Cards" })).toBeVisible();
-
-      // Language picker row is absent entirely.
-      await expect(page.getByText("Languages:", { exact: true })).toHaveCount(0);
-      await expect(page.getByRole("button", { name: "English" })).toHaveCount(0);
-      await expect(page.getByRole("button", { name: /^(Clear|Select) all$/ })).toHaveCount(0);
-    });
-
-    test("shows per-language toggle and clear/select-all when multiple languages exist", async ({
-      page,
-    }) => {
-      const data = await fetchPromoList();
-      const languages = new Set(data.printings.map((p) => p.language));
-      test.skip(
-        languages.size < 2,
-        "seed has only one promo language — multi-language branch not covered by real data",
-      );
-
-      await page.goto("/promos");
-
-      await expect(page.getByText("Languages:", { exact: true })).toBeVisible();
-      // At least two language buttons render.
-      for (const lang of languages) {
-        // Use the code as a fallback if the label lookup hasn't populated,
-        // but the label map should normally resolve (e.g. EN → "English").
-        const button = page.getByRole("button", {
-          name: new RegExp(`^(${lang}|English|French|Chinese|German|Spanish)$`),
-        });
-        await expect(button.first()).toBeVisible();
-      }
-      await expect(page.getByRole("button", { name: /^(Clear|Select) all$/ })).toBeVisible();
     });
   });
 
   test.describe("view mode", () => {
     test("defaults to grid view and toggles to list view", async ({ page }) => {
       await page.goto("/promos");
-      await expect(page.getByRole("heading", { level: 1, name: "Promo Cards" })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible();
       // Wait for hydration before clicking — without this the click can land
       // on the static SSR button before React attaches the onClick handler.
       await page.waitForLoadState("networkidle");
@@ -242,7 +200,7 @@ test.describe("promos", () => {
       );
 
       await page.goto("/promos");
-      await expect(page.getByRole("heading", { level: 1, name: "Promo Cards" })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible();
       await page.waitForLoadState("networkidle");
 
       await page.locator(".aspect-card").first().click();
@@ -259,7 +217,7 @@ test.describe("promos", () => {
       );
 
       await page.goto("/promos");
-      await expect(page.getByRole("heading", { level: 1, name: "Promo Cards" })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible();
       await page.waitForLoadState("networkidle");
       await page.getByRole("button", { name: "List view" }).click();
       const firstRow = page.locator("table tbody tr").first();
@@ -298,7 +256,7 @@ test.describe("promos", () => {
       // PromosPending renders Skeleton elements (data-slot="skeleton") before
       // the loader resolves; the real PromosPage h1 only mounts after.
       await expect(page.locator('[data-slot="skeleton"]').first()).toBeVisible({ timeout: 4000 });
-      await expect(page.getByRole("heading", { level: 1, name: "Promo Cards" })).toBeVisible({
+      await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible({
         timeout: 15_000,
       });
     });

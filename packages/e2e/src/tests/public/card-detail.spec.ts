@@ -146,7 +146,7 @@ test.describe("card detail route — essentials", () => {
 
   test("a 500 from the detail server fn renders the route error fallback", async ({ page }) => {
     await page.goto("/cards");
-    await expect(page.getByText(SEED_CARD_NAME)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(SEED_CARD_NAME).first()).toBeVisible({ timeout: 15_000 });
 
     await page.route("**/_serverFn/**", async (route) => {
       if (isCardDetailServerFn(route.request().url())) {
@@ -170,7 +170,7 @@ test.describe("card detail route — essentials", () => {
 
   test("a slow detail server fn shows the skeleton before the heading", async ({ page }) => {
     await page.goto("/cards");
-    await expect(page.getByText(SEED_CARD_NAME)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(SEED_CARD_NAME).first()).toBeVisible({ timeout: 15_000 });
 
     await page.route("**/_serverFn/**", async (route) => {
       if (isCardDetailServerFn(route.request().url())) {
@@ -328,7 +328,7 @@ test.describe("card detail route — info panel", () => {
     await expect(page.getByText(altPrinting.printedName)).toBeVisible();
   });
 
-  test("art-variant and markers rows hide for normal printings and show for the foil promo", async ({
+  test("art-variant and promo rows hide for normal printings and show for the foil promo", async ({
     page,
   }) => {
     const detail = await fetchCardDetail(SEED_CARD_SLUG);
@@ -346,12 +346,19 @@ test.describe("card detail route — info panel", () => {
     }
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
-    // Default is plain — Markers / Art variant rows absent.
-    await expect(page.getByText("Markers", { exact: true })).toBeHidden();
-    await expect(page.getByText("Art variant", { exact: true })).toBeHidden();
+    // Default is plain — Promo / Art variant info rows absent. Scope to
+    // `role="row"` so we don't match the "Promo" marker label that can also
+    // appear on a sibling printing button's badge strip.
+    await expect(
+      page.getByRole("row").filter({ has: page.getByText("Promo", { exact: true }) }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("row").filter({ has: page.getByText("Art variant", { exact: true }) }),
+    ).toHaveCount(0);
 
-    // Pick the foil promo printing and verify the Markers row appears with the label.
-    // (No seed printing has a non-normal artVariant, so the Art variant row stays hidden.)
+    // Pick the foil promo printing and verify the Promo row appears with the
+    // marker label rendered inside its promo box. (No seed printing has a
+    // non-normal artVariant, so the Art variant row stays hidden.)
     // Multiple printings share the same publicCode, so target by id.
     const promoButton = page.locator(`button[data-printing-id="${promoPrinting.id}"]`);
 
@@ -368,15 +375,15 @@ test.describe("card detail route — info panel", () => {
       await expect(promoButton).toHaveAttribute("aria-pressed", "true", { timeout: 1000 });
     }).toPass({ timeout: 15_000 });
 
-    // Now the Markers row must have rendered. Scope the marker-label
-    // assertion to that row — the label also appears in printing-button
-    // badges and the price-history heading.
-    const markersRow = page
+    // Now the Promo row must have rendered with the marker-label badge inside.
+    // Scope the marker-label assertion to that row — the label also appears in
+    // printing-button badges and the price-history heading.
+    const promoRow = page
       .getByRole("row")
-      .filter({ has: page.getByText("Markers", { exact: true }) })
+      .filter({ has: page.getByText("Promo", { exact: true }) })
       .first();
-    await expect(markersRow).toBeVisible();
-    await expect(markersRow).toContainText(promoMarker.label);
+    await expect(promoRow).toBeVisible();
+    await expect(promoRow).toContainText(promoMarker.label);
   });
 
   test("type / domains / energy / might / power render only when present", async ({ page }) => {
@@ -555,20 +562,20 @@ test.describe("card detail route — printings list", () => {
       .getByRole("row")
       .filter({ has: page.getByText("Language", { exact: true }) })
       .first();
-    await expect(languageRow).toContainText("EN");
+    await expect(languageRow).toContainText("English");
 
     // Sibling printings can share a publicCode (normal/foil/language variants)
     // and have no visible text that distinguishes them, so target the intended
     // printing by its data-printing-id.
     const altButton = page.locator(`button[data-printing-id="${altLang.id}"]`);
     await expect(altButton).toBeVisible();
-    // Retry click until the info panel reflects the change. The SSR'd button
-    // exists before React hydrates, so a too-eager click can land before the
-    // onClick handler is attached — toPass re-clicks if the first attempt
-    // didn't update the selected printing.
+    // The Language row shows the full language label (via useLanguageLabels)
+    // rather than the raw ISO code. We don't ship the label map to the test,
+    // so assert the row no longer reads "English" after switching to a non-EN
+    // printing — that's enough to prove the state change landed.
     await expect(async () => {
       await altButton.click();
-      await expect(languageRow).toContainText(altLang.language, { timeout: 500 });
+      await expect(languageRow).not.toContainText("English", { timeout: 500 });
     }).toPass({ timeout: 5000 });
   });
 
@@ -602,12 +609,12 @@ test.describe("card detail route — printings list", () => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
     // The Language row in the left column shows the selected printing's language.
-    // With default user preferences (English first), it should be "EN".
+    // With default user preferences (English first), it should be "English".
     const languageRow = page
       .getByRole("row")
       .filter({ has: page.getByText("Language", { exact: true }) })
       .first();
-    await expect(languageRow).toContainText("EN");
+    await expect(languageRow).toContainText("English");
   });
 });
 
