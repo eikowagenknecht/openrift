@@ -41,7 +41,7 @@ async function fetchCatalogFromEdge(): Promise<CatalogResponse> {
 }
 
 function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
-  const slugById = new Map(catalog.sets.map((s) => [s.id, s.slug]));
+  const setsById = new Map(catalog.sets.map((s) => [s.id, s]));
 
   // Cards are already in the right shape — identity lives in the map key.
   const cardsById: Record<string, Card> = catalog.cards;
@@ -57,10 +57,16 @@ function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
   const allPrintings: Printing[] = [];
   const printingsById: Record<string, Printing> = {};
   for (const [id, value] of Object.entries(catalog.printings)) {
-    const setSlug = slugById.get(value.setId);
+    const set = setsById.get(value.setId);
     const card = cardsById[value.cardId];
-    if (setSlug && card) {
-      const printing: Printing = { ...value, id, setSlug, card };
+    if (set && card) {
+      const printing: Printing = {
+        ...value,
+        id,
+        setSlug: set.slug,
+        setReleased: set.released,
+        card,
+      };
       allPrintings.push(printing);
       printingsById[id] = printing;
     }

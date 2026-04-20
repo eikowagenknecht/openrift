@@ -69,14 +69,26 @@ describe("setsRepo", () => {
   it("update returns true when row updated", async () => {
     const db = createMockDb([{ numUpdatedRows: 1n }]);
     expect(
-      await setsRepo(db).update("s-1", { name: "Updated", printedTotal: 200, releasedAt: null }),
+      await setsRepo(db).update("s-1", {
+        name: "Updated",
+        printedTotal: 200,
+        releasedAt: null,
+        released: true,
+        setType: "main",
+      }),
     ).toBe(true);
   });
 
   it("update returns false when row not found", async () => {
     const db = createMockDb([]);
     expect(
-      await setsRepo(db).update("s-1", { name: "Updated", printedTotal: null, releasedAt: null }),
+      await setsRepo(db).update("s-1", {
+        name: "Updated",
+        printedTotal: null,
+        releasedAt: null,
+        released: false,
+        setType: "main",
+      }),
     ).toBe(false);
   });
 

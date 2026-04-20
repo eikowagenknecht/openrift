@@ -91,6 +91,16 @@ export function CardImage({
         />
       )}
       {showFoil && <FoilOverlay active shimmer={showShimmer} />}
+      {!printing.setReleased && (
+        <div
+          className="@container pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-[inherit]"
+          title="Previewed / Unreleased — not yet available in official play"
+        >
+          <div className="absolute top-[7%] -left-[18%] w-[60%] rotate-[-45deg] bg-amber-500 py-[1.5%] text-center text-[6cqi] font-black tracking-wider text-amber-950 uppercase shadow-md select-none">
+            Preview
+          </div>
+        </div>
+      )}
     </div>
   );
 }

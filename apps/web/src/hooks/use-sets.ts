@@ -35,6 +35,7 @@ const updateSetFn = createServerFn({ method: "POST" })
       name: string;
       printedTotal: number;
       releasedAt: string | null;
+      released: boolean;
       setType: "main" | "supplemental";
     }) => input,
   )
@@ -57,6 +58,7 @@ export function useUpdateSet() {
       name: string;
       printedTotal: number;
       releasedAt: string | null;
+      released: boolean;
       setType: "main" | "supplemental";
     }) => {
       await updateSetFn({ data: body });

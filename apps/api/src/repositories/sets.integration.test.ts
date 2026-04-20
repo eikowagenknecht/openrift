@@ -86,6 +86,8 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
       name: "Updated Test Set",
       printedTotal: 200,
       releasedAt: "2026-01-01",
+      released: true,
+      setType: "main",
     });
     expect(updated).toBe(true);
 
@@ -99,6 +101,8 @@ describe.skipIf(!ctx)("setsRepo (integration)", () => {
       name: "Nope",
       printedTotal: null,
       releasedAt: null,
+      released: true,
+      setType: "main",
     });
     expect(result).toBe(false);
   });

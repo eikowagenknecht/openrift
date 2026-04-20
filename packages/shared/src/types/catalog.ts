@@ -87,6 +87,7 @@ export interface Printing {
   shortCode: string;
   setId: string;
   setSlug: string;
+  setReleased: boolean;
   rarity: Rarity;
   artVariant: ArtVariant;
   isSigned: boolean;

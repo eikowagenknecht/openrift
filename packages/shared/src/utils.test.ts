@@ -26,6 +26,7 @@ function makePrinting(overrides: Partial<Printing> & { language: string }): Prin
     shortCode: "SET-001",
     setId: "SET-A",
     setSlug: "set-a",
+    setReleased: true,
     rarity: "common",
     artVariant: "standard",
     isSigned: false,

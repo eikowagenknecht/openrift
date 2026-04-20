@@ -31,6 +31,7 @@ function enrichPromoList(response: PromosListResponse): EnrichedPromoList {
   const printings: Printing[] = response.printings.map((p) => ({
     ...p,
     setSlug: setSlugPlaceholder,
+    setReleased: true,
     card: response.cards[p.cardId],
   }));
   return { channels: response.channels, printings, cards: response.cards };

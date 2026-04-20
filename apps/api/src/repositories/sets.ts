@@ -82,6 +82,7 @@ export function setsRepo(db: Kysely<Database>) {
         name: string;
         printedTotal: number | null;
         releasedAt: string | null;
+        released: boolean;
         setType: "main" | "supplemental";
       },
     ): Promise<boolean> {

@@ -230,6 +230,7 @@ export interface AdminSetResponse {
   printedTotal: number | null;
   sortOrder: number;
   releasedAt: string | null;
+  released: boolean;
   setType: SetType;
   cardCount: number;
   printingCount: number;

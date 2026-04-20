@@ -32,6 +32,7 @@ export interface SetsTable {
   printedTotal: number | null;
   sortOrder: number;
   releasedAt: string | null;
+  released: Generated<boolean>;
   setType: Generated<"main" | "supplemental">;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;

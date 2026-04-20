@@ -53,6 +53,7 @@ function buildFixture(): Printing[] {
     slug: `SET${i + 1}`,
     name: `Test Set ${i + 1}`,
     releasedAt: null,
+    released: true,
     setType: i < 5 ? "main" : "supplemental",
   }));
 
@@ -108,7 +109,7 @@ function buildFixture(): Printing[] {
     if (!card || !setSlug) {
       throw new Error("fixture indexing out of range");
     }
-    printings.push({ ...raw, id: `printing-${i}`, setSlug, card });
+    printings.push({ ...raw, id: `printing-${i}`, setSlug, setReleased: true, card });
   }
   return printings;
 }

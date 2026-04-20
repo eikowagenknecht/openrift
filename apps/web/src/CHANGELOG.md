@@ -4,6 +4,7 @@
 
 - feat: A new pack opener simulator lets you open virtual Riftbound boosters with the real published pull rates, open one pack and flip each card by clicking, or crack a whole box at once and see the rarity breakdown, average value per pack, and your best pulls
 - feat: Admins now have pages under Taxonomy for Art Variants, Card Types, Super Types, and Deck Formats — the same add, rename, reorder, and delete controls that already existed for Finishes and Rarities
+- feat: Cards from sets that Riot has previewed but not yet officially released now carry a visible "Preview" ribbon on the card image, so it's clear which cards aren't yet available in official play
 - feat: The deck builder's Missing cards dialog now groups rows by zone with section headings, shows each card's short code inline with its name (also included in the "Copy to clipboard" output), and splits pricing into per-copy Cost and line Total columns
 - feat: When a row in the Import Collection preview needs you to pick a printing, the dropdown now shows each candidate's card image, and hovering a candidate brings up a large preview of the card so you can confidently pick the right printing
 - feat: The cards browser and your collections now open to the Printings view by default, so each finish/variant shows up as its own tile — switch back to Cards from the toolbar, or set a permanent default in your profile's Display settings

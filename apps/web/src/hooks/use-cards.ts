@@ -49,7 +49,7 @@ function enrichFromCollections(
   rawSets: readonly CatalogSetItem[],
   userLanguages: readonly string[],
 ): UseCardsResult {
-  const slugById = new Map(rawSets.map((s) => [s.id, s.slug]));
+  const setsById = new Map(rawSets.map((s) => [s.id, s]));
 
   const cardsById: Record<string, Card> = {};
   for (const { id, ...card } of rawCards) {
@@ -59,10 +59,10 @@ function enrichFromCollections(
   const allPrintings: Printing[] = [];
   const printingsById: Record<string, Printing> = {};
   for (const raw of rawPrintings) {
-    const setSlug = slugById.get(raw.setId);
+    const set = setsById.get(raw.setId);
     const card = cardsById[raw.cardId];
-    if (setSlug && card) {
-      const printing: Printing = { ...raw, setSlug, card };
+    if (set && card) {
+      const printing: Printing = { ...raw, setSlug: set.slug, setReleased: set.released, card };
       allPrintings.push(printing);
       printingsById[raw.id] = printing;
     }

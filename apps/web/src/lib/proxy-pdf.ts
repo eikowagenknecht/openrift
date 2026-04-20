@@ -64,17 +64,23 @@ export function resolveProxyCards(
   catalog: CatalogResponse,
   languageOrder: readonly string[],
 ): ProxyCard[] {
-  const slugById = new Map(catalog.sets.map((set) => [set.id, set.slug]));
+  const setsById = new Map(catalog.sets.map((set) => [set.id, set]));
   const cardsById: Record<string, Card> = catalog.cards;
 
   type EnrichedPrinting = Printing & { id: string; setSlug: string };
   const printingById = new Map<string, EnrichedPrinting>();
   const printingsByCardId = new Map<string, EnrichedPrinting[]>();
   for (const [id, printing] of Object.entries(catalog.printings)) {
-    const setSlug = slugById.get(printing.setId);
+    const set = setsById.get(printing.setId);
     const card = cardsById[printing.cardId];
-    if (setSlug && card) {
-      const enriched: EnrichedPrinting = { ...printing, id, setSlug, card };
+    if (set && card) {
+      const enriched: EnrichedPrinting = {
+        ...printing,
+        id,
+        setSlug: set.slug,
+        setReleased: set.released,
+        card,
+      };
       printingById.set(id, enriched);
       let group = printingsByCardId.get(printing.cardId);
       if (!group) {

@@ -324,6 +324,20 @@ export const CardThumbnail = memo(function CardThumbnail({
     </div>
   );
 
+  // Riot TCG community license requires previewed/unreleased cards to be
+  // clearly labeled. The ribbon is anchored to the image rectangle so it
+  // stays visible in every context a printing is rendered.
+  const previewOverlay = !printing.setReleased && (
+    <div
+      className="@container pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-[inherit]"
+      title="Previewed / Unreleased — not yet available in official play"
+    >
+      <div className="absolute top-[7%] -left-[18%] w-[60%] rotate-[-45deg] bg-amber-500 py-[1.5%] text-center text-[6cqi] font-black tracking-wider text-amber-950 uppercase shadow-md select-none">
+        Preview
+      </div>
+    </div>
+  );
+
   const imageSection = (
     <div
       className={cn(
@@ -400,6 +414,7 @@ export const CardThumbnail = memo(function CardThumbnail({
                 showFoil={isFoilCard && gridFoil}
               />
               {banOverlay}
+              {previewOverlay}
             </div>
           </div>
         ) : (
@@ -428,6 +443,7 @@ export const CardThumbnail = memo(function CardThumbnail({
               showFoil={isFoilCard && gridFoil}
             />
             {banOverlay}
+            {previewOverlay}
           </div>
         )}
       </div>

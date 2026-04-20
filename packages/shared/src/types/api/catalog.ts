@@ -14,6 +14,7 @@ export interface CatalogSetResponse {
   slug: string;
   name: string;
   releasedAt: string | null;
+  released: boolean;
   setType: SetType;
 }
 

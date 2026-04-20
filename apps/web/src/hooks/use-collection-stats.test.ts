@@ -19,6 +19,7 @@ function stubSet(overrides: Partial<SetListEntry> = {}): SetListEntry {
     slug: overrides.slug ?? "origins",
     name: overrides.name ?? "Origins",
     releasedAt: overrides.releasedAt ?? "2025-01-01",
+    released: overrides.released ?? true,
     setType: overrides.setType ?? "main",
     cardCount: overrides.cardCount ?? 100,
     printingCount: overrides.printingCount ?? 150,

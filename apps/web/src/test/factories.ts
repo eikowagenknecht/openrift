@@ -73,6 +73,7 @@ export function stubPrinting(
     shortCode: card.slug,
     setId: nextId(),
     setSlug: "RB1",
+    setReleased: true,
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,

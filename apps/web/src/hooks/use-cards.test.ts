@@ -87,6 +87,7 @@ const CATALOG_RESPONSE: CatalogResponse = {
       slug: "RB1",
       name: "First Set",
       releasedAt: null,
+      released: true,
       setType: "main",
     },
   ],
@@ -134,6 +135,7 @@ describe("useCards", () => {
         slug: "RB1",
         name: "First Set",
         releasedAt: null,
+        released: true,
         setType: "main",
       },
     ]);
@@ -167,6 +169,7 @@ describe("useCards", () => {
         slug: "RB1",
         name: "First Set",
         releasedAt: null,
+        released: true,
         setType: "main",
       },
     ]);

@@ -13,6 +13,7 @@ function makePrinting(overrides: Partial<Printing> & { id: string; shortCode: st
     cardId: "card-1",
     setId: "set-1",
     setSlug: "ogn",
+    setReleased: true,
     rarity: "common",
     artVariant: "normal",
     isSigned: false,

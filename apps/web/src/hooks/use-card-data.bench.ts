@@ -55,6 +55,7 @@ function buildFixture() {
     slug: `SET${i + 1}`,
     name: `Test Set ${i + 1}`,
     releasedAt: null,
+    released: true,
     setType: i < 5 ? "main" : "supplemental",
   }));
 
@@ -87,6 +88,7 @@ function buildFixture() {
       shortCode: `${set.slug}-${String(i).padStart(3, "0")}`,
       setId: set.id,
       setSlug: set.slug,
+      setReleased: true,
       rarity: pick(RARITIES, r),
       artVariant: pick(ART_VARIANTS, r),
       isSigned: r() > 0.9,

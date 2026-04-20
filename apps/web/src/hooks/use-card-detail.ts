@@ -29,14 +29,18 @@ interface EnrichedCardDetail {
 }
 
 function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
-  const slugById = new Map(response.sets.map((s) => [s.id, s.slug]));
+  const setsById = new Map(response.sets.map((s) => [s.id, s]));
   // Printings carry `canonicalRank` from the DB view; consumers layer the
   // per-user language axis on top via `sortByLanguageAndCanonicalRank`.
-  const printings: Printing[] = response.printings.map((p) => ({
-    ...p,
-    setSlug: slugById.get(p.setId) ?? "",
-    card: response.card,
-  }));
+  const printings: Printing[] = response.printings.map((p) => {
+    const set = setsById.get(p.setId);
+    return {
+      ...p,
+      setSlug: set?.slug ?? "",
+      setReleased: set?.released ?? true,
+      card: response.card,
+    };
+  });
   return { card: response.card, printings, sets: response.sets };
 }
 

@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   useCreateSet,
   useDeleteSet,
@@ -27,6 +28,7 @@ interface SetDraft {
   name: string;
   printedTotal: string;
   releasedAt: string;
+  released: boolean;
   setType: "main" | "supplemental";
 }
 
@@ -124,6 +126,28 @@ export function SetsPage() {
       ),
     },
     {
+      header: "Released",
+      width: "w-24",
+      headerTitle: "Whether this set has been officially released for play",
+      cell: (s) => (
+        <Badge variant={s.released ? "default" : "secondary"}>
+          {s.released ? "yes" : "preview"}
+        </Badge>
+      ),
+      editCell: (d, set) => (
+        <Switch
+          checked={d.released}
+          onCheckedChange={(checked) => set((prev) => ({ ...prev, released: checked }))}
+        />
+      ),
+      addCell: (d, set) => (
+        <Switch
+          checked={d.released}
+          onCheckedChange={(checked) => set((prev) => ({ ...prev, released: checked }))}
+        />
+      ),
+    },
+    {
       header: "Type",
       width: "w-36",
       cell: (s) => (
@@ -212,6 +236,7 @@ export function SetsPage() {
           name: "",
           printedTotal: "",
           releasedAt: "",
+          released: true,
           setType: "main" as const,
         },
         onSave: (d) => {
@@ -241,6 +266,7 @@ export function SetsPage() {
           name: s.name,
           printedTotal: s.printedTotal === null ? "" : String(s.printedTotal),
           releasedAt: s.releasedAt ?? "",
+          released: s.released,
           setType: s.setType,
         }),
         onSave: (d) => {
@@ -250,6 +276,7 @@ export function SetsPage() {
             name: d.name,
             printedTotal: isNaN(printedTotal) ? 0 : printedTotal,
             releasedAt: d.releasedAt || null,
+            released: d.released,
             setType: d.setType,
           });
         },

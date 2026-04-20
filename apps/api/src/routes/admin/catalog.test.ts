@@ -134,6 +134,7 @@ describe("PATCH /api/v1/sets/:id", () => {
         name: "Updated Name",
         printedTotal: 200,
         releasedAt: "2026-06-01",
+        released: true,
         setType: "main",
       }),
     });
@@ -142,6 +143,7 @@ describe("PATCH /api/v1/sets/:id", () => {
       name: "Updated Name",
       printedTotal: 200,
       releasedAt: "2026-06-01",
+      released: true,
       setType: "main",
     });
   });
@@ -155,6 +157,7 @@ describe("PATCH /api/v1/sets/:id", () => {
         name: "Updated",
         printedTotal: 100,
         releasedAt: null,
+        released: false,
         setType: "main",
       }),
     });
@@ -172,6 +175,7 @@ describe("PATCH /api/v1/sets/:id", () => {
         name: "Test",
         printedTotal: 50,
         releasedAt: null,
+        released: false,
         setType: "supplemental",
       }),
     });
@@ -180,6 +184,7 @@ describe("PATCH /api/v1/sets/:id", () => {
       name: "Test",
       printedTotal: 50,
       releasedAt: null,
+      released: false,
       setType: "supplemental",
     });
   });

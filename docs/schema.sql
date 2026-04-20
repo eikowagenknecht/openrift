@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict bXa4bpvnCk3eTI3bcGzhrrIBijtSGrUtjZcb60JtUScqlnRbghvr8IG5oAPSM8v
+\restrict NramceIXeFiGuXa6zQt9r5QvtmHdMe5amlpPY32dEKgox60sgKXzXNDKwABBuf1
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1186,6 +1186,7 @@ CREATE TABLE public.sets (
     slug text NOT NULL,
     id uuid DEFAULT uuidv7() CONSTRAINT sets_new_id_not_null NOT NULL,
     set_type public.set_type DEFAULT 'main'::public.set_type NOT NULL,
+    released boolean DEFAULT true NOT NULL,
     CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
     CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
     CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
@@ -3378,5 +3379,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict bXa4bpvnCk3eTI3bcGzhrrIBijtSGrUtjZcb60JtUScqlnRbghvr8IG5oAPSM8v
+\unrestrict NramceIXeFiGuXa6zQt9r5QvtmHdMe5amlpPY32dEKgox60sgKXzXNDKwABBuf1
 

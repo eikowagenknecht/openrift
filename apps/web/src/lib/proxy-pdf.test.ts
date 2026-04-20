@@ -14,6 +14,7 @@ function stubSet(overrides: Partial<CatalogSetResponse> = {}): CatalogSetRespons
     slug: overrides.slug ?? "rb1",
     name: overrides.name ?? "Origins",
     releasedAt: overrides.releasedAt ?? "2024-01-01",
+    released: overrides.released ?? true,
     setType: overrides.setType ?? "main",
   };
 }
@@ -21,7 +22,7 @@ function stubSet(overrides: Partial<CatalogSetResponse> = {}): CatalogSetRespons
 function toCatalogPrinting(
   printing: ReturnType<typeof stubPrinting>,
 ): CatalogResponsePrintingValue {
-  const { id: _id, card: _card, setSlug: _setSlug, ...rest } = printing;
+  const { id: _id, card: _card, setSlug: _setSlug, setReleased: _setReleased, ...rest } = printing;
   return rest;
 }
 
