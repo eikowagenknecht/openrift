@@ -70,6 +70,7 @@ function makePrinting(
     printedName: null,
     comment: null,
     language: "EN",
+    canonicalRank: 0,
     card: {
       slug: cardSlug,
       name: "Test Card",

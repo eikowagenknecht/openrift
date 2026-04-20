@@ -105,66 +105,58 @@ export function comparePrintings(
   );
 }
 
-function toComparable(printing: Printing, setOrderMap: Map<string, number>): ComparablePrinting {
-  return {
-    ...printing,
-    setOrder: setOrderMap.get(printing.setId),
-    markerSlugs: printing.markers.map((m) => m.slug),
-  };
-}
-
 /**
  * Compare two printings with language preference as the primary tiebreaker.
- * Languages earlier in the user's `languageOrder` sort first; unlisted languages
- * sort after listed ones. Falls back to canonical {@link comparePrintings} order.
+ * Languages earlier in `languageOrder` sort first; unlisted languages sort
+ * after listed ones. Falls back to `canonicalRank` — a single-integer key
+ * encoding the remaining canonical axes (set, shortCode, marker, finish),
+ * computed by the `printings_ordered` DB view.
+ *
+ * `languageOrder` is required and should be the effective order the caller
+ * wants applied — either the user's preference or the DB's
+ * `languages.sort_order` (from `/api/enums`) for the default case. There is
+ * no hardcoded fallback: admin reorders of the `languages` table must take
+ * effect, and that means the caller owns the choice.
+ *
  * @returns Negative if a comes first, positive if b comes first, 0 if equal.
  */
 export function compareWithLanguagePreference(
   a: Printing,
   b: Printing,
-  setOrderMap: Map<string, number>,
-  finishOrder: readonly string[],
-  languageOrder?: string[],
+  languageOrder: readonly string[],
 ): number {
-  // Default to EN-first when no preference is set
-  const effectiveOrder = languageOrder && languageOrder.length > 0 ? languageOrder : ["EN"];
-  const aIdx = effectiveOrder.indexOf(a.language);
-  const bIdx = effectiveOrder.indexOf(b.language);
-  const aPos = aIdx === -1 ? effectiveOrder.length : aIdx;
-  const bPos = bIdx === -1 ? effectiveOrder.length : bIdx;
+  const aIdx = languageOrder.indexOf(a.language);
+  const bIdx = languageOrder.indexOf(b.language);
+  const aPos = aIdx === -1 ? languageOrder.length : aIdx;
+  const bPos = bIdx === -1 ? languageOrder.length : bIdx;
   const langCompare = aPos - bPos;
   if (langCompare !== 0) {
     return langCompare;
   }
-  // Both unlisted — sort alphabetically so the order is deterministic
+  // Both unlisted — sort alphabetically so the order is deterministic.
   if (aIdx === -1 && bIdx === -1) {
     const alphaCompare = a.language.localeCompare(b.language);
     if (alphaCompare !== 0) {
       return alphaCompare;
     }
   }
-  return comparePrintings(toComparable(a, setOrderMap), toComparable(b, setOrderMap), finishOrder);
+  return a.canonicalRank - b.canonicalRank;
 }
 
 /**
  * Deduplicate printings to one per card, keeping the best match per
- * {@link compareWithLanguagePreference} (language preference, then canonical order).
+ * {@link compareWithLanguagePreference} (language preference, then canonical rank).
  * @returns Deduplicated printings, one per cardId.
  */
 export function deduplicateByCard(
   printings: Printing[],
-  setOrderMap: Map<string, number>,
-  finishOrder: readonly string[],
-  languageOrder?: string[],
+  languageOrder: readonly string[],
 ): Printing[] {
   const seen = new Map<string, Printing>();
   for (const printing of printings) {
     const existing = seen.get(printing.cardId);
     if (existing) {
-      if (
-        compareWithLanguagePreference(printing, existing, setOrderMap, finishOrder, languageOrder) <
-        0
-      ) {
+      if (compareWithLanguagePreference(printing, existing, languageOrder) < 0) {
         seen.set(printing.cardId, printing);
       }
     } else {
@@ -182,18 +174,14 @@ export function deduplicateByCard(
  */
 export function preferredPrinting(
   printings: Printing[],
-  setOrderMap: Map<string, number>,
-  finishOrder: readonly string[],
-  languageOrder?: string[],
+  languageOrder: readonly string[],
 ): Printing | undefined {
   if (printings.length === 0) {
     return undefined;
   }
   let best = printings[0];
   for (let i = 1; i < printings.length; i++) {
-    if (
-      compareWithLanguagePreference(printings[i], best, setOrderMap, finishOrder, languageOrder) < 0
-    ) {
+    if (compareWithLanguagePreference(printings[i], best, languageOrder) < 0) {
       best = printings[i];
     }
   }
@@ -207,9 +195,7 @@ export function preferredPrinting(
  */
 export function groupPrintingsByCardId(
   printings: Printing[],
-  setOrderMap: Map<string, number>,
-  finishOrder: readonly string[],
-  languageOrder?: string[],
+  languageOrder: readonly string[],
 ): Map<string, Printing[]> {
   const map = new Map<string, Printing[]>();
   for (const printing of printings) {
@@ -221,9 +207,7 @@ export function groupPrintingsByCardId(
     group.push(printing);
   }
   for (const group of map.values()) {
-    group.sort((a, b) =>
-      compareWithLanguagePreference(a, b, setOrderMap, finishOrder, languageOrder),
-    );
+    group.sort((a, b) => compareWithLanguagePreference(a, b, languageOrder));
   }
   return map;
 }

@@ -47,6 +47,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
     printedName: null,
     comment: null,
     language: "EN",
+    canonicalRank: 0,
     card: {
       slug: "OGS-001",
       name: "",

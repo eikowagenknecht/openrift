@@ -28,6 +28,7 @@ function makePrinting(overrides: Partial<Printing> & { id: string; shortCode: st
     printedName: null,
     comment: null,
     language: "EN",
+    canonicalRank: 0,
     card: {
       slug: "test-card",
       name: "Test Card",

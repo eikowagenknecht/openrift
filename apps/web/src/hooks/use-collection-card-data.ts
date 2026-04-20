@@ -15,7 +15,7 @@ import {
 } from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
-import { useEnumOrders } from "@/hooks/use-enums";
+import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
 import { useStackedCopies } from "@/hooks/use-stacked-copies";
 
 interface UseCollectionCardDataParams {
@@ -53,13 +53,20 @@ export function useCollectionCardData({
   "use memo";
   const { stacks, totalCopies, isReady } = useStackedCopies(collectionId);
   const { orders } = useEnumOrders();
+  const defaultLanguageList = useLanguageList();
 
   const collectionPrintings = stacks.map((stack) => stack.printing);
-  const setOrderMap = new Map(sets.map((set, index) => [set.id, index]));
   const setSlugToName = new Map(sets.map((set) => [set.slug, set.name]));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
 
   const getPrice = (p: Printing) => prices.get(p.id, favoriteMarketplace);
+
+  // User preference wins; otherwise fall back to the DB-driven
+  // `languages.sort_order` from /api/enums.
+  const effectiveLanguageOrder =
+    languageOrder && languageOrder.length > 0
+      ? languageOrder
+      : defaultLanguageList.map((l) => l.code);
 
   const availableFilters = getAvailableFilters(collectionPrintings, { orders, getPrice });
   availableFilters.supplementalSets = new Set(
@@ -69,17 +76,10 @@ export function useCollectionCardData({
 
   // In "cards" view, deduplicate by cardId (keep canonical printing)
   const displayCards =
-    view === "cards"
-      ? deduplicateByCard(filteredCards, setOrderMap, orders.finishes, languageOrder)
-      : filteredCards;
+    view === "cards" ? deduplicateByCard(filteredCards, effectiveLanguageOrder) : filteredCards;
 
   // Group all collection printings by cardId for detail pane siblings
-  const printingsByCardId = groupPrintingsByCardId(
-    collectionPrintings,
-    setOrderMap,
-    orders.finishes,
-    languageOrder,
-  );
+  const printingsByCardId = groupPrintingsByCardId(collectionPrintings, effectiveLanguageOrder);
 
   // Price ranges for "cards" view sorting
   const priceRangeByCardId =

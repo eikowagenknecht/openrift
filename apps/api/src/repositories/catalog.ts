@@ -45,32 +45,40 @@ type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId
  * Marker metadata (label/description) and distribution channels are resolved
  * separately by the route layer using the catalog's `markersList()` and
  * the distribution-channels repo.
+ *
+ * `canonicalRank` is the integer sort key from the `printings_ordered` view
+ * (see migration 096). Clients sort by this integer and get language-first,
+ * set-order, shortCode, non-promo-first, finish-sort-order semantics in one
+ * compare. User language preference overrides the language axis post-query.
  */
 type CatalogPrintingRow = Omit<Selectable<PrintingsTable>, "createdAt" | "updatedAt"> & {
   printedName: string | null;
   language: string;
   markerSlugs: string[];
   comment: string | null;
+  canonicalRank: number;
 };
 
-const PRINTING_COLUMNS = [
-  "printings.id",
-  "printings.cardId",
-  "printings.setId",
-  "printings.shortCode",
-  "printings.rarity",
-  "printings.artVariant",
-  "printings.isSigned",
-  "printings.finish",
-  "printings.artist",
-  "printings.publicCode",
-  "printings.printedRulesText",
-  "printings.printedEffectText",
-  "printings.flavorText",
-  "printings.printedName",
-  "printings.language",
-  "printings.markerSlugs",
-  "printings.comment",
+/** Selecting from `printings_ordered` (the view) so we get `canonical_rank` too. */
+const PRINTING_VIEW_COLUMNS = [
+  "printingsOrdered.id",
+  "printingsOrdered.cardId",
+  "printingsOrdered.setId",
+  "printingsOrdered.shortCode",
+  "printingsOrdered.rarity",
+  "printingsOrdered.artVariant",
+  "printingsOrdered.isSigned",
+  "printingsOrdered.finish",
+  "printingsOrdered.artist",
+  "printingsOrdered.publicCode",
+  "printingsOrdered.printedRulesText",
+  "printingsOrdered.printedEffectText",
+  "printingsOrdered.flavorText",
+  "printingsOrdered.printedName",
+  "printingsOrdered.language",
+  "printingsOrdered.markerSlugs",
+  "printingsOrdered.comment",
+  "printingsOrdered.canonicalRank",
 ] as const;
 
 /**
@@ -187,14 +195,12 @@ export function catalogRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns All printings ordered by set, collector number, finish. */
+    /** @returns All printings in canonical order (see `printings_ordered` view). */
     printings(): Promise<CatalogPrintingRow[]> {
       return db
-        .selectFrom("printings")
-        .select(PRINTING_COLUMNS)
-        .orderBy("printings.setId")
-        .orderBy("printings.shortCode")
-        .orderBy("printings.finish", "desc")
+        .selectFrom("printingsOrdered")
+        .select(PRINTING_VIEW_COLUMNS)
+        .orderBy("printingsOrdered.canonicalRank")
         .execute();
     },
 
@@ -254,19 +260,16 @@ export function catalogRepo(db: Kysely<Database>) {
     },
 
     /**
-     * @returns All printings for a given card ID, English first so that
-     * `printings[0]` is the canonical printing for SSR meta tags and the UI's
-     * default selected printing.
+     * @returns All printings for a given card ID in canonical order (see
+     * `printings_ordered` view). `printings[0]` is the canonical default
+     * printing for SSR meta tags and the UI's initially-selected printing.
      */
     printingsByCardId(cardId: string): Promise<CatalogPrintingRow[]> {
       return db
-        .selectFrom("printings")
-        .select(PRINTING_COLUMNS)
-        .where("printings.cardId", "=", cardId)
-        .orderBy(sql`(printings.language = 'EN') DESC`)
-        .orderBy("printings.setId")
-        .orderBy("printings.shortCode")
-        .orderBy("printings.finish", "desc")
+        .selectFrom("printingsOrdered")
+        .select(PRINTING_VIEW_COLUMNS)
+        .where("printingsOrdered.cardId", "=", cardId)
+        .orderBy("printingsOrdered.canonicalRank")
         .execute();
     },
 
@@ -340,14 +343,13 @@ export function catalogRepo(db: Kysely<Database>) {
         .executeTakeFirst();
     },
 
-    /** @returns All printings for a given set ID. */
+    /** @returns All printings for a given set ID in canonical order. */
     printingsBySetId(setId: string): Promise<CatalogPrintingRow[]> {
       return db
-        .selectFrom("printings")
-        .select(PRINTING_COLUMNS)
-        .where("printings.setId", "=", setId)
-        .orderBy("printings.shortCode")
-        .orderBy("printings.finish", "desc")
+        .selectFrom("printingsOrdered")
+        .select(PRINTING_VIEW_COLUMNS)
+        .where("printingsOrdered.setId", "=", setId)
+        .orderBy("printingsOrdered.canonicalRank")
         .execute();
     },
 
@@ -485,22 +487,21 @@ export function catalogRepo(db: Kysely<Database>) {
 
     /**
      * @returns All printings distributed through at least one channel (event or
-     * product), ordered by short code then finish.
+     * product), in canonical order.
      */
     channelDistributedPrintings(): Promise<CatalogPrintingRow[]> {
       return db
-        .selectFrom("printings")
-        .select(PRINTING_COLUMNS)
+        .selectFrom("printingsOrdered")
+        .select(PRINTING_VIEW_COLUMNS)
         .where((eb) =>
           eb.exists(
             eb
               .selectFrom("printingDistributionChannels as pdc")
               .select(sql`1`.as("one"))
-              .whereRef("pdc.printingId", "=", "printings.id"),
+              .whereRef("pdc.printingId", "=", "printingsOrdered.id"),
           ),
         )
-        .orderBy("printings.shortCode")
-        .orderBy("printings.finish", "desc")
+        .orderBy("printingsOrdered.canonicalRank")
         .execute();
     },
 

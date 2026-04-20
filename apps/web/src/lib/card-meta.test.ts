@@ -1,8 +1,4 @@
-import type {
-  CardDetailResponse,
-  CatalogPrintingResponse,
-  CatalogSetResponse,
-} from "@openrift/shared";
+import type { CardDetailResponse, CatalogPrintingResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -49,6 +45,7 @@ function makePrinting(rulesText: string | null): CatalogPrintingResponse {
     printedName: null,
     comment: null,
     language: "EN",
+    canonicalRank: 0,
   };
 }
 
@@ -115,13 +112,10 @@ describe("getCardFrontImageFullUrl", () => {
 });
 
 describe("pickCardMetaPrinting", () => {
-  const sets: CatalogSetResponse[] = [
-    { id: "set-1", slug: "ogn", name: "Origins", releasedAt: "2024-01-01", setType: "main" },
-  ];
-  const FINISH_ORDER = ["normal", "foil", "metal", "metal-deluxe"] as const;
+  const LANG_ORDER = ["EN", "DE", "JA"] as const;
 
   it("returns undefined when there are no printings", () => {
-    expect(pickCardMetaPrinting([], sets, FINISH_ORDER)).toBeUndefined();
+    expect(pickCardMetaPrinting([], LANG_ORDER)).toBeUndefined();
   });
 
   // Regression: head() used to use `printings[0]` directly, so if the API
@@ -132,13 +126,13 @@ describe("pickCardMetaPrinting", () => {
   it("prefers the EN printing even when printings[0] is in another language", () => {
     const ja: CatalogPrintingResponse = { ...makePrinting("JA text"), id: "p-ja", language: "JA" };
     const en: CatalogPrintingResponse = { ...makePrinting("EN text"), id: "p-en", language: "EN" };
-    expect(pickCardMetaPrinting([ja, en], sets, FINISH_ORDER)?.id).toBe("p-en");
+    expect(pickCardMetaPrinting([ja, en], LANG_ORDER)?.id).toBe("p-en");
   });
 
   it("falls back to the first printing when none match the preferred language", () => {
     const ja: CatalogPrintingResponse = { ...makePrinting(null), id: "p-ja", language: "JA" };
     const de: CatalogPrintingResponse = { ...makePrinting(null), id: "p-de", language: "DE" };
-    const picked = pickCardMetaPrinting([ja, de], sets, FINISH_ORDER);
+    const picked = pickCardMetaPrinting([ja, de], ["EN"]);
     expect(picked).toBeDefined();
     expect([ja.id, de.id]).toContain(picked?.id);
   });

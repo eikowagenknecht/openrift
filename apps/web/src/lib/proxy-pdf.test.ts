@@ -42,8 +42,6 @@ function buildCatalog(
   };
 }
 
-const TEST_FINISH_ORDER = ["normal", "foil", "metal", "metal-deluxe"] as const;
-
 describe("resolveProxyCards", () => {
   beforeEach(() => {
     resetIdCounter();
@@ -72,7 +70,7 @@ describe("resolveProxyCards", () => {
       stubDeckBuilderCard({ cardId: "card-1", preferredPrintingId: zhPrinting.id }),
     ];
 
-    const proxies = resolveProxyCards(deckCards, catalog, ["EN"], TEST_FINISH_ORDER);
+    const proxies = resolveProxyCards(deckCards, catalog, ["EN"]);
 
     expect(proxies).toHaveLength(1);
     expect(proxies[0].printingId).toBe(zhPrinting.id);
@@ -109,7 +107,7 @@ describe("resolveProxyCards", () => {
     const catalog = buildCatalog([stubSet({ id: "set-2" })], [zhPrinting, jaPrinting, enPrinting]);
     const deckCards = [stubDeckBuilderCard({ cardId: "card-2", preferredPrintingId: null })];
 
-    const proxies = resolveProxyCards(deckCards, catalog, ["EN"], TEST_FINISH_ORDER);
+    const proxies = resolveProxyCards(deckCards, catalog, ["EN"]);
 
     expect(proxies[0].printingId).toBe(enPrinting.id);
     expect(proxies[0].imageFullUrl).toBe("en.png");
@@ -149,7 +147,7 @@ describe("resolveProxyCards", () => {
       }),
     ];
 
-    const proxies = resolveProxyCards(deckCards, catalog, ["EN"], TEST_FINISH_ORDER);
+    const proxies = resolveProxyCards(deckCards, catalog, ["EN"]);
 
     expect(proxies).toHaveLength(3);
     expect(proxies.slice(0, 2).map((p) => p.printingId)).toEqual([enPrinting.id, enPrinting.id]);

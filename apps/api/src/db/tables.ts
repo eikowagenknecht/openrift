@@ -834,6 +834,11 @@ export interface MvCardAggregatesView {
   superTypes: string[];
 }
 
+// ─── Views (migration 096) ───────────────────────────────────────────────────
+
+/** Every column of `printings` plus a precomputed `canonical_rank` integer. */
+export type PrintingsOrderedView = PrintingsTable & { canonicalRank: number };
+
 // ─── Database ────────────────────────────────────────────────────────────────
 
 export interface Database {
@@ -949,4 +954,7 @@ export interface Database {
   // Materialized views (migration 085)
   mvLatestPrintingPrices: MvLatestPrintingPricesView;
   mvCardAggregates: MvCardAggregatesView;
+
+  // Views (migration 096)
+  printingsOrdered: PrintingsOrderedView;
 }

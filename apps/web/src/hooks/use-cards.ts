@@ -1,9 +1,7 @@
 import type { Card, Printing } from "@openrift/shared";
-import { comparePrintings } from "@openrift/shared";
 import { useLiveSuspenseQuery } from "@tanstack/react-db";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 
-import { useEnumOrders } from "@/hooks/use-enums";
 import type {
   CatalogCardItem,
   CatalogPrintingItem,
@@ -12,6 +10,7 @@ import type {
 import { getCatalogCollections } from "@/lib/catalog-collections";
 import type { UseCardsResult } from "@/lib/catalog-query";
 import { catalogQueryOptions } from "@/lib/catalog-query";
+import { useDisplayStore } from "@/stores/display-store";
 
 // Re-export for consumers that import catalogQueryOptions from here
 // (landing-page.tsx uses it for the totalCopies stat).
@@ -20,7 +19,6 @@ export { catalogQueryOptions } from "@/lib/catalog-query";
 export function useCards(): UseCardsResult {
   const queryClient = useQueryClient();
   const { sets, cards, printings } = getCatalogCollections(queryClient);
-  const { orders } = useEnumOrders();
 
   // query-db-collection marks the collection ready even on query error (see
   // query.ts in @tanstack/query-db-collection), so useLiveSuspenseQuery alone
@@ -29,18 +27,26 @@ export function useCards(): UseCardsResult {
   // the underlying fetch is shared via queryClient cache, so no extra request.
   useSuspenseQuery(catalogQueryOptions);
 
-  const { data: rawPrintings } = useLiveSuspenseQuery((q) => q.from({ printing: printings }));
+  // Live query sorts by `canonicalRank` — the single-integer sort key computed
+  // by the `printings_ordered` DB view (see migration 096). That encodes the
+  // DB-default canonical order including language. Users with a language
+  // preference re-sort post-query below.
+  const { data: rawPrintings } = useLiveSuspenseQuery((q) =>
+    q.from({ printing: printings }).orderBy(({ printing }) => printing.canonicalRank),
+  );
   const { data: rawCards } = useLiveSuspenseQuery((q) => q.from({ card: cards }));
   const { data: rawSets } = useLiveSuspenseQuery((q) => q.from({ set: sets }));
 
-  return enrichFromCollections(rawPrintings, rawCards, rawSets, orders.finishes);
+  const userLanguages = useDisplayStore((state) => state.languages);
+
+  return enrichFromCollections(rawPrintings, rawCards, rawSets, userLanguages);
 }
 
 function enrichFromCollections(
   rawPrintings: readonly CatalogPrintingItem[],
   rawCards: readonly CatalogCardItem[],
   rawSets: readonly CatalogSetItem[],
-  finishOrder: readonly string[],
+  userLanguages: readonly string[],
 ): UseCardsResult {
   const slugById = new Map(rawSets.map((s) => [s.id, s.slug]));
 
@@ -63,25 +69,40 @@ function enrichFromCollections(
     }
   }
 
-  // The TanStack DB SortedMap stores rows by key (printing UUID), so the live
-  // query returns them in id order — not the canonical order consumers expect.
-  // Sort here so every caller of useCards() sees the same order.
-  allPrintings.sort((a, b) =>
-    comparePrintings(
-      { ...a, setOrder: setOrderMap.get(a.setId), markerSlugs: a.markers.map((m) => m.slug) },
-      { ...b, setOrder: setOrderMap.get(b.setId), markerSlugs: b.markers.map((m) => m.slug) },
-      finishOrder,
-    ),
-  );
+  // If the user has a language preference, re-sort by (userLangRank, canonicalRank).
+  // Within each language bucket, canonicalRank preserves the remaining canonical
+  // axes (set, shortCode, marker, finish). Default users (no preference) get the
+  // DB order from the live query's orderBy above — no JS sort needed.
+  const sortedPrintings =
+    userLanguages.length > 0 ? reorderByUserLanguages(allPrintings, userLanguages) : allPrintings;
 
-  const printingsByCardId = Map.groupBy(allPrintings, (p) => p.cardId);
+  const printingsByCardId = Map.groupBy(sortedPrintings, (p) => p.cardId);
 
   return {
-    allPrintings,
+    allPrintings: sortedPrintings,
     cardsById,
     printingsById,
     printingsByCardId,
     setOrderMap,
     sets: [...rawSets],
   };
+}
+
+/**
+ * Stable re-sort that bubbles the user's preferred languages to the top while
+ * preserving within-language canonical order.
+ *
+ * @returns A new array ordered by (userLangRank, canonicalRank).
+ */
+function reorderByUserLanguages(
+  printings: Printing[],
+  userLanguages: readonly string[],
+): Printing[] {
+  const rankByLang = new Map(userLanguages.map((lang, i) => [lang, i]));
+  const unlistedRank = userLanguages.length;
+  return printings.toSorted((a, b) => {
+    const aRank = rankByLang.get(a.language) ?? unlistedRank;
+    const bRank = rankByLang.get(b.language) ?? unlistedRank;
+    return aRank - bRank || a.canonicalRank - b.canonicalRank;
+  });
 }

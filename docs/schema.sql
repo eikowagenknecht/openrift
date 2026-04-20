@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 0piyz6tOUgV8t05QTQ4gpGss6w1Hd3w9bHKy8iJgqHjf15JyCd3V1APo88EAqti
+\restrict bXa4bpvnCk3eTI3bcGzhrrIBijtSGrUtjZcb60JtUScqlnRbghvr8IG5oAPSM8v
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1173,6 +1173,59 @@ CREATE TABLE public.printing_markers (
 
 
 --
+-- Name: sets; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.sets (
+    name text NOT NULL,
+    printed_total integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    sort_order integer DEFAULT 0 NOT NULL,
+    released_at date,
+    slug text NOT NULL,
+    id uuid DEFAULT uuidv7() CONSTRAINT sets_new_id_not_null NOT NULL,
+    set_type public.set_type DEFAULT 'main'::public.set_type NOT NULL,
+    CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
+    CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
+    CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
+);
+
+
+--
+-- Name: printings_ordered; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.printings_ordered AS
+ SELECT p.short_code,
+    p.rarity,
+    p.art_variant,
+    p.is_signed,
+    p.finish,
+    p.artist,
+    p.public_code,
+    p.printed_rules_text,
+    p.printed_effect_text,
+    p.created_at,
+    p.updated_at,
+    p.flavor_text,
+    p.id,
+    p.card_id,
+    p.set_id,
+    p.comment,
+    p.language,
+    p.printed_name,
+    p.marker_slugs,
+    (row_number() OVER (ORDER BY l.sort_order, s.sort_order, p.short_code, (array_length(p.marker_slugs, 1) IS NOT NULL), COALESCE(( SELECT min(m.sort_order) AS min
+           FROM public.markers m
+          WHERE (m.slug = ANY (p.marker_slugs))), 0), f.sort_order))::integer AS canonical_rank
+   FROM (((public.printings p
+     JOIN public.sets s ON ((s.id = p.set_id)))
+     JOIN public.finishes f ON ((f.slug = p.finish)))
+     JOIN public.languages l ON ((l.code = p.language)));
+
+
+--
 -- Name: provider_settings; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1249,26 +1302,6 @@ CREATE TABLE public.sessions (
     user_agent text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
-);
-
-
---
--- Name: sets; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.sets (
-    name text NOT NULL,
-    printed_total integer,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    sort_order integer DEFAULT 0 NOT NULL,
-    released_at date,
-    slug text NOT NULL,
-    id uuid DEFAULT uuidv7() CONSTRAINT sets_new_id_not_null NOT NULL,
-    set_type public.set_type DEFAULT 'main'::public.set_type NOT NULL,
-    CONSTRAINT chk_sets_name_not_empty CHECK ((name <> ''::text)),
-    CONSTRAINT chk_sets_printed_total_non_negative CHECK ((printed_total >= 0)),
-    CONSTRAINT chk_sets_slug_not_empty CHECK ((slug <> ''::text))
 );
 
 
@@ -3345,5 +3378,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 0piyz6tOUgV8t05QTQ4gpGss6w1Hd3w9bHKy8iJgqHjf15JyCd3V1APo88EAqti
+\unrestrict bXa4bpvnCk3eTI3bcGzhrrIBijtSGrUtjZcb60JtUScqlnRbghvr8IG5oAPSM8v
 

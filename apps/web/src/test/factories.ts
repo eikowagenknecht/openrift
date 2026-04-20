@@ -88,6 +88,7 @@ export function stubPrinting(
     printedName: null,
     comment: null,
     language: "EN",
+    canonicalRank: 0,
     card,
     ...printingOverrides,
   };

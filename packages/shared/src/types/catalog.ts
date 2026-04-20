@@ -103,5 +103,7 @@ export interface Printing {
   language: string;
   /** Editor note about this specific printing. Surfaced as a small icon + tooltip. */
   comment: string | null;
+  /** See {@link CatalogPrintingResponse.canonicalRank}. */
+  canonicalRank: number;
   card: Card;
 }

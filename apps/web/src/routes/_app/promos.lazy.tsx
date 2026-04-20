@@ -1,5 +1,4 @@
 import type { Printing } from "@openrift/shared";
-import { comparePrintings } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, useLocation, useNavigate } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, LayoutGridIcon, ListIcon } from "lucide-react";
@@ -19,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
+import { useLanguageList } from "@/hooks/use-enums";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import type { ChannelNode } from "@/lib/promos-tree";
 import { buildPromoTree, computeLanguageAggregates } from "@/lib/promos-tree";
@@ -510,10 +509,7 @@ function ChannelLeafSection({
   showImages,
   onCardClick,
 }: BranchProps) {
-  const { orders } = useEnumOrders();
-  const sortedPrintings = node.printings.toSorted((a, b) =>
-    comparePrintingsForDisplay(a, b, orders.finishes),
-  );
+  const sortedPrintings = node.printings.toSorted(comparePrintingsForDisplay);
   if (sortedPrintings.length === 0) {
     return null;
   }
@@ -566,20 +562,17 @@ function CompactBranchGrid({
   showImages: boolean;
   onCardClick: (printing: Printing) => void;
 }) {
-  const { orders } = useEnumOrders();
   // Flatten every leaf's printings into one grid that uses the normal card
   // sizing, so compact mode is just rows-vs-cols: each card carries a small
   // label telling you which sibling channel it came from. Tag the first card
   // of each leaf with the leaf's section id so cross-route hash links still
   // scroll to the right cell even though the leaf has no section of its own.
   const entries = node.children.flatMap((child) =>
-    child.printings
-      .toSorted((a, b) => comparePrintingsForDisplay(a, b, orders.finishes))
-      .map((printing, printingIndex) => ({
-        printing,
-        leafLabel: child.channel.label,
-        anchorId: printingIndex === 0 ? `${languagePrefix}-ch-${child.channel.id}` : undefined,
-      })),
+    child.printings.toSorted(comparePrintingsForDisplay).map((printing, printingIndex) => ({
+      printing,
+      leafLabel: child.channel.label,
+      anchorId: printingIndex === 0 ? `${languagePrefix}-ch-${child.channel.id}` : undefined,
+    })),
   );
   const legend = node.children.filter(
     (child) => child.channel.description && child.printings.length > 0,
@@ -628,16 +621,13 @@ function CompactBranchTable({
   languagePrefix: string;
   onCardClick: (printing: Printing) => void;
 }) {
-  const { orders } = useEnumOrders();
   const columnHeader = node.channel.childrenLabel ?? "Variant";
   const rows = node.children.flatMap((child) =>
-    child.printings
-      .toSorted((a, b) => comparePrintingsForDisplay(a, b, orders.finishes))
-      .map((printing, printingIndex) => ({
-        printing,
-        leafLabel: child.channel.label,
-        anchorId: printingIndex === 0 ? `${languagePrefix}-ch-${child.channel.id}` : undefined,
-      })),
+    child.printings.toSorted(comparePrintingsForDisplay).map((printing, printingIndex) => ({
+      printing,
+      leafLabel: child.channel.label,
+      anchorId: printingIndex === 0 ? `${languagePrefix}-ch-${child.channel.id}` : undefined,
+    })),
   );
   if (rows.length === 0) {
     return null;
@@ -693,22 +683,8 @@ function CompactBranchTable({
   );
 }
 
-function comparePrintingsForDisplay(a: Printing, b: Printing, finishOrder: readonly string[]) {
-  return comparePrintings(
-    {
-      setId: a.setId,
-      shortCode: a.shortCode,
-      finish: a.finish,
-      markerSlugs: a.markers.map((m) => m.slug),
-    },
-    {
-      setId: b.setId,
-      shortCode: b.shortCode,
-      finish: b.finish,
-      markerSlugs: b.markers.map((m) => m.slug),
-    },
-    finishOrder,
-  );
+function comparePrintingsForDisplay(a: Printing, b: Printing) {
+  return a.canonicalRank - b.canonicalRank;
 }
 
 function PromoListView({

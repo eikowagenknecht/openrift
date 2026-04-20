@@ -138,6 +138,7 @@ function toPrinting(group: UnifiedMappingGroup, p: UnifiedMappingPrinting): Prin
     printedName: null,
     comment: null,
     language: "EN",
+    canonicalRank: 0,
     card: {
       slug: group.cardId,
       name: group.cardName,

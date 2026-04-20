@@ -32,7 +32,7 @@ function toAbsoluteUrl(siteUrl: string, imageUrl: string | undefined): string | 
 interface CardDetailLoaderData {
   data: CardDetailResponse;
   printingId: string | undefined;
-  finishOrder: readonly string[];
+  languageOrder: readonly string[];
 }
 
 export const Route = createFileRoute("/_app/cards_/$cardSlug")({
@@ -52,8 +52,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     const linked = loaded?.printingId
       ? data.printings.find((p) => p.id === loaded.printingId)
       : undefined;
-    const metaPrinting =
-      linked ?? pickCardMetaPrinting(data.printings, data.sets, loaded.finishOrder);
+    const metaPrinting = linked ?? pickCardMetaPrinting(data.printings, loaded.languageOrder);
     const imageUrl = toAbsoluteUrl(siteUrl, getCardFrontImageFullUrl(metaPrinting));
     const description = buildCardMetaDescription(data.card, metaPrinting);
     // Canonical always points at the query-less card URL so search engines
@@ -96,17 +95,18 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     };
   },
   loader: async ({ context, params, deps }): Promise<CardDetailLoaderData> => {
-    // Fetch card detail and init in parallel; the head/meta preview picks the
-    // preferred printing using the live finish sort order from /api/enums.
+    // Fetch card detail and init in parallel. The head/meta preview picks
+    // the preferred printing using the live language sort order from
+    // /api/enums — logged-out crawlers fall through to this default.
     const [data, init] = await Promise.all([
       context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug)),
       context.queryClient.ensureQueryData(initQueryOptions),
     ]);
-    const finishRows = (init.enums.finishes ?? []) as { slug: string; sortOrder: number }[];
-    const finishOrder = finishRows
+    const languageRows = (init.enums.languages ?? []) as { slug: string; sortOrder: number }[];
+    const languageOrder = languageRows
       .toSorted((a, b) => a.sortOrder - b.sortOrder)
       .map((row) => row.slug);
-    return { data, printingId: deps.printingId, finishOrder };
+    return { data, printingId: deps.printingId, languageOrder };
   },
   component: () => null,
   pendingComponent: CardDetailPending,

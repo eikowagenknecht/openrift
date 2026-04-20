@@ -16,7 +16,7 @@ import {
 } from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
-import { useEnumOrders } from "@/hooks/use-enums";
+import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
 
 interface UseCardDataParams {
   allPrintings: Printing[];
@@ -119,6 +119,7 @@ export function useCardData({
   "use memo";
 
   const { orders } = useEnumOrders();
+  const defaultLanguageList = useLanguageList();
 
   if (!enabled) {
     return {
@@ -135,7 +136,6 @@ export function useCardData({
 
   const setSlugToName = new Map(sets.map((s) => [s.slug, s.name]));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
-  const setOrderMap = new Map(sets.map((s, i) => [s.id, i]));
 
   // getPrice resolves a printing's price on the user's favorite marketplace.
   // Filters, sorting, and the available-price-range histogram all read prices
@@ -144,9 +144,15 @@ export function useCardData({
   const getPrice = (p: Printing) => lookup.get(p.id, favoriteMarketplace);
 
   // Language is a hard filter applied via `filters.languages` inside
-  // `filterCards`. The `languageFilter` prop is the canonical-ordering
-  // preference, used by deduplicateByCard / groupPrintingsByCardId to pick
-  // which printing represents a card when several languages remain.
+  // `filterCards`. Separately, `effectiveLanguageOrder` is the canonical-
+  // ordering preference passed to deduplicateByCard / groupPrintingsByCardId
+  // to pick which printing represents a card when several languages remain.
+  // User preference wins; otherwise the live `languages.sort_order` from
+  // /api/enums provides the DB-driven default.
+  const effectiveLanguageOrder =
+    languageFilter && languageFilter.length > 0
+      ? languageFilter
+      : defaultLanguageList.map((l) => l.code);
   const availableFilters = getAvailableFilters(allPrintings, { orders, sets, getPrice });
   let filteredCards = filterCards(allPrintings, filters, { keywordReverseMap, getPrice });
 
@@ -171,16 +177,9 @@ export function useCardData({
   }
 
   const displayCards =
-    view === "cards"
-      ? deduplicateByCard(filteredCards, setOrderMap, orders.finishes, languageFilter)
-      : filteredCards;
+    view === "cards" ? deduplicateByCard(filteredCards, effectiveLanguageOrder) : filteredCards;
 
-  const printingsByCardId = groupPrintingsByCardId(
-    filteredCards,
-    setOrderMap,
-    orders.finishes,
-    languageFilter,
-  );
+  const printingsByCardId = groupPrintingsByCardId(filteredCards, effectiveLanguageOrder);
 
   const priceRangeByCardId =
     view === "cards" ? computePriceRanges(printingsByCardId, lookup, favoriteMarketplace) : null;

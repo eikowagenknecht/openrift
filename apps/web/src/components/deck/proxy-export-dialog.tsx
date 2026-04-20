@@ -161,15 +161,17 @@ async function generateProxyPdf({
   setPreviewUrl,
 }: GenerateProxyPdfParams): Promise<void> {
   // Pre-fetch init data so CardText doesn't suspend during rendering.
-  // We also read the live finish sort order out of it so `preferredPrinting`
+  // Compose the effective language order (user preference wins; otherwise
+  // the live `languages.sort_order` from /api/enums) so `preferredPrinting`
   // picks variants in the same order the rest of the UI does.
   const init = await queryClient.ensureQueryData(initQueryOptions);
-  const finishRows = (init.enums.finishes ?? []) as { slug: string; sortOrder: number }[];
-  const finishOrder = finishRows
+  const languageRows = (init.enums.languages ?? []) as { slug: string; sortOrder: number }[];
+  const defaultLanguageOrder = languageRows
     .toSorted((a, b) => a.sortOrder - b.sortOrder)
     .map((row) => row.slug);
+  const languageOrder = languages.length > 0 ? languages : defaultLanguageOrder;
 
-  const proxyCards = resolveProxyCards(cards, catalog, languages, finishOrder);
+  const proxyCards = resolveProxyCards(cards, catalog, languageOrder);
   const renderedCards = new Map<string, RenderedCard>();
 
   if (renderMode === "image") {

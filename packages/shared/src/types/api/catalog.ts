@@ -41,6 +41,14 @@ export interface CatalogPrintingResponse {
   language: string;
   comment: string | null;
   cardId: string;
+  /**
+   * Integer sort key from the `printings_ordered` DB view, encoding
+   * (language.sort_order, set.sort_order, short_code, has_markers,
+   * primary_marker.sort_order, finish.sort_order). A single integer compare
+   * replaces the 6-axis JS comparator. User language preference overrides
+   * the language axis client-side.
+   */
+  canonicalRank: number;
 }
 
 /** Wire-only value shapes for `GET /catalog` — identity lives in the map key, not the value. */

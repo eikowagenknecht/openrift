@@ -102,6 +102,7 @@ function buildFixture() {
       printedName: null,
       comment: null,
       language: pick(LANGUAGES, r),
+      canonicalRank: i + 1,
       card,
     };
   });

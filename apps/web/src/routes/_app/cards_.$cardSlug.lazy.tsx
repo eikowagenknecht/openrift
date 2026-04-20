@@ -1,7 +1,6 @@
 import type { CardErrata, Marketplace, Printing, TimeRange } from "@openrift/shared";
 import {
   ALL_MARKETPLACES,
-  comparePrintings,
   EUR_MARKETPLACES,
   preferredPrinting,
   snapshotHeadline,
@@ -29,7 +28,7 @@ import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useDomainColors } from "@/hooks/use-domain-colors";
-import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
+import { useEnumOrders, useLanguageLabels, useLanguageList } from "@/hooks/use-enums";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { getDomainGradientStyle } from "@/lib/domain";
 import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
@@ -46,17 +45,21 @@ function CardDetailPage() {
   const { printingId: linkedPrintingId } = Route.useSearch();
   const navigate = useNavigate();
   const { data } = useSuspenseQuery(cardDetailQueryOptions(cardSlug));
-  const { card, setOrderMap, sets } = data;
-  const { orders, labels } = useEnumOrders();
-  const languages = useDisplayStore((state) => state.languages);
-  // Sort here (not in the select) because the live finish order is hook-only.
-  const printings = data.printings.toSorted((a, b) =>
-    comparePrintings(
-      { ...a, setOrder: setOrderMap.get(a.setId), markerSlugs: a.markers.map((m) => m.slug) },
-      { ...b, setOrder: setOrderMap.get(b.setId), markerSlugs: b.markers.map((m) => m.slug) },
-      orders.finishes,
-    ),
-  );
+  const { card, sets } = data;
+  const { labels } = useEnumOrders();
+  const userLanguages = useDisplayStore((state) => state.languages);
+  const defaultLanguageList = useLanguageList();
+  const effectiveLanguageOrder =
+    userLanguages.length > 0 ? userLanguages : defaultLanguageList.map((l) => l.code);
+  // Sort by the DB-computed canonicalRank (via the `printings_ordered` view).
+  // User language preference overrides the language axis client-side.
+  const rankByLang = new Map(effectiveLanguageOrder.map((lang, i) => [lang, i]));
+  const unlistedRank = effectiveLanguageOrder.length;
+  const printings = data.printings.toSorted((a, b) => {
+    const aRank = rankByLang.get(a.language) ?? unlistedRank;
+    const bRank = rankByLang.get(b.language) ?? unlistedRank;
+    return aRank - bRank || a.canonicalRank - b.canonicalRank;
+  });
   const [selectedPrinting, setSelectedPrinting] = useState<Printing>(() => {
     if (linkedPrintingId) {
       const match = printings.find((p) => p.id === linkedPrintingId);
@@ -64,7 +67,7 @@ function CardDetailPage() {
         return match;
       }
     }
-    return preferredPrinting(printings, setOrderMap, orders.finishes, languages) ?? printings[0];
+    return preferredPrinting(printings, effectiveLanguageOrder) ?? printings[0];
   });
 
   // Mirror the selected printing into `?printingId=` so the URL is shareable

@@ -37,7 +37,7 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(names).toEqual([...names].sort());
   });
 
-  it("printings returns all printings with markerSlugs", async () => {
+  it("printings returns all printings with markerSlugs and canonicalRank", async () => {
     const printings = await repo.printings();
     expect(printings.length).toBeGreaterThan(0);
     const first = printings[0];
@@ -48,11 +48,19 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(first).toHaveProperty("finish");
     expect(first).toHaveProperty("markerSlugs");
     expect(Array.isArray(first.markerSlugs)).toBe(true);
-    // Should not include comment or timestamps
-    expect(first).not.toHaveProperty("comment");
+    expect(first).toHaveProperty("canonicalRank");
+    expect(typeof first.canonicalRank).toBe("number");
+    // Should not include timestamps
     expect(first).not.toHaveProperty("createdAt");
     expect(first).not.toHaveProperty("promoType");
     expect(first).not.toHaveProperty("promoTypeId");
+  });
+
+  it("printings are returned in canonical rank order", async () => {
+    const printings = await repo.printings();
+    for (let i = 1; i < printings.length; i++) {
+      expect(printings[i].canonicalRank).toBeGreaterThan(printings[i - 1].canonicalRank);
+    }
   });
 
   it("printingImages returns active images", async () => {

@@ -6,7 +6,7 @@ import { ArrowLeftIcon } from "lucide-react";
 
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useEnumOrders } from "@/hooks/use-enums";
+import { useLanguageList } from "@/hooks/use-enums";
 import { publicSetDetailQueryOptions } from "@/hooks/use-public-sets";
 import { PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -16,22 +16,16 @@ export const Route = createLazyFileRoute("/_app/sets_/$setSlug")({
   pendingComponent: SetDetailPending,
 });
 
-const EMPTY_SET_ORDER_MAP = new Map<string, number>();
-
 function SetDetailPage() {
   const { setSlug } = Route.useParams();
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
   const navigate = useNavigate();
   const showImages = useDisplayStore((s) => s.showImages);
-  const languageOrder = useDisplayStore((s) => s.languages);
-  const { orders } = useEnumOrders();
+  const userLanguages = useDisplayStore((s) => s.languages);
+  const defaultLanguages = useLanguageList().map((l) => l.code);
+  const effectiveLanguageOrder = userLanguages.length > 0 ? userLanguages : defaultLanguages;
 
-  const uniquePrintings = deduplicateByCard(
-    data.printings,
-    EMPTY_SET_ORDER_MAP,
-    orders.finishes,
-    languageOrder,
-  );
+  const uniquePrintings = deduplicateByCard(data.printings, effectiveLanguageOrder);
 
   const handleCardClick = (printing: Printing) => {
     void navigate({ to: "/cards/$cardSlug", params: { cardSlug: printing.card.slug } });

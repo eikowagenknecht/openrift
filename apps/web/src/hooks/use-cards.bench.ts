@@ -16,7 +16,6 @@ import type {
   CatalogSetResponse,
   Printing,
 } from "@openrift/shared";
-import { comparePrintings } from "@openrift/shared";
 import { bench, describe } from "vitest";
 
 const SET_COUNT = 7;
@@ -108,6 +107,7 @@ function buildFixtures() {
       comment: null,
       language: pick(LANGUAGES, r),
       cardId: `card-${cardIdx}`,
+      canonicalRank: i + 1,
     };
     printingsRecord[id] = printing;
     printingsArray.push({ ...printing, id });
@@ -142,13 +142,7 @@ function enrichCatalog(catalog: CatalogResponse) {
       printingsById[id] = printing;
     }
   }
-  allPrintings.sort((a, b) =>
-    comparePrintings(
-      { ...a, setOrder: setOrderMap.get(a.setId), markerSlugs: a.markers.map((m) => m.slug) },
-      { ...b, setOrder: setOrderMap.get(b.setId), markerSlugs: b.markers.map((m) => m.slug) },
-      FINISHES,
-    ),
-  );
+  allPrintings.sort((a, b) => a.canonicalRank - b.canonicalRank);
   const printingsByCardId = Map.groupBy(allPrintings, (p) => p.cardId);
   return {
     allPrintings,
@@ -184,13 +178,7 @@ function enrichFromCollections(
       printingsById[raw.id] = printing;
     }
   }
-  allPrintings.sort((a, b) =>
-    comparePrintings(
-      { ...a, setOrder: setOrderMap.get(a.setId), markerSlugs: a.markers.map((m) => m.slug) },
-      { ...b, setOrder: setOrderMap.get(b.setId), markerSlugs: b.markers.map((m) => m.slug) },
-      FINISHES,
-    ),
-  );
+  allPrintings.sort((a, b) => a.canonicalRank - b.canonicalRank);
   const printingsByCardId = Map.groupBy(allPrintings, (p) => p.cardId);
   return {
     allPrintings,

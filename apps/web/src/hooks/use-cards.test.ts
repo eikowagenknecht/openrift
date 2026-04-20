@@ -75,6 +75,7 @@ function stubPrintingValue(
     comment: null,
     language: "EN",
     cardId: CARD_A_ID,
+    canonicalRank: 0,
     ...overrides,
   };
 }
