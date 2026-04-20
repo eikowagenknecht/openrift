@@ -2,7 +2,7 @@
 
 ## 2026-04-20
 
-- feat: When a row in the Import Collection preview needs you to pick a printing, the dropdown now shows each candidate's card image so you can recognize the right one at a glance
+- feat: When a row in the Import Collection preview needs you to pick a printing, the dropdown now shows each candidate's card image, and hovering a candidate brings up a large preview of the card so you can confidently pick the right printing
 - feat: The cards browser and your collections now open to the Printings view by default, so each finish/variant shows up as its own tile — switch back to Cards from the toolbar, or set a permanent default in your profile's Display settings
 - feat: The badge next to the OpenRift logo now reads "Unofficial" instead of "Beta", to make it clearer this is a fan project and not an official Riot product
 - feat: Each language heading on the Promos page now shows a total of how many distinct printings and cards are covered in that language, so you can see the scope of a language at a glance

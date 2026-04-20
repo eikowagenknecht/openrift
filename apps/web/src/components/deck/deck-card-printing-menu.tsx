@@ -1,14 +1,13 @@
 import { ContextMenu } from "@base-ui/react/context-menu";
 import type { Printing } from "@openrift/shared";
 import type { MouseEvent, ReactNode } from "react";
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 
+import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
+import { PrintingOptionContent } from "@/components/cards/printing-option-content";
 import { useCards } from "@/hooks/use-cards";
 import { useDeckBuilderActions } from "@/hooks/use-deck-builder";
-import { useEnumOrders } from "@/hooks/use-enums";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
@@ -17,8 +16,6 @@ interface DeckCardPrintingMenuProps {
   card: DeckBuilderCard;
   children: ReactNode;
 }
-
-const CURSOR_OFFSET_PX = 24;
 
 /**
  * Right-click menu for a deck row: lists available printings with thumbnails
@@ -108,12 +105,6 @@ function PrintingMenuItem({
   onSelect: (printing: Printing, event: MouseEvent) => void;
   onHover: (id: string | null) => void;
 }) {
-  const thumbnail = printing.images.find((img) => img.face === "front")?.thumbnail ?? null;
-  const { labels } = useEnumOrders();
-  const label = formatPrintingLabel(printing, printings, labels);
-  const landscape = printing.card.type === "Battlefield";
-  const thumbnailSize = landscape ? "h-10 w-14" : "h-14 w-10";
-
   return (
     <ContextMenu.Item
       className={cn(
@@ -135,100 +126,7 @@ function PrintingMenuItem({
         }
       }}
     >
-      {thumbnail ? (
-        <img
-          src={thumbnail}
-          alt=""
-          className={cn(thumbnailSize, "shrink-0 rounded object-cover")}
-          draggable={false}
-        />
-      ) : (
-        <div className={cn(thumbnailSize, "bg-muted shrink-0 rounded")} />
-      )}
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="text-muted-foreground font-mono text-xs">{formatCardId(printing)}</span>
-        <span className="truncate text-xs">{label}</span>
-      </span>
+      <PrintingOptionContent printing={printing} siblings={printings} />
     </ContextMenu.Item>
-  );
-}
-
-/**
- * Cursor-following large preview of a printing. Rendered via portal to body so
- * it can float above the context menu without being clipped.
- * @returns The portal'd preview element, or null when no front image exists.
- */
-function PrintingHoverPreview({ printing }: { printing: Printing }) {
-  const front = printing.images.find((img) => img.face === "front");
-  const thumbnail = front?.thumbnail ?? null;
-  const fullUrl = front?.full ?? null;
-  const landscape = printing.card.type === "Battlefield";
-  const [fullLoaded, setFullLoaded] = useState(false);
-  const previewRef = useRef<HTMLDivElement>(null);
-  const cursorRef = useRef({ x: 0, y: 0 });
-
-  useEffect(() => {
-    setFullLoaded(false);
-  }, [fullUrl]);
-
-  useEffect(() => {
-    const previewWidth = landscape ? 560 : 400;
-    const previewHeight = landscape ? 400 : 560;
-
-    const applyPosition = (clientX: number, clientY: number) => {
-      const preview = previewRef.current;
-      if (!preview) {
-        return;
-      }
-      const viewportWidth = document.documentElement.clientWidth;
-      const viewportHeight = document.documentElement.clientHeight;
-      const right = clientX + CURSOR_OFFSET_PX + previewWidth;
-      const left =
-        right <= viewportWidth
-          ? clientX + CURSOR_OFFSET_PX
-          : clientX - CURSOR_OFFSET_PX - previewWidth;
-      const top = Math.min(
-        Math.max(0, clientY - previewHeight / 2),
-        Math.max(0, viewportHeight - previewHeight),
-      );
-      preview.style.left = `${Math.max(0, left)}px`;
-      preview.style.top = `${top}px`;
-    };
-
-    applyPosition(cursorRef.current.x, cursorRef.current.y);
-
-    const handler = (event: globalThis.MouseEvent) => {
-      cursorRef.current = { x: event.clientX, y: event.clientY };
-      applyPosition(event.clientX, event.clientY);
-    };
-    globalThis.addEventListener("mousemove", handler);
-    return () => globalThis.removeEventListener("mousemove", handler);
-  }, [landscape]);
-
-  if (!thumbnail) {
-    return null;
-  }
-
-  return createPortal(
-    <div
-      ref={previewRef}
-      className={cn("pointer-events-none fixed z-[100]", landscape ? "w-[560px]" : "w-[400px]")}
-    >
-      <div className="relative">
-        <img src={thumbnail} alt="" className="w-full rounded-lg shadow-lg" />
-        {fullUrl && (
-          <img
-            src={fullUrl}
-            alt=""
-            onLoad={() => setFullLoaded(true)}
-            className={cn(
-              "absolute inset-0 w-full rounded-lg shadow-lg transition-opacity duration-150",
-              fullLoaded ? "opacity-100" : "opacity-0",
-            )}
-          />
-        )}
-      </div>
-    </div>,
-    document.body,
   );
 }

@@ -18,6 +18,8 @@ import { use, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
+import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
+import { PrintingOptionContent } from "@/components/cards/printing-option-content";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
 import { PrintingSearch, formatImportPrintingLabel } from "@/components/printing-search";
 import { Badge } from "@/components/ui/badge";
@@ -749,9 +751,12 @@ function VariantPicker({
   onSelect: (printing: Printing) => void;
 }) {
   const { labels } = useEnumOrders();
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const hoveredPrinting = hoveredId ? candidates.find((c) => c.id === hoveredId) : null;
   return (
     <Select
       value={resolved?.id ?? ""}
+      onOpenChange={(open) => !open && setHoveredId(null)}
       onValueChange={(value) => {
         const printing = candidates.find((candidate) => candidate.id === value);
         if (printing) {
@@ -766,28 +771,27 @@ function VariantPicker({
         <SelectValue placeholder="Pick printing..." />
       </SelectTrigger>
       <SelectContent className="w-auto">
-        {candidates.map((printing) => {
-          const thumbnail =
-            printing.images.find((image) => image.face === "front")?.thumbnail ?? null;
-          const landscape = printing.card.type === "Battlefield";
-          const thumbnailSize = landscape ? "h-10 w-14" : "h-14 w-10";
-          return (
-            <SelectItem key={printing.id} value={printing.id} className="py-1.5">
-              {thumbnail ? (
-                <img
-                  src={thumbnail}
-                  alt=""
-                  className={cn(thumbnailSize, "shrink-0 rounded object-cover")}
-                  draggable={false}
-                />
-              ) : (
-                <div className={cn(thumbnailSize, "bg-muted shrink-0 rounded")} />
-              )}
-              <span>{formatImportPrintingLabel(printing, labels)}</span>
-            </SelectItem>
-          );
-        })}
+        {candidates.map((printing) => (
+          <SelectItem
+            key={printing.id}
+            value={printing.id}
+            className="py-1.5"
+            onPointerEnter={(event) => {
+              if (event.pointerType === "mouse") {
+                setHoveredId(printing.id);
+              }
+            }}
+            onPointerLeave={(event) => {
+              if (event.pointerType === "mouse") {
+                setHoveredId(null);
+              }
+            }}
+          >
+            <PrintingOptionContent printing={printing} siblings={candidates} />
+          </SelectItem>
+        ))}
       </SelectContent>
+      {hoveredPrinting && <PrintingHoverPreview printing={hoveredPrinting} />}
     </Select>
   );
 }
