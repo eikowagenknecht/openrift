@@ -145,24 +145,20 @@ function PromosPage() {
     [data.printings],
   );
 
-  const navEntries = useMemo(() => {
-    const entries: NavEntry[] = [];
-    for (const language of presentLanguages) {
-      const tree = treesByLanguage.get(language);
-      if (!tree || tree.length === 0) {
-        continue;
-      }
-      const languageSectionId = `lang-${language}`;
-      entries.push({
-        sectionId: languageSectionId,
-        label: languageLabelMap.get(language) ?? language,
-        depth: 0,
-      });
-      collectChannelNavEntries(tree, languageSectionId, 1, entries);
+  const navEntries: NavEntry[] = [];
+  for (const language of presentLanguages) {
+    const tree = treesByLanguage.get(language);
+    if (!tree || tree.length === 0) {
+      continue;
     }
-    return entries;
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- presentLanguages and languageLabelMap are rebuilt every render by value; treesByLanguage is the load-bearing input.
-  }, [treesByLanguage]);
+    const languageSectionId = `lang-${language}`;
+    navEntries.push({
+      sectionId: languageSectionId,
+      label: languageLabelMap.get(language) ?? language,
+      depth: 0,
+    });
+    collectChannelNavEntries(tree, languageSectionId, 1, navEntries);
+  }
 
   const [activeSectionId, setActiveSectionId] = useState<string | null>(
     navEntries[0]?.sectionId ?? null,
@@ -200,7 +196,7 @@ function PromosPage() {
       observer.observe(element);
     }
     return () => observer.disconnect();
-  }, [navEntries]);
+  }, [treesByLanguage]);
 
   // Hash-scroll: TanStack Router navigations land before the lazy route's
   // content is in the DOM, so the native browser scroll-to-hash misses the
