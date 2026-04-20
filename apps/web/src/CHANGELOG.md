@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-20
+
+- fix: Promo cards are sized more comfortably across screen widths, and the sidebar only appears on wider desktops so the grid can use the full width on laptop screens
+
 ## 2026-04-19
 
 - feat: New accounts start with a "Binder" collection alongside the Inbox, so there's somewhere to sort cards into from the very first booster

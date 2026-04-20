@@ -284,8 +284,8 @@ function PromosPage() {
       </div>
 
       <div className="flex gap-8">
-        {/* Sidebar nav — hidden on mobile */}
-        <nav className="hidden shrink-0 md:block md:w-52">
+        {/* Sidebar nav — hidden below lg where the card grid needs the width */}
+        <nav className="hidden shrink-0 lg:block lg:w-52">
           <div className="sticky top-16 space-y-0.5">
             {navEntries.map((entry) => (
               <button
@@ -560,7 +560,7 @@ function ChannelLeafSection({
         )}
       </div>
       {viewMode === "grid" ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+        <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
           {sortedPrintings.map((printing) => (
             <CardThumbnail
               key={printing.id}
@@ -618,7 +618,7 @@ function CompactBranchGrid({
           ))}
         </dl>
       )}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+      <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
         {entries.map(({ printing, leafLabel, anchorId }) => (
           <div
             key={`${leafLabel}-${printing.id}`}
@@ -845,7 +845,7 @@ function PromosPending() {
       <Skeleton className="mb-6 h-5 w-64" />
       <Skeleton className="mb-2 h-7 w-36" />
       <Skeleton className="mb-4 h-4 w-48" />
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8">
+      <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
         {Array.from({ length: 12 }, (_, i) => (
           <div key={i} className="p-1.5">
             <Skeleton className="aspect-card rounded-lg" />
