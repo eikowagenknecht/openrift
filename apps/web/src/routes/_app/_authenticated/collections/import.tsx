@@ -763,14 +763,30 @@ function VariantPicker({
       )}
     >
       <SelectTrigger size="sm" className="h-7 w-auto text-xs">
-        <SelectValue placeholder="Pick variant..." />
+        <SelectValue placeholder="Pick printing..." />
       </SelectTrigger>
       <SelectContent className="w-auto">
-        {candidates.map((printing) => (
-          <SelectItem key={printing.id} value={printing.id} className="py-1.5">
-            {formatImportPrintingLabel(printing, labels)}
-          </SelectItem>
-        ))}
+        {candidates.map((printing) => {
+          const thumbnail =
+            printing.images.find((image) => image.face === "front")?.thumbnail ?? null;
+          const landscape = printing.card.type === "Battlefield";
+          const thumbnailSize = landscape ? "h-10 w-14" : "h-14 w-10";
+          return (
+            <SelectItem key={printing.id} value={printing.id} className="py-1.5">
+              {thumbnail ? (
+                <img
+                  src={thumbnail}
+                  alt=""
+                  className={cn(thumbnailSize, "shrink-0 rounded object-cover")}
+                  draggable={false}
+                />
+              ) : (
+                <div className={cn(thumbnailSize, "bg-muted shrink-0 rounded")} />
+              )}
+              <span>{formatImportPrintingLabel(printing, labels)}</span>
+            </SelectItem>
+          );
+        })}
       </SelectContent>
     </Select>
   );

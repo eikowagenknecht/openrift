@@ -564,10 +564,10 @@ test.describe("collections import/export", () => {
       await expect(page.getByRole("button", { name: /^Import 2 copies$/ })).toBeVisible();
 
       // The needs-review row (Annie, Fiery with altart) exposes a VariantPicker
-      // combobox whose trigger shows "Pick variant..." as placeholder text.
+      // combobox whose trigger shows "Pick printing..." as placeholder text.
       const variantTrigger = page
         .getByRole("combobox")
-        .filter({ hasText: /Pick variant/ })
+        .filter({ hasText: /Pick printing/ })
         .first();
       await variantTrigger.click();
       await page.getByRole("option").first().click();
