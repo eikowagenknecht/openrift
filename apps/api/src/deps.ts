@@ -2,14 +2,17 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "./db/index.js";
 import { adminsRepo } from "./repositories/admins.js";
+import { artVariantsRepo } from "./repositories/art-variants.js";
 import { candidateCardsRepo } from "./repositories/candidate-cards.js";
 import { candidateMutationsRepo } from "./repositories/candidate-mutations.js";
 import { canonicalPrintingsRepo } from "./repositories/canonical-printings.js";
 import { cardBansRepo } from "./repositories/card-bans.js";
+import { cardTypesRepo } from "./repositories/card-types.js";
 import { catalogRepo } from "./repositories/catalog.js";
 import { collectionEventsRepo } from "./repositories/collection-events.js";
 import { collectionsRepo } from "./repositories/collections.js";
 import { copiesRepo } from "./repositories/copies.js";
+import { deckFormatsRepo } from "./repositories/deck-formats.js";
 import { deckZonesRepo } from "./repositories/deck-zones.js";
 import { decksRepo } from "./repositories/decks.js";
 import { distributionChannelsRepo } from "./repositories/distribution-channels.js";
@@ -36,6 +39,7 @@ import { rulesRepo } from "./repositories/rules.js";
 import { setsRepo } from "./repositories/sets.js";
 import { siteSettingsRepo } from "./repositories/site-settings.js";
 import { statusRepo } from "./repositories/status.js";
+import { superTypesRepo } from "./repositories/super-types.js";
 import { tradeListsRepo } from "./repositories/trade-lists.js";
 import { userFeatureFlagsRepo } from "./repositories/user-feature-flags.js";
 import { userPreferencesRepo } from "./repositories/user-preferences.js";
@@ -53,13 +57,16 @@ import { buildShoppingList } from "./services/shopping-list.js";
 export interface Repos {
   collectionEvents: ReturnType<typeof collectionEventsRepo>;
   admins: ReturnType<typeof adminsRepo>;
+  artVariants: ReturnType<typeof artVariantsRepo>;
   cardBans: ReturnType<typeof cardBansRepo>;
+  cardTypes: ReturnType<typeof cardTypesRepo>;
   canonicalPrintings: ReturnType<typeof canonicalPrintingsRepo>;
   candidateMutations: ReturnType<typeof candidateMutationsRepo>;
   candidateCards: ReturnType<typeof candidateCardsRepo>;
   catalog: ReturnType<typeof catalogRepo>;
   collections: ReturnType<typeof collectionsRepo>;
   copies: ReturnType<typeof copiesRepo>;
+  deckFormats: ReturnType<typeof deckFormatsRepo>;
   deckZones: ReturnType<typeof deckZonesRepo>;
   decks: ReturnType<typeof decksRepo>;
   domains: ReturnType<typeof domainsRepo>;
@@ -80,6 +87,7 @@ export interface Repos {
   rules: ReturnType<typeof rulesRepo>;
   sets: ReturnType<typeof setsRepo>;
   status: ReturnType<typeof statusRepo>;
+  superTypes: ReturnType<typeof superTypesRepo>;
   providerSettings: ReturnType<typeof providerSettingsRepo>;
   siteSettings: ReturnType<typeof siteSettingsRepo>;
   tradeLists: ReturnType<typeof tradeListsRepo>;
@@ -110,13 +118,16 @@ export function createRepos(db: Kysely<Database>): Repos {
   return {
     collectionEvents: collectionEventsRepo(db),
     admins: adminsRepo(db),
+    artVariants: artVariantsRepo(db),
     cardBans: cardBansRepo(db),
+    cardTypes: cardTypesRepo(db),
     canonicalPrintings: canonicalPrintingsRepo(db),
     candidateMutations: candidateMutationsRepo(db),
     candidateCards: candidateCardsRepo(db),
     catalog: catalogRepo(db),
     collections: collectionsRepo(db),
     copies: copiesRepo(db),
+    deckFormats: deckFormatsRepo(db),
     deckZones: deckZonesRepo(db),
     decks: decksRepo(db),
     domains: domainsRepo(db),
@@ -137,6 +148,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     rules: rulesRepo(db),
     sets: setsRepo(db),
     status: statusRepo(db),
+    superTypes: superTypesRepo(db),
     providerSettings: providerSettingsRepo(db),
     siteSettings: siteSettingsRepo(db),
     tradeLists: tradeListsRepo(db),

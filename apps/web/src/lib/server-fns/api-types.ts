@@ -73,8 +73,20 @@ export type AdminDomainsResponse = InferResponseType<
 export type AdminFinishesResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["finishes"]["$get"]
 >;
+export type AdminArtVariantsResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["art-variants"]["$get"]
+>;
 export type AdminRaritiesResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["rarities"]["$get"]
+>;
+export type AdminCardTypesResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["card-types"]["$get"]
+>;
+export type AdminSuperTypesResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["super-types"]["$get"]
+>;
+export type AdminDeckFormatsResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["deck-formats"]["$get"]
 >;
 
 // ── Public endpoints ────────────────────────────────────────────────────────
