@@ -1,7 +1,7 @@
 import { ContextMenu } from "@base-ui/react/context-menu";
 import type { Printing } from "@openrift/shared";
 import type { MouseEvent, ReactNode } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { PrintingHoverPreview } from "@/components/cards/printing-hover-preview";
 import { PrintingOptionContent } from "@/components/cards/printing-option-content";
@@ -19,8 +19,8 @@ interface DeckCardPrintingMenuProps {
 
 /**
  * Right-click menu for a deck row: lists available printings with thumbnails
- * and a cursor-following hover preview. Click a printing to convert every
- * copy in this row; shift-click to split off a single copy.
+ * and a large hover preview anchored beside the menu. Click a printing to
+ * convert every copy in this row; shift-click to split off a single copy.
  * @returns The wrapped children with the context menu attached.
  */
 export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintingMenuProps) {
@@ -38,6 +38,7 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
         )
       : allPrintings;
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
 
   if (printings.length <= 1) {
     return children;
@@ -63,7 +64,10 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
       </ContextMenu.Trigger>
       <ContextMenu.Portal>
         <ContextMenu.Positioner className="isolate z-50 outline-none" sideOffset={4}>
-          <ContextMenu.Popup className="data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 ring-foreground/10 bg-popover text-popover-foreground z-50 max-h-[70vh] w-72 origin-(--transform-origin) overflow-y-auto rounded-lg p-1.5 shadow-md ring-1 outline-none">
+          <ContextMenu.Popup
+            ref={popupRef}
+            className="data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 ring-foreground/10 bg-popover text-popover-foreground z-50 max-h-[70vh] w-72 origin-(--transform-origin) overflow-y-auto rounded-lg p-1.5 shadow-md ring-1 outline-none"
+          >
             <div className="text-muted-foreground px-1.5 pt-1 pb-1.5 text-[10px] font-medium tracking-wide uppercase">
               Change printing
               {card.quantity > 1 && (
@@ -87,7 +91,7 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
           </ContextMenu.Popup>
         </ContextMenu.Positioner>
       </ContextMenu.Portal>
-      {hoveredPrinting && <PrintingHoverPreview printing={hoveredPrinting} />}
+      {hoveredPrinting && <PrintingHoverPreview printing={hoveredPrinting} anchorRef={popupRef} />}
     </ContextMenu.Root>
   );
 }
