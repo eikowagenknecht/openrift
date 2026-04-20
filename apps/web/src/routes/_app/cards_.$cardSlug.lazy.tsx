@@ -1,6 +1,7 @@
 import type { CardErrata, Marketplace, Printing, TimeRange } from "@openrift/shared";
 import {
   ALL_MARKETPLACES,
+  comparePrintings,
   EUR_MARKETPLACES,
   preferredPrinting,
   snapshotHeadline,
@@ -45,8 +46,17 @@ function CardDetailPage() {
   const { printingId: linkedPrintingId } = Route.useSearch();
   const navigate = useNavigate();
   const { data } = useSuspenseQuery(cardDetailQueryOptions(cardSlug));
-  const { card, printings, setOrderMap, sets } = data;
+  const { card, setOrderMap, sets } = data;
+  const { orders, labels } = useEnumOrders();
   const languages = useDisplayStore((state) => state.languages);
+  // Sort here (not in the select) because the live finish order is hook-only.
+  const printings = data.printings.toSorted((a, b) =>
+    comparePrintings(
+      { ...a, setOrder: setOrderMap.get(a.setId), markerSlugs: a.markers.map((m) => m.slug) },
+      { ...b, setOrder: setOrderMap.get(b.setId), markerSlugs: b.markers.map((m) => m.slug) },
+      orders.finishes,
+    ),
+  );
   const [selectedPrinting, setSelectedPrinting] = useState<Printing>(() => {
     if (linkedPrintingId) {
       const match = printings.find((p) => p.id === linkedPrintingId);
@@ -54,7 +64,7 @@ function CardDetailPage() {
         return match;
       }
     }
-    return preferredPrinting(printings, setOrderMap, languages) ?? printings[0];
+    return preferredPrinting(printings, setOrderMap, orders.finishes, languages) ?? printings[0];
   });
 
   // Mirror the selected printing into `?printingId=` so the URL is shareable
@@ -72,7 +82,6 @@ function CardDetailPage() {
   const setById = new Map(sets.map((s) => [s.id, s]));
   const domainColors = useDomainColors();
   const languageLabels = useLanguageLabels();
-  const { labels } = useEnumOrders();
 
   if (!selectedPrinting) {
     return (

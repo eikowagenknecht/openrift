@@ -16,6 +16,7 @@ import {
 } from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
+import { useEnumOrders } from "@/hooks/use-enums";
 
 interface UseCardDataParams {
   allPrintings: Printing[];
@@ -97,7 +98,6 @@ function buildOwnedCounts(
   return map;
 }
 
-const EMPTY_AVAILABLE = getAvailableFilters([]);
 const EMPTY_PRINTINGS_MAP = new Map<string, Printing[]>();
 const NO_OP_LABEL = (slug: string) => slug;
 
@@ -118,9 +118,11 @@ export function useCardData({
 }: UseCardDataParams) {
   "use memo";
 
+  const { orders } = useEnumOrders();
+
   if (!enabled) {
     return {
-      availableFilters: EMPTY_AVAILABLE,
+      availableFilters: getAvailableFilters([], { orders }),
       availableLanguages: [] as string[],
       sortedCards: [] as Printing[],
       printingsByCardId: EMPTY_PRINTINGS_MAP,
@@ -145,7 +147,7 @@ export function useCardData({
   // `filterCards`. The `languageFilter` prop is the canonical-ordering
   // preference, used by deduplicateByCard / groupPrintingsByCardId to pick
   // which printing represents a card when several languages remain.
-  const availableFilters = getAvailableFilters(allPrintings, { sets, getPrice });
+  const availableFilters = getAvailableFilters(allPrintings, { orders, sets, getPrice });
   let filteredCards = filterCards(allPrintings, filters, { keywordReverseMap, getPrice });
 
   // Apply ownership filter (frontend-only, needs user copy data)
@@ -170,10 +172,15 @@ export function useCardData({
 
   const displayCards =
     view === "cards"
-      ? deduplicateByCard(filteredCards, setOrderMap, languageFilter)
+      ? deduplicateByCard(filteredCards, setOrderMap, orders.finishes, languageFilter)
       : filteredCards;
 
-  const printingsByCardId = groupPrintingsByCardId(filteredCards, setOrderMap, languageFilter);
+  const printingsByCardId = groupPrintingsByCardId(
+    filteredCards,
+    setOrderMap,
+    orders.finishes,
+    languageFilter,
+  );
 
   const priceRangeByCardId =
     view === "cards" ? computePriceRanges(printingsByCardId, lookup, favoriteMarketplace) : null;

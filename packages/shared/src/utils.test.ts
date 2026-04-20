@@ -19,6 +19,8 @@ import {
   unique,
 } from "./utils";
 
+const TEST_FINISH_ORDER = ["normal", "foil", "metal", "metal-deluxe"] as const;
+
 function makePrinting(overrides: Partial<Printing> & { language: string }): Printing {
   return {
     id: "p1",
@@ -184,81 +186,81 @@ describe("comparePrintings", () => {
   };
 
   it("returns 0 for identical printings", () => {
-    expect(comparePrintings(base, { ...base })).toBe(0);
+    expect(comparePrintings(base, { ...base }, TEST_FINISH_ORDER)).toBe(0);
   });
 
   it("sorts by setId first", () => {
     const a = { ...base, setId: "AAA" };
     const b = { ...base, setId: "ZZZ" };
-    expect(comparePrintings(a, b)).toBeLessThan(0);
-    expect(comparePrintings(b, a)).toBeGreaterThan(0);
+    expect(comparePrintings(a, b, TEST_FINISH_ORDER)).toBeLessThan(0);
+    expect(comparePrintings(b, a, TEST_FINISH_ORDER)).toBeGreaterThan(0);
   });
 
   it("sorts by setOrder when provided, ignoring setId", () => {
     const a = { ...base, setId: "ZZZ", setOrder: 0 };
     const b = { ...base, setId: "AAA", setOrder: 1 };
-    expect(comparePrintings(a, b)).toBeLessThan(0);
-    expect(comparePrintings(b, a)).toBeGreaterThan(0);
+    expect(comparePrintings(a, b, TEST_FINISH_ORDER)).toBeLessThan(0);
+    expect(comparePrintings(b, a, TEST_FINISH_ORDER)).toBeGreaterThan(0);
   });
 
   it("falls back to setId when setOrder is not provided", () => {
     const a = { ...base, setId: "AAA" };
     const b = { ...base, setId: "ZZZ", setOrder: 0 };
     // Only b has setOrder, so falls back to setId string comparison
-    expect(comparePrintings(a, b)).toBeLessThan(0);
+    expect(comparePrintings(a, b, TEST_FINISH_ORDER)).toBeLessThan(0);
   });
 
   it("sorts by shortCode when setId is equal", () => {
     const a = { ...base, shortCode: "SET-A-005" };
     const b = { ...base, shortCode: "SET-A-010" };
-    expect(comparePrintings(a, b)).toBeLessThan(0);
-    expect(comparePrintings(b, a)).toBeGreaterThan(0);
+    expect(comparePrintings(a, b, TEST_FINISH_ORDER)).toBeLessThan(0);
+    expect(comparePrintings(b, a, TEST_FINISH_ORDER)).toBeGreaterThan(0);
   });
 
   it("sorts base variant before alt-art by short code", () => {
     const normal = { ...base, shortCode: "OGN-240" };
     const altart = { ...base, shortCode: "OGN-240a" };
-    expect(comparePrintings(normal, altart)).toBeLessThan(0);
-    expect(comparePrintings(altart, normal)).toBeGreaterThan(0);
+    expect(comparePrintings(normal, altart, TEST_FINISH_ORDER)).toBeLessThan(0);
+    expect(comparePrintings(altart, normal, TEST_FINISH_ORDER)).toBeGreaterThan(0);
   });
 
   it("sorts unmarked before marked", () => {
     const normal = { ...base, markerSlugs: [] as string[] };
     const promo = { ...base, markerSlugs: ["promo"] };
-    expect(comparePrintings(normal, promo)).toBeLessThan(0);
-    expect(comparePrintings(promo, normal)).toBeGreaterThan(0);
+    expect(comparePrintings(normal, promo, TEST_FINISH_ORDER)).toBeLessThan(0);
+    expect(comparePrintings(promo, normal, TEST_FINISH_ORDER)).toBeGreaterThan(0);
   });
 
   it("treats missing markerSlugs as unmarked", () => {
     const noPromo = { ...base };
     const promo = { ...base, markerSlugs: ["promo"] };
-    expect(comparePrintings(noPromo, promo)).toBeLessThan(0);
+    expect(comparePrintings(noPromo, promo, TEST_FINISH_ORDER)).toBeLessThan(0);
   });
 
   it("sorts normal finish before foil", () => {
     const normal = { ...base, finish: "normal" };
     const foil = { ...base, finish: "foil" };
-    expect(comparePrintings(normal, foil)).toBeLessThan(0);
-    expect(comparePrintings(foil, normal)).toBeGreaterThan(0);
+    expect(comparePrintings(normal, foil, TEST_FINISH_ORDER)).toBeLessThan(0);
+    expect(comparePrintings(foil, normal, TEST_FINISH_ORDER)).toBeGreaterThan(0);
   });
 
   it("handles null setId by treating it as empty string", () => {
     const nullSet = { ...base, setId: null };
     const emptySet = { ...base, setId: "" };
-    expect(comparePrintings(nullSet, emptySet)).toBe(0);
+    expect(comparePrintings(nullSet, emptySet, TEST_FINISH_ORDER)).toBe(0);
   });
 
   it("handles undefined setId by treating it as empty string", () => {
     const undefinedSet = { ...base, setId: undefined };
     const emptySet = { ...base, setId: "" };
-    expect(comparePrintings(undefinedSet, emptySet)).toBe(0);
+    expect(comparePrintings(undefinedSet, emptySet, TEST_FINISH_ORDER)).toBe(0);
   });
 
   it("applies tiebreakers in correct priority order", () => {
     // Same set and shortCode — promo status decides before finish
     const a = { ...base, markerSlugs: [] as string[], finish: "foil" };
     const b = { ...base, markerSlugs: ["promo"], finish: "normal" };
-    expect(comparePrintings(a, b)).toBeLessThan(0);
+    expect(comparePrintings(a, b, TEST_FINISH_ORDER)).toBeLessThan(0);
   });
 });
 
@@ -449,59 +451,74 @@ describe("compareWithLanguagePreference", () => {
   const zhPrinting = makePrinting({ id: "zh", language: "ZH" });
 
   it("prefers EN over ZH with single-language preference ['EN']", () => {
-    expect(compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, ["EN"])).toBeLessThan(
-      0,
-    );
     expect(
-      compareWithLanguagePreference(zhPrinting, enPrinting, setOrderMap, ["EN"]),
+      compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, TEST_FINISH_ORDER, ["EN"]),
+    ).toBeLessThan(0);
+    expect(
+      compareWithLanguagePreference(zhPrinting, enPrinting, setOrderMap, TEST_FINISH_ORDER, ["EN"]),
     ).toBeGreaterThan(0);
   });
 
   it("prefers ZH over EN with single-language preference ['ZH']", () => {
-    expect(compareWithLanguagePreference(zhPrinting, enPrinting, setOrderMap, ["ZH"])).toBeLessThan(
-      0,
-    );
     expect(
-      compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, ["ZH"]),
+      compareWithLanguagePreference(zhPrinting, enPrinting, setOrderMap, TEST_FINISH_ORDER, ["ZH"]),
+    ).toBeLessThan(0);
+    expect(
+      compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, TEST_FINISH_ORDER, ["ZH"]),
     ).toBeGreaterThan(0);
   });
 
   it("prefers EN over ZH with multi-language preference ['EN', 'ZH']", () => {
     expect(
-      compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, ["EN", "ZH"]),
+      compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, TEST_FINISH_ORDER, [
+        "EN",
+        "ZH",
+      ]),
     ).toBeLessThan(0);
   });
 
   it("returns 0 for same language", () => {
-    expect(compareWithLanguagePreference(enPrinting, enPrinting, setOrderMap, ["EN"])).toBe(0);
+    expect(
+      compareWithLanguagePreference(enPrinting, enPrinting, setOrderMap, TEST_FINISH_ORDER, ["EN"]),
+    ).toBe(0);
   });
 
   it("sorts unlisted languages alphabetically after listed ones", () => {
     const dePrinting = makePrinting({ id: "de", language: "DE" });
     const frPrinting = makePrinting({ id: "fr", language: "FR" });
     // Preference is EN only — DE and FR are both unlisted, should sort alphabetically
-    expect(compareWithLanguagePreference(dePrinting, frPrinting, setOrderMap, ["EN"])).toBeLessThan(
-      0,
-    );
     expect(
-      compareWithLanguagePreference(frPrinting, dePrinting, setOrderMap, ["EN"]),
+      compareWithLanguagePreference(dePrinting, frPrinting, setOrderMap, TEST_FINISH_ORDER, ["EN"]),
+    ).toBeLessThan(0);
+    expect(
+      compareWithLanguagePreference(frPrinting, dePrinting, setOrderMap, TEST_FINISH_ORDER, ["EN"]),
     ).toBeGreaterThan(0);
   });
 
   it("defaults to EN-first when no language preference is given", () => {
-    expect(compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap)).toBeLessThan(0);
-    expect(compareWithLanguagePreference(zhPrinting, enPrinting, setOrderMap)).toBeGreaterThan(0);
+    expect(
+      compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, TEST_FINISH_ORDER),
+    ).toBeLessThan(0);
+    expect(
+      compareWithLanguagePreference(zhPrinting, enPrinting, setOrderMap, TEST_FINISH_ORDER),
+    ).toBeGreaterThan(0);
   });
 
   it("defaults to EN-first when language preference is empty", () => {
-    expect(compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, [])).toBeLessThan(0);
+    expect(
+      compareWithLanguagePreference(enPrinting, zhPrinting, setOrderMap, TEST_FINISH_ORDER, []),
+    ).toBeLessThan(0);
   });
 
   it("sorts non-EN languages alphabetically when no preference is given", () => {
     const dePrinting = makePrinting({ id: "de", language: "DE" });
     const frPrinting = makePrinting({ id: "fr", language: "FR" });
-    expect(compareWithLanguagePreference(dePrinting, frPrinting, setOrderMap)).toBeLessThan(0);
-    expect(compareWithLanguagePreference(frPrinting, dePrinting, setOrderMap)).toBeGreaterThan(0);
+    expect(
+      compareWithLanguagePreference(dePrinting, frPrinting, setOrderMap, TEST_FINISH_ORDER),
+    ).toBeLessThan(0);
+    expect(
+      compareWithLanguagePreference(frPrinting, dePrinting, setOrderMap, TEST_FINISH_ORDER),
+    ).toBeGreaterThan(0);
   });
 });
 
@@ -512,7 +529,9 @@ describe("deduplicateByCard", () => {
     const enPrinting = makePrinting({ id: "en", language: "EN" });
     const zhPrinting = makePrinting({ id: "zh", language: "ZH" });
     // ZH first in array to prove deduplication respects preference, not insertion order
-    const result = deduplicateByCard([zhPrinting, enPrinting], setOrderMap, ["EN"]);
+    const result = deduplicateByCard([zhPrinting, enPrinting], setOrderMap, TEST_FINISH_ORDER, [
+      "EN",
+    ]);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("en");
   });
@@ -520,7 +539,9 @@ describe("deduplicateByCard", () => {
   it("picks ZH printing when language preference is ['ZH']", () => {
     const enPrinting = makePrinting({ id: "en", language: "EN" });
     const zhPrinting = makePrinting({ id: "zh", language: "ZH" });
-    const result = deduplicateByCard([enPrinting, zhPrinting], setOrderMap, ["ZH"]);
+    const result = deduplicateByCard([enPrinting, zhPrinting], setOrderMap, TEST_FINISH_ORDER, [
+      "ZH",
+    ]);
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("zh");
   });
@@ -532,11 +553,13 @@ describe("preferredPrinting", () => {
   it("returns EN printing with single-language preference ['EN']", () => {
     const enPrinting = makePrinting({ id: "en", language: "EN" });
     const zhPrinting = makePrinting({ id: "zh", language: "ZH" });
-    const result = preferredPrinting([zhPrinting, enPrinting], setOrderMap, ["EN"]);
+    const result = preferredPrinting([zhPrinting, enPrinting], setOrderMap, TEST_FINISH_ORDER, [
+      "EN",
+    ]);
     expect(result?.id).toBe("en");
   });
 
   it("returns undefined for empty array", () => {
-    expect(preferredPrinting([], setOrderMap, ["EN"])).toBeUndefined();
+    expect(preferredPrinting([], setOrderMap, TEST_FINISH_ORDER, ["EN"])).toBeUndefined();
   });
 });

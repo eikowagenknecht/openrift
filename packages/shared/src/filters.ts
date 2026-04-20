@@ -359,8 +359,12 @@ export interface AvailableFilters {
 }
 
 export interface GetAvailableFiltersOptions {
-  /** Override the default enum sort orders. */
-  orders?: EnumOrders;
+  /**
+   * Sort orders for the enum dimensions of the result. Required — pass the
+   * live orders from `/api/enums` (`useEnumOrders().orders`) so admin
+   * re-ordering (especially of the finishes table) takes effect.
+   */
+  orders: EnumOrders;
   /**
    * Set metadata used to sort sets (main before supplemental) and to mark
    * supplemental sets for dimmed styling. When omitted, sets appear in
@@ -391,9 +395,9 @@ export interface GetAvailableFiltersOptions {
  */
 export function getAvailableFilters(
   printings: Printing[],
-  options: GetAvailableFiltersOptions = {},
+  options: GetAvailableFiltersOptions,
 ): AvailableFilters {
-  const orders = options.orders ?? DEFAULT_ENUM_ORDERS;
+  const orders = options.orders;
   const getPrice = options.getPrice;
   const setMeta = options.sets;
   const sets = unique(printings.map((p) => p.setSlug));

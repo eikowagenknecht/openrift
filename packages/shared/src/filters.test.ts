@@ -1,8 +1,29 @@
 import { describe, expect, it } from "bun:test";
 
-import { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters";
-import type { Card, CardFilters, Printing } from "./types";
-import { NONE } from "./types";
+import {
+  filterCards,
+  getAvailableFilters as getAvailableFiltersRaw,
+  parseSearchTerms,
+  sortCards,
+} from "./filters";
+import type { Card, CardFilters, EnumOrders, Printing } from "./types";
+import { DEFAULT_ENUM_ORDERS, NONE } from "./types";
+
+const TEST_ORDERS: EnumOrders = {
+  ...DEFAULT_ENUM_ORDERS,
+  finishes: ["normal", "foil", "metal", "metal-deluxe"],
+};
+
+/**
+ * Wrapper that supplies `orders` so existing tests don't need to pass it.
+ * @returns The result of `getAvailableFilters` with `TEST_ORDERS` as the default.
+ */
+function getAvailableFilters(
+  printings: Printing[],
+  options: Partial<Parameters<typeof getAvailableFiltersRaw>[1]> = {},
+) {
+  return getAvailableFiltersRaw(printings, { orders: TEST_ORDERS, ...options });
+}
 
 // Tests inject prices via a WeakMap keyed by printing identity, since the
 // production `Printing` type no longer carries prices on the object itself.

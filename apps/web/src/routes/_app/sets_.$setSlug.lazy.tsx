@@ -6,6 +6,7 @@ import { ArrowLeftIcon } from "lucide-react";
 
 import { CardThumbnail } from "@/components/cards/card-thumbnail";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { publicSetDetailQueryOptions } from "@/hooks/use-public-sets";
 import { PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -23,8 +24,14 @@ function SetDetailPage() {
   const navigate = useNavigate();
   const showImages = useDisplayStore((s) => s.showImages);
   const languageOrder = useDisplayStore((s) => s.languages);
+  const { orders } = useEnumOrders();
 
-  const uniquePrintings = deduplicateByCard(data.printings, EMPTY_SET_ORDER_MAP, languageOrder);
+  const uniquePrintings = deduplicateByCard(
+    data.printings,
+    EMPTY_SET_ORDER_MAP,
+    orders.finishes,
+    languageOrder,
+  );
 
   const handleCardClick = (printing: Printing) => {
     void navigate({ to: "/cards/$cardSlug", params: { cardSlug: printing.card.slug } });

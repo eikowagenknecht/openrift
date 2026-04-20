@@ -1,7 +1,9 @@
 import type { Card, Printing } from "@openrift/shared";
+import { comparePrintings } from "@openrift/shared";
 import { useLiveSuspenseQuery } from "@tanstack/react-db";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 
+import { useEnumOrders } from "@/hooks/use-enums";
 import type {
   CatalogCardItem,
   CatalogPrintingItem,
@@ -18,6 +20,7 @@ export { catalogQueryOptions } from "@/lib/catalog-query";
 export function useCards(): UseCardsResult {
   const queryClient = useQueryClient();
   const { sets, cards, printings } = getCatalogCollections(queryClient);
+  const { orders } = useEnumOrders();
 
   // query-db-collection marks the collection ready even on query error (see
   // query.ts in @tanstack/query-db-collection), so useLiveSuspenseQuery alone
@@ -30,13 +33,14 @@ export function useCards(): UseCardsResult {
   const { data: rawCards } = useLiveSuspenseQuery((q) => q.from({ card: cards }));
   const { data: rawSets } = useLiveSuspenseQuery((q) => q.from({ set: sets }));
 
-  return enrichFromCollections(rawPrintings, rawCards, rawSets);
+  return enrichFromCollections(rawPrintings, rawCards, rawSets, orders.finishes);
 }
 
 function enrichFromCollections(
   rawPrintings: readonly CatalogPrintingItem[],
   rawCards: readonly CatalogCardItem[],
   rawSets: readonly CatalogSetItem[],
+  finishOrder: readonly string[],
 ): UseCardsResult {
   const slugById = new Map(rawSets.map((s) => [s.id, s.slug]));
 
@@ -44,6 +48,8 @@ function enrichFromCollections(
   for (const { id, ...card } of rawCards) {
     cardsById[id] = card;
   }
+
+  const setOrderMap = new Map(rawSets.map((s, i) => [s.id, i]));
 
   const allPrintings: Printing[] = [];
   const printingsById: Record<string, Printing> = {};
@@ -57,8 +63,18 @@ function enrichFromCollections(
     }
   }
 
+  // The TanStack DB SortedMap stores rows by key (printing UUID), so the live
+  // query returns them in id order — not the canonical order consumers expect.
+  // Sort here so every caller of useCards() sees the same order.
+  allPrintings.sort((a, b) =>
+    comparePrintings(
+      { ...a, setOrder: setOrderMap.get(a.setId), markerSlugs: a.markers.map((m) => m.slug) },
+      { ...b, setOrder: setOrderMap.get(b.setId), markerSlugs: b.markers.map((m) => m.slug) },
+      finishOrder,
+    ),
+  );
+
   const printingsByCardId = Map.groupBy(allPrintings, (p) => p.cardId);
-  const setOrderMap = new Map(rawSets.map((s, i) => [s.id, i]));
 
   return {
     allPrintings,

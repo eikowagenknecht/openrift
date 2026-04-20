@@ -63,6 +63,7 @@ export function resolveProxyCards(
   deckCards: DeckBuilderCard[],
   catalog: CatalogResponse,
   languages: string[],
+  finishOrder: readonly string[],
 ): ProxyCard[] {
   const slugById = new Map(catalog.sets.map((set) => [set.id, set.slug]));
   const setOrderMap = new Map(catalog.sets.map((set, index) => [set.id, index]));
@@ -100,7 +101,7 @@ export function resolveProxyCards(
       const candidates = printingsByCardId.get(deckCard.cardId);
       if (candidates) {
         // Cast: shared helper returns one of the input items unchanged.
-        printing = preferredPrinting(candidates, setOrderMap, languages) as
+        printing = preferredPrinting(candidates, setOrderMap, finishOrder, languages) as
           | EnrichedPrinting
           | undefined;
       }

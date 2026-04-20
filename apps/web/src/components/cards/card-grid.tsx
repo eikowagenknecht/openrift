@@ -55,7 +55,7 @@ interface OrderEntry {
 function groupItemsByField(
   items: CardViewerItem[],
   groupBy: Exclude<GroupByField, "none" | "set">,
-  orders: EnumOrders = DEFAULT_ENUM_ORDERS,
+  orders: Omit<EnumOrders, "finishes"> = DEFAULT_ENUM_ORDERS,
 ): CardGroup[] {
   interface FieldConfig {
     order: readonly string[];

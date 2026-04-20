@@ -5,6 +5,7 @@ import { z } from "zod";
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
+import { initQueryOptions } from "@/hooks/use-init";
 import {
   buildCardMetaDescription,
   getCardFrontImageFullUrl,
@@ -31,6 +32,7 @@ function toAbsoluteUrl(siteUrl: string, imageUrl: string | undefined): string | 
 interface CardDetailLoaderData {
   data: CardDetailResponse;
   printingId: string | undefined;
+  finishOrder: readonly string[];
 }
 
 export const Route = createFileRoute("/_app/cards_/$cardSlug")({
@@ -50,7 +52,8 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     const linked = loaded?.printingId
       ? data.printings.find((p) => p.id === loaded.printingId)
       : undefined;
-    const metaPrinting = linked ?? pickCardMetaPrinting(data.printings, data.sets);
+    const metaPrinting =
+      linked ?? pickCardMetaPrinting(data.printings, data.sets, loaded.finishOrder);
     const imageUrl = toAbsoluteUrl(siteUrl, getCardFrontImageFullUrl(metaPrinting));
     const description = buildCardMetaDescription(data.card, metaPrinting);
     // Canonical always points at the query-less card URL so search engines
@@ -93,8 +96,17 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     };
   },
   loader: async ({ context, params, deps }): Promise<CardDetailLoaderData> => {
-    const data = await context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug));
-    return { data, printingId: deps.printingId };
+    // Fetch card detail and init in parallel; the head/meta preview picks the
+    // preferred printing using the live finish sort order from /api/enums.
+    const [data, init] = await Promise.all([
+      context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug)),
+      context.queryClient.ensureQueryData(initQueryOptions),
+    ]);
+    const finishRows = (init.enums.finishes ?? []) as { slug: string; sortOrder: number }[];
+    const finishOrder = finishRows
+      .toSorted((a, b) => a.sortOrder - b.sortOrder)
+      .map((row) => row.slug);
+    return { data, printingId: deps.printingId, finishOrder };
   },
   component: () => null,
   pendingComponent: CardDetailPending,

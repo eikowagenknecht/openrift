@@ -1,5 +1,4 @@
 import type { CardDetailResponse, Printing } from "@openrift/shared";
-import { comparePrintings } from "@openrift/shared";
 import { queryOptions } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -32,20 +31,14 @@ interface EnrichedCardDetail {
 
 function enrichCardDetail(response: CardDetailResponse): EnrichedCardDetail {
   const slugById = new Map(response.sets.map((s) => [s.id, s.slug]));
-  // Build a set display-order map so comparePrintings uses sortOrder, not UUID
   const setOrderMap = new Map(response.sets.map((s, i) => [s.id, i]));
-  const printings: Printing[] = response.printings
-    .map((p) => ({
-      ...p,
-      setSlug: slugById.get(p.setId) ?? "",
-      card: response.card,
-    }))
-    .toSorted((a, b) =>
-      comparePrintings(
-        { ...a, setOrder: setOrderMap.get(a.setId), markerSlugs: a.markers.map((m) => m.slug) },
-        { ...b, setOrder: setOrderMap.get(b.setId), markerSlugs: b.markers.map((m) => m.slug) },
-      ),
-    );
+  // Printings are not sorted here — consumers sort with the live finish order
+  // from `useEnumOrders()` (select runs outside React, so it can't read hooks).
+  const printings: Printing[] = response.printings.map((p) => ({
+    ...p,
+    setSlug: slugById.get(p.setId) ?? "",
+    card: response.card,
+  }));
   return { card: response.card, printings, setOrderMap, sets: response.sets };
 }
 

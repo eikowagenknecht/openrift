@@ -791,6 +791,7 @@ function CollectionStatsContent() {
   const collectionId = collectionScope === "all" ? undefined : collectionScope;
   const stats = useCollectionStats(collectionId);
   const priceHistoryEnabled = useFeatureEnabled("price-history");
+  const { orders } = useEnumOrders();
 
   const [groupBy, setGroupBy] = useState<CompletionGroupBy>("set");
   const [countMode, setCountMode] = useState<CompletionCountMode>("cards");
@@ -804,7 +805,7 @@ function CollectionStatsContent() {
 
   const availableLanguages = [...new Set(stats.allPrintings.map((printing) => printing.language))];
 
-  const availableFilters = getAvailableFilters(stats.allPrintings, { sets: stats.sets });
+  const availableFilters = getAvailableFilters(stats.allPrintings, { orders, sets: stats.sets });
 
   const topBarPortal =
     topBarSlot &&
