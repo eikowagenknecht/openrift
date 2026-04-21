@@ -5,6 +5,7 @@ import type {
 } from "@openrift/shared";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { sortCardsLikeSidebar } from "@/lib/deck-card-order";
 import { resolveProxyCards } from "@/lib/proxy-pdf";
 import { resetIdCounter, stubCard, stubDeckBuilderCard, stubPrinting } from "@/test/factories";
 
@@ -155,5 +156,55 @@ describe("resolveProxyCards", () => {
     expect(proxies.slice(0, 2).map((p) => p.imageFullUrl)).toEqual(["en.png", "en.png"]);
     expect(proxies[2].printingId).toBe(zhPrinting.id);
     expect(proxies[2].imageFullUrl).toBe("zh.png");
+  });
+
+  it("composes with sortCardsLikeSidebar to print cards in sidebar order", () => {
+    const legend = stubCard({ slug: "RB1-L", name: "Legend", type: "Legend" });
+    const mainSpell = stubCard({ slug: "RB1-S", name: "Bolt", type: "Spell", energy: 1 });
+    const mainUnit = stubCard({ slug: "RB1-U", name: "Warrior", type: "Unit", energy: 3 });
+    const printings = [
+      stubPrinting({ cardId: "card-legend", setId: "set-o", card: legend }),
+      stubPrinting({ cardId: "card-spell", setId: "set-o", card: mainSpell }),
+      stubPrinting({ cardId: "card-unit", setId: "set-o", card: mainUnit }),
+    ];
+    const catalog = buildCatalog([stubSet({ id: "set-o" })], printings);
+    const zoneOrder = [
+      "legend",
+      "champion",
+      "main",
+      "battlefield",
+      "runes",
+      "sideboard",
+      "overflow",
+    ] as const;
+
+    // Deliberately jumbled: main Spell, then Legend, then main Unit.
+    const deckCards = [
+      stubDeckBuilderCard({
+        cardId: "card-spell",
+        zone: "main",
+        cardType: "Spell",
+        energy: 1,
+        cardName: "Bolt",
+      }),
+      stubDeckBuilderCard({
+        cardId: "card-legend",
+        zone: "legend",
+        cardType: "Legend",
+        cardName: "Legend",
+      }),
+      stubDeckBuilderCard({
+        cardId: "card-unit",
+        zone: "main",
+        cardType: "Unit",
+        energy: 3,
+        cardName: "Warrior",
+      }),
+    ];
+
+    const ordered = sortCardsLikeSidebar(deckCards, [...zoneOrder]);
+    const proxies = resolveProxyCards(ordered, catalog, ["EN"]);
+
+    expect(proxies.map((p) => p.name)).toEqual(["Legend", "Warrior", "Bolt"]);
   });
 });

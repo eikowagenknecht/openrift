@@ -7,6 +7,7 @@
 - feat: Logged-out viewers of a shared deck now see the deck's estimated build cost too, with a "View prices" button that opens a per-card price breakdown, and the Ownership tile becomes a Sign in prompt that returns them to the same shared deck after sign-in
 - fix: Hovering a card in the deck editor or on a shared deck page no longer briefly flashes the preview in the top-left corner before snapping to the cursor
 - fix: Right-clicking a card in the deck editor now always opens the printings menu, including for cards that only have a single printing available
+- fix: The proxy PDF now prints cards in the same order the deck sidebar shows them, grouped by zone and card type, instead of whatever order they were added
 - fix: Importing a Piltover Archive CSV that mixes English and Chinese printings of the same card now keeps them as separate rows instead of merging them into one
 - fix: Signing out and then signing in as a different account now loads the new account's collections in the sidebar, instead of showing the previous user's cached collections
 - fix: Clicking "Cards" in the top nav while already on the cards page no longer clears your language filter, so your chosen languages stay applied

@@ -1,5 +1,5 @@
 import { useDndContext, useDroppable } from "@dnd-kit/core";
-import type { CardType, DeckViolation, DeckZone } from "@openrift/shared";
+import type { DeckViolation, DeckZone } from "@openrift/shared";
 import { AlertTriangleIcon, BanIcon, ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -15,6 +15,7 @@ import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey, isCardAllowedInZone } from "@/lib/deck-builder-card";
+import { compareGroupedCards, GROUPED_ZONES, TYPE_GROUP_ORDER } from "@/lib/deck-card-order";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -43,10 +44,6 @@ const SINGLE_CARD_ZONES = new Set<DeckZone>(["legend", "champion"]);
 const UNIQUE_ONLY_ZONES = new Set<DeckZone>(["battlefield"]);
 // Zones where cards can be dragged between freely
 const DRAG_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow"]);
-// Zones where cards are grouped by type with shared icons
-const GROUPED_ZONES = new Set<DeckZone>(["main", "sideboard", "overflow"]);
-// Display order for type groups in grouped zones
-const TYPE_GROUP_ORDER: CardType[] = ["Unit", "Spell", "Gear"];
 
 interface DeckZoneSectionProps {
   deckId: string;
@@ -196,21 +193,9 @@ export function DeckZoneSection({
 
   const renderGroupedCards = () => {
     const grouped = Map.groupBy(cards, (card) => card.cardType);
-    const sortedCards = (group: DeckBuilderCard[]) =>
-      group.toSorted((a, b) => {
-        const energyDiff = (a.energy ?? 0) - (b.energy ?? 0);
-        if (energyDiff !== 0) {
-          return energyDiff;
-        }
-        const powerDiff = (a.power ?? 0) - (b.power ?? 0);
-        if (powerDiff !== 0) {
-          return powerDiff;
-        }
-        return a.cardName.localeCompare(b.cardName);
-      });
 
     return TYPE_GROUP_ORDER.filter((type) => grouped.has(type)).map((type) => {
-      const group = sortedCards(grouped.get(type) ?? []);
+      const group = (grouped.get(type) ?? []).toSorted(compareGroupedCards);
       const groupQty = group.reduce((sum, card) => sum + card.quantity, 0);
       const typeIconPath = getTypeIconPath(type, []);
       return (

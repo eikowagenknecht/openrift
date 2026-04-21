@@ -28,6 +28,7 @@ import { useDeckCards } from "@/hooks/use-deck-builder";
 import { effectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { initQueryOptions } from "@/hooks/use-init";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
+import { sortCardsLikeSidebar } from "@/lib/deck-card-order";
 import type { ProxyCard, ProxyPageSize, ProxyRenderMode, RenderedCard } from "@/lib/proxy-pdf";
 import {
   assembleProxyPdf,
@@ -167,8 +168,13 @@ async function generateProxyPdf({
   const init = await queryClient.ensureQueryData(initQueryOptions);
   const languageRows = (init.enums.languages ?? []) as { slug: string; sortOrder: number }[];
   const languageOrder = effectiveLanguageOrder(languages, languageRows);
+  const zoneRows = (init.enums.deckZones ?? []) as { slug: string; sortOrder: number }[];
+  const zoneOrder = zoneRows
+    .toSorted((a, b) => a.sortOrder - b.sortOrder)
+    .map((zone) => zone.slug as DeckBuilderCard["zone"]);
 
-  const proxyCards = resolveProxyCards(cards, catalog, languageOrder);
+  const orderedCards = sortCardsLikeSidebar(cards, zoneOrder);
+  const proxyCards = resolveProxyCards(orderedCards, catalog, languageOrder);
   const renderedCards = new Map<string, RenderedCard>();
 
   if (renderMode === "image") {
