@@ -67,9 +67,10 @@ interface NavEntry {
 }
 
 /**
- * Walk the channel tree and collect every section that will render its own
- * heading, skipping subtrees that a compact parent is about to merge into one
- * grid/table. Nav depth mirrors page depth so the sidebar can indent.
+ * Walk the channel tree and collect every channel that carries at least one
+ * printing. Compact leaves anchor themselves on the first card/row of the
+ * merged grid/table, so their nav entries still resolve. Nav depth mirrors
+ * page depth so the sidebar can indent.
  *
  * @returns Flat list of nav entries in render order.
  */
@@ -89,9 +90,6 @@ function collectChannelNavEntries(
       depth,
     });
     if (node.children.length === 0) {
-      continue;
-    }
-    if (isCompactBranch(node)) {
       continue;
     }
     collectChannelNavEntries(node.children, languageSectionId, depth + 1, entries);
@@ -216,7 +214,10 @@ function PromosPage() {
   }, [location.hash, treesByLanguage]);
 
   function scrollToSection(sectionId: string) {
-    const element = sectionRefs.current.get(sectionId);
+    // Compact-mode leaves don't register a ref (they're just anchored on the
+    // first card/row of the merged grid/table), so fall back to the DOM.
+    // oxlint-disable-next-line prefer-query-selector -- section ids may start with a digit after the "ch-" prefix; getElementById avoids CSS-escape gymnastics.
+    const element = sectionRefs.current.get(sectionId) ?? document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "start" });
     }
@@ -303,37 +304,17 @@ function PromosPage() {
               const languageSectionId = `lang-${language}`;
               const aggregate = languageAggregates.get(language);
               return (
-                <section
+                <LanguageSection
                   key={language}
-                  id={languageSectionId}
-                  ref={(el) => setSectionRef(languageSectionId, el)}
-                  data-section={languageSectionId}
-                  className="scroll-mt-16"
-                >
-                  <h2 className="mb-4 flex flex-wrap items-baseline gap-x-3 border-b pb-2 text-2xl font-bold">
-                    {languageLabel}
-                    {aggregate && (
-                      <span className="text-muted-foreground text-sm font-normal">
-                        {formatLanguageAggregate(aggregate.printingCount, aggregate.cardCount)}
-                      </span>
-                    )}
-                  </h2>
-                  <div className="space-y-8">
-                    {tree.map((root) => (
-                      <ChannelBranch
-                        key={root.channel.id}
-                        node={root}
-                        depth={0}
-                        ancestors={[]}
-                        languagePrefix={languageSectionId}
-                        registerSection={setSectionRef}
-                        viewMode={viewMode}
-                        showImages={showImages}
-                        onCardClick={handleCardClick}
-                      />
-                    ))}
-                  </div>
-                </section>
+                  languageSectionId={languageSectionId}
+                  languageLabel={languageLabel}
+                  aggregate={aggregate}
+                  tree={tree}
+                  registerSection={setSectionRef}
+                  viewMode={viewMode}
+                  showImages={showImages}
+                  onCardClick={handleCardClick}
+                />
               );
             })}
           </div>
@@ -471,6 +452,82 @@ function ChannelBranch({
 
 const BREADCRUMB_SEP = " \u203A ";
 
+interface LanguageSectionProps {
+  languageSectionId: string;
+  languageLabel: string;
+  aggregate: { printingCount: number; cardCount: number } | undefined;
+  tree: ChannelNode[];
+  registerSection: (id: string, el: HTMLElement | null) => void;
+  viewMode: ViewMode;
+  showImages: boolean;
+  onCardClick: (printing: Printing) => void;
+}
+
+function LanguageSection({
+  languageSectionId,
+  languageLabel,
+  aggregate,
+  tree,
+  registerSection,
+  viewMode,
+  showImages,
+  onCardClick,
+}: LanguageSectionProps) {
+  const [open, setOpen] = useState(true);
+  return (
+    <section
+      id={languageSectionId}
+      ref={(el) => registerSection(languageSectionId, el)}
+      data-section={languageSectionId}
+      className="scroll-mt-16"
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="hover:bg-muted/50 relative -mr-2 mb-4 flex w-full items-start gap-1 border-b py-1 pr-2 pb-2 text-left md:-ml-6 md:block md:pl-6"
+      >
+        {open ? (
+          <ChevronDownIcon
+            aria-hidden
+            className="text-muted-foreground mt-2 size-4 shrink-0 md:absolute md:top-3 md:left-1 md:mt-0"
+          />
+        ) : (
+          <ChevronRightIcon
+            aria-hidden
+            className="text-muted-foreground mt-2 size-4 shrink-0 md:absolute md:top-3 md:left-1 md:mt-0"
+          />
+        )}
+        <h2 className="flex flex-wrap items-baseline gap-x-3 text-2xl font-bold">
+          {languageLabel}
+          {aggregate && (
+            <span className="text-muted-foreground text-sm font-normal">
+              {formatLanguageAggregate(aggregate.printingCount, aggregate.cardCount)}
+            </span>
+          )}
+        </h2>
+      </button>
+      {open && (
+        <div className="space-y-8">
+          {tree.map((root) => (
+            <ChannelBranch
+              key={root.channel.id}
+              node={root}
+              depth={0}
+              ancestors={[]}
+              languagePrefix={languageSectionId}
+              registerSection={registerSection}
+              viewMode={viewMode}
+              showImages={showImages}
+              onCardClick={onCardClick}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function BranchHeading({
   depth,
   ancestors,
@@ -505,6 +562,7 @@ function ChannelLeafSection({
   showImages,
   onCardClick,
 }: BranchProps) {
+  const [open, setOpen] = useState(true);
   const sortedPrintings = node.printings.toSorted(comparePrintingsForDisplay);
   if (sortedPrintings.length === 0) {
     return null;
@@ -517,32 +575,54 @@ function ChannelLeafSection({
       data-section={sectionId}
       className="scroll-mt-16"
     >
-      <div className="mb-3">
-        <BranchHeading depth={depth} ancestors={ancestors}>
-          {node.channel.label}
-          <span className="text-muted-foreground ml-2 text-sm font-normal">
-            ({formatLocalCount(sortedPrintings.length)})
-          </span>
-        </BranchHeading>
-        {node.channel.description && (
-          <MarkdownText text={node.channel.description} className="text-muted-foreground text-sm" />
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="hover:bg-muted/50 relative -mr-2 mb-3 flex w-full items-start gap-1 rounded py-1 pr-2 text-left md:-ml-6 md:block md:pl-6"
+      >
+        {open ? (
+          <ChevronDownIcon
+            aria-hidden
+            className="text-muted-foreground mt-1.5 size-4 shrink-0 md:absolute md:top-2 md:left-1 md:mt-0"
+          />
+        ) : (
+          <ChevronRightIcon
+            aria-hidden
+            className="text-muted-foreground mt-1.5 size-4 shrink-0 md:absolute md:top-2 md:left-1 md:mt-0"
+          />
         )}
-      </div>
-      {viewMode === "grid" ? (
-        <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
-          {sortedPrintings.map((printing) => (
-            <CardThumbnail
-              key={printing.id}
-              printing={printing}
-              onClick={onCardClick}
-              showImages={showImages}
-              belowLabel={<MarkerChips printing={printing} />}
+        <div className="min-w-0">
+          <BranchHeading depth={depth} ancestors={ancestors}>
+            {node.channel.label}
+            <span className="text-muted-foreground ml-2 text-sm font-normal">
+              ({formatLocalCount(sortedPrintings.length)})
+            </span>
+          </BranchHeading>
+          {node.channel.description && (
+            <MarkdownText
+              text={node.channel.description}
+              className="text-muted-foreground text-sm"
             />
-          ))}
+          )}
         </div>
-      ) : (
-        <PromoListView printings={sortedPrintings} onRowClick={onCardClick} />
-      )}
+      </button>
+      {open &&
+        (viewMode === "grid" ? (
+          <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+            {sortedPrintings.map((printing) => (
+              <CardThumbnail
+                key={printing.id}
+                printing={printing}
+                onClick={onCardClick}
+                showImages={showImages}
+                belowLabel={<MarkerChips printing={printing} />}
+              />
+            ))}
+          </div>
+        ) : (
+          <PromoListView printings={sortedPrintings} onRowClick={onCardClick} />
+        ))}
     </section>
   );
 }
