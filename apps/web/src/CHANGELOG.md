@@ -11,6 +11,7 @@
 - fix: The password reset page now focuses the email or code input as soon as it appears, and pressing Enter submits the form
 - fix: Manage mode on the Collections page is more readable — the entry button is now labeled "Manage cards" / "Manage printings", the selection checkbox aligns with the card image edge, and the floating action bar with Move and Dispose buttons is larger and easier to see
 - fix: The "Preview" and "Banned" ribbons on cards now sit in the top-right corner instead of the top-left, so they no longer cover the card's power pips
+- fix: The Back button in the deck editor's top bar now shows a proper square hover highlight, matching the other icon buttons next to it
 
 ## 2026-04-20
 

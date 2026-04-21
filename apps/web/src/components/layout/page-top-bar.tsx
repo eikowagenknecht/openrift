@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowLeftIcon, ChevronDownIcon } from "lucide-react";
 import { createContext, useLayoutEffect, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface PageTopBarProps {
@@ -66,7 +66,7 @@ export function PageTopBar({ children, className }: PageTopBarProps) {
  */
 export function PageTopBarBack({ to }: { to: string }) {
   return (
-    <Link to={to} className="hover:bg-muted rounded-md p-1.5">
+    <Link to={to} className={buttonVariants({ variant: "ghost", size: "icon-sm" })}>
       <ArrowLeftIcon className="size-4" />
     </Link>
   );
