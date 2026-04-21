@@ -30,7 +30,7 @@ import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { PAGE_PADDING } from "@/lib/utils";
+import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 const FORMAT_LABELS: Record<"constructed" | "freeform", string> = {
@@ -155,7 +155,7 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
   return (
     <div
       ref={containerRef}
-      className={`${PAGE_PADDING} relative mx-auto flex w-full max-w-7xl flex-col gap-4 py-4`}
+      className={`${PAGE_PADDING} ${CONTAINER_WIDTH} relative flex flex-col gap-4 py-4`}
     >
       {topBarSlot &&
         createPortal(
@@ -206,7 +206,7 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
 
 function SharedDeckPending() {
   return (
-    <div className={`${PAGE_PADDING} mx-auto flex w-full max-w-7xl flex-col gap-4 py-4`}>
+    <div className={`${PAGE_PADDING} ${CONTAINER_WIDTH} flex flex-col gap-4 py-4`}>
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-5 w-32" />
       <Skeleton className="h-96 w-full" />
