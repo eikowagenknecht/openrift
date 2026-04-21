@@ -289,7 +289,7 @@ export function SupportPage() {
       <section className="text-muted-foreground mt-auto border-t pt-6 text-center text-sm">
         <p>
           OpenRift is a free, open-source project. No one here is getting rich (well, except in
-          Power), and you can&apos;t pay hosting bills with Power.
+          Power, and you can&apos;t pay hosting bills with Power).
         </p>
         <p className="mt-2 font-medium">
           Built with Fury. Maintained with Calm. Funded by people like you.
