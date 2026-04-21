@@ -1,6 +1,7 @@
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DeckFormat, DeckViolation, DeckZone, Marketplace } from "@openrift/shared";
 import { validateDeck } from "@openrift/shared";
+import { Link } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
@@ -91,6 +92,12 @@ interface DeckOverviewProps {
   signInHref?: string;
   /** Long-form deck description rendered above the KPI strip. */
   description?: string;
+  /**
+   * When set on a read-only overview, card thumbnails become links to the
+   * card detail page at the returned slug. Ignored in edit mode (the
+   * printing-menu popover takes precedence there).
+   */
+  getCardSlug?: (cardId: string) => string | undefined;
 }
 
 /**
@@ -111,6 +118,7 @@ export function DeckOverview({
   readOnly,
   signInHref,
   description,
+  getCardSlug,
 }: DeckOverviewProps) {
   const violations = validateDeck({
     format: deck.format,
@@ -272,6 +280,7 @@ export function DeckOverview({
                 getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
               }
               readOnly={readOnly}
+              getCardSlug={getCardSlug}
             />
           ))}
         </div>
@@ -292,6 +301,7 @@ export function DeckOverview({
             getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
           }
           readOnly={readOnly}
+          getCardSlug={getCardSlug}
         />
         <ZoneTile
           deckId={deck.id}
@@ -310,6 +320,7 @@ export function DeckOverview({
             getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
           }
           readOnly={readOnly}
+          getCardSlug={getCardSlug}
         />
         {cards.some((card) => card.zone === "overflow") && (
           <ZoneTile
@@ -329,6 +340,7 @@ export function DeckOverview({
               getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
             }
             readOnly={readOnly}
+            getCardSlug={getCardSlug}
           />
         )}
       </div>
@@ -523,6 +535,7 @@ interface ZoneTileProps {
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
   readOnly?: boolean;
+  getCardSlug?: (cardId: string) => string | undefined;
 }
 
 function ZoneTile({
@@ -539,6 +552,7 @@ function ZoneTile({
   onHoverCard,
   getThumbnail,
   readOnly,
+  getCardSlug,
 }: ZoneTileProps) {
   const hasViolation = zoneViolations.length > 0;
   const quantity = cards.reduce((sum, card) => sum + card.quantity, 0);
@@ -682,6 +696,7 @@ function ZoneTile({
           onHoverCard={onHoverCard}
           getThumbnail={getThumbnail}
           readOnly={readOnly}
+          getCardSlug={getCardSlug}
         />
       ) : (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -700,6 +715,7 @@ function ZoneTile({
                 isLandscape={isLandscape}
                 onHoverCard={onHoverCard}
                 readOnly={readOnly}
+                cardSlug={getCardSlug?.(card.cardId)}
               />
             );
           })}
@@ -735,6 +751,7 @@ function GroupedThumbs({
   onHoverCard,
   getThumbnail,
   readOnly,
+  getCardSlug,
 }: {
   deckId: string;
   zone: DeckZone;
@@ -743,6 +760,7 @@ function GroupedThumbs({
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
   readOnly?: boolean;
+  getCardSlug?: (cardId: string) => string | undefined;
 }) {
   const grouped = Map.groupBy(cards, (card) => card.cardType);
   const presentTypes = [
@@ -784,6 +802,7 @@ function GroupedThumbs({
                     isLandscape={isLandscape}
                     onHoverCard={onHoverCard}
                     readOnly={readOnly}
+                    cardSlug={getCardSlug?.(card.cardId)}
                   />
                 );
               })}
@@ -803,6 +822,7 @@ function ZoneThumb({
   isLandscape,
   onHoverCard,
   readOnly,
+  cardSlug,
 }: {
   deckId: string;
   card: DeckBuilderCard;
@@ -811,6 +831,7 @@ function ZoneThumb({
   isLandscape: boolean;
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   readOnly?: boolean;
+  cardSlug?: string;
 }) {
   const isMobile = useIsMobile();
   const enableDrag = !readOnly && !isMobile && DRAG_SOURCE_ZONES.has(zone);
@@ -858,6 +879,13 @@ function ZoneThumb({
   );
 
   if (readOnly) {
+    if (cardSlug) {
+      return (
+        <Link to="/cards/$cardSlug" params={{ cardSlug }} className="block">
+          {thumbBody}
+        </Link>
+      );
+    }
     return thumbBody;
   }
 

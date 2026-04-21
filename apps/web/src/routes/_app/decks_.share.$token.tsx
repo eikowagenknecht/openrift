@@ -39,6 +39,7 @@ const FORMAT_LABELS: Record<"constructed" | "freeform", string> = {
 };
 
 export const Route = createFileRoute("/_app/decks_/share/$token")({
+  ssr: "data-only",
   head: ({ loaderData }) => {
     const siteUrl = getSiteUrl();
     const data = loaderData as PublicDeckDetailResponse | undefined;
@@ -192,6 +193,7 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
           isLoggedIn ? undefined : `/login?redirect=${encodeURIComponent(`/decks/share/${token}`)}`
         }
         description={data.deck.description ?? undefined}
+        getCardSlug={(cardId) => cardsById[cardId]?.slug}
       />
 
       {ownershipData && (
