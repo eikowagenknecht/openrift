@@ -155,7 +155,7 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
   return (
     <div
       ref={containerRef}
-      className={`${PAGE_PADDING} relative mx-auto flex w-full max-w-6xl flex-col gap-4 py-4`}
+      className={`${PAGE_PADDING} relative mx-auto flex w-full max-w-7xl flex-col gap-4 py-4`}
     >
       {topBarSlot &&
         createPortal(
@@ -206,7 +206,7 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
 
 function SharedDeckPending() {
   return (
-    <div className={`${PAGE_PADDING} mx-auto flex w-full max-w-6xl flex-col gap-4 py-4`}>
+    <div className={`${PAGE_PADDING} mx-auto flex w-full max-w-7xl flex-col gap-4 py-4`}>
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-5 w-32" />
       <Skeleton className="h-96 w-full" />
