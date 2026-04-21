@@ -4,6 +4,7 @@
 
 - feat: Shared deck pages now use the standard sticky top bar — the deck name and the "Copy to my decks" / "Sign in to copy" button stay visible while you scroll, and the Shared by line is folded into the deck's format line
 - feat: Logged-out viewers of a shared deck now see the deck's estimated build cost too, with a "View prices" button that opens a per-card price breakdown, and the Ownership tile becomes a Sign in prompt that returns them to the same shared deck after sign-in
+- fix: Clicking "Cards" in the top nav while already on the cards page no longer clears your language filter, so your chosen languages stay applied
 
 ## 2026-04-20
 

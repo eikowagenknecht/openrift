@@ -112,7 +112,7 @@ function DesktopNav({
       <NavigationMenuList>
         <NavigationMenuItem>
           <NavigationMenuLink
-            render={<Link to="/cards" />}
+            render={<Link to="/cards" search={(prev) => prev} />}
             className={cn(
               navigationMenuTriggerStyle(),
               "data-[status=active]:bg-muted data-[status=active]:font-semibold",
@@ -307,17 +307,19 @@ function UserMenu({
 
 function MobileNavLink({
   to,
+  search,
   icon,
   children,
 }: {
   to: string;
+  search?: (prev: Record<string, unknown>) => Record<string, unknown>;
   icon: ReactNode;
   children: ReactNode;
 }) {
   return (
     <SheetClose
       nativeButton={false}
-      render={<Link to={to} />}
+      render={<Link to={to} search={search} />}
       className="hover:bg-muted data-[status=active]:bg-muted flex items-center gap-3 rounded-lg px-3 py-3.5 text-base data-[status=active]:font-semibold"
     >
       {icon}
@@ -360,7 +362,11 @@ function MobileNav({
           </SheetTitle>
         </SheetHeader>
         <nav className="flex flex-col gap-1 px-2">
-          <MobileNavLink to="/cards" icon={<LayersIcon className="text-muted-foreground size-5" />}>
+          <MobileNavLink
+            to="/cards"
+            search={(prev) => prev}
+            icon={<LayersIcon className="text-muted-foreground size-5" />}
+          >
             Cards
           </MobileNavLink>
           {showCollection && (
