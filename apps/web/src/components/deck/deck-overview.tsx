@@ -89,10 +89,10 @@ interface DeckOverviewProps {
    * page for logged-out visitors.
    */
   signInHref?: string;
-  /** Extra muted text appended to the format line (e.g. "Shared by Alice"). */
-  subtitle?: React.ReactNode;
   /** Long-form deck description rendered under the header. */
   description?: string;
+  /** Skip the in-overview deck-name + format line — the host already shows them in its top bar. */
+  hideHeader?: boolean;
 }
 
 /**
@@ -112,8 +112,8 @@ export function DeckOverview({
   onHoverCard,
   readOnly,
   signInHref,
-  subtitle,
   description,
+  hideHeader,
 }: DeckOverviewProps) {
   const violations = validateDeck({
     format: deck.format,
@@ -152,17 +152,18 @@ export function DeckOverview({
 
   return (
     <div className="@container flex flex-col gap-6 px-1 pt-2 pb-4">
-      <header className="space-y-1">
-        <h2 className="text-2xl font-semibold">{deck.name}</h2>
-        <p className="text-muted-foreground text-sm">
-          {deck.format === "constructed" ? "Constructed" : "Freeform"}
-          {subtitle && <> · {subtitle}</>}
-        </p>
-        {description && (
-          <p className="text-muted-foreground pt-1 text-sm whitespace-pre-wrap">{description}</p>
-        )}
-        {!readOnly && hint && <p className="text-sm">{hint}</p>}
-      </header>
+      {!hideHeader && (
+        <header className="space-y-1">
+          <h2 className="text-2xl font-semibold">{deck.name}</h2>
+          <p className="text-muted-foreground text-sm">
+            {deck.format === "constructed" ? "Constructed" : "Freeform"}
+          </p>
+        </header>
+      )}
+      {description && (
+        <p className="text-muted-foreground text-sm whitespace-pre-wrap">{description}</p>
+      )}
+      {!readOnly && hint && <p className="text-sm">{hint}</p>}
 
       {totalCards > 0 && (
         <div className="grid grid-cols-2 gap-2 @3xl:grid-cols-5">

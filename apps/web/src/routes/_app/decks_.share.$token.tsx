@@ -161,6 +161,9 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
         createPortal(
           <PageTopBar>
             <PageTopBarTitle>{data.deck.name}</PageTopBarTitle>
+            <span className="text-muted-foreground hidden truncate text-xs md:inline">
+              {FORMAT_LABELS[data.deck.format]} · Shared by {data.owner.displayName}
+            </span>
             <PageTopBarActions>
               {deckSharingEnabled && (
                 <Button size="sm" onClick={handleClone} disabled={cloneMutation.isPending}>
@@ -186,8 +189,8 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
         signInHref={
           isLoggedIn ? undefined : `/login?redirect=${encodeURIComponent(`/decks/share/${token}`)}`
         }
-        subtitle={`Shared by ${data.owner.displayName}`}
         description={data.deck.description ?? undefined}
+        hideHeader
       />
 
       {ownershipData && (
