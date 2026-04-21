@@ -151,7 +151,7 @@ export function LoginForm({
           <TabsTrigger value="password">Password</TabsTrigger>
           <TabsTrigger value="otp">Email code</TabsTrigger>
         </TabsList>
-        <TabsContent value="password">
+        <TabsContent value="password" tabIndex={-1}>
           <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
             <FieldGroup>
               {form.formState.errors.root && (
@@ -175,17 +175,16 @@ export function LoginForm({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor={field.name}>Email</FieldLabel>
-                    {/* oxlint-disable jsx-a11y/tabindex-no-positive -- intentional: enforce email → password → login → forgot-password tab order */}
                     <Input
                       {...field}
                       id={field.name}
-                      tabIndex={1}
                       type="email"
                       autoComplete="email"
                       placeholder={emailPlaceholder}
                       aria-invalid={fieldState.invalid}
+                      // oxlint-disable-next-line jsx-a11y/no-autofocus -- login page's primary input; skipped when prefilled from URL
+                      autoFocus={!initialEmail}
                     />
-                    {/* oxlint-enable jsx-a11y/tabindex-no-positive */}
                     {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                   </Field>
                 )}
@@ -195,44 +194,40 @@ export function LoginForm({
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <div className="flex items-center justify-between">
-                      <FieldLabel htmlFor={field.name}>Password</FieldLabel>
-                      {/* oxlint-disable jsx-a11y/tabindex-no-positive -- intentional: tab after login button */}
+                    {/* Grid places the Forgot link visually in the label row, but renders it DOM-after the input so tab order is input → Forgot */}
+                    <div className="grid grid-cols-[1fr_auto] items-center gap-x-2">
+                      <FieldLabel htmlFor={field.name} className="col-start-1 row-start-1">
+                        Password
+                      </FieldLabel>
+                      <Input
+                        {...field}
+                        id={field.name}
+                        type="password"
+                        autoComplete="current-password"
+                        aria-invalid={fieldState.invalid}
+                        className="col-span-2 row-start-2"
+                      />
                       <Link
                         to="/reset-password"
                         search={{ email: watchedEmail }}
-                        tabIndex={4}
-                        className="text-muted-foreground text-sm underline-offset-2 hover:underline"
+                        className="text-muted-foreground col-start-2 row-start-1 justify-self-end text-sm underline-offset-2 hover:underline"
                       >
                         Forgot your password?
                       </Link>
-                      {/* oxlint-enable jsx-a11y/tabindex-no-positive */}
                     </div>
-                    {/* oxlint-disable jsx-a11y/tabindex-no-positive -- intentional: enforce email → password → login → forgot-password tab order */}
-                    <Input
-                      {...field}
-                      id={field.name}
-                      tabIndex={2}
-                      type="password"
-                      autoComplete="current-password"
-                      aria-invalid={fieldState.invalid}
-                    />
-                    {/* oxlint-enable jsx-a11y/tabindex-no-positive */}
                     {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                   </Field>
                 )}
               />
               <Field>
-                {/* oxlint-disable jsx-a11y/tabindex-no-positive -- intentional: enforce email → password → login → forgot-password tab order */}
-                <Button type="submit" tabIndex={3} disabled={loading}>
+                <Button type="submit" disabled={loading}>
                   {loading ? "Signing in..." : "Login"}
                 </Button>
-                {/* oxlint-enable jsx-a11y/tabindex-no-positive */}
               </Field>
             </FieldGroup>
           </form>
         </TabsContent>
-        <TabsContent value="otp">
+        <TabsContent value="otp" tabIndex={-1}>
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -258,6 +253,8 @@ export function LoginForm({
                       value={otpEmail}
                       onChange={(e) => setOtpEmail(e.target.value)}
                       aria-invalid={Boolean(otpEmailError)}
+                      // oxlint-disable-next-line jsx-a11y/no-autofocus -- OTP tab's primary input; panel remounts on tab switch so autofocus fires
+                      autoFocus
                     />
                   </Field>
                   <Field>
@@ -270,7 +267,8 @@ export function LoginForm({
                 <>
                   {otpError && <FieldError>{otpError}</FieldError>}
                   <div className="flex justify-center">
-                    <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+                    {/* oxlint-disable-next-line jsx-a11y/no-autofocus -- input appears after user clicks "Send code"; focusing avoids a redundant click */}
+                    <InputOTP autoFocus maxLength={6} value={otp} onChange={setOtp}>
                       <InputOTPGroup>
                         <InputOTPSlot index={0} />
                         <InputOTPSlot index={1} />

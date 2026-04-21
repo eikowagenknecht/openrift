@@ -93,26 +93,37 @@ function ResetPasswordPage() {
               <p className="text-muted-foreground text-balance">
                 Enter your email and we&apos;ll send you a code to reset your password.
               </p>
-              <FieldGroup className="w-full">
-                {emailError && <FieldError>{emailError}</FieldError>}
-                <Field>
-                  <FieldLabel htmlFor="reset-email">Email</FieldLabel>
-                  <Input
-                    id="reset-email"
-                    type="email"
-                    autoComplete="email"
-                    placeholder={emailPlaceholder}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    aria-invalid={Boolean(emailError)}
-                  />
-                </Field>
-                <Field>
-                  <Button className="w-full" disabled={loading} onClick={handleSendCode}>
-                    {loading ? "Sending..." : "Send code"}
-                  </Button>
-                </Field>
-              </FieldGroup>
+              <form
+                className="w-full"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleSendCode();
+                }}
+                noValidate
+              >
+                <FieldGroup className="w-full">
+                  {emailError && <FieldError>{emailError}</FieldError>}
+                  <Field>
+                    <FieldLabel htmlFor="reset-email">Email</FieldLabel>
+                    <Input
+                      id="reset-email"
+                      type="email"
+                      autoComplete="email"
+                      placeholder={emailPlaceholder}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      aria-invalid={Boolean(emailError)}
+                      // oxlint-disable-next-line jsx-a11y/no-autofocus -- reset-password step's primary input
+                      autoFocus
+                    />
+                  </Field>
+                  <Field>
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading ? "Sending..." : "Send code"}
+                    </Button>
+                  </Field>
+                </FieldGroup>
+              </form>
             </>
           ) : (
             <>
@@ -120,54 +131,69 @@ function ResetPasswordPage() {
                 Enter the 6-digit code sent to <strong>{email.trim()}</strong> and your new
                 password.
               </p>
-              <FieldGroup className="w-full items-center">
-                {error && <FieldError>{error}</FieldError>}
-                <InputOTP maxLength={6} value={otp} onChange={setOtp}>
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
-                <Field className="w-full">
-                  <FieldLabel htmlFor="new-password">New password</FieldLabel>
-                  <Input
-                    id="new-password"
-                    type="password"
-                    autoComplete="new-password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                  />
-                </Field>
-                <Field className="w-full">
-                  <FieldLabel htmlFor="confirm-password">Confirm password</FieldLabel>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    autoComplete="new-password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </Field>
-                <Button
-                  className="w-full"
-                  disabled={otp.length < 6 || !newPassword || loading}
-                  onClick={handleReset}
-                >
-                  {loading ? "Resetting..." : "Reset password"}
-                </Button>
-                <button
-                  type="button"
-                  className="text-muted-foreground text-sm underline underline-offset-2"
-                  disabled={resending}
-                  onClick={handleResend}
-                >
-                  {resending ? "Sending..." : "Resend code"}
-                </button>
-              </FieldGroup>
+              <form
+                className="w-full"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  handleReset();
+                }}
+                noValidate
+              >
+                <FieldGroup className="w-full items-center">
+                  {error && <FieldError>{error}</FieldError>}
+                  <InputOTP
+                    // oxlint-disable-next-line jsx-a11y/no-autofocus -- code step's primary input
+                    autoFocus
+                    maxLength={6}
+                    value={otp}
+                    onChange={setOtp}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                  <Field className="w-full">
+                    <FieldLabel htmlFor="new-password">New password</FieldLabel>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      autoComplete="new-password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                  </Field>
+                  <Field className="w-full">
+                    <FieldLabel htmlFor="confirm-password">Confirm password</FieldLabel>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
+                  </Field>
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={otp.length < 6 || !newPassword || loading}
+                  >
+                    {loading ? "Resetting..." : "Reset password"}
+                  </Button>
+                  <button
+                    type="button"
+                    className="text-muted-foreground text-sm underline underline-offset-2"
+                    disabled={resending}
+                    onClick={handleResend}
+                  >
+                    {resending ? "Sending..." : "Resend code"}
+                  </button>
+                </FieldGroup>
+              </form>
             </>
           )}
 
