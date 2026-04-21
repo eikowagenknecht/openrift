@@ -15,8 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { clearUserScopedCache } from "@/lib/auth-cache";
 import { authClient } from "@/lib/auth-client";
-import { sessionQueryOptions } from "@/lib/auth-session";
 
 export function DangerZoneSection() {
   const [open, setOpen] = useState(false);
@@ -39,7 +39,7 @@ export function DangerZoneSection() {
       setError(deleteError.message ?? "Failed to delete account.");
       return;
     }
-    await queryClient.resetQueries({ queryKey: sessionQueryOptions().queryKey });
+    clearUserScopedCache(queryClient);
     void router.navigate({ to: "/" });
   }
 

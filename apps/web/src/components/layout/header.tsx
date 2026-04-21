@@ -53,8 +53,9 @@ import {
 } from "@/components/ui/sheet";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
+import { clearUserScopedCache } from "@/lib/auth-cache";
 import { signOut } from "@/lib/auth-client";
-import { sessionQueryOptions, useSession } from "@/lib/auth-session";
+import { useSession } from "@/lib/auth-session";
 import { useGravatarUrl } from "@/lib/gravatar";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useThemeStore } from "@/stores/theme-store";
@@ -221,7 +222,7 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
 
   const handleSignOut = async () => {
     await signOut();
-    await queryClient.resetQueries({ queryKey: sessionQueryOptions().queryKey });
+    clearUserScopedCache(queryClient);
     void router.navigate({ to: "/cards" });
   };
 

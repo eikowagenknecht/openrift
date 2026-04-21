@@ -11,10 +11,9 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { clearUserScopedCache } from "@/lib/auth-cache";
 import { authClient, signIn } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
-import { sessionQueryOptions } from "@/lib/auth-session";
-import { queryKeys } from "@/lib/query-keys";
 
 const signInSchema = z.object({
   email: z.email("Please enter a valid email address."),
@@ -69,8 +68,7 @@ export function LoginForm({
       setServerError(form, error);
       return;
     }
-    await queryClient.resetQueries({ queryKey: sessionQueryOptions().queryKey });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.admin.me });
+    clearUserScopedCache(queryClient);
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
 
@@ -116,8 +114,7 @@ export function LoginForm({
       }
       return;
     }
-    await queryClient.resetQueries({ queryKey: sessionQueryOptions().queryKey });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.admin.me });
+    clearUserScopedCache(queryClient);
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
 
