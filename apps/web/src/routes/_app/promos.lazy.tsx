@@ -247,7 +247,7 @@ function PromosPage() {
       <div className="flex gap-8">
         {/* Sidebar nav — hidden below lg where the card grid needs the width */}
         <nav className="hidden shrink-0 lg:block lg:w-52">
-          <div className="sticky top-16 space-y-0.5">
+          <div className="sticky top-16 max-h-[calc(100vh-5rem)] space-y-0.5 overflow-y-auto">
             {navEntries.map((entry) => (
               <button
                 key={entry.sectionId}
