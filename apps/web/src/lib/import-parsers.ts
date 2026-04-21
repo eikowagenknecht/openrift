@@ -210,9 +210,11 @@ function parsePiltoverArchive(text: string): ParseResult {
     };
 
     // Aggregate duplicates (same variant, different conditions). Include the raw promo suffix
-    // so rows with different promo variants (e.g. "-Nexus" vs "-Launch") stay separate.
+    // so rows with different promo variants (e.g. "-Nexus" vs "-Launch") stay separate, and
+    // include the language so EN and ZH printings of the same variant aren't merged.
     const promoKey = parsed?.promoSuffix?.toLowerCase() ?? "";
-    const key = `${entry.sourceCode}::${entry.finish}::${promoKey}`;
+    const languageKey = entry.language ?? "";
+    const key = `${entry.sourceCode}::${entry.finish}::${promoKey}::${languageKey}`;
     const existing = aggregated.get(key);
     if (existing) {
       existing.quantity += entry.quantity;

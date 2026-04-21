@@ -321,6 +321,31 @@ describe("parseImportData — Piltover Archive language", () => {
     const result = parseImportData(csv);
     expect(result.entries[0].language).toBeUndefined();
   });
+
+  it("keeps rows with different languages separate", () => {
+    const csv = [
+      header,
+      "OGN-001,Test,Origins,OGN,Common,Standard,,1,English,NM",
+      "OGN-001,Test,Origins,OGN,Common,Standard,,2,Chinese,NM",
+    ].join("\n");
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(2);
+    const byLanguage = new Map(result.entries.map((e) => [e.language, e.quantity]));
+    expect(byLanguage.get("EN")).toBe(1);
+    expect(byLanguage.get("ZH")).toBe(2);
+  });
+
+  it("still aggregates same-language rows with different conditions", () => {
+    const csv = [
+      header,
+      "OGN-001,Test,Origins,OGN,Common,Standard,,1,English,NM",
+      "OGN-001,Test,Origins,OGN,Common,Standard,,2,English,LP",
+    ].join("\n");
+    const result = parseImportData(csv);
+    expect(result.entries).toHaveLength(1);
+    expect(result.entries[0].quantity).toBe(3);
+    expect(result.entries[0].language).toBe("EN");
+  });
 });
 
 describe("parseImportData — Piltover Archive promo", () => {

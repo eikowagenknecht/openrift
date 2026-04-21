@@ -5,6 +5,7 @@
 - feat: Shared deck pages now load with the full deck and card thumbnails visible immediately on first paint, instead of showing a skeleton while the catalog downloads, and repeat opens of the same share link are served from the edge cache in a fraction of the time
 - feat: Shared deck pages now use the standard sticky top bar — the deck name and the "Copy to my decks" / "Sign in to copy" button stay visible while you scroll, and the Shared by line is folded into the deck's format line
 - feat: Logged-out viewers of a shared deck now see the deck's estimated build cost too, with a "View prices" button that opens a per-card price breakdown, and the Ownership tile becomes a Sign in prompt that returns them to the same shared deck after sign-in
+- fix: Importing a Piltover Archive CSV that mixes English and Chinese printings of the same card now keeps them as separate rows instead of merging them into one
 - fix: Clicking "Cards" in the top nav while already on the cards page no longer clears your language filter, so your chosen languages stay applied
 - fix: The sign-in page now focuses the email field on load, auto-focuses the code input as soon as it appears when signing in with a code, and fixes keyboard tab order so the Password / Email code switcher and the Google, Discord, and Sign up buttons are reachable without cycling through the whole page
 - fix: The sign-up page now focuses the name field on load, so you can start typing without clicking it first
