@@ -550,10 +550,33 @@ export const deckDetailResponseSchema = z
   })
   .openapi("DeckDetailResponse");
 
+const publicDeckCardResponseSchema = z
+  .object({
+    cardId: z.string(),
+    zone: deckZoneSchema,
+    quantity: z.number(),
+    preferredPrintingId: z.string().nullable(),
+    cardName: z.string(),
+    cardSlug: z.string(),
+    cardType: cardTypeSchema,
+    superTypes: z.array(superTypeSchema),
+    domains: z.array(domainSchema),
+    tags: z.array(z.string()),
+    keywords: z.array(z.string()),
+    energy: z.number().nullable(),
+    might: z.number().nullable(),
+    power: z.number().nullable(),
+    resolvedPrintingId: z.string().nullable(),
+    shortCode: z.string().nullable(),
+    thumbnailUrl: z.string().nullable(),
+    fullImageUrl: z.string().nullable(),
+  })
+  .openapi("PublicDeckCardResponse");
+
 export const publicDeckDetailResponseSchema = z
   .object({
     deck: publicDeckResponseSchema,
-    cards: z.array(deckCardResponseSchema),
+    cards: z.array(publicDeckCardResponseSchema),
     owner: z.object({ displayName: z.string() }),
   })
   .openapi("PublicDeckDetailResponse");

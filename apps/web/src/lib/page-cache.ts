@@ -2,7 +2,7 @@ const PUBLIC_PAGE_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=30
 const PRIVATE_PAGE_CACHE_CONTROL = "private, no-cache";
 
 const EXACT_PATHS = new Set(["/", "/cards", "/sets", "/rules", "/privacy-policy", "/promos"]);
-const PREFIX_PATHS = ["/cards/", "/sets/"];
+const PREFIX_PATHS = ["/cards/", "/sets/", "/decks/share/"];
 
 function isCacheablePublicPath(pathname: string): boolean {
   if (EXACT_PATHS.has(pathname)) {

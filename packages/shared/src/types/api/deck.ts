@@ -63,9 +63,33 @@ export interface PublicDeckResponse {
   updatedAt: string;
 }
 
+/**
+ * Denormalized deck card row for the public share page. The public endpoint
+ * ships the card's display fields and the preferred/canonical printing's
+ * thumbnail + full image URL so the share page can SSR without pulling the
+ * global catalog.
+ */
+export interface PublicDeckCardResponse extends DeckCardResponse {
+  cardName: string;
+  cardSlug: string;
+  cardType: CardType;
+  superTypes: SuperType[];
+  domains: Domain[];
+  tags: string[];
+  keywords: string[];
+  energy: number | null;
+  might: number | null;
+  power: number | null;
+  /** Resolved printing: the preferred one when set, otherwise the canonical default. Null when the card has no printing. */
+  resolvedPrintingId: string | null;
+  shortCode: string | null;
+  thumbnailUrl: string | null;
+  fullImageUrl: string | null;
+}
+
 export interface PublicDeckDetailResponse {
   deck: PublicDeckResponse;
-  cards: DeckCardResponse[];
+  cards: PublicDeckCardResponse[];
   owner: { displayName: string };
 }
 

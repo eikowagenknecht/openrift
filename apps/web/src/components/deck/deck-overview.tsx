@@ -28,7 +28,6 @@ import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey, isCardAllowedInZone } from "@/lib/deck-builder-card";
 import { GROUPED_ZONES, sortOverviewCards, TYPE_GROUP_ORDER } from "@/lib/deck-card-sort";
@@ -77,6 +76,12 @@ interface DeckOverviewProps {
   cards: DeckBuilderCard[];
   ownershipData?: DeckOwnershipData;
   marketplace: Marketplace;
+  /**
+   * Resolves a zone-thumbnail URL for a card. Injected so callers can source
+   * thumbs either from the live catalog (deck editor) or from a pre-denormalized
+   * payload (public share page SSR). Returning `undefined` hides the thumb.
+   */
+  getThumbnail: (cardId: string, preferredPrintingId: string | null) => string | undefined;
   /** Omit on read-only views — zone tiles become non-clickable and edit affordances hide. */
   onZoneClick?: (zone: DeckZone) => void;
   onViewMissing?: () => void;
@@ -112,6 +117,7 @@ export function DeckOverview({
   cards,
   ownershipData,
   marketplace,
+  getThumbnail,
   onZoneClick,
   onViewMissing,
   onHoverCard,
@@ -135,7 +141,6 @@ export function DeckOverview({
   });
   const stats = useDeckStats(cards);
   const domainColors = useDomainColors();
-  const { getPreferredFrontImage } = usePreferredPrinting();
   const fmtPrice = formatterForMarketplace(marketplace);
 
   const totalCards = cards.reduce((sum, card) => sum + card.quantity, 0);
@@ -276,9 +281,7 @@ export function DeckOverview({
               className={SMALL_ZONE_SPAN[zone]}
               onClick={onZoneClick ? () => onZoneClick(zone) : undefined}
               onHoverCard={onHoverCard}
-              getThumbnail={(cardId, preferredPrintingId) =>
-                getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
-              }
+              getThumbnail={getThumbnail}
               readOnly={readOnly}
               getCardSlug={getCardSlug}
             />
@@ -297,9 +300,7 @@ export function DeckOverview({
           )}
           onClick={onZoneClick ? () => onZoneClick("main") : undefined}
           onHoverCard={onHoverCard}
-          getThumbnail={(cardId, preferredPrintingId) =>
-            getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
-          }
+          getThumbnail={getThumbnail}
           readOnly={readOnly}
           getCardSlug={getCardSlug}
         />
@@ -316,9 +317,7 @@ export function DeckOverview({
           )}
           onClick={onZoneClick ? () => onZoneClick("sideboard") : undefined}
           onHoverCard={onHoverCard}
-          getThumbnail={(cardId, preferredPrintingId) =>
-            getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
-          }
+          getThumbnail={getThumbnail}
           readOnly={readOnly}
           getCardSlug={getCardSlug}
         />
@@ -336,9 +335,7 @@ export function DeckOverview({
             )}
             onClick={onZoneClick ? () => onZoneClick("overflow") : undefined}
             onHoverCard={onHoverCard}
-            getThumbnail={(cardId, preferredPrintingId) =>
-              getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
-            }
+            getThumbnail={getThumbnail}
             readOnly={readOnly}
             getCardSlug={getCardSlug}
           />

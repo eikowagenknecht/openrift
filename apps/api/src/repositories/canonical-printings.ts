@@ -3,6 +3,8 @@ import type { Kysely, SqlBool } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
+import { toCardImageVariants } from "../utils/card-image.js";
+import { imageUrl } from "./query-helpers.js";
 
 interface CanonicalShortCode {
   cardId: string;
@@ -28,6 +30,20 @@ interface DeckRowForShortCode {
 /** A row's resolved short code; `shortCode` is null when neither the preferred printing nor any canonical printing exists. */
 interface ResolvedRowShortCode extends DeckRowForShortCode {
   shortCode: string | null;
+}
+
+/**
+ * Resolved printing metadata for a deck row — used by the public share-deck
+ * endpoint to denormalize the payload so the share page SSRs without the
+ * global catalog. Every field below the input pair is `null` when the card
+ * has no usable printing (no preferred and no canonical); individual URL
+ * fields can also be null when the resolved printing has no active front image.
+ */
+interface ResolvedRowPrintingMeta extends DeckRowForShortCode {
+  resolvedPrintingId: string | null;
+  shortCode: string | null;
+  thumbnailUrl: string | null;
+  fullImageUrl: string | null;
 }
 
 /**
@@ -184,6 +200,128 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
           cardId: row.cardId,
           preferredPrintingId: row.preferredPrintingId,
           shortCode: fromPreferred ?? canonicalMap.get(row.cardId) ?? null,
+        };
+      });
+    },
+
+    /**
+     * Resolves the printing metadata (id, short code, image URLs) for each
+     * deck row. For rows with a `preferredPrintingId`, uses that printing;
+     * otherwise falls back to the card's canonical default (same ordering as
+     * `canonicalShortCodesByCardIds`). URLs can be null when the resolved
+     * printing has no active front image; the whole row is "all nulls except
+     * the input pair" when neither a preferred nor a canonical printing
+     * exists.
+     *
+     * @returns One entry per input row, in input order.
+     */
+    async resolvePrintingMetaForRows(
+      rows: DeckRowForShortCode[],
+    ): Promise<ResolvedRowPrintingMeta[]> {
+      if (rows.length === 0) {
+        return [];
+      }
+
+      interface PrintingMetaRow {
+        printingId: string;
+        shortCode: string;
+        imageBase: string | null;
+      }
+
+      const toVariants = (imageBase: string | null) => {
+        if (!imageBase) {
+          return { thumbnailUrl: null, fullImageUrl: null };
+        }
+        const variants = toCardImageVariants(imageBase);
+        return { thumbnailUrl: variants.thumbnail, fullImageUrl: variants.full };
+      };
+
+      const preferredIds = [
+        ...new Set(rows.flatMap((r) => (r.preferredPrintingId ? [r.preferredPrintingId] : []))),
+      ];
+      const preferredMap = new Map<string, PrintingMetaRow>();
+      if (preferredIds.length > 0) {
+        const preferredRows = await db
+          .selectFrom("printings as p")
+          .leftJoin("printingImages as pi", (join) =>
+            join
+              .onRef("pi.printingId", "=", "p.id")
+              .on("pi.face", "=", "front")
+              .on("pi.isActive", "=", true),
+          )
+          .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
+          .select(["p.id as printingId", "p.shortCode", imageUrl("imgf").as("imageBase")])
+          .where("p.id", "in", preferredIds)
+          .execute();
+        for (const row of preferredRows) {
+          preferredMap.set(row.printingId, row as PrintingMetaRow);
+        }
+      }
+
+      const cardIdsNeedingCanonical = [
+        ...new Set(
+          rows
+            .filter((r) => !r.preferredPrintingId || !preferredMap.has(r.preferredPrintingId))
+            .map((r) => r.cardId),
+        ),
+      ];
+      const canonicalMap = new Map<string, PrintingMetaRow>();
+      if (cardIdsNeedingCanonical.length > 0) {
+        // Use the `printings_ordered` view (canonicalRank pre-computed) instead
+        // of appendCanonicalOrder so the left-joined image tables don't break
+        // appendCanonicalOrder's generic constraint on the query shape.
+        const canonicalRows = await db
+          .selectFrom("printingsOrdered as p")
+          .leftJoin("printingImages as pi", (join) =>
+            join
+              .onRef("pi.printingId", "=", "p.id")
+              .on("pi.face", "=", "front")
+              .on("pi.isActive", "=", true),
+          )
+          .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
+          .select([
+            "p.cardId",
+            "p.id as printingId",
+            "p.shortCode",
+            imageUrl("imgf").as("imageBase"),
+          ])
+          .where("p.cardId", "in", cardIdsNeedingCanonical)
+          .distinctOn("p.cardId")
+          .orderBy("p.cardId")
+          .orderBy("p.canonicalRank")
+          .execute();
+        for (const row of canonicalRows) {
+          canonicalMap.set(row.cardId, {
+            printingId: row.printingId,
+            shortCode: row.shortCode,
+            imageBase: row.imageBase,
+          });
+        }
+      }
+
+      return rows.map((row) => {
+        const fromPreferred = row.preferredPrintingId
+          ? preferredMap.get(row.preferredPrintingId)
+          : undefined;
+        const meta = fromPreferred ?? canonicalMap.get(row.cardId);
+        if (!meta) {
+          return {
+            cardId: row.cardId,
+            preferredPrintingId: row.preferredPrintingId,
+            resolvedPrintingId: null,
+            shortCode: null,
+            thumbnailUrl: null,
+            fullImageUrl: null,
+          };
+        }
+        const { thumbnailUrl, fullImageUrl } = toVariants(meta.imageBase);
+        return {
+          cardId: row.cardId,
+          preferredPrintingId: row.preferredPrintingId,
+          resolvedPrintingId: meta.printingId,
+          shortCode: meta.shortCode,
+          thumbnailUrl,
+          fullImageUrl,
         };
       });
     },

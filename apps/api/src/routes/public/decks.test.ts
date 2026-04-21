@@ -14,9 +14,21 @@ const mockRepo = {
   cardsForDeck: vi.fn(() => Promise.resolve([] as object[])),
 };
 
+const mockCatalogRepo = {
+  cardsByIds: vi.fn(() => Promise.resolve([] as object[])),
+};
+
+const mockCanonicalPrintingsRepo = {
+  resolvePrintingMetaForRows: vi.fn(() => Promise.resolve([] as object[])),
+};
+
 const app = new Hono()
   .use("*", async (c, next) => {
-    c.set("repos", { decks: mockRepo } as never);
+    c.set("repos", {
+      decks: mockRepo,
+      catalog: mockCatalogRepo,
+      canonicalPrintings: mockCanonicalPrintingsRepo,
+    } as never);
     await next();
   })
   .route("/api/v1", publicDecksRoute)
@@ -51,15 +63,46 @@ const dbCard = {
   preferredPrintingId: null,
 };
 
+const cardMeta = {
+  id: dbCard.cardId,
+  slug: "fury-aggro-legend",
+  name: "Fury Aggro Legend",
+  type: "Legend",
+  might: null,
+  energy: null,
+  power: null,
+  mightBonus: null,
+  keywords: [],
+  tags: [],
+  domains: ["Fury"],
+  superTypes: ["Champion"],
+  comment: null,
+};
+
+const printingMeta = {
+  cardId: dbCard.cardId,
+  preferredPrintingId: null,
+  resolvedPrintingId: "p0000000-0001-4000-a000-000000000001",
+  shortCode: "OGS-001",
+  thumbnailUrl: "/media/cards/aa/abc-400w.webp",
+  fullImageUrl: "/media/cards/aa/abc-full.webp",
+};
+
 describe("GET /api/v1/decks/share/:token", () => {
   beforeEach(() => {
     mockRepo.findByShareToken.mockReset();
     mockRepo.cardsForDeck.mockReset();
+    mockCatalogRepo.cardsByIds.mockReset();
+    mockCatalogRepo.cardsByIds.mockResolvedValue([]);
+    mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockReset();
+    mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([]);
   });
 
-  it("returns 200 with the public deck detail when the token resolves", async () => {
+  it("returns 200 with the enriched public deck detail when the token resolves", async () => {
     mockRepo.findByShareToken.mockResolvedValue({ deck: dbDeck, ownerName: "Alice" });
     mockRepo.cardsForDeck.mockResolvedValue([dbCard]);
+    mockCatalogRepo.cardsByIds.mockResolvedValue([cardMeta]);
+    mockCanonicalPrintingsRepo.resolvePrintingMetaForRows.mockResolvedValue([printingMeta]);
 
     const res = await app.request("/api/v1/decks/share/tok-abc");
     expect(res.status).toBe(200);
@@ -67,7 +110,16 @@ describe("GET /api/v1/decks/share/:token", () => {
     expect(json.deck.id).toBe(DECK_ID);
     expect(json.deck.name).toBe("Fury Aggro");
     expect(json.cards).toHaveLength(1);
-    expect(json.cards[0].cardId).toBe(dbCard.cardId);
+    expect(json.cards[0]).toMatchObject({
+      cardId: dbCard.cardId,
+      cardName: cardMeta.name,
+      cardSlug: cardMeta.slug,
+      cardType: cardMeta.type,
+      resolvedPrintingId: printingMeta.resolvedPrintingId,
+      shortCode: printingMeta.shortCode,
+      thumbnailUrl: printingMeta.thumbnailUrl,
+      fullImageUrl: printingMeta.fullImageUrl,
+    });
     expect(json.owner.displayName).toBe("Alice");
   });
 

@@ -1,12 +1,13 @@
-import type { PublicDeckDetailResponse } from "@openrift/shared";
+import type { PublicDeckCardResponse, PublicDeckDetailResponse } from "@openrift/shared";
 import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { CopyIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { Suspense, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
 import { DeckOverview } from "@/components/deck/deck-overview";
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
+import { SharedDeckOwnershipBridge } from "@/components/deck/shared-deck-ownership-bridge";
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
 import {
   PAGE_TOP_BAR_STICKY,
@@ -18,16 +19,13 @@ import {
 } from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCards } from "@/hooks/use-cards";
-import { useDeckOwnership } from "@/hooks/use-deck-ownership";
+import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { publicDeckQueryOptions, useCloneSharedDeck, usePublicDeck } from "@/hooks/use-decks";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-import { useOwnedCount } from "@/hooks/use-owned-count";
-import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
@@ -39,7 +37,6 @@ const FORMAT_LABELS: Record<"constructed" | "freeform", string> = {
 };
 
 export const Route = createFileRoute("/_app/decks_/share/$token")({
-  ssr: "data-only",
   head: ({ loaderData }) => {
     const siteUrl = getSiteUrl();
     const data = loaderData as PublicDeckDetailResponse | undefined;
@@ -87,6 +84,28 @@ function SharedDeckPage() {
   );
 }
 
+function toBuilderCardFromPublic(card: PublicDeckCardResponse): DeckBuilderCard {
+  return {
+    cardId: card.cardId,
+    zone: card.zone,
+    quantity: card.quantity,
+    preferredPrintingId: card.preferredPrintingId,
+    cardName: card.cardName,
+    cardType: card.cardType,
+    superTypes: card.superTypes,
+    domains: card.domains,
+    tags: card.tags,
+    keywords: card.keywords,
+    energy: card.energy,
+    might: card.might,
+    power: card.power,
+  };
+}
+
+function thumbKey(cardId: string, preferredPrintingId: string | null): string {
+  return `${cardId}|${preferredPrintingId ?? ""}`;
+}
+
 function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }) {
   const { token } = Route.useParams();
   const { data } = usePublicDeck(token);
@@ -98,24 +117,42 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
   const isMobile = useIsMobile();
+  const isHydrated = useIsHydrated();
 
-  const { cardsById, allPrintings } = useCards();
-  const { getPreferredPrinting } = usePreferredPrinting();
-  const { data: ownedCountByPrinting } = useOwnedCount(isLoggedIn);
+  // Everything the shell needs — builder cards, thumbnails, hover full-image
+  // URLs, and card slugs — comes straight from the enriched payload. No
+  // catalog lookup, so this branch is SSR-safe.
+  const builderCards = useMemo(() => data.cards.map(toBuilderCardFromPublic), [data.cards]);
+  const slugByCardId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const card of data.cards) {
+      map.set(card.cardId, card.cardSlug);
+    }
+    return map;
+  }, [data.cards]);
+  const thumbByKey = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const card of data.cards) {
+      if (card.thumbnailUrl) {
+        map.set(thumbKey(card.cardId, card.preferredPrintingId), card.thumbnailUrl);
+      }
+    }
+    return map;
+  }, [data.cards]);
+  const hoverMeta = useMemo(() => {
+    const map = new Map<string, { fullUrl: string; landscape: boolean }>();
+    for (const card of data.cards) {
+      if (card.fullImageUrl) {
+        map.set(thumbKey(card.cardId, card.preferredPrintingId), {
+          fullUrl: card.fullImageUrl,
+          landscape: card.cardType === "Battlefield",
+        });
+      }
+    }
+    return map;
+  }, [data.cards]);
 
-  const builderCards: DeckBuilderCard[] = data.cards
-    .map((card) => toDeckBuilderCard(card, cardsById))
-    .filter((card): card is DeckBuilderCard => card !== null);
-
-  // Pass `{}` for logged-out viewers so useDeckOwnership still computes
-  // deck pricing (it bails out only when the owned-count map is undefined).
-  // The Value tile then shows even without a real collection to compare to.
-  const ownershipData = useDeckOwnership(
-    builderCards,
-    allPrintings,
-    ownedCountByPrinting ?? (isLoggedIn ? undefined : {}),
-    marketplace,
-  );
+  const [ownershipData, setOwnershipData] = useState<DeckOwnershipData>();
 
   const [hovered, setHovered] = useState<{
     id: string;
@@ -127,19 +164,20 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
   const onHoverCard = (id: string | null, preferredPrintingId?: string | null) =>
     setHovered(id ? { id, preferredPrintingId: preferredPrintingId ?? null } : null);
 
-  const hoveredPrinting =
-    hovered && !isMobile
-      ? (getPreferredPrinting(hovered.id, hovered.preferredPrintingId) ?? null)
-      : null;
-  const hoveredFrontImage = hoveredPrinting?.images.find((image) => image.face === "front") ?? null;
-  const hoveredCard =
-    hoveredPrinting && hoveredFrontImage
-      ? {
-          thumbnailUrl: hoveredFrontImage.thumbnail,
-          fullUrl: hoveredFrontImage.full,
-          landscape: hoveredPrinting.card.type === "Battlefield",
-        }
-      : null;
+  const hoveredCard = (() => {
+    if (!hovered || isMobile) {
+      return null;
+    }
+    const meta = hoverMeta.get(thumbKey(hovered.id, hovered.preferredPrintingId));
+    if (!meta) {
+      return null;
+    }
+    return {
+      thumbnailUrl: meta.fullUrl,
+      fullUrl: meta.fullUrl,
+      landscape: meta.landscape,
+    };
+  })();
 
   const handleClone = async () => {
     if (!isLoggedIn) {
@@ -186,6 +224,9 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
         cards={builderCards}
         ownershipData={ownershipData}
         marketplace={marketplace}
+        getThumbnail={(cardId, preferredPrintingId) =>
+          thumbByKey.get(thumbKey(cardId, preferredPrintingId))
+        }
         onHoverCard={onHoverCard}
         onViewMissing={() => setMissingOpen(true)}
         readOnly
@@ -193,7 +234,7 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
           isLoggedIn ? undefined : `/login?redirect=${encodeURIComponent(`/decks/share/${token}`)}`
         }
         description={data.deck.description ?? undefined}
-        getCardSlug={(cardId) => cardsById[cardId]?.slug}
+        getCardSlug={(cardId) => slugByCardId.get(cardId)}
       />
 
       {ownershipData && (
@@ -205,6 +246,22 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
           marketplace={marketplace}
           mode={isLoggedIn ? "missing" : "prices"}
         />
+      )}
+
+      {/*
+        Ownership + price data still needs the global catalog (printings +
+        prices) and the user's copies, both of which require client-only
+        hooks. Gate behind hydration so SSR never tries to evaluate them.
+      */}
+      {isHydrated && (
+        <Suspense fallback={null}>
+          <SharedDeckOwnershipBridge
+            builderCards={builderCards}
+            isLoggedIn={isLoggedIn}
+            marketplace={marketplace}
+            onResult={setOwnershipData}
+          />
+        </Suspense>
       )}
     </div>
   );

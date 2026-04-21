@@ -57,6 +57,7 @@ export type {
   DeckResponse,
   DeckShareResponse,
   DeckSummaryResponse,
+  PublicDeckCardResponse,
   PublicDeckDetailResponse,
   PublicDeckResponse,
 } from "./deck.js";

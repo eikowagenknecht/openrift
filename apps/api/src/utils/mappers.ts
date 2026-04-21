@@ -1,4 +1,5 @@
 import type {
+  CardType,
   CollectionEventResponse,
   CollectionResponse,
   CopyResponse,
@@ -6,7 +7,10 @@ import type {
   DeckCardResponse,
   DeckResponse,
   DeckSummaryResponse,
+  Domain,
+  PublicDeckCardResponse,
   PublicDeckResponse,
+  SuperType,
   TradeListItemDetailResponse,
   TradeListItemResponse,
   TradeListResponse,
@@ -198,6 +202,57 @@ export function toDeckCard(row: {
     zone: row.zone as DeckCardResponse["zone"],
     quantity: row.quantity,
     preferredPrintingId: row.preferredPrintingId,
+  };
+}
+
+/**
+ * Composes an enriched public-deck card from the raw deck-card row, the
+ * card's catalog row, and the resolved printing meta. The public share-deck
+ * endpoint denormalizes this so the share page can SSR without pulling the
+ * global catalog.
+ *
+ * @returns The serialized public deck card response.
+ */
+export function toPublicDeckCard(
+  deckCard: { cardId: string; zone: string; quantity: number; preferredPrintingId: string | null },
+  cardMeta: {
+    name: string;
+    slug: string;
+    type: CardType;
+    superTypes: SuperType[];
+    domains: Domain[];
+    tags: string[];
+    keywords: string[];
+    energy: number | null;
+    might: number | null;
+    power: number | null;
+  },
+  printingMeta: {
+    resolvedPrintingId: string | null;
+    shortCode: string | null;
+    thumbnailUrl: string | null;
+    fullImageUrl: string | null;
+  },
+): PublicDeckCardResponse {
+  return {
+    cardId: deckCard.cardId,
+    zone: deckCard.zone as PublicDeckCardResponse["zone"],
+    quantity: deckCard.quantity,
+    preferredPrintingId: deckCard.preferredPrintingId,
+    cardName: cardMeta.name,
+    cardSlug: cardMeta.slug,
+    cardType: cardMeta.type,
+    superTypes: cardMeta.superTypes,
+    domains: cardMeta.domains,
+    tags: cardMeta.tags,
+    keywords: cardMeta.keywords,
+    energy: cardMeta.energy,
+    might: cardMeta.might,
+    power: cardMeta.power,
+    resolvedPrintingId: printingMeta.resolvedPrintingId,
+    shortCode: printingMeta.shortCode,
+    thumbnailUrl: printingMeta.thumbnailUrl,
+    fullImageUrl: printingMeta.fullImageUrl,
   };
 }
 

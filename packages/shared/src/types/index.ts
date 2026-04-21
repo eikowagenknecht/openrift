@@ -146,6 +146,7 @@ export type {
   DeckResponse,
   DeckShareResponse,
   DeckSummaryResponse,
+  PublicDeckCardResponse,
   PublicDeckDetailResponse,
   PublicDeckResponse,
   ShoppingListItemResponse,

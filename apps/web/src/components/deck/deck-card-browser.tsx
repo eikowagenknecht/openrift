@@ -33,6 +33,7 @@ import { useDeckDetail } from "@/hooks/use-decks";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
+import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { usePrices } from "@/hooks/use-prices";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
@@ -118,12 +119,16 @@ function DeckOverviewForEditor({
 }: DeckCardBrowserProps) {
   const { data: deckDetail } = useDeckDetail(deckId);
   const cards = useDeckCards(deckId);
+  const { getPreferredFrontImage } = usePreferredPrinting();
   return (
     <DeckOverview
       deck={{ id: deckId, name: deckDetail.deck.name, format: deckDetail.deck.format }}
       cards={cards}
       ownershipData={ownershipData}
       marketplace={marketplace}
+      getThumbnail={(cardId, preferredPrintingId) =>
+        getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
+      }
       onZoneClick={onZoneClick}
       onViewMissing={onViewMissing}
       onHoverCard={onHoverCard}
