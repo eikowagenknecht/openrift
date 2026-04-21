@@ -2,6 +2,8 @@
 
 ## 2026-04-21
 
+- feat: Every section on the Promos page can now be folded down to a single heading line, including language groups and individual card lists, so you can collapse the groups you don't care about
+- feat: The Promos page sidebar now lists sub-channels of compact sections too, so you can jump straight to any sub-group from the sidebar
 - feat: Shared deck pages now load with the full deck and card thumbnails visible immediately on first paint, instead of showing a skeleton while the catalog downloads, and repeat opens of the same share link are served from the edge cache in a fraction of the time
 - feat: Shared deck pages now use the standard sticky top bar — the deck name and the "Copy to my decks" / "Sign in to copy" button stay visible while you scroll, and the Shared by line is folded into the deck's format line
 - feat: Logged-out viewers of a shared deck now see the deck's estimated build cost too, with a "View prices" button that opens a per-card price breakdown, and the Ownership tile becomes a Sign in prompt that returns them to the same shared deck after sign-in
