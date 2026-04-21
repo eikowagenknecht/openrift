@@ -105,7 +105,7 @@ export function CardImage({
             className="@container pointer-events-none absolute inset-0 z-30 overflow-hidden rounded-[inherit]"
             title="Previewed / Unreleased — not yet available in official play"
           >
-            <div className="absolute top-[11cqi] -left-[14cqi] w-[60cqi] rotate-[-45deg] bg-amber-500 py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider text-amber-950 uppercase shadow-md select-none">
+            <div className="absolute top-[18cqi] -right-[22cqi] w-[90cqi] rotate-[45deg] bg-amber-500 py-[1.5cqi] text-center text-[6cqi] font-black tracking-wider text-amber-950 uppercase shadow-md select-none">
               Preview
             </div>
           </div>
