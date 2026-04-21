@@ -487,8 +487,8 @@ function SignInKpi({ href }: { href: string }) {
       className="bg-card hover:bg-muted/40 flex flex-col gap-1.5 rounded-lg border border-dashed p-3 transition-colors"
     >
       <span className="text-muted-foreground text-xs leading-4">Ownership</span>
-      <div className="text-foreground inline-flex items-center gap-1.5 text-sm font-medium">
-        <LogInIcon className="size-4" />
+      <div className="text-foreground inline-flex items-center gap-1.5 text-lg leading-7 font-semibold">
+        <LogInIcon className="size-5" />
         <span>Sign in</span>
       </div>
       <div className="flex h-2" />
