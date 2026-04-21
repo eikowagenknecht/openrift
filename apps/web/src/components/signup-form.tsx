@@ -72,6 +72,8 @@ export function SignupForm({
                   type="text"
                   placeholder="Your name"
                   aria-invalid={fieldState.invalid}
+                  // oxlint-disable-next-line jsx-a11y/no-autofocus -- sign-up page's primary input
+                  autoFocus
                 />
                 {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
               </Field>
