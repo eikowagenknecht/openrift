@@ -160,10 +160,12 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
       {topBarSlot &&
         createPortal(
           <PageTopBar>
-            <PageTopBarTitle>{data.deck.name}</PageTopBarTitle>
-            <span className="text-muted-foreground hidden truncate text-xs md:inline">
-              {FORMAT_LABELS[data.deck.format]} · Shared by {data.owner.displayName}
-            </span>
+            <div className="flex min-w-0 flex-1 items-baseline gap-2">
+              <PageTopBarTitle>{data.deck.name}</PageTopBarTitle>
+              <span className="text-muted-foreground hidden truncate text-xs md:inline">
+                {FORMAT_LABELS[data.deck.format]} · Shared by {data.owner.displayName}
+              </span>
+            </div>
             <PageTopBarActions>
               {deckSharingEnabled && (
                 <Button size="sm" onClick={handleClone} disabled={cloneMutation.isPending}>
