@@ -181,7 +181,7 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
         ownershipData={ownershipData}
         marketplace={marketplace}
         onHoverCard={onHoverCard}
-        onViewMissing={isLoggedIn ? () => setMissingOpen(true) : undefined}
+        onViewMissing={() => setMissingOpen(true)}
         readOnly
         signInHref={
           isLoggedIn ? undefined : `/login?redirect=${encodeURIComponent(`/decks/share/${token}`)}`
@@ -190,13 +190,14 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
         description={data.deck.description ?? undefined}
       />
 
-      {isLoggedIn && ownershipData && (
+      {ownershipData && (
         <DeckMissingCardsDialog
           open={missingOpen}
           onOpenChange={setMissingOpen}
           missingCards={ownershipData.missingCards}
           totalMissingValue={ownershipData.missingValueCents}
           marketplace={marketplace}
+          mode={isLoggedIn ? "missing" : "prices"}
         />
       )}
     </div>

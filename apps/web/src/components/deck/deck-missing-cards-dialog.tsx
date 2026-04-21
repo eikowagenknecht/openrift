@@ -31,6 +31,12 @@ interface DeckMissingCardsDialogProps {
   missingCards: CardOwnership[];
   totalMissingValue: number | undefined;
   marketplace: Marketplace;
+  /**
+   * "missing" (default) frames the list as cards the viewer still needs;
+   * "prices" drops the ownership framing for anonymous viewers and shows
+   * the same rows as a price breakdown for the whole deck.
+   */
+  mode?: "missing" | "prices";
 }
 
 export function DeckMissingCardsDialog({
@@ -39,6 +45,7 @@ export function DeckMissingCardsDialog({
   missingCards,
   totalMissingValue,
   marketplace,
+  mode = "missing",
 }: DeckMissingCardsDialogProps) {
   const [copied, setCopied] = useState(false);
   const fmt = formatterForMarketplace(marketplace);
@@ -91,7 +98,11 @@ export function DeckMissingCardsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Missing cards ({totalMissing})</DialogTitle>
+          <DialogTitle>
+            {mode === "prices"
+              ? `Card prices (${totalMissing})`
+              : `Missing cards (${totalMissing})`}
+          </DialogTitle>
           <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
             <img src={meta.icon} alt="" className="h-3 invert dark:invert-0" />
             Prices from {meta.label}

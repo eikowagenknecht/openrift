@@ -441,7 +441,17 @@ function ValueKpi({
         className="@3xl:col-span-2"
         label="Value"
         value={fmtPrice(deckValueCents)}
-        caption="Estimated cost to build"
+        caption={
+          <>
+            <span className="truncate">Estimated cost to build</span>
+            {onViewMissing && (
+              <Button variant="outline" size="sm" className="ml-auto" onClick={onViewMissing}>
+                <PackageSearchIcon />
+                <span className="sr-only @lg:not-sr-only">View prices</span>
+              </Button>
+            )}
+          </>
+        }
       />
     );
   }
