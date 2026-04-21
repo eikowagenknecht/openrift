@@ -8,6 +8,7 @@
 - fix: The sign-in page now focuses the email field on load, auto-focuses the code input as soon as it appears when signing in with a code, and fixes keyboard tab order so the Password / Email code switcher and the Google, Discord, and Sign up buttons are reachable without cycling through the whole page
 - fix: The sign-up page now focuses the name field on load, so you can start typing without clicking it first
 - fix: The password reset page now focuses the email or code input as soon as it appears, and pressing Enter submits the form
+- fix: Manage mode on the Collections page is more readable — the entry button is now labeled "Manage cards" / "Manage printings", the selection checkbox aligns with the card image edge, and the floating action bar with Move and Dispose buttons is larger and easier to see
 
 ## 2026-04-20
 

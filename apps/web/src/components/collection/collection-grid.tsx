@@ -1162,7 +1162,7 @@ function CollectionTopBar({
                   </Button>
                   <Button variant="ghost" onClick={onEnterSelect} className="hidden sm:flex">
                     <CheckSquareIcon className="size-4" />
-                    Select {view}
+                    Manage {view}
                   </Button>
                 </>
               )
