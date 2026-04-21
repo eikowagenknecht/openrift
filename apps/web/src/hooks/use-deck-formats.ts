@@ -3,21 +3,20 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { AdminDeckFormatsResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchDeckFormats = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminDeckFormatsResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/deck-formats`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Deck formats fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminDeckFormatsResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminDeckFormatsResponse> =>
+      fetchApiJson<AdminDeckFormatsResponse>({
+        errorTitle: "Couldn't load deck formats",
+        cookie: context.cookie,
+        path: "/api/v1/admin/deck-formats",
+      }),
+  );
 
 export const adminDeckFormatsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.deckFormats,
@@ -32,15 +31,13 @@ const createDeckFormatFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/deck-formats`, {
+    await fetchApi({
+      errorTitle: "Couldn't create deck format",
+      cookie: context.cookie,
+      path: "/api/v1/admin/deck-formats",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Create deck format failed: ${res.status}`);
-    }
-    return res.json();
   });
 
 export function useCreateDeckFormat() {
@@ -54,17 +51,13 @@ const updateDeckFormatFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/deck-formats/${encodeURIComponent(data.slug)}`,
-      {
-        method: "PATCH",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ label: data.label }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Update deck format failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't update deck format",
+      cookie: context.cookie,
+      path: `/api/v1/admin/deck-formats/${encodeURIComponent(data.slug)}`,
+      method: "PATCH",
+      body: { label: data.label },
+    });
   });
 
 export function useUpdateDeckFormat() {
@@ -78,14 +71,13 @@ const reorderDeckFormatsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/deck-formats/reorder`, {
+    await fetchApi({
+      errorTitle: "Couldn't reorder deck formats",
+      cookie: context.cookie,
+      path: "/api/v1/admin/deck-formats/reorder",
       method: "PUT",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ slugs: data.slugs }),
+      body: { slugs: data.slugs },
     });
-    if (!res.ok) {
-      throw new Error(`Reorder deck formats failed: ${res.status}`);
-    }
   });
 
 export function useReorderDeckFormats() {
@@ -99,16 +91,12 @@ const deleteDeckFormatFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/deck-formats/${encodeURIComponent(data.slug)}`,
-      {
-        method: "DELETE",
-        headers: { cookie: context.cookie },
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Delete deck format failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't delete deck format",
+      cookie: context.cookie,
+      path: `/api/v1/admin/deck-formats/${encodeURIComponent(data.slug)}`,
+      method: "DELETE",
+    });
   });
 
 export function useDeleteDeckFormat() {

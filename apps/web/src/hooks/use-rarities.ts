@@ -3,21 +3,20 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { AdminRaritiesResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchRarities = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminRaritiesResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/rarities`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Rarities fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminRaritiesResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminRaritiesResponse> =>
+      fetchApiJson<AdminRaritiesResponse>({
+        errorTitle: "Couldn't load rarities",
+        cookie: context.cookie,
+        path: "/api/v1/admin/rarities",
+      }),
+  );
 
 export const adminRaritiesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.rarities,
@@ -32,15 +31,13 @@ const createRarityFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string; color?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/rarities`, {
+    await fetchApi({
+      errorTitle: "Couldn't create rarity",
+      cookie: context.cookie,
+      path: "/api/v1/admin/rarities",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Create rarity failed: ${res.status}`);
-    }
-    return res.json();
   });
 
 export function useCreateRarity() {
@@ -55,14 +52,13 @@ const updateRarityFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string; color?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/rarities/${encodeURIComponent(data.slug)}`, {
+    await fetchApi({
+      errorTitle: "Couldn't update rarity",
+      cookie: context.cookie,
+      path: `/api/v1/admin/rarities/${encodeURIComponent(data.slug)}`,
       method: "PATCH",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ label: data.label, color: data.color }),
+      body: { label: data.label, color: data.color },
     });
-    if (!res.ok) {
-      throw new Error(`Update rarity failed: ${res.status}`);
-    }
   });
 
 export function useUpdateRarity() {
@@ -77,14 +73,13 @@ const reorderRaritiesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/rarities/reorder`, {
+    await fetchApi({
+      errorTitle: "Couldn't reorder rarities",
+      cookie: context.cookie,
+      path: "/api/v1/admin/rarities/reorder",
       method: "PUT",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ slugs: data.slugs }),
+      body: { slugs: data.slugs },
     });
-    if (!res.ok) {
-      throw new Error(`Reorder rarities failed: ${res.status}`);
-    }
   });
 
 export function useReorderRarities() {
@@ -98,13 +93,12 @@ const deleteRarityFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/rarities/${encodeURIComponent(data.slug)}`, {
+    await fetchApi({
+      errorTitle: "Couldn't delete rarity",
+      cookie: context.cookie,
+      path: `/api/v1/admin/rarities/${encodeURIComponent(data.slug)}`,
       method: "DELETE",
-      headers: { cookie: context.cookie },
     });
-    if (!res.ok) {
-      throw new Error(`Delete rarity failed: ${res.status}`);
-    }
   });
 
 export function useDeleteRarity() {

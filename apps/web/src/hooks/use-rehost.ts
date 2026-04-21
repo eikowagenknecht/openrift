@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 /** Accumulated totals across regeneration batches (excludes per-batch pagination fields). */
@@ -23,39 +23,36 @@ export type RegenerateAccumulator = Pick<
 
 const fetchRehostStatusFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<RehostStatusResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/rehost-status`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Rehost status fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<RehostStatusResponse>;
-  });
+  .handler(
+    ({ context }): Promise<RehostStatusResponse> =>
+      fetchApiJson<RehostStatusResponse>({
+        errorTitle: "Couldn't load rehost status",
+        cookie: context.cookie,
+        path: "/api/v1/admin/rehost-status",
+      }),
+  );
 
 const fetchBrokenImagesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<BrokenImagesResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/broken-images`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Broken images fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<BrokenImagesResponse>;
-  });
+  .handler(
+    ({ context }): Promise<BrokenImagesResponse> =>
+      fetchApiJson<BrokenImagesResponse>({
+        errorTitle: "Couldn't load broken images",
+        cookie: context.cookie,
+        path: "/api/v1/admin/broken-images",
+      }),
+  );
 
 const fetchLowResImagesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<LowResImagesResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/low-res-images`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Low-res images fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<LowResImagesResponse>;
-  });
+  .handler(
+    ({ context }): Promise<LowResImagesResponse> =>
+      fetchApiJson<LowResImagesResponse>({
+        errorTitle: "Couldn't load low-res images",
+        cookie: context.cookie,
+        path: "/api/v1/admin/low-res-images",
+      }),
+  );
 
 interface MissingImageCard {
   cardId: string;
@@ -65,112 +62,104 @@ interface MissingImageCard {
 
 const fetchMissingImagesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<MissingImageCard[]> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/missing-images`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Missing images fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<MissingImageCard[]>;
-  });
+  .handler(
+    ({ context }): Promise<MissingImageCard[]> =>
+      fetchApiJson<MissingImageCard[]>({
+        errorTitle: "Couldn't load missing images",
+        cookie: context.cookie,
+        path: "/api/v1/admin/missing-images",
+      }),
+  );
 
 const rehostImagesBatchFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(async ({ context }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/rehost-images`, {
+  .handler(({ context }) =>
+    fetchApiJson<RehostImageResponse>({
+      errorTitle: "Couldn't rehost images",
+      cookie: context.cookie,
+      path: "/api/v1/admin/rehost-images",
       method: "POST",
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Rehost images batch failed: ${res.status}`);
-    }
-    return res.json() as Promise<RehostImageResponse>;
-  });
+    }),
+  );
 
 const regenerateImagesBatchFn = createServerFn({ method: "POST" })
   .inputValidator((input: { offset: number }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
+  .handler(({ context, data }) => {
     const params = new URLSearchParams({ offset: String(data.offset) });
-    const res = await fetch(`${API_URL}/api/v1/admin/regenerate-images?${params.toString()}`, {
+    return fetchApiJson<RegenerateImageResponse>({
+      errorTitle: "Couldn't regenerate images",
+      cookie: context.cookie,
+      path: `/api/v1/admin/regenerate-images?${params.toString()}`,
       method: "POST",
-      headers: { cookie: context.cookie },
     });
-    if (!res.ok) {
-      throw new Error(`Regenerate images batch failed: ${res.status}`);
-    }
-    return res.json() as Promise<RegenerateImageResponse>;
   });
 
 const unrehostImagesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageIds: string[] }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }): Promise<UnrehostImagesResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/unrehost-images`, {
-      method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ imageIds: data.imageIds }),
-    });
-    if (!res.ok) {
-      throw new Error(`Unrehost images failed: ${res.status}`);
-    }
-    return res.json() as Promise<UnrehostImagesResponse>;
-  });
+  .handler(
+    ({ context, data }): Promise<UnrehostImagesResponse> =>
+      fetchApiJson<UnrehostImagesResponse>({
+        errorTitle: "Couldn't unrehost images",
+        cookie: context.cookie,
+        path: "/api/v1/admin/unrehost-images",
+        method: "POST",
+        body: { imageIds: data.imageIds },
+      }),
+  );
 
 const clearRehostedFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/clear-rehosted`, {
+    await fetchApi({
+      errorTitle: "Couldn't clear rehosted images",
+      cookie: context.cookie,
+      path: "/api/v1/admin/clear-rehosted",
       method: "POST",
-      headers: { cookie: context.cookie },
     });
-    if (!res.ok) {
-      throw new Error(`Clear rehosted failed: ${res.status}`);
-    }
-    return res.json();
   });
 
 const cleanupOrphanedFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(async ({ context }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cleanup-orphaned`, {
+  .handler(({ context }) =>
+    fetchApiJson<{ scanned: number; deleted: number; errors: string[] }>({
+      errorTitle: "Couldn't clean up orphaned images",
+      cookie: context.cookie,
+      path: "/api/v1/admin/cleanup-orphaned",
       method: "POST",
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Cleanup orphaned failed: ${res.status}`);
-    }
-    return res.json();
-  });
+    }),
+  );
 
 const migrateDirectoriesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(async ({ context }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/migrate-directories`, {
+  .handler(({ context }) =>
+    fetchApiJson<{
+      scanned: number;
+      moved: number;
+      skipped: number;
+      failed: number;
+      errors: string[];
+    }>({
+      errorTitle: "Couldn't migrate directories",
+      cookie: context.cookie,
+      path: "/api/v1/admin/migrate-directories",
       method: "POST",
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Migrate directories failed: ${res.status}`);
-    }
-    return res.json();
-  });
+    }),
+  );
 
 const restoreImageUrlsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { provider: string }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/restore-image-urls`, {
+  .handler(({ context, data }) =>
+    fetchApiJson<{ updated: number; provider: string }>({
+      errorTitle: "Couldn't restore image URLs",
+      cookie: context.cookie,
+      path: "/api/v1/admin/restore-image-urls",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ provider: data.provider }),
-    });
-    if (!res.ok) {
-      throw new Error(`Restore image URLs failed: ${res.status}`);
-    }
-    return res.json();
-  });
+      body: { provider: data.provider },
+    }),
+  );
 
 // ── Query ─────────────────────────────────────────────────────────────────────
 

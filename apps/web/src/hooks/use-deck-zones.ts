@@ -3,21 +3,20 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { AdminDeckZonesResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchDeckZones = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminDeckZonesResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/deck-zones`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Deck zones fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminDeckZonesResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminDeckZonesResponse> =>
+      fetchApiJson<AdminDeckZonesResponse>({
+        errorTitle: "Couldn't load deck zones",
+        cookie: context.cookie,
+        path: "/api/v1/admin/deck-zones",
+      }),
+  );
 
 export const adminDeckZonesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.deckZones,
@@ -32,14 +31,13 @@ const reorderDeckZonesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/deck-zones/reorder`, {
+    await fetchApi({
+      errorTitle: "Couldn't reorder deck zones",
+      cookie: context.cookie,
+      path: "/api/v1/admin/deck-zones/reorder",
       method: "PUT",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ slugs: data.slugs }),
+      body: { slugs: data.slugs },
     });
-    if (!res.ok) {
-      throw new Error(`Reorder deck zones failed: ${res.status}`);
-    }
   });
 
 export function useReorderDeckZones() {
@@ -53,14 +51,13 @@ const updateDeckZoneFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/deck-zones/${encodeURIComponent(data.slug)}`, {
+    await fetchApi({
+      errorTitle: "Couldn't update deck zone",
+      cookie: context.cookie,
+      path: `/api/v1/admin/deck-zones/${encodeURIComponent(data.slug)}`,
       method: "PATCH",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ label: data.label }),
+      body: { label: data.label },
     });
-    if (!res.ok) {
-      throw new Error(`Update deck zone failed: ${res.status}`);
-    }
   });
 
 export function useUpdateDeckZone() {

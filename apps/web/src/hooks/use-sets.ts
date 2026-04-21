@@ -3,21 +3,20 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { AdminSetsResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchSets = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminSetsResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/sets`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Sets fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminSetsResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminSetsResponse> =>
+      fetchApiJson<AdminSetsResponse>({
+        errorTitle: "Couldn't load sets",
+        cookie: context.cookie,
+        path: "/api/v1/admin/sets",
+      }),
+  );
 
 export const setsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.sets,
@@ -41,14 +40,13 @@ const updateSetFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/sets/${encodeURIComponent(data.id)}`, {
+    await fetchApi({
+      errorTitle: "Couldn't update set",
+      cookie: context.cookie,
+      path: `/api/v1/admin/sets/${encodeURIComponent(data.id)}`,
       method: "PATCH",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Update set failed: ${res.status}`);
-    }
   });
 
 export function useUpdateSet() {
@@ -74,15 +72,13 @@ const createSetFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/sets`, {
+    await fetchApi({
+      errorTitle: "Couldn't create set",
+      cookie: context.cookie,
+      path: "/api/v1/admin/sets",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Create set failed: ${res.status}`);
-    }
-    return res.json();
   });
 
 export function useCreateSet() {
@@ -101,13 +97,12 @@ const deleteSetFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/sets/${encodeURIComponent(data.id)}`, {
+    await fetchApi({
+      errorTitle: "Couldn't delete set",
+      cookie: context.cookie,
+      path: `/api/v1/admin/sets/${encodeURIComponent(data.id)}`,
       method: "DELETE",
-      headers: { cookie: context.cookie },
     });
-    if (!res.ok) {
-      throw new Error(`Delete set failed: ${res.status}`);
-    }
   });
 
 export function useDeleteSet() {
@@ -123,14 +118,13 @@ const reorderSetsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/sets/reorder`, {
+    await fetchApi({
+      errorTitle: "Couldn't reorder sets",
+      cookie: context.cookie,
+      path: "/api/v1/admin/sets/reorder",
       method: "PUT",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ ids: data.ids }),
+      body: { ids: data.ids },
     });
-    if (!res.ok) {
-      throw new Error(`Reorder sets failed: ${res.status}`);
-    }
   });
 
 export function useReorderSets() {

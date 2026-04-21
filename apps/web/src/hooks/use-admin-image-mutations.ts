@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -45,56 +46,49 @@ const deletePrintingImageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}`,
-      { method: "DELETE", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Delete printing image failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't delete printing image",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}`,
+      method: "DELETE",
+    });
   });
 
 const activatePrintingImageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageId: string; active: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/activate`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ active: data.active }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Activate printing image failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't activate printing image",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/activate`,
+      method: "POST",
+      body: { active: data.active },
+    });
   });
 
 const rehostPrintingImageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/rehost`,
-      { method: "POST", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Rehost printing image failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't rehost printing image",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/rehost`,
+      method: "POST",
+    });
   });
 
 const unrehostPrintingImageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/unrehost`,
-      { method: "POST", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Unrehost printing image failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't unrehost printing image",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/unrehost`,
+      method: "POST",
+    });
   });
 
 type Rotation = 0 | 90 | 180 | 270;
@@ -103,17 +97,13 @@ const rotatePrintingImageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageId: string; rotation: Rotation }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/rotate`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ rotation: data.rotation }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Rotate printing image failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't rotate printing image",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/printing-images/${encodeURIComponent(data.imageId)}/rotate`,
+      method: "POST",
+      body: { rotation: data.rotation },
+    });
   });
 
 const addImageFromUrlFn = createServerFn({ method: "POST" })
@@ -122,50 +112,40 @@ const addImageFromUrlFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}/add-image-url`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ url: data.url, source: data.source, mode: data.mode }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Add image from URL failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't add image from URL",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}/add-image-url`,
+      method: "POST",
+      body: { url: data.url, source: data.source, mode: data.mode },
+    });
   });
 
 const setCandidatePrintingImageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { candidatePrintingId: string; mode: "main" | "additional" }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.candidatePrintingId)}/set-image`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ mode: data.mode }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Set candidate printing image failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't set candidate printing image",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.candidatePrintingId)}/set-image`,
+      method: "POST",
+      body: { mode: data.mode },
+    });
   });
 
 const uploadCandidatesFn = createServerFn({ method: "POST" })
   .inputValidator((input: UploadCandidatesBody) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/upload`, {
+  .handler(({ context, data }) =>
+    fetchApiJson<UploadCandidatesResponse>({
+      errorTitle: "Couldn't upload candidates",
+      cookie: context.cookie,
+      path: "/api/v1/admin/cards/upload",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      throw new Error(`Upload candidates failed: ${res.status}`);
-    }
-    return (await res.json()) as UploadCandidatesResponse;
-  });
+      body: data,
+    }),
+  );
 
 // ── Hook exports ─────────────────────────────────────────────────────────────
 //
@@ -259,6 +239,7 @@ const uploadPrintingImageFn = createServerFn({ method: "POST" })
     if (data.mode) {
       formData.append("mode", data.mode);
     }
+    // FormData body — can't use fetchApi helper (it JSON.stringify's bodies).
     const res = await fetch(
       `${API_URL}/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}/upload-image`,
       {

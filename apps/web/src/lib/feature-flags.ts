@@ -6,7 +6,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "./query-keys";
 import { serverCache } from "./server-cache";
-import { API_URL } from "./server-fns/api-url";
+import { fetchApiJson } from "./server-fns/fetch-api";
 
 export type FeatureFlags = Record<string, boolean>;
 
@@ -14,12 +14,11 @@ const fetchFeatureFlags = createServerFn({ method: "GET" }).handler(() =>
   serverCache.fetchQuery({
     queryKey: ["server-cache", "feature-flags"],
     queryFn: async () => {
-      const res = await fetch(`${API_URL}/api/v1/feature-flags`);
-      if (!res.ok) {
-        throw new Error(`Feature flags fetch failed: ${res.status}`);
-      }
-      const data = await res.json();
-      return data.items as FeatureFlags;
+      const data = await fetchApiJson<{ items: FeatureFlags }>({
+        errorTitle: "Couldn't load feature flags",
+        path: "/api/v1/feature-flags",
+      });
+      return data.items;
     },
   }),
 );

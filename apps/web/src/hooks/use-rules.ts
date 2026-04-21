@@ -4,7 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -12,13 +12,11 @@ const fetchRules = createServerFn({ method: "GET" }).handler(
   (): Promise<RulesListResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "rules"],
-      queryFn: async () => {
-        const res = await fetch(`${API_URL}/api/v1/rules`);
-        if (!res.ok) {
-          throw new Error(`Rules fetch failed: ${res.status}`);
-        }
-        return res.json() as Promise<RulesListResponse>;
-      },
+      queryFn: () =>
+        fetchApiJson<RulesListResponse>({
+          errorTitle: "Couldn't load rules",
+          path: "/api/v1/rules",
+        }),
     }),
 );
 
@@ -26,13 +24,11 @@ const fetchVersions = createServerFn({ method: "GET" }).handler(
   (): Promise<RuleVersionsListResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "rules-versions"],
-      queryFn: async () => {
-        const res = await fetch(`${API_URL}/api/v1/rules/versions`);
-        if (!res.ok) {
-          throw new Error(`Rule versions fetch failed: ${res.status}`);
-        }
-        return res.json() as Promise<RuleVersionsListResponse>;
-      },
+      queryFn: () =>
+        fetchApiJson<RuleVersionsListResponse>({
+          errorTitle: "Couldn't load rule versions",
+          path: "/api/v1/rules/versions",
+        }),
     }),
 );
 
@@ -69,23 +65,27 @@ const importRulesFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/rules/import`, {
+  .handler(({ context, data }) =>
+    fetchApiJson<{
+      version: string;
+      rulesCount: number;
+      added: number;
+      modified: number;
+      removed: number;
+    }>({
+      errorTitle: "Couldn't import rules",
+      cookie: context.cookie,
+      path: "/api/v1/admin/rules/import",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({
+      body: {
         version: data.version,
         sourceType: data.sourceType as "pdf" | "text" | "html" | "manual",
         sourceUrl: data.sourceUrl,
         publishedAt: data.publishedAt,
         content: data.content,
-      }),
-    });
-    if (!res.ok) {
-      throw new Error(`Import rules failed: ${res.status}`);
-    }
-    return res.json();
-  });
+      },
+    }),
+  );
 
 export function useImportRules() {
   return useMutationWithInvalidation({
@@ -104,16 +104,12 @@ const deleteRuleVersionFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: version }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/rules/versions/${encodeURIComponent(version)}`,
-      {
-        method: "DELETE",
-        headers: { cookie: context.cookie },
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Delete rule version failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't delete rule version",
+      cookie: context.cookie,
+      path: `/api/v1/admin/rules/versions/${encodeURIComponent(version)}`,
+      method: "DELETE",
+    });
   });
 
 export function useDeleteRuleVersion() {

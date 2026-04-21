@@ -2,8 +2,7 @@ import type { SitemapDataResponse } from "@openrift/shared";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
 import { applyPageCacheControl } from "./lib/page-cache";
-
-const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3000";
+import { fetchApiJson } from "./lib/server-fns/fetch-api";
 
 // Opt-in SSR timing instrumentation. Mirrors the API's LOG_REQUESTS flag:
 // default off, no overhead in prod unless explicitly enabled for benchmarking.
@@ -60,11 +59,10 @@ const STATIC_PAGES = [
 
 async function generateSitemap(): Promise<string> {
   const siteUrl = getSiteUrl();
-  const res = await fetch(`${API_URL}/api/v1/sitemap-data`);
-  if (!res.ok) {
-    throw new Error(`Sitemap data fetch failed: ${res.status}`);
-  }
-  const data = (await res.json()) as SitemapDataResponse;
+  const data = await fetchApiJson<SitemapDataResponse>({
+    errorTitle: "Couldn't load sitemap data",
+    path: "/api/v1/sitemap-data",
+  });
 
   const urls: string[] = [];
   for (const page of STATIC_PAGES) {

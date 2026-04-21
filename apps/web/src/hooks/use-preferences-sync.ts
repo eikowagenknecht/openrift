@@ -6,35 +6,32 @@ import { useEffect, useRef } from "react";
 
 import { queryKeys } from "@/lib/query-keys";
 import { sanitizeServerResponse, sanitizeTheme } from "@/lib/sanitize-preferences";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
 
 const fetchPreferencesFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }) => {
-    const res = await fetch(`${API_URL}/api/v1/preferences`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Preferences fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<UserPreferencesResponse>;
-  });
+  .handler(({ context }) =>
+    fetchApiJson<UserPreferencesResponse>({
+      errorTitle: "Couldn't load preferences",
+      cookie: context.cookie,
+      path: "/api/v1/preferences",
+    }),
+  );
 
 const patchPreferencesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { prefs: UserPreferencesResponse }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/preferences`, {
+    await fetchApi({
+      errorTitle: "Couldn't save preferences",
+      cookie: context.cookie,
+      path: "/api/v1/preferences",
       method: "PATCH",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data.prefs),
+      body: data.prefs,
     });
-    if (!res.ok) {
-      throw new Error(`Patch preferences failed: ${res.status}`);
-    }
   });
 
 /**

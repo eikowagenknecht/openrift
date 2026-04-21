@@ -3,21 +3,20 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { AdminLanguagesResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchLanguages = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminLanguagesResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/languages`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Languages fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminLanguagesResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminLanguagesResponse> =>
+      fetchApiJson<AdminLanguagesResponse>({
+        errorTitle: "Couldn't load languages",
+        cookie: context.cookie,
+        path: "/api/v1/admin/languages",
+      }),
+  );
 
 export const adminLanguagesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.languages,
@@ -33,15 +32,13 @@ const createLanguageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string; name: string; sortOrder?: number }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/languages`, {
+    await fetchApi({
+      errorTitle: "Couldn't create language",
+      cookie: context.cookie,
+      path: "/api/v1/admin/languages",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Create language failed: ${res.status}`);
-    }
-    return res.json();
   });
 
 export function useCreateLanguage() {
@@ -56,14 +53,13 @@ const updateLanguageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string; name?: string; sortOrder?: number }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/languages/${encodeURIComponent(data.code)}`, {
+    await fetchApi({
+      errorTitle: "Couldn't update language",
+      cookie: context.cookie,
+      path: `/api/v1/admin/languages/${encodeURIComponent(data.code)}`,
       method: "PATCH",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ name: data.name, sortOrder: data.sortOrder }),
+      body: { name: data.name, sortOrder: data.sortOrder },
     });
-    if (!res.ok) {
-      throw new Error(`Update language failed: ${res.status}`);
-    }
   });
 
 export function useUpdateLanguage() {
@@ -78,14 +74,13 @@ const reorderLanguagesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { codes: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/languages/reorder`, {
+    await fetchApi({
+      errorTitle: "Couldn't reorder languages",
+      cookie: context.cookie,
+      path: "/api/v1/admin/languages/reorder",
       method: "PUT",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ codes: data.codes }),
+      body: { codes: data.codes },
     });
-    if (!res.ok) {
-      throw new Error(`Reorder languages failed: ${res.status}`);
-    }
   });
 
 export function useReorderLanguages() {
@@ -99,13 +94,12 @@ const deleteLanguageFn = createServerFn({ method: "POST" })
   .inputValidator((input: { code: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/languages/${encodeURIComponent(data.code)}`, {
+    await fetchApi({
+      errorTitle: "Couldn't delete language",
+      cookie: context.cookie,
+      path: `/api/v1/admin/languages/${encodeURIComponent(data.code)}`,
       method: "DELETE",
-      headers: { cookie: context.cookie },
     });
-    if (!res.ok) {
-      throw new Error(`Delete language failed: ${res.status}`);
-    }
   });
 
 export function useDeleteLanguage() {

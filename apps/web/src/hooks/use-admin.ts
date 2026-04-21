@@ -2,14 +2,19 @@ import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchIsAdmin = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(async ({ context }): Promise<boolean> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/me`, {
-      headers: { cookie: context.cookie },
+    // 401/403 are expected for non-admins — accept without logging/throwing.
+    // Other non-ok statuses (500 etc.) still throw and surface as errors.
+    const res = await fetchApi({
+      errorTitle: "Couldn't check admin access",
+      cookie: context.cookie,
+      path: "/api/v1/admin/me",
+      acceptStatuses: [401, 403],
     });
     if (!res.ok) {
       return false;

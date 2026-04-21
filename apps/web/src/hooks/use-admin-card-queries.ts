@@ -10,20 +10,19 @@ import type {
   ProviderStatsResponse,
   UnmatchedCardDetailResponse,
 } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchAdminCardList = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminCardListResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Admin card list fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminCardListResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminCardListResponse> =>
+      fetchApiJson<AdminCardListResponse>({
+        errorTitle: "Couldn't load admin card list",
+        cookie: context.cookie,
+        path: "/api/v1/admin/cards",
+      }),
+  );
 
 export const adminCardListQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cards.list,
@@ -62,15 +61,14 @@ export function useNextUncheckedCard(currentSlug: string) {
 
 const fetchAllCards = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AllCardsResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/all-cards`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`All cards fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AllCardsResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AllCardsResponse> =>
+      fetchApiJson<AllCardsResponse>({
+        errorTitle: "Couldn't load all cards",
+        cookie: context.cookie,
+        path: "/api/v1/admin/cards/all-cards",
+      }),
+  );
 
 export const allCardsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cards.allCards,
@@ -85,15 +83,14 @@ export function useAllCards() {
 const fetchAdminCardDetail = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data: cardSlug }): Promise<AdminCardDetailResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/${encodeURIComponent(cardSlug)}`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Admin card detail fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminCardDetailResponse>;
-  });
+  .handler(
+    ({ context, data: cardSlug }): Promise<AdminCardDetailResponse> =>
+      fetchApiJson<AdminCardDetailResponse>({
+        errorTitle: "Couldn't load admin card detail",
+        cookie: context.cookie,
+        path: `/api/v1/admin/cards/${encodeURIComponent(cardSlug)}`,
+      }),
+  );
 
 export function adminCardDetailQueryOptions(cardSlug: string) {
   return queryOptions({
@@ -113,15 +110,14 @@ export function useAdminCardDetail(cardSlug: string) {
 const fetchUnmatchedCardDetail = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data: name }): Promise<UnmatchedCardDetailResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/new/${encodeURIComponent(name)}`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Unmatched card detail fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<UnmatchedCardDetailResponse>;
-  });
+  .handler(
+    ({ context, data: name }): Promise<UnmatchedCardDetailResponse> =>
+      fetchApiJson<UnmatchedCardDetailResponse>({
+        errorTitle: "Couldn't load unmatched card detail",
+        cookie: context.cookie,
+        path: `/api/v1/admin/cards/new/${encodeURIComponent(name)}`,
+      }),
+  );
 
 export function unmatchedCardDetailQueryOptions(name: string) {
   return queryOptions({
@@ -139,15 +135,14 @@ export function useUnmatchedCardDetail(name: string) {
 
 const fetchProviderStats = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<ProviderStatsResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/provider-stats`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Provider stats fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<ProviderStatsResponse>;
-  });
+  .handler(
+    ({ context }): Promise<ProviderStatsResponse> =>
+      fetchApiJson<ProviderStatsResponse>({
+        errorTitle: "Couldn't load provider stats",
+        cookie: context.cookie,
+        path: "/api/v1/admin/cards/provider-stats",
+      }),
+  );
 
 export const providerStatsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cards.providerStats,
@@ -160,15 +155,14 @@ export function useProviderStats() {
 
 const fetchProviderNames = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<ProviderNamesResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/provider-names`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Provider names fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<ProviderNamesResponse>;
-  });
+  .handler(
+    ({ context }): Promise<ProviderNamesResponse> =>
+      fetchApiJson<ProviderNamesResponse>({
+        errorTitle: "Couldn't load provider names",
+        cookie: context.cookie,
+        path: "/api/v1/admin/cards/provider-names",
+      }),
+  );
 
 const providerNamesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cards.providerNames,

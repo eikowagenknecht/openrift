@@ -3,26 +3,23 @@ import { infiniteQueryOptions, useSuspenseInfiniteQuery } from "@tanstack/react-
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchCollectionEventsFn = createServerFn({ method: "GET" })
   .inputValidator((input: { cursor?: string }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }): Promise<CollectionEventListResponse> => {
+  .handler(({ context, data }): Promise<CollectionEventListResponse> => {
     const params = new URLSearchParams();
     if (data.cursor) {
       params.set("cursor", data.cursor);
     }
     const qs = params.toString();
-    const url = `${API_URL}/api/v1/collection-events${qs ? `?${qs}` : ""}`;
-    const res = await fetch(url, {
-      headers: { cookie: context.cookie },
+    return fetchApiJson<CollectionEventListResponse>({
+      errorTitle: "Couldn't load collection events",
+      cookie: context.cookie,
+      path: `/api/v1/collection-events${qs ? `?${qs}` : ""}`,
     });
-    if (!res.ok) {
-      throw new Error(`Collection events fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<CollectionEventListResponse>;
   });
 
 export const collectionEventsQueryOptions = infiniteQueryOptions({

@@ -5,19 +5,17 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 
 const fetchPrices = createServerFn({ method: "GET" }).handler(
   (): Promise<PricesResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "prices"],
-      queryFn: async () => {
-        const res = await fetch(`${API_URL}/api/v1/prices`);
-        if (!res.ok) {
-          throw new Error(`Prices fetch failed: ${res.status}`);
-        }
-        return res.json() as Promise<PricesResponse>;
-      },
+      queryFn: () =>
+        fetchApiJson<PricesResponse>({
+          errorTitle: "Couldn't load prices",
+          path: "/api/v1/prices",
+        }),
     }),
 );
 

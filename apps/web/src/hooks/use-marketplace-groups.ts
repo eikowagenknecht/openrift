@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { MarketplaceGroupsResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -11,15 +11,14 @@ export type { MarketplaceGroup } from "@/lib/server-fns/api-types";
 
 const fetchMarketplaceGroups = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<MarketplaceGroupsResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/marketplace-groups`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Marketplace groups fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<MarketplaceGroupsResponse>;
-  });
+  .handler(
+    ({ context }): Promise<MarketplaceGroupsResponse> =>
+      fetchApiJson<MarketplaceGroupsResponse>({
+        errorTitle: "Couldn't load marketplace groups",
+        cookie: context.cookie,
+        path: "/api/v1/admin/marketplace-groups",
+      }),
+  );
 
 export const marketplaceGroupsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.marketplaceGroups,
@@ -34,17 +33,13 @@ const updateMarketplaceGroupFn = createServerFn({ method: "POST" })
   .inputValidator((input: { marketplace: string; groupId: number; name: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/marketplace-groups/${encodeURIComponent(data.marketplace)}/${encodeURIComponent(String(data.groupId))}`,
-      {
-        method: "PATCH",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify(data),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Update marketplace group failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't update marketplace group",
+      cookie: context.cookie,
+      path: `/api/v1/admin/marketplace-groups/${encodeURIComponent(data.marketplace)}/${encodeURIComponent(String(data.groupId))}`,
+      method: "PATCH",
+      body: data,
+    });
   });
 
 export function useUpdateMarketplaceGroup() {

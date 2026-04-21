@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -12,15 +13,14 @@ interface CacheStatusResponse {
 
 const fetchCacheStatus = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<CacheStatusResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cache/status`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Cache status fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<CacheStatusResponse>;
-  });
+  .handler(
+    ({ context }): Promise<CacheStatusResponse> =>
+      fetchApiJson<CacheStatusResponse>({
+        errorTitle: "Couldn't load cache status",
+        cookie: context.cookie,
+        path: "/api/v1/admin/cache/status",
+      }),
+  );
 
 export const adminCacheStatusQueryOptions = queryOptions({
   queryKey: queryKeys.admin.cacheStatus,
@@ -31,6 +31,10 @@ export function useCacheStatus() {
   return useSuspenseQuery(adminCacheStatusQueryOptions);
 }
 
+// TODO: migrate to fetchApi — this endpoint returns specific `body.error` text
+// from the API that's surfaced in the user-facing toast, and the helper would
+// replace it with the generic errorTitle. Needs a strategy for preserving the
+// custom per-error message.
 const purgeCacheFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {

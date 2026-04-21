@@ -2,20 +2,18 @@ import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchFormatsFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/formats`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Formats fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<{ formats: { id: string; name: string }[] }>;
-  });
+  .handler(({ context }) =>
+    fetchApiJson<{ formats: { id: string; name: string }[] }>({
+      errorTitle: "Couldn't load formats",
+      cookie: context.cookie,
+      path: "/api/v1/admin/formats",
+    }),
+  );
 
 export function useFormats() {
   return useQuery({

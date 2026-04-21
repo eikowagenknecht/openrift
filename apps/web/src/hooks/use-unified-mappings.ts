@@ -4,26 +4,23 @@ import { createServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { queryKeys } from "@/lib/query-keys";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchUnifiedMappings = createServerFn({ method: "GET" })
   .inputValidator((input: { showAll: boolean }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }): Promise<UnifiedMappingsResponse> => {
+  .handler(({ context, data }): Promise<UnifiedMappingsResponse> => {
     const params = new URLSearchParams();
     if (data.showAll) {
       params.set("all", "true");
     }
     const qs = params.toString();
-    const url = `${API_URL}/api/v1/admin/marketplace-mappings${qs ? `?${qs}` : ""}`;
-    const res = await fetch(url, {
-      headers: { cookie: context.cookie },
+    return fetchApiJson<UnifiedMappingsResponse>({
+      errorTitle: "Couldn't load unified mappings",
+      cookie: context.cookie,
+      path: `/api/v1/admin/marketplace-mappings${qs ? `?${qs}` : ""}`,
     });
-    if (!res.ok) {
-      throw new Error(`Unified mappings fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<UnifiedMappingsResponse>;
   });
 
 export function unifiedMappingsQueryOptions(showAll = false) {
@@ -69,20 +66,15 @@ const saveMappingsFn = createServerFn({ method: "POST" })
       input,
   )
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ mappings: data.mappings }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Save mappings failed: ${res.status}`);
-    }
-    return res.json();
-  });
+  .handler(({ context, data }) =>
+    fetchApiJson<{ saved: number; skipped?: { externalId: number; reason: string }[] }>({
+      errorTitle: "Couldn't save mappings",
+      cookie: context.cookie,
+      path: `/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
+      method: "POST",
+      body: { mappings: data.mappings },
+    }),
+  );
 
 export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(marketplace, async (body: SaveMappingsBody) => {
@@ -103,17 +95,13 @@ const unmapPrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { marketplace: string; printingId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
-      {
-        method: "DELETE",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ printingId: data.printingId }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Unmap printing failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't unmap printing",
+      cookie: context.cookie,
+      path: `/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
+      method: "DELETE",
+      body: { printingId: data.printingId },
+    });
   });
 
 export function useUnifiedUnmapPrinting(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
@@ -131,36 +119,34 @@ const ignoreVariantsFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/ignored-products`, {
+    await fetchApi({
+      errorTitle: "Couldn't ignore variants",
+      cookie: context.cookie,
+      path: "/api/v1/admin/ignored-products",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({
+      body: {
         level: "variant",
         marketplace: data.marketplace,
         products: data.products,
-      }),
+      },
     });
-    if (!res.ok) {
-      throw new Error(`Ignore variants failed: ${res.status}`);
-    }
   });
 
 const ignoreProductsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { marketplace: string; products: { externalId: number }[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/ignored-products`, {
+    await fetchApi({
+      errorTitle: "Couldn't ignore products",
+      cookie: context.cookie,
+      path: "/api/v1/admin/ignored-products",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({
+      body: {
         level: "product",
         marketplace: data.marketplace,
         products: data.products,
-      }),
+      },
     });
-    if (!res.ok) {
-      throw new Error(`Ignore products failed: ${res.status}`);
-    }
   });
 
 /**
@@ -198,14 +184,13 @@ const assignToCardFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/staging-card-overrides`, {
+    await fetchApi({
+      errorTitle: "Couldn't assign to card",
+      cookie: context.cookie,
+      path: "/api/v1/admin/staging-card-overrides",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Assign to card failed: ${res.status}`);
-    }
   });
 
 export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
@@ -223,14 +208,13 @@ const unassignFromCardFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/staging-card-overrides`, {
+    await fetchApi({
+      errorTitle: "Couldn't unassign from card",
+      cookie: context.cookie,
+      path: "/api/v1/admin/staging-card-overrides",
       method: "DELETE",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Unassign from card failed: ${res.status}`);
-    }
   });
 
 export function useUnifiedUnassignFromCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {

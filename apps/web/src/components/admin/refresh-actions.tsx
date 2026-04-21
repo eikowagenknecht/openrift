@@ -1,6 +1,7 @@
+import type { PriceRefreshResponse } from "@openrift/shared";
 import { createServerFn } from "@tanstack/react-start";
 
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -30,42 +31,36 @@ export function formatRelativeTime(iso: string): string {
 
 const refreshTcgplayerPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(async ({ context }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/refresh-tcgplayer-prices`, {
+  .handler(({ context }) =>
+    fetchApiJson<PriceRefreshResponse>({
+      errorTitle: "Couldn't refresh TCGPlayer prices",
+      cookie: context.cookie,
+      path: "/api/v1/admin/refresh-tcgplayer-prices",
       method: "POST",
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Refresh TCGPlayer prices failed: ${res.status}`);
-    }
-    return res.json();
-  });
+    }),
+  );
 
 const refreshCardmarketPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(async ({ context }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/refresh-cardmarket-prices`, {
+  .handler(({ context }) =>
+    fetchApiJson<PriceRefreshResponse>({
+      errorTitle: "Couldn't refresh Cardmarket prices",
+      cookie: context.cookie,
+      path: "/api/v1/admin/refresh-cardmarket-prices",
       method: "POST",
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Refresh Cardmarket prices failed: ${res.status}`);
-    }
-    return res.json();
-  });
+    }),
+  );
 
 const refreshCardtraderPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
-  .handler(async ({ context }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/refresh-cardtrader-prices`, {
+  .handler(({ context }) =>
+    fetchApiJson<PriceRefreshResponse>({
+      errorTitle: "Couldn't refresh CardTrader prices",
+      cookie: context.cookie,
+      path: "/api/v1/admin/refresh-cardtrader-prices",
       method: "POST",
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Refresh CardTrader prices failed: ${res.status}`);
-    }
-    return res.json();
-  });
+    }),
+  );
 
 // ── Action configs ──────────────────────────────────────────────────────────
 

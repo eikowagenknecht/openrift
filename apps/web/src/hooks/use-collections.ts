@@ -6,21 +6,20 @@ import { createServerFn } from "@tanstack/react-start";
 import { getCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchCollections = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<CollectionsResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/collections`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Collections fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<CollectionsResponse>;
-  });
+  .handler(
+    ({ context }): Promise<CollectionsResponse> =>
+      fetchApiJson<CollectionsResponse>({
+        errorTitle: "Couldn't load collections",
+        cookie: context.cookie,
+        path: "/api/v1/collections",
+      }),
+  );
 
 export const collectionsQueryOptions = queryOptions({
   queryKey: queryKeys.collections.all,
@@ -80,17 +79,15 @@ const createCollectionFn = createServerFn({ method: "POST" })
       input,
   )
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/collections`, {
+  .handler(({ context, data }) =>
+    fetchApiJson<CollectionsResponse["items"][number]>({
+      errorTitle: "Couldn't create collection",
+      cookie: context.cookie,
+      path: "/api/v1/collections",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      throw new Error(`Create collection failed: ${res.status}`);
-    }
-    return res.json() as Promise<CollectionsResponse["items"][number]>;
-  });
+      body: data,
+    }),
+  );
 
 export function useCreateCollection() {
   return useMutationWithInvalidation({
@@ -107,13 +104,12 @@ const deleteCollectionFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/collections/${data.id}`, {
+    await fetchApi({
+      errorTitle: "Couldn't delete collection",
+      cookie: context.cookie,
+      path: `/api/v1/collections/${data.id}`,
       method: "DELETE",
-      headers: { cookie: context.cookie },
     });
-    if (!res.ok) {
-      throw new Error(`Delete collection failed: ${res.status}`);
-    }
   });
 
 export function useDeleteCollection() {

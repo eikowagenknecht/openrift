@@ -68,6 +68,9 @@ function parseCandidates(text: string): ParseResult {
   }
 }
 
+// TODO: migrate to fetchApi — this endpoint extracts a specific `body.error`
+// text from the API response for the user-facing toast, which the helper
+// would replace with the generic errorTitle.
 const exportCardsFn = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(async ({ context }) => {

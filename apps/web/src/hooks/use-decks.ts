@@ -14,34 +14,32 @@ import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@ta
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchDecks = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<DeckListResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/decks`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Decks fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<DeckListResponse>;
-  });
+  .handler(
+    ({ context }): Promise<DeckListResponse> =>
+      fetchApiJson<DeckListResponse>({
+        errorTitle: "Couldn't load decks",
+        cookie: context.cookie,
+        path: "/api/v1/decks",
+      }),
+  );
 
 const fetchDeckDetail = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data: deckId }): Promise<DeckDetailResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(deckId)}`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Deck detail fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<DeckDetailResponse>;
-  });
+  .handler(
+    ({ context, data: deckId }): Promise<DeckDetailResponse> =>
+      fetchApiJson<DeckDetailResponse>({
+        errorTitle: "Couldn't load deck",
+        cookie: context.cookie,
+        path: `/api/v1/decks/${encodeURIComponent(deckId)}`,
+      }),
+  );
 
 export const decksQueryOptions = queryOptions({
   queryKey: queryKeys.decks.all,
@@ -75,17 +73,15 @@ const createDeckFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/decks`, {
+  .handler(({ context, data }) =>
+    fetchApiJson<DeckResponse>({
+      errorTitle: "Couldn't create deck",
+      cookie: context.cookie,
+      path: "/api/v1/decks",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) {
-      throw new Error(`Create deck failed: ${res.status}`);
-    }
-    return res.json() as Promise<DeckResponse>;
-  });
+      body: data,
+    }),
+  );
 
 export function useCreateDeck() {
   return useMutationWithInvalidation({
@@ -104,13 +100,12 @@ const deleteDeckFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: deckId }) => {
-    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(deckId)}`, {
+    await fetchApi({
+      errorTitle: "Couldn't delete deck",
+      cookie: context.cookie,
+      path: `/api/v1/decks/${encodeURIComponent(deckId)}`,
       method: "DELETE",
-      headers: { cookie: context.cookie },
     });
-    if (!res.ok) {
-      throw new Error(`Delete deck failed: ${res.status}`);
-    }
   });
 
 export function useDeleteDeck() {
@@ -133,17 +128,15 @@ export const saveDeckCardsFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(data.deckId)}/cards`, {
+  .handler(({ context, data }) =>
+    fetchApiJson<{ cards: DeckCardResponse[] }>({
+      errorTitle: "Couldn't save deck cards",
+      cookie: context.cookie,
+      path: `/api/v1/decks/${encodeURIComponent(data.deckId)}/cards`,
       method: "PUT",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ cards: data.cards }),
-    });
-    if (!res.ok) {
-      throw new Error(`Save deck cards failed: ${res.status}`);
-    }
-    return res.json() as Promise<{ cards: DeckCardResponse[] }>;
-  });
+      body: { cards: data.cards },
+    }),
+  );
 
 export function useSaveDeckCards() {
   const queryClient = useQueryClient();
@@ -186,17 +179,15 @@ export function useSaveDeckCards() {
 const updateDeckFn = createServerFn({ method: "POST" })
   .inputValidator((input: { deckId: string; name?: string; format?: DeckFormat }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
+  .handler(({ context, data }) => {
     const { deckId, ...fields } = data;
-    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(deckId)}`, {
+    return fetchApiJson<DeckResponse>({
+      errorTitle: "Couldn't update deck",
+      cookie: context.cookie,
+      path: `/api/v1/decks/${encodeURIComponent(deckId)}`,
       method: "PATCH",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(fields),
+      body: fields,
     });
-    if (!res.ok) {
-      throw new Error(`Update deck failed: ${res.status}`);
-    }
-    return res.json() as Promise<DeckResponse>;
   });
 
 export function useUpdateDeck() {
@@ -241,16 +232,14 @@ export function useUpdateDeck() {
 const cloneDeckFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data: deckId }) => {
-    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(deckId)}/clone`, {
+  .handler(({ context, data: deckId }) =>
+    fetchApiJson<DeckResponse>({
+      errorTitle: "Couldn't clone deck",
+      cookie: context.cookie,
+      path: `/api/v1/decks/${encodeURIComponent(deckId)}/clone`,
       method: "POST",
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Clone deck failed: ${res.status}`);
-    }
-    return res.json() as Promise<DeckResponse>;
-  });
+    }),
+  );
 
 export function useCloneDeck() {
   return useMutationWithInvalidation({
@@ -264,20 +253,18 @@ type ExportFormat = "piltover" | "text" | "tts";
 const exportDeckFn = createServerFn({ method: "GET" })
   .inputValidator((input: { deckId: string; format?: ExportFormat }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
+  .handler(({ context, data }) => {
     const params = new URLSearchParams();
     if (data.format) {
       params.set("format", data.format);
     }
     const query = params.toString();
-    const url = `${API_URL}/api/v1/decks/${encodeURIComponent(data.deckId)}/export${query ? `?${query}` : ""}`;
-    const res = await fetch(url, {
-      headers: { cookie: context.cookie },
+    const path = `/api/v1/decks/${encodeURIComponent(data.deckId)}/export${query ? `?${query}` : ""}`;
+    return fetchApiJson<DeckExportResponse>({
+      errorTitle: "Couldn't export deck",
+      cookie: context.cookie,
+      path,
     });
-    if (!res.ok) {
-      throw new Error(`Export deck failed: ${res.status}`);
-    }
-    return res.json() as Promise<DeckExportResponse>;
   });
 
 export function useExportDeck() {
@@ -294,16 +281,15 @@ export function useExportDeck() {
 const shareDeckFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data: deckId }): Promise<DeckShareResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(deckId)}/share`, {
-      method: "POST",
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Share deck failed: ${res.status}`);
-    }
-    return res.json() as Promise<DeckShareResponse>;
-  });
+  .handler(
+    ({ context, data: deckId }): Promise<DeckShareResponse> =>
+      fetchApiJson<DeckShareResponse>({
+        errorTitle: "Couldn't share deck",
+        cookie: context.cookie,
+        path: `/api/v1/decks/${encodeURIComponent(deckId)}/share`,
+        method: "POST",
+      }),
+  );
 
 export function useShareDeck() {
   const queryClient = useQueryClient();
@@ -323,13 +309,12 @@ const unshareDeckFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
   .handler(async ({ context, data: deckId }) => {
-    const res = await fetch(`${API_URL}/api/v1/decks/${encodeURIComponent(deckId)}/share`, {
+    await fetchApi({
+      errorTitle: "Couldn't unshare deck",
+      cookie: context.cookie,
+      path: `/api/v1/decks/${encodeURIComponent(deckId)}/share`,
       method: "DELETE",
-      headers: { cookie: context.cookie },
     });
-    if (!res.ok) {
-      throw new Error(`Unshare deck failed: ${res.status}`);
-    }
   });
 
 export function useUnshareDeck() {
@@ -347,12 +332,14 @@ export function useUnshareDeck() {
 const fetchPublicDeckFn = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
   .handler(async ({ data: token }): Promise<PublicDeckDetailResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/decks/share/${encodeURIComponent(token)}`);
+    // 404 is legitimate (unknown/expired token) — map to NOT_FOUND without logging.
+    const res = await fetchApi({
+      errorTitle: "Couldn't load shared deck",
+      path: `/api/v1/decks/share/${encodeURIComponent(token)}`,
+      acceptStatuses: [404],
+    });
     if (res.status === 404) {
       throw new Error("NOT_FOUND");
-    }
-    if (!res.ok) {
-      throw new Error(`Public deck fetch failed: ${res.status}`);
     }
     return res.json() as Promise<PublicDeckDetailResponse>;
   });
@@ -371,16 +358,15 @@ export function usePublicDeck(token: string) {
 const cloneSharedDeckFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data: token }): Promise<DeckCloneResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/decks/share/${encodeURIComponent(token)}/clone`, {
-      method: "POST",
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Clone shared deck failed: ${res.status}`);
-    }
-    return res.json() as Promise<DeckCloneResponse>;
-  });
+  .handler(
+    ({ context, data: token }): Promise<DeckCloneResponse> =>
+      fetchApiJson<DeckCloneResponse>({
+        errorTitle: "Couldn't clone shared deck",
+        cookie: context.cookie,
+        path: `/api/v1/decks/share/${encodeURIComponent(token)}/clone`,
+        method: "POST",
+      }),
+  );
 
 export function useCloneSharedDeck() {
   return useMutationWithInvalidation<DeckCloneResponse, string>({

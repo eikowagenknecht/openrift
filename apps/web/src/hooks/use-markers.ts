@@ -3,7 +3,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -13,15 +13,14 @@ interface AdminMarkersResponse {
 
 const fetchMarkers = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminMarkersResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/markers`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Markers fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminMarkersResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminMarkersResponse> =>
+      fetchApiJson<AdminMarkersResponse>({
+        errorTitle: "Couldn't load markers",
+        cookie: context.cookie,
+        path: "/api/v1/admin/markers",
+      }),
+  );
 
 export const adminMarkersQueryOptions = queryOptions({
   queryKey: queryKeys.admin.markers,
@@ -37,15 +36,13 @@ const createMarkerFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string; description?: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/markers`, {
+    await fetchApi({
+      errorTitle: "Couldn't create marker",
+      cookie: context.cookie,
+      path: "/api/v1/admin/markers",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Create marker failed: ${res.status}`);
-    }
-    return res.json();
   });
 
 export function useCreateMarker() {
@@ -62,18 +59,17 @@ const updateMarkerFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/markers/${encodeURIComponent(data.id)}`, {
+    await fetchApi({
+      errorTitle: "Couldn't update marker",
+      cookie: context.cookie,
+      path: `/api/v1/admin/markers/${encodeURIComponent(data.id)}`,
       method: "PATCH",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({
+      body: {
         slug: data.slug,
         label: data.label,
         description: data.description,
-      }),
+      },
     });
-    if (!res.ok) {
-      throw new Error(`Update marker failed: ${res.status}`);
-    }
   });
 
 export function useUpdateMarker() {
@@ -92,13 +88,12 @@ const deleteMarkerFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/markers/${encodeURIComponent(data.id)}`, {
+    await fetchApi({
+      errorTitle: "Couldn't delete marker",
+      cookie: context.cookie,
+      path: `/api/v1/admin/markers/${encodeURIComponent(data.id)}`,
       method: "DELETE",
-      headers: { cookie: context.cookie },
     });
-    if (!res.ok) {
-      throw new Error(`Delete marker failed: ${res.status}`);
-    }
   });
 
 export function useDeleteMarker() {
@@ -112,14 +107,13 @@ const reorderMarkersFn = createServerFn({ method: "POST" })
   .inputValidator((input: { ids: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/markers/reorder`, {
+    await fetchApi({
+      errorTitle: "Couldn't reorder markers",
+      cookie: context.cookie,
+      path: "/api/v1/admin/markers/reorder",
       method: "PUT",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ ids: data.ids }),
+      body: { ids: data.ids },
     });
-    if (!res.ok) {
-      throw new Error(`Reorder markers failed: ${res.status}`);
-    }
   });
 
 export function useReorderMarkers() {

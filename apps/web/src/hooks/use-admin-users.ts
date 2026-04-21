@@ -3,20 +3,19 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { AdminUsersResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchAdminUsers = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminUsersResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/users`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Admin users fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminUsersResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminUsersResponse> =>
+      fetchApiJson<AdminUsersResponse>({
+        errorTitle: "Couldn't load admin users",
+        cookie: context.cookie,
+        path: "/api/v1/admin/users",
+      }),
+  );
 
 export const adminUsersQueryOptions = queryOptions({
   queryKey: queryKeys.admin.users,

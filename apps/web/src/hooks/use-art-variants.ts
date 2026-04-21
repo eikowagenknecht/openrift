@@ -3,21 +3,20 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { AdminArtVariantsResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchArtVariants = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminArtVariantsResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/art-variants`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Art variants fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminArtVariantsResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminArtVariantsResponse> =>
+      fetchApiJson<AdminArtVariantsResponse>({
+        errorTitle: "Couldn't load art variants",
+        cookie: context.cookie,
+        path: "/api/v1/admin/art-variants",
+      }),
+  );
 
 export const adminArtVariantsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.artVariants,
@@ -32,15 +31,13 @@ const createArtVariantFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/art-variants`, {
+    await fetchApi({
+      errorTitle: "Couldn't create art variant",
+      cookie: context.cookie,
+      path: "/api/v1/admin/art-variants",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Create art variant failed: ${res.status}`);
-    }
-    return res.json();
   });
 
 export function useCreateArtVariant() {
@@ -54,17 +51,13 @@ const updateArtVariantFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/art-variants/${encodeURIComponent(data.slug)}`,
-      {
-        method: "PATCH",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ label: data.label }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Update art variant failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't update art variant",
+      cookie: context.cookie,
+      path: `/api/v1/admin/art-variants/${encodeURIComponent(data.slug)}`,
+      method: "PATCH",
+      body: { label: data.label },
+    });
   });
 
 export function useUpdateArtVariant() {
@@ -78,14 +71,13 @@ const reorderArtVariantsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/art-variants/reorder`, {
+    await fetchApi({
+      errorTitle: "Couldn't reorder art variants",
+      cookie: context.cookie,
+      path: "/api/v1/admin/art-variants/reorder",
       method: "PUT",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ slugs: data.slugs }),
+      body: { slugs: data.slugs },
     });
-    if (!res.ok) {
-      throw new Error(`Reorder art variants failed: ${res.status}`);
-    }
   });
 
 export function useReorderArtVariants() {
@@ -99,16 +91,12 @@ const deleteArtVariantFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/art-variants/${encodeURIComponent(data.slug)}`,
-      {
-        method: "DELETE",
-        headers: { cookie: context.cookie },
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Delete art variant failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't delete art variant",
+      cookie: context.cookie,
+      path: `/api/v1/admin/art-variants/${encodeURIComponent(data.slug)}`,
+      method: "DELETE",
+    });
   });
 
 export function useDeleteArtVariant() {

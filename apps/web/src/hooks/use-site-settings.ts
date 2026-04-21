@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { AdminSiteSettingsResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import type { SiteSettings } from "@/lib/site-settings";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
@@ -20,15 +20,14 @@ export function useSiteSettingValue(key: string): string | undefined {
 
 const fetchAdminSiteSettings = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminSiteSettingsResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/site-settings`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Admin site settings fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminSiteSettingsResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminSiteSettingsResponse> =>
+      fetchApiJson<AdminSiteSettingsResponse>({
+        errorTitle: "Couldn't load site settings",
+        cookie: context.cookie,
+        path: "/api/v1/admin/site-settings",
+      }),
+  );
 
 export const adminSiteSettingsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.siteSettings,
@@ -43,17 +42,13 @@ const updateSiteSettingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { key: string; value?: string; scope?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/site-settings/${encodeURIComponent(data.key)}`,
-      {
-        method: "PATCH",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ value: data.value, scope: data.scope }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Update site setting failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't update site setting",
+      cookie: context.cookie,
+      path: `/api/v1/admin/site-settings/${encodeURIComponent(data.key)}`,
+      method: "PATCH",
+      body: { value: data.value, scope: data.scope },
+    });
   });
 
 export function useUpdateSiteSetting() {
@@ -69,14 +64,13 @@ const createSiteSettingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { key: string; value: string; scope?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/site-settings`, {
+    await fetchApi({
+      errorTitle: "Couldn't create site setting",
+      cookie: context.cookie,
+      path: "/api/v1/admin/site-settings",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ key: data.key, value: data.value, scope: data.scope }),
+      body: { key: data.key, value: data.value, scope: data.scope },
     });
-    if (!res.ok) {
-      throw new Error(`Create site setting failed: ${res.status}`);
-    }
   });
 
 export function useCreateSiteSetting() {
@@ -92,16 +86,12 @@ const deleteSiteSettingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { key: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/site-settings/${encodeURIComponent(data.key)}`,
-      {
-        method: "DELETE",
-        headers: { cookie: context.cookie },
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Delete site setting failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't delete site setting",
+      cookie: context.cookie,
+      path: `/api/v1/admin/site-settings/${encodeURIComponent(data.key)}`,
+      method: "DELETE",
+    });
   });
 
 export function useDeleteSiteSetting() {

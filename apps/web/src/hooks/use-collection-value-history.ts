@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 interface ValueHistoryInput {
@@ -21,7 +21,7 @@ interface ValueHistoryInput {
 const fetchCollectionValueHistory = createServerFn({ method: "GET" })
   .inputValidator((input: ValueHistoryInput) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }): Promise<CollectionValueHistoryResponse> => {
+  .handler(({ context, data }): Promise<CollectionValueHistoryResponse> => {
     const params = new URLSearchParams({
       marketplace: data.marketplace,
       range: data.range,
@@ -66,13 +66,11 @@ const fetchCollectionValueHistory = createServerFn({ method: "GET" })
       params.set("errata", String(scope.errata));
     }
 
-    const res = await fetch(`${API_URL}/api/v1/collection-value-history?${params.toString()}`, {
-      headers: { cookie: context.cookie },
+    return fetchApiJson<CollectionValueHistoryResponse>({
+      errorTitle: "Couldn't load collection value history",
+      cookie: context.cookie,
+      path: `/api/v1/collection-value-history?${params.toString()}`,
     });
-    if (!res.ok) {
-      throw new Error(`Collection value history fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<CollectionValueHistoryResponse>;
   });
 
 /**

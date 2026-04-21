@@ -8,7 +8,7 @@ import type {
   AdminFeatureFlagOverridesResponse,
   AdminFeatureFlagsResponse,
 } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -23,15 +23,14 @@ export function useFeatureEnabled(key: string): boolean {
 
 const fetchAdminFeatureFlags = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminFeatureFlagsResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/feature-flags`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Admin feature flags fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminFeatureFlagsResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminFeatureFlagsResponse> =>
+      fetchApiJson<AdminFeatureFlagsResponse>({
+        errorTitle: "Couldn't load feature flags",
+        cookie: context.cookie,
+        path: "/api/v1/admin/feature-flags",
+      }),
+  );
 
 export const adminFeatureFlagsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.featureFlags,
@@ -46,17 +45,13 @@ const toggleFeatureFlagFn = createServerFn({ method: "POST" })
   .inputValidator((input: { key: string; enabled: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/feature-flags/${encodeURIComponent(data.key)}`,
-      {
-        method: "PATCH",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ enabled: data.enabled }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Toggle feature flag failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't toggle feature flag",
+      cookie: context.cookie,
+      path: `/api/v1/admin/feature-flags/${encodeURIComponent(data.key)}`,
+      method: "PATCH",
+      body: { enabled: data.enabled },
+    });
   });
 
 export function useToggleFeatureFlag() {
@@ -70,14 +65,13 @@ const createFeatureFlagFn = createServerFn({ method: "POST" })
   .inputValidator((input: { key: string; description?: string | null; enabled?: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/feature-flags`, {
+    await fetchApi({
+      errorTitle: "Couldn't create feature flag",
+      cookie: context.cookie,
+      path: "/api/v1/admin/feature-flags",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Create feature flag failed: ${res.status}`);
-    }
   });
 
 export function useCreateFeatureFlag() {
@@ -92,16 +86,12 @@ const deleteFeatureFlagFn = createServerFn({ method: "POST" })
   .inputValidator((input: { key: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/feature-flags/${encodeURIComponent(data.key)}`,
-      {
-        method: "DELETE",
-        headers: { cookie: context.cookie },
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Delete feature flag failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't delete feature flag",
+      cookie: context.cookie,
+      path: `/api/v1/admin/feature-flags/${encodeURIComponent(data.key)}`,
+      method: "DELETE",
+    });
   });
 
 export function useDeleteFeatureFlag() {
@@ -117,15 +107,14 @@ export function useDeleteFeatureFlag() {
 
 const fetchAdminFeatureFlagOverrides = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminFeatureFlagOverridesResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/feature-flags/overrides`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Feature flag overrides fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminFeatureFlagOverridesResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminFeatureFlagOverridesResponse> =>
+      fetchApiJson<AdminFeatureFlagOverridesResponse>({
+        errorTitle: "Couldn't load feature flag overrides",
+        cookie: context.cookie,
+        path: "/api/v1/admin/feature-flags/overrides",
+      }),
+  );
 
 export const adminFeatureFlagOverridesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.featureFlagOverrides,
@@ -140,17 +129,13 @@ const upsertFeatureFlagOverrideFn = createServerFn({ method: "POST" })
   .inputValidator((input: { userId: string; flagKey: string; enabled: boolean }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/users/${encodeURIComponent(data.userId)}/feature-flags/${encodeURIComponent(data.flagKey)}`,
-      {
-        method: "PUT",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ enabled: data.enabled }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Upsert feature flag override failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't upsert feature flag override",
+      cookie: context.cookie,
+      path: `/api/v1/admin/users/${encodeURIComponent(data.userId)}/feature-flags/${encodeURIComponent(data.flagKey)}`,
+      method: "PUT",
+      body: { enabled: data.enabled },
+    });
   });
 
 export function useUpsertFeatureFlagOverride() {
@@ -165,16 +150,12 @@ const deleteFeatureFlagOverrideFn = createServerFn({ method: "POST" })
   .inputValidator((input: { userId: string; flagKey: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/users/${encodeURIComponent(data.userId)}/feature-flags/${encodeURIComponent(data.flagKey)}`,
-      {
-        method: "DELETE",
-        headers: { cookie: context.cookie },
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Delete feature flag override failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't delete feature flag override",
+      cookie: context.cookie,
+      path: `/api/v1/admin/users/${encodeURIComponent(data.userId)}/feature-flags/${encodeURIComponent(data.flagKey)}`,
+      method: "DELETE",
+    });
   });
 
 export function useDeleteFeatureFlagOverride() {

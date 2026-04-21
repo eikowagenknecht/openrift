@@ -4,31 +4,29 @@ import { createServerFn } from "@tanstack/react-start";
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
 import type { AdminStatusResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchStatus = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminStatusResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/status`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Admin status fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminStatusResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminStatusResponse> =>
+      fetchApiJson<AdminStatusResponse>({
+        errorTitle: "Couldn't load admin status",
+        cookie: context.cookie,
+        path: "/api/v1/admin/status",
+      }),
+  );
 
 const clearSsrCache = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context }) => {
     // Verify admin auth by hitting the status endpoint (reuses existing auth check)
-    const res = await fetch(`${API_URL}/api/v1/admin/status`, {
-      headers: { cookie: context.cookie },
+    await fetchApi({
+      errorTitle: "Couldn't clear SSR cache",
+      cookie: context.cookie,
+      path: "/api/v1/admin/status",
     });
-    if (!res.ok) {
-      throw new Error(`Unauthorized: ${res.status}`);
-    }
     serverCache.clear();
   });
 

@@ -8,31 +8,29 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { useRules, useRuleVersions } from "@/hooks/use-rules";
 import { queryKeys } from "@/lib/query-keys";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 // ── Server functions (public, no auth) ───────────────────────────────────────
 
 const fetchRulesByVersionFn = createServerFn({ method: "GET" })
   .inputValidator((input: { version: string }) => input)
-  .handler(async ({ data }): Promise<RulesListResponse> => {
+  .handler(({ data }): Promise<RulesListResponse> => {
     const params = new URLSearchParams({ version: data.version });
-    const res = await fetch(`${API_URL}/api/v1/rules?${params.toString()}`);
-    if (!res.ok) {
-      throw new Error(`Rules fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<RulesListResponse>;
+    return fetchApiJson<RulesListResponse>({
+      errorTitle: "Couldn't load rules",
+      path: `/api/v1/rules?${params.toString()}`,
+    });
   });
 
 const searchRulesFn = createServerFn({ method: "GET" })
   .inputValidator((input: { query: string }) => input)
-  .handler(async ({ data }): Promise<RulesListResponse> => {
+  .handler(({ data }): Promise<RulesListResponse> => {
     const params = new URLSearchParams({ q: data.query });
-    const res = await fetch(`${API_URL}/api/v1/rules?${params.toString()}`);
-    if (!res.ok) {
-      throw new Error(`Rules search failed: ${res.status}`);
-    }
-    return res.json() as Promise<RulesListResponse>;
+    return fetchApiJson<RulesListResponse>({
+      errorTitle: "Couldn't search rules",
+      path: `/api/v1/rules?${params.toString()}`,
+    });
   });
 
 /**

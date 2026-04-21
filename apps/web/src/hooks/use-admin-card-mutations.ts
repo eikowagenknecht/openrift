@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
@@ -20,96 +20,86 @@ const checkCandidateCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { candidateCardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.candidateCardId)}/check`,
-      { method: "POST", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Check candidate card failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't check candidate card",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/${encodeURIComponent(data.candidateCardId)}/check`,
+      method: "POST",
+    });
   });
 
 const uncheckCandidateCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { candidateCardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.candidateCardId)}/uncheck`,
-      { method: "POST", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Uncheck candidate card failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't uncheck candidate card",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/${encodeURIComponent(data.candidateCardId)}/uncheck`,
+      method: "POST",
+    });
   });
 
 const checkAllCandidateCardsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { cardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/check-all`,
-      { method: "POST", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Check all candidate cards failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't check all candidate cards",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/check-all`,
+      method: "POST",
+    });
   });
 
 const checkCandidatePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}/check`,
-      { method: "POST", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Check candidate printing failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't check candidate printing",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}/check`,
+      method: "POST",
+    });
   });
 
 const uncheckCandidatePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}/uncheck`,
-      { method: "POST", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Uncheck candidate printing failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't uncheck candidate printing",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}/uncheck`,
+      method: "POST",
+    });
   });
 
 const checkAllCandidatePrintingsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { printingId?: string; extraIds?: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/candidate-printings/check-all`, {
+    await fetchApi({
+      errorTitle: "Couldn't check all candidate printings",
+      cookie: context.cookie,
+      path: "/api/v1/admin/cards/candidate-printings/check-all",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ printingId: data.printingId, extraIds: data.extraIds }),
+      body: { printingId: data.printingId, extraIds: data.extraIds },
     });
-    if (!res.ok) {
-      throw new Error(`Check all candidate printings failed: ${res.status}`);
-    }
   });
 
 const renameCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { cardId: string; newId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/rename`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ newId: data.newId }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Rename card failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't rename card",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/rename`,
+      method: "POST",
+      body: { newId: data.newId },
+    });
   });
 
 const acceptCardFieldFn = createServerFn({ method: "POST" })
@@ -118,17 +108,13 @@ const acceptCardFieldFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/accept-field`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ field: data.field, value: data.value, source: data.source }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Accept card field failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't accept card field",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/accept-field`,
+      method: "POST",
+      body: { field: data.field, value: data.value, source: data.source },
+    });
   });
 
 const acceptPrintingFieldFn = createServerFn({ method: "POST" })
@@ -137,138 +123,114 @@ const acceptPrintingFieldFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}/accept-field`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ field: data.field, value: data.value, source: data.source }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Accept printing field failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't accept printing field",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}/accept-field`,
+      method: "POST",
+      body: { field: data.field, value: data.value, source: data.source },
+    });
   });
 
 const acceptNewCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string; cardFields: Record<string, unknown> }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/new/${encodeURIComponent(data.name)}/accept`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ cardFields: data.cardFields }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Accept new card failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't accept new card",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/new/${encodeURIComponent(data.name)}/accept`,
+      method: "POST",
+      body: { cardFields: data.cardFields },
+    });
   });
 
 export const acceptFavoritesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/new/${encodeURIComponent(data.name)}/accept-favorites`,
-      { method: "POST", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Accept favorites failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't accept favorites",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/new/${encodeURIComponent(data.name)}/accept-favorites`,
+      method: "POST",
+    });
   });
 
 const linkCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { name: string; cardId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/new/${encodeURIComponent(data.name)}/link`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ cardId: data.cardId }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Link card failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't link card",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/new/${encodeURIComponent(data.name)}/link`,
+      method: "POST",
+      body: { cardId: data.cardId },
+    });
   });
 
 const reassignCandidatePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string; fields: Record<string, unknown> }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}`,
-      {
-        method: "PATCH",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify(data.fields),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Reassign candidate printing failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't reassign candidate printing",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}`,
+      method: "PATCH",
+      body: data.fields,
+    });
   });
 
 const deleteCandidatePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}`,
-      { method: "DELETE", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Delete candidate printing failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't delete candidate printing",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}`,
+      method: "DELETE",
+    });
   });
 
 const copyCandidatePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string; printingId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}/copy`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ printingId: data.printingId }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Copy candidate printing failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't copy candidate printing",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/candidate-printings/${encodeURIComponent(data.id)}/copy`,
+      method: "POST",
+      body: { printingId: data.printingId },
+    });
   });
 
 const linkCandidatePrintingsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { candidatePrintingIds: string[]; printingId: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/candidate-printings/link`, {
+    await fetchApi({
+      errorTitle: "Couldn't link candidate printings",
+      cookie: context.cookie,
+      path: "/api/v1/admin/cards/candidate-printings/link",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Link candidate printings failed: ${res.status}`);
-    }
   });
 
 const deletePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { printingId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}`,
-      { method: "DELETE", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Delete printing failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't delete printing",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/printing/${encodeURIComponent(data.printingId)}`,
+      method: "DELETE",
+    });
   });
 
 const acceptPrintingGroupFn = createServerFn({ method: "POST" })
@@ -280,51 +242,42 @@ const acceptPrintingGroupFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/accept-printing`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({
-          printingFields: data.printingFields,
-          candidatePrintingIds: data.candidatePrintingIds,
-        }),
+  .handler(({ context, data }) =>
+    fetchApiJson<{ printingId: string }>({
+      errorTitle: "Couldn't accept printing group",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/accept-printing`,
+      method: "POST",
+      body: {
+        printingFields: data.printingFields,
+        candidatePrintingIds: data.candidatePrintingIds,
       },
-    );
-    if (!res.ok) {
-      throw new Error(`Accept printing group failed: ${res.status}`);
-    }
-    return res.json();
-  });
+    }),
+  );
 
 const checkProviderFn = createServerFn({ method: "POST" })
   .inputValidator((input: { provider: string }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/by-provider/${encodeURIComponent(data.provider)}/check`,
-      { method: "POST", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Check provider failed: ${res.status}`);
-    }
-    return res.json();
-  });
+  .handler(({ context, data }) =>
+    fetchApiJson<{ cardsChecked: number; printingsChecked: number }>({
+      errorTitle: "Couldn't check provider",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/by-provider/${encodeURIComponent(data.provider)}/check`,
+      method: "POST",
+    }),
+  );
 
 const deleteProviderFn = createServerFn({ method: "POST" })
   .inputValidator((input: { provider: string }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/by-provider/${encodeURIComponent(data.provider)}`,
-      { method: "DELETE", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Delete provider failed: ${res.status}`);
-    }
-    return res.json();
-  });
+  .handler(({ context, data }) =>
+    fetchApiJson<{ deleted: number; provider: string }>({
+      errorTitle: "Couldn't delete provider",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/by-provider/${encodeURIComponent(data.provider)}`,
+      method: "DELETE",
+    }),
+  );
 
 // ── Hook exports ─────────────────────────────────────────────────────────────
 //
@@ -464,17 +417,15 @@ export function useAcceptNewCard() {
 const createCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { cardFields: Record<string, unknown> }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/cards/create`, {
+  .handler(({ context, data }) =>
+    fetchApiJson<{ cardSlug: string }>({
+      errorTitle: "Couldn't create card",
+      cookie: context.cookie,
+      path: "/api/v1/admin/cards/create",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data.cardFields),
-    });
-    if (!res.ok) {
-      throw new Error(`Create card failed: ${res.status}`);
-    }
-    return (await res.json()) as { cardSlug: string };
-  });
+      body: data.cardFields,
+    }),
+  );
 
 export function useCreateCard() {
   return useMutationWithInvalidation({
@@ -491,20 +442,15 @@ export function useCreateCard() {
 const createPrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { cardId: string; printingFields: Record<string, unknown> }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/printings`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify(data.printingFields),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Create printing failed: ${res.status}`);
-    }
-    return (await res.json()) as { printingId: string };
-  });
+  .handler(({ context, data }) =>
+    fetchApiJson<{ printingId: string }>({
+      errorTitle: "Couldn't create printing",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/${encodeURIComponent(data.cardId)}/printings`,
+      method: "POST",
+      body: data.printingFields,
+    }),
+  );
 
 export function useCreatePrinting() {
   return useMutationWithInvalidation({
@@ -629,16 +575,17 @@ export function useCheckProvider() {
 export const acceptFavoritePrintingsFn = createServerFn({ method: "POST" })
   .inputValidator((input: string) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data: cardSlug }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/cards/${encodeURIComponent(cardSlug)}/accept-favorite-printings`,
-      { method: "POST", headers: { cookie: context.cookie } },
-    );
-    if (!res.ok) {
-      throw new Error(`Accept favorite printings failed: ${res.status}`);
-    }
-    return res.json();
-  });
+  .handler(({ context, data: cardSlug }) =>
+    fetchApiJson<{
+      printingsCreated: number;
+      skipped: { shortCode: string; reason: string }[];
+    }>({
+      errorTitle: "Couldn't accept favorite printings",
+      cookie: context.cookie,
+      path: `/api/v1/admin/cards/${encodeURIComponent(cardSlug)}/accept-favorite-printings`,
+      method: "POST",
+    }),
+  );
 
 export function useAcceptFavoritePrintings() {
   return useMutationWithInvalidation({
@@ -659,41 +606,32 @@ export function useDeleteProvider() {
 const saveMarketplaceMappingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { marketplace: string; printingId: string; externalId: number }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
-      {
-        method: "POST",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({
-          mappings: [{ printingId: data.printingId, externalId: data.externalId }],
-        }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Save marketplace mapping failed: ${res.status}`);
-    }
-    return (await res.json()) as {
+  .handler(({ context, data }) =>
+    fetchApiJson<{
       saved: number;
       skipped: { externalId: number; reason: string }[];
-    };
-  });
+    }>({
+      errorTitle: "Couldn't save marketplace mapping",
+      cookie: context.cookie,
+      path: `/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
+      method: "POST",
+      body: {
+        mappings: [{ printingId: data.printingId, externalId: data.externalId }],
+      },
+    }),
+  );
 
 const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { marketplace: string; printingId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
-      {
-        method: "DELETE",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ printingId: data.printingId }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Unmap marketplace printing failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't unmap marketplace printing",
+      cookie: context.cookie,
+      path: `/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
+      method: "DELETE",
+      body: { printingId: data.printingId },
+    });
   });
 
 const defaultMarketplaceScope: Scope = [

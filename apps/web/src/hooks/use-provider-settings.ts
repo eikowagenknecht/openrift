@@ -3,21 +3,20 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { ProviderSettingsResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchProviderSettings = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<ProviderSettingsResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/provider-settings`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Provider settings fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<ProviderSettingsResponse>;
-  });
+  .handler(
+    ({ context }): Promise<ProviderSettingsResponse> =>
+      fetchApiJson<ProviderSettingsResponse>({
+        errorTitle: "Couldn't load provider settings",
+        cookie: context.cookie,
+        path: "/api/v1/admin/provider-settings",
+      }),
+  );
 
 export const providerSettingsQueryOptions = queryOptions({
   queryKey: queryKeys.admin.providerSettings,
@@ -33,14 +32,13 @@ const reorderProviderSettingsFn = createServerFn({ method: "POST" })
   .inputValidator((input: { providers: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/provider-settings/reorder`, {
+    await fetchApi({
+      errorTitle: "Couldn't reorder provider settings",
+      cookie: context.cookie,
+      path: "/api/v1/admin/provider-settings/reorder",
       method: "PUT",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ providers: data.providers }),
+      body: { providers: data.providers },
     });
-    if (!res.ok) {
-      throw new Error(`Reorder provider settings failed: ${res.status}`);
-    }
   });
 
 export function useReorderProviderSettings() {
@@ -59,21 +57,17 @@ const updateProviderSettingFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/provider-settings/${encodeURIComponent(data.provider)}`,
-      {
-        method: "PATCH",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({
-          sortOrder: data.sortOrder,
-          isHidden: data.isHidden,
-          isFavorite: data.isFavorite,
-        }),
+    await fetchApi({
+      errorTitle: "Couldn't update provider setting",
+      cookie: context.cookie,
+      path: `/api/v1/admin/provider-settings/${encodeURIComponent(data.provider)}`,
+      method: "PATCH",
+      body: {
+        sortOrder: data.sortOrder,
+        isHidden: data.isHidden,
+        isFavorite: data.isFavorite,
       },
-    );
-    if (!res.ok) {
-      throw new Error(`Update provider setting failed: ${res.status}`);
-    }
+    });
   });
 
 export function useUpdateProviderSetting() {

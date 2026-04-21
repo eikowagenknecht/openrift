@@ -6,7 +6,7 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { API_URL } from "./server-fns/api-url";
+import { fetchApi } from "./server-fns/fetch-api";
 import { withCookies } from "./server-fns/middleware";
 
 /** User shape returned by better-auth's get-session endpoint. */
@@ -29,8 +29,13 @@ type SessionData = {
 const getServerSession = createServerFn({ method: "GET" })
   .middleware([withCookies])
   .handler(async ({ context }): Promise<SessionData> => {
-    const res = await fetch(`${API_URL}/api/auth/get-session`, {
-      headers: { cookie: context.cookie },
+    // 401 is the expected state for unauthenticated users — return null without
+    // logging/throwing. Other non-ok statuses still surface as errors.
+    const res = await fetchApi({
+      errorTitle: "Couldn't load session",
+      cookie: context.cookie,
+      path: "/api/auth/get-session",
+      acceptStatuses: [401],
     });
     if (!res.ok) {
       return null;

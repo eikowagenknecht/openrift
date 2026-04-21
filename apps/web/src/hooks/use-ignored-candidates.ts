@@ -3,20 +3,19 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { IgnoredCandidatesResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchIgnoredCandidates = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<IgnoredCandidatesResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/ignored-candidates`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Ignored candidates fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<IgnoredCandidatesResponse>;
-  });
+  .handler(
+    ({ context }): Promise<IgnoredCandidatesResponse> =>
+      fetchApiJson<IgnoredCandidatesResponse>({
+        errorTitle: "Couldn't load ignored candidates",
+        cookie: context.cookie,
+        path: "/api/v1/admin/ignored-candidates",
+      }),
+  );
 
 export const ignoredCandidatesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.ignoredCandidates,
@@ -31,14 +30,13 @@ const ignoreCandidateCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { provider: string; externalId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/ignored-candidates/cards`, {
+    await fetchApi({
+      errorTitle: "Couldn't ignore candidate card",
+      cookie: context.cookie,
+      path: "/api/v1/admin/ignored-candidates/cards",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Ignore candidate card failed: ${res.status}`);
-    }
   });
 
 export function useIgnoreCandidateCard() {
@@ -57,14 +55,13 @@ const unignoreCandidateCardFn = createServerFn({ method: "POST" })
   .inputValidator((input: { provider: string; externalId: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/ignored-candidates/cards`, {
+    await fetchApi({
+      errorTitle: "Couldn't unignore candidate card",
+      cookie: context.cookie,
+      path: "/api/v1/admin/ignored-candidates/cards",
       method: "DELETE",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Unignore candidate card failed: ${res.status}`);
-    }
   });
 
 export function useUnignoreCandidateCard() {
@@ -85,14 +82,13 @@ const ignoreCandidatePrintingFn = createServerFn({ method: "POST" })
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/ignored-candidates/printings`, {
+    await fetchApi({
+      errorTitle: "Couldn't ignore candidate printing",
+      cookie: context.cookie,
+      path: "/api/v1/admin/ignored-candidates/printings",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Ignore candidate printing failed: ${res.status}`);
-    }
   });
 
 export function useIgnoreCandidatePrinting() {
@@ -111,14 +107,13 @@ const unignoreCandidatePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { provider: string; externalId: string; finish: string | null }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/ignored-candidates/printings`, {
+    await fetchApi({
+      errorTitle: "Couldn't unignore candidate printing",
+      cookie: context.cookie,
+      path: "/api/v1/admin/ignored-candidates/printings",
       method: "DELETE",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Unignore candidate printing failed: ${res.status}`);
-    }
   });
 
 export function useUnignoreCandidatePrinting() {

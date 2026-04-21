@@ -4,19 +4,17 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 
 const fetchPromoList = createServerFn({ method: "GET" }).handler(
   (): Promise<PromosListResponse> =>
     serverCache.fetchQuery({
       queryKey: ["server-cache", "promos"],
-      queryFn: async () => {
-        const res = await fetch(`${API_URL}/api/v1/promos`);
-        if (!res.ok) {
-          throw new Error(`Promos fetch failed: ${res.status}`);
-        }
-        return res.json() as Promise<PromosListResponse>;
-      },
+      queryFn: () =>
+        fetchApiJson<PromosListResponse>({
+          errorTitle: "Couldn't load promos",
+          path: "/api/v1/promos",
+        }),
     }),
 );
 

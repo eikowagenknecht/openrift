@@ -3,21 +3,20 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import type { AdminSuperTypesResponse } from "@/lib/server-fns/api-types";
-import { API_URL } from "@/lib/server-fns/api-url";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
 const fetchSuperTypes = createServerFn({ method: "GET" })
   .middleware([withCookies])
-  .handler(async ({ context }): Promise<AdminSuperTypesResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/admin/super-types`, {
-      headers: { cookie: context.cookie },
-    });
-    if (!res.ok) {
-      throw new Error(`Super types fetch failed: ${res.status}`);
-    }
-    return res.json() as Promise<AdminSuperTypesResponse>;
-  });
+  .handler(
+    ({ context }): Promise<AdminSuperTypesResponse> =>
+      fetchApiJson<AdminSuperTypesResponse>({
+        errorTitle: "Couldn't load super types",
+        cookie: context.cookie,
+        path: "/api/v1/admin/super-types",
+      }),
+  );
 
 export const adminSuperTypesQueryOptions = queryOptions({
   queryKey: queryKeys.admin.superTypes,
@@ -32,15 +31,13 @@ const createSuperTypeFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/super-types`, {
+    await fetchApi({
+      errorTitle: "Couldn't create super type",
+      cookie: context.cookie,
+      path: "/api/v1/admin/super-types",
       method: "POST",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify(data),
+      body: data,
     });
-    if (!res.ok) {
-      throw new Error(`Create super type failed: ${res.status}`);
-    }
-    return res.json();
   });
 
 export function useCreateSuperType() {
@@ -54,17 +51,13 @@ const updateSuperTypeFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string; label?: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/super-types/${encodeURIComponent(data.slug)}`,
-      {
-        method: "PATCH",
-        headers: { cookie: context.cookie, "content-type": "application/json" },
-        body: JSON.stringify({ label: data.label }),
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Update super type failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't update super type",
+      cookie: context.cookie,
+      path: `/api/v1/admin/super-types/${encodeURIComponent(data.slug)}`,
+      method: "PATCH",
+      body: { label: data.label },
+    });
   });
 
 export function useUpdateSuperType() {
@@ -78,14 +71,13 @@ const reorderSuperTypesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slugs: string[] }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(`${API_URL}/api/v1/admin/super-types/reorder`, {
+    await fetchApi({
+      errorTitle: "Couldn't reorder super types",
+      cookie: context.cookie,
+      path: "/api/v1/admin/super-types/reorder",
       method: "PUT",
-      headers: { cookie: context.cookie, "content-type": "application/json" },
-      body: JSON.stringify({ slugs: data.slugs }),
+      body: { slugs: data.slugs },
     });
-    if (!res.ok) {
-      throw new Error(`Reorder super types failed: ${res.status}`);
-    }
   });
 
 export function useReorderSuperTypes() {
@@ -99,16 +91,12 @@ const deleteSuperTypeFn = createServerFn({ method: "POST" })
   .inputValidator((input: { slug: string }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
-    const res = await fetch(
-      `${API_URL}/api/v1/admin/super-types/${encodeURIComponent(data.slug)}`,
-      {
-        method: "DELETE",
-        headers: { cookie: context.cookie },
-      },
-    );
-    if (!res.ok) {
-      throw new Error(`Delete super type failed: ${res.status}`);
-    }
+    await fetchApi({
+      errorTitle: "Couldn't delete super type",
+      cookie: context.cookie,
+      path: `/api/v1/admin/super-types/${encodeURIComponent(data.slug)}`,
+      method: "DELETE",
+    });
   });
 
 export function useDeleteSuperType() {
