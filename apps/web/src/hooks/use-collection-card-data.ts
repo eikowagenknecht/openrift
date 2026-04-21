@@ -71,6 +71,12 @@ export function useCollectionCardData({
     sets.filter((s) => s.setType === "supplemental").map((s) => s.slug),
   );
 
+  // Derived from the user's actual owned printings so the filter UI lists only
+  // languages present in this collection. When the user owns a single
+  // language, the Language section stays hidden (filter-panel threshold is
+  // length > 1).
+  const availableLanguages = [...new Set(collectionPrintings.map((p) => p.language))];
+
   // `useStackedCopies` returns printings in shortCode order (for the Copies
   // view). Pre-sort by (languageRank, canonicalRank) here so dedup/group
   // below can be first-occurrence and still pick the user-preferred printing
@@ -120,6 +126,7 @@ export function useCollectionCardData({
 
   return {
     availableFilters,
+    availableLanguages,
     sortedCards,
     printingsByCardId,
     priceRangeByCardId,
