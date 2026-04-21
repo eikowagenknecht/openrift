@@ -1,5 +1,5 @@
 import { useDndContext } from "@dnd-kit/core";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -41,7 +41,12 @@ export function HoveredCardPreview({ hoveredCard, origin, containerRef }: Hovere
   // x just right of the sidebar; main-area hovers follow the cursor with
   // a flip to the left side when the preview would overflow the container
   // on the right.
-  useEffect(() => {
+  //
+  // Runs as a layout effect so the first paint of a new hover already has
+  // top/left applied — with a plain useEffect the browser paints one frame
+  // at the container's (0, 0) before the positioning style is written, which
+  // shows up as a flash in the top-left corner for stationary cursors.
+  useLayoutEffect(() => {
     if (!hoveredCard || active) {
       return;
     }
