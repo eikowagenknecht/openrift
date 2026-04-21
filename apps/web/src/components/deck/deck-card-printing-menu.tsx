@@ -41,7 +41,7 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
   const { hoveredId, onEnter, onLeave, reset } = usePrintingHover();
   const popupRef = useRef<HTMLDivElement>(null);
 
-  if (printings.length <= 1) {
+  if (printings.length === 0) {
     return children;
   }
 
