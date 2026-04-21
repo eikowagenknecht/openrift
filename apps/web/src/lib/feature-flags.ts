@@ -7,21 +7,40 @@ import { createServerFn } from "@tanstack/react-start";
 import { queryKeys } from "./query-keys";
 import { serverCache } from "./server-cache";
 import { fetchApiJson } from "./server-fns/fetch-api";
+import { withCookies } from "./server-fns/middleware";
 
 export type FeatureFlags = Record<string, boolean>;
 
-const fetchFeatureFlags = createServerFn({ method: "GET" }).handler(() =>
-  serverCache.fetchQuery({
+// Matches better-auth's session cookie name (plain + `__Secure-` prefixed variant).
+function hasSessionCookie(cookie: string): boolean {
+  return /better-auth\.session_token/.test(cookie);
+}
+
+async function fetchFlagsFromApi(cookie?: string): Promise<FeatureFlags> {
+  const data = await fetchApiJson<{ items: FeatureFlags }>({
+    errorTitle: "Couldn't load feature flags",
+    path: "/api/v1/feature-flags",
+    cookie,
+  });
+  return data.items;
+}
+
+export function loadFeatureFlags(cookie: string): Promise<FeatureFlags> {
+  // Authenticated: forward cookies so the API merges per-user overrides.
+  // Don't share via serverCache — it's a single global key, not per-user.
+  if (hasSessionCookie(cookie)) {
+    return fetchFlagsFromApi(cookie);
+  }
+  // Anonymous: coalesce concurrent SSR requests onto a single upstream call.
+  return serverCache.fetchQuery({
     queryKey: ["server-cache", "feature-flags"],
-    queryFn: async () => {
-      const data = await fetchApiJson<{ items: FeatureFlags }>({
-        errorTitle: "Couldn't load feature flags",
-        path: "/api/v1/feature-flags",
-      });
-      return data.items;
-    },
-  }),
-);
+    queryFn: () => fetchFlagsFromApi(),
+  });
+}
+
+const fetchFeatureFlags = createServerFn({ method: "GET" })
+  .middleware([withCookies])
+  .handler(({ context }) => loadFeatureFlags(context.cookie));
 
 export const featureFlagsQueryOptions = queryOptions({
   queryKey: queryKeys.featureFlags.all,
