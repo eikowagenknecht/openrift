@@ -6,6 +6,7 @@
 - feat: Shared deck pages now use the standard sticky top bar — the deck name and the "Copy to my decks" / "Sign in to copy" button stay visible while you scroll, and the Shared by line is folded into the deck's format line
 - feat: Logged-out viewers of a shared deck now see the deck's estimated build cost too, with a "View prices" button that opens a per-card price breakdown, and the Ownership tile becomes a Sign in prompt that returns them to the same shared deck after sign-in
 - fix: The Promos page sidebar now scrolls independently when it's taller than the viewport, so you can reach every language and channel entry instead of the bottom ones being cut off
+- fix: Your collection now shows every card you own, regardless of language — previously, setting a language preference silently hid owned cards in other languages, with no option in the collection filter panel to bring them back. The Language filter is also now available in the collection and deck builder filter panels, so you can narrow by language manually if you want
 - fix: Signing in and signing out now takes effect immediately, without needing a page refresh for the header and page content to reflect the new account
 - fix: Hovering a card in the deck editor or on a shared deck page no longer briefly flashes the preview in the top-left corner before snapping to the cursor
 - fix: Right-clicking a card in the deck editor now always opens the printings menu, including for cards that only have a single printing available

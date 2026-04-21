@@ -35,7 +35,6 @@ import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { usePrices } from "@/hooks/use-prices";
-import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { catalogCardToDeckBuilderCard } from "@/lib/deck-builder-card";
@@ -200,13 +199,13 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const view = "cards" as const;
   const keywordReverseMap = useKeywordReverseMap();
 
-  // On first mount, seed the URL from user prefs if no languages are set.
-  // After seeding, `filters.languages` is the single source of truth — empty
-  // means "show all" (the user cleared every language within this session).
-  useSeedLanguagesFromPrefs(filters.languages);
-
+  // Deck builder can be toggled to show only owned cards — same reasoning as
+  // the collection view: auto-seeding EN would silently hide owned cards in
+  // other languages. Users who want to narrow by language use the Language
+  // section in the filter panel.
   const {
     availableFilters,
+    availableLanguages,
     sortedCards,
     printingsByCardId,
     priceRangeByCardId,
@@ -400,12 +399,14 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
           <MobileOptionsContent />
           <MobileFilterContent
             availableFilters={availableFilters}
+            availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
           />
         </MobileOptionsDrawer>
       </div>
       <CollapsibleFilterPanel
         availableFilters={availableFilters}
+        availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
       />
     </>
@@ -415,7 +416,11 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     <Pane className="@wide:block px-3">
       <h2 className="pb-4 text-lg font-semibold">Filters</h2>
       <div className="space-y-4 pb-4">
-        <FilterPanelContent availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+        <FilterPanelContent
+          availableFilters={availableFilters}
+          availableLanguages={availableLanguages}
+          setDisplayLabel={setDisplayLabel}
+        />
       </div>
     </Pane>
   );

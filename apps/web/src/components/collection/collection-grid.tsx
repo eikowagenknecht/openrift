@@ -63,7 +63,6 @@ import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
-import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
 import { formatterForMarketplace } from "@/lib/format";
@@ -144,10 +143,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
-  // On first mount, seed the URL from user prefs if no languages are set.
-  // After seeding, `filters.languages` is the single source of truth — empty
-  // means "show all" (the user cleared every language within this session).
-  useSeedLanguagesFromPrefs(filters.languages);
+  // Collection shows everything the user owns. Language preference is not
+  // auto-applied as a filter (unlike the /cards catalog) — otherwise owned
+  // non-preferred-language cards would vanish silently. Users who want to
+  // narrow by language use the Language section in the filter panel.
   const languageFilter = filters.languages;
 
   // "copies" is a collection-only UI concept — at the data level it behaves like "printings"
@@ -157,6 +156,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   // ── Collection data (browse/select modes) ───────────────────────────
   const {
     availableFilters: collectionAvailableFilters,
+    availableLanguages: collectionAvailableLanguages,
     sortedCards: collectionSortedCards,
     printingsByCardId: collectionPrintingsByCardId,
     stacks,
@@ -182,6 +182,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const isAddMode = mode === "add";
   const {
     availableFilters: catalogAvailableFilters,
+    availableLanguages: catalogAvailableLanguages,
     sortedCards: catalogSortedCards,
     printingsByCardId: catalogPrintingsByCardId,
     priceRangeByCardId: catalogPriceRangeByCardId,
@@ -202,6 +203,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   // ── Pick active data set based on mode ──────────────────────────────
   const availableFilters = isAddMode ? catalogAvailableFilters : collectionAvailableFilters;
+  const availableLanguages = isAddMode ? catalogAvailableLanguages : collectionAvailableLanguages;
   const sortedCards = isAddMode ? catalogSortedCards : collectionSortedCards;
   const printingsByCardId = isAddMode ? catalogPrintingsByCardId : collectionPrintingsByCardId;
   const totalUniqueCards = isAddMode ? catalogTotalUniqueCards : collectionTotalUniqueCards;
@@ -799,12 +801,14 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           <MobileOptionsContent showCopies={mode !== "add"} />
           <MobileFilterContent
             availableFilters={availableFilters}
+            availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
           />
         </MobileOptionsDrawer>
       </div>
       <CollapsibleFilterPanel
         availableFilters={availableFilters}
+        availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
       />
     </>
@@ -815,7 +819,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     <Pane className="@wide:block px-3">
       <h2 className="pb-4 text-lg font-semibold">Filters</h2>
       <div className="space-y-4 pb-4">
-        <FilterPanelContent availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+        <FilterPanelContent
+          availableFilters={availableFilters}
+          availableLanguages={availableLanguages}
+          setDisplayLabel={setDisplayLabel}
+        />
       </div>
     </Pane>
   );
