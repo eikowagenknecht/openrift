@@ -4,6 +4,7 @@ import { validateDeck } from "@openrift/shared";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
+  LogInIcon,
   PackageSearchIcon,
   PencilIcon,
   PlusIcon,
@@ -81,6 +82,17 @@ interface DeckOverviewProps {
   onHoverCard?: (cardId: string | null, preferredPrintingId?: string | null) => void;
   /** Disables DnD wiring, printing-menu popovers, and edit buttons. */
   readOnly?: boolean;
+  /**
+   * When set, renders the deck overview for an anonymous viewer: the
+   * Ownership tile is replaced with a sign-in CTA linking here, and the
+   * Value tile drops its owned/missing overlay. Used by the public share
+   * page for logged-out visitors.
+   */
+  signInHref?: string;
+  /** Extra muted text appended to the format line (e.g. "Shared by Alice"). */
+  subtitle?: React.ReactNode;
+  /** Long-form deck description rendered under the header. */
+  description?: string;
 }
 
 /**
@@ -99,6 +111,9 @@ export function DeckOverview({
   onViewMissing,
   onHoverCard,
   readOnly,
+  signInHref,
+  subtitle,
+  description,
 }: DeckOverviewProps) {
   const violations = validateDeck({
     format: deck.format,
@@ -141,7 +156,11 @@ export function DeckOverview({
         <h2 className="text-2xl font-semibold">{deck.name}</h2>
         <p className="text-muted-foreground text-sm">
           {deck.format === "constructed" ? "Constructed" : "Freeform"}
+          {subtitle && <> · {subtitle}</>}
         </p>
+        {description && (
+          <p className="text-muted-foreground pt-1 text-sm whitespace-pre-wrap">{description}</p>
+        )}
         {!readOnly && hint && <p className="text-sm">{hint}</p>}
       </header>
 
@@ -212,7 +231,7 @@ export function DeckOverview({
               ) : undefined
             }
           />
-          {ownershipData && (
+          {ownershipData && !signInHref && (
             <KpiTile
               label="Ownership"
               value={`${ownershipPercent(ownershipData)}%`}
@@ -226,7 +245,8 @@ export function DeckOverview({
               caption={`${ownershipData.totalOwned} / ${ownershipData.totalNeeded} owned`}
             />
           )}
-          {ownershipData?.deckValueCents !== undefined && onViewMissing && (
+          {signInHref && <SignInKpi href={signInHref} />}
+          {ownershipData?.deckValueCents !== undefined && (
             <ValueKpi
               deckValueCents={ownershipData.deckValueCents}
               ownedValueCents={ownershipData.ownedValueCents}
@@ -234,6 +254,7 @@ export function DeckOverview({
               hasMissingCards={ownershipData.missingCards.length > 0}
               fmtPrice={fmtPrice}
               onViewMissing={onViewMissing}
+              anonymous={Boolean(signInHref)}
             />
           )}
         </div>
@@ -399,18 +420,31 @@ function ValueKpi({
   hasMissingCards,
   fmtPrice,
   onViewMissing,
+  anonymous,
 }: {
   deckValueCents: number;
   ownedValueCents: number | undefined;
   missingValueCents: number | undefined;
   hasMissingCards: boolean;
   fmtPrice: (cents: number) => string;
-  onViewMissing: () => void;
+  onViewMissing?: () => void;
+  anonymous?: boolean;
 }) {
   const owned = ownedValueCents ?? 0;
   const ownedPct =
     deckValueCents > 0 ? Math.min(100, Math.round((owned / deckValueCents) * 100)) : 0;
   const hasMissingValue = missingValueCents !== undefined && missingValueCents > 0;
+
+  if (anonymous) {
+    return (
+      <KpiTile
+        className="@3xl:col-span-2"
+        label="Value"
+        value={fmtPrice(deckValueCents)}
+        caption="Estimated cost to build"
+      />
+    );
+  }
 
   return (
     <KpiTile
@@ -434,7 +468,7 @@ function ValueKpi({
           <span className="truncate">
             {hasMissingValue ? `${fmtPrice(missingValueCents)} missing` : "Fully owned"}
           </span>
-          {hasMissingCards && (
+          {hasMissingCards && onViewMissing && (
             <Button variant="outline" size="sm" className="ml-auto" onClick={onViewMissing}>
               <PackageSearchIcon />
               <span className="sr-only @lg:not-sr-only">View missing</span>
@@ -443,6 +477,25 @@ function ValueKpi({
         </>
       }
     />
+  );
+}
+
+function SignInKpi({ href }: { href: string }) {
+  return (
+    <a
+      href={href}
+      className="bg-card hover:bg-muted/40 flex flex-col gap-1.5 rounded-lg border border-dashed p-3 transition-colors"
+    >
+      <span className="text-muted-foreground text-xs leading-4">Ownership</span>
+      <div className="text-foreground inline-flex items-center gap-1.5 text-sm font-medium">
+        <LogInIcon className="size-4" />
+        <span>Sign in</span>
+      </div>
+      <div className="flex h-2" />
+      <div className="text-muted-foreground flex min-h-7 items-center text-xs">
+        Compare with your collection
+      </div>
+    </a>
   );
 }
 

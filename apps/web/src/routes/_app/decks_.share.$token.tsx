@@ -1,12 +1,21 @@
 import type { PublicDeckDetailResponse } from "@openrift/shared";
-import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
-import { CopyIcon, UserIcon } from "lucide-react";
+import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
+import { CopyIcon } from "lucide-react";
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
 import { DeckOverview } from "@/components/deck/deck-overview";
 import { HoveredCardPreview } from "@/components/deck/hovered-card-preview";
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
+import {
+  PAGE_TOP_BAR_STICKY,
+  PageTopBar,
+  PageTopBarActions,
+  PageTopBarHeightContext,
+  PageTopBarTitle,
+  useMeasuredHeight,
+} from "@/components/layout/page-top-bar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCards } from "@/hooks/use-cards";
@@ -64,6 +73,20 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
 });
 
 function SharedDeckPage() {
+  const [topBarSlot, setTopBarSlot] = useState<HTMLDivElement | null>(null);
+  const topBarHeight = useMeasuredHeight(topBarSlot);
+
+  return (
+    <PageTopBarHeightContext value={topBarHeight}>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div ref={setTopBarSlot} className={PAGE_TOP_BAR_STICKY} />
+        <SharedDeckContent topBarSlot={topBarSlot} />
+      </div>
+    </PageTopBarHeightContext>
+  );
+}
+
+function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }) {
   const { token } = Route.useParams();
   const { data } = usePublicDeck(token);
   const { data: session } = useSession();
@@ -83,10 +106,13 @@ function SharedDeckPage() {
     .map((card) => toDeckBuilderCard(card, cardsById))
     .filter((card): card is DeckBuilderCard => card !== null);
 
+  // Pass `{}` for logged-out viewers so useDeckOwnership still computes
+  // deck pricing (it bails out only when the owned-count map is undefined).
+  // The Value tile then shows even without a real collection to compare to.
   const ownershipData = useDeckOwnership(
     builderCards,
     allPrintings,
-    ownedCountByPrinting,
+    ownedCountByPrinting ?? (isLoggedIn ? undefined : {}),
     marketplace,
   );
 
@@ -131,36 +157,37 @@ function SharedDeckPage() {
       ref={containerRef}
       className={`${PAGE_PADDING} relative mx-auto flex w-full max-w-6xl flex-col gap-4 py-4`}
     >
-      <header className="border-border flex flex-col gap-2 border-b pb-4">
-        <p className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
-          <UserIcon className="size-3.5" />
-          Shared by {data.owner.displayName}
-        </p>
-        {data.deck.description && (
-          <p className="text-muted-foreground text-sm whitespace-pre-wrap">
-            {data.deck.description}
-          </p>
+      {topBarSlot &&
+        createPortal(
+          <PageTopBar>
+            <PageTopBarTitle>{data.deck.name}</PageTopBarTitle>
+            <PageTopBarActions>
+              {deckSharingEnabled && (
+                <Button size="sm" onClick={handleClone} disabled={cloneMutation.isPending}>
+                  <CopyIcon />
+                  {isLoggedIn ? "Copy to my decks" : "Sign in to copy"}
+                </Button>
+              )}
+            </PageTopBarActions>
+          </PageTopBar>,
+          topBarSlot,
         )}
-        {deckSharingEnabled && (
-          <div>
-            <Button onClick={handleClone} disabled={cloneMutation.isPending}>
-              <CopyIcon />
-              {isLoggedIn ? "Copy to my decks" : "Sign in to copy"}
-            </Button>
-          </div>
-        )}
-      </header>
 
       <HoveredCardPreview hoveredCard={hoveredCard} origin="main" containerRef={containerRef} />
 
       <DeckOverview
         deck={{ id: data.deck.id, name: data.deck.name, format: data.deck.format }}
         cards={builderCards}
-        ownershipData={isLoggedIn ? ownershipData : undefined}
+        ownershipData={ownershipData}
         marketplace={marketplace}
         onHoverCard={onHoverCard}
         onViewMissing={isLoggedIn ? () => setMissingOpen(true) : undefined}
         readOnly
+        signInHref={
+          isLoggedIn ? undefined : `/login?redirect=${encodeURIComponent(`/decks/share/${token}`)}`
+        }
+        subtitle={`Shared by ${data.owner.displayName}`}
+        description={data.deck.description ?? undefined}
       />
 
       {isLoggedIn && ownershipData && (
@@ -172,12 +199,6 @@ function SharedDeckPage() {
           marketplace={marketplace}
         />
       )}
-
-      <footer className="border-border mt-6 border-t pt-3 text-sm">
-        <Link to="/" className="text-muted-foreground hover:text-foreground">
-          ← Browse OpenRift
-        </Link>
-      </footer>
     </div>
   );
 }
