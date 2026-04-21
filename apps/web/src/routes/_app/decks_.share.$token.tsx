@@ -192,7 +192,6 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
           isLoggedIn ? undefined : `/login?redirect=${encodeURIComponent(`/decks/share/${token}`)}`
         }
         description={data.deck.description ?? undefined}
-        hideHeader
       />
 
       {ownershipData && (
