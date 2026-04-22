@@ -72,6 +72,7 @@ import {
 } from "@/hooks/use-admin-card-queries";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { getCollapsedPrintings, useAdminCardFoldStore } from "@/stores/admin-card-fold-store";
 
 export function ExistingCardDetailPage({
   identifier,
@@ -129,7 +130,10 @@ export function ExistingCardDetailPage({
   const { data: allCards } = useAllCards();
 
   // --- State ---
-  const [collapsedPrintings, setCollapsedPrintings] = useState<Set<string>>(new Set());
+  const collapsedPrintings = useAdminCardFoldStore((state) => getCollapsedPrintings(state, cardId));
+  const togglePrintingFold = useAdminCardFoldStore((state) => state.togglePrinting);
+  const expandPrintingFold = useAdminCardFoldStore((state) => state.expandPrinting);
+  const setCollapsedForCard = useAdminCardFoldStore((state) => state.setCollapsedForCard);
   const [showBanForm, setShowBanForm] = useState(false);
   const [showErrataForm, setShowErrataForm] = useState(false);
   const [focusedPrintingId, setFocusedPrintingId] = useState<string | null>(null);
@@ -238,17 +242,13 @@ export function ExistingCardDetailPage({
     }
     const id = printing.id;
     pendingScrollTarget.current = null;
-    setCollapsedPrintings((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+    expandPrintingFold(cardId, id);
     requestAnimationFrame(() => {
       document
         .querySelector(`[data-printing-id="${id}"]`)
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
-  }, [existingData]);
+  }, [existingData, cardId, expandPrintingFold]);
 
   // When the user arrives via a "Route to card" click on the Unmatched tab,
   // find the printing that matches the staging row (finish match, plus
@@ -276,11 +276,7 @@ export function ExistingCardDetailPage({
       return;
     }
     focusHandledRef.current = true;
-    setCollapsedPrintings((prev) => {
-      const next = new Set(prev);
-      next.delete(match.id);
-      return next;
-    });
+    expandPrintingFold(cardId, match.id);
     setFocusedPrintingId(match.id);
     requestAnimationFrame(() => {
       document
@@ -289,7 +285,7 @@ export function ExistingCardDetailPage({
     });
     const timeout = setTimeout(() => setFocusedPrintingId(null), 2400);
     return () => clearTimeout(timeout);
-  }, [existingData, focusMarketplace, focusFinish, focusLanguage]);
+  }, [existingData, focusMarketplace, focusFinish, focusLanguage, cardId, expandPrintingFold]);
 
   // --- Error / loading states ---
   if (isError) {
@@ -344,15 +340,7 @@ export function ExistingCardDetailPage({
   );
 
   function togglePrinting(id: string) {
-    setCollapsedPrintings((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
+    togglePrintingFold(cardId, id);
   }
 
   const hasUnchecked =
@@ -616,7 +604,7 @@ export function ExistingCardDetailPage({
           <Button
             variant="outline"
             onClick={() => {
-              setCollapsedPrintings(allExpanded ? new Set(allPrintingKeys) : new Set());
+              setCollapsedForCard(cardId, allExpanded ? new Set(allPrintingKeys) : new Set());
             }}
           >
             {allExpanded ? "Collapse all" : "Expand all"}
