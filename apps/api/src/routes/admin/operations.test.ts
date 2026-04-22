@@ -29,7 +29,10 @@ const mockRefreshCardtrader = vi.mocked(refreshCardtraderPrices);
 
 const mockMktAdmin = {
   clearPriceData: vi.fn(),
+  reconcileStagingSnapshots: vi.fn(),
 };
+
+const mockMarketplace = { refreshLatestPrices: vi.fn() };
 
 // ---------------------------------------------------------------------------
 // Test app
@@ -46,7 +49,7 @@ const app = new Hono()
     c.set("config", mockConfig as never);
     c.set("repos", {
       marketplaceAdmin: mockMktAdmin,
-      marketplace: { refreshLatestPrices: vi.fn() },
+      marketplace: mockMarketplace,
       catalog: { refreshCardAggregates: vi.fn() },
     } as never);
     await next();
@@ -185,5 +188,40 @@ describe("POST /api/v1/refresh-cardtrader-prices", () => {
       expect.anything(),
       "test-token-123",
     );
+  });
+});
+
+describe("POST /api/v1/reconcile-snapshots", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns 200 with inserted count and refreshes latest prices when rows inserted", async () => {
+    mockMktAdmin.reconcileStagingSnapshots.mockResolvedValue(14);
+
+    const res = await app.request("/api/v1/reconcile-snapshots", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ marketplace: "cardtrader" }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ marketplace: "cardtrader", snapshotsInserted: 14 });
+    expect(mockMktAdmin.reconcileStagingSnapshots).toHaveBeenCalledWith("cardtrader");
+    expect(mockMarketplace.refreshLatestPrices).toHaveBeenCalled();
+  });
+
+  it("skips the latest-price refresh when no rows were inserted", async () => {
+    mockMktAdmin.reconcileStagingSnapshots.mockResolvedValue(0);
+
+    const res = await app.request("/api/v1/reconcile-snapshots", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ marketplace: "tcgplayer" }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.snapshotsInserted).toBe(0);
+    expect(mockMarketplace.refreshLatestPrices).not.toHaveBeenCalled();
   });
 });

@@ -147,4 +147,16 @@ describe("marketplaceAdminRepo", () => {
     const result = await marketplaceAdminRepo(db).clearPriceData("tcgplayer");
     expect(result).toEqual({ snapshots: 5, variants: 5, products: 5, staging: 5 });
   });
+
+  it("reconcileStagingSnapshots returns inserted count", async () => {
+    const db = createMockDb([{ inserted: 14 }]);
+    const result = await marketplaceAdminRepo(db).reconcileStagingSnapshots("cardtrader");
+    expect(result).toBe(14);
+  });
+
+  it("reconcileStagingSnapshots returns 0 when nothing to reconcile", async () => {
+    const db = createMockDb([]);
+    const result = await marketplaceAdminRepo(db).reconcileStagingSnapshots("cardtrader");
+    expect(result).toBe(0);
+  });
 });

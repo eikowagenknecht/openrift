@@ -295,16 +295,6 @@ export function priceRefreshRepo(db: Db) {
         .execute();
     },
 
-    /** @returns External IDs for a single marketplace. */
-    async existingExternalIdsByMarketplace(marketplace: string): Promise<number[]> {
-      const rows = await db
-        .selectFrom("marketplaceProducts")
-        .select(["externalId"])
-        .where("marketplace", "=", marketplace)
-        .execute();
-      return rows.map((r) => r.externalId);
-    },
-
     /**
      * Batch-insert product + variant rows. Upserts the parent product by
      * `(marketplace, external_id)` then upserts the variant by

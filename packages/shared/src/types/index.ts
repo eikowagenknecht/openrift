@@ -89,6 +89,7 @@ export type {
   PromosListResponse,
   ProviderSettingResponse,
   ProviderStatsResponse,
+  ReconcileSnapshotsResponse,
   SetDetailResponse,
   SetListEntry,
   SetListResponse,

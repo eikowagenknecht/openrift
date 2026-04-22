@@ -396,10 +396,14 @@ async function autoMatchBlueprints(
   // (finish, language) combos each blueprint actually sells in.
   const pricesByBlueprint = Map.groupBy([...prices.values()], (p) => p.blueprintId);
 
-  // Skip any blueprint that already has at least one variant row.
-  const existingCtExternalIds =
-    await repos.priceRefresh.existingExternalIdsByMarketplace("cardtrader");
-  const existingCtIds = new Set(existingCtExternalIds);
+  // Build a per-variant skip set from existing cardtrader variants. Skipping at
+  // the (externalId, finish, language) level is what lets a new language (e.g.
+  // ZH) land on a blueprint whose EN variant already exists — gating on the
+  // blueprint alone would leave the new-language row permanently orphaned.
+  const existingCtSources = await repos.priceRefresh.existingSourcesByMarketplaces(["cardtrader"]);
+  const existingCtVariantKeys = new Set(
+    existingCtSources.map((s) => `${s.externalId}::${s.finish}::${s.language ?? ""}`),
+  );
 
   const toInsert: {
     marketplace: string;
@@ -417,9 +421,6 @@ async function autoMatchBlueprints(
 
   for (const bp of blueprints) {
     if (bp.category_id !== CT_SINGLES_CATEGORY) {
-      continue;
-    }
-    if (existingCtIds.has(bp.id)) {
       continue;
     }
 
@@ -468,7 +469,7 @@ async function autoMatchBlueprints(
         continue;
       }
       const emitKey = `${bp.id}::${price.finish}::${price.language}`;
-      if (emitted.has(emitKey)) {
+      if (emitted.has(emitKey) || existingCtVariantKeys.has(emitKey)) {
         continue;
       }
       emitted.add(emitKey);

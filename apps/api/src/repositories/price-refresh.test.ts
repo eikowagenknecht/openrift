@@ -126,11 +126,6 @@ describe("priceRefreshRepo", () => {
     expect(await priceRefreshRepo(db).existingSourcesByMarketplaces(["tcgplayer"])).toHaveLength(1);
   });
 
-  it("existingExternalIdsByMarketplace returns IDs", async () => {
-    const db = createMockDb([{ externalId: 123 }]);
-    expect(await priceRefreshRepo(db).existingExternalIdsByMarketplace("tcgplayer")).toEqual([123]);
-  });
-
   it("batchInsertProductVariants inserts products + variants", async () => {
     const db = createMockDb([{ id: "mp-1", marketplace: "tcgplayer", externalId: 123 }]);
     await expect(

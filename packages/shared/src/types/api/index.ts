@@ -143,6 +143,7 @@ export type {
   PriceRefreshUpsertCounts,
   ProviderSettingResponse,
   ProviderStatsResponse,
+  ReconcileSnapshotsResponse,
   RegenerateImageResponse,
   RehostImageResponse,
   RehostStatusDiskStats,

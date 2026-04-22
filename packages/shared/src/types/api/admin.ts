@@ -457,6 +457,11 @@ export interface ClearPricesResponse {
   deleted: { snapshots: number; variants: number; products: number; staging: number };
 }
 
+export interface ReconcileSnapshotsResponse {
+  marketplace: string;
+  snapshotsInserted: number;
+}
+
 // ── Unified marketplace mappings response types ─────────────────────────────
 
 export interface MappingPrintingResponse {

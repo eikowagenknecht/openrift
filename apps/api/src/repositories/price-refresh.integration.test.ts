@@ -102,14 +102,4 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
     expect(result[0].finish).toBeTypeOf("string");
     expect(result[0].language).toBeTypeOf("string");
   });
-
-  it("existingExternalIdsByMarketplace returns external IDs", async () => {
-    const ids = await repo.existingExternalIdsByMarketplace("test-marketplace-pr");
-    expect(ids).toContain(80_001);
-  });
-
-  it("existingExternalIdsByMarketplace returns empty for unknown marketplace", async () => {
-    const ids = await repo.existingExternalIdsByMarketplace("nonexistent-mp");
-    expect(ids).toEqual([]);
-  });
 });
