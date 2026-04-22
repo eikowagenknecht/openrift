@@ -385,7 +385,7 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(sorted[2].name).toBe("CSQ Test Card");
     });
 
-    it("returns correct shape (id, slug, name, type)", async () => {
+    it("returns correct shape (id, slug, name, type, setSlugs)", async () => {
       const res = await app.fetch(req("GET", "/admin/cards/all-cards"));
       const json = await res.json();
 
@@ -395,8 +395,20 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(csqCard.slug).toBeTypeOf("string");
       expect(csqCard.name).toBeTypeOf("string");
       expect(csqCard.type).toBeTypeOf("string");
-      // Should only have these four fields
-      expect(Object.keys(csqCard).sort()).toEqual(["id", "name", "slug", "type"]);
+      expect(Array.isArray(csqCard.setSlugs)).toBe(true);
+      expect(Object.keys(csqCard).sort()).toEqual(["id", "name", "setSlugs", "slug", "type"]);
+    });
+
+    it("includes the set slugs of accepted printings in setSlugs", async () => {
+      const res = await app.fetch(req("GET", "/admin/cards/all-cards"));
+      const json = await res.json();
+      const card1 = json.find((c: { slug: string }) => c.slug === "CSQ-001");
+      const card2 = json.find((c: { slug: string }) => c.slug === "CSQ-002");
+      // CSQ-001 has a printing in CSQ-TEST; the aggregated setSlugs drives
+      // the admin list filter and detail prev/next scoping.
+      expect(card1.setSlugs).toEqual(["CSQ-TEST"]);
+      // CSQ-002 has no printings, so its setSlugs is an empty array.
+      expect(card2.setSlugs).toEqual([]);
     });
   });
 

@@ -35,10 +35,13 @@ export function useAdminCardList() {
 }
 
 /**
- * Fetches the unchecked list and returns the first card slug that isn't `currentSlug`.
+ * Fetches the unchecked list and returns the first card slug that isn't
+ * `currentSlug`. When `allowedSlugs` is provided, only returns a slug that
+ * appears in that set — used to keep check-all-and-next scoped to the active
+ * set filter on the detail page.
  * @returns an object with a `fetchNext` function that resolves to the next card slug or null
  */
-export function useNextUncheckedCard(currentSlug: string) {
+export function useNextUncheckedCard(currentSlug: string, allowedSlugs?: Set<string> | null) {
   const queryClient = useQueryClient();
 
   async function fetchNext(): Promise<string | null> {
@@ -51,7 +54,8 @@ export function useNextUncheckedCard(currentSlug: string) {
       }) =>
         r.cardSlug &&
         r.cardSlug !== currentSlug &&
-        r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
+        r.uncheckedCardCount + r.uncheckedPrintingCount > 0 &&
+        (!allowedSlugs || allowedSlugs.has(r.cardSlug)),
     );
     return next?.cardSlug ?? null;
   }

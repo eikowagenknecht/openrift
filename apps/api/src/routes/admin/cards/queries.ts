@@ -26,6 +26,7 @@ const allCards = createRoute({
               slug: z.string().openapi({ example: "jinx-rebel" }),
               name: z.string().openapi({ example: "Jinx, Rebel" }),
               type: z.string().openapi({ example: "Unit" }),
+              setSlugs: z.array(z.string()).openapi({ example: ["ogn", "unleashed"] }),
             }),
           ),
         },

@@ -4,14 +4,15 @@ import { createMockDb } from "../test/mock-db.js";
 import { candidateCardsRepo } from "./candidate-cards.js";
 
 const CARD = { id: "c-1", slug: "OGS-001", name: "Annie", type: "Unit" };
+const CARD_WITH_SETS = { ...CARD, setSlugs: ["ogs"] };
 const CC = { id: "cc-1", provider: "test", name: "Annie", normName: "annie" };
 
 describe("candidateCardsRepo", () => {
   // ── Simple list endpoints ──────────────────────────────────────────────────
 
-  it("listAllCards returns cards", async () => {
-    const db = createMockDb([CARD]);
-    expect(await candidateCardsRepo(db).listAllCards()).toEqual([CARD]);
+  it("listAllCards returns cards with setSlugs", async () => {
+    const db = createMockDb([CARD_WITH_SETS]);
+    expect(await candidateCardsRepo(db).listAllCards()).toEqual([CARD_WITH_SETS]);
   });
 
   it("listCardsForSourceList returns cards", async () => {

@@ -16,6 +16,7 @@ interface CardDetailSearch {
   focusMarketplace?: "tcgplayer" | "cardmarket" | "cardtrader";
   focusFinish?: string;
   focusLanguage?: string;
+  set?: string;
 }
 
 export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlug")({
@@ -37,6 +38,9 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
     }
     if (typeof search.focusLanguage === "string") {
       result.focusLanguage = search.focusLanguage;
+    }
+    if (typeof search.set === "string" && search.set.length > 0) {
+      result.set = search.set;
     }
     return result;
   },

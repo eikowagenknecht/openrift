@@ -4,7 +4,7 @@ import { ExistingCardDetailPage } from "@/components/admin/existing-card-detail-
 
 function ExistingCardPage() {
   const { cardSlug } = useParams({ from: "/_app/_authenticated/admin/cards_/$cardSlug" });
-  const { focusMarketplace, focusFinish, focusLanguage } = useSearch({
+  const { focusMarketplace, focusFinish, focusLanguage, set } = useSearch({
     from: "/_app/_authenticated/admin/cards_/$cardSlug",
   });
   return (
@@ -14,6 +14,7 @@ function ExistingCardPage() {
       focusMarketplace={focusMarketplace}
       focusFinish={focusFinish}
       focusLanguage={focusLanguage}
+      setSlug={set}
     />
   );
 }

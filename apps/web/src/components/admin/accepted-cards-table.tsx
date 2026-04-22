@@ -198,7 +198,10 @@ const COLUMN_WIDTHS: Record<string, string> = {
 // Column definitions
 // ---------------------------------------------------------------------------
 
-function buildColumns(coverageBySlug: Map<string, CardCoverage>): ColumnDef<Row>[] {
+function buildColumns(
+  coverageBySlug: Map<string, CardCoverage>,
+  setSlug: string | undefined,
+): ColumnDef<Row>[] {
   return [
     {
       id: "name",
@@ -214,6 +217,7 @@ function buildColumns(coverageBySlug: Map<string, CardCoverage>): ColumnDef<Row>
             <Link
               to="/admin/cards/$cardSlug"
               params={{ cardSlug: slug }}
+              search={setSlug ? { set: setSlug } : {}}
               className="font-medium hover:underline"
             >
               {r.name}
@@ -287,7 +291,16 @@ export function AcceptedCardsTable({
     total: number;
   } | null>(null);
 
-  const columns = buildColumns(coverageBySlug);
+  const navigate = useNavigate({ from: CardsRoute.fullPath });
+  const { sorting, globalFilter, setSlug } = CardsRoute.useSearch({
+    select: (s) => ({
+      sorting: parseSortParam(s.sort),
+      globalFilter: s.q ?? "",
+      setSlug: s.set,
+    }),
+  });
+
+  const columns = buildColumns(coverageBySlug, setSlug);
 
   const acceptAll = useMutation({
     mutationFn: async (slugs: string[]) => {
@@ -316,11 +329,6 @@ export function AcceptedCardsTable({
         toast.warning(`Accepted ${result.accepted}, failed ${result.failed}`);
       }
     },
-  });
-
-  const navigate = useNavigate({ from: CardsRoute.fullPath });
-  const { sorting, globalFilter } = CardsRoute.useSearch({
-    select: (s) => ({ sorting: parseSortParam(s.sort), globalFilter: s.q ?? "" }),
   });
 
   function handleSortingChange(updater: Updater<SortingState>) {

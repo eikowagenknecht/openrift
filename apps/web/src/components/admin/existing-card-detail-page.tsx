@@ -81,11 +81,13 @@ export function ExistingCardDetailPage({
   focusMarketplace,
   focusFinish,
   focusLanguage,
+  setSlug,
 }: {
   identifier: string;
   focusMarketplace?: AdminMarketplaceName;
   focusFinish?: string;
   focusLanguage?: string;
+  setSlug?: string;
 }) {
   const navigate = useNavigate();
   const cardId = identifier;
@@ -147,7 +149,12 @@ export function ExistingCardDetailPage({
   const focusHandledRef = useRef(false);
 
   // --- Check all & next card ---
-  const { fetchNext } = useNextUncheckedCard(identifier);
+  // When a set filter is active, scope prev/next + check-all-and-next to cards
+  // that have at least one accepted printing in that set — matching the list
+  // page's filter so the navigation stays inside the set.
+  const scopedCards = setSlug ? allCards.filter((c) => c.setSlugs.includes(setSlug)) : allCards;
+  const scopedSlugs = setSlug ? new Set(scopedCards.map((c) => c.slug)) : null;
+  const { fetchNext } = useNextUncheckedCard(identifier, scopedSlugs);
   const [isCheckingAll, setIsCheckingAll] = useState(false);
   // oxlint-disable-next-line no-empty-function -- default no-op until the effect below installs the real handler
   const checkAllAndNextRef = useRef<() => void>(() => {});
@@ -202,11 +209,17 @@ export function ExistingCardDetailPage({
       await Promise.all(promises);
 
       const nextSlug = await fetchNext();
+      const detailSearch = setSlug ? { set: setSlug } : {};
+      const listSearch = setSlug ? { set: setSlug } : {};
       if (nextSlug) {
-        void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: nextSlug } });
+        void navigate({
+          to: "/admin/cards/$cardSlug",
+          params: { cardSlug: nextSlug },
+          search: detailSearch,
+        });
       } else {
         toast.success("All cards reviewed!");
-        void navigate({ to: "/admin/cards" });
+        void navigate({ to: "/admin/cards", search: listSearch });
       }
     } catch (error) {
       setIsCheckingAll(false);
@@ -220,18 +233,19 @@ export function ExistingCardDetailPage({
   });
   useEffect(() => {
     prevNextRef.current = (dir) => {
-      if (!allCards) {
-        return;
-      }
-      const idx = allCards.findIndex((c: { slug: string }) => c.slug === identifier);
+      const idx = scopedCards.findIndex((c) => c.slug === identifier);
       let slug: string | null = null;
       if (dir === "prev" && idx > 0) {
-        slug = allCards[idx - 1].slug;
-      } else if (dir === "next" && idx !== -1 && idx < allCards.length - 1) {
-        slug = allCards[idx + 1].slug;
+        slug = scopedCards[idx - 1].slug;
+      } else if (dir === "next" && idx !== -1 && idx < scopedCards.length - 1) {
+        slug = scopedCards[idx + 1].slug;
       }
       if (slug) {
-        void navigate({ to: "/admin/cards/$cardSlug", params: { cardSlug: slug } });
+        void navigate({
+          to: "/admin/cards/$cardSlug",
+          params: { cardSlug: slug },
+          search: setSlug ? { set: setSlug } : {},
+        });
       }
     };
   });
@@ -347,16 +361,15 @@ export function ExistingCardDetailPage({
   const hasUnchecked =
     sources.some((s) => !s.checkedAt) || candidatePrintings.some((ps) => !ps.checkedAt);
 
-  // Used by the render for prev/next buttons. The hotkey equivalents live in the
-  // effect above, which recomputes navigation inline from `allCards` + `identifier`.
+  // Used by the render for prev/next buttons. The hotkey equivalents live in
+  // the effect above, which recomputes navigation inline from `scopedCards` +
+  // `identifier`. When a set filter is active, `scopedCards` is already
+  // narrowed to cards with an accepted printing in that set.
   const prevNextCards = (() => {
-    if (!allCards) {
-      return { prev: null, next: null };
-    }
-    const idx = allCards.findIndex((c: { slug: string }) => c.slug === identifier);
+    const idx = scopedCards.findIndex((c) => c.slug === identifier);
     return {
-      prev: idx > 0 ? allCards[idx - 1].slug : null,
-      next: idx !== -1 && idx < allCards.length - 1 ? allCards[idx + 1].slug : null,
+      prev: idx > 0 ? scopedCards[idx - 1].slug : null,
+      next: idx !== -1 && idx < scopedCards.length - 1 ? scopedCards[idx + 1].slug : null,
     };
   })();
 
@@ -383,6 +396,7 @@ export function ExistingCardDetailPage({
                 void navigate({
                   to: "/admin/cards/$cardSlug",
                   params: { cardSlug: prevNextCards.prev },
+                  search: setSlug ? { set: setSlug } : {},
                 })
               }
             >
@@ -397,6 +411,7 @@ export function ExistingCardDetailPage({
                 void navigate({
                   to: "/admin/cards/$cardSlug",
                   params: { cardSlug: prevNextCards.next },
+                  search: setSlug ? { set: setSlug } : {},
                 })
               }
             >

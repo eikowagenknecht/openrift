@@ -98,12 +98,33 @@ export function candidateCardsRepo(db: Kysely<Database>) {
   return {
     // ── Simple list endpoints ─────────────────────────────────────────────
 
-    /** @returns Lightweight card list (id, slug, name, type) ordered by slug. */
-    listAllCards(): Promise<Pick<Selectable<CardsTable>, "id" | "slug" | "name" | "type">[]> {
+    /**
+     * @returns Lightweight card list ordered by slug, with distinct `setSlugs`
+     *   across the card's accepted printings (empty array if the card has no
+     *   printings yet). Admins use `setSlugs` to scope list and detail views
+     *   to a single set.
+     */
+    listAllCards(): Promise<
+      (Pick<Selectable<CardsTable>, "id" | "slug" | "name" | "type"> & { setSlugs: string[] })[]
+    > {
       return db
-        .selectFrom("cards")
-        .select(["id", "slug", "name", "type"])
-        .orderBy("slug")
+        .selectFrom("cards as c")
+        .leftJoin("printings as p", "p.cardId", "c.id")
+        .leftJoin("sets as s", "s.id", "p.setId")
+        .select((eb) => [
+          "c.id",
+          "c.slug",
+          "c.name",
+          "c.type",
+          eb.fn
+            .coalesce(
+              sql<string[]>`array_agg(distinct s.slug) filter (where s.slug is not null)`,
+              sql<string[]>`'{}'::text[]`,
+            )
+            .as("setSlugs"),
+        ])
+        .groupBy(["c.id", "c.slug", "c.name", "c.type"])
+        .orderBy("c.slug")
         .execute();
     },
 
