@@ -547,7 +547,7 @@ export function useDeletePrinting(invalidates: Scope = defaultScope) {
   });
 }
 
-export function useAcceptPrintingGroup() {
+export function useAcceptPrintingGroup(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: ({
       cardId,
@@ -561,7 +561,7 @@ export function useAcceptPrintingGroup() {
       acceptPrintingGroupFn({
         data: { cardId, printingFields, candidatePrintingIds },
       }),
-    invalidates: ({ cardId }) => [queryKeys.admin.cards.detail(cardId), queryKeys.admin.cards.list],
+    invalidates,
   });
 }
 

@@ -121,7 +121,7 @@ export function ExistingCardDetailPage({
   const acceptCardField = useAcceptCardField();
   const acceptPrintingField = useAcceptPrintingField(invalidateScope);
   const renameCard = useRenameCard();
-  const acceptPrintingGroup = useAcceptPrintingGroup();
+  const acceptPrintingGroup = useAcceptPrintingGroup(invalidateScope);
   const copyPrintingSource = useCopyCandidatePrinting(invalidateScope);
   const deletePrintingSource = useDeleteCandidatePrinting(invalidateScope);
   const linkPrintingSources = useLinkCandidatePrintings(invalidateScope);
