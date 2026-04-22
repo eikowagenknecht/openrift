@@ -2,6 +2,7 @@
 
 ## 2026-04-22
 
+- feat: CardTrader prices now highlight the cheapest CardTrader Zero (hub-fulfilled) seller as the headline, so what you see is what you can actually order through CardTrader's shipping hub. The overall cheapest listing across every seller shows up as a secondary dashed line on the price history chart, and when no Zero seller exists for a card the headline falls back to the overall low
 - fix: Importing a deck in text format now recognizes "Rune Pool:" and "Main Deck:" as zone headers (the labels riftdecks.com exports use), so runes and main-deck cards land in the right zones instead of inheriting the previous zone. Unknown zone headers no longer silently dump their cards into the prior zone either, and the warning panel is now expanded by default so it's harder to miss
 - fix: Cheapest prices from CardTrader are more accurate now, since listings from sellers on vacation or multi-card bundles (whose price is the whole-pack total, not per card) are no longer counted as singles
 

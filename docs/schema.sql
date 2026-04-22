@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict OdhXrqSgSIHFzKzBby65ygsfb81c3OrhP85Z1o3B5tRApeY1YL2JRUkqIfsf8lj
+\restrict h8fX22WConmarNCAWR84QeRX5v5XouuL9thz4bW0w78MVGarpmoxIJQsx5oi5np
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1088,6 +1088,7 @@ CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
  SELECT DISTINCT ON (target.id, mp.marketplace) target.id AS printing_id,
     mp.marketplace,
         CASE
+            WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(snap.zero_low_cents, snap.low_cents)
             WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(snap.low_cents, snap.market_cents)
             ELSE COALESCE(snap.market_cents, snap.low_cents)
         END AS headline_cents
@@ -1098,10 +1099,11 @@ CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
      JOIN public.marketplace_snapshots snap ON ((snap.variant_id = mpv.id)))
   WHERE ((
         CASE
+            WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(snap.zero_low_cents, snap.low_cents)
             WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(snap.low_cents, snap.market_cents)
             ELSE COALESCE(snap.market_cents, snap.low_cents)
         END IS NOT NULL) AND ((mpv.language IS NULL) OR (source.id = target.id)))
-  ORDER BY target.id, mp.marketplace, snap.recorded_at DESC
+  ORDER BY target.id, mp.marketplace, (snap.zero_low_cents IS NULL), snap.recorded_at DESC
   WITH NO DATA;
 
 
@@ -3383,5 +3385,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict OdhXrqSgSIHFzKzBby65ygsfb81c3OrhP85Z1o3B5tRApeY1YL2JRUkqIfsf8lj
+\unrestrict h8fX22WConmarNCAWR84QeRX5v5XouuL9thz4bW0w78MVGarpmoxIJQsx5oi5np
 

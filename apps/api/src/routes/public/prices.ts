@@ -104,10 +104,12 @@ export const pricesRoute = pricesApp
    * `GET /prices/:printingId/history` — Returns price history for a single printing.
    *
    * Accepts a printing UUID. Returns snapshots for TCGPlayer (USD), Cardmarket
-   * (EUR), and CardTrader (EUR) when available. CardTrader snapshots only carry
-   * `low` (cheapest available listing) since the API exposes no separate market
-   * value. The `range` query param controls the lookback window (`7d`, `30d`,
-   * `90d`, `all`); defaults to `30d`.
+   * (EUR), and CardTrader (EUR) when available. CardTrader snapshots carry
+   * `zeroLow` (cheapest among CT Zero / hub-eligible sellers — the headline
+   * price) and `low` (cheapest across all sellers — a secondary figure).
+   * Either may be null; the snapshot is emitted when at least one is known.
+   * The `range` query param controls the lookback window (`7d`, `30d`, `90d`,
+   * `all`); defaults to `30d`.
    *
    * Returns `available: false` (not a 404) when the printing or marketplace
    * source doesn't exist, so the frontend can render an empty state without
@@ -186,11 +188,12 @@ export const pricesRoute = pricesApp
 
     const ctSnapshots: PriceHistoryResponse["cardtrader"]["snapshots"] = [];
     for (const r of ctRows) {
-      if (r.lowCents === null) {
+      if (r.zeroLowCents === null && r.lowCents === null) {
         continue;
       }
       ctSnapshots.push({
         date: formatDateUTC(r.recordedAt),
+        zeroLow: centsToDollars(r.zeroLowCents),
         low: centsToDollars(r.lowCents),
       });
     }
