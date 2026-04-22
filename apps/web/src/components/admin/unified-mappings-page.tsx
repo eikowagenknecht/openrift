@@ -42,6 +42,7 @@ import {
 } from "@/hooks/use-unified-mappings";
 import { cn } from "@/lib/utils";
 
+import { MarketplaceProductColumn } from "./marketplace-product-column";
 import type {
   AssignableCard,
   MappingGroup,
@@ -64,14 +65,20 @@ import { computeSuggestions, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
  */
 type MappableMarketplace = "tcgplayer" | "cardmarket" | "cardtrader";
 
-function externalIdForMarketplace(p: UnifiedMappingPrinting, marketplace: MappableMarketplace) {
-  if (marketplace === "tcgplayer") {
-    return p.tcgExternalId;
-  }
-  if (marketplace === "cardmarket") {
-    return p.cmExternalId;
-  }
-  return p.ctExternalId;
+/**
+ * @returns The externalIds assigned to this printing for the given marketplace.
+ * A printing can carry multiple assignments when two upstream products both
+ * target it (e.g. duplicate CM listings for the same card), so callers that
+ * only need a scalar should use `[0]` and accept it's lossy.
+ */
+function assignedIdsForPrinting(
+  group: UnifiedMappingGroup,
+  marketplace: MappableMarketplace,
+  printingId: string,
+): number[] {
+  return group[marketplace].assignments
+    .filter((a) => a.printingId === printingId)
+    .map((a) => a.externalId);
 }
 
 function toMarketplaceGroup(
@@ -90,9 +97,11 @@ function toMarketplaceGroup(
     might: group.might,
     setId: group.setId,
     setName: group.setName,
+    // For the suggestion algorithm we collapse to a single externalId per
+    // printing — it only needs "is this printing mapped at all?" semantics.
     printings: group.printings.map((p) => ({
       ...p,
-      externalId: externalIdForMarketplace(p, marketplace),
+      externalId: assignedIdsForPrinting(group, marketplace, p.printingId)[0] ?? null,
     })),
     stagedProducts: mkData.stagedProducts,
     assignedProducts: mkData.assignedProducts,
@@ -219,85 +228,6 @@ function MarketplaceStatusBadge({
   );
 }
 
-// ── Marketplace product sidebar column ───────────────────────────────────────
-
-function MarketplaceProductColumn({
-  marketplace,
-  group,
-  allCards,
-  onIgnoreVariant,
-  onIgnoreProduct,
-  isIgnoring,
-  onUnassign,
-  isUnassigning,
-  onAssignToCard,
-  isAssigning,
-}: {
-  marketplace: MappableMarketplace;
-  group: UnifiedMappingGroup;
-  allCards: AssignableCard[];
-  onIgnoreVariant: (externalId: number, finish: string, language: string) => void;
-  onIgnoreProduct: (externalId: number) => void;
-  isIgnoring: boolean;
-  onUnassign: (externalId: number, finish: string, language: string) => void;
-  isUnassigning: boolean;
-  onAssignToCard: (externalId: number, finish: string, language: string, cardId: string) => void;
-  isAssigning: boolean;
-}) {
-  const config =
-    marketplace === "tcgplayer" ? TCG_CONFIG : marketplace === "cardmarket" ? CM_CONFIG : CT_CONFIG;
-  const mkData = group[marketplace];
-  const allProducts = [...mkData.stagedProducts, ...mkData.assignedProducts].toSorted(
-    (a, b) => a.productName.localeCompare(b.productName) || b.finish.localeCompare(a.finish),
-  );
-
-  return (
-    <div className="w-full shrink-0 sm:w-64">
-      <SectionHeading>{config.shortName} Products</SectionHeading>
-      <div className="flex flex-col gap-2">
-        {allProducts.map((sp) => {
-          const isAssigned = mkData.assignedProducts.some(
-            (ap) => ap.externalId === sp.externalId && ap.finish === sp.finish,
-          );
-          return (
-            <StagedProductCard
-              key={`${sp.externalId}::${sp.finish}`}
-              config={config}
-              product={sp}
-              isAssigned={isAssigned}
-              // Sidebar cards: this product is about to map (or already did),
-              // so per-SKU ignores are the common case ("this card doesn't
-              // come in foil, deny that variant"). Level-2 stays available
-              // via the dropdown.
-              primaryIgnoreLevel="variant"
-              onIgnoreVariant={
-                isAssigned
-                  ? undefined
-                  : () => onIgnoreVariant(sp.externalId, sp.finish, sp.language)
-              }
-              onIgnoreProduct={isAssigned ? undefined : () => onIgnoreProduct(sp.externalId)}
-              isIgnoring={isIgnoring}
-              onUnassign={
-                sp.isOverride ? () => onUnassign(sp.externalId, sp.finish, sp.language) : undefined
-              }
-              isUnassigning={isUnassigning}
-              allCards={sp.isOverride ? undefined : isAssigned ? undefined : allCards}
-              onAssignToCard={
-                sp.isOverride || isAssigned
-                  ? undefined
-                  : (cardId) => onAssignToCard(sp.externalId, sp.finish, sp.language, cardId)
-              }
-              isAssigning={isAssigning}
-              assignLabel="Reassign"
-            />
-          );
-        })}
-        {allProducts.length === 0 && <p className="text-muted-foreground">No products</p>}
-      </div>
-    </div>
-  );
-}
-
 // ── Suggestion button ────────────────────────────────────────────────────────
 
 function SuggestionButton({
@@ -344,6 +274,81 @@ function SuggestionButton({
         {formatCents(sp.marketCents ?? sp.lowCents, sp.currency)}
       </span>
     </button>
+  );
+}
+
+// ── Per-marketplace cell for a single printing ───────────────────────────────
+
+function MarketplaceCell({
+  label,
+  config,
+  ids,
+  printingId,
+  stagedProducts,
+  assignedProducts,
+  suggestion,
+  onSave,
+  onUnmap,
+  isSaving,
+  isUnmapping,
+}: {
+  label: string;
+  config: typeof TCG_CONFIG;
+  ids: number[];
+  printingId: string;
+  stagedProducts: StagedProduct[];
+  assignedProducts: StagedProduct[];
+  suggestion: { product: StagedProduct; score: number } | undefined;
+  onSave: (externalId: number) => void;
+  onUnmap: () => void;
+  isSaving: boolean;
+  isUnmapping: boolean;
+}) {
+  if (ids.length === 0) {
+    return (
+      <div className="space-y-1">
+        {suggestion && (
+          <SuggestionButton
+            label={label}
+            suggestion={suggestion}
+            config={config}
+            disabled={isSaving}
+            onClick={() => onSave(suggestion.product.externalId)}
+          />
+        )}
+        <ProductSelect
+          config={config}
+          stagedProducts={stagedProducts}
+          assignedProducts={assignedProducts}
+          currentPrintingId={printingId}
+          disabled={isSaving}
+          onSelect={onSave}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="text-muted-foreground space-y-1">
+      {ids.map((externalId) => (
+        <div key={externalId} className="flex items-center gap-1">
+          <Badge variant="outline" className="px-1 py-0">
+            {label}
+          </Badge>
+          <ProductLink config={config} externalId={externalId}>
+            #{externalId}
+          </ProductLink>
+          <button
+            type="button"
+            className="hover:text-foreground disabled:opacity-50"
+            onClick={onUnmap}
+            disabled={isUnmapping}
+            title={`Unmap ${config.displayName}`}
+          >
+            ×
+          </button>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -433,11 +438,13 @@ function UnifiedExpandedDetail({
         </div>
         <div className="flex flex-wrap gap-4">
           {group.printings.map((p) => {
-            const tcgSug = p.tcgExternalId === null ? tcgSuggestions.get(p.printingId) : undefined;
-            const cmSug = p.cmExternalId === null ? cmSuggestions.get(p.printingId) : undefined;
-            const ctSug = p.ctExternalId === null ? ctSuggestions.get(p.printingId) : undefined;
-            const hasAnyUnmapped =
-              p.tcgExternalId === null || p.cmExternalId === null || p.ctExternalId === null;
+            const tcgIds = assignedIdsForPrinting(group, "tcgplayer", p.printingId);
+            const cmIds = assignedIdsForPrinting(group, "cardmarket", p.printingId);
+            const ctIds = assignedIdsForPrinting(group, "cardtrader", p.printingId);
+            const tcgSug = tcgIds.length === 0 ? tcgSuggestions.get(p.printingId) : undefined;
+            const cmSug = cmIds.length === 0 ? cmSuggestions.get(p.printingId) : undefined;
+            const ctSug = ctIds.length === 0 ? ctSuggestions.get(p.printingId) : undefined;
+            const hasAnyUnmapped = tcgIds.length === 0 || cmIds.length === 0 || ctIds.length === 0;
             return (
               <div
                 key={p.printingId}
@@ -460,234 +467,62 @@ function UnifiedExpandedDetail({
                     </span>
                   </div>
 
-                  {/* Mapped IDs — single row when all are mapped */}
-                  {p.tcgExternalId !== null &&
-                  p.cmExternalId !== null &&
-                  p.ctExternalId !== null ? (
-                    <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className="flex items-center gap-1">
-                        <Badge variant="outline" className="px-1 py-0">
-                          TCG
-                        </Badge>
-                        <ProductLink config={TCG_CONFIG} externalId={p.tcgExternalId}>
-                          #{p.tcgExternalId}
-                        </ProductLink>
-                        <button
-                          type="button"
-                          className="hover:text-foreground disabled:opacity-50"
-                          onClick={() => tcgUnmap.mutate(p.printingId)}
-                          disabled={tcgUnmap.isPending}
-                          title="Unmap TCGplayer"
-                        >
-                          ×
-                        </button>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Badge variant="outline" className="px-1 py-0">
-                          CM
-                        </Badge>
-                        <ProductLink config={CM_CONFIG} externalId={p.cmExternalId}>
-                          #{p.cmExternalId}
-                        </ProductLink>
-                        <button
-                          type="button"
-                          className="hover:text-foreground disabled:opacity-50"
-                          onClick={() => cmUnmap.mutate(p.printingId)}
-                          disabled={cmUnmap.isPending}
-                          title="Unmap Cardmarket"
-                        >
-                          ×
-                        </button>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Badge variant="outline" className="px-1 py-0">
-                          CT
-                        </Badge>
-                        <ProductLink config={CT_CONFIG} externalId={p.ctExternalId}>
-                          #{p.ctExternalId}
-                        </ProductLink>
-                        <button
-                          type="button"
-                          className="hover:text-foreground disabled:opacity-50"
-                          onClick={() => ctUnmap.mutate(p.printingId)}
-                          disabled={ctUnmap.isPending}
-                          title="Unmap CardTrader"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    </div>
-                  ) : (
-                    <>
-                      {/* TCGplayer mapping status */}
-                      <div className="space-y-1">
-                        {p.tcgExternalId === null ? (
-                          <>
-                            {tcgSug && (
-                              <SuggestionButton
-                                label="TCG"
-                                suggestion={tcgSug}
-                                config={TCG_CONFIG}
-                                disabled={tcgSave.isPending}
-                                onClick={() =>
-                                  tcgSave.mutate({
-                                    mappings: [
-                                      {
-                                        printingId: p.printingId,
-                                        externalId: tcgSug.product.externalId,
-                                      },
-                                    ],
-                                  })
-                                }
-                              />
-                            )}
-                            <ProductSelect
-                              config={TCG_CONFIG}
-                              stagedProducts={group.tcgplayer.stagedProducts}
-                              assignedProducts={group.tcgplayer.assignedProducts}
-                              currentPrintingId={p.printingId}
-                              disabled={tcgSave.isPending}
-                              onSelect={(extId) =>
-                                tcgSave.mutate({
-                                  mappings: [{ printingId: p.printingId, externalId: extId }],
-                                })
-                              }
-                            />
-                          </>
-                        ) : (
-                          <div className="text-muted-foreground flex items-center gap-1">
-                            <Badge variant="outline" className="px-1 py-0">
-                              TCG
-                            </Badge>
-                            <ProductLink config={TCG_CONFIG} externalId={p.tcgExternalId}>
-                              #{p.tcgExternalId}
-                            </ProductLink>
-                            <button
-                              type="button"
-                              className="hover:text-foreground disabled:opacity-50"
-                              onClick={() => tcgUnmap.mutate(p.printingId)}
-                              disabled={tcgUnmap.isPending}
-                              title="Unmap TCGplayer"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                  {/* TCGplayer mapping status */}
+                  <MarketplaceCell
+                    label="TCG"
+                    config={TCG_CONFIG}
+                    ids={tcgIds}
+                    printingId={p.printingId}
+                    stagedProducts={group.tcgplayer.stagedProducts}
+                    assignedProducts={group.tcgplayer.assignedProducts}
+                    suggestion={tcgSug}
+                    onSave={(extId) =>
+                      tcgSave.mutate({
+                        mappings: [{ printingId: p.printingId, externalId: extId }],
+                      })
+                    }
+                    onUnmap={() => tcgUnmap.mutate(p.printingId)}
+                    isSaving={tcgSave.isPending}
+                    isUnmapping={tcgUnmap.isPending}
+                  />
 
-                      {/* Cardmarket mapping status */}
-                      <div className="space-y-1">
-                        {p.cmExternalId === null ? (
-                          <>
-                            {cmSug && (
-                              <SuggestionButton
-                                label="CM"
-                                suggestion={cmSug}
-                                config={CM_CONFIG}
-                                disabled={cmSave.isPending}
-                                onClick={() =>
-                                  cmSave.mutate({
-                                    mappings: [
-                                      {
-                                        printingId: p.printingId,
-                                        externalId: cmSug.product.externalId,
-                                      },
-                                    ],
-                                  })
-                                }
-                              />
-                            )}
-                            <ProductSelect
-                              config={CM_CONFIG}
-                              stagedProducts={group.cardmarket.stagedProducts}
-                              assignedProducts={group.cardmarket.assignedProducts}
-                              currentPrintingId={p.printingId}
-                              disabled={cmSave.isPending}
-                              onSelect={(extId) =>
-                                cmSave.mutate({
-                                  mappings: [{ printingId: p.printingId, externalId: extId }],
-                                })
-                              }
-                            />
-                          </>
-                        ) : (
-                          <div className="text-muted-foreground flex items-center gap-1">
-                            <Badge variant="outline" className="px-1 py-0">
-                              CM
-                            </Badge>
-                            <ProductLink config={CM_CONFIG} externalId={p.cmExternalId}>
-                              #{p.cmExternalId}
-                            </ProductLink>
-                            <button
-                              type="button"
-                              className="hover:text-foreground disabled:opacity-50"
-                              onClick={() => cmUnmap.mutate(p.printingId)}
-                              disabled={cmUnmap.isPending}
-                              title="Unmap Cardmarket"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                  {/* Cardmarket mapping status */}
+                  <MarketplaceCell
+                    label="CM"
+                    config={CM_CONFIG}
+                    ids={cmIds}
+                    printingId={p.printingId}
+                    stagedProducts={group.cardmarket.stagedProducts}
+                    assignedProducts={group.cardmarket.assignedProducts}
+                    suggestion={cmSug}
+                    onSave={(extId) =>
+                      cmSave.mutate({
+                        mappings: [{ printingId: p.printingId, externalId: extId }],
+                      })
+                    }
+                    onUnmap={() => cmUnmap.mutate(p.printingId)}
+                    isSaving={cmSave.isPending}
+                    isUnmapping={cmUnmap.isPending}
+                  />
 
-                      {/* CardTrader mapping status */}
-                      <div className="space-y-1">
-                        {p.ctExternalId === null ? (
-                          <>
-                            {ctSug && (
-                              <SuggestionButton
-                                label="CT"
-                                suggestion={ctSug}
-                                config={CT_CONFIG}
-                                disabled={ctSave.isPending}
-                                onClick={() =>
-                                  ctSave.mutate({
-                                    mappings: [
-                                      {
-                                        printingId: p.printingId,
-                                        externalId: ctSug.product.externalId,
-                                      },
-                                    ],
-                                  })
-                                }
-                              />
-                            )}
-                            <ProductSelect
-                              config={CT_CONFIG}
-                              stagedProducts={group.cardtrader.stagedProducts}
-                              assignedProducts={group.cardtrader.assignedProducts}
-                              currentPrintingId={p.printingId}
-                              disabled={ctSave.isPending}
-                              onSelect={(extId) =>
-                                ctSave.mutate({
-                                  mappings: [{ printingId: p.printingId, externalId: extId }],
-                                })
-                              }
-                            />
-                          </>
-                        ) : (
-                          <div className="text-muted-foreground flex items-center gap-1">
-                            <Badge variant="outline" className="px-1 py-0">
-                              CT
-                            </Badge>
-                            <ProductLink config={CT_CONFIG} externalId={p.ctExternalId}>
-                              #{p.ctExternalId}
-                            </ProductLink>
-                            <button
-                              type="button"
-                              className="hover:text-foreground disabled:opacity-50"
-                              onClick={() => ctUnmap.mutate(p.printingId)}
-                              disabled={ctUnmap.isPending}
-                              title="Unmap CardTrader"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
+                  {/* CardTrader mapping status */}
+                  <MarketplaceCell
+                    label="CT"
+                    config={CT_CONFIG}
+                    ids={ctIds}
+                    printingId={p.printingId}
+                    stagedProducts={group.cardtrader.stagedProducts}
+                    assignedProducts={group.cardtrader.assignedProducts}
+                    suggestion={ctSug}
+                    onSave={(extId) =>
+                      ctSave.mutate({
+                        mappings: [{ printingId: p.printingId, externalId: extId }],
+                      })
+                    }
+                    onUnmap={() => ctUnmap.mutate(p.printingId)}
+                    isSaving={ctSave.isPending}
+                    isUnmapping={ctUnmap.isPending}
+                  />
                 </div>
               </div>
             );

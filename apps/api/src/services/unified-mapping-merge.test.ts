@@ -379,6 +379,257 @@ describe("buildUnifiedMappingsResponse", () => {
     expect(result.allCards).toHaveLength(2);
   });
 
+  it("unions printings across marketplaces — a CT-only printing stays visible when TCG/CM also see the card", async () => {
+    // Regression: before the fix, a printing that only had a CT variant would
+    // be dropped from `group.printings` if TCG was the first marketplace to
+    // register the card, because the CT merge path only stamped ctExternalId
+    // onto existing printings and never added new ones.
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
+    const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
+      if (config.marketplace === "tcgplayer") {
+        return makeMappingResult({
+          groups: [
+            makeGroup({
+              printings: [
+                {
+                  printingId: "p-shared",
+                  shortCode: "OGN-001",
+                  rarity: "Common",
+                  artVariant: "normal",
+                  isSigned: false,
+                  markerSlugs: [],
+                  finish: "normal",
+                  imageUrl: null,
+                  externalId: 100,
+                },
+              ],
+            }),
+          ],
+        });
+      }
+      if (config.marketplace === "cardtrader") {
+        return makeMappingResult({
+          groups: [
+            makeGroup({
+              printings: [
+                {
+                  printingId: "p-shared",
+                  shortCode: "OGN-001",
+                  rarity: "Common",
+                  artVariant: "normal",
+                  isSigned: false,
+                  markerSlugs: [],
+                  finish: "normal",
+                  imageUrl: null,
+                  externalId: 300,
+                },
+                {
+                  printingId: "p-ct-only",
+                  shortCode: "ARC-002",
+                  rarity: "Common",
+                  artVariant: "normal",
+                  isSigned: false,
+                  markerSlugs: [],
+                  finish: "foil",
+                  imageUrl: null,
+                  externalId: 346_739,
+                },
+              ],
+            }),
+          ],
+        });
+      }
+      return makeMappingResult();
+    });
+
+    const result = await buildUnifiedMappingsResponse(
+      repos,
+      makeConfig("tcgplayer"),
+      makeConfig("cardmarket"),
+      makeConfig("cardtrader"),
+      getMappingOverview,
+      true,
+    );
+
+    expect(result.groups).toHaveLength(1);
+    const printingIds = result.groups[0].printings.map((p) => p.printingId);
+    expect(printingIds).toContain("p-shared");
+    expect(printingIds).toContain("p-ct-only");
+    const ctOnly = result.groups[0].printings.find((p) => p.printingId === "p-ct-only");
+    expect(ctOnly?.tcgExternalId).toBeNull();
+    expect(ctOnly?.cmExternalId).toBeNull();
+    expect(ctOnly?.ctExternalId).toBe(346_739);
+  });
+
+  it("unions printings across marketplaces — a CM-only printing stays visible when TCG also sees the card", async () => {
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
+    const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
+      if (config.marketplace === "tcgplayer") {
+        return makeMappingResult({
+          groups: [
+            makeGroup({
+              printings: [
+                {
+                  printingId: "p-shared",
+                  shortCode: "OGN-001",
+                  rarity: "Common",
+                  artVariant: "normal",
+                  isSigned: false,
+                  markerSlugs: [],
+                  finish: "normal",
+                  imageUrl: null,
+                  externalId: 100,
+                },
+              ],
+            }),
+          ],
+        });
+      }
+      if (config.marketplace === "cardmarket") {
+        return makeMappingResult({
+          groups: [
+            makeGroup({
+              printings: [
+                {
+                  printingId: "p-shared",
+                  shortCode: "OGN-001",
+                  rarity: "Common",
+                  artVariant: "normal",
+                  isSigned: false,
+                  markerSlugs: [],
+                  finish: "normal",
+                  imageUrl: null,
+                  externalId: 200,
+                },
+                {
+                  printingId: "p-cm-only",
+                  shortCode: "OGN-002",
+                  rarity: "Common",
+                  artVariant: "normal",
+                  isSigned: false,
+                  markerSlugs: [],
+                  finish: "foil",
+                  imageUrl: null,
+                  externalId: 250,
+                },
+              ],
+            }),
+          ],
+        });
+      }
+      return makeMappingResult();
+    });
+
+    const result = await buildUnifiedMappingsResponse(
+      repos,
+      makeConfig("tcgplayer"),
+      makeConfig("cardmarket"),
+      makeConfig("cardtrader"),
+      getMappingOverview,
+      true,
+    );
+
+    const printingIds = result.groups[0].printings.map((p) => p.printingId);
+    expect(printingIds).toContain("p-shared");
+    expect(printingIds).toContain("p-cm-only");
+    const cmOnly = result.groups[0].printings.find((p) => p.printingId === "p-cm-only");
+    expect(cmOnly?.tcgExternalId).toBeNull();
+    expect(cmOnly?.cmExternalId).toBe(250);
+    expect(cmOnly?.ctExternalId).toBeNull();
+  });
+
+  it("forwards per-marketplace assignments lists through the merge", async () => {
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
+    const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
+      if (config.marketplace === "tcgplayer") {
+        return makeMappingResult({
+          groups: [
+            makeGroup({
+              assignments: [
+                { externalId: 100, printingId: "p-1", finish: "normal", language: "EN" },
+              ],
+            }),
+          ],
+        });
+      }
+      if (config.marketplace === "cardmarket") {
+        return makeMappingResult({
+          groups: [
+            makeGroup({
+              assignments: [
+                { externalId: 200, printingId: "p-1", finish: "normal", language: null },
+                { externalId: 201, printingId: "p-1", finish: "normal", language: null },
+              ],
+            }),
+          ],
+        });
+      }
+      if (config.marketplace === "cardtrader") {
+        return makeMappingResult({
+          groups: [
+            makeGroup({
+              assignments: [
+                { externalId: 300, printingId: "p-1", finish: "normal", language: "EN" },
+              ],
+            }),
+          ],
+        });
+      }
+      return makeMappingResult();
+    });
+
+    const result = await buildUnifiedMappingsResponse(
+      repos,
+      makeConfig("tcgplayer"),
+      makeConfig("cardmarket"),
+      makeConfig("cardtrader"),
+      getMappingOverview,
+      true,
+    );
+
+    const group = result.groups[0];
+    expect(group.tcgplayer.assignments).toEqual([
+      { externalId: 100, printingId: "p-1", finish: "normal", language: "EN" },
+    ]);
+    // Two assignments for the same (printing, marketplace) survive the merge
+    // — this is the case a denormalized single-externalId shape would lose.
+    expect(group.cardmarket.assignments).toHaveLength(2);
+    expect(group.cardmarket.assignments.map((a) => a.externalId).sort()).toEqual([200, 201]);
+    expect(group.cardtrader.assignments).toEqual([
+      { externalId: 300, printingId: "p-1", finish: "normal", language: "EN" },
+    ]);
+  });
+
+  it("defaults per-marketplace assignments to empty arrays when a marketplace has no data", async () => {
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
+    const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
+      if (config.marketplace === "tcgplayer") {
+        return makeMappingResult({ groups: [makeGroup()] });
+      }
+      return makeMappingResult();
+    });
+
+    const result = await buildUnifiedMappingsResponse(
+      repos,
+      makeConfig("tcgplayer"),
+      makeConfig("cardmarket"),
+      makeConfig("cardtrader"),
+      getMappingOverview,
+      true,
+    );
+
+    expect(result.groups[0].cardmarket.assignments).toEqual([]);
+    expect(result.groups[0].cardtrader.assignments).toEqual([]);
+  });
+
   it("collects unmatched products from all marketplaces", async () => {
     const repos = {
       marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },

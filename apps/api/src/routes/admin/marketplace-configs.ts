@@ -49,6 +49,7 @@ interface SnapshotRow extends PriceColumns {
 /** Mapped snapshot query result (sources JOIN snapshots). */
 interface MappedSnapshotRow extends PriceColumns {
   printingId: string;
+  externalId: number;
   productName: string;
   recordedAt: Date;
 }

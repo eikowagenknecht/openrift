@@ -31,6 +31,7 @@ function createMockMappingRepo(overrides: Record<string, unknown> = {}) {
     stagingCardOverrides: vi.fn().mockResolvedValue([]),
     printingFinishesAndLanguages: vi.fn().mockResolvedValue([]),
     stagingByExternalIds: vi.fn().mockResolvedValue([]),
+    productsByExternalIds: vi.fn().mockResolvedValue([]),
     upsertProductVariants: vi.fn().mockResolvedValue([]),
     insertSnapshots: vi.fn().mockResolvedValue(undefined),
     deleteStagingTuples: vi.fn().mockResolvedValue(undefined),
@@ -348,6 +349,7 @@ describe("getMappingOverview", () => {
     const snapshotQuery = vi.fn().mockResolvedValue([
       {
         printingId: "printing-1",
+        externalId: 12_345,
         productName: "Fireball Product",
         recordedAt: new Date("2026-01-15"),
         marketCents: 500,
@@ -393,6 +395,7 @@ describe("getMappingOverview", () => {
     const snapshotQuery = vi.fn().mockResolvedValue([
       {
         printingId: "printing-1",
+        externalId: 123,
         productName: "X",
         recordedAt: new Date("2026-01-15"),
         marketCents: 100,
@@ -435,6 +438,7 @@ describe("getMappingOverview", () => {
     const snapshotQuery = vi.fn().mockResolvedValue([
       {
         printingId: "printing-1",
+        externalId: 12_345,
         productName: "Fireball",
         recordedAt: new Date(),
         marketCents: 100,
@@ -482,6 +486,7 @@ describe("getMappingOverview", () => {
     const snapshotQuery = vi.fn().mockResolvedValue([
       {
         printingId: "p-1",
+        externalId: 123,
         productName: "Fireball",
         recordedAt: new Date(),
         marketCents: 100,
@@ -495,6 +500,7 @@ describe("getMappingOverview", () => {
       },
       {
         printingId: "p-2",
+        externalId: 123,
         productName: "Fireball",
         recordedAt: new Date(),
         marketCents: 100,
@@ -665,6 +671,7 @@ describe("getMappingOverview", () => {
     const snapshotQuery = vi.fn().mockResolvedValue([
       {
         printingId: "printing-1",
+        externalId: 123,
         productName: "Fireball",
         recordedAt: new Date(),
         marketCents: 100,
@@ -761,10 +768,11 @@ describe("getMappingOverview", () => {
     expect(result.unmatchedProducts).toHaveLength(1);
   });
 
-  it("excludes staged product when externalId matches assigned and no unmapped finish", async () => {
+  it("excludes staged product when externalId matches assigned and no unmapped finish (language-aggregate only)", async () => {
     const snapshotQuery = vi.fn().mockResolvedValue([
       {
         printingId: "p-mapped",
+        externalId: 123,
         productName: "Fireball",
         recordedAt: new Date(),
         marketCents: 100,
@@ -807,13 +815,71 @@ describe("getMappingOverview", () => {
         ]),
     });
     const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
-    const config = createMockConfig({ snapshotQuery, mapSnapshotPrices });
+    // Rule 2 only applies for language-aggregate marketplaces (Cardmarket).
+    // On per-language marketplaces (externalId × language = distinct SKU) the
+    // staged foil row would stay visible.
+    const config = createMockConfig({ snapshotQuery, mapSnapshotPrices, languageAggregate: true });
 
     const result = await getMappingOverview(repos, config);
 
     // Staged foil product excluded: externalId 123 is assigned, and there is no
     // unmapped printing with finish "foil"
     expect(result.groups[0].stagedProducts).toHaveLength(0);
+  });
+
+  it("keeps staged product on per-language marketplace even when externalId is assigned elsewhere", async () => {
+    const snapshotQuery = vi.fn().mockResolvedValue([
+      {
+        printingId: "p-mapped",
+        externalId: 123,
+        productName: "Fireball",
+        recordedAt: new Date(),
+        marketCents: 100,
+        lowCents: null,
+        midCents: null,
+        highCents: null,
+        trendCents: null,
+        avg1Cents: null,
+        avg7Cents: null,
+        avg30Cents: null,
+      },
+    ]);
+    const mapSnapshotPrices = vi.fn().mockReturnValue({
+      productName: "Fireball",
+      marketCents: 100,
+      lowCents: null,
+      currency: "USD",
+      recordedAt: new Date().toISOString(),
+      midCents: null,
+      highCents: null,
+      trendCents: null,
+      avg1Cents: null,
+      avg7Cents: null,
+      avg30Cents: null,
+    });
+    const mappingRepo = createMockMappingRepo({
+      allCardsWithPrintings: vi.fn().mockResolvedValue([
+        makeCardPrintingRow({
+          printingId: "p-mapped",
+          externalId: 123,
+          finish: "normal",
+          sourceGroupId: 1,
+        }),
+      ]),
+      allStaging: vi
+        .fn()
+        .mockResolvedValue([
+          makeStagingRow({ externalId: 123, finish: "foil", productName: "Fireball Foil" }),
+        ]),
+    });
+    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
+    // Per-language marketplace: (123, foil, EN) is genuinely a different SKU
+    // from (123, normal, EN), so the staged row must survive.
+    const config = createMockConfig({ snapshotQuery, mapSnapshotPrices, languageAggregate: false });
+
+    const result = await getMappingOverview(repos, config);
+
+    expect(result.groups[0].stagedProducts).toHaveLength(1);
   });
 
   it("does not fetch snapshot prices when no mapped printings", async () => {
@@ -963,6 +1029,93 @@ describe("saveMappings", () => {
 
     expect(result.skipped).toHaveLength(1);
     expect(result.skipped[0].reason).toBe("no staging data found");
+  });
+
+  it("falls back to existing product row when staging is missing but the product is already upserted", async () => {
+    // Regression: allow rebinding an already-mapped variant to a different
+    // printing even after staging rows have rotated out. The previous code
+    // errored with "no staging data found" in this case, blocking legitimate
+    // reassignments of historical data.
+    const upsertSpy = vi.fn().mockResolvedValue([{ printingId: "p-1", variantId: "v-1" }]);
+    const insertSnapshotsSpy = vi.fn().mockResolvedValue(undefined);
+    const mappingRepo = createMockMappingRepo({
+      printingFinishesAndLanguages: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-1", finish: "normal", language: "EN" }]),
+      stagingByExternalIds: vi.fn().mockResolvedValue([]),
+      productsByExternalIds: vi
+        .fn()
+        .mockResolvedValue([
+          { externalId: 12_345, productName: "Historical Product", groupId: 42 },
+        ]),
+      upsertProductVariants: upsertSpy,
+      insertSnapshots: insertSnapshotsSpy,
+    });
+    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
+    const transact = mockTransact(repos);
+    const config = createMockConfig();
+
+    const result = await saveMappings(transact, config, [
+      { printingId: "p-1", externalId: 12_345 },
+    ]);
+
+    expect(result.skipped).toHaveLength(0);
+    expect(result.saved).toBe(1);
+    // Upsert reuses the existing product's group_id + product_name.
+    expect(upsertSpy).toHaveBeenCalledWith([
+      expect.objectContaining({
+        externalId: 12_345,
+        printingId: "p-1",
+        groupId: 42,
+        productName: "Historical Product",
+        finish: "normal",
+        language: "EN",
+      }),
+    ]);
+    // No staging rows → no snapshots to insert in this code path.
+    expect(insertSnapshotsSpy).not.toHaveBeenCalled();
+  });
+
+  it("still errors with variant mismatch when staging exists for a different SKU", async () => {
+    // The fallback only kicks in when staging is entirely absent for the
+    // externalId. If staging has the product but for a different finish/
+    // language, that's a real data mismatch and we keep surfacing it.
+    const mappingRepo = createMockMappingRepo({
+      printingFinishesAndLanguages: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-1", finish: "foil", language: "EN" }]),
+      stagingByExternalIds: vi.fn().mockResolvedValue([
+        {
+          externalId: 12_345,
+          finish: "normal",
+          language: "EN",
+          groupId: 1,
+          productName: "X",
+          recordedAt: new Date(),
+          marketCents: 100,
+          lowCents: null,
+          midCents: null,
+          highCents: null,
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
+        },
+      ]),
+      productsByExternalIds: vi
+        .fn()
+        .mockResolvedValue([{ externalId: 12_345, productName: "X", groupId: 1 }]),
+    });
+    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
+    const transact = mockTransact(repos);
+    const config = createMockConfig();
+
+    const result = await saveMappings(transact, config, [
+      { printingId: "p-1", externalId: 12_345 },
+    ]);
+
+    expect(result.skipped).toHaveLength(1);
+    expect(result.skipped[0].reason).toContain("variant mismatch");
   });
 
   it("returns 0 saved when all mappings are skipped", async () => {

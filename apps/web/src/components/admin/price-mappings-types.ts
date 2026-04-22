@@ -3,6 +3,7 @@ import type { MappingPrintingResponse, StagedProductResponse } from "@openrift/s
 export type {
   AssignableCardResponse as AssignableCard,
   MappingPrintingResponse as MappingPrinting,
+  MarketplaceAssignmentResponse as MarketplaceAssignment,
   StagedProductResponse as StagedProduct,
   UnifiedMappingGroupResponse as UnifiedMappingGroup,
   UnifiedMappingPrintingResponse as UnifiedMappingPrinting,

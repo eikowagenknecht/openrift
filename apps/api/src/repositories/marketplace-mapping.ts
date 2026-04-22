@@ -239,6 +239,25 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /**
+     * Fetch already-upserted product rows by external ID. Used by `saveMappings`
+     * to rebind a variant to a different printing when staging has rotated out
+     * but the upstream product record is still present — reuses the existing
+     * `group_id` and `product_name` as a fallback so the upsert can proceed.
+     * @returns One row per external ID with its display name and group ID.
+     */
+    productsByExternalIds(marketplace: string, externalIds: number[]) {
+      if (externalIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("marketplaceProducts")
+        .select(["externalId", "productName", "groupId"])
+        .where("marketplace", "=", marketplace)
+        .where("externalId", "in", externalIds)
+        .execute();
+    },
+
+    /**
      * Batch-upsert marketplace products and their variants.
      *
      * For each input row: upserts the parent upstream product (keyed on

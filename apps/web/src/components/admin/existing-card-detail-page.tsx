@@ -25,6 +25,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { AdminCardMarketplaceSection } from "@/components/admin/admin-card-marketplace-section";
 import { CandidateSpreadsheet } from "@/components/admin/candidate-spreadsheet";
 import { CardBanManager } from "@/components/admin/card-ban-manager";
 import {
@@ -38,10 +39,7 @@ import {
 import { CardErrataManager } from "@/components/admin/card-errata-manager";
 import { NewPrintingGroupCard } from "@/components/admin/new-printing-group-card";
 import { PrintingImageSwitcher } from "@/components/admin/printing-image-switcher";
-import {
-  PrintingMarketplaceBadges,
-  PrintingMarketplaceCells,
-} from "@/components/admin/printing-marketplace-cells";
+import { PrintingMarketplaceBadges } from "@/components/admin/printing-marketplace-cells";
 import { PrintingSourceActions } from "@/components/admin/printing-source-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -72,7 +70,11 @@ import {
 } from "@/hooks/use-admin-card-queries";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
-import { getCollapsedPrintings, useAdminCardFoldStore } from "@/stores/admin-card-fold-store";
+import {
+  getCollapsedPrintings,
+  getCollapsedSections,
+  useAdminCardFoldStore,
+} from "@/stores/admin-card-fold-store";
 
 export function ExistingCardDetailPage({
   identifier,
@@ -119,7 +121,7 @@ export function ExistingCardDetailPage({
 
   // --- Existing-mode hooks ---
   const checkAllCardSources = useCheckAllCandidateCards();
-  const acceptCardField = useAcceptCardField();
+  const acceptCardField = useAcceptCardField(invalidateScope);
   const acceptPrintingField = useAcceptPrintingField(invalidateScope);
   const renameCard = useRenameCard();
   const acceptPrintingGroup = useAcceptPrintingGroup(invalidateScope);
@@ -131,12 +133,16 @@ export function ExistingCardDetailPage({
 
   // --- State ---
   const collapsedPrintings = useAdminCardFoldStore((state) => getCollapsedPrintings(state, cardId));
+  const collapsedSections = useAdminCardFoldStore((state) => getCollapsedSections(state, cardId));
   const togglePrintingFold = useAdminCardFoldStore((state) => state.togglePrinting);
   const expandPrintingFold = useAdminCardFoldStore((state) => state.expandPrinting);
   const setCollapsedForCard = useAdminCardFoldStore((state) => state.setCollapsedForCard);
+  const toggleSection = useAdminCardFoldStore((state) => state.toggleSection);
+  const cardFieldsExpanded = !collapsedSections.has("cardFields");
+  const marketplaceExpanded = !collapsedSections.has("marketplace");
+  const printingsExpanded = !collapsedSections.has("printings");
   const [showBanForm, setShowBanForm] = useState(false);
   const [showErrataForm, setShowErrataForm] = useState(false);
-  const [focusedPrintingId, setFocusedPrintingId] = useState<string | null>(null);
   const pendingScrollTarget = useRef<string | null>(null);
   const focusHandledRef = useRef(false);
 
@@ -253,8 +259,7 @@ export function ExistingCardDetailPage({
   // When the user arrives via a "Route to card" click on the Unmatched tab,
   // find the printing that matches the staging row (finish match, plus
   // language match for non-aggregate marketplaces — Cardmarket rows apply to
-  // all siblings so any matching finish works), auto-expand it, scroll to it,
-  // and mark it focused so the marketplace cell can flash a ring.
+  // all siblings so any matching finish works), auto-expand it and scroll to it.
   useEffect(() => {
     if (focusHandledRef.current || !focusMarketplace || !focusFinish || !existingData) {
       return;
@@ -277,14 +282,11 @@ export function ExistingCardDetailPage({
     }
     focusHandledRef.current = true;
     expandPrintingFold(cardId, match.id);
-    setFocusedPrintingId(match.id);
     requestAnimationFrame(() => {
       document
         .querySelector(`[data-printing-id="${match.id}"]`)
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
-    const timeout = setTimeout(() => setFocusedPrintingId(null), 2400);
-    return () => clearTimeout(timeout);
   }, [existingData, focusMarketplace, focusFinish, focusLanguage, cardId, expandPrintingFold]);
 
   // --- Error / loading states ---
@@ -315,7 +317,6 @@ export function ExistingCardDetailPage({
   const printingImages = existingData.printingImages;
   const setTotals = existingData.setTotals ?? {};
   const marketplaceMappings = existingData.marketplaceMappings ?? [];
-  const marketplaceStagingCandidates = existingData.marketplaceStagingCandidates ?? [];
   const expectedCardId = existingData.expectedCardId;
   const isCardIdStale = cardId !== expectedCardId;
   const card = existingData.card;
@@ -478,7 +479,14 @@ export function ExistingCardDetailPage({
       {/* ── Card Fields ────────────────────────────────────────────────────── */}
       <section className="space-y-2">
         <div className="flex items-center gap-2">
-          <h3 className="font-medium">Card Fields</h3>
+          <button
+            type="button"
+            className="flex items-center gap-2 hover:opacity-80"
+            onClick={() => toggleSection(cardId, "cardFields")}
+          >
+            {cardFieldsExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+            <h3 className="font-medium">Card Fields</h3>
+          </button>
           {sources.some((s) => !s.checkedAt) && (
             <Button
               variant="outline"
@@ -490,100 +498,102 @@ export function ExistingCardDetailPage({
             </Button>
           )}
         </div>
-        <CandidateSpreadsheet
-          fields={candidateCardFields
-            .filter((f) => f.key !== "rulesText" && f.key !== "effectText")
-            .map((f) => (f.key === "shortCode" ? { ...f, readOnly: false } : f))}
-          requiredKeys={["shortCode", "name", "type", "domains"]}
-          activeRow={{
-            ...card,
-            shortCode: card.slug,
-          }}
-          candidateRows={sources}
-          providerSettings={providerSettings}
-          onCellClick={(field, value) => {
-            if (field === "shortCode") {
-              const newId = String(value).trim();
-              if (newId && newId !== cardId) {
-                renameCard.mutate(
-                  { cardId: card.id, newId },
-                  {
-                    onSuccess: () => {
-                      void navigate({
-                        to: "/admin/cards/$cardSlug",
-                        params: { cardSlug: newId },
-                      });
+        {cardFieldsExpanded && (
+          <CandidateSpreadsheet
+            fields={candidateCardFields
+              .filter((f) => f.key !== "rulesText" && f.key !== "effectText")
+              .map((f) => (f.key === "shortCode" ? { ...f, readOnly: false } : f))}
+            requiredKeys={["shortCode", "name", "type", "domains"]}
+            activeRow={{
+              ...card,
+              shortCode: card.slug,
+            }}
+            candidateRows={sources}
+            providerSettings={providerSettings}
+            onCellClick={(field, value) => {
+              if (field === "shortCode") {
+                const newId = String(value).trim();
+                if (newId && newId !== cardId) {
+                  renameCard.mutate(
+                    { cardId: card.id, newId },
+                    {
+                      onSuccess: () => {
+                        void navigate({
+                          to: "/admin/cards/$cardSlug",
+                          params: { cardSlug: newId },
+                        });
+                      },
                     },
-                  },
-                );
-              }
-              return;
-            }
-            acceptCardField.mutate({ cardId: card.id, field, value, source: "provider" });
-          }}
-          onActiveChange={(field, value) => {
-            if (value === undefined) {
-              return;
-            }
-            if (field === "shortCode") {
-              const newId = String(value).trim();
-              if (newId && newId !== cardId) {
-                renameCard.mutate(
-                  { cardId: card.id, newId },
-                  {
-                    onSuccess: () => {
-                      void navigate({
-                        to: "/admin/cards/$cardSlug",
-                        params: { cardSlug: newId },
-                      });
-                    },
-                  },
-                );
-              }
-              return;
-            }
-            acceptCardField.mutate({ cardId: card.id, field, value });
-          }}
-          onCheck={(candidateId) => checkCandidateCard.mutate(candidateId)}
-          onUncheck={(candidateId) => uncheckCandidateCard.mutate(candidateId)}
-          columnActions={(row) => (
-            <>
-              <DropdownMenuItem
-                onClick={() => {
-                  const record = row as unknown as Record<string, unknown>;
-                  for (const field of candidateCardFields) {
-                    if (field.readOnly) {
-                      continue;
-                    }
-                    const val = record[field.key];
-                    if (val !== null && val !== undefined && val !== "") {
-                      acceptCardField.mutate({
-                        cardId: card.id,
-                        field: field.key,
-                        value: val,
-                        source: "provider",
-                      });
-                    }
-                  }
-                }}
-              >
-                <CopyCheckIcon className="mr-2" />
-                Accept all fields
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() =>
-                  ignoreCardSource.mutate({
-                    provider: (row as CandidateCardResponse).provider,
-                    externalId: row.externalId,
-                  })
+                  );
                 }
-              >
-                <BanIcon className="mr-2" />
-                Ignore permanently
-              </DropdownMenuItem>
-            </>
-          )}
-        />
+                return;
+              }
+              acceptCardField.mutate({ cardId: card.id, field, value, source: "provider" });
+            }}
+            onActiveChange={(field, value) => {
+              if (value === undefined) {
+                return;
+              }
+              if (field === "shortCode") {
+                const newId = String(value).trim();
+                if (newId && newId !== cardId) {
+                  renameCard.mutate(
+                    { cardId: card.id, newId },
+                    {
+                      onSuccess: () => {
+                        void navigate({
+                          to: "/admin/cards/$cardSlug",
+                          params: { cardSlug: newId },
+                        });
+                      },
+                    },
+                  );
+                }
+                return;
+              }
+              acceptCardField.mutate({ cardId: card.id, field, value });
+            }}
+            onCheck={(candidateId) => checkCandidateCard.mutate(candidateId)}
+            onUncheck={(candidateId) => uncheckCandidateCard.mutate(candidateId)}
+            columnActions={(row) => (
+              <>
+                <DropdownMenuItem
+                  onClick={() => {
+                    const record = row as unknown as Record<string, unknown>;
+                    for (const field of candidateCardFields) {
+                      if (field.readOnly) {
+                        continue;
+                      }
+                      const val = record[field.key];
+                      if (val !== null && val !== undefined && val !== "") {
+                        acceptCardField.mutate({
+                          cardId: card.id,
+                          field: field.key,
+                          value: val,
+                          source: "provider",
+                        });
+                      }
+                    }
+                  }}
+                >
+                  <CopyCheckIcon className="mr-2" />
+                  Accept all fields
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() =>
+                    ignoreCardSource.mutate({
+                      provider: (row as CandidateCardResponse).provider,
+                      externalId: row.externalId,
+                    })
+                  }
+                >
+                  <BanIcon className="mr-2" />
+                  Ignore permanently
+                </DropdownMenuItem>
+              </>
+            )}
+          />
+        )}
       </section>
 
       {/* ── Bans ─────────────────────────────────────────────────────────────── */}
@@ -597,144 +607,166 @@ export function ExistingCardDetailPage({
         onShowFormChange={setShowErrataForm}
       />
 
+      {/* ── Marketplace ─────────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <button
+          type="button"
+          className="flex items-center gap-2 hover:opacity-80"
+          onClick={() => toggleSection(cardId, "marketplace")}
+        >
+          {marketplaceExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+          <h3 className="font-medium">Marketplace</h3>
+        </button>
+        {marketplaceExpanded && <AdminCardMarketplaceSection cardId={card.id} />}
+      </section>
+
       {/* ── Printings ──────────────────────────────────────────────────────── */}
       <section className="space-y-3">
         <div className="flex items-center gap-2">
-          <h3 className="font-medium">Printings</h3>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setCollapsedForCard(cardId, allExpanded ? new Set(allPrintingKeys) : new Set());
-            }}
+          <button
+            type="button"
+            className="flex items-center gap-2 hover:opacity-80"
+            onClick={() => toggleSection(cardId, "printings")}
           >
-            {allExpanded ? "Collapse all" : "Expand all"}
-          </Button>
-        </div>
-        {printings.map((printing) => {
-          const printingId = printing.id;
-          const printingLabel = printing.expectedPrintingId;
-          const isExpanded = !collapsedPrintings.has(printingId);
-          const allSources = candidatePrintings.filter((ps) => ps.printingId === printingId);
-          const activeImage = printingImages.find(
-            (pi) => pi.printingId === printingId && pi.isActive,
-          );
-          const printingWithImage = {
-            ...printing,
-            imageUrl: activeImage?.originalUrl ?? null,
-          };
-
-          const matchStatus = computePrintingMatchStatus(
-            printing,
-            allSources,
-            sourceLabels,
-            providerSettings,
-            printingSourceFields,
-            setTotals,
-          );
-          const headerBgClass =
-            matchStatus === "match"
-              ? "bg-green-50 dark:bg-green-950/30"
-              : "bg-yellow-50 dark:bg-yellow-950/30";
-
-          // Deduplicate source images not yet accepted as printing images
-          const sourceImagesForSwitcher = deduplicateSourceImages(
-            allSources.filter(
-              (ps) =>
-                ps.imageUrl &&
-                !printingImages.some(
-                  (pi) => pi.printingId === printingId && pi.originalUrl === ps.imageUrl,
-                ),
-            ),
-            sourceLabels,
-          );
-
-          return (
-            <div
-              key={printingId}
-              data-printing-id={printingId}
-              className="overflow-hidden rounded-md border"
+            {printingsExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+            <h3 className="font-medium">Printings</h3>
+          </button>
+          {printingsExpanded && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCollapsedForCard(cardId, allExpanded ? new Set(allPrintingKeys) : new Set());
+              }}
             >
-              {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- contains nested buttons, can't use <button> */}
+              {allExpanded ? "Collapse all" : "Expand all"}
+            </Button>
+          )}
+        </div>
+        {printingsExpanded &&
+          printings.map((printing) => {
+            const printingId = printing.id;
+            const printingLabel = printing.expectedPrintingId;
+            const isExpanded = !collapsedPrintings.has(printingId);
+            const allSources = candidatePrintings.filter((ps) => ps.printingId === printingId);
+            const activeImage = printingImages.find(
+              (pi) => pi.printingId === printingId && pi.isActive,
+            );
+            const printingWithImage = {
+              ...printing,
+              imageUrl: activeImage?.originalUrl ?? null,
+            };
+
+            const matchStatus = computePrintingMatchStatus(
+              printing,
+              allSources,
+              sourceLabels,
+              providerSettings,
+              printingSourceFields,
+              setTotals,
+            );
+            const headerBgClass =
+              matchStatus === "match"
+                ? "bg-green-50 dark:bg-green-950/30"
+                : "bg-yellow-50 dark:bg-yellow-950/30";
+
+            // Deduplicate source images not yet accepted as printing images
+            const sourceImagesForSwitcher = deduplicateSourceImages(
+              allSources.filter(
+                (ps) =>
+                  ps.imageUrl &&
+                  !printingImages.some(
+                    (pi) => pi.printingId === printingId && pi.originalUrl === ps.imageUrl,
+                  ),
+              ),
+              sourceLabels,
+            );
+
+            return (
               <div
-                className={cn(
-                  "flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium hover:opacity-90",
-                  headerBgClass,
-                )}
-                onClick={() => togglePrinting(printingId)}
+                key={printingId}
+                data-printing-id={printingId}
+                className="overflow-hidden rounded-md border"
               >
-                <span className="flex items-center gap-2">
-                  {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
-                  <span>{printingLabel}</span>
-                  <span className="text-muted-foreground font-normal">
-                    ({allSources.length} source
-                    {allSources.length === 1 ? "" : "s"})
+                {/* oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- contains nested buttons, can't use <button> */}
+                <div
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-sm font-medium hover:opacity-90",
+                    headerBgClass,
+                  )}
+                  onClick={() => togglePrinting(printingId)}
+                >
+                  <span className="flex items-center gap-2">
+                    {isExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                    <span>{printingLabel}</span>
+                    <span className="text-muted-foreground font-normal">
+                      ({allSources.length} source
+                      {allSources.length === 1 ? "" : "s"})
+                    </span>
+                    {!activeImage && <Badge variant="destructive">no image</Badge>}
+                    <PrintingMarketplaceBadges
+                      printingId={printingId}
+                      mappings={marketplaceMappings}
+                    />
                   </span>
-                  {!activeImage && <Badge variant="destructive">no image</Badge>}
-                  <PrintingMarketplaceBadges
-                    printingId={printingId}
-                    mappings={marketplaceMappings}
-                  />
-                </span>
-                {allSources.some((ps) => !ps.checkedAt) && (
-                  <Button
-                    variant="outline"
-                    disabled={checkAllCandidatePrintings.isPending}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      checkAllCandidatePrintings.mutate({ printingId });
-                    }}
-                  >
-                    <CheckCheckIcon className="mr-1" />
-                    Check {allSources.filter((ps) => !ps.checkedAt).length} unchecked
-                  </Button>
-                )}
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="ml-auto"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    }
-                  >
-                    <EllipsisVerticalIcon />
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
+                  {allSources.some((ps) => !ps.checkedAt) && (
+                    <Button
+                      variant="outline"
+                      disabled={checkAllCandidatePrintings.isPending}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        checkAllCandidatePrintings.mutate({ printingId });
+                      }}
+                    >
+                      <CheckCheckIcon className="mr-1" />
+                      Check {allSources.filter((ps) => !ps.checkedAt).length} unchecked
+                    </Button>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
                       render={
-                        <Link
-                          to="/admin/cards/$cardSlug/printings/create"
-                          params={{ cardSlug: cardId }}
-                          search={{ duplicateFrom: printingId }}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="ml-auto"
+                          onClick={(e) => e.stopPropagation()}
                         />
                       }
                     >
-                      <CopyIcon className="mr-2" />
-                      Duplicate printing
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      disabled={deletePrintingMutation.isPending}
-                      onClick={() => {
-                        if (
-                          globalThis.confirm(
-                            `Delete printing "${printingLabel}"? This cannot be undone.`,
-                          )
-                        ) {
-                          deletePrintingMutation.mutate(printingId);
+                      <EllipsisVerticalIcon />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        render={
+                          <Link
+                            to="/admin/cards/$cardSlug/printings/create"
+                            params={{ cardSlug: cardId }}
+                            search={{ duplicateFrom: printingId }}
+                          />
                         }
-                      }}
-                    >
-                      <Trash2Icon className="text-destructive mr-2" />
-                      <span className="text-destructive">Delete</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-              {isExpanded && (
-                <div className="flex gap-3 border-t p-3">
-                  <div className="flex flex-col gap-3">
+                      >
+                        <CopyIcon className="mr-2" />
+                        Duplicate printing
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={deletePrintingMutation.isPending}
+                        onClick={() => {
+                          if (
+                            globalThis.confirm(
+                              `Delete printing "${printingLabel}"? This cannot be undone.`,
+                            )
+                          ) {
+                            deletePrintingMutation.mutate(printingId);
+                          }
+                        }}
+                      >
+                        <Trash2Icon className="text-destructive mr-2" />
+                        <span className="text-destructive">Delete</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                {isExpanded && (
+                  <div className="flex gap-3 border-t p-3">
                     <PrintingImageSwitcher
                       printingId={printingId}
                       printingLabel={printingLabel}
@@ -743,87 +775,79 @@ export function ExistingCardDetailPage({
                       sourceImages={sourceImagesForSwitcher}
                       invalidates={invalidateScope}
                     />
-                    <PrintingMarketplaceCells
-                      printing={printing}
-                      mappings={marketplaceMappings}
-                      stagingCandidates={marketplaceStagingCandidates}
-                      allPrintings={printings}
-                      highlightMarketplace={
-                        focusedPrintingId === printingId ? focusMarketplace : undefined
-                      }
-                    />
+                    <div className="min-w-0 flex-1 space-y-3">
+                      <CandidateSpreadsheet
+                        key={allSources.map((s) => s.id).join(",")}
+                        fields={printingSourceFields}
+                        activeRow={printingWithImage}
+                        candidateRows={allSources}
+                        providerLabels={sourceLabels}
+                        providerNames={sourceNames}
+                        providerSettings={providerSettings}
+                        normalizeCandidate={buildPrintingNormalizer(setTotals, printing.setSlug)}
+                        onCellClick={(field, value) => {
+                          acceptPrintingField.mutate({
+                            printingId,
+                            field,
+                            value,
+                            source: "provider",
+                          });
+                        }}
+                        onActiveChange={(field, value) => {
+                          if (value === undefined) {
+                            return;
+                          }
+                          acceptPrintingField.mutate({ printingId, field, value });
+                        }}
+                        onCheck={(id) => checkPrintingSource.mutate(id)}
+                        onUncheck={(id) => uncheckPrintingSource.mutate(id)}
+                        columnActions={(row) => (
+                          <PrintingSourceActions
+                            targets={printings
+                              .filter((p) => p.id !== printingId)
+                              .map((p) => ({
+                                id: p.id,
+                                label: p.expectedPrintingId,
+                              }))}
+                            onAssign={(pid) =>
+                              linkPrintingSources.mutate({
+                                candidatePrintingIds: [row.id],
+                                printingId: pid,
+                              })
+                            }
+                            onCopy={(pid) =>
+                              copyPrintingSource.mutate({ id: row.id, printingId: pid })
+                            }
+                            onUnassign={() =>
+                              linkPrintingSources.mutate({
+                                candidatePrintingIds: [row.id],
+                                printingId: null,
+                              })
+                            }
+                            onIgnore={() =>
+                              ignorePrintingSource.mutate({
+                                provider:
+                                  sourceLabels[
+                                    (row as CandidatePrintingResponse).candidateCardId
+                                  ] ?? "",
+                                externalId: row.externalId,
+                                finish: (row as CandidatePrintingResponse).finish,
+                              })
+                            }
+                            onDelete={() => deletePrintingSource.mutate(row.id)}
+                          />
+                        )}
+                      />
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1 space-y-3">
-                    <CandidateSpreadsheet
-                      key={allSources.map((s) => s.id).join(",")}
-                      fields={printingSourceFields}
-                      activeRow={printingWithImage}
-                      candidateRows={allSources}
-                      providerLabels={sourceLabels}
-                      providerNames={sourceNames}
-                      providerSettings={providerSettings}
-                      normalizeCandidate={buildPrintingNormalizer(setTotals, printing.setSlug)}
-                      onCellClick={(field, value) => {
-                        acceptPrintingField.mutate({
-                          printingId,
-                          field,
-                          value,
-                          source: "provider",
-                        });
-                      }}
-                      onActiveChange={(field, value) => {
-                        if (value === undefined) {
-                          return;
-                        }
-                        acceptPrintingField.mutate({ printingId, field, value });
-                      }}
-                      onCheck={(id) => checkPrintingSource.mutate(id)}
-                      onUncheck={(id) => uncheckPrintingSource.mutate(id)}
-                      columnActions={(row) => (
-                        <PrintingSourceActions
-                          targets={printings
-                            .filter((p) => p.id !== printingId)
-                            .map((p) => ({
-                              id: p.id,
-                              label: p.expectedPrintingId,
-                            }))}
-                          onAssign={(pid) =>
-                            linkPrintingSources.mutate({
-                              candidatePrintingIds: [row.id],
-                              printingId: pid,
-                            })
-                          }
-                          onCopy={(pid) =>
-                            copyPrintingSource.mutate({ id: row.id, printingId: pid })
-                          }
-                          onUnassign={() =>
-                            linkPrintingSources.mutate({
-                              candidatePrintingIds: [row.id],
-                              printingId: null,
-                            })
-                          }
-                          onIgnore={() =>
-                            ignorePrintingSource.mutate({
-                              provider:
-                                sourceLabels[(row as CandidatePrintingResponse).candidateCardId] ??
-                                "",
-                              externalId: row.externalId,
-                              finish: (row as CandidatePrintingResponse).finish,
-                            })
-                          }
-                          onDelete={() => deletePrintingSource.mutate(row.id)}
-                        />
-                      )}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+                )}
+              </div>
+            );
+          })}
 
         {/* Bulk assign all matchable ambiguous groups */}
-        {ambiguousGroups.length > 0 &&
+        {printingsExpanded &&
+          ambiguousGroups.length > 0 &&
           (() => {
             const matchable = ambiguousGroups.filter((g) =>
               printings.some((p) => p.expectedPrintingId === g.expectedPrintingId),
@@ -860,56 +884,58 @@ export function ExistingCardDetailPage({
           })()}
 
         {/* Ambiguous / new printing groups */}
-        {ambiguousGroups.map((group) => (
-          <NewPrintingGroupCard
-            key={group.groupKey}
-            group={group}
-            existingPrintings={printings}
-            providerLabels={sourceLabels}
-            providerNames={sourceNames}
-            providerSettings={providerSettings}
-            setTotals={setTotals}
-            isExpanded={!collapsedPrintings.has(group.groupKey)}
-            onToggle={() => togglePrinting(group.groupKey)}
-            onAccept={(printingFields, candidatePrintingIds) => {
-              acceptPrintingGroup.mutate(
-                {
-                  cardId: card.id,
-                  printingFields: printingFields as AcceptPrintingBody["printingFields"],
-                  candidatePrintingIds,
-                },
-                {
-                  onSuccess: (data) => {
-                    pendingScrollTarget.current = (data as { printingId: string }).printingId;
+        {printingsExpanded &&
+          ambiguousGroups.map((group) => (
+            <NewPrintingGroupCard
+              key={group.groupKey}
+              group={group}
+              existingPrintings={printings}
+              providerLabels={sourceLabels}
+              providerNames={sourceNames}
+              providerSettings={providerSettings}
+              setTotals={setTotals}
+              isExpanded={!collapsedPrintings.has(group.groupKey)}
+              onToggle={() => togglePrinting(group.groupKey)}
+              onAccept={(printingFields, candidatePrintingIds) => {
+                acceptPrintingGroup.mutate(
+                  {
+                    cardId: card.id,
+                    printingFields: printingFields as AcceptPrintingBody["printingFields"],
+                    candidatePrintingIds,
                   },
-                },
-              );
-            }}
-            onLink={(pid, candidatePrintingIds) => {
-              linkPrintingSources.mutate({ printingId: pid, candidatePrintingIds });
-            }}
-            onCopy={(id, pid) => {
-              copyPrintingSource.mutate({ id, printingId: pid });
-            }}
-            onDelete={(id) => {
-              deletePrintingSource.mutate(id);
-            }}
-            onIgnore={(externalId, finish) => {
-              ignorePrintingSource.mutate({
-                provider:
-                  sourceLabels[
-                    group.candidates.find((s) => s.externalId === externalId)?.candidateCardId ?? ""
-                  ] ?? "",
-                externalId,
-                finish,
-              });
-            }}
-            isAccepting={acceptPrintingGroup.isPending}
-            isLinking={linkPrintingSources.isPending}
-            printingFields={printingSourceFields}
-            invalidates={invalidateScope}
-          />
-        ))}
+                  {
+                    onSuccess: (data) => {
+                      pendingScrollTarget.current = (data as { printingId: string }).printingId;
+                    },
+                  },
+                );
+              }}
+              onLink={(pid, candidatePrintingIds) => {
+                linkPrintingSources.mutate({ printingId: pid, candidatePrintingIds });
+              }}
+              onCopy={(id, pid) => {
+                copyPrintingSource.mutate({ id, printingId: pid });
+              }}
+              onDelete={(id) => {
+                deletePrintingSource.mutate(id);
+              }}
+              onIgnore={(externalId, finish) => {
+                ignorePrintingSource.mutate({
+                  provider:
+                    sourceLabels[
+                      group.candidates.find((s) => s.externalId === externalId)?.candidateCardId ??
+                        ""
+                    ] ?? "",
+                  externalId,
+                  finish,
+                });
+              }}
+              isAccepting={acceptPrintingGroup.isPending}
+              isLinking={linkPrintingSources.isPending}
+              printingFields={printingSourceFields}
+              invalidates={invalidateScope}
+            />
+          ))}
       </section>
     </div>
   );

@@ -507,6 +507,19 @@ export interface StagedProductResponse {
   groupName?: string;
 }
 
+/**
+ * A single (product × printing) mapping row. Authoritative: survives cases
+ * where one printing is bound to multiple variants of the same marketplace
+ * (can happen when two upstream products target the same printing).
+ * `language` is `null` for language-aggregate marketplaces (Cardmarket).
+ */
+export interface MarketplaceAssignmentResponse {
+  externalId: number;
+  printingId: string;
+  finish: string;
+  language: string | null;
+}
+
 export interface UnifiedMappingGroupResponse {
   cardId: string;
   cardSlug: string;
@@ -523,14 +536,17 @@ export interface UnifiedMappingGroupResponse {
   tcgplayer: {
     stagedProducts: StagedProductResponse[];
     assignedProducts: StagedProductResponse[];
+    assignments: MarketplaceAssignmentResponse[];
   };
   cardmarket: {
     stagedProducts: StagedProductResponse[];
     assignedProducts: StagedProductResponse[];
+    assignments: MarketplaceAssignmentResponse[];
   };
   cardtrader: {
     stagedProducts: StagedProductResponse[];
     assignedProducts: StagedProductResponse[];
+    assignments: MarketplaceAssignmentResponse[];
   };
 }
 
