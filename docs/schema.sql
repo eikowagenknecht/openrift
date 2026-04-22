@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict NramceIXeFiGuXa6zQt9r5QvtmHdMe5amlpPY32dEKgox60sgKXzXNDKwABBuf1
+\restrict OdhXrqSgSIHFzKzBby65ygsfb81c3OrhP85Z1o3B5tRApeY1YL2JRUkqIfsf8lj
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -973,6 +973,7 @@ CREATE TABLE public.marketplace_snapshots (
     avg30_cents integer,
     id uuid DEFAULT uuidv7() CONSTRAINT marketplace_snapshots_new_id_not_null NOT NULL,
     variant_id uuid CONSTRAINT marketplace_snapshots_product_id_not_null NOT NULL,
+    zero_low_cents integer,
     CONSTRAINT chk_marketplace_snapshots_avg1_cents_non_negative CHECK ((avg1_cents >= 0)),
     CONSTRAINT chk_marketplace_snapshots_avg30_cents_non_negative CHECK ((avg30_cents >= 0)),
     CONSTRAINT chk_marketplace_snapshots_avg7_cents_non_negative CHECK ((avg7_cents >= 0)),
@@ -980,7 +981,8 @@ CREATE TABLE public.marketplace_snapshots (
     CONSTRAINT chk_marketplace_snapshots_low_cents_non_negative CHECK ((low_cents >= 0)),
     CONSTRAINT chk_marketplace_snapshots_market_cents_non_negative CHECK ((market_cents >= 0)),
     CONSTRAINT chk_marketplace_snapshots_mid_cents_non_negative CHECK ((mid_cents >= 0)),
-    CONSTRAINT chk_marketplace_snapshots_trend_cents_non_negative CHECK ((trend_cents >= 0))
+    CONSTRAINT chk_marketplace_snapshots_trend_cents_non_negative CHECK ((trend_cents >= 0)),
+    CONSTRAINT chk_marketplace_snapshots_zero_low_cents_non_negative CHECK ((zero_low_cents >= 0))
 );
 
 
@@ -1007,7 +1009,9 @@ CREATE TABLE public.marketplace_staging (
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     id uuid DEFAULT uuidv7() CONSTRAINT marketplace_staging_new_id_not_null NOT NULL,
     language text DEFAULT 'EN'::text NOT NULL,
-    norm_name text DEFAULT ''::text NOT NULL
+    norm_name text DEFAULT ''::text NOT NULL,
+    zero_low_cents integer,
+    CONSTRAINT chk_marketplace_staging_zero_low_cents_non_negative CHECK ((zero_low_cents >= 0))
 );
 
 
@@ -3379,5 +3383,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict NramceIXeFiGuXa6zQt9r5QvtmHdMe5amlpPY32dEKgox60sgKXzXNDKwABBuf1
+\unrestrict OdhXrqSgSIHFzKzBby65ygsfb81c3OrhP85Z1o3B5tRApeY1YL2JRUkqIfsf8lj
 

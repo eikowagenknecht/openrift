@@ -180,6 +180,8 @@ export interface MarketplaceSnapshotsTable {
   marketCents: number | null;
   /** CHECK: >= 0 */
   lowCents: number | null;
+  /** CHECK: >= 0. Lowest asking price among CardTrader Zero (hub-eligible) sellers. Null for non-cardtrader marketplaces. */
+  zeroLowCents: number | null;
   /** CHECK: >= 0 */
   midCents: number | null;
   /** CHECK: >= 0 */
@@ -205,6 +207,8 @@ export interface MarketplaceStagingTable {
   recordedAt: Date;
   marketCents: number | null;
   lowCents: number | null;
+  /** Lowest asking price among CardTrader Zero (hub-eligible) sellers. Null for non-cardtrader marketplaces. */
+  zeroLowCents: number | null;
   midCents: number | null;
   highCents: number | null;
   trendCents: number | null;

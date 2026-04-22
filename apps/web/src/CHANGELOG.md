@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-22
+
+- fix: Cheapest prices from CardTrader are more accurate now, since listings from sellers on vacation or multi-card bundles (whose price is the whole-pack total, not per card) are no longer counted as singles
+
 ## 2026-04-21
 
 - feat: Every section on the Promos page can now be folded down to a single heading line, including language groups and individual card lists, so you can collapse the groups you don't care about

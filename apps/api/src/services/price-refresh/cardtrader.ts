@@ -56,6 +56,14 @@ interface CtMarketplaceProduct {
   price_currency: string;
   /** CardTrader condition string, e.g. "Near Mint", "Lightly Played" */
   condition?: string;
+  /** Number of copies sold together at price_cents; >1 means it's a bundle, not a single. */
+  bundle_size?: number;
+  /** Seller has paused the shop; listing is visible but not purchasable. */
+  on_vacation?: boolean;
+  user?: {
+    /** Seller participates in CardTrader Zero (hub-eligible listings). */
+    can_sell_via_hub?: boolean;
+  };
   properties_hash?: {
     riftbound_foil?: boolean;
     riftbound_language?: string;
@@ -67,7 +75,10 @@ interface CtPrice {
   name: string;
   finish: string;
   language: string;
+  /** Lowest asking price across all eligible sellers. */
   minPriceCents: number;
+  /** Lowest asking price among CardTrader Zero (hub-eligible) sellers, if any. */
+  minZeroPriceCents: number | null;
 }
 
 /**
@@ -170,11 +181,18 @@ async function fetchCardtraderData(
       }
       const id = Number(bpId);
 
-      // Only consider Near Mint listings for pricing
-      const nmListings = allListings.filter(
-        (listing) => !listing.condition || listing.condition === "Near Mint",
+      // Only consider listings that are:
+      //  - Near Mint (or condition unspecified)
+      //  - not from a seller on vacation (listed but unreachable until they return)
+      //  - single-card listings (bundle_size > 1 means price_cents is a multi-card total,
+      //    not a per-card price, so treating it as a single would misreport pricing)
+      const eligible = allListings.filter(
+        (listing) =>
+          (!listing.condition || listing.condition === "Near Mint") &&
+          listing.on_vacation !== true &&
+          (listing.bundle_size ?? 1) === 1,
       );
-      if (nmListings.length === 0) {
+      if (eligible.length === 0) {
         continue;
       }
 
@@ -182,7 +200,7 @@ async function fetchCardtraderData(
       // Normalize CardTrader's language codes (e.g. "zh-CN") to the shorter
       // form we use on printings ("ZH") so downstream matching lines up.
       const byLangFinish = new Map<string, CtMarketplaceProduct[]>();
-      for (const listing of nmListings) {
+      for (const listing of eligible) {
         const lang = normalizeCtLanguage(listing.properties_hash?.riftbound_language);
         const finish = listing.properties_hash?.riftbound_foil === true ? "foil" : "normal";
         const key = `${lang}::${finish}`;
@@ -194,12 +212,18 @@ async function fetchCardtraderData(
       for (const [key, listings] of byLangFinish) {
         const [language, finish] = key.split("::") as [string, string];
         const cheapest = listings.reduce((min, p) => (p.price_cents < min.price_cents ? p : min));
+        const zeroListings = listings.filter((listing) => listing.user?.can_sell_via_hub === true);
+        const cheapestZero =
+          zeroListings.length > 0
+            ? zeroListings.reduce((min, p) => (p.price_cents < min.price_cents ? p : min))
+            : null;
         prices.set(`${id}::${finish}::${language}`, {
           blueprintId: id,
           name: cheapest.name_en,
           finish,
           language,
           minPriceCents: cheapest.price_cents,
+          minZeroPriceCents: cheapestZero?.price_cents ?? null,
         });
       }
     }
@@ -246,6 +270,7 @@ function buildCardtraderStaging(
         recordedAt,
         marketCents: null,
         lowCents: price.minPriceCents,
+        zeroLowCents: price.minZeroPriceCents,
         midCents: null,
         highCents: null,
         trendCents: null,

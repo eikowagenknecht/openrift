@@ -9,6 +9,7 @@ type Db = Kysely<Database>;
 const PRICE_COL_NAMES = [
   "market_cents",
   "low_cents",
+  "zero_low_cents",
   "mid_cents",
   "high_cents",
   "trend_cents",
@@ -20,6 +21,7 @@ const PRICE_COL_NAMES = [
 const PRICE_EXCLUDED_SET = {
   marketCents: sql<number | null>`excluded.market_cents`,
   lowCents: sql<number | null>`excluded.low_cents`,
+  zeroLowCents: sql<number | null>`excluded.zero_low_cents`,
   midCents: sql<number | null>`excluded.mid_cents`,
   highCents: sql<number | null>`excluded.high_cents`,
   trendCents: sql<number | null>`excluded.trend_cents`,
@@ -188,6 +190,7 @@ export function priceRefreshRepo(db: Db) {
         recordedAt: Date;
         marketCents: number | null;
         lowCents: number | null;
+        zeroLowCents: number | null;
         midCents: number | null;
         highCents: number | null;
         trendCents: number | null;
@@ -226,6 +229,7 @@ export function priceRefreshRepo(db: Db) {
         groupId: number;
         marketCents: number | null;
         lowCents: number | null;
+        zeroLowCents: number | null;
         midCents: number | null;
         highCents: number | null;
         trendCents: number | null;

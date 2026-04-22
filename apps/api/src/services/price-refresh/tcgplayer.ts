@@ -156,6 +156,7 @@ function buildTcgplayerStaging(
           recordedAt,
           marketCents,
           lowCents: toCents(entry.lowPrice),
+          zeroLowCents: null,
           midCents: toCents(entry.midPrice),
           highCents: toCents(entry.highPrice),
           trendCents: null,

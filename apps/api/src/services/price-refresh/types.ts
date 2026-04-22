@@ -28,10 +28,12 @@ export interface GroupRow {
   abbreviation?: string;
 }
 
-/** All 8 price columns shared by marketplace_snapshots and marketplace_staging. */
+/** All 9 price columns shared by marketplace_snapshots and marketplace_staging. */
 export interface PriceColumns {
   marketCents: number | null;
   lowCents: number | null;
+  /** Lowest asking price among CardTrader Zero (hub-eligible) sellers. Null for other marketplaces. */
+  zeroLowCents: number | null;
   midCents: number | null;
   highCents: number | null;
   trendCents: number | null;

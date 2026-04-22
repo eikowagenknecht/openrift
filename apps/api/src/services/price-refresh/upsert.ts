@@ -58,6 +58,7 @@ function pickPrices(row: PriceColumns): PriceColumns {
   return {
     marketCents: row.marketCents,
     lowCents: row.lowCents,
+    zeroLowCents: row.zeroLowCents,
     midCents: row.midCents,
     highCents: row.highCents,
     trendCents: row.trendCents,

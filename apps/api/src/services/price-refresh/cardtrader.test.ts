@@ -925,6 +925,173 @@ describe("refreshCardtraderPrices", () => {
       expect(staging).toHaveLength(0);
     });
 
+    it("excludes on_vacation listings from pricing", async () => {
+      // The cheaper listing is on vacation and must be dropped; the NM non-vacation
+      // listing should become the low price instead.
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker Vacation",
+                  price_cents: 50,
+                  price_currency: "EUR",
+                  on_vacation: true,
+                  properties_hash: { riftbound_language: "en" },
+                },
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker Available",
+                  price_cents: 200,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      expect(staging).toHaveLength(1);
+      expect(staging[0].lowCents).toBe(200);
+    });
+
+    it("excludes bundle_size > 1 listings from pricing", async () => {
+      // Bundle listings quote the total for the whole pack, not per-card,
+      // so including them would misrepresent the price.
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker 4x Bundle",
+                  price_cents: 40,
+                  price_currency: "EUR",
+                  bundle_size: 4,
+                  properties_hash: { riftbound_language: "en" },
+                },
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker Single",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  bundle_size: 1,
+                  properties_hash: { riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      expect(staging).toHaveLength(1);
+      expect(staging[0].lowCents).toBe(100);
+    });
+
+    it("populates zeroLowCents with the cheapest Zero-eligible listing", async () => {
+      // Cheapest overall is a non-Zero seller at 80; cheapest Zero is 150.
+      // Expect lowCents=80 and zeroLowCents=150.
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker Non-Zero",
+                  price_cents: 80,
+                  price_currency: "EUR",
+                  user: { can_sell_via_hub: false },
+                  properties_hash: { riftbound_language: "en" },
+                },
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker Zero Expensive",
+                  price_cents: 200,
+                  price_currency: "EUR",
+                  user: { can_sell_via_hub: true },
+                  properties_hash: { riftbound_language: "en" },
+                },
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker Zero Cheap",
+                  price_cents: 150,
+                  price_currency: "EUR",
+                  user: { can_sell_via_hub: true },
+                  properties_hash: { riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      expect(staging).toHaveLength(1);
+      expect(staging[0].lowCents).toBe(80);
+      expect(staging[0].zeroLowCents).toBe(150);
+    });
+
+    it("leaves zeroLowCents null when no listings are Zero-eligible", async () => {
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  user: { can_sell_via_hub: false },
+                  properties_hash: { riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const staging: StagingRow[] = upsertSpy.mock.calls[0][3];
+      expect(staging).toHaveLength(1);
+      expect(staging[0].lowCents).toBe(100);
+      expect(staging[0].zeroLowCents).toBeNull();
+    });
+
     it("picks the cheapest foil listing when multiple exist", async () => {
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
