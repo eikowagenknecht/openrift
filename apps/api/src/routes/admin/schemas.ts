@@ -159,6 +159,15 @@ export const clearPricesSchema = z.object({
   marketplace: clearPriceMarketplaceSchema,
 });
 
+export const reconcileSnapshotsSchema = z.object({
+  marketplace: clearPriceMarketplaceSchema,
+});
+
+export const reconcileSnapshotsResponseSchema = z.object({
+  marketplace: clearPriceMarketplaceSchema,
+  snapshotsInserted: z.number().openapi({ example: 14 }),
+});
+
 const upsertCountsSchema = z.object({
   total: z.number().openapi({ example: 468 }),
   new: z.number().openapi({ example: 12 }),

@@ -376,5 +376,49 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         staging: Number(staging[0].numDeletedRows),
       };
     },
+
+    // ── Reconcile snapshots from staging ────────────────────────────────────
+
+    /**
+     * Emit snapshots for staging rows whose variant was created *after* the
+     * staging data was captured. The nightly refresh only writes snapshots
+     * from the current fetch, so any historical staging rows that became
+     * connectable later (e.g. a new-language variant gets auto-matched) stay
+     * orphaned until this runs. `ON CONFLICT DO NOTHING` makes it idempotent.
+     *
+     * Language-aggregate marketplaces (cardmarket) store variants with
+     * `language = NULL`; the join treats those as matching any staging
+     * language for the same `(product, finish)`.
+     *
+     * @returns The number of snapshots newly inserted.
+     */
+    async reconcileStagingSnapshots(marketplace: string): Promise<number> {
+      const result = await sql<{ inserted: number }>`
+        WITH inserted AS (
+          INSERT INTO marketplace_snapshots (
+            variant_id, recorded_at, market_cents, low_cents, mid_cents,
+            high_cents, trend_cents, avg1_cents, avg7_cents, avg30_cents,
+            zero_low_cents
+          )
+          SELECT
+            v.id, s.recorded_at, s.market_cents, s.low_cents, s.mid_cents,
+            s.high_cents, s.trend_cents, s.avg1_cents, s.avg7_cents,
+            s.avg30_cents, s.zero_low_cents
+          FROM marketplace_staging s
+          JOIN marketplace_products p
+            ON p.marketplace = s.marketplace AND p.external_id = s.external_id
+          JOIN marketplace_product_variants v
+            ON v.marketplace_product_id = p.id
+           AND v.finish = s.finish
+           AND (v.language IS NULL OR v.language = s.language)
+          WHERE s.marketplace = ${marketplace}
+          ON CONFLICT (variant_id, recorded_at) DO NOTHING
+          RETURNING 1 AS one
+        )
+        SELECT count(*)::int AS inserted FROM inserted
+      `.execute(db);
+
+      return result.rows[0]?.inserted ?? 0;
+    },
   };
 }

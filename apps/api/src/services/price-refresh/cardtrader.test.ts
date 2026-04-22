@@ -90,7 +90,6 @@ interface MockReposConfig {
     groupId: number;
     productName: string;
   }[];
-  existingCtExternalIds?: number[];
   /**
    * Printings to return from `allPrintingsForPriceMatch`. When a test wires
    * up `existingSources` whose `printingId` is present here, the sibling
@@ -157,8 +156,9 @@ function createMockRepos(config: MockReposConfig = {}) {
     priceRefresh: {
       loadIgnoredKeys: vi.fn(async () => ignoredKeys),
       upsertGroups: vi.fn(async () => {}),
-      existingSourcesByMarketplaces: vi.fn(async () => existingSources),
-      existingExternalIdsByMarketplace: vi.fn(async () => config.existingCtExternalIds ?? []),
+      existingSourcesByMarketplaces: vi.fn(async (marketplaces: string[]) =>
+        existingSources.filter((src) => marketplaces.includes(src.marketplace)),
+      ),
       allPrintingsForPriceMatch: vi.fn(async () => printings),
       batchInsertProductVariants: vi.fn(async () => {}),
     },
@@ -535,29 +535,138 @@ describe("refreshCardtraderPrices", () => {
       expect(repos.priceRefresh.batchInsertProductVariants).toHaveBeenCalled();
     });
 
-    it("skips already-existing cardtrader products", async () => {
+    it("skips a (blueprint, finish, language) combo that already has a variant", async () => {
+      // Blueprint 5001 already has a CT normal/EN variant. The refresh sees
+      // the same EN listing again and must not re-emit a duplicate.
       const { repos } = createMockRepos({
         existingSources: [
           {
             marketplace: "tcgplayer",
             externalId: 7001,
-            printingId: "p-1",
+            printingId: "p-en",
             groupId: 101,
             productName: "Flame Striker",
           },
+          {
+            marketplace: "cardtrader",
+            externalId: 5001,
+            printingId: "p-en",
+            groupId: 1001,
+            productName: "Flame Striker",
+          },
         ],
-        existingCtExternalIds: [5001],
       });
       const { log } = makeMockLogger();
       setupMockFetch(fetchSpy, {
         expansions: [EXPANSION_A],
         blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
-        productsByExpansion: new Map([[1001, {}]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_foil: false, riftbound_language: "en" },
+                },
+              ],
+            },
+          ],
+        ]),
       });
 
       await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
 
       expect(repos.priceRefresh.batchInsertProductVariants).not.toHaveBeenCalled();
+    });
+
+    it("emits a new-language variant even when another-language variant already exists", async () => {
+      // Regression: the auto-matcher used to skip a blueprint entirely once
+      // any variant existed, which permanently orphaned later-appearing
+      // languages (e.g. ZH stock showing up months after the EN variant was
+      // already wired up). The skip must be per (blueprint, finish, language),
+      // not per blueprint.
+      const enPrinting: MockPrinting = {
+        id: "p-en",
+        cardId: "card-flame",
+        setId: "set-origins",
+        shortCode: "OGS-001",
+        finish: "normal",
+        language: "EN",
+      };
+      const zhPrinting: MockPrinting = {
+        id: "p-zh",
+        cardId: "card-flame",
+        setId: "set-origins",
+        shortCode: "OGS-001",
+        finish: "normal",
+        language: "ZH",
+      };
+      const { repos } = createMockRepos({
+        existingSources: [
+          {
+            marketplace: "tcgplayer",
+            externalId: 7001,
+            printingId: "p-en",
+            groupId: 101,
+            productName: "Flame Striker",
+          },
+          // Pre-existing CT EN variant — pre-fix this blocked any further
+          // auto-match on blueprint 5001, including the ZH listing below.
+          {
+            marketplace: "cardtrader",
+            externalId: 5001,
+            printingId: "p-en",
+            groupId: 1001,
+            productName: "Flame Striker",
+          },
+        ],
+        printings: [enPrinting, zhPrinting],
+      });
+      const { log } = makeMockLogger();
+      setupMockFetch(fetchSpy, {
+        expansions: [EXPANSION_A],
+        blueprintsByExpansion: new Map([[1001, [BLUEPRINT_FLAME]]]),
+        productsByExpansion: new Map([
+          [
+            1001,
+            {
+              "5001": [
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 100,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_foil: false, riftbound_language: "en" },
+                },
+                {
+                  blueprint_id: 5001,
+                  name_en: "Flame Striker",
+                  price_cents: 150,
+                  price_currency: "EUR",
+                  properties_hash: { riftbound_foil: false, riftbound_language: "zh-CN" },
+                },
+              ],
+            },
+          ],
+        ]),
+      });
+
+      await refreshCardtraderPrices(globalThis.fetch, repos, log, "test-token");
+
+      const insertCall = (
+        repos.priceRefresh.batchInsertProductVariants as unknown as ReturnType<typeof vi.fn>
+      ).mock.calls[0][0] as { printingId: string; finish: string; language: string }[];
+      // Only the ZH variant is new; the EN one is already in existingSources.
+      expect(insertCall).toHaveLength(1);
+      expect(insertCall[0]).toMatchObject({
+        printingId: "p-zh",
+        finish: "normal",
+        language: "ZH",
+      });
     });
 
     it("does not auto-match blueprints without cross-references", async () => {

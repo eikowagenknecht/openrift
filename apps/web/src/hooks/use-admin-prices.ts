@@ -1,8 +1,12 @@
-import type { ClearPricesResponse, PriceRefreshResponse } from "@openrift/shared";
+import type {
+  ClearPricesResponse,
+  PriceRefreshResponse,
+  ReconcileSnapshotsResponse,
+} from "@openrift/shared";
 import { useMutation } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { refreshActions, clearActions } from "@/components/admin/refresh-actions";
+import { refreshActions, clearActions, reconcileActions } from "@/components/admin/refresh-actions";
 import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
@@ -16,6 +20,19 @@ const clearPricesFn = createServerFn({ method: "POST" })
       errorTitle: "Couldn't clear prices",
       cookie: context.cookie,
       path: "/api/v1/admin/clear-prices",
+      method: "POST",
+      body: { marketplace: data.marketplace },
+    }),
+  );
+
+const reconcileSnapshotsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { marketplace: string }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }) =>
+    fetchApiJson<ReconcileSnapshotsResponse>({
+      errorTitle: "Couldn't reconcile snapshots",
+      cookie: context.cookie,
+      path: "/api/v1/admin/reconcile-snapshots",
       method: "POST",
       body: { marketplace: data.marketplace },
     }),
@@ -36,5 +53,13 @@ export function useClearPrices(cronKey: "tcgplayer" | "cardmarket" | "cardtrader
   return useMutation({
     mutationFn: (): Promise<ClearPricesResponse> =>
       clearPricesFn({ data: { marketplace: clearAction.source } }),
+  });
+}
+
+export function useReconcileSnapshots(cronKey: "tcgplayer" | "cardmarket" | "cardtrader") {
+  const action = reconcileActions[cronKey];
+  return useMutation({
+    mutationFn: (): Promise<ReconcileSnapshotsResponse> =>
+      reconcileSnapshotsFn({ data: { marketplace: action.source } }),
   });
 }

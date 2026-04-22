@@ -5,7 +5,7 @@ import { formatRelativeTime } from "@/components/admin/refresh-actions";
 import type { CronStatus } from "@/components/admin/refresh-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useClearPrices, useRefreshPrices } from "@/hooks/use-admin-prices";
+import { useClearPrices, useReconcileSnapshots, useRefreshPrices } from "@/hooks/use-admin-prices";
 import { useCronStatus } from "@/hooks/use-cron-status";
 import { useMarketplaceGroups } from "@/hooks/use-marketplace-groups";
 
@@ -56,8 +56,10 @@ function PriceSection({
 
   const refreshMutation = useRefreshPrices(cronKey);
   const clearMutation = useClearPrices(cronKey);
+  const reconcileMutation = useReconcileSnapshots(cronKey);
 
-  const anyPending = refreshMutation.isPending || clearMutation.isPending;
+  const anyPending =
+    refreshMutation.isPending || clearMutation.isPending || reconcileMutation.isPending;
 
   return (
     <Card>
@@ -78,6 +80,18 @@ function PriceSection({
               disabled={anyPending}
               isPending={clearMutation.isPending}
             />
+            <Button
+              variant="outline"
+              disabled={anyPending}
+              onClick={() => reconcileMutation.mutate()}
+              title="Fill in snapshots for staging rows whose variants were added later. Run after a price refresh."
+            >
+              {reconcileMutation.isPending ? (
+                <LoaderIcon className="size-4 animate-spin" />
+              ) : (
+                "Reconcile"
+              )}
+            </Button>
             <Button disabled={anyPending} onClick={() => refreshMutation.mutate()}>
               {refreshMutation.isPending ? (
                 <LoaderIcon className="size-4 animate-spin" />
@@ -91,7 +105,9 @@ function PriceSection({
       {(refreshMutation.isSuccess ||
         refreshMutation.isError ||
         clearMutation.isSuccess ||
-        clearMutation.isError) && (
+        clearMutation.isError ||
+        reconcileMutation.isSuccess ||
+        reconcileMutation.isError) && (
         <CardContent className="pt-0">
           {refreshMutation.isSuccess && refreshMutation.data && (
             <PriceRefreshResult result={refreshMutation.data} />
@@ -114,6 +130,20 @@ function PriceSection({
             <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
               <XIcon className="size-4" />
               {clearMutation.error.message}
+            </p>
+          )}
+          {reconcileMutation.isSuccess && (
+            <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+              <CheckIcon className="size-4" />
+              {reconcileMutation.data.snapshotsInserted === 0
+                ? "No snapshots to reconcile"
+                : `Inserted ${reconcileMutation.data.snapshotsInserted} snapshots from staging`}
+            </p>
+          )}
+          {reconcileMutation.isError && (
+            <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+              <XIcon className="size-4" />
+              {reconcileMutation.error.message}
             </p>
           )}
         </CardContent>

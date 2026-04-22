@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type { ClearPricesResponse } from "@openrift/shared";
+import type { ClearPricesResponse, ReconcileSnapshotsResponse } from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
 import { z } from "zod";
 
@@ -9,7 +9,12 @@ import {
   refreshTcgplayerPrices,
 } from "../../services/price-refresh/index.js";
 import type { Variables } from "../../types.js";
-import { clearPricesSchema, priceRefreshResponseSchema } from "./schemas.js";
+import {
+  clearPricesSchema,
+  priceRefreshResponseSchema,
+  reconcileSnapshotsResponseSchema,
+  reconcileSnapshotsSchema,
+} from "./schemas.js";
 
 const log = createLogger("admin");
 
@@ -87,6 +92,21 @@ const refreshMatviews = createRoute({
   },
 });
 
+const reconcileSnapshots = createRoute({
+  method: "post",
+  path: "/reconcile-snapshots",
+  tags: ["Admin - Operations"],
+  request: {
+    body: { content: { "application/json": { schema: reconcileSnapshotsSchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: reconcileSnapshotsResponseSchema } },
+      description: "Snapshots reconciled from staging",
+    },
+  },
+});
+
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const operationsRoute = new OpenAPIHono<{ Variables: Variables }>()
@@ -133,4 +153,17 @@ export const operationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { marketplace, catalog } = c.get("repos");
     await Promise.all([marketplace.refreshLatestPrices(), catalog.refreshCardAggregates()]);
     return c.body(null, 204);
+  })
+
+  // ── Reconcile snapshots ─────────────────────────────────────────────────────
+
+  .openapi(reconcileSnapshots, async (c) => {
+    const { marketplaceAdmin: mktAdmin, marketplace } = c.get("repos");
+    const { marketplace: mp } = c.req.valid("json");
+
+    const snapshotsInserted = await mktAdmin.reconcileStagingSnapshots(mp);
+    if (snapshotsInserted > 0) {
+      await marketplace.refreshLatestPrices();
+    }
+    return c.json({ marketplace: mp, snapshotsInserted } satisfies ReconcileSnapshotsResponse);
   });
