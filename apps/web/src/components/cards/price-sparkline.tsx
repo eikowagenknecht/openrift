@@ -18,6 +18,14 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+// CardTrader's `zero_low_cents` is a recently-added column. While Zero data
+// is sparse, the sparkline falls back to `zeroLow ?? low` per snapshot so
+// users still see a continuous 30-day trend line. Once there are more than
+// this many Zero points in the window, we plot Zero strictly — the dense
+// data is accurate enough to stand on its own and mixing it with old
+// overall-low would fake a price jump at the boundary.
+const CT_ZERO_SPARSE_THRESHOLD = 10;
+
 interface PriceSparklineProps {
   printingId: string;
   onRangeChange?: (range: TimeRange) => void;
@@ -30,7 +38,15 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
   const favorite = marketplaceOrder[0] ?? "cardtrader";
   const { data } = usePriceHistory(printingId, "30d");
   const rawSnapshots: AnySnapshot[] = data?.[favorite]?.snapshots ?? [];
-  const snapshots = rawSnapshots.map((s) => ({ date: s.date, value: snapshotHeadline(s) }));
+  const ctZeroCount =
+    favorite === "cardtrader"
+      ? rawSnapshots.reduce((n, s) => (!("market" in s) && s.zeroLow !== null ? n + 1 : n), 0)
+      : Number.POSITIVE_INFINITY;
+  const ctFallback = ctZeroCount <= CT_ZERO_SPARSE_THRESHOLD;
+  const snapshots = rawSnapshots.map((s) => ({
+    date: s.date,
+    value: "market" in s ? s.market : ctFallback ? snapshotHeadline(s) : s.zeroLow,
+  }));
   const fmt = formatterForMarketplace(favorite);
   const gradientId = `sparkFill-${useId().replaceAll(":", "")}`;
 
@@ -39,7 +55,11 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
     onRangeChange?.(newRange);
   };
 
-  if (snapshots.length < 2) {
+  // In strict CT mode, many points may have `value: null` (pre-Zero days);
+  // count only plottable ones so we don't render a 30-wide chart that has
+  // just one solitary point on it.
+  const plottableCount = snapshots.reduce((n, s) => (s.value === null ? n : n + 1), 0);
+  if (plottableCount < 2) {
     return null;
   }
 
@@ -73,7 +93,10 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
               if (!active || !payload?.length) {
                 return null;
               }
-              const snap = payload[0].payload as { value: number; date: string };
+              const snap = payload[0].payload as { value: number | null; date: string };
+              if (snap.value === null) {
+                return null;
+              }
               return (
                 <div className="bg-popover rounded-md px-2 py-1 text-xs shadow-md">
                   <span className="font-medium">{fmt(snap.value)}</span>

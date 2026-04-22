@@ -11,12 +11,6 @@ import { usePriceHistory } from "@/hooks/use-price-history";
 import { formatterForMarketplace } from "@/lib/format";
 import { useDisplayStore } from "@/stores/display-store";
 
-// CardTrader's `zero_low_cents` is a recently-added column, so many cards
-// have only a handful of Zero data points. Below this threshold we keep the
-// chart continuous by falling back to overall-low per snapshot; above it we
-// plot Zero strictly and let historic null days leave a gap.
-const CT_ZERO_SPARSE_THRESHOLD = 10;
-
 export const TIME_RANGES: { value: TimeRange; label: string; days: number }[] = [
   { value: "7d", label: "7D", days: 7 },
   { value: "30d", label: "30D", days: 30 },
@@ -95,43 +89,19 @@ export function PriceHistoryChart({
 
   const currencyFormatter = formatterForMarketplace(source);
   const sourceData = data?.[source];
-  // Normalize per-source snapshot shapes into a uniform
-  // `{date, value, low, primaryLabel}`.
-  //
-  // TCG/CM: `value` is `market`, `low` is the secondary line, label "Market".
-  //
-  // CardTrader: `value` is the Zero-eligible low, with two modes that pick
-  // themselves based on how much Zero data exists in the viewed range:
-  //  - Sparse mode (≤ CT_ZERO_SPARSE_THRESHOLD non-null `zeroLow` points):
-  //    fall back to `zeroLow ?? low` per snapshot so the line stays
-  //    continuous for cards where Zero tracking just started. Each point is
-  //    labelled "Zero" or "Lowest" depending on which field it used.
-  //  - Dense mode: plot `zeroLow` strictly (nullable, breaks on null days).
-  //    Historic snapshots without Zero data don't get silently plotted as
-  //    the cheaper overall-low — which would fake a price jump on the day
-  //    Zero tracking began. The overall `low` is always shown as the
-  //    secondary dashed line for context.
-  // The mode transitions automatically as Zero data accumulates.
+  // Normalize per-source snapshot shapes into a uniform `{date, value, low?}`.
+  // TCG/CM: headline is `market`, `low` is the secondary line. CardTrader:
+  // headline is the Zero-eligible low drawn directly (breaking on null days,
+  // so snapshots from before zero_low_cents was recorded don't get silently
+  // plotted as the cheaper overall-low — which would make the line appear to
+  // jump up at the point the Zero data begins). The overall low is plotted
+  // as the always-on secondary dashed line, matching TCG/CM.
   const rawSnapshots: AnySnapshot[] = sourceData?.snapshots ?? [];
-  const ctZeroCount =
-    source === "cardtrader"
-      ? rawSnapshots.reduce((n, s) => (!("market" in s) && s.zeroLow !== null ? n + 1 : n), 0)
-      : Number.POSITIVE_INFINITY;
-  const ctFallback = ctZeroCount <= CT_ZERO_SPARSE_THRESHOLD;
-  const snapshots = rawSnapshots.map((s) => {
-    if ("market" in s) {
-      return { date: s.date, value: s.market, low: s.low, primaryLabel: "Market" };
-    }
-    if (ctFallback) {
-      return {
-        date: s.date,
-        value: s.zeroLow ?? s.low,
-        low: s.low,
-        primaryLabel: s.zeroLow === null ? "Lowest" : "Zero",
-      };
-    }
-    return { date: s.date, value: s.zeroLow, low: s.low, primaryLabel: "Zero" };
-  });
+  const snapshots = rawSnapshots.map((s) => ({
+    date: s.date,
+    value: "market" in s ? s.market : s.zeroLow,
+    low: s.low,
+  }));
 
   const hasLow = snapshots.some((s) => s.low !== null);
 
@@ -250,8 +220,8 @@ export function PriceHistoryChart({
                   date: string;
                   value: number | null;
                   low: number | null;
-                  primaryLabel: string;
                 };
+                const headlineLabel = source === "cardtrader" ? "Zero" : "Market";
                 return (
                   <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
                     <p className="mb-1 font-medium">{snap.date}</p>
@@ -262,7 +232,7 @@ export function PriceHistoryChart({
                             className="size-2 rounded-full"
                             style={{ backgroundColor: "var(--color-value)" }}
                           />
-                          <span className="text-muted-foreground">{snap.primaryLabel}</span>
+                          <span className="text-muted-foreground">{headlineLabel}</span>
                           <span className="ml-auto font-mono font-medium tabular-nums">
                             {currencyFormatter(snap.value)}
                           </span>
