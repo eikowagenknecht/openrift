@@ -201,4 +201,36 @@ describe("parseDeckImportData — text format", () => {
     expect(entries[0].sourceSlot).toBe("chosenChampion");
     expect(entries[0].explicitZone).toBe("champion");
   });
+
+  it("recognizes 'Rune Pool:' as the runes zone (riftdecks.com format)", () => {
+    const input = "Rune Pool:\n5 Body Rune\n7 Order Rune";
+    const { entries, warnings } = parseDeckImportData(input, "text");
+
+    expect(warnings).toHaveLength(0);
+    expect(entries).toHaveLength(2);
+    expect(entries[0].explicitZone).toBe("runes");
+    expect(entries[1].explicitZone).toBe("runes");
+  });
+
+  it("recognizes 'Main Deck:' (with space) as the main zone", () => {
+    const input = "Main Deck:\n3 Iron Ballista";
+    const { entries, warnings } = parseDeckImportData(input, "text");
+
+    expect(warnings).toHaveLength(0);
+    expect(entries[0].explicitZone).toBe("main");
+  });
+
+  it("warns and clears the zone on unknown header so cards fall back to type inference", () => {
+    // Reproduces the riftdecks.com bug: an unknown 'Rune Pool:' header used to
+    // make the rune cards inherit the prior 'Battlefields:' zone silently.
+    const input = "Battlefields:\n1 Sunken Temple\n\nMystery Zone:\n5 Body Rune";
+    const { entries, warnings } = parseDeckImportData(input, "text");
+
+    expect(warnings).toContain("Unknown zone header: Mystery Zone:");
+    expect(entries).toHaveLength(2);
+    expect(entries[0].explicitZone).toBe("battlefield");
+    // Card after the unknown header should NOT inherit 'battlefield'
+    expect(entries[1].explicitZone).toBeUndefined();
+    expect(entries[1].sourceSlot).toBe("mainDeck");
+  });
 });

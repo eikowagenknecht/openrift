@@ -524,18 +524,18 @@ function PreviewStep({
 
       {/* Parse warnings */}
       {parseWarnings.length > 0 && (
-        <details className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
-          <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-300">
-            {parseWarnings.length} warning{parseWarnings.length === 1 ? "" : "s"}
-          </summary>
-          <div className="border-t border-amber-200 px-3 py-2 dark:border-amber-900">
+        <div className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
+          <p className="px-3 py-2 font-medium text-amber-800 dark:text-amber-300">
+            {parseWarnings.length} warning{parseWarnings.length === 1 ? "" : "s"} while parsing
+          </p>
+          <div className="space-y-1 border-t border-amber-200 px-3 py-2 dark:border-amber-900">
             {parseWarnings.map((warning) => (
-              <p key={warning} className="text-sm text-amber-700 dark:text-amber-400">
+              <p key={warning} className="text-amber-700 dark:text-amber-400">
                 {warning}
               </p>
             ))}
           </div>
-        </details>
+        </div>
       )}
 
       {/* Summary + deck options + import button */}

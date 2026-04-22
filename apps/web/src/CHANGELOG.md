@@ -2,6 +2,7 @@
 
 ## 2026-04-22
 
+- fix: Importing a deck in text format now recognizes "Rune Pool:" and "Main Deck:" as zone headers (the labels riftdecks.com exports use), so runes and main-deck cards land in the right zones instead of inheriting the previous zone. Unknown zone headers no longer silently dump their cards into the prior zone either, and the warning panel is now expanded by default so it's harder to miss
 - fix: Cheapest prices from CardTrader are more accurate now, since listings from sellers on vacation or multi-card bundles (whose price is the whole-pack total, not per card) are no longer counted as singles
 
 ## 2026-04-21
