@@ -1,5 +1,6 @@
 import type {
   AssignableCardResponse,
+  MarketplaceAssignmentResponse,
   StagedProductResponse,
   UnifiedMappingGroupResponse,
   UnifiedMappingsResponse,
@@ -76,6 +77,7 @@ interface MappingOverviewResult {
     }[];
     stagedProducts: StagedProductResponse[];
     assignedProducts: StagedProductResponse[];
+    assignments: MarketplaceAssignmentResponse[];
   }[];
   unmatchedProducts: StagedProductResponse[];
   allCards: AssignableCardResponse[];
@@ -147,9 +149,10 @@ export async function buildUnifiedMappingsResponse(
       tcgplayer: {
         stagedProducts: group.stagedProducts,
         assignedProducts: group.assignedProducts,
+        assignments: group.assignments,
       },
-      cardmarket: { stagedProducts: [], assignedProducts: [] },
-      cardtrader: { stagedProducts: [], assignedProducts: [] },
+      cardmarket: { stagedProducts: [], assignedProducts: [], assignments: [] },
+      cardtrader: { stagedProducts: [], assignedProducts: [], assignments: [] },
     });
   }
 
@@ -162,9 +165,31 @@ export async function buildUnifiedMappingsResponse(
       for (const p of existing.printings) {
         p.cmExternalId = cmByPrinting.get(p.printingId) ?? null;
       }
+      // Add printings that only have CM variants — otherwise they vanish from
+      // the unified view and any assignment referencing them loses its context.
+      const existingIds = new Set(existing.printings.map((p) => p.printingId));
+      for (const p of group.printings) {
+        if (!existingIds.has(p.printingId)) {
+          existing.printings.push({
+            printingId: p.printingId,
+            shortCode: p.shortCode,
+            rarity: p.rarity,
+            artVariant: p.artVariant,
+            isSigned: p.isSigned,
+            markerSlugs: p.markerSlugs,
+            finish: p.finish,
+            language: p.language,
+            imageUrl: p.imageUrl,
+            tcgExternalId: null,
+            cmExternalId: p.externalId,
+            ctExternalId: null,
+          });
+        }
+      }
       existing.cardmarket = {
         stagedProducts: group.stagedProducts,
         assignedProducts: group.assignedProducts,
+        assignments: group.assignments,
       };
     } else {
       mergedMap.set(group.cardId, {
@@ -192,12 +217,13 @@ export async function buildUnifiedMappingsResponse(
           cmExternalId: p.externalId,
           ctExternalId: null,
         })),
-        tcgplayer: { stagedProducts: [], assignedProducts: [] },
+        tcgplayer: { stagedProducts: [], assignedProducts: [], assignments: [] },
         cardmarket: {
           stagedProducts: group.stagedProducts,
           assignedProducts: group.assignedProducts,
+          assignments: group.assignments,
         },
-        cardtrader: { stagedProducts: [], assignedProducts: [] },
+        cardtrader: { stagedProducts: [], assignedProducts: [], assignments: [] },
       });
     }
   }
@@ -210,9 +236,31 @@ export async function buildUnifiedMappingsResponse(
       for (const p of existing.printings) {
         p.ctExternalId = ctByPrinting.get(p.printingId) ?? null;
       }
+      // Add printings that only have CT variants — otherwise they vanish from
+      // the unified view and any assignment referencing them loses its context.
+      const existingIds = new Set(existing.printings.map((p) => p.printingId));
+      for (const p of group.printings) {
+        if (!existingIds.has(p.printingId)) {
+          existing.printings.push({
+            printingId: p.printingId,
+            shortCode: p.shortCode,
+            rarity: p.rarity,
+            artVariant: p.artVariant,
+            isSigned: p.isSigned,
+            markerSlugs: p.markerSlugs,
+            finish: p.finish,
+            language: p.language,
+            imageUrl: p.imageUrl,
+            tcgExternalId: null,
+            cmExternalId: null,
+            ctExternalId: p.externalId,
+          });
+        }
+      }
       existing.cardtrader = {
         stagedProducts: group.stagedProducts,
         assignedProducts: group.assignedProducts,
+        assignments: group.assignments,
       };
     } else {
       mergedMap.set(group.cardId, {
@@ -240,11 +288,12 @@ export async function buildUnifiedMappingsResponse(
           cmExternalId: null,
           ctExternalId: p.externalId,
         })),
-        tcgplayer: { stagedProducts: [], assignedProducts: [] },
-        cardmarket: { stagedProducts: [], assignedProducts: [] },
+        tcgplayer: { stagedProducts: [], assignedProducts: [], assignments: [] },
+        cardmarket: { stagedProducts: [], assignedProducts: [], assignments: [] },
         cardtrader: {
           stagedProducts: group.stagedProducts,
           assignedProducts: group.assignedProducts,
+          assignments: group.assignments,
         },
       });
     }

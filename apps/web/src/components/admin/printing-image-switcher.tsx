@@ -91,75 +91,6 @@ export function PrintingImageSwitcher({
 
   return (
     <div className="w-96 shrink-0 space-y-2">
-      {/* Image tabs + add buttons */}
-      <div className="flex flex-wrap items-center gap-1">
-        {sortedImages.map((img) => {
-          const isSelected = effectiveImage?.id === img.id;
-          return (
-            <button
-              key={img.id}
-              type="button"
-              className={`rounded px-1.5 py-0.5 ${
-                isSelected
-                  ? "bg-primary text-primary-foreground"
-                  : img.isActive
-                    ? "bg-muted font-medium"
-                    : "bg-muted/50 text-muted-foreground"
-              }`}
-              onClick={() => {
-                setSelectedId(isSelected ? null : img.id);
-                setResolution(null);
-                setImgError(false);
-              }}
-            >
-              {img.provider}
-              {img.rehostedUrl ? null : <span className="text-orange-500"> !</span>}
-            </button>
-          );
-        })}
-        {sortedSourceImages.map((si) => (
-          <button
-            key={si.candidatePrintingId}
-            type="button"
-            className={`rounded border border-dashed px-1.5 py-0.5 ${
-              effectiveSource?.candidatePrintingId === si.candidatePrintingId
-                ? "border-primary bg-primary/10"
-                : "text-muted-foreground"
-            }`}
-            onClick={() => {
-              setSelectedId(
-                effectiveSource?.candidatePrintingId === si.candidatePrintingId
-                  ? null
-                  : si.candidatePrintingId,
-              );
-              setResolution(null);
-              setImgError(false);
-            }}
-          >
-            {si.source}
-          </button>
-        ))}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-5"
-          title="Add from URL"
-          onClick={() => setShowUrlInput((v) => !v)}
-        >
-          <ImagePlusIcon className="size-3" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-5"
-          title="Upload image"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={uploadPrintingImage.isPending}
-        >
-          <UploadIcon className="size-3" />
-        </Button>
-      </div>
-
       {/* Preview */}
       <ImagePreview
         url={effectiveUrl}
@@ -170,16 +101,16 @@ export function PrintingImageSwitcher({
         setImgError={setImgError}
       />
       {(effectiveImage || effectiveSource) && (
-        <div className="space-y-0.5">
+        <div className="flex min-h-5 items-center gap-2">
           {effectiveImage?.originalUrl && (
             <a
               href={effectiveImage.originalUrl}
               target="_blank"
               rel="noreferrer"
-              className="text-muted-foreground hover:text-foreground block truncate"
+              className="text-muted-foreground hover:text-foreground truncate"
               title={effectiveImage.originalUrl}
             >
-              {effectiveImage.originalUrl}
+              {new URL(effectiveImage.originalUrl).hostname}
             </a>
           )}
           {effectiveImage?.rehostedUrl && (
@@ -187,10 +118,10 @@ export function PrintingImageSwitcher({
               href={`${effectiveImage.rehostedUrl}-full.webp?r=${effectiveImage.rotation}`}
               target="_blank"
               rel="noreferrer"
-              className="block truncate text-green-600 hover:text-green-500"
+              className="ml-auto truncate text-green-600 hover:text-green-500"
               title={`${effectiveImage.rehostedUrl}-full.webp`}
             >
-              {effectiveImage.rehostedUrl.split("/").pop()}-full.webp
+              rehosted
             </a>
           )}
           {effectiveSource && (
@@ -198,10 +129,10 @@ export function PrintingImageSwitcher({
               href={effectiveSource.url}
               target="_blank"
               rel="noreferrer"
-              className="text-muted-foreground hover:text-foreground block truncate"
+              className="text-muted-foreground hover:text-foreground truncate"
               title={effectiveSource.url}
             >
-              {effectiveSource.url}
+              {new URL(effectiveSource.url).hostname}
             </a>
           )}
         </div>
@@ -209,7 +140,7 @@ export function PrintingImageSwitcher({
 
       {/* Status + actions bar */}
       {effectiveImage && (
-        <div className="flex items-center gap-1">
+        <div className="flex min-h-6 items-center gap-1">
           {effectiveImage.isActive ? (
             <Badge variant="default">Active</Badge>
           ) : (
@@ -325,12 +256,13 @@ export function PrintingImageSwitcher({
         </div>
       )}
       {!effectiveImage && effectiveSource && (
-        <div className="flex items-center gap-1">
+        <div className="flex min-h-6 items-center gap-1">
           <Badge variant="outline">Source</Badge>
           <span className="text-muted-foreground">{effectiveSource.source}</span>
           <div className="ml-auto flex items-center gap-0.5">
             <Button
               variant="ghost"
+              className="h-6 px-1.5"
               disabled={setPrintingSourceImage.isPending}
               onClick={() =>
                 setPrintingSourceImage.mutate(
@@ -344,6 +276,7 @@ export function PrintingImageSwitcher({
             </Button>
             <Button
               variant="ghost"
+              className="h-6 px-1.5"
               disabled={setPrintingSourceImage.isPending}
               onClick={() =>
                 setPrintingSourceImage.mutate(
@@ -358,6 +291,73 @@ export function PrintingImageSwitcher({
           </div>
         </div>
       )}
+
+      {/* Image source tabs */}
+      <div className="flex flex-wrap items-center gap-1">
+        {sortedImages.map((img) => {
+          const isSelected = effectiveImage?.id === img.id;
+          return (
+            <button
+              key={img.id}
+              type="button"
+              className={`rounded px-1.5 py-0.5 ${
+                isSelected
+                  ? "bg-primary text-primary-foreground"
+                  : img.isActive
+                    ? "bg-muted font-medium"
+                    : "bg-muted/50 text-muted-foreground"
+              }`}
+              onClick={() => {
+                setSelectedId(isSelected ? null : img.id);
+                setResolution(null);
+                setImgError(false);
+              }}
+            >
+              {img.provider}
+              {img.rehostedUrl ? null : <span className="text-orange-500"> !</span>}
+            </button>
+          );
+        })}
+        {sortedSourceImages.map((si) => (
+          <button
+            key={si.candidatePrintingId}
+            type="button"
+            className={`rounded border border-dashed px-1.5 py-0.5 ${
+              effectiveSource?.candidatePrintingId === si.candidatePrintingId
+                ? "border-primary bg-primary/10"
+                : "text-muted-foreground"
+            }`}
+            onClick={() => {
+              setSelectedId(
+                effectiveSource?.candidatePrintingId === si.candidatePrintingId
+                  ? null
+                  : si.candidatePrintingId,
+              );
+              setResolution(null);
+              setImgError(false);
+            }}
+          >
+            {si.source}
+          </button>
+        ))}
+      </div>
+
+      {/* Add from URL / Upload */}
+      <div className="flex gap-1">
+        <Button variant="outline" onClick={() => setShowUrlInput((v) => !v)}>
+          <ImagePlusIcon className="mr-1" />
+          From URL
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploadPrintingImage.isPending}
+        >
+          <UploadIcon className="mr-1" />
+          Upload
+        </Button>
+      </div>
+
       <input
         ref={fileInputRef}
         type="file"

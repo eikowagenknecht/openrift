@@ -138,6 +138,7 @@ export type {
   LowResImagesResponse,
   MappingPrintingResponse,
   MarkerResponse,
+  MarketplaceAssignmentResponse,
   MarketplaceGroupResponse,
   PriceRefreshResponse,
   PriceRefreshUpsertCounts,

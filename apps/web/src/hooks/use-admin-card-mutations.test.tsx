@@ -27,7 +27,7 @@ vi.mock("@/lib/server-fns/with-cookies", () => ({
   withCookies: () => {},
 }));
 
-const { useAcceptPrintingGroup } = await import("./use-admin-card-mutations");
+const { useAcceptCardField, useAcceptPrintingGroup } = await import("./use-admin-card-mutations");
 
 function makeClient() {
   const client = new QueryClient({
@@ -69,6 +69,36 @@ describe("useAcceptPrintingGroup", () => {
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: [...slugScopedKey] });
     expect(invalidateSpy).not.toHaveBeenCalledWith({
       queryKey: ["admin", "cards", "detail", "019cfc3b-0388-743b-8b2e-7e64f56850c3"],
+    });
+  });
+});
+
+describe("useAcceptCardField", () => {
+  it("invalidates the keys passed via `invalidates`, not keys derived from the payload cardId", async () => {
+    // Regression: accepting a card field (e.g. reordered tags) sent the mutation
+    // but the detail query stayed stale until F5. The page is keyed by URL slug
+    // while the payload carries the UUID — the hook was invalidating the
+    // UUID-scoped key instead of the slug-scoped one the page actually reads.
+    const { client, invalidateSpy } = makeClient();
+    const slugScopedKey = ["admin", "cards", "detail", "allay-eager-admirer"] as const;
+
+    const { result } = renderHook(() => useAcceptCardField([slugScopedKey]), {
+      wrapper: wrap(client),
+    });
+
+    await act(async () => {
+      await result.current.mutateAsync({
+        cardId: "019d3342-bec8-7f50-a92d-154e120f3fa1",
+        field: "tags",
+        value: ["Bandle City", "Yordle"],
+        source: "provider",
+      });
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: [...slugScopedKey] });
+    expect(invalidateSpy).not.toHaveBeenCalledWith({
+      queryKey: ["admin", "cards", "detail", "019d3342-bec8-7f50-a92d-154e120f3fa1"],
     });
   });
 });

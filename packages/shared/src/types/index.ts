@@ -79,6 +79,7 @@ export type {
   LowResImagesResponse,
   KeywordStylesResponse,
   MappingPrintingResponse,
+  MarketplaceAssignmentResponse,
   MarketplaceGroupResponse,
   PriceRefreshResponse,
   PriceRefreshUpsertCounts,

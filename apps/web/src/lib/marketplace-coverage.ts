@@ -67,6 +67,9 @@ function statusFromCounts(mapped: number, total: number): MarketplaceCoverageSta
  */
 export function computeCardCoverage(group: UnifiedMappingGroupResponse): CardCoverage {
   const siblingGroups = groupSiblings(group.printings);
+  const tcgMappedPrintings = new Set(group.tcgplayer.assignments.map((a) => a.printingId));
+  const cmMappedPrintings = new Set(group.cardmarket.assignments.map((a) => a.printingId));
+  const ctMappedPrintings = new Set(group.cardtrader.assignments.map((a) => a.printingId));
 
   let tcgTotal = 0;
   let tcgMapped = 0;
@@ -74,20 +77,20 @@ export function computeCardCoverage(group: UnifiedMappingGroupResponse): CardCov
   let cmMapped = 0;
   for (const siblings of siblingGroups) {
     cmTotal++;
-    if (siblings.some((p) => p.cmExternalId !== null)) {
+    if (siblings.some((p) => cmMappedPrintings.has(p.printingId))) {
       cmMapped++;
     }
     const enPrintings = siblings.filter((p) => p.language === "EN");
     if (enPrintings.length > 0) {
       tcgTotal++;
-      if (enPrintings.some((p) => p.tcgExternalId !== null)) {
+      if (enPrintings.some((p) => tcgMappedPrintings.has(p.printingId))) {
         tcgMapped++;
       }
     }
   }
 
   const ctTotal = group.printings.length;
-  const ctMapped = group.printings.filter((p) => p.ctExternalId !== null).length;
+  const ctMapped = group.printings.filter((p) => ctMappedPrintings.has(p.printingId)).length;
 
   return {
     tcgplayer: {

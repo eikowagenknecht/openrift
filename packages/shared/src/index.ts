@@ -84,6 +84,7 @@ export type {
   KeywordStylesResponse,
   MappingPrintingResponse,
   Marketplace,
+  MarketplaceAssignmentResponse,
   MarketplaceGroupResponse,
   MarketplaceInfo,
   MarketplaceInfoResponse,

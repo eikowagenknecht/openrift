@@ -27,6 +27,33 @@ function group(
   printings: UnifiedMappingPrintingResponse[],
   overrides: Partial<UnifiedMappingGroupResponse> = {},
 ): UnifiedMappingGroupResponse {
+  // Derive assignments from the per-printing externalId fields for back-compat
+  // with the existing test fixtures. Real API responses put the authoritative
+  // list in `assignments`; the per-printing fields are now a convenience view.
+  const tcgAssignments = printings
+    .filter((p) => p.tcgExternalId !== null)
+    .map((p) => ({
+      externalId: p.tcgExternalId as number,
+      printingId: p.printingId,
+      finish: p.finish,
+      language: p.language,
+    }));
+  const cmAssignments = printings
+    .filter((p) => p.cmExternalId !== null)
+    .map((p) => ({
+      externalId: p.cmExternalId as number,
+      printingId: p.printingId,
+      finish: p.finish,
+      language: null as string | null,
+    }));
+  const ctAssignments = printings
+    .filter((p) => p.ctExternalId !== null)
+    .map((p) => ({
+      externalId: p.ctExternalId as number,
+      printingId: p.printingId,
+      finish: p.finish,
+      language: p.language,
+    }));
   return {
     cardId: "card-1",
     cardSlug: "fireball",
@@ -40,9 +67,9 @@ function group(
     setName: "Origin",
     primaryShortCode: "OGN-001",
     printings,
-    tcgplayer: { stagedProducts: [], assignedProducts: [] },
-    cardmarket: { stagedProducts: [], assignedProducts: [] },
-    cardtrader: { stagedProducts: [], assignedProducts: [] },
+    tcgplayer: { stagedProducts: [], assignedProducts: [], assignments: tcgAssignments },
+    cardmarket: { stagedProducts: [], assignedProducts: [], assignments: cmAssignments },
+    cardtrader: { stagedProducts: [], assignedProducts: [], assignments: ctAssignments },
     ...overrides,
   };
 }

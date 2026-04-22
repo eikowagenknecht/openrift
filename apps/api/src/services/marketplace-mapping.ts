@@ -1,4 +1,7 @@
-import type { StagedProductResponse } from "@openrift/shared";
+import type {
+  MarketplaceAssignmentResponse as MarketplaceAssignment,
+  StagedProductResponse,
+} from "@openrift/shared";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 
 import type { Repos, Transact } from "../deps.js";
@@ -203,6 +206,7 @@ function buildResponseGroups(
   mappedProductInfo: Map<string, ProductInfo>,
   groupNameMap: Map<number, string>,
   mapStagedRow: (row: StagingRow, opts?: { isOverride?: boolean }) => StagedProductResponse,
+  languageAggregate: boolean,
 ) {
   return [...cardGroups.values()].map((group) => {
     const key = group.cardId;
@@ -212,13 +216,36 @@ function buildResponseGroups(
       }),
     );
 
+    // Authoritative (product × printing) assignment list. We intentionally keep
+    // every (externalId, printingId) pair — a single printing can have multiple
+    // variants in the same marketplace, and downstream consumers need to know
+    // which printings any given externalId resolves to.
+    const seenAssignment = new Set<string>();
+    const assignments: MarketplaceAssignment[] = [];
+    for (const p of group.printings) {
+      if (p.externalId === null) {
+        continue;
+      }
+      const dedupKey = `${p.externalId}::${p.printingId}::${p.finish}`;
+      if (seenAssignment.has(dedupKey)) {
+        continue;
+      }
+      seenAssignment.add(dedupKey);
+      assignments.push({
+        externalId: p.externalId,
+        printingId: p.printingId,
+        finish: p.finish,
+        language: languageAggregate ? null : (p.sourceLanguage ?? p.language),
+      });
+    }
+
     const seenAssigned = new Set<string>();
     const assignedProducts: typeof stagedProducts = [];
     for (const p of group.printings) {
       const dedupKey = `${p.externalId}::${p.finish}::${p.sourceLanguage}`;
       if (p.externalId !== null && !seenAssigned.has(dedupKey)) {
         seenAssigned.add(dedupKey);
-        const info = mappedProductInfo.get(p.printingId);
+        const info = mappedProductInfo.get(`${p.printingId}::${p.externalId}`);
         if (info) {
           assignedProducts.push({
             externalId: p.externalId,
@@ -246,9 +273,14 @@ function buildResponseGroups(
     }
 
     // Two-pass filter for staged products:
-    // 1. Exact externalId+finish match → always exclude (already mapped).
-    // 2. externalId-only match → exclude UNLESS there is an unmapped printing
-    //    whose finish matches the staged product (it could still be mapped).
+    // 1. Exact (externalId, finish, language) match → always exclude (already mapped).
+    // 2. externalId-only match → exclude UNLESS there is still an unmapped
+    //    printing whose finish matches. This second rule only makes sense for
+    //    language-aggregate marketplaces (Cardmarket), where one externalId is
+    //    the same SKU across every language. For per-language marketplaces
+    //    (TCGplayer, CardTrader) `(externalId, finish, EN)` and
+    //    `(externalId, finish, ZH)` are distinct SKUs — we must NOT hide one
+    //    just because the other was mapped.
     const assignedKeys = new Set(
       assignedProducts.map((p) => `${p.externalId}::${p.finish}::${p.language}`),
     );
@@ -260,7 +292,11 @@ function buildResponseGroups(
       if (assignedKeys.has(`${p.externalId}::${p.finish}::${p.language}`)) {
         return false;
       }
-      if (assignedExternalIds.has(p.externalId) && !unmappedFinishes.has(p.finish)) {
+      if (
+        languageAggregate &&
+        assignedExternalIds.has(p.externalId) &&
+        !unmappedFinishes.has(p.finish)
+      ) {
         return false;
       }
       return true;
@@ -270,6 +306,7 @@ function buildResponseGroups(
       ...group,
       stagedProducts: filteredStaged,
       assignedProducts,
+      assignments,
     };
   });
 }
@@ -355,12 +392,15 @@ export async function getMappingOverview(
     }
   }
 
+  // Key by (printingId, externalId) so we don't share snapshot info across
+  // different products that happen to map to the same printing.
   const mappedProductInfo = new Map<string, ProductInfo>();
   if (mappedPrintingIds.size > 0) {
     const mappedRows = await config.snapshotQuery([...mappedPrintingIds]);
     for (const row of mappedRows) {
-      if (!mappedProductInfo.has(row.printingId)) {
-        mappedProductInfo.set(row.printingId, config.mapSnapshotPrices(row));
+      const key = `${row.printingId}::${row.externalId}`;
+      if (!mappedProductInfo.has(key)) {
+        mappedProductInfo.set(key, config.mapSnapshotPrices(row));
       }
     }
   }
@@ -455,6 +495,7 @@ export async function getMappingOverview(
     mappedProductInfo,
     groupNameMap,
     mapStagedRow,
+    config.languageAggregate,
   );
 
   // Lightweight card list for the manual-assign dropdown. The UI only needs
@@ -494,9 +535,14 @@ export async function saveMappings(
       printingRows.map((row) => [row.id, { finish: row.finish, language: row.language }]),
     );
 
-    // 2. Batch-fetch staging rows (1 query instead of N)
+    // 2. Batch-fetch staging rows and already-upserted product rows (parallel).
+    // The product-row fallback lets us rebind a mapping even when staging has
+    // rotated out — common for products that were mapped long ago.
     const externalIds = [...new Set(mappings.map((m) => m.externalId))];
-    const allStagingRows = await repo.stagingByExternalIds(config.marketplace, externalIds);
+    const [allStagingRows, existingProducts] = await Promise.all([
+      repo.stagingByExternalIds(config.marketplace, externalIds),
+      repo.productsByExternalIds(config.marketplace, externalIds),
+    ]);
     const stagingByKey = new Map<string, typeof allStagingRows>();
     for (const row of allStagingRows) {
       const key = `${row.externalId}::${row.finish}::${row.language}`;
@@ -504,6 +550,7 @@ export async function saveMappings(
       list.push(row);
       stagingByKey.set(key, list);
     }
+    const productByExtId = new Map(existingProducts.map((p) => [p.externalId, p]));
 
     // Collect available finish+language combos per external ID for error messages
     const variantsByExtId = new Map<number, Set<string>>();
@@ -529,25 +576,37 @@ export async function saveMappings(
         skipped.push({ externalId: m.externalId, reason: "printing not found" });
         continue;
       }
-      const first = stagingByKey.get(`${m.externalId}::${info.finish}::${info.language}`)?.[0];
-      if (!first) {
+      const stagingHit = stagingByKey.get(`${m.externalId}::${info.finish}::${info.language}`)?.[0];
+      let groupId: number;
+      let productName: string;
+      if (stagingHit) {
+        groupId = stagingHit.groupId;
+        productName = stagingHit.productName;
+      } else {
         const available = variantsByExtId.get(m.externalId);
         if (available && available.size > 0) {
           skipped.push({
             externalId: m.externalId,
             reason: `variant mismatch: printing is "${info.finish}/${info.language}" but product only has "${[...available].join(", ")}"`,
           });
-        } else {
-          skipped.push({ externalId: m.externalId, reason: "no staging data found" });
+          continue;
         }
-        continue;
+        // No staging rows for this externalId at all — fall back to the existing
+        // upserted product row so rebinds keep working after staging rotation.
+        const existing = productByExtId.get(m.externalId);
+        if (!existing) {
+          skipped.push({ externalId: m.externalId, reason: "no staging data found" });
+          continue;
+        }
+        groupId = existing.groupId;
+        productName = existing.productName;
       }
       upsertValues.push({
         marketplace: config.marketplace,
         printingId: m.printingId,
         externalId: m.externalId,
-        groupId: first.groupId,
-        productName: first.productName,
+        groupId,
+        productName,
         finish: info.finish,
         // Cardmarket's price guide is a cross-language aggregate, so variants
         // are stored with NULL language. Other marketplaces pin the variant

@@ -19,6 +19,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
         .innerJoin("marketplaceSnapshots as snap", "snap.variantId", "mpv.id")
         .select([
           "mpv.printingId as printingId",
+          "mp.externalId as externalId",
           "mp.productName as productName",
           "snap.marketCents",
           "snap.lowCents",

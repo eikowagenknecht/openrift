@@ -357,7 +357,7 @@ export function useRenameCard() {
   });
 }
 
-export function useAcceptCardField() {
+export function useAcceptCardField(invalidates: Scope = defaultScope) {
   return useMutationWithInvalidation({
     mutationFn: async ({
       cardId,
@@ -372,7 +372,7 @@ export function useAcceptCardField() {
     }) => {
       await acceptCardFieldFn({ data: { cardId, field, value, source } });
     },
-    invalidates: ({ cardId }) => [queryKeys.admin.cards.detail(cardId), queryKeys.admin.cards.list],
+    invalidates,
   });
 }
 
