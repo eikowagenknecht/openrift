@@ -1,5 +1,4 @@
 import type { AnySnapshot, Marketplace, TimeRange } from "@openrift/shared";
-import { snapshotHeadline } from "@openrift/shared";
 import { ChevronUpIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
@@ -92,15 +91,16 @@ export function PriceHistoryChart({
   const sourceData = data?.[source];
   // Normalize per-source snapshot shapes into a uniform `{date, value, low?}`.
   // TCG/CM: headline is `market`, `low` is the secondary line. CardTrader:
-  // headline is the Zero-eligible low (with overall-low fallback via
-  // snapshotHeadline); the overall `low` is drawn as a secondary line only on
-  // days where Zero pricing is known, so it doesn't visually duplicate the
-  // headline on fallback days.
+  // headline is the Zero-eligible low drawn directly (breaking on null days,
+  // so snapshots from before zero_low_cents was recorded don't get silently
+  // plotted as the cheaper overall-low — which would make the line appear to
+  // jump up at the point the Zero data begins). The overall low is plotted
+  // as the always-on secondary dashed line, matching TCG/CM.
   const rawSnapshots: AnySnapshot[] = sourceData?.snapshots ?? [];
   const snapshots = rawSnapshots.map((s) => ({
     date: s.date,
-    value: snapshotHeadline(s),
-    low: "market" in s ? s.low : s.zeroLow === null ? null : s.low,
+    value: "market" in s ? s.market : s.zeroLow,
+    low: s.low,
   }));
 
   const hasLow = snapshots.some((s) => s.low !== null);
