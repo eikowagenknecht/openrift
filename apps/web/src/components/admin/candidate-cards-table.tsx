@@ -115,6 +115,16 @@ function makeColumns(meta: CardNameCellMeta): ColumnDef<Row>[] {
 }
 
 // ---------------------------------------------------------------------------
+// Column widths (applied with table-layout: fixed so filtering doesn't reflow)
+// ---------------------------------------------------------------------------
+
+const COLUMN_WIDTHS: Record<string, string> = {
+  status: "120px",
+  name: "30%",
+  candidates: "120px",
+};
+
+// ---------------------------------------------------------------------------
 // Virtualizer constants
 // ---------------------------------------------------------------------------
 
@@ -311,18 +321,12 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
         <p className="text-muted-foreground py-8 text-center text-sm">No candidates found.</p>
       ) : (
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader className="sticky top-0 z-10">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      className={cn(
-                        header.id === "status" && "w-28",
-                        header.id === "candidates" && "w-28",
-                      )}
-                    >
+                    <TableHead key={header.id} style={{ width: COLUMN_WIDTHS[header.id] }}>
                       {flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   ))}

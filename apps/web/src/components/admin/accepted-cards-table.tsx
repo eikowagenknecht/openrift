@@ -185,6 +185,16 @@ function coverageSortValue(coverage: CardCoverage | undefined): number {
 }
 
 // ---------------------------------------------------------------------------
+// Column widths (applied with table-layout: fixed so filtering doesn't reflow)
+// ---------------------------------------------------------------------------
+
+const COLUMN_WIDTHS: Record<string, string> = {
+  name: "25%",
+  printings: "32%",
+  marketplaces: "140px",
+};
+
+// ---------------------------------------------------------------------------
 // Column definitions
 // ---------------------------------------------------------------------------
 
@@ -437,12 +447,12 @@ export function AcceptedCardsTable({
       ) : (
         <div className="relative min-h-0 flex-1">
           <div ref={scrollRef} className="absolute inset-0 overflow-auto">
-            <Table>
+            <Table className="table-fixed">
               <TableHeader className="sticky top-0 z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
                     {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
+                      <TableHead key={header.id} style={{ width: COLUMN_WIDTHS[header.id] }}>
                         {flexRender(header.column.columnDef.header, header.getContext())}
                       </TableHead>
                     ))}
