@@ -112,10 +112,12 @@ const LABEL_TO_ZONE: Record<string, DeckZone> = {
   legend: "legend",
   champion: "champion",
   maindeck: "main",
+  "main deck": "main",
   main: "main",
   battlefields: "battlefield",
   battlefield: "battlefield",
   runes: "runes",
+  "rune pool": "runes",
   sideboard: "sideboard",
   overflow: "overflow",
 };
@@ -160,6 +162,9 @@ function parseTextFormat(code: string): DeckParseResult {
       if (zone) {
         currentZone = zone;
       } else {
+        // Unknown header — clear the current zone so subsequent cards fall back
+        // to type-based inference instead of silently inheriting the prior zone.
+        currentZone = undefined;
         warnings.push(`Unknown zone header: ${line}`);
       }
       continue;

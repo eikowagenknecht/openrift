@@ -16,10 +16,20 @@ const ZONE_LABELS: Record<DeckZone, string> = {
 /** Ordered zones for text output. */
 const ZONE_ORDER: DeckZone[] = ["legend", "champion", "main", "battlefield", "runes", "sideboard"];
 
-/** Reverse map from label back to zone. */
-const LABEL_TO_ZONE = new Map(
-  Object.entries(ZONE_LABELS).map(([zone, label]) => [label.toLowerCase(), zone as DeckZone]),
-);
+/** Aliases for headers used by third-party deck exporters (e.g. riftdecks.com). */
+const ZONE_ALIASES: [string, DeckZone][] = [
+  ["main deck", "main"],
+  ["battlefield", "battlefield"],
+  ["rune pool", "runes"],
+];
+
+/** Reverse map from label back to zone, including third-party aliases. */
+const LABEL_TO_ZONE = new Map<string, DeckZone>([
+  ...Object.entries(ZONE_LABELS).map(
+    ([zone, label]) => [label.toLowerCase(), zone as DeckZone] as const,
+  ),
+  ...ZONE_ALIASES,
+]);
 
 /** A card entry with its name, used for text encode. */
 export interface TextCodecCard extends DeckCodecCard {
