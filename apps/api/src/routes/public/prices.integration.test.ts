@@ -22,6 +22,7 @@ let printingId: string;
 let printingNoSourceId: string;
 let tcgVariantId: string;
 let cmVariantId: string;
+let ctVariantId: string;
 
 if (ctx) {
   const { db } = ctx;
@@ -202,6 +203,53 @@ if (ctx) {
       lowCents: 100,
     })
     .execute();
+
+  // CardTrader product + variant for printingId
+  const [ctProduct] = await db
+    .insertInto("marketplaceProducts")
+    .values({
+      marketplace: "cardtrader",
+      externalId: 90_003,
+      groupId: null,
+      productName: "PRC Price Card Normal",
+    })
+    .returning("id")
+    .execute();
+  const [ctVariant] = await db
+    .insertInto("marketplaceProductVariants")
+    .values({
+      marketplaceProductId: ctProduct.id,
+      printingId,
+      finish: "normal",
+      language: "EN",
+    })
+    .returning("id")
+    .execute();
+  ctVariantId = ctVariant.id;
+
+  // CardTrader snapshot with a Zero-eligible low (2 days ago)
+  await db
+    .insertInto("marketplaceSnapshots")
+    .values({
+      variantId: ctVariantId,
+      recordedAt: daysAgo(2),
+      marketCents: null,
+      lowCents: 300,
+      zeroLowCents: 420,
+    })
+    .execute();
+
+  // CardTrader snapshot with no Zero data (5 days ago) — tests zeroLow: null
+  await db
+    .insertInto("marketplaceSnapshots")
+    .values({
+      variantId: ctVariantId,
+      recordedAt: daysAgo(5),
+      marketCents: null,
+      lowCents: 280,
+      zeroLowCents: null,
+    })
+    .execute();
 }
 
 // ---------------------------------------------------------------------------
@@ -351,6 +399,22 @@ describe.skipIf(!ctx)("Prices routes (integration)", () => {
       expect(snap.trend).toBeUndefined();
       expect(snap.avg1).toBeUndefined();
       expect(snap.avg30).toBeUndefined();
+    });
+
+    it("cardtrader snapshots carry zeroLow and low", async () => {
+      const res = await app.fetch(req("GET", `/prices/${printingId}/history?range=7d`));
+      const json = await res.json();
+
+      expect(json.cardtrader.available).toBe(true);
+      expect(json.cardtrader.productId).toBe(90_003);
+      expect(json.cardtrader.snapshots.length).toBe(2);
+
+      // Sort ascending by date, so oldest (5 days ago, no Zero) then newest (2 days ago, with Zero).
+      const [older, newer] = json.cardtrader.snapshots;
+      expect(older.zeroLow).toBeNull();
+      expect(older.low).toBe(2.8); // 280 cents
+      expect(newer.zeroLow).toBe(4.2); // 420 cents
+      expect(newer.low).toBe(3); // 300 cents — overall low remains cheaper than Zero low
     });
 
     it("returns Cache-Control header", async () => {

@@ -91,13 +91,16 @@ export function PriceHistoryChart({
   const currencyFormatter = formatterForMarketplace(source);
   const sourceData = data?.[source];
   // Normalize per-source snapshot shapes into a uniform `{date, value, low?}`.
-  // For TCG/CM the headline is `market` and `low` is the secondary line; for
-  // CardTrader there's only `low` (which becomes the headline `value`).
+  // TCG/CM: headline is `market`, `low` is the secondary line. CardTrader:
+  // headline is the Zero-eligible low (with overall-low fallback via
+  // snapshotHeadline); the overall `low` is drawn as a secondary line only on
+  // days where Zero pricing is known, so it doesn't visually duplicate the
+  // headline on fallback days.
   const rawSnapshots: AnySnapshot[] = sourceData?.snapshots ?? [];
   const snapshots = rawSnapshots.map((s) => ({
     date: s.date,
     value: snapshotHeadline(s),
-    low: "market" in s ? s.low : null,
+    low: "market" in s ? s.low : s.zeroLow === null ? null : s.low,
   }));
 
   const hasLow = snapshots.some((s) => s.low !== null);
@@ -218,7 +221,7 @@ export function PriceHistoryChart({
                   value: number | null;
                   low: number | null;
                 };
-                const headlineLabel = source === "cardtrader" ? "Lowest" : "Market";
+                const headlineLabel = source === "cardtrader" ? "Zero" : "Market";
                 return (
                   <div className="border-border/50 bg-background rounded-lg border px-2.5 py-1.5 text-xs shadow-xl">
                     <p className="mb-1 font-medium">{snap.date}</p>

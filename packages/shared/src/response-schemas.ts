@@ -176,7 +176,8 @@ const cardmarketSnapshotSchema = z.object({
 
 const cardtraderSnapshotSchema = z.object({
   date: z.string().openapi({ example: "2026-04-01" }),
-  low: z.number().openapi({ example: 3.9 }),
+  zeroLow: z.number().nullable().openapi({ example: 4.2 }),
+  low: z.number().nullable().openapi({ example: 3.9 }),
 });
 
 const marketplaceInfoSchema = z.object({

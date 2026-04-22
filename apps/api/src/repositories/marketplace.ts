@@ -165,11 +165,14 @@ export function marketplaceRepo(db: Kysely<Database>) {
       variantId: string,
       cutoff: Date | null,
     ): Promise<
-      Pick<Selectable<MarketplaceSnapshotsTable>, "recordedAt" | "marketCents" | "lowCents">[]
+      Pick<
+        Selectable<MarketplaceSnapshotsTable>,
+        "recordedAt" | "marketCents" | "lowCents" | "zeroLowCents"
+      >[]
     > {
       let query = db
         .selectFrom("marketplaceSnapshots")
-        .select(["recordedAt", "marketCents", "lowCents"])
+        .select(["recordedAt", "marketCents", "lowCents", "zeroLowCents"])
         .where("variantId", "=", variantId)
         .orderBy("recordedAt", "asc");
       if (cutoff) {
@@ -370,8 +373,17 @@ export function marketplaceRepo(db: Kysely<Database>) {
       const printingIds = [...new Set(events.rows.map((e) => e.printingId))];
 
       // ── Query B: daily prices for those printings ──────────────────────
-      // Mirrors mv_latest_printing_prices' headline rule (market_cents with
-      // low_cents fallback) but over historical snapshots grouped by day.
+      // Mirrors mv_latest_printing_prices' headline rule per marketplace but
+      // grouped by day instead of "latest overall". For CardTrader that's
+      // COALESCE(zero_low_cents, low_cents) — prefer Zero-eligible pricing,
+      // fall back to overall-low per day. For TCG/CM it's
+      // COALESCE(market_cents, low_cents). Snapshots from before the Zero
+      // column existed (migration 099) have zero_low_cents=null and
+      // naturally fall back to low_cents.
+      const headlineExpr =
+        marketplace === "cardtrader"
+          ? sql`COALESCE(snap.zero_low_cents, snap.low_cents)`
+          : sql`COALESCE(snap.market_cents, snap.low_cents)`;
       const dailyPrices = await sql<{
         printingId: string;
         day: string;
@@ -380,7 +392,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         SELECT DISTINCT ON (target.id, day)
           target.id AS "printingId",
           date_trunc('day', snap.recorded_at)::date::text AS day,
-          COALESCE(snap.market_cents, snap.low_cents) AS "headlineCents"
+          ${headlineExpr} AS "headlineCents"
         FROM printings target
         JOIN printings source
           ON source.card_id = target.card_id
@@ -395,7 +407,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         WHERE target.id IN (${sql.join(printingIds.map((id) => sql`${id}::uuid`))})
           AND mp.marketplace = ${marketplace}
           AND (mpv.language IS NULL OR source.id = target.id)
-          AND COALESCE(snap.market_cents, snap.low_cents) IS NOT NULL
+          AND ${headlineExpr} IS NOT NULL
         ORDER BY target.id, day, snap.recorded_at DESC
       `.execute(db);
 

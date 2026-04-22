@@ -29,12 +29,20 @@ export interface CardmarketSnapshot {
 }
 
 /**
- * CardTrader exposes only a "lowest available listing" price — there's no
- * separate market value, so snapshots carry just `low`.
+ * CardTrader has no "market" price like TCG/CM, but since migration 099 each
+ * snapshot carries two asking-price figures:
+ *  - `zeroLow`: cheapest among CardTrader Zero (hub-eligible) sellers — the
+ *    headline price shown in the UI.
+ *  - `low`: cheapest across all sellers (including non-Zero) — a secondary
+ *    figure plotted alongside `zeroLow` on the history chart.
+ * Either field may be null (older snapshots predate the Zero column, or no
+ * Zero sellers exist for the variant). The API only emits a snapshot when at
+ * least one is non-null.
  */
 export interface CardtraderSnapshot {
   date: string;
-  low: number;
+  zeroLow: number | null;
+  low: number | null;
 }
 
 /**
@@ -76,10 +84,15 @@ export interface MarketplaceInfoResponse {
 export type AnySnapshot = TcgplayerSnapshot | CardmarketSnapshot | CardtraderSnapshot;
 
 /**
- * Headline price for a snapshot — `market` for TCGplayer/Cardmarket, `low` for
- * CardTrader (which has no separate market value).
+ * Headline price for a snapshot — `market` for TCGplayer/Cardmarket, or the
+ * Zero-eligible low (falling back to the overall low) for CardTrader. The API
+ * guarantees that at least one of `zeroLow`/`low` is non-null on every CT
+ * snapshot, so the combined value is always a number.
  * @returns The number that should be plotted as the main price line/area.
  */
 export function snapshotHeadline(snap: AnySnapshot): number {
-  return "market" in snap ? snap.market : snap.low;
+  if ("market" in snap) {
+    return snap.market;
+  }
+  return (snap.zeroLow ?? snap.low) as number;
 }
