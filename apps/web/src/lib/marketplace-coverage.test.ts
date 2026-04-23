@@ -1,4 +1,8 @@
-import type { UnifiedMappingGroupResponse, UnifiedMappingPrintingResponse } from "@openrift/shared";
+import type {
+  StagedProductResponse,
+  UnifiedMappingGroupResponse,
+  UnifiedMappingPrintingResponse,
+} from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import { buildCoverageMapBySlug, computeCardCoverage } from "./marketplace-coverage";
@@ -23,13 +27,42 @@ function printing(
   };
 }
 
+function stagedProduct(overrides: Partial<StagedProductResponse> = {}): StagedProductResponse {
+  return {
+    externalId: 999,
+    productName: "Mystery",
+    finish: "normal",
+    language: "EN",
+    marketCents: null,
+    lowCents: null,
+    currency: "USD",
+    recordedAt: "2026-01-01T00:00:00Z",
+    midCents: null,
+    highCents: null,
+    trendCents: null,
+    avg1Cents: null,
+    avg7Cents: null,
+    avg30Cents: null,
+    ...overrides,
+  };
+}
+
+interface GroupOverrides extends Partial<UnifiedMappingGroupResponse> {
+  tcgStaged?: StagedProductResponse[];
+  tcgAssigned?: StagedProductResponse[];
+  cmStaged?: StagedProductResponse[];
+  cmAssigned?: StagedProductResponse[];
+  ctStaged?: StagedProductResponse[];
+  ctAssigned?: StagedProductResponse[];
+}
+
 function group(
   printings: UnifiedMappingPrintingResponse[],
-  overrides: Partial<UnifiedMappingGroupResponse> = {},
+  overrides: GroupOverrides = {},
 ): UnifiedMappingGroupResponse {
-  // Derive assignments from the per-printing externalId fields for back-compat
-  // with the existing test fixtures. Real API responses put the authoritative
-  // list in `assignments`; the per-printing fields are now a convenience view.
+  // Derive assignments AND assignedProducts from the per-printing externalId
+  // fields so the entries-side also reflects the intended fixture state. Real
+  // API responses populate `assignments` and `assignedProducts` independently.
   const tcgAssignments = printings
     .filter((p) => p.tcgExternalId !== null)
     .map((p) => ({
@@ -54,6 +87,19 @@ function group(
       finish: p.finish,
       language: p.language,
     }));
+  const derivedAssigned = (
+    eid: (p: UnifiedMappingPrintingResponse) => number | null,
+  ): StagedProductResponse[] =>
+    printings
+      .filter((p) => eid(p) !== null)
+      .map((p) =>
+        stagedProduct({
+          externalId: eid(p) as number,
+          finish: p.finish,
+          language: p.language,
+        }),
+      );
+  const { tcgStaged, tcgAssigned, cmStaged, cmAssigned, ctStaged, ctAssigned, ...rest } = overrides;
   return {
     cardId: "card-1",
     cardSlug: "fireball",
@@ -67,15 +113,27 @@ function group(
     setName: "Origin",
     primaryShortCode: "OGN-001",
     printings,
-    tcgplayer: { stagedProducts: [], assignedProducts: [], assignments: tcgAssignments },
-    cardmarket: { stagedProducts: [], assignedProducts: [], assignments: cmAssignments },
-    cardtrader: { stagedProducts: [], assignedProducts: [], assignments: ctAssignments },
-    ...overrides,
+    tcgplayer: {
+      stagedProducts: tcgStaged ?? [],
+      assignedProducts: tcgAssigned ?? derivedAssigned((p) => p.tcgExternalId),
+      assignments: tcgAssignments,
+    },
+    cardmarket: {
+      stagedProducts: cmStaged ?? [],
+      assignedProducts: cmAssigned ?? derivedAssigned((p) => p.cmExternalId),
+      assignments: cmAssignments,
+    },
+    cardtrader: {
+      stagedProducts: ctStaged ?? [],
+      assignedProducts: ctAssigned ?? derivedAssigned((p) => p.ctExternalId),
+      assignments: ctAssignments,
+    },
+    ...rest,
   };
 }
 
 describe("computeCardCoverage", () => {
-  it("returns full coverage when every printing is mapped on every marketplace", () => {
+  it("returns full both directions when every printing and entry is matched", () => {
     const result = computeCardCoverage(
       group([
         printing({
@@ -87,55 +145,70 @@ describe("computeCardCoverage", () => {
         }),
       ]),
     );
-    expect(result.tcgplayer).toEqual({ status: "full", mapped: 1, total: 1 });
-    expect(result.cardmarket).toEqual({ status: "full", mapped: 1, total: 1 });
-    expect(result.cardtrader).toEqual({ status: "full", mapped: 1, total: 1 });
+    expect(result.tcgplayer.printings).toEqual({ status: "full", mapped: 1, total: 1 });
+    expect(result.tcgplayer.entries).toEqual({ status: "full", mapped: 1, total: 1 });
+    expect(result.cardmarket.printings).toEqual({ status: "full", mapped: 1, total: 1 });
+    expect(result.cardmarket.entries).toEqual({ status: "full", mapped: 1, total: 1 });
+    expect(result.cardtrader.printings).toEqual({ status: "full", mapped: 1, total: 1 });
+    expect(result.cardtrader.entries).toEqual({ status: "full", mapped: 1, total: 1 });
   });
 
-  it("returns no coverage when nothing is mapped", () => {
+  it("printings=none, entries=na when nothing exists on the marketplace", () => {
     const result = computeCardCoverage(group([printing({ printingId: "p-en", language: "EN" })]));
-    expect(result.tcgplayer.status).toBe("none");
-    expect(result.cardmarket.status).toBe("none");
-    expect(result.cardtrader.status).toBe("none");
+    expect(result.tcgplayer.printings).toEqual({ status: "none", mapped: 0, total: 1 });
+    expect(result.tcgplayer.entries).toEqual({ status: "na", mapped: 0, total: 0 });
+    expect(result.cardmarket.printings).toEqual({ status: "none", mapped: 0, total: 1 });
+    expect(result.cardmarket.entries).toEqual({ status: "na", mapped: 0, total: 0 });
+    expect(result.cardtrader.printings).toEqual({ status: "none", mapped: 0, total: 1 });
+    expect(result.cardtrader.entries).toEqual({ status: "na", mapped: 0, total: 0 });
+  });
+
+  it("printings=na, entries=none when only unmatched entries exist", () => {
+    const result = computeCardCoverage(
+      group([], { tcgStaged: [stagedProduct()], cmStaged: [stagedProduct()] }),
+    );
+    expect(result.tcgplayer.printings).toEqual({ status: "na", mapped: 0, total: 0 });
+    expect(result.tcgplayer.entries).toEqual({ status: "none", mapped: 0, total: 1 });
+    expect(result.cardmarket.printings).toEqual({ status: "na", mapped: 0, total: 0 });
+    expect(result.cardmarket.entries).toEqual({ status: "none", mapped: 0, total: 1 });
+    expect(result.cardtrader.printings).toEqual({ status: "na", mapped: 0, total: 0 });
+    expect(result.cardtrader.entries).toEqual({ status: "na", mapped: 0, total: 0 });
   });
 
   it("treats TCGplayer as language-aggregate via the EN-only sibling rule", () => {
-    // Single sibling group (same shortCode/finish/etc) with EN + ZH printings.
-    // TCG only counts the EN sibling; CM counts the group as one (aggregate);
-    // CT counts both languages independently.
     const result = computeCardCoverage(
       group([
         printing({ printingId: "p-en", language: "EN", tcgExternalId: 100 }),
         printing({ printingId: "p-zh", language: "ZH" }),
       ]),
     );
-    expect(result.tcgplayer).toEqual({ status: "full", mapped: 1, total: 1 });
-    expect(result.cardmarket).toEqual({ status: "none", mapped: 0, total: 1 });
-    expect(result.cardtrader).toEqual({ status: "none", mapped: 0, total: 2 });
+    expect(result.tcgplayer.printings).toEqual({ status: "full", mapped: 1, total: 1 });
+    expect(result.tcgplayer.entries).toEqual({ status: "full", mapped: 1, total: 1 });
+    expect(result.cardmarket.printings).toEqual({ status: "none", mapped: 0, total: 1 });
+    expect(result.cardtrader.printings).toEqual({ status: "none", mapped: 0, total: 2 });
   });
 
-  it("returns na for TCGplayer when the card has no English printings", () => {
+  it("printings=na when the card has no English printings (TCG)", () => {
     const result = computeCardCoverage(
       group([printing({ printingId: "p-zh", language: "ZH", cmExternalId: 200 })]),
     );
-    expect(result.tcgplayer).toEqual({ status: "na", mapped: 0, total: 0 });
-    expect(result.cardmarket).toEqual({ status: "full", mapped: 1, total: 1 });
-    expect(result.cardtrader).toEqual({ status: "none", mapped: 0, total: 1 });
+    expect(result.tcgplayer.printings).toEqual({ status: "na", mapped: 0, total: 0 });
+    expect(result.tcgplayer.entries).toEqual({ status: "na", mapped: 0, total: 0 });
+    expect(result.cardmarket.printings).toEqual({ status: "full", mapped: 1, total: 1 });
+    expect(result.cardtrader.printings).toEqual({ status: "none", mapped: 0, total: 1 });
   });
 
-  it("treats Cardmarket as fan-out: a single mapping covers every sibling language", () => {
-    // One sibling group, both EN and ZH printings, CM mapped on EN only.
-    // The fan-out rule means CM coverage is full for the group.
+  it("Cardmarket fan-out: one mapping covers every sibling language", () => {
     const result = computeCardCoverage(
       group([
         printing({ printingId: "p-en", language: "EN", cmExternalId: 200 }),
         printing({ printingId: "p-zh", language: "ZH" }),
       ]),
     );
-    expect(result.cardmarket).toEqual({ status: "full", mapped: 1, total: 1 });
+    expect(result.cardmarket.printings).toEqual({ status: "full", mapped: 1, total: 1 });
   });
 
-  it("returns partial Cardmarket coverage when only one sibling group is mapped", () => {
+  it("Cardmarket printings=partial when only one sibling group is mapped", () => {
     const result = computeCardCoverage(
       group([
         printing({
@@ -147,50 +220,76 @@ describe("computeCardCoverage", () => {
         printing({ printingId: "p-foil-en", finish: "foil", language: "EN" }),
       ]),
     );
-    expect(result.cardmarket).toEqual({ status: "partial", mapped: 1, total: 2 });
+    expect(result.cardmarket.printings).toEqual({ status: "partial", mapped: 1, total: 2 });
   });
 
-  it("counts CardTrader per printing — partial when only one language is mapped", () => {
+  it("CardTrader printings=partial when only one language is mapped", () => {
     const result = computeCardCoverage(
       group([
         printing({ printingId: "p-en", language: "EN", ctExternalId: 300 }),
         printing({ printingId: "p-zh", language: "ZH" }),
       ]),
     );
-    expect(result.cardtrader).toEqual({ status: "partial", mapped: 1, total: 2 });
+    expect(result.cardtrader.printings).toEqual({ status: "partial", mapped: 1, total: 2 });
+  });
+
+  it("entries=partial when every printing is matched but unmatched entries remain", () => {
+    const result = computeCardCoverage(
+      group(
+        [
+          printing({
+            printingId: "p-en",
+            language: "EN",
+            tcgExternalId: 100,
+            cmExternalId: 200,
+            ctExternalId: 300,
+          }),
+        ],
+        { tcgStaged: [stagedProduct({ externalId: 101 })] },
+      ),
+    );
+    expect(result.tcgplayer.printings).toEqual({ status: "full", mapped: 1, total: 1 });
+    expect(result.tcgplayer.entries).toEqual({ status: "partial", mapped: 1, total: 2 });
+  });
+
+  it("both directions partial when each side has gaps", () => {
+    const result = computeCardCoverage(
+      group(
+        [
+          printing({
+            printingId: "p-normal-en",
+            finish: "normal",
+            language: "EN",
+            cmExternalId: 200,
+          }),
+          printing({ printingId: "p-foil-en", finish: "foil", language: "EN" }),
+        ],
+        { cmStaged: [stagedProduct({ externalId: 201, finish: "etched" })] },
+      ),
+    );
+    expect(result.cardmarket.printings).toEqual({ status: "partial", mapped: 1, total: 2 });
+    expect(result.cardmarket.entries).toEqual({ status: "partial", mapped: 1, total: 2 });
   });
 
   it("groups siblings by every physical-card field, not just shortCode", () => {
-    // Two printings with the same shortCode but different finishes are NOT
-    // siblings — they're separate sibling groups for CM coverage purposes.
     const result = computeCardCoverage(
       group([
-        printing({
-          printingId: "p-normal",
-          finish: "normal",
-          isSigned: false,
-          cmExternalId: 200,
-        }),
-        printing({
-          printingId: "p-foil",
-          finish: "foil",
-          isSigned: false,
-        }),
-        printing({
-          printingId: "p-signed",
-          finish: "normal",
-          isSigned: true,
-        }),
+        printing({ printingId: "p-normal", finish: "normal", isSigned: false, cmExternalId: 200 }),
+        printing({ printingId: "p-foil", finish: "foil", isSigned: false }),
+        printing({ printingId: "p-signed", finish: "normal", isSigned: true }),
       ]),
     );
-    expect(result.cardmarket).toEqual({ status: "partial", mapped: 1, total: 3 });
+    expect(result.cardmarket.printings).toEqual({ status: "partial", mapped: 1, total: 3 });
   });
 
-  it("returns na for every marketplace when the card has no printings", () => {
+  it("everything is na when the card has no printings and no entries", () => {
     const result = computeCardCoverage(group([]));
-    expect(result.tcgplayer.status).toBe("na");
-    expect(result.cardmarket.status).toBe("na");
-    expect(result.cardtrader.status).toBe("na");
+    expect(result.tcgplayer.printings.status).toBe("na");
+    expect(result.tcgplayer.entries.status).toBe("na");
+    expect(result.cardmarket.printings.status).toBe("na");
+    expect(result.cardmarket.entries.status).toBe("na");
+    expect(result.cardtrader.printings.status).toBe("na");
+    expect(result.cardtrader.entries.status).toBe("na");
   });
 });
 
@@ -204,8 +303,8 @@ describe("buildCoverageMapBySlug", () => {
       }),
     ]);
     expect(map.size).toBe(2);
-    expect(map.get("fireball")?.tcgplayer.status).toBe("full");
-    expect(map.get("blizzard")?.tcgplayer.status).toBe("na");
+    expect(map.get("fireball")?.tcgplayer.printings.status).toBe("full");
+    expect(map.get("blizzard")?.tcgplayer.printings.status).toBe("na");
   });
 
   it("returns an empty map for empty input", () => {

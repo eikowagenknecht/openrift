@@ -270,6 +270,16 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
+          <Input
+            placeholder="Search by name…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="h-8 w-48 pl-8 text-sm"
+          />
+        </div>
+
         <Button
           variant={activeStatus === "unchecked" ? "default" : "outline"}
           onClick={() => toggleStatus("unchecked")}
@@ -301,16 +311,6 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
             )}
           </Button>
         )}
-
-        <div className="relative ml-auto">
-          <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
-          <Input
-            placeholder="Search by name…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="h-8 w-48 pl-8 text-sm"
-          />
-        </div>
       </div>
 
       <p className="text-muted-foreground">

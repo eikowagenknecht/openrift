@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
     tab: z.enum(["cards", "candidates", "unmatched"]).optional(),
     q: z.string().optional(),
     sort: z.string().optional(),
-    status: z.enum(["unchecked"]).optional(),
+    status: z.enum(["unchecked", "prices-to-assign"]).optional(),
   }),
   loader: async ({ context }) => {
     await Promise.all([

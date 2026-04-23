@@ -33,7 +33,11 @@ import {
 } from "@/hooks/use-admin-card-mutations";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
-import type { CardCoverage, MarketplaceCoverage } from "@/lib/marketplace-coverage";
+import type {
+  CardCoverage,
+  DirectionCoverage,
+  MarketplaceCoverage,
+} from "@/lib/marketplace-coverage";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { useVirtualizerFresh } from "@/lib/virtualizer-fresh";
@@ -96,14 +100,70 @@ function AcceptFavoriteButton({ cardSlug }: { cardSlug: string }) {
 // Marketplace coverage badges
 // ---------------------------------------------------------------------------
 
-const COVERAGE_BADGE_CLASS: Record<MarketplaceCoverage["status"], string> = {
-  full: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  partial: "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  none: "border-destructive/30 bg-destructive/10 text-destructive",
-  na: "border-muted text-muted-foreground",
+// Match the per-printing badges on the card detail page (printing-marketplace-cells.tsx):
+// fill /10, border /30, text-{color}-600 dark:text-{color}-400, with "outline"
+// (border-border + text-foreground, no fill) for the empty state.
+const HALF_BG_CLASS: Record<DirectionCoverage["status"], string> = {
+  full: "bg-emerald-500/10",
+  partial: "bg-amber-500/10",
+  none: "bg-destructive/10",
+  na: "",
 };
 
-function MarketplaceCoverageBadge({
+const BORDER_CLASS: Record<DirectionCoverage["status"], string> = {
+  full: "border-emerald-500/30",
+  partial: "border-amber-500/30",
+  none: "border-destructive/30",
+  na: "border-border",
+};
+
+const TEXT_CLASS: Record<DirectionCoverage["status"], string> = {
+  full: "text-emerald-600 dark:text-emerald-400",
+  partial: "text-amber-600 dark:text-amber-400",
+  none: "text-destructive",
+  na: "text-foreground",
+};
+
+const SEVERITY_RANK: Record<DirectionCoverage["status"], number> = {
+  none: 0,
+  partial: 1,
+  full: 2,
+  na: 3,
+};
+
+function weakerStatus(a: DirectionCoverage["status"], b: DirectionCoverage["status"]) {
+  if (a === "na") {
+    return b;
+  }
+  if (b === "na") {
+    return a;
+  }
+  return SEVERITY_RANK[a] <= SEVERITY_RANK[b] ? a : b;
+}
+
+type Direction = "printings" | "entries";
+
+function directionTooltip(
+  fullLabel: string,
+  direction: Direction,
+  coverage: DirectionCoverage,
+): string {
+  const plural = direction === "printings" ? "printings" : "entries";
+  const singular = direction === "printings" ? "printing" : "entry";
+  const otherSingular = direction === "printings" ? "entry" : "printing";
+  if (coverage.status === "na") {
+    return `${fullLabel} ${plural}: none to track for this card`;
+  }
+  if (coverage.status === "none") {
+    return `${fullLabel}: 0/${coverage.total} ${plural} have a matching ${otherSingular}`;
+  }
+  if (coverage.status === "full") {
+    return `${fullLabel}: every ${singular} (${coverage.total}) has a matching ${otherSingular}`;
+  }
+  return `${fullLabel}: ${coverage.mapped}/${coverage.total} ${plural} have a matching ${otherSingular}`;
+}
+
+function MarketplaceSplitBadge({
   shortName,
   fullLabel,
   coverage,
@@ -112,26 +172,50 @@ function MarketplaceCoverageBadge({
   fullLabel: string;
   coverage: MarketplaceCoverage;
 }) {
-  const tooltip =
-    coverage.status === "na"
-      ? `${fullLabel}: not applicable for this card`
-      : `${fullLabel}: ${coverage.mapped}/${coverage.total} mapped`;
+  const textStatus = weakerStatus(coverage.printings.status, coverage.entries.status);
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Badge
-            className={cn(
-              "h-5 px-1.5 font-mono text-[10px]",
-              COVERAGE_BADGE_CLASS[coverage.status],
-            )}
-          >
-            {shortName}
-          </Badge>
-        }
-      />
-      <TooltipContent>{tooltip}</TooltipContent>
-    </Tooltip>
+    <div className="relative inline-flex h-5 min-w-9 font-mono text-[10px]">
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <div
+              aria-label={`${fullLabel} printings status`}
+              className={cn(
+                "flex-1 cursor-default rounded-l-md border border-r-0",
+                HALF_BG_CLASS[coverage.printings.status],
+                BORDER_CLASS[coverage.printings.status],
+              )}
+            />
+          }
+        />
+        <TooltipContent>
+          {directionTooltip(fullLabel, "printings", coverage.printings)}
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <div
+              aria-label={`${fullLabel} entries status`}
+              className={cn(
+                "flex-1 cursor-default rounded-r-md border border-l-0",
+                HALF_BG_CLASS[coverage.entries.status],
+                BORDER_CLASS[coverage.entries.status],
+              )}
+            />
+          }
+        />
+        <TooltipContent>{directionTooltip(fullLabel, "entries", coverage.entries)}</TooltipContent>
+      </Tooltip>
+      <span
+        className={cn(
+          "pointer-events-none absolute inset-0 flex items-center justify-center px-2",
+          TEXT_CLASS[textStatus],
+        )}
+      >
+        {shortName}
+      </span>
+    </div>
   );
 }
 
@@ -141,21 +225,9 @@ function MarketplaceCoverageBadges({ coverage }: { coverage: CardCoverage | unde
   }
   return (
     <span className="flex items-center gap-1">
-      <MarketplaceCoverageBadge
-        shortName="TCG"
-        fullLabel="TCGplayer"
-        coverage={coverage.tcgplayer}
-      />
-      <MarketplaceCoverageBadge
-        shortName="CM"
-        fullLabel="Cardmarket"
-        coverage={coverage.cardmarket}
-      />
-      <MarketplaceCoverageBadge
-        shortName="CT"
-        fullLabel="CardTrader"
-        coverage={coverage.cardtrader}
-      />
+      <MarketplaceSplitBadge shortName="TCG" fullLabel="TCGplayer" coverage={coverage.tcgplayer} />
+      <MarketplaceSplitBadge shortName="CM" fullLabel="Cardmarket" coverage={coverage.cardmarket} />
+      <MarketplaceSplitBadge shortName="CT" fullLabel="CardTrader" coverage={coverage.cardtrader} />
     </span>
   );
 }
@@ -166,21 +238,25 @@ function MarketplaceCoverageBadges({ coverage }: { coverage: CardCoverage | unde
 
 // Sort partially-mapped cards highest so admins see the work-in-progress
 // rows first, then unmapped, then n/a, then fully-mapped (least urgent).
-const STATUS_WEIGHT: Record<MarketplaceCoverage["status"], number> = {
+const STATUS_WEIGHT: Record<DirectionCoverage["status"], number> = {
   partial: 0,
   none: 1,
   na: 2,
   full: 3,
 };
 
+function marketplaceSortValue(mp: MarketplaceCoverage): number {
+  return Math.min(STATUS_WEIGHT[mp.printings.status], STATUS_WEIGHT[mp.entries.status]);
+}
+
 function coverageSortValue(coverage: CardCoverage | undefined): number {
   if (!coverage) {
     return 99;
   }
   return (
-    STATUS_WEIGHT[coverage.tcgplayer.status] * 100 +
-    STATUS_WEIGHT[coverage.cardmarket.status] * 10 +
-    STATUS_WEIGHT[coverage.cardtrader.status]
+    marketplaceSortValue(coverage.tcgplayer) * 100 +
+    marketplaceSortValue(coverage.cardmarket) * 10 +
+    marketplaceSortValue(coverage.cardtrader)
   );
 }
 
@@ -292,15 +368,49 @@ export function AcceptedCardsTable({
   } | null>(null);
 
   const navigate = useNavigate({ from: CardsRoute.fullPath });
-  const { sorting, globalFilter, setSlug } = CardsRoute.useSearch({
+  const { sorting, globalFilter, setSlug, activeStatus } = CardsRoute.useSearch({
     select: (s) => ({
       sorting: parseSortParam(s.sort),
       globalFilter: s.q ?? "",
       setSlug: s.set,
+      activeStatus: s.status ?? null,
     }),
   });
 
   const columns = buildColumns(coverageBySlug, setSlug);
+
+  const uncheckedCount = data.filter(
+    (r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
+  ).length;
+
+  function hasPricesToAssign(slug: string | null): boolean {
+    const cov = slug ? coverageBySlug.get(slug) : undefined;
+    if (!cov) {
+      return false;
+    }
+    const status = (d: DirectionCoverage) => d.status === "partial" || d.status === "none";
+    return (
+      status(cov.tcgplayer.entries) ||
+      status(cov.cardmarket.entries) ||
+      status(cov.cardtrader.entries)
+    );
+  }
+
+  const pricesToAssignCount = data.filter((r) => hasPricesToAssign(r.cardSlug)).length;
+
+  const filteredData =
+    activeStatus === "unchecked"
+      ? data.filter((r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0)
+      : activeStatus === "prices-to-assign"
+        ? data.filter((r) => hasPricesToAssign(r.cardSlug))
+        : data;
+
+  function toggleStatus(status: NonNullable<typeof activeStatus>) {
+    void navigate({
+      search: (prev) => ({ ...prev, status: activeStatus === status ? undefined : status }),
+      replace: true,
+    });
+  }
 
   const acceptAll = useMutation({
     mutationFn: async (slugs: string[]) => {
@@ -359,7 +469,7 @@ export function AcceptedCardsTable({
   });
 
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     state: { sorting, globalFilter },
     onSortingChange: handleSortingChange,
@@ -412,6 +522,24 @@ export function AcceptedCardsTable({
             className="h-8 w-56 pl-8 text-sm"
           />
         </div>
+
+        {uncheckedCount > 0 && (
+          <Button
+            variant={activeStatus === "unchecked" ? "default" : "outline"}
+            onClick={() => toggleStatus("unchecked")}
+          >
+            Review ({uncheckedCount})
+          </Button>
+        )}
+
+        {pricesToAssignCount > 0 && (
+          <Button
+            variant={activeStatus === "prices-to-assign" ? "default" : "outline"}
+            onClick={() => toggleStatus("prices-to-assign")}
+          >
+            Prices to assign ({pricesToAssignCount})
+          </Button>
+        )}
 
         <p className="text-muted-foreground">
           {rows.length} of {data.length} cards
