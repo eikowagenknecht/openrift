@@ -67,7 +67,7 @@ interface AssignedPrinting {
   label: string;
 }
 
-export interface TableEntry {
+interface TableEntry {
   marketplace: AdminMarketplaceName;
   product: StagedProduct;
   isAssigned: boolean;

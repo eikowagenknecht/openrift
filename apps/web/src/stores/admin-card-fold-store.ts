@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type AdminCardSectionId = "cardFields" | "marketplace" | "printings";
+type AdminCardSectionId = "cardFields" | "marketplace" | "printings";
 
 interface AdminCardFoldState {
   collapsedByCard: Record<string, Set<string>>;

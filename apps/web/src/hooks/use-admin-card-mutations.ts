@@ -603,24 +603,6 @@ export function useDeleteProvider() {
 
 // ── Marketplace mappings (card-detail scoped) ────────────────────────────────
 
-const saveMarketplaceMappingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { marketplace: string; printingId: string; externalId: number }) => input)
-  .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<{
-      saved: number;
-      skipped: { externalId: number; reason: string }[];
-    }>({
-      errorTitle: "Couldn't save marketplace mapping",
-      cookie: context.cookie,
-      path: `/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
-      method: "POST",
-      body: {
-        mappings: [{ printingId: data.printingId, externalId: data.externalId }],
-      },
-    }),
-  );
-
 const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
   .inputValidator((input: { marketplace: string; printingId: string }) => input)
   .middleware([withCookies])
@@ -638,17 +620,6 @@ const defaultMarketplaceScope: Scope = [
   queryKeys.admin.cards.all,
   queryKeys.admin.unifiedMappings.all,
 ];
-
-export function useSaveMarketplaceMapping(invalidates: Scope = defaultMarketplaceScope) {
-  return useMutationWithInvalidation({
-    mutationFn: (input: {
-      marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
-      printingId: string;
-      externalId: number;
-    }) => saveMarketplaceMappingFn({ data: input }),
-    invalidates,
-  });
-}
 
 export function useUnmapMarketplacePrinting(invalidates: Scope = defaultMarketplaceScope) {
   return useMutationWithInvalidation({
