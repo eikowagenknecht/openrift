@@ -204,13 +204,16 @@ export function ExistingCardDetailPage({
       }
     }
 
+    // Precompute the ternaries outside the try so react-compiler doesn't flag
+    // conditional value blocks inside a try/catch statement.
+    const detailSearch = setSlug ? { set: setSlug } : {};
+    const listSearch = setSlug ? { set: setSlug } : {};
+
     setIsCheckingAll(true);
     try {
       await Promise.all(promises);
 
       const nextSlug = await fetchNext();
-      const detailSearch = setSlug ? { set: setSlug } : {};
-      const listSearch = setSlug ? { set: setSlug } : {};
       if (nextSlug) {
         void navigate({
           to: "/admin/cards/$cardSlug",

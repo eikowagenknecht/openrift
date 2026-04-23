@@ -2,7 +2,7 @@ import type { CopyResponse } from "@openrift/shared";
 import { createTransaction, eq, useLiveQuery } from "@tanstack/react-db";
 import { useBatcher } from "@tanstack/react-pacer";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import { getCopiesCollection } from "@/lib/copies-collection";
@@ -261,8 +261,11 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
   const addCopies = useAddCopies();
   // useBatcher captures its handler once; ref keeps the latest callbacks
   // so we don't recreate the batcher whenever the consumer re-renders.
+  // Update in an effect — writing to a ref during render trips React Compiler.
   const callbacksRef = useRef(callbacks);
-  callbacksRef.current = callbacks;
+  useEffect(() => {
+    callbacksRef.current = callbacks;
+  });
 
   const batcher = useBatcher<PendingAdd>(
     (pending) => {

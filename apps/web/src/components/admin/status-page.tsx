@@ -289,15 +289,19 @@ function FlushPrintingEventsButton() {
   const flush = useFlushPrintingEvents();
 
   async function handleFlush() {
+    // Narrow the try to just the await — react-compiler doesn't support
+    // logical/conditional value blocks inside a try/catch statement.
+    let result: Awaited<ReturnType<typeof flush.mutateAsync>>;
     try {
-      const result = await flush.mutateAsync();
-      if (result.sent === 0 && result.failed === 0) {
-        toast.success("No pending printing events");
-      } else {
-        toast.success(`Flushed ${result.sent} sent, ${result.failed} failed`);
-      }
+      result = await flush.mutateAsync();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Flush failed");
+      return;
+    }
+    if (result.sent === 0 && result.failed === 0) {
+      toast.success("No pending printing events");
+    } else {
+      toast.success(`Flushed ${result.sent} sent, ${result.failed} failed`);
     }
   }
 
