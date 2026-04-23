@@ -443,7 +443,14 @@ function AssignToPrintingButton({
   onAssignToPrinting: (externalId: number, printingId: string) => void;
   isAssigning: boolean;
 }) {
-  const sorted = [...printings].toSorted((a, b) => a.shortCode.localeCompare(b.shortCode));
+  const sorted = [...printings].toSorted(
+    (a, b) =>
+      a.language.localeCompare(b.language) ||
+      a.shortCode.localeCompare(b.shortCode) ||
+      (a.markerSlugs.length === 0 ? 0 : 1) - (b.markerSlugs.length === 0 ? 0 : 1) ||
+      a.markerSlugs.join("+").localeCompare(b.markerSlugs.join("+")) ||
+      a.finish.localeCompare(b.finish),
+  );
   if (sorted.length === 0) {
     return null;
   }
