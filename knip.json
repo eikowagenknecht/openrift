@@ -18,6 +18,7 @@
       "entry": [
         "src/client.tsx",
         "src/server.ts",
+        "src/start.ts",
         "src/router.ts",
         "src/routes/**/*.tsx",
         "src/components/cards/card-detail/index.tsx"

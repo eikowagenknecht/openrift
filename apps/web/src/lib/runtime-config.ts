@@ -1,6 +1,6 @@
 import type { SiteSettings } from "@/lib/site-settings";
 
-export interface RuntimeConfig {
+interface RuntimeConfig {
   sentryDsn: string;
 }
 
