@@ -6,7 +6,7 @@ import { createReadStream, existsSync } from "node:fs";
 import path from "node:path";
 
 import babel from "@rolldown/plugin-babel";
-import { sentryVitePlugin } from "@sentry/vite-plugin";
+import { sentryTanstackStart } from "@sentry/tanstackstart-react/vite";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
@@ -101,14 +101,19 @@ const compilerLogger = {
   },
 };
 
-// Sentry source map upload — only active when SENTRY_AUTH_TOKEN is set (CI builds).
-const sentryPlugin = sentryVitePlugin({
+// Sentry plugin: auto-instruments TanStack Start middlewares and uploads
+// source maps when SENTRY_AUTH_TOKEN is set. The plugin internally disables
+// source-map upload (but keeps middleware auto-instrumentation) when the
+// auth token is absent, so this is safe to include in local/dev builds.
+const sentryPlugins = sentryTanstackStart({
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,
   release: { name: commitHash },
-  sourcemaps: { filesToDeleteAfterUpload: ["./.output/**/*.map"] },
-  disable: !process.env.SENTRY_AUTH_TOKEN,
+  sourcemaps: {
+    disable: !process.env.SENTRY_AUTH_TOKEN,
+    filesToDeleteAfterUpload: ["./.output/**/*.map"],
+  },
 });
 
 const REACT_CHUNK_NEEDLES = [
@@ -190,7 +195,7 @@ export default defineConfig(({ mode, command }) => {
       babel({
         presets: [withReactCompilerLogger(reactCompilerPreset())],
       }),
-      sentryPlugin,
+      ...sentryPlugins,
     ],
     build: {
       sourcemap: true,

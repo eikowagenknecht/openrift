@@ -16,9 +16,23 @@ COPY packages/e2e/package.json packages/e2e/
 RUN git init
 RUN bun install --frozen-lockfile
 
-# Copy source and build
+# Copy source and build.
+#
+# SENTRY_ORG / SENTRY_PROJECT identify the target project for source-map
+# upload (openrift-ssr — see apps/web/vite.config.ts). The auth token is
+# mounted as a BuildKit secret so it stays out of image history and can be
+# rotated without rebuilding layers. All three are optional: when the auth
+# token is absent, the Sentry Vite plugin skips upload and the build still
+# succeeds (useful for local `docker build`).
+ARG SENTRY_ORG
+ARG SENTRY_PROJECT
+ENV SENTRY_ORG=$SENTRY_ORG
+ENV SENTRY_PROJECT=$SENTRY_PROJECT
+
 COPY . .
-RUN bun run build
+RUN --mount=type=secret,id=sentry_auth_token \
+    SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token 2>/dev/null || true)" \
+    bun run build
 
 # ─── Stage 2: API (server + migrations + cron) ───────────────────────────────
 FROM oven/bun:1-alpine AS api
