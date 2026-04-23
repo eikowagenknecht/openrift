@@ -1,8 +1,19 @@
 import type { StagedProductResponse } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { AlertTriangleIcon, BanIcon, EllipsisVerticalIcon, LinkIcon, XIcon } from "lucide-react";
+import React, { useMemo, useState } from "react";
 
-import { StagedProductCard } from "@/components/admin/staged-product-card";
+import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
+import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
+import { displayedProductLanguage } from "@/components/admin/marketplace-products-table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -13,22 +24,34 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   useUnifiedAssignToCard,
   useUnifiedIgnoreProducts,
   useUnifiedIgnoreVariants,
   useUnifiedMappings,
 } from "@/hooks/use-unified-mappings";
 
-import type { AssignableCard, StagedProduct } from "./price-mappings-types";
+import type { AssignableCard, SourceMappingConfig, StagedProduct } from "./price-mappings-types";
+import { formatCents, ProductLink } from "./price-mappings-utils";
 import { CM_CONFIG, CT_CONFIG, TCG_CONFIG } from "./source-configs";
 
 const MARKETPLACES = ["tcgplayer", "cardmarket", "cardtrader"] as const;
 type Marketplace = (typeof MARKETPLACES)[number];
-const CONFIG_BY_MARKETPLACE: Record<Marketplace, typeof TCG_CONFIG> = {
+const CONFIG_BY_MARKETPLACE: Record<Marketplace, SourceMappingConfig> = {
   tcgplayer: TCG_CONFIG,
   cardmarket: CM_CONFIG,
   cardtrader: CT_CONFIG,
 };
+
+const STALE_THRESHOLD_MS = 48 * 60 * 60 * 1000;
+const COLUMN_COUNT = 7;
 
 interface UnmatchedRow {
   marketplace: Marketplace;
@@ -88,17 +111,22 @@ export function UnmatchedProductsPanel() {
     });
   }, [allRows, marketplaceFilter, finishFilter, languageFilter, search]);
 
-  // Group filtered rows by marketplace so the dense grid stays organized.
-  const grouped = useMemo(() => {
-    const result: Record<Marketplace, UnmatchedRow[]> = {
-      tcgplayer: [],
-      cardmarket: [],
-      cardtrader: [],
+  // Sort rows so marketplace-grouped header rows render in a stable order and
+  // the rows within each marketplace match the per-card marketplace table.
+  const sortedRows = useMemo(() => {
+    const marketplaceOrder: Record<Marketplace, number> = {
+      tcgplayer: 0,
+      cardmarket: 1,
+      cardtrader: 2,
     };
-    for (const row of filtered) {
-      result[row.marketplace].push(row);
-    }
-    return result;
+    return [...filtered].sort(
+      (a, b) =>
+        marketplaceOrder[a.marketplace] - marketplaceOrder[b.marketplace] ||
+        a.product.productName.localeCompare(b.product.productName) ||
+        b.product.finish.localeCompare(a.product.finish) ||
+        a.product.language.localeCompare(b.product.language) ||
+        a.product.externalId - b.product.externalId,
+    );
   }, [filtered]);
 
   // Mutations — one per marketplace, reused from the old unified page.
@@ -181,64 +209,211 @@ export function UnmatchedProductsPanel() {
         </div>
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <div className="space-y-6">
-            {MARKETPLACES.map((marketplace) => {
-              const rows = grouped[marketplace];
-              if (rows.length === 0) {
-                return null;
-              }
-              const config = CONFIG_BY_MARKETPLACE[marketplace];
-              const mutations = mutationsFor(marketplace);
-              const isIgnoring =
-                mutations.ignoreVariant.isPending || mutations.ignoreProduct.isPending;
-              return (
-                <section key={marketplace} className="space-y-2">
-                  <h3 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                    {config.displayName} ({rows.length})
-                  </h3>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
-                    {rows
-                      .toSorted(
-                        (a, b) =>
-                          a.product.productName.localeCompare(b.product.productName) ||
-                          b.product.finish.localeCompare(a.product.finish),
-                      )
-                      .map(({ product }) => (
-                        <StagedProductCard
-                          key={`${product.externalId}::${product.finish}::${product.language}`}
-                          config={config}
-                          product={product}
-                          // Most unmatched rows are sealed product or bundles —
-                          // make the level-2 ignore primary like the old page.
-                          primaryIgnoreLevel="product"
-                          onIgnoreProduct={() =>
-                            mutations.ignoreProduct.mutate([{ externalId: product.externalId }])
-                          }
-                          onIgnoreVariant={() =>
-                            mutations.ignoreVariant.mutate([
-                              {
-                                externalId: product.externalId,
-                                finish: product.finish,
-                                language: product.language,
-                              },
-                            ])
-                          }
-                          isIgnoring={isIgnoring}
-                          allCards={data.allCards as AssignableCard[]}
-                          onAssignToCard={(cardId) =>
-                            handleAssignToCard(marketplace, product, cardId)
-                          }
-                          isAssigning={mutations.assign.isPending}
-                        />
-                      ))}
-                  </div>
-                </section>
-              );
-            })}
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-20">ID</TableHead>
+                <TableHead>Product</TableHead>
+                <TableHead className="w-16">Language</TableHead>
+                <TableHead>Set</TableHead>
+                <TableHead className="w-16">Finish</TableHead>
+                <TableHead className="w-20 text-right">Price</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedRows.map((row, index) => {
+                const { marketplace, product } = row;
+                const key = `${marketplace}::${product.externalId}::${product.finish}::${product.language}`;
+                const isFirstOfMarketplace =
+                  index === 0 || sortedRows[index - 1].marketplace !== marketplace;
+                const mutations = mutationsFor(marketplace);
+                return (
+                  <React.Fragment key={key}>
+                    {isFirstOfMarketplace && (
+                      <TableRow className="hover:bg-transparent">
+                        <TableCell
+                          colSpan={COLUMN_COUNT}
+                          className="bg-muted/50 text-muted-foreground py-1.5 font-semibold tracking-wide uppercase"
+                        >
+                          {CONFIG_BY_MARKETPLACE[marketplace].displayName}
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    <UnmatchedProductRow
+                      marketplace={marketplace}
+                      product={product}
+                      allCards={data.allCards as AssignableCard[]}
+                      onAssignToCard={(cardId) => handleAssignToCard(marketplace, product, cardId)}
+                      isAssigning={mutations.assign.isPending}
+                      onIgnoreVariant={() =>
+                        mutations.ignoreVariant.mutate([
+                          {
+                            externalId: product.externalId,
+                            finish: product.finish,
+                            language: product.language,
+                          },
+                        ])
+                      }
+                      onIgnoreProduct={() =>
+                        mutations.ignoreProduct.mutate([{ externalId: product.externalId }])
+                      }
+                      isIgnoring={
+                        mutations.ignoreVariant.isPending || mutations.ignoreProduct.isPending
+                      }
+                    />
+                  </React.Fragment>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>
+  );
+}
+
+// ── Row ─────────────────────────────────────────────────────────────────────
+
+function UnmatchedProductRow({
+  marketplace,
+  product,
+  allCards,
+  onAssignToCard,
+  isAssigning,
+  onIgnoreVariant,
+  onIgnoreProduct,
+  isIgnoring,
+}: {
+  marketplace: Marketplace;
+  product: StagedProduct;
+  allCards: AssignableCard[];
+  onAssignToCard: (cardId: string) => void;
+  isAssigning: boolean;
+  onIgnoreVariant: () => void;
+  onIgnoreProduct: () => void;
+  isIgnoring: boolean;
+}) {
+  const [showAssign, setShowAssign] = useState(false);
+  const [cardSearchQuery, setCardSearchQuery] = useState("");
+
+  const config = CONFIG_BY_MARKETPLACE[marketplace];
+  const recordedAt = new Date(product.recordedAt);
+  const isStale = Date.now() - recordedAt.getTime() > STALE_THRESHOLD_MS;
+  const priceCents = product.marketCents ?? product.lowCents;
+  const priceDisplay =
+    priceCents && priceCents > 0 ? formatCents(priceCents, product.currency) : "";
+
+  const filteredResults: CardSearchResult[] =
+    cardSearchQuery.length >= 2
+      ? allCards
+          .filter((c) => c.cardName.toLowerCase().includes(cardSearchQuery.toLowerCase()))
+          .slice(0, 10)
+          .map((c) => {
+            const firstId = c.shortCodes.toSorted((a, b) => a.localeCompare(b))[0] ?? "";
+            return { id: c.cardId, label: c.cardName, sublabel: firstId, detail: c.setName };
+          })
+      : [];
+
+  return (
+    <>
+      <TableRow>
+        <TableCell className="w-20">
+          <ProductLink config={config} externalId={product.externalId}>
+            #{product.externalId}
+          </ProductLink>
+        </TableCell>
+        <TableCell className="max-w-0">
+          <span className="block truncate font-medium" title={product.productName}>
+            {product.productName}
+          </span>
+        </TableCell>
+        <TableCell className="text-muted-foreground w-16">
+          {displayedProductLanguage(marketplace, product.language) ?? (
+            <span className="text-muted-foreground/50">—</span>
+          )}
+        </TableCell>
+        <TableCell className="text-muted-foreground max-w-0">
+          <span className="block truncate" title={product.groupName ?? undefined}>
+            {product.groupName ?? <span className="text-muted-foreground/50">—</span>}
+          </span>
+        </TableCell>
+        <TableCell className="w-16">
+          <Badge variant="outline">{product.finish}</Badge>
+        </TableCell>
+        <TableCell className="w-20 text-right tabular-nums">
+          <div className="flex items-center justify-end gap-1">
+            {isStale && (
+              <span title={`Last seen ${product.recordedAt.slice(0, 16).replace("T", " ")}`}>
+                <AlertTriangleIcon className="text-destructive size-3.5" />
+              </span>
+            )}
+            <span>{priceDisplay}</span>
+          </div>
+        </TableCell>
+        <TableCell className="py-0">
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isAssigning}
+              onClick={() => setShowAssign((v) => !v)}
+              title="Assign this product to a card"
+            >
+              {showAssign ? <XIcon /> : <LinkIcon />}
+              {showAssign ? "Cancel" : "Assign"}
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button variant="ghost" size="icon" title="More actions">
+                    <EllipsisVerticalIcon className="size-4" />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  disabled={isIgnoring}
+                  onClick={onIgnoreProduct}
+                  title="Ignore every SKU of this upstream product"
+                >
+                  <BanIcon className="size-3.5" />
+                  Ignore entire product
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={isIgnoring}
+                  onClick={onIgnoreVariant}
+                  title="Ignore this specific finish/language SKU"
+                >
+                  <BanIcon className="size-3.5" />
+                  Ignore variant
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </TableCell>
+      </TableRow>
+      {showAssign && (
+        <TableRow>
+          <TableCell colSpan={COLUMN_COUNT} className="bg-muted/30">
+            <div className="max-w-md">
+              <CardSearchDropdown
+                results={filteredResults}
+                onSearch={setCardSearchQuery}
+                onSelect={(cardId) => {
+                  onAssignToCard(cardId);
+                  setShowAssign(false);
+                  setCardSearchQuery("");
+                }}
+                disabled={isAssigning}
+                // oxlint-disable-next-line jsx-a11y/no-autofocus -- admin-only UI, autofocus is intentional
+                autoFocus
+              />
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </>
   );
 }
 
