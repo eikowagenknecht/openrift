@@ -135,7 +135,7 @@ export function ExistingCardDetailPage({
 
   // --- State ---
   const collapsedPrintings = useAdminCardFoldStore((state) => getCollapsedPrintings(state, cardId));
-  const collapsedSections = useAdminCardFoldStore((state) => getCollapsedSections(state, cardId));
+  const collapsedSections = useAdminCardFoldStore((state) => getCollapsedSections(state));
   const togglePrintingFold = useAdminCardFoldStore((state) => state.togglePrinting);
   const expandPrintingFold = useAdminCardFoldStore((state) => state.expandPrinting);
   const setCollapsedForCard = useAdminCardFoldStore((state) => state.setCollapsedForCard);
@@ -497,7 +497,7 @@ export function ExistingCardDetailPage({
           <button
             type="button"
             className="flex items-center gap-2 hover:opacity-80"
-            onClick={() => toggleSection(cardId, "cardFields")}
+            onClick={() => toggleSection("cardFields")}
           >
             {cardFieldsExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
             <h3 className="font-medium">Card Fields</h3>
@@ -627,7 +627,7 @@ export function ExistingCardDetailPage({
         <button
           type="button"
           className="flex items-center gap-2 hover:opacity-80"
-          onClick={() => toggleSection(cardId, "marketplace")}
+          onClick={() => toggleSection("marketplace")}
         >
           {marketplaceExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
           <h3 className="font-medium">Marketplace</h3>
@@ -641,7 +641,7 @@ export function ExistingCardDetailPage({
           <button
             type="button"
             className="flex items-center gap-2 hover:opacity-80"
-            onClick={() => toggleSection(cardId, "printings")}
+            onClick={() => toggleSection("printings")}
           >
             {printingsExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
             <h3 className="font-medium">Printings</h3>

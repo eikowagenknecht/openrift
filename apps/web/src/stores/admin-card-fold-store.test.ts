@@ -117,36 +117,36 @@ describe("useAdminCardFoldStore", () => {
 
   describe("toggleSection", () => {
     it("adds a section id to the collapsed set when absent", () => {
-      useAdminCardFoldStore.getState().toggleSection("ahri-inquisitive", "marketplace");
+      useAdminCardFoldStore.getState().toggleSection("marketplace");
 
-      const collapsed = getCollapsedSections(useAdminCardFoldStore.getState(), "ahri-inquisitive");
+      const collapsed = getCollapsedSections(useAdminCardFoldStore.getState());
       expect(collapsed.has("marketplace")).toBe(true);
     });
 
     it("removes a section id from the collapsed set when present", () => {
       const { toggleSection } = useAdminCardFoldStore.getState();
-      toggleSection("ahri-inquisitive", "printings");
-      toggleSection("ahri-inquisitive", "printings");
+      toggleSection("printings");
+      toggleSection("printings");
 
-      const collapsed = getCollapsedSections(useAdminCardFoldStore.getState(), "ahri-inquisitive");
+      const collapsed = getCollapsedSections(useAdminCardFoldStore.getState());
       expect(collapsed.has("printings")).toBe(false);
     });
 
-    it("keeps section fold state independent per card", () => {
+    it("shares section fold state across cards", () => {
       const { toggleSection } = useAdminCardFoldStore.getState();
-      toggleSection("ahri-inquisitive", "cardFields");
-      toggleSection("other-card", "cardFields");
-      toggleSection("other-card", "marketplace");
+      toggleSection("cardFields");
+      toggleSection("marketplace");
 
-      const state = useAdminCardFoldStore.getState();
-      expect(getCollapsedSections(state, "ahri-inquisitive").size).toBe(1);
-      expect(getCollapsedSections(state, "other-card").size).toBe(2);
+      const collapsed = getCollapsedSections(useAdminCardFoldStore.getState());
+      expect(collapsed.has("cardFields")).toBe(true);
+      expect(collapsed.has("marketplace")).toBe(true);
+      expect(collapsed.has("printings")).toBe(false);
     });
   });
 
   describe("getCollapsedSections", () => {
-    it("returns an empty set for an unknown card", () => {
-      const collapsed = getCollapsedSections(useAdminCardFoldStore.getState(), "never-visited");
+    it("returns an empty set initially", () => {
+      const collapsed = getCollapsedSections(useAdminCardFoldStore.getState());
       expect(collapsed.size).toBe(0);
     });
   });
