@@ -168,25 +168,6 @@ export const reconcileSnapshotsResponseSchema = z.object({
   snapshotsInserted: z.number().openapi({ example: 14 }),
 });
 
-const upsertCountsSchema = z.object({
-  total: z.number().openapi({ example: 468 }),
-  new: z.number().openapi({ example: 12 }),
-  updated: z.number().openapi({ example: 455 }),
-  unchanged: z.number().openapi({ example: 1 }),
-});
-
-export const priceRefreshResponseSchema = z.object({
-  transformed: z.object({
-    groups: z.number().openapi({ example: 3 }),
-    products: z.number().openapi({ example: 312 }),
-    prices: z.number().openapi({ example: 468 }),
-  }),
-  upserted: z.object({
-    snapshots: upsertCountsSchema,
-    staging: upsertCountsSchema,
-  }),
-});
-
 // ── Job runs ──────────────────────────────────────────────────────────────
 
 export const jobRunStartedResponseSchema = z.object({
@@ -194,7 +175,7 @@ export const jobRunStartedResponseSchema = z.object({
   status: z.enum(["running", "already_running"]).openapi({ example: "running" }),
 });
 
-export const jobRunViewSchema = z.object({
+const jobRunViewSchema = z.object({
   id: z.string().uuid(),
   kind: z.string().openapi({ example: "cardtrader.refresh" }),
   trigger: z.enum(["cron", "admin", "api"]),

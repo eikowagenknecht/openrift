@@ -13,8 +13,6 @@ export interface CronStatus {
   cardtrader: { nextRun: string | null } | null;
 }
 
-export type RefreshKind = "tcgplayer.refresh" | "cardmarket.refresh" | "cardtrader.refresh";
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export function formatRelativeTime(iso: string): string {

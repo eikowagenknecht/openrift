@@ -34,7 +34,6 @@ export type {
   // Printing events (migration 071)
   FieldChange,
   // Job runs (migration 101)
-  JobRunsTable,
   JobStatus,
   JobTrigger,
 } from "./tables.js";
