@@ -211,7 +211,22 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
 
   // Defer the card grid re-render so filter UI responds immediately
   const deferredSortedCards = useDeferredValue(sortedCards);
-  const isGridStale = deferredSortedCards !== sortedCards;
+  // Only surface the dimmed "stale" state if the deferred render is genuinely
+  // slow. Adding or removing a single copy re-derives sortedCards but the
+  // deferred value catches up within a frame; without this debounce the
+  // grid briefly flashes grayed out on every +/- click.
+  const stalePending = deferredSortedCards !== sortedCards;
+  const [isGridStale, setIsGridStale] = useState(false);
+  useEffect(() => {
+    if (!stalePending) {
+      setIsGridStale(false);
+      return;
+    }
+    const timer = globalThis.setTimeout(() => setIsGridStale(true), 150);
+    return () => {
+      globalThis.clearTimeout(timer);
+    };
+  }, [stalePending]);
 
   // ── Selection state (select mode) ───────────────────────────────────
   const {

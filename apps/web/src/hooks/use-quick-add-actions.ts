@@ -1,10 +1,12 @@
 import type { Printing } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
+import { toast } from "sonner";
 
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { decideRemoval, pickNewestCopy } from "@/hooks/use-quick-add-actions-helpers";
 import { getCopiesCollection } from "@/lib/copies-collection";
+import { summarizeBatchAdd } from "@/lib/summarize-batch-add";
 import { useAddModeStore } from "@/stores/add-mode-store";
 
 /**
@@ -22,13 +24,36 @@ import { useAddModeStore } from "@/stores/add-mode-store";
  * @returns Quick-add actions, or undefined handlers when disabled.
  */
 export function useQuickAddActions(addTarget?: string, viewCollectionId?: string) {
-  const batchedAdd = useBatchedAddCopies();
+  // Remember printings added this session so onBatchSuccess can look up names
+  // for the toast summary without the caller threading them through. Entries
+  // are cleared when their batch resolves.
+  const pendingPrintingsRef = useRef<Map<string, Printing>>(new Map());
+  const batchedAdd = useBatchedAddCopies({
+    onBatchSuccess: (printingIds) => {
+      const msg = summarizeBatchAdd(
+        printingIds,
+        (id) => pendingPrintingsRef.current.get(id)?.card.name,
+      );
+      if (msg) {
+        toast.success(msg);
+      }
+      for (const id of new Set(printingIds)) {
+        pendingPrintingsRef.current.delete(id);
+      }
+    },
+    onBatchError: (printingIds) => {
+      for (const id of new Set(printingIds)) {
+        pendingPrintingsRef.current.delete(id);
+      }
+    },
+  });
   const disposeCopies = useDisposeCopies();
   const queryClient = useQueryClient();
   const copiesCollection = getCopiesCollection(queryClient);
 
   const handleQuickAdd = addTarget
     ? async (printing: Printing) => {
+        pendingPrintingsRef.current.set(printing.id, printing);
         useAddModeStore.getState().incrementPending(printing);
         try {
           const { result } = batchedAdd.add(printing.id, addTarget);

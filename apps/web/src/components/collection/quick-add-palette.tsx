@@ -14,6 +14,7 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { searchCards } from "@/hooks/use-quick-add-search";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
 import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
+import { summarizeBatchAdd } from "@/lib/summarize-batch-add";
 import { cn } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
 
@@ -96,7 +97,24 @@ function PaletteInner({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const scrollOnChange = useRef(false);
-  const batchedAdd = useBatchedAddCopies();
+  const batchedAdd = useBatchedAddCopies({
+    // Fires once per API batch, not per click, so a held-Enter burst produces
+    // one aggregated toast instead of N "Added 1× Card" lines. Error toasts
+    // are handled by the global mutation onError in query-client.ts.
+    onBatchSuccess: (printingIds) => {
+      const msg = summarizeBatchAdd(printingIds, (id) => {
+        for (const list of printingsByCardId.values()) {
+          const found = list.find((printing) => printing.id === id);
+          if (found) {
+            return found.card.name;
+          }
+        }
+      });
+      if (msg) {
+        toast.success(msg);
+      }
+    },
+  });
   const disposeCopies = useDisposeCopies();
   const addedItems = useAddModeStore((s) => s.addedItems);
   const { labels } = useEnumOrders();
@@ -142,13 +160,15 @@ function PaletteInner({
       const { result } = batchedAdd.add(printing.id, collectionId);
       const real = await result;
       useAddModeStore.getState().recordAdd(printing, real.id);
-      toast.success(`Added 1× ${printing.card.name}`);
       const input = inputRef.current;
       if (input) {
         input.focus();
       }
+      // Success toast is fired once per batch by onBatchSuccess above; error
+      // toast is fired by the global mutation handler in query-client.ts.
     } catch {
-      toast.error(`Failed to add ${printing.card.name}`);
+      // Swallow: the global onError already toasted; rethrowing would
+      // surface as an uncaught promise warning.
     }
     useAddModeStore.getState().decrementPending(printing.id);
   };

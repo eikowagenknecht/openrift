@@ -2,7 +2,7 @@ import type { CopyResponse } from "@openrift/shared";
 import { createTransaction, eq, useLiveQuery } from "@tanstack/react-db";
 import { useBatcher } from "@tanstack/react-pacer";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import { getCopiesCollection } from "@/lib/copies-collection";
@@ -236,6 +236,11 @@ interface PendingAdd {
   reject: (error: unknown) => void;
 }
 
+export interface BatchedAddCallbacks {
+  onBatchSuccess?: (printingIds: string[]) => void;
+  onBatchError?: (printingIds: string[], error: unknown) => void;
+}
+
 /**
  * Batches rapid add-copy calls into a single POST request and applies
  * optimistic inserts into the copies collection so owned-count reflects the
@@ -245,16 +250,23 @@ interface PendingAdd {
  * Caller must pass a concrete collectionId — the inbox-default path doesn't
  * support optimistic because the inbox id isn't known from the add call.
  *
+ * Optional batch callbacks fire once per API batch (not per add), so callers
+ * can surface one toast per batch instead of one per click.
  * @returns An `add` function, a `tempId` provider for optimistic session
  *   tracking, and an `isPending` flag.
  */
-export function useBatchedAddCopies() {
+export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
   const queryClient = useQueryClient();
   const copiesCollection = getCopiesCollection(queryClient);
   const addCopies = useAddCopies();
+  // useBatcher captures its handler once; ref keeps the latest callbacks
+  // so we don't recreate the batcher whenever the consumer re-renders.
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
 
   const batcher = useBatcher<PendingAdd>(
     (pending) => {
+      const printingIds = pending.map((entry) => entry.printingId);
       addCopies.mutate(
         {
           copies: pending.map((entry) => ({
@@ -268,11 +280,13 @@ export function useBatchedAddCopies() {
             for (let i = 0; i < pending.length; i++) {
               pending[i].resolve(data[i]);
             }
+            callbacksRef.current?.onBatchSuccess?.(printingIds);
           },
           onError: (error) => {
             for (const entry of pending) {
               entry.reject(error);
             }
+            callbacksRef.current?.onBatchError?.(printingIds, error);
           },
         },
       );
