@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { collectEntries } from "./marketplace-products-table";
+import { collectEntries, displayedProductLanguage } from "./marketplace-products-table";
 import type {
   MarketplaceAssignment,
   StagedProduct,
@@ -235,6 +235,20 @@ describe("collectEntries", () => {
       "tcgplayer:Alpha",
       "tcgplayer:Zeta",
     ]);
+  });
+
+  it("hides the Cardmarket placeholder language so non-EN products don't falsely render as EN", () => {
+    // Regression: CM 873230 is a ZH-only product on Cardmarket, but our
+    // staging layer stamps every CM row as "EN" (CM's price guide is
+    // language-aggregate — it doesn't expose per-product language). The UI
+    // must not surface that placeholder, otherwise ZH cards appear as EN.
+    expect(displayedProductLanguage("cardmarket", "EN")).toBeNull();
+    expect(displayedProductLanguage("cardmarket", "ZH")).toBeNull();
+    // TCG/CT keep their stored language — CT is per-language, TCG is
+    // effectively English-only for Riftbound so "EN" is meaningful there.
+    expect(displayedProductLanguage("tcgplayer", "EN")).toBe("EN");
+    expect(displayedProductLanguage("cardtrader", "ZH")).toBe("ZH");
+    expect(displayedProductLanguage("cardtrader", "")).toBeNull();
   });
 
   it("skips assignment entries whose printingId is not in group.printings", () => {

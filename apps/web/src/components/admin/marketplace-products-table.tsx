@@ -80,6 +80,24 @@ interface TableEntry {
   assignedPrintingIds: Set<string>;
 }
 
+/**
+ * The language string to surface in the table's Language column for a staged
+ * product. Cardmarket's price guide is language-aggregate, so every CM
+ * staging row carries a placeholder "EN" regardless of the physical card's
+ * real language — displaying it would falsely imply we've identified an
+ * English product. Return null for CM so the UI renders a dash.
+ * @returns Display string, or null when no meaningful language is known.
+ */
+export function displayedProductLanguage(
+  marketplace: AdminMarketplaceName,
+  language: string,
+): string | null {
+  if (marketplace === "cardmarket") {
+    return null;
+  }
+  return language || null;
+}
+
 export function collectEntries(group: UnifiedMappingGroup): TableEntry[] {
   const printingById = new Map(group.printings.map((p) => [p.printingId, p]));
   const entries: TableEntry[] = [];
@@ -276,7 +294,9 @@ function MarketplaceProductRow({
           </div>
         </TableCell>
         <TableCell className="text-muted-foreground w-16">
-          {product.language || <span className="text-muted-foreground/50">—</span>}
+          {displayedProductLanguage(marketplace, product.language) ?? (
+            <span className="text-muted-foreground/50">—</span>
+          )}
         </TableCell>
         <TableCell className="text-muted-foreground max-w-0">
           <span className="block truncate" title={product.groupName ?? undefined}>
