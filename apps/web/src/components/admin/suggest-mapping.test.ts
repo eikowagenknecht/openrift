@@ -253,4 +253,71 @@ describe("computeProductSuggestions", () => {
     expect(entry).toBeDefined();
     expect(entry!.score).toBeGreaterThanOrEqual(STRONG_MATCH_THRESHOLD);
   });
+
+  it("suggests a metal printing for a foil-staging product whose name contains 'Metal'", () => {
+    // Marketplaces only emit `normal` or `foil` in staging — "metal" never
+    // appears there. A metal printing must accept foil staging to ever see a
+    // price update.
+    const metal = printing({ printingId: "p-metal", finish: "metal" });
+    const result = computeProductSuggestions(
+      group([metal], {
+        tcgplayer: {
+          staged: [staged({ externalId: 801, productName: "Ahri Metal", finish: "foil" })],
+          assignments: [],
+        },
+      }),
+    );
+    const entry = result.get(productSuggestionKey("tcgplayer", 801, "foil", "EN"));
+    expect(entry?.printingId).toBe("p-metal");
+  });
+
+  it("routes the Metal-titled product to the metal printing and the plain foil to the regular foil", () => {
+    const foil = printing({ printingId: "p-foil", finish: "foil" });
+    const metal = printing({ printingId: "p-metal", finish: "metal" });
+    const result = computeProductSuggestions(
+      group([foil, metal], {
+        tcgplayer: {
+          staged: [
+            staged({ externalId: 900, productName: "Ahri", finish: "foil" }),
+            staged({ externalId: 901, productName: "Ahri Metal", finish: "foil" }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    expect(result.get(productSuggestionKey("tcgplayer", 900, "foil", "EN"))?.printingId).toBe(
+      "p-foil",
+    );
+    expect(result.get(productSuggestionKey("tcgplayer", 901, "foil", "EN"))?.printingId).toBe(
+      "p-metal",
+    );
+  });
+
+  it("also accepts metal-deluxe printings for foil staging", () => {
+    const metalDeluxe = printing({ printingId: "p-md", finish: "metal-deluxe" });
+    const result = computeProductSuggestions(
+      group([metalDeluxe], {
+        tcgplayer: {
+          staged: [staged({ externalId: 910, productName: "Ahri Metal Deluxe", finish: "foil" })],
+          assignments: [],
+        },
+      }),
+    );
+    expect(result.get(productSuggestionKey("tcgplayer", 910, "foil", "EN"))?.printingId).toBe(
+      "p-md",
+    );
+  });
+
+  it("still rejects foil staging for a normal printing (equivalence class does not include normal)", () => {
+    const normal = printing({ printingId: "p-normal", finish: "normal" });
+    const result = computeProductSuggestions(
+      group([normal], {
+        tcgplayer: {
+          staged: [staged({ externalId: 920, productName: "Ahri", finish: "foil" })],
+          assignments: [],
+        },
+      }),
+    );
+    expect(result.size).toBe(0);
+  });
 });
