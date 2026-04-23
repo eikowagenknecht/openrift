@@ -203,7 +203,7 @@ export const jobRunViewSchema = z.object({
   finishedAt: z.string().nullable(),
   durationMs: z.number().nullable(),
   errorMessage: z.string().nullable(),
-  result: z.unknown(),
+  result: z.record(z.string(), z.any()).nullable(),
 });
 
 export const jobRunsListResponseSchema = z.object({
