@@ -72,3 +72,20 @@ export const WellKnown = {
     OVERFLOW: "overflow",
   },
 } as const;
+
+/**
+ * Map a DB finish to the marketplace's coarser view of it.
+ *
+ * TCG, Cardmarket and CardTrader only emit `normal` or `foil` staging rows —
+ * neither "metal" nor "metal-deluxe" is a concept any of them expose. A metal
+ * printing's prices live in the same staging rows as a plain foil one, so the
+ * `marketplace_product_variants.finish` column must store `foil` to join
+ * against staging, even when the printing itself is `metal` / `metal-deluxe`.
+ * @returns `foil` for metal/metal-deluxe inputs; all other values pass through unchanged.
+ */
+export function marketplaceFinish(dbFinish: string): string {
+  if (dbFinish === WellKnown.finish.METAL || dbFinish === WellKnown.finish.METAL_DELUXE) {
+    return WellKnown.finish.FOIL;
+  }
+  return dbFinish;
+}

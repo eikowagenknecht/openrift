@@ -204,7 +204,7 @@ export { extractBracketedTerms, extractKeywords } from "./keywords.js";
 export type { SourceSlot } from "./zone-inference.js";
 export { inferZone } from "./zone-inference.js";
 
-export { WellKnown } from "./well-known.js";
+export { marketplaceFinish, WellKnown } from "./well-known.js";
 
 export type {
   PackPool,

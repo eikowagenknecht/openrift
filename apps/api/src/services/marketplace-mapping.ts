@@ -2,6 +2,7 @@ import type {
   MarketplaceAssignmentResponse as MarketplaceAssignment,
   StagedProductResponse,
 } from "@openrift/shared";
+import { marketplaceFinish } from "@openrift/shared";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 
 import type { Repos, Transact } from "../deps.js";
@@ -576,7 +577,10 @@ export async function saveMappings(
         skipped.push({ externalId: m.externalId, reason: "printing not found" });
         continue;
       }
-      const stagingHit = stagingByKey.get(`${m.externalId}::${info.finish}::${info.language}`)?.[0];
+      const lookupFinish = marketplaceFinish(info.finish);
+      const stagingHit = stagingByKey.get(
+        `${m.externalId}::${lookupFinish}::${info.language}`,
+      )?.[0];
       let groupId: number;
       let productName: string;
       if (stagingHit) {
@@ -607,7 +611,10 @@ export async function saveMappings(
         externalId: m.externalId,
         groupId,
         productName,
-        finish: info.finish,
+        // Use the marketplace's view of the finish so variant rows join correctly
+        // against staging (which only emits `normal` / `foil`). The printing table
+        // still holds the fine-grained DB finish (metal / metal-deluxe / …).
+        finish: lookupFinish,
         // Cardmarket's price guide is a cross-language aggregate, so variants
         // are stored with NULL language. Other marketplaces pin the variant
         // to the printing's actual language.

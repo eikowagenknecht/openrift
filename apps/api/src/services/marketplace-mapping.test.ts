@@ -1262,6 +1262,93 @@ describe("saveMappings", () => {
     expect(upsertValues[0].language).toBeNull();
   });
 
+  it("accepts a metal printing against foil staging and writes finish=foil on the variant", async () => {
+    // Marketplaces never emit `metal` in staging — metal printings reuse the
+    // foil staging rows. The variant row must carry `finish=foil` so price
+    // refresh's (externalId, finish, language) join actually hits.
+    const upsertMock = vi.fn().mockResolvedValue([{ printingId: "p-metal", variantId: "var-m" }]);
+    const mappingRepo = createMockMappingRepo({
+      printingFinishesAndLanguages: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-metal", finish: "metal", language: "EN" }]),
+      stagingByExternalIds: vi.fn().mockResolvedValue([
+        {
+          externalId: 12_345,
+          finish: "foil",
+          language: "EN",
+          groupId: 1,
+          productName: "Lee Sin Metal",
+          recordedAt: new Date("2026-01-15"),
+          marketCents: 2500,
+          lowCents: null,
+          midCents: null,
+          highCents: null,
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
+        },
+      ]),
+      upsertProductVariants: upsertMock,
+    });
+    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
+    const transact = mockTransact(repos);
+    const config = createMockConfig();
+
+    const result = await saveMappings(transact, config, [
+      { printingId: "p-metal", externalId: 12_345 },
+    ]);
+
+    expect(result.saved).toBe(1);
+    expect(result.skipped).toEqual([]);
+    expect(upsertMock).toHaveBeenCalledWith([
+      expect.objectContaining({
+        printingId: "p-metal",
+        externalId: 12_345,
+        finish: "foil",
+        language: "EN",
+      }),
+    ]);
+  });
+
+  it("accepts a metal-deluxe printing against foil staging as well", async () => {
+    const upsertMock = vi.fn().mockResolvedValue([{ printingId: "p-md", variantId: "var-md" }]);
+    const mappingRepo = createMockMappingRepo({
+      printingFinishesAndLanguages: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-md", finish: "metal-deluxe", language: "EN" }]),
+      stagingByExternalIds: vi.fn().mockResolvedValue([
+        {
+          externalId: 22_345,
+          finish: "foil",
+          language: "EN",
+          groupId: 1,
+          productName: "Lee Sin Metal Deluxe",
+          recordedAt: new Date("2026-01-15"),
+          marketCents: 9900,
+          lowCents: null,
+          midCents: null,
+          highCents: null,
+          trendCents: null,
+          avg1Cents: null,
+          avg7Cents: null,
+          avg30Cents: null,
+        },
+      ]),
+      upsertProductVariants: upsertMock,
+    });
+    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
+    const transact = mockTransact(repos);
+    const config = createMockConfig();
+
+    const result = await saveMappings(transact, config, [
+      { printingId: "p-md", externalId: 22_345 },
+    ]);
+
+    expect(result.saved).toBe(1);
+    expect(upsertMock).toHaveBeenCalledWith([expect.objectContaining({ finish: "foil" })]);
+  });
+
   it("writes language from the printing when the marketplace is per-language", async () => {
     const upsertMock = vi.fn().mockResolvedValue([{ printingId: "p-1", variantId: "var-1" }]);
     const mappingRepo = createMockMappingRepo({

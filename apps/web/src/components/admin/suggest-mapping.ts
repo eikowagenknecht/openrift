@@ -1,5 +1,5 @@
 import type { AdminMarketplaceName, ArtVariant } from "@openrift/shared";
-import { normalizeNameForMatching } from "@openrift/shared";
+import { marketplaceFinish, normalizeNameForMatching, WellKnown } from "@openrift/shared";
 
 import type {
   MappingGroup,
@@ -90,6 +90,10 @@ function inferSigned(suffix: string): boolean | null {
   return null;
 }
 
+function inferIsMetal(suffix: string): boolean {
+  return suffix.includes("metal");
+}
+
 /**
  * Score how well a staged product matches a printing.
  * @returns A numeric score, or -1 if disqualified.
@@ -100,8 +104,11 @@ function scorePrintingProduct(
   cardName: string,
   enforceLanguage: boolean,
 ): number {
-  // Finish must match
-  if (printing.finish.toLowerCase() !== product.finish.toLowerCase()) {
+  // Finish must match — compared at the marketplace's granularity (metal and
+  // metal-deluxe printings collapse to foil, since no marketplace surfaces
+  // them as distinct staging rows).
+  const printingMarketplaceFinish = marketplaceFinish(printing.finish.toLowerCase());
+  if (printingMarketplaceFinish !== product.finish.toLowerCase()) {
     return -1;
   }
 
@@ -142,6 +149,22 @@ function scorePrintingProduct(
   const signed = inferSigned(suffix);
   if (signed !== null) {
     if (signed === printing.isSigned) {
+      score += 60;
+    } else {
+      score -= 80;
+    }
+  }
+
+  // Metal disambiguation: within the foil equivalence class, a metal printing
+  // should prefer the foil-staging product whose name contains "Metal", and a
+  // regular foil printing should avoid it. Only relevant for foil staging —
+  // normal printings already filter out via the finish gate above.
+  if (product.finish.toLowerCase() === WellKnown.finish.FOIL) {
+    const metalProduct = inferIsMetal(suffix);
+    const metalPrinting =
+      printing.finish === WellKnown.finish.METAL ||
+      printing.finish === WellKnown.finish.METAL_DELUXE;
+    if (metalProduct === metalPrinting) {
       score += 60;
     } else {
       score -= 80;
