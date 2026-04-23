@@ -257,10 +257,9 @@ function MarketplaceProductRow({
         <TableCell className="w-20 text-right tabular-nums">
           <div className="flex items-center justify-end gap-1">
             {isStale && (
-              <AlertTriangleIcon
-                className="text-destructive size-3.5"
-                title={`Last seen ${product.recordedAt.slice(0, 16).replace("T", " ")}`}
-              />
+              <span title={`Last seen ${product.recordedAt.slice(0, 16).replace("T", " ")}`}>
+                <AlertTriangleIcon className="text-destructive size-3.5" />
+              </span>
             )}
             <span>{priceDisplay}</span>
           </div>
