@@ -1035,7 +1035,7 @@ describe("buildCardDetail", () => {
     expect(result.printings).toHaveLength(1);
     expect(result.printings[0].setId).toBe("origin");
     expect(result.printings[0].setName).toBe("Origin Set");
-    expect(result.printings[0].expectedPrintingId).toBe("OGN-001:normal:");
+    expect(result.printings[0].expectedPrintingId).toBe("OGN-001::normal");
   });
 
   it("resolves promo type slugs for expectedPrintingId", async () => {
@@ -1089,7 +1089,7 @@ describe("buildCardDetail", () => {
     });
 
     const result = await buildCardDetail(repo, mpRepo(), "fireball");
-    expect(result.printings[0].expectedPrintingId).toBe("OGN-001:foil:promo");
+    expect(result.printings[0].expectedPrintingId).toBe("OGN-001:promo:foil");
   });
 
   it("groups unlinked candidate printings into candidatePrintingGroups", async () => {
@@ -1169,7 +1169,7 @@ describe("buildCardDetail", () => {
 
     expect(result.candidatePrintingGroups).toHaveLength(1);
     expect(result.candidatePrintingGroups[0].shortCodes).toEqual(["cp-1", "cp-2"]);
-    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001:normal:");
+    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001::normal");
   });
 
   it("excludes linked candidate printings from grouping", async () => {
@@ -1279,7 +1279,7 @@ describe("buildCardDetail", () => {
     });
 
     const result = await buildCardDetail(repo, mpRepo(), "x");
-    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001:foil:");
+    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001::foil");
   });
 
   it("resolves finish to normal for Common/Uncommon rarity", async () => {
@@ -1334,7 +1334,7 @@ describe("buildCardDetail", () => {
     });
 
     const result = await buildCardDetail(repo, mpRepo(), "x");
-    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001:normal:");
+    expect(result.candidatePrintingGroups[0].expectedPrintingId).toBe("OGN-001::normal");
   });
 
   it("resolves finish to empty string when both finish and rarity are null", async () => {

@@ -85,41 +85,41 @@ describe("unique", () => {
 
 describe("formatPrintingLabel", () => {
   it("builds a basic unmarked slug", () => {
-    expect(formatPrintingLabel("OGN-001", [], "normal")).toBe("OGN-001:normal:");
+    expect(formatPrintingLabel("OGN-001", [], "normal")).toBe("OGN-001::normal");
   });
 
   it("includes a single marker slug", () => {
-    expect(formatPrintingLabel("OGN-001", ["promo"], "foil")).toBe("OGN-001:foil:promo");
+    expect(formatPrintingLabel("OGN-001", ["promo"], "foil")).toBe("OGN-001:promo:foil");
   });
 
   it("joins multiple marker slugs with +", () => {
     expect(formatPrintingLabel("OGN-001", ["promo", "top-8"], "foil")).toBe(
-      "OGN-001:foil:promo+top-8",
+      "OGN-001:promo+top-8:foil",
     );
   });
 
   it("preserves finish value", () => {
-    expect(formatPrintingLabel("OGN-105", [], "normal")).toBe("OGN-105:normal:");
+    expect(formatPrintingLabel("OGN-105", [], "normal")).toBe("OGN-105::normal");
   });
 
-  it("omits language suffix for EN (default)", () => {
-    expect(formatPrintingLabel("OGN-001", [], "normal", "EN")).toBe("OGN-001:normal:");
+  it("prepends EN language prefix when explicit", () => {
+    expect(formatPrintingLabel("OGN-001", [], "normal", "EN")).toBe("EN:OGN-001::normal");
   });
 
-  it("omits language suffix when language is null", () => {
-    expect(formatPrintingLabel("OGN-001", [], "normal", null)).toBe("OGN-001:normal:");
+  it("omits language prefix when language is null", () => {
+    expect(formatPrintingLabel("OGN-001", [], "normal", null)).toBe("OGN-001::normal");
   });
 
-  it("omits language suffix when language is undefined", () => {
-    expect(formatPrintingLabel("OGN-001", [], "normal", undefined)).toBe("OGN-001:normal:");
+  it("omits language prefix when language is undefined", () => {
+    expect(formatPrintingLabel("OGN-001", [], "normal", undefined)).toBe("OGN-001::normal");
   });
 
-  it("appends language suffix for non-EN languages", () => {
-    expect(formatPrintingLabel("OGN-001", [], "normal", "FR")).toBe("OGN-001:normal::FR");
+  it("prepends language prefix for non-EN languages", () => {
+    expect(formatPrintingLabel("OGN-001", [], "normal", "FR")).toBe("FR:OGN-001::normal");
   });
 
-  it("appends language suffix with marker", () => {
-    expect(formatPrintingLabel("OGN-001", ["promo"], "foil", "ZH")).toBe("OGN-001:foil:promo:ZH");
+  it("prepends language prefix with marker", () => {
+    expect(formatPrintingLabel("OGN-001", ["promo"], "foil", "ZH")).toBe("ZH:OGN-001:promo:foil");
   });
 });
 

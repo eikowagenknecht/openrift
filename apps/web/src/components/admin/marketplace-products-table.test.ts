@@ -121,7 +121,7 @@ describe("collectEntries", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].isAssigned).toBe(true);
     expect([...entries[0].assignedPrintingIds]).toEqual(["p-1"]);
-    expect(entries[0].assignedPrintings[0].label).toBe("OGN-001:normal:");
+    expect(entries[0].assignedPrintings[0].label).toBe("EN:OGN-001::normal");
   });
 
   it("does not cross-contaminate assigned printings across language variants for per-language marketplaces", () => {
