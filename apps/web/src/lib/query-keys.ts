@@ -84,6 +84,7 @@ export const queryKeys = {
     featureFlagOverrides: ["admin", "feature-flag-overrides"] as const,
     siteSettings: ["admin", "site-settings"] as const,
     status: ["admin", "status"] as const,
+    jobRuns: ["admin", "job-runs"] as const,
     cronStatus: ["admin", "cron-status"] as const,
     cacheStatus: ["admin", "cache-status"] as const,
     rehostStatus: ["admin", "rehost-status"] as const,

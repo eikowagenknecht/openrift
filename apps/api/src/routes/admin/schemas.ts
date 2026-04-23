@@ -193,7 +193,7 @@ export const jobRunsListResponseSchema = z.object({
 
 export const jobRunsQuerySchema = z.object({
   kind: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional(),
 });
 
 // ── Ignored Candidates ─────────────────────────────────────────────────────
