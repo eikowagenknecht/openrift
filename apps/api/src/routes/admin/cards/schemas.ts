@@ -80,7 +80,7 @@ export const upsertErrataSchema = z.object({
   effectiveDate: cardErrataFieldRules.effectiveDate.optional().default(null),
 });
 
-export const uploadErrataEntrySchema = z
+const uploadErrataEntrySchema = z
   .object({
     cardSlug: cardFieldRules.slug,
     correctedRulesText: cardErrataFieldRules.correctedRulesText.optional().default(null),

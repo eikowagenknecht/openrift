@@ -23,12 +23,10 @@
         "src/routes/**/*.tsx",
         "src/components/cards/card-detail/index.tsx"
       ],
-      "ignore": ["src/env.d.ts", "src/components/ui/**", "src/test/**", "src/**/*.bench.ts"],
+      "ignore": ["src/env.d.ts", "src/components/ui/**", "src/**/*.bench.ts"],
       "ignoreDependencies": ["@tanstack/router-cli", "@tanstack/router-plugin"]
     },
-    "packages/shared": {
-      "ignore": ["src/**/*.test.ts"]
-    },
+    "packages/shared": {},
     "packages/e2e": {
       "entry": ["src/**/*.spec.ts", "src/**/*.setup.ts"],
       "ignore": []
