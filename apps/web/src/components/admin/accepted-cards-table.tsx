@@ -174,7 +174,7 @@ function MarketplaceSplitBadge({
 }) {
   const textStatus = weakerStatus(coverage.printings.status, coverage.entries.status);
   return (
-    <div className="relative inline-flex h-5 min-w-9 font-mono text-[10px]">
+    <div className="relative inline-flex h-5 min-w-10 font-mono text-xs">
       <Tooltip>
         <TooltipTrigger
           render={
