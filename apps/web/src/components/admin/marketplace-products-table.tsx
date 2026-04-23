@@ -7,9 +7,11 @@ import {
   ChevronDownIcon,
   EllipsisVerticalIcon,
   LinkIcon,
+  Loader2Icon,
+  WandSparklesIcon,
   XIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
@@ -29,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 import type {
   AssignableCard,
@@ -39,6 +42,8 @@ import type {
 } from "./price-mappings-types";
 import { formatCents, ProductLink } from "./price-mappings-utils";
 import { CM_CONFIG, CT_CONFIG, TCG_CONFIG } from "./source-configs";
+import type { ProductSuggestion } from "./suggest-mapping";
+import { STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
 
 const MARKETPLACE_CONFIGS: Record<AdminMarketplaceName, SourceMappingConfig> = {
   tcgplayer: TCG_CONFIG,
@@ -137,10 +142,12 @@ export function MarketplaceProductsTable({
   group,
   allCards,
   handlers,
+  suggestions,
 }: {
   group: UnifiedMappingGroup;
   allCards: AssignableCard[];
   handlers: Record<AdminMarketplaceName, MarketplaceHandlers>;
+  suggestions?: Map<string, ProductSuggestion>;
 }) {
   const entries = collectEntries(group);
 
@@ -150,14 +157,16 @@ export function MarketplaceProductsTable({
     );
   }
 
+  const printingById = new Map(group.printings.map((p) => [p.printingId, p]));
+
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead className="w-16">Marketplace</TableHead>
           <TableHead className="w-20">ID</TableHead>
-          <TableHead>Set</TableHead>
           <TableHead>Product</TableHead>
+          <TableHead>Set</TableHead>
           <TableHead className="w-16">Language</TableHead>
           <TableHead className="w-16">Finish</TableHead>
           <TableHead className="w-20 text-right">Price</TableHead>
@@ -166,15 +175,27 @@ export function MarketplaceProductsTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {entries.map((entry) => (
-          <MarketplaceProductRow
-            key={`${entry.marketplace}::${entry.product.externalId}::${entry.product.finish}::${entry.product.language}`}
-            entry={entry}
-            printings={group.printings}
-            allCards={allCards}
-            handlers={handlers[entry.marketplace]}
-          />
-        ))}
+        {entries.map((entry) => {
+          const key = `${entry.marketplace}::${entry.product.externalId}::${entry.product.finish}::${entry.product.language}`;
+          const suggestion = entry.isAssigned ? undefined : suggestions?.get(key);
+          const suggestedPrinting = suggestion
+            ? printingById.get(suggestion.printingId)
+            : undefined;
+          return (
+            <MarketplaceProductRow
+              key={key}
+              entry={entry}
+              printings={group.printings}
+              allCards={allCards}
+              handlers={handlers[entry.marketplace]}
+              suggestion={
+                suggestion && suggestedPrinting
+                  ? { ...suggestion, printing: suggestedPrinting }
+                  : undefined
+              }
+            />
+          );
+        })}
       </TableBody>
     </Table>
   );
@@ -185,11 +206,13 @@ function MarketplaceProductRow({
   printings,
   allCards,
   handlers,
+  suggestion,
 }: {
   entry: TableEntry;
   printings: UnifiedMappingPrinting[];
   allCards: AssignableCard[];
   handlers: MarketplaceHandlers;
+  suggestion?: ProductSuggestion & { printing: UnifiedMappingPrinting };
 }) {
   const [showAssign, setShowAssign] = useState(false);
   const [cardSearchQuery, setCardSearchQuery] = useState("");
@@ -231,11 +254,6 @@ function MarketplaceProductRow({
             #{product.externalId}
           </ProductLink>
         </TableCell>
-        <TableCell className="text-muted-foreground max-w-0">
-          <span className="block truncate" title={product.groupName ?? undefined}>
-            {product.groupName ?? <span className="text-muted-foreground/50">—</span>}
-          </span>
-        </TableCell>
         <TableCell className="max-w-0">
           <div className="flex items-center gap-1.5">
             {isAssigned ? (
@@ -247,6 +265,11 @@ function MarketplaceProductRow({
               {product.productName}
             </span>
           </div>
+        </TableCell>
+        <TableCell className="text-muted-foreground max-w-0">
+          <span className="block truncate" title={product.groupName ?? undefined}>
+            {product.groupName ?? <span className="text-muted-foreground/50">—</span>}
+          </span>
         </TableCell>
         <TableCell className="text-muted-foreground w-16">
           {product.language || <span className="text-muted-foreground/50">—</span>}
@@ -266,7 +289,16 @@ function MarketplaceProductRow({
         </TableCell>
         <TableCell>
           {assignedPrintings.length === 0 ? (
-            <span className="text-muted-foreground/50">—</span>
+            suggestion ? (
+              <SuggestionChip
+                suggestion={suggestion}
+                productExternalId={product.externalId}
+                onAssign={(eid, pid) => handlers.onAssignToPrinting(eid, pid)}
+                disabled={handlers.isAssigningToPrinting}
+              />
+            ) : (
+              <span className="text-muted-foreground/50">—</span>
+            )
           ) : (
             <div className="flex flex-wrap gap-1">
               {assignedPrintings.map((p) => (
@@ -334,6 +366,65 @@ function MarketplaceProductRow({
         </TableRow>
       )}
     </>
+  );
+}
+
+function SuggestionChip({
+  suggestion,
+  productExternalId,
+  onAssign,
+  disabled,
+}: {
+  suggestion: ProductSuggestion & { printing: UnifiedMappingPrinting };
+  productExternalId: number;
+  onAssign: (externalId: number, printingId: string) => void;
+  disabled: boolean;
+}) {
+  const { printing } = suggestion;
+  const label = formatPrintingLabel(
+    printing.shortCode,
+    printing.markerSlugs,
+    printing.finish,
+    printing.language,
+  );
+  const isStrong = suggestion.score >= STRONG_MATCH_THRESHOLD;
+  // Local pending flag gives synchronous click feedback — the parent's
+  // `disabled` (driven by mutation isPending) also applies but transitions
+  // later, and has the same value across every chip in the marketplace, so we
+  // can't tell which one the user actually clicked. Timeout resets it if the
+  // server somehow skips the save, so the chip doesn't get stuck.
+  const [pending, setPending] = useState(false);
+  useEffect(() => {
+    if (!pending) {
+      return;
+    }
+    const handle = globalThis.setTimeout(() => setPending(false), 5000);
+    return () => globalThis.clearTimeout(handle);
+  }, [pending]);
+  const busy = pending || disabled;
+  return (
+    <button
+      type="button"
+      title={`Accept suggestion (score ${suggestion.score})`}
+      disabled={busy}
+      onClick={() => {
+        setPending(true);
+        onAssign(productExternalId, printing.printingId);
+      }}
+      className={cn(
+        "inline-flex h-5 items-center gap-1 rounded-4xl border px-2 py-0.5 text-xs font-medium disabled:opacity-50",
+        isStrong
+          ? "border-solid border-green-600/50 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400"
+          : "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 border-dashed",
+      )}
+    >
+      {pending ? (
+        <Loader2Icon className="size-3 shrink-0 animate-spin" />
+      ) : (
+        <WandSparklesIcon className="size-3 shrink-0" />
+      )}
+      {label}
+    </button>
   );
 }
 

@@ -1,4 +1,4 @@
-import type { AdminMarketplaceName } from "@openrift/shared";
+import type { AdminMarketplaceName, UnifiedMappingsResponse } from "@openrift/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -15,16 +15,15 @@ import { queryKeys } from "@/lib/query-keys";
 
 import type { MarketplaceHandlers } from "./marketplace-products-table";
 import { MarketplaceProductsTable } from "./marketplace-products-table";
+import { computeProductSuggestions } from "./suggest-mapping";
 
 export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery(unifiedMappingsQueryOptions(true));
 
-  // Every mutation on this section can affect both the unified mappings table
-  // (this section) and the per-printing marketplace cells below. Await the
-  // invalidations so `.mutate`'s promise only resolves after the fresh data
-  // has been pulled — keeps the UI consistent even if the hook-level
-  // invalidation hasn't finished yet.
+  // Most actions (ignore, unassign, reassign-to-card) await the invalidations
+  // so `.mutate`'s promise only resolves after fresh data has been pulled.
+  // Assignment-to-printing is optimistic instead — see `assignToPrinting`.
   const mutateOpts = {
     onSuccess: async () => {
       await Promise.all([
@@ -32,6 +31,44 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
         queryClient.invalidateQueries({ queryKey: queryKeys.admin.unifiedMappings.all }),
       ]);
     },
+  };
+
+  const unifiedKey = queryKeys.admin.unifiedMappings.byFilter(true);
+
+  // Optimistic path for suggestion-chip clicks. Without this, the chip stays
+  // on screen until the full corpus-wide unifiedMappings refetch finishes —
+  // which can take a couple of seconds since the endpoint returns every card.
+  // We flip the cache synchronously so the row visibly assigns right away,
+  // then reconcile via a background invalidation. On error we roll back.
+  const assignToPrinting = (marketplace: AdminMarketplaceName) => (eid: number, pid: string) => {
+    const previous = queryClient.getQueryData<UnifiedMappingsResponse>(unifiedKey);
+    if (previous) {
+      const next = applyOptimisticAssignment(previous, cardId, marketplace, eid, pid);
+      if (next !== previous) {
+        queryClient.setQueryData(unifiedKey, next);
+      }
+    }
+    const save =
+      marketplace === "tcgplayer"
+        ? tcgSaveMapping
+        : marketplace === "cardmarket"
+          ? cmSaveMapping
+          : ctSaveMapping;
+    save.mutate(
+      { mappings: [{ printingId: pid, externalId: eid }] },
+      {
+        onError: () => {
+          if (previous) {
+            queryClient.setQueryData(unifiedKey, previous);
+          }
+        },
+        onSuccess: () => {
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.admin.cards.detail(cardId),
+          });
+        },
+      },
+    );
   };
 
   const tcgIgnoreVariant = useUnifiedIgnoreVariants("tcgplayer");
@@ -75,8 +112,7 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
           { externalId: eid, finish: fin, language: lang, cardId: cid },
           mutateOpts,
         ),
-      onAssignToPrinting: (eid, pid) =>
-        tcgSaveMapping.mutate({ mappings: [{ printingId: pid, externalId: eid }] }, mutateOpts),
+      onAssignToPrinting: assignToPrinting("tcgplayer"),
       onUnassign: (eid, fin, lang) =>
         tcgUnassign.mutate({ externalId: eid, finish: fin, language: lang }, mutateOpts),
       onUnmapPrinting: (pid) =>
@@ -96,8 +132,7 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
           { externalId: eid, finish: fin, language: lang, cardId: cid },
           mutateOpts,
         ),
-      onAssignToPrinting: (eid, pid) =>
-        cmSaveMapping.mutate({ mappings: [{ printingId: pid, externalId: eid }] }, mutateOpts),
+      onAssignToPrinting: assignToPrinting("cardmarket"),
       onUnassign: (eid, fin, lang) =>
         cmUnassign.mutate({ externalId: eid, finish: fin, language: lang }, mutateOpts),
       onUnmapPrinting: (pid) =>
@@ -117,8 +152,7 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
           { externalId: eid, finish: fin, language: lang, cardId: cid },
           mutateOpts,
         ),
-      onAssignToPrinting: (eid, pid) =>
-        ctSaveMapping.mutate({ mappings: [{ printingId: pid, externalId: eid }] }, mutateOpts),
+      onAssignToPrinting: assignToPrinting("cardtrader"),
       onUnassign: (eid, fin, lang) =>
         ctUnassign.mutate({ externalId: eid, finish: fin, language: lang }, mutateOpts),
       onUnmapPrinting: (pid) =>
@@ -131,5 +165,87 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
     },
   };
 
-  return <MarketplaceProductsTable group={group} allCards={data.allCards} handlers={handlers} />;
+  const suggestions = computeProductSuggestions(group);
+
+  return (
+    <MarketplaceProductsTable
+      group={group}
+      allCards={data.allCards}
+      handlers={handlers}
+      suggestions={suggestions}
+    />
+  );
+}
+
+/**
+ * Return a new unified mappings response with a single (externalId → printing)
+ * assignment applied: the matching staged product becomes assigned, and the
+ * assignment row is appended. Cardmarket stores language-aggregate so the
+ * assignment row uses null; CT/TCG pin the printing's language. Returns the
+ * original response unchanged when the card, printing, or matching staged
+ * variant can't be resolved — the server round-trip will still run and the
+ * background refetch reconciles.
+ * @returns The updated response, or the original when nothing changed.
+ */
+export function applyOptimisticAssignment(
+  response: UnifiedMappingsResponse,
+  cardId: string,
+  marketplace: AdminMarketplaceName,
+  externalId: number,
+  printingId: string,
+): UnifiedMappingsResponse {
+  const groupIdx = response.groups.findIndex((g) => g.cardId === cardId);
+  if (groupIdx === -1) {
+    return response;
+  }
+  const group = response.groups[groupIdx];
+  const printing = group.printings.find((p) => p.printingId === printingId);
+  if (!printing) {
+    return response;
+  }
+  const mk = group[marketplace];
+  const variantIdx = mk.stagedProducts.findIndex((p) => {
+    if (p.externalId !== externalId) {
+      return false;
+    }
+    if (p.finish !== printing.finish) {
+      return false;
+    }
+    // Cardmarket staging is language-aggregate (staging is always placeholder
+    // EN regardless of the physical card's language). For TCG/CT, the staged
+    // variant must match the printing's language.
+    return marketplace === "cardmarket" || p.language === printing.language;
+  });
+  const variant = variantIdx === -1 ? undefined : mk.stagedProducts[variantIdx];
+  const nextStaged =
+    variantIdx === -1
+      ? mk.stagedProducts
+      : [...mk.stagedProducts.slice(0, variantIdx), ...mk.stagedProducts.slice(variantIdx + 1)];
+  const nextAssigned = variant ? [...mk.assignedProducts, variant] : mk.assignedProducts;
+  const nextAssignments = [
+    ...mk.assignments,
+    {
+      externalId,
+      printingId,
+      finish: printing.finish,
+      language: marketplace === "cardmarket" ? null : (variant?.language ?? printing.language),
+    },
+  ];
+  const nextGroup = {
+    ...group,
+    [marketplace]: {
+      ...mk,
+      stagedProducts: nextStaged,
+      assignedProducts: nextAssigned,
+      assignments: nextAssignments,
+    },
+  };
+  return {
+    ...response,
+    groups: [
+      ...response.groups.slice(0, groupIdx),
+      nextGroup,
+      ...response.groups.slice(groupIdx + 1),
+    ],
+  };
 }
