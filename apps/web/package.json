@@ -8,9 +8,9 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "dev": "vite dev --clearScreen false",
-    "build": "vite build && tsc -b",
+    "build": "vite build && tsgo -b",
     "start": "bun --env-file=../../.env .output/server/index.mjs",
-    "typecheck": "tsc -b",
+    "typecheck": "tsgo -b",
     "lint": "eslint ."
   },
   "dependencies": {
@@ -72,6 +72,7 @@
     "@types/node": "25.6.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "@typescript/native-preview": "7.0.0-dev.20260423.1",
     "@vitejs/devtools": "0.1.15",
     "@vitejs/plugin-react": "6.0.1",
     "@vitest/coverage-v8": "4.1.5",
