@@ -1,6 +1,7 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { pacerDevtoolsPlugin } from "@tanstack/react-pacer-devtools";
 import type { QueryClient } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
@@ -16,6 +17,7 @@ import { Toaster } from "@/components/ui/sonner";
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect tracer
 import "@/lib/debug/memo-cache-trace";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
+import { runtimeConfigScript } from "@/lib/runtime-config";
 import { getIsPreview } from "@/lib/site-config";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
 
@@ -114,6 +116,7 @@ export const Route = createRootRouteWithContext<{
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   const { resolvedTheme } = Route.useRouteContext();
+  const { data: siteSettings } = useSuspenseQuery(siteSettingsQueryOptions);
 
   return (
     // suppressHydrationWarning: the blocking script below may adjust the class
@@ -122,6 +125,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en" className={resolvedTheme === "dark" ? "dark" : ""} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: runtimeConfigScript(siteSettings) }} />
         <HeadContent />
       </head>
       <body className="overflow-x-clip">

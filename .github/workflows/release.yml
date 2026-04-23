@@ -86,6 +86,16 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/openrift-web:latest
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
+          # Sentry source-map upload happens during `bun run build` in the
+          # build stage. SENTRY_ORG/PROJECT are non-sensitive and passed as
+          # build args; the auth token is a BuildKit secret so it stays out
+          # of image layer history. Target project is openrift-ssr (shared
+          # between SSR and browser — see .env.example).
+          build-args: |
+            SENTRY_ORG=${{ secrets.SENTRY_ORG }}
+            SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT }}
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: Build and push proxy image
         uses: docker/build-push-action@v7
