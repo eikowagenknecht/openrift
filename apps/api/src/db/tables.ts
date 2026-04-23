@@ -812,6 +812,23 @@ export interface FieldChange {
   to: unknown;
 }
 
+// ─── Job runs (migration 101) ────────────────────────────────────────────────
+
+export type JobTrigger = "cron" | "admin" | "api";
+export type JobStatus = "running" | "succeeded" | "failed";
+
+export interface JobRunsTable {
+  id: Generated<string>;
+  kind: string;
+  trigger: JobTrigger;
+  status: JobStatus;
+  startedAt: ColumnType<Date, Date | undefined, Date>;
+  finishedAt: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  durationMs: ColumnType<number | null, number | null | undefined, number | null>;
+  errorMessage: ColumnType<string | null, string | null | undefined, string | null>;
+  result: ColumnType<unknown, string | null | undefined, string | null>;
+}
+
 // ─── Junction tables (migration 059) ─────────────────────────────────────────
 
 export interface CardDomainsTable {
@@ -955,6 +972,9 @@ export interface Database {
 
   // Printing events (migration 071)
   printingEvents: PrintingEventsTable;
+
+  // Job runs (migration 101)
+  jobRuns: JobRunsTable;
 
   // Materialized views (migration 085)
   mvLatestPrintingPrices: MvLatestPrintingPricesView;

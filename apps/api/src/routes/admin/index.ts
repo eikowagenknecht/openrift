@@ -20,6 +20,7 @@ import { adminFormatsRoute } from "./formats.js";
 import { ignoredCandidatesRoute } from "./ignored-candidates.js";
 import { ignoredProductsRoute } from "./ignored-products.js";
 import { imagesRoute } from "./images.js";
+import { adminJobRunsRoute } from "./job-runs.js";
 import { adminKeywordsRoute } from "./keywords.js";
 import { adminLanguagesRoute } from "./languages.js";
 import { adminMarkersRoute } from "./markers.js";
@@ -132,6 +133,7 @@ export const adminRoute = app
   .route("/admin", adminUserFeatureFlagsRoute)
   .route("/admin", adminRulesRoute)
   .route("/admin", adminStatusRoute)
+  .route("/admin", adminJobRunsRoute)
   .route("/admin", adminKeywordsRoute)
   .route("/admin", adminFinishesRoute)
   .route("/admin", adminArtVariantsRoute)

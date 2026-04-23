@@ -30,4 +30,7 @@ export type {
   RaritiesTable,
   ReferenceTable,
   FieldChange,
+  JobRunsTable,
+  JobStatus,
+  JobTrigger,
 } from "./types.js";

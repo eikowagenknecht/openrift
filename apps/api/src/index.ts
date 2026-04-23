@@ -17,7 +17,10 @@ import {
   refreshCardtraderPrices,
   refreshTcgplayerPrices,
 } from "./services/price-refresh/index.js";
+import { runJob } from "./services/run-job.js";
 import { validateWellKnownSlugs } from "./services/validate-well-known.js";
+
+const JOB_RUNS_RETENTION_DAYS = 30;
 
 // ── Composition root ──────────────────────────────────────────────────────────
 
@@ -54,18 +57,25 @@ await validateWellKnownSlugs(db);
 
 const repos = createRepos(db);
 
+// Any row left in 'running' from a previous process crash would block
+// re-entrancy. Mark orphans failed before registering new crons.
+const swept = await repos.jobRuns.sweepOrphaned();
+if (swept > 0) {
+  log.warn({ swept }, "Marked orphaned job_runs as failed on startup");
+}
+
 if (config.cron.tcgplayerSchedule) {
   const tcgLog = log.child({ service: "tcgplayer" });
   const tcgSchedule = config.cron.tcgplayerSchedule;
 
   cronJobs.tcgplayer = new Cron(tcgSchedule, { protect: true }, async () => {
-    try {
-      tcgLog.info("Starting price refresh");
-      await refreshTcgplayerPrices(globalThis.fetch, repos, tcgLog);
-      tcgLog.info("Price refresh complete");
-    } catch (error) {
-      tcgLog.error(error, "Price refresh failed");
-    }
+    await runJob(
+      { repos, log: tcgLog },
+      "tcgplayer.refresh",
+      "cron",
+      () => refreshTcgplayerPrices(globalThis.fetch, repos, tcgLog),
+      { summarize: (result) => result },
+    );
   });
   tcgLog.info(`Cron registered (${tcgSchedule})`);
 }
@@ -75,13 +85,13 @@ if (config.cron.cardmarketSchedule) {
   const cmSchedule = config.cron.cardmarketSchedule;
 
   cronJobs.cardmarket = new Cron(cmSchedule, { protect: true }, async () => {
-    try {
-      cmLog.info("Starting price refresh");
-      await refreshCardmarketPrices(globalThis.fetch, repos, cmLog);
-      cmLog.info("Price refresh complete");
-    } catch (error) {
-      cmLog.error(error, "Price refresh failed");
-    }
+    await runJob(
+      { repos, log: cmLog },
+      "cardmarket.refresh",
+      "cron",
+      () => refreshCardmarketPrices(globalThis.fetch, repos, cmLog),
+      { summarize: (result) => result },
+    );
   });
   cmLog.info(`Cron registered (${cmSchedule})`);
 }
@@ -89,15 +99,16 @@ if (config.cron.cardmarketSchedule) {
 if (config.cron.cardtraderSchedule && config.cardtraderApiToken) {
   const ctLog = log.child({ service: "cardtrader" });
   const ctSchedule = config.cron.cardtraderSchedule;
+  const ctToken = config.cardtraderApiToken;
 
   cronJobs.cardtrader = new Cron(ctSchedule, { protect: true }, async () => {
-    try {
-      ctLog.info("Starting price refresh");
-      await refreshCardtraderPrices(globalThis.fetch, repos, ctLog, config.cardtraderApiToken);
-      ctLog.info("Price refresh complete");
-    } catch (error) {
-      ctLog.error(error, "Price refresh failed");
-    }
+    await runJob(
+      { repos, log: ctLog },
+      "cardtrader.refresh",
+      "cron",
+      () => refreshCardtraderPrices(globalThis.fetch, repos, ctLog, ctToken),
+      { summarize: (result) => result },
+    );
   });
   ctLog.info(`Cron registered (${ctSchedule})`);
 }
@@ -107,12 +118,13 @@ if (config.cron.changelogSchedule) {
   const clSchedule = config.cron.changelogSchedule;
 
   cronJobs.changelog = new Cron(clSchedule, { protect: true }, async () => {
-    try {
-      clLog.info("Checking for changelog updates");
-      await postChangelogToDiscord(config.discordWebhooks.changelog, config.changelogPath, clLog);
-    } catch (error) {
-      clLog.error(error, "Changelog Discord post failed");
-    }
+    await runJob(
+      { repos, log: clLog },
+      "discord.post_changelog",
+      "cron",
+      () => postChangelogToDiscord(config.discordWebhooks.changelog, config.changelogPath, clLog),
+      { summarize: (posted) => ({ posted }) },
+    );
   });
   clLog.info(`Cron registered (${clSchedule})`);
 }
@@ -120,21 +132,42 @@ if (config.cron.changelogSchedule) {
 {
   const peLog = log.child({ service: "printing-events" });
   cronJobs.printingEvents = new Cron("*/15 * * * *", { protect: true }, async () => {
-    try {
-      await flushPendingPrintingEvents(
-        repos,
-        {
-          newPrintings: config.discordWebhooks.newPrintings,
-          printingChanges: config.discordWebhooks.printingChanges,
-        },
-        config.appBaseUrl,
-        peLog,
-      );
-    } catch (error) {
-      peLog.error(error, "Printing events flush failed");
-    }
+    await runJob(
+      { repos, log: peLog },
+      "discord.flush_printing_events",
+      "cron",
+      () =>
+        flushPendingPrintingEvents(
+          repos,
+          {
+            newPrintings: config.discordWebhooks.newPrintings,
+            printingChanges: config.discordWebhooks.printingChanges,
+          },
+          config.appBaseUrl,
+          peLog,
+        ),
+      { summarize: (result) => result },
+    );
   });
   peLog.info("Cron registered (*/15 * * * *)");
+}
+
+{
+  const jrLog = log.child({ service: "job-runs-cleanup" });
+  cronJobs.jobRunsCleanup = new Cron("0 4 * * *", { protect: true }, async () => {
+    await runJob(
+      { repos, log: jrLog },
+      "job_runs.cleanup",
+      "cron",
+      async () => {
+        const cutoff = new Date(Date.now() - JOB_RUNS_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+        const deleted = await repos.jobRuns.purgeOlderThan(cutoff);
+        return { deleted, cutoff: cutoff.toISOString() };
+      },
+      { summarize: (summary) => summary },
+    );
+  });
+  jrLog.info("Cron registered (0 4 * * *)");
 }
 
 // ── 4. Start server ─────────────────────────────────────────────────────────

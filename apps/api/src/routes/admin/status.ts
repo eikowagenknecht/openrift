@@ -1,7 +1,9 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { adminStatusResponseSchema } from "@openrift/shared/response-schemas";
+import type { Cron } from "croner";
 
 import { cronJobs } from "../../cron-jobs.js";
+import type { JobRun } from "../../repositories/job-runs.js";
 import type { Variables } from "../../types.js";
 
 const getStatus = createRoute({
@@ -16,16 +18,38 @@ const getStatus = createRoute({
   },
 });
 
+function toLastRun(run: JobRun | undefined) {
+  if (run === undefined) {
+    return null;
+  }
+  return {
+    startedAt: run.startedAt.toISOString(),
+    finishedAt: run.finishedAt?.toISOString() ?? null,
+    durationMs: run.durationMs,
+    status: run.status,
+    errorMessage: run.errorMessage,
+  };
+}
+
+function toCronStatus(job: Cron | null, lastRun: JobRun | undefined) {
+  return {
+    enabled: job !== null,
+    nextRun: job?.nextRun()?.toISOString() ?? null,
+    lastRun: toLastRun(lastRun),
+  };
+}
+
 export const adminStatusRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(
   getStatus,
   async (c) => {
-    const { status } = c.get("repos");
+    const { status, jobRuns } = c.get("repos");
     const config = c.get("config");
 
-    const [dbStatus, appStats, pricingStats] = await Promise.all([
+    const [dbStatus, appStats, pricingStats, latestRuns] = await Promise.all([
       status.getDatabaseStatus(),
       status.getAppStats(),
       status.getPricingStats(),
+      jobRuns.getLatestPerKind(),
     ]);
 
     const mem = process.memoryUsage();
@@ -44,26 +68,15 @@ export const adminStatusRoute = new OpenAPIHono<{ Variables: Variables }>().open
       database: dbStatus,
       cron: {
         jobs: {
-          tcgplayer: {
-            enabled: cronJobs.tcgplayer !== null,
-            nextRun: cronJobs.tcgplayer?.nextRun()?.toISOString() ?? null,
-          },
-          cardmarket: {
-            enabled: cronJobs.cardmarket !== null,
-            nextRun: cronJobs.cardmarket?.nextRun()?.toISOString() ?? null,
-          },
-          cardtrader: {
-            enabled: cronJobs.cardtrader !== null,
-            nextRun: cronJobs.cardtrader?.nextRun()?.toISOString() ?? null,
-          },
-          printingEvents: {
-            enabled: cronJobs.printingEvents !== null,
-            nextRun: cronJobs.printingEvents?.nextRun()?.toISOString() ?? null,
-          },
-          changelog: {
-            enabled: cronJobs.changelog !== null,
-            nextRun: cronJobs.changelog?.nextRun()?.toISOString() ?? null,
-          },
+          tcgplayer: toCronStatus(cronJobs.tcgplayer, latestRuns["tcgplayer.refresh"]),
+          cardmarket: toCronStatus(cronJobs.cardmarket, latestRuns["cardmarket.refresh"]),
+          cardtrader: toCronStatus(cronJobs.cardtrader, latestRuns["cardtrader.refresh"]),
+          printingEvents: toCronStatus(
+            cronJobs.printingEvents,
+            latestRuns["discord.flush_printing_events"],
+          ),
+          changelog: toCronStatus(cronJobs.changelog, latestRuns["discord.post_changelog"]),
+          jobRunsCleanup: toCronStatus(cronJobs.jobRunsCleanup, latestRuns["job_runs.cleanup"]),
         },
       },
       app: appStats,

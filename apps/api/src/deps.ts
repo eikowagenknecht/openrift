@@ -23,6 +23,7 @@ import { finishesRepo } from "./repositories/finishes.js";
 import { healthRepo } from "./repositories/health.js";
 import { ignoredCandidatesRepo } from "./repositories/ignored-candidates.js";
 import { ingestRepo } from "./repositories/ingest.js";
+import { jobRunsRepo } from "./repositories/job-runs.js";
 import { keywordStylesRepo } from "./repositories/keyword-styles.js";
 import { languagesRepo } from "./repositories/languages.js";
 import { markersRepo } from "./repositories/markers.js";
@@ -99,6 +100,7 @@ export interface Repos {
   marketplaceTransfer: ReturnType<typeof marketplaceTransferRepo>;
   priceRefresh: ReturnType<typeof priceRefreshRepo>;
   printingEvents: ReturnType<typeof printingEventsRepo>;
+  jobRuns: ReturnType<typeof jobRunsRepo>;
 }
 
 export interface Services {
@@ -160,6 +162,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     marketplaceTransfer: marketplaceTransferRepo(db),
     priceRefresh: priceRefreshRepo(db),
     printingEvents: printingEventsRepo(db),
+    jobRuns: jobRunsRepo(db),
   };
 }
 

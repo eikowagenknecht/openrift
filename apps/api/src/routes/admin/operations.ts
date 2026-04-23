@@ -1,5 +1,9 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type { ClearPricesResponse, ReconcileSnapshotsResponse } from "@openrift/shared";
+import type {
+  ClearPricesResponse,
+  JobRunStartedResponse,
+  ReconcileSnapshotsResponse,
+} from "@openrift/shared";
 import { createLogger } from "@openrift/shared/logger";
 import { z } from "zod";
 
@@ -8,10 +12,11 @@ import {
   refreshCardtraderPrices,
   refreshTcgplayerPrices,
 } from "../../services/price-refresh/index.js";
+import { runJobAsync } from "../../services/run-job.js";
 import type { Variables } from "../../types.js";
 import {
   clearPricesSchema,
-  priceRefreshResponseSchema,
+  jobRunStartedResponseSchema,
   reconcileSnapshotsResponseSchema,
   reconcileSnapshotsSchema,
 } from "./schemas.js";
@@ -52,9 +57,9 @@ const refreshTcgplayer = createRoute({
   path: "/refresh-tcgplayer-prices",
   tags: ["Admin - Operations"],
   responses: {
-    200: {
-      content: { "application/json": { schema: priceRefreshResponseSchema } },
-      description: "TCGPlayer prices refreshed",
+    202: {
+      content: { "application/json": { schema: jobRunStartedResponseSchema } },
+      description: "TCGPlayer price refresh scheduled",
     },
   },
 });
@@ -64,9 +69,9 @@ const refreshCardmarket = createRoute({
   path: "/refresh-cardmarket-prices",
   tags: ["Admin - Operations"],
   responses: {
-    200: {
-      content: { "application/json": { schema: priceRefreshResponseSchema } },
-      description: "Cardmarket prices refreshed",
+    202: {
+      content: { "application/json": { schema: jobRunStartedResponseSchema } },
+      description: "Cardmarket price refresh scheduled",
     },
   },
 });
@@ -76,9 +81,9 @@ const refreshCardtrader = createRoute({
   path: "/refresh-cardtrader-prices",
   tags: ["Admin - Operations"],
   responses: {
-    200: {
-      content: { "application/json": { schema: priceRefreshResponseSchema } },
-      description: "Cardtrader prices refreshed",
+    202: {
+      content: { "application/json": { schema: jobRunStartedResponseSchema } },
+      description: "Cardtrader price refresh scheduled",
     },
   },
 });
@@ -124,27 +129,49 @@ export const operationsRoute = new OpenAPIHono<{ Variables: Variables }>()
     } satisfies ClearPricesResponse);
   })
 
-  // ── Manual refresh endpoints ────────────────────────────────────────────────
+  // ── Manual refresh endpoints (fire-and-forget) ──────────────────────────────
+  // Return 202 with a runId immediately so Cloudflare doesn't 502 on long
+  // operations. Poll GET /admin/job-runs?kind=<kind> for completion.
 
   .openapi(refreshTcgplayer, async (c) => {
-    const result = await refreshTcgplayerPrices(c.get("io").fetch, c.get("repos"), log);
-    return c.json(result);
+    const repos = c.get("repos");
+    const fetchFn = c.get("io").fetch;
+    const started = await runJobAsync(
+      { repos, log },
+      "tcgplayer.refresh",
+      "admin",
+      () => refreshTcgplayerPrices(fetchFn, repos, log),
+      { summarize: (result) => result },
+    );
+    return c.json(started satisfies JobRunStartedResponse, 202);
   })
 
   .openapi(refreshCardmarket, async (c) => {
-    const result = await refreshCardmarketPrices(c.get("io").fetch, c.get("repos"), log);
-    return c.json(result);
+    const repos = c.get("repos");
+    const fetchFn = c.get("io").fetch;
+    const started = await runJobAsync(
+      { repos, log },
+      "cardmarket.refresh",
+      "admin",
+      () => refreshCardmarketPrices(fetchFn, repos, log),
+      { summarize: (result) => result },
+    );
+    return c.json(started satisfies JobRunStartedResponse, 202);
   })
 
   .openapi(refreshCardtrader, async (c) => {
+    const repos = c.get("repos");
+    const fetchFn = c.get("io").fetch;
     const config = c.get("config");
-    const result = await refreshCardtraderPrices(
-      c.get("io").fetch,
-      c.get("repos"),
-      log,
-      config.cardtraderApiToken,
+    const ctToken = config.cardtraderApiToken;
+    const started = await runJobAsync(
+      { repos, log },
+      "cardtrader.refresh",
+      "admin",
+      () => refreshCardtraderPrices(fetchFn, repos, log, ctToken),
+      { summarize: (result) => result },
     );
-    return c.json(result);
+    return c.json(started satisfies JobRunStartedResponse, 202);
   })
 
   // ── Refresh materialized views ──────────────────────────────────────────────

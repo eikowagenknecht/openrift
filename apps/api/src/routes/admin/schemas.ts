@@ -187,6 +187,34 @@ export const priceRefreshResponseSchema = z.object({
   }),
 });
 
+// ── Job runs ──────────────────────────────────────────────────────────────
+
+export const jobRunStartedResponseSchema = z.object({
+  runId: z.string().uuid().openapi({ example: "4f8e4f36-2b7b-4c8d-8b6e-5c2e3a8f1a2b" }),
+  status: z.enum(["running", "already_running"]).openapi({ example: "running" }),
+});
+
+export const jobRunViewSchema = z.object({
+  id: z.string().uuid(),
+  kind: z.string().openapi({ example: "cardtrader.refresh" }),
+  trigger: z.enum(["cron", "admin", "api"]),
+  status: z.enum(["running", "succeeded", "failed"]),
+  startedAt: z.string().openapi({ example: "2026-04-23T12:00:00.000Z" }),
+  finishedAt: z.string().nullable(),
+  durationMs: z.number().nullable(),
+  errorMessage: z.string().nullable(),
+  result: z.unknown(),
+});
+
+export const jobRunsListResponseSchema = z.object({
+  runs: z.array(jobRunViewSchema),
+});
+
+export const jobRunsQuerySchema = z.object({
+  kind: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+});
+
 // ── Ignored Candidates ─────────────────────────────────────────────────────
 
 export const ignoreCandidateCardSchema = z.object({

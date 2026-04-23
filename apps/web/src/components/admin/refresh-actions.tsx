@@ -1,6 +1,7 @@
-import type { PriceRefreshResponse } from "@openrift/shared";
+import type { JobRunStartedResponse } from "@openrift/shared";
 import { createServerFn } from "@tanstack/react-start";
 
+import type { JobRunsListResponse } from "@/lib/server-fns/api-types";
 import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
@@ -11,6 +12,8 @@ export interface CronStatus {
   cardmarket: { nextRun: string | null } | null;
   cardtrader: { nextRun: string | null } | null;
 }
+
+export type RefreshKind = "tcgplayer.refresh" | "cardmarket.refresh" | "cardtrader.refresh";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -32,8 +35,8 @@ export function formatRelativeTime(iso: string): string {
 const refreshTcgplayerPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context }) =>
-    fetchApiJson<PriceRefreshResponse>({
-      errorTitle: "Couldn't refresh TCGPlayer prices",
+    fetchApiJson<JobRunStartedResponse>({
+      errorTitle: "Couldn't start TCGPlayer price refresh",
       cookie: context.cookie,
       path: "/api/v1/admin/refresh-tcgplayer-prices",
       method: "POST",
@@ -43,8 +46,8 @@ const refreshTcgplayerPricesFn = createServerFn({ method: "POST" })
 const refreshCardmarketPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context }) =>
-    fetchApiJson<PriceRefreshResponse>({
-      errorTitle: "Couldn't refresh Cardmarket prices",
+    fetchApiJson<JobRunStartedResponse>({
+      errorTitle: "Couldn't start Cardmarket price refresh",
       cookie: context.cookie,
       path: "/api/v1/admin/refresh-cardmarket-prices",
       method: "POST",
@@ -54,12 +57,27 @@ const refreshCardmarketPricesFn = createServerFn({ method: "POST" })
 const refreshCardtraderPricesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(({ context }) =>
-    fetchApiJson<PriceRefreshResponse>({
-      errorTitle: "Couldn't refresh CardTrader prices",
+    fetchApiJson<JobRunStartedResponse>({
+      errorTitle: "Couldn't start CardTrader price refresh",
       cookie: context.cookie,
       path: "/api/v1/admin/refresh-cardtrader-prices",
       method: "POST",
     }),
+  );
+
+// ── Server function for polling latest job run for a kind ─────────────────
+
+export const getLatestJobRunFn = createServerFn({ method: "GET" })
+  .inputValidator((input: { kind: string }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<JobRunsListResponse> =>
+      fetchApiJson<JobRunsListResponse>({
+        errorTitle: "Couldn't fetch job runs",
+        cookie: context.cookie,
+        path: `/api/v1/admin/job-runs?kind=${encodeURIComponent(data.kind)}&limit=1`,
+        method: "GET",
+      }),
   );
 
 // ── Action configs ──────────────────────────────────────────────────────────
@@ -71,6 +89,7 @@ export const refreshActions = {
     description: "Fetch latest prices from TCGPlayer",
     post: refreshTcgplayerPricesFn,
     cronKey: "tcgplayer" as const,
+    jobKind: "tcgplayer.refresh" as const,
   },
   cardmarket: {
     key: "cardmarket",
@@ -78,6 +97,7 @@ export const refreshActions = {
     description: "Fetch latest prices from Cardmarket",
     post: refreshCardmarketPricesFn,
     cronKey: "cardmarket" as const,
+    jobKind: "cardmarket.refresh" as const,
   },
   cardtrader: {
     key: "cardtrader",
@@ -85,6 +105,7 @@ export const refreshActions = {
     description: "Fetch latest prices from CardTrader",
     post: refreshCardtraderPricesFn,
     cronKey: "cardtrader" as const,
+    jobKind: "cardtrader.refresh" as const,
   },
 } as const;
 

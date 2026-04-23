@@ -1,17 +1,29 @@
 import type { PriceRefreshResponse } from "@openrift/shared";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 
-import { formatRelativeTime } from "@/components/admin/refresh-actions";
+import { formatRelativeTime, refreshActions } from "@/components/admin/refresh-actions";
 import type { CronStatus } from "@/components/admin/refresh-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useClearPrices, useReconcileSnapshots, useRefreshPrices } from "@/hooks/use-admin-prices";
+import {
+  useClearPrices,
+  useLatestJobRun,
+  useReconcileSnapshots,
+  useRefreshPrices,
+} from "@/hooks/use-admin-prices";
 import { useCronStatus } from "@/hooks/use-cron-status";
 import { useMarketplaceGroups } from "@/hooks/use-marketplace-groups";
+import type { JobRunView } from "@/lib/server-fns/api-types";
 
 import { ConfirmClearButton } from "./confirm-clear-button";
 
 // ── Sub-components ───────────────────────────────────────────────────────────
+
+function isPriceRefreshResult(value: unknown): value is PriceRefreshResponse {
+  return (
+    typeof value === "object" && value !== null && "transformed" in value && "upserted" in value
+  );
+}
 
 function PriceRefreshResult({ result }: { result: PriceRefreshResponse }) {
   const { transformed, upserted } = result;
@@ -37,6 +49,34 @@ function PriceRefreshResult({ result }: { result: PriceRefreshResponse }) {
   );
 }
 
+function JobRunDisplay({ run }: { run: JobRunView }) {
+  if (run.status === "running") {
+    return (
+      <p className="text-muted-foreground flex items-center gap-1 text-sm">
+        <LoaderIcon className="size-4 animate-spin" />
+        Running since {formatRelativeTime(run.startedAt)}
+      </p>
+    );
+  }
+  if (run.status === "failed") {
+    return (
+      <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+        <XIcon className="size-4" />
+        {run.errorMessage ?? "Refresh failed"}
+      </p>
+    );
+  }
+  if (isPriceRefreshResult(run.result)) {
+    return <PriceRefreshResult result={run.result} />;
+  }
+  return (
+    <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
+      <CheckIcon className="size-4" />
+      Completed
+    </p>
+  );
+}
+
 function PriceSection({
   label,
   groups,
@@ -57,9 +97,10 @@ function PriceSection({
   const refreshMutation = useRefreshPrices(cronKey);
   const clearMutation = useClearPrices(cronKey);
   const reconcileMutation = useReconcileSnapshots(cronKey);
+  const latestRun = useLatestJobRun(refreshActions[cronKey].jobKind);
 
-  const anyPending =
-    refreshMutation.isPending || clearMutation.isPending || reconcileMutation.isPending;
+  const isRefreshRunning = refreshMutation.isPending || latestRun.data?.status === "running";
+  const anyPending = isRefreshRunning || clearMutation.isPending || reconcileMutation.isPending;
 
   return (
     <Card>
@@ -92,26 +133,27 @@ function PriceSection({
                 "Reconcile"
               )}
             </Button>
-            <Button disabled={anyPending} onClick={() => refreshMutation.mutate()}>
-              {refreshMutation.isPending ? (
-                <LoaderIcon className="size-4 animate-spin" />
-              ) : (
-                "Refresh"
-              )}
+            <Button
+              disabled={anyPending}
+              onClick={() =>
+                refreshMutation.mutate(undefined, {
+                  onSuccess: () => latestRun.refetch(),
+                })
+              }
+            >
+              {isRefreshRunning ? <LoaderIcon className="size-4 animate-spin" /> : "Refresh"}
             </Button>
           </div>
         </div>
       </CardHeader>
-      {(refreshMutation.isSuccess ||
+      {(latestRun.data ||
         refreshMutation.isError ||
         clearMutation.isSuccess ||
         clearMutation.isError ||
         reconcileMutation.isSuccess ||
         reconcileMutation.isError) && (
         <CardContent className="pt-0">
-          {refreshMutation.isSuccess && refreshMutation.data && (
-            <PriceRefreshResult result={refreshMutation.data} />
-          )}
+          {latestRun.data && <JobRunDisplay run={latestRun.data} />}
           {refreshMutation.isError && (
             <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
               <XIcon className="size-4" />

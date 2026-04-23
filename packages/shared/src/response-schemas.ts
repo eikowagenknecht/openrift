@@ -31,9 +31,18 @@ export const healthResponseSchema = z
 
 // ── Admin Status ────────────────────────────────────────────────────────────
 
+const lastJobRunSchema = z.object({
+  startedAt: z.string(),
+  finishedAt: z.string().nullable(),
+  durationMs: z.number().nullable(),
+  status: z.enum(["running", "succeeded", "failed"]),
+  errorMessage: z.string().nullable(),
+});
+
 const cronJobStatusSchema = z.object({
   enabled: z.boolean(),
   nextRun: z.string().nullable(),
+  lastRun: lastJobRunSchema.nullable(),
 });
 
 export const adminStatusResponseSchema = z
@@ -62,6 +71,7 @@ export const adminStatusResponseSchema = z
         cardtrader: cronJobStatusSchema,
         printingEvents: cronJobStatusSchema,
         changelog: cronJobStatusSchema,
+        jobRunsCleanup: cronJobStatusSchema,
       }),
     }),
     app: z.object({

@@ -53,6 +53,37 @@ function formatRelativeTime(iso: string): string {
   return `in ${hours}h`;
 }
 
+function formatDuration(ms: number): string {
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const remSeconds = seconds % 60;
+  return remSeconds > 0 ? `${minutes}m ${remSeconds}s` : `${minutes}m`;
+}
+
+function LastRunBadge({ status }: { status: "running" | "succeeded" | "failed" }) {
+  if (status === "running") {
+    return <Badge variant="secondary">running</Badge>;
+  }
+  if (status === "failed") {
+    return (
+      <Badge variant="outline" className="border-red-600 text-red-600 dark:text-red-400">
+        failed
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="border-green-600 text-green-600 dark:text-green-400">
+      ok
+    </Badge>
+  );
+}
+
 function formatTimeAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const minutes = Math.round(diff / 60_000);
@@ -187,19 +218,35 @@ export function StatusPage() {
           </CardHeader>
           <CardContent className="space-y-0.5">
             {Object.entries(cron.jobs).map(([name, job]) => (
-              <div key={name} className="flex items-center justify-between py-1.5">
-                <span className="text-muted-foreground text-sm">{name}</span>
-                <div className="flex items-center gap-2">
-                  {job.enabled ? (
-                    <span className="font-mono">
-                      {job.nextRun ? formatRelativeTime(job.nextRun) : "idle"}
-                    </span>
-                  ) : (
-                    <Badge variant="secondary">off</Badge>
-                  )}
-                  {name === "printingEvents" && <FlushPrintingEventsButton />}
-                  {name === "changelog" && <PostChangelogButton />}
+              <div key={name} className="py-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-sm">{name}</span>
+                  <div className="flex items-center gap-2">
+                    {job.enabled ? (
+                      <span className="font-mono">
+                        {job.nextRun ? formatRelativeTime(job.nextRun) : "idle"}
+                      </span>
+                    ) : (
+                      <Badge variant="secondary">off</Badge>
+                    )}
+                    {name === "printingEvents" && <FlushPrintingEventsButton />}
+                    {name === "changelog" && <PostChangelogButton />}
+                  </div>
                 </div>
+                {job.lastRun && (
+                  <div className="text-muted-foreground flex items-center justify-between pl-0">
+                    <span>
+                      last: {formatTimeAgo(job.lastRun.startedAt)}
+                      {job.lastRun.durationMs !== null && (
+                        <> · {formatDuration(job.lastRun.durationMs)}</>
+                      )}
+                    </span>
+                    <LastRunBadge status={job.lastRun.status} />
+                  </div>
+                )}
+                {job.lastRun?.status === "failed" && job.lastRun.errorMessage && (
+                  <p className="text-red-600 dark:text-red-400">{job.lastRun.errorMessage}</p>
+                )}
               </div>
             ))}
           </CardContent>

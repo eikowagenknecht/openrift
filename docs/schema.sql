@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict h8fX22WConmarNCAWR84QeRX5v5XouuL9thz4bW0w78MVGarpmoxIJQsx5oi5np
+\restrict j9w89GCL3mJdNmcB97XnHaRR3YgyirVJH99LuZxO005Y0MKOCVKhaxpswaAOPyQ
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -797,6 +797,25 @@ CREATE TABLE public.image_files (
     CONSTRAINT chk_image_files_original_url CHECK ((original_url <> ''::text)),
     CONSTRAINT chk_image_files_rehosted_url CHECK ((rehosted_url <> ''::text)),
     CONSTRAINT chk_image_files_rotation CHECK ((rotation = ANY (ARRAY[0, 90, 180, 270])))
+);
+
+
+--
+-- Name: job_runs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.job_runs (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    kind text NOT NULL,
+    trigger text NOT NULL,
+    status text NOT NULL,
+    started_at timestamp with time zone DEFAULT now() NOT NULL,
+    finished_at timestamp with time zone,
+    duration_ms integer,
+    error_message text,
+    result jsonb,
+    CONSTRAINT chk_job_runs_status CHECK ((status = ANY (ARRAY['running'::text, 'succeeded'::text, 'failed'::text]))),
+    CONSTRAINT chk_job_runs_trigger CHECK ((trigger = ANY (ARRAY['cron'::text, 'admin'::text, 'api'::text])))
 );
 
 
@@ -1719,6 +1738,14 @@ ALTER TABLE ONLY public.image_files
 
 
 --
+-- Name: job_runs job_runs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.job_runs
+    ADD CONSTRAINT job_runs_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: keyword_styles keyword_styles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -2295,6 +2322,20 @@ CREATE UNIQUE INDEX idx_ignored_candidate_printings_provider_external_finish ON 
 --
 
 CREATE UNIQUE INDEX idx_image_files_original_url ON public.image_files USING btree (original_url) WHERE (original_url IS NOT NULL);
+
+
+--
+-- Name: idx_job_runs_kind_started_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_job_runs_kind_started_at ON public.job_runs USING btree (kind, started_at DESC);
+
+
+--
+-- Name: idx_job_runs_running; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_job_runs_running ON public.job_runs USING btree (kind) WHERE (status = 'running'::text);
 
 
 --
@@ -3385,5 +3426,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict h8fX22WConmarNCAWR84QeRX5v5XouuL9thz4bW0w78MVGarpmoxIJQsx5oi5np
+\unrestrict j9w89GCL3mJdNmcB97XnHaRR3YgyirVJH99LuZxO005Y0MKOCVKhaxpswaAOPyQ
 

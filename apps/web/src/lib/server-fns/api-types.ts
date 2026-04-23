@@ -32,6 +32,10 @@ export type DistinctArtistsResponse = InferResponseType<
 
 // ── Admin general endpoints ─────────────────────────────────────────────────
 export type AdminUsersResponse = InferResponseType<Client["api"]["v1"]["admin"]["users"]["$get"]>;
+export type JobRunsListResponse = InferResponseType<
+  Client["api"]["v1"]["admin"]["job-runs"]["$get"]
+>;
+export type JobRunView = JobRunsListResponse["runs"][number];
 export type AdminStatusResponse = InferResponseType<Client["api"]["v1"]["admin"]["status"]["$get"]>;
 export type AdminSiteSettingsResponse = InferResponseType<
   Client["api"]["v1"]["admin"]["site-settings"]["$get"]

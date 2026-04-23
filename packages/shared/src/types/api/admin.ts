@@ -452,6 +452,34 @@ export interface PriceRefreshResponse {
   };
 }
 
+/**
+ * Response for an admin endpoint that kicks off a long-running job in the
+ * background. The caller gets a `runId` immediately and polls `/admin/job-runs`
+ * for progress.
+ */
+export interface JobRunStartedResponse {
+  runId: string;
+  /** 'running' for a newly started run, 'already_running' if one was in flight. */
+  status: "running" | "already_running";
+}
+
+export interface JobRunView {
+  id: string;
+  kind: string;
+  trigger: "cron" | "admin" | "api";
+  status: "running" | "succeeded" | "failed";
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+  errorMessage: string | null;
+  /** Per-job summary written by the runJob helper. Shape depends on kind. */
+  result: Record<string, unknown> | null;
+}
+
+export interface JobRunsListResponse {
+  runs: JobRunView[];
+}
+
 export interface ClearPricesResponse {
   marketplace: string;
   deleted: { snapshots: number; variants: number; products: number; staging: number };

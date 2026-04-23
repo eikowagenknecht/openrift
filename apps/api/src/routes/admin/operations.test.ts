@@ -34,6 +34,17 @@ const mockMktAdmin = {
 
 const mockMarketplace = { refreshLatestPrices: vi.fn() };
 
+const mockJobRuns = {
+  start: vi.fn(async () => ({ id: "run-abc" })),
+  succeed: vi.fn(async () => undefined),
+  fail: vi.fn(async () => undefined),
+  findRunning: vi.fn(async () => null),
+  listRecent: vi.fn(),
+  getLatestPerKind: vi.fn(),
+  sweepOrphaned: vi.fn(),
+  purgeOlderThan: vi.fn(),
+};
+
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -51,6 +62,7 @@ const app = new Hono()
       marketplaceAdmin: mockMktAdmin,
       marketplace: mockMarketplace,
       catalog: { refreshCardAggregates: vi.fn() },
+      jobRuns: mockJobRuns,
     } as never);
     await next();
   })
@@ -124,70 +136,116 @@ describe("POST /api/v1/clear-prices", () => {
   });
 });
 
+function resetJobRunMocks() {
+  mockJobRuns.start.mockImplementation(async () => ({ id: "run-abc" }));
+  mockJobRuns.succeed.mockImplementation(async () => undefined);
+  mockJobRuns.fail.mockImplementation(async () => undefined);
+  mockJobRuns.findRunning.mockImplementation(async () => null);
+}
+
 describe("POST /api/v1/refresh-tcgplayer-prices", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    resetJobRunMocks();
   });
 
-  it("returns 200 with refresh result", async () => {
+  it("returns 202 with runId and runs the refresh in the background", async () => {
     mockRefreshTcgplayer.mockResolvedValue(priceRefreshResult);
 
     const res = await app.request("/api/v1/refresh-tcgplayer-prices", {
       method: "POST",
     });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual(priceRefreshResult);
-    expect(mockRefreshTcgplayer).toHaveBeenCalledWith(
-      mockIo.fetch,
-      expect.objectContaining({ marketplaceAdmin: mockMktAdmin }),
-      expect.anything(),
-    );
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ runId: "run-abc", status: "running" });
+    expect(mockJobRuns.start).toHaveBeenCalledWith({
+      kind: "tcgplayer.refresh",
+      trigger: "admin",
+    });
+
+    await vi.waitFor(() => {
+      expect(mockJobRuns.succeed).toHaveBeenCalledWith(
+        "run-abc",
+        expect.objectContaining({ result: priceRefreshResult }),
+      );
+    });
+    expect(mockRefreshTcgplayer).toHaveBeenCalled();
+  });
+
+  it("returns 'already_running' when a run is already in flight", async () => {
+    mockJobRuns.findRunning.mockResolvedValueOnce({ id: "existing-run" });
+
+    const res = await app.request("/api/v1/refresh-tcgplayer-prices", {
+      method: "POST",
+    });
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ runId: "existing-run", status: "already_running" });
+    expect(mockRefreshTcgplayer).not.toHaveBeenCalled();
+    expect(mockJobRuns.start).not.toHaveBeenCalled();
+  });
+
+  it("writes a failed row when the background refresh throws", async () => {
+    mockRefreshTcgplayer.mockRejectedValue(new Error("upstream 502"));
+
+    const res = await app.request("/api/v1/refresh-tcgplayer-prices", {
+      method: "POST",
+    });
+    expect(res.status).toBe(202);
+
+    await vi.waitFor(() => {
+      expect(mockJobRuns.fail).toHaveBeenCalledWith(
+        "run-abc",
+        expect.objectContaining({ errorMessage: "upstream 502" }),
+      );
+    });
+    expect(mockJobRuns.succeed).not.toHaveBeenCalled();
   });
 });
 
 describe("POST /api/v1/refresh-cardmarket-prices", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    resetJobRunMocks();
   });
 
-  it("returns 200 with refresh result", async () => {
+  it("returns 202 with runId and runs refresh in the background", async () => {
     mockRefreshCardmarket.mockResolvedValue(priceRefreshResult);
 
     const res = await app.request("/api/v1/refresh-cardmarket-prices", {
       method: "POST",
     });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual(priceRefreshResult);
-    expect(mockRefreshCardmarket).toHaveBeenCalledWith(
-      mockIo.fetch,
-      expect.objectContaining({ marketplaceAdmin: mockMktAdmin }),
-      expect.anything(),
-    );
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ runId: "run-abc", status: "running" });
+
+    await vi.waitFor(() => {
+      expect(mockJobRuns.succeed).toHaveBeenCalled();
+    });
+    expect(mockRefreshCardmarket).toHaveBeenCalled();
   });
 });
 
 describe("POST /api/v1/refresh-cardtrader-prices", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    resetJobRunMocks();
   });
 
-  it("returns 200 with refresh result and passes api token", async () => {
+  it("returns 202 with runId and passes api token to background fn", async () => {
     mockRefreshCardtrader.mockResolvedValue(priceRefreshResult);
 
     const res = await app.request("/api/v1/refresh-cardtrader-prices", {
       method: "POST",
     });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual(priceRefreshResult);
-    expect(mockRefreshCardtrader).toHaveBeenCalledWith(
-      mockIo.fetch,
-      expect.objectContaining({ marketplaceAdmin: mockMktAdmin }),
-      expect.anything(),
-      "test-token-123",
-    );
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ runId: "run-abc", status: "running" });
+
+    await vi.waitFor(() => {
+      expect(mockRefreshCardtrader).toHaveBeenCalledWith(
+        mockIo.fetch,
+        expect.objectContaining({ marketplaceAdmin: mockMktAdmin }),
+        expect.anything(),
+        "test-token-123",
+      );
+    });
   });
 });
 
