@@ -11,11 +11,9 @@
       "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },
     "test": {
-      "dependsOn": ["^build"],
       "inputs": ["src/**"]
     },
     "test:coverage": {
-      "dependsOn": ["^build"],
       "inputs": ["src/**"],
       "cache": false
     },
