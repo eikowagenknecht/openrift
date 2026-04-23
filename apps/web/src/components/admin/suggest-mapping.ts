@@ -1,7 +1,12 @@
-import type { ArtVariant } from "@openrift/shared";
+import type { AdminMarketplaceName, ArtVariant } from "@openrift/shared";
 import { normalizeNameForMatching } from "@openrift/shared";
 
-import type { MappingGroup, MappingPrinting, StagedProduct } from "./price-mappings-types";
+import type {
+  MappingGroup,
+  MappingPrinting,
+  StagedProduct,
+  UnifiedMappingGroup,
+} from "./price-mappings-types";
 
 /** Minimum score for a product to be suggested as a mapping candidate. */
 const SUGGESTION_THRESHOLD = 100;
@@ -93,9 +98,18 @@ function scorePrintingProduct(
   printing: MappingPrinting,
   product: StagedProduct,
   cardName: string,
+  enforceLanguage: boolean,
 ): number {
   // Finish must match
   if (printing.finish.toLowerCase() !== product.finish.toLowerCase()) {
+    return -1;
+  }
+
+  // Language must match for per-language marketplaces (CardTrader). The server
+  // rejects CT assignments whose printing language doesn't match a staging row,
+  // so we must not suggest them. TCG/CM skip this check because their staging
+  // is stored as placeholder "EN" regardless of the physical printing language.
+  if (enforceLanguage && printing.language !== product.language) {
     return -1;
   }
 
@@ -142,7 +156,11 @@ function scorePrintingProduct(
  * Uses greedy matching: highest-scoring pairs are assigned first.
  * @returns A map from printingId to the suggested product and score.
  */
-export function computeSuggestions(group: MappingGroup): Map<string, Suggestion> {
+export function computeSuggestions(
+  group: MappingGroup,
+  options: { enforceLanguage?: boolean } = {},
+): Map<string, Suggestion> {
+  const enforceLanguage = options.enforceLanguage ?? false;
   const unmapped = group.printings.filter((p) => p.externalId === null);
   const available = group.stagedProducts;
 
@@ -154,7 +172,7 @@ export function computeSuggestions(group: MappingGroup): Map<string, Suggestion>
   const pairs: { printing: MappingPrinting; product: StagedProduct; score: number }[] = [];
   for (const printing of unmapped) {
     for (const product of available) {
-      const score = scorePrintingProduct(printing, product, group.cardName);
+      const score = scorePrintingProduct(printing, product, group.cardName, enforceLanguage);
       if (score >= SUGGESTION_THRESHOLD) {
         pairs.push({ printing, product, score });
       }
@@ -202,4 +220,94 @@ export function computeSuggestions(group: MappingGroup): Map<string, Suggestion>
   }
 
   return suggestions;
+}
+
+/** Product-centric suggestion: for a given marketplace product, the printing it likely belongs to. */
+export interface ProductSuggestion {
+  printingId: string;
+  score: number;
+}
+
+/**
+ * Stable key for a product row across a unified group (same shape the
+ * marketplace-products-table uses to dedupe and render rows).
+ * @returns `${marketplace}::${externalId}::${finish}::${language}`
+ */
+export function productSuggestionKey(
+  marketplace: AdminMarketplaceName,
+  externalId: number,
+  finish: string,
+  language: string,
+): string {
+  return `${marketplace}::${externalId}::${finish}::${language}`;
+}
+
+/**
+ * Invert `computeSuggestions` into a per-product map for the card-detail
+ * marketplace view, which is product-centric (each row is a product, the user
+ * picks the printing). The algorithm runs once per marketplace — a product
+ * appears in the result only if it's the unique best match for exactly one
+ * unmapped printing.
+ * @returns Map keyed by `productSuggestionKey(...)` → the suggested printing.
+ */
+export function computeProductSuggestions(
+  group: UnifiedMappingGroup,
+): Map<string, ProductSuggestion> {
+  const out = new Map<string, ProductSuggestion>();
+  for (const marketplace of ["tcgplayer", "cardmarket", "cardtrader"] as const) {
+    const perPrinting = computeSuggestions(toMarketplaceGroup(group, marketplace), {
+      enforceLanguage: marketplace === "cardtrader",
+    });
+    for (const [printingId, { product, score }] of perPrinting) {
+      const key = productSuggestionKey(
+        marketplace,
+        product.externalId,
+        product.finish,
+        product.language,
+      );
+      out.set(key, { printingId, score });
+    }
+  }
+  return out;
+}
+
+function toMarketplaceGroup(
+  group: UnifiedMappingGroup,
+  marketplace: AdminMarketplaceName,
+): MappingGroup {
+  const mkData = group[marketplace];
+  // Collapse multi-assignment printings to their first externalId — the
+  // algorithm only needs "is this printing mapped at all?" semantics.
+  const assignmentByPrinting = new Map<string, number>();
+  for (const a of mkData.assignments) {
+    if (!assignmentByPrinting.has(a.printingId)) {
+      assignmentByPrinting.set(a.printingId, a.externalId);
+    }
+  }
+  return {
+    cardId: group.cardId,
+    cardSlug: group.cardSlug,
+    cardName: group.cardName,
+    cardType: group.cardType,
+    superTypes: group.superTypes,
+    domains: group.domains,
+    energy: group.energy,
+    might: group.might,
+    setId: group.setId,
+    setName: group.setName,
+    printings: group.printings.map((p) => ({
+      printingId: p.printingId,
+      shortCode: p.shortCode,
+      rarity: p.rarity,
+      artVariant: p.artVariant,
+      isSigned: p.isSigned,
+      markerSlugs: p.markerSlugs,
+      finish: p.finish,
+      language: p.language,
+      imageUrl: p.imageUrl,
+      externalId: assignmentByPrinting.get(p.printingId) ?? null,
+    })),
+    stagedProducts: mkData.stagedProducts,
+    assignedProducts: mkData.assignedProducts,
+  };
 }

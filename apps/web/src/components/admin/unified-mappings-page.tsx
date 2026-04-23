@@ -180,7 +180,9 @@ function MarketplaceStatusBadge({
 }) {
   const mkGroup = toMarketplaceGroup(group, marketplace);
   const unmapped = mkGroup.printings.filter((p) => p.externalId === null).length;
-  const suggestions = computeSuggestions(mkGroup);
+  const suggestions = computeSuggestions(mkGroup, {
+    enforceLanguage: marketplace === "cardtrader",
+  });
   const extraProducts = mkGroup.stagedProducts.length;
 
   if (unmapped === 0 && extraProducts === 0) {
@@ -406,7 +408,7 @@ function UnifiedExpandedDetail({
   const ctGroup = toMarketplaceGroup(group, "cardtrader");
   const tcgSuggestions = computeSuggestions(tcgGroup);
   const cmSuggestions = computeSuggestions(cmGroup);
-  const ctSuggestions = computeSuggestions(ctGroup);
+  const ctSuggestions = computeSuggestions(ctGroup, { enforceLanguage: true });
   const totalSuggestions = tcgSuggestions.size + cmSuggestions.size + ctSuggestions.size;
   const isSaving = tcgSave.isPending || cmSave.isPending || ctSave.isPending;
 
@@ -751,7 +753,7 @@ export function UnifiedMappingsPage() {
     const ctGroup = toMarketplaceGroup(group, "cardtrader");
     const tcgSuggestions = computeSuggestions(tcgGroup);
     const cmSuggestions = computeSuggestions(cmGroup);
-    const ctSuggestions = computeSuggestions(ctGroup);
+    const ctSuggestions = computeSuggestions(ctGroup, { enforceLanguage: true });
     const tcgMappings: { printingId: string; externalId: number }[] = [];
     const cmMappings: { printingId: string; externalId: number }[] = [];
     const ctMappings: { printingId: string; externalId: number }[] = [];
@@ -790,7 +792,8 @@ export function UnifiedMappingsPage() {
     }
     const tcgSug = tcgUnmapped > 0 ? computeSuggestions(tcgGroup) : new Map();
     const cmSug = cmUnmapped > 0 ? computeSuggestions(cmGroup) : new Map();
-    const ctSug = ctUnmapped > 0 ? computeSuggestions(ctGroup) : new Map();
+    const ctSug =
+      ctUnmapped > 0 ? computeSuggestions(ctGroup, { enforceLanguage: true }) : new Map();
     const isSafe = (unmapped: number, sug: Map<string, { score: number }>) =>
       unmapped === 0 ||
       (sug.size >= unmapped && [...sug.values()].every((s) => s.score >= STRONG_MATCH_THRESHOLD));
@@ -815,7 +818,8 @@ export function UnifiedMappingsPage() {
       }
       const tcgSug = tcgUnmapped > 0 ? computeSuggestions(tcgGroup) : new Map();
       const cmSug = cmUnmapped > 0 ? computeSuggestions(cmGroup) : new Map();
-      const ctSug = ctUnmapped > 0 ? computeSuggestions(ctGroup) : new Map();
+      const ctSug =
+        ctUnmapped > 0 ? computeSuggestions(ctGroup, { enforceLanguage: true }) : new Map();
       const isSafe = (unmapped: number, sug: Map<string, { score: number }>) =>
         unmapped === 0 ||
         (sug.size >= unmapped && [...sug.values()].every((s) => s.score >= STRONG_MATCH_THRESHOLD));
