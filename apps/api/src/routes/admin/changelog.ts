@@ -32,9 +32,12 @@ const postChangelog = createRoute({
 export const adminChangelogRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(
   postChangelog,
   async (c) => {
-    const repos = c.get("repos");
     const config = c.get("config");
-    const posted = await postChangelogToDiscord(repos, config.changelogPath, log);
+    const posted = await postChangelogToDiscord(
+      config.discordWebhooks.changelog,
+      config.changelogPath,
+      log,
+    );
     return c.json({ posted });
   },
 );

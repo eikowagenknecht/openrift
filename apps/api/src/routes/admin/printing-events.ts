@@ -35,7 +35,15 @@ export const adminPrintingEventsRoute = new OpenAPIHono<{ Variables: Variables }
   async (c) => {
     const repos = c.get("repos");
     const config = c.get("config");
-    const result = await flushPendingPrintingEvents(repos, config.appBaseUrl, log);
+    const result = await flushPendingPrintingEvents(
+      repos,
+      {
+        newPrintings: config.discordWebhooks.newPrintings,
+        printingChanges: config.discordWebhooks.printingChanges,
+      },
+      config.appBaseUrl,
+      log,
+    );
     return c.json(result);
   },
 );

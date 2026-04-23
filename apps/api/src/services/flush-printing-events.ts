@@ -1,26 +1,24 @@
 import type { Logger } from "@openrift/shared/logger";
 
 import type { printingEventsRepo } from "../repositories/printing-events.js";
-import type { siteSettingsRepo } from "../repositories/site-settings.js";
 import { flushPrintingEvents } from "./discord-webhook.js";
 
 type PrintingEventsRepo = ReturnType<typeof printingEventsRepo>;
-type SiteSettingsRepo = ReturnType<typeof siteSettingsRepo>;
 
-const SETTING_KEY_NEW = "discord-webhook-new-printings";
-const SETTING_KEY_CHANGES = "discord-webhook-printing-changes";
+interface DiscordWebhookUrls {
+  newPrintings: string | null;
+  printingChanges: string | null;
+}
 
 /**
  * Flush pending printing events to Discord webhooks.
- * Reads webhook URLs from site_settings, consolidates events, and sends.
+ * Webhook URLs come from environment variables (DISCORD_WEBHOOK_*).
  *
  * @returns Summary of sent and failed event counts.
  */
 export async function flushPendingPrintingEvents(
-  repos: {
-    printingEvents: PrintingEventsRepo;
-    siteSettings: SiteSettingsRepo;
-  },
+  repos: { printingEvents: PrintingEventsRepo },
+  webhookUrls: DiscordWebhookUrls,
   appBaseUrl: string,
   log: Logger,
 ): Promise<{ sent: number; failed: number }> {
@@ -28,14 +26,6 @@ export async function flushPendingPrintingEvents(
   if (events.length === 0) {
     return { sent: 0, failed: 0 };
   }
-
-  const settings = await repos.siteSettings.listByScope("api");
-  const settingsMap = new Map(settings.map((s) => [s.key, s.value]));
-
-  const webhookUrls = {
-    newPrintings: settingsMap.get(SETTING_KEY_NEW) ?? null,
-    printingChanges: settingsMap.get(SETTING_KEY_CHANGES) ?? null,
-  };
 
   const { sentIds, failedIds } = await flushPrintingEvents(events, webhookUrls, appBaseUrl, log);
 
