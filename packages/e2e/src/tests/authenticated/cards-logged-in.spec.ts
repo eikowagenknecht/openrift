@@ -341,6 +341,11 @@ test.describe("cards /cards (logged in)", () => {
     await page.goto("/cards");
     await waitForCards(page);
 
+    // The variant affordance only renders in the "one per card" (cards) view,
+    // because that's where a single tile represents multiple printings. The
+    // default view is "printings", so explicitly switch views first.
+    await page.getByRole("button", { name: "One per card" }).click();
+
     // Narrow the grid to the multi-printing card so the variant affordance is easy to click.
     await page.getByPlaceholder(/search/i).fill(multiPrintingCard);
     await expect(page.getByText(multiPrintingCard).first()).toBeVisible({ timeout: 10_000 });
@@ -368,30 +373,30 @@ test.describe("cards /cards (logged in)", () => {
     await expect(popover.first()).not.toBeVisible({ timeout: 5000 });
   });
 
-  test("mobile: the collection-mode row cycles the same modes", async ({ page }) => {
+  test("mobile: the catalog-mode toolbar button cycles the same modes", async ({ page }) => {
     userEmail = await createAndLogin(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/cards");
     await waitForCards(page);
 
-    await page.getByRole("button", { name: "Options" }).click();
+    // The catalog-mode button lives directly in the mobile toolbar (it used
+    // to be tucked inside the Options drawer, but was promoted so users can
+    // reach it in one tap).
+    const button = catalogModeButton(page);
+    await expect(button).toBeVisible();
 
-    // Off → Count
-    const offButton = page.getByRole("button", { name: /^Off$/ });
-    await expect(offButton).toBeVisible();
-    await offButton.click();
+    // Off → Count → Add → Off. The button has no visible label on mobile
+    // either, so we drive the cycle through its `title` attribute.
+    await expect(button).toHaveAttribute("title", "Show owned count");
+    await button.click();
 
-    // Count → Add
-    const countButton = page.getByRole("button", { name: /^Count$/ });
-    await expect(countButton).toBeVisible();
-    await countButton.click();
+    await expect(button).toHaveAttribute("title", "Switch to add mode");
+    await button.click();
 
-    // Add → Off
-    const addButton = page.getByRole("button", { name: /^Add$/ });
-    await expect(addButton).toBeVisible();
-    await addButton.click();
+    await expect(button).toHaveAttribute("title", "Turn off");
+    await button.click();
 
-    await expect(page.getByRole("button", { name: /^Off$/ })).toBeVisible();
+    await expect(button).toHaveAttribute("title", "Show owned count");
   });
 
   test("anonymous users see no catalog-mode UI on /cards", async ({ page }) => {

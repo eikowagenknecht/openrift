@@ -203,11 +203,14 @@ test.describe("collections layout", () => {
     }) => {
       const page = authenticatedPage;
 
-      // Start on /cards (it doesn't load the collections query) so the
-      // navigation to /collections runs the loader client-side through
-      // the intercepted server fn.
-      await page.goto("/cards");
-      await expect(page).toHaveURL(/\/cards/);
+      // Start on /support (a static page that doesn't prime any query the
+      // /collections loader depends on). Previously this used /cards, but
+      // card-browser now fires `collectionsQueryOptions` to know the inbox
+      // for add-mode, which warms the cache and makes the /collections
+      // loader skip its fetch (staleTime = 5 min) — no request hits the
+      // intercepted server fn.
+      await page.goto("/support");
+      await expect(page).toHaveURL(/\/support/);
 
       await page.route("**/_serverFn/**", async (route) => {
         if (isCollectionsServerFn(route.request().url())) {

@@ -147,6 +147,11 @@ test.describe("deck editor exports", () => {
 
         const codeBox = dialog.getByRole("textbox");
         await expect(codeBox).toBeVisible({ timeout: 15_000 });
+        // The textbox is rendered before `currentData?.code` lands (export
+        // request is still in-flight in React-Query terms). Wait for a
+        // non-empty value before reading it; otherwise inputValue() returns
+        // "" and the length assertion fails racy.
+        await expect(codeBox).not.toHaveValue("", { timeout: 15_000 });
         const code = await codeBox.inputValue();
         expect(code.length).toBeGreaterThan(0);
 
@@ -183,8 +188,19 @@ test.describe("deck editor exports", () => {
         .first()
         .click();
       await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
-      await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
-      await page.getByRole("button", { name: "Add to deck" }).first().click();
+      // Scope the Add click to the card tile so we don't race with the sidebar
+      // adding a duplicate "Add to deck" button once the optimistic update lands.
+      const annieTile = page
+        .getByRole("img", { name: "Annie, Fiery" })
+        .locator(
+          "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' group ')][1]",
+        )
+        .first();
+      await expect(annieTile).toBeVisible({ timeout: 15_000 });
+      await annieTile.getByRole("button", { name: "Add to deck" }).click();
+      // Wait for the optimistic update to land so isDirty is reliably true
+      // before we open the export dialog.
+      await expect(annieTile.getByText("1 in deck")).toBeVisible({ timeout: 5000 });
 
       // The amber "Constructed" violation badge used to be asserted here as a
       // proxy for isDirty, but the indicator was removed from the top bar.

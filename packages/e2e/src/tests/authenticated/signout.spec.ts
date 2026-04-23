@@ -128,7 +128,19 @@ test.describe("sign out", () => {
 
     await loginViaForm(page, email, password);
     await openUserMenu(page);
+
+    // Explicitly wait for the sign-out POST to resolve before asserting
+    // session state. Waiting only on the /cards URL change races with the
+    // cookie clear: router.navigate fires immediately after signOut() resolves,
+    // so the URL can flip before the browser has committed the Set-Cookie that
+    // drops the better-auth session token.
+    const signOutResponse = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/auth/sign-out") && response.request().method() === "POST",
+      { timeout: 15_000 },
+    );
     await page.getByRole("menuitem", { name: "Sign out" }).click();
+    await signOutResponse;
     await expect(page).toHaveURL(/\/cards$/, { timeout: 15_000 });
 
     const sessionResponse = await page.request.get(`${API_BASE_URL}/api/auth/get-session`, {

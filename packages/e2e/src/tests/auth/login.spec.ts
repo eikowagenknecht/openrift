@@ -367,7 +367,7 @@ test.describe("login page", () => {
   });
 
   test.describe("a11y", () => {
-    test("password tab order: email → password → login → forgot link", async ({ page }) => {
+    test("password tab order: email, password, forgot link, login", async ({ page }) => {
       await page.goto("/login");
       await waitForHydration(page);
 
@@ -378,10 +378,10 @@ test.describe("login page", () => {
       await expect(page.locator("#password")).toBeFocused();
 
       await page.keyboard.press("Tab");
-      await expect(page.getByRole("button", { name: /login/i })).toBeFocused();
+      await expect(page.getByRole("link", { name: /forgot your password/i })).toBeFocused();
 
       await page.keyboard.press("Tab");
-      await expect(page.getByRole("link", { name: /forgot your password/i })).toBeFocused();
+      await expect(page.getByRole("button", { name: /login/i })).toBeFocused();
     });
   });
 });

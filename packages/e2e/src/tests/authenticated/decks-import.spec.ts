@@ -77,6 +77,87 @@ function isServerFn(fnName: string) {
   };
 }
 
+// Seroval (used by TanStack Start server functions) encodes POST bodies as an
+// AST rather than plain JSON. `toJSONAsync` emits nodes like
+//   { t: <typeId>, p: { k: [...keys], v: [...encodedChildren] }, ... }
+// with scalars as { t: 1, s: "str" } / { t: 2, s: 0|2 } (bool) / { t: 0, s: n }.
+// Tests don't pull in seroval, so decode just enough to reach ordinary
+// objects / arrays / primitives back out of the AST.
+interface SerovalEnvelope {
+  t: SerovalNode;
+}
+
+interface SerovalNode {
+  t: number;
+  s?: unknown;
+  p?: { k: string[]; v: SerovalNode[] };
+  l?: number;
+  a?: SerovalNode[];
+}
+
+function decodeSerovalNode(node: SerovalNode): unknown {
+  // scalars: t=0 number, t=1 string, t=2 bool (s=2 true, s=3 false), t=3 null,
+  // t=4 undefined. For the payloads used in these tests only strings, numbers,
+  // and booleans inside plain objects / arrays appear.
+  switch (node.t) {
+    case 0: {
+      return node.s;
+    }
+    case 1: {
+      return node.s;
+    }
+    case 2: {
+      return node.s === 2;
+    }
+    case 3: {
+      return null;
+    }
+    case 4: {
+      return undefined;
+    }
+    case 9: {
+      // plain array
+      return (node.a ?? []).map((entry) => decodeSerovalNode(entry));
+    }
+    case 10: {
+      // plain object
+      const out: Record<string, unknown> = {};
+      const p = node.p;
+      if (p) {
+        for (const [index, key] of p.k.entries()) {
+          const child = p.v[index];
+          if (child !== undefined) {
+            out[key] = decodeSerovalNode(child);
+          }
+        }
+      }
+      return out;
+    }
+    default: {
+      return undefined;
+    }
+  }
+}
+
+/**
+ * Decode a seroval-encoded POST body (the shape TanStack Start uses for
+ * server functions) back into ordinary JS values. Returns the value under
+ * the top-level `data` key, since that's what every call site wants.
+ * @returns The decoded `data` payload as a plain JS value.
+ */
+function decodeServerFnData<T = unknown>(rawBody: unknown): T {
+  const envelope = rawBody as SerovalEnvelope | { data: unknown } | undefined;
+  if (envelope && typeof envelope === "object" && "t" in envelope && envelope.t) {
+    const decoded = decodeSerovalNode(envelope.t) as { data?: T } | undefined;
+    return (decoded?.data ?? {}) as T;
+  }
+  // Fall back to the plain-JSON shape older versions used.
+  if (envelope && typeof envelope === "object" && "data" in envelope) {
+    return (envelope as { data: T }).data ?? ({} as T);
+  }
+  return {} as T;
+}
+
 // Build a real Piltover deck code from known-good OGS short codes so the
 // happy-path round-trip exercises the library's decode path rather than a
 // hand-crafted string.
@@ -303,12 +384,11 @@ test.describe("deck import", () => {
       await savePromise;
 
       // createDeckFn payload includes the default name + constructed format.
-      // TanStack Start server-fn payloads may arrive as `{ data: {...} }` or
-      // directly as `{...}` depending on the version — normalize first.
-      const rawBody = createRequest.postDataJSON() as
-        | { data: { name?: string; format?: string } }
-        | { name?: string; format?: string };
-      const body = ("data" in rawBody ? rawBody.data : rawBody) ?? {};
+      // TanStack Start 1.167 serialises server-fn bodies through seroval as
+      // an encoded AST; decodeServerFnData walks it back to a plain object.
+      const body = decodeServerFnData<{ name?: string; format?: string }>(
+        createRequest.postDataJSON(),
+      );
       expect(body.name).toBe("Imported Deck");
       expect(body.format).toBe("constructed");
 
@@ -360,10 +440,7 @@ test.describe("deck import", () => {
       await page.getByRole("button", { name: /^Import \d+ cards?$/ }).click();
       const createRequest = await createPromise;
 
-      const rawBody = createRequest.postDataJSON() as
-        | { data: { format?: string } }
-        | { format?: string };
-      const body = ("data" in rawBody ? rawBody.data : rawBody) ?? {};
+      const body = decodeServerFnData<{ format?: string }>(createRequest.postDataJSON());
       expect(body.format).toBe("freeform");
     });
   });
@@ -439,20 +516,23 @@ test.describe("deck import", () => {
       userEmail = await createAndLogin(page);
       await advanceFromMixedText(page);
 
-      // The zone-picker select triggers render role=combobox; the format
-      // select is distinguished by its "Constructed" text. Filter to the
-      // first zone picker ("Main Deck" trigger) and move the card to
-      // Sideboard.
+      // The zone-picker Select triggers render as role=combobox. The import
+      // page uses the DB-sourced zone labels ("Main", "Sideboard", ...), not
+      // the editor's friendlier "Main Deck". A simple hasText filter would
+      // also match the format picker's "Constructed" combobox once a zone
+      // value collides; scoping by `has: getByText(...)` keeps us on the
+      // zone picker. Target the first row's picker and move it to Sideboard.
       const mainDeckZonePicker = page
         .getByRole("combobox")
-        .filter({ hasText: /^Main Deck$/ })
+        .filter({ has: page.getByText("Main", { exact: true }) })
         .first();
+      await expect(mainDeckZonePicker).toBeVisible({ timeout: 15_000 });
       await mainDeckZonePicker.click();
       await page.getByRole("option", { name: "Sideboard" }).click();
       await expect(
         page
           .getByRole("combobox")
-          .filter({ hasText: /^Sideboard$/ })
+          .filter({ has: page.getByText("Sideboard", { exact: true }) })
           .first(),
       ).toBeVisible();
     });
@@ -487,11 +567,10 @@ test.describe("deck import", () => {
       await page.getByRole("button", { name: /^Import \d+ cards?$/ }).click();
       const saveRequest = await savePromise;
 
-      const rawPayload = saveRequest.postDataJSON() as
-        | { data: { cards: { cardId: string; zone: string; quantity: number }[] } }
-        | { cards: { cardId: string; zone: string; quantity: number }[] };
-      const savePayload = ("data" in rawPayload ? rawPayload.data : rawPayload) ?? { cards: [] };
-      const zones = new Set(savePayload.cards.map((card) => card.zone));
+      const savePayload = decodeServerFnData<{
+        cards: { cardId: string; zone: string; quantity: number }[];
+      }>(saveRequest.postDataJSON());
+      const zones = new Set((savePayload.cards ?? []).map((card) => card.zone));
       expect(zones.has("legend")).toBe(true);
       expect(zones.has("main")).toBe(true);
 
@@ -532,12 +611,11 @@ test.describe("deck import", () => {
       await page.getByRole("button", { name: /^Import \d+ cards?$/ }).click();
       const saveRequest = await savePromise;
 
-      const rawPayload = saveRequest.postDataJSON() as
-        | { data: { cards: { cardId: string; zone: string; quantity: number }[] } }
-        | { cards: { cardId: string; zone: string; quantity: number }[] };
-      const savePayload = ("data" in rawPayload ? rawPayload.data : rawPayload) ?? { cards: [] };
+      const savePayload = decodeServerFnData<{
+        cards: { cardId: string; zone: string; quantity: number }[];
+      }>(saveRequest.postDataJSON());
       // TTS positional slot 1 becomes the chosen champion → champion zone.
-      const zones = new Set(savePayload.cards.map((card) => card.zone));
+      const zones = new Set((savePayload.cards ?? []).map((card) => card.zone));
       expect(zones.has("champion")).toBe(true);
 
       await expect(page).toHaveURL(/\/decks\/[0-9a-f-]{36}$/, { timeout: 15_000 });

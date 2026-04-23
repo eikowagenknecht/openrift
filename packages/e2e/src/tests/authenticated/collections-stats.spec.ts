@@ -89,34 +89,25 @@ async function getUserId(sql: Sql, email: string): Promise<string> {
 }
 
 async function setFlagOverride(sql: Sql, userId: string, flagKey: string, enabled: boolean) {
-  // Per-user overrides (user_feature_flags) are only merged into the
-  // authenticated /feature-flags response when the request includes user
-  // cookies. The SSR server function that pre-populates the feature-flags
-  // query does NOT forward cookies, so per-user overrides are invisible to
-  // the initial render. Mirror the override onto the global feature_flags
-  // table as well so both code paths see the same enabled state during the
-  // test window.
+  // Use a per-user override only. The authenticated /feature-flags endpoint
+  // merges per-user overrides on top of global defaults, and the web app's
+  // `fetchFeatureFlags` server fn forwards cookies via the `withCookies`
+  // middleware (see apps/web/src/lib/feature-flags.ts), so per-user
+  // overrides are visible during SSR and client-side fetches alike.
+  //
+  // We intentionally do NOT mirror onto the global `feature_flags` table —
+  // the global row is shared across all tests, and flipping it would race
+  // with parallel describe blocks that assume the default state.
   await sql`
     INSERT INTO user_feature_flags (user_id, flag_key, enabled)
     VALUES (${userId}, ${flagKey}, ${enabled})
     ON CONFLICT (user_id, flag_key) DO UPDATE SET enabled = EXCLUDED.enabled
-  `;
-  await sql`
-    INSERT INTO feature_flags (key, enabled)
-    VALUES (${flagKey}, ${enabled})
-    ON CONFLICT (key) DO UPDATE SET enabled = EXCLUDED.enabled
   `;
 }
 
 async function clearFlagOverride(sql: Sql, userId: string, flagKey: string) {
   await sql`
     DELETE FROM user_feature_flags WHERE user_id = ${userId} AND flag_key = ${flagKey}
-  `;
-  // Re-enable the global flag as the default for other tests in the suite.
-  await sql`
-    INSERT INTO feature_flags (key, enabled)
-    VALUES (${flagKey}, true)
-    ON CONFLICT (key) DO UPDATE SET enabled = true
   `;
 }
 
@@ -197,15 +188,11 @@ test.describe("collection stats", () => {
 
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
-        // Poll navigation: the SSR server-cache holds /feature-flags for 60s,
-        // so a single goto may see `stats=true` from an earlier warmup. Retry
-        // until the cache expires or the client-side query refetches and the
-        // <Navigate /> redirects us to /collections.
-        test.setTimeout(180_000);
-        await expect(async () => {
-          await page.goto("/collections/stats");
-          await expect(page).toHaveURL(/\/collections(\?.*)?$/, { timeout: 3000 });
-        }).toPass({ timeout: 150_000, intervals: [10_000] });
+        await page.goto("/collections/stats");
+        // Per-user override disables the flag → <Navigate /> bounces to
+        // /collections on first render; no polling needed because the
+        // authenticated /feature-flags response is not server-cached.
+        await expect(page).toHaveURL(/\/collections(\?.*)?$/, { timeout: 15_000 });
         await expect(page.getByRole("link", { name: "Statistics" })).toHaveCount(0);
       });
     });
@@ -220,19 +207,15 @@ test.describe("collection stats", () => {
         await sql.end();
       }
 
-      // Same server-cache dance as the "off" variant — the SSR feature-flags
-      // cache (60s stale) may still be holding stats=false from the previous
-      // test, so retry until the empty state renders.
-      test.setTimeout(180_000);
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
-        await expect(async () => {
-          await page.goto("/collections/stats");
-          await expect(page).toHaveURL(/\/collections\/stats$/, { timeout: 3000 });
-          await expect(page.getByText("No cards in collection yet")).toBeVisible({
-            timeout: 3000,
-          });
-        }).toPass({ timeout: 150_000, intervals: [10_000] });
+        await page.goto("/collections/stats");
+        await expect(page).toHaveURL(/\/collections\/stats$/, { timeout: 15_000 });
+        // The page loads its empty state (fresh user has zero copies), which
+        // only renders when the stats flag is on.
+        await expect(page.getByText("No cards in collection yet")).toBeVisible({
+          timeout: 15_000,
+        });
         await expect(page.getByRole("link", { name: "Statistics" })).toBeVisible();
       });
     });
@@ -636,12 +619,13 @@ test.describe("collection stats", () => {
       }
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
-        await expect(async () => {
-          await page.goto("/collections/stats");
-          await expect(page.getByRole("heading", { name: "Value Over Time" })).toHaveCount(0, {
-            timeout: 2000,
-          });
-        }).toPass({ timeout: 90_000, intervals: [5000] });
+        await page.goto("/collections/stats");
+        // Wait for the stats page to finish loading before asserting the
+        // absence of the Value Over Time heading (gated by the flag).
+        await expect(page.getByRole("heading", { name: "Stats" })).toBeVisible({
+          timeout: 15_000,
+        });
+        await expect(page.getByRole("heading", { name: "Value Over Time" })).toHaveCount(0);
       });
     });
 

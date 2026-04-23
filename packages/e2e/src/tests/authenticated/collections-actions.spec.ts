@@ -117,16 +117,16 @@ async function createCollectionViaApi(request: APIRequestContext, name: string):
 }
 
 async function enterSelectMode(page: Page) {
-  // The desktop "Select …" top-bar button has a visible text label; its mobile
+  // The desktop "Manage …" top-bar button has a visible text label; its mobile
   // icon-only twin has no accessible name, so role+name picks it unambiguously.
-  await page.getByRole("button", { name: /^Select (cards|printings|copies)$/ }).click();
+  await page.getByRole("button", { name: /^Manage (cards|printings|copies)$/ }).click();
 }
 
 async function waitForCollectionReady(page: Page) {
-  // The "Select cards" button renders as soon as the top-bar hydrates on a
-  // collection page — a reliable readiness signal that doesn't depend on any
-  // specific card being seeded.
-  await expect(page.getByRole("button", { name: /^Select (cards|printings|copies)$/ })).toBeVisible(
+  // The "Manage cards/printings/copies" button renders as soon as the top-bar
+  // hydrates on a collection page — a reliable readiness signal that doesn't
+  // depend on any specific card being seeded.
+  await expect(page.getByRole("button", { name: /^Manage (cards|printings|copies)$/ })).toBeVisible(
     { timeout: 15_000 },
   );
 }
@@ -158,7 +158,9 @@ test.describe("collection actions", () => {
       await page.goto(`/collections/${inboxId}`);
       await waitForCollectionReady(page);
 
-      // Default view is "cards" so each seeded card is its own tile.
+      // Default view is "printings" (see feat: default to Printings view).
+      // We seeded one copy each of two distinct printings, so each gets its
+      // own tile.
       await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible({ timeout: 10_000 });
 
       await enterSelectMode(page);

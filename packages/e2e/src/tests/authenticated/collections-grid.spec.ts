@@ -275,24 +275,27 @@ test.describe("collections grid", () => {
       });
     });
 
-    test("clicking the Printings option in the view bar swaps the grid and updates the URL", async ({
+    test("clicking the One-per-card option in the view bar swaps the grid and updates the URL", async ({
       browser,
     }) => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
         await page.goto("/collections");
         await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
-        // The stats line was re-worded — "1 card" (singular) or "1 cards"
-        // depending on the localization. Accept either, plus the new
-        // "1 printing" wording if the default view was swapped.
-        await expect(page.getByText(/\b1 (card|printing)s?\b/)).toBeVisible();
+        // Default view is now "printings" (user-settable preference, default
+        // changed in commit 0d92ed1b), so the initial label is "2 printings"
+        // for Annie's 2 printings across 4 seeded copies.
+        await expect(page.getByText(/\b2 printings\b/)).toBeVisible();
 
         const viewGroup = page.getByRole("group", { name: "View mode" });
-        await viewGroup.getByRole("button", { name: "Every printing" }).click();
+        // Click the non-default "One per card" option so the URL actually
+        // updates — setView only writes a `view` param when the selected
+        // mode differs from the user's default (see setView in use-card-filters.ts).
+        await viewGroup.getByRole("button", { name: "One per card" }).click();
 
-        await expect(page).toHaveURL(/[?&]view=printings/);
-        await expect(page.getByText(/\b2 printings\b/)).toBeVisible();
-        await expect(page.getByText("Annie, Fiery")).toHaveCount(2);
+        await expect(page).toHaveURL(/[?&]view=cards/);
+        await expect(page.getByText(/\b1 cards\b/)).toBeVisible();
+        await expect(page.getByText("Annie, Fiery")).toHaveCount(1);
       });
     });
   });

@@ -241,12 +241,17 @@ export function matchDeckEntries(
   const matched = entries.map((entry) => matchSingleDeckEntry(entry, index));
 
   // Auto-assign the first Champion card to the champion zone when no entry
-  // already has an explicit champion zone assignment.
+  // already has an explicit champion zone assignment. Skip any entry whose
+  // zone was set explicitly by the user (e.g. a "Legend:" text header) —
+  // otherwise the promote silently overrides the user's choice and the card
+  // lands in Champion even though the import text declared Legend.
   const hasExplicitChampion = matched.some((m) => m.entry.explicitZone === "champion");
   if (!hasExplicitChampion) {
     const firstChampion = matched.find(
       (m) =>
-        m.resolvedCard?.superTypes.includes(WellKnown.superType.CHAMPION) && m.zone !== "sideboard",
+        m.resolvedCard?.superTypes.includes(WellKnown.superType.CHAMPION) &&
+        m.zone !== "sideboard" &&
+        !m.entry.explicitZone,
     );
     if (firstChampion) {
       firstChampion.zone = "champion";
