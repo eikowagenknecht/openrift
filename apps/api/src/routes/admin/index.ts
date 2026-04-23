@@ -9,6 +9,7 @@ import { adminCacheRoute } from "./cache.js";
 import { adminCardTypesRoute } from "./card-types.js";
 import { adminCardsRoute } from "./cards/index.js";
 import { catalogRoute } from "./catalog.js";
+import { adminChangelogRoute } from "./changelog.js";
 import { adminDeckFormatsRoute } from "./deck-formats.js";
 import { adminDeckZonesRoute } from "./deck-zones.js";
 import { adminDistributionChannelsRoute } from "./distribution-channels.js";
@@ -122,6 +123,7 @@ export const adminRoute = app
   .route("/admin", adminProviderSettingsRoute)
   .route("/admin", adminSiteSettingsRoute)
   .route("/admin", adminPrintingEventsRoute)
+  .route("/admin", adminChangelogRoute)
   .route("/admin", stagingCardOverridesRoute)
   .route("/admin", typographyReviewRoute)
   .route("/admin", adminDeckZonesRoute)

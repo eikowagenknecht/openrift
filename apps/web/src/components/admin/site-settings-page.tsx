@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useFlushPrintingEvents } from "@/hooks/use-flush-printing-events";
+import { usePostChangelog } from "@/hooks/use-post-changelog";
 import {
   useCreateSiteSetting,
   useDeleteSiteSetting,
@@ -249,7 +250,10 @@ export function SiteSettingsPage() {
 
       <div>
         <SectionHeading>Discord notifications</SectionHeading>
-        <DiscordFlushPanel />
+        <div className="space-y-2">
+          <DiscordFlushPanel />
+          <ChangelogPostPanel />
+        </div>
       </div>
 
       <div>
@@ -295,6 +299,48 @@ function DiscordFlushPanel() {
             <SendIcon className="mr-1 size-4" />
           )}
           Flush now
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ── Changelog post ──────────────────────────────────────────────────────────
+
+function ChangelogPostPanel() {
+  const post = usePostChangelog();
+
+  async function handlePost() {
+    try {
+      const result = await post.mutateAsync();
+      if (result.posted) {
+        toast.success("Changelog posted to Discord");
+      } else {
+        toast.success("No entries to post (no webhook configured or no entries dated today)");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Post failed");
+    }
+  }
+
+  return (
+    <div className="rounded-md border px-4 py-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <Label>Post today&apos;s changelog</Label>
+          <p className="text-muted-foreground mt-0.5 text-xs">
+            Reads today&apos;s entries from the changelog and posts them to the
+            <span className="font-mono"> discord-webhook-changelog</span> channel. Same action the
+            daily cron runs.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handlePost} disabled={post.isPending}>
+          {post.isPending ? (
+            <LoaderIcon className="mr-1 size-4 animate-spin" />
+          ) : (
+            <SendIcon className="mr-1 size-4" />
+          )}
+          Post now
         </Button>
       </div>
     </div>
