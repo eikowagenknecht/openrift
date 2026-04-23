@@ -1,13 +1,9 @@
 import type { Logger } from "@openrift/shared/logger";
 
-import type { Repos } from "../deps.js";
-
 interface ChangelogEntry {
   type: "feat" | "fix";
   message: string;
 }
-
-const SETTING_KEY = "discord-webhook-changelog";
 
 /**
  * Parses a changelog markdown string and returns entries for the given date.
@@ -71,14 +67,12 @@ export function buildDiscordPayload(date: string, entries: ChangelogEntry[]) {
  * @returns Whether a message was posted.
  */
 export async function postChangelogToDiscord(
-  repos: Repos,
+  webhookUrl: string | null,
   changelogPath: string,
   log: Logger,
 ): Promise<boolean> {
-  const settings = await repos.siteSettings.listByScope("api");
-  const webhookUrl = settings.find((setting) => setting.key === SETTING_KEY)?.value;
   if (!webhookUrl) {
-    log.info("No discord-webhook-changelog setting found, skipping");
+    log.info("No DISCORD_WEBHOOK_CHANGELOG configured, skipping");
     return false;
   }
 

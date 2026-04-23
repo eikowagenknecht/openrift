@@ -109,7 +109,7 @@ if (config.cron.changelogSchedule) {
   cronJobs.changelog = new Cron(clSchedule, { protect: true }, async () => {
     try {
       clLog.info("Checking for changelog updates");
-      await postChangelogToDiscord(repos, config.changelogPath, clLog);
+      await postChangelogToDiscord(config.discordWebhooks.changelog, config.changelogPath, clLog);
     } catch (error) {
       clLog.error(error, "Changelog Discord post failed");
     }
@@ -121,7 +121,15 @@ if (config.cron.changelogSchedule) {
   const peLog = log.child({ service: "printing-events" });
   cronJobs.printingEvents = new Cron("*/15 * * * *", { protect: true }, async () => {
     try {
-      await flushPendingPrintingEvents(repos, config.appBaseUrl, peLog);
+      await flushPendingPrintingEvents(
+        repos,
+        {
+          newPrintings: config.discordWebhooks.newPrintings,
+          printingChanges: config.discordWebhooks.printingChanges,
+        },
+        config.appBaseUrl,
+        peLog,
+      );
     } catch (error) {
       peLog.error(error, "Printing events flush failed");
     }

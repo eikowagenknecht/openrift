@@ -58,24 +58,6 @@ const KNOWN_SETTINGS: KnownSetting[] = [
     description: "Umami website ID (both umami keys must be set for analytics to load)",
     placeholder: "a1b2c3d4-...",
   },
-  {
-    key: "discord-webhook-new-printings",
-    scope: "api",
-    description: "Discord webhook URL for #new-cards notifications",
-    placeholder: "https://discord.com/api/webhooks/...",
-  },
-  {
-    key: "discord-webhook-printing-changes",
-    scope: "api",
-    description: "Discord webhook URL for #data-updates notifications",
-    placeholder: "https://discord.com/api/webhooks/...",
-  },
-  {
-    key: "discord-webhook-changelog",
-    scope: "api",
-    description: 'Discord webhook URL for daily changelog posts ("What\'s new")',
-    placeholder: "https://discord.com/api/webhooks/...",
-  },
 ];
 
 // ── Component ───────────────────────────────────────────────────────────────

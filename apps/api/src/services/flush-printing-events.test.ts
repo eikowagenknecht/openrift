@@ -19,6 +19,11 @@ function mockLog() {
 
 const APP_BASE_URL = "https://openrift.app";
 
+const WEBHOOKS = {
+  newPrintings: "https://discord.com/api/webhooks/new",
+  printingChanges: "https://discord.com/api/webhooks/changes",
+};
+
 describe("flushPendingPrintingEvents", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -31,18 +36,20 @@ describe("flushPendingPrintingEvents", () => {
         markSent: vi.fn(async () => {}),
         markRetry: vi.fn(async () => {}),
       },
-      siteSettings: {
-        listByScope: vi.fn(async () => []),
-      },
     };
 
-    const result = await flushPendingPrintingEvents(repos as any, APP_BASE_URL, mockLog());
+    const result = await flushPendingPrintingEvents(
+      repos as any,
+      WEBHOOKS,
+      APP_BASE_URL,
+      mockLog(),
+    );
 
     expect(result).toEqual({ sent: 0, failed: 0 });
-    expect(repos.siteSettings.listByScope).not.toHaveBeenCalled();
+    expect(mockFlush).not.toHaveBeenCalled();
   });
 
-  it("reads webhook URLs from api-scoped site settings and passes appBaseUrl", async () => {
+  it("passes the supplied webhook URLs and appBaseUrl through to the sender", async () => {
     const events = [
       {
         id: "evt-1",
@@ -61,29 +68,16 @@ describe("flushPendingPrintingEvents", () => {
         markSent: vi.fn(async () => {}),
         markRetry: vi.fn(async () => {}),
       },
-      siteSettings: {
-        listByScope: vi.fn(async () => [
-          { key: "discord-webhook-new-printings", value: "https://discord.com/api/webhooks/new" },
-          {
-            key: "discord-webhook-printing-changes",
-            value: "https://discord.com/api/webhooks/changes",
-          },
-        ]),
-      },
     };
 
-    const result = await flushPendingPrintingEvents(repos as any, APP_BASE_URL, mockLog());
-
-    expect(repos.siteSettings.listByScope).toHaveBeenCalledWith("api");
-    expect(mockFlush).toHaveBeenCalledWith(
-      events,
-      {
-        newPrintings: "https://discord.com/api/webhooks/new",
-        printingChanges: "https://discord.com/api/webhooks/changes",
-      },
+    const result = await flushPendingPrintingEvents(
+      repos as any,
+      WEBHOOKS,
       APP_BASE_URL,
-      expect.anything(),
+      mockLog(),
     );
+
+    expect(mockFlush).toHaveBeenCalledWith(events, WEBHOOKS, APP_BASE_URL, expect.anything());
     expect(repos.printingEvents.markSent).toHaveBeenCalledWith(["evt-1"]);
     expect(result).toEqual({ sent: 1, failed: 0 });
   });
@@ -107,12 +101,14 @@ describe("flushPendingPrintingEvents", () => {
         markSent: vi.fn(async () => {}),
         markRetry: vi.fn(async () => {}),
       },
-      siteSettings: {
-        listByScope: vi.fn(async () => []),
-      },
     };
 
-    const result = await flushPendingPrintingEvents(repos as any, APP_BASE_URL, mockLog());
+    const result = await flushPendingPrintingEvents(
+      repos as any,
+      { newPrintings: null, printingChanges: null },
+      APP_BASE_URL,
+      mockLog(),
+    );
 
     expect(repos.printingEvents.markRetry).toHaveBeenCalledWith(["evt-1"]);
     expect(result).toEqual({ sent: 0, failed: 1 });
