@@ -41,7 +41,7 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Cache Bun install store
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
@@ -52,7 +52,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Cache Turborepo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .turbo
           key: turbo-build-${{ runner.os }}-${{ github.sha }}
@@ -80,7 +80,7 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Cache Bun install store
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
@@ -91,7 +91,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Cache Turborepo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: .turbo
           key: turbo-test-${{ runner.os }}-${{ github.sha }}
@@ -119,7 +119,7 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Cache Bun install store
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
