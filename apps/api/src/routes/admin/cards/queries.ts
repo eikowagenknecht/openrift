@@ -129,7 +129,7 @@ const getCandidateCard = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.object({}).passthrough() },
+        "application/json": { schema: z.record(z.string(), z.any()) },
       },
       description: "Candidate card detail",
     },
@@ -146,7 +146,7 @@ const getUnmatchedDetail = createRoute({
   responses: {
     200: {
       content: {
-        "application/json": { schema: z.object({}).passthrough() },
+        "application/json": { schema: z.record(z.string(), z.any()) },
       },
       description: "Unmatched candidate detail",
     },
