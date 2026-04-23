@@ -11,7 +11,7 @@ import {
   WandSparklesIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import type { CardSearchResult } from "@/components/admin/card-search-dropdown";
 import { CardSearchDropdown } from "@/components/admin/card-search-dropdown";
@@ -165,7 +165,6 @@ export function MarketplaceProductsTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-16">Marketplace</TableHead>
           <TableHead className="w-20">ID</TableHead>
           <TableHead>Product</TableHead>
           <TableHead className="w-16">Language</TableHead>
@@ -177,25 +176,38 @@ export function MarketplaceProductsTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {entries.map((entry) => {
+        {entries.map((entry, index) => {
           const key = `${entry.marketplace}::${entry.product.externalId}::${entry.product.finish}::${entry.product.language}`;
           const suggestion = entry.isAssigned ? undefined : suggestions?.get(key);
           const suggestedPrinting = suggestion
             ? printingById.get(suggestion.printingId)
             : undefined;
+          const isFirstOfMarketplace =
+            index === 0 || entries[index - 1].marketplace !== entry.marketplace;
           return (
-            <MarketplaceProductRow
-              key={key}
-              entry={entry}
-              printings={group.printings}
-              allCards={allCards}
-              handlers={handlers[entry.marketplace]}
-              suggestion={
-                suggestion && suggestedPrinting
-                  ? { ...suggestion, printing: suggestedPrinting }
-                  : undefined
-              }
-            />
+            <React.Fragment key={key}>
+              {isFirstOfMarketplace && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell
+                    colSpan={8}
+                    className="bg-muted/50 text-muted-foreground py-1.5 font-semibold tracking-wide uppercase"
+                  >
+                    {MARKETPLACE_CONFIGS[entry.marketplace].displayName}
+                  </TableCell>
+                </TableRow>
+              )}
+              <MarketplaceProductRow
+                entry={entry}
+                printings={group.printings}
+                allCards={allCards}
+                handlers={handlers[entry.marketplace]}
+                suggestion={
+                  suggestion && suggestedPrinting
+                    ? { ...suggestion, printing: suggestedPrinting }
+                    : undefined
+                }
+              />
+            </React.Fragment>
           );
         })}
       </TableBody>
@@ -246,11 +258,6 @@ function MarketplaceProductRow({
   return (
     <>
       <TableRow>
-        <TableCell className="w-16">
-          <Badge variant="outline" className="font-normal">
-            {config.shortName}
-          </Badge>
-        </TableCell>
         <TableCell className="w-20">
           <ProductLink config={config} externalId={product.externalId}>
             #{product.externalId}
@@ -344,7 +351,7 @@ function MarketplaceProductRow({
       </TableRow>
       {showAssign && canReassign && (
         <TableRow>
-          <TableCell colSpan={9} className="bg-muted/30">
+          <TableCell colSpan={8} className="bg-muted/30">
             <div className="max-w-md">
               <CardSearchDropdown
                 results={filteredResults}
