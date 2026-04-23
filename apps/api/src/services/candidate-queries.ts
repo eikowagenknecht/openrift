@@ -248,7 +248,7 @@ export async function buildCandidateCardList(
         group?.filter((cc) => !cc.checkedAt && favoriteProviders.has(cc.provider)).length ?? 0,
       uncheckedPrintingCount: group ? uncheckedPrintingCountForGroup(group, true) : 0,
       hasFavorite: group?.some((cc) => favoriteProviders.has(cc.provider)) ?? false,
-      hasFavoriteStagingPrintings: group ? stagingIdsForGroup(group, true).length > 0 : false,
+      favoriteStagingShortCodes: group ? stagingIdsForGroup(group, true) : [],
       suggestedCardSlug: null,
     };
   });
@@ -280,7 +280,7 @@ export async function buildCandidateCardList(
         .length,
       uncheckedPrintingCount: uncheckedPrintingCountForGroup(group, true),
       hasFavorite: group.some((cc) => favoriteProviders.has(cc.provider)),
-      hasFavoriteStagingPrintings: stagingIdsForGroup(group, true).length > 0,
+      favoriteStagingShortCodes: stagingIdsForGroup(group, true),
       suggestedCardSlug: findSuggestedCard(normName),
     });
   }
