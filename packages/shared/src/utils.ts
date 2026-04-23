@@ -25,10 +25,11 @@ export function unique<T>(values: T[]): T[] {
 
 /**
  * Format a human-readable printing label from its component fields.
- * Non-EN languages get a trailing `:LANG` suffix; EN (the default) is omitted.
- * Marker slugs are joined with `+` (e.g. `top-8+promo`) and the segment is
- * empty for unmarked printings.
- * @returns Display label: "{short_code}:{finish}:{marker_slugs|}[:LANG]"
+ * The language (when known) is always prepended as a `LANG:` prefix —
+ * including EN, so every labelled printing reads symmetrically. If language
+ * is null/undefined the prefix is omitted. Marker slugs are joined with `+`
+ * (e.g. `top-8+promo`) and the segment is empty for unmarked printings.
+ * @returns Display label: "[LANG:]{short_code}:{marker_slugs|}:{finish}"
  */
 export function formatPrintingLabel(
   shortCode: string,
@@ -36,9 +37,9 @@ export function formatPrintingLabel(
   finish: string,
   language?: string | null,
 ): string {
-  const base = `${shortCode}:${finish}:${markerSlugs.join("+")}`;
-  if (language && language !== "EN") {
-    return `${base}:${language}`;
+  const base = `${shortCode}:${markerSlugs.join("+")}:${finish}`;
+  if (language) {
+    return `${language}:${base}`;
   }
   return base;
 }
