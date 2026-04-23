@@ -24,6 +24,7 @@ import { adminLanguagesRoute } from "./languages.js";
 import { adminMarkersRoute } from "./markers.js";
 import { marketplaceGroupsRoute } from "./marketplace-groups.js";
 import { operationsRoute } from "./operations.js";
+import { adminPrintingEventsRoute } from "./printing-events.js";
 import { adminProviderSettingsRoute } from "./provider-settings.js";
 import { adminRaritiesRoute } from "./rarities.js";
 import { adminRulesRoute } from "./rules.js";
@@ -120,6 +121,7 @@ export const adminRoute = app
   .route("/admin", adminDistributionChannelsRoute)
   .route("/admin", adminProviderSettingsRoute)
   .route("/admin", adminSiteSettingsRoute)
+  .route("/admin", adminPrintingEventsRoute)
   .route("/admin", stagingCardOverridesRoute)
   .route("/admin", typographyReviewRoute)
   .route("/admin", adminDeckZonesRoute)

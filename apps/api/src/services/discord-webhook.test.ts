@@ -22,7 +22,7 @@ function makeEvent(overrides: Partial<EnrichedPrintingEvent> = {}): EnrichedPrin
     artist: "Artist A",
     language: "EN",
     languageName: "English",
-    frontImageUrl: "https://images.openrift.app/cards/OGN-001-400w.webp",
+    frontImageUrl: "/media/cards/00/OGN-001-400w.webp",
     ...overrides,
   };
 }
@@ -49,58 +49,115 @@ describe("buildNewPrintingPayloads", () => {
     expect(payloads[0].embeds[0].url).toBe("https://openrift.app/cards/OGN-001");
   });
 
-  it("includes front image as thumbnail (400w variant)", () => {
-    const events = [makeEvent()];
+  it("uses set name as the embed author block", () => {
+    const events = [makeEvent({ setName: "Origins" })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
-    expect(payloads[0].embeds[0].thumbnail?.url).toBe(
-      "https://images.openrift.app/cards/OGN-001-400w.webp",
+    expect(payloads[0].embeds[0].author?.name).toBe("Origins");
+  });
+
+  it("omits author when set name is missing", () => {
+    const events = [makeEvent({ setName: null })];
+
+    const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
+
+    expect(payloads[0].embeds[0].author).toBeUndefined();
+  });
+
+  it("prepends app base URL to relative image paths", () => {
+    const events = [makeEvent({ frontImageUrl: "/media/cards/ab/abc-400w.webp" })];
+
+    const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
+
+    expect(payloads[0].embeds[0].image?.url).toBe(
+      "https://openrift.app/media/cards/ab/abc-400w.webp",
     );
   });
 
-  it("omits thumbnail when no image is available", () => {
+  it("preserves absolute image URLs unchanged", () => {
+    const events = [makeEvent({ frontImageUrl: "https://cdn.example.com/card.webp" })];
+
+    const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
+
+    expect(payloads[0].embeds[0].image?.url).toBe("https://cdn.example.com/card.webp");
+  });
+
+  it("omits image when no front image is available", () => {
     const events = [makeEvent({ frontImageUrl: null })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
+    expect(payloads[0].embeds[0].image).toBeUndefined();
     expect(payloads[0].embeds[0].thumbnail).toBeUndefined();
   });
 
-  it("omits finish field when it is 'normal'", () => {
-    const events = [makeEvent({ finish: "normal" })];
+  it("builds a markdown description with code, rarity, and finish", () => {
+    const events = [
+      makeEvent({ shortCode: "OGN-001", rarity: "Rare", finish: "metal", finishLabel: "Metal" }),
+    ];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
-    const fields = payloads[0].embeds[0].fields ?? [];
 
-    expect(fields.find((f) => f.name === "Finish")).toBeUndefined();
+    expect(payloads[0].embeds[0].description).toContain("**OGN-001**");
+    expect(payloads[0].embeds[0].description).toContain("Rare");
+    expect(payloads[0].embeds[0].description).toContain("Metal");
   });
 
-  it("uses finish label for display (not slug)", () => {
-    const events = [makeEvent({ finish: "metal", finishLabel: "Metal" })];
+  it("omits finish from description when it is 'normal'", () => {
+    const events = [makeEvent({ finish: "normal", finishLabel: "Normal" })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
-    const fields = payloads[0].embeds[0].fields ?? [];
 
-    expect(fields.find((f) => f.name === "Finish")?.value).toBe("Metal");
+    expect(payloads[0].embeds[0].description).not.toContain("Normal");
   });
 
   it("falls back to finish slug when label is missing", () => {
     const events = [makeEvent({ finish: "foil", finishLabel: null })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
-    const fields = payloads[0].embeds[0].fields ?? [];
 
-    expect(fields.find((f) => f.name === "Finish")?.value).toBe("foil");
+    expect(payloads[0].embeds[0].description).toContain("foil");
   });
 
-  it("uses language name for display (not code)", () => {
+  it("includes language name in description when not English", () => {
     const events = [makeEvent({ language: "FR", languageName: "French" })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
-    const fields = payloads[0].embeds[0].fields ?? [];
 
-    expect(fields.find((f) => f.name === "Language")?.value).toBe("French");
+    expect(payloads[0].embeds[0].description).toContain("French");
+  });
+
+  it("omits language from description when English", () => {
+    const events = [makeEvent({ language: "EN", languageName: "English" })];
+
+    const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
+
+    expect(payloads[0].embeds[0].description).not.toContain("English");
+  });
+
+  it("includes artist on its own line when present", () => {
+    const events = [makeEvent({ artist: "Jane Doe" })];
+
+    const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
+
+    expect(payloads[0].embeds[0].description).toContain("Artist: Jane Doe");
+  });
+
+  it("omits description entirely when no metadata is present", () => {
+    const events = [
+      makeEvent({
+        shortCode: null,
+        rarity: null,
+        finish: "normal",
+        language: "EN",
+        artist: null,
+      }),
+    ];
+
+    const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
+
+    expect(payloads[0].embeds[0].description).toBeUndefined();
   });
 
   it("chunks into multiple payloads when more than 10 embeds", () => {
@@ -144,7 +201,7 @@ describe("buildChangedPrintingPayloads", () => {
     expect(payloads[0].embeds[0].title).toBe("Updated: Test Card (OGN-001)");
     expect(payloads[0].embeds[0].url).toBe("https://openrift.app/cards/OGN-001");
     expect(payloads[0].embeds[0].thumbnail?.url).toBe(
-      "https://images.openrift.app/cards/OGN-001-400w.webp",
+      "https://openrift.app/media/cards/00/OGN-001-400w.webp",
     );
 
     const fields = payloads[0].embeds[0].fields ?? [];

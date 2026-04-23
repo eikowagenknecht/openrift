@@ -1,6 +1,7 @@
 import type { SiteSettingResponse } from "@openrift/shared";
-import { PlusIcon } from "lucide-react";
+import { LoaderIcon, PlusIcon, SendIcon } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminColumnDef } from "@/components/admin/admin-table";
@@ -17,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { useFlushPrintingEvents } from "@/hooks/use-flush-printing-events";
 import {
   useCreateSiteSetting,
   useDeleteSiteSetting,
@@ -246,8 +248,54 @@ export function SiteSettingsPage() {
       )}
 
       <div>
+        <SectionHeading>Discord notifications</SectionHeading>
+        <DiscordFlushPanel />
+      </div>
+
+      <div>
         <SectionHeading>Analytics (this browser)</SectionHeading>
         <AnalyticsExclusionPanel />
+      </div>
+    </div>
+  );
+}
+
+// ── Discord webhook flush ───────────────────────────────────────────────────
+
+function DiscordFlushPanel() {
+  const flush = useFlushPrintingEvents();
+
+  async function handleFlush() {
+    try {
+      const result = await flush.mutateAsync();
+      if (result.sent === 0 && result.failed === 0) {
+        toast.success("No pending printing events");
+      } else {
+        toast.success(`Flushed ${result.sent} sent, ${result.failed} failed`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Flush failed");
+    }
+  }
+
+  return (
+    <div className="rounded-md border px-4 py-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <Label>Flush pending printing events</Label>
+          <p className="text-muted-foreground mt-0.5 text-xs">
+            Sends queued new-printing and printing-change events to the configured Discord webhooks
+            now, instead of waiting for the next 15-minute cron tick.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleFlush} disabled={flush.isPending}>
+          {flush.isPending ? (
+            <LoaderIcon className="mr-1 size-4 animate-spin" />
+          ) : (
+            <SendIcon className="mr-1 size-4" />
+          )}
+          Flush now
+        </Button>
       </div>
     </div>
   );

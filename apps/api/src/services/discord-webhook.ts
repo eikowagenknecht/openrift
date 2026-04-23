@@ -18,11 +18,25 @@ interface DiscordEmbed {
   color: number;
   fields?: { name: string; value: string; inline?: boolean }[];
   thumbnail?: { url: string };
+  image?: { url: string };
+  author?: { name: string };
   timestamp?: string;
 }
 
 interface DiscordWebhookPayload {
   embeds: DiscordEmbed[];
+}
+
+// Discord requires absolute URLs for embed images. Stored image paths are
+// relative (e.g. "/media/cards/xx/uuid-400w.webp"); prepend the app base URL.
+function absoluteImageUrl(appBaseUrl: string, url: string | null): string | undefined {
+  if (!url) {
+    return undefined;
+  }
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  return `${appBaseUrl}${url}`;
 }
 
 /**
@@ -90,25 +104,41 @@ export function buildNewPrintingPayloads(
     return buildNewPrintingSummary(events, appBaseUrl);
   }
 
-  const embeds: DiscordEmbed[] = events.map((event) => ({
-    title: `New: ${event.cardName ?? "Unknown Card"}`,
-    url: cardUrl(appBaseUrl, event.cardSlug),
-    color: COLOR_NEW,
-    ...(event.frontImageUrl ? { thumbnail: { url: event.frontImageUrl } } : {}),
-    fields: [
-      ...(event.shortCode ? [{ name: "Code", value: event.shortCode, inline: true }] : []),
-      ...(event.setName ? [{ name: "Set", value: event.setName, inline: true }] : []),
-      ...(event.rarity ? [{ name: "Rarity", value: event.rarity, inline: true }] : []),
-      ...(event.finish && event.finish !== "normal"
-        ? [{ name: "Finish", value: event.finishLabel ?? event.finish, inline: true }]
-        : []),
-      ...(event.artist ? [{ name: "Artist", value: event.artist, inline: true }] : []),
-      ...(event.language && event.language !== "EN"
-        ? [{ name: "Language", value: event.languageName ?? event.language, inline: true }]
-        : []),
-    ],
-    timestamp: event.createdAt.toISOString(),
-  }));
+  const embeds: DiscordEmbed[] = events.map((event) => {
+    const headerParts: string[] = [];
+    if (event.shortCode) {
+      headerParts.push(`**${event.shortCode}**`);
+    }
+    if (event.rarity) {
+      headerParts.push(event.rarity);
+    }
+    if (event.finish && event.finish !== "normal") {
+      headerParts.push(event.finishLabel ?? event.finish);
+    }
+    if (event.language && event.language !== "EN") {
+      headerParts.push(event.languageName ?? event.language);
+    }
+
+    const lines: string[] = [];
+    if (headerParts.length > 0) {
+      lines.push(headerParts.join(" · "));
+    }
+    if (event.artist) {
+      lines.push(`Artist: ${event.artist}`);
+    }
+
+    const image = absoluteImageUrl(appBaseUrl, event.frontImageUrl);
+
+    return {
+      ...(event.setName ? { author: { name: event.setName } } : {}),
+      title: `New: ${event.cardName ?? "Unknown Card"}`,
+      url: cardUrl(appBaseUrl, event.cardSlug),
+      color: COLOR_NEW,
+      ...(lines.length > 0 ? { description: lines.join("\n") } : {}),
+      ...(image ? { image: { url: image } } : {}),
+      timestamp: event.createdAt.toISOString(),
+    };
+  });
 
   return chunkEmbeds(embeds);
 }
@@ -243,11 +273,13 @@ export function buildChangedPrintingPayloads(
       titleParts.push(`(${first.shortCode})`);
     }
 
+    const thumbnail = absoluteImageUrl(appBaseUrl, first.frontImageUrl);
+
     embeds.push({
       title: `Updated: ${titleParts.join(" ")}`,
       url: cardUrl(appBaseUrl, first.cardSlug),
       color: COLOR_CHANGED,
-      ...(first.frontImageUrl ? { thumbnail: { url: first.frontImageUrl } } : {}),
+      ...(thumbnail ? { thumbnail: { url: thumbnail } } : {}),
       fields,
       timestamp: first.createdAt.toISOString(),
     });
