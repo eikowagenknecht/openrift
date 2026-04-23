@@ -85,7 +85,7 @@ function makeColumns(meta: CardNameCellMeta): ColumnDef<Row>[] {
         return (
           <div className="flex items-center gap-1">
             {r.hasFavorite && <Badge>favorite</Badge>}
-            {total > 0 && <Badge variant="destructive">Review</Badge>}
+            {total > 0 && <Badge variant="destructive">★ Unchecked</Badge>}
           </div>
         );
       },
@@ -284,7 +284,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
           variant={activeStatus === "unchecked" ? "default" : "outline"}
           onClick={() => toggleStatus("unchecked")}
         >
-          Review ({uncheckedCount})
+          ★ Unchecked ({uncheckedCount})
         </Button>
 
         {acceptableCount > 0 && (

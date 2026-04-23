@@ -298,7 +298,7 @@ function buildColumns(
             >
               {r.name}
             </Link>
-            {total > 0 && <Badge variant="destructive">Review</Badge>}
+            {total > 0 && <Badge variant="destructive">★ Unchecked</Badge>}
           </span>
         );
       },
@@ -528,7 +528,7 @@ export function AcceptedCardsTable({
             variant={activeStatus === "unchecked" ? "default" : "outline"}
             onClick={() => toggleStatus("unchecked")}
           >
-            Review ({uncheckedCount})
+            ★ Unchecked ({uncheckedCount})
           </Button>
         )}
 
