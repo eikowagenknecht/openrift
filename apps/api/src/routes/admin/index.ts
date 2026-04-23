@@ -30,6 +30,7 @@ import { adminPrintingEventsRoute } from "./printing-events.js";
 import { adminProviderSettingsRoute } from "./provider-settings.js";
 import { adminRaritiesRoute } from "./rarities.js";
 import { adminRulesRoute } from "./rules.js";
+import { adminSentryTestRoute } from "./sentry-test.js";
 import { adminSiteSettingsRoute } from "./site-settings.js";
 import { stagingCardOverridesRoute } from "./staging-card-overrides.js";
 import { adminStatusRoute } from "./status.js";
@@ -125,6 +126,7 @@ export const adminRoute = app
   .route("/admin", adminSiteSettingsRoute)
   .route("/admin", adminPrintingEventsRoute)
   .route("/admin", adminChangelogRoute)
+  .route("/admin", adminSentryTestRoute)
   .route("/admin", stagingCardOverridesRoute)
   .route("/admin", typographyReviewRoute)
   .route("/admin", adminDeckZonesRoute)

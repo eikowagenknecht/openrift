@@ -1,5 +1,6 @@
 import {
   ActivityIcon,
+  BugIcon,
   ClockIcon,
   CpuIcon,
   DatabaseIcon,
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFlushPrintingEvents } from "@/hooks/use-flush-printing-events";
 import { usePostChangelog } from "@/hooks/use-post-changelog";
+import { useThrowInApi, useThrowInSsr } from "@/hooks/use-sentry-test";
 import { useAdminStatus, useClearSsrCache } from "@/hooks/use-status";
 
 const SECONDS_PER_DAY = 86_400;
@@ -326,7 +328,81 @@ export function StatusPage() {
           </CardContent>
         </Card>
       </div>
+
+      <SentrySmokeTestCard />
     </div>
+  );
+}
+
+// ── Sentry smoke test ──────────────────────────────────────────────────────
+// Lets an admin fire a distinct test error on each surface so they can verify
+// the event lands in the right Sentry project with the right tag. The errors
+// are no-ops when Sentry is disabled (DSN unset); nothing else is side-affected.
+
+function SentrySmokeTestCard() {
+  const throwSsr = useThrowInSsr();
+  const throwApi = useThrowInApi();
+
+  function handleBrowser() {
+    // setTimeout so React's error boundary doesn't intercept — the Sentry
+    // browser integration hooks window.onerror, which catches uncaught
+    // async errors and reports them with a full stack.
+    setTimeout(() => {
+      throw new Error(`Sentry smoke test (web-client) @ ${new Date().toISOString()}`);
+    }, 0);
+    toast.info("Thrown in browser — check openrift-ssr for service:web-client");
+  }
+
+  async function handleSsr() {
+    try {
+      await throwSsr.mutateAsync();
+    } catch {
+      toast.info("Thrown in SSR — check openrift-ssr for service:web-ssr");
+      return;
+    }
+    toast.error("SSR throw returned successfully — did the server function run?");
+  }
+
+  async function handleApi() {
+    try {
+      await throwApi.mutateAsync();
+    } catch {
+      toast.info("Thrown in API — check openrift-api");
+      return;
+    }
+    toast.error("API throw returned successfully — did the endpoint run?");
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <BugIcon className="text-muted-foreground size-4" />
+          Sentry smoke test
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-muted-foreground text-sm">
+          Triggers a distinctly-tagged error on each surface so you can verify the event reaches
+          Sentry. No-op when the DSN is unset. Each click creates a new issue (timestamp in
+          message).
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleBrowser}>
+            <BugIcon />
+            Throw in browser
+          </Button>
+          <Button variant="outline" onClick={handleSsr} disabled={throwSsr.isPending}>
+            {throwSsr.isPending ? <LoaderIcon className="animate-spin" /> : <BugIcon />}
+            Throw in SSR
+          </Button>
+          <Button variant="outline" onClick={handleApi} disabled={throwApi.isPending}>
+            {throwApi.isPending ? <LoaderIcon className="animate-spin" /> : <BugIcon />}
+            Throw in API
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
