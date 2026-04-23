@@ -132,7 +132,9 @@ export function collectEntries(group: UnifiedMappingGroup): TableEntry[] {
     }
     return (
       a.product.productName.localeCompare(b.product.productName) ||
-      b.product.finish.localeCompare(a.product.finish)
+      b.product.finish.localeCompare(a.product.finish) ||
+      a.product.language.localeCompare(b.product.language) ||
+      a.product.externalId - b.product.externalId
     );
   });
   return entries;
@@ -166,8 +168,8 @@ export function MarketplaceProductsTable({
           <TableHead className="w-16">Marketplace</TableHead>
           <TableHead className="w-20">ID</TableHead>
           <TableHead>Product</TableHead>
-          <TableHead>Set</TableHead>
           <TableHead className="w-16">Language</TableHead>
+          <TableHead>Set</TableHead>
           <TableHead className="w-16">Finish</TableHead>
           <TableHead className="w-20 text-right">Price</TableHead>
           <TableHead>Assigned printings</TableHead>
@@ -266,13 +268,13 @@ function MarketplaceProductRow({
             </span>
           </div>
         </TableCell>
+        <TableCell className="text-muted-foreground w-16">
+          {product.language || <span className="text-muted-foreground/50">—</span>}
+        </TableCell>
         <TableCell className="text-muted-foreground max-w-0">
           <span className="block truncate" title={product.groupName ?? undefined}>
             {product.groupName ?? <span className="text-muted-foreground/50">—</span>}
           </span>
-        </TableCell>
-        <TableCell className="text-muted-foreground w-16">
-          {product.language || <span className="text-muted-foreground/50">—</span>}
         </TableCell>
         <TableCell className="w-16">
           <Badge variant="outline">{product.finish}</Badge>
