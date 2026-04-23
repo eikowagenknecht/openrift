@@ -216,5 +216,21 @@ describe("matchDeckEntries", () => {
       expect(result[0].zone).toBe("sideboard");
       expect(result[1].zone).toBe("main");
     });
+
+    it("does not promote a Champion card whose zone was set explicitly (e.g. Legend:)", () => {
+      const entries: DeckImportEntry[] = [
+        {
+          cardName: "Kai'Sa, Survivor",
+          quantity: 1,
+          sourceSlot: "mainDeck",
+          explicitZone: "legend",
+          rawFields: {},
+        },
+        { cardName: "Iron Ballista", quantity: 3, sourceSlot: "mainDeck", rawFields: {} },
+      ];
+      const result = matchDeckEntries(entries, catalog);
+      expect(result[0].zone).toBe("legend");
+      expect(result[1].zone).toBe("main");
+    });
   });
 });

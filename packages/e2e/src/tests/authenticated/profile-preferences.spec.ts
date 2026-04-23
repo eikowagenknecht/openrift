@@ -6,6 +6,7 @@ import { expect, test } from "@playwright/test";
 import type { E2eState } from "../../helpers/constants.js";
 import { API_BASE_URL, STATE_FILE, WEB_BASE_URL } from "../../helpers/constants.js";
 import { connectToDb } from "../../helpers/db.js";
+import { decodeServerFnData } from "../../helpers/server-fn.js";
 
 type Sql = ReturnType<typeof connectToDb>;
 
@@ -69,11 +70,21 @@ function isServerFn(url: string, fnName: string): boolean {
 }
 
 async function gotoProfile(page: Page) {
+  // `usePreferencesSync` performs an initial GET fetch that writes the server's
+  // theme back to the store on resolution. If that completes AFTER a user
+  // interaction, it clobbers the user's choice (e.g. Dark → null for a fresh
+  // user with no server prefs). Wait for that GET to land before interacting.
+  const prefsResponse = page.waitForResponse(
+    (res) =>
+      res.request().method() === "GET" && isServerFn(res.request().url(), "fetchPreferencesFn"),
+    { timeout: 15_000 },
+  );
   await page.goto("/profile");
   // CardTitle renders as a div; wait on a reliable interactive element instead.
   await expect(page.getByRole("button", { name: "Auto", exact: true })).toBeVisible({
     timeout: 15_000,
   });
+  await prefsResponse;
 }
 
 test.describe("profile preferences", () => {
@@ -118,7 +129,10 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      const showImages = page.getByLabel("Show card images");
+      // Target the visible `role="switch"` element. `getByLabel` would match the
+      // BaseUI hidden `<input aria-hidden="true">` which is 1px `position: fixed`
+      // and fails Playwright's "in viewport" actionability check.
+      const showImages = page.getByRole("switch", { name: "Show card images" });
       await expect(showImages).toBeChecked();
       await expect(page.getByRole("button", { name: "Reset show images" })).toHaveCount(0);
 
@@ -138,15 +152,18 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      const switches: { label: RegExp; resetLabel: string; defaultChecked: boolean }[] = [
-        { label: /^Show card images$/, resetLabel: "Reset show images", defaultChecked: true },
-        { label: /^Fancy card fan$/, resetLabel: "Reset fancy fan", defaultChecked: true },
-        { label: /^Foil effect$/, resetLabel: "Reset foil effect", defaultChecked: false },
-        { label: /^Card tilt on hover$/, resetLabel: "Reset card tilt", defaultChecked: true },
+      const switches: { name: string; resetLabel: string; defaultChecked: boolean }[] = [
+        { name: "Show card images", resetLabel: "Reset show images", defaultChecked: true },
+        { name: "Fancy card fan", resetLabel: "Reset fancy fan", defaultChecked: true },
+        { name: "Foil effect", resetLabel: "Reset foil effect", defaultChecked: false },
+        { name: "Card tilt on hover", resetLabel: "Reset card tilt", defaultChecked: true },
       ];
 
-      for (const { label, resetLabel, defaultChecked } of switches) {
-        const switchEl = page.getByLabel(label);
+      for (const { name, resetLabel, defaultChecked } of switches) {
+        // Use role=switch rather than getByLabel. The hidden <input> behind the
+        // BaseUI switch is 1px position:fixed and fails Playwright's viewport
+        // actionability check.
+        const switchEl = page.getByRole("switch", { name });
         await (defaultChecked
           ? expect(switchEl).toBeChecked()
           : expect(switchEl).not.toBeChecked());
@@ -166,7 +183,7 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      const fancyFan = page.getByLabel("Fancy card fan");
+      const fancyFan = page.getByRole("switch", { name: "Fancy card fan" });
       await expect(fancyFan).toBeChecked();
       await fancyFan.click();
       await expect(fancyFan).not.toBeChecked();
@@ -181,7 +198,7 @@ test.describe("profile preferences", () => {
       await expect(page.getByRole("button", { name: "Auto", exact: true })).toBeVisible({
         timeout: 15_000,
       });
-      await expect(page.getByLabel("Fancy card fan")).not.toBeChecked();
+      await expect(page.getByRole("switch", { name: "Fancy card fan" })).not.toBeChecked();
     });
 
     test("toggling a switch triggers the preferences PATCH server fn with the changed field", async ({
@@ -195,11 +212,13 @@ test.describe("profile preferences", () => {
         { timeout: 5000 },
       );
 
-      await page.getByLabel("Foil effect").click();
+      await page.getByRole("switch", { name: "Foil effect" }).click();
 
       const req = await patchRequest;
-      const body = req.postDataJSON() as { data?: { prefs?: { foilEffect?: unknown } } };
-      expect(body.data?.prefs?.foilEffect).toBe(true);
+      // TanStack Start 1.167+ encodes server-fn POST bodies via seroval's AST,
+      // so unwrap with the shared helper rather than reaching into `.data`.
+      const payload = decodeServerFnData<{ prefs?: { foilEffect?: unknown } }>(req.postDataJSON());
+      expect(payload.prefs?.foilEffect).toBe(true);
     });
   });
 
@@ -208,11 +227,11 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      // getByLabel matches the aria-label on the Move up/down buttons too (e.g.
-      // "Move TCGplayer up"), so scope to the switch role to hit the toggle only.
+      // Default marketplace order is CardTrader, TCGplayer, Cardmarket (see
+      // ALL_MARKETPLACES in packages/shared).
+      await expect(page.getByRole("switch", { name: "CardTrader" })).toBeChecked();
       await expect(page.getByRole("switch", { name: "TCGplayer" })).toBeChecked();
       await expect(page.getByRole("switch", { name: "Cardmarket" })).toBeChecked();
-      await expect(page.getByRole("switch", { name: "CardTrader" })).toBeChecked();
 
       await expect(page.getByRole("button", { name: "Reset marketplace order" })).toHaveCount(0);
 
@@ -220,25 +239,24 @@ test.describe("profile preferences", () => {
       await expect(favoriteBadges).toHaveCount(1);
 
       // Up on the first row is disabled; down on the last enabled row is disabled.
-      await expect(page.getByRole("button", { name: "Move TCGplayer up" })).toBeDisabled();
-      await expect(page.getByRole("button", { name: "Move CardTrader down" })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "Move CardTrader up" })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "Move Cardmarket down" })).toBeDisabled();
     });
 
     test("disabling the favorite moves it down and promotes the next row", async ({ page }) => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      // getByLabel matches the aria-label on the Move up/down buttons too, so
-      // scope to the switch role to hit the toggle only.
-      await page.getByRole("switch", { name: "TCGplayer" }).click();
-      await expect(page.getByRole("switch", { name: "TCGplayer" })).not.toBeChecked();
+      // CardTrader is the default favorite. Disabling it should promote TCGplayer.
+      await page.getByRole("switch", { name: "CardTrader" }).click();
+      await expect(page.getByRole("switch", { name: "CardTrader" })).not.toBeChecked();
 
-      // Favorite badge should now sit on the Cardmarket row (innermost div wrapping the label).
-      const cardmarketInner = page
+      // Favorite badge should now sit on the TCGplayer row (innermost div wrapping the label).
+      const tcgplayerInner = page
         .locator("div")
-        .filter({ has: page.getByRole("switch", { name: "Cardmarket" }) })
+        .filter({ has: page.getByRole("switch", { name: "TCGplayer" }) })
         .last();
-      await expect(cardmarketInner.getByText("Favorite", { exact: true })).toBeVisible();
+      await expect(tcgplayerInner.getByText("Favorite", { exact: true })).toBeVisible();
 
       await expect(page.getByRole("button", { name: "Reset marketplace order" })).toBeVisible();
     });
@@ -249,37 +267,38 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      await page.getByRole("button", { name: "Move Cardmarket up" }).click();
+      // TCGplayer is second by default; moving it up makes it the new favorite.
+      await page.getByRole("button", { name: "Move TCGplayer up" }).click();
 
-      // After the swap, Cardmarket should be first and carry the Favorite badge.
-      const cardmarketInner = page
-        .locator("div")
-        .filter({ has: page.getByLabel("Cardmarket") })
-        .last();
-      await expect(cardmarketInner.getByText("Favorite", { exact: true })).toBeVisible();
-
-      // TCGplayer no longer carries the badge.
+      // After the swap, TCGplayer should be first and carry the Favorite badge.
       const tcgplayerInner = page
         .locator("div")
-        .filter({ has: page.getByLabel("TCGplayer") })
+        .filter({ has: page.getByRole("switch", { name: "TCGplayer" }) })
         .last();
-      await expect(tcgplayerInner.getByText("Favorite", { exact: true })).toHaveCount(0);
+      await expect(tcgplayerInner.getByText("Favorite", { exact: true })).toBeVisible();
+
+      // CardTrader no longer carries the badge.
+      const cardtraderInner = page
+        .locator("div")
+        .filter({ has: page.getByRole("switch", { name: "CardTrader" }) })
+        .last();
+      await expect(cardtraderInner.getByText("Favorite", { exact: true })).toHaveCount(0);
     });
 
     test("reset returns the order to default", async ({ page }) => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      await page.getByRole("button", { name: "Move Cardmarket up" }).click();
+      await page.getByRole("button", { name: "Move TCGplayer up" }).click();
       await expect(page.getByRole("button", { name: "Reset marketplace order" })).toBeVisible();
 
       await page.getByRole("button", { name: "Reset marketplace order" }).click();
 
-      const tcgplayerInner = page
+      const cardtraderInner = page
         .locator("div")
-        .filter({ has: page.getByLabel("TCGplayer") })
+        .filter({ has: page.getByRole("switch", { name: "CardTrader" }) })
         .last();
-      await expect(tcgplayerInner.getByText("Favorite", { exact: true })).toBeVisible();
+      await expect(cardtraderInner.getByText("Favorite", { exact: true })).toBeVisible();
       await expect(page.getByRole("button", { name: "Reset marketplace order" })).toHaveCount(0);
     });
   });
@@ -310,28 +329,30 @@ test.describe("profile preferences", () => {
       userEmail = await createAndLogin(page);
       await gotoProfile(page);
 
-      await page.getByLabel("French").click();
-      await expect(page.getByLabel("French")).toBeChecked();
+      // Target role=switch (not getByLabel). The hidden <input> behind the
+      // BaseUI switch fails Playwright's viewport actionability check.
+      const frenchSwitch = page.getByRole("switch", { name: "French" });
+      const englishSwitch = page.getByRole("switch", { name: "English" });
+
+      await frenchSwitch.click();
+      await expect(frenchSwitch).toBeChecked();
 
       // Freshly-enabled language appears without the Preferred badge.
-      const frenchInner = page
-        .locator("div")
-        .filter({ has: page.getByLabel("French") })
-        .last();
+      const frenchInner = page.locator("div").filter({ has: frenchSwitch }).last();
       await expect(frenchInner.getByText("Preferred", { exact: true })).toHaveCount(0);
 
       await page.getByRole("button", { name: "Move French up" }).click();
       await expect(frenchInner.getByText("Preferred", { exact: true })).toBeVisible();
 
       // Disable English — only French remains enabled and reset button is visible.
-      await page.getByLabel("English").click();
-      await expect(page.getByLabel("English")).not.toBeChecked();
+      await englishSwitch.click();
+      await expect(englishSwitch).not.toBeChecked();
       await expect(page.getByRole("button", { name: "Reset languages" })).toBeVisible();
 
       await page.getByRole("button", { name: "Reset languages" }).click();
       await expect(page.getByRole("button", { name: "Reset languages" })).toHaveCount(0);
-      await expect(page.getByLabel("English")).toBeChecked();
-      await expect(page.getByLabel("French")).not.toBeChecked();
+      await expect(englishSwitch).toBeChecked();
+      await expect(frenchSwitch).not.toBeChecked();
     });
   });
 });

@@ -273,9 +273,10 @@ test.describe("deck editor shell", () => {
       await page.goto(`/decks/${deckId}`);
 
       // Wait for the deck editor to mount (the lazy route loads after goto).
-      // Without this wait, the page snapshot can still be empty when we
-      // start looking for the mobile title.
-      await expect(page.getByRole("heading", { name: "Zones Mobile" }).first()).toBeVisible({
+      // On mobile the <h1> renders "Zones" when no zone is active (the deck
+      // name only renders on desktop via md:inline), so wait for the mobile
+      // title heading before interacting.
+      await expect(page.getByRole("heading", { name: "Zones", level: 1 }).first()).toBeVisible({
         timeout: 15_000,
       });
 

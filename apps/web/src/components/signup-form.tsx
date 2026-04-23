@@ -37,6 +37,8 @@ export function SignupForm({
     defaultValues: { name: "", email: initialEmail, password: "" },
   });
 
+  const watchedEmail = form.watch("email");
+
   async function onSubmit(values: SignUpValues) {
     setLoading(true);
     const { error } = await signUp.email(values);
@@ -128,7 +130,7 @@ export function SignupForm({
           to="/login"
           search={{
             redirect: redirectTo === "/" ? undefined : redirectTo,
-            email: form.getValues("email") || undefined,
+            email: watchedEmail || undefined,
           }}
         >
           Sign in

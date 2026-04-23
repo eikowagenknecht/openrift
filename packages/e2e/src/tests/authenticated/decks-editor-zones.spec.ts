@@ -200,10 +200,17 @@ test.describe("deck editor zones + drag-drop", () => {
       await activateZone(page, "Sideboard");
       await searchBrowserFor(page, unit.name);
 
+      // Climb to the card wrapper (the outer "group" div in CardThumbnail)
+      // and pick its "Add to deck" button. The immediate div ancestor of the
+      // <img> is only the inner tilt/image container, which doesn't include
+      // the DeckAddStrip's Add button.
       const tile = browserCardTile(page, unit.name);
       const addButton = tile
-        .locator("xpath=ancestor::*[self::div or self::li][1]")
-        .getByRole("button", { name: /Add|\+/ })
+        .locator(
+          "xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' group ')][1]",
+        )
+        .first()
+        .getByRole("button", { name: "Add to deck" })
         .first();
       await addButton.click();
 
@@ -574,11 +581,10 @@ test.describe("deck editor zones + drag-drop", () => {
 
       await page.goto(`/decks/${deckId}`);
 
-      // Open the mobile sidebar so zones render.
-      const mobileTitle = page
-        .getByRole("button")
-        .filter({ hasText: /\(\d+\)/ })
-        .first();
+      // Open the mobile sidebar so zones render. Without an active zone the
+      // mobile <h1> renders the literal label "Zones"; tapping it opens the
+      // zones drawer.
+      const mobileTitle = page.getByRole("button", { name: /^Zones/ }).first();
       await expect(mobileTitle).toBeVisible({ timeout: 15_000 });
       await mobileTitle.click();
       await expect(page.getByRole("heading", { name: "Deck Zones" })).toBeVisible();

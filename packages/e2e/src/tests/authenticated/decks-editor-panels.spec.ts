@@ -463,9 +463,11 @@ test.describe("deck editor panels", () => {
         .getByRole("button", { name: /^Main Deck/ })
         .first()
         .click();
-      // Re-open the sidebar after the zone click closed it.
+      // Re-open the sidebar after the zone click closed it. The title renders
+      // as "Main Deck(3)" with no space — the count span has ml-1 margin but
+      // no textual whitespace — so the regex matches an optional space.
       await page
-        .getByRole("button", { name: /^Main Deck\s+\(\d+\)/ })
+        .getByRole("button", { name: /^Main Deck\s*\(\d+\)/ })
         .first()
         .click();
 
