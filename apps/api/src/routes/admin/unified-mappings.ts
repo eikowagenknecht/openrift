@@ -2,7 +2,10 @@ import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import { saveMappings, unmapAll, unmapPrinting } from "../../services/marketplace-mapping.js";
-import { buildUnifiedMappingsResponse } from "../../services/unified-mapping-merge.js";
+import {
+  buildUnifiedMappingsCardResponse,
+  buildUnifiedMappingsResponse,
+} from "../../services/unified-mapping-merge.js";
 import type { Variables } from "../../types.js";
 import { createMarketplaceConfigs } from "./marketplace-configs.js";
 import { marketplaceSchema, saveMappingsSchema, unmapSchema } from "./schemas.js";
@@ -22,6 +25,23 @@ const listMappings = createRoute({
         "application/json": { schema: z.object({}).passthrough() },
       },
       description: "Unified mappings",
+    },
+  },
+});
+
+const cardMappings = createRoute({
+  method: "get",
+  path: "/marketplace-mappings/card/{cardId}",
+  tags: ["Admin - Mappings"],
+  request: {
+    params: z.object({ cardId: z.string() }),
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": { schema: z.object({}).passthrough() },
+      },
+      description: "Unified mappings for a single card",
     },
   },
 });
@@ -103,6 +123,24 @@ export const unifiedMappingsRoute = new OpenAPIHono<{ Variables: Variables }>()
       cardtrader,
       getMappingOverview,
       showAll,
+    );
+
+    return c.json(result);
+  })
+
+  .openapi(cardMappings, async (c) => {
+    const repos = c.get("repos");
+    const { getMappingOverview } = c.get("services");
+    const { tcgplayer, cardmarket, cardtrader } = createMarketplaceConfigs(repos);
+    const { cardId } = c.req.valid("param");
+
+    const result = await buildUnifiedMappingsCardResponse(
+      repos,
+      tcgplayer,
+      cardmarket,
+      cardtrader,
+      getMappingOverview,
+      cardId,
     );
 
     return c.json(result);

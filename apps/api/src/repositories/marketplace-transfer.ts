@@ -11,8 +11,16 @@ import type { Database } from "../db/index.js";
  */
 export function marketplaceTransferRepo(db: Kysely<Database>) {
   return {
-    /** @returns The latest snapshot rows for mapped printings in a given marketplace. */
+    /**
+     * Latest snapshot row per (printingId, externalId) for mapped printings in
+     * a given marketplace. DISTINCT ON collapses the history down to the most
+     * recent row at the DB so callers don't ship ~100× more rows than they use.
+     * @returns One row per distinct (printingId, externalId), newest first.
+     */
     snapshotsByMarketplace(marketplace: string, printingIds: string[]) {
+      if (printingIds.length === 0) {
+        return Promise.resolve([]);
+      }
       return db
         .selectFrom("marketplaceProductVariants as mpv")
         .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
@@ -33,6 +41,9 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
         ])
         .where("mp.marketplace", "=", marketplace)
         .where("mpv.printingId", "in", printingIds)
+        .distinctOn(["mpv.printingId", "mp.externalId"])
+        .orderBy("mpv.printingId")
+        .orderBy("mp.externalId")
         .orderBy("snap.recordedAt", "desc")
         .execute();
     },

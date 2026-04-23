@@ -159,10 +159,15 @@ export function marketplaceMappingRepo(db: Db) {
      * in a single query. Lets the unified mapping endpoint fetch the heavy
      * cards × printings × images joins once instead of three times. The caller
      * must filter rows down to the per-marketplace shape (see deriveCardsForMarketplace).
+     *
+     * Pass `cardIdentifier` (UUID or slug) to scope the query to one card —
+     * used by the card-detail admin page which only needs mappings for the
+     * card it's viewing. Accepting either form means callers don't have to
+     * serialize a slug → id lookup before this query.
      * @returns One row per (printing × variant), plus one row per printing with no variant in any marketplace.
      */
-    allCardsWithPrintingsUnified() {
-      return db
+    allCardsWithPrintingsUnified(cardIdentifier?: string) {
+      let query = db
         .selectFrom("cards as c")
         .innerJoin("printings as p", "p.cardId", "c.id")
         .innerJoin("sets as s", "s.id", "p.setId")
@@ -200,12 +205,48 @@ export function marketplaceMappingRepo(db: Db) {
           "mp.externalId as externalId",
           "mp.groupId as sourceGroupId",
           "mpv.language as sourceLanguage",
-        ])
+        ]);
+      if (cardIdentifier !== undefined) {
+        query = query.where((eb) =>
+          eb.or([
+            eb(sql<string>`c.id::text`, "=", cardIdentifier),
+            eb("c.slug", "=", cardIdentifier),
+          ]),
+        );
+      }
+      return query
         .orderBy("s.slug")
         .orderBy("c.name")
         .orderBy("p.shortCode")
         .orderBy("p.finish", "desc")
         .execute();
+    },
+
+    /**
+     * Lightweight card+printings list for the "assign to card" dropdown in the
+     * admin marketplace UI. Returns every card with its display metadata and
+     * the set of short codes across its printings — enough for the dropdown
+     * without pulling the full cards × printings × images × variants join.
+     * @returns One entry per card, with its short codes aggregated.
+     */
+    async assignableCards() {
+      const result = await sql<{
+        cardId: string;
+        cardName: string;
+        setName: string;
+        shortCodes: string[];
+      }>`
+        SELECT
+          c.id as "cardId",
+          c.name as "cardName",
+          s.name as "setName",
+          COALESCE(array_agg(p.short_code ORDER BY p.short_code) FILTER (WHERE p.short_code IS NOT NULL), ARRAY[]::text[]) as "shortCodes"
+        FROM cards c
+        INNER JOIN printings p ON p.card_id = c.id
+        INNER JOIN sets s ON s.id = p.set_id
+        GROUP BY c.id, c.name, s.name
+      `.execute(db);
+      return result.rows;
     },
 
     /** @returns Manual card overrides for a marketplace. */

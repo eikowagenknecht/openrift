@@ -1,7 +1,14 @@
-import type { StagedProductResponse, UnifiedMappingsResponse } from "@openrift/shared";
+import type {
+  StagedProductResponse,
+  UnifiedMappingsCardResponse,
+  UnifiedMappingsResponse,
+} from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { applyOptimisticAssignment } from "./admin-card-marketplace-section";
+import {
+  applyOptimisticAssignment,
+  applyOptimisticAssignmentForCard,
+} from "./admin-card-marketplace-section";
 import type { UnifiedMappingGroup, UnifiedMappingPrinting } from "./price-mappings-types";
 
 function printing(overrides: Partial<UnifiedMappingPrinting> = {}): UnifiedMappingPrinting {
@@ -160,5 +167,49 @@ describe("applyOptimisticAssignment", () => {
     const snapshot = structuredClone(before);
     applyOptimisticAssignment(before, "c-1", "tcgplayer", 10, "p-en");
     expect(before).toEqual(snapshot);
+  });
+});
+
+function cardResponse(g: UnifiedMappingGroup | null): UnifiedMappingsCardResponse {
+  return { group: g, allCards: [] };
+}
+
+describe("applyOptimisticAssignmentForCard", () => {
+  it("moves a matching staged variant to assignedProducts on the card group", () => {
+    const enPrinting = printing({ printingId: "p-en", language: "EN", finish: "normal" });
+    const product = staged({ externalId: 10, language: "EN", finish: "normal" });
+    const before = cardResponse(
+      group("c-1", [enPrinting], { cardtrader: { staged: [product], assigned: [] } }),
+    );
+    const after = applyOptimisticAssignmentForCard(before, "cardtrader", 10, "p-en");
+    expect(after.group?.cardtrader.stagedProducts).toEqual([]);
+    expect(after.group?.cardtrader.assignedProducts).toEqual([product]);
+    expect(after.group?.cardtrader.assignments).toEqual([
+      { externalId: 10, printingId: "p-en", finish: "normal", language: "EN" },
+    ]);
+  });
+
+  it("returns the original response unchanged when the card has no group", () => {
+    const before = cardResponse(null);
+    const after = applyOptimisticAssignmentForCard(before, "tcgplayer", 1, "p-en");
+    expect(after).toBe(before);
+  });
+
+  it("returns the original response unchanged when the printing is missing", () => {
+    const before = cardResponse(group("c-1", [printing({ printingId: "p-en" })]));
+    const after = applyOptimisticAssignmentForCard(before, "tcgplayer", 1, "p-missing");
+    expect(after).toBe(before);
+  });
+
+  it("preserves allCards on the returned response", () => {
+    const enPrinting = printing({ printingId: "p-en" });
+    const before: UnifiedMappingsCardResponse = {
+      group: group("c-1", [enPrinting], {
+        tcgplayer: { staged: [staged({ externalId: 10 })], assigned: [] },
+      }),
+      allCards: [{ cardId: "c-1", cardName: "Alice", setName: "Origin", shortCodes: ["OGN-001"] }],
+    };
+    const after = applyOptimisticAssignmentForCard(before, "tcgplayer", 10, "p-en");
+    expect(after.allCards).toBe(before.allCards);
   });
 });

@@ -98,6 +98,7 @@ export const queryKeys = {
     unifiedMappings: {
       all: ["admin", "unified-mappings"] as const,
       byFilter: (showAll: boolean) => ["admin", "unified-mappings", { all: showAll }] as const,
+      byCard: (cardId: string) => ["admin", "unified-mappings", "card", cardId] as const,
     },
     ignoredProducts: ["admin", "ignored-products"] as const,
     ignoredCandidates: ["admin", "ignored-candidates"] as const,

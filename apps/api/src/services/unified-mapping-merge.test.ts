@@ -6,7 +6,10 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { Repos } from "../deps.js";
 import type { MarketplaceConfig } from "../routes/admin/marketplace-configs.js";
-import { buildUnifiedMappingsResponse } from "./unified-mapping-merge.js";
+import {
+  buildUnifiedMappingsCardResponse,
+  buildUnifiedMappingsResponse,
+} from "./unified-mapping-merge.js";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -659,5 +662,93 @@ describe("buildUnifiedMappingsResponse", () => {
     expect(result.unmatchedProducts.tcgplayer).toHaveLength(1);
     expect(result.unmatchedProducts.cardmarket).toHaveLength(1);
     expect(result.unmatchedProducts.cardtrader).toHaveLength(1);
+  });
+});
+
+describe("buildUnifiedMappingsCardResponse", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns {group: null} when the card has no rows", async () => {
+    const assignableCardsMock = vi.fn().mockResolvedValue([{ cardId: "c1" }]);
+    const repos = {
+      marketplaceMapping: {
+        allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]),
+        assignableCards: assignableCardsMock,
+      },
+    } as unknown as Repos;
+    const getMappingOverview = vi.fn(async () => makeMappingResult());
+
+    const result = await buildUnifiedMappingsCardResponse(
+      repos,
+      makeConfig("tcgplayer"),
+      makeConfig("cardmarket"),
+      makeConfig("cardtrader"),
+      getMappingOverview,
+      "missing-card",
+    );
+
+    expect(result.group).toBeNull();
+    expect(result.allCards).toEqual([{ cardId: "c1" }]);
+    // getMappingOverview should be skipped when the card has nothing — avoids
+    // 3 pointless round trips.
+    expect(getMappingOverview).not.toHaveBeenCalled();
+  });
+
+  it("passes the cardId through to allCardsWithPrintingsUnified", async () => {
+    const unifiedMock = vi.fn().mockResolvedValue([]);
+    const repos = {
+      marketplaceMapping: {
+        allCardsWithPrintingsUnified: unifiedMock,
+        assignableCards: vi.fn().mockResolvedValue([]),
+      },
+    } as unknown as Repos;
+
+    await buildUnifiedMappingsCardResponse(
+      repos,
+      makeConfig("tcgplayer"),
+      makeConfig("cardmarket"),
+      makeConfig("cardtrader"),
+      vi.fn(async () => makeMappingResult()),
+      "card-xyz",
+    );
+
+    expect(unifiedMock).toHaveBeenCalledWith("card-xyz");
+  });
+
+  it("returns the single merged group plus allCards when the card has data", async () => {
+    const repos = {
+      marketplaceMapping: {
+        // Non-empty unified rows signal "card exists with printings"; the
+        // merge step itself runs off each marketplace's matchedCards, so the
+        // shape of these rows isn't validated here.
+        allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([{ printingId: "p-1" }]),
+        assignableCards: vi.fn().mockResolvedValue([
+          { cardId: "card-1", cardName: "A", setName: "S", shortCodes: ["OGN-001"] },
+          { cardId: "card-2", cardName: "B", setName: "S", shortCodes: ["OGN-002"] },
+        ]),
+      },
+    } as unknown as Repos;
+    const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
+      if (config.marketplace === "tcgplayer") {
+        return makeMappingResult({ groups: [makeGroup()] });
+      }
+      return makeMappingResult();
+    });
+
+    const result = await buildUnifiedMappingsCardResponse(
+      repos,
+      makeConfig("tcgplayer"),
+      makeConfig("cardmarket"),
+      makeConfig("cardtrader"),
+      getMappingOverview,
+      "card-1",
+    );
+
+    expect(result.group).not.toBeNull();
+    expect(result.group?.cardId).toBe("card-1");
+    expect(result.group?.printings[0].tcgExternalId).toBe(100);
+    expect(result.allCards).toHaveLength(2);
   });
 });

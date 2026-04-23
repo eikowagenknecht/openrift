@@ -8,6 +8,7 @@ import { adminDistinctArtistsQueryOptions } from "@/hooks/use-distinct-artists";
 import { adminLanguagesQueryOptions } from "@/hooks/use-languages";
 import { adminMarkersQueryOptions } from "@/hooks/use-markers";
 import { providerSettingsQueryOptions } from "@/hooks/use-provider-settings";
+import { unifiedMappingsForCardQueryOptions } from "@/hooks/use-unified-mappings";
 import { adminSeoHead } from "@/lib/seo";
 
 const FOCUSABLE_MARKETPLACES = new Set(["tcgplayer", "cardmarket", "cardtrader"]);
@@ -52,6 +53,10 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards_/$cardSlu
       context.queryClient.ensureQueryData(allCardsQueryOptions),
       context.queryClient.ensureQueryData(adminDistinctArtistsQueryOptions),
       context.queryClient.ensureQueryData(adminLanguagesQueryOptions),
+      // Preload the marketplace section so it's warm by the time the page
+      // mounts. The endpoint accepts a slug, so this can run in parallel with
+      // the card detail fetch without waiting for the UUID resolution.
+      context.queryClient.ensureQueryData(unifiedMappingsForCardQueryOptions(params.cardSlug)),
     ]);
     return detail;
   },

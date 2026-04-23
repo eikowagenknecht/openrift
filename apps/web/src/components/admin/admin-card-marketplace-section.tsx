@@ -1,10 +1,15 @@
-import type { AdminMarketplaceName, UnifiedMappingsResponse } from "@openrift/shared";
+import type {
+  AdminMarketplaceName,
+  UnifiedMappingGroupResponse,
+  UnifiedMappingsCardResponse,
+  UnifiedMappingsResponse,
+} from "@openrift/shared";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUnmapMarketplacePrinting } from "@/hooks/use-admin-card-mutations";
 import {
-  unifiedMappingsQueryOptions,
+  unifiedMappingsForCardQueryOptions,
   useUnifiedAssignToCard,
   useUnifiedIgnoreProducts,
   useUnifiedIgnoreVariants,
@@ -19,11 +24,13 @@ import { computeProductSuggestions } from "./suggest-mapping";
 
 export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery(unifiedMappingsQueryOptions(true));
+  const { data, isLoading } = useQuery(unifiedMappingsForCardQueryOptions(cardId));
 
   // Most actions (ignore, unassign, reassign-to-card) await the invalidations
-  // so `.mutate`'s promise only resolves after fresh data has been pulled.
-  // Assignment-to-printing is optimistic instead — see `assignToPrinting`.
+  // so `.mutate`'s promise only resolves after fresh data has been pulled. The
+  // per-card cache is what this page reads; the corpus-wide cache (shared with
+  // the /admin/marketplace-mappings page) is invalidated too so it can't
+  // disagree with this view after a mutation.
   const mutateOpts = {
     onSuccess: async () => {
       await Promise.all([
@@ -33,19 +40,18 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
     },
   };
 
-  const unifiedKey = queryKeys.admin.unifiedMappings.byFilter(true);
+  const cardKey = queryKeys.admin.unifiedMappings.byCard(cardId);
 
   // Optimistic path for suggestion-chip clicks. Without this, the chip stays
-  // on screen until the full corpus-wide unifiedMappings refetch finishes —
-  // which can take a couple of seconds since the endpoint returns every card.
-  // We flip the cache synchronously so the row visibly assigns right away,
-  // then reconcile via a background invalidation. On error we roll back.
+  // on screen until the unifiedMappings refetch finishes. We flip the cache
+  // synchronously so the row visibly assigns right away, then reconcile via a
+  // background invalidation. On error we roll back.
   const assignToPrinting = (marketplace: AdminMarketplaceName) => (eid: number, pid: string) => {
-    const previous = queryClient.getQueryData<UnifiedMappingsResponse>(unifiedKey);
+    const previous = queryClient.getQueryData<UnifiedMappingsCardResponse>(cardKey);
     if (previous) {
-      const next = applyOptimisticAssignment(previous, cardId, marketplace, eid, pid);
+      const next = applyOptimisticAssignmentForCard(previous, marketplace, eid, pid);
       if (next !== previous) {
-        queryClient.setQueryData(unifiedKey, next);
+        queryClient.setQueryData(cardKey, next);
       }
     }
     const save =
@@ -59,7 +65,7 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
       {
         onError: () => {
           if (previous) {
-            queryClient.setQueryData(unifiedKey, previous);
+            queryClient.setQueryData(cardKey, previous);
           }
         },
         onSuccess: () => {
@@ -95,7 +101,7 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
     return <Skeleton className="h-40 w-full" />;
   }
 
-  const group = data.groups.find((g) => g.cardId === cardId);
+  const group = data.group;
   if (!group) {
     return (
       <p className="text-muted-foreground text-sm">No marketplace products linked to this card.</p>
@@ -178,30 +184,22 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
 }
 
 /**
- * Return a new unified mappings response with a single (externalId → printing)
- * assignment applied: the matching staged product becomes assigned, and the
- * assignment row is appended. Cardmarket stores language-aggregate so the
- * assignment row uses null; CT/TCG pin the printing's language. Returns the
- * original response unchanged when the card, printing, or matching staged
- * variant can't be resolved — the server round-trip will still run and the
- * background refetch reconciles.
- * @returns The updated response, or the original when nothing changed.
+ * Return a new group with a single (externalId → printing) assignment applied:
+ * the matching staged product becomes assigned, and the assignment row is
+ * appended. Cardmarket stores language-aggregate so the assignment row uses
+ * null; CT/TCG pin the printing's language. Returns the original group
+ * unchanged when the printing or matching staged variant can't be resolved.
+ * @returns The updated group, or the original when nothing changed.
  */
-export function applyOptimisticAssignment(
-  response: UnifiedMappingsResponse,
-  cardId: string,
+function applyOptimisticAssignmentToGroup(
+  group: UnifiedMappingGroupResponse,
   marketplace: AdminMarketplaceName,
   externalId: number,
   printingId: string,
-): UnifiedMappingsResponse {
-  const groupIdx = response.groups.findIndex((g) => g.cardId === cardId);
-  if (groupIdx === -1) {
-    return response;
-  }
-  const group = response.groups[groupIdx];
+): UnifiedMappingGroupResponse {
   const printing = group.printings.find((p) => p.printingId === printingId);
   if (!printing) {
-    return response;
+    return group;
   }
   const mk = group[marketplace];
   const variantIdx = mk.stagedProducts.findIndex((p) => {
@@ -231,7 +229,7 @@ export function applyOptimisticAssignment(
       language: marketplace === "cardmarket" ? null : (variant?.language ?? printing.language),
     },
   ];
-  const nextGroup = {
+  return {
     ...group,
     [marketplace]: {
       ...mk,
@@ -240,6 +238,30 @@ export function applyOptimisticAssignment(
       assignments: nextAssignments,
     },
   };
+}
+
+/**
+ * Corpus-wide version of {@link applyOptimisticAssignmentToGroup} that locates
+ * the target card inside the full {@link UnifiedMappingsResponse}. Kept
+ * exported so the /admin/marketplace-mappings page can reuse the same logic.
+ * @returns The updated response, or the original when nothing changed.
+ */
+export function applyOptimisticAssignment(
+  response: UnifiedMappingsResponse,
+  cardId: string,
+  marketplace: AdminMarketplaceName,
+  externalId: number,
+  printingId: string,
+): UnifiedMappingsResponse {
+  const groupIdx = response.groups.findIndex((g) => g.cardId === cardId);
+  if (groupIdx === -1) {
+    return response;
+  }
+  const group = response.groups[groupIdx];
+  const nextGroup = applyOptimisticAssignmentToGroup(group, marketplace, externalId, printingId);
+  if (nextGroup === group) {
+    return response;
+  }
   return {
     ...response,
     groups: [
@@ -248,4 +270,30 @@ export function applyOptimisticAssignment(
       ...response.groups.slice(groupIdx + 1),
     ],
   };
+}
+
+/**
+ * Per-card variant of {@link applyOptimisticAssignment} for the card-detail
+ * page's {@link UnifiedMappingsCardResponse} cache entry.
+ * @returns The updated response, or the original when nothing changed.
+ */
+export function applyOptimisticAssignmentForCard(
+  response: UnifiedMappingsCardResponse,
+  marketplace: AdminMarketplaceName,
+  externalId: number,
+  printingId: string,
+): UnifiedMappingsCardResponse {
+  if (!response.group) {
+    return response;
+  }
+  const nextGroup = applyOptimisticAssignmentToGroup(
+    response.group,
+    marketplace,
+    externalId,
+    printingId,
+  );
+  if (nextGroup === response.group) {
+    return response;
+  }
+  return { ...response, group: nextGroup };
 }

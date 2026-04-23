@@ -108,6 +108,7 @@ export type {
   StagedProductResponse,
   UnifiedMappingGroupResponse,
   UnifiedMappingPrintingResponse,
+  UnifiedMappingsCardResponse,
   UnifiedMappingsResponse,
   UnmatchedCardDetailResponse,
   CompletionScopePreference,

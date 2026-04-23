@@ -632,7 +632,7 @@ export function ExistingCardDetailPage({
           {marketplaceExpanded ? <ChevronDownIcon /> : <ChevronRightIcon />}
           <h3 className="font-medium">Marketplace</h3>
         </button>
-        {marketplaceExpanded && <AdminCardMarketplaceSection cardId={card.id} />}
+        {marketplaceExpanded && <AdminCardMarketplaceSection cardId={identifier} />}
       </section>
 
       {/* ── Printings ──────────────────────────────────────────────────────── */}

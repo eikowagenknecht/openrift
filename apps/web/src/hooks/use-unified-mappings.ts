@@ -1,4 +1,4 @@
-import type { UnifiedMappingsResponse } from "@openrift/shared";
+import type { UnifiedMappingsCardResponse, UnifiedMappingsResponse } from "@openrift/shared";
 import { queryOptions, useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -32,6 +32,25 @@ export function unifiedMappingsQueryOptions(showAll = false) {
 
 export function useUnifiedMappings(showAll = false) {
   return useSuspenseQuery(unifiedMappingsQueryOptions(showAll));
+}
+
+const fetchUnifiedMappingsForCard = createServerFn({ method: "GET" })
+  .inputValidator((input: { cardId: string }) => input)
+  .middleware([withCookies])
+  .handler(
+    ({ context, data }): Promise<UnifiedMappingsCardResponse> =>
+      fetchApiJson<UnifiedMappingsCardResponse>({
+        errorTitle: "Couldn't load marketplace mappings for card",
+        cookie: context.cookie,
+        path: `/api/v1/admin/marketplace-mappings/card/${encodeURIComponent(data.cardId)}`,
+      }),
+  );
+
+export function unifiedMappingsForCardQueryOptions(cardId: string) {
+  return queryOptions({
+    queryKey: queryKeys.admin.unifiedMappings.byCard(cardId),
+    queryFn: () => fetchUnifiedMappingsForCard({ data: { cardId } }),
+  });
 }
 
 /**

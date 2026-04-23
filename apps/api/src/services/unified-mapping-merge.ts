@@ -3,6 +3,7 @@ import type {
   MarketplaceAssignmentResponse,
   StagedProductResponse,
   UnifiedMappingGroupResponse,
+  UnifiedMappingsCardResponse,
   UnifiedMappingsResponse,
 } from "@openrift/shared";
 
@@ -83,40 +84,22 @@ interface MappingOverviewResult {
   allCards: AssignableCardResponse[];
 }
 
-/**
- * Merge TCGplayer, Cardmarket, and CardTrader mapping overviews into a unified response.
- * Combines data from all marketplaces per card, computes primary source IDs,
- * and filters to show only cards with incomplete mappings or staged products.
- * @returns Unified mappings response with merged groups, unmatched products, and card list.
- */
-export async function buildUnifiedMappingsResponse(
+type GetMappingOverview = (
   repos: Repos,
-  tcgplayerConfig: MarketplaceConfig,
-  cardmarketConfig: MarketplaceConfig,
-  cardtraderConfig: MarketplaceConfig,
-  getMappingOverview: (
-    repos: Repos,
-    config: MarketplaceConfig,
-    options?: { matchedCards?: MatchedCardsRow[] },
-  ) => Promise<MappingOverviewResult>,
-  showAll: boolean,
-): Promise<UnifiedMappingsResponse> {
-  // Fetch the heavy cards × printings × images join once for all three marketplaces
-  // and project per-marketplace in JS, instead of running it 3× from the DB.
-  const unifiedRows = await repos.marketplaceMapping.allCardsWithPrintingsUnified();
-  const [tcgResult, cmResult, ctResult] = await Promise.all([
-    getMappingOverview(repos, tcgplayerConfig, {
-      matchedCards: deriveCardsForMarketplace(unifiedRows, tcgplayerConfig.marketplace),
-    }),
-    getMappingOverview(repos, cardmarketConfig, {
-      matchedCards: deriveCardsForMarketplace(unifiedRows, cardmarketConfig.marketplace),
-    }),
-    getMappingOverview(repos, cardtraderConfig, {
-      matchedCards: deriveCardsForMarketplace(unifiedRows, cardtraderConfig.marketplace),
-    }),
-  ]);
+  config: MarketplaceConfig,
+  options?: { matchedCards?: MatchedCardsRow[] },
+) => Promise<MappingOverviewResult>;
 
-  // Merge by cardId — combine data from all marketplaces per card
+/**
+ * Merge per-marketplace overview results into a single map keyed by cardId.
+ * Each printing carries external IDs from whichever marketplaces have it.
+ * @returns Map of cardId → merged group data (without primaryShortCode).
+ */
+function mergeOverviewsByCard(
+  tcgResult: MappingOverviewResult,
+  cmResult: MappingOverviewResult,
+  ctResult: MappingOverviewResult,
+): Map<string, Omit<UnifiedMappingGroupResponse, "primaryShortCode">> {
   const mergedMap = new Map<string, Omit<UnifiedMappingGroupResponse, "primaryShortCode">>();
 
   // Index TCGplayer groups by cardId
@@ -299,14 +282,57 @@ export async function buildUnifiedMappingsResponse(
     }
   }
 
-  // Compute primaryShortCode for each group and pre-sort
-  const allGroupsWithPrimary: UnifiedMappingGroupResponse[] = [...mergedMap.values()].map((g) => ({
+  return mergedMap;
+}
+
+/**
+ * Attach a `primaryShortCode` to each merged group (the lex-smallest short
+ * code across its printings — used for sorting and as the "canonical" ID).
+ * @returns An array of merged groups with primaryShortCode populated.
+ */
+function withPrimaryShortCode(
+  mergedMap: Map<string, Omit<UnifiedMappingGroupResponse, "primaryShortCode">>,
+): UnifiedMappingGroupResponse[] {
+  return [...mergedMap.values()].map((g) => ({
     ...g,
     primaryShortCode: g.printings.reduce(
       (best, p) => (p.shortCode.localeCompare(best) < 0 ? p.shortCode : best),
       g.printings[0]?.shortCode ?? "",
     ),
   }));
+}
+
+/**
+ * Merge TCGplayer, Cardmarket, and CardTrader mapping overviews into a unified response.
+ * Combines data from all marketplaces per card, computes primary source IDs,
+ * and filters to show only cards with incomplete mappings or staged products.
+ * @returns Unified mappings response with merged groups, unmatched products, and card list.
+ */
+export async function buildUnifiedMappingsResponse(
+  repos: Repos,
+  tcgplayerConfig: MarketplaceConfig,
+  cardmarketConfig: MarketplaceConfig,
+  cardtraderConfig: MarketplaceConfig,
+  getMappingOverview: GetMappingOverview,
+  showAll: boolean,
+): Promise<UnifiedMappingsResponse> {
+  // Fetch the heavy cards × printings × images join once for all three marketplaces
+  // and project per-marketplace in JS, instead of running it 3× from the DB.
+  const unifiedRows = await repos.marketplaceMapping.allCardsWithPrintingsUnified();
+  const [tcgResult, cmResult, ctResult] = await Promise.all([
+    getMappingOverview(repos, tcgplayerConfig, {
+      matchedCards: deriveCardsForMarketplace(unifiedRows, tcgplayerConfig.marketplace),
+    }),
+    getMappingOverview(repos, cardmarketConfig, {
+      matchedCards: deriveCardsForMarketplace(unifiedRows, cardmarketConfig.marketplace),
+    }),
+    getMappingOverview(repos, cardtraderConfig, {
+      matchedCards: deriveCardsForMarketplace(unifiedRows, cardtraderConfig.marketplace),
+    }),
+  ]);
+
+  const mergedMap = mergeOverviewsByCard(tcgResult, cmResult, ctResult);
+  const allGroupsWithPrimary = withPrimaryShortCode(mergedMap);
   allGroupsWithPrimary.sort((a, b) => a.primaryShortCode.localeCompare(b.primaryShortCode));
 
   // Filter after merge so all marketplaces have complete data
@@ -336,4 +362,54 @@ export async function buildUnifiedMappingsResponse(
     },
     allCards,
   };
+}
+
+/**
+ * Build the unified mappings response scoped to a single card. The heavy
+ * cards × printings × variants join and the snapshot price lookup both filter
+ * on the card up-front, so the server work is ~100× smaller than the
+ * corpus-wide variant. `allCards` is still corpus-wide because it powers the
+ * "assign to a different card" dropdown in the UI.
+ *
+ * `cardIdentifier` can be either the card UUID or its slug — the repo query
+ * matches either so the route doesn't need a separate slug → id lookup.
+ * @returns The merged group for the card (null when the card has no rows) plus the assignable-card list.
+ */
+export async function buildUnifiedMappingsCardResponse(
+  repos: Repos,
+  tcgplayerConfig: MarketplaceConfig,
+  cardmarketConfig: MarketplaceConfig,
+  cardtraderConfig: MarketplaceConfig,
+  getMappingOverview: GetMappingOverview,
+  cardIdentifier: string,
+): Promise<UnifiedMappingsCardResponse> {
+  // Scope the heavy join to this one card, and fetch the assignable-cards list
+  // in parallel.
+  const [unifiedRows, allCards] = await Promise.all([
+    repos.marketplaceMapping.allCardsWithPrintingsUnified(cardIdentifier),
+    repos.marketplaceMapping.assignableCards(),
+  ]);
+
+  if (unifiedRows.length === 0) {
+    return { group: null, allCards };
+  }
+
+  const [tcgResult, cmResult, ctResult] = await Promise.all([
+    getMappingOverview(repos, tcgplayerConfig, {
+      matchedCards: deriveCardsForMarketplace(unifiedRows, tcgplayerConfig.marketplace),
+    }),
+    getMappingOverview(repos, cardmarketConfig, {
+      matchedCards: deriveCardsForMarketplace(unifiedRows, cardmarketConfig.marketplace),
+    }),
+    getMappingOverview(repos, cardtraderConfig, {
+      matchedCards: deriveCardsForMarketplace(unifiedRows, cardtraderConfig.marketplace),
+    }),
+  ]);
+
+  const mergedMap = mergeOverviewsByCard(tcgResult, cmResult, ctResult);
+  const withPrimary = withPrimaryShortCode(mergedMap);
+  // The repo already filtered to one card, so there's at most one group.
+  const group = withPrimary[0] ?? null;
+
+  return { group, allCards };
 }

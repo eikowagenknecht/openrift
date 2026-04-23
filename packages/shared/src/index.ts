@@ -144,6 +144,7 @@ export type {
   TradeListResponse,
   UnifiedMappingGroupResponse,
   UnifiedMappingPrintingResponse,
+  UnifiedMappingsCardResponse,
   UnifiedMappingsResponse,
   UnmatchedCardDetailResponse,
   DefaultCardView,

@@ -579,3 +579,10 @@ export interface UnifiedMappingsResponse {
   };
   allCards: AssignableCardResponse[];
 }
+
+/** Single-card variant of {@link UnifiedMappingsResponse} for the admin card-detail page. */
+export interface UnifiedMappingsCardResponse {
+  /** Null when the card has no printings or no marketplace activity — UI shows an empty state. */
+  group: UnifiedMappingGroupResponse | null;
+  allCards: AssignableCardResponse[];
+}
