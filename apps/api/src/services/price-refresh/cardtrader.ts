@@ -54,8 +54,6 @@ interface CtMarketplaceProduct {
   name_en: string;
   price_cents: number;
   price_currency: string;
-  /** CardTrader condition string, e.g. "Near Mint", "Lightly Played" */
-  condition?: string;
   /** Number of copies sold together at price_cents; >1 means it's a bundle, not a single. */
   bundle_size?: number;
   /** Seller has paused the shop; listing is visible but not purchasable. */
@@ -65,6 +63,8 @@ interface CtMarketplaceProduct {
     can_sell_via_hub?: boolean;
   };
   properties_hash?: {
+    /** CardTrader condition string, e.g. "Near Mint", "Lightly Played". */
+    condition?: string;
     riftbound_foil?: boolean;
     riftbound_language?: string;
   };
@@ -188,7 +188,8 @@ async function fetchCardtraderData(
       //    not a per-card price, so treating it as a single would misreport pricing)
       const eligible = allListings.filter(
         (listing) =>
-          (!listing.condition || listing.condition === "Near Mint") &&
+          (!listing.properties_hash?.condition ||
+            listing.properties_hash.condition === "Near Mint") &&
           listing.on_vacation !== true &&
           (listing.bundle_size ?? 1) === 1,
       );

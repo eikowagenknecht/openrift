@@ -3,6 +3,7 @@
 ## 2026-04-23
 
 - feat: Adding a burst of cards in collection add mode now shows a single summary toast per batch (e.g. "Added 5 cards" or "Added 3× Lux") instead of flooding you with one toast per click, whether you use the quick-add palette or the plus buttons on each card tile
+- fix: CardTrader prices now correctly exclude played-condition listings. The condition filter was reading the wrong field on CardTrader's response, so Slightly Played and worse listings could appear as the cheapest price; only Near Mint listings count now
 - fix: The collection grid no longer briefly flashes grayed out each time you add or remove a copy; the dim now only appears if a filter or sort change is actually slow
 
 ## 2026-04-22
