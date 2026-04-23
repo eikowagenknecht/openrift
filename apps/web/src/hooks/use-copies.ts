@@ -236,7 +236,7 @@ interface PendingAdd {
   reject: (error: unknown) => void;
 }
 
-export interface BatchedAddCallbacks {
+interface BatchedAddCallbacks {
   onBatchSuccess?: (printingIds: string[]) => void;
   onBatchError?: (printingIds: string[], error: unknown) => void;
 }
