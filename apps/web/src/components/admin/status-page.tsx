@@ -4,15 +4,20 @@ import {
   CpuIcon,
   DatabaseIcon,
   EraserIcon,
+  LoaderIcon,
   RefreshCwIcon,
+  SendIcon,
   ServerIcon,
   TagIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useFlushPrintingEvents } from "@/hooks/use-flush-printing-events";
+import { usePostChangelog } from "@/hooks/use-post-changelog";
 import { useAdminStatus, useClearSsrCache } from "@/hooks/use-status";
 
 const SECONDS_PER_DAY = 86_400;
@@ -184,13 +189,17 @@ export function StatusPage() {
             {Object.entries(cron.jobs).map(([name, job]) => (
               <div key={name} className="flex items-center justify-between py-1.5">
                 <span className="text-muted-foreground text-sm">{name}</span>
-                {job.enabled ? (
-                  <span className="font-mono">
-                    {job.nextRun ? formatRelativeTime(job.nextRun) : "idle"}
-                  </span>
-                ) : (
-                  <Badge variant="secondary">off</Badge>
-                )}
+                <div className="flex items-center gap-2">
+                  {job.enabled ? (
+                    <span className="font-mono">
+                      {job.nextRun ? formatRelativeTime(job.nextRun) : "idle"}
+                    </span>
+                  ) : (
+                    <Badge variant="secondary">off</Badge>
+                  )}
+                  {name === "printingEvents" && <FlushPrintingEventsButton />}
+                  {name === "changelog" && <PostChangelogButton />}
+                </div>
               </div>
             ))}
           </CardContent>
@@ -271,5 +280,75 @@ export function StatusPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+// ── Inline cron triggers ────────────────────────────────────────────────────
+
+function FlushPrintingEventsButton() {
+  const flush = useFlushPrintingEvents();
+
+  async function handleFlush() {
+    try {
+      const result = await flush.mutateAsync();
+      if (result.sent === 0 && result.failed === 0) {
+        toast.success("No pending printing events");
+      } else {
+        toast.success(`Flushed ${result.sent} sent, ${result.failed} failed`);
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Flush failed");
+    }
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-7"
+      onClick={handleFlush}
+      disabled={flush.isPending}
+      title="Flush pending printing events to Discord now"
+    >
+      {flush.isPending ? (
+        <LoaderIcon className="size-3.5 animate-spin" />
+      ) : (
+        <SendIcon className="size-3.5" />
+      )}
+    </Button>
+  );
+}
+
+function PostChangelogButton() {
+  const post = usePostChangelog();
+
+  async function handlePost() {
+    try {
+      const result = await post.mutateAsync();
+      if (result.posted) {
+        toast.success("Changelog posted to Discord");
+      } else {
+        toast.success("No entries to post (no webhook configured or no entries dated today)");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Post failed");
+    }
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-7"
+      onClick={handlePost}
+      disabled={post.isPending}
+      title="Post today's changelog to Discord now"
+    >
+      {post.isPending ? (
+        <LoaderIcon className="size-3.5 animate-spin" />
+      ) : (
+        <SendIcon className="size-3.5" />
+      )}
+    </Button>
   );
 }

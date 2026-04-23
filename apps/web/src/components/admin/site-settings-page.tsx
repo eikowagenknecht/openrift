@@ -1,7 +1,6 @@
 import type { SiteSettingResponse } from "@openrift/shared";
-import { LoaderIcon, PlusIcon, SendIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { AdminTable } from "@/components/admin/admin-table";
 import type { AdminColumnDef } from "@/components/admin/admin-table";
@@ -18,8 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { useFlushPrintingEvents } from "@/hooks/use-flush-printing-events";
-import { usePostChangelog } from "@/hooks/use-post-changelog";
 import {
   useCreateSiteSetting,
   useDeleteSiteSetting,
@@ -237,99 +234,8 @@ export function SiteSettingsPage() {
       )}
 
       <div>
-        <SectionHeading>Discord notifications</SectionHeading>
-        <div className="space-y-2">
-          <DiscordFlushPanel />
-          <ChangelogPostPanel />
-        </div>
-      </div>
-
-      <div>
         <SectionHeading>Analytics (this browser)</SectionHeading>
         <AnalyticsExclusionPanel />
-      </div>
-    </div>
-  );
-}
-
-// ── Discord webhook flush ───────────────────────────────────────────────────
-
-function DiscordFlushPanel() {
-  const flush = useFlushPrintingEvents();
-
-  async function handleFlush() {
-    try {
-      const result = await flush.mutateAsync();
-      if (result.sent === 0 && result.failed === 0) {
-        toast.success("No pending printing events");
-      } else {
-        toast.success(`Flushed ${result.sent} sent, ${result.failed} failed`);
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Flush failed");
-    }
-  }
-
-  return (
-    <div className="rounded-md border px-4 py-3">
-      <div className="flex items-center justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <Label>Flush pending printing events</Label>
-          <p className="text-muted-foreground mt-0.5 text-xs">
-            Sends queued new-printing and printing-change events to the configured Discord webhooks
-            now, instead of waiting for the next 15-minute cron tick.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={handleFlush} disabled={flush.isPending}>
-          {flush.isPending ? (
-            <LoaderIcon className="mr-1 size-4 animate-spin" />
-          ) : (
-            <SendIcon className="mr-1 size-4" />
-          )}
-          Flush now
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-// ── Changelog post ──────────────────────────────────────────────────────────
-
-function ChangelogPostPanel() {
-  const post = usePostChangelog();
-
-  async function handlePost() {
-    try {
-      const result = await post.mutateAsync();
-      if (result.posted) {
-        toast.success("Changelog posted to Discord");
-      } else {
-        toast.success("No entries to post (no webhook configured or no entries dated today)");
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Post failed");
-    }
-  }
-
-  return (
-    <div className="rounded-md border px-4 py-3">
-      <div className="flex items-center justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <Label>Post today&apos;s changelog</Label>
-          <p className="text-muted-foreground mt-0.5 text-xs">
-            Reads today&apos;s entries from the changelog and posts them to the
-            <span className="font-mono"> discord-webhook-changelog</span> channel. Same action the
-            daily cron runs.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={handlePost} disabled={post.isPending}>
-          {post.isPending ? (
-            <LoaderIcon className="mr-1 size-4 animate-spin" />
-          ) : (
-            <SendIcon className="mr-1 size-4" />
-          )}
-          Post now
-        </Button>
       </div>
     </div>
   );
