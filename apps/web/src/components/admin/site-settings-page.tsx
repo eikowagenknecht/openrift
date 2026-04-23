@@ -70,6 +70,12 @@ const KNOWN_SETTINGS: KnownSetting[] = [
     description: "Discord webhook URL for #data-updates notifications",
     placeholder: "https://discord.com/api/webhooks/...",
   },
+  {
+    key: "discord-webhook-changelog",
+    scope: "api",
+    description: 'Discord webhook URL for daily changelog posts ("What\'s new")',
+    placeholder: "https://discord.com/api/webhooks/...",
+  },
 ];
 
 // ── Component ───────────────────────────────────────────────────────────────
