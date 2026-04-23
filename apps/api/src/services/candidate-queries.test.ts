@@ -411,10 +411,34 @@ describe("buildCandidateCardList", () => {
 
     expect(result[0].candidateCount).toBe(0);
     expect(result[0].stagingShortCodes).toEqual([]);
+    expect(result[0].favoriteStagingShortCodes).toEqual([]);
     expect(result[0].uncheckedCardCount).toBe(0);
     expect(result[0].uncheckedPrintingCount).toBe(0);
     expect(result[0].hasFavorite).toBe(false);
     expect(result[0].suggestedCardSlug).toBeNull();
+  });
+
+  it("favoriteStagingShortCodes includes only codes from favorite providers", async () => {
+    const repo = createMockRepo({
+      listCardsForSourceList: vi
+        .fn()
+        .mockResolvedValue([{ id: "card-1", slug: "bolt", name: "Bolt", normName: "bolt" }]),
+      listCandidateCardsForSourceList: vi.fn().mockResolvedValue([
+        { id: "cc-fav", normName: "bolt", name: "Bolt", provider: "gallery", checkedAt: null },
+        { id: "cc-other", normName: "bolt", name: "Bolt", provider: "ocr", checkedAt: null },
+      ]),
+      listPrintingsForSourceList: vi.fn().mockResolvedValue([]),
+      listCandidatePrintingsForSourceList: vi.fn().mockResolvedValue([
+        { candidateCardId: "cc-fav", shortCode: "OGN-001", checkedAt: null, printingId: null },
+        { candidateCardId: "cc-other", shortCode: "OGN-002", checkedAt: null, printingId: null },
+      ]),
+      listAliasesForSourceList: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await buildCandidateCardList(repo, new Set(["gallery"]));
+
+    expect(result[0].stagingShortCodes).toEqual(["OGN-001", "OGN-002"]);
+    expect(result[0].favoriteStagingShortCodes).toEqual(["OGN-001"]);
   });
 });
 

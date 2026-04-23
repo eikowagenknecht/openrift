@@ -76,7 +76,7 @@ export interface CandidateCardSummaryResponse {
   uncheckedCardCount: number;
   uncheckedPrintingCount: number;
   hasFavorite: boolean;
-  hasFavoriteStagingPrintings: boolean;
+  favoriteStagingShortCodes: string[];
   suggestedCardSlug: string | null;
 }
 

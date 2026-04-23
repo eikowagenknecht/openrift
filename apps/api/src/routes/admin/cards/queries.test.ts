@@ -174,7 +174,7 @@ describe("GET /api/v1/", () => {
         uncheckedCardCount: 0,
         uncheckedPrintingCount: 0,
         hasFavorite: true,
-        hasFavoriteStagingPrintings: false,
+        favoriteStagingShortCodes: [],
         suggestedCardSlug: null,
       },
     ];

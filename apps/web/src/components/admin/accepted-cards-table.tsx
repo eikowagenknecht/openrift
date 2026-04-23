@@ -53,7 +53,7 @@ type Row = CandidateCardSummaryResponse;
 // Accept button component (needs hooks)
 // ---------------------------------------------------------------------------
 
-function AcceptFavoriteButton({ cardSlug }: { cardSlug: string }) {
+function AcceptFavoriteButton({ cardSlug, count }: { cardSlug: string; count: number }) {
   const acceptFavorite = useAcceptFavoritePrintings();
 
   return (
@@ -91,7 +91,7 @@ function AcceptFavoriteButton({ cardSlug }: { cardSlug: string }) {
       }}
     >
       {acceptFavorite.isPending ? <LoaderIcon className="animate-spin" /> : <StarIcon />}
-      Accept
+      Accept ({count})
     </Button>
   );
 }
@@ -330,11 +330,28 @@ function buildColumns(
       enableGlobalFilter: false,
       cell: ({ row }) => {
         const codes = formatShortCodesArray(row.original.stagingShortCodes);
+        const favorites = new Set(formatShortCodesArray(row.original.favoriteStagingShortCodes));
+        const favoriteCount = row.original.favoriteStagingShortCodes.length;
         return (
           <span className="flex items-center gap-2">
-            <span className="text-muted-foreground/50 italic">{codes.join(", ")}</span>
-            {row.original.cardSlug && row.original.hasFavoriteStagingPrintings && (
-              <AcceptFavoriteButton cardSlug={row.original.cardSlug} />
+            <span>
+              {codes.map((code, index) => {
+                const isFavorite = favorites.has(code);
+                return (
+                  <span
+                    key={`${code}-${index}`}
+                    className={isFavorite ? "text-foreground" : "text-muted-foreground/50 italic"}
+                  >
+                    {code}
+                    {index < codes.length - 1 && (
+                      <span className="text-muted-foreground/50">, </span>
+                    )}
+                  </span>
+                );
+              })}
+            </span>
+            {row.original.cardSlug && favoriteCount > 0 && (
+              <AcceptFavoriteButton cardSlug={row.original.cardSlug} count={favoriteCount} />
             )}
           </span>
         );
@@ -500,7 +517,9 @@ export function AcceptedCardsTable({
   const rows = table.getRowModel().rows;
 
   // Count cards that have the accept button
-  const acceptableCount = data.filter((r) => r.cardSlug && r.hasFavoriteStagingPrintings).length;
+  const acceptableCount = data.filter(
+    (r) => r.cardSlug && r.favoriteStagingShortCodes.length > 0,
+  ).length;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const { virtualItems, totalSize } = useVirtualizerFresh({
@@ -557,7 +576,7 @@ export function AcceptedCardsTable({
             onClick={() => {
               const slugs = data
                 .filter((r): r is Row & { cardSlug: string } =>
-                  Boolean(r.cardSlug && r.hasFavoriteStagingPrintings),
+                  Boolean(r.cardSlug && r.favoriteStagingShortCodes.length > 0),
                 )
                 .map((r) => r.cardSlug);
               acceptAll.mutate(slugs);

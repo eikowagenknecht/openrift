@@ -268,7 +268,7 @@ export const candidateCardSummarySchema = z.object({
   uncheckedCardCount: z.number().openapi({ example: 0 }),
   uncheckedPrintingCount: z.number().openapi({ example: 0 }),
   hasFavorite: z.boolean().openapi({ example: true }),
-  hasFavoriteStagingPrintings: z.boolean().openapi({ example: false }),
+  favoriteStagingShortCodes: z.array(z.string()).openapi({ example: [] }),
   suggestedCardSlug: z.string().nullable().openapi({ example: null }),
 });
 
