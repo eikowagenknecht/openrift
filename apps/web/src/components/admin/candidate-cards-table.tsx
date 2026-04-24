@@ -90,12 +90,13 @@ function makeColumns(meta: CardNameCellMeta): ColumnDef<Row>[] {
 
 // ---------------------------------------------------------------------------
 // Column widths (applied with table-layout: fixed so filtering doesn't reflow).
-// Matches accepted-cards-table: Card column first at 25%, printings fills the
-// remainder, and the trailing numeric column takes a fixed 120px.
+// The Card cell holds the name plus Accept / Assign buttons and the favorite
+// and Unchecked badges, so give it the bulk of the row; the Printings column
+// only shows comma-separated short codes and can live on the remainder.
 // ---------------------------------------------------------------------------
 
 const COLUMN_WIDTHS: Record<string, string> = {
-  name: "25%",
+  name: "60%",
   candidates: "120px",
 };
 
