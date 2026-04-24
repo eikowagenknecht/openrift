@@ -2,6 +2,7 @@
 
 ## 2026-04-24
 
+- fix: The hover outline on card tiles no longer gets cut off at the corners while the 3D tilt effect is active
 - fix: Signing out now fully clears your saved display preferences (language filters, theme, card view options), so the next person using this browser starts with defaults instead of inheriting the previous user's settings
 
 ## 2026-04-23

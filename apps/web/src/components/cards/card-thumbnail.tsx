@@ -398,12 +398,15 @@ export const CardThumbnail = memo(function CardThumbnail({
       })}
       <div ref={tiltContainerRef} className="relative">
         {rotated ? (
-          <div className="relative overflow-hidden" style={{ borderRadius: CARD_BORDER_RADIUS }}>
-            <div
-              ref={tiltInnerRef}
-              className={cn(AFTER_BORDER, "hover:ring-primary/60 hover:ring-2")}
-              style={{ borderRadius: "inherit", ...tiltStyle }}
-            >
+          <div
+            className={cn(
+              "relative overflow-hidden",
+              AFTER_BORDER,
+              "hover:ring-primary/60 hover:ring-2",
+            )}
+            style={{ borderRadius: CARD_BORDER_RADIUS }}
+          >
+            <div ref={tiltInnerRef} style={{ borderRadius: "inherit", ...tiltStyle }}>
               <CardImageContent
                 thumbnailUrl={thumbnailUrl}
                 srcSet={srcSet}
@@ -425,12 +428,15 @@ export const CardThumbnail = memo(function CardThumbnail({
             </div>
           </div>
         ) : (
-          <div className="relative overflow-hidden" style={{ borderRadius: CARD_BORDER_RADIUS }}>
-            <div
-              ref={tiltInnerRef}
-              className={cn(AFTER_BORDER, "hover:ring-primary/60 hover:ring-2")}
-              style={{ borderRadius: "inherit", ...tiltStyle }}
-            >
+          <div
+            className={cn(
+              "relative overflow-hidden",
+              AFTER_BORDER,
+              "hover:ring-primary/60 hover:ring-2",
+            )}
+            style={{ borderRadius: CARD_BORDER_RADIUS }}
+          >
+            <div ref={tiltInnerRef} style={{ borderRadius: "inherit", ...tiltStyle }}>
               <CardImageContent
                 thumbnailUrl={thumbnailUrl}
                 srcSet={srcSet}
