@@ -10,14 +10,14 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { LoaderIcon, SearchIcon, StarIcon } from "lucide-react";
+import { LoaderIcon, StarIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
+import { DebouncedSearchInput } from "@/components/admin/debounced-search-input";
 import { SortableHeader } from "@/components/admin/sortable-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -31,7 +31,6 @@ import {
   acceptFavoritePrintingsFn,
   useAcceptFavoritePrintings,
 } from "@/hooks/use-admin-card-mutations";
-import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import type {
   CardCoverage,
@@ -469,14 +468,6 @@ export function AcceptedCardsTable({
     [globalFilter, navigate],
   );
 
-  // Input renders from local state for keystroke-level responsiveness; the
-  // URL (and therefore the expensive filter + virtualizer pipeline) only
-  // updates after typing pauses.
-  const [searchInput, setSearchInput] = useSearchUrlSync({
-    urlValue: globalFilter,
-    onCommit: (value) => handleGlobalFilterChange(value),
-  });
-
   const table = useReactTable({
     data: filteredData,
     columns,
@@ -516,15 +507,12 @@ export function AcceptedCardsTable({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
-          <Input
-            placeholder="Search by name or code…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="h-8 w-56 pl-8 text-sm"
-          />
-        </div>
+        <DebouncedSearchInput
+          urlValue={globalFilter}
+          onCommit={handleGlobalFilterChange}
+          placeholder="Search by name or code…"
+          className="w-56"
+        />
 
         {uncheckedCount > 0 && (
           <Button

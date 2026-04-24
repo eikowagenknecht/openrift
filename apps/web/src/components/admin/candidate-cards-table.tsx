@@ -9,17 +9,17 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ImagePlusIcon, LoaderIcon, SearchIcon } from "lucide-react";
+import { ImagePlusIcon, LoaderIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import type { CardNameCellMeta } from "@/components/admin/card-name-cell";
 import { CardNameCell } from "@/components/admin/card-name-cell";
+import { DebouncedSearchInput } from "@/components/admin/debounced-search-input";
 import { PrintingsCell } from "@/components/admin/printings-cell";
 import { SortableHeader } from "@/components/admin/sortable-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -34,7 +34,6 @@ import {
   useLinkCard,
 } from "@/hooks/use-admin-card-mutations";
 import { useAllCards } from "@/hooks/use-admin-card-queries";
-import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import { queryKeys } from "@/lib/query-keys";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
@@ -191,13 +190,6 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
     [globalFilter, navigate],
   );
 
-  // Debounce URL commits so each keystroke doesn't re-run the route loader
-  // and re-filter the full table.
-  const [searchInput, setSearchInput] = useSearchUrlSync({
-    urlValue: globalFilter,
-    onCommit: (value) => handleGlobalFilterChange(value),
-  });
-
   const columns = makeColumns({ linkCard, acceptFavorite, allCards });
 
   const table = useReactTable({
@@ -221,15 +213,12 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
-          <Input
-            placeholder="Search by name…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="h-8 w-48 pl-8 text-sm"
-          />
-        </div>
+        <DebouncedSearchInput
+          urlValue={globalFilter}
+          onCommit={handleGlobalFilterChange}
+          placeholder="Search by name…"
+          className="w-48"
+        />
 
         <Button
           variant={activeStatus === "unchecked" ? "default" : "outline"}
