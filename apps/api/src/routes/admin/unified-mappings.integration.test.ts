@@ -143,7 +143,7 @@ if (ctx) {
       groupId: 10_300,
       productName: "UNM Alpha Card Normal",
       finish: "normal",
-      language: "EN",
+      language: null,
       recordedAt: new Date("2026-02-01T10:00:00Z"),
       marketCents: 200,
       lowCents: 120,
@@ -165,7 +165,7 @@ if (ctx) {
       groupId: 10_301,
       productName: "UNM Alpha Card Normal",
       finish: "normal",
-      language: "EN",
+      language: null,
       recordedAt: new Date("2026-02-01T10:00:00Z"),
       marketCents: 180,
       lowCents: 100,
@@ -187,7 +187,7 @@ if (ctx) {
       groupId: 10_300,
       productName: "UNM Beta Card Normal",
       finish: "normal",
-      language: "EN",
+      language: null,
       recordedAt: new Date("2026-02-01T10:00:00Z"),
       marketCents: 500,
       lowCents: 400,
@@ -372,12 +372,12 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       // Map Alpha Card printing for both TCGPlayer and Cardmarket
       await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          mappings: [{ printingId, externalId: 11_111 }],
+          mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
         }),
       );
       await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
-          mappings: [{ printingId, externalId: 22_222 }],
+          mappings: [{ printingId, externalId: 22_222, finish: "normal", language: null }],
         }),
       );
 
@@ -420,7 +420,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           groupId: 10_300,
           productName: "UNM Alpha Card Normal",
           finish: "normal",
-          language: "EN",
+          language: null,
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 200,
           lowCents: 120,
@@ -438,7 +438,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          mappings: [{ printingId, externalId: 11_111 }],
+          mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
         }),
       );
 
@@ -472,7 +472,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           groupId: 10_301,
           productName: "UNM Alpha Card Normal",
           finish: "normal",
-          language: "EN",
+          language: null,
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 180,
           lowCents: 100,
@@ -490,7 +490,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
       await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
-          mappings: [{ printingId, externalId: 22_222 }],
+          mappings: [{ printingId, externalId: 22_222, finish: "normal", language: null }],
         }),
       );
 
@@ -525,7 +525,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           groupId: 10_300,
           productName: "UNM Alpha Card Normal",
           finish: "normal",
-          language: "EN",
+          language: null,
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 200,
           lowCents: 120,
@@ -549,7 +549,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           groupId: 10_301,
           productName: "UNM Alpha Card Normal",
           finish: "normal",
-          language: "EN",
+          language: null,
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 180,
           lowCents: 100,
@@ -568,12 +568,12 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       // Map both marketplaces
       await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          mappings: [{ printingId, externalId: 11_111 }],
+          mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
         }),
       );
       await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
-          mappings: [{ printingId, externalId: 22_222 }],
+          mappings: [{ printingId, externalId: 22_222, finish: "normal", language: null }],
         }),
       );
 
@@ -687,7 +687,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           groupId: 10_300,
           productName: "UNM Alpha Card Normal",
           finish: "normal",
-          language: "EN",
+          language: null,
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 200,
           lowCents: 120,
@@ -711,7 +711,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           groupId: 10_301,
           productName: "UNM Alpha Card Normal",
           finish: "normal",
-          language: "EN",
+          language: null,
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 180,
           lowCents: 100,
@@ -730,12 +730,12 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       // Map both marketplaces
       await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          mappings: [{ printingId, externalId: 11_111 }],
+          mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
         }),
       );
       await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
-          mappings: [{ printingId, externalId: 22_222 }],
+          mappings: [{ printingId, externalId: 22_222, finish: "normal", language: null }],
         }),
       );
 

@@ -68,6 +68,7 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
         productName: "Test Product",
         printingId: seedPrintingId,
         finish: "normal",
+        // Non-cardmarket/tcg marketplace used only for test isolation; language carried on product row.
         language: "EN",
       },
     ]);
@@ -79,6 +80,8 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
       .execute();
     expect(products.length).toBe(1);
     expect(products[0].productName).toBe("Test Product");
+    expect(products[0].finish).toBe("normal");
+    expect(products[0].language).toBe("EN");
 
     const variants = await db
       .selectFrom("marketplaceProductVariants as mpv")
@@ -87,8 +90,6 @@ describe.skipIf(!ctx)("priceRefreshRepo (integration)", () => {
       .where("mp.marketplace", "=", "test-marketplace-pr")
       .execute();
     expect(variants.length).toBe(1);
-    expect(variants[0].finish).toBe("normal");
-    expect(variants[0].language).toBe("EN");
   });
 
   it("batchInsertProductVariants with empty array is a no-op", async () => {

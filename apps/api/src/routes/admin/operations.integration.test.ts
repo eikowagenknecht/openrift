@@ -127,7 +127,7 @@ async function seedMarketplaceData(marketplace: string) {
     .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
     .execute();
 
-  // marketplace_products (level 2)
+  // marketplace_products — one row per SKU. CM/TCG: language=null.
   const [product] = await db
     .insertInto("marketplaceProducts")
     .values({
@@ -135,18 +135,18 @@ async function seedMarketplaceData(marketplace: string) {
       externalId: baseExtId,
       groupId: baseGroupId,
       productName: `OPS ${marketplace} Test ${suffix}`,
+      finish: "normal",
+      language: null,
     })
     .returning("id")
     .execute();
 
-  // marketplace_product_variants (level 3)
+  // marketplace_product_variants — pure (product, printing) link now that SKU axes live on the product.
   const [variant] = await db
     .insertInto("marketplaceProductVariants")
     .values({
       marketplaceProductId: product.id,
       printingId: printing.id,
-      finish: "normal",
-      language: "EN",
     })
     .returning("id")
     .execute();
@@ -162,7 +162,7 @@ async function seedMarketplaceData(marketplace: string) {
     })
     .execute();
 
-  // marketplace_staging
+  // marketplace_staging — CM/TCG stage with language=null.
   await db
     .insertInto("marketplaceStaging")
     .values({
@@ -171,7 +171,7 @@ async function seedMarketplaceData(marketplace: string) {
       groupId: baseGroupId,
       productName: `OPS ${marketplace} Staged ${suffix}`,
       finish: "normal",
-      language: "EN",
+      language: null,
       recordedAt: new Date(),
       marketCents: 200,
       lowCents: 100,

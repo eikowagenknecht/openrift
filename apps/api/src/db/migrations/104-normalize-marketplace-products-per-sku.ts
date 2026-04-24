@@ -178,6 +178,77 @@ export async function up(db: Kysely<unknown>): Promise<void> {
   `.execute(db);
 }
 
-export function down(_db: Kysely<unknown>): Promise<void> {
-  throw new Error("Migration 104 is not reversible — data would be conflated across SKU rows.");
+export async function down(db: Kysely<unknown>): Promise<void> {
+  // Collapse per-SKU rows back to one row per (marketplace, external_id).
+  // Requires that 105's down ran first so variants have finish/language back
+  // — the variant's SKU info is what makes this collapse reversible.
+  //
+  // Pick one surviving product row per (marketplace, external_id) — we use
+  // MIN(id) for determinism. Repoint every variant / ignored_variant that
+  // pointed at a non-survivor to the survivor, then delete non-survivors.
+  await sql`
+    WITH survivors AS (
+      SELECT DISTINCT ON (marketplace, external_id) id
+      FROM marketplace_products
+      ORDER BY marketplace, external_id, id
+    ),
+    redirects AS (
+      SELECT mp.id AS old_id, s.id AS new_id
+      FROM marketplace_products mp
+      JOIN marketplace_products survivor
+        ON survivor.marketplace = mp.marketplace
+        AND survivor.external_id = mp.external_id
+      JOIN survivors s ON s.id = survivor.id
+      WHERE mp.id <> s.id
+    )
+    UPDATE marketplace_product_variants mpv
+    SET marketplace_product_id = r.new_id
+    FROM redirects r
+    WHERE mpv.marketplace_product_id = r.old_id
+  `.execute(db);
+
+  await sql`
+    WITH survivors AS (
+      SELECT DISTINCT ON (marketplace, external_id) id
+      FROM marketplace_products
+      ORDER BY marketplace, external_id, id
+    ),
+    redirects AS (
+      SELECT mp.id AS old_id, s.id AS new_id
+      FROM marketplace_products mp
+      JOIN marketplace_products survivor
+        ON survivor.marketplace = mp.marketplace
+        AND survivor.external_id = mp.external_id
+      JOIN survivors s ON s.id = survivor.id
+      WHERE mp.id <> s.id
+    )
+    UPDATE marketplace_ignored_variants miv
+    SET marketplace_product_id = r.new_id
+    FROM redirects r
+    WHERE miv.marketplace_product_id = r.old_id
+  `.execute(db);
+
+  await sql`
+    WITH survivors AS (
+      SELECT DISTINCT ON (marketplace, external_id) id
+      FROM marketplace_products
+      ORDER BY marketplace, external_id, id
+    )
+    DELETE FROM marketplace_products mp
+    WHERE mp.id NOT IN (SELECT id FROM survivors)
+  `.execute(db);
+
+  // Now restore the schema shape: drop the per-SKU index and column, and
+  // reinstate the (marketplace, external_id) unique constraint.
+  await sql`DROP INDEX marketplace_products_sku_key`.execute(db);
+  await sql`
+    ALTER TABLE marketplace_products
+      DROP COLUMN finish,
+      DROP COLUMN language
+  `.execute(db);
+  await sql`
+    ALTER TABLE marketplace_products
+      ADD CONSTRAINT marketplace_products_marketplace_external_id_key
+      UNIQUE (marketplace, external_id)
+  `.execute(db);
 }

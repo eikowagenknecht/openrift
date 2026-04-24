@@ -72,6 +72,9 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
           groupId,
           externalId: 999_001,
           productName: "Annie Fiery (Cat Test)",
+          finish: "normal",
+          // tcgplayer has no per-language SKU axis.
+          language: null,
         })
         .returning("id")
         .execute();
@@ -81,8 +84,6 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
         .values({
           marketplaceProductId: product.id,
           printingId: SEED_PRINTING_ID,
-          finish: "normal",
-          language: "EN",
         })
         .returning("id")
         .execute();
