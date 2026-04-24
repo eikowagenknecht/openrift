@@ -594,9 +594,13 @@ export function marketplaceMappingRepo(db: Db) {
      * prefix match against the card's name aliases (normalized to lowercase +
      * alphanumeric), plus a containment check for longer names (>=5 chars),
      * which catches champion-prepended products like "KaiSa Daughter of the
-     * Void". Ignored products (level 2) and ignored variants (level 3) are
-     * filtered out. Each (marketplace, external_id, finish, language) tuple is
-     * deduplicated to its most-recent staging snapshot.
+     * Void". When another card has a strictly longer alias that would match
+     * the same staging row, defer to that card — otherwise e.g. "Blastcone
+     * Fae" products (alias `blastconefae`) would surface under "Blast Cone"
+     * (alias `blastcone`, which is a prefix). Ignored products (level 2) and
+     * ignored variants (level 3) are filtered out. Each (marketplace,
+     * external_id, finish, language) tuple is deduplicated to its most-recent
+     * staging snapshot.
      *
      * Staging rows are already removed when a variant is assigned (see
      * `saveMappings`), so this query only surfaces truly unmapped candidates.
@@ -641,6 +645,10 @@ export function marketplaceMappingRepo(db: Db) {
         -- Each branch joins staging against the alias CTE so the planner can use
         -- the GIN trigram index on marketplace_staging.norm_name. A single OR'd
         -- EXISTS forces a seq scan because the index can't be pushed through it.
+        -- The NOT EXISTS anti-join suppresses matches where another card owns a
+        -- strictly longer alias that also matches the staging row — that card is
+        -- the more specific owner. The override branch skips this check so manual
+        -- assignments always win.
         candidate_ids AS (
           SELECT s.id
           FROM marketplace_staging s
@@ -653,11 +661,31 @@ export function marketplaceMappingRepo(db: Db) {
           UNION
           SELECT s.id
           FROM marketplace_staging s, aliases a
-          WHERE a.norm_name <> '' AND s.norm_name LIKE a.norm_name || '%'
+          WHERE a.norm_name <> ''
+            AND s.norm_name LIKE a.norm_name || '%'
+            AND NOT EXISTS (
+              SELECT 1 FROM card_name_aliases cna
+              WHERE cna.card_id <> ${cardId}::uuid
+                AND length(cna.norm_name) > length(a.norm_name)
+                AND (
+                  (cna.norm_name <> '' AND s.norm_name LIKE cna.norm_name || '%')
+                  OR (length(cna.norm_name) >= 5 AND s.norm_name LIKE '%' || cna.norm_name || '%')
+                )
+            )
           UNION
           SELECT s.id
           FROM marketplace_staging s, aliases a
-          WHERE length(a.norm_name) >= 5 AND s.norm_name LIKE '%' || a.norm_name || '%'
+          WHERE length(a.norm_name) >= 5
+            AND s.norm_name LIKE '%' || a.norm_name || '%'
+            AND NOT EXISTS (
+              SELECT 1 FROM card_name_aliases cna
+              WHERE cna.card_id <> ${cardId}::uuid
+                AND length(cna.norm_name) > length(a.norm_name)
+                AND (
+                  (cna.norm_name <> '' AND s.norm_name LIKE cna.norm_name || '%')
+                  OR (length(cna.norm_name) >= 5 AND s.norm_name LIKE '%' || cna.norm_name || '%')
+                )
+            )
         ),
         matched AS (
           SELECT DISTINCT ON (s.marketplace, s.external_id, s.finish, s.language)
