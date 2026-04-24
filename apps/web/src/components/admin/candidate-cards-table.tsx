@@ -10,7 +10,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ImagePlusIcon, LoaderIcon, SearchIcon } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { CardNameCellMeta } from "@/components/admin/card-name-cell";
@@ -37,7 +37,7 @@ import { useAllCards } from "@/hooks/use-admin-card-queries";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import { queryKeys } from "@/lib/query-keys";
-import { useVirtualizerFresh } from "@/lib/virtualizer-fresh";
+import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
 // ---------------------------------------------------------------------------
@@ -226,16 +226,28 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
 
   const rows = table.getRowModel().rows;
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const { virtualItems, totalSize } = useVirtualizerFresh({
+  // Virtualize against the window so the whole admin page scrolls as one,
+  // matching the Unmatched and card-detail routes. scrollMargin tells the
+  // virtualizer where the rows start inside the document.
+  const tableAnchorRef = useRef<HTMLTableSectionElement>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+  useLayoutEffect(() => {
+    const el = tableAnchorRef.current;
+    if (!el) {
+      return;
+    }
+    setScrollMargin(Math.round(el.getBoundingClientRect().top + globalThis.scrollY));
+  }, [rows.length]);
+
+  const { virtualItems, totalSize } = useWindowVirtualizerFresh({
     count: rows.length,
-    getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: OVERSCAN,
+    scrollMargin,
   });
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
+    <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <SearchIcon className="text-muted-foreground absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2" />
@@ -287,41 +299,37 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
       {rows.length === 0 ? (
         <p className="text-muted-foreground py-8 text-center text-sm">No candidates found.</p>
       ) : (
-        <div className="relative min-h-0 flex-1">
-          <div ref={scrollRef} className="absolute inset-0 overflow-auto">
-            <Table className="min-w-[720px] table-fixed">
-              <TableHeader className="sticky top-0 z-10">
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id} style={{ width: COLUMN_WIDTHS[header.id] }}>
-                        {flexRender(header.column.columnDef.header, header.getContext())}
-                      </TableHead>
-                    ))}
-                  </TableRow>
+        <Table className="min-w-[720px] table-fixed">
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead key={header.id} style={{ width: COLUMN_WIDTHS[header.id] }}>
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  </TableHead>
                 ))}
-              </TableHeader>
-              <TableBody>
-                {virtualItems.length > 0 && <tr style={{ height: virtualItems[0].start }} />}
-                {virtualItems.map((virtualRow) => {
-                  const row = rows[virtualRow.index];
-                  return (
-                    <TableRow key={row.id} data-index={virtualRow.index}>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className="whitespace-normal">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  );
-                })}
-                {virtualItems.length > 0 && (
-                  <tr style={{ height: totalSize - (virtualItems.at(-1)?.end ?? 0) }} />
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody ref={tableAnchorRef}>
+            {virtualItems.length > 0 && <tr style={{ height: virtualItems[0].start }} />}
+            {virtualItems.map((virtualRow) => {
+              const row = rows[virtualRow.index];
+              return (
+                <TableRow key={row.id} data-index={virtualRow.index}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id} className="whitespace-normal">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
+            {virtualItems.length > 0 && (
+              <tr style={{ height: totalSize - (virtualItems.at(-1)?.end ?? 0) }} />
+            )}
+          </TableBody>
+        </Table>
       )}
     </div>
   );

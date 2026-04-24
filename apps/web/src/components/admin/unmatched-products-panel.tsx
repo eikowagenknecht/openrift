@@ -203,7 +203,7 @@ export function UnmatchedProductsPanel() {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+    <div className="space-y-4 p-4">
       <FilterBar
         marketplaceFilter={marketplaceFilter}
         onMarketplaceChange={setMarketplaceFilter}
@@ -220,70 +220,68 @@ export function UnmatchedProductsPanel() {
       />
 
       {filtered.length === 0 ? (
-        <div className="text-muted-foreground flex flex-1 items-center justify-center text-sm">
+        <div className="text-muted-foreground py-8 text-center text-sm">
           {allRows.length === 0 ? "No unmatched products." : "No matches for the current filters."}
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-20">ID</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead className="w-16">Language</TableHead>
-                <TableHead>Set</TableHead>
-                <TableHead className="w-16">Finish</TableHead>
-                <TableHead className="w-20 text-right">Price</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedRows.map((row, index) => {
-                const { marketplace, product } = row;
-                const key = `${marketplace}::${product.externalId}::${product.finish}::${product.language}`;
-                const isFirstOfMarketplace =
-                  index === 0 || sortedRows[index - 1].marketplace !== marketplace;
-                const mutations = mutationsFor(marketplace);
-                return (
-                  <React.Fragment key={key}>
-                    {isFirstOfMarketplace && (
-                      <TableRow className="hover:bg-transparent">
-                        <TableCell
-                          colSpan={COLUMN_COUNT}
-                          className="bg-muted/50 text-muted-foreground py-1.5 font-semibold tracking-wide uppercase"
-                        >
-                          {CONFIG_BY_MARKETPLACE[marketplace].displayName}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    <UnmatchedProductRow
-                      marketplace={marketplace}
-                      product={product}
-                      allCards={data.allCards as AssignableCard[]}
-                      onAssignToCard={(card) => handleAssignToCard(marketplace, product, card)}
-                      isAssigning={mutations.assign.isPending}
-                      onIgnoreVariant={() =>
-                        mutations.ignoreVariant.mutate([
-                          {
-                            externalId: product.externalId,
-                            finish: product.finish,
-                            language: product.language,
-                          },
-                        ])
-                      }
-                      onIgnoreProduct={() =>
-                        mutations.ignoreProduct.mutate([{ externalId: product.externalId }])
-                      }
-                      isIgnoring={
-                        mutations.ignoreVariant.isPending || mutations.ignoreProduct.isPending
-                      }
-                    />
-                  </React.Fragment>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-20">ID</TableHead>
+              <TableHead>Product</TableHead>
+              <TableHead className="w-16">Language</TableHead>
+              <TableHead>Set</TableHead>
+              <TableHead className="w-16">Finish</TableHead>
+              <TableHead className="w-20 text-right">Price</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sortedRows.map((row, index) => {
+              const { marketplace, product } = row;
+              const key = `${marketplace}::${product.externalId}::${product.finish}::${product.language}`;
+              const isFirstOfMarketplace =
+                index === 0 || sortedRows[index - 1].marketplace !== marketplace;
+              const mutations = mutationsFor(marketplace);
+              return (
+                <React.Fragment key={key}>
+                  {isFirstOfMarketplace && (
+                    <TableRow className="hover:bg-transparent">
+                      <TableCell
+                        colSpan={COLUMN_COUNT}
+                        className="bg-muted/50 text-muted-foreground py-1.5 font-semibold tracking-wide uppercase"
+                      >
+                        {CONFIG_BY_MARKETPLACE[marketplace].displayName}
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  <UnmatchedProductRow
+                    marketplace={marketplace}
+                    product={product}
+                    allCards={data.allCards as AssignableCard[]}
+                    onAssignToCard={(card) => handleAssignToCard(marketplace, product, card)}
+                    isAssigning={mutations.assign.isPending}
+                    onIgnoreVariant={() =>
+                      mutations.ignoreVariant.mutate([
+                        {
+                          externalId: product.externalId,
+                          finish: product.finish,
+                          language: product.language,
+                        },
+                      ])
+                    }
+                    onIgnoreProduct={() =>
+                      mutations.ignoreProduct.mutate([{ externalId: product.externalId }])
+                    }
+                    isIgnoring={
+                      mutations.ignoreVariant.isPending || mutations.ignoreProduct.isPending
+                    }
+                  />
+                </React.Fragment>
+              );
+            })}
+          </TableBody>
+        </Table>
       )}
     </div>
   );

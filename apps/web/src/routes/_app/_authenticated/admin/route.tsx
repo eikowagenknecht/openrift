@@ -26,15 +26,7 @@ export const Route = createFileRoute("/_app/_authenticated/admin")({
 function AdminLayout() {
   return (
     <div className="flex-1">
-      {/*
-        Pin the sidebar-provider's height directly. On desktop the in-flow
-        sidebar (NestedSidebar) would size the flex row via calc(100svh - ...),
-        but on mobile the sidebar is a Sheet portal, so nothing in the row
-        provides height. Without an explicit height here, the nested
-        flex-1 / min-h-0 chain collapses to zero and the admin tables render
-        no rows at all.
-      */}
-      <SidebarProvider className="h-[calc(100svh-3.5rem-1px)] min-h-0!">
+      <SidebarProvider className="min-h-0!">
         <AdminSidebar />
         <AdminContent />
       </SidebarProvider>
@@ -53,15 +45,7 @@ function AdminContent() {
         <Separator orientation="vertical" className="mx-1 h-4! self-center!" />
         <h1 className="text-sm font-medium">{title}</h1>
       </header>
-      {/*
-        overflow-y-auto lets long pages (e.g. the card detail page, which does
-        not provide its own internal scroll) scroll within the bounded admin
-        layout. Pages that *do* manage their own scroll (the Cards /
-        Candidates / Unmatched tables) nest a flex-1 / min-h-0 chain here, so
-        this wrapper never grows past its flex allocation and their internal
-        scrollers keep working.
-      */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3 pb-6">
+      <div className="flex min-h-0 flex-1 flex-col p-3 pb-6">
         <Outlet />
       </div>
       <Footer className={FOOTER_PADDING_NO_TOP} />
