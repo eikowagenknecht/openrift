@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { collectEntries, displayedProductLanguage } from "./marketplace-products-table";
+import {
+  collectEntries,
+  displayedProductLanguage,
+  isCardNameMismatch,
+} from "./marketplace-products-table";
 import type {
   MarketplaceAssignment,
   StagedProduct,
@@ -121,7 +125,12 @@ describe("collectEntries", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].isAssigned).toBe(true);
     expect([...entries[0].assignedPrintingIds]).toEqual(["p-1"]);
-    expect(entries[0].assignedPrintings[0].label).toBe("EN:OGN-001::normal");
+    expect(entries[0].assignedPrintings[0]).toMatchObject({
+      printingId: "p-1",
+      shortCode: "OGN-001",
+      finish: "normal",
+      language: "EN",
+    });
   });
 
   it("does not cross-contaminate assigned printings across language variants for per-language marketplaces", () => {
@@ -251,6 +260,36 @@ describe("collectEntries", () => {
     expect(displayedProductLanguage("cardtrader", "")).toBeNull();
   });
 
+  it("populates otherAssignedPrintingIds with printings assigned to a different external ID in the same marketplace", () => {
+    // Two CT products, each with its own assignment. From product 1's view,
+    // the printing assigned to product 2 shows up in otherAssignedPrintingIds
+    // so the Assign dropdown can dim it as a conflict hint.
+    const pNormal = printing({ printingId: "p-normal", finish: "normal" });
+    const pFoil = printing({ printingId: "p-foil", finish: "foil" });
+    const entries = collectEntries(
+      group([pNormal, pFoil], {
+        cardtrader: {
+          staged: [],
+          assigned: [
+            staged({ externalId: 1, finish: "normal" }),
+            staged({ externalId: 2, finish: "foil" }),
+          ],
+          assignments: [
+            { externalId: 1, printingId: "p-normal", finish: "normal", language: "EN" },
+            { externalId: 2, printingId: "p-foil", finish: "foil", language: "EN" },
+          ],
+        },
+      }),
+    );
+    const one = entries.find((e) => e.product.externalId === 1);
+    const two = entries.find((e) => e.product.externalId === 2);
+    expect([...(one?.otherAssignedPrintingIds ?? [])]).toEqual(["p-foil"]);
+    expect([...(two?.otherAssignedPrintingIds ?? [])]).toEqual(["p-normal"]);
+    // Own assignment does not appear in otherAssignedPrintingIds.
+    expect(one?.otherAssignedPrintingIds.has("p-normal")).toBe(false);
+    expect(two?.otherAssignedPrintingIds.has("p-foil")).toBe(false);
+  });
+
   it("skips assignment entries whose printingId is not in group.printings", () => {
     // Defensive — should never happen after the merge fix, but if a stale
     // assignment sneaks through we shouldn't crash or produce undefined rows.
@@ -267,5 +306,28 @@ describe("collectEntries", () => {
     );
     expect(entries).toHaveLength(1);
     expect(entries[0].assignedPrintings).toEqual([]);
+  });
+});
+
+describe("isCardNameMismatch", () => {
+  it("returns false when the product name contains the card name as a substring", () => {
+    expect(isCardNameMismatch("Blast Cone (Foil)", "Blast Cone")).toBe(false);
+    expect(isCardNameMismatch("Jinx Loose Cannon Signature", "Loose Cannon")).toBe(false);
+  });
+
+  it("ignores punctuation, spacing, and casing when matching", () => {
+    // "Kai'Sa, Survivor" vs "KaiSa Survivor" — same card, different surface form.
+    expect(isCardNameMismatch("Kai'Sa, Survivor - Alt Art", "KaiSa Survivor")).toBe(false);
+    expect(isCardNameMismatch("BLAST CONE", "Blast Cone")).toBe(false);
+    expect(isCardNameMismatch("Mega-Mech Foil", "Mega Mech")).toBe(false);
+  });
+
+  it("returns true when the product name does not contain the card name", () => {
+    expect(isCardNameMismatch("Champion Cantrip", "Blast Cone")).toBe(true);
+    expect(isCardNameMismatch("Random Token", "Fireball")).toBe(true);
+  });
+
+  it("returns false when the card name is empty (can't meaningfully match)", () => {
+    expect(isCardNameMismatch("Some Product", "")).toBe(false);
   });
 });
