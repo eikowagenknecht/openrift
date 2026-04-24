@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-24
+
+- fix: The admin Candidates table now lays out correctly on narrow screens — the Card column leads, the favorite and Unchecked badges sit inline with the name, and column widths match the Cards table
+
 ## 2026-04-23
 
 - feat: Adding a burst of cards in collection add mode now shows a single summary toast per batch (e.g. "Added 5 cards" or "Added 3× Lux") instead of flooding you with one toast per click, whether you use the quick-add palette or the plus buttons on each card tile
