@@ -63,51 +63,21 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v4
 
-      - name: Build and push api image
-        uses: docker/build-push-action@v7
+      - name: Build and push images
+        uses: docker/bake-action@v7
         with:
-          context: .
-          target: api
+          source: .
+          files: ./docker-bake.hcl
+          targets: default
           push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/openrift-api:v${{ needs.release.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/openrift-api:latest
-          cache-from: type=gha,scope=api
-          cache-to: type=gha,mode=max,scope=api
-
-      - name: Build and push web image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          target: web
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/openrift-web:v${{ needs.release.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/openrift-web:latest
-          cache-from: type=gha,scope=web
-          cache-to: type=gha,mode=max,scope=web
-          # Sentry source-map upload happens during `bun run build` in the
-          # build stage. SENTRY_ORG/PROJECT are non-sensitive and passed as
-          # build args; the auth token is a BuildKit secret so it stays out
-          # of image layer history. Target project is openrift-ssr (shared
-          # between SSR and browser — see .env.example).
-          build-args: |
-            SENTRY_ORG=${{ secrets.SENTRY_ORG }}
-            SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT }}
-          secrets: |
-            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
-
-      - name: Build and push proxy image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          target: proxy
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/openrift-proxy:v${{ needs.release.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/openrift-proxy:latest
-          cache-from: type=gha,scope=proxy
-          cache-to: type=gha,mode=max,scope=proxy
+        env:
+          OWNER: ${{ github.repository_owner }}
+          REF: v${{ needs.release.outputs.version }}
+          PUSH_LATEST: true
+          CACHE_SCOPE: main-build
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
   deploy:
     runs-on: ubuntu-latest
