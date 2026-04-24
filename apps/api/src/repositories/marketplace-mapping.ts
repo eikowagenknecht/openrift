@@ -789,8 +789,8 @@ export function marketplaceMappingRepo(db: Db) {
               JOIN marketplace_products mp ON mp.id = iv.marketplace_product_id
               WHERE mp.marketplace = s.marketplace
                 AND mp.external_id = s.external_id
-                AND iv.finish = s.finish
-                AND iv.language = s.language
+                AND mp.finish = s.finish
+                AND mp.language IS NOT DISTINCT FROM s.language
             )
           ORDER BY s.marketplace, s.external_id, s.finish, s.language, s.recorded_at DESC
         )
