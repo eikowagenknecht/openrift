@@ -47,6 +47,7 @@ import * as m098 from "./098-ultimate-art-variant.js";
 import * as m099 from "./099-marketplace-zero-low-cents.js";
 import * as m100 from "./100-cardtrader-zero-first-headline.js";
 import * as m101 from "./101-job-runs.js";
+import * as m102 from "./102-marketplace-product-variants-constraint.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -153,4 +154,5 @@ export const migrations: Record<string, Migration> = {
   "099-marketplace-zero-low-cents": m099,
   "100-cardtrader-zero-first-headline": m100,
   "101-job-runs": m101,
+  "102-marketplace-product-variants-constraint": m102,
 };
