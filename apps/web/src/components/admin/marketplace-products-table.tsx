@@ -24,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Table,
   TableBody,
@@ -323,6 +324,9 @@ export function MarketplaceProductsTable({
               >
                 <WandSparklesIcon />
                 Accept all {totalStrongCount} suggestion{totalStrongCount === 1 ? "" : "s"}
+                <Kbd className="bg-background/20 pointer-events-none ml-1 leading-none text-inherit opacity-60">
+                  Ctrl ↵
+                </Kbd>
               </Button>
             )}
           </TableHead>

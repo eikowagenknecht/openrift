@@ -4,7 +4,9 @@ import type {
   UnifiedMappingsCardResponse,
   UnifiedMappingsResponse,
 } from "@openrift/shared";
+import { useHotkey } from "@tanstack/react-hotkeys";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUnmapMarketplacePrinting } from "@/hooks/use-admin-card-mutations";
@@ -19,7 +21,7 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 
 import type { MarketplaceHandlers } from "./marketplace-products-table";
-import { MarketplaceProductsTable } from "./marketplace-products-table";
+import { collectStrongMappings, MarketplaceProductsTable } from "./marketplace-products-table";
 import { computeProductSuggestions } from "./suggest-mapping";
 
 export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
@@ -125,6 +127,32 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
     queryKeys.admin.cards.detail(cardId),
     queryKeys.admin.unifiedMappings.all,
   ]);
+
+  // oxlint-disable-next-line no-empty-function -- default no-op until the effect below installs the real handler
+  const acceptAllRef = useRef<() => void>(() => {});
+  useHotkey("Mod+Enter", () => acceptAllRef.current(), {
+    enabled: !(tcgSaveMapping.isPending || cmSaveMapping.isPending || ctSaveMapping.isPending),
+  });
+  // Install the latest accept-all closure every render so the hotkey fires
+  // against the current data/handlers without needing a stale dep list.
+  useEffect(() => {
+    const group = data?.group;
+    if (!group) {
+      // oxlint-disable-next-line no-empty-function -- no-op when there's no data yet
+      acceptAllRef.current = () => {};
+      return;
+    }
+    const suggestions = computeProductSuggestions(group);
+    const strong = collectStrongMappings(group, suggestions);
+    acceptAllRef.current = () => {
+      for (const mp of ["tcgplayer", "cardmarket", "cardtrader"] as const) {
+        const mappings = strong[mp];
+        if (mappings.length > 0) {
+          applyAssignments(mp)(mappings);
+        }
+      }
+    };
+  });
 
   if (isLoading || !data) {
     return <Skeleton className="h-40 w-full" />;

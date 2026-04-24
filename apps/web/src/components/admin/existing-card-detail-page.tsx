@@ -165,7 +165,7 @@ export function ExistingCardDetailPage({
   const checkAllAndNextRef = useRef<() => void>(() => {});
   // oxlint-disable-next-line no-empty-function -- default no-op until the effect below installs the real handler
   const prevNextRef = useRef<(dir: "prev" | "next") => void>(() => {});
-  useHotkey("Mod+Enter", () => checkAllAndNextRef.current(), {
+  useHotkey("Mod+Shift+Enter", () => checkAllAndNextRef.current(), {
     enabled: !isCheckingAll,
   });
   useHotkey("Mod+ArrowLeft", () => prevNextRef.current("prev"));
@@ -460,7 +460,7 @@ export function ExistingCardDetailPage({
             {isCheckingAll ? <LoaderIcon className="animate-spin" /> : <CheckCheckIcon />}
             {isCheckingAll ? "Checking…" : "Check all & next"}
             <Kbd className="bg-background/20 pointer-events-none ml-1 leading-none text-inherit opacity-60">
-              Ctrl ↵
+              Ctrl ⇧ ↵
             </Kbd>
           </Button>
           <DropdownMenu>
