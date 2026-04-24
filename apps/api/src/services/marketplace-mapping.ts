@@ -554,7 +554,7 @@ export async function getMappingOverview(
  * signature. The service just verifies the SKU exists (in staging or as an
  * already-upserted product) before binding it.
  */
-export interface SaveMappingInput {
+interface SaveMappingInput {
   printingId: string;
   externalId: number;
   finish: string;
