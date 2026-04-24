@@ -15,6 +15,8 @@ interface ThemeState {
   setTheme: (value: Theme | null) => void;
   /** Legacy toggle — cycles light → dark → auto. */
   toggleTheme: () => void;
+  /** Clear the stored preference (used on sign-out). */
+  reset: () => void;
 }
 
 function getSystemTheme(): ResolvedTheme {
@@ -55,6 +57,11 @@ export const useThemeStore = create<ThemeState>()(
           applyTheme(resolved);
           return { preference: next, theme: resolved };
         }),
+      reset: () => {
+        const resolved = resolveTheme(null);
+        applyTheme(resolved);
+        set({ preference: null, theme: resolved });
+      },
     }),
     {
       name: "theme",

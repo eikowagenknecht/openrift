@@ -132,6 +132,55 @@ describe("useDisplayStore", () => {
     });
   });
 
+  describe("reset", () => {
+    it("clears every override and resolves back to defaults", () => {
+      const store = useDisplayStore.getState();
+      store.setShowImages(false);
+      store.setFancyFan(true);
+      store.setFoilEffect(false);
+      store.setCardTilt(false);
+      store.setMarketplaceOrder(["cardmarket"]);
+      store.setLanguages(["DE", "FR"]);
+      store.setDefaultCardView("cards");
+
+      useDisplayStore.getState().reset();
+
+      const state = useDisplayStore.getState();
+      expect(state.overrides).toEqual({
+        showImages: null,
+        fancyFan: null,
+        foilEffect: null,
+        cardTilt: null,
+        marketplaceOrder: null,
+        languages: null,
+        completionScope: null,
+        defaultCardView: null,
+      });
+      expect(state.showImages).toBe(PREFERENCE_DEFAULTS.showImages);
+      expect(state.fancyFan).toBe(PREFERENCE_DEFAULTS.fancyFan);
+      expect(state.foilEffect).toBe(PREFERENCE_DEFAULTS.foilEffect);
+      expect(state.cardTilt).toBe(PREFERENCE_DEFAULTS.cardTilt);
+      expect(state.marketplaceOrder).toEqual(PREFERENCE_DEFAULTS.marketplaceOrder);
+      expect(state.languages).toEqual(PREFERENCE_DEFAULTS.languages);
+      expect(state.defaultCardView).toBe(PREFERENCE_DEFAULTS.defaultCardView);
+    });
+
+    it("preserves device-local state", () => {
+      const store = useDisplayStore.getState();
+      store.setLanguages(["DE"]);
+      store.setMaxColumns(4);
+      store.setFiltersExpanded(true);
+      store.cycleCatalogMode(); // off → count
+
+      useDisplayStore.getState().reset();
+
+      const state = useDisplayStore.getState();
+      expect(state.maxColumns).toBe(4);
+      expect(state.filtersExpanded).toBe(true);
+      expect(state.catalogMode).toBe("count");
+    });
+  });
+
   describe("hydrateOverrides", () => {
     it("applies incoming overrides and resolves values", () => {
       useDisplayStore.getState().hydrateOverrides({
