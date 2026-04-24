@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestContext, req } from "../../test/integration-context.js";
+import { createTestContext, refreshCardAggregates, req } from "../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Marketplace mapping mutation routes
@@ -150,6 +150,8 @@ if (ctx) {
       avg30Cents: 75,
     })
     .execute();
+
+  await refreshCardAggregates(db);
 }
 
 // ---------------------------------------------------------------------------

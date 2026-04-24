@@ -9,6 +9,7 @@
 
 import { createLogger } from "@openrift/shared/logger";
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 
 import { createApp } from "../app.js";
 import { createDb } from "../db/connect.js";
@@ -135,3 +136,14 @@ export function createDbContext(userId: string): DbContext | null {
 }
 
 export { req } from "./integration-helper.js";
+
+/**
+ * Refresh `mv_card_aggregates`. The integration harness refreshes it once at
+ * startup, but test files that insert their own cards + card_domains need to
+ * refresh again so INNER JOINs on the MV (e.g. in unified-mappings queries)
+ * see the new rows.
+ * @returns A promise that resolves when the refresh completes.
+ */
+export async function refreshCardAggregates(db: Db): Promise<void> {
+  await sql`REFRESH MATERIALIZED VIEW CONCURRENTLY mv_card_aggregates`.execute(db);
+}

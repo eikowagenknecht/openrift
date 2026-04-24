@@ -30,6 +30,15 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
   let printingWithMarkerId = "";
 
   beforeAll(async () => {
+    // The test transitions markers [promo] → [nexus, promo] to force the join
+    // table through an empty state. `promo` is globally seeded; `nexus` is not,
+    // so seed it here for this test to reference.
+    await db
+      .insertInto("markers")
+      .values({ slug: "nexus", label: "Nexus", description: null, sortOrder: 100 })
+      .onConflict((oc) => oc.column("slug").doNothing())
+      .execute();
+
     const [setRow] = await db
       .insertInto("sets")
       .values({

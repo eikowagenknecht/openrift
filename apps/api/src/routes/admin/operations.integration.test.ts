@@ -400,37 +400,39 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
   // ── POST /admin/refresh-tcgplayer-prices ────────────────────────────────
 
   describe("POST /admin/refresh-tcgplayer-prices", () => {
-    it("returns 200 with refresh result", async () => {
+    it("returns 202 with runId (fire-and-forget)", async () => {
       const res = await app.fetch(req("POST", "/admin/refresh-tcgplayer-prices"));
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(202);
 
       const json = await res.json();
-      expect(json).toHaveProperty("transformed");
+      expect(json).toHaveProperty("runId");
+      expect(json).toHaveProperty("status");
     });
   });
 
   // ── POST /admin/refresh-cardmarket-prices ──────────────────────────────
 
   describe("POST /admin/refresh-cardmarket-prices", () => {
-    it("returns 200 with refresh result", async () => {
+    it("returns 202 with runId (fire-and-forget)", async () => {
       const res = await app.fetch(req("POST", "/admin/refresh-cardmarket-prices"));
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(202);
 
       const json = await res.json();
-      expect(json).toHaveProperty("transformed");
+      expect(json).toHaveProperty("runId");
+      expect(json).toHaveProperty("status");
     });
   });
 
   // ── POST /admin/refresh-cardtrader-prices ─────────────────────────────
 
   describe("POST /admin/refresh-cardtrader-prices", () => {
-    it("returns 200 with refresh result", async () => {
+    it("returns 202 with runId (fire-and-forget)", async () => {
       const res = await app.fetch(req("POST", "/admin/refresh-cardtrader-prices"));
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(202);
 
       const json = await res.json();
-      expect(json).toHaveProperty("transformed");
-      expect(json).toHaveProperty("upserted");
+      expect(json).toHaveProperty("runId");
+      expect(json).toHaveProperty("status");
     });
   });
 });

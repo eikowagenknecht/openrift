@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { Io } from "../../../io.js";
-import { createTestContext, req } from "../../../test/integration-context.js";
+import {
+  createTestContext,
+  refreshCardAggregates,
+  req,
+} from "../../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Card-sources image management routes
@@ -15,7 +19,13 @@ const FAKE_BUFFER = Buffer.from("img");
 const mockSharpPipeline = {
   resize: () => mockSharpPipeline,
   webp: () => mockSharpPipeline,
-  toBuffer: async () => FAKE_BUFFER,
+  rotate: () => mockSharpPipeline,
+  trim: () => mockSharpPipeline,
+  extract: () => mockSharpPipeline,
+  toBuffer: async (opts?: { resolveWithObject?: boolean }) =>
+    opts?.resolveWithObject
+      ? { data: FAKE_BUFFER, info: { width: 400, height: 560 } }
+      : FAKE_BUFFER,
   metadata: async () => ({ width: 400, height: 560 }),
 };
 
@@ -230,6 +240,8 @@ if (ctx) {
     .returning("id")
     .execute();
   psUnlinkedId = psUnlinked.id;
+
+  await refreshCardAggregates(db);
 }
 
 // ---------------------------------------------------------------------------

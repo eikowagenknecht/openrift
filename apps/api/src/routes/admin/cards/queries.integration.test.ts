@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { createTestContext, req } from "../../../test/integration-context.js";
+import {
+  createTestContext,
+  refreshCardAggregates,
+  req,
+} from "../../../test/integration-context.js";
 
 // ---------------------------------------------------------------------------
 // Integration tests: Card-sources query routes (/admin/cards/*)
@@ -352,6 +356,8 @@ if (ctx) {
     .values({ provider: "csq-spreadsheet", isFavorite: true })
     .onConflict((oc) => oc.column("provider").doUpdateSet({ isFavorite: true }))
     .execute();
+
+  await refreshCardAggregates(db);
 }
 
 // ---------------------------------------------------------------------------
@@ -815,6 +821,8 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
           { cardId: longCard.id, normName: "csqblastconefae" },
         ])
         .execute();
+
+      await refreshCardAggregates(testDb);
 
       await testDb
         .insertInto("marketplaceStaging")
