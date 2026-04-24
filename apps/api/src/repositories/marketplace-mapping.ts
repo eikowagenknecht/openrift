@@ -217,6 +217,7 @@ export function marketplaceMappingRepo(db: Db) {
           "mp.externalId as externalId",
           "mp.groupId as sourceGroupId",
           "mg.name as sourceGroupName",
+          "mg.groupKind as sourceGroupKind",
           "mp.language as sourceLanguage",
           "mp.finish as productFinish",
         ]);
@@ -734,6 +735,7 @@ export function marketplaceMappingRepo(db: Db) {
         language: string;
         groupId: number;
         groupName: string | null;
+        groupKind: "basic" | "special";
         marketCents: number | null;
         lowCents: number | null;
         midCents: number | null;
@@ -824,6 +826,7 @@ export function marketplaceMappingRepo(db: Db) {
           m.language,
           m.group_id as "groupId",
           g.name as "groupName",
+          g.group_kind as "groupKind",
           m.market_cents as "marketCents",
           m.low_cents as "lowCents",
           m.mid_cents as "midCents",
