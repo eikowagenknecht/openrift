@@ -87,7 +87,10 @@ interface MappingOverviewResult {
 type GetMappingOverview = (
   repos: Repos,
   config: MarketplaceConfig,
-  options?: { matchedCards?: MatchedCardsRow[] },
+  options?: {
+    matchedCards?: MatchedCardsRow[];
+    allCardsForMatching?: { cardId: string; cardName: string }[];
+  },
 ) => Promise<MappingOverviewResult>;
 
 /**
@@ -394,15 +397,25 @@ export async function buildUnifiedMappingsCardResponse(
     return { group: null, allCards };
   }
 
+  // `allCards` covers every card in the corpus — pass it as the name-match
+  // tiebreaker so the scoped `matchedCards` (one card here) doesn't let short
+  // prefixes steal products that belong to cards with longer aliases.
+  const allCardsForMatching = allCards.map((c) => ({
+    cardId: c.cardId,
+    cardName: c.cardName,
+  }));
   const [tcgResult, cmResult, ctResult] = await Promise.all([
     getMappingOverview(repos, tcgplayerConfig, {
       matchedCards: deriveCardsForMarketplace(unifiedRows, tcgplayerConfig.marketplace),
+      allCardsForMatching,
     }),
     getMappingOverview(repos, cardmarketConfig, {
       matchedCards: deriveCardsForMarketplace(unifiedRows, cardmarketConfig.marketplace),
+      allCardsForMatching,
     }),
     getMappingOverview(repos, cardtraderConfig, {
       matchedCards: deriveCardsForMarketplace(unifiedRows, cardtraderConfig.marketplace),
+      allCardsForMatching,
     }),
   ]);
 

@@ -243,6 +243,38 @@ describe("getMappingOverview", () => {
     expect(result.unmatchedProducts).toHaveLength(1);
   });
 
+  it("does not steal products belonging to a longer-named card when scoped to one card", async () => {
+    // Regression: /admin/cards/blast-cone scopes matchedCards to just "Blast
+    // Cone", but both "Blast Cone" and "Blastcone Fae" products exist in
+    // staging. Without allCardsForMatching, the shorter alias `blastcone`
+    // would match `blastconefae` via startsWith and pull the Fae product
+    // onto the Blast Cone page.
+    const mappingRepo = createMockMappingRepo({
+      allStaging: vi
+        .fn()
+        .mockResolvedValue([
+          makeStagingRow({ externalId: 1, productName: "Blast Cone" }),
+          makeStagingRow({ externalId: 2, productName: "Blastcone Fae" }),
+        ]),
+    });
+    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
+    const config = createMockConfig();
+
+    const result = await getMappingOverview(repos, config, {
+      matchedCards: [makeCardPrintingRow({ cardId: "card-blast-cone", cardName: "Blast Cone" })],
+      allCardsForMatching: [
+        { cardId: "card-blast-cone", cardName: "Blast Cone" },
+        { cardId: "card-blastcone-fae", cardName: "Blastcone Fae" },
+      ],
+    });
+
+    const productIds = result.groups[0].stagedProducts.map((p) => p.externalId);
+    expect(productIds).toEqual([1]);
+    // The Fae row has been matched to another (out-of-scope) card, so it
+    // shouldn't resurface as unmatched either.
+    expect(result.unmatchedProducts.map((p) => p.externalId)).not.toContain(2);
+  });
+
   it("reports unmatched products", async () => {
     const mappingRepo = createMockMappingRepo({
       allCardsWithPrintings: vi.fn().mockResolvedValue([makeCardPrintingRow()]),

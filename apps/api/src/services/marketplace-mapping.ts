@@ -76,6 +76,14 @@ function buildCardIndex(
     sourceGroupId: number | null;
     sourceLanguage: string | null;
   }[],
+  // When the caller scopes `matchedCards` to a subset (e.g. the card-detail
+  // endpoint that only wants one card), the name index built from that subset
+  // can't break ties against cards outside the scope — so "Blastcone Fae"
+  // products would match "Blast Cone"'s shorter alias. Pass every card's
+  // (cardId, cardName) here to restore the global longest-match tiebreak.
+  // `matchStagedProducts` drops rows whose winning alias belongs to a card
+  // not in `cardGroups`, so only in-scope assignments surface in the response.
+  allCardsForMatching?: { cardId: string; cardName: string }[],
 ): CardIndex {
   const cardGroups = new Map<string, CardGroup>();
 
@@ -114,10 +122,13 @@ function buildCardIndex(
     });
   }
 
-  // Global name index (deduplicated by cardId)
+  // Global name index (deduplicated by cardId). Prefer `allCardsForMatching`
+  // when provided so the longest-first tiebreak sees every card, not just the
+  // scoped subset.
+  const nameRows = allCardsForMatching ?? matchedCards;
   const seenCards = new Set<string>();
   const cardNames: CardIndex["cardNames"] = [];
-  for (const row of matchedCards) {
+  for (const row of nameRows) {
     if (seenCards.has(row.cardId)) {
       continue;
     }
@@ -160,13 +171,19 @@ function matchStagedProducts(
       }
     }
 
-    // Fall back to prefix matching against all card names
+    // Fall back to prefix matching against all card names. `cardNames` is
+    // sorted longest-first, so the first match is the most specific. If the
+    // winning card isn't in our scoped `cardGroups` we still mark the row as
+    // matched so it won't surface as unmatched — the row belongs to another
+    // card and simply doesn't appear in this response.
     const normProduct = normalizeNameForMatching(row.productName);
     for (const { normName, groupKey } of cardNames) {
       if (normProduct.startsWith(normName)) {
-        const list = stagedByCard.get(groupKey) ?? [];
-        list.push(row);
-        stagedByCard.set(groupKey, list);
+        if (cardGroups.has(groupKey)) {
+          const list = stagedByCard.get(groupKey) ?? [];
+          list.push(row);
+          stagedByCard.set(groupKey, list);
+        }
         matchedStagingKeys.add(stagingKey);
         break;
       }
@@ -186,9 +203,11 @@ function matchStagedProducts(
     for (const { normName, baseName, groupKey } of cardNames) {
       const nameToMatch = baseName ?? normName;
       if (nameToMatch.length >= 5 && normProduct.includes(nameToMatch)) {
-        const list = stagedByCard.get(groupKey) ?? [];
-        list.push(row);
-        stagedByCard.set(groupKey, list);
+        if (cardGroups.has(groupKey)) {
+          const list = stagedByCard.get(groupKey) ?? [];
+          list.push(row);
+          stagedByCard.set(groupKey, list);
+        }
         matchedStagingKeys.add(stagingKey);
         break;
       }
@@ -325,6 +344,13 @@ interface GetMappingOverviewOptions {
    * cards × printings × images joins three times (once per marketplace).
    */
   matchedCards?: MatchedCardsRow[];
+  /**
+   * Every card's (cardId, cardName) used purely for the name-index tiebreak.
+   * Required when `matchedCards` is a narrow subset (e.g. the card-detail
+   * endpoint scopes to one card) — without it, the longest-first sort can't
+   * see competing aliases and short prefixes steal products from longer ones.
+   */
+  allCardsForMatching?: { cardId: string; cardName: string }[];
 }
 
 export async function getMappingOverview(
@@ -366,7 +392,7 @@ export async function getMappingOverview(
     groupNameMap.set(row.gid as number, (row.name as string) ?? `Group #${row.gid}`);
   }
 
-  const { cardGroups, cardNames } = buildCardIndex(matchedCards);
+  const { cardGroups, cardNames } = buildCardIndex(matchedCards, options?.allCardsForMatching);
 
   const overrideMap = new Map<string, { cardId: string }>();
   for (const row of overrideRows) {
