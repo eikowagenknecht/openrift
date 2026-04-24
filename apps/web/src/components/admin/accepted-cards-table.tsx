@@ -289,7 +289,7 @@ function buildColumns(
         const slug = r.cardSlug ?? r.normalizedName;
         const total = r.uncheckedCardCount + r.uncheckedPrintingCount;
         return (
-          <span className="flex items-center gap-2">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <Link
               to="/admin/cards/$cardSlug"
               params={{ cardSlug: slug }}
@@ -333,7 +333,7 @@ function buildColumns(
         const favorites = new Set(formatShortCodesArray(row.original.favoriteStagingShortCodes));
         const favoriteCount = row.original.favoriteStagingShortCodes.length;
         return (
-          <span className="flex items-center gap-2">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>
               {codes.map((code, index) => {
                 const isFavorite = favorites.has(code);
