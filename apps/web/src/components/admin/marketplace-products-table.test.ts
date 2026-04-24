@@ -310,19 +310,24 @@ describe("collectEntries", () => {
 });
 
 describe("isCardNameMismatch", () => {
-  it("returns false when the product name contains the card name as a substring", () => {
-    expect(isCardNameMismatch("Blast Cone (Foil)", "Blast Cone")).toBe(false);
-    expect(isCardNameMismatch("Jinx Loose Cannon Signature", "Loose Cannon")).toBe(false);
-  });
-
-  it("ignores punctuation, spacing, and casing when matching", () => {
-    // "Kai'Sa, Survivor" vs "KaiSa Survivor" — same card, different surface form.
-    expect(isCardNameMismatch("Kai'Sa, Survivor - Alt Art", "KaiSa Survivor")).toBe(false);
+  it("returns false only when the normalized names are exactly equal", () => {
+    // "Kai'Sa, Survivor" vs "KaiSa Survivor" — same card, different surface
+    // form — punctuation, spacing, and casing normalize away.
+    expect(isCardNameMismatch("Kai'Sa, Survivor", "KaiSa Survivor")).toBe(false);
     expect(isCardNameMismatch("BLAST CONE", "Blast Cone")).toBe(false);
-    expect(isCardNameMismatch("Mega-Mech Foil", "Mega Mech")).toBe(false);
+    expect(isCardNameMismatch("Mega-Mech", "Mega Mech")).toBe(false);
   });
 
-  it("returns true when the product name does not contain the card name", () => {
+  it("returns true when the product name has any extra suffix beyond the card name", () => {
+    // Substring containment is not enough — suffixes like "(Foil)" or variant
+    // markers must trigger the yellow highlight so the admin notices them.
+    expect(isCardNameMismatch("Blast Cone (Foil)", "Blast Cone")).toBe(true);
+    expect(isCardNameMismatch("Jinx Loose Cannon Signature", "Loose Cannon")).toBe(true);
+    expect(isCardNameMismatch("Kai'Sa, Survivor - Alt Art", "KaiSa Survivor")).toBe(true);
+    expect(isCardNameMismatch("Mega-Mech Foil", "Mega Mech")).toBe(true);
+  });
+
+  it("returns true when the product name does not contain the card name at all", () => {
     expect(isCardNameMismatch("Champion Cantrip", "Blast Cone")).toBe(true);
     expect(isCardNameMismatch("Random Token", "Fireball")).toBe(true);
   });

@@ -21,6 +21,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -91,10 +92,23 @@ interface TableEntry {
 }
 
 /**
- * Whether a product name visibly lacks the card name. Uses the same
- * alphanumeric-spaceless normalization as `suggest-mapping`, so cosmetic
- * differences (punctuation, spacing, casing) don't trigger a mismatch.
- * @returns true when the normalized card name does not appear in the normalized product name.
+ * The set portion of a short code — everything before the first dash.
+ * "OGN-027a" → "OGN", "SFD-123" → "SFD". Short codes without a dash return
+ * the full string as the prefix.
+ * @returns The set prefix portion of a short code.
+ */
+function setPrefix(shortCode: string): string {
+  const dash = shortCode.indexOf("-");
+  return dash === -1 ? shortCode : shortCode.slice(0, dash);
+}
+
+/**
+ * Whether a product name does not normalize to the exact same string as the
+ * card name. Uses the alphanumeric-spaceless normalization from
+ * `suggest-mapping`, so cosmetic differences (punctuation, spacing, casing)
+ * don't trigger a mismatch — but any extra suffix like "(Foil)" or
+ * "Alternate Art" does.
+ * @returns true when the normalized product and card names are not equal.
  */
 export function isCardNameMismatch(productName: string, cardName: string): boolean {
   const normProduct = normalizeNameForMatching(productName);
@@ -102,7 +116,7 @@ export function isCardNameMismatch(productName: string, cardName: string): boole
   if (normCard.length === 0) {
     return false;
   }
-  return !normProduct.includes(normCard);
+  return normProduct !== normCard;
 }
 
 /**
@@ -220,9 +234,9 @@ export function MarketplaceProductsTable({
       <TableHeader>
         <TableRow>
           <TableHead className="w-20">ID</TableHead>
-          <TableHead>Product</TableHead>
+          <TableHead className="w-80">Product</TableHead>
           <TableHead className="w-16">Language</TableHead>
-          <TableHead>Set</TableHead>
+          <TableHead className="w-40">Set</TableHead>
           <TableHead className="w-16">Finish</TableHead>
           <TableHead className="w-20 text-right">Price</TableHead>
           <TableHead>Assigned printings</TableHead>
@@ -329,7 +343,7 @@ function MarketplaceProductRow({
             #{product.externalId}
           </ProductLink>
         </TableCell>
-        <TableCell className="max-w-0">
+        <TableCell className="w-80 max-w-0">
           <div className="flex items-center gap-1.5">
             {isAssigned ? (
               <CheckIcon className="size-3.5 shrink-0 text-green-600 dark:text-green-400" />
@@ -343,7 +357,7 @@ function MarketplaceProductRow({
               )}
               title={
                 nameMismatched
-                  ? `${product.productName} (does not contain card name "${cardName}")`
+                  ? `${product.productName} (does not match card name "${cardName}")`
                   : product.productName
               }
             >
@@ -356,7 +370,7 @@ function MarketplaceProductRow({
             <span className="text-muted-foreground/50">—</span>
           )}
         </TableCell>
-        <TableCell className="text-muted-foreground max-w-0">
+        <TableCell className="text-muted-foreground w-40 max-w-0">
           <span className="block truncate" title={product.groupName ?? undefined}>
             {product.groupName ?? <span className="text-muted-foreground/50">—</span>}
           </span>
@@ -422,6 +436,8 @@ function MarketplaceProductRow({
               product={product}
               assignedPrintingIds={assignedPrintingIds}
               otherAssignedPrintingIds={otherAssignedPrintingIds}
+              highlightFinish={product.finish}
+              highlightLanguage={highlightLanguage}
               onAssignToPrinting={(eid, pid) => handlers.onAssignToPrinting(eid, pid)}
               isAssigning={handlers.isAssigningToPrinting}
             />
@@ -565,6 +581,8 @@ function AssignToPrintingButton({
   product,
   assignedPrintingIds,
   otherAssignedPrintingIds,
+  highlightFinish,
+  highlightLanguage,
   onAssignToPrinting,
   isAssigning,
 }: {
@@ -572,6 +590,8 @@ function AssignToPrintingButton({
   product: StagedProduct;
   assignedPrintingIds: Set<string>;
   otherAssignedPrintingIds: Set<string>;
+  highlightFinish?: string;
+  highlightLanguage?: string;
   onAssignToPrinting: (externalId: number, printingId: string) => void;
   isAssigning: boolean;
 }) {
@@ -598,31 +618,39 @@ function AssignToPrintingButton({
         }
       />
       <DropdownMenuContent align="end">
-        {sorted.map((printing) => {
-          const label = formatPrintingLabel(
-            printing.shortCode,
-            printing.markerSlugs,
-            printing.finish,
-            printing.language,
-          );
+        {sorted.map((printing, index) => {
           const currentlyAssigned = assignedPrintingIds.has(printing.printingId);
           const assignedElsewhere =
             !currentlyAssigned && otherAssignedPrintingIds.has(printing.printingId);
+          // Printings are sorted by (language, shortCode), so any change in
+          // language OR set-prefix across adjacent items marks a group
+          // boundary. One separator covers either case — no doubles.
+          const prev = index > 0 ? sorted[index - 1] : null;
+          const needsSeparator =
+            prev !== null &&
+            (prev.language !== printing.language ||
+              setPrefix(prev.shortCode) !== setPrefix(printing.shortCode));
           return (
-            <DropdownMenuItem
-              key={printing.printingId}
-              disabled={isAssigning}
-              onClick={() => onAssignToPrinting(product.externalId, printing.printingId)}
-              title={assignedElsewhere ? "Already assigned to another product" : undefined}
-              className={cn(assignedElsewhere && "text-muted-foreground/60")}
-            >
-              {currentlyAssigned ? (
-                <CheckIcon className="size-3.5 text-green-600 dark:text-green-400" />
-              ) : (
-                <span className="inline-block size-3.5" />
-              )}
-              {label}
-            </DropdownMenuItem>
+            <React.Fragment key={printing.printingId}>
+              {needsSeparator && <DropdownMenuSeparator />}
+              <DropdownMenuItem
+                disabled={isAssigning}
+                onClick={() => onAssignToPrinting(product.externalId, printing.printingId)}
+                title={assignedElsewhere ? "Already assigned to another product" : undefined}
+                className={cn(assignedElsewhere && "text-muted-foreground/60")}
+              >
+                {currentlyAssigned ? (
+                  <CheckIcon className="size-3.5 text-green-600 dark:text-green-400" />
+                ) : (
+                  <span className="inline-block size-3.5" />
+                )}
+                <PrintingLabel
+                  printing={printing}
+                  highlightFinish={highlightFinish}
+                  highlightLanguage={highlightLanguage}
+                />
+              </DropdownMenuItem>
+            </React.Fragment>
           );
         })}
       </DropdownMenuContent>
