@@ -1,13 +1,7 @@
 import type { CandidateCardSummaryResponse } from "@openrift/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import type {
-  ColumnDef,
-  ColumnFiltersState,
-  FilterFn,
-  SortingState,
-  Updater,
-} from "@tanstack/react-table";
+import type { ColumnDef, SortingState, Updater } from "@tanstack/react-table";
 import {
   flexRender,
   getCoreRowModel,
@@ -56,46 +50,27 @@ type StatusFilter = "unchecked";
 type Row = CandidateCardSummaryResponse;
 
 // ---------------------------------------------------------------------------
-// Status filter
-// ---------------------------------------------------------------------------
-
-const statusFilterFn: FilterFn<Row> = (row, _columnId, filterValue) => {
-  const value = filterValue as StatusFilter | undefined;
-  if (!value) {
-    return true;
-  }
-  const r = row.original;
-  return r.uncheckedCardCount + r.uncheckedPrintingCount > 0;
-};
-
-// ---------------------------------------------------------------------------
 // Column definitions (dependencies passed via closure over meta)
 // ---------------------------------------------------------------------------
 
 function makeColumns(meta: CardNameCellMeta): ColumnDef<Row>[] {
   return [
     {
-      id: "status",
-      header: "Status",
-      enableSorting: false,
-      filterFn: statusFilterFn,
-      cell: ({ row }) => {
-        const r = row.original;
-        const total = r.uncheckedCardCount + r.uncheckedPrintingCount;
-        return (
-          <div className="flex items-center gap-1">
-            {r.hasFavorite && <Badge>favorite</Badge>}
-            {total > 0 && <Badge variant="destructive">★ Unchecked</Badge>}
-          </div>
-        );
-      },
-    },
-    {
       id: "name",
       accessorFn: (r) => r.name,
       header: ({ column }) => <SortableHeader column={column} label="Card" />,
       enableGlobalFilter: true,
-      cell: ({ row }) => <CardNameCell row={row.original} meta={meta} />,
+      cell: ({ row }) => {
+        const r = row.original;
+        const total = r.uncheckedCardCount + r.uncheckedPrintingCount;
+        return (
+          <span className="flex flex-wrap items-center gap-2">
+            <CardNameCell row={r} meta={meta} />
+            {r.hasFavorite && <Badge>favorite</Badge>}
+            {total > 0 && <Badge variant="destructive">★ Unchecked</Badge>}
+          </span>
+        );
+      },
     },
     {
       id: "printings",
@@ -115,12 +90,13 @@ function makeColumns(meta: CardNameCellMeta): ColumnDef<Row>[] {
 }
 
 // ---------------------------------------------------------------------------
-// Column widths (applied with table-layout: fixed so filtering doesn't reflow)
+// Column widths (applied with table-layout: fixed so filtering doesn't reflow).
+// Matches accepted-cards-table: Card column first at 25%, printings fills the
+// remainder, and the trailing numeric column takes a fixed 120px.
 // ---------------------------------------------------------------------------
 
 const COLUMN_WIDTHS: Record<string, string> = {
-  status: "120px",
-  name: "30%",
+  name: "25%",
   candidates: "120px",
 };
 
@@ -183,15 +159,16 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
     }),
   });
 
-  const columnFilters: ColumnFiltersState = activeStatus
-    ? [{ id: "status", value: activeStatus }]
-    : [];
-
   const uncheckedCount = data.filter(
     (r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0,
   ).length;
 
   const acceptableCount = data.filter((r) => !r.cardSlug && r.hasFavorite).length;
+
+  const filteredData =
+    activeStatus === "unchecked"
+      ? data.filter((r) => r.uncheckedCardCount + r.uncheckedPrintingCount > 0)
+      : data;
 
   function toggleStatus(status: StatusFilter) {
     void navigate({
@@ -207,15 +184,6 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
     const next = typeof updater === "function" ? updater(sorting) : updater;
     void navigate({
       search: (prev) => ({ ...prev, sort: stringifySort(next) }),
-      replace: true,
-    });
-  }
-
-  function handleColumnFiltersChange(updater: Updater<ColumnFiltersState>) {
-    const next = typeof updater === "function" ? updater(columnFilters) : updater;
-    const statusFilter = next.find((f) => f.id === "status")?.value as StatusFilter | undefined;
-    void navigate({
-      search: (prev) => ({ ...prev, status: statusFilter }),
       replace: true,
     });
   }
@@ -241,11 +209,10 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
   const columns = makeColumns({ linkCard, acceptFavorite, allCards });
 
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
-    state: { sorting, columnFilters, globalFilter },
+    state: { sorting, globalFilter },
     onSortingChange: handleSortingChange,
-    onColumnFiltersChange: handleColumnFiltersChange,
     onGlobalFilterChange: handleGlobalFilterChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -320,41 +287,43 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
       {rows.length === 0 ? (
         <p className="text-muted-foreground py-8 text-center text-sm">No candidates found.</p>
       ) : (
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
-          <Table className="table-fixed">
-            <TableHeader className="sticky top-0 z-10">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} style={{ width: COLUMN_WIDTHS[header.id] }}>
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {virtualItems.length > 0 && <tr style={{ height: virtualItems[0].start }} />}
-              {virtualItems.map((virtualRow) => {
-                const row = rows[virtualRow.index];
-                return (
-                  <TableRow key={row.id} data-index={virtualRow.index}>
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        className={cn(cell.column.id === "printings" && "whitespace-normal")}
-                      >
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
+        <div className="relative min-h-0 flex-1">
+          <div ref={scrollRef} className="absolute inset-0 overflow-auto">
+            <Table className="table-fixed">
+              <TableHeader className="sticky top-0 z-10">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => (
+                      <TableHead key={header.id} style={{ width: COLUMN_WIDTHS[header.id] }}>
+                        {flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
                     ))}
                   </TableRow>
-                );
-              })}
-              {virtualItems.length > 0 && (
-                <tr style={{ height: totalSize - (virtualItems.at(-1)?.end ?? 0) }} />
-              )}
-            </TableBody>
-          </Table>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {virtualItems.length > 0 && <tr style={{ height: virtualItems[0].start }} />}
+                {virtualItems.map((virtualRow) => {
+                  const row = rows[virtualRow.index];
+                  return (
+                    <TableRow key={row.id} data-index={virtualRow.index}>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          className={cn(cell.column.id === "printings" && "whitespace-normal")}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })}
+                {virtualItems.length > 0 && (
+                  <tr style={{ height: totalSize - (virtualItems.at(-1)?.end ?? 0) }} />
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       )}
     </div>
