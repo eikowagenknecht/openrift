@@ -547,55 +547,18 @@ export function ExistingCardDetailPage({
         </div>
         {cardFieldsExpanded && (
           <CandidateSpreadsheet
-            fields={candidateCardFields
-              .filter((f) => f.key !== "rulesText" && f.key !== "effectText")
-              .map((f) => (f.key === "shortCode" ? { ...f, readOnly: false } : f))}
-            requiredKeys={["shortCode", "name", "type", "domains"]}
-            activeRow={{
-              ...card,
-              shortCode: card.slug,
-            }}
+            fields={candidateCardFields.filter(
+              (f) => f.key !== "rulesText" && f.key !== "effectText",
+            )}
+            requiredKeys={["name", "type", "domains"]}
+            activeRow={{ ...card }}
             candidateRows={sources}
             providerSettings={providerSettings}
             onCellClick={(field, value) => {
-              if (field === "shortCode") {
-                const newId = String(value).trim();
-                if (newId && newId !== cardId) {
-                  renameCard.mutate(
-                    { cardId: card.id, newId },
-                    {
-                      onSuccess: () => {
-                        void navigate({
-                          to: "/admin/cards/$cardSlug",
-                          params: { cardSlug: newId },
-                        });
-                      },
-                    },
-                  );
-                }
-                return;
-              }
               acceptCardField.mutate({ cardId: card.id, field, value, source: "provider" });
             }}
             onActiveChange={(field, value) => {
               if (value === undefined) {
-                return;
-              }
-              if (field === "shortCode") {
-                const newId = String(value).trim();
-                if (newId && newId !== cardId) {
-                  renameCard.mutate(
-                    { cardId: card.id, newId },
-                    {
-                      onSuccess: () => {
-                        void navigate({
-                          to: "/admin/cards/$cardSlug",
-                          params: { cardSlug: newId },
-                        });
-                      },
-                    },
-                  );
-                }
                 return;
               }
               acceptCardField.mutate({ cardId: card.id, field, value });
