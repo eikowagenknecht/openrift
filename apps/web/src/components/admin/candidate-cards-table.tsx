@@ -63,7 +63,7 @@ function makeColumns(meta: CardNameCellMeta): ColumnDef<Row>[] {
         const r = row.original;
         const total = r.uncheckedCardCount + r.uncheckedPrintingCount;
         return (
-          <span className="flex flex-wrap items-center gap-2">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <CardNameCell row={r} meta={meta} />
             {r.hasFavorite && <Badge>favorite</Badge>}
             {total > 0 && <Badge variant="destructive">★ Unchecked</Badge>}
