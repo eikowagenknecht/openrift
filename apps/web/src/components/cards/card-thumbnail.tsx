@@ -399,14 +399,11 @@ export const CardThumbnail = memo(function CardThumbnail({
       <div ref={tiltContainerRef} className="relative">
         {rotated ? (
           <div
-            className={cn(
-              "relative overflow-hidden",
-              AFTER_BORDER,
-              "hover:ring-primary/60 hover:ring-2",
-            )}
-            style={{ borderRadius: CARD_BORDER_RADIUS }}
+            ref={tiltInnerRef}
+            className={cn("relative", AFTER_BORDER, "hover:ring-primary/60 hover:ring-2")}
+            style={{ borderRadius: CARD_BORDER_RADIUS, ...tiltStyle }}
           >
-            <div ref={tiltInnerRef} style={{ borderRadius: "inherit", ...tiltStyle }}>
+            <div className="relative overflow-hidden" style={{ borderRadius: "inherit" }}>
               <CardImageContent
                 thumbnailUrl={thumbnailUrl}
                 srcSet={srcSet}
@@ -422,21 +419,18 @@ export const CardThumbnail = memo(function CardThumbnail({
                 card={card}
                 showFoil={isFoilCard && gridFoil}
               />
-              {banDim}
-              {previewOverlay}
-              {banRibbon}
             </div>
+            {banDim}
+            {previewOverlay}
+            {banRibbon}
           </div>
         ) : (
           <div
-            className={cn(
-              "relative overflow-hidden",
-              AFTER_BORDER,
-              "hover:ring-primary/60 hover:ring-2",
-            )}
-            style={{ borderRadius: CARD_BORDER_RADIUS }}
+            ref={tiltInnerRef}
+            className={cn("relative", AFTER_BORDER, "hover:ring-primary/60 hover:ring-2")}
+            style={{ borderRadius: CARD_BORDER_RADIUS, ...tiltStyle }}
           >
-            <div ref={tiltInnerRef} style={{ borderRadius: "inherit", ...tiltStyle }}>
+            <div className="relative overflow-hidden" style={{ borderRadius: "inherit" }}>
               <CardImageContent
                 thumbnailUrl={thumbnailUrl}
                 srcSet={srcSet}
@@ -452,10 +446,10 @@ export const CardThumbnail = memo(function CardThumbnail({
                 card={card}
                 showFoil={isFoilCard && gridFoil}
               />
-              {banDim}
-              {previewOverlay}
-              {banRibbon}
             </div>
+            {banDim}
+            {previewOverlay}
+            {banRibbon}
           </div>
         )}
       </div>
