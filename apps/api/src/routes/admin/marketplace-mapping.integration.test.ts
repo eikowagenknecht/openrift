@@ -116,7 +116,7 @@ if (ctx) {
       groupId: 10_200,
       productName: "MKM Test Card Normal",
       finish: "normal",
-      language: "EN",
+      language: null,
       recordedAt: new Date("2026-01-15T12:00:00Z"),
       marketCents: 100,
       lowCents: 50,
@@ -138,7 +138,7 @@ if (ctx) {
       groupId: 10_201,
       productName: "MKM Test Card Normal",
       finish: "normal",
-      language: "EN",
+      language: null,
       recordedAt: new Date("2026-01-15T12:00:00Z"),
       marketCents: 80,
       lowCents: 40,
@@ -203,7 +203,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     it("maps a staged product to a printing", async () => {
       const res = await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          mappings: [{ printingId, externalId: 12_345 }],
+          mappings: [{ printingId, externalId: 12_345, finish: "normal", language: null }],
         }),
       );
       expect(res.status).toBe(200);
@@ -299,7 +299,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       // First map something so there's data to unmap
       await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          mappings: [{ printingId, externalId: 12_345 }],
+          mappings: [{ printingId, externalId: 12_345, finish: "normal", language: null }],
         }),
       );
 
@@ -329,7 +329,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     it("maps a staged product to a printing", async () => {
       const res = await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
-          mappings: [{ printingId, externalId: 67_890 }],
+          mappings: [{ printingId, externalId: 67_890, finish: "normal", language: null }],
         }),
       );
       expect(res.status).toBe(200);
@@ -395,7 +395,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           groupId: 10_201,
           productName: "MKM Test Card Normal",
           finish: "normal",
-          language: "EN",
+          language: null,
           recordedAt: new Date("2026-01-15T12:00:00Z"),
           marketCents: 80,
           lowCents: 40,
@@ -413,7 +413,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
       await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
-          mappings: [{ printingId, externalId: 67_890 }],
+          mappings: [{ printingId, externalId: 67_890, finish: "normal", language: null }],
         }),
       );
 
@@ -444,7 +444,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           groupId: 10_200,
           productName: "MKM Ignored Product",
           finish: "normal",
-          language: "EN",
+          language: null,
           recordedAt: new Date("2026-01-17T12:00:00Z"),
           marketCents: 200,
           lowCents: 100,
@@ -509,7 +509,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           groupId: 10_200,
           productName: "ZZZ Totally Unrelated Product Name",
           finish: "normal",
-          language: "EN",
+          language: null,
           recordedAt: new Date("2026-01-18T12:00:00Z"),
           marketCents: 300,
           lowCents: 150,
@@ -532,7 +532,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           marketplace: "tcgplayer",
           externalId: 99_002,
           finish: "normal",
-          language: "EN",
+          language: null,
           cardId,
         })
         .onConflict((oc) =>
@@ -580,7 +580,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
           groupId: 10_200,
           productName: "Champion Annie, Fiery Special",
           finish: "normal",
-          language: "EN",
+          language: null,
           recordedAt: new Date("2026-01-19T12:00:00Z"),
           marketCents: 400,
           lowCents: 200,
@@ -629,7 +629,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       // Use a valid printing but an externalId with no matching staging row
       const res = await app.fetch(
         req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          mappings: [{ printingId, externalId: 999_999 }],
+          mappings: [{ printingId, externalId: 999_999, finish: "normal", language: null }],
         }),
       );
       expect(res.status).toBe(200);

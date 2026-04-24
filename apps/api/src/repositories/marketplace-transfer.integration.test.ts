@@ -41,6 +41,9 @@ describe.skipIf(!ctx)("marketplaceTransferRepo (integration)", () => {
         externalId: 99_001,
         groupId: 99_001,
         productName: "Test Transfer Product",
+        finish: "normal",
+        // Custom test marketplace; use a real code so staging copy-back roundtrips cleanly.
+        language: "EN",
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -51,8 +54,6 @@ describe.skipIf(!ctx)("marketplaceTransferRepo (integration)", () => {
       .values({
         marketplaceProductId: productId,
         printingId: seedPrintingId,
-        finish: "normal",
-        language: "EN",
       })
       .returningAll()
       .executeTakeFirstOrThrow();

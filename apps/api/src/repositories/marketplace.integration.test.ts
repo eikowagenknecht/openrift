@@ -34,6 +34,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .execute();
 
     // Create products + variants for the same printing in two marketplaces.
+    // Each product represents one SKU; CM/TCG stand-ins use language=null.
     const [tcgProduct] = await db
       .insertInto("marketplaceProducts")
       .values({
@@ -41,6 +42,8 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
         groupId: 80_001,
         externalId: 653_136,
         productName: "Annie Fiery (Test TCG)",
+        finish: "normal",
+        language: null,
       })
       .returning("id")
       .execute();
@@ -50,8 +53,6 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .values({
         marketplaceProductId: tcgProduct.id,
         printingId: anniePrintingId,
-        finish: "normal",
-        language: "EN",
       })
       .returning("id")
       .execute();
@@ -64,6 +65,8 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
         groupId: 80_002,
         externalId: 847_523,
         productName: "Annie, Fiery (Test CM)",
+        finish: "normal",
+        language: null,
       })
       .returning("id")
       .execute();
@@ -73,8 +76,6 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       .values({
         marketplaceProductId: cmProduct.id,
         printingId: anniePrintingId,
-        finish: "normal",
-        language: "EN",
       })
       .execute();
   });

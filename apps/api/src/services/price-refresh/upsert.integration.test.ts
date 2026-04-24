@@ -115,7 +115,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
     printingId2 = insertedPrintings[1].id;
 
     // Seed marketplace products + variants (created via admin mapping in production).
-    // With the 4-level split, one product has many variants (one per finish × language).
+    // Each marketplace product row represents ONE SKU; cardmarket has no per-language axis.
     const insertedProducts = await db
       .insertInto("marketplaceProducts")
       .values([
@@ -124,12 +124,16 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
           externalId: 94_101,
           groupId: 94_001,
           productName: "UPS Test Product",
+          finish: "normal",
+          language: null,
         },
         {
           marketplace: "cardmarket",
           externalId: 94_201,
           groupId: 94_001,
           productName: "UPS Test Product Foil",
+          finish: "foil",
+          language: null,
         },
       ])
       .returning(["id", "externalId"])
@@ -142,14 +146,10 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         {
           marketplaceProductId: productIdByExt.get(94_101)!,
           printingId,
-          finish: "normal",
-          language: "EN",
         },
         {
           marketplaceProductId: productIdByExt.get(94_201)!,
           printingId: printingId2,
-          finish: "foil",
-          language: "EN",
         },
       ])
       .execute();
@@ -219,10 +219,12 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         groupId: 94_001,
         productName: "UPS Test Product",
         finish,
-        language: "EN",
+        // Cardmarket has no per-language SKU axis; must match product.language=null.
+        language: null,
         recordedAt,
         marketCents: 0,
         lowCents: null,
+        zeroLowCents: null,
         midCents: null,
         highCents: null,
         trendCents: null,

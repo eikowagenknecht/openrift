@@ -99,7 +99,8 @@ if (ctx) {
     .execute();
   printingNoSourceId = printingNoSourceRow.id;
 
-  // TCGPlayer product + variant for printingId
+  // TCGPlayer product + variant for printingId.
+  // TCG has no per-language SKU axis, so language=null on the product row.
   const [tcgProduct] = await db
     .insertInto("marketplaceProducts")
     .values({
@@ -107,6 +108,8 @@ if (ctx) {
       externalId: 90_001,
       groupId: 24_439,
       productName: "PRC Price Card Normal",
+      finish: "normal",
+      language: null,
     })
     .returning("id")
     .execute();
@@ -115,14 +118,12 @@ if (ctx) {
     .values({
       marketplaceProductId: tcgProduct.id,
       printingId,
-      finish: "normal",
-      language: "EN",
     })
     .returning("id")
     .execute();
   tcgVariantId = tcgVariant.id;
 
-  // Cardmarket product + variant for printingId
+  // Cardmarket product + variant for printingId. CM also has no per-language SKU axis.
   const [cmProduct] = await db
     .insertInto("marketplaceProducts")
     .values({
@@ -130,6 +131,8 @@ if (ctx) {
       externalId: 90_002,
       groupId: 6289,
       productName: "PRC Price Card Normal",
+      finish: "normal",
+      language: null,
     })
     .returning("id")
     .execute();
@@ -138,8 +141,6 @@ if (ctx) {
     .values({
       marketplaceProductId: cmProduct.id,
       printingId,
-      finish: "normal",
-      language: "EN",
     })
     .returning("id")
     .execute();
@@ -204,7 +205,8 @@ if (ctx) {
     })
     .execute();
 
-  // CardTrader product + variant for printingId
+  // CardTrader product + variant for printingId.
+  // CT carries real per-variant language codes.
   const [ctProduct] = await db
     .insertInto("marketplaceProducts")
     .values({
@@ -212,6 +214,8 @@ if (ctx) {
       externalId: 90_003,
       groupId: null,
       productName: "PRC Price Card Normal",
+      finish: "normal",
+      language: "EN",
     })
     .returning("id")
     .execute();
@@ -220,8 +224,6 @@ if (ctx) {
     .values({
       marketplaceProductId: ctProduct.id,
       printingId,
-      finish: "normal",
-      language: "EN",
     })
     .returning("id")
     .execute();
