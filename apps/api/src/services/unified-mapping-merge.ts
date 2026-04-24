@@ -464,6 +464,17 @@ export async function buildUnifiedMappingsCardResponse(
 
       const overrideMap = new Map<string, { cardId: string }>();
       const groupNameMap = new Map<number, string>();
+      // Seed from mapped printings so assigned products resolve their group
+      // name even when the card has no current staging rows for that group.
+      for (const u of unifiedRows) {
+        if (
+          u.variantMarketplace === config.marketplace &&
+          u.sourceGroupId !== null &&
+          typeof u.sourceGroupName === "string"
+        ) {
+          groupNameMap.set(u.sourceGroupId, u.sourceGroupName);
+        }
+      }
       for (const r of rows) {
         if (r.isOverride) {
           overrideMap.set(`${r.externalId}::${r.finish}::${r.language}`, { cardId: thisCardId });

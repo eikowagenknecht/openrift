@@ -997,4 +997,105 @@ describe("buildUnifiedMappingsCardResponse", () => {
     expect(staged.map((p) => p.externalId)).toContain(42);
     expect(staged[0]?.isOverride).toBe(true);
   });
+
+  it("resolves assigned-product groupName from the unified row when no staging exists", async () => {
+    // Regression: /admin/cards/<slug> showed "Group #4425" for a mapped
+    // cardtrader printing because the card had no current staging rows — the
+    // groupName map was only seeded from staging. Now the unified query carries
+    // sourceGroupName and seeds the map up front.
+    const snapshotQuery = vi.fn().mockResolvedValue([
+      {
+        printingId: "p-allay",
+        externalId: 379_431,
+        productName: "Allay - Eager Admirer",
+        recordedAt: new Date("2026-04-01T00:00:00Z"),
+        marketCents: 100,
+        lowCents: 80,
+        midCents: null,
+        highCents: null,
+        trendCents: null,
+        avg1Cents: null,
+        avg7Cents: null,
+        avg30Cents: null,
+      },
+    ]);
+    const mapSnapshotPrices = vi.fn().mockReturnValue({
+      productName: "Allay - Eager Admirer",
+      marketCents: 100,
+      lowCents: 80,
+      currency: "EUR",
+      recordedAt: "2026-04-01T00:00:00.000Z",
+      midCents: null,
+      highCents: null,
+      trendCents: null,
+      avg1Cents: null,
+      avg7Cents: null,
+      avg30Cents: null,
+    });
+    const config = {
+      ...makeScopedCardConfig("cardtrader"),
+      snapshotQuery,
+      mapSnapshotPrices,
+    } as unknown as MarketplaceConfig;
+
+    const repos = {
+      marketplaceMapping: {
+        allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([
+          {
+            cardId: "card-allay",
+            cardSlug: "allay-eager-admirer",
+            cardName: "Allay, Eager Admirer",
+            cardType: "Unit",
+            superTypes: [],
+            domains: ["Body"],
+            energy: 1,
+            might: 1,
+            printingId: "p-allay",
+            setId: "set-unleashed",
+            shortCode: "OGN-010",
+            rarity: "Common",
+            setName: "Origins",
+            artVariant: "normal",
+            isSigned: false,
+            markerSlugs: [],
+            finish: "normal",
+            language: "EN",
+            imageUrl: null,
+            variantMarketplace: "cardtrader",
+            externalId: 379_431,
+            sourceGroupId: 4425,
+            sourceGroupName: "Unleashed",
+            sourceLanguage: "EN",
+            productFinish: "normal",
+          },
+        ]),
+        assignableCards: vi.fn().mockResolvedValue([
+          {
+            cardId: "card-allay",
+            cardSlug: "allay-eager-admirer",
+            cardName: "Allay, Eager Admirer",
+            setName: "Origins",
+            shortCodes: ["OGN-010"],
+          },
+        ]),
+        allCardAliases: vi
+          .fn()
+          .mockResolvedValue([{ cardId: "card-allay", normName: "allayeageradmirer" }]),
+        stagingForCardAcrossMarketplaces: vi.fn().mockResolvedValue([]),
+      },
+    } as unknown as Repos;
+
+    const result = await buildUnifiedMappingsCardResponse(
+      repos,
+      makeScopedCardConfig("tcgplayer"),
+      makeScopedCardConfig("cardmarket"),
+      config,
+      "allay-eager-admirer",
+    );
+
+    const assigned = result.group?.cardtrader.assignedProducts ?? [];
+    expect(assigned).toHaveLength(1);
+    expect(assigned[0].groupId).toBe(4425);
+    expect(assigned[0].groupName).toBe("Unleashed");
+  });
 });

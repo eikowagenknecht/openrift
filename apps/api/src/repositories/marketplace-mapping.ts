@@ -181,6 +181,11 @@ export function marketplaceMappingRepo(db: Db) {
         .innerJoin("mvCardAggregates as mca", "mca.cardId", "c.id")
         .leftJoin("marketplaceProductVariants as mpv", "mpv.printingId", "p.id")
         .leftJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .leftJoin("marketplaceGroups as mg", (join) =>
+          join
+            .onRef("mg.marketplace", "=", "mp.marketplace")
+            .onRef("mg.groupId", "=", "mp.groupId"),
+        )
         .leftJoin("printingImages as pi", (join) =>
           join
             .onRef("pi.printingId", "=", "p.id")
@@ -211,6 +216,7 @@ export function marketplaceMappingRepo(db: Db) {
           "mp.marketplace as variantMarketplace",
           "mp.externalId as externalId",
           "mp.groupId as sourceGroupId",
+          "mg.name as sourceGroupName",
           "mp.language as sourceLanguage",
           "mp.finish as productFinish",
         ]);
