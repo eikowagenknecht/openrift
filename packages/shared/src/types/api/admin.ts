@@ -184,20 +184,6 @@ export interface AdminPrintingMarketplaceMappingResponse {
   ownerLanguage: string;
 }
 
-/** A staging row that could be assigned to any printing of the card. */
-export interface AdminMarketplaceStagingCandidateResponse {
-  marketplace: AdminMarketplaceName;
-  externalId: number;
-  productName: string;
-  finish: string;
-  language: string;
-  groupId: number;
-  groupName: string | null;
-  marketCents: number | null;
-  lowCents: number | null;
-  recordedAt: string;
-}
-
 export interface AdminCardDetailResponse {
   card: AdminCardResponse | null;
   displayName: string;
@@ -209,7 +195,6 @@ export interface AdminCardDetailResponse {
   printingImages: AdminPrintingImageResponse[];
   setTotals: Record<string, number>;
   marketplaceMappings: AdminPrintingMarketplaceMappingResponse[];
-  marketplaceStagingCandidates: AdminMarketplaceStagingCandidateResponse[];
 }
 
 export interface UnmatchedCardDetailResponse {

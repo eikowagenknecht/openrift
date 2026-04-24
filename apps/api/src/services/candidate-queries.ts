@@ -1,6 +1,5 @@
 import type {
   AdminMarketplaceName,
-  AdminMarketplaceStagingCandidateResponse,
   AdminPrintingMarketplaceMappingResponse,
   CandidateCardResponse,
   CandidateCardSummaryResponse,
@@ -431,12 +430,8 @@ async function buildDetailResponse(
   // matched cards only, so the admin can assign/unmap products from the card
   // detail view instead of navigating out to a separate mappings page.
   const marketplaceMappings: AdminPrintingMarketplaceMappingResponse[] = [];
-  const marketplaceStagingCandidates: AdminMarketplaceStagingCandidateResponse[] = [];
   if (card && marketplaceRepo) {
-    const [variantRows, stagingRows] = await Promise.all([
-      marketplaceRepo.variantsForCard(card.id),
-      marketplaceRepo.stagingCandidatesForCard(card.id, normNames),
-    ]);
+    const variantRows = await marketplaceRepo.variantsForCard(card.id);
     for (const row of variantRows) {
       const marketplace = toMarketplaceName(row.marketplace);
       if (!marketplace) {
@@ -451,24 +446,6 @@ async function buildDetailResponse(
         variantLanguage: row.variantLanguage,
         ownerPrintingId: row.ownerPrintingId,
         ownerLanguage: row.ownerLanguage,
-      });
-    }
-    for (const row of stagingRows) {
-      const marketplace = toMarketplaceName(row.marketplace);
-      if (!marketplace) {
-        continue;
-      }
-      marketplaceStagingCandidates.push({
-        marketplace,
-        externalId: row.externalId,
-        productName: row.productName,
-        finish: row.finish,
-        language: row.language,
-        groupId: row.groupId,
-        groupName: row.groupName,
-        marketCents: row.marketCents,
-        lowCents: row.lowCents,
-        recordedAt: row.recordedAt.toISOString(),
       });
     }
   }
@@ -562,7 +539,6 @@ async function buildDetailResponse(
     printingImages,
     setTotals,
     marketplaceMappings,
-    marketplaceStagingCandidates,
   };
 }
 

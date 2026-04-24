@@ -45,7 +45,6 @@ function createMockRepo(overrides: Record<string, unknown> = {}) {
 function createMockMarketplaceRepo(overrides: Record<string, unknown> = {}) {
   return {
     variantsForCard: vi.fn().mockResolvedValue([]),
-    stagingCandidatesForCard: vi.fn().mockResolvedValue([]),
     ...overrides,
   } as any;
 }
@@ -1954,7 +1953,7 @@ describe("buildCardDetail", () => {
     expect(repo.setPrintedTotalBySlugs).not.toHaveBeenCalled();
     expect(result.setTotals).toEqual({});
   });
-  it("passes through marketplace mappings and staging candidates for a matched card", async () => {
+  it("passes through marketplace mappings for a matched card", async () => {
     const repo = createMockRepo({
       cardForDetailBySlug: vi.fn().mockResolvedValue({
         id: "card-1",
@@ -2011,26 +2010,11 @@ describe("buildCardDetail", () => {
           ownerLanguage: "EN",
         },
       ]),
-      stagingCandidatesForCard: vi.fn().mockResolvedValue([
-        {
-          marketplace: "tcgplayer",
-          externalId: 555,
-          productName: "X",
-          finish: "normal",
-          language: "EN",
-          groupId: 42,
-          groupName: "Origin",
-          marketCents: 100,
-          lowCents: 80,
-          recordedAt: new Date("2026-01-01T00:00:00Z"),
-        },
-      ]),
     });
 
     const result = await buildCardDetail(repo, marketplaceRepo, "x");
 
     expect(marketplaceRepo.variantsForCard).toHaveBeenCalledWith("card-1");
-    expect(marketplaceRepo.stagingCandidatesForCard).toHaveBeenCalledWith("card-1", ["x"]);
     expect(result.marketplaceMappings).toHaveLength(2);
     expect(result.marketplaceMappings[0]).toMatchObject({
       targetPrintingId: "p-en",
@@ -2043,23 +2027,9 @@ describe("buildCardDetail", () => {
       marketplace: "cardmarket",
       ownerPrintingId: "p-en",
     });
-    expect(result.marketplaceStagingCandidates).toEqual([
-      {
-        marketplace: "tcgplayer",
-        externalId: 555,
-        productName: "X",
-        finish: "normal",
-        language: "EN",
-        groupId: 42,
-        groupName: "Origin",
-        marketCents: 100,
-        lowCents: 80,
-        recordedAt: "2026-01-01T00:00:00.000Z",
-      },
-    ]);
   });
 
-  it("leaves marketplace fields empty when the card is unmatched", async () => {
+  it("leaves marketplace mappings empty when the card is unmatched", async () => {
     const repo = createMockRepo({
       cardForDetailBySlug: vi.fn().mockResolvedValue(undefined),
       candidateCardsForDetail: vi.fn().mockResolvedValue([]),
@@ -2069,9 +2039,7 @@ describe("buildCardDetail", () => {
     const result = await buildCardDetail(repo, marketplaceRepo, "missing");
 
     expect(marketplaceRepo.variantsForCard).not.toHaveBeenCalled();
-    expect(marketplaceRepo.stagingCandidatesForCard).not.toHaveBeenCalled();
     expect(result.marketplaceMappings).toEqual([]);
-    expect(result.marketplaceStagingCandidates).toEqual([]);
   });
 });
 

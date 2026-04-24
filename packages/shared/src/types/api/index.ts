@@ -111,7 +111,6 @@ export type {
   AdminCardDetailResponse,
   AdminCardResponse,
   AdminMarketplaceName,
-  AdminMarketplaceStagingCandidateResponse,
   AdminPrintingDistributionChannelResponse,
   AdminPrintingImageResponse,
   AdminPrintingMarketplaceMappingResponse,

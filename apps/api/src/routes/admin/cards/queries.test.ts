@@ -52,7 +52,6 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 
 const mockMarketplaceMapping = {
   variantsForCard: vi.fn().mockResolvedValue([]),
-  stagingCandidatesForCard: vi.fn().mockResolvedValue([]),
 };
 
 const app = new Hono()

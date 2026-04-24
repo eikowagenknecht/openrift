@@ -5,7 +5,6 @@ export type {
   AdminCardDetailResponse,
   AdminCardResponse,
   AdminMarketplaceName,
-  AdminMarketplaceStagingCandidateResponse,
   AdminPrintingImageResponse,
   AdminPrintingMarketplaceMappingResponse,
   AdminPrintingResponse,
