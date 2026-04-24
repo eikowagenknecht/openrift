@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
+import type { MarketplaceGroupKind } from "../db/tables.js";
 
 /** Listing row for a level-2 ignored product. */
 interface IgnoredProductRow {
@@ -40,7 +41,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     listAllGroups() {
       return db
         .selectFrom("marketplaceGroups")
-        .select(["marketplace", "groupId", "name", "abbreviation"])
+        .select(["marketplace", "groupId", "name", "abbreviation", "groupKind"])
         .orderBy("marketplace")
         .orderBy("name")
         .execute();
@@ -90,17 +91,27 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Update a marketplace group's name.
+     * Update editable fields on a marketplace group. Pass only the fields to change.
      * @returns `true` if a row was updated.
      */
-    async updateGroupName(
+    async updateGroup(
       marketplace: string,
       groupId: number,
-      name: string | null,
+      patch: { name?: string | null; groupKind?: MarketplaceGroupKind },
     ): Promise<boolean> {
+      const updates: { name?: string | null; groupKind?: MarketplaceGroupKind } = {};
+      if (patch.name !== undefined) {
+        updates.name = patch.name;
+      }
+      if (patch.groupKind !== undefined) {
+        updates.groupKind = patch.groupKind;
+      }
+      if (Object.keys(updates).length === 0) {
+        return false;
+      }
       const result = await db
         .updateTable("marketplaceGroups")
-        .set({ name })
+        .set(updates)
         .where("marketplace", "=", marketplace)
         .where("groupId", "=", groupId)
         .executeTakeFirst();

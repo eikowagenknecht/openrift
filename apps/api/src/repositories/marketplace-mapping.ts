@@ -86,11 +86,11 @@ export function marketplaceMappingRepo(db: Db) {
       return result.rows;
     },
 
-    /** @returns Group display names for a marketplace. */
+    /** @returns Group display names + kind for a marketplace. */
     groupNames(marketplace: string) {
       return db
         .selectFrom("marketplaceGroups")
-        .select(["groupId as gid", "name"])
+        .select(["groupId as gid", "name", "groupKind"])
         .where("marketplace", "=", marketplace)
         .execute();
     },

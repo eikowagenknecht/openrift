@@ -78,9 +78,16 @@ export const updateLanguageSchema = z.object({
 
 // ── Marketplace Groups ─────────────────────────────────────────────────────
 
-export const updateGroupSchema = z.object({
-  name: z.string().nullable(),
-});
+export const marketplaceGroupKindEnum = z.enum(["basic", "special"]);
+
+export const updateGroupSchema = z
+  .object({
+    name: z.string().nullable().optional(),
+    groupKind: marketplaceGroupKindEnum.optional(),
+  })
+  .refine((o) => o.name !== undefined || o.groupKind !== undefined, {
+    message: "At least one field (name, groupKind) must be provided",
+  });
 
 // ── Markers ────────────────────────────────────────────────────────────────
 

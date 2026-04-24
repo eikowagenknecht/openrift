@@ -1,5 +1,6 @@
 import type {
   MarketplaceAssignmentResponse as MarketplaceAssignment,
+  MarketplaceGroupKind,
   StagedProductResponse,
 } from "@openrift/shared";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
@@ -386,8 +387,10 @@ export async function getMappingOverview(
   const uniqueStaged = staged.filter((row) => !isIgnored(row));
 
   const groupNameMap = new Map<number, string>();
+  const groupKindMap = new Map<number, MarketplaceGroupKind>();
   for (const row of groupRows) {
     groupNameMap.set(row.gid as number, (row.name as string) ?? `Group #${row.gid}`);
+    groupKindMap.set(row.gid as number, row.groupKind);
   }
 
   const { cardGroups, cardNames } = buildCardIndex(matchedCards, options?.allCardsForMatching);
@@ -444,6 +447,7 @@ export async function getMappingOverview(
     ...(extra?.isOverride === undefined ? {} : { isOverride: extra.isOverride }),
     groupId: row.groupId,
     groupName: groupNameMap.get(row.groupId) ?? `Group #${row.groupId}`,
+    groupKind: groupKindMap.get(row.groupId),
   });
 
   // Unmatched products (excluding ignored)

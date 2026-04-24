@@ -161,6 +161,17 @@ function scorePrintingProduct(
     }
   }
 
+  // Group-kind signal: the admin-tagged marketplace group is an authoritative
+  // hint for whether the product belongs to a basic set or a promo/special
+  // release. Use it as a soft signal (not a hard filter) so a perfect name
+  // match can still win when the group is mislabelled.
+  const hasMarkers = printing.markerSlugs.length > 0;
+  if (product.groupKind === "basic") {
+    score += hasMarkers ? -80 : 30;
+  } else if (product.groupKind === "special") {
+    score += hasMarkers ? 30 : -80;
+  }
+
   const suffix = extractSuffix(product.productName, cardName);
   if (suffix === null) {
     return score;
@@ -175,10 +186,12 @@ function scorePrintingProduct(
     }
   }
 
-  const promo = inferIsPromo(suffix);
+  // The group-kind signal above already covers basic groups authoritatively,
+  // so suppress the fragile suffix-based promo inference for `basic` — it
+  // produces false positives on products with accidental marketing words.
+  const promo = product.groupKind === "basic" ? null : inferIsPromo(suffix);
   if (promo !== null) {
-    const isPromo = printing.markerSlugs.length > 0;
-    if (promo === isPromo) {
+    if (promo === hasMarkers) {
       score += 50;
     } else {
       score -= 80;

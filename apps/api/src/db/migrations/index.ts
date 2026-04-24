@@ -54,6 +54,7 @@ import * as m105 from "./105-drop-variant-sku-columns.js";
 import * as m106 from "./106-staging-nullable-language.js";
 import * as m107 from "./107-backfill-sibling-variants.js";
 import * as m108 from "./108-simplify-latest-prices-mv.js";
+import * as m109 from "./109-marketplace-group-kind.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -167,4 +168,5 @@ export const migrations: Record<string, Migration> = {
   "106-staging-nullable-language": m106,
   "107-backfill-sibling-variants": m107,
   "108-simplify-latest-prices-mv": m108,
+  "109-marketplace-group-kind": m109,
 };

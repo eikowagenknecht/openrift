@@ -12,7 +12,7 @@ const mockMktAdmin = {
   listAllGroups: vi.fn(),
   stagingCountsByMarketplaceGroup: vi.fn(),
   assignedCountsByMarketplaceGroup: vi.fn(),
-  updateGroupName: vi.fn(),
+  updateGroup: vi.fn(),
 };
 
 // ---------------------------------------------------------------------------
@@ -44,6 +44,7 @@ const dbGroup1 = {
   groupId: 100,
   name: "Origin Set",
   abbreviation: "OGS",
+  groupKind: "basic" as const,
 };
 
 const dbGroup2 = {
@@ -51,6 +52,7 @@ const dbGroup2 = {
   groupId: 200,
   name: null,
   abbreviation: null,
+  groupKind: "basic" as const,
 };
 
 // ---------------------------------------------------------------------------
@@ -81,6 +83,7 @@ describe("GET /api/v1/marketplace-groups", () => {
       groupId: 100,
       name: "Origin Set",
       abbreviation: "OGS",
+      groupKind: "basic",
       stagedCount: 50,
       assignedCount: 30,
     });
@@ -89,6 +92,7 @@ describe("GET /api/v1/marketplace-groups", () => {
       groupId: 200,
       name: null,
       abbreviation: null,
+      groupKind: "basic",
       stagedCount: 0,
       assignedCount: 10,
     });
@@ -112,30 +116,54 @@ describe("PATCH /api/v1/marketplace-groups/:marketplace/:id", () => {
     vi.resetAllMocks();
   });
 
-  it("returns 204 on successful update", async () => {
-    mockMktAdmin.updateGroupName.mockResolvedValue(true);
+  it("returns 204 on successful name update", async () => {
+    mockMktAdmin.updateGroup.mockResolvedValue(true);
     const res = await app.request("/api/v1/marketplace-groups/tcgplayer/100", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: "Renamed Group" }),
     });
     expect(res.status).toBe(204);
-    expect(mockMktAdmin.updateGroupName).toHaveBeenCalledWith("tcgplayer", 100, "Renamed Group");
+    expect(mockMktAdmin.updateGroup).toHaveBeenCalledWith("tcgplayer", 100, {
+      name: "Renamed Group",
+    });
   });
 
   it("returns 204 when setting name to null", async () => {
-    mockMktAdmin.updateGroupName.mockResolvedValue(true);
+    mockMktAdmin.updateGroup.mockResolvedValue(true);
     const res = await app.request("/api/v1/marketplace-groups/cardmarket/200", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: null }),
     });
     expect(res.status).toBe(204);
-    expect(mockMktAdmin.updateGroupName).toHaveBeenCalledWith("cardmarket", 200, null);
+    expect(mockMktAdmin.updateGroup).toHaveBeenCalledWith("cardmarket", 200, { name: null });
+  });
+
+  it("returns 204 when updating groupKind", async () => {
+    mockMktAdmin.updateGroup.mockResolvedValue(true);
+    const res = await app.request("/api/v1/marketplace-groups/cardmarket/200", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ groupKind: "special" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMktAdmin.updateGroup).toHaveBeenCalledWith("cardmarket", 200, {
+      groupKind: "special",
+    });
+  });
+
+  it("returns 400 when body is empty", async () => {
+    const res = await app.request("/api/v1/marketplace-groups/tcgplayer/100", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
   });
 
   it("returns 404 when group not found", async () => {
-    mockMktAdmin.updateGroupName.mockResolvedValue(false);
+    mockMktAdmin.updateGroup.mockResolvedValue(false);
     const res = await app.request("/api/v1/marketplace-groups/tcgplayer/999", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
