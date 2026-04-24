@@ -500,7 +500,7 @@ function MarketplaceProductRow({
         <TableCell>
           {assignedPrintings.length === 0 ? (
             suggestions.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 {suggestions.map((s) => (
                   <SuggestionChip
                     key={s.printingId}
@@ -508,12 +508,35 @@ function MarketplaceProductRow({
                     productExternalId={product.externalId}
                     highlightFinish={product.finish}
                     highlightLanguage={highlightLanguage}
+                    highlightMarkers={
+                      product.groupKind === "special" && s.printing.markerSlugs.length > 0
+                    }
                     onAssign={(eid, pid) =>
                       handlers.onAssignToPrinting(eid, product.finish, product.language, pid)
                     }
                     disabled={handlers.isAssigningToPrinting}
                   />
                 ))}
+                {suggestions.length >= 2 && (
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    disabled={handlers.isAssigningToPrinting}
+                    onClick={() =>
+                      handlers.onBatchAssignToPrintings(
+                        suggestions.map((s) => ({
+                          externalId: product.externalId,
+                          finish: product.finish,
+                          language: product.language,
+                          printingId: s.printingId,
+                        })),
+                      )
+                    }
+                  >
+                    <WandSparklesIcon />
+                    Accept all
+                  </Button>
+                )}
               </div>
             ) : (
               <span className="text-muted-foreground/50">—</span>
@@ -528,6 +551,7 @@ function MarketplaceProductRow({
                       printing={p}
                       highlightFinish={product.finish}
                       highlightLanguage={highlightLanguage}
+                      highlightMarkers={product.groupKind === "special" && p.markerSlugs.length > 0}
                     />
                     <button
                       type="button"
@@ -554,6 +578,7 @@ function MarketplaceProductRow({
               otherAssignedPrintingIds={otherAssignedPrintingIds}
               highlightFinish={product.finish}
               highlightLanguage={highlightLanguage}
+              highlightSpecialMarkers={product.groupKind === "special"}
               onAssignToPrinting={(eid, pid) =>
                 handlers.onAssignToPrinting(eid, product.finish, product.language, pid)
               }
@@ -605,6 +630,7 @@ function SuggestionChip({
   productExternalId,
   highlightFinish,
   highlightLanguage,
+  highlightMarkers,
   onAssign,
   disabled,
 }: {
@@ -612,6 +638,7 @@ function SuggestionChip({
   productExternalId: number;
   highlightFinish?: string;
   highlightLanguage?: string;
+  highlightMarkers?: boolean;
   onAssign: (externalId: number, printingId: string) => void;
   disabled: boolean;
 }) {
@@ -656,6 +683,7 @@ function SuggestionChip({
         printing={printing}
         highlightFinish={highlightFinish}
         highlightLanguage={highlightLanguage}
+        highlightMarkers={highlightMarkers}
       />
     </button>
   );
@@ -673,10 +701,12 @@ function PrintingLabel({
   printing,
   highlightFinish,
   highlightLanguage,
+  highlightMarkers,
 }: {
   printing: Pick<UnifiedMappingPrinting, "shortCode" | "markerSlugs" | "finish" | "language">;
   highlightFinish?: string;
   highlightLanguage?: string;
+  highlightMarkers?: boolean;
 }) {
   const langMatches = highlightLanguage !== undefined && printing.language === highlightLanguage;
   const finishMatches = highlightFinish !== undefined && printing.finish === highlightFinish;
@@ -688,8 +718,11 @@ function PrintingLabel({
           <span className={langMatches ? matchCls : undefined}>{printing.language}</span>:
         </>
       )}
-      {printing.shortCode}:{printing.markerSlugs.join("+")}:
-      <span className={finishMatches ? matchCls : undefined}>{printing.finish}</span>
+      {printing.shortCode}:
+      <span className={highlightMarkers ? matchCls : undefined}>
+        {printing.markerSlugs.join("+")}
+      </span>
+      :<span className={finishMatches ? matchCls : undefined}>{printing.finish}</span>
     </span>
   );
 }
@@ -701,6 +734,7 @@ function AssignToPrintingButton({
   otherAssignedPrintingIds,
   highlightFinish,
   highlightLanguage,
+  highlightSpecialMarkers,
   onAssignToPrinting,
   isAssigning,
 }: {
@@ -710,6 +744,7 @@ function AssignToPrintingButton({
   otherAssignedPrintingIds: Set<string>;
   highlightFinish?: string;
   highlightLanguage?: string;
+  highlightSpecialMarkers?: boolean;
   onAssignToPrinting: (externalId: number, printingId: string) => void;
   isAssigning: boolean;
 }) {
@@ -766,6 +801,9 @@ function AssignToPrintingButton({
                   printing={printing}
                   highlightFinish={highlightFinish}
                   highlightLanguage={highlightLanguage}
+                  highlightMarkers={
+                    highlightSpecialMarkers === true && printing.markerSlugs.length > 0
+                  }
                 />
               </DropdownMenuItem>
             </React.Fragment>

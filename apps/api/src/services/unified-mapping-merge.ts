@@ -1,6 +1,7 @@
 import type {
   AssignableCardResponse,
   MarketplaceAssignmentResponse,
+  MarketplaceGroupKind,
   StagedProductResponse,
   UnifiedMappingGroupResponse,
   UnifiedMappingsCardResponse,
@@ -464,15 +465,19 @@ export async function buildUnifiedMappingsCardResponse(
 
       const overrideMap = new Map<string, { cardId: string }>();
       const groupNameMap = new Map<number, string>();
+      const groupKindMap = new Map<number, MarketplaceGroupKind>();
       // Seed from mapped printings so assigned products resolve their group
-      // name even when the card has no current staging rows for that group.
+      // name and kind even when the card has no current staging rows for that
+      // group (staging rows get deleted on assignment).
       for (const u of unifiedRows) {
-        if (
-          u.variantMarketplace === config.marketplace &&
-          u.sourceGroupId !== null &&
-          typeof u.sourceGroupName === "string"
-        ) {
+        if (u.variantMarketplace !== config.marketplace || u.sourceGroupId === null) {
+          continue;
+        }
+        if (typeof u.sourceGroupName === "string") {
           groupNameMap.set(u.sourceGroupId, u.sourceGroupName);
+        }
+        if (u.sourceGroupKind !== null && u.sourceGroupKind !== undefined) {
+          groupKindMap.set(u.sourceGroupId, u.sourceGroupKind);
         }
       }
       for (const r of rows) {
@@ -482,6 +487,7 @@ export async function buildUnifiedMappingsCardResponse(
         if (r.groupName !== null) {
           groupNameMap.set(r.groupId, r.groupName);
         }
+        groupKindMap.set(r.groupId, r.groupKind);
       }
 
       const mappedPrintingIds = new Set<string>();
@@ -519,6 +525,7 @@ export async function buildUnifiedMappingsCardResponse(
         ...(extra?.isOverride === undefined ? {} : { isOverride: extra.isOverride }),
         groupId: row.groupId,
         groupName: groupNameMap.get(row.groupId) ?? `Group #${row.groupId}`,
+        groupKind: groupKindMap.get(row.groupId),
       });
 
       const groups = buildResponseGroups(
@@ -527,6 +534,7 @@ export async function buildUnifiedMappingsCardResponse(
         overrideMap,
         mappedProductInfo,
         groupNameMap,
+        groupKindMap,
         mapStagedRow,
       );
 

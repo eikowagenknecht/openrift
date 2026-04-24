@@ -1,4 +1,4 @@
-import type { AdminMarketplaceName, ArtVariant } from "@openrift/shared";
+import type { AdminMarketplaceName } from "@openrift/shared";
 import { marketplaceFinish, normalizeNameForMatching, WellKnown } from "@openrift/shared";
 
 import type {
@@ -64,43 +64,13 @@ function extractSuffix(productName: string, cardName: string): string | null {
 }
 
 /**
- * Infer the art variant from a product name suffix (spaceless slug).
- * @returns The inferred artVariant value, or null if ambiguous.
+ * Price-rank hint for a product relative to its siblings in the same (finish,
+ * language, groupKind) bucket. Only populated when the bucket has exactly two
+ * products with distinct prices — that's the case where "the expensive one is
+ * the altart" reliably holds. For three or more products the variant order is
+ * ambiguous and the hint stays `null`.
  */
-function inferVariant(suffix: string): ArtVariant | null {
-  if (suffix === "") {
-    return "normal";
-  }
-  if (suffix.includes("alternateart")) {
-    return "altart";
-  }
-  if (suffix.includes("overnumbered")) {
-    return "overnumbered";
-  }
-  return null;
-}
-
-function inferIsPromo(suffix: string): boolean | null {
-  if (
-    suffix.includes("launchexclusive") ||
-    suffix.includes("exclusive") ||
-    suffix.includes("promo")
-  ) {
-    return true;
-  }
-  return null;
-}
-
-function inferSigned(suffix: string): boolean | null {
-  if (suffix.includes("signed") || suffix.includes("signature")) {
-    return true;
-  }
-  return null;
-}
-
-function inferIsMetal(suffix: string): boolean {
-  return suffix.includes("metal");
-}
+type PriceRank = "cheapest" | "priciest";
 
 /**
  * Score how well a staged product matches a printing.
@@ -112,6 +82,7 @@ function scorePrintingProduct(
   cardName: string,
   enforceLanguage: boolean,
   crossLanguageShortCodes: ReadonlySet<string>,
+  priceRank: PriceRank | null,
 ): number {
   // Finish must match — compared at the marketplace's granularity (metal and
   // metal-deluxe printings collapse to foil, since no marketplace surfaces
@@ -163,63 +134,49 @@ function scorePrintingProduct(
 
   // Group-kind signal: the admin-tagged marketplace group is an authoritative
   // hint for whether the product belongs to a basic set or a promo/special
-  // release. Use it as a soft signal (not a hard filter) so a perfect name
-  // match can still win when the group is mislabelled.
+  // release. A match puts the total at the strong-match threshold (150), the
+  // mismatch penalty is heavier so it's hard to overcome without explicit
+  // counter-evidence in the name.
   const hasMarkers = printing.markerSlugs.length > 0;
   if (product.groupKind === "basic") {
-    score += hasMarkers ? -80 : 30;
+    score += hasMarkers ? -80 : 50;
   } else if (product.groupKind === "special") {
-    score += hasMarkers ? 30 : -80;
+    score += hasMarkers ? 50 : -80;
   }
 
+  // Price-rank signal: when two products in the same (finish, language,
+  // groupKind) bucket differ only in price, the expensive one is almost always
+  // the altart and the cheap one the normal. Empirically true for basic-set
+  // printings where marketplace product names don't disclose the variant.
+  if (priceRank === "priciest" && printing.artVariant === "altart") {
+    score += 50;
+  } else if (priceRank === "cheapest" && printing.artVariant === "normal") {
+    score += 50;
+  }
+
+  // Suffix-based keyword boosts. Positive-only — an absent keyword never
+  // penalises a printing, because marketplaces are inconsistent about naming
+  // variants (CardTrader especially uses terse names for promos that ship as
+  // altart/signed/metal). Only these three keywords are trusted, because they
+  // map to a specific printing shape rather than a vague release qualifier.
   const suffix = extractSuffix(product.productName, cardName);
-  if (suffix === null) {
-    return score;
-  }
-
-  const variant = inferVariant(suffix);
-  if (variant !== null) {
-    if (variant === printing.artVariant) {
-      score += 50;
-    } else {
-      score -= 80;
-    }
-  }
-
-  // The group-kind signal above already covers basic groups authoritatively,
-  // so suppress the fragile suffix-based promo inference for `basic` — it
-  // produces false positives on products with accidental marketing words.
-  const promo = product.groupKind === "basic" ? null : inferIsPromo(suffix);
-  if (promo !== null) {
-    if (promo === hasMarkers) {
-      score += 50;
-    } else {
-      score -= 80;
-    }
-  }
-
-  const signed = inferSigned(suffix);
-  if (signed !== null) {
-    if (signed === printing.isSigned) {
+  if (suffix !== null) {
+    if (
+      suffix.includes("metal") &&
+      (printing.finish === WellKnown.finish.METAL ||
+        printing.finish === WellKnown.finish.METAL_DELUXE)
+    ) {
       score += 60;
-    } else {
-      score -= 80;
     }
-  }
-
-  // Metal disambiguation: within the foil equivalence class, a metal printing
-  // should prefer the foil-staging product whose name contains "Metal", and a
-  // regular foil printing should avoid it. Only relevant for foil staging —
-  // normal printings already filter out via the finish gate above.
-  if (product.finish.toLowerCase() === WellKnown.finish.FOIL) {
-    const metalProduct = inferIsMetal(suffix);
-    const metalPrinting =
-      printing.finish === WellKnown.finish.METAL ||
-      printing.finish === WellKnown.finish.METAL_DELUXE;
-    if (metalProduct === metalPrinting) {
+    if (suffix.includes("overnumbered") && printing.artVariant === "overnumbered") {
       score += 60;
-    } else {
-      score -= 80;
+    }
+    if (
+      suffix.includes("signature") &&
+      printing.isSigned &&
+      printing.artVariant === "overnumbered"
+    ) {
+      score += 60;
     }
   }
 
@@ -253,20 +210,35 @@ export function computeSuggestions(
     product: StagedProduct;
     score: number;
   }
-  const productKey = (product: StagedProduct): string => `${product.externalId}|${product.finish}`;
+  // Key must include language — on CardTrader, two products can share an
+  // `(externalId, finish)` pair but differ in language (EN vs ZH SKUs). A
+  // 2-tuple key collapses them and the mutual-best gate spuriously treats
+  // cross-language candidates as a within-product tie.
+  const productKey = (product: StagedProduct): string =>
+    `${product.externalId}|${product.finish}|${product.language ?? ""}`;
+  // Cross-language evidence and price-rank use a 2-tuple (externalId, finish)
+  // because they're meant to carry across languages — a CM/TCG aggregate SKU
+  // or a CT sibling-language pair should share the hint.
+  const productKey2 = (product: StagedProduct): string => `${product.externalId}|${product.finish}`;
   const emptyShortCodes: ReadonlySet<string> = new Set();
+  // Price-rank must see the full bucket — staged + already-assigned — because
+  // accepting one suggestion moves its product from staged to assigned, and a
+  // 2-product bucket would otherwise collapse to 1 and lose the signal for
+  // the remaining sibling product.
+  const priceRankByProduct = buildPriceRankEvidence([...available, ...group.assignedProducts]);
 
   const pairs: Pair[] = [];
   for (const printing of unmapped) {
     for (const product of available) {
       const crossLanguageShortCodes =
-        crossLanguageEvidence.get(productKey(product)) ?? emptyShortCodes;
+        crossLanguageEvidence.get(productKey2(product)) ?? emptyShortCodes;
       const score = scorePrintingProduct(
         printing,
         product,
         group.cardName,
         enforceLanguage,
         crossLanguageShortCodes,
+        priceRankByProduct.get(productKey2(product)) ?? null,
       );
       if (score >= SUGGESTION_THRESHOLD) {
         pairs.push({ printing, product, score });
@@ -315,6 +287,42 @@ export function computeSuggestions(
   }
 
   return suggestions;
+}
+
+/**
+ * Within a card's pool of staged products, bucket by (finish, language,
+ * groupKind) and rank prices. Only buckets with exactly two products and
+ * distinct prices yield a `cheapest` / `priciest` label — we don't try to
+ * resolve 3-way variant orderings here, since the only reliable signal is
+ * the binary normal-vs-altart split.
+ * @returns Map keyed by `productKey(product)` → `"cheapest" | "priciest"`.
+ */
+function buildPriceRankEvidence(
+  products: readonly StagedProduct[],
+): ReadonlyMap<string, PriceRank> {
+  const productKey = (p: StagedProduct): string => `${p.externalId}|${p.finish}`;
+  const priceOf = (p: StagedProduct): number | null =>
+    p.lowCents ?? p.marketCents ?? p.midCents ?? null;
+  const bucketKey = (p: StagedProduct): string =>
+    `${p.finish}::${p.language ?? ""}::${p.groupKind ?? ""}`;
+
+  const byBucket = Map.groupBy(products, bucketKey);
+  const out = new Map<string, PriceRank>();
+  for (const list of byBucket.values()) {
+    if (list.length !== 2) {
+      continue;
+    }
+    const [a, b] = list;
+    const priceA = priceOf(a);
+    const priceB = priceOf(b);
+    if (priceA === null || priceB === null || priceA === priceB) {
+      continue;
+    }
+    const [cheap, pricey] = priceA < priceB ? [a, b] : [b, a];
+    out.set(productKey(cheap), "cheapest");
+    out.set(productKey(pricey), "priciest");
+  }
+  return out;
 }
 
 /**

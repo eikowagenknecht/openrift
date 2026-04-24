@@ -231,6 +231,7 @@ export function buildResponseGroups(
   overrideMap: Map<string, { cardId: string }>,
   mappedProductInfo: Map<string, ProductInfo>,
   groupNameMap: Map<number, string>,
+  groupKindMap: Map<number, MarketplaceGroupKind>,
   mapStagedRow: (row: StagingRow, opts?: { isOverride?: boolean }) => StagedProductResponse,
 ) {
   return [...cardGroups.values()].map((group) => {
@@ -302,6 +303,7 @@ export function buildResponseGroups(
           groupName: p.sourceGroupId
             ? (groupNameMap.get(p.sourceGroupId) ?? `Group #${p.sourceGroupId}`)
             : undefined,
+          groupKind: p.sourceGroupId === null ? undefined : groupKindMap.get(p.sourceGroupId),
         });
       }
     }
@@ -523,6 +525,7 @@ export async function getMappingOverview(
     overrideMap,
     mappedProductInfo,
     groupNameMap,
+    groupKindMap,
     mapStagedRow,
   );
 

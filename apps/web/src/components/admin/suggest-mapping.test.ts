@@ -6,11 +6,7 @@ import type {
   UnifiedMappingGroup,
   UnifiedMappingPrinting,
 } from "./price-mappings-types";
-import {
-  computeProductSuggestions,
-  productSuggestionKey,
-  STRONG_MATCH_THRESHOLD,
-} from "./suggest-mapping";
+import { computeProductSuggestions, productSuggestionKey } from "./suggest-mapping";
 
 function printing(overrides: Partial<UnifiedMappingPrinting> = {}): UnifiedMappingPrinting {
   return {
@@ -53,9 +49,21 @@ function staged(overrides: Partial<StagedProduct> = {}): StagedProduct {
 function group(
   printings: UnifiedMappingPrinting[],
   perMarketplace: Partial<{
-    tcgplayer: { staged: StagedProduct[]; assignments: MarketplaceAssignment[] };
-    cardmarket: { staged: StagedProduct[]; assignments: MarketplaceAssignment[] };
-    cardtrader: { staged: StagedProduct[]; assignments: MarketplaceAssignment[] };
+    tcgplayer: {
+      staged: StagedProduct[];
+      assigned?: StagedProduct[];
+      assignments: MarketplaceAssignment[];
+    };
+    cardmarket: {
+      staged: StagedProduct[];
+      assigned?: StagedProduct[];
+      assignments: MarketplaceAssignment[];
+    };
+    cardtrader: {
+      staged: StagedProduct[];
+      assigned?: StagedProduct[];
+      assignments: MarketplaceAssignment[];
+    };
   }> = {},
   cardName = "Ahri",
 ): UnifiedMappingGroup {
@@ -78,17 +86,17 @@ function group(
     printings,
     tcgplayer: {
       stagedProducts: tcg.staged,
-      assignedProducts: [],
+      assignedProducts: tcg.assigned ?? [],
       assignments: tcg.assignments,
     },
     cardmarket: {
       stagedProducts: cm.staged,
-      assignedProducts: [],
+      assignedProducts: cm.assigned ?? [],
       assignments: cm.assignments,
     },
     cardtrader: {
       stagedProducts: ct.staged,
-      assignedProducts: [],
+      assignedProducts: ct.assigned ?? [],
       assignments: ct.assignments,
     },
   };
@@ -112,26 +120,6 @@ describe("computeProductSuggestions", () => {
     );
     const key = productSuggestionKey("tcgplayer", 101, "normal", "EN");
     expect(result.get(key)?.[0]?.printingId).toBe("p-normal");
-  });
-
-  it("suggests alt-art printing for a product whose suffix is Alternate Art", () => {
-    const normal = printing({ printingId: "p-normal", artVariant: "normal" });
-    const alt = printing({ printingId: "p-alt", shortCode: "OGN-001a", artVariant: "altart" });
-    const result = computeProductSuggestions(
-      group([normal, alt], {
-        cardmarket: {
-          staged: [
-            staged({ externalId: 201, productName: "Ahri", finish: "normal" }),
-            staged({ externalId: 202, productName: "Ahri Alternate Art", finish: "normal" }),
-          ],
-          assignments: [],
-        },
-      }),
-    );
-    const altKey = productSuggestionKey("cardmarket", 202, "normal", "EN");
-    const normalKey = productSuggestionKey("cardmarket", 201, "normal", "EN");
-    expect(result.get(altKey)?.[0]?.printingId).toBe("p-alt");
-    expect(result.get(normalKey)?.[0]?.printingId).toBe("p-normal");
   });
 
   it("skips products whose finish doesn't match any unmapped printing", () => {
@@ -239,21 +227,6 @@ describe("computeProductSuggestions", () => {
     );
   });
 
-  it("produces strong-match scores for prefix + variant agreement", () => {
-    const alt = printing({ printingId: "p-alt", artVariant: "altart", finish: "normal" });
-    const result = computeProductSuggestions(
-      group([alt], {
-        tcgplayer: {
-          staged: [staged({ externalId: 700, productName: "Ahri Alternate Art" })],
-          assignments: [],
-        },
-      }),
-    );
-    const entry = result.get(productSuggestionKey("tcgplayer", 700, "normal", "EN"));
-    expect(entry).toBeDefined();
-    expect(entry![0].score).toBeGreaterThanOrEqual(STRONG_MATCH_THRESHOLD);
-  });
-
   it("suggests a metal printing for a foil-staging product whose name contains 'Metal'", () => {
     // Marketplaces only emit `normal` or `foil` in staging — "metal" never
     // appears there. A metal printing must accept foil staging to ever see a
@@ -271,7 +244,11 @@ describe("computeProductSuggestions", () => {
     expect(entry?.[0]?.printingId).toBe("p-metal");
   });
 
-  it("routes the Metal-titled product to the metal printing and the plain foil to the regular foil", () => {
+  it("routes the Metal-titled product to the metal printing and leaves the plain foil ambiguous", () => {
+    // The "Metal" keyword positively boosts the metal printing for product 901.
+    // Product 900 ("Ahri" with no suffix) has no signal to prefer one foil class
+    // over the other, so both printings tie and the mutual-best gate emits no
+    // suggestion — preferred over guessing wrong.
     const foil = printing({ printingId: "p-foil", finish: "foil" });
     const metal = printing({ printingId: "p-metal", finish: "metal" });
     const result = computeProductSuggestions(
@@ -285,9 +262,7 @@ describe("computeProductSuggestions", () => {
         },
       }),
     );
-    expect(result.get(productSuggestionKey("tcgplayer", 900, "foil", "EN"))?.[0]?.printingId).toBe(
-      "p-foil",
-    );
+    expect(result.get(productSuggestionKey("tcgplayer", 900, "foil", "EN"))).toBeUndefined();
     expect(result.get(productSuggestionKey("tcgplayer", 901, "foil", "EN"))?.[0]?.printingId).toBe(
       "p-metal",
     );
@@ -605,6 +580,189 @@ describe("computeProductSuggestions", () => {
     );
     // The -80 penalty drags the score below the 100 threshold → no suggestion.
     expect(result.get(productSuggestionKey("tcgplayer", 1100, "normal", "EN"))).toBeUndefined();
+  });
+
+  it("resolves CT normal vs altart per language using price-rank (Miss Fortune scenario)", () => {
+    // Real scenario from Miss Fortune, Buccaneer: CardTrader has two products
+    // ("Miss Fortune - Buccaneer") per language, one cheap (normal) and one
+    // expensive (altart). Language is part of the SKU so EN and ZH are
+    // separate products. Price-rank must bucket independently per language.
+    const normalEn = printing({ printingId: "p-n-en", language: "EN", finish: "foil" });
+    const altEn = printing({
+      printingId: "p-a-en",
+      language: "EN",
+      finish: "foil",
+      shortCode: "OGN-001a",
+      artVariant: "altart",
+    });
+    const normalZh = printing({ printingId: "p-n-zh", language: "ZH", finish: "foil" });
+    const altZh = printing({
+      printingId: "p-a-zh",
+      language: "ZH",
+      finish: "foil",
+      shortCode: "OGN-001a",
+      artVariant: "altart",
+    });
+    const result = computeProductSuggestions(
+      group([normalEn, altEn, normalZh, altZh], {
+        cardtrader: {
+          staged: [
+            staged({
+              externalId: 345_385,
+              productName: "Miss Fortune - Buccaneer",
+              finish: "foil",
+              language: "EN",
+              lowCents: 19,
+              groupKind: "basic",
+            }),
+            staged({
+              externalId: 345_385,
+              productName: "Miss Fortune - Buccaneer",
+              finish: "foil",
+              language: "ZH",
+              lowCents: 23,
+              groupKind: "basic",
+            }),
+            staged({
+              externalId: 345_386,
+              productName: "Miss Fortune - Buccaneer",
+              finish: "foil",
+              language: "EN",
+              lowCents: 308,
+              groupKind: "basic",
+            }),
+            staged({
+              externalId: 345_386,
+              productName: "Miss Fortune - Buccaneer",
+              finish: "foil",
+              language: "ZH",
+              lowCents: 259,
+              groupKind: "basic",
+            }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    expect(
+      result.get(productSuggestionKey("cardtrader", 345_385, "foil", "EN"))?.[0]?.printingId,
+    ).toBe("p-n-en");
+    expect(
+      result.get(productSuggestionKey("cardtrader", 345_385, "foil", "ZH"))?.[0]?.printingId,
+    ).toBe("p-n-zh");
+    expect(
+      result.get(productSuggestionKey("cardtrader", 345_386, "foil", "EN"))?.[0]?.printingId,
+    ).toBe("p-a-en");
+    expect(
+      result.get(productSuggestionKey("cardtrader", 345_386, "foil", "ZH"))?.[0]?.printingId,
+    ).toBe("p-a-zh");
+  });
+
+  it("preserves price-rank after one product in the pair has been assigned", () => {
+    // Regression: accepting a suggestion moves the product from `stagedProducts`
+    // to `assignedProducts`. The price-rank bucket must still treat both as
+    // context — otherwise the remaining staged sibling drops its rank hint,
+    // ties against every available printing at the group-kind score, and gets
+    // stripped by the mutual-best gate. Effectively: clicking one chip would
+    // vaporise every other suggestion in the card.
+    // Four printings: the normal-EN was consumed by the cheap product, and
+    // the remaining three (normal-ZH + altart EN/ZH siblings) all score the
+    // same without the price-rank boost — so the mutual-best gate relies on
+    // the boost to pick altart for the remaining pricey product.
+    const normalEn = printing({ printingId: "p-normal", artVariant: "normal" });
+    const normalZh = printing({ printingId: "p-normal-zh", artVariant: "normal", language: "ZH" });
+    const altEn = printing({
+      printingId: "p-alt-en",
+      shortCode: "OGN-001a",
+      artVariant: "altart",
+    });
+    const altZh = printing({
+      printingId: "p-alt-zh",
+      shortCode: "OGN-001a",
+      artVariant: "altart",
+      language: "ZH",
+    });
+    const result = computeProductSuggestions(
+      group([normalEn, normalZh, altEn, altZh], {
+        tcgplayer: {
+          // The "cheap" product (1300) has been accepted on p-normal and now
+          // lives in assignedProducts — the "pricey" product (1301) still
+          // needs to be resolved to the altart fan-out (EN + ZH siblings).
+          staged: [
+            staged({
+              externalId: 1301,
+              productName: "Ahri",
+              finish: "normal",
+              language: null,
+              lowCents: 500,
+              groupKind: "basic",
+            }),
+          ],
+          assigned: [
+            staged({
+              externalId: 1300,
+              productName: "Ahri",
+              finish: "normal",
+              language: null,
+              lowCents: 20,
+              groupKind: "basic",
+            }),
+          ],
+          assignments: [
+            { externalId: 1300, printingId: "p-normal", finish: "normal", language: null },
+          ],
+        },
+      }),
+    );
+    // Language-aggregate CM-style product (language=null): altart siblings
+    // fan out, so both printings should come back as suggestions keyed by
+    // the same product.
+    const suggested = result
+      .get(productSuggestionKey("tcgplayer", 1301, "normal", null))
+      ?.map((s) => s.printingId)
+      .toSorted();
+    expect(suggested).toEqual(["p-alt-en", "p-alt-zh"]);
+  });
+
+  it("uses price to pair a normal/altart product split across two same-name products", () => {
+    // The two TCG products have identical names ("Ahri"), one cheap, one 20×
+    // more expensive. The altart printing should win the expensive product and
+    // the normal printing the cheap one — the price-rank within a (finish,
+    // language, groupKind) bucket is the tiebreak when the marketplace doesn't
+    // disclose the variant in the name.
+    const normal = printing({ printingId: "p-normal", artVariant: "normal" });
+    const alt = printing({ printingId: "p-alt", shortCode: "OGN-001a", artVariant: "altart" });
+    const result = computeProductSuggestions(
+      group([normal, alt], {
+        tcgplayer: {
+          staged: [
+            staged({
+              externalId: 1200,
+              productName: "Ahri",
+              finish: "normal",
+              lowCents: 20,
+              marketCents: 49,
+              groupKind: "basic",
+            }),
+            staged({
+              externalId: 1201,
+              productName: "Ahri",
+              finish: "normal",
+              lowCents: 496,
+              marketCents: 653,
+              groupKind: "basic",
+            }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    expect(
+      result.get(productSuggestionKey("tcgplayer", 1200, "normal", "EN"))?.[0]?.printingId,
+    ).toBe("p-normal");
+    expect(
+      result.get(productSuggestionKey("tcgplayer", 1201, "normal", "EN"))?.[0]?.printingId,
+    ).toBe("p-alt");
   });
 
   it("skips the sibling fan-out when the tied printings aren't actually siblings", () => {
