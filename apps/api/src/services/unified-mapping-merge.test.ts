@@ -674,7 +674,6 @@ describe("buildUnifiedMappingsCardResponse", () => {
     return {
       marketplace,
       currency: "USD",
-      languageAggregate: false,
       mapStagingPrices: (row: {
         marketCents: number | null;
         lowCents: number | null;

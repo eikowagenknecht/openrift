@@ -14,7 +14,8 @@ export const TCG_CONFIG: SourceMappingConfig = {
   source: "tcgplayer",
   displayName: "TCGplayer",
   shortName: "TCG",
-  // TCGplayer is effectively English-only for Riftbound, so no language filter applies.
+  // TCGplayer's product page doesn't take a language query param (no language
+  // is part of the product URL; a non-EN SKU would be a different productId).
   productUrl: (id) => `https://www.tcgplayer.com/product/${id}`,
 };
 

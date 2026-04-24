@@ -439,52 +439,25 @@ describe("GET /api/v1/prices/marketplace-info", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.infos[printingA]).toEqual({
-      tcgplayer: { available: false, productId: null, languageAggregate: false },
-      cardmarket: { available: false, productId: null, languageAggregate: true },
-      cardtrader: { available: false, productId: null, languageAggregate: false },
+      tcgplayer: { available: false, productId: null },
+      cardmarket: { available: false, productId: null },
+      cardtrader: { available: false, productId: null },
     });
   });
 
-  it("maps sources to per-marketplace productId and languageAggregate", async () => {
+  it("maps sources to per-marketplace productId", async () => {
     mockMarketplaceRepo.sourcesForPrintings.mockResolvedValue([
-      {
-        printingId: printingA,
-        externalId: 12_345,
-        marketplace: "tcgplayer",
-        languageAggregate: false,
-      },
-      {
-        printingId: printingA,
-        externalId: 67_890,
-        marketplace: "cardmarket",
-        languageAggregate: true,
-      },
-      {
-        printingId: printingB,
-        externalId: 11_111,
-        marketplace: "cardtrader",
-        languageAggregate: false,
-      },
+      { printingId: printingA, externalId: 12_345, marketplace: "tcgplayer" },
+      { printingId: printingA, externalId: 67_890, marketplace: "cardmarket" },
+      { printingId: printingB, externalId: 11_111, marketplace: "cardtrader" },
     ]);
     const res = await app.request(
       `/api/v1/prices/marketplace-info?printings=${printingA},${printingB}`,
     );
     const json = await res.json();
-    expect(json.infos[printingA].tcgplayer).toEqual({
-      available: true,
-      productId: 12_345,
-      languageAggregate: false,
-    });
-    expect(json.infos[printingA].cardmarket).toEqual({
-      available: true,
-      productId: 67_890,
-      languageAggregate: true,
-    });
-    expect(json.infos[printingB].cardtrader).toEqual({
-      available: true,
-      productId: 11_111,
-      languageAggregate: false,
-    });
+    expect(json.infos[printingA].tcgplayer).toEqual({ available: true, productId: 12_345 });
+    expect(json.infos[printingA].cardmarket).toEqual({ available: true, productId: 67_890 });
+    expect(json.infos[printingB].cardtrader).toEqual({ available: true, productId: 11_111 });
     expect(json.infos[printingB].tcgplayer.available).toBe(false);
   });
 

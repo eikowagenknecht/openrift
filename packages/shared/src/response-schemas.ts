@@ -193,7 +193,6 @@ const cardtraderSnapshotSchema = z.object({
 const marketplaceInfoSchema = z.object({
   available: z.boolean().openapi({ example: true }),
   productId: z.number().nullable().openapi({ example: 582_391 }),
-  languageAggregate: z.boolean().openapi({ example: false }),
 });
 
 export const priceHistoryResponseSchema = z
@@ -218,9 +217,9 @@ export const marketplaceInfoResponseSchema = z
       .openapi({
         example: {
           "019cfc3b-03d3-7dac-86c9-27900cd43727": {
-            tcgplayer: { available: true, productId: 582_391, languageAggregate: false },
-            cardmarket: { available: true, productId: 748_215, languageAggregate: true },
-            cardtrader: { available: false, productId: null, languageAggregate: false },
+            tcgplayer: { available: true, productId: 582_391 },
+            cardmarket: { available: true, productId: 748_215 },
+            cardtrader: { available: false, productId: null },
           },
         },
       }),

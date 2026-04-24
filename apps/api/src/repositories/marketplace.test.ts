@@ -26,13 +26,8 @@ describe("marketplaceRepo", () => {
 
   it("sourcesForPrintings returns batched product sources", async () => {
     const rows = [
-      {
-        printingId: "p1",
-        externalId: 12_345,
-        marketplace: "tcgplayer",
-        languageAggregate: false,
-      },
-      { printingId: "p2", externalId: 67_890, marketplace: "cardmarket", languageAggregate: true },
+      { printingId: "p1", externalId: 12_345, marketplace: "tcgplayer" },
+      { printingId: "p2", externalId: 67_890, marketplace: "cardmarket" },
     ];
     const db = createMockDb(rows);
     const repo = marketplaceRepo(db);

@@ -47,13 +47,11 @@ export interface CardtraderSnapshot {
 
 /**
  * Metadata describing how a marketplace maps to a printing: whether a mapping
- * exists, its external product ID (for deep-link URLs), and whether the
- * marketplace exposes only a cross-language aggregate price (Cardmarket).
+ * exists and its external product ID (for deep-link URLs).
  */
 export interface MarketplaceInfo {
   available: boolean;
   productId: number | null;
-  languageAggregate: boolean;
 }
 
 /**

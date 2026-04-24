@@ -54,18 +54,15 @@ const getMarketplaceInfo = createRoute({
   responses: {
     200: {
       content: { "application/json": { schema: marketplaceInfoResponseSchema } },
-      description: "Marketplace source metadata (productId, languageAggregate) for printings",
+      description: "Marketplace source metadata (productId, availability) for printings",
     },
   },
 });
 
-function emptyMarketplaceInfo(marketplace: Marketplace): MarketplaceInfo {
+function emptyMarketplaceInfo(): MarketplaceInfo {
   return {
     available: false,
     productId: null,
-    // Cardmarket's price guide is a cross-language aggregate; see the history
-    // route for the same default.
-    languageAggregate: marketplace === "cardmarket",
   };
 }
 
@@ -130,24 +127,9 @@ export const pricesRoute = pricesApp
 
     if (!printing) {
       return c.json({
-        tcgplayer: {
-          available: false,
-          productId: null,
-          snapshots: [],
-          languageAggregate: false,
-        },
-        cardmarket: {
-          available: false,
-          productId: null,
-          snapshots: [],
-          languageAggregate: true,
-        },
-        cardtrader: {
-          available: false,
-          productId: null,
-          snapshots: [],
-          languageAggregate: false,
-        },
+        tcgplayer: { available: false, productId: null, snapshots: [] },
+        cardmarket: { available: false, productId: null, snapshots: [] },
+        cardtrader: { available: false, productId: null, snapshots: [] },
       } satisfies PriceHistoryResponse);
     }
 
@@ -203,22 +185,16 @@ export const pricesRoute = pricesApp
         available: Boolean(tcgSource),
         productId: tcgSource?.externalId ?? null,
         snapshots: tcgSnapshots,
-        languageAggregate: false,
       },
       cardmarket: {
         available: Boolean(cmSource),
         productId: cmSource?.externalId ?? null,
         snapshots: cmSnapshots,
-        // Cardmarket's price guide is a cross-language aggregate. The
-        // sourcesForPrinting fan-out means this same variant is surfaced on
-        // every language of the card; the UI labels it "(any language)".
-        languageAggregate: true,
       },
       cardtrader: {
         available: Boolean(ctSource),
         productId: ctSource?.externalId ?? null,
         snapshots: ctSnapshots,
-        languageAggregate: false,
       },
     };
 
@@ -227,7 +203,7 @@ export const pricesRoute = pricesApp
   })
   /**
    * `GET /prices/marketplace-info?printings=uuid1,uuid2,...` — Batch variant of
-   * the `productId` / `languageAggregate` fields from the history endpoint.
+   * the `productId` / `available` fields from the history endpoint.
    *
    * Returns source metadata only (no snapshots) so the frontend can craft
    * deep-link marketplace URLs for an arbitrary set of printings (e.g. every
@@ -243,9 +219,9 @@ export const pricesRoute = pricesApp
     const infos: MarketplaceInfoResponse["infos"] = {};
     for (const printingId of printings) {
       infos[printingId] = {
-        tcgplayer: emptyMarketplaceInfo("tcgplayer"),
-        cardmarket: emptyMarketplaceInfo("cardmarket"),
-        cardtrader: emptyMarketplaceInfo("cardtrader"),
+        tcgplayer: emptyMarketplaceInfo(),
+        cardmarket: emptyMarketplaceInfo(),
+        cardtrader: emptyMarketplaceInfo(),
       };
     }
     for (const row of rows) {
@@ -256,7 +232,6 @@ export const pricesRoute = pricesApp
       entry[row.marketplace as Marketplace] = {
         available: true,
         productId: row.externalId,
-        languageAggregate: row.languageAggregate,
       };
     }
 

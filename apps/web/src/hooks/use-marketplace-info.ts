@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 
 /**
- * Fetch `MarketplaceInfo` (productId, languageAggregate, availability) for a
+ * Fetch `MarketplaceInfo` (productId, availability) for a
  * batch of printings so callers can craft per-marketplace deep-link URLs.
  *
  * The printing list is sorted before use so the query key is stable across

@@ -188,12 +188,14 @@ describe("computeCardCoverage", () => {
     expect(result.cardtrader.printings).toEqual({ status: "none", mapped: 0, total: 2 });
   });
 
-  it("printings=na when the card has no English printings (TCG)", () => {
+  it("TCG printings counter matches CM — ZH-only cards count their sibling group", () => {
+    // TCG and CM both store product rows with language=NULL (neither exposes
+    // language as a SKU axis). Coverage counts sibling groups identically.
+    // ZH-only cards show as uncovered on TCG (no variant mapped yet), not "na".
     const result = computeCardCoverage(
       group([printing({ printingId: "p-zh", language: "ZH", cmExternalId: 200 })]),
     );
-    expect(result.tcgplayer.printings).toEqual({ status: "na", mapped: 0, total: 0 });
-    expect(result.tcgplayer.entries).toEqual({ status: "na", mapped: 0, total: 0 });
+    expect(result.tcgplayer.printings).toEqual({ status: "none", mapped: 0, total: 1 });
     expect(result.cardmarket.printings).toEqual({ status: "full", mapped: 1, total: 1 });
     expect(result.cardtrader.printings).toEqual({ status: "none", mapped: 0, total: 1 });
   });
@@ -304,7 +306,7 @@ describe("buildCoverageMapBySlug", () => {
     ]);
     expect(map.size).toBe(2);
     expect(map.get("fireball")?.tcgplayer.printings.status).toBe("full");
-    expect(map.get("blizzard")?.tcgplayer.printings.status).toBe("na");
+    expect(map.get("blizzard")?.tcgplayer.printings.status).toBe("none");
   });
 
   it("returns an empty map for empty input", () => {
