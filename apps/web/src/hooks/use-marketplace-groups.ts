@@ -1,3 +1,4 @@
+import type { MarketplaceGroupKind } from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -29,23 +30,30 @@ export function useMarketplaceGroups() {
   return useSuspenseQuery(marketplaceGroupsQueryOptions);
 }
 
+interface UpdateMarketplaceGroupInput {
+  marketplace: string;
+  groupId: number;
+  name?: string | null;
+  groupKind?: MarketplaceGroupKind;
+}
+
 const updateMarketplaceGroupFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { marketplace: string; groupId: number; name: string | null }) => input)
+  .inputValidator((input: UpdateMarketplaceGroupInput) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
+    const { marketplace, groupId, ...patch } = data;
     await fetchApi({
       errorTitle: "Couldn't update marketplace group",
       cookie: context.cookie,
-      path: `/api/v1/admin/marketplace-groups/${encodeURIComponent(data.marketplace)}/${encodeURIComponent(String(data.groupId))}`,
+      path: `/api/v1/admin/marketplace-groups/${encodeURIComponent(marketplace)}/${encodeURIComponent(String(groupId))}`,
       method: "PATCH",
-      body: data,
+      body: patch,
     });
   });
 
 export function useUpdateMarketplaceGroup() {
   return useMutationWithInvalidation({
-    mutationFn: (body: { marketplace: string; groupId: number; name: string | null }) =>
-      updateMarketplaceGroupFn({ data: body }),
+    mutationFn: (body: UpdateMarketplaceGroupInput) => updateMarketplaceGroupFn({ data: body }),
     invalidates: [queryKeys.admin.marketplaceGroups],
   });
 }

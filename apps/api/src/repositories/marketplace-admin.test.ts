@@ -33,14 +33,30 @@ describe("marketplaceAdminRepo", () => {
     );
   });
 
-  it("updateGroupName returns true when updated", async () => {
+  it("updateGroup returns true when name is updated", async () => {
     const db = createMockDb([{ numUpdatedRows: 1n }]);
-    expect(await marketplaceAdminRepo(db).updateGroupName("tcgplayer", 1, "New Name")).toBe(true);
+    expect(await marketplaceAdminRepo(db).updateGroup("tcgplayer", 1, { name: "New Name" })).toBe(
+      true,
+    );
   });
 
-  it("updateGroupName returns false when not found", async () => {
+  it("updateGroup returns true when groupKind is updated", async () => {
+    const db = createMockDb([{ numUpdatedRows: 1n }]);
+    expect(
+      await marketplaceAdminRepo(db).updateGroup("tcgplayer", 1, { groupKind: "special" }),
+    ).toBe(true);
+  });
+
+  it("updateGroup returns false when not found", async () => {
     const db = createMockDb([]);
-    expect(await marketplaceAdminRepo(db).updateGroupName("tcgplayer", 999, null)).toBe(false);
+    expect(await marketplaceAdminRepo(db).updateGroup("tcgplayer", 999, { name: null })).toBe(
+      false,
+    );
+  });
+
+  it("updateGroup returns false when patch is empty", async () => {
+    const db = createMockDb([]);
+    expect(await marketplaceAdminRepo(db).updateGroup("tcgplayer", 1, {})).toBe(false);
   });
 
   it("listIgnoredProducts returns ignored products and variants merged", async () => {

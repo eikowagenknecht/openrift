@@ -221,11 +221,14 @@ export interface AdminSetResponse {
   printingCount: number;
 }
 
+export type MarketplaceGroupKind = "basic" | "special";
+
 export interface MarketplaceGroupResponse {
   marketplace: string;
   groupId: number;
   name: string | null;
   abbreviation: string | null;
+  groupKind: MarketplaceGroupKind;
   stagedCount: number;
   assignedCount: number;
 }
@@ -524,6 +527,13 @@ export interface StagedProductResponse {
   isOverride?: boolean;
   groupId?: number;
   groupName?: string;
+  /**
+   * Admin-assigned tag for the marketplace group this product belongs to.
+   * Drives the suggestion scorer: `basic` penalises promo/special printings,
+   * `special` prefers them. Omitted for products whose group resolution
+   * wasn't needed (unassigned staging without a group).
+   */
+  groupKind?: MarketplaceGroupKind;
 }
 
 /**

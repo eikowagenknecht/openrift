@@ -564,6 +564,49 @@ describe("computeProductSuggestions", () => {
     expect(result.get(productSuggestionKey("tcgplayer", 333, "foil", "EN"))).toBeUndefined();
   });
 
+  it("prefers a promo printing over a basic one when the group is tagged 'special'", () => {
+    // Same card with two printings — one regular, one promo (has markers).
+    // A staged product whose group is tagged `special` should point to the
+    // promo printing, not the regular one.
+    const regular = printing({ printingId: "p-regular", markerSlugs: [] });
+    const promo = printing({ printingId: "p-promo", markerSlugs: ["launch-exclusive"] });
+    const result = computeProductSuggestions(
+      group([regular, promo], {
+        tcgplayer: {
+          staged: [
+            staged({ externalId: 1000, productName: "Ahri", groupKind: "special" }),
+            staged({ externalId: 1001, productName: "Ahri", groupKind: "basic" }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    expect(
+      result.get(productSuggestionKey("tcgplayer", 1000, "normal", "EN"))?.[0]?.printingId,
+    ).toBe("p-promo");
+    expect(
+      result.get(productSuggestionKey("tcgplayer", 1001, "normal", "EN"))?.[0]?.printingId,
+    ).toBe("p-regular");
+  });
+
+  it("disambiguates a basic-named product away from a promo printing when group is 'basic'", () => {
+    // Regression: a name-only match can't distinguish "Ahri" (basic) from
+    // "Ahri" (promo) if there's no suffix. The group_kind tag is the
+    // tiebreaker — a product in a `basic` group shouldn't point to a promo
+    // printing even when it's the only one available.
+    const promo = printing({ printingId: "p-promo", markerSlugs: ["promo"] });
+    const result = computeProductSuggestions(
+      group([promo], {
+        tcgplayer: {
+          staged: [staged({ externalId: 1100, productName: "Ahri", groupKind: "basic" })],
+          assignments: [],
+        },
+      }),
+    );
+    // The -80 penalty drags the score below the 100 threshold → no suggestion.
+    expect(result.get(productSuggestionKey("tcgplayer", 1100, "normal", "EN"))).toBeUndefined();
+  });
+
   it("skips the sibling fan-out when the tied printings aren't actually siblings", () => {
     // A three-way tie with one printing on a different short_code isn't a
     // legitimate sibling group — fall back to the old "skip on ambiguity"

@@ -138,6 +138,7 @@ export type {
   MappingPrintingResponse,
   MarkerResponse,
   MarketplaceAssignmentResponse,
+  MarketplaceGroupKind,
   MarketplaceGroupResponse,
   JobRunsListResponse,
   JobRunStartedResponse,

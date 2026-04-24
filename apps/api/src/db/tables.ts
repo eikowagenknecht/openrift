@@ -128,12 +128,15 @@ export interface PrintingsTable {
 
 // ─── Unified marketplace pricing (migration 022) ────────────────────────────
 
+export type MarketplaceGroupKind = "basic" | "special";
+
 export interface MarketplaceGroupsTable {
   id: Generated<string>;
   marketplace: string;
   groupId: number;
   name: string | null;
   abbreviation: string | null;
+  groupKind: Generated<MarketplaceGroupKind>;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

@@ -79,6 +79,7 @@ export type {
   KeywordStylesResponse,
   MappingPrintingResponse,
   MarketplaceAssignmentResponse,
+  MarketplaceGroupKind,
   MarketplaceGroupResponse,
   JobRunsListResponse,
   JobRunStartedResponse,

@@ -1,3 +1,4 @@
+import type { MarketplaceGroupKind } from "@openrift/shared";
 import { useState } from "react";
 
 import { AdminTable } from "@/components/admin/admin-table";
@@ -5,8 +6,53 @@ import type { AdminColumnDef } from "@/components/admin/admin-table";
 import { CountBadge } from "@/components/admin/count-badge";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { MarketplaceGroup } from "@/hooks/use-marketplace-groups";
 import { useMarketplaceGroups, useUpdateMarketplaceGroup } from "@/hooks/use-marketplace-groups";
+
+const groupKindItems: { value: MarketplaceGroupKind; label: string }[] = [
+  { value: "basic", label: "Basic" },
+  { value: "special", label: "Special" },
+];
+
+function KindSelect({ group }: { group: MarketplaceGroup }) {
+  const mutation = useUpdateMarketplaceGroup();
+
+  function commit(next: string | null) {
+    if (next === null || next === group.groupKind) {
+      return;
+    }
+    mutation.mutate({
+      marketplace: group.marketplace,
+      groupId: group.groupId,
+      groupKind: next as MarketplaceGroupKind,
+    });
+  }
+
+  return (
+    <Select items={groupKindItems} value={group.groupKind} onValueChange={commit}>
+      <SelectTrigger className="h-8 w-28" aria-label="Group kind">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {groupKindItems.map((item) => (
+            <SelectItem key={item.value} value={item.value}>
+              {item.label}
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+}
 
 function EditableName({ group }: { group: MarketplaceGroup }) {
   const mutation = useUpdateMarketplaceGroup();
@@ -89,6 +135,13 @@ const columns: AdminColumnDef<MarketplaceGroup>[] = [
     header: "Abbreviation",
     width: "w-28",
     cell: (g) => <span className="font-mono">{g.abbreviation}</span>,
+  },
+  {
+    header: "Kind",
+    width: "w-32",
+    headerTitle: "Basic = set/supplemental printings. Special = promo/special printings.",
+    sortValue: (g) => g.groupKind,
+    cell: (g) => <KindSelect group={g} />,
   },
   {
     header: "Assigned",

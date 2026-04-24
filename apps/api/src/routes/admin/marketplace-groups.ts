@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
-import { updateGroupSchema } from "./schemas.js";
+import { marketplaceGroupKindEnum, updateGroupSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 
@@ -24,6 +24,7 @@ const listGroups = createRoute({
                 groupId: z.number().openapi({ example: 6286 }),
                 name: z.string().nullable().openapi({ example: "Origins" }),
                 abbreviation: z.string().nullable().openapi({ example: "OGN" }),
+                groupKind: marketplaceGroupKindEnum.openapi({ example: "basic" }),
                 stagedCount: z.number().openapi({ example: 0 }),
                 assignedCount: z.number().openapi({ example: 312 }),
               }),
@@ -78,6 +79,7 @@ export const marketplaceGroupsRoute = new OpenAPIHono<{ Variables: Variables }>(
           groupId: g.groupId,
           name: g.name,
           abbreviation: g.abbreviation,
+          groupKind: g.groupKind,
           stagedCount: stagingMap.get(key) ?? 0,
           assignedCount: assignedMap.get(key) ?? 0,
         };
@@ -88,9 +90,9 @@ export const marketplaceGroupsRoute = new OpenAPIHono<{ Variables: Variables }>(
   .openapi(updateGroup, async (c) => {
     const { marketplaceAdmin: mktAdmin } = c.get("repos");
     const { marketplace, id: groupId } = c.req.valid("param");
-    const { name } = c.req.valid("json");
+    const patch = c.req.valid("json");
 
-    const updated = await mktAdmin.updateGroupName(marketplace, groupId, name);
+    const updated = await mktAdmin.updateGroup(marketplace, groupId, patch);
     if (!updated) {
       throw new AppError(
         404,

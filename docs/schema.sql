@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 3UX0obFxvWjz7IKvBqX4xfgCnBReIA9WZ7HwBzzkdTsam8Jd68G2uUJI9A2Uh13
+\restrict wVimwcYeFvRSlYvwGK8xHMQwSO169M2q7svGjBAAIzgEgkD2G8YOsC6IHXbbEiz
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -45,6 +45,16 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 --
 
 COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
+
+
+--
+-- Name: marketplace_group_kind; Type: TYPE; Schema: public; Owner: -
+--
+
+CREATE TYPE public.marketplace_group_kind AS ENUM (
+    'basic',
+    'special'
+);
 
 
 --
@@ -912,7 +922,8 @@ CREATE TABLE public.marketplace_groups (
     abbreviation text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    id uuid DEFAULT uuidv7() CONSTRAINT marketplace_groups_new_id_not_null NOT NULL
+    id uuid DEFAULT uuidv7() CONSTRAINT marketplace_groups_new_id_not_null NOT NULL,
+    group_kind public.marketplace_group_kind DEFAULT 'basic'::public.marketplace_group_kind NOT NULL
 );
 
 
@@ -3420,5 +3431,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 3UX0obFxvWjz7IKvBqX4xfgCnBReIA9WZ7HwBzzkdTsam8Jd68G2uUJI9A2Uh13
+\unrestrict wVimwcYeFvRSlYvwGK8xHMQwSO169M2q7svGjBAAIzgEgkD2G8YOsC6IHXbbEiz
 
