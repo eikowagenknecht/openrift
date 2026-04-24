@@ -30,8 +30,8 @@ export function marketplaceMappingRepo(db: Db) {
         .innerJoin("marketplaceProducts as mp", "mp.id", "iv.marketplaceProductId")
         .select([
           "mp.externalId as externalId",
-          "iv.finish as finish",
-          "iv.language as language",
+          "mp.finish as finish",
+          "mp.language as language",
           "iv.productName as productName",
           "iv.createdAt as createdAt",
         ])
@@ -138,7 +138,8 @@ export function marketplaceMappingRepo(db: Db) {
             imageUrlWithOriginal("ci").as("imageUrl"),
             "mp.externalId as externalId",
             "mp.groupId as sourceGroupId",
-            "mpv.language as sourceLanguage",
+            "mp.language as sourceLanguage",
+            "mp.finish as productFinish",
           ])
           // A printing can have variants for multiple marketplaces. The variant join
           // returns one row per variant, but the product join filters by marketplace,
@@ -210,7 +211,8 @@ export function marketplaceMappingRepo(db: Db) {
           "mp.marketplace as variantMarketplace",
           "mp.externalId as externalId",
           "mp.groupId as sourceGroupId",
-          "mpv.language as sourceLanguage",
+          "mp.language as sourceLanguage",
+          "mp.finish as productFinish",
         ]);
       if (cardIdentifier !== undefined) {
         query = query.where((eb) =>
@@ -298,7 +300,8 @@ export function marketplaceMappingRepo(db: Db) {
      * to rebind a variant to a different printing when staging has rotated out
      * but the upstream product record is still present — reuses the existing
      * `group_id` and `product_name` as a fallback so the upsert can proceed.
-     * @returns One row per external ID with its display name and group ID.
+     * @returns One row per SKU (external_id × finish × language) with its
+     *          display name and group ID.
      */
     productsByExternalIds(marketplace: string, externalIds: number[]) {
       if (externalIds.length === 0) {
@@ -306,7 +309,7 @@ export function marketplaceMappingRepo(db: Db) {
       }
       return db
         .selectFrom("marketplaceProducts")
-        .select(["externalId", "productName", "groupId"])
+        .select(["externalId", "finish", "language", "productName", "groupId"])
         .where("marketplace", "=", marketplace)
         .where("externalId", "in", externalIds)
         .execute();
@@ -315,13 +318,15 @@ export function marketplaceMappingRepo(db: Db) {
     /**
      * Batch-upsert marketplace products and their variants.
      *
-     * For each input row: upserts the parent upstream product (keyed on
-     * `marketplace, external_id`) then upserts the per-SKU variant (keyed on
-     * `marketplace_product_id, finish, language, printing_id`). One product
-     * can map to multiple printings — e.g. a Cardmarket language-aggregate
-     * product that legitimately covers both the EN and ZH printings.
+     * For each input row: upserts the per-SKU product (keyed on
+     * `(marketplace, external_id, finish, language)` — NULLS NOT DISTINCT so
+     * CM/TCG collapse on NULL language) then upserts the variant (keyed on
+     * `(marketplace_product_id, printing_id)`). One product SKU can map to
+     * multiple printings — e.g. Cardmarket's language-aggregate product row
+     * legitimately covers every language of the same card.
      *
-     * @returns One row per input, each with `printingId` and the resulting `variantId`.
+     * @returns One row per input, each with its `(printingId, externalId,
+     *          finish, language)` key and the resulting `variantId`.
      */
     async upsertProductVariants(
       values: {
@@ -331,10 +336,18 @@ export function marketplaceMappingRepo(db: Db) {
         groupId: number;
         productName: string;
         finish: string;
-        /** `null` for cross-language aggregate variants (e.g. Cardmarket). */
+        /** `null` for marketplaces that don't expose language as a SKU axis (CM/TCG). */
         language: string | null;
       }[],
-    ): Promise<{ printingId: string; variantId: string }[]> {
+    ): Promise<
+      {
+        printingId: string;
+        externalId: number;
+        finish: string;
+        language: string | null;
+        variantId: string;
+      }[]
+    > {
       if (values.length === 0) {
         return [];
       }
@@ -344,36 +357,54 @@ export function marketplaceMappingRepo(db: Db) {
         externalId: v.externalId,
         groupId: v.groupId,
         productName: v.productName,
+        finish: v.finish,
+        language: v.language,
       }));
 
-      const products = await db
-        .insertInto("marketplaceProducts")
-        .values(productRows)
-        .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId"]).doUpdateSet({
-            groupId: sql<number>`excluded.group_id`,
-            productName: sql<string>`excluded.product_name`,
-          }),
-        )
-        .returning(["id", "marketplace", "externalId"])
-        .execute();
+      // We can't RETURNING rows that are just updated on conflict with a
+      // NULLS NOT DISTINCT unique (Kysely's onConflict doesn't expose that
+      // option for .columns()). Upsert with raw SQL so both inserted and
+      // conflicting rows come back in the RETURNING set.
+      const products = await sql<{
+        id: string;
+        marketplace: string;
+        externalId: number;
+        finish: string;
+        language: string | null;
+      }>`
+        INSERT INTO marketplace_products (marketplace, external_id, group_id, product_name, finish, language)
+        VALUES ${sql.join(
+          productRows.map(
+            (r) =>
+              sql`(${r.marketplace}, ${r.externalId}, ${r.groupId}, ${r.productName}, ${r.finish}, ${r.language})`,
+          ),
+        )}
+        ON CONFLICT (marketplace, external_id, finish, language)
+        DO UPDATE SET
+          group_id = EXCLUDED.group_id,
+          product_name = EXCLUDED.product_name
+        RETURNING id, marketplace, external_id AS "externalId", finish, language
+      `.execute(db);
 
       const productIdByKey = new Map(
-        products.map((p) => [`${p.marketplace}::${p.externalId}`, p.id]),
+        products.rows.map((p) => [
+          `${p.marketplace}::${p.externalId}::${p.finish}::${p.language ?? ""}`,
+          p.id,
+        ]),
       );
 
       const variantRows = values.map((v) => {
-        const productId = productIdByKey.get(`${v.marketplace}::${v.externalId}`);
+        const productId = productIdByKey.get(
+          `${v.marketplace}::${v.externalId}::${v.finish}::${v.language ?? ""}`,
+        );
         if (!productId) {
           throw new Error(
-            `upsertProductVariants: missing product id for ${v.marketplace} ${v.externalId}`,
+            `upsertProductVariants: missing product id for ${v.marketplace} ${v.externalId} ${v.finish}/${v.language ?? "NULL"}`,
           );
         }
         return {
           marketplaceProductId: productId,
           printingId: v.printingId,
-          finish: v.finish,
-          language: v.language,
         };
       });
 
@@ -381,14 +412,31 @@ export function marketplaceMappingRepo(db: Db) {
         .insertInto("marketplaceProductVariants")
         .values(variantRows)
         .onConflict((oc) =>
-          oc
-            .columns(["marketplaceProductId", "finish", "language", "printingId"])
-            .doUpdateSet({ printingId: sql<string>`excluded.printing_id` }),
+          oc.columns(["marketplaceProductId", "printingId"]).doUpdateSet({
+            // Touch a no-op so RETURNING yields the row on both insert and conflict.
+            updatedAt: sql<Date>`now()`,
+          }),
         )
-        .returning(["id", "printingId"])
+        .returning(["id", "marketplaceProductId", "printingId"])
         .execute();
 
-      return variants.map((v) => ({ printingId: v.printingId, variantId: v.id }));
+      const productKeyByProductId = new Map(products.rows.map((p) => [p.id, p]));
+
+      return variants.map((v) => {
+        const p = productKeyByProductId.get(v.marketplaceProductId);
+        if (!p) {
+          throw new Error(
+            `upsertProductVariants: missing product for variant ${v.id} (product ${v.marketplaceProductId})`,
+          );
+        }
+        return {
+          printingId: v.printingId,
+          externalId: p.externalId,
+          finish: p.finish,
+          language: p.language,
+          variantId: v.id,
+        };
+      });
     },
 
     /** Batch-insert snapshots with conflict resolution. */
@@ -430,16 +478,24 @@ export function marketplaceMappingRepo(db: Db) {
     /** Delete staging rows by marketplace and (externalId, finish, language) tuples. */
     async deleteStagingTuples(
       marketplace: string,
-      tuples: { externalId: number; finish: string; language: string }[],
+      tuples: { externalId: number; finish: string; language: string | null }[],
     ): Promise<void> {
       if (tuples.length === 0) {
         return;
       }
-      const values = tuples.map((t) => sql`(${t.externalId}::integer, ${t.finish}, ${t.language})`);
+      // language is nullable for CM/TCG. NULLS NOT DISTINCT on the staging
+      // unique makes `IS NOT DISTINCT FROM` the right comparison.
+      const conditions = tuples.map(
+        (t) => sql`(
+          external_id = ${t.externalId}::integer
+          AND finish = ${t.finish}
+          AND language IS NOT DISTINCT FROM ${t.language}
+        )`,
+      );
       await sql`
         DELETE FROM marketplace_staging
         WHERE marketplace = ${marketplace}
-          AND (external_id, finish, language) IN (VALUES ${sql.join(values)})
+          AND (${sql.join(conditions, sql` OR `)})
       `.execute(db);
     },
 
@@ -447,7 +503,9 @@ export function marketplaceMappingRepo(db: Db) {
 
     /**
      * @returns The variant mapping for a printing in a given marketplace, with
-     *          the parent product's external_id, group_id, and product_name inlined.
+     *          the parent product's SKU axes and metadata inlined. Finish and
+     *          language come from the product row, not the variant (which is
+     *          now a pure product↔printing bridge).
      */
     getVariantForPrinting(marketplace: string, printingId: string) {
       return db
@@ -456,8 +514,8 @@ export function marketplaceMappingRepo(db: Db) {
         .select([
           "mpv.id as variantId",
           "mpv.marketplaceProductId as marketplaceProductId",
-          "mpv.finish as finish",
-          "mpv.language as language",
+          "mp.finish as finish",
+          "mp.language as language",
           "mp.externalId as externalId",
           "mp.groupId as groupId",
           "mp.productName as productName",
@@ -580,8 +638,8 @@ export function marketplaceMappingRepo(db: Db) {
           mp.marketplace as "marketplace",
           mp.external_id as "externalId",
           mp.product_name as "productName",
-          mpv.finish as "finish",
-          mpv.language as "variantLanguage",
+          mp.finish as "finish",
+          mp.language as "variantLanguage",
           source.id as "ownerPrintingId",
           source.language as "ownerLanguage"
         FROM printings target
@@ -595,7 +653,7 @@ export function marketplaceMappingRepo(db: Db) {
         JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
         WHERE target.card_id = ${cardId}
-          AND (mpv.language IS NULL OR source.id = target.id)
+          AND (mp.language IS NULL OR source.id = target.id)
       `.execute(db);
       return result.rows;
     },

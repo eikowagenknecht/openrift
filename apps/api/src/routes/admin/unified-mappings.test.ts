@@ -125,8 +125,18 @@ describe("POST /api/v1/marketplace-mappings", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         mappings: [
-          { printingId: "00000000-0000-4000-a000-000000000001", externalId: 12_345 },
-          { printingId: "00000000-0000-4000-a000-000000000002", externalId: 67_890 },
+          {
+            printingId: "00000000-0000-4000-a000-000000000001",
+            externalId: 12_345,
+            finish: "normal",
+            language: null,
+          },
+          {
+            printingId: "00000000-0000-4000-a000-000000000002",
+            externalId: 67_890,
+            finish: "foil",
+            language: null,
+          },
         ],
       }),
     });
@@ -145,7 +155,14 @@ describe("POST /api/v1/marketplace-mappings", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        mappings: [{ printingId: "00000000-0000-4000-a000-000000000001", externalId: 12_345 }],
+        mappings: [
+          {
+            printingId: "00000000-0000-4000-a000-000000000001",
+            externalId: 12_345,
+            finish: "normal",
+            language: null,
+          },
+        ],
       }),
     });
 
@@ -164,7 +181,14 @@ describe("POST /api/v1/marketplace-mappings", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        mappings: [{ printingId: "00000000-0000-4000-a000-000000000099", externalId: 12_345 }],
+        mappings: [
+          {
+            printingId: "00000000-0000-4000-a000-000000000099",
+            externalId: 12_345,
+            finish: "normal",
+            language: null,
+          },
+        ],
       }),
     });
 
@@ -179,7 +203,14 @@ describe("POST /api/v1/marketplace-mappings", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        mappings: [{ printingId: "00000000-0000-4000-a000-000000000001", externalId: 12_345 }],
+        mappings: [
+          {
+            printingId: "00000000-0000-4000-a000-000000000001",
+            externalId: 12_345,
+            finish: "normal",
+            language: null,
+          },
+        ],
       }),
     });
 

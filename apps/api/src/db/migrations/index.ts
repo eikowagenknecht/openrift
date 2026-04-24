@@ -48,6 +48,10 @@ import * as m099 from "./099-marketplace-zero-low-cents.js";
 import * as m100 from "./100-cardtrader-zero-first-headline.js";
 import * as m101 from "./101-job-runs.js";
 import * as m102 from "./102-marketplace-product-variants-constraint.js";
+import * as m103 from "./103-delete-mismatched-variants.js";
+import * as m104 from "./104-normalize-marketplace-products-per-sku.js";
+import * as m105 from "./105-drop-variant-sku-columns.js";
+import * as m106 from "./106-staging-nullable-language.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -155,4 +159,8 @@ export const migrations: Record<string, Migration> = {
   "100-cardtrader-zero-first-headline": m100,
   "101-job-runs": m101,
   "102-marketplace-product-variants-constraint": m102,
+  "103-delete-mismatched-variants": m103,
+  "104-normalize-marketplace-products-per-sku": m104,
+  "105-drop-variant-sku-columns": m105,
+  "106-staging-nullable-language": m106,
 };

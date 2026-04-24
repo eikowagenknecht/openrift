@@ -33,8 +33,21 @@ const PRICE_EXCLUDED_SET = {
 export interface LoadedIgnoredKeys {
   /** Level 2: whole upstream products (keyed by externalId). */
   productIds: Set<number>;
-  /** Level 3: per-SKU ignores (keyed by `externalId::finish::language`). */
+  /**
+   * Level 3: per-SKU ignores keyed by `externalId::finish::language`, where
+   * `language` is the empty string when the marketplace stores NULL (CM/TCG).
+   */
   variantKeys: Set<string>;
+}
+
+/**
+ * Build the canonical staging→SKU lookup key. Cardmarket and TCGPlayer store
+ * NULL language; CT stores the real language. The empty-string fallback keeps
+ * Map lookups consistent with what the database returns.
+ * @returns `${externalId}::${finish}::${language ?? ""}`
+ */
+export function skuKey(externalId: number, finish: string, language: string | null): string {
+  return `${externalId}::${finish}::${language ?? ""}`;
 }
 
 /**
@@ -93,14 +106,14 @@ export function priceRefreshRepo(db: Db) {
         db
           .selectFrom("marketplaceIgnoredVariants as iv")
           .innerJoin("marketplaceProducts as mp", "mp.id", "iv.marketplaceProductId")
-          .select(["mp.externalId as externalId", "iv.finish as finish", "iv.language as language"])
+          .select(["mp.externalId as externalId", "mp.finish as finish", "mp.language as language"])
           .where("mp.marketplace", "=", marketplace)
           .execute(),
       ]);
 
       return {
         productIds: new Set(productRows.map((r) => r.externalId)),
-        variantKeys: new Set(variantRows.map((r) => `${r.externalId}::${r.finish}::${r.language}`)),
+        variantKeys: new Set(variantRows.map((r) => skuKey(r.externalId, r.finish, r.language))),
       };
     },
 
@@ -136,10 +149,12 @@ export function priceRefreshRepo(db: Db) {
     // ── Variant lookup ──────────────────────────────────────────────────────
 
     /**
-     * @returns One row per variant in a marketplace, with its parent's external_id.
-     *          `id` is the variant id (suitable for use as snapshot.variantId).
+     * @returns One row per variant in a marketplace, with its parent's SKU axes
+     *          (external_id, finish, language) — the SKU lives on the product
+     *          row since migration 104. `id` is the variant id, suitable for
+     *          use as snapshot.variantId.
      */
-    variantsWithFinish(marketplace: string) {
+    variantsWithSku(marketplace: string) {
       return db
         .selectFrom("marketplaceProductVariants as mpv")
         .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
@@ -147,8 +162,8 @@ export function priceRefreshRepo(db: Db) {
           "mpv.id as id",
           "mpv.printingId as printingId",
           "mp.externalId as externalId",
-          "mpv.language as language",
-          "mpv.finish as finish",
+          "mp.finish as finish",
+          "mp.language as language",
         ])
         .where("mp.marketplace", "=", marketplace)
         .execute();
@@ -223,7 +238,7 @@ export function priceRefreshRepo(db: Db) {
       batch: {
         externalId: number;
         finish: string;
-        language: string;
+        language: string | null;
         productName: string;
         recordedAt: Date;
         groupId: number;
@@ -286,8 +301,8 @@ export function priceRefreshRepo(db: Db) {
           "mp.marketplace as marketplace",
           "mp.externalId as externalId",
           "mpv.printingId as printingId",
-          "mpv.finish as finish",
-          "mpv.language as language",
+          "mp.finish as finish",
+          "mp.language as language",
           "mp.groupId as groupId",
           "mp.productName as productName",
         ])
@@ -296,11 +311,10 @@ export function priceRefreshRepo(db: Db) {
     },
 
     /**
-     * Batch-insert product + variant rows. Upserts the parent product by
-     * `(marketplace, external_id)` then upserts the variant by
-     * `(marketplaceProductId, finish, language)` pointing at the given printing.
-     * No-ops on conflict (used by auto-match where we don't want to overwrite
-     * existing mappings).
+     * Batch-insert product + variant rows. Upserts the per-SKU product by
+     * `(marketplace, external_id, finish, language)` then upserts the variant
+     * by `(marketplaceProductId, printingId)`. No-ops on conflict (used by
+     * auto-match where we don't want to overwrite existing mappings).
      */
     async batchInsertProductVariants(
       values: {
@@ -310,7 +324,7 @@ export function priceRefreshRepo(db: Db) {
         productName: string;
         printingId: string;
         finish: string;
-        /** `null` for cross-language aggregate variants (e.g. Cardmarket). */
+        /** `null` for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
         language: string | null;
       }[],
     ): Promise<void> {
@@ -323,17 +337,21 @@ export function priceRefreshRepo(db: Db) {
         externalId: v.externalId,
         groupId: v.groupId,
         productName: v.productName,
+        finish: v.finish,
+        language: v.language,
       }));
 
       await db
         .insertInto("marketplaceProducts")
         .values(productRows)
-        .onConflict((oc) => oc.columns(["marketplace", "externalId"]).doNothing())
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
         .execute();
 
       const products = await db
         .selectFrom("marketplaceProducts")
-        .select(["id", "marketplace", "externalId"])
+        .select(["id", "marketplace", "externalId", "finish", "language"])
         .where((eb) =>
           eb.or(
             values.map((v) =>
@@ -344,28 +362,26 @@ export function priceRefreshRepo(db: Db) {
         .execute();
 
       const productIdByKey = new Map(
-        products.map((p) => [`${p.marketplace}::${p.externalId}`, p.id]),
+        products.map((p) => [skuKey(p.externalId, p.finish, p.language), p.id]),
       );
 
       const variantRows = values.map((v) => {
-        const productId = productIdByKey.get(`${v.marketplace}::${v.externalId}`);
+        const productId = productIdByKey.get(skuKey(v.externalId, v.finish, v.language));
         if (!productId) {
           throw new Error(
-            `batchInsertProductVariants: missing product id for ${v.marketplace} ${v.externalId}`,
+            `batchInsertProductVariants: missing product id for ${v.marketplace} ${v.externalId} ${v.finish}/${v.language ?? "NULL"}`,
           );
         }
         return {
           marketplaceProductId: productId,
           printingId: v.printingId,
-          finish: v.finish,
-          language: v.language,
         };
       });
 
       await db
         .insertInto("marketplaceProductVariants")
         .values(variantRows)
-        .onConflict((oc) => oc.columns(["marketplaceProductId", "finish", "language"]).doNothing())
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "printingId"]).doNothing())
         .execute();
     },
   };

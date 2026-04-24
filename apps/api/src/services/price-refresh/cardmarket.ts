@@ -24,10 +24,6 @@ import { loadIgnoredKeys, upsertMarketplaceGroups, upsertPriceData } from "./ups
 
 const UPSERT_CONFIG: PriceUpsertConfig = {
   marketplace: "cardmarket",
-  // Cardmarket's price guide exposes only cross-language aggregate numbers,
-  // so variants in our DB store `language = NULL` while staging rows carry
-  // a placeholder "EN". The upsert matcher ignores language for this marketplace.
-  languageAggregate: true,
 };
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -112,13 +108,13 @@ function buildCardmarketStaging(
       continue;
     }
     const normalMarket = toCents(pg.avg);
-    if (normalMarket !== null && !ignoredKeys.variantKeys.has(`${product.idProduct}::normal::EN`)) {
+    if (normalMarket !== null && !ignoredKeys.variantKeys.has(`${product.idProduct}::normal::`)) {
       allStaging.push({
         externalId: product.idProduct,
         groupId: product.idExpansion,
         productName: product.name,
         finish: "normal",
-        language: "EN",
+        language: null,
         recordedAt,
         marketCents: normalMarket,
         lowCents: toCents(pg.low),
@@ -132,13 +128,13 @@ function buildCardmarketStaging(
       });
     }
     const foilMarket = toCents(pg["avg-foil"]);
-    if (foilMarket !== null && !ignoredKeys.variantKeys.has(`${product.idProduct}::foil::EN`)) {
+    if (foilMarket !== null && !ignoredKeys.variantKeys.has(`${product.idProduct}::foil::`)) {
       allStaging.push({
         externalId: product.idProduct,
         groupId: product.idExpansion,
         productName: product.name,
         finish: "foil",
-        language: "EN",
+        language: null,
         recordedAt,
         marketCents: foilMarket,
         lowCents: toCents(pg["low-foil"]),

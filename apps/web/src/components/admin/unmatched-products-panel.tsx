@@ -79,7 +79,7 @@ function flattenUnmatched(data: {
  */
 export function buildAssignSuccessNavigation(
   marketplace: Marketplace,
-  product: { finish: string; language: string },
+  product: { finish: string; language: string | null },
   card: { cardSlug: string },
 ) {
   return {
@@ -88,7 +88,9 @@ export function buildAssignSuccessNavigation(
     search: {
       focusMarketplace: marketplace,
       focusFinish: product.finish,
-      focusLanguage: product.language,
+      // CM/TCG have no per-language SKU; fall back to empty so the search param
+      // is always a string (TanStack Router rejects undefined keys).
+      focusLanguage: product.language ?? "",
     },
   };
 }
@@ -111,7 +113,12 @@ export function UnmatchedProductsPanel() {
     [allRows],
   );
   const availableLanguages = useMemo(
-    () => [...new Set(allRows.map((row) => row.product.language))].toSorted(),
+    () =>
+      [
+        ...new Set(
+          allRows.map((row) => row.product.language).filter((l): l is string => l !== null),
+        ),
+      ].toSorted(),
     [allRows],
   );
 
@@ -147,7 +154,7 @@ export function UnmatchedProductsPanel() {
         marketplaceOrder[a.marketplace] - marketplaceOrder[b.marketplace] ||
         a.product.productName.localeCompare(b.product.productName) ||
         b.product.finish.localeCompare(a.product.finish) ||
-        a.product.language.localeCompare(b.product.language) ||
+        (a.product.language ?? "").localeCompare(b.product.language ?? "") ||
         a.product.externalId - b.product.externalId,
     );
   }, [filtered]);

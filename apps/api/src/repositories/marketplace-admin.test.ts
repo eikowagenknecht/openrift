@@ -78,14 +78,16 @@ describe("marketplaceAdminRepo", () => {
   it("insertIgnoredVariants inserts L3 ignores", async () => {
     // The repo needs to look up parent products after upserting them; the mock proxy
     // will happily return whatever we provide for every query.
-    const db = createMockDb([{ id: "mp-1", marketplace: "tcgplayer", externalId: 1 }]);
+    const db = createMockDb([
+      { id: "mp-1", marketplace: "tcgplayer", externalId: 1, finish: "normal", language: null },
+    ]);
     await expect(
       marketplaceAdminRepo(db).insertIgnoredVariants([
         {
           marketplace: "tcgplayer",
           externalId: 1,
           finish: "normal",
-          language: "EN",
+          language: null,
           productName: "Card",
           groupId: 10,
         },

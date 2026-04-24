@@ -309,7 +309,8 @@ interface IgnoredProductLevelTwoResponse extends IgnoredProductBase {
 interface IgnoredProductLevelThreeResponse extends IgnoredProductBase {
   level: "variant";
   finish: string;
-  language: string;
+  /** `null` for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
+  language: string | null;
 }
 
 export type IgnoredProductResponse =
@@ -504,7 +505,12 @@ export interface StagedProductResponse {
   externalId: number;
   productName: string;
   finish: string;
-  language: string;
+  /**
+   * `null` when the marketplace doesn't expose language as a SKU dimension
+   * (Cardmarket's cross-language price guide, TCGPlayer's English-only
+   * catalog). A real language code otherwise (CardTrader).
+   */
+  language: string | null;
   marketCents: number | null;
   lowCents: number | null;
   currency: string;
@@ -524,7 +530,8 @@ export interface StagedProductResponse {
  * A single (product × printing) mapping row. Authoritative: survives cases
  * where one printing is bound to multiple variants of the same marketplace
  * (can happen when two upstream products target the same printing).
- * `language` is `null` for language-aggregate marketplaces (Cardmarket).
+ * `language` is `null` when the marketplace doesn't expose language as a
+ * SKU dimension (CM/TCG).
  */
 export interface MarketplaceAssignmentResponse {
   externalId: number;

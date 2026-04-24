@@ -46,36 +46,45 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
   // on screen until the unifiedMappings refetch finishes. We flip the cache
   // synchronously so the row visibly assigns right away, then reconcile via a
   // background invalidation. On error we roll back.
-  const assignToPrinting = (marketplace: AdminMarketplaceName) => (eid: number, pid: string) => {
-    const previous = queryClient.getQueryData<UnifiedMappingsCardResponse>(cardKey);
-    if (previous) {
-      const next = applyOptimisticAssignmentForCard(previous, marketplace, eid, pid);
-      if (next !== previous) {
-        queryClient.setQueryData(cardKey, next);
+  const assignToPrinting =
+    (marketplace: AdminMarketplaceName) =>
+    (eid: number, finish: string, language: string | null, pid: string) => {
+      const previous = queryClient.getQueryData<UnifiedMappingsCardResponse>(cardKey);
+      if (previous) {
+        const next = applyOptimisticAssignmentForCard(
+          previous,
+          marketplace,
+          eid,
+          finish,
+          language,
+          pid,
+        );
+        if (next !== previous) {
+          queryClient.setQueryData(cardKey, next);
+        }
       }
-    }
-    const save =
-      marketplace === "tcgplayer"
-        ? tcgSaveMapping
-        : marketplace === "cardmarket"
-          ? cmSaveMapping
-          : ctSaveMapping;
-    save.mutate(
-      { mappings: [{ printingId: pid, externalId: eid }] },
-      {
-        onError: () => {
-          if (previous) {
-            queryClient.setQueryData(cardKey, previous);
-          }
+      const save =
+        marketplace === "tcgplayer"
+          ? tcgSaveMapping
+          : marketplace === "cardmarket"
+            ? cmSaveMapping
+            : ctSaveMapping;
+      save.mutate(
+        { mappings: [{ printingId: pid, externalId: eid, finish, language }] },
+        {
+          onError: () => {
+            if (previous) {
+              queryClient.setQueryData(cardKey, previous);
+            }
+          },
+          onSuccess: () => {
+            void queryClient.invalidateQueries({
+              queryKey: queryKeys.admin.cards.detail(cardId),
+            });
+          },
         },
-        onSuccess: () => {
-          void queryClient.invalidateQueries({
-            queryKey: queryKeys.admin.cards.detail(cardId),
-          });
-        },
-      },
-    );
-  };
+      );
+    };
 
   const tcgIgnoreVariant = useUnifiedIgnoreVariants("tcgplayer");
   const cmIgnoreVariant = useUnifiedIgnoreVariants("cardmarket");
@@ -184,17 +193,19 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
 }
 
 /**
- * Return a new group with a single (externalId → printing) assignment applied:
- * the matching staged product becomes assigned, and the assignment row is
- * appended. Cardmarket stores language-aggregate so the assignment row uses
- * null; CT/TCG pin the printing's language. Returns the original group
- * unchanged when the printing or matching staged variant can't be resolved.
+ * Return a new group with a single (product SKU → printing) assignment
+ * applied: the matching staged product becomes assigned, and the assignment
+ * row is appended. The SKU is identified by the exact `(externalId, finish,
+ * language)` tuple the caller passes through — finish/language describe the
+ * marketplace's view of the SKU, not the printing's.
  * @returns The updated group, or the original when nothing changed.
  */
 function applyOptimisticAssignmentToGroup(
   group: UnifiedMappingGroupResponse,
   marketplace: AdminMarketplaceName,
   externalId: number,
+  finish: string,
+  language: string | null,
   printingId: string,
 ): UnifiedMappingGroupResponse {
   const printing = group.printings.find((p) => p.printingId === printingId);
@@ -202,18 +213,9 @@ function applyOptimisticAssignmentToGroup(
     return group;
   }
   const mk = group[marketplace];
-  const variantIdx = mk.stagedProducts.findIndex((p) => {
-    if (p.externalId !== externalId) {
-      return false;
-    }
-    if (p.finish !== printing.finish) {
-      return false;
-    }
-    // Cardmarket staging is language-aggregate (staging is always placeholder
-    // EN regardless of the physical card's language). For TCG/CT, the staged
-    // variant must match the printing's language.
-    return marketplace === "cardmarket" || p.language === printing.language;
-  });
+  const variantIdx = mk.stagedProducts.findIndex(
+    (p) => p.externalId === externalId && p.finish === finish && p.language === language,
+  );
   const variant = variantIdx === -1 ? undefined : mk.stagedProducts[variantIdx];
   const nextStaged =
     variantIdx === -1
@@ -225,8 +227,8 @@ function applyOptimisticAssignmentToGroup(
     {
       externalId,
       printingId,
-      finish: printing.finish,
-      language: marketplace === "cardmarket" ? null : (variant?.language ?? printing.language),
+      finish,
+      language,
     },
   ];
   return {
@@ -251,6 +253,8 @@ export function applyOptimisticAssignment(
   cardId: string,
   marketplace: AdminMarketplaceName,
   externalId: number,
+  finish: string,
+  language: string | null,
   printingId: string,
 ): UnifiedMappingsResponse {
   const groupIdx = response.groups.findIndex((g) => g.cardId === cardId);
@@ -258,7 +262,14 @@ export function applyOptimisticAssignment(
     return response;
   }
   const group = response.groups[groupIdx];
-  const nextGroup = applyOptimisticAssignmentToGroup(group, marketplace, externalId, printingId);
+  const nextGroup = applyOptimisticAssignmentToGroup(
+    group,
+    marketplace,
+    externalId,
+    finish,
+    language,
+    printingId,
+  );
   if (nextGroup === group) {
     return response;
   }
@@ -281,6 +292,8 @@ export function applyOptimisticAssignmentForCard(
   response: UnifiedMappingsCardResponse,
   marketplace: AdminMarketplaceName,
   externalId: number,
+  finish: string,
+  language: string | null,
   printingId: string,
 ): UnifiedMappingsCardResponse {
   if (!response.group) {
@@ -290,6 +303,8 @@ export function applyOptimisticAssignmentForCard(
     response.group,
     marketplace,
     externalId,
+    finish,
+    language,
     printingId,
   );
   if (nextGroup === response.group) {

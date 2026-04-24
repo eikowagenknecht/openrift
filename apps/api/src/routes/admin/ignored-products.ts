@@ -30,7 +30,7 @@ const listIgnoredProducts = createRoute({
                   marketplace: z.string().openapi({ example: "tcgplayer" }),
                   externalId: z.number().openapi({ example: 652_909 }),
                   finish: z.string().openapi({ example: "foil" }),
-                  language: z.string().openapi({ example: "EN" }),
+                  language: z.string().nullable().openapi({ example: null }),
                   productName: z.string().openapi({ example: "Body Rune" }),
                   createdAt: z.string().openapi({ example: "2026-04-01T10:00:00.000Z" }),
                 }),

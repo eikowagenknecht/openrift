@@ -20,12 +20,17 @@ export function MarketplaceProductColumn({
   marketplace: AdminMarketplaceName;
   group: UnifiedMappingGroup;
   allCards: AssignableCard[];
-  onIgnoreVariant: (externalId: number, finish: string, language: string) => void;
+  onIgnoreVariant: (externalId: number, finish: string, language: string | null) => void;
   onIgnoreProduct: (externalId: number) => void;
   isIgnoring: boolean;
-  onUnassign: (externalId: number, finish: string, language: string) => void;
+  onUnassign: (externalId: number, finish: string, language: string | null) => void;
   isUnassigning: boolean;
-  onAssignToCard: (externalId: number, finish: string, language: string, cardId: string) => void;
+  onAssignToCard: (
+    externalId: number,
+    finish: string,
+    language: string | null,
+    cardId: string,
+  ) => void;
   isAssigning: boolean;
 }) {
   const config =

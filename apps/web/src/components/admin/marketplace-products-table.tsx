@@ -55,11 +55,21 @@ const MARKETPLACE_CONFIGS: Record<AdminMarketplaceName, SourceMappingConfig> = {
 const STALE_THRESHOLD_MS = 48 * 60 * 60 * 1000;
 
 export interface MarketplaceHandlers {
-  onIgnoreVariant: (externalId: number, finish: string, language: string) => void;
+  onIgnoreVariant: (externalId: number, finish: string, language: string | null) => void;
   onIgnoreProduct: (externalId: number) => void;
-  onAssignToCard: (externalId: number, finish: string, language: string, cardId: string) => void;
-  onAssignToPrinting: (externalId: number, printingId: string) => void;
-  onUnassign: (externalId: number, finish: string, language: string) => void;
+  onAssignToCard: (
+    externalId: number,
+    finish: string,
+    language: string | null,
+    cardId: string,
+  ) => void;
+  onAssignToPrinting: (
+    externalId: number,
+    finish: string,
+    language: string | null,
+    printingId: string,
+  ) => void;
+  onUnassign: (externalId: number, finish: string, language: string | null) => void;
   onUnmapPrinting: (printingId: string) => void;
   isIgnoring: boolean;
   isAssigning: boolean;
@@ -129,7 +139,7 @@ export function isCardNameMismatch(productName: string, cardName: string): boole
  */
 export function displayedProductLanguage(
   marketplace: AdminMarketplaceName,
-  language: string,
+  language: string | null,
 ): string | null {
   if (marketplace === "cardmarket") {
     return null;
@@ -201,7 +211,7 @@ export function collectEntries(group: UnifiedMappingGroup): TableEntry[] {
     return (
       a.product.productName.localeCompare(b.product.productName) ||
       b.product.finish.localeCompare(a.product.finish) ||
-      a.product.language.localeCompare(b.product.language) ||
+      (a.product.language ?? "").localeCompare(b.product.language ?? "") ||
       a.product.externalId - b.product.externalId
     );
   });
@@ -245,7 +255,7 @@ export function MarketplaceProductsTable({
       </TableHeader>
       <TableBody>
         {entries.map((entry, index) => {
-          const key = `${entry.marketplace}::${entry.product.externalId}::${entry.product.finish}::${entry.product.language}`;
+          const key = `${entry.marketplace}::${entry.product.externalId}::${entry.product.finish}::${entry.product.language ?? ""}`;
           const suggestion = entry.isAssigned ? undefined : suggestions?.get(key);
           const suggestedPrinting = suggestion
             ? printingById.get(suggestion.printingId)
@@ -396,7 +406,9 @@ function MarketplaceProductRow({
                 productExternalId={product.externalId}
                 highlightFinish={product.finish}
                 highlightLanguage={highlightLanguage}
-                onAssign={(eid, pid) => handlers.onAssignToPrinting(eid, pid)}
+                onAssign={(eid, pid) =>
+                  handlers.onAssignToPrinting(eid, product.finish, product.language, pid)
+                }
                 disabled={handlers.isAssigningToPrinting}
               />
             ) : (
@@ -438,7 +450,9 @@ function MarketplaceProductRow({
               otherAssignedPrintingIds={otherAssignedPrintingIds}
               highlightFinish={product.finish}
               highlightLanguage={highlightLanguage}
-              onAssignToPrinting={(eid, pid) => handlers.onAssignToPrinting(eid, pid)}
+              onAssignToPrinting={(eid, pid) =>
+                handlers.onAssignToPrinting(eid, product.finish, product.language, pid)
+              }
               isAssigning={handlers.isAssigningToPrinting}
             />
             <RowActions

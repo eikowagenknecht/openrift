@@ -517,7 +517,6 @@ export async function buildUnifiedMappingsCardResponse(
         mappedProductInfo,
         groupNameMap,
         mapStagedRow,
-        config.languageAggregate,
       );
 
       // Shape a MappingOverviewResult just for mergeOverviewsByCard — the
