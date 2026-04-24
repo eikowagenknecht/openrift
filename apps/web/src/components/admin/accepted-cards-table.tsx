@@ -11,7 +11,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { LoaderIcon, StarIcon } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { DebouncedSearchInput } from "@/components/admin/debounced-search-input";
@@ -39,6 +39,7 @@ import type {
 } from "@/lib/marketplace-coverage";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
 // ---------------------------------------------------------------------------
@@ -359,6 +360,13 @@ function buildColumns(
 }
 
 // ---------------------------------------------------------------------------
+// Virtualizer constants
+// ---------------------------------------------------------------------------
+
+const ROW_HEIGHT = 41;
+const OVERSCAN = 20;
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
@@ -504,6 +512,28 @@ export function AcceptedCardsTable({
     (r) => r.cardSlug && r.favoriteStagingShortCodes.length > 0,
   ).length;
 
+  // Window virtualization: without it, clearing the search filter renders
+  // 2000+ rows from scratch and freezes the browser for seconds. scrollMargin
+  // is the tbody's document offset — useWindowVirtualizer reports item
+  // start/end in document space (offset by scrollMargin), which we correct
+  // for in the spacer rows below.
+  const tableAnchorRef = useRef<HTMLTableSectionElement>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+  useLayoutEffect(() => {
+    const el = tableAnchorRef.current;
+    if (!el) {
+      return;
+    }
+    setScrollMargin(Math.round(el.getBoundingClientRect().top + globalThis.scrollY));
+  }, [rows.length]);
+
+  const { virtualItems, totalSize } = useWindowVirtualizerFresh({
+    count: rows.length,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: OVERSCAN,
+    scrollMargin,
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -584,16 +614,36 @@ export function AcceptedCardsTable({
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="whitespace-normal">
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
+          <TableBody ref={tableAnchorRef}>
+            {/*
+              Spacer offsets are tbody-relative. useWindowVirtualizer reports
+              virtualItem.start/.end in document space (offset by scrollMargin),
+              so subtract scrollMargin from the leading spacer and add it back
+              into the trailing spacer so together they reserve exactly
+              `totalSize` (the virtualized region's own height).
+            */}
+            {virtualItems.length > 0 && (
+              <tr style={{ height: virtualItems[0].start - scrollMargin }} />
+            )}
+            {virtualItems.map((virtualRow) => {
+              const row = rows[virtualRow.index];
+              return (
+                <TableRow key={row.id} data-index={virtualRow.index}>
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id} className="whitespace-normal">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              );
+            })}
+            {virtualItems.length > 0 && (
+              <tr
+                style={{
+                  height: totalSize - (virtualItems.at(-1)?.end ?? 0) + scrollMargin,
+                }}
+              />
+            )}
           </TableBody>
         </Table>
       )}
