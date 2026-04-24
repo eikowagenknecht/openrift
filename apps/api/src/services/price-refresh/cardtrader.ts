@@ -413,7 +413,7 @@ async function autoMatchBlueprints(
     productName: string;
     printingId: string;
     finish: string;
-    language: string;
+    language: string | null;
   }[] = [];
 
   // Deduplicate (bp.id, finish, language) across iterations in case the same

@@ -21,7 +21,8 @@ interface UnignoreVariantInput {
   marketplace: Marketplace;
   externalId: number;
   finish: string;
-  language: string;
+  /** `null` for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
+  language: string | null;
 }
 
 type UnignoreInput = UnignoreProductInput | UnignoreVariantInput;

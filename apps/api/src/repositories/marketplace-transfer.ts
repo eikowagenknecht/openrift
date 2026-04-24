@@ -97,7 +97,7 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
       marketplace: string,
       product: { externalId: number; groupId: number; productName: string },
       finish: string,
-      language: string,
+      language: string | null,
       snap: {
         recordedAt: Date;
         marketCents: number | null;
@@ -137,16 +137,16 @@ export function marketplaceTransferRepo(db: Kysely<Database>) {
 
     /**
      * Bulk-copy all snapshots back to staging for a marketplace (used during
-     * unmap-all). Variants with `language IS NULL` (cross-language aggregates
-     * like Cardmarket) fall back to the scraper's "EN" placeholder when
-     * written into staging, since the staging table is NOT NULL on language.
+     * unmap-all). Staging now mirrors the product's SKU axes exactly (NULL
+     * language for CM/TCG, real code for CT), so the copy is a straight
+     * column mirror with no coalesce dance.
      */
     async bulkUnmapToStaging(marketplace: string): Promise<void> {
       await sql`
         INSERT INTO marketplace_staging (marketplace, external_id, group_id, product_name, finish, language, recorded_at,
           market_cents, low_cents, mid_cents, high_cents, trend_cents, avg1_cents, avg7_cents, avg30_cents)
-        SELECT mp.marketplace, mp.external_id, mp.group_id, mp.product_name, mpv.finish,
-          coalesce(mpv.language, 'EN'), snap.recorded_at,
+        SELECT mp.marketplace, mp.external_id, mp.group_id, mp.product_name, mp.finish,
+          mp.language, snap.recorded_at,
           snap.market_cents, snap.low_cents, snap.mid_cents, snap.high_cents, snap.trend_cents, snap.avg1_cents, snap.avg7_cents, snap.avg30_cents
         FROM marketplace_products mp
         JOIN marketplace_product_variants mpv ON mpv.marketplace_product_id = mp.id

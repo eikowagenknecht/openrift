@@ -2,6 +2,7 @@
 
 ## 2026-04-24
 
+- fix: The admin marketplace table now shows each product's own finish (normal/foil, as the marketplace lists it) instead of borrowing the finish from whichever printing it was bound to. Assigning a product to a printing also stops silently blocking cross-finish or cross-language pairs where the marketplace's data disagrees with ours, so metal printings can accept foil SKUs and Cardmarket's language-aggregate product can cover multiple languages of the same card
 - fix: Signing out now fully clears your saved display preferences (language filters, theme, card view options), so the next person using this browser starts with defaults instead of inheriting the previous user's settings
 - fix: The admin Cards and Candidates tables no longer smush their columns together on narrow screens; when the viewport isn't wide enough, the tables scroll horizontally so every column keeps usable space, and cell content can wrap instead of overflowing. The Candidates table also now leads with the Card column, with the favorite and Unchecked badges sitting inline with the name
 

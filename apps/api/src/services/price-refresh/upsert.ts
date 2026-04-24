@@ -9,6 +9,7 @@ import type { Logger } from "@openrift/shared/logger";
 
 import type { Repos } from "../../deps.js";
 import type { LoadedIgnoredKeys } from "../../repositories/price-refresh.js";
+import { skuKey } from "../../repositories/price-refresh.js";
 import type {
   GroupRow,
   PriceColumns,
@@ -109,25 +110,20 @@ export async function upsertPriceData(
 
   // ── Variant lookup (single query for both snapshot building & ID mapping) ─
 
-  const dbVariants = await repo.variantsWithFinish(marketplace);
+  const dbVariants = await repo.variantsWithSku(marketplace);
 
   // ── Build snapshots from staging + variant mappings ─────────────────────
 
-  // Match staging rows to mapped variants. Normally the key is
-  // (externalId, finish, language) so prices flow only to the exactly
-  // matching variant. For language-aggregate marketplaces (Cardmarket)
-  // variants have `language = NULL` and staging rows carry an arbitrary
-  // placeholder, so the key drops the language dimension entirely.
-  const keyOf = (externalId: number, finish: string, language: string | null): string =>
-    config.languageAggregate ? `${externalId}::${finish}` : `${externalId}::${finish}::${language}`;
-
+  // Match staging rows to variants by their shared SKU axes
+  // (externalId, finish, language). CM/TCG store NULL language on both sides
+  // so they collide naturally; CT keeps the language column honest.
   const variantByKey = Map.groupBy(dbVariants, (src) =>
-    keyOf(src.externalId, src.finish, src.language),
+    skuKey(src.externalId, src.finish, src.language),
   );
 
   const uniqueSnapshots = new Map<string, SnapshotInsertRow>();
   for (const staging of allStaging) {
-    const variants = variantByKey.get(keyOf(staging.externalId, staging.finish, staging.language));
+    const variants = variantByKey.get(skuKey(staging.externalId, staging.finish, staging.language));
     if (!variants) {
       continue;
     }

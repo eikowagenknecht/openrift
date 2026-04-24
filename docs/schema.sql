@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict paUdcT79N7bnXzv2C7BYW4Bpx4XQaCFaORVLgisGQNOoHBGDGcUFhyLbiiluBz8
+\restrict riLECffbftd49UHvs8SdZ68ewOvrd6lnGIOZDzSYjM74KFuSwUFy9kE1oGBob5w
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -935,8 +935,6 @@ CREATE TABLE public.marketplace_ignored_products (
 
 CREATE TABLE public.marketplace_ignored_variants (
     marketplace_product_id uuid NOT NULL,
-    finish text NOT NULL,
-    language text DEFAULT 'EN'::text NOT NULL,
     product_name text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
@@ -951,8 +949,6 @@ CREATE TABLE public.marketplace_product_variants (
     id uuid DEFAULT uuidv7() NOT NULL,
     marketplace_product_id uuid NOT NULL,
     printing_id uuid NOT NULL,
-    finish text NOT NULL,
-    language text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
@@ -970,6 +966,8 @@ CREATE TABLE public.marketplace_products (
     created_at timestamp with time zone DEFAULT now() CONSTRAINT marketplace_sources_created_at_not_null NOT NULL,
     updated_at timestamp with time zone DEFAULT now() CONSTRAINT marketplace_sources_updated_at_not_null NOT NULL,
     id uuid DEFAULT uuidv7() NOT NULL,
+    finish text NOT NULL,
+    language text,
     CONSTRAINT chk_marketplace_products_external_id_positive CHECK ((external_id > 0)),
     CONSTRAINT chk_marketplace_products_marketplace_not_empty CHECK ((marketplace <> ''::text)),
     CONSTRAINT chk_marketplace_products_product_name_not_empty CHECK ((product_name <> ''::text))
@@ -1027,7 +1025,7 @@ CREATE TABLE public.marketplace_staging (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     id uuid DEFAULT uuidv7() CONSTRAINT marketplace_staging_new_id_not_null NOT NULL,
-    language text DEFAULT 'EN'::text NOT NULL,
+    language text,
     norm_name text DEFAULT ''::text NOT NULL,
     zero_low_cents integer,
     CONSTRAINT chk_marketplace_staging_zero_low_cents_non_negative CHECK ((zero_low_cents >= 0))
@@ -1044,7 +1042,7 @@ CREATE TABLE public.marketplace_staging_card_overrides (
     finish text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     card_id uuid CONSTRAINT marketplace_staging_card_overrides_new_card_id_not_null NOT NULL,
-    language text DEFAULT 'EN'::text NOT NULL
+    language text
 );
 
 
@@ -1121,7 +1119,7 @@ CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
             WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(snap.zero_low_cents, snap.low_cents)
             WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(snap.low_cents, snap.market_cents)
             ELSE COALESCE(snap.market_cents, snap.low_cents)
-        END IS NOT NULL) AND ((mpv.language IS NULL) OR (source.id = target.id)))
+        END IS NOT NULL) AND ((mp.language IS NULL) OR (source.id = target.id)))
   ORDER BY target.id, mp.marketplace, (snap.zero_low_cents IS NULL), snap.recorded_at DESC
   WITH NO DATA;
 
@@ -1822,7 +1820,7 @@ ALTER TABLE ONLY public.marketplace_ignored_products
 --
 
 ALTER TABLE ONLY public.marketplace_ignored_variants
-    ADD CONSTRAINT marketplace_ignored_variants_pkey PRIMARY KEY (marketplace_product_id, finish, language);
+    ADD CONSTRAINT marketplace_ignored_variants_pkey PRIMARY KEY (marketplace_product_id);
 
 
 --
@@ -1831,14 +1829,6 @@ ALTER TABLE ONLY public.marketplace_ignored_variants
 
 ALTER TABLE ONLY public.marketplace_product_variants
     ADD CONSTRAINT marketplace_product_variants_pkey PRIMARY KEY (id);
-
-
---
--- Name: marketplace_products marketplace_products_marketplace_external_id_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.marketplace_products
-    ADD CONSTRAINT marketplace_products_marketplace_external_id_key UNIQUE (marketplace, external_id);
 
 
 --
@@ -1863,22 +1853,6 @@ ALTER TABLE ONLY public.marketplace_snapshots
 
 ALTER TABLE ONLY public.marketplace_products
     ADD CONSTRAINT marketplace_sources_pkey PRIMARY KEY (id);
-
-
---
--- Name: marketplace_staging_card_overrides marketplace_staging_card_overrides_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.marketplace_staging_card_overrides
-    ADD CONSTRAINT marketplace_staging_card_overrides_pkey PRIMARY KEY (marketplace, external_id, finish, language);
-
-
---
--- Name: marketplace_staging marketplace_staging_marketplace_external_id_finish_language_rec; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.marketplace_staging
-    ADD CONSTRAINT marketplace_staging_marketplace_external_id_finish_language_rec UNIQUE (marketplace, external_id, finish, language, recorded_at);
 
 
 --
@@ -2521,10 +2495,31 @@ CREATE INDEX idx_wish_lists_user_id ON public.wish_lists USING btree (user_id);
 
 
 --
--- Name: marketplace_product_variants_product_finish_language_key; Type: INDEX; Schema: public; Owner: -
+-- Name: marketplace_product_variants_product_printing_key; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX marketplace_product_variants_product_finish_language_key ON public.marketplace_product_variants USING btree (marketplace_product_id, finish, language, printing_id) NULLS NOT DISTINCT;
+CREATE UNIQUE INDEX marketplace_product_variants_product_printing_key ON public.marketplace_product_variants USING btree (marketplace_product_id, printing_id);
+
+
+--
+-- Name: marketplace_products_sku_key; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX marketplace_products_sku_key ON public.marketplace_products USING btree (marketplace, external_id, finish, language) NULLS NOT DISTINCT;
+
+
+--
+-- Name: marketplace_staging_card_overrides_pkey; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX marketplace_staging_card_overrides_pkey ON public.marketplace_staging_card_overrides USING btree (marketplace, external_id, finish, language) NULLS NOT DISTINCT;
+
+
+--
+-- Name: marketplace_staging_marketplace_external_id_finish_language_rec; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX marketplace_staging_marketplace_external_id_finish_language_rec ON public.marketplace_staging USING btree (marketplace, external_id, finish, language, recorded_at) NULLS NOT DISTINCT;
 
 
 --
@@ -3426,5 +3421,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict paUdcT79N7bnXzv2C7BYW4Bpx4XQaCFaORVLgisGQNOoHBGDGcUFhyLbiiluBz8
+\unrestrict riLECffbftd49UHvs8SdZ68ewOvrd6lnGIOZDzSYjM74KFuSwUFy9kE1oGBob5w
 

@@ -100,7 +100,7 @@ function createMockRepos(config: MockReposConfig = {}) {
     if (p.finish === undefined) {
       productIds.add(p.externalId);
     } else {
-      variantKeys.add(`${p.externalId}::${p.finish}::EN`);
+      variantKeys.add(`${p.externalId}::${p.finish}::`);
     }
   }
   const ignoredKeys = { productIds, variantKeys };
@@ -578,12 +578,10 @@ describe("refreshCardmarketPrices", () => {
 
       await refreshCardmarketPrices(stubFetch, repos, log);
 
-      // Cardmarket's price guide is a cross-language aggregate, so the upsert
-      // config flags it as `languageAggregate: true` to make the matcher key
-      // on (externalId, finish) instead of including language.
+      // Cardmarket stores NULL language on both staging rows and variants so
+      // the matcher keys on (externalId, finish, null) naturally.
       expect(upsertSpy.mock.calls[0][2]).toEqual({
         marketplace: "cardmarket",
-        languageAggregate: true,
       });
     });
 

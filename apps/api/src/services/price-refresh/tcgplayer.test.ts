@@ -130,7 +130,7 @@ function createMockRepos(config: MockReposConfig = {}) {
     if (p.finish === undefined) {
       productIds.add(p.externalId);
     } else {
-      variantKeys.add(`${p.externalId}::${p.finish}::EN`);
+      variantKeys.add(`${p.externalId}::${p.finish}::`);
     }
   }
   const ignoredKeys = { productIds, variantKeys };

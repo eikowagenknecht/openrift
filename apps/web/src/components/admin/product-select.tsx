@@ -24,7 +24,7 @@ export function ProductSelect({
   assignedProducts: StagedProduct[];
   currentPrintingId: string;
   disabled?: boolean;
-  onSelect: (externalId: number) => void;
+  onSelect: (product: StagedProduct) => void;
 }) {
   const sortedStaged = stagedProducts.toSorted(
     (a, b) => a.productName.localeCompare(b.productName) || b.finish.localeCompare(a.finish),
@@ -37,8 +37,19 @@ export function ProductSelect({
     <Select
       value=""
       onValueChange={(val) => {
-        if (val) {
-          onSelect(Number(val.split("::")[0]));
+        if (!val) {
+          return;
+        }
+        // Values look like `${externalId}::s${index}` (staged) or `${externalId}::a${index}`
+        // (assigned) — the suffix disambiguates products sharing the same externalId.
+        const suffix = val.split("::")[1];
+        if (!suffix) {
+          return;
+        }
+        const index = Number(suffix.slice(1));
+        const product = suffix.startsWith("s") ? sortedStaged[index] : sortedAssigned[index];
+        if (product) {
+          onSelect(product);
         }
       }}
       disabled={disabled}

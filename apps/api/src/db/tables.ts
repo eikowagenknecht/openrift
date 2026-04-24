@@ -139,6 +139,14 @@ export interface MarketplaceGroupsTable {
 }
 
 /** Level 2: one row per upstream marketplace listing (e.g. one TCGplayer product). */
+/**
+ * Level 2: one row per *SKU* in the upstream marketplace —
+ * `(marketplace, external_id, finish, language)`. `language` is NULL when
+ * the marketplace doesn't expose language as a SKU dimension (Cardmarket's
+ * price guide is cross-language; TCGPlayer sells English-only and treats
+ * language as implicit). The unique index is NULLS NOT DISTINCT so CM/TCG
+ * can't accidentally get two NULL-language rows for the same pair.
+ */
 export interface MarketplaceProductsTable {
   id: Generated<string>;
   /** CHECK: <> '' ; FK composite → marketplace_groups(marketplace, group_id) */
@@ -149,24 +157,21 @@ export interface MarketplaceProductsTable {
   groupId: number;
   /** CHECK: <> '' */
   productName: string;
+  finish: string;
+  language: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
 
 /**
- * Level 3: one row per SKU of an upstream product, linked to a printing.
- *
- * `language` is NULL when the upstream marketplace only exposes cross-language
- * aggregate prices (e.g. Cardmarket's price guide). Queries that filter by a
- * specific printing use a sibling fan-out to surface these aggregate rows on
- * every language of the same card.
+ * Level 3: bridge table linking a marketplace SKU to a printing. A single SKU
+ * can fan out to multiple printings (e.g. Cardmarket's language-aggregate row
+ * covers every language of the same card).
  */
 export interface MarketplaceProductVariantsTable {
   id: Generated<string>;
   marketplaceProductId: string;
   printingId: string;
-  finish: string;
-  language: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -203,7 +208,8 @@ export interface MarketplaceStagingTable {
   groupId: number;
   productName: string;
   finish: string;
-  language: string;
+  /** NULL when the marketplace doesn't expose language as a SKU dimension (CM/TCG). */
+  language: string | null;
   recordedAt: Date;
   marketCents: number | null;
   lowCents: number | null;
@@ -228,11 +234,9 @@ export interface MarketplaceIgnoredProductsTable {
   updatedAt: UpdatedAt;
 }
 
-/** Level 3 ignores: deny a specific SKU of an otherwise-mapped upstream product. */
+/** Level 3 ignores: deny a specific marketplace SKU (identified by product row) from auto-binding. */
 export interface MarketplaceIgnoredVariantsTable {
   marketplaceProductId: string;
-  finish: string;
-  language: string;
   productName: string;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -242,7 +246,8 @@ export interface MarketplaceStagingCardOverridesTable {
   marketplace: string;
   externalId: number;
   finish: string;
-  language: string;
+  /** NULL for CM/TCG (see MarketplaceStagingTable.language). */
+  language: string | null;
   cardId: string;
   createdAt: CreatedAt;
 }

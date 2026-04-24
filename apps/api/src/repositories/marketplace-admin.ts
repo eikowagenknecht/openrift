@@ -18,7 +18,8 @@ interface IgnoredVariantRow {
   marketplace: string;
   externalId: number;
   finish: string;
-  language: string;
+  /** NULL for CM/TCG (language is not a SKU dimension there). */
+  language: string | null;
   productName: string;
   createdAt: Date;
 }
@@ -124,8 +125,8 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .select([
           "mp.marketplace as marketplace",
           "mp.externalId as externalId",
-          "iv.finish as finish",
-          "iv.language as language",
+          "mp.finish as finish",
+          "mp.language as language",
           "iv.productName as productName",
           "iv.createdAt as createdAt",
         ])
@@ -168,17 +169,17 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Insert level-3 ignored variants. Each row must reference an existing
-     * `marketplace_products` row (by `(marketplace, externalId)`); if the
-     * parent product does not yet exist it will be created with the same
-     * `productName` so the FK is satisfied.
+     * Insert level-3 ignored variants. Each row targets a specific marketplace
+     * SKU `(marketplace, externalId, finish, language)` — in the per-SKU
+     * product model that tuple uniquely identifies one product row. If the
+     * product row doesn't exist yet, create it so the FK is satisfied.
      */
     async insertIgnoredVariants(
       values: {
         marketplace: string;
         externalId: number;
         finish: string;
-        language: string;
+        language: string | null;
         productName: string;
         groupId?: number;
       }[],
@@ -187,23 +188,34 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         return;
       }
 
-      // Ensure a parent product row exists for each (marketplace, externalId).
+      const skuKey = (v: {
+        marketplace: string;
+        externalId: number;
+        finish: string;
+        language: string | null;
+      }): string => `${v.marketplace}::${v.externalId}::${v.finish}::${v.language ?? ""}`;
+
+      // Ensure a per-SKU product row exists for each input tuple.
       const productSeed = values.map((v) => ({
         marketplace: v.marketplace,
         externalId: v.externalId,
         groupId: v.groupId ?? 0,
         productName: v.productName,
+        finish: v.finish,
+        language: v.language,
       }));
 
       await db
         .insertInto("marketplaceProducts")
         .values(productSeed)
-        .onConflict((oc) => oc.columns(["marketplace", "externalId"]).doNothing())
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
         .execute();
 
       const products = await db
         .selectFrom("marketplaceProducts")
-        .select(["id", "marketplace", "externalId"])
+        .select(["id", "marketplace", "externalId", "finish", "language"])
         .where((eb) =>
           eb.or(
             values.map((v) =>
@@ -213,21 +225,17 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         )
         .execute();
 
-      const productIdByKey = new Map(
-        products.map((p) => [`${p.marketplace}::${p.externalId}`, p.id]),
-      );
+      const productIdByKey = new Map(products.map((p) => [skuKey(p), p.id]));
 
       const rows = values.map((v) => {
-        const productId = productIdByKey.get(`${v.marketplace}::${v.externalId}`);
+        const productId = productIdByKey.get(skuKey(v));
         if (!productId) {
           throw new Error(
-            `insertIgnoredVariants: missing product for ${v.marketplace} ${v.externalId}`,
+            `insertIgnoredVariants: missing product for ${v.marketplace} ${v.externalId} ${v.finish}/${v.language ?? "NULL"}`,
           );
         }
         return {
           marketplaceProductId: productId,
-          finish: v.finish,
-          language: v.language,
           productName: v.productName,
         };
       });
@@ -235,7 +243,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       await db
         .insertInto("marketplaceIgnoredVariants")
         .values(rows)
-        .onConflict((oc) => oc.columns(["marketplaceProductId", "finish", "language"]).doNothing())
+        .onConflict((oc) => oc.column("marketplaceProductId").doNothing())
         .execute();
     },
 
@@ -263,11 +271,19 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
      */
     async deleteIgnoredVariants(
       marketplace: string,
-      variants: { externalId: number; finish: string; language: string }[],
+      variants: { externalId: number; finish: string; language: string | null }[],
     ): Promise<number> {
       if (variants.length === 0) {
         return 0;
       }
+
+      const skuMatches = variants.map(
+        (v) => sql`(
+          mp.external_id = ${v.externalId}::integer
+          AND mp.finish = ${v.finish}
+          AND mp.language IS NOT DISTINCT FROM ${v.language}
+        )`,
+      );
 
       const result = await sql<{ deleted: number }>`
         WITH deleted AS (
@@ -275,9 +291,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
           USING marketplace_products mp
           WHERE mp.id = iv.marketplace_product_id
             AND mp.marketplace = ${marketplace}
-            AND (mp.external_id, iv.finish, iv.language) IN (${sql.join(
-              variants.map((v) => sql`(${v.externalId}::integer, ${v.finish}, ${v.language})`),
-            )})
+            AND (${sql.join(skuMatches, sql` OR `)})
           RETURNING 1 as one
         )
         SELECT count(*)::int as deleted FROM deleted
@@ -288,23 +302,24 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
 
     // ── Staging card overrides ──────────────────────────────────────────────
 
-    /** Upsert a staging card override. */
+    /**
+     * Upsert a staging card override. The PK is (marketplace, external_id,
+     * finish, language) NULLS NOT DISTINCT — Kysely's `.onConflict().columns()`
+     * doesn't emit that option, so we use raw SQL for the upsert.
+     */
     async upsertStagingCardOverride(values: {
       marketplace: string;
       externalId: number;
       finish: string;
-      language: string;
+      language: string | null;
       cardId: string;
     }): Promise<void> {
-      await db
-        .insertInto("marketplaceStagingCardOverrides")
-        .values(values)
-        .onConflict((oc) =>
-          oc
-            .columns(["marketplace", "externalId", "finish", "language"])
-            .doUpdateSet({ cardId: values.cardId }),
-        )
-        .execute();
+      await sql`
+        INSERT INTO marketplace_staging_card_overrides (marketplace, external_id, finish, language, card_id)
+        VALUES (${values.marketplace}, ${values.externalId}, ${values.finish}, ${values.language}, ${values.cardId})
+        ON CONFLICT (marketplace, external_id, finish, language)
+        DO UPDATE SET card_id = EXCLUDED.card_id
+      `.execute(db);
     },
 
     /** Delete a staging card override. */
@@ -312,15 +327,16 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       marketplace: string,
       externalId: number,
       finish: string,
-      language: string,
+      language: string | null,
     ): Promise<void> {
-      await db
-        .deleteFrom("marketplaceStagingCardOverrides")
-        .where("marketplace", "=", marketplace)
-        .where("externalId", "=", externalId)
-        .where("finish", "=", finish)
-        .where("language", "=", language)
-        .execute();
+      // IS NOT DISTINCT FROM so CM/TCG (language=NULL) delete correctly.
+      await sql`
+        DELETE FROM marketplace_staging_card_overrides
+        WHERE marketplace = ${marketplace}
+          AND external_id = ${externalId}
+          AND finish = ${finish}
+          AND language IS NOT DISTINCT FROM ${language}
+      `.execute(db);
     },
 
     // ── Clear price data ────────────────────────────────────────────────────

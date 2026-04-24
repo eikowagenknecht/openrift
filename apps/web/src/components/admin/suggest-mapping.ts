@@ -262,9 +262,9 @@ export function productSuggestionKey(
   marketplace: AdminMarketplaceName,
   externalId: number,
   finish: string,
-  language: string,
+  language: string | null,
 ): string {
-  return `${marketplace}::${externalId}::${finish}::${language}`;
+  return `${marketplace}::${externalId}::${finish}::${language ?? ""}`;
 }
 
 /**

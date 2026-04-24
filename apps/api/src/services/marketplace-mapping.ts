@@ -2,7 +2,6 @@ import type {
   MarketplaceAssignmentResponse as MarketplaceAssignment,
   StagedProductResponse,
 } from "@openrift/shared";
-import { marketplaceFinish } from "@openrift/shared";
 import { normalizeNameForMatching } from "@openrift/shared/utils";
 
 import type { Repos, Transact } from "../deps.js";
@@ -22,12 +21,16 @@ interface PrintingRow {
   artVariant: string;
   isSigned: boolean;
   markerSlugs: string[];
+  /** The printing's own finish (may be `metal` / `metal-deluxe` — the marketplace never sees those). */
   finish: string;
   language: string;
   imageUrl: string | null;
   externalId: number | null;
   sourceGroupId: number | null;
+  /** The bound SKU's language (NULL for CM/TCG). Null when no variant is bound. */
   sourceLanguage: string | null;
+  /** The bound SKU's finish (always `normal` / `foil` from the marketplace's view). Null when no variant is bound. */
+  productFinish: string | null;
 }
 
 interface CardGroup {
@@ -75,6 +78,7 @@ export function buildCardIndex(
     externalId: number | null;
     sourceGroupId: number | null;
     sourceLanguage: string | null;
+    productFinish: string | null;
   }[],
   // When the caller scopes `matchedCards` to a subset (e.g. the card-detail
   // endpoint that only wants one card), the name index built from that subset
@@ -119,6 +123,7 @@ export function buildCardIndex(
       externalId: row.externalId,
       sourceGroupId: row.sourceGroupId,
       sourceLanguage: row.sourceLanguage,
+      productFinish: row.productFinish,
     });
   }
 
@@ -226,7 +231,6 @@ export function buildResponseGroups(
   mappedProductInfo: Map<string, ProductInfo>,
   groupNameMap: Map<number, string>,
   mapStagedRow: (row: StagingRow, opts?: { isOverride?: boolean }) => StagedProductResponse,
-  languageAggregate: boolean,
 ) {
   return [...cardGroups.values()].map((group) => {
     const key = group.cardId;
@@ -240,13 +244,18 @@ export function buildResponseGroups(
     // every (externalId, printingId) pair — a single printing can have multiple
     // variants in the same marketplace, and downstream consumers need to know
     // which printings any given externalId resolves to.
+    //
+    // `finish` and `language` here describe the *marketplace* SKU the variant
+    // binds to, not the printing — e.g. a metal printing mapped to CM's foil
+    // SKU yields finish="foil". That's how the admin table distinguishes
+    // "product finish" from "printing finish" and flags mismatches.
     const seenAssignment = new Set<string>();
     const assignments: MarketplaceAssignment[] = [];
     for (const p of group.printings) {
-      if (p.externalId === null) {
+      if (p.externalId === null || p.productFinish === null) {
         continue;
       }
-      const dedupKey = `${p.externalId}::${p.printingId}::${p.finish}`;
+      const dedupKey = `${p.externalId}::${p.printingId}::${p.productFinish}::${p.sourceLanguage ?? ""}`;
       if (seenAssignment.has(dedupKey)) {
         continue;
       }
@@ -254,73 +263,62 @@ export function buildResponseGroups(
       assignments.push({
         externalId: p.externalId,
         printingId: p.printingId,
-        finish: p.finish,
-        language: languageAggregate ? null : (p.sourceLanguage ?? p.language),
+        finish: p.productFinish,
+        language: p.sourceLanguage,
       });
     }
 
     const seenAssigned = new Set<string>();
     const assignedProducts: typeof stagedProducts = [];
     for (const p of group.printings) {
-      const dedupKey = `${p.externalId}::${p.finish}::${p.sourceLanguage}`;
-      if (p.externalId !== null && !seenAssigned.has(dedupKey)) {
-        seenAssigned.add(dedupKey);
-        const info = mappedProductInfo.get(`${p.printingId}::${p.externalId}`);
-        if (info) {
-          assignedProducts.push({
-            externalId: p.externalId,
-            productName: info.productName ?? group.cardName,
-            finish: p.finish,
-            language: p.sourceLanguage ?? p.language,
-            marketCents: info.marketCents,
-            lowCents: info.lowCents,
-            currency: info.currency,
-            recordedAt: info.recordedAt,
-            midCents: info.midCents,
-            highCents: info.highCents,
-            trendCents: info.trendCents,
-            avg1Cents: info.avg1Cents,
-            avg7Cents: info.avg7Cents,
-            avg30Cents: info.avg30Cents,
-            isOverride: false,
-            groupId: p.sourceGroupId ?? undefined,
-            groupName: p.sourceGroupId
-              ? (groupNameMap.get(p.sourceGroupId) ?? `Group #${p.sourceGroupId}`)
-              : undefined,
-          });
-        }
+      if (p.externalId === null || p.productFinish === null) {
+        continue;
+      }
+      const dedupKey = `${p.externalId}::${p.productFinish}::${p.sourceLanguage ?? ""}`;
+      if (seenAssigned.has(dedupKey)) {
+        continue;
+      }
+      seenAssigned.add(dedupKey);
+      const info = mappedProductInfo.get(`${p.printingId}::${p.externalId}`);
+      if (info) {
+        assignedProducts.push({
+          externalId: p.externalId,
+          productName: info.productName ?? group.cardName,
+          finish: p.productFinish,
+          language: p.sourceLanguage,
+          marketCents: info.marketCents,
+          lowCents: info.lowCents,
+          currency: info.currency,
+          recordedAt: info.recordedAt,
+          midCents: info.midCents,
+          highCents: info.highCents,
+          trendCents: info.trendCents,
+          avg1Cents: info.avg1Cents,
+          avg7Cents: info.avg7Cents,
+          avg30Cents: info.avg30Cents,
+          isOverride: false,
+          groupId: p.sourceGroupId ?? undefined,
+          groupName: p.sourceGroupId
+            ? (groupNameMap.get(p.sourceGroupId) ?? `Group #${p.sourceGroupId}`)
+            : undefined,
+        });
       }
     }
 
-    // Two-pass filter for staged products:
-    // 1. Exact (externalId, finish, language) match → always exclude (already mapped).
-    // 2. externalId-only match → exclude UNLESS there is still an unmapped
-    //    printing whose finish matches. This second rule only makes sense for
-    //    language-aggregate marketplaces (Cardmarket), where one externalId is
-    //    the same SKU across every language. For per-language marketplaces
-    //    (TCGplayer, CardTrader) `(externalId, finish, EN)` and
-    //    `(externalId, finish, ZH)` are distinct SKUs — we must NOT hide one
-    //    just because the other was mapped.
+    // Filter already-mapped SKUs out of the staged list. The SKU key is
+    // `(externalId, finish, language)` with language NULL for CM/TCG — since
+    // those marketplaces only have one row per (externalId, finish), once it's
+    // bound it's gone from staged regardless of which printing language took
+    // it. Per-language marketplaces (CT) still see both foil/EN and foil/ZH
+    // as independent SKUs.
+    const skuKey = (externalId: number, finish: string, language: string | null): string =>
+      `${externalId}::${finish}::${language ?? ""}`;
     const assignedKeys = new Set(
-      assignedProducts.map((p) => `${p.externalId}::${p.finish}::${p.language}`),
+      assignedProducts.map((p) => skuKey(p.externalId, p.finish, p.language)),
     );
-    const assignedExternalIds = new Set(assignedProducts.map((p) => p.externalId));
-    const unmappedFinishes = new Set(
-      group.printings.filter((p) => p.externalId === null).map((p) => p.finish),
+    const filteredStaged = stagedProducts.filter(
+      (p) => !assignedKeys.has(skuKey(p.externalId, p.finish, p.language)),
     );
-    const filteredStaged = stagedProducts.filter((p) => {
-      if (assignedKeys.has(`${p.externalId}::${p.finish}::${p.language}`)) {
-        return false;
-      }
-      if (
-        languageAggregate &&
-        assignedExternalIds.has(p.externalId) &&
-        !unmappedFinishes.has(p.finish)
-      ) {
-        return false;
-      }
-      return true;
-    });
 
     return {
       ...group,
@@ -522,7 +520,6 @@ export async function getMappingOverview(
     mappedProductInfo,
     groupNameMap,
     mapStagedRow,
-    config.languageAggregate,
   );
 
   // Lightweight card list for the manual-assign dropdown. The UI only needs
@@ -542,10 +539,26 @@ export async function getMappingOverview(
 
 // ── saveMappings ────────────────────────────────────────────────────────────
 
+/**
+ * Caller-supplied SKU tuple. The UI passes the (externalId, finish, language)
+ * from the product row the admin clicked on — we no longer guess it from the
+ * printing. Metal printings mapped to foil marketplace SKUs, CM's
+ * language-aggregate SKU assigned to a ZH printing: both are legal with this
+ * signature. The service just verifies the SKU exists (in staging or as an
+ * already-upserted product) before binding it.
+ */
+export interface SaveMappingInput {
+  printingId: string;
+  externalId: number;
+  finish: string;
+  /** `null` for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
+  language: string | null;
+}
+
 export async function saveMappings(
   transact: Transact,
   config: MarketplaceConfig,
-  mappings: { printingId: string; externalId: number }[],
+  mappings: SaveMappingInput[],
 ): Promise<{ saved: number; skipped: { externalId: number; reason: string }[] }> {
   if (mappings.length === 0) {
     return { saved: 0, skipped: [] };
@@ -553,52 +566,51 @@ export async function saveMappings(
 
   const skipped: { externalId: number; reason: string }[] = [];
 
+  const skuKey = (externalId: number, finish: string, language: string | null): string =>
+    `${externalId}::${finish}::${language ?? ""}`;
+
   const saved = await transact(async (trxRepos) => {
     const repo = trxRepos.marketplaceMapping;
 
-    // 1. Batch-fetch printing finishes and languages (1 query instead of N)
-    const printingIds = mappings.map((m) => m.printingId);
-    const printingRows = await repo.printingFinishesAndLanguages(printingIds);
-    const printingInfoByid = new Map(
-      printingRows.map((row) => [row.id, { finish: row.finish, language: row.language }]),
-    );
-
-    // 2. Batch-fetch staging rows and already-upserted product rows (parallel).
-    // The product-row fallback lets us rebind a mapping even when staging has
-    // rotated out — common for products that were mapped long ago.
+    // 1. Batch-fetch staging rows and already-upserted product rows for the
+    //    external IDs in this batch. The product-row fallback lets us rebind
+    //    a mapping even when staging has rotated out — common for products
+    //    that were mapped long ago.
     const externalIds = [...new Set(mappings.map((m) => m.externalId))];
     const [allStagingRows, existingProducts] = await Promise.all([
       repo.stagingByExternalIds(config.marketplace, externalIds),
       repo.productsByExternalIds(config.marketplace, externalIds),
     ]);
-    // For language-aggregate marketplaces (Cardmarket) staging rows carry a
-    // placeholder language because the scraper can't observe per-language
-    // pricing — drop language from the key so a non-EN printing assignment
-    // still resolves to the EN-staged row.
-    const keyOf = (externalId: number, finish: string, language: string): string =>
-      config.languageAggregate
-        ? `${externalId}::${finish}`
-        : `${externalId}::${finish}::${language}`;
+
     const stagingByKey = new Map<string, typeof allStagingRows>();
     for (const row of allStagingRows) {
-      const key = keyOf(row.externalId, row.finish, row.language);
+      const key = skuKey(row.externalId, row.finish, row.language);
       const list = stagingByKey.get(key) ?? [];
       list.push(row);
       stagingByKey.set(key, list);
     }
-    const productByExtId = new Map(existingProducts.map((p) => [p.externalId, p]));
 
-    // Collect available finish (or finish+language) combos per external ID
-    // for error messages — language-aggregate marketplaces only mismatch on
-    // finish, so showing the placeholder language would be misleading.
-    const variantsByExtId = new Map<number, Set<string>>();
+    const productByKey = new Map(
+      existingProducts.map((p) => [skuKey(p.externalId, p.finish, p.language), p]),
+    );
+
+    // Collect available SKU combos per external ID for error messages. Uses
+    // staging first, falls back to the product table when staging has rotated.
+    const skusByExtId = new Map<number, Set<string>>();
+    const recordSku = (externalId: number, finish: string, language: string | null): void => {
+      const set = skusByExtId.get(externalId) ?? new Set();
+      set.add(language === null ? finish : `${finish}/${language}`);
+      skusByExtId.set(externalId, set);
+    };
     for (const row of allStagingRows) {
-      const set = variantsByExtId.get(row.externalId) ?? new Set();
-      set.add(config.languageAggregate ? row.finish : `${row.finish}/${row.language}`);
-      variantsByExtId.set(row.externalId, set);
+      recordSku(row.externalId, row.finish, row.language);
+    }
+    for (const row of existingProducts) {
+      recordSku(row.externalId, row.finish, row.language);
     }
 
-    // 3. Build upsert values, collecting skip reasons
+    // 2. Resolve each mapping to a concrete SKU row (staging preferred, then
+    //    existing product as fallback) and build upsert values.
     const upsertValues: {
       marketplace: string;
       printingId: string;
@@ -609,39 +621,28 @@ export async function saveMappings(
       language: string | null;
     }[] = [];
     for (const m of mappings) {
-      const info = printingInfoByid.get(m.printingId);
-      if (!info) {
-        skipped.push({ externalId: m.externalId, reason: "printing not found" });
-        continue;
-      }
-      const lookupFinish = marketplaceFinish(info.finish);
-      const stagingHit = stagingByKey.get(keyOf(m.externalId, lookupFinish, info.language))?.[0];
+      const key = skuKey(m.externalId, m.finish, m.language);
+      const stagingHit = stagingByKey.get(key)?.[0];
       let groupId: number;
       let productName: string;
       if (stagingHit) {
         groupId = stagingHit.groupId;
         productName = stagingHit.productName;
       } else {
-        const available = variantsByExtId.get(m.externalId);
-        if (available && available.size > 0) {
-          const printingDescriptor = config.languageAggregate
-            ? info.finish
-            : `${info.finish}/${info.language}`;
-          skipped.push({
-            externalId: m.externalId,
-            reason: `variant mismatch: printing is "${printingDescriptor}" but product only has "${[...available].join(", ")}"`,
-          });
+        const existing = productByKey.get(key);
+        if (existing) {
+          groupId = existing.groupId;
+          productName = existing.productName;
+        } else {
+          const available = skusByExtId.get(m.externalId);
+          const requested = m.language === null ? m.finish : `${m.finish}/${m.language}`;
+          const reason =
+            available && available.size > 0
+              ? `SKU mismatch: requested "${requested}" but product only has "${[...available].join(", ")}"`
+              : "no staging data found";
+          skipped.push({ externalId: m.externalId, reason });
           continue;
         }
-        // No staging rows for this externalId at all — fall back to the existing
-        // upserted product row so rebinds keep working after staging rotation.
-        const existing = productByExtId.get(m.externalId);
-        if (!existing) {
-          skipped.push({ externalId: m.externalId, reason: "no staging data found" });
-          continue;
-        }
-        groupId = existing.groupId;
-        productName = existing.productName;
       }
       upsertValues.push({
         marketplace: config.marketplace,
@@ -649,14 +650,8 @@ export async function saveMappings(
         externalId: m.externalId,
         groupId,
         productName,
-        // Use the marketplace's view of the finish so variant rows join correctly
-        // against staging (which only emits `normal` / `foil`). The printing table
-        // still holds the fine-grained DB finish (metal / metal-deluxe / …).
-        finish: lookupFinish,
-        // Cardmarket's price guide is a cross-language aggregate, so variants
-        // are stored with NULL language. Other marketplaces pin the variant
-        // to the printing's actual language.
-        language: config.languageAggregate ? null : info.language,
+        finish: m.finish,
+        language: m.language,
       });
     }
 
@@ -664,11 +659,16 @@ export async function saveMappings(
       return 0;
     }
 
-    // 4. Batch-upsert product + variant rows (1 pair of queries instead of N)
+    // 3. Upsert per-SKU product + variant bridge rows.
     const upsertResults = await repo.upsertProductVariants(upsertValues);
-    const variantIdByPrinting = new Map(upsertResults.map((r) => [r.printingId, r.variantId]));
+    const variantIdByKey = new Map(
+      upsertResults.map((r) => [
+        `${r.printingId}::${skuKey(r.externalId, r.finish, r.language)}`,
+        r.variantId,
+      ]),
+    );
 
-    // 5. Batch-insert snapshots (1 query instead of N×M)
+    // 4. Insert snapshots from any staging rows we just absorbed.
     const snapshotRows: {
       variantId: string;
       recordedAt: Date;
@@ -682,18 +682,13 @@ export async function saveMappings(
       avg30Cents: number | null;
     }[] = [];
     for (const sv of upsertValues) {
-      const variantId = variantIdByPrinting.get(sv.printingId);
+      const variantId = variantIdByKey.get(
+        `${sv.printingId}::${skuKey(sv.externalId, sv.finish, sv.language)}`,
+      );
       if (variantId === undefined) {
         continue;
       }
-      // The variant's stored language can be NULL for language-aggregate
-      // marketplaces; `keyOf` collapses to externalId+finish in that case so
-      // a non-EN printing assignment still matches the EN-staged row.
-      const printingLanguage = printingInfoByid.get(sv.printingId)?.language;
-      if (printingLanguage === undefined) {
-        continue;
-      }
-      const rows = stagingByKey.get(keyOf(sv.externalId, sv.finish, printingLanguage)) ?? [];
+      const rows = stagingByKey.get(skuKey(sv.externalId, sv.finish, sv.language)) ?? [];
       for (const row of rows) {
         snapshotRows.push({
           variantId,
@@ -714,18 +709,11 @@ export async function saveMappings(
       await repo.insertSnapshots(snapshotRows);
     }
 
-    // 6. Batch-delete staging rows (1 query instead of N).
-    // Important: deleteTuples must use the staging row's actual language
-    // (e.g. "EN" for cardmarket, where the scraper uses a placeholder), not
-    // the variant's stored language (which is NULL for language-aggregate
-    // marketplaces). `keyOf` already collapses to externalId+finish for those.
-    const deleteTuples: { externalId: number; finish: string; language: string }[] = [];
+    // 5. Delete consumed staging rows so the unmatched-products panel
+    //    reflects current state.
+    const deleteTuples: { externalId: number; finish: string; language: string | null }[] = [];
     for (const sv of upsertValues) {
-      const printingLanguage = printingInfoByid.get(sv.printingId)?.language;
-      if (printingLanguage === undefined) {
-        continue;
-      }
-      const rows = stagingByKey.get(keyOf(sv.externalId, sv.finish, printingLanguage)) ?? [];
+      const rows = stagingByKey.get(skuKey(sv.externalId, sv.finish, sv.language)) ?? [];
       for (const row of rows) {
         deleteTuples.push({
           externalId: sv.externalId,
@@ -765,11 +753,9 @@ export async function unmapPrinting(
 
     const snapshots = await repo.snapshotsByVariantId(variant.variantId);
 
-    // Cardmarket variants have `language = NULL` (cross-language aggregate),
-    // but the staging table is NOT NULL. Fall back to the scraper's placeholder
-    // "EN" so the next refresh cycle's upsert matcher can rebuild the variant
-    // from staging (matcher ignores language for aggregate marketplaces).
-    const stagingLanguage = variant.language ?? "EN";
+    // Staging now mirrors the product's language semantics exactly — NULL for
+    // CM/TCG, a real code for CT — so we can pass the product's language
+    // straight through without any placeholder.
     for (const snap of snapshots) {
       await trxConfig.insertStagingFromSnapshot(
         {
@@ -778,7 +764,7 @@ export async function unmapPrinting(
           productName: variant.productName,
         },
         variant.finish,
-        stagingLanguage,
+        variant.language,
         snap,
       );
     }

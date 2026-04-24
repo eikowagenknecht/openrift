@@ -50,11 +50,11 @@ describe("priceRefreshRepo", () => {
     await expect(priceRefreshRepo(db).upsertGroups("tcgplayer", [])).resolves.toBeUndefined();
   });
 
-  it("variantsWithFinish returns variants with printing finish", async () => {
+  it("variantsWithSku returns variants joined with their product SKU axes", async () => {
     const db = createMockDb([
       { id: "var-1", printingId: "p-1", externalId: 123, finish: "normal", language: "EN" },
     ]);
-    expect(await priceRefreshRepo(db).variantsWithFinish("tcgplayer")).toHaveLength(1);
+    expect(await priceRefreshRepo(db).variantsWithSku("tcgplayer")).toHaveLength(1);
   });
 
   it("countSnapshots returns count", async () => {
@@ -127,7 +127,9 @@ describe("priceRefreshRepo", () => {
   });
 
   it("batchInsertProductVariants inserts products + variants", async () => {
-    const db = createMockDb([{ id: "mp-1", marketplace: "tcgplayer", externalId: 123 }]);
+    const db = createMockDb([
+      { id: "mp-1", marketplace: "tcgplayer", externalId: 123, finish: "normal", language: null },
+    ]);
     await expect(
       priceRefreshRepo(db).batchInsertProductVariants([
         {
@@ -137,7 +139,7 @@ describe("priceRefreshRepo", () => {
           productName: "Card",
           printingId: "p-1",
           finish: "normal",
-          language: "EN",
+          language: null,
         },
       ]),
     ).resolves.toBeUndefined();

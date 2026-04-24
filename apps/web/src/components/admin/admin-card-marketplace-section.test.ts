@@ -96,7 +96,15 @@ describe("applyOptimisticAssignment", () => {
     const before = response([
       group("c-1", [enPrinting], { cardtrader: { staged: [product], assigned: [] } }),
     ]);
-    const after = applyOptimisticAssignment(before, "c-1", "cardtrader", 10, "p-en");
+    const after = applyOptimisticAssignment(
+      before,
+      "c-1",
+      "cardtrader",
+      10,
+      "normal",
+      "EN",
+      "p-en",
+    );
     const mk = after.groups[0].cardtrader;
     expect(mk.stagedProducts).toEqual([]);
     expect(mk.assignedProducts).toEqual([product]);
@@ -109,10 +117,18 @@ describe("applyOptimisticAssignment", () => {
     const enPrinting = printing({ printingId: "p-en", language: "EN", finish: "normal" });
     const before = response([
       group("c-1", [enPrinting], {
-        cardmarket: { staged: [staged({ externalId: 20 })], assigned: [] },
+        cardmarket: { staged: [staged({ externalId: 20, language: null })], assigned: [] },
       }),
     ]);
-    const after = applyOptimisticAssignment(before, "c-1", "cardmarket", 20, "p-en");
+    const after = applyOptimisticAssignment(
+      before,
+      "c-1",
+      "cardmarket",
+      20,
+      "normal",
+      null,
+      "p-en",
+    );
     expect(after.groups[0].cardmarket.assignments[0].language).toBeNull();
   });
 
@@ -123,7 +139,15 @@ describe("applyOptimisticAssignment", () => {
     const before = response([
       group("c-1", [zhPrinting], { cardtrader: { staged: [en, zh], assigned: [] } }),
     ]);
-    const after = applyOptimisticAssignment(before, "c-1", "cardtrader", 30, "p-zh");
+    const after = applyOptimisticAssignment(
+      before,
+      "c-1",
+      "cardtrader",
+      30,
+      "normal",
+      "ZH",
+      "p-zh",
+    );
     const mk = after.groups[0].cardtrader;
     expect(mk.stagedProducts).toEqual([en]);
     expect(mk.assignedProducts).toEqual([zh]);
@@ -133,13 +157,29 @@ describe("applyOptimisticAssignment", () => {
   it("returns the original response unchanged when the card is not in the group list", () => {
     const enPrinting = printing({ printingId: "p-en" });
     const before = response([group("c-other", [enPrinting])]);
-    const after = applyOptimisticAssignment(before, "c-missing", "tcgplayer", 1, "p-en");
+    const after = applyOptimisticAssignment(
+      before,
+      "c-missing",
+      "tcgplayer",
+      1,
+      "normal",
+      null,
+      "p-en",
+    );
     expect(after).toBe(before);
   });
 
   it("returns the original response unchanged when the printing is not in the card", () => {
     const before = response([group("c-1", [printing({ printingId: "p-en" })])]);
-    const after = applyOptimisticAssignment(before, "c-1", "tcgplayer", 1, "p-missing");
+    const after = applyOptimisticAssignment(
+      before,
+      "c-1",
+      "tcgplayer",
+      1,
+      "normal",
+      null,
+      "p-missing",
+    );
     expect(after).toBe(before);
   });
 
@@ -148,13 +188,13 @@ describe("applyOptimisticAssignment", () => {
     // to the existing product row. The optimistic path should still add the
     // assignment so the UI reflects the server's eventual state.
     const before = response([group("c-1", [printing({ printingId: "p-en" })])]);
-    const after = applyOptimisticAssignment(before, "c-1", "tcgplayer", 99, "p-en");
+    const after = applyOptimisticAssignment(before, "c-1", "tcgplayer", 99, "normal", null, "p-en");
     expect(after.groups[0].tcgplayer.assignments).toHaveLength(1);
     expect(after.groups[0].tcgplayer.assignments[0]).toEqual({
       externalId: 99,
       printingId: "p-en",
       finish: "normal",
-      language: "EN",
+      language: null,
     });
   });
 
@@ -165,7 +205,7 @@ describe("applyOptimisticAssignment", () => {
       group("c-1", [enPrinting], { tcgplayer: { staged: [product], assigned: [] } }),
     ]);
     const snapshot = structuredClone(before);
-    applyOptimisticAssignment(before, "c-1", "tcgplayer", 10, "p-en");
+    applyOptimisticAssignment(before, "c-1", "tcgplayer", 10, "normal", null, "p-en");
     expect(before).toEqual(snapshot);
   });
 });
@@ -181,7 +221,14 @@ describe("applyOptimisticAssignmentForCard", () => {
     const before = cardResponse(
       group("c-1", [enPrinting], { cardtrader: { staged: [product], assigned: [] } }),
     );
-    const after = applyOptimisticAssignmentForCard(before, "cardtrader", 10, "p-en");
+    const after = applyOptimisticAssignmentForCard(
+      before,
+      "cardtrader",
+      10,
+      "normal",
+      "EN",
+      "p-en",
+    );
     expect(after.group?.cardtrader.stagedProducts).toEqual([]);
     expect(after.group?.cardtrader.assignedProducts).toEqual([product]);
     expect(after.group?.cardtrader.assignments).toEqual([
@@ -191,13 +238,20 @@ describe("applyOptimisticAssignmentForCard", () => {
 
   it("returns the original response unchanged when the card has no group", () => {
     const before = cardResponse(null);
-    const after = applyOptimisticAssignmentForCard(before, "tcgplayer", 1, "p-en");
+    const after = applyOptimisticAssignmentForCard(before, "tcgplayer", 1, "normal", null, "p-en");
     expect(after).toBe(before);
   });
 
   it("returns the original response unchanged when the printing is missing", () => {
     const before = cardResponse(group("c-1", [printing({ printingId: "p-en" })]));
-    const after = applyOptimisticAssignmentForCard(before, "tcgplayer", 1, "p-missing");
+    const after = applyOptimisticAssignmentForCard(
+      before,
+      "tcgplayer",
+      1,
+      "normal",
+      null,
+      "p-missing",
+    );
     expect(after).toBe(before);
   });
 
@@ -205,7 +259,7 @@ describe("applyOptimisticAssignmentForCard", () => {
     const enPrinting = printing({ printingId: "p-en" });
     const before: UnifiedMappingsCardResponse = {
       group: group("c-1", [enPrinting], {
-        tcgplayer: { staged: [staged({ externalId: 10 })], assigned: [] },
+        tcgplayer: { staged: [staged({ externalId: 10, language: null })], assigned: [] },
       }),
       allCards: [
         {
@@ -217,7 +271,7 @@ describe("applyOptimisticAssignmentForCard", () => {
         },
       ],
     };
-    const after = applyOptimisticAssignmentForCard(before, "tcgplayer", 10, "p-en");
+    const after = applyOptimisticAssignmentForCard(before, "tcgplayer", 10, "normal", null, "p-en");
     expect(after.allCards).toBe(before.allCards);
   });
 });

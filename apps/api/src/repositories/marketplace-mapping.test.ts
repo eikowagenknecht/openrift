@@ -67,9 +67,19 @@ describe("marketplaceMappingRepo", () => {
 
   it("upsertProductVariants batch-upserts product + variant rows", async () => {
     // The mock proxy returns the same rows from every call, so we structure the
-    // return value to satisfy both the product insert and variant insert calls.
+    // return value to satisfy both the product upsert (raw SQL: needs id,
+    // marketplace, externalId, finish, language) and the variant insert (Kysely
+    // RETURNING: needs id, marketplaceProductId, printingId).
     const db = createMockDb([
-      { id: "mp-1", marketplace: "tcgplayer", externalId: 100, printingId: "p1" },
+      {
+        id: "mp-1",
+        marketplaceProductId: "mp-1",
+        marketplace: "tcgplayer",
+        externalId: 100,
+        finish: "normal",
+        language: "EN",
+        printingId: "p1",
+      },
     ]);
     const values = [
       {
@@ -85,6 +95,8 @@ describe("marketplaceMappingRepo", () => {
     const result = await marketplaceMappingRepo(db).upsertProductVariants(values);
     expect(result).toHaveLength(1);
     expect(result[0].printingId).toBe("p1");
+    expect(result[0].finish).toBe("normal");
+    expect(result[0].language).toBe("EN");
   });
 
   it("insertSnapshots batch-inserts snapshots keyed by variantId", async () => {

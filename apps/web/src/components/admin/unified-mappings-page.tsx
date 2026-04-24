@@ -301,7 +301,7 @@ function MarketplaceCell({
   stagedProducts: StagedProduct[];
   assignedProducts: StagedProduct[];
   suggestion: { product: StagedProduct; score: number } | undefined;
-  onSave: (externalId: number) => void;
+  onSave: (product: StagedProduct) => void;
   onUnmap: () => void;
   isSaving: boolean;
   isUnmapping: boolean;
@@ -315,7 +315,7 @@ function MarketplaceCell({
             suggestion={suggestion}
             config={config}
             disabled={isSaving}
-            onClick={() => onSave(suggestion.product.externalId)}
+            onClick={() => onSave(suggestion.product)}
           />
         )}
         <ProductSelect
@@ -478,9 +478,16 @@ function UnifiedExpandedDetail({
                     stagedProducts={group.tcgplayer.stagedProducts}
                     assignedProducts={group.tcgplayer.assignedProducts}
                     suggestion={tcgSug}
-                    onSave={(extId) =>
+                    onSave={(prod) =>
                       tcgSave.mutate({
-                        mappings: [{ printingId: p.printingId, externalId: extId }],
+                        mappings: [
+                          {
+                            printingId: p.printingId,
+                            externalId: prod.externalId,
+                            finish: prod.finish,
+                            language: prod.language,
+                          },
+                        ],
                       })
                     }
                     onUnmap={() => tcgUnmap.mutate(p.printingId)}
@@ -497,9 +504,16 @@ function UnifiedExpandedDetail({
                     stagedProducts={group.cardmarket.stagedProducts}
                     assignedProducts={group.cardmarket.assignedProducts}
                     suggestion={cmSug}
-                    onSave={(extId) =>
+                    onSave={(prod) =>
                       cmSave.mutate({
-                        mappings: [{ printingId: p.printingId, externalId: extId }],
+                        mappings: [
+                          {
+                            printingId: p.printingId,
+                            externalId: prod.externalId,
+                            finish: prod.finish,
+                            language: prod.language,
+                          },
+                        ],
                       })
                     }
                     onUnmap={() => cmUnmap.mutate(p.printingId)}
@@ -516,9 +530,16 @@ function UnifiedExpandedDetail({
                     stagedProducts={group.cardtrader.stagedProducts}
                     assignedProducts={group.cardtrader.assignedProducts}
                     suggestion={ctSug}
-                    onSave={(extId) =>
+                    onSave={(prod) =>
                       ctSave.mutate({
-                        mappings: [{ printingId: p.printingId, externalId: extId }],
+                        mappings: [
+                          {
+                            printingId: p.printingId,
+                            externalId: prod.externalId,
+                            finish: prod.finish,
+                            language: prod.language,
+                          },
+                        ],
                       })
                     }
                     onUnmap={() => ctUnmap.mutate(p.printingId)}
@@ -608,13 +629,13 @@ function UnmatchedSection({
   marketplace: MappableMarketplace;
   products: StagedProduct[];
   allCards: AssignableCard[];
-  onIgnoreVariant: (p: { externalId: number; finish: string; language: string }[]) => void;
+  onIgnoreVariant: (p: { externalId: number; finish: string; language: string | null }[]) => void;
   onIgnoreProduct: (p: { externalId: number }[]) => void;
   isIgnoring: boolean;
   onAssignToCard: (p: {
     externalId: number;
     finish: string;
-    language: string;
+    language: string | null;
     cardId: string;
   }) => void;
   isAssigning: boolean;
@@ -754,17 +775,47 @@ export function UnifiedMappingsPage() {
     const tcgSuggestions = computeSuggestions(tcgGroup);
     const cmSuggestions = computeSuggestions(cmGroup);
     const ctSuggestions = computeSuggestions(ctGroup, { enforceLanguage: true });
-    const tcgMappings: { printingId: string; externalId: number }[] = [];
-    const cmMappings: { printingId: string; externalId: number }[] = [];
-    const ctMappings: { printingId: string; externalId: number }[] = [];
+    const tcgMappings: {
+      printingId: string;
+      externalId: number;
+      finish: string;
+      language: string | null;
+    }[] = [];
+    const cmMappings: {
+      printingId: string;
+      externalId: number;
+      finish: string;
+      language: string | null;
+    }[] = [];
+    const ctMappings: {
+      printingId: string;
+      externalId: number;
+      finish: string;
+      language: string | null;
+    }[] = [];
     for (const [pid, s] of tcgSuggestions) {
-      tcgMappings.push({ printingId: pid, externalId: s.product.externalId });
+      tcgMappings.push({
+        printingId: pid,
+        externalId: s.product.externalId,
+        finish: s.product.finish,
+        language: s.product.language,
+      });
     }
     for (const [pid, s] of cmSuggestions) {
-      cmMappings.push({ printingId: pid, externalId: s.product.externalId });
+      cmMappings.push({
+        printingId: pid,
+        externalId: s.product.externalId,
+        finish: s.product.finish,
+        language: s.product.language,
+      });
     }
     for (const [pid, s] of ctSuggestions) {
-      ctMappings.push({ printingId: pid, externalId: s.product.externalId });
+      ctMappings.push({
+        printingId: pid,
+        externalId: s.product.externalId,
+        finish: s.product.finish,
+        language: s.product.language,
+      });
     }
     queueAutoExpand(group.cardId);
     if (tcgMappings.length > 0) {
@@ -803,9 +854,24 @@ export function UnifiedMappingsPage() {
   }
 
   const handleAcceptAllSafe = () => {
-    const tcgMappings: { printingId: string; externalId: number }[] = [];
-    const cmMappings: { printingId: string; externalId: number }[] = [];
-    const ctMappings: { printingId: string; externalId: number }[] = [];
+    const tcgMappings: {
+      printingId: string;
+      externalId: number;
+      finish: string;
+      language: string | null;
+    }[] = [];
+    const cmMappings: {
+      printingId: string;
+      externalId: number;
+      finish: string;
+      language: string | null;
+    }[] = [];
+    const ctMappings: {
+      printingId: string;
+      externalId: number;
+      finish: string;
+      language: string | null;
+    }[] = [];
     for (const group of groups) {
       const tcgGroup = toMarketplaceGroup(group, "tcgplayer");
       const cmGroup = toMarketplaceGroup(group, "cardmarket");
@@ -831,13 +897,28 @@ export function UnifiedMappingsPage() {
         continue;
       }
       for (const [pid, s] of tcgSug) {
-        tcgMappings.push({ printingId: pid, externalId: s.product.externalId });
+        tcgMappings.push({
+          printingId: pid,
+          externalId: s.product.externalId,
+          finish: s.product.finish,
+          language: s.product.language,
+        });
       }
       for (const [pid, s] of cmSug) {
-        cmMappings.push({ printingId: pid, externalId: s.product.externalId });
+        cmMappings.push({
+          printingId: pid,
+          externalId: s.product.externalId,
+          finish: s.product.finish,
+          language: s.product.language,
+        });
       }
       for (const [pid, s] of ctSug) {
-        ctMappings.push({ printingId: pid, externalId: s.product.externalId });
+        ctMappings.push({
+          printingId: pid,
+          externalId: s.product.externalId,
+          finish: s.product.finish,
+          language: s.product.language,
+        });
       }
     }
     if (tcgMappings.length > 0) {
@@ -988,7 +1069,14 @@ export function UnifiedMappingsPage() {
 // ── Card group row ───────────────────────────────────────────────────────────
 
 interface MutSave {
-  mutate: (b: { mappings: { printingId: string; externalId: number }[] }) => void;
+  mutate: (b: {
+    mappings: {
+      printingId: string;
+      externalId: number;
+      finish: string;
+      language: string | null;
+    }[];
+  }) => void;
   isPending: boolean;
 }
 interface MutId {
@@ -996,7 +1084,7 @@ interface MutId {
   isPending: boolean;
 }
 interface MutProducts {
-  mutate: (p: { externalId: number; finish: string; language: string }[]) => void;
+  mutate: (p: { externalId: number; finish: string; language: string | null }[]) => void;
   isPending: boolean;
 }
 interface MutExternalIds {
@@ -1004,11 +1092,16 @@ interface MutExternalIds {
   isPending: boolean;
 }
 interface MutProduct {
-  mutate: (p: { externalId: number; finish: string; language: string }) => void;
+  mutate: (p: { externalId: number; finish: string; language: string | null }) => void;
   isPending: boolean;
 }
 interface MutAssign {
-  mutate: (p: { externalId: number; finish: string; language: string; cardId: string }) => void;
+  mutate: (p: {
+    externalId: number;
+    finish: string;
+    language: string | null;
+    cardId: string;
+  }) => void;
   isPending: boolean;
 }
 

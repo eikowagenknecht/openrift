@@ -224,7 +224,7 @@ const ignoreLevelTwoItemSchema = z.object({
 const ignoreLevelThreeItemSchema = z.object({
   externalId: z.number(),
   finish: z.string(),
-  language: z.string(),
+  language: z.string().nullable(),
 });
 
 /** Level 2: deny the entire upstream product regardless of finish/language. */
@@ -263,6 +263,10 @@ export const saveMappingsSchema = z.object({
     z.object({
       printingId: z.string().uuid(),
       externalId: z.number(),
+      /** The marketplace's own view of the SKU finish — always `normal` / `foil`. */
+      finish: z.string(),
+      /** `null` for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
+      language: z.string().nullable(),
     }),
   ),
 });
@@ -277,7 +281,7 @@ export const stagingCardOverrideSchema = z.object({
   marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
   externalId: z.number(),
   finish: z.string(),
-  language: z.string(),
+  language: z.string().nullable(),
   cardId: z.string().uuid(),
 });
 
@@ -285,7 +289,7 @@ export const deleteOverrideSchema = z.object({
   marketplace: z.enum(["tcgplayer", "cardmarket", "cardtrader"]),
   externalId: z.number(),
   finish: z.string(),
-  language: z.string(),
+  language: z.string().nullable(),
 });
 
 // ── Typography Review ──────────────────────────────────────────────────────

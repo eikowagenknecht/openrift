@@ -98,7 +98,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
           mpv.id as "variantId",
           mp.external_id as "externalId",
           mp.marketplace as "marketplace",
-          mpv.language as "language"
+          mp.language as "language"
         FROM printings target
         JOIN printings source
           ON source.card_id = target.card_id
@@ -110,7 +110,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
         WHERE target.id = ${printingId}
-          AND (mpv.language IS NULL OR source.id = target.id)
+          AND (mp.language IS NULL OR source.id = target.id)
       `.execute(db);
       return result.rows;
     },
@@ -143,7 +143,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
           target.id as "printingId",
           mp.external_id as "externalId",
           mp.marketplace as "marketplace",
-          (mpv.language IS NULL) as "languageAggregate"
+          (mp.language IS NULL) as "languageAggregate"
         FROM printings target
         JOIN printings source
           ON source.card_id = target.card_id
@@ -155,7 +155,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
         WHERE target.id = ANY(${printingIds}::uuid[])
-          AND (mpv.language IS NULL OR source.id = target.id)
+          AND (mp.language IS NULL OR source.id = target.id)
       `.execute(db);
       return result.rows;
     },
@@ -406,7 +406,7 @@ export function marketplaceRepo(db: Kysely<Database>) {
         JOIN marketplace_snapshots snap ON snap.variant_id = mpv.id
         WHERE target.id IN (${sql.join(printingIds.map((id) => sql`${id}::uuid`))})
           AND mp.marketplace = ${marketplace}
-          AND (mpv.language IS NULL OR source.id = target.id)
+          AND (mp.language IS NULL OR source.id = target.id)
           AND ${headlineExpr} IS NOT NULL
         ORDER BY target.id, day, snap.recorded_at DESC
       `.execute(db);

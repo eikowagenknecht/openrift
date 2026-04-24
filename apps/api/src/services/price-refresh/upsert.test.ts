@@ -73,7 +73,7 @@ function makeMockRepo(opts: {
       upsertGroupsCalled = true;
       upsertGroupsArgs = args;
     },
-    variantsWithFinish: async () => variants,
+    variantsWithSku: async () => variants,
     countSnapshots: async () => countResult,
     countStaging: async () => countResult,
     upsertSnapshots: async () => 0,
@@ -273,16 +273,11 @@ describe("upsertPriceData", () => {
     expect(messages.some((m) => m.includes("snapshots"))).toBe(false);
   });
 
-  it("matches staging EN rows against NULL-language variants when languageAggregate is true", async () => {
-    // Cardmarket's price guide is cross-language. Staging rows carry a
-    // placeholder language ("EN") but the matched variants in the DB have
-    // `language = NULL`. With the `languageAggregate: true` config flag, the
-    // matcher ignores the language dimension and pairs them purely on
-    // (externalId, finish) — so the staging row finds its variant.
-    const aggregateConfig: PriceUpsertConfig = {
-      marketplace: "cardmarket",
-      languageAggregate: true,
-    };
+  it("matches NULL-language staging rows against NULL-language variants (CM/TCG)", async () => {
+    // Cardmarket's price guide is cross-language: staging rows are stored with
+    // `language = null` and variants also have `language = null`, so they match
+    // purely on (externalId, finish).
+    const cmConfig: PriceUpsertConfig = { marketplace: "cardmarket" };
     const { repo } = makeMockRepo({
       variants: [
         {
@@ -294,20 +289,16 @@ describe("upsertPriceData", () => {
         },
       ],
     });
-    // Staging row from the CM scraper with the placeholder "EN".
-    const staging = [makeStagingRow(12_345, "normal")];
+    // Staging row from the CM scraper — language is null.
+    const staging = [{ ...makeStagingRow(12_345, "normal"), language: null }];
 
-    const counts = await upsertPriceData(repo, noopLogger, aggregateConfig, staging);
+    const counts = await upsertPriceData(repo, noopLogger, cmConfig, staging);
 
-    // Under the old strict key ("...::EN" vs "...::null") this would be 0.
     expect(counts.snapshots.total).toBe(1);
   });
 
-  it("still pins per-language variants when languageAggregate is false", async () => {
-    const exactConfig: PriceUpsertConfig = {
-      marketplace: "cardtrader",
-      languageAggregate: false,
-    };
+  it("pins per-language variants for marketplaces that expose language (CT)", async () => {
+    const ctConfig: PriceUpsertConfig = { marketplace: "cardtrader" };
     const { repo } = makeMockRepo({
       variants: [
         {
@@ -332,7 +323,7 @@ describe("upsertPriceData", () => {
       { ...makeStagingRow(54_321, "normal"), language: "ZH" },
     ];
 
-    const counts = await upsertPriceData(repo, noopLogger, exactConfig, staging);
+    const counts = await upsertPriceData(repo, noopLogger, ctConfig, staging);
 
     // EN row goes to var-en, ZH row goes to var-zh — two distinct snapshots.
     expect(counts.snapshots.total).toBe(2);

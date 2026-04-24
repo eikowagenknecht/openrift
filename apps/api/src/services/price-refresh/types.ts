@@ -11,13 +11,6 @@ export interface UpsertCounts {
 
 export interface PriceUpsertConfig {
   marketplace: string;
-  /**
-   * True when the marketplace's price data is cross-language aggregate
-   * (Cardmarket). Staging rows carry a placeholder language ("EN") but the
-   * matched variants have `language = NULL`, so the upsert key must ignore
-   * the language dimension and match purely on (externalId, finish).
-   */
-  languageAggregate?: boolean;
 }
 
 // ── Generic row types ───────────────────────────────────────────────────
@@ -48,6 +41,7 @@ export interface StagingRow extends PriceColumns {
   groupId: number;
   productName: string;
   finish: string;
-  language: string;
+  /** NULL for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
+  language: string | null;
   recordedAt: Date;
 }

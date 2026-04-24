@@ -76,13 +76,27 @@ function useUnifiedMutation<TInput, TResult>(
 }
 
 interface SaveMappingsBody {
-  mappings: { printingId: string; externalId: number }[];
+  mappings: {
+    printingId: string;
+    externalId: number;
+    /** The marketplace's view of the finish — `normal` / `foil`. */
+    finish: string;
+    /** `null` for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
+    language: string | null;
+  }[];
 }
 
 const saveMappingsFn = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { marketplace: string; mappings: { printingId: string; externalId: number }[] }) =>
-      input,
+    (input: {
+      marketplace: string;
+      mappings: {
+        printingId: string;
+        externalId: number;
+        finish: string;
+        language: string | null;
+      }[];
+    }) => input,
   )
   .middleware([withCookies])
   .handler(({ context, data }) =>
@@ -133,7 +147,7 @@ const ignoreVariantsFn = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
       marketplace: string;
-      products: { externalId: number; finish: string; language: string }[];
+      products: { externalId: number; finish: string; language: string | null }[];
     }) => input,
   )
   .middleware([withCookies])
@@ -175,7 +189,7 @@ const ignoreProductsFn = createServerFn({ method: "POST" })
 export function useUnifiedIgnoreVariants(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(
     marketplace,
-    async (products: { externalId: number; finish: string; language: string }[]) => {
+    async (products: { externalId: number; finish: string; language: string | null }[]) => {
       await ignoreVariantsFn({ data: { marketplace, products } });
     },
   );
@@ -197,7 +211,7 @@ const assignToCardFn = createServerFn({ method: "POST" })
       marketplace: string;
       externalId: number;
       finish: string;
-      language: string;
+      language: string | null;
       cardId: string;
     }) => input,
   )
@@ -215,7 +229,12 @@ const assignToCardFn = createServerFn({ method: "POST" })
 export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(
     marketplace,
-    async (override: { externalId: number; finish: string; language: string; cardId: string }) => {
+    async (override: {
+      externalId: number;
+      finish: string;
+      language: string | null;
+      cardId: string;
+    }) => {
       await assignToCardFn({ data: { marketplace, ...override } });
     },
   );
@@ -223,7 +242,8 @@ export function useUnifiedAssignToCard(marketplace: "tcgplayer" | "cardmarket" |
 
 const unassignFromCardFn = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: { marketplace: string; externalId: number; finish: string; language: string }) => input,
+    (input: { marketplace: string; externalId: number; finish: string; language: string | null }) =>
+      input,
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
@@ -239,7 +259,7 @@ const unassignFromCardFn = createServerFn({ method: "POST" })
 export function useUnifiedUnassignFromCard(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
   return useUnifiedMutation(
     marketplace,
-    async (params: { externalId: number; finish: string; language: string }) => {
+    async (params: { externalId: number; finish: string; language: string | null }) => {
       await unassignFromCardFn({ data: { marketplace, ...params } });
     },
   );
