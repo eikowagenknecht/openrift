@@ -89,6 +89,11 @@ interface DisplayState {
       | "defaultCardView",
   ) => void;
 
+  // Clear all account-scoped overrides (used on sign-out so the next visitor
+  // sees the unauthenticated defaults). Device-local state (maxColumns,
+  // filtersExpanded, catalogMode, layout) is preserved.
+  reset: () => void;
+
   // Hydrate overrides from server data (used by sync hook)
   hydrateOverrides: (incoming: Partial<DisplayOverrides>) => void;
 
@@ -163,6 +168,12 @@ export const useDisplayStore = create<DisplayState>()(
         set((state) => {
           const newOverrides = { ...state.overrides, [key]: null };
           return { [key]: resolveAll(newOverrides)[key], overrides: newOverrides };
+        }),
+
+      reset: () =>
+        set({
+          overrides: { ...NULL_OVERRIDES },
+          ...resolveAll(NULL_OVERRIDES),
         }),
 
       hydrateOverrides: (incoming) =>

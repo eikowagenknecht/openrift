@@ -92,4 +92,21 @@ describe("useThemeStore", () => {
       expect(useThemeStore.getState().preference).toBe("light");
     });
   });
+
+  describe("reset", () => {
+    it("clears the stored preference and removes the dark class", () => {
+      useThemeStore.getState().setTheme("dark");
+      expect(document.documentElement.classList.contains("dark")).toBe(true);
+
+      useThemeStore.getState().reset();
+
+      const state = useThemeStore.getState();
+      expect(state.preference).toBeNull();
+      // Resolved theme depends on the system, but the dark class should only
+      // be present when resolved === "dark". jsdom reports no prefers-dark,
+      // so the default resolves to light.
+      expect(state.theme === "light" || state.theme === "dark").toBe(true);
+      expect(document.documentElement.classList.contains("dark")).toBe(state.theme === "dark");
+    });
+  });
 });

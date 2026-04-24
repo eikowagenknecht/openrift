@@ -58,6 +58,7 @@ import { signOut } from "@/lib/auth-client";
 import { useSession } from "@/lib/auth-session";
 import { useGravatarUrl } from "@/lib/gravatar";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
+import { useDisplayStore } from "@/stores/display-store";
 import { useThemeStore } from "@/stores/theme-store";
 
 function LogoLink({ className }: { className?: string }) {
@@ -223,7 +224,9 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
   const handleSignOut = async () => {
     await signOut();
     clearUserScopedCache(queryClient);
-    void router.navigate({ to: "/cards" });
+    useDisplayStore.getState().reset();
+    useThemeStore.getState().reset();
+    void router.navigate({ to: "/cards", search: {} });
   };
 
   return (

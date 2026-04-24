@@ -2,6 +2,7 @@
 
 ## 2026-04-24
 
+- fix: Signing out now fully clears your saved display preferences (language filters, theme, card view options), so the next person using this browser starts with defaults instead of inheriting the previous user's settings
 - fix: The admin Cards and Candidates tables no longer smush their columns together on narrow screens; when the viewport isn't wide enough, the tables scroll horizontally so every column keeps usable space, and cell content can wrap instead of overflowing. The Candidates table also now leads with the Card column, with the favorite and Unchecked badges sitting inline with the name
 
 ## 2026-04-23
