@@ -74,7 +74,6 @@ export interface FieldDef {
 export function buildCandidateCardFields(orders: EnumOrders, labels: EnumLabels): FieldDef[] {
   return [
     { key: "externalId", label: "External ID", readOnly: true },
-    { key: "shortCode", label: "Short Code", readOnly: true },
     { key: "energy", label: "Energy" },
     { key: "power", label: "Power" },
     { key: "might", label: "Might" },
