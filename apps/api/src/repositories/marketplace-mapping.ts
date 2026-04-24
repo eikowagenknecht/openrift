@@ -150,6 +150,12 @@ export function marketplaceMappingRepo(db: Db) {
           .orderBy("c.name")
           .orderBy("p.shortCode")
           .orderBy("p.finish", "desc")
+          // Tiebreak on language then id so EN consistently lands before ZH
+          // (and printings stay in a stable order across refetches). Without
+          // this the suggestion algorithm picked an arbitrary language when
+          // two printings tied on score.
+          .orderBy("p.language")
+          .orderBy("p.id")
           .execute()
       );
     },
@@ -214,12 +220,18 @@ export function marketplaceMappingRepo(db: Db) {
           ]),
         );
       }
-      return query
-        .orderBy("s.slug")
-        .orderBy("c.name")
-        .orderBy("p.shortCode")
-        .orderBy("p.finish", "desc")
-        .execute();
+      return (
+        query
+          .orderBy("s.slug")
+          .orderBy("c.name")
+          .orderBy("p.shortCode")
+          .orderBy("p.finish", "desc")
+          // Same tiebreakers as `allCardsWithPrintings` — keep printings in a
+          // stable EN-before-ZH order so suggestion ranking is deterministic.
+          .orderBy("p.language")
+          .orderBy("p.id")
+          .execute()
+      );
     },
 
     /**

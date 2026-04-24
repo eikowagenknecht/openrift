@@ -175,8 +175,12 @@ function scorePrintingProduct(
 }
 
 /**
- * Compute suggested product assignments for unmapped printings.
- * Uses greedy matching: highest-scoring pairs are assigned first.
+ * Compute suggested product assignments for unmapped printings using
+ * mutual-best-match: a (printing, product) pair is suggested only when each
+ * is uniquely the other's top-scoring partner. Skips cases where multiple
+ * printings tie for the same product (e.g. EN/ZH printings of the same card
+ * both scoring 100 against a single Cardmarket product) — surfacing nothing
+ * is more honest than picking arbitrarily by iteration order.
  * @returns A map from printingId to the suggested product and score.
  */
 export function computeSuggestions(
@@ -191,8 +195,14 @@ export function computeSuggestions(
     return new Map();
   }
 
-  // Score all pairs
-  const pairs: { printing: MappingPrinting; product: StagedProduct; score: number }[] = [];
+  interface Pair {
+    printing: MappingPrinting;
+    product: StagedProduct;
+    score: number;
+  }
+  const productKey = (product: StagedProduct): string => `${product.externalId}|${product.finish}`;
+
+  const pairs: Pair[] = [];
   for (const printing of unmapped) {
     for (const product of available) {
       const score = scorePrintingProduct(printing, product, group.cardName, enforceLanguage);
@@ -202,44 +212,36 @@ export function computeSuggestions(
     }
   }
 
-  // Group pairs by printing, sorted by score descending within each group
-  const pairsByPrinting = new Map<string, typeof pairs>();
-  for (const pair of pairs) {
-    const list = pairsByPrinting.get(pair.printing.printingId) ?? [];
-    list.push(pair);
-    pairsByPrinting.set(pair.printing.printingId, list);
-  }
-  for (const list of pairsByPrinting.values()) {
-    list.sort((a, b) => b.score - a.score);
+  // Per-printing top product (skipped if tied within the printing).
+  const topProductByPrinting = new Map<string, Pair>();
+  const printingPairs = Map.groupBy(pairs, (p) => p.printing.printingId);
+  for (const [printingId, list] of printingPairs) {
+    const top = list.reduce((best, p) => (p.score > best.score ? p : best), list[0]);
+    const tied = list.filter((p) => p.score === top.score);
+    if (tied.length === 1) {
+      topProductByPrinting.set(printingId, top);
+    }
   }
 
-  // Process printings in order of their best score (highest first)
-  const printingOrder = [...pairsByPrinting.entries()].toSorted(
-    ([, a], [, b]) => b[0].score - a[0].score,
-  );
+  // Per-product top printing (skipped if tied across printings).
+  const topPrintingByProduct = new Map<string, Pair>();
+  const productPairs = Map.groupBy(pairs, (p) => productKey(p.product));
+  for (const [key, list] of productPairs) {
+    const top = list.reduce((best, p) => (p.score > best.score ? p : best), list[0]);
+    const tied = list.filter((p) => p.score === top.score);
+    if (tied.length === 1) {
+      topPrintingByProduct.set(key, top);
+    }
+  }
 
-  // Greedy assignment with dynamic tie detection: for each printing, check if
-  // its best score among *remaining* products is tied. If so, the match is
-  // ambiguous — skip it. Otherwise assign the single best product.
-  const usedProducts = new Set<string>();
+  // Emit only mutual-best matches: the printing's top product points back to
+  // this printing as its own top.
   const suggestions = new Map<string, Suggestion>();
-
-  for (const [, printingPairs] of printingOrder) {
-    const remaining = printingPairs.filter(
-      (p) => !usedProducts.has(`${p.product.externalId}|${p.product.finish}`),
-    );
-    if (remaining.length === 0) {
-      continue;
+  for (const [printingId, pair] of topProductByPrinting) {
+    const reverse = topPrintingByProduct.get(productKey(pair.product));
+    if (reverse?.printing.printingId === printingId) {
+      suggestions.set(printingId, { product: pair.product, score: pair.score });
     }
-    const topScore = remaining[0].score;
-    const tiedAtTop = remaining.filter((p) => p.score === topScore);
-    if (tiedAtTop.length > 1) {
-      continue;
-    }
-    const best = tiedAtTop[0];
-    const productKey = `${best.product.externalId}|${best.product.finish}`;
-    usedProducts.add(productKey);
-    suggestions.set(best.printing.printingId, { product: best.product, score: best.score });
   }
 
   return suggestions;

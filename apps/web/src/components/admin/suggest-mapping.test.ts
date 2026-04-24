@@ -320,4 +320,41 @@ describe("computeProductSuggestions", () => {
     );
     expect(result.size).toBe(0);
   });
+
+  it("skips when multiple printings tie for the same Cardmarket product (mutual-best-match)", () => {
+    // Regression: CM 872479 used to suggest one of three tied printings
+    // (SFD-R02 EN, SFD-R02 ZH, OGN-042 ZH) based on iteration order — which
+    // was non-deterministic since the unified printings query didn't tie-break
+    // on language. With mutual-best-match, three printings competing for one
+    // product means the product has no unique top → no suggestion at all.
+    const enSfd = printing({ printingId: "p-sfd-en", language: "EN" });
+    const zhSfd = printing({ printingId: "p-sfd-zh", language: "ZH" });
+    const zhOgn = printing({ printingId: "p-ogn-zh", language: "ZH", shortCode: "OGN-042" });
+    const result = computeProductSuggestions(
+      group([enSfd, zhSfd, zhOgn], {
+        cardmarket: {
+          staged: [staged({ externalId: 872_479, productName: "Calm Rune", finish: "normal" })],
+          assignments: [],
+        },
+      }),
+    );
+    expect(result.get(productSuggestionKey("cardmarket", 872_479, "normal", "EN"))).toBeUndefined();
+  });
+
+  it("still suggests when only one printing matches a Cardmarket product", () => {
+    // The mutual-best gate must not over-suppress: when a single unmapped
+    // printing is the unique top match, the suggestion still fires.
+    const en = printing({ printingId: "p-en", language: "EN" });
+    const result = computeProductSuggestions(
+      group([en], {
+        cardmarket: {
+          staged: [staged({ externalId: 872_479, productName: "Calm Rune", finish: "normal" })],
+          assignments: [],
+        },
+      }),
+    );
+    expect(
+      result.get(productSuggestionKey("cardmarket", 872_479, "normal", "EN"))?.printingId,
+    ).toBe("p-en");
+  });
 });
