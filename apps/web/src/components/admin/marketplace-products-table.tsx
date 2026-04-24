@@ -246,7 +246,7 @@ export function MarketplaceProductsTable({
           <TableHead className="w-20">ID</TableHead>
           <TableHead className="w-80">Product</TableHead>
           <TableHead className="w-16">Language</TableHead>
-          <TableHead className="w-40">Set</TableHead>
+          <TableHead className="w-48">Set</TableHead>
           <TableHead className="w-16">Finish</TableHead>
           <TableHead className="w-20 text-right">Price</TableHead>
           <TableHead>Assigned printings</TableHead>
