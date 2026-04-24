@@ -1,26 +1,46 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { PlusIcon, XIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 
 import { AcceptedCardsTable } from "@/components/admin/accepted-cards-table";
 import { CandidateCardsTable } from "@/components/admin/candidate-cards-table";
 import { UnmatchedProductsPanel } from "@/components/admin/unmatched-products-panel";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAdminCardList, useAllCards } from "@/hooks/use-admin-card-queries";
+import { useSets } from "@/hooks/use-sets";
 import { useUnifiedMappings } from "@/hooks/use-unified-mappings";
 import { filterCardsBySet } from "@/lib/admin-cards-search";
 import { buildCoverageMapBySlug } from "@/lib/marketplace-coverage";
 import { Route } from "@/routes/_app/_authenticated/admin/cards";
 
+const ALL_SETS = "__all__";
+
 export function AdminCardListPage() {
   const { data } = useAdminCardList();
   const { data: unified } = useUnifiedMappings(true);
   const { data: allCards } = useAllCards();
+  const { data: setsData } = useSets();
   const { tab, setSlug } = Route.useSearch({
     select: (s) => ({ tab: s.tab ?? "cards", setSlug: s.set }),
   });
   const navigate = useNavigate({ from: Route.fullPath });
+
+  const setOptions = [
+    { value: ALL_SETS, label: "All sets" },
+    ...setsData.sets
+      .toSorted((a, b) => a.sortOrder - b.sortOrder)
+      .map((s) => ({ value: s.slug, label: s.name })),
+  ];
+  if (setSlug && !setOptions.some((o) => o.value === setSlug)) {
+    setOptions.push({ value: setSlug, label: setSlug });
+  }
 
   // Cards can span multiple sets (reprints); a card passes the filter if any
   // of its accepted printings belong to `setSlug`. Candidate rows don't carry
@@ -39,8 +59,12 @@ export function AdminCardListPage() {
 
   const coverageBySlug = buildCoverageMapBySlug(unified.groups);
 
-  function clearSet() {
-    void navigate({ search: (prev) => ({ ...prev, set: undefined }), replace: true });
+  function changeSet(value: string | null) {
+    const next = value && value !== ALL_SETS ? value : undefined;
+    void navigate({
+      search: (prev) => ({ ...prev, set: next }),
+      replace: true,
+    });
   }
 
   return (
@@ -67,19 +91,18 @@ export function AdminCardListPage() {
           <TabsTrigger value="unmatched">Unmatched ({unmatchedCount})</TabsTrigger>
         </TabsList>
         <div className="flex items-center gap-2">
-          {setSlug && (
-            <Badge variant="secondary" className="gap-1">
-              Set: {setSlug}
-              <button
-                type="button"
-                onClick={clearSet}
-                aria-label="Clear set filter"
-                className="hover:opacity-70"
-              >
-                <XIcon className="size-3" />
-              </button>
-            </Badge>
-          )}
+          <Select items={setOptions} value={setSlug ?? ALL_SETS} onValueChange={changeSet}>
+            <SelectTrigger size="sm" aria-label="Filter by set" className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {setOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" size="sm" render={<Link to="/admin/cards/create" />}>
             <PlusIcon className="mr-1 size-4" />
             New card
