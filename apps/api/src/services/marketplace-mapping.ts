@@ -544,20 +544,30 @@ export async function saveMappings(
       repo.stagingByExternalIds(config.marketplace, externalIds),
       repo.productsByExternalIds(config.marketplace, externalIds),
     ]);
+    // For language-aggregate marketplaces (Cardmarket) staging rows carry a
+    // placeholder language because the scraper can't observe per-language
+    // pricing — drop language from the key so a non-EN printing assignment
+    // still resolves to the EN-staged row.
+    const keyOf = (externalId: number, finish: string, language: string): string =>
+      config.languageAggregate
+        ? `${externalId}::${finish}`
+        : `${externalId}::${finish}::${language}`;
     const stagingByKey = new Map<string, typeof allStagingRows>();
     for (const row of allStagingRows) {
-      const key = `${row.externalId}::${row.finish}::${row.language}`;
+      const key = keyOf(row.externalId, row.finish, row.language);
       const list = stagingByKey.get(key) ?? [];
       list.push(row);
       stagingByKey.set(key, list);
     }
     const productByExtId = new Map(existingProducts.map((p) => [p.externalId, p]));
 
-    // Collect available finish+language combos per external ID for error messages
+    // Collect available finish (or finish+language) combos per external ID
+    // for error messages — language-aggregate marketplaces only mismatch on
+    // finish, so showing the placeholder language would be misleading.
     const variantsByExtId = new Map<number, Set<string>>();
     for (const row of allStagingRows) {
       const set = variantsByExtId.get(row.externalId) ?? new Set();
-      set.add(`${row.finish}/${row.language}`);
+      set.add(config.languageAggregate ? row.finish : `${row.finish}/${row.language}`);
       variantsByExtId.set(row.externalId, set);
     }
 
@@ -578,9 +588,7 @@ export async function saveMappings(
         continue;
       }
       const lookupFinish = marketplaceFinish(info.finish);
-      const stagingHit = stagingByKey.get(
-        `${m.externalId}::${lookupFinish}::${info.language}`,
-      )?.[0];
+      const stagingHit = stagingByKey.get(keyOf(m.externalId, lookupFinish, info.language))?.[0];
       let groupId: number;
       let productName: string;
       if (stagingHit) {
@@ -589,9 +597,12 @@ export async function saveMappings(
       } else {
         const available = variantsByExtId.get(m.externalId);
         if (available && available.size > 0) {
+          const printingDescriptor = config.languageAggregate
+            ? info.finish
+            : `${info.finish}/${info.language}`;
           skipped.push({
             externalId: m.externalId,
-            reason: `variant mismatch: printing is "${info.finish}/${info.language}" but product only has "${[...available].join(", ")}"`,
+            reason: `variant mismatch: printing is "${printingDescriptor}" but product only has "${[...available].join(", ")}"`,
           });
           continue;
         }
@@ -649,14 +660,13 @@ export async function saveMappings(
         continue;
       }
       // The variant's stored language can be NULL for language-aggregate
-      // marketplaces; the staging key uses the printing's actual language
-      // because that's what the scraper writes.
+      // marketplaces; `keyOf` collapses to externalId+finish in that case so
+      // a non-EN printing assignment still matches the EN-staged row.
       const printingLanguage = printingInfoByid.get(sv.printingId)?.language;
       if (printingLanguage === undefined) {
         continue;
       }
-      const stagingKey = `${sv.externalId}::${sv.finish}::${printingLanguage}`;
-      const rows = stagingByKey.get(stagingKey) ?? [];
+      const rows = stagingByKey.get(keyOf(sv.externalId, sv.finish, printingLanguage)) ?? [];
       for (const row of rows) {
         snapshotRows.push({
           variantId,
@@ -678,18 +688,17 @@ export async function saveMappings(
     }
 
     // 6. Batch-delete staging rows (1 query instead of N).
-    // Important: stagingByKey is keyed on the staging row's actual language
+    // Important: deleteTuples must use the staging row's actual language
     // (e.g. "EN" for cardmarket, where the scraper uses a placeholder), not
-    // on the variant's stored language (which is NULL for language-aggregate
-    // marketplaces). Look up the printing's language via printingInfoByid.
+    // the variant's stored language (which is NULL for language-aggregate
+    // marketplaces). `keyOf` already collapses to externalId+finish for those.
     const deleteTuples: { externalId: number; finish: string; language: string }[] = [];
     for (const sv of upsertValues) {
       const printingLanguage = printingInfoByid.get(sv.printingId)?.language;
       if (printingLanguage === undefined) {
         continue;
       }
-      const stagingKey = `${sv.externalId}::${sv.finish}::${printingLanguage}`;
-      const rows = stagingByKey.get(stagingKey) ?? [];
+      const rows = stagingByKey.get(keyOf(sv.externalId, sv.finish, printingLanguage)) ?? [];
       for (const row of rows) {
         deleteTuples.push({
           externalId: sv.externalId,

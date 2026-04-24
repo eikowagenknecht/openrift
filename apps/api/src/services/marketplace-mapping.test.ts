@@ -1118,6 +1118,74 @@ describe("saveMappings", () => {
     expect(result.skipped[0].reason).toContain("variant mismatch");
   });
 
+  it("accepts cross-language assignments on language-aggregate marketplaces", async () => {
+    // Regression: Cardmarket staging always carries an "EN" placeholder because
+    // the scraper can't observe per-language pricing. A non-EN printing (e.g.
+    // ZH) assigned via the suggest UI must still resolve to that EN-staged row
+    // — previously the staging lookup keyed on the printing's language and
+    // mis-reported a "variant mismatch: printing is normal/ZH but product only
+    // has normal/EN".
+    const upsertSpy = vi.fn().mockResolvedValue([{ printingId: "p-zh", variantId: "v-1" }]);
+    const insertSnapshotsSpy = vi.fn().mockResolvedValue(undefined);
+    const deleteStagingSpy = vi.fn().mockResolvedValue(undefined);
+    const mappingRepo = createMockMappingRepo({
+      printingFinishesAndLanguages: vi
+        .fn()
+        .mockResolvedValue([{ id: "p-zh", finish: "normal", language: "ZH" }]),
+      stagingByExternalIds: vi.fn().mockResolvedValue([
+        {
+          externalId: 872_479,
+          finish: "normal",
+          language: "EN",
+          groupId: 7,
+          productName: "Calm Rune",
+          recordedAt: new Date("2026-04-24T10:00:00Z"),
+          marketCents: 100,
+          lowCents: 80,
+          midCents: 100,
+          highCents: 120,
+          trendCents: 95,
+          avg1Cents: 90,
+          avg7Cents: 95,
+          avg30Cents: 100,
+        },
+      ]),
+      upsertProductVariants: upsertSpy,
+      insertSnapshots: insertSnapshotsSpy,
+      deleteStagingTuples: deleteStagingSpy,
+    });
+    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
+    const transact = mockTransact(repos);
+    const config = createMockConfig({ marketplace: "cardmarket", languageAggregate: true });
+
+    const result = await saveMappings(transact, config, [
+      { printingId: "p-zh", externalId: 872_479 },
+    ]);
+
+    expect(result.skipped).toHaveLength(0);
+    expect(result.saved).toBe(1);
+    // Variant is upserted with NULL language (language-aggregate semantics)
+    // and the EN staging row's group_id / product_name.
+    expect(upsertSpy).toHaveBeenCalledWith([
+      expect.objectContaining({
+        externalId: 872_479,
+        printingId: "p-zh",
+        groupId: 7,
+        productName: "Calm Rune",
+        finish: "normal",
+        language: null,
+      }),
+    ]);
+    // Snapshot from the EN staging row flows into the new ZH variant.
+    expect(insertSnapshotsSpy).toHaveBeenCalledWith([
+      expect.objectContaining({ variantId: "v-1", marketCents: 100 }),
+    ]);
+    // Delete uses the staging row's actual language ("EN"), not the printing's.
+    expect(deleteStagingSpy).toHaveBeenCalledWith("cardmarket", [
+      { externalId: 872_479, finish: "normal", language: "EN" },
+    ]);
+  });
+
   it("returns 0 saved when all mappings are skipped", async () => {
     const mappingRepo = createMockMappingRepo({
       printingFinishesAndLanguages: vi.fn().mockResolvedValue([]),
