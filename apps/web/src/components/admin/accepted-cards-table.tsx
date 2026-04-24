@@ -602,7 +602,7 @@ export function AcceptedCardsTable({
       ) : (
         <div className="relative min-h-0 flex-1">
           <div ref={scrollRef} className="absolute inset-0 overflow-auto">
-            <Table className="table-fixed">
+            <Table className="min-w-[720px] table-fixed">
               <TableHeader className="sticky top-0 z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>

@@ -37,7 +37,6 @@ import { useAllCards } from "@/hooks/use-admin-card-queries";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import { queryKeys } from "@/lib/query-keys";
-import { cn } from "@/lib/utils";
 import { useVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
@@ -289,7 +288,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
       ) : (
         <div className="relative min-h-0 flex-1">
           <div ref={scrollRef} className="absolute inset-0 overflow-auto">
-            <Table className="table-fixed">
+            <Table className="min-w-[720px] table-fixed">
               <TableHeader className="sticky top-0 z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
@@ -308,10 +307,7 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
                   return (
                     <TableRow key={row.id} data-index={virtualRow.index}>
                       {row.getVisibleCells().map((cell) => (
-                        <TableCell
-                          key={cell.id}
-                          className={cn(cell.column.id === "printings" && "whitespace-normal")}
-                        >
+                        <TableCell key={cell.id} className="whitespace-normal">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </TableCell>
                       ))}

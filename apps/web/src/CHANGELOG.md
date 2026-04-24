@@ -2,7 +2,7 @@
 
 ## 2026-04-24
 
-- fix: The admin Candidates table now lays out correctly on narrow screens — the Card column leads, the favorite and Unchecked badges sit inline with the name, and column widths match the Cards table
+- fix: The admin Cards and Candidates tables no longer smush their columns together on narrow screens; when the viewport isn't wide enough, the tables scroll horizontally so every column keeps usable space, and cell content can wrap instead of overflowing. The Candidates table also now leads with the Card column, with the favorite and Unchecked badges sitting inline with the name
 
 ## 2026-04-23
 
