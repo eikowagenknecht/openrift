@@ -52,6 +52,8 @@ import * as m103 from "./103-delete-mismatched-variants.js";
 import * as m104 from "./104-normalize-marketplace-products-per-sku.js";
 import * as m105 from "./105-drop-variant-sku-columns.js";
 import * as m106 from "./106-staging-nullable-language.js";
+import * as m107 from "./107-backfill-sibling-variants.js";
+import * as m108 from "./108-simplify-latest-prices-mv.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -163,4 +165,6 @@ export const migrations: Record<string, Migration> = {
   "104-normalize-marketplace-products-per-sku": m104,
   "105-drop-variant-sku-columns": m105,
   "106-staging-nullable-language": m106,
+  "107-backfill-sibling-variants": m107,
+  "108-simplify-latest-prices-mv": m108,
 };

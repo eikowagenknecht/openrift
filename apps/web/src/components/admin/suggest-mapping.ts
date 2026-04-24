@@ -223,28 +223,70 @@ export function computeSuggestions(
     }
   }
 
-  // Per-product top printing (skipped if tied across printings).
-  const topPrintingByProduct = new Map<string, Pair>();
+  // Per-product top printing(s). For non-aggregate products (CardTrader, where
+  // language is part of the SKU) only a single unique top is accepted —
+  // anything else means ambiguity. For language-aggregate products
+  // (`product.language === null`: Cardmarket, TCGPlayer), ties among sibling
+  // printings (same short_code/finish/art/is_signed/markers, differing only in
+  // language) are legitimate — the same aggregate price covers all of them,
+  // so every sibling gets its own suggestion chip.
+  const topPrintingsByProduct = new Map<string, Pair[]>();
   const productPairs = Map.groupBy(pairs, (p) => productKey(p.product));
   for (const [key, list] of productPairs) {
     const top = list.reduce((best, p) => (p.score > best.score ? p : best), list[0]);
     const tied = list.filter((p) => p.score === top.score);
     if (tied.length === 1) {
-      topPrintingByProduct.set(key, top);
+      topPrintingsByProduct.set(key, [top]);
+    } else if (top.product.language === null && allSiblings(tied.map((t) => t.printing))) {
+      topPrintingsByProduct.set(key, tied);
     }
   }
 
-  // Emit only mutual-best matches: the printing's top product points back to
-  // this printing as its own top.
+  // Emit mutual-best matches: the printing's top product points back to a
+  // set of top printings that includes this one.
   const suggestions = new Map<string, Suggestion>();
   for (const [printingId, pair] of topProductByPrinting) {
-    const reverse = topPrintingByProduct.get(productKey(pair.product));
-    if (reverse?.printing.printingId === printingId) {
+    const reverseList = topPrintingsByProduct.get(productKey(pair.product)) ?? [];
+    if (reverseList.some((r) => r.printing.printingId === printingId)) {
       suggestions.set(printingId, { product: pair.product, score: pair.score });
     }
   }
 
   return suggestions;
+}
+
+/**
+ * Two printings are "siblings" when they share every printing-identity axis
+ * except language — same short_code, finish, art variant, signed state, and
+ * marker set. Language-aggregate marketplaces (CM, TCG) sell one SKU covering
+ * every sibling, so the suggester treats them as interchangeable targets.
+ * @returns true iff every printing in the list matches the first on those axes.
+ */
+function allSiblings(printings: MappingPrinting[]): boolean {
+  if (printings.length < 2) {
+    return true;
+  }
+  const [first, ...rest] = printings;
+  return rest.every(
+    (p) =>
+      p.shortCode === first.shortCode &&
+      p.finish === first.finish &&
+      p.artVariant === first.artVariant &&
+      p.isSigned === first.isSigned &&
+      arraysEqual(p.markerSlugs, first.markerSlugs),
+  );
+}
+
+function arraysEqual(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** Product-centric suggestion: for a given marketplace product, the printing it likely belongs to. */
@@ -270,15 +312,16 @@ export function productSuggestionKey(
 /**
  * Invert `computeSuggestions` into a per-product map for the card-detail
  * marketplace view, which is product-centric (each row is a product, the user
- * picks the printing). The algorithm runs once per marketplace — a product
- * appears in the result only if it's the unique best match for exactly one
- * unmapped printing.
- * @returns Map keyed by `productSuggestionKey(...)` → the suggested printing.
+ * picks the printing). The algorithm runs once per marketplace. A product can
+ * appear with multiple suggested printings when it's language-aggregate and
+ * those printings are siblings — the admin clicks through each chip to
+ * materialise the mapping explicitly.
+ * @returns Map keyed by `productSuggestionKey(...)` → one or more suggested printings.
  */
 export function computeProductSuggestions(
   group: UnifiedMappingGroup,
-): Map<string, ProductSuggestion> {
-  const out = new Map<string, ProductSuggestion>();
+): Map<string, ProductSuggestion[]> {
+  const out = new Map<string, ProductSuggestion[]>();
   for (const marketplace of ["tcgplayer", "cardmarket", "cardtrader"] as const) {
     const perPrinting = computeSuggestions(toMarketplaceGroup(group, marketplace), {
       enforceLanguage: marketplace === "cardtrader",
@@ -290,7 +333,9 @@ export function computeProductSuggestions(
         product.finish,
         product.language,
       );
-      out.set(key, { printingId, score });
+      const list = out.get(key) ?? [];
+      list.push({ printingId, score });
+      out.set(key, list);
     }
   }
   return out;

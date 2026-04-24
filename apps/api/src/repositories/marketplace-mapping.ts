@@ -600,16 +600,16 @@ export function marketplaceMappingRepo(db: Db) {
     // ── per-card detail queries ─────────────────────────────────────────────
 
     /**
-     * Variants visible to each printing of a card, including sibling fan-out.
+     * Variants visible to each printing of a card. Each printing sees exactly
+     * the variants whose `printing_id` equals its own — language-aggregate
+     * fan-out is materialised as explicit variant rows (see migration 107),
+     * so the old source/target sibling self-join is gone.
      *
-     * Siblings share everything except language; language-aggregate variants
-     * (Cardmarket, stored with `language = NULL`) surface on every sibling,
-     * while exact-language variants stay pinned to their owner printing.
-     * Callers compare `ownerPrintingId` vs `targetPrintingId` to decide whether
-     * a row is owned or inherited.
+     * `ownerLanguage` equals the printing's own language now; callers that
+     * used to distinguish owner vs inherited by comparing it against the
+     * target printing's language treat every row as "owned."
      *
-     * @returns One row per (printing, variant) pair visible to any printing of
-     *          the card.
+     * @returns One row per (printing, variant) for every printing of the card.
      */
     async variantsForCard(cardId: string): Promise<
       {
@@ -634,26 +634,18 @@ export function marketplaceMappingRepo(db: Db) {
         ownerLanguage: string;
       }>`
         SELECT
-          target.id as "targetPrintingId",
+          p.id as "targetPrintingId",
           mp.marketplace as "marketplace",
           mp.external_id as "externalId",
           mp.product_name as "productName",
           mp.finish as "finish",
           mp.language as "variantLanguage",
-          source.id as "ownerPrintingId",
-          source.language as "ownerLanguage"
-        FROM printings target
-        JOIN printings source
-          ON source.card_id = target.card_id
-          AND source.short_code = target.short_code
-          AND source.finish = target.finish
-          AND source.art_variant = target.art_variant
-          AND source.is_signed = target.is_signed
-          AND source.marker_slugs = target.marker_slugs
-        JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
+          p.id as "ownerPrintingId",
+          p.language as "ownerLanguage"
+        FROM printings p
+        JOIN marketplace_product_variants mpv ON mpv.printing_id = p.id
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
-        WHERE target.card_id = ${cardId}
-          AND (mp.language IS NULL OR source.id = target.id)
+        WHERE p.card_id = ${cardId}
       `.execute(db);
       return result.rows;
     },

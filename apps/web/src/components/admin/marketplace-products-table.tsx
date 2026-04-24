@@ -227,7 +227,7 @@ export function MarketplaceProductsTable({
   group: UnifiedMappingGroup;
   allCards: AssignableCard[];
   handlers: Record<AdminMarketplaceName, MarketplaceHandlers>;
-  suggestions?: Map<string, ProductSuggestion>;
+  suggestions?: Map<string, ProductSuggestion[]>;
 }) {
   const entries = collectEntries(group);
 
@@ -256,10 +256,12 @@ export function MarketplaceProductsTable({
       <TableBody>
         {entries.map((entry, index) => {
           const key = `${entry.marketplace}::${entry.product.externalId}::${entry.product.finish}::${entry.product.language ?? ""}`;
-          const suggestion = entry.isAssigned ? undefined : suggestions?.get(key);
-          const suggestedPrinting = suggestion
-            ? printingById.get(suggestion.printingId)
-            : undefined;
+          const productSuggestions = entry.isAssigned
+            ? []
+            : (suggestions?.get(key) ?? []).flatMap((s) => {
+                const printing = printingById.get(s.printingId);
+                return printing ? [{ ...s, printing }] : [];
+              });
           const isFirstOfMarketplace =
             index === 0 || entries[index - 1].marketplace !== entry.marketplace;
           return (
@@ -280,11 +282,7 @@ export function MarketplaceProductsTable({
                 printings={group.printings}
                 allCards={allCards}
                 handlers={handlers[entry.marketplace]}
-                suggestion={
-                  suggestion && suggestedPrinting
-                    ? { ...suggestion, printing: suggestedPrinting }
-                    : undefined
-                }
+                suggestions={productSuggestions}
               />
             </React.Fragment>
           );
@@ -300,14 +298,14 @@ function MarketplaceProductRow({
   printings,
   allCards,
   handlers,
-  suggestion,
+  suggestions,
 }: {
   entry: TableEntry;
   cardName: string;
   printings: UnifiedMappingPrinting[];
   allCards: AssignableCard[];
   handlers: MarketplaceHandlers;
-  suggestion?: ProductSuggestion & { printing: UnifiedMappingPrinting };
+  suggestions: (ProductSuggestion & { printing: UnifiedMappingPrinting })[];
 }) {
   const [showAssign, setShowAssign] = useState(false);
   const [cardSearchQuery, setCardSearchQuery] = useState("");
@@ -400,17 +398,22 @@ function MarketplaceProductRow({
         </TableCell>
         <TableCell>
           {assignedPrintings.length === 0 ? (
-            suggestion ? (
-              <SuggestionChip
-                suggestion={suggestion}
-                productExternalId={product.externalId}
-                highlightFinish={product.finish}
-                highlightLanguage={highlightLanguage}
-                onAssign={(eid, pid) =>
-                  handlers.onAssignToPrinting(eid, product.finish, product.language, pid)
-                }
-                disabled={handlers.isAssigningToPrinting}
-              />
+            suggestions.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {suggestions.map((s) => (
+                  <SuggestionChip
+                    key={s.printingId}
+                    suggestion={s}
+                    productExternalId={product.externalId}
+                    highlightFinish={product.finish}
+                    highlightLanguage={highlightLanguage}
+                    onAssign={(eid, pid) =>
+                      handlers.onAssignToPrinting(eid, product.finish, product.language, pid)
+                    }
+                    disabled={handlers.isAssigningToPrinting}
+                  />
+                ))}
+              </div>
             ) : (
               <span className="text-muted-foreground/50">—</span>
             )
