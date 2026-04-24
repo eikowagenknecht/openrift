@@ -55,7 +55,11 @@ import { ProductSelect } from "./product-select";
 import { SectionHeading } from "./section-heading";
 import { CM_CONFIG, CT_CONFIG, TCG_CONFIG } from "./source-configs";
 import { StagedProductCard } from "./staged-product-card";
-import { computeSuggestions, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
+import {
+  buildCrossLanguageEvidence,
+  computeSuggestions,
+  STRONG_MATCH_THRESHOLD,
+} from "./suggest-mapping";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -105,6 +109,11 @@ function toMarketplaceGroup(
     })),
     stagedProducts: mkData.stagedProducts,
     assignedProducts: mkData.assignedProducts,
+    // CardTrader SKUs carry language, so an EN assignment is evidence the ZH
+    // SKU of the same external_id should resolve to the same short_code.
+    // TCG/CM are language-aggregate, no cross-language transfer applies.
+    crossLanguageEvidence:
+      marketplace === "cardtrader" ? buildCrossLanguageEvidence(group, marketplace) : undefined,
   };
 }
 

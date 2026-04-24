@@ -14,6 +14,14 @@ const SUGGESTION_THRESHOLD = 100;
 /** Score at or above which a suggestion is considered a strong (high-confidence) match. */
 export const STRONG_MATCH_THRESHOLD = 150;
 
+/**
+ * Products priced at or above this threshold are overwhelmingly signed or
+ * metal/metal-deluxe printings (normal-foil listings rarely clear this bar).
+ * Used as a soft disambiguator — not conclusive, so the bonus/penalty is
+ * smaller than art-variant and finish signals.
+ */
+const PRICE_PREMIUM_THRESHOLD_CENTS = 10_000;
+
 interface Suggestion {
   product: StagedProduct;
   score: number;
@@ -103,6 +111,7 @@ function scorePrintingProduct(
   product: StagedProduct,
   cardName: string,
   enforceLanguage: boolean,
+  crossLanguageShortCodes: ReadonlySet<string>,
 ): number {
   // Finish must match — compared at the marketplace's granularity (metal and
   // metal-deluxe printings collapse to foil, since no marketplace surfaces
@@ -121,6 +130,36 @@ function scorePrintingProduct(
   }
 
   let score = 100;
+
+  // Cross-language sibling evidence: on CardTrader, a single external_id maps
+  // to one physical card with a per-language SKU, so an EN assignment to
+  // `OGN-302*` is strong evidence that the ZH SKU should also resolve to
+  // `OGN-302*`. Big boost, since this is a much more reliable signal than the
+  // name-suffix inference — the product name alone often can't distinguish
+  // signed/non-signed or overnumbered/normal variants of the same card.
+  if (crossLanguageShortCodes.has(printing.shortCode)) {
+    score += 100;
+  }
+
+  // Price-based premium hint: foil products over ~€100/$100 are almost always
+  // signed or metal/metal-deluxe printings; normal foils rarely clear that bar.
+  // Not conclusive (reprints, regional pricing, outliers), so the swing is
+  // smaller than the suffix-derived signals. Asymmetric — the penalty for a
+  // non-premium printing on a premium-priced product is softer than the
+  // reward for a match, since the correlation cuts more strongly in one
+  // direction.
+  const price = product.lowCents ?? product.marketCents ?? product.midCents ?? null;
+  if (price !== null && price >= PRICE_PREMIUM_THRESHOLD_CENTS) {
+    const isPremiumPrinting =
+      printing.isSigned ||
+      printing.finish === WellKnown.finish.METAL ||
+      printing.finish === WellKnown.finish.METAL_DELUXE;
+    if (isPremiumPrinting) {
+      score += 40;
+    } else {
+      score -= 20;
+    }
+  }
 
   const suffix = extractSuffix(product.productName, cardName);
   if (suffix === null) {
@@ -188,6 +227,7 @@ export function computeSuggestions(
   options: { enforceLanguage?: boolean } = {},
 ): Map<string, Suggestion> {
   const enforceLanguage = options.enforceLanguage ?? false;
+  const crossLanguageEvidence = group.crossLanguageEvidence ?? new Map();
   const unmapped = group.printings.filter((p) => p.externalId === null);
   const available = group.stagedProducts;
 
@@ -201,11 +241,20 @@ export function computeSuggestions(
     score: number;
   }
   const productKey = (product: StagedProduct): string => `${product.externalId}|${product.finish}`;
+  const emptyShortCodes: ReadonlySet<string> = new Set();
 
   const pairs: Pair[] = [];
   for (const printing of unmapped) {
     for (const product of available) {
-      const score = scorePrintingProduct(printing, product, group.cardName, enforceLanguage);
+      const crossLanguageShortCodes =
+        crossLanguageEvidence.get(productKey(product)) ?? emptyShortCodes;
+      const score = scorePrintingProduct(
+        printing,
+        product,
+        group.cardName,
+        enforceLanguage,
+        crossLanguageShortCodes,
+      );
       if (score >= SUGGESTION_THRESHOLD) {
         pairs.push({ printing, product, score });
       }
@@ -341,6 +390,40 @@ export function computeProductSuggestions(
   return out;
 }
 
+/**
+ * Collect per-marketplace assignments into `(externalId, finish) → short_codes`.
+ * On CardTrader this powers cross-language transfer: if the EN SKU of product
+ * 345503 is bound to `OGN-302*`, scoring its ZH SKU gets evidence that the
+ * same short_code is the right target. Keys match the scorer's internal
+ * product key so lookups don't need to reconstruct the string.
+ * @returns Map keyed by `${externalId}|${finish}`, or empty if no assignments.
+ */
+export function buildCrossLanguageEvidence(
+  group: UnifiedMappingGroup,
+  marketplace: AdminMarketplaceName,
+): ReadonlyMap<string, ReadonlySet<string>> {
+  const assignments = group[marketplace].assignments;
+  if (assignments.length === 0) {
+    return new Map();
+  }
+  const shortCodeByPrinting = new Map(group.printings.map((p) => [p.printingId, p.shortCode]));
+  const byProduct = new Map<string, Set<string>>();
+  for (const assignment of assignments) {
+    const shortCode = shortCodeByPrinting.get(assignment.printingId);
+    if (shortCode === undefined) {
+      continue;
+    }
+    const key = `${assignment.externalId}|${assignment.finish}`;
+    const existing = byProduct.get(key);
+    if (existing === undefined) {
+      byProduct.set(key, new Set([shortCode]));
+    } else {
+      existing.add(shortCode);
+    }
+  }
+  return byProduct;
+}
+
 function toMarketplaceGroup(
   group: UnifiedMappingGroup,
   marketplace: AdminMarketplaceName,
@@ -379,5 +462,9 @@ function toMarketplaceGroup(
     })),
     stagedProducts: mkData.stagedProducts,
     assignedProducts: mkData.assignedProducts,
+    // Only CardTrader has per-language SKUs; on TCG/CM every language shares
+    // one product, so there's no other-language sibling to inherit from.
+    crossLanguageEvidence:
+      marketplace === "cardtrader" ? buildCrossLanguageEvidence(group, marketplace) : undefined,
   };
 }

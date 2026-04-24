@@ -389,6 +389,181 @@ describe("computeProductSuggestions", () => {
     expect(suggested).toEqual(["p-en", "p-zh"]);
   });
 
+  it("breaks a CardTrader ZH tie using the short_code already bound to the EN SKU", () => {
+    // Regression: CT 345503 ("Darius - Hand of Noxus", foil) has the EN SKU
+    // bound to OGN-302* (signed). The ZH SKU used to have no suggestion
+    // because three ZH foil printings exist (OGN-253 normal, OGN-302
+    // overnumbered, OGN-302* normal+signed), the product name "Darius - Hand
+    // of Noxus" carries no disambiguator, and OGN-253 + OGN-302* tied at the
+    // same base score while differing on short_code (so the sibling fallback
+    // didn't apply either). Cross-language transfer resolves it: the EN
+    // assignment to OGN-302* is strong evidence that ZH should map the same.
+    const ognOverEn = printing({
+      printingId: "p-302-en",
+      shortCode: "OGN-302*",
+      finish: "foil",
+      language: "EN",
+      artVariant: "overnumbered",
+      isSigned: true,
+    });
+    const ogn253Zh = printing({
+      printingId: "p-253-zh",
+      shortCode: "OGN-253",
+      finish: "foil",
+      language: "ZH",
+      artVariant: "normal",
+    });
+    const ogn302Zh = printing({
+      printingId: "p-302-zh-plain",
+      shortCode: "OGN-302",
+      finish: "foil",
+      language: "ZH",
+      artVariant: "overnumbered",
+    });
+    const ognOverZh = printing({
+      printingId: "p-302-zh-signed",
+      shortCode: "OGN-302*",
+      finish: "foil",
+      language: "ZH",
+      artVariant: "normal",
+      isSigned: true,
+    });
+    const result = computeProductSuggestions(
+      group(
+        [ognOverEn, ogn253Zh, ogn302Zh, ognOverZh],
+        {
+          cardtrader: {
+            staged: [
+              staged({
+                externalId: 345_503,
+                productName: "Darius - Hand of Noxus",
+                finish: "foil",
+                language: "ZH",
+                marketCents: null,
+                lowCents: 45_064,
+              }),
+            ],
+            assignments: [
+              {
+                externalId: 345_503,
+                printingId: "p-302-en",
+                finish: "foil",
+                language: "EN",
+              },
+            ],
+          },
+        },
+        "Hand of Noxus",
+      ),
+    );
+    expect(
+      result.get(productSuggestionKey("cardtrader", 345_503, "foil", "ZH"))?.[0]?.printingId,
+    ).toBe("p-302-zh-signed");
+  });
+
+  it("uses price alone to prefer the signed printing over an otherwise tied unsigned sibling", () => {
+    // Cross-language transfer doesn't apply (no existing assignment). The
+    // high product price (€450) is enough to tip the mutual-best match from
+    // "ambiguous tie" to "prefer the signed printing".
+    const normalUnsigned = printing({
+      printingId: "p-normal-unsigned",
+      shortCode: "OGN-100",
+      finish: "foil",
+      language: "ZH",
+      artVariant: "normal",
+      isSigned: false,
+    });
+    const normalSigned = printing({
+      printingId: "p-normal-signed",
+      shortCode: "OGN-100*",
+      finish: "foil",
+      language: "ZH",
+      artVariant: "normal",
+      isSigned: true,
+    });
+    const result = computeProductSuggestions(
+      group([normalUnsigned, normalSigned], {
+        cardtrader: {
+          staged: [
+            staged({
+              externalId: 111,
+              productName: "Ahri",
+              finish: "foil",
+              language: "ZH",
+              marketCents: null,
+              lowCents: 45_000,
+            }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    expect(result.get(productSuggestionKey("cardtrader", 111, "foil", "ZH"))?.[0]?.printingId).toBe(
+      "p-normal-signed",
+    );
+  });
+
+  it("does not apply the price signal below the premium threshold", () => {
+    // Cheap foil product: signed vs unsigned remains a tie, no suggestion emitted.
+    const unsigned = printing({
+      printingId: "p-unsigned",
+      shortCode: "OGN-100",
+      finish: "foil",
+      language: "ZH",
+      isSigned: false,
+    });
+    const signed = printing({
+      printingId: "p-signed",
+      shortCode: "OGN-100*",
+      finish: "foil",
+      language: "ZH",
+      isSigned: true,
+    });
+    const result = computeProductSuggestions(
+      group([unsigned, signed], {
+        cardtrader: {
+          staged: [
+            staged({
+              externalId: 222,
+              productName: "Ahri",
+              finish: "foil",
+              language: "ZH",
+              marketCents: null,
+              lowCents: 500,
+            }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    expect(result.get(productSuggestionKey("cardtrader", 222, "foil", "ZH"))).toBeUndefined();
+  });
+
+  it("does not propagate cross-language evidence across marketplaces", () => {
+    // A CardTrader assignment must not leak into TCG/CM scoring. The TCG
+    // product with externalId 333 exists on its own and should score via
+    // suffix inference only — the CT assignment to OGN-100 is irrelevant.
+    const ognA = printing({ printingId: "p-a", shortCode: "OGN-100", finish: "foil" });
+    const ognB = printing({ printingId: "p-b", shortCode: "OGN-200", finish: "foil" });
+    const result = computeProductSuggestions(
+      group([ognA, ognB], {
+        tcgplayer: {
+          staged: [
+            staged({ externalId: 333, productName: "Ahri", finish: "foil", language: "EN" }),
+          ],
+          assignments: [],
+        },
+        cardtrader: {
+          staged: [],
+          assignments: [{ externalId: 333, printingId: "p-a", finish: "foil", language: "EN" }],
+        },
+      }),
+    );
+    // Both TCG printings still tie on name alone (no CT-derived tiebreak),
+    // so the mutual-best gate suppresses the suggestion.
+    expect(result.get(productSuggestionKey("tcgplayer", 333, "foil", "EN"))).toBeUndefined();
+  });
+
   it("skips the sibling fan-out when the tied printings aren't actually siblings", () => {
     // A three-way tie with one printing on a different short_code isn't a
     // legitimate sibling group — fall back to the old "skip on ambiguity"

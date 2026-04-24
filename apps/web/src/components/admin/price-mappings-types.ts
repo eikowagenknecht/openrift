@@ -35,4 +35,12 @@ export interface MappingGroup {
   printings: MappingPrintingResponse[];
   stagedProducts: StagedProductResponse[];
   assignedProducts: StagedProductResponse[];
+  /**
+   * Optional per-product evidence from sibling assignments in other languages
+   * on this marketplace. Keyed by `${externalId}|${finish}` → set of
+   * short_codes already bound to that (externalId, finish) pair. Only
+   * meaningful for CardTrader (the sole per-language marketplace); TCG/CM
+   * leave this undefined.
+   */
+  crossLanguageEvidence?: ReadonlyMap<string, ReadonlySet<string>>;
 }
