@@ -26,7 +26,15 @@ export const Route = createFileRoute("/_app/_authenticated/admin")({
 function AdminLayout() {
   return (
     <div className="flex-1">
-      <SidebarProvider className="min-h-0!">
+      {/*
+        Pin the sidebar-provider's height directly. On desktop the in-flow
+        sidebar (NestedSidebar) would size the flex row via calc(100svh - ...),
+        but on mobile the sidebar is a Sheet portal, so nothing in the row
+        provides height. Without an explicit height here, the nested
+        flex-1 / min-h-0 chain collapses to zero and the admin tables render
+        no rows at all.
+      */}
+      <SidebarProvider className="h-[calc(100svh-3.5rem-1px)] min-h-0!">
         <AdminSidebar />
         <AdminContent />
       </SidebarProvider>
