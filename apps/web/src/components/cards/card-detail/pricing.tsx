@@ -70,19 +70,17 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
     marketplace: Marketplace;
     value: number;
     url: string | null;
-    languageAggregate: boolean;
   }[] = [];
   for (const marketplace of marketplaceOrder) {
     const config = MARKETPLACE_CONFIG[marketplace];
     const slice = history?.[marketplace];
     const productId = slice?.productId ?? null;
-    const languageAggregate = slice?.languageAggregate ?? false;
     const url = productId ? config.getUrl(productId, printing.language) : null;
 
     const value = prices.get(printing.id, marketplace) ?? latestPrice(marketplace);
 
     if (value !== null && value !== undefined) {
-      chips.push({ marketplace, value, url, languageAggregate });
+      chips.push({ marketplace, value, url });
     }
   }
 
@@ -98,7 +96,7 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
         <PriceTrend printingId={printing.id} range={range} marketplace={favorite} />
       )}
       <span className="text-muted-foreground text-sm">Buy on</span>
-      {chips.map(({ marketplace, value, url, languageAggregate }) => {
+      {chips.map(({ marketplace, value, url }) => {
         const config = MARKETPLACE_CONFIG[marketplace];
         return (
           <PriceChip
@@ -109,7 +107,6 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
             value={value}
             url={url}
             formatValue={config.formatValue}
-            languageAggregate={languageAggregate}
             isFavorite={marketplace === favorite}
             isAffiliate={config.isAffiliate}
           />
@@ -185,7 +182,6 @@ function PriceChip({
   url,
   formatValue = formatPrice,
   iconClassName,
-  languageAggregate,
   isFavorite,
   isAffiliate,
 }: {
@@ -195,7 +191,6 @@ function PriceChip({
   url: string | null;
   formatValue?: (v: number) => string;
   iconClassName?: string;
-  languageAggregate?: boolean;
   isFavorite?: boolean;
   isAffiliate?: boolean;
 }) {
@@ -235,9 +230,6 @@ function PriceChip({
       </TooltipTrigger>
       <TooltipContent>
         Buy on {label}
-        {languageAggregate && (
-          <span className="text-muted-foreground ml-1 text-xs">(any language)</span>
-        )}
         {isAffiliate && (
           <span className="text-muted-foreground ml-1 text-xs">(affiliate link)</span>
         )}

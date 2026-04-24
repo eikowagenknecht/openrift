@@ -72,16 +72,13 @@ function direction(mapped: number, total: number): DirectionCoverage {
 }
 
 /**
- * Compute marketplace coverage for one card, accounting for sibling fan-out
- * (Cardmarket) and TCGplayer's English-only practical reality.
+ * Compute marketplace coverage for one card.
  *
  * Printings-side counting:
- * - **TCGplayer**: counts sibling groups that have at least one English printing.
- *   A group is "covered" if its English printing has a TCG variant.
- * - **Cardmarket**: language-aggregate. Counts sibling groups; a group is
- *   "covered" if *any* of its printings has a CM variant (one mapping fans
- *   out to all sibling languages).
- * - **CardTrader**: per-language. Counts every printing; a printing is
+ * - **TCGplayer** and **Cardmarket** don't expose language as a SKU dimension.
+ *   Each sibling group (printings identical except for language) counts once,
+ *   and the group is "covered" if any sibling has a variant on that marketplace.
+ * - **CardTrader**: per-language SKUs. Counts every printing; a printing is
  *   "covered" if it has a CT variant.
  *
  * Entries-side counting reads from each marketplace's `assignedProducts` (mapped
@@ -101,16 +98,13 @@ export function computeCardCoverage(group: UnifiedMappingGroupResponse): CardCov
   let cmPrintingsTotal = 0;
   let cmPrintingsMapped = 0;
   for (const siblings of siblingGroups) {
+    tcgPrintingsTotal++;
+    if (siblings.some((p) => tcgMappedPrintings.has(p.printingId))) {
+      tcgPrintingsMapped++;
+    }
     cmPrintingsTotal++;
     if (siblings.some((p) => cmMappedPrintings.has(p.printingId))) {
       cmPrintingsMapped++;
-    }
-    const enPrintings = siblings.filter((p) => p.language === "EN");
-    if (enPrintings.length > 0) {
-      tcgPrintingsTotal++;
-      if (enPrintings.some((p) => tcgMappedPrintings.has(p.printingId))) {
-        tcgPrintingsMapped++;
-      }
     }
   }
 

@@ -1,9 +1,9 @@
 /**
  * Helpers for building marketplace product URLs with language filters.
  *
- * Cardmarket is the only marketplace that usefully supports a language
- * filter on the product page — TCGplayer is effectively English-only for
- * Riftbound, and CardTrader handles language at the listing level. The
+ * Cardmarket is the only marketplace whose product page takes a language
+ * query param — TCGplayer's URL scheme treats each language as a distinct
+ * productId, and CardTrader handles language at the listing level. The
  * helpers here return query-string fragments that can be appended to the
  * base product URL; empty string when no filter applies.
  */

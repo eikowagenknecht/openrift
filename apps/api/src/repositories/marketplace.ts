@@ -118,7 +118,6 @@ export function marketplaceRepo(db: Kysely<Database>) {
         printingId: string;
         externalId: number;
         marketplace: string;
-        languageAggregate: boolean;
       }[]
     > {
       if (printingIds.length === 0) {
@@ -128,13 +127,11 @@ export function marketplaceRepo(db: Kysely<Database>) {
         printingId: string;
         externalId: number;
         marketplace: string;
-        languageAggregate: boolean;
       }>`
         SELECT
           mpv.printing_id as "printingId",
           mp.external_id as "externalId",
-          mp.marketplace as "marketplace",
-          (mp.language IS NULL) as "languageAggregate"
+          mp.marketplace as "marketplace"
         FROM marketplace_product_variants mpv
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
         WHERE mpv.printing_id = ANY(${printingIds}::uuid[])
