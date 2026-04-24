@@ -580,6 +580,7 @@ export interface UnifiedMappingGroupResponse {
 
 export interface AssignableCardResponse {
   cardId: string;
+  cardSlug: string;
   cardName: string;
   setName: string;
   /** Short codes of this card's printings (first one, sorted, is shown in the assign dropdown). */

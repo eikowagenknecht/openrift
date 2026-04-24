@@ -232,19 +232,21 @@ export function marketplaceMappingRepo(db: Db) {
     async assignableCards() {
       const result = await sql<{
         cardId: string;
+        cardSlug: string;
         cardName: string;
         setName: string;
         shortCodes: string[];
       }>`
         SELECT
           c.id as "cardId",
+          c.slug as "cardSlug",
           c.name as "cardName",
           s.name as "setName",
           COALESCE(array_agg(p.short_code ORDER BY p.short_code) FILTER (WHERE p.short_code IS NOT NULL), ARRAY[]::text[]) as "shortCodes"
         FROM cards c
         INNER JOIN printings p ON p.card_id = c.id
         INNER JOIN sets s ON s.id = p.set_id
-        GROUP BY c.id, c.name, s.name
+        GROUP BY c.id, c.slug, c.name, s.name
       `.execute(db);
       return result.rows;
     },

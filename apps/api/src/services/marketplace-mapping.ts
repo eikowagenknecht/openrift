@@ -505,6 +505,7 @@ export async function getMappingOverview(
   // section of the response by ~4×.
   const allCards = [...cardGroups.values()].map((g) => ({
     cardId: g.cardId,
+    cardSlug: g.cardSlug,
     cardName: g.cardName,
     setName: g.setName,
     shortCodes: g.printings.map((p) => p.shortCode),

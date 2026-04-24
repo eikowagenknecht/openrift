@@ -70,6 +70,29 @@ function flattenUnmatched(data: {
   return rows;
 }
 
+/**
+ * Build the post-assign redirect target. The card-detail route is keyed by
+ * `cardSlug`, not the UUID — passing the UUID lands on a "No card data" error
+ * page. The redirect pre-focuses the marketplace cell that was just assigned
+ * so the admin can finalize the printing mapping in place.
+ * @returns A TanStack Router navigation descriptor for the card detail page.
+ */
+export function buildAssignSuccessNavigation(
+  marketplace: Marketplace,
+  product: { finish: string; language: string },
+  card: { cardSlug: string },
+) {
+  return {
+    to: "/admin/cards/$cardSlug" as const,
+    params: { cardSlug: card.cardSlug },
+    search: {
+      focusMarketplace: marketplace,
+      focusFinish: product.finish,
+      focusLanguage: product.language,
+    },
+  };
+}
+
 export function UnmatchedProductsPanel() {
   const navigate = useNavigate();
   const { data } = useUnifiedMappings(true);
@@ -158,29 +181,22 @@ export function UnmatchedProductsPanel() {
     }
   }
 
-  function handleAssignToCard(marketplace: Marketplace, product: StagedProduct, cardId: string) {
+  function handleAssignToCard(
+    marketplace: Marketplace,
+    product: StagedProduct,
+    card: { cardId: string; cardSlug: string },
+  ) {
     const mutations = mutationsFor(marketplace);
     mutations.assign.mutate(
       {
         externalId: product.externalId,
         finish: product.finish,
         language: product.language,
-        cardId,
+        cardId: card.cardId,
       },
       {
         onSuccess: () => {
-          // Jump straight to the card detail, pre-focused on the relevant
-          // marketplace cell so the admin can finalize the mapping without
-          // having to locate the right printing by hand.
-          void navigate({
-            to: "/admin/cards/$cardSlug",
-            params: { cardSlug: cardId },
-            search: {
-              focusMarketplace: marketplace,
-              focusFinish: product.finish,
-              focusLanguage: product.language,
-            },
-          });
+          void navigate(buildAssignSuccessNavigation(marketplace, product, card));
         },
       },
     );
@@ -244,7 +260,7 @@ export function UnmatchedProductsPanel() {
                       marketplace={marketplace}
                       product={product}
                       allCards={data.allCards as AssignableCard[]}
-                      onAssignToCard={(cardId) => handleAssignToCard(marketplace, product, cardId)}
+                      onAssignToCard={(card) => handleAssignToCard(marketplace, product, card)}
                       isAssigning={mutations.assign.isPending}
                       onIgnoreVariant={() =>
                         mutations.ignoreVariant.mutate([
@@ -288,7 +304,7 @@ function UnmatchedProductRow({
   marketplace: Marketplace;
   product: StagedProduct;
   allCards: AssignableCard[];
-  onAssignToCard: (cardId: string) => void;
+  onAssignToCard: (card: { cardId: string; cardSlug: string }) => void;
   isAssigning: boolean;
   onIgnoreVariant: () => void;
   onIgnoreProduct: () => void;
@@ -401,7 +417,14 @@ function UnmatchedProductRow({
                 results={filteredResults}
                 onSearch={setCardSearchQuery}
                 onSelect={(cardId) => {
-                  onAssignToCard(cardId);
+                  // The dropdown emits only the id, so resolve the slug from
+                  // the same allCards list the results were built from. The
+                  // card-detail route is keyed by slug, not id.
+                  const card = allCards.find((c) => c.cardId === cardId);
+                  if (!card) {
+                    return;
+                  }
+                  onAssignToCard({ cardId: card.cardId, cardSlug: card.cardSlug });
                   setShowAssign(false);
                   setCardSearchQuery("");
                 }}

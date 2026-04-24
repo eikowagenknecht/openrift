@@ -207,7 +207,15 @@ describe("applyOptimisticAssignmentForCard", () => {
       group: group("c-1", [enPrinting], {
         tcgplayer: { staged: [staged({ externalId: 10 })], assigned: [] },
       }),
-      allCards: [{ cardId: "c-1", cardName: "Alice", setName: "Origin", shortCodes: ["OGN-001"] }],
+      allCards: [
+        {
+          cardId: "c-1",
+          cardSlug: "alice",
+          cardName: "Alice",
+          setName: "Origin",
+          shortCodes: ["OGN-001"],
+        },
+      ],
     };
     const after = applyOptimisticAssignmentForCard(before, "tcgplayer", 10, "p-en");
     expect(after.allCards).toBe(before.allCards);

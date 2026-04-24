@@ -725,8 +725,20 @@ describe("buildUnifiedMappingsCardResponse", () => {
         // shape of these rows isn't validated here.
         allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([{ printingId: "p-1" }]),
         assignableCards: vi.fn().mockResolvedValue([
-          { cardId: "card-1", cardName: "A", setName: "S", shortCodes: ["OGN-001"] },
-          { cardId: "card-2", cardName: "B", setName: "S", shortCodes: ["OGN-002"] },
+          {
+            cardId: "card-1",
+            cardSlug: "card-1-slug",
+            cardName: "A",
+            setName: "S",
+            shortCodes: ["OGN-001"],
+          },
+          {
+            cardId: "card-2",
+            cardSlug: "card-2-slug",
+            cardName: "B",
+            setName: "S",
+            shortCodes: ["OGN-002"],
+          },
         ]),
       },
     } as unknown as Repos;
