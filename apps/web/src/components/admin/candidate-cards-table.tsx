@@ -10,7 +10,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ImagePlusIcon, LoaderIcon, SearchIcon } from "lucide-react";
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import type { CardNameCellMeta } from "@/components/admin/card-name-cell";
@@ -37,7 +37,6 @@ import { useAllCards } from "@/hooks/use-admin-card-queries";
 import { useSearchUrlSync } from "@/hooks/use-search-url-sync";
 import { parseSortParam, stringifySort } from "@/lib/admin-cards-search";
 import { queryKeys } from "@/lib/query-keys";
-import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { Route as CardsRoute } from "@/routes/_app/_authenticated/admin/cards";
 
 // ---------------------------------------------------------------------------
@@ -99,13 +98,6 @@ const COLUMN_WIDTHS: Record<string, string> = {
   name: "60%",
   candidates: "120px",
 };
-
-// ---------------------------------------------------------------------------
-// Virtualizer constants
-// ---------------------------------------------------------------------------
-
-const ROW_HEIGHT = 41;
-const OVERSCAN = 20;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -226,26 +218,6 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
 
   const rows = table.getRowModel().rows;
 
-  // Virtualize against the window so the whole admin page scrolls as one,
-  // matching the Unmatched and card-detail routes. scrollMargin tells the
-  // virtualizer where the rows start inside the document.
-  const tableAnchorRef = useRef<HTMLTableSectionElement>(null);
-  const [scrollMargin, setScrollMargin] = useState(0);
-  useLayoutEffect(() => {
-    const el = tableAnchorRef.current;
-    if (!el) {
-      return;
-    }
-    setScrollMargin(Math.round(el.getBoundingClientRect().top + globalThis.scrollY));
-  }, [rows.length]);
-
-  const { virtualItems, totalSize } = useWindowVirtualizerFresh({
-    count: rows.length,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: OVERSCAN,
-    scrollMargin,
-  });
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -311,30 +283,16 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody ref={tableAnchorRef}>
-            {/* See accepted-cards-table for why we adjust by scrollMargin. */}
-            {virtualItems.length > 0 && (
-              <tr style={{ height: virtualItems[0].start - scrollMargin }} />
-            )}
-            {virtualItems.map((virtualRow) => {
-              const row = rows[virtualRow.index];
-              return (
-                <TableRow key={row.id} data-index={virtualRow.index}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="whitespace-normal">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              );
-            })}
-            {virtualItems.length > 0 && (
-              <tr
-                style={{
-                  height: totalSize - (virtualItems.at(-1)?.end ?? 0) + scrollMargin,
-                }}
-              />
-            )}
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.id}>
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell key={cell.id} className="whitespace-normal">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       )}
