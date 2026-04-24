@@ -1,5 +1,5 @@
 import type { AdminMarketplaceName } from "@openrift/shared";
-import { formatPrintingLabel } from "@openrift/shared/utils";
+import { formatPrintingLabel, normalizeNameForMatching } from "@openrift/shared/utils";
 import {
   AlertTriangleIcon,
   BanIcon,
@@ -69,7 +69,10 @@ export interface MarketplaceHandlers {
 
 interface AssignedPrinting {
   printingId: string;
-  label: string;
+  shortCode: string;
+  markerSlugs: string[];
+  finish: string;
+  language: string;
 }
 
 interface TableEntry {
@@ -78,6 +81,28 @@ interface TableEntry {
   isAssigned: boolean;
   assignedPrintings: AssignedPrinting[];
   assignedPrintingIds: Set<string>;
+  /**
+   * Printings already assigned to a *different* external ID within the same
+   * marketplace. Used by the Assign dropdown to dim entries that would
+   * conflict with an existing mapping — the user can still pick them, but the
+   * visual cue flags the conflict.
+   */
+  otherAssignedPrintingIds: Set<string>;
+}
+
+/**
+ * Whether a product name visibly lacks the card name. Uses the same
+ * alphanumeric-spaceless normalization as `suggest-mapping`, so cosmetic
+ * differences (punctuation, spacing, casing) don't trigger a mismatch.
+ * @returns true when the normalized card name does not appear in the normalized product name.
+ */
+export function isCardNameMismatch(productName: string, cardName: string): boolean {
+  const normProduct = normalizeNameForMatching(productName);
+  const normCard = normalizeNameForMatching(cardName);
+  if (normCard.length === 0) {
+    return false;
+  }
+  return !normProduct.includes(normCard);
 }
 
 /**
@@ -131,16 +156,27 @@ export function collectEntries(group: UnifiedMappingGroup): TableEntry[] {
       const assignedPrintings: AssignedPrinting[] = matchingPrintings
         .map((p) => ({
           printingId: p.printingId,
-          label: formatPrintingLabel(p.shortCode, p.markerSlugs, p.finish, p.language),
+          shortCode: p.shortCode,
+          markerSlugs: p.markerSlugs,
+          finish: p.finish,
+          language: p.language,
         }))
-        .toSorted((a, b) => a.label.localeCompare(b.label));
+        .toSorted((a, b) =>
+          formatPrintingLabel(a.shortCode, a.markerSlugs, a.finish, a.language).localeCompare(
+            formatPrintingLabel(b.shortCode, b.markerSlugs, b.finish, b.language),
+          ),
+        );
       const assignedPrintingIds = new Set(matchingPrintings.map((p) => p.printingId));
+      const otherAssignedPrintingIds = new Set(
+        assignments.filter((a) => a.externalId !== product.externalId).map((a) => a.printingId),
+      );
       entries.push({
         marketplace,
         product,
         isAssigned,
         assignedPrintings,
         assignedPrintingIds,
+        otherAssignedPrintingIds,
       });
     }
   }
@@ -216,6 +252,7 @@ export function MarketplaceProductsTable({
               )}
               <MarketplaceProductRow
                 entry={entry}
+                cardName={group.cardName}
                 printings={group.printings}
                 allCards={allCards}
                 handlers={handlers[entry.marketplace]}
@@ -235,12 +272,14 @@ export function MarketplaceProductsTable({
 
 function MarketplaceProductRow({
   entry,
+  cardName,
   printings,
   allCards,
   handlers,
   suggestion,
 }: {
   entry: TableEntry;
+  cardName: string;
   printings: UnifiedMappingPrinting[];
   allCards: AssignableCard[];
   handlers: MarketplaceHandlers;
@@ -249,11 +288,20 @@ function MarketplaceProductRow({
   const [showAssign, setShowAssign] = useState(false);
   const [cardSearchQuery, setCardSearchQuery] = useState("");
 
-  const { marketplace, product, isAssigned, assignedPrintings, assignedPrintingIds } = entry;
+  const {
+    marketplace,
+    product,
+    isAssigned,
+    assignedPrintings,
+    assignedPrintingIds,
+    otherAssignedPrintingIds,
+  } = entry;
   const config = MARKETPLACE_CONFIGS[marketplace];
   const canIgnore = !isAssigned;
   const canUnassign = Boolean(product.isOverride);
   const canReassign = !isAssigned && !product.isOverride;
+  const nameMismatched = isCardNameMismatch(product.productName, cardName);
+  const highlightLanguage = displayedProductLanguage(marketplace, product.language) ?? undefined;
 
   const recordedAt = new Date(product.recordedAt);
   const isStale = Date.now() - recordedAt.getTime() > STALE_THRESHOLD_MS;
@@ -288,7 +336,17 @@ function MarketplaceProductRow({
             ) : (
               <span aria-hidden className="inline-block size-3.5 shrink-0" />
             )}
-            <span className="truncate font-medium" title={product.productName}>
+            <span
+              className={cn(
+                "truncate font-medium",
+                nameMismatched && "text-yellow-600 dark:text-yellow-400",
+              )}
+              title={
+                nameMismatched
+                  ? `${product.productName} (does not contain card name "${cardName}")`
+                  : product.productName
+              }
+            >
               {product.productName}
             </span>
           </div>
@@ -322,6 +380,8 @@ function MarketplaceProductRow({
               <SuggestionChip
                 suggestion={suggestion}
                 productExternalId={product.externalId}
+                highlightFinish={product.finish}
+                highlightLanguage={highlightLanguage}
                 onAssign={(eid, pid) => handlers.onAssignToPrinting(eid, pid)}
                 disabled={handlers.isAssigningToPrinting}
               />
@@ -330,21 +390,28 @@ function MarketplaceProductRow({
             )
           ) : (
             <div className="flex flex-wrap gap-1">
-              {assignedPrintings.map((p) => (
-                <Badge key={p.printingId} variant="outline" className="gap-1 pr-1">
-                  {p.label}
-                  <button
-                    type="button"
-                    aria-label={`Unassign ${p.label}`}
-                    title="Unassign"
-                    disabled={handlers.isUnmappingPrinting}
-                    onClick={() => handlers.onUnmapPrinting(p.printingId)}
-                    className="text-muted-foreground hover:text-destructive -mr-0.5 inline-flex size-3.5 items-center justify-center rounded-sm disabled:opacity-50"
-                  >
-                    <XIcon className="size-3" />
-                  </button>
-                </Badge>
-              ))}
+              {assignedPrintings.map((p) => {
+                const label = formatPrintingLabel(p.shortCode, p.markerSlugs, p.finish, p.language);
+                return (
+                  <Badge key={p.printingId} variant="outline" className="gap-1 pr-1">
+                    <PrintingLabel
+                      printing={p}
+                      highlightFinish={product.finish}
+                      highlightLanguage={highlightLanguage}
+                    />
+                    <button
+                      type="button"
+                      aria-label={`Unassign ${label}`}
+                      title="Unassign"
+                      disabled={handlers.isUnmappingPrinting}
+                      onClick={() => handlers.onUnmapPrinting(p.printingId)}
+                      className="text-muted-foreground hover:text-destructive -mr-0.5 inline-flex size-3.5 items-center justify-center rounded-sm disabled:opacity-50"
+                    >
+                      <XIcon className="size-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
             </div>
           )}
         </TableCell>
@@ -354,6 +421,7 @@ function MarketplaceProductRow({
               printings={printings}
               product={product}
               assignedPrintingIds={assignedPrintingIds}
+              otherAssignedPrintingIds={otherAssignedPrintingIds}
               onAssignToPrinting={(eid, pid) => handlers.onAssignToPrinting(eid, pid)}
               isAssigning={handlers.isAssigningToPrinting}
             />
@@ -401,21 +469,19 @@ function MarketplaceProductRow({
 function SuggestionChip({
   suggestion,
   productExternalId,
+  highlightFinish,
+  highlightLanguage,
   onAssign,
   disabled,
 }: {
   suggestion: ProductSuggestion & { printing: UnifiedMappingPrinting };
   productExternalId: number;
+  highlightFinish?: string;
+  highlightLanguage?: string;
   onAssign: (externalId: number, printingId: string) => void;
   disabled: boolean;
 }) {
   const { printing } = suggestion;
-  const label = formatPrintingLabel(
-    printing.shortCode,
-    printing.markerSlugs,
-    printing.finish,
-    printing.language,
-  );
   const isStrong = suggestion.score >= STRONG_MATCH_THRESHOLD;
   // Local pending flag gives synchronous click feedback — the parent's
   // `disabled` (driven by mutation isPending) also applies but transitions
@@ -452,8 +518,45 @@ function SuggestionChip({
       ) : (
         <WandSparklesIcon className="size-3 shrink-0" />
       )}
-      {label}
+      <PrintingLabel
+        printing={printing}
+        highlightFinish={highlightFinish}
+        highlightLanguage={highlightLanguage}
+      />
     </button>
+  );
+}
+
+/**
+ * Render a printing's label as segmented spans so individual fields can be
+ * highlighted. When the printing's language/finish match the caller's
+ * `highlight*` values, those segments are underlined as a visual confirmation
+ * — helping admins spot whether the assigned/suggested printing matches the
+ * staged product's finish and language.
+ * @returns A span containing the printing label with optional underlines.
+ */
+function PrintingLabel({
+  printing,
+  highlightFinish,
+  highlightLanguage,
+}: {
+  printing: Pick<UnifiedMappingPrinting, "shortCode" | "markerSlugs" | "finish" | "language">;
+  highlightFinish?: string;
+  highlightLanguage?: string;
+}) {
+  const langMatches = highlightLanguage !== undefined && printing.language === highlightLanguage;
+  const finishMatches = highlightFinish !== undefined && printing.finish === highlightFinish;
+  const matchCls = "underline decoration-2 underline-offset-2";
+  return (
+    <span>
+      {printing.language && (
+        <>
+          <span className={langMatches ? matchCls : undefined}>{printing.language}</span>:
+        </>
+      )}
+      {printing.shortCode}:{printing.markerSlugs.join("+")}:
+      <span className={finishMatches ? matchCls : undefined}>{printing.finish}</span>
+    </span>
   );
 }
 
@@ -461,12 +564,14 @@ function AssignToPrintingButton({
   printings,
   product,
   assignedPrintingIds,
+  otherAssignedPrintingIds,
   onAssignToPrinting,
   isAssigning,
 }: {
   printings: UnifiedMappingPrinting[];
   product: StagedProduct;
   assignedPrintingIds: Set<string>;
+  otherAssignedPrintingIds: Set<string>;
   onAssignToPrinting: (externalId: number, printingId: string) => void;
   isAssigning: boolean;
 }) {
@@ -501,11 +606,15 @@ function AssignToPrintingButton({
             printing.language,
           );
           const currentlyAssigned = assignedPrintingIds.has(printing.printingId);
+          const assignedElsewhere =
+            !currentlyAssigned && otherAssignedPrintingIds.has(printing.printingId);
           return (
             <DropdownMenuItem
               key={printing.printingId}
               disabled={isAssigning}
               onClick={() => onAssignToPrinting(product.externalId, printing.printingId)}
+              title={assignedElsewhere ? "Already assigned to another product" : undefined}
+              className={cn(assignedElsewhere && "text-muted-foreground/60")}
             >
               {currentlyAssigned ? (
                 <CheckIcon className="size-3.5 text-green-600 dark:text-green-400" />
