@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict j9w89GCL3mJdNmcB97XnHaRR3YgyirVJH99LuZxO005Y0MKOCVKhaxpswaAOPyQ
+\restrict paUdcT79N7bnXzv2C7BYW4Bpx4XQaCFaORVLgisGQNOoHBGDGcUFhyLbiiluBz8
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2524,7 +2524,7 @@ CREATE INDEX idx_wish_lists_user_id ON public.wish_lists USING btree (user_id);
 -- Name: marketplace_product_variants_product_finish_language_key; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE UNIQUE INDEX marketplace_product_variants_product_finish_language_key ON public.marketplace_product_variants USING btree (marketplace_product_id, finish, language) NULLS NOT DISTINCT;
+CREATE UNIQUE INDEX marketplace_product_variants_product_finish_language_key ON public.marketplace_product_variants USING btree (marketplace_product_id, finish, language, printing_id) NULLS NOT DISTINCT;
 
 
 --
@@ -3426,5 +3426,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict j9w89GCL3mJdNmcB97XnHaRR3YgyirVJH99LuZxO005Y0MKOCVKhaxpswaAOPyQ
+\unrestrict paUdcT79N7bnXzv2C7BYW4Bpx4XQaCFaORVLgisGQNOoHBGDGcUFhyLbiiluBz8
 

@@ -317,7 +317,9 @@ export function marketplaceMappingRepo(db: Db) {
      *
      * For each input row: upserts the parent upstream product (keyed on
      * `marketplace, external_id`) then upserts the per-SKU variant (keyed on
-     * `marketplace_product_id, finish, language`) pointing at the given printing.
+     * `marketplace_product_id, finish, language, printing_id`). One product
+     * can map to multiple printings — e.g. a Cardmarket language-aggregate
+     * product that legitimately covers both the EN and ZH printings.
      *
      * @returns One row per input, each with `printingId` and the resulting `variantId`.
      */
@@ -380,7 +382,7 @@ export function marketplaceMappingRepo(db: Db) {
         .values(variantRows)
         .onConflict((oc) =>
           oc
-            .columns(["marketplaceProductId", "finish", "language"])
+            .columns(["marketplaceProductId", "finish", "language", "printingId"])
             .doUpdateSet({ printingId: sql<string>`excluded.printing_id` }),
         )
         .returning(["id", "printingId"])
