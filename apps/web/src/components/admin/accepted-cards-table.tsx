@@ -627,7 +627,16 @@ export function AcceptedCardsTable({
             ))}
           </TableHeader>
           <TableBody ref={tableAnchorRef}>
-            {virtualItems.length > 0 && <tr style={{ height: virtualItems[0].start }} />}
+            {/*
+              Spacer offsets are tbody-relative. useWindowVirtualizer reports
+              virtualItem.start/.end in document space (offset by scrollMargin),
+              so subtract scrollMargin to place the top spacer, and add it back
+              into the trailing spacer so the total reserved height matches
+              `totalSize` (the virtualized region's size, not document size).
+            */}
+            {virtualItems.length > 0 && (
+              <tr style={{ height: virtualItems[0].start - scrollMargin }} />
+            )}
             {virtualItems.map((virtualRow) => {
               const row = rows[virtualRow.index];
               return (
@@ -641,7 +650,11 @@ export function AcceptedCardsTable({
               );
             })}
             {virtualItems.length > 0 && (
-              <tr style={{ height: totalSize - (virtualItems.at(-1)?.end ?? 0) }} />
+              <tr
+                style={{
+                  height: totalSize - (virtualItems.at(-1)?.end ?? 0) + scrollMargin,
+                }}
+              />
             )}
           </TableBody>
         </Table>

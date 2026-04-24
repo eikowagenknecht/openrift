@@ -312,7 +312,10 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
             ))}
           </TableHeader>
           <TableBody ref={tableAnchorRef}>
-            {virtualItems.length > 0 && <tr style={{ height: virtualItems[0].start }} />}
+            {/* See accepted-cards-table for why we adjust by scrollMargin. */}
+            {virtualItems.length > 0 && (
+              <tr style={{ height: virtualItems[0].start - scrollMargin }} />
+            )}
             {virtualItems.map((virtualRow) => {
               const row = rows[virtualRow.index];
               return (
@@ -326,7 +329,11 @@ export function CandidateCardsTable({ data }: { data: Row[] }) {
               );
             })}
             {virtualItems.length > 0 && (
-              <tr style={{ height: totalSize - (virtualItems.at(-1)?.end ?? 0) }} />
+              <tr
+                style={{
+                  height: totalSize - (virtualItems.at(-1)?.end ?? 0) + scrollMargin,
+                }}
+              />
             )}
           </TableBody>
         </Table>
