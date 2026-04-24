@@ -6,9 +6,11 @@ import type {
   UnifiedMappingsCardResponse,
   UnifiedMappingsResponse,
 } from "@openrift/shared";
+import { normalizeNameForMatching } from "@openrift/shared/utils";
 
 import type { Repos } from "../deps.js";
-import type { MarketplaceConfig } from "../routes/admin/marketplace-configs.js";
+import type { MarketplaceConfig, StagingRow } from "../routes/admin/marketplace-configs.js";
+import { buildCardIndex, buildResponseGroups } from "./marketplace-mapping.js";
 
 type UnifiedCardRow = Awaited<
   ReturnType<Repos["marketplaceMapping"]["allCardsWithPrintingsUnified"]>
@@ -368,14 +370,15 @@ export async function buildUnifiedMappingsResponse(
 }
 
 /**
- * Build the unified mappings response scoped to a single card. The heavy
- * cards × printings × variants join and the snapshot price lookup both filter
- * on the card up-front, so the server work is ~100× smaller than the
- * corpus-wide variant. `allCards` is still corpus-wide because it powers the
- * "assign to a different card" dropdown in the UI.
+ * Build the unified mappings response scoped to a single card. Fetches only
+ * the staging rows, overrides, and price snapshots relevant to this card —
+ * no marketplace-wide `allStaging` scan, no corpus-wide JS matcher. Cost
+ * scales with the card's match footprint (a few dozen rows), not the
+ * corpus size.
  *
- * `cardIdentifier` can be either the card UUID or its slug — the repo query
- * matches either so the route doesn't need a separate slug → id lookup.
+ * `cardIdentifier` can be either the card UUID or its slug — the repo
+ * queries resolve either internally so the route doesn't need a separate
+ * slug → id lookup.
  * @returns The merged group for the card (null when the card has no rows) plus the assignable-card list.
  */
 export async function buildUnifiedMappingsCardResponse(
@@ -383,45 +386,150 @@ export async function buildUnifiedMappingsCardResponse(
   tcgplayerConfig: MarketplaceConfig,
   cardmarketConfig: MarketplaceConfig,
   cardtraderConfig: MarketplaceConfig,
-  getMappingOverview: GetMappingOverview,
   cardIdentifier: string,
 ): Promise<UnifiedMappingsCardResponse> {
-  // Scope the heavy join to this one card, and fetch the assignable-cards list
-  // in parallel.
-  const [unifiedRows, allCards] = await Promise.all([
+  const configs = [tcgplayerConfig, cardmarketConfig, cardtraderConfig];
+  const marketplaces = configs.map((c) => c.marketplace);
+
+  // One round trip: scoped cards join, assignable-cards list, global alias
+  // index for the longest-match tiebreak, and candidate staging rows across
+  // all 3 marketplaces.
+  const [unifiedRows, allCards, allAliases, stagedRaw] = await Promise.all([
     repos.marketplaceMapping.allCardsWithPrintingsUnified(cardIdentifier),
     repos.marketplaceMapping.assignableCards(),
+    repos.marketplaceMapping.allCardAliases(),
+    repos.marketplaceMapping.stagingForCardAcrossMarketplaces(cardIdentifier, marketplaces),
   ]);
 
   if (unifiedRows.length === 0) {
     return { group: null, allCards };
   }
 
-  // `allCards` covers every card in the corpus — pass it as the name-match
-  // tiebreaker so the scoped `matchedCards` (one card here) doesn't let short
-  // prefixes steal products that belong to cards with longer aliases.
-  const allCardsForMatching = allCards.map((c) => ({
-    cardId: c.cardId,
-    cardName: c.cardName,
-  }));
-  const [tcgResult, cmResult, ctResult] = await Promise.all([
-    getMappingOverview(repos, tcgplayerConfig, {
-      matchedCards: deriveCardsForMarketplace(unifiedRows, tcgplayerConfig.marketplace),
-      allCardsForMatching,
-    }),
-    getMappingOverview(repos, cardmarketConfig, {
-      matchedCards: deriveCardsForMarketplace(unifiedRows, cardmarketConfig.marketplace),
-      allCardsForMatching,
-    }),
-    getMappingOverview(repos, cardtraderConfig, {
-      matchedCards: deriveCardsForMarketplace(unifiedRows, cardtraderConfig.marketplace),
-      allCardsForMatching,
-    }),
-  ]);
+  const thisCardId = unifiedRows[0].cardId;
 
+  // Longest-first alias index across all cards. For each name-matched row
+  // (non-override), we find its longest matching alias; if that alias belongs
+  // to another card, the row really belongs there, not here.
+  const aliasesByLength = allAliases.toSorted((a, b) => b.normName.length - a.normName.length);
+  const stagedForThisCard = stagedRaw.filter((row) => {
+    if (row.isOverride) {
+      return true;
+    }
+    const normProduct = normalizeNameForMatching(row.productName);
+    for (const { normName, cardId } of aliasesByLength) {
+      if (
+        normProduct.startsWith(normName) ||
+        (normName.length >= 5 && normProduct.includes(normName))
+      ) {
+        return cardId === thisCardId;
+      }
+    }
+    // SQL returned this row via our alias, so we should have found a match.
+    // Fall through as a safety net — keep it on our side rather than drop it.
+    return true;
+  });
+
+  // Partition once; each marketplace loop reads its own slice.
+  const stagedByMarketplace = Map.groupBy(stagedForThisCard, (row) => row.marketplace);
+
+  // Per-marketplace response groups — each runs its own snapshotQuery (for
+  // prices on already-mapped printings) in parallel.
+  const perMarketplaceResults = await Promise.all(
+    configs.map(async (config) => {
+      const matchedCards = deriveCardsForMarketplace(unifiedRows, config.marketplace);
+      const { cardGroups } = buildCardIndex(matchedCards);
+      const rows = stagedByMarketplace.get(config.marketplace) ?? [];
+
+      const stagingRows: StagingRow[] = rows.map((r) => ({
+        externalId: r.externalId,
+        groupId: r.groupId,
+        productName: r.productName,
+        finish: r.finish,
+        language: r.language,
+        recordedAt: r.recordedAt,
+        marketCents: r.marketCents,
+        lowCents: r.lowCents,
+        midCents: r.midCents,
+        highCents: r.highCents,
+        trendCents: r.trendCents,
+        avg1Cents: r.avg1Cents,
+        avg7Cents: r.avg7Cents,
+        avg30Cents: r.avg30Cents,
+      }));
+
+      const stagedByCard = new Map<string, StagingRow[]>();
+      if (cardGroups.has(thisCardId) && stagingRows.length > 0) {
+        stagedByCard.set(thisCardId, stagingRows);
+      }
+
+      const overrideMap = new Map<string, { cardId: string }>();
+      const groupNameMap = new Map<number, string>();
+      for (const r of rows) {
+        if (r.isOverride) {
+          overrideMap.set(`${r.externalId}::${r.finish}::${r.language}`, { cardId: thisCardId });
+        }
+        if (r.groupName !== null) {
+          groupNameMap.set(r.groupId, r.groupName);
+        }
+      }
+
+      const mappedPrintingIds = new Set<string>();
+      for (const group of cardGroups.values()) {
+        for (const p of group.printings) {
+          if (p.externalId !== null) {
+            mappedPrintingIds.add(p.printingId);
+          }
+        }
+      }
+      const mappedProductInfo = new Map<
+        string,
+        ReturnType<MarketplaceConfig["mapSnapshotPrices"]>
+      >();
+      if (mappedPrintingIds.size > 0) {
+        const mappedRows = await config.snapshotQuery([...mappedPrintingIds]);
+        for (const row of mappedRows) {
+          const key = `${row.printingId}::${row.externalId}`;
+          if (!mappedProductInfo.has(key)) {
+            mappedProductInfo.set(key, config.mapSnapshotPrices(row));
+          }
+        }
+      }
+
+      const mapStagedRow = (
+        row: StagingRow,
+        extra?: { isOverride?: boolean },
+      ): StagedProductResponse => ({
+        externalId: row.externalId ?? "",
+        productName: row.productName,
+        finish: row.finish,
+        language: row.language,
+        ...config.mapStagingPrices(row),
+        recordedAt: row.recordedAt.toISOString(),
+        ...(extra?.isOverride === undefined ? {} : { isOverride: extra.isOverride }),
+        groupId: row.groupId,
+        groupName: groupNameMap.get(row.groupId) ?? `Group #${row.groupId}`,
+      });
+
+      const groups = buildResponseGroups(
+        cardGroups,
+        stagedByCard,
+        overrideMap,
+        mappedProductInfo,
+        groupNameMap,
+        mapStagedRow,
+        config.languageAggregate,
+      );
+
+      // Shape a MappingOverviewResult just for mergeOverviewsByCard — the
+      // merge function only looks at `.groups`, so the other fields can be
+      // empty placeholders.
+      return { groups, unmatchedProducts: [], allCards: [] } satisfies MappingOverviewResult;
+    }),
+  );
+
+  const [tcgResult, cmResult, ctResult] = perMarketplaceResults;
   const mergedMap = mergeOverviewsByCard(tcgResult, cmResult, ctResult);
   const withPrimary = withPrimaryShortCode(mergedMap);
-  // The repo already filtered to one card, so there's at most one group.
   const group = withPrimary[0] ?? null;
 
   return { group, allCards };

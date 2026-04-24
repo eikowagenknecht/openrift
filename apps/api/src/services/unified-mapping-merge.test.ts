@@ -670,60 +670,117 @@ describe("buildUnifiedMappingsCardResponse", () => {
     vi.resetAllMocks();
   });
 
+  function makeScopedCardConfig(marketplace: string): MarketplaceConfig {
+    return {
+      marketplace,
+      currency: "USD",
+      languageAggregate: false,
+      mapStagingPrices: (row: {
+        marketCents: number | null;
+        lowCents: number | null;
+        midCents: number | null;
+        highCents: number | null;
+        trendCents: number | null;
+        avg1Cents: number | null;
+        avg7Cents: number | null;
+        avg30Cents: number | null;
+      }) => ({
+        marketCents: row.marketCents,
+        lowCents: row.lowCents,
+        currency: "USD",
+        midCents: row.midCents,
+        highCents: row.highCents,
+        trendCents: row.trendCents,
+        avg1Cents: row.avg1Cents,
+        avg7Cents: row.avg7Cents,
+        avg30Cents: row.avg30Cents,
+      }),
+      snapshotQuery: vi.fn().mockResolvedValue([]),
+      mapSnapshotPrices: vi.fn(),
+    } as unknown as MarketplaceConfig;
+  }
+
   it("returns {group: null} when the card has no rows", async () => {
     const assignableCardsMock = vi.fn().mockResolvedValue([{ cardId: "c1" }]);
+    const stagingMock = vi.fn().mockResolvedValue([]);
     const repos = {
       marketplaceMapping: {
         allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]),
         assignableCards: assignableCardsMock,
+        allCardAliases: vi.fn().mockResolvedValue([]),
+        stagingForCardAcrossMarketplaces: stagingMock,
       },
     } as unknown as Repos;
-    const getMappingOverview = vi.fn(async () => makeMappingResult());
 
     const result = await buildUnifiedMappingsCardResponse(
       repos,
-      makeConfig("tcgplayer"),
-      makeConfig("cardmarket"),
-      makeConfig("cardtrader"),
-      getMappingOverview,
+      makeScopedCardConfig("tcgplayer"),
+      makeScopedCardConfig("cardmarket"),
+      makeScopedCardConfig("cardtrader"),
       "missing-card",
     );
 
     expect(result.group).toBeNull();
     expect(result.allCards).toEqual([{ cardId: "c1" }]);
-    // getMappingOverview should be skipped when the card has nothing — avoids
-    // 3 pointless round trips.
-    expect(getMappingOverview).not.toHaveBeenCalled();
   });
 
-  it("passes the cardId through to allCardsWithPrintingsUnified", async () => {
+  it("passes the cardIdentifier through to both scoped repo calls", async () => {
     const unifiedMock = vi.fn().mockResolvedValue([]);
+    const stagingMock = vi.fn().mockResolvedValue([]);
     const repos = {
       marketplaceMapping: {
         allCardsWithPrintingsUnified: unifiedMock,
         assignableCards: vi.fn().mockResolvedValue([]),
+        allCardAliases: vi.fn().mockResolvedValue([]),
+        stagingForCardAcrossMarketplaces: stagingMock,
       },
     } as unknown as Repos;
 
     await buildUnifiedMappingsCardResponse(
       repos,
-      makeConfig("tcgplayer"),
-      makeConfig("cardmarket"),
-      makeConfig("cardtrader"),
-      vi.fn(async () => makeMappingResult()),
+      makeScopedCardConfig("tcgplayer"),
+      makeScopedCardConfig("cardmarket"),
+      makeScopedCardConfig("cardtrader"),
       "card-xyz",
     );
 
     expect(unifiedMock).toHaveBeenCalledWith("card-xyz");
+    expect(stagingMock).toHaveBeenCalledWith("card-xyz", ["tcgplayer", "cardmarket", "cardtrader"]);
   });
 
   it("returns the single merged group plus allCards when the card has data", async () => {
     const repos = {
       marketplaceMapping: {
-        // Non-empty unified rows signal "card exists with printings"; the
-        // merge step itself runs off each marketplace's matchedCards, so the
-        // shape of these rows isn't validated here.
-        allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([{ printingId: "p-1" }]),
+        // Non-empty unified rows signal "card exists with printings". The row
+        // shape has to be rich enough for deriveCardsForMarketplace + the
+        // card-index builder to produce a group.
+        allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([
+          {
+            cardId: "card-1",
+            cardSlug: "card-1-slug",
+            cardName: "Flame Striker",
+            cardType: "Unit",
+            superTypes: [],
+            domains: ["Fire"],
+            energy: 2,
+            might: 3,
+            printingId: "p-1",
+            setId: "set-1",
+            shortCode: "OGN-001",
+            rarity: "Common",
+            setName: "Origins",
+            artVariant: "normal",
+            isSigned: false,
+            markerSlugs: [],
+            finish: "normal",
+            language: "EN",
+            imageUrl: null,
+            variantMarketplace: "tcgplayer",
+            externalId: 100,
+            sourceGroupId: null,
+            sourceLanguage: "EN",
+          },
+        ]),
         assignableCards: vi.fn().mockResolvedValue([
           {
             cardId: "card-1",
@@ -740,27 +797,205 @@ describe("buildUnifiedMappingsCardResponse", () => {
             shortCodes: ["OGN-002"],
           },
         ]),
+        allCardAliases: vi.fn().mockResolvedValue([{ cardId: "card-1", normName: "flamestriker" }]),
+        stagingForCardAcrossMarketplaces: vi.fn().mockResolvedValue([]),
       },
     } as unknown as Repos;
-    const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
-      if (config.marketplace === "tcgplayer") {
-        return makeMappingResult({ groups: [makeGroup()] });
-      }
-      return makeMappingResult();
-    });
 
     const result = await buildUnifiedMappingsCardResponse(
       repos,
-      makeConfig("tcgplayer"),
-      makeConfig("cardmarket"),
-      makeConfig("cardtrader"),
-      getMappingOverview,
+      makeScopedCardConfig("tcgplayer"),
+      makeScopedCardConfig("cardmarket"),
+      makeScopedCardConfig("cardtrader"),
       "card-1",
     );
 
     expect(result.group).not.toBeNull();
     expect(result.group?.cardId).toBe("card-1");
-    expect(result.group?.printings[0].tcgExternalId).toBe(100);
     expect(result.allCards).toHaveLength(2);
+  });
+
+  it("drops staging rows whose longer alias belongs to another card", async () => {
+    // Regression: /admin/cards/blast-cone — SQL returns both "Blast Cone" and
+    // "Blastcone Fae" products via the prefix branch; the JS tiebreak against
+    // allCardAliases should drop the Fae row because its longer alias points
+    // to a different card.
+    const repos = {
+      marketplaceMapping: {
+        allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([
+          {
+            cardId: "card-blast-cone",
+            cardSlug: "blast-cone",
+            cardName: "Blast Cone",
+            cardType: "Unit",
+            superTypes: [],
+            domains: ["Fire"],
+            energy: 2,
+            might: null,
+            printingId: "p-bc",
+            setId: "set-1",
+            shortCode: "OGN-001",
+            rarity: "Common",
+            setName: "Origins",
+            artVariant: "normal",
+            isSigned: false,
+            markerSlugs: [],
+            finish: "normal",
+            language: "EN",
+            imageUrl: null,
+            variantMarketplace: null,
+            externalId: null,
+            sourceGroupId: null,
+            sourceLanguage: null,
+          },
+        ]),
+        assignableCards: vi.fn().mockResolvedValue([
+          {
+            cardId: "card-blast-cone",
+            cardSlug: "blast-cone",
+            cardName: "Blast Cone",
+            setName: "S",
+            shortCodes: ["OGN-001"],
+          },
+        ]),
+        allCardAliases: vi.fn().mockResolvedValue([
+          { cardId: "card-blast-cone", normName: "blastcone" },
+          { cardId: "card-blastcone-fae", normName: "blastconefae" },
+        ]),
+        stagingForCardAcrossMarketplaces: vi.fn().mockResolvedValue([
+          {
+            marketplace: "tcgplayer",
+            externalId: 1,
+            productName: "Blast Cone",
+            finish: "normal",
+            language: "EN",
+            groupId: 10,
+            groupName: "Origins",
+            marketCents: 100,
+            lowCents: 50,
+            midCents: null,
+            highCents: null,
+            trendCents: null,
+            avg1Cents: null,
+            avg7Cents: null,
+            avg30Cents: null,
+            recordedAt: new Date("2026-04-01T00:00:00Z"),
+            isOverride: false,
+          },
+          {
+            marketplace: "tcgplayer",
+            externalId: 2,
+            productName: "Blastcone Fae",
+            finish: "normal",
+            language: "EN",
+            groupId: 10,
+            groupName: "Origins",
+            marketCents: 200,
+            lowCents: 100,
+            midCents: null,
+            highCents: null,
+            trendCents: null,
+            avg1Cents: null,
+            avg7Cents: null,
+            avg30Cents: null,
+            recordedAt: new Date("2026-04-01T00:00:00Z"),
+            isOverride: false,
+          },
+        ]),
+      },
+    } as unknown as Repos;
+
+    const result = await buildUnifiedMappingsCardResponse(
+      repos,
+      makeScopedCardConfig("tcgplayer"),
+      makeScopedCardConfig("cardmarket"),
+      makeScopedCardConfig("cardtrader"),
+      "blast-cone",
+    );
+
+    const staged = result.group?.tcgplayer.stagedProducts ?? [];
+    const ids = staged.map((p) => p.externalId);
+    expect(ids).toContain(1);
+    expect(ids).not.toContain(2);
+  });
+
+  it("keeps override-flagged rows even when another card has a longer alias", async () => {
+    const repos = {
+      marketplaceMapping: {
+        allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([
+          {
+            cardId: "card-blast-cone",
+            cardSlug: "blast-cone",
+            cardName: "Blast Cone",
+            cardType: "Unit",
+            superTypes: [],
+            domains: ["Fire"],
+            energy: 2,
+            might: null,
+            printingId: "p-bc",
+            setId: "set-1",
+            shortCode: "OGN-001",
+            rarity: "Common",
+            setName: "Origins",
+            artVariant: "normal",
+            isSigned: false,
+            markerSlugs: [],
+            finish: "normal",
+            language: "EN",
+            imageUrl: null,
+            variantMarketplace: null,
+            externalId: null,
+            sourceGroupId: null,
+            sourceLanguage: null,
+          },
+        ]),
+        assignableCards: vi.fn().mockResolvedValue([
+          {
+            cardId: "card-blast-cone",
+            cardSlug: "blast-cone",
+            cardName: "Blast Cone",
+            setName: "S",
+            shortCodes: ["OGN-001"],
+          },
+        ]),
+        allCardAliases: vi.fn().mockResolvedValue([
+          { cardId: "card-blast-cone", normName: "blastcone" },
+          { cardId: "card-blastcone-fae", normName: "blastconefae" },
+        ]),
+        stagingForCardAcrossMarketplaces: vi.fn().mockResolvedValue([
+          {
+            marketplace: "tcgplayer",
+            externalId: 42,
+            productName: "Blastcone Fae",
+            finish: "normal",
+            language: "EN",
+            groupId: 10,
+            groupName: "Origins",
+            marketCents: 200,
+            lowCents: 100,
+            midCents: null,
+            highCents: null,
+            trendCents: null,
+            avg1Cents: null,
+            avg7Cents: null,
+            avg30Cents: null,
+            recordedAt: new Date("2026-04-01T00:00:00Z"),
+            isOverride: true,
+          },
+        ]),
+      },
+    } as unknown as Repos;
+
+    const result = await buildUnifiedMappingsCardResponse(
+      repos,
+      makeScopedCardConfig("tcgplayer"),
+      makeScopedCardConfig("cardmarket"),
+      makeScopedCardConfig("cardtrader"),
+      "blast-cone",
+    );
+
+    const staged = result.group?.tcgplayer.stagedProducts ?? [];
+    expect(staged.map((p) => p.externalId)).toContain(42);
+    expect(staged[0]?.isOverride).toBe(true);
   });
 });

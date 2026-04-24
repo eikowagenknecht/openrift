@@ -51,7 +51,7 @@ interface CardIndex {
 
 // ── buildCardIndex ──────────────────────────────────────────────────────────
 
-function buildCardIndex(
+export function buildCardIndex(
   matchedCards: {
     cardId: string;
     cardSlug: string;
@@ -219,7 +219,7 @@ function matchStagedProducts(
 
 // ── buildResponseGroups ─────────────────────────────────────────────────────
 
-function buildResponseGroups(
+export function buildResponseGroups(
   cardGroups: Map<string, CardGroup>,
   stagedByCard: Map<string, StagingRow[]>,
   overrideMap: Map<string, { cardId: string }>,

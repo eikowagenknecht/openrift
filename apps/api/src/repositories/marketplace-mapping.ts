@@ -599,5 +599,174 @@ export function marketplaceMappingRepo(db: Db) {
       `.execute(db);
       return result.rows;
     },
+
+    /**
+     * Every card alias as (cardId, normName). Used by the scoped card-detail
+     * endpoint to do the longest-alias tiebreak in JS. Returned rows include
+     * both the auto-seeded card-name alias and any manually-added aliases
+     * (e.g. reprints, renamed cards) — 383 of ~1150 rows differ from the
+     * card's name at time of writing, so the cheaper "use cardName only"
+     * shortcut would misroute products.
+     * @returns One row per (cardId, normName) across every card.
+     */
+    allCardAliases() {
+      return db
+        .selectFrom("cardNameAliases")
+        .select(["cardId", "normName"])
+        .where("normName", "<>", "")
+        .execute();
+    },
+
+    /**
+     * Staging rows across the given marketplaces that could belong to one
+     * card, via manual override OR a normalized-name prefix/substring match
+     * against the card's aliases. Used by the scoped card-detail endpoint so
+     * it doesn't have to fetch every marketplace's full staging set.
+     *
+     * Does **not** perform the longest-alias tiebreak — returns every
+     * name-match candidate and lets the caller drop rows whose longest
+     * matching alias belongs to another card. The tiebreak as a SQL NOT EXISTS
+     * anti-join measured ~10× slower on real data (nested loop over every
+     * card's aliases per candidate row) than returning the small candidate set
+     * and filtering in JS with an in-memory alias index.
+     *
+     * `cardIdentifier` can be UUID or slug — resolved inside the query so the
+     * caller doesn't need a separate lookup. Ignored products (level 2) and
+     * ignored variants (level 3) are filtered out. Each (marketplace,
+     * external_id, finish, language) tuple is deduplicated to its most-recent
+     * staging snapshot. `isOverride` is true when a manual override points at
+     * this card for the given tuple.
+     *
+     * Uses the GIN trigram index on marketplace_staging.norm_name (migration
+     * 089) to keep the LIKE filters index-backed.
+     *
+     * @returns One row per unique staged SKU that could be assigned to the card, across the requested marketplaces.
+     */
+    async stagingForCardAcrossMarketplaces(cardIdentifier: string, marketplaces: string[]) {
+      if (marketplaces.length === 0) {
+        return [];
+      }
+      const result = await sql<{
+        marketplace: string;
+        externalId: number;
+        productName: string;
+        finish: string;
+        language: string;
+        groupId: number;
+        groupName: string | null;
+        marketCents: number | null;
+        lowCents: number | null;
+        midCents: number | null;
+        highCents: number | null;
+        trendCents: number | null;
+        avg1Cents: number | null;
+        avg7Cents: number | null;
+        avg30Cents: number | null;
+        recordedAt: Date;
+        isOverride: boolean;
+      }>`
+        WITH target_card AS (
+          SELECT id FROM cards WHERE id::text = ${cardIdentifier} OR slug = ${cardIdentifier} LIMIT 1
+        ),
+        target_aliases AS (
+          SELECT cna.norm_name
+          FROM card_name_aliases cna
+          JOIN target_card tc ON cna.card_id = tc.id
+          WHERE cna.norm_name <> ''
+        ),
+        -- Candidate staging IDs. Three branches UNIONed so the planner can use
+        -- the GIN trigram index on marketplace_staging.norm_name for the LIKE
+        -- filters. The prefix/substring matches may include rows that actually
+        -- belong to a different card whose alias is longer (e.g. alias
+        -- blastcone prefix-matches blastconefae product) — the caller does
+        -- that tiebreak in JS where it is cheap against 1k aliases.
+        candidate_ids AS (
+          SELECT s.id
+          FROM marketplace_staging s
+          JOIN marketplace_staging_card_overrides ov
+            ON ov.marketplace = s.marketplace
+           AND ov.external_id = s.external_id
+           AND ov.finish = s.finish
+           AND ov.language = s.language
+          JOIN target_card tc ON ov.card_id = tc.id
+          WHERE s.marketplace = ANY(${marketplaces}::text[])
+          UNION
+          SELECT s.id
+          FROM marketplace_staging s, target_aliases a
+          WHERE s.marketplace = ANY(${marketplaces}::text[])
+            AND s.norm_name LIKE a.norm_name || '%'
+          UNION
+          SELECT s.id
+          FROM marketplace_staging s, target_aliases a
+          WHERE s.marketplace = ANY(${marketplaces}::text[])
+            AND length(a.norm_name) >= 5
+            AND s.norm_name LIKE '%' || a.norm_name || '%'
+        ),
+        matched AS (
+          SELECT DISTINCT ON (s.marketplace, s.external_id, s.finish, s.language)
+            s.marketplace,
+            s.external_id,
+            s.product_name,
+            s.finish,
+            s.language,
+            s.group_id,
+            s.market_cents,
+            s.low_cents,
+            s.mid_cents,
+            s.high_cents,
+            s.trend_cents,
+            s.avg1_cents,
+            s.avg7_cents,
+            s.avg30_cents,
+            s.recorded_at
+          FROM marketplace_staging s
+          WHERE s.id IN (SELECT id FROM candidate_ids)
+            AND NOT EXISTS (
+              SELECT 1 FROM marketplace_ignored_products ip
+              WHERE ip.marketplace = s.marketplace AND ip.external_id = s.external_id
+            )
+            AND NOT EXISTS (
+              SELECT 1
+              FROM marketplace_ignored_variants iv
+              JOIN marketplace_products mp ON mp.id = iv.marketplace_product_id
+              WHERE mp.marketplace = s.marketplace
+                AND mp.external_id = s.external_id
+                AND iv.finish = s.finish
+                AND iv.language = s.language
+            )
+          ORDER BY s.marketplace, s.external_id, s.finish, s.language, s.recorded_at DESC
+        )
+        SELECT
+          m.marketplace,
+          m.external_id as "externalId",
+          m.product_name as "productName",
+          m.finish,
+          m.language,
+          m.group_id as "groupId",
+          g.name as "groupName",
+          m.market_cents as "marketCents",
+          m.low_cents as "lowCents",
+          m.mid_cents as "midCents",
+          m.high_cents as "highCents",
+          m.trend_cents as "trendCents",
+          m.avg1_cents as "avg1Cents",
+          m.avg7_cents as "avg7Cents",
+          m.avg30_cents as "avg30Cents",
+          m.recorded_at as "recordedAt",
+          EXISTS (
+            SELECT 1 FROM marketplace_staging_card_overrides ov, target_card tc
+            WHERE ov.marketplace = m.marketplace
+              AND ov.external_id = m.external_id
+              AND ov.finish = m.finish
+              AND ov.language = m.language
+              AND ov.card_id = tc.id
+          ) as "isOverride"
+        FROM matched m
+        LEFT JOIN marketplace_groups g
+          ON g.marketplace = m.marketplace AND g.group_id = m.group_id
+        ORDER BY m.marketplace, m.product_name
+      `.execute(db);
+      return result.rows;
+    },
   };
 }

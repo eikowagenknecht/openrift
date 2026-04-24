@@ -130,7 +130,6 @@ export const unifiedMappingsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   .openapi(cardMappings, async (c) => {
     const repos = c.get("repos");
-    const { getMappingOverview } = c.get("services");
     const { tcgplayer, cardmarket, cardtrader } = createMarketplaceConfigs(repos);
     const { cardId } = c.req.valid("param");
 
@@ -139,7 +138,6 @@ export const unifiedMappingsRoute = new OpenAPIHono<{ Variables: Variables }>()
       tcgplayer,
       cardmarket,
       cardtrader,
-      getMappingOverview,
       cardId,
     );
 
