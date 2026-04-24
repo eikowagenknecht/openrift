@@ -145,6 +145,11 @@ export function ExistingCardDetailPage({
   const printingsExpanded = !collapsedSections.has("printings");
   const [showBanForm, setShowBanForm] = useState(false);
   const [showErrataForm, setShowErrataForm] = useState(false);
+  const [printingSetFilter, setPrintingSetFilter] = useState<string | null>(null);
+  const [printingLanguageFilter, setPrintingLanguageFilter] = useState<string | null>(null);
+  const [printingMarkerFilter, setPrintingMarkerFilter] = useState<"all" | "with" | "without">(
+    "all",
+  );
   const pendingScrollTarget = useRef<string | null>(null);
   const focusHandledRef = useRef(false);
 
@@ -356,6 +361,30 @@ export function ExistingCardDetailPage({
     existingData.candidatePrintingGroups,
     candidatePrintings,
   );
+
+  const availableSets = [
+    ...new Map(printings.map((p) => [p.setSlug, p.setName ?? p.setSlug])).entries(),
+  ];
+  const availableLanguages = [...new Set(printings.map((p) => p.language))].toSorted();
+  const hasMarkered = printings.some((p) => p.markerSlugs.length > 0);
+  const hasMarkerless = printings.some((p) => p.markerSlugs.length === 0);
+  const showMarkerFilter = hasMarkered && hasMarkerless;
+
+  const filteredPrintings = printings.filter((p) => {
+    if (printingSetFilter && p.setSlug !== printingSetFilter) {
+      return false;
+    }
+    if (printingLanguageFilter && p.language !== printingLanguageFilter) {
+      return false;
+    }
+    if (printingMarkerFilter === "with" && p.markerSlugs.length === 0) {
+      return false;
+    }
+    if (printingMarkerFilter === "without" && p.markerSlugs.length > 0) {
+      return false;
+    }
+    return true;
+  });
 
   function togglePrinting(id: string) {
     togglePrintingFold(cardId, id);
@@ -640,7 +669,7 @@ export function ExistingCardDetailPage({
 
       {/* ── Printings ──────────────────────────────────────────────────────── */}
       <section className="space-y-3">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <button
             type="button"
             className="flex items-center gap-2 hover:opacity-80"
@@ -659,9 +688,79 @@ export function ExistingCardDetailPage({
               {allExpanded ? "Collapse all" : "Expand all"}
             </Button>
           )}
+          {printingsExpanded && availableLanguages.length > 1 && (
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground mr-1 text-sm">Language</span>
+              <Button
+                size="sm"
+                variant={printingLanguageFilter === null ? "default" : "outline"}
+                onClick={() => setPrintingLanguageFilter(null)}
+              >
+                All
+              </Button>
+              {availableLanguages.map((lang) => (
+                <Button
+                  key={lang}
+                  size="sm"
+                  variant={printingLanguageFilter === lang ? "default" : "outline"}
+                  onClick={() => setPrintingLanguageFilter(lang)}
+                >
+                  {lang.toUpperCase()}
+                </Button>
+              ))}
+            </div>
+          )}
+          {printingsExpanded && availableSets.length > 1 && (
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground mr-1 text-sm">Set</span>
+              <Button
+                size="sm"
+                variant={printingSetFilter === null ? "default" : "outline"}
+                onClick={() => setPrintingSetFilter(null)}
+              >
+                All
+              </Button>
+              {availableSets.map(([slug, name]) => (
+                <Button
+                  key={slug}
+                  size="sm"
+                  variant={printingSetFilter === slug ? "default" : "outline"}
+                  onClick={() => setPrintingSetFilter(slug)}
+                >
+                  {name}
+                </Button>
+              ))}
+            </div>
+          )}
+          {printingsExpanded && showMarkerFilter && (
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground mr-1 text-sm">Markers</span>
+              <Button
+                size="sm"
+                variant={printingMarkerFilter === "all" ? "default" : "outline"}
+                onClick={() => setPrintingMarkerFilter("all")}
+              >
+                All
+              </Button>
+              <Button
+                size="sm"
+                variant={printingMarkerFilter === "with" ? "default" : "outline"}
+                onClick={() => setPrintingMarkerFilter("with")}
+              >
+                With
+              </Button>
+              <Button
+                size="sm"
+                variant={printingMarkerFilter === "without" ? "default" : "outline"}
+                onClick={() => setPrintingMarkerFilter("without")}
+              >
+                Without
+              </Button>
+            </div>
+          )}
         </div>
         {printingsExpanded &&
-          printings.map((printing) => {
+          filteredPrintings.map((printing) => {
             const printingId = printing.id;
             const printingLabel = printing.expectedPrintingId;
             const isExpanded = !collapsedPrintings.has(printingId);
