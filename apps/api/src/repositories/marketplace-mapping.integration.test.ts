@@ -80,6 +80,45 @@ describe.skipIf(!ctx)("marketplaceMappingRepo (integration)", () => {
     expect(printingIds).toEqual([enPrintingId, zhPrintingId].toSorted());
   });
 
+  it("upsertProductVariants accepts one batch with multiple sibling-printing variants for the same SKU", async () => {
+    // Batch-accept of language-aggregate suggestions (TCG/CM) sends one
+    // mapping per sibling printing in a single call, all sharing the same
+    // (external_id, finish, language) tuple but differing in printing_id.
+    // Without the product-row dedupe, the multi-row INSERT would hit
+    // "ON CONFLICT DO UPDATE command cannot affect row a second time".
+    const batchExternalId = 872_480;
+    await db
+      .insertInto("marketplaceGroups")
+      .values({ marketplace, groupId, name: "Test CM Group" })
+      .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
+      .execute();
+    const result = await repo.upsertProductVariants([
+      {
+        marketplace,
+        printingId: enPrintingId,
+        externalId: batchExternalId,
+        groupId,
+        productName: "Batch Sibling Product",
+        finish: "normal",
+        language: null,
+      },
+      {
+        marketplace,
+        printingId: zhPrintingId,
+        externalId: batchExternalId,
+        groupId,
+        productName: "Batch Sibling Product",
+        finish: "normal",
+        language: null,
+      },
+    ]);
+    expect(result).toHaveLength(2);
+    expect(result.map((r) => r.printingId).toSorted()).toEqual(
+      [enPrintingId, zhPrintingId].toSorted(),
+    );
+    expect(new Set(result.map((r) => r.variantId)).size).toBe(2);
+  });
+
   it("upsertProductVariants is idempotent for the same (product, finish, language, printing)", async () => {
     // Re-upsert the EN row from the previous test — must not create a duplicate.
     const again = await repo.upsertProductVariants([

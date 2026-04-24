@@ -358,14 +358,38 @@ export function marketplaceMappingRepo(db: Db) {
         return [];
       }
 
-      const productRows = values.map((v) => ({
-        marketplace: v.marketplace,
-        externalId: v.externalId,
-        groupId: v.groupId,
-        productName: v.productName,
-        finish: v.finish,
-        language: v.language,
-      }));
+      // Dedupe on the product unique key `(marketplace, external_id, finish,
+      // language)`. A single batch can legitimately carry multiple variants
+      // of the same product — e.g. batch-accepting a language-aggregate
+      // suggestion fires one mapping per sibling printing, all pointing at
+      // the same marketplace product. Without this dedupe, Postgres raises
+      // "ON CONFLICT DO UPDATE command cannot affect row a second time" and
+      // the whole batch fails.
+      const productRowsByKey = new Map<
+        string,
+        {
+          marketplace: string;
+          externalId: number;
+          groupId: number;
+          productName: string;
+          finish: string;
+          language: string | null;
+        }
+      >();
+      for (const v of values) {
+        const key = `${v.marketplace}::${v.externalId}::${v.finish}::${v.language ?? ""}`;
+        if (!productRowsByKey.has(key)) {
+          productRowsByKey.set(key, {
+            marketplace: v.marketplace,
+            externalId: v.externalId,
+            groupId: v.groupId,
+            productName: v.productName,
+            finish: v.finish,
+            language: v.language,
+          });
+        }
+      }
+      const productRows = [...productRowsByKey.values()];
 
       // We can't RETURNING rows that are just updated on conflict with a
       // NULLS NOT DISTINCT unique (Kysely's onConflict doesn't expose that

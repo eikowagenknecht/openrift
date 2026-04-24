@@ -42,23 +42,37 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
 
   const cardKey = queryKeys.admin.unifiedMappings.byCard(cardId);
 
-  // Optimistic path for suggestion-chip clicks. Without this, the chip stays
-  // on screen until the unifiedMappings refetch finishes. We flip the cache
-  // synchronously so the row visibly assigns right away, then reconcile via a
-  // background invalidation. On error we roll back.
-  const assignToPrinting =
+  // Optimistic path for suggestion-chip clicks and batch-accept. Without this,
+  // chips stay on screen until the unifiedMappings refetch finishes. We fold
+  // optimistic updates over the cache so every row visibly assigns right
+  // away, then reconcile via a background invalidation. On error we roll back
+  // to the pre-batch snapshot, not partway through.
+  const applyAssignments =
     (marketplace: AdminMarketplaceName) =>
-    (eid: number, finish: string, language: string | null, pid: string) => {
+    (
+      mappings: {
+        externalId: number;
+        finish: string;
+        language: string | null;
+        printingId: string;
+      }[],
+    ) => {
+      if (mappings.length === 0) {
+        return;
+      }
       const previous = queryClient.getQueryData<UnifiedMappingsCardResponse>(cardKey);
       if (previous) {
-        const next = applyOptimisticAssignmentForCard(
-          previous,
-          marketplace,
-          eid,
-          finish,
-          language,
-          pid,
-        );
+        let next = previous;
+        for (const m of mappings) {
+          next = applyOptimisticAssignmentForCard(
+            next,
+            marketplace,
+            m.externalId,
+            m.finish,
+            m.language,
+            m.printingId,
+          );
+        }
         if (next !== previous) {
           queryClient.setQueryData(cardKey, next);
         }
@@ -70,7 +84,7 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
             ? cmSaveMapping
             : ctSaveMapping;
       save.mutate(
-        { mappings: [{ printingId: pid, externalId: eid, finish, language }] },
+        { mappings },
         {
           onError: () => {
             if (previous) {
@@ -84,6 +98,12 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
           },
         },
       );
+    };
+
+  const assignToPrinting =
+    (marketplace: AdminMarketplaceName) =>
+    (eid: number, finish: string, language: string | null, pid: string) => {
+      applyAssignments(marketplace)([{ externalId: eid, finish, language, printingId: pid }]);
     };
 
   const tcgIgnoreVariant = useUnifiedIgnoreVariants("tcgplayer");
@@ -128,6 +148,7 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
           mutateOpts,
         ),
       onAssignToPrinting: assignToPrinting("tcgplayer"),
+      onBatchAssignToPrintings: applyAssignments("tcgplayer"),
       onUnassign: (eid, fin, lang) =>
         tcgUnassign.mutate({ externalId: eid, finish: fin, language: lang }, mutateOpts),
       onUnmapPrinting: (pid) =>
@@ -148,6 +169,7 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
           mutateOpts,
         ),
       onAssignToPrinting: assignToPrinting("cardmarket"),
+      onBatchAssignToPrintings: applyAssignments("cardmarket"),
       onUnassign: (eid, fin, lang) =>
         cmUnassign.mutate({ externalId: eid, finish: fin, language: lang }, mutateOpts),
       onUnmapPrinting: (pid) =>
@@ -168,6 +190,7 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
           mutateOpts,
         ),
       onAssignToPrinting: assignToPrinting("cardtrader"),
+      onBatchAssignToPrintings: applyAssignments("cardtrader"),
       onUnassign: (eid, fin, lang) =>
         ctUnassign.mutate({ externalId: eid, finish: fin, language: lang }, mutateOpts),
       onUnmapPrinting: (pid) =>

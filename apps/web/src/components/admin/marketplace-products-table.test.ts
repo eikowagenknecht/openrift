@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   collectEntries,
+  collectStrongMappings,
   displayedProductLanguage,
   isCardNameMismatch,
 } from "./marketplace-products-table";
@@ -11,6 +12,8 @@ import type {
   UnifiedMappingGroup,
   UnifiedMappingPrinting,
 } from "./price-mappings-types";
+import type { ProductSuggestion } from "./suggest-mapping";
+import { productSuggestionKey } from "./suggest-mapping";
 
 function printing(overrides: Partial<UnifiedMappingPrinting> = {}): UnifiedMappingPrinting {
   return {
@@ -306,6 +309,101 @@ describe("collectEntries", () => {
     );
     expect(entries).toHaveLength(1);
     expect(entries[0].assignedPrintings).toEqual([]);
+  });
+});
+
+describe("collectStrongMappings", () => {
+  it("returns empty arrays for every marketplace when no suggestions are provided", () => {
+    const result = collectStrongMappings(group([printing()]), undefined);
+    expect(result).toEqual({ tcgplayer: [], cardmarket: [], cardtrader: [] });
+  });
+
+  it("filters out suggestions whose score is below the strong-match threshold", () => {
+    const g = group([printing({ printingId: "p-1" })], {
+      tcgplayer: { staged: [staged({ externalId: 1 })], assigned: [], assignments: [] },
+    });
+    const suggestions = new Map<string, ProductSuggestion[]>([
+      [productSuggestionKey("tcgplayer", 1, "normal", "EN"), [{ printingId: "p-1", score: 100 }]],
+    ]);
+    expect(collectStrongMappings(g, suggestions).tcgplayer).toEqual([]);
+  });
+
+  it("includes strong suggestions for unassigned products", () => {
+    const g = group([printing({ printingId: "p-1" })], {
+      tcgplayer: { staged: [staged({ externalId: 1 })], assigned: [], assignments: [] },
+    });
+    const suggestions = new Map<string, ProductSuggestion[]>([
+      [productSuggestionKey("tcgplayer", 1, "normal", "EN"), [{ printingId: "p-1", score: 200 }]],
+    ]);
+    expect(collectStrongMappings(g, suggestions).tcgplayer).toEqual([
+      { externalId: 1, finish: "normal", language: "EN", printingId: "p-1" },
+    ]);
+  });
+
+  it("skips products that are already assigned", () => {
+    // The suggestion chip for an assigned product is hidden anyway (see
+    // MarketplaceProductRow — suggestions render only when !isAssigned), so
+    // the batch helper must skip them too or it would re-submit stale pairs.
+    const product = staged({ externalId: 1 });
+    const g = group([printing({ printingId: "p-1" })], {
+      cardtrader: {
+        staged: [],
+        assigned: [product],
+        assignments: [{ externalId: 1, printingId: "p-1", finish: "normal", language: "EN" }],
+      },
+    });
+    const suggestions = new Map<string, ProductSuggestion[]>([
+      [productSuggestionKey("cardtrader", 1, "normal", "EN"), [{ printingId: "p-1", score: 200 }]],
+    ]);
+    expect(collectStrongMappings(g, suggestions).cardtrader).toEqual([]);
+  });
+
+  it("emits every sibling printing for one language-aggregate product", () => {
+    // Cardmarket's price guide is language-aggregate, so a single CM product
+    // can legitimately suggest multiple sibling printings (EN and ZH). Batch
+    // accept must fire one mapping per sibling — not just the top scorer —
+    // otherwise the aggregate price only attaches to one language variant.
+    const en = printing({ printingId: "p-en", language: "EN" });
+    const zh = printing({ printingId: "p-zh", language: "ZH" });
+    const g = group([en, zh], {
+      cardmarket: {
+        staged: [staged({ externalId: 99, language: null })],
+        assigned: [],
+        assignments: [],
+      },
+    });
+    const suggestions = new Map<string, ProductSuggestion[]>([
+      [
+        productSuggestionKey("cardmarket", 99, "normal", null),
+        [
+          { printingId: "p-en", score: 150 },
+          { printingId: "p-zh", score: 150 },
+        ],
+      ],
+    ]);
+    const result = collectStrongMappings(g, suggestions);
+    expect(result.cardmarket).toHaveLength(2);
+    expect(result.cardmarket.map((m) => m.printingId).toSorted()).toEqual(["p-en", "p-zh"]);
+    expect(result.cardmarket.every((m) => m.language === null)).toBe(true);
+  });
+
+  it("segregates mappings by marketplace so one bucket can't leak into another", () => {
+    const g = group([printing({ printingId: "p-1" })], {
+      tcgplayer: { staged: [staged({ externalId: 1 })], assigned: [], assignments: [] },
+      cardmarket: {
+        staged: [staged({ externalId: 2, language: null })],
+        assigned: [],
+        assignments: [],
+      },
+    });
+    const suggestions = new Map<string, ProductSuggestion[]>([
+      [productSuggestionKey("tcgplayer", 1, "normal", "EN"), [{ printingId: "p-1", score: 200 }]],
+      [productSuggestionKey("cardmarket", 2, "normal", null), [{ printingId: "p-1", score: 200 }]],
+    ]);
+    const result = collectStrongMappings(g, suggestions);
+    expect(result.tcgplayer).toHaveLength(1);
+    expect(result.cardmarket).toHaveLength(1);
+    expect(result.cardtrader).toEqual([]);
   });
 });
 

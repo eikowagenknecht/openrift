@@ -44,7 +44,14 @@ import type {
 import { formatCents, ProductLink } from "./price-mappings-utils";
 import { CM_CONFIG, CT_CONFIG, TCG_CONFIG } from "./source-configs";
 import type { ProductSuggestion } from "./suggest-mapping";
-import { STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
+import { productSuggestionKey, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
+
+export interface PrintingAssignment {
+  externalId: number;
+  finish: string;
+  language: string | null;
+  printingId: string;
+}
 
 const MARKETPLACE_CONFIGS: Record<AdminMarketplaceName, SourceMappingConfig> = {
   tcgplayer: TCG_CONFIG,
@@ -69,6 +76,7 @@ export interface MarketplaceHandlers {
     language: string | null,
     printingId: string,
   ) => void;
+  onBatchAssignToPrintings: (mappings: PrintingAssignment[]) => void;
   onUnassign: (externalId: number, finish: string, language: string | null) => void;
   onUnmapPrinting: (printingId: string) => void;
   isIgnoring: boolean;
@@ -218,6 +226,48 @@ export function collectEntries(group: UnifiedMappingGroup): TableEntry[] {
   return entries;
 }
 
+/**
+ * Group every strong-match (score ≥ {@link STRONG_MATCH_THRESHOLD}) suggestion
+ * for unassigned products by marketplace. Language-aggregate marketplaces
+ * (Cardmarket, TCG) can legitimately emit multiple strong siblings for the
+ * same product — all of them are included so a batch accept materialises every
+ * sibling mapping.
+ * @returns A record keyed by marketplace with one entry per accepted mapping.
+ */
+export function collectStrongMappings(
+  group: UnifiedMappingGroup,
+  suggestions: Map<string, ProductSuggestion[]> | undefined,
+): Record<AdminMarketplaceName, PrintingAssignment[]> {
+  const out: Record<AdminMarketplaceName, PrintingAssignment[]> = {
+    tcgplayer: [],
+    cardmarket: [],
+    cardtrader: [],
+  };
+  for (const entry of collectEntries(group)) {
+    if (entry.isAssigned) {
+      continue;
+    }
+    const key = productSuggestionKey(
+      entry.marketplace,
+      entry.product.externalId,
+      entry.product.finish,
+      entry.product.language,
+    );
+    for (const s of suggestions?.get(key) ?? []) {
+      if (s.score < STRONG_MATCH_THRESHOLD) {
+        continue;
+      }
+      out[entry.marketplace].push({
+        externalId: entry.product.externalId,
+        finish: entry.product.finish,
+        language: entry.product.language,
+        printingId: s.printingId,
+      });
+    }
+  }
+  return out;
+}
+
 export function MarketplaceProductsTable({
   group,
   allCards,
@@ -238,6 +288,12 @@ export function MarketplaceProductsTable({
   }
 
   const printingById = new Map(group.printings.map((p) => [p.printingId, p]));
+  const strongMappingsByMarketplace = collectStrongMappings(group, suggestions);
+  const totalStrongCount =
+    strongMappingsByMarketplace.tcgplayer.length +
+    strongMappingsByMarketplace.cardmarket.length +
+    strongMappingsByMarketplace.cardtrader.length;
+  const anyMarketplacePending = Object.values(handlers).some((h) => h.isAssigningToPrinting);
 
   return (
     <Table>
@@ -250,12 +306,36 @@ export function MarketplaceProductsTable({
           <TableHead className="w-16">Finish</TableHead>
           <TableHead className="w-20 text-right">Price</TableHead>
           <TableHead>Assigned printings</TableHead>
-          <TableHead />
+          <TableHead className="py-1 text-right">
+            {totalStrongCount > 0 && (
+              <Button
+                variant="outline"
+                size="xs"
+                disabled={anyMarketplacePending}
+                onClick={() => {
+                  for (const mp of ["tcgplayer", "cardmarket", "cardtrader"] as const) {
+                    const mappings = strongMappingsByMarketplace[mp];
+                    if (mappings.length > 0) {
+                      handlers[mp].onBatchAssignToPrintings(mappings);
+                    }
+                  }
+                }}
+              >
+                <WandSparklesIcon />
+                Accept all {totalStrongCount} suggestion{totalStrongCount === 1 ? "" : "s"}
+              </Button>
+            )}
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {entries.map((entry, index) => {
-          const key = `${entry.marketplace}::${entry.product.externalId}::${entry.product.finish}::${entry.product.language ?? ""}`;
+          const key = productSuggestionKey(
+            entry.marketplace,
+            entry.product.externalId,
+            entry.product.finish,
+            entry.product.language,
+          );
           const productSuggestions = entry.isAssigned
             ? []
             : (suggestions?.get(key) ?? []).flatMap((s) => {
@@ -264,15 +344,32 @@ export function MarketplaceProductsTable({
               });
           const isFirstOfMarketplace =
             index === 0 || entries[index - 1].marketplace !== entry.marketplace;
+          const strongMappings = strongMappingsByMarketplace[entry.marketplace];
+          const marketplaceHandlers = handlers[entry.marketplace];
           return (
             <React.Fragment key={key}>
               {isFirstOfMarketplace && (
                 <TableRow className="hover:bg-transparent">
-                  <TableCell
-                    colSpan={8}
-                    className="bg-muted/50 text-muted-foreground py-1.5 font-semibold tracking-wide uppercase"
-                  >
-                    {MARKETPLACE_CONFIGS[entry.marketplace].displayName}
+                  <TableCell colSpan={8} className="bg-muted/50 py-1 pr-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground font-semibold tracking-wide uppercase">
+                        {MARKETPLACE_CONFIGS[entry.marketplace].displayName}
+                      </span>
+                      {strongMappings.length > 0 && (
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          disabled={marketplaceHandlers.isAssigningToPrinting}
+                          onClick={() =>
+                            marketplaceHandlers.onBatchAssignToPrintings(strongMappings)
+                          }
+                        >
+                          <WandSparklesIcon />
+                          Accept {strongMappings.length} suggestion
+                          {strongMappings.length === 1 ? "" : "s"}
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -281,7 +378,7 @@ export function MarketplaceProductsTable({
                 cardName={group.cardName}
                 printings={group.printings}
                 allCards={allCards}
-                handlers={handlers[entry.marketplace]}
+                handlers={marketplaceHandlers}
                 suggestions={productSuggestions}
               />
             </React.Fragment>
