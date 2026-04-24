@@ -99,18 +99,9 @@ export function marketplaceRepo(db: Kysely<Database>) {
           mp.external_id as "externalId",
           mp.marketplace as "marketplace",
           mp.language as "language"
-        FROM printings target
-        JOIN printings source
-          ON source.card_id = target.card_id
-          AND source.short_code = target.short_code
-          AND source.finish = target.finish
-          AND source.art_variant = target.art_variant
-          AND source.is_signed = target.is_signed
-          AND source.marker_slugs = target.marker_slugs
-        JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
+        FROM marketplace_product_variants mpv
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
-        WHERE target.id = ${printingId}
-          AND (mp.language IS NULL OR source.id = target.id)
+        WHERE mpv.printing_id = ${printingId}
       `.execute(db);
       return result.rows;
     },
@@ -140,22 +131,13 @@ export function marketplaceRepo(db: Kysely<Database>) {
         languageAggregate: boolean;
       }>`
         SELECT
-          target.id as "printingId",
+          mpv.printing_id as "printingId",
           mp.external_id as "externalId",
           mp.marketplace as "marketplace",
           (mp.language IS NULL) as "languageAggregate"
-        FROM printings target
-        JOIN printings source
-          ON source.card_id = target.card_id
-          AND source.short_code = target.short_code
-          AND source.finish = target.finish
-          AND source.art_variant = target.art_variant
-          AND source.is_signed = target.is_signed
-          AND source.marker_slugs = target.marker_slugs
-        JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
+        FROM marketplace_product_variants mpv
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
-        WHERE target.id = ANY(${printingIds}::uuid[])
-          AND (mp.language IS NULL OR source.id = target.id)
+        WHERE mpv.printing_id = ANY(${printingIds}::uuid[])
       `.execute(db);
       return result.rows;
     },
@@ -389,26 +371,17 @@ export function marketplaceRepo(db: Kysely<Database>) {
         day: string;
         headlineCents: number;
       }>`
-        SELECT DISTINCT ON (target.id, day)
-          target.id AS "printingId",
+        SELECT DISTINCT ON (mpv.printing_id, day)
+          mpv.printing_id AS "printingId",
           date_trunc('day', snap.recorded_at)::date::text AS day,
           ${headlineExpr} AS "headlineCents"
-        FROM printings target
-        JOIN printings source
-          ON source.card_id = target.card_id
-          AND source.short_code = target.short_code
-          AND source.finish = target.finish
-          AND source.art_variant = target.art_variant
-          AND source.is_signed = target.is_signed
-          AND source.marker_slugs = target.marker_slugs
-        JOIN marketplace_product_variants mpv ON mpv.printing_id = source.id
+        FROM marketplace_product_variants mpv
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
         JOIN marketplace_snapshots snap ON snap.variant_id = mpv.id
-        WHERE target.id IN (${sql.join(printingIds.map((id) => sql`${id}::uuid`))})
+        WHERE mpv.printing_id IN (${sql.join(printingIds.map((id) => sql`${id}::uuid`))})
           AND mp.marketplace = ${marketplace}
-          AND (mp.language IS NULL OR source.id = target.id)
           AND ${headlineExpr} IS NOT NULL
-        ORDER BY target.id, day, snap.recorded_at DESC
+        ORDER BY mpv.printing_id, day, snap.recorded_at DESC
       `.execute(db);
 
       // Build a lookup: printingId -> day -> headlineCents

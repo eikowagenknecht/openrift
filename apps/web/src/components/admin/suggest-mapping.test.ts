@@ -111,7 +111,7 @@ describe("computeProductSuggestions", () => {
       }),
     );
     const key = productSuggestionKey("tcgplayer", 101, "normal", "EN");
-    expect(result.get(key)?.printingId).toBe("p-normal");
+    expect(result.get(key)?.[0]?.printingId).toBe("p-normal");
   });
 
   it("suggests alt-art printing for a product whose suffix is Alternate Art", () => {
@@ -130,8 +130,8 @@ describe("computeProductSuggestions", () => {
     );
     const altKey = productSuggestionKey("cardmarket", 202, "normal", "EN");
     const normalKey = productSuggestionKey("cardmarket", 201, "normal", "EN");
-    expect(result.get(altKey)?.printingId).toBe("p-alt");
-    expect(result.get(normalKey)?.printingId).toBe("p-normal");
+    expect(result.get(altKey)?.[0]?.printingId).toBe("p-alt");
+    expect(result.get(normalKey)?.[0]?.printingId).toBe("p-normal");
   });
 
   it("skips products whose finish doesn't match any unmapped printing", () => {
@@ -176,12 +176,12 @@ describe("computeProductSuggestions", () => {
         },
       }),
     );
-    expect(result.get(productSuggestionKey("tcgplayer", 500, "normal", "EN"))?.printingId).toBe(
-      "p-normal",
-    );
-    expect(result.get(productSuggestionKey("cardmarket", 500, "normal", "EN"))?.printingId).toBe(
-      "p-normal",
-    );
+    expect(
+      result.get(productSuggestionKey("tcgplayer", 500, "normal", "EN"))?.[0]?.printingId,
+    ).toBe("p-normal");
+    expect(
+      result.get(productSuggestionKey("cardmarket", 500, "normal", "EN"))?.[0]?.printingId,
+    ).toBe("p-normal");
   });
 
   it("does not suggest a CardTrader product across a language mismatch", () => {
@@ -214,9 +214,9 @@ describe("computeProductSuggestions", () => {
         },
       }),
     );
-    expect(result.get(productSuggestionKey("cardtrader", 379_529, "foil", "ZH"))?.printingId).toBe(
-      "p-zh",
-    );
+    expect(
+      result.get(productSuggestionKey("cardtrader", 379_529, "foil", "ZH"))?.[0]?.printingId,
+    ).toBe("p-zh");
   });
 
   it("still suggests TCG/CM products across languages (those staging pools are EN-only)", () => {
@@ -234,7 +234,7 @@ describe("computeProductSuggestions", () => {
         },
       }),
     );
-    expect(result.get(productSuggestionKey("tcgplayer", 888, "foil", "EN"))?.printingId).toBe(
+    expect(result.get(productSuggestionKey("tcgplayer", 888, "foil", "EN"))?.[0]?.printingId).toBe(
       "p-zh",
     );
   });
@@ -251,7 +251,7 @@ describe("computeProductSuggestions", () => {
     );
     const entry = result.get(productSuggestionKey("tcgplayer", 700, "normal", "EN"));
     expect(entry).toBeDefined();
-    expect(entry!.score).toBeGreaterThanOrEqual(STRONG_MATCH_THRESHOLD);
+    expect(entry![0].score).toBeGreaterThanOrEqual(STRONG_MATCH_THRESHOLD);
   });
 
   it("suggests a metal printing for a foil-staging product whose name contains 'Metal'", () => {
@@ -268,7 +268,7 @@ describe("computeProductSuggestions", () => {
       }),
     );
     const entry = result.get(productSuggestionKey("tcgplayer", 801, "foil", "EN"));
-    expect(entry?.printingId).toBe("p-metal");
+    expect(entry?.[0]?.printingId).toBe("p-metal");
   });
 
   it("routes the Metal-titled product to the metal printing and the plain foil to the regular foil", () => {
@@ -285,10 +285,10 @@ describe("computeProductSuggestions", () => {
         },
       }),
     );
-    expect(result.get(productSuggestionKey("tcgplayer", 900, "foil", "EN"))?.printingId).toBe(
+    expect(result.get(productSuggestionKey("tcgplayer", 900, "foil", "EN"))?.[0]?.printingId).toBe(
       "p-foil",
     );
-    expect(result.get(productSuggestionKey("tcgplayer", 901, "foil", "EN"))?.printingId).toBe(
+    expect(result.get(productSuggestionKey("tcgplayer", 901, "foil", "EN"))?.[0]?.printingId).toBe(
       "p-metal",
     );
   });
@@ -303,9 +303,9 @@ describe("computeProductSuggestions", () => {
         },
       }),
     );
-    expect(result.get(productSuggestionKey("tcgplayer", 910, "foil", "EN"))?.printingId).toBe(
-      "p-md",
-    );
+    expect(
+      result.get(productSuggestionKey("tcgplayer", 910, "foil", "EN"))?.map((s) => s.printingId),
+    ).toEqual(["p-md"]);
   });
 
   it("still rejects foil staging for a normal printing (equivalence class does not include normal)", () => {
@@ -354,7 +354,58 @@ describe("computeProductSuggestions", () => {
       }),
     );
     expect(
-      result.get(productSuggestionKey("cardmarket", 872_479, "normal", "EN"))?.printingId,
-    ).toBe("p-en");
+      result
+        .get(productSuggestionKey("cardmarket", 872_479, "normal", "EN"))
+        ?.map((s) => s.printingId),
+    ).toEqual(["p-en"]);
+  });
+
+  it("suggests every sibling printing for a language-aggregate CM product", () => {
+    // Two printings identical except for language: one EN, one ZH. Cardmarket
+    // (language-aggregate, stored with language=null) has a single SKU for
+    // them. The suggester emits both as independent chips — admin clicks each
+    // to materialise the mapping.
+    const en = printing({ printingId: "p-en", language: "EN" });
+    const zh = printing({ printingId: "p-zh", language: "ZH" });
+    const result = computeProductSuggestions(
+      group([en, zh], {
+        cardmarket: {
+          staged: [
+            staged({
+              externalId: 847_346,
+              productName: "Acceptable Losses",
+              finish: "normal",
+              language: null,
+            }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    const suggested = result
+      .get(productSuggestionKey("cardmarket", 847_346, "normal", null))
+      ?.map((s) => s.printingId)
+      .toSorted();
+    expect(suggested).toEqual(["p-en", "p-zh"]);
+  });
+
+  it("skips the sibling fan-out when the tied printings aren't actually siblings", () => {
+    // A three-way tie with one printing on a different short_code isn't a
+    // legitimate sibling group — fall back to the old "skip on ambiguity"
+    // behaviour rather than proposing all three.
+    const enSfd = printing({ printingId: "p-sfd-en", shortCode: "SFD-001", language: "EN" });
+    const zhSfd = printing({ printingId: "p-sfd-zh", shortCode: "SFD-001", language: "ZH" });
+    const zhOgn = printing({ printingId: "p-ogn-zh", shortCode: "OGN-042", language: "ZH" });
+    const result = computeProductSuggestions(
+      group([enSfd, zhSfd, zhOgn], {
+        cardmarket: {
+          staged: [
+            staged({ externalId: 123, productName: "Ahri", finish: "normal", language: null }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    expect(result.get(productSuggestionKey("cardmarket", 123, "normal", null))).toBeUndefined();
   });
 });

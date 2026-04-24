@@ -2,9 +2,7 @@
 
 ## 2026-04-24
 
-- fix: The admin marketplace table now shows each product's own finish (normal/foil, as the marketplace lists it) instead of borrowing the finish from whichever printing it was bound to. Assigning a product to a printing also stops silently blocking cross-finish or cross-language pairs where the marketplace's data disagrees with ours, so metal printings can accept foil SKUs and Cardmarket's language-aggregate product can cover multiple languages of the same card
 - fix: Signing out now fully clears your saved display preferences (language filters, theme, card view options), so the next person using this browser starts with defaults instead of inheriting the previous user's settings
-- fix: The admin Cards and Candidates tables no longer smush their columns together on narrow screens; when the viewport isn't wide enough, the tables scroll horizontally so every column keeps usable space, and cell content can wrap instead of overflowing. The Candidates table also now leads with the Card column, with the favorite and Unchecked badges sitting inline with the name
 
 ## 2026-04-23
 
@@ -49,7 +47,6 @@
 - feat: Hovering a card on a shared deck page now brings up the same large image preview as the deck builder, and signed-in viewers also see the ownership and value tiles for the deck against their own collection
 - feat: Share a deck by generating a link — friends can view the deck without an account, and if they have one they can copy it into their own decks in a click
 - feat: A new pack opener simulator lets you open virtual Riftbound boosters with the real published pull rates, open one pack and flip each card by clicking, or crack a whole booster display at once and see the rarity breakdown, average value per pack, and your best pulls
-- feat: Admins now have pages under Taxonomy for Art Variants, Card Types, Super Types, and Deck Formats — the same add, rename, reorder, and delete controls that already existed for Finishes and Rarities
 - feat: Cards from sets that Riot has previewed but not yet officially released now carry a visible "Preview" ribbon on the card image, so it's clear which cards aren't yet available in official play
 - feat: The deck builder's Missing cards dialog now groups rows by zone with section headings, shows each card's short code inline with its name (also included in the "Copy to clipboard" output), and splits pricing into per-copy Cost and line Total columns
 - feat: When a row in the Import Collection preview needs you to pick a printing, the dropdown now shows each candidate's card image, and hovering a candidate brings up a large preview of the card so you can confidently pick the right printing
@@ -80,7 +77,6 @@
 - feat: Generated card placeholders (for cards without an uploaded image) now show a subtle OpenRift logo watermark in the art area
 - feat: The printing info table on a card's detail page is trimmed to just the core attributes, with language moved up next to set and code, and the promo markers, distribution channels, and editor's note now shown in a combined box at the bottom (matching the side detail pane)
 - feat: Metal and metal-deluxe printings now show their own icons (anvil for metal, trophy for metal-deluxe) across card grids, the card detail page, and printing menus, instead of being visually indistinguishable from normal printings
-- feat: The admin distribution channels table now shows how many printings are linked to each channel, and deleting a channel that's in use shows a clear confirmation explaining how many printings will be unlinked
 - feat: The Promos page now groups events into a hierarchy (e.g. Regional Event › Houston › Top 1) with collapsible sections and rolled-up counts, and pulls sparse leaves under the same parent into a single compact table for easier scanning
 - feat: The Promos page now also lists product-based distributions (starter decks, bundles, promo packs), not only event-based ones
 - feat: The Promos page has a sticky sidebar that lists every language and channel heading, so you can jump straight to a section without scrolling through the tree
@@ -195,7 +191,7 @@
 ## 2026-04-13
 
 - feat: New Promo Cards page shows all promotional printings grouped by promo type, with descriptions and card grids
-- feat: Promo types now support an optional description, visible on the Promo Cards page and editable in the admin panel
+- feat: Promo types now support an optional description, visible on the Promo Cards page
 - feat: Card and printing counts on the landing page now animate up from zero when the page loads
 - feat: Search queries, collection actions, and filter usage are now tracked with privacy-friendly Umami analytics to help us understand which features matter most
 - feat: Cards you don't own are now dimmed in the card browser when showing owned counts or in add mode, making it easy to spot gaps in your collection
@@ -253,7 +249,6 @@
 - feat: New Feedback button in the header lets you quickly reach Discord or open a GitHub issue
 - feat: Discord links are now easier to find across the site, including the footer, mobile menu, support page, and help center
 - feat: The cards page now has a collection mode button that cycles through showing owned counts and quick-add controls, plus Ctrl+K to add cards to your Inbox
-- feat: Keyword and language fields in the admin translations table now use dropdown selects instead of free-text inputs
 - feat: Languages can now be reordered in preferences, and the first language is preferred when choosing which printing to display
 - feat: Collections can now be deleted from the sidebar via a three-dot menu, with cards automatically moved to the Inbox
 - feat: Shift+click in select mode now selects all cards between the first and last clicked card
@@ -433,22 +428,6 @@
 
 - fix: The "printed text differs" warning no longer appears when the printed text is identical to the canonical text
 
-## 2026-03-19
-
-- feat: Unmatched card sources now show a suggested card link based on name similarity
-
-## 2026-03-17
-
-- feat: Card sources with missing images now show a "missing image" badge in the admin list
-- feat: After accepting a new printing, it automatically expands and scrolls into view
-- feat: Image previews now start with the first image pre-selected
-- feat: Manual printing links now survive when card sources are deleted and re-uploaded
-- feat: Card and printing sources can be unchecked in the admin UI
-- feat: Source image previews are now shown alongside printing groups in the admin
-- feat: Text fields like rules text and flavor text now support multiline editing
-- feat: Admin card sources can now be filtered by set, with clickable counts on the sets page
-- feat: Empty sets can now be deleted from the sets admin page
-
 ## 2026-03-16
 
 - feat: Price data now loads faster thanks to browser caching
@@ -457,11 +436,6 @@
 ## 2026-03-13
 
 - feat: Route errors now show a friendly fallback page instead of a blank screen
-
-## 2026-03-12
-
-- feat: Price mapping cards now show cross-set reprints together, with variant badges (Alt Art, Overnumbered) on each printing and a cleaner product card layout
-- feat: Unmatched products in the price mapping admin are now grouped by their marketplace group instead of a flat list
 
 ## 2026-03-11
 

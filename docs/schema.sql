@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict riLECffbftd49UHvs8SdZ68ewOvrd6lnGIOZDzSYjM74KFuSwUFy9kE1oGBob5w
+\restrict 3UX0obFxvWjz7IKvBqX4xfgCnBReIA9WZ7HwBzzkdTsam8Jd68G2uUJI9A2Uh13
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1063,64 +1063,28 @@ CREATE MATERIALIZED VIEW public.mv_card_aggregates AS
 
 
 --
--- Name: printings; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.printings (
-    short_code text CONSTRAINT printings_source_id_not_null NOT NULL,
-    rarity text NOT NULL,
-    art_variant text NOT NULL,
-    is_signed boolean DEFAULT false NOT NULL,
-    finish text NOT NULL,
-    artist text NOT NULL,
-    public_code text NOT NULL,
-    printed_rules_text text,
-    printed_effect_text text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    flavor_text text,
-    id uuid DEFAULT uuidv7() CONSTRAINT printings_new_id_not_null NOT NULL,
-    card_id uuid CONSTRAINT printings_new_card_id_not_null NOT NULL,
-    set_id uuid CONSTRAINT printings_new_set_id_not_null NOT NULL,
-    comment text,
-    language text DEFAULT 'EN'::text NOT NULL,
-    printed_name text,
-    marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
-    CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_printed_name CHECK ((printed_name <> ''::text)),
-    CONSTRAINT chk_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
-    CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
-    CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text))
-);
-
-
---
 -- Name: mv_latest_printing_prices; Type: MATERIALIZED VIEW; Schema: public; Owner: -
 --
 
 CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
- SELECT DISTINCT ON (target.id, mp.marketplace) target.id AS printing_id,
+ SELECT DISTINCT ON (mpv.printing_id, mp.marketplace) mpv.printing_id,
     mp.marketplace,
         CASE
             WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(snap.zero_low_cents, snap.low_cents)
             WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(snap.low_cents, snap.market_cents)
             ELSE COALESCE(snap.market_cents, snap.low_cents)
         END AS headline_cents
-   FROM ((((public.printings target
-     JOIN public.printings source ON (((source.card_id = target.card_id) AND (source.short_code = target.short_code) AND (source.finish = target.finish) AND (source.art_variant = target.art_variant) AND (source.is_signed = target.is_signed) AND (source.marker_slugs = target.marker_slugs))))
-     JOIN public.marketplace_product_variants mpv ON ((mpv.printing_id = source.id)))
+   FROM (((public.marketplace_product_variants mpv
      JOIN public.marketplace_products mp ON ((mp.id = mpv.marketplace_product_id)))
-     JOIN public.marketplace_snapshots snap ON ((snap.variant_id = mpv.id)))
-  WHERE ((
+     JOIN public.marketplace_product_variants snap_mpv ON ((snap_mpv.marketplace_product_id = mp.id)))
+     JOIN public.marketplace_snapshots snap ON ((snap.variant_id = snap_mpv.id)))
+  WHERE (
         CASE
             WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(snap.zero_low_cents, snap.low_cents)
             WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(snap.low_cents, snap.market_cents)
             ELSE COALESCE(snap.market_cents, snap.low_cents)
-        END IS NOT NULL) AND ((mp.language IS NULL) OR (source.id = target.id)))
-  ORDER BY target.id, mp.marketplace, (snap.zero_low_cents IS NULL), snap.recorded_at DESC
+        END IS NOT NULL)
+  ORDER BY mpv.printing_id, mp.marketplace, (snap.zero_low_cents IS NULL), snap.recorded_at DESC
   WITH NO DATA;
 
 
@@ -1192,6 +1156,41 @@ CREATE TABLE public.printing_link_overrides (
 CREATE TABLE public.printing_markers (
     printing_id uuid NOT NULL,
     marker_id uuid NOT NULL
+);
+
+
+--
+-- Name: printings; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.printings (
+    short_code text CONSTRAINT printings_source_id_not_null NOT NULL,
+    rarity text NOT NULL,
+    art_variant text NOT NULL,
+    is_signed boolean DEFAULT false NOT NULL,
+    finish text NOT NULL,
+    artist text NOT NULL,
+    public_code text NOT NULL,
+    printed_rules_text text,
+    printed_effect_text text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    flavor_text text,
+    id uuid DEFAULT uuidv7() CONSTRAINT printings_new_id_not_null NOT NULL,
+    card_id uuid CONSTRAINT printings_new_card_id_not_null NOT NULL,
+    set_id uuid CONSTRAINT printings_new_set_id_not_null NOT NULL,
+    comment text,
+    language text DEFAULT 'EN'::text NOT NULL,
+    printed_name text,
+    marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
+    CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_printed_effect_text CHECK ((printed_effect_text <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_printed_name CHECK ((printed_name <> ''::text)),
+    CONSTRAINT chk_printings_no_empty_printed_rules_text CHECK ((printed_rules_text <> ''::text)),
+    CONSTRAINT chk_printings_public_code_not_empty CHECK ((public_code <> ''::text)),
+    CONSTRAINT chk_printings_short_code_not_empty CHECK ((short_code <> ''::text))
 );
 
 
@@ -3421,5 +3420,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict riLECffbftd49UHvs8SdZ68ewOvrd6lnGIOZDzSYjM74KFuSwUFy9kE1oGBob5w
+\unrestrict 3UX0obFxvWjz7IKvBqX4xfgCnBReIA9WZ7HwBzzkdTsam8Jd68G2uUJI9A2Uh13
 
