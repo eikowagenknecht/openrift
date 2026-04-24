@@ -356,6 +356,45 @@ describe("buildUnifiedMappingsResponse", () => {
     expect(result.groups[1].primaryShortCode).toBe("OGN-002");
   });
 
+  it("passes allCardsForMatching so each marketplace sees every card's name for longest-match tiebreak", async () => {
+    // Regression: before the fix, `buildUnifiedMappingsResponse` only passed
+    // per-marketplace `matchedCards` to `getMappingOverview`. That means the
+    // name index for e.g. Cardmarket matching only contained cards that had
+    // CM variants — so a card like "Blastcone Fae" (TCG/CT only, no CM yet)
+    // was invisible to CM's matcher. A CM staging row named "Blastcone Fae"
+    // then matched the shorter "Blast Cone" prefix and got routed to the
+    // wrong card.
+    const repos = {
+      marketplaceMapping: {
+        allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([
+          { cardId: "card-blast-cone", cardName: "Blast Cone", printingId: "p-bc-1" },
+          { cardId: "card-blastcone-fae", cardName: "Blastcone Fae", printingId: "p-bf-1" },
+        ]),
+      },
+    } as unknown as Repos;
+    const getMappingOverview = vi.fn(async () => makeMappingResult());
+
+    await buildUnifiedMappingsResponse(
+      repos,
+      makeConfig("tcgplayer"),
+      makeConfig("cardmarket"),
+      makeConfig("cardtrader"),
+      getMappingOverview,
+      true,
+    );
+
+    expect(getMappingOverview).toHaveBeenCalledTimes(3);
+    for (const call of getMappingOverview.mock.calls) {
+      const options = call[2] as { allCardsForMatching?: { cardId: string; cardName: string }[] };
+      expect(options.allCardsForMatching).toEqual(
+        expect.arrayContaining([
+          { cardId: "card-blast-cone", cardName: "Blast Cone" },
+          { cardId: "card-blastcone-fae", cardName: "Blastcone Fae" },
+        ]),
+      );
+    }
+  });
+
   it("uses the longest allCards list from any marketplace", async () => {
     const repos = {
       marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },

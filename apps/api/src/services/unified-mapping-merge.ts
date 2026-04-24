@@ -325,15 +325,33 @@ export async function buildUnifiedMappingsResponse(
   // Fetch the heavy cards × printings × images join once for all three marketplaces
   // and project per-marketplace in JS, instead of running it 3× from the DB.
   const unifiedRows = await repos.marketplaceMapping.allCardsWithPrintingsUnified();
+  // Every card's (cardId, cardName) for the longest-match tiebreak. Without
+  // this, each marketplace's matcher only sees cards in its own `matchedCards`
+  // subset — so a card like "Blastcone Fae" that has TCG/CT variants but no
+  // CM variant is dropped from CM's name index, and a CM staging row named
+  // "Blastcone Fae" falls through to the shorter "Blast Cone" prefix and gets
+  // routed to the wrong card.
+  const allCardsForMatching: { cardId: string; cardName: string }[] = [];
+  const seenCardIds = new Set<string>();
+  for (const row of unifiedRows) {
+    if (seenCardIds.has(row.cardId)) {
+      continue;
+    }
+    seenCardIds.add(row.cardId);
+    allCardsForMatching.push({ cardId: row.cardId, cardName: row.cardName });
+  }
   const [tcgResult, cmResult, ctResult] = await Promise.all([
     getMappingOverview(repos, tcgplayerConfig, {
       matchedCards: deriveCardsForMarketplace(unifiedRows, tcgplayerConfig.marketplace),
+      allCardsForMatching,
     }),
     getMappingOverview(repos, cardmarketConfig, {
       matchedCards: deriveCardsForMarketplace(unifiedRows, cardmarketConfig.marketplace),
+      allCardsForMatching,
     }),
     getMappingOverview(repos, cardtraderConfig, {
       matchedCards: deriveCardsForMarketplace(unifiedRows, cardtraderConfig.marketplace),
+      allCardsForMatching,
     }),
   ]);
 

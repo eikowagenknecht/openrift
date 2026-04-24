@@ -175,39 +175,29 @@ describe("computeCardCoverage", () => {
     expect(result.cardtrader.entries).toEqual({ status: "na", mapped: 0, total: 0 });
   });
 
-  it("treats TCGplayer as language-aggregate via the EN-only sibling rule", () => {
+  it("counts per printing — EN-only mapping on a EN+ZH card is partial on every marketplace", () => {
+    // Post per-SKU refactor: every printing has its own explicit variant (or
+    // not), so a ZH printing that isn't mapped shows as a gap regardless of
+    // the EN sibling's mapping.
     const result = computeCardCoverage(
       group([
         printing({ printingId: "p-en", language: "EN", tcgExternalId: 100 }),
         printing({ printingId: "p-zh", language: "ZH" }),
       ]),
     );
-    expect(result.tcgplayer.printings).toEqual({ status: "full", mapped: 1, total: 1 });
+    expect(result.tcgplayer.printings).toEqual({ status: "partial", mapped: 1, total: 2 });
     expect(result.tcgplayer.entries).toEqual({ status: "full", mapped: 1, total: 1 });
-    expect(result.cardmarket.printings).toEqual({ status: "none", mapped: 0, total: 1 });
+    expect(result.cardmarket.printings).toEqual({ status: "none", mapped: 0, total: 2 });
     expect(result.cardtrader.printings).toEqual({ status: "none", mapped: 0, total: 2 });
   });
 
-  it("TCG printings counter matches CM — ZH-only cards count their sibling group", () => {
-    // TCG and CM both store product rows with language=NULL (neither exposes
-    // language as a SKU axis). Coverage counts sibling groups identically.
-    // ZH-only cards show as uncovered on TCG (no variant mapped yet), not "na".
+  it("ZH-only card shows full on the marketplace that maps it and none elsewhere", () => {
     const result = computeCardCoverage(
       group([printing({ printingId: "p-zh", language: "ZH", cmExternalId: 200 })]),
     );
     expect(result.tcgplayer.printings).toEqual({ status: "none", mapped: 0, total: 1 });
     expect(result.cardmarket.printings).toEqual({ status: "full", mapped: 1, total: 1 });
     expect(result.cardtrader.printings).toEqual({ status: "none", mapped: 0, total: 1 });
-  });
-
-  it("Cardmarket fan-out: one mapping covers every sibling language", () => {
-    const result = computeCardCoverage(
-      group([
-        printing({ printingId: "p-en", language: "EN", cmExternalId: 200 }),
-        printing({ printingId: "p-zh", language: "ZH" }),
-      ]),
-    );
-    expect(result.cardmarket.printings).toEqual({ status: "full", mapped: 1, total: 1 });
   });
 
   it("Cardmarket printings=partial when only one sibling group is mapped", () => {

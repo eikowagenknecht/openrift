@@ -1,4 +1,4 @@
-import type { UnifiedMappingGroupResponse, UnifiedMappingPrintingResponse } from "@openrift/shared";
+import type { UnifiedMappingGroupResponse } from "@openrift/shared";
 
 /** Coverage status for one direction (printings-side or entries-side) on one marketplace. */
 export type MarketplaceCoverageStatus = "full" | "partial" | "none" | "na";
@@ -30,30 +30,6 @@ export interface CardCoverage {
   cardtrader: MarketplaceCoverage;
 }
 
-/**
- * Group printings into sibling groups — printings that share everything except
- * language, matching the database fan-out rule for cross-language aggregate
- * marketplace variants (Cardmarket).
- *
- * @returns A list of sibling groups, each containing the printings that share the same physical-card key.
- */
-function groupSiblings(
-  printings: UnifiedMappingPrintingResponse[],
-): UnifiedMappingPrintingResponse[][] {
-  const groups = new Map<string, UnifiedMappingPrintingResponse[]>();
-  for (const printing of printings) {
-    const slugKey = [...printing.markerSlugs].sort().join("+");
-    const key = `${printing.shortCode}|${printing.finish}|${printing.artVariant}|${printing.isSigned ? 1 : 0}|${slugKey}`;
-    let bucket = groups.get(key);
-    if (!bucket) {
-      bucket = [];
-      groups.set(key, bucket);
-    }
-    bucket.push(printing);
-  }
-  return [...groups.values()];
-}
-
 function statusFromCounts(mapped: number, total: number): MarketplaceCoverageStatus {
   if (total === 0) {
     return "na";
@@ -74,41 +50,25 @@ function direction(mapped: number, total: number): DirectionCoverage {
 /**
  * Compute marketplace coverage for one card.
  *
- * Printings-side counting:
- * - **TCGplayer** and **Cardmarket** don't expose language as a SKU dimension.
- *   Each sibling group (printings identical except for language) counts once,
- *   and the group is "covered" if any sibling has a variant on that marketplace.
- * - **CardTrader**: per-language SKUs. Counts every printing; a printing is
- *   "covered" if it has a CT variant.
- *
- * Entries-side counting reads from each marketplace's `assignedProducts` (mapped
- * to a printing) and `stagedProducts` (candidates not yet bound) — totals are
- * the sum, and "mapped" is the assigned count.
+ * Printings-side: every printing has its own explicit marketplace variant (or
+ * not) — totals are raw printing counts, mapped is the count with a direct
+ * variant on that marketplace. Entries-side reads `assignedProducts` and
+ * `stagedProducts` from the group.
  *
  * @returns Per-marketplace coverage, with independent printings + entries directions.
  */
 export function computeCardCoverage(group: UnifiedMappingGroupResponse): CardCoverage {
-  const siblingGroups = groupSiblings(group.printings);
   const tcgMappedPrintings = new Set(group.tcgplayer.assignments.map((a) => a.printingId));
   const cmMappedPrintings = new Set(group.cardmarket.assignments.map((a) => a.printingId));
   const ctMappedPrintings = new Set(group.cardtrader.assignments.map((a) => a.printingId));
 
-  let tcgPrintingsTotal = 0;
-  let tcgPrintingsMapped = 0;
-  let cmPrintingsTotal = 0;
-  let cmPrintingsMapped = 0;
-  for (const siblings of siblingGroups) {
-    tcgPrintingsTotal++;
-    if (siblings.some((p) => tcgMappedPrintings.has(p.printingId))) {
-      tcgPrintingsMapped++;
-    }
-    cmPrintingsTotal++;
-    if (siblings.some((p) => cmMappedPrintings.has(p.printingId))) {
-      cmPrintingsMapped++;
-    }
-  }
-
-  const ctPrintingsTotal = group.printings.length;
+  const printingsTotal = group.printings.length;
+  const tcgPrintingsMapped = group.printings.filter((p) =>
+    tcgMappedPrintings.has(p.printingId),
+  ).length;
+  const cmPrintingsMapped = group.printings.filter((p) =>
+    cmMappedPrintings.has(p.printingId),
+  ).length;
   const ctPrintingsMapped = group.printings.filter((p) =>
     ctMappedPrintings.has(p.printingId),
   ).length;
@@ -122,15 +82,15 @@ export function computeCardCoverage(group: UnifiedMappingGroupResponse): CardCov
 
   return {
     tcgplayer: {
-      printings: direction(tcgPrintingsMapped, tcgPrintingsTotal),
+      printings: direction(tcgPrintingsMapped, printingsTotal),
       entries: direction(tcgEntriesMapped, tcgEntriesTotal),
     },
     cardmarket: {
-      printings: direction(cmPrintingsMapped, cmPrintingsTotal),
+      printings: direction(cmPrintingsMapped, printingsTotal),
       entries: direction(cmEntriesMapped, cmEntriesTotal),
     },
     cardtrader: {
-      printings: direction(ctPrintingsMapped, ctPrintingsTotal),
+      printings: direction(ctPrintingsMapped, printingsTotal),
       entries: direction(ctEntriesMapped, ctEntriesTotal),
     },
   };
