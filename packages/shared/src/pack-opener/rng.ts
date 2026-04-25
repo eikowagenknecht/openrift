@@ -40,7 +40,7 @@ export function mulberry32(seed: number): Random {
  * Pick an element uniformly at random from a non-empty array.
  * @returns One of the items, chosen uniformly.
  */
-export function pickOne<T>(rng: Random, items: readonly T[]): T {
+function pickOne<T>(rng: Random, items: readonly T[]): T {
   if (items.length === 0) {
     throw new Error("pickOne called with empty array");
   }
