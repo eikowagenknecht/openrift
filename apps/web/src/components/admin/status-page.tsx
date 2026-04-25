@@ -285,7 +285,7 @@ export function StatusPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-0.5">
-            <StatRow label="Total snapshots" value={formatNumber(pricing.totalSnapshots)} />
+            <StatRow label="Total prices" value={formatNumber(pricing.totalPrices)} />
             {pricing.sources.map((source) => (
               <div key={source.marketplace} className="mt-2 first:mt-0">
                 <div className="flex items-center justify-between py-1.5">
@@ -295,27 +295,13 @@ export function StatusPage() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between py-1.5">
-                  <span className="text-muted-foreground text-sm">Snapshots</span>
-                  <span className="font-mono text-sm">{formatNumber(source.snapshots)}</span>
+                  <span className="text-muted-foreground text-sm">Price rows</span>
+                  <span className="font-mono text-sm">{formatNumber(source.prices)}</span>
                 </div>
                 <div className="flex items-center justify-between py-1.5">
                   <span className="text-muted-foreground text-sm">Latest price</span>
-                  {source.latestSnapshot ? (
-                    <span className="font-mono text-sm">
-                      {formatTimeAgo(source.latestSnapshot)}
-                    </span>
-                  ) : (
-                    <Badge variant="secondary">none</Badge>
-                  )}
-                </div>
-                <div className="flex items-center justify-between py-1.5">
-                  <span className="text-muted-foreground text-sm">Staging rows</span>
-                  <span className="font-mono text-sm">{formatNumber(source.stagingRows)}</span>
-                </div>
-                <div className="flex items-center justify-between py-1.5">
-                  <span className="text-muted-foreground text-sm">Latest staging</span>
-                  {source.latestStaging ? (
-                    <span className="font-mono text-sm">{formatTimeAgo(source.latestStaging)}</span>
+                  {source.latestPrice ? (
+                    <span className="font-mono text-sm">{formatTimeAgo(source.latestPrice)}</span>
                   ) : (
                     <Badge variant="secondary">none</Badge>
                   )}

@@ -85,15 +85,13 @@ export const adminStatusResponseSchema = z
       totalCopies: z.number(),
     }),
     pricing: z.object({
-      totalSnapshots: z.number(),
+      totalPrices: z.number(),
       sources: z.array(
         z.object({
           marketplace: z.string(),
           products: z.number(),
-          snapshots: z.number(),
-          latestSnapshot: z.string().nullable(),
-          stagingRows: z.number(),
-          latestStaging: z.string().nullable(),
+          prices: z.number(),
+          latestPrice: z.string().nullable(),
         }),
       ),
     }),

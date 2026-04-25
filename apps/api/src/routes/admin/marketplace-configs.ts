@@ -19,7 +19,7 @@ export interface ProductInfo {
 
 // ── Row shapes used by config callbacks ─────────────────────────────────────
 
-/** All 8 price columns shared by marketplace_product_prices and marketplace_staging. */
+/** All 8 price columns on `marketplace_product_prices`. */
 interface PriceColumns {
   marketCents: number | null;
   lowCents: number | null;
@@ -37,7 +37,7 @@ export interface StagingRow extends PriceColumns {
   groupId: number;
   productName: string;
   finish: string;
-  /** NULL for CM/TCG (see MarketplaceStagingTable in db/tables.ts). */
+  /** NULL for CM/TCG (see MarketplaceProductsTable in db/tables.ts). */
   language: string | null;
   recordedAt: Date;
 }
