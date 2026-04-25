@@ -161,9 +161,11 @@ async function seedMarketplaceData(marketplace: string) {
     })
     .execute();
 
-  // marketplace_staging — CM/TCG stage with language=null.
-  await db
-    .insertInto("marketplaceStaging")
+  // A second product representing an "unmatched" SKU (no variant binding).
+  // Phase 4 collapsed staging into marketplace_products + marketplace_product_prices,
+  // so the unmatched-products feed reads from products with `NOT EXISTS (mpv)`.
+  const [stagingProduct] = await db
+    .insertInto("marketplaceProducts")
     .values({
       marketplace,
       externalId: stagingExtId,
@@ -171,6 +173,14 @@ async function seedMarketplaceData(marketplace: string) {
       productName: `OPS ${marketplace} Staged ${suffix}`,
       finish: "normal",
       language: null,
+    })
+    .returning("id")
+    .execute();
+
+  await db
+    .insertInto("marketplaceProductPrices")
+    .values({
+      marketplaceProductId: stagingProduct.id,
       recordedAt: new Date(),
       marketCents: 200,
       lowCents: 100,
@@ -261,14 +271,12 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       const json = await res.json();
       expect(json.marketplace).toBe("tcgplayer");
       expect(json.deleted).toBeDefined();
-      expect(typeof json.deleted.snapshots).toBe("number");
+      expect(typeof json.deleted.prices).toBe("number");
       expect(typeof json.deleted.variants).toBe("number");
       expect(typeof json.deleted.products).toBe("number");
-      expect(typeof json.deleted.staging).toBe("number");
-      expect(json.deleted.snapshots).toBeGreaterThanOrEqual(1);
+      expect(json.deleted.prices).toBeGreaterThanOrEqual(1);
       expect(json.deleted.variants).toBeGreaterThanOrEqual(1);
       expect(json.deleted.products).toBeGreaterThanOrEqual(1);
-      expect(json.deleted.staging).toBeGreaterThanOrEqual(1);
     });
 
     it("verifies tables are empty for tcgplayer after clearing", async () => {
@@ -278,13 +286,6 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
         .where("marketplace", "=", "tcgplayer")
         .execute();
       expect(products).toHaveLength(0);
-
-      const staging = await db
-        .selectFrom("marketplaceStaging")
-        .select("id")
-        .where("marketplace", "=", "tcgplayer")
-        .execute();
-      expect(staging).toHaveLength(0);
     });
 
     it("returns zero counts when clearing already-empty tcgplayer data", async () => {
@@ -294,10 +295,9 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
 
       const json = await res.json();
       expect(json.marketplace).toBe("tcgplayer");
-      expect(json.deleted.snapshots).toBe(0);
+      expect(json.deleted.prices).toBe(0);
       expect(json.deleted.variants).toBe(0);
       expect(json.deleted.products).toBe(0);
-      expect(json.deleted.staging).toBe(0);
     });
   });
 
@@ -315,14 +315,12 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
       const json = await res.json();
       expect(json.marketplace).toBe("cardmarket");
       expect(json.deleted).toBeDefined();
-      expect(typeof json.deleted.snapshots).toBe("number");
+      expect(typeof json.deleted.prices).toBe("number");
       expect(typeof json.deleted.variants).toBe("number");
       expect(typeof json.deleted.products).toBe("number");
-      expect(typeof json.deleted.staging).toBe("number");
-      expect(json.deleted.snapshots).toBeGreaterThanOrEqual(1);
+      expect(json.deleted.prices).toBeGreaterThanOrEqual(1);
       expect(json.deleted.variants).toBeGreaterThanOrEqual(1);
       expect(json.deleted.products).toBeGreaterThanOrEqual(1);
-      expect(json.deleted.staging).toBeGreaterThanOrEqual(1);
     });
 
     it("verifies tables are empty for cardmarket after clearing", async () => {
@@ -332,13 +330,6 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
         .where("marketplace", "=", "cardmarket")
         .execute();
       expect(products).toHaveLength(0);
-
-      const staging = await db
-        .selectFrom("marketplaceStaging")
-        .select("id")
-        .where("marketplace", "=", "cardmarket")
-        .execute();
-      expect(staging).toHaveLength(0);
     });
 
     it("returns zero counts when clearing already-empty cardmarket data", async () => {
@@ -349,10 +340,9 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
 
       const json = await res.json();
       expect(json.marketplace).toBe("cardmarket");
-      expect(json.deleted.snapshots).toBe(0);
+      expect(json.deleted.prices).toBe(0);
       expect(json.deleted.variants).toBe(0);
       expect(json.deleted.products).toBe(0);
-      expect(json.deleted.staging).toBe(0);
     });
   });
 
@@ -383,13 +373,6 @@ describe.skipIf(!ctx)("Admin operations routes (integration)", () => {
         .where("marketplace", "=", "cardmarket")
         .execute();
       expect(cmSources.length).toBeGreaterThanOrEqual(1);
-
-      const cmStaging = await db
-        .selectFrom("marketplaceStaging")
-        .select("id")
-        .where("marketplace", "=", "cardmarket")
-        .execute();
-      expect(cmStaging.length).toBeGreaterThanOrEqual(1);
 
       // Clean up cardmarket for subsequent tests
       await app.fetch(req("POST", "/admin/clear-prices", { marketplace: "cardmarket" }));

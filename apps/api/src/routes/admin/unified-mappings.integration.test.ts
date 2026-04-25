@@ -134,9 +134,9 @@ if (ctx) {
     .values({ marketplace: "cardtrader", groupId: 10_302, name: "UNM CT Group" })
     .execute();
 
-  // TCGPlayer staging row for Alpha Card
+  // TCGPlayer product + price for Alpha Card
   await db
-    .insertInto("marketplaceStaging")
+    .insertInto("marketplaceProducts")
     .values({
       marketplace: "tcgplayer",
       externalId: 11_111,
@@ -144,6 +144,21 @@ if (ctx) {
       productName: "UNM Alpha Card Normal",
       finish: "normal",
       language: null,
+    })
+    .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing())
+    .execute();
+  const tcgAlphaProduct = await db
+    .selectFrom("marketplaceProducts")
+    .select("id")
+    .where("marketplace", "=", "tcgplayer")
+    .where("externalId", "=", 11_111)
+    .where("finish", "=", "normal")
+    .where("language", "is", null)
+    .executeTakeFirstOrThrow();
+  await db
+    .insertInto("marketplaceProductPrices")
+    .values({
+      marketplaceProductId: tcgAlphaProduct.id,
       recordedAt: new Date("2026-02-01T10:00:00Z"),
       marketCents: 200,
       lowCents: 120,
@@ -154,11 +169,12 @@ if (ctx) {
       avg7Cents: null,
       avg30Cents: null,
     })
+    .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
     .execute();
 
-  // Cardmarket staging row for Alpha Card
+  // Cardmarket product + price for Alpha Card
   await db
-    .insertInto("marketplaceStaging")
+    .insertInto("marketplaceProducts")
     .values({
       marketplace: "cardmarket",
       externalId: 22_222,
@@ -166,6 +182,21 @@ if (ctx) {
       productName: "UNM Alpha Card Normal",
       finish: "normal",
       language: null,
+    })
+    .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing())
+    .execute();
+  const cmAlphaProduct = await db
+    .selectFrom("marketplaceProducts")
+    .select("id")
+    .where("marketplace", "=", "cardmarket")
+    .where("externalId", "=", 22_222)
+    .where("finish", "=", "normal")
+    .where("language", "is", null)
+    .executeTakeFirstOrThrow();
+  await db
+    .insertInto("marketplaceProductPrices")
+    .values({
+      marketplaceProductId: cmAlphaProduct.id,
       recordedAt: new Date("2026-02-01T10:00:00Z"),
       marketCents: 180,
       lowCents: 100,
@@ -176,11 +207,12 @@ if (ctx) {
       avg7Cents: 145,
       avg30Cents: 160,
     })
+    .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
     .execute();
 
-  // TCGPlayer staging row for Beta Card
+  // TCGPlayer product + price for Beta Card
   await db
-    .insertInto("marketplaceStaging")
+    .insertInto("marketplaceProducts")
     .values({
       marketplace: "tcgplayer",
       externalId: 33_333,
@@ -188,6 +220,21 @@ if (ctx) {
       productName: "UNM Beta Card Normal",
       finish: "normal",
       language: null,
+    })
+    .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing())
+    .execute();
+  const tcgBetaProduct = await db
+    .selectFrom("marketplaceProducts")
+    .select("id")
+    .where("marketplace", "=", "tcgplayer")
+    .where("externalId", "=", 33_333)
+    .where("finish", "=", "normal")
+    .where("language", "is", null)
+    .executeTakeFirstOrThrow();
+  await db
+    .insertInto("marketplaceProductPrices")
+    .values({
+      marketplaceProductId: tcgBetaProduct.id,
       recordedAt: new Date("2026-02-01T10:00:00Z"),
       marketCents: 500,
       lowCents: 400,
@@ -198,11 +245,12 @@ if (ctx) {
       avg7Cents: null,
       avg30Cents: null,
     })
+    .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
     .execute();
 
-  // CardTrader staging row for Alpha Card (covers ctMapPrices in marketplace-configs.ts)
+  // CardTrader product + price for Alpha Card (covers ctMapPrices in marketplace-configs.ts)
   await db
-    .insertInto("marketplaceStaging")
+    .insertInto("marketplaceProducts")
     .values({
       marketplace: "cardtrader",
       externalId: 44_444,
@@ -210,6 +258,21 @@ if (ctx) {
       productName: "UNM Alpha Card Normal",
       finish: "normal",
       language: "EN",
+    })
+    .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing())
+    .execute();
+  const ctAlphaProduct = await db
+    .selectFrom("marketplaceProducts")
+    .select("id")
+    .where("marketplace", "=", "cardtrader")
+    .where("externalId", "=", 44_444)
+    .where("finish", "=", "normal")
+    .where("language", "=", "EN")
+    .executeTakeFirstOrThrow();
+  await db
+    .insertInto("marketplaceProductPrices")
+    .values({
+      marketplaceProductId: ctAlphaProduct.id,
       recordedAt: new Date("2026-02-01T10:00:00Z"),
       marketCents: 150,
       lowCents: 90,
@@ -220,6 +283,7 @@ if (ctx) {
       avg7Cents: 115,
       avg30Cents: 125,
     })
+    .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
     .execute();
 
   await refreshCardAggregates(db);
@@ -411,9 +475,10 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
   describe("merged external IDs after mapping", () => {
     it("printings reflect tcgExternalId after TCGPlayer mapping", async () => {
-      // Re-seed TCGPlayer staging (may have been restored by unmap all above)
+      // Re-seed TCGPlayer product + price (idempotent in case state changed
+      // between tests; phase 4 mapping leaves the product row in place).
       await db
-        .insertInto("marketplaceStaging")
+        .insertInto("marketplaceProducts")
         .values({
           marketplace: "tcgplayer",
           externalId: 11_111,
@@ -421,6 +486,23 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           productName: "UNM Alpha Card Normal",
           finish: "normal",
           language: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const tcgProduct = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "tcgplayer")
+        .where("externalId", "=", 11_111)
+        .where("finish", "=", "normal")
+        .where("language", "is", null)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: tcgProduct.id,
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 200,
           lowCents: 120,
@@ -431,9 +513,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           avg7Cents: null,
           avg30Cents: null,
         })
-        .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
-        )
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
         .execute();
 
       await app.fetch(
@@ -463,9 +543,9 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("printings reflect cmExternalId after Cardmarket-only mapping", async () => {
-      // Re-seed Cardmarket staging
+      // Re-seed Cardmarket product + price (idempotent).
       await db
-        .insertInto("marketplaceStaging")
+        .insertInto("marketplaceProducts")
         .values({
           marketplace: "cardmarket",
           externalId: 22_222,
@@ -473,6 +553,23 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           productName: "UNM Alpha Card Normal",
           finish: "normal",
           language: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const cmProduct = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "cardmarket")
+        .where("externalId", "=", 22_222)
+        .where("finish", "=", "normal")
+        .where("language", "is", null)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: cmProduct.id,
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 180,
           lowCents: 100,
@@ -483,9 +580,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           avg7Cents: 145,
           avg30Cents: 160,
         })
-        .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
-        )
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
         .execute();
 
       await app.fetch(
@@ -516,9 +611,9 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("printings reflect both tcgExternalId and cmExternalId after dual mapping", async () => {
-      // Re-seed both staging rows
+      // Re-seed both products + prices (idempotent).
       await db
-        .insertInto("marketplaceStaging")
+        .insertInto("marketplaceProducts")
         .values({
           marketplace: "tcgplayer",
           externalId: 11_111,
@@ -526,6 +621,23 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           productName: "UNM Alpha Card Normal",
           finish: "normal",
           language: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const tcgProduct = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "tcgplayer")
+        .where("externalId", "=", 11_111)
+        .where("finish", "=", "normal")
+        .where("language", "is", null)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: tcgProduct.id,
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 200,
           lowCents: 120,
@@ -536,13 +648,11 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           avg7Cents: null,
           avg30Cents: null,
         })
-        .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
-        )
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
         .execute();
 
       await db
-        .insertInto("marketplaceStaging")
+        .insertInto("marketplaceProducts")
         .values({
           marketplace: "cardmarket",
           externalId: 22_222,
@@ -550,6 +660,23 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           productName: "UNM Alpha Card Normal",
           finish: "normal",
           language: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const cmProduct = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "cardmarket")
+        .where("externalId", "=", 22_222)
+        .where("finish", "=", "normal")
+        .where("language", "is", null)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: cmProduct.id,
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 180,
           lowCents: 100,
@@ -560,9 +687,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           avg7Cents: 145,
           avg30Cents: 160,
         })
-        .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
-        )
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
         .execute();
 
       // Map both marketplaces
@@ -678,9 +803,9 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
   describe("Cardmarket data merged into TCGPlayer-initialized group", () => {
     it("Alpha Card has both marketplace assignedProducts after dual mapping", async () => {
-      // Re-seed both staging rows
+      // Re-seed both products + prices (idempotent).
       await db
-        .insertInto("marketplaceStaging")
+        .insertInto("marketplaceProducts")
         .values({
           marketplace: "tcgplayer",
           externalId: 11_111,
@@ -688,6 +813,23 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           productName: "UNM Alpha Card Normal",
           finish: "normal",
           language: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const tcgProduct = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "tcgplayer")
+        .where("externalId", "=", 11_111)
+        .where("finish", "=", "normal")
+        .where("language", "is", null)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: tcgProduct.id,
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 200,
           lowCents: 120,
@@ -698,13 +840,11 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           avg7Cents: null,
           avg30Cents: null,
         })
-        .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
-        )
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
         .execute();
 
       await db
-        .insertInto("marketplaceStaging")
+        .insertInto("marketplaceProducts")
         .values({
           marketplace: "cardmarket",
           externalId: 22_222,
@@ -712,6 +852,23 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           productName: "UNM Alpha Card Normal",
           finish: "normal",
           language: null,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const cmProduct = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "cardmarket")
+        .where("externalId", "=", 22_222)
+        .where("finish", "=", "normal")
+        .where("language", "is", null)
+        .executeTakeFirstOrThrow();
+      await db
+        .insertInto("marketplaceProductPrices")
+        .values({
+          marketplaceProductId: cmProduct.id,
           recordedAt: new Date("2026-02-01T10:00:00Z"),
           marketCents: 180,
           lowCents: 100,
@@ -722,9 +879,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
           avg7Cents: 145,
           avg30Cents: 160,
         })
-        .onConflict((oc) =>
-          oc.columns(["marketplace", "externalId", "finish", "language", "recordedAt"]).doNothing(),
-        )
+        .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
         .execute();
 
       // Map both marketplaces

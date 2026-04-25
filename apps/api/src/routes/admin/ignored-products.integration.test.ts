@@ -31,9 +31,9 @@ if (ctx) {
     })
     .execute();
 
-  // Seed staging row (needed for POST /admin/ignored-products to find product names)
+  // Seed product + price row (needed for POST /admin/ignored-products to find product names)
   await db
-    .insertInto("marketplaceStaging")
+    .insertInto("marketplaceProducts")
     .values({
       marketplace: "tcgplayer",
       externalId: 10_401,
@@ -41,6 +41,23 @@ if (ctx) {
       productName: "IGP Stageable Product",
       finish: "normal",
       language: "EN",
+    })
+    .onConflict((oc) => oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing())
+    .execute();
+
+  const igpProductRow = await db
+    .selectFrom("marketplaceProducts")
+    .select("id")
+    .where("marketplace", "=", "tcgplayer")
+    .where("externalId", "=", 10_401)
+    .where("finish", "=", "normal")
+    .where("language", "=", "EN")
+    .executeTakeFirstOrThrow();
+
+  await db
+    .insertInto("marketplaceProductPrices")
+    .values({
+      marketplaceProductId: igpProductRow.id,
       recordedAt: new Date(),
       marketCents: 100,
       lowCents: 50,
@@ -51,6 +68,7 @@ if (ctx) {
       avg7Cents: null,
       avg30Cents: null,
     })
+    .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
     .execute();
 }
 
@@ -177,13 +195,14 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify the override exists in the database
+      // Verify the override exists in the database (joined to the product row).
       const row = await db
-        .selectFrom("marketplaceStagingCardOverrides")
-        .select(["marketplace", "externalId", "finish", "cardId"])
-        .where("marketplace", "=", "tcgplayer")
-        .where("externalId", "=", 10_401)
-        .where("finish", "=", "normal")
+        .selectFrom("marketplaceProductCardOverrides as ov")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "ov.marketplaceProductId")
+        .select(["mp.marketplace", "mp.externalId", "mp.finish", "ov.cardId"])
+        .where("mp.marketplace", "=", "tcgplayer")
+        .where("mp.externalId", "=", 10_401)
+        .where("mp.finish", "=", "normal")
         .executeTakeFirst();
       expect(row).toBeDefined();
       expect(row?.cardId).toBe(cardId);
@@ -204,13 +223,14 @@ describe.skipIf(!ctx)("Ignored products routes (integration)", () => {
       );
       expect(res.status).toBe(204);
 
-      // Verify the override is gone
+      // Verify the override is gone (joined to the product row).
       const row = await db
-        .selectFrom("marketplaceStagingCardOverrides")
-        .select("externalId")
-        .where("marketplace", "=", "tcgplayer")
-        .where("externalId", "=", 10_401)
-        .where("finish", "=", "normal")
+        .selectFrom("marketplaceProductCardOverrides as ov")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "ov.marketplaceProductId")
+        .select("mp.externalId")
+        .where("mp.marketplace", "=", "tcgplayer")
+        .where("mp.externalId", "=", 10_401)
+        .where("mp.finish", "=", "normal")
         .executeTakeFirst();
       expect(row).toBeUndefined();
     });

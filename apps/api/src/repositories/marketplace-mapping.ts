@@ -681,8 +681,8 @@ export function marketplaceMappingRepo(db: Db) {
      * staging snapshot. `isOverride` is true when a manual override points at
      * this card for the given tuple.
      *
-     * Uses the GIN trigram index on marketplace_staging.norm_name (migration
-     * 089) to keep the LIKE filters index-backed.
+     * Uses the GIN trigram index on marketplace_products.norm_name
+     * (migration 112) to keep the LIKE filters index-backed.
      *
      * @returns One row per unique staged SKU that could be assigned to the card, across the requested marketplaces.
      */

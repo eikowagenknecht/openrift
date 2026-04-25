@@ -235,8 +235,8 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
       };
     }
 
-    it("inserts new price + staging rows", async () => {
-      const staging: StagingRow[] = [
+    it("inserts a new price row per fetched SKU", async () => {
+      const fetched: StagingRow[] = [
         makeStagingRow(94_101, "normal", {
           marketCents: 100,
           lowCents: 50,
@@ -247,20 +247,17 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         }),
       ];
 
-      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
+      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, fetched);
 
       // One price row per (product, recorded_at) regardless of how many
       // printings are bound to the product.
       expect(counts.prices.total).toBe(1);
       expect(counts.prices.new).toBe(1);
-
-      expect(counts.staging.total).toBe(1);
-      expect(counts.staging.new).toBe(1);
     });
 
     it("reports unchanged when upserting identical data", async () => {
       // Same data as the first insert — should be unchanged
-      const staging: StagingRow[] = [
+      const fetched: StagingRow[] = [
         makeStagingRow(94_101, "normal", {
           marketCents: 100,
           lowCents: 50,
@@ -271,16 +268,14 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         }),
       ];
 
-      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
+      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, fetched);
 
       expect(counts.prices.new).toBe(0);
       expect(counts.prices.unchanged).toBe(1);
-      expect(counts.staging.new).toBe(0);
-      expect(counts.staging.unchanged).toBe(1);
     });
 
     it("reports updated when prices change", async () => {
-      const staging: StagingRow[] = [
+      const fetched: StagingRow[] = [
         makeStagingRow(94_101, "normal", {
           marketCents: 200,
           lowCents: 100,
@@ -291,14 +286,13 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         }),
       ];
 
-      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
+      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, fetched);
 
       expect(counts.prices.updated).toBeGreaterThan(0);
-      expect(counts.staging.updated).toBeGreaterThan(0);
     });
 
-    it("deduplicates staging by (external_id, finish, recorded_at)", async () => {
-      const staging: StagingRow[] = [
+    it("deduplicates duplicate fetch rows by (external_id, finish, recorded_at)", async () => {
+      const fetched: StagingRow[] = [
         makeStagingRow(99_001, "normal", {
           marketCents: 50,
           lowCents: 25,
@@ -317,15 +311,15 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         }),
       ];
 
-      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
+      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, fetched);
 
-      expect(counts.staging.total).toBe(1);
+      expect(counts.prices.total).toBe(1);
     });
 
     it("creates the product row and writes a price row even for an externalId with no bound printings", async () => {
       // Under the new model, every fetched SKU gets a product row + price row.
       // Binding a printing later inherits the accumulated history.
-      const staging: StagingRow[] = [
+      const fetched: StagingRow[] = [
         makeStagingRow(99_999, "normal", {
           marketCents: 100,
           lowCents: 50,
@@ -336,17 +330,15 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
         }),
       ];
 
-      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
+      const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, fetched);
 
       expect(counts.prices.total).toBe(1);
-      expect(counts.staging.total).toBe(1);
     });
 
     it("handles empty inputs", async () => {
       const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, []);
 
       expect(counts.prices.total).toBe(0);
-      expect(counts.staging.total).toBe(0);
     });
   });
 });

@@ -345,12 +345,15 @@ const marketplaceProductPrices = await sql<Record<string, unknown>[]>`
     SELECT pp.*,
       ROW_NUMBER() OVER (PARTITION BY pp.marketplace_product_id ORDER BY pp.recorded_at DESC) AS rn
     FROM marketplace_product_prices pp
-    JOIN marketplace_products mp ON mp.id = pp.marketplace_product_id
-    JOIN marketplace_product_variants mpv ON mpv.marketplace_product_id = mp.id
-    JOIN printings p ON p.id = mpv.printing_id
-    JOIN sets s ON s.id = p.set_id
-    JOIN cards c ON c.id = p.card_id
-    WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
+    WHERE EXISTS (
+      SELECT 1
+      FROM marketplace_product_variants mpv
+      JOIN printings p ON p.id = mpv.printing_id
+      JOIN sets s ON s.id = p.set_id
+      JOIN cards c ON c.id = p.card_id
+      WHERE mpv.marketplace_product_id = pp.marketplace_product_id
+        AND (s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS}))
+    )
   ) ranked
   WHERE rn <= 5
   ORDER BY marketplace_product_id, recorded_at

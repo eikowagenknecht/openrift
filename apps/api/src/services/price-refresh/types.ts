@@ -36,10 +36,9 @@ export interface PriceColumns {
 
 /**
  * A fetched-price row for a marketplace SKU. Used as the input row shape for
- * the price-refresh upsert pipeline. Was originally a `marketplace_staging`
- * insert payload; phase 4 retired the staging table but the in-memory row
- * shape carries over since the fetchers still emit one row per
- * (externalId, finish, language, recorded_at).
+ * the price-refresh upsert pipeline — fetchers emit one row per
+ * (externalId, finish, language, recorded_at), and `upsertPriceData` collapses
+ * them into per-product price rows.
  */
 export interface StagingRow extends PriceColumns {
   externalId: number;

@@ -667,9 +667,9 @@ export async function unmapPrinting(
     // Drop just the (printing ↔ product) binding. The product row + its
     // price history live on `marketplace_products` / `marketplace_product_prices`
     // and survive unmap — if the admin rebinds later (even to a different
-    // printing), full history is still there. The next fetch cycle restores
-    // the matching `marketplace_staging` row so the product reappears in the
-    // unmatched panel.
+    // printing), full history is still there. With no variants left for the
+    // product, it reappears in the admin's unmatched-products feed (which
+    // queries `marketplace_products` filtered by `NOT EXISTS (mpv)`).
     await repo.deleteVariantById(variant.variantId);
   });
 }
