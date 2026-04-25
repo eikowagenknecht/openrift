@@ -351,65 +351,6 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /**
-     * Latest price + SKU metadata per product for the given external IDs in a
-     * marketplace. Used by `saveMappings` to resolve a (printing, externalId)
-     * mapping back to the SKU's group_id / product_name + most recent price.
-     * @returns One row per (externalId, finish, language) SKU with its latest price.
-     */
-    async stagingByExternalIds(marketplace: string, externalIds: number[]) {
-      if (externalIds.length === 0) {
-        return [];
-      }
-      const result = await sql<{
-        marketplace: string;
-        externalId: number;
-        groupId: number;
-        productName: string;
-        finish: string;
-        language: string | null;
-        recordedAt: Date;
-        marketCents: number | null;
-        lowCents: number | null;
-        midCents: number | null;
-        highCents: number | null;
-        trendCents: number | null;
-        avg1Cents: number | null;
-        avg7Cents: number | null;
-        avg30Cents: number | null;
-        zeroLowCents: number | null;
-      }>`
-        SELECT
-          mp.marketplace,
-          mp.external_id as "externalId",
-          mp.group_id as "groupId",
-          mp.product_name as "productName",
-          mp.finish,
-          mp.language,
-          latest.recorded_at as "recordedAt",
-          latest.market_cents as "marketCents",
-          latest.low_cents as "lowCents",
-          latest.mid_cents as "midCents",
-          latest.high_cents as "highCents",
-          latest.trend_cents as "trendCents",
-          latest.avg1_cents as "avg1Cents",
-          latest.avg7_cents as "avg7Cents",
-          latest.avg30_cents as "avg30Cents",
-          latest.zero_low_cents as "zeroLowCents"
-        FROM marketplace_products mp
-        INNER JOIN LATERAL (
-          SELECT *
-          FROM marketplace_product_prices pp
-          WHERE pp.marketplace_product_id = mp.id
-          ORDER BY pp.recorded_at DESC
-          LIMIT 1
-        ) latest ON true
-        WHERE mp.marketplace = ${marketplace}
-          AND mp.external_id = ANY(${externalIds}::integer[])
-      `.execute(db);
-      return result.rows;
-    },
-
-    /**
      * Fetch already-upserted product rows by external ID. Used by `saveMappings`
      * to rebind a variant to a different printing when staging has rotated out
      * but the upstream product record is still present — reuses the existing
@@ -575,30 +516,6 @@ export function marketplaceMappingRepo(db: Db) {
           variantId: v.id,
         };
       });
-    },
-
-    /** Delete staging rows by marketplace and (externalId, finish, language) tuples. */
-    async deleteStagingTuples(
-      marketplace: string,
-      tuples: { externalId: number; finish: string; language: string | null }[],
-    ): Promise<void> {
-      if (tuples.length === 0) {
-        return;
-      }
-      // language is nullable for CM/TCG. NULLS NOT DISTINCT on the staging
-      // unique makes `IS NOT DISTINCT FROM` the right comparison.
-      const conditions = tuples.map(
-        (t) => sql`(
-          external_id = ${t.externalId}::integer
-          AND finish = ${t.finish}
-          AND language IS NOT DISTINCT FROM ${t.language}
-        )`,
-      );
-      await sql`
-        DELETE FROM marketplace_staging
-        WHERE marketplace = ${marketplace}
-          AND (${sql.join(conditions, sql` OR `)})
-      `.execute(db);
     },
 
     // ── unmapPrinting queries ───────────────────────────────────────────────

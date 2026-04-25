@@ -54,12 +54,6 @@ describe("marketplaceMappingRepo", () => {
     expect(await marketplaceMappingRepo(db).printingFinishesAndLanguages(["p1"])).toEqual(rows);
   });
 
-  it("stagingByExternalIds returns staging rows by external IDs", async () => {
-    const rows = [{ id: "s1", externalId: 100 }];
-    const db = createMockDb(rows);
-    expect(await marketplaceMappingRepo(db).stagingByExternalIds("tcgplayer", [100])).toEqual(rows);
-  });
-
   it("upsertProductVariants returns empty array for empty input", async () => {
     const db = createMockDb([]);
     expect(await marketplaceMappingRepo(db).upsertProductVariants([])).toEqual([]);
@@ -97,22 +91,6 @@ describe("marketplaceMappingRepo", () => {
     expect(result[0].printingId).toBe("p1");
     expect(result[0].finish).toBe("normal");
     expect(result[0].language).toBe("EN");
-  });
-
-  it("deleteStagingTuples deletes staging rows by tuples", async () => {
-    const db = createMockDb([]);
-    await expect(
-      marketplaceMappingRepo(db).deleteStagingTuples("tcgplayer", [
-        { externalId: 1, finish: "normal", language: "EN" },
-      ]),
-    ).resolves.toBeUndefined();
-  });
-
-  it("deleteStagingTuples is a no-op for empty input", async () => {
-    const db = createMockDb([]);
-    await expect(
-      marketplaceMappingRepo(db).deleteStagingTuples("tcgplayer", []),
-    ).resolves.toBeUndefined();
   });
 
   it("getVariantForPrinting returns the variant for a printing", async () => {

@@ -26,14 +26,13 @@ interface PricingSourceStats {
   marketplace: string;
   products: number;
   variants: number;
-  snapshots: number;
-  latestSnapshot: string | null;
-  stagingRows: number;
-  latestStaging: string | null;
+  /** Row count in `marketplace_product_prices` for this marketplace. */
+  prices: number;
+  latestPrice: string | null;
 }
 
 interface PricingStats {
-  totalSnapshots: number;
+  totalPrices: number;
   sources: PricingSourceStats[];
 }
 
@@ -138,69 +137,42 @@ export function statusRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Gathers pricing/marketplace statistics per source. Snapshots are
-     * reported from `marketplace_product_prices` (one row per SKU per
-     * recorded_at) — a notable drop from the old per-variant count once
-     * sibling bindings no longer fan snapshots out.
+     * Gathers pricing/marketplace statistics per source. Counts come from
+     * `marketplace_product_prices` (one row per SKU per recorded_at).
      * @returns Product counts, price-row counts, and latest recorded_at per marketplace.
      */
     async getPricingStats(): Promise<PricingStats> {
-      const [productRows, stagingRows] = await Promise.all([
-        sql<{
-          marketplace: string;
-          products: number;
-          variants: number;
-          snapshots: number;
-          latestSnapshot: string | null;
-        }>`
-          SELECT
-            mp.marketplace,
-            count(DISTINCT mp.id)::int AS products,
-            count(DISTINCT mpv.id)::int AS variants,
-            count(pp.*)::int AS snapshots,
-            max(pp.recorded_at)::text AS latest_snapshot
-          FROM marketplace_products mp
-          LEFT JOIN marketplace_product_variants mpv ON mpv.marketplace_product_id = mp.id
-          LEFT JOIN marketplace_product_prices pp ON pp.marketplace_product_id = mp.id
-          GROUP BY mp.marketplace
-          ORDER BY mp.marketplace
-        `
-          .execute(db)
-          .then((r) => r.rows),
-        sql<{
-          marketplace: string;
-          stagingRows: number;
-          latestStaging: string | null;
-        }>`
-          SELECT
-            marketplace,
-            count(*)::int AS staging_rows,
-            max(recorded_at)::text AS latest_staging
-          FROM marketplace_staging
-          GROUP BY marketplace
-        `
-          .execute(db)
-          .then((r) => r.rows),
-      ]);
+      const productRows = await sql<{
+        marketplace: string;
+        products: number;
+        variants: number;
+        prices: number;
+        latestPrice: string | null;
+      }>`
+        SELECT
+          mp.marketplace,
+          count(DISTINCT mp.id)::int AS products,
+          count(DISTINCT mpv.id)::int AS variants,
+          count(pp.*)::int AS prices,
+          max(pp.recorded_at)::text AS latest_price
+        FROM marketplace_products mp
+        LEFT JOIN marketplace_product_variants mpv ON mpv.marketplace_product_id = mp.id
+        LEFT JOIN marketplace_product_prices pp ON pp.marketplace_product_id = mp.id
+        GROUP BY mp.marketplace
+        ORDER BY mp.marketplace
+      `.execute(db);
 
-      const stagingByMarketplace = new Map(stagingRows.map((row) => [row.marketplace, row]));
-
-      const totalSnapshots = productRows.reduce((sum, row) => sum + row.snapshots, 0);
+      const totalPrices = productRows.rows.reduce((sum, row) => sum + row.prices, 0);
 
       return {
-        totalSnapshots,
-        sources: productRows.map((row) => {
-          const staging = stagingByMarketplace.get(row.marketplace);
-          return {
-            marketplace: row.marketplace,
-            products: row.products,
-            variants: row.variants,
-            snapshots: row.snapshots,
-            latestSnapshot: row.latestSnapshot,
-            stagingRows: staging?.stagingRows ?? 0,
-            latestStaging: staging?.latestStaging ?? null,
-          };
-        }),
+        totalPrices,
+        sources: productRows.rows.map((row) => ({
+          marketplace: row.marketplace,
+          products: row.products,
+          variants: row.variants,
+          prices: row.prices,
+          latestPrice: row.latestPrice,
+        })),
       };
     },
   };

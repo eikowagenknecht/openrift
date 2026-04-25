@@ -169,7 +169,8 @@ const marketplaceGroups = await sql<Record<string, unknown>[]>`
 `;
 
 const marketplaceProducts = await sql<Record<string, unknown>[]>`
-  SELECT DISTINCT mp.id, mp.marketplace, mp.group_id, mp.external_id, mp.product_name
+  SELECT DISTINCT mp.id, mp.marketplace, mp.group_id, mp.external_id, mp.product_name,
+    mp.finish, mp.language
   FROM marketplace_products mp
   JOIN marketplace_product_variants mpv ON mpv.marketplace_product_id = mp.id
   JOIN printings p ON p.id = mpv.printing_id
