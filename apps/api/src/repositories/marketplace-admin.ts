@@ -47,20 +47,35 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** @returns Staging product counts per marketplace+groupId. */
+    /**
+     * @returns Count of unbound (still-unmatched) products per
+     *          marketplace+groupId. Mirrors the old staging-row count, but
+     *          reads from `marketplace_products` filtered to products with no
+     *          variant binding.
+     */
     stagingCountsByMarketplaceGroup(marketplace?: string) {
       let query = db
-        .selectFrom("marketplaceStaging")
+        .selectFrom("marketplaceProducts as mp")
         .select((eb) => [
-          "marketplace" as const,
-          "groupId" as const,
-          eb.cast<number>(eb.fn.count("externalId").distinct(), "integer").as("count"),
+          "mp.marketplace as marketplace",
+          "mp.groupId as groupId",
+          eb.cast<number>(eb.fn.count("mp.id").distinct(), "integer").as("count"),
         ])
-        .where("groupId", "is not", null)
-        .groupBy(["marketplace", "groupId"]);
+        .where("mp.groupId", "is not", null)
+        .where((eb) =>
+          eb.not(
+            eb.exists(
+              eb
+                .selectFrom("marketplaceProductVariants as mpv")
+                .select("mpv.id")
+                .whereRef("mpv.marketplaceProductId", "=", "mp.id"),
+            ),
+          ),
+        )
+        .groupBy(["mp.marketplace", "mp.groupId"]);
 
       if (marketplace) {
-        query = query.where("marketplace", "=", marketplace);
+        query = query.where("mp.marketplace", "=", marketplace);
       }
 
       return query.execute();
@@ -151,10 +166,10 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       return merged.toSorted((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     },
 
-    /** @returns Product names from staging for the given external IDs. */
+    /** @returns Product names from `marketplace_products` for the given external IDs. */
     getStagingProductNames(marketplace: string, externalIds: number[]) {
       return db
-        .selectFrom("marketplaceStaging")
+        .selectFrom("marketplaceProducts")
         .select(["externalId", "productName"])
         .where("marketplace", "=", marketplace)
         .where("externalId", "in", externalIds)
@@ -314,9 +329,10 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     // ── Staging card overrides ──────────────────────────────────────────────
 
     /**
-     * Upsert a staging card override. The PK is (marketplace, external_id,
-     * finish, language) NULLS NOT DISTINCT — Kysely's `.onConflict().columns()`
-     * doesn't emit that option, so we use raw SQL for the upsert.
+     * Upsert a card override pinned to a specific marketplace SKU. Resolves
+     * the (marketplace, externalId, finish, language) tuple to its
+     * `marketplace_products.id` and writes against the per-product overrides
+     * table (one card per SKU). Throws if the SKU has no product row yet.
      */
     async upsertStagingCardOverride(values: {
       marketplace: string;
@@ -325,51 +341,67 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
       language: string | null;
       cardId: string;
     }): Promise<void> {
-      await sql`
-        INSERT INTO marketplace_staging_card_overrides (marketplace, external_id, finish, language, card_id)
-        VALUES (${values.marketplace}, ${values.externalId}, ${values.finish}, ${values.language}, ${values.cardId})
-        ON CONFLICT (marketplace, external_id, finish, language)
-        DO UPDATE SET card_id = EXCLUDED.card_id
+      const result = await sql<{ inserted: number }>`
+        WITH target AS (
+          SELECT id FROM marketplace_products
+          WHERE marketplace = ${values.marketplace}
+            AND external_id = ${values.externalId}
+            AND finish = ${values.finish}
+            AND language IS NOT DISTINCT FROM ${values.language}
+          LIMIT 1
+        ),
+        inserted AS (
+          INSERT INTO marketplace_product_card_overrides (marketplace_product_id, card_id)
+          SELECT id, ${values.cardId} FROM target
+          ON CONFLICT (marketplace_product_id) DO UPDATE SET card_id = EXCLUDED.card_id
+          RETURNING 1
+        )
+        SELECT COUNT(*)::int AS inserted FROM inserted
       `.execute(db);
+      if ((result.rows[0]?.inserted ?? 0) === 0) {
+        throw new Error(
+          `upsertStagingCardOverride: no marketplace_products row for ${values.marketplace} ${values.externalId} ${values.finish}/${values.language ?? "NULL"}`,
+        );
+      }
     },
 
-    /** Delete a staging card override. */
+    /** Delete a card override for the given marketplace SKU (no-op if missing). */
     async deleteStagingCardOverride(
       marketplace: string,
       externalId: number,
       finish: string,
       language: string | null,
     ): Promise<void> {
-      // IS NOT DISTINCT FROM so CM/TCG (language=NULL) delete correctly.
       await sql`
-        DELETE FROM marketplace_staging_card_overrides
-        WHERE marketplace = ${marketplace}
-          AND external_id = ${externalId}
-          AND finish = ${finish}
-          AND language IS NOT DISTINCT FROM ${language}
+        DELETE FROM marketplace_product_card_overrides ov
+        USING marketplace_products mp
+        WHERE ov.marketplace_product_id = mp.id
+          AND mp.marketplace = ${marketplace}
+          AND mp.external_id = ${externalId}
+          AND mp.finish = ${finish}
+          AND mp.language IS NOT DISTINCT FROM ${language}
       `.execute(db);
     },
 
     // ── Clear price data ────────────────────────────────────────────────────
 
     /**
-     * Delete all price data (snapshots, variants, products, staging) for a marketplace.
+     * Delete all price data (prices, variants, products) for a marketplace.
+     * `marketplace_product_prices` is FK-cascaded from products, so the
+     * counts are deleted in dependency order.
      * @returns Counts of deleted rows per table.
      */
     async clearPriceData(marketplace: string): Promise<{
-      snapshots: number;
+      prices: number;
       variants: number;
       products: number;
-      staging: number;
     }> {
-      const snapshots = await sql<{ deleted: number }>`
+      const prices = await sql<{ deleted: number }>`
         WITH deleted AS (
-          DELETE FROM marketplace_snapshots
-          WHERE variant_id IN (
-            SELECT mpv.id FROM marketplace_product_variants mpv
-            JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
-            WHERE mp.marketplace = ${marketplace}
-          )
+          DELETE FROM marketplace_product_prices pp
+          USING marketplace_products mp
+          WHERE mp.id = pp.marketplace_product_id
+            AND mp.marketplace = ${marketplace}
           RETURNING 1 as one
         )
         SELECT count(*)::int as deleted FROM deleted
@@ -391,61 +423,11 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
         .where("marketplace", "=", marketplace)
         .execute();
 
-      const staging = await db
-        .deleteFrom("marketplaceStaging")
-        .where("marketplace", "=", marketplace)
-        .execute();
-
       return {
-        snapshots: snapshots.rows[0]?.deleted ?? 0,
+        prices: prices.rows[0]?.deleted ?? 0,
         variants: variants.rows[0]?.deleted ?? 0,
         products: Number(products[0].numDeletedRows),
-        staging: Number(staging[0].numDeletedRows),
       };
-    },
-
-    // ── Reconcile snapshots from staging ────────────────────────────────────
-
-    /**
-     * Emit snapshots for staging rows whose variant was created *after* the
-     * staging data was captured. The nightly refresh only writes snapshots
-     * from the current fetch, so any historical staging rows that became
-     * connectable later (e.g. a new-language variant gets auto-matched) stay
-     * orphaned until this runs. `ON CONFLICT DO NOTHING` makes it idempotent.
-     *
-     * Language-aggregate marketplaces (cardmarket) store variants with
-     * `language = NULL`; the join treats those as matching any staging
-     * language for the same `(product, finish)`.
-     *
-     * @returns The number of snapshots newly inserted.
-     */
-    async reconcileStagingSnapshots(marketplace: string): Promise<number> {
-      const result = await sql<{ inserted: number }>`
-        WITH inserted AS (
-          INSERT INTO marketplace_snapshots (
-            variant_id, recorded_at, market_cents, low_cents, mid_cents,
-            high_cents, trend_cents, avg1_cents, avg7_cents, avg30_cents,
-            zero_low_cents
-          )
-          SELECT
-            v.id, s.recorded_at, s.market_cents, s.low_cents, s.mid_cents,
-            s.high_cents, s.trend_cents, s.avg1_cents, s.avg7_cents,
-            s.avg30_cents, s.zero_low_cents
-          FROM marketplace_staging s
-          JOIN marketplace_products p
-            ON p.marketplace = s.marketplace AND p.external_id = s.external_id
-          JOIN marketplace_product_variants v
-            ON v.marketplace_product_id = p.id
-           AND v.finish = s.finish
-           AND (v.language IS NULL OR v.language = s.language)
-          WHERE s.marketplace = ${marketplace}
-          ON CONFLICT (variant_id, recorded_at) DO NOTHING
-          RETURNING 1 AS one
-        )
-        SELECT count(*)::int AS inserted FROM inserted
-      `.execute(db);
-
-      return result.rows[0]?.inserted ?? 0;
     },
   };
 }

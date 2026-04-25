@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict wVimwcYeFvRSlYvwGK8xHMQwSO169M2q7svGjBAAIzgEgkD2G8YOsC6IHXbbEiz
+\restrict xSAUG7hFbt2rr5roBtAhhRzwSZBscOnH3dqxYKLiKkMl6tjVGn3Jg16uhXDxG9z
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -111,10 +111,10 @@ CREATE FUNCTION public.cards_set_norm_name() RETURNS trigger
 
 
 --
--- Name: marketplace_staging_compute_norm_name(text); Type: FUNCTION; Schema: public; Owner: -
+-- Name: marketplace_product_compute_norm_name(text); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.marketplace_staging_compute_norm_name(product_name text) RETURNS text
+CREATE FUNCTION public.marketplace_product_compute_norm_name(product_name text) RETURNS text
     LANGUAGE sql IMMUTABLE
     AS $$
       SELECT lower(regexp_replace(product_name, '[^a-zA-Z0-9]', '', 'g'))
@@ -122,14 +122,14 @@ CREATE FUNCTION public.marketplace_staging_compute_norm_name(product_name text) 
 
 
 --
--- Name: marketplace_staging_set_norm_name(); Type: FUNCTION; Schema: public; Owner: -
+-- Name: marketplace_products_set_norm_name(); Type: FUNCTION; Schema: public; Owner: -
 --
 
-CREATE FUNCTION public.marketplace_staging_set_norm_name() RETURNS trigger
+CREATE FUNCTION public.marketplace_products_set_norm_name() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
     BEGIN
-      NEW.norm_name := marketplace_staging_compute_norm_name(NEW.product_name);
+      NEW.norm_name := marketplace_product_compute_norm_name(NEW.product_name);
       RETURN NEW;
     END;
     $$;
@@ -953,6 +953,46 @@ CREATE TABLE public.marketplace_ignored_variants (
 
 
 --
+-- Name: marketplace_product_card_overrides; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.marketplace_product_card_overrides (
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT marketplace_staging_card_overrides_created_at_not_null NOT NULL,
+    card_id uuid CONSTRAINT marketplace_staging_card_overrides_new_card_id_not_null NOT NULL,
+    marketplace_product_id uuid CONSTRAINT marketplace_staging_card_overri_marketplace_product_id_not_null NOT NULL
+);
+
+
+--
+-- Name: marketplace_product_prices; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.marketplace_product_prices (
+    marketplace_product_id uuid NOT NULL,
+    recorded_at timestamp with time zone NOT NULL,
+    market_cents integer,
+    low_cents integer,
+    mid_cents integer,
+    high_cents integer,
+    trend_cents integer,
+    avg1_cents integer,
+    avg7_cents integer,
+    avg30_cents integer,
+    zero_low_cents integer,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT chk_marketplace_product_prices_avg1_cents_non_negative CHECK ((avg1_cents >= 0)),
+    CONSTRAINT chk_marketplace_product_prices_avg30_cents_non_negative CHECK ((avg30_cents >= 0)),
+    CONSTRAINT chk_marketplace_product_prices_avg7_cents_non_negative CHECK ((avg7_cents >= 0)),
+    CONSTRAINT chk_marketplace_product_prices_high_cents_non_negative CHECK ((high_cents >= 0)),
+    CONSTRAINT chk_marketplace_product_prices_low_cents_non_negative CHECK ((low_cents >= 0)),
+    CONSTRAINT chk_marketplace_product_prices_market_cents_non_negative CHECK ((market_cents >= 0)),
+    CONSTRAINT chk_marketplace_product_prices_mid_cents_non_negative CHECK ((mid_cents >= 0)),
+    CONSTRAINT chk_marketplace_product_prices_trend_cents_non_negative CHECK ((trend_cents >= 0)),
+    CONSTRAINT chk_marketplace_product_prices_zero_low_cents_non_negative CHECK ((zero_low_cents >= 0))
+);
+
+
+--
 -- Name: marketplace_product_variants; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -979,81 +1019,10 @@ CREATE TABLE public.marketplace_products (
     id uuid DEFAULT uuidv7() NOT NULL,
     finish text NOT NULL,
     language text,
+    norm_name text DEFAULT ''::text NOT NULL,
     CONSTRAINT chk_marketplace_products_external_id_positive CHECK ((external_id > 0)),
     CONSTRAINT chk_marketplace_products_marketplace_not_empty CHECK ((marketplace <> ''::text)),
     CONSTRAINT chk_marketplace_products_product_name_not_empty CHECK ((product_name <> ''::text))
-);
-
-
---
--- Name: marketplace_snapshots; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.marketplace_snapshots (
-    recorded_at timestamp with time zone DEFAULT now() NOT NULL,
-    market_cents integer,
-    low_cents integer,
-    mid_cents integer,
-    high_cents integer,
-    trend_cents integer,
-    avg1_cents integer,
-    avg7_cents integer,
-    avg30_cents integer,
-    id uuid DEFAULT uuidv7() CONSTRAINT marketplace_snapshots_new_id_not_null NOT NULL,
-    variant_id uuid CONSTRAINT marketplace_snapshots_product_id_not_null NOT NULL,
-    zero_low_cents integer,
-    CONSTRAINT chk_marketplace_snapshots_avg1_cents_non_negative CHECK ((avg1_cents >= 0)),
-    CONSTRAINT chk_marketplace_snapshots_avg30_cents_non_negative CHECK ((avg30_cents >= 0)),
-    CONSTRAINT chk_marketplace_snapshots_avg7_cents_non_negative CHECK ((avg7_cents >= 0)),
-    CONSTRAINT chk_marketplace_snapshots_high_cents_non_negative CHECK ((high_cents >= 0)),
-    CONSTRAINT chk_marketplace_snapshots_low_cents_non_negative CHECK ((low_cents >= 0)),
-    CONSTRAINT chk_marketplace_snapshots_market_cents_non_negative CHECK ((market_cents >= 0)),
-    CONSTRAINT chk_marketplace_snapshots_mid_cents_non_negative CHECK ((mid_cents >= 0)),
-    CONSTRAINT chk_marketplace_snapshots_trend_cents_non_negative CHECK ((trend_cents >= 0)),
-    CONSTRAINT chk_marketplace_snapshots_zero_low_cents_non_negative CHECK ((zero_low_cents >= 0))
-);
-
-
---
--- Name: marketplace_staging; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.marketplace_staging (
-    marketplace text NOT NULL,
-    external_id integer NOT NULL,
-    group_id integer NOT NULL,
-    product_name text NOT NULL,
-    finish text NOT NULL,
-    recorded_at timestamp with time zone NOT NULL,
-    market_cents integer,
-    low_cents integer,
-    mid_cents integer,
-    high_cents integer,
-    trend_cents integer,
-    avg1_cents integer,
-    avg7_cents integer,
-    avg30_cents integer,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    id uuid DEFAULT uuidv7() CONSTRAINT marketplace_staging_new_id_not_null NOT NULL,
-    language text,
-    norm_name text DEFAULT ''::text NOT NULL,
-    zero_low_cents integer,
-    CONSTRAINT chk_marketplace_staging_zero_low_cents_non_negative CHECK ((zero_low_cents >= 0))
-);
-
-
---
--- Name: marketplace_staging_card_overrides; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.marketplace_staging_card_overrides (
-    marketplace text NOT NULL,
-    external_id integer NOT NULL,
-    finish text NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    card_id uuid CONSTRAINT marketplace_staging_card_overrides_new_card_id_not_null NOT NULL,
-    language text
 );
 
 
@@ -1081,21 +1050,20 @@ CREATE MATERIALIZED VIEW public.mv_latest_printing_prices AS
  SELECT DISTINCT ON (mpv.printing_id, mp.marketplace) mpv.printing_id,
     mp.marketplace,
         CASE
-            WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(snap.zero_low_cents, snap.low_cents)
-            WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(snap.low_cents, snap.market_cents)
-            ELSE COALESCE(snap.market_cents, snap.low_cents)
+            WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(pp.zero_low_cents, pp.low_cents)
+            WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(pp.low_cents, pp.market_cents)
+            ELSE COALESCE(pp.market_cents, pp.low_cents)
         END AS headline_cents
-   FROM (((public.marketplace_product_variants mpv
+   FROM ((public.marketplace_product_variants mpv
      JOIN public.marketplace_products mp ON ((mp.id = mpv.marketplace_product_id)))
-     JOIN public.marketplace_product_variants snap_mpv ON ((snap_mpv.marketplace_product_id = mp.id)))
-     JOIN public.marketplace_snapshots snap ON ((snap.variant_id = snap_mpv.id)))
+     JOIN public.marketplace_product_prices pp ON ((pp.marketplace_product_id = mp.id)))
   WHERE (
         CASE
-            WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(snap.zero_low_cents, snap.low_cents)
-            WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(snap.low_cents, snap.market_cents)
-            ELSE COALESCE(snap.market_cents, snap.low_cents)
+            WHEN (mp.marketplace = 'cardtrader'::text) THEN COALESCE(pp.zero_low_cents, pp.low_cents)
+            WHEN (mp.marketplace = 'cardmarket'::text) THEN COALESCE(pp.low_cents, pp.market_cents)
+            ELSE COALESCE(pp.market_cents, pp.low_cents)
         END IS NOT NULL)
-  ORDER BY mpv.printing_id, mp.marketplace, (snap.zero_low_cents IS NULL), snap.recorded_at DESC
+  ORDER BY mpv.printing_id, mp.marketplace, (pp.zero_low_cents IS NULL), pp.recorded_at DESC
   WITH NO DATA;
 
 
@@ -1834,6 +1802,22 @@ ALTER TABLE ONLY public.marketplace_ignored_variants
 
 
 --
+-- Name: marketplace_product_card_overrides marketplace_product_card_overrides_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_product_card_overrides
+    ADD CONSTRAINT marketplace_product_card_overrides_pkey PRIMARY KEY (marketplace_product_id);
+
+
+--
+-- Name: marketplace_product_prices marketplace_product_prices_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_product_prices
+    ADD CONSTRAINT marketplace_product_prices_pkey PRIMARY KEY (marketplace_product_id, recorded_at);
+
+
+--
 -- Name: marketplace_product_variants marketplace_product_variants_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1842,35 +1826,11 @@ ALTER TABLE ONLY public.marketplace_product_variants
 
 
 --
--- Name: marketplace_snapshots marketplace_snapshots_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.marketplace_snapshots
-    ADD CONSTRAINT marketplace_snapshots_pkey PRIMARY KEY (id);
-
-
---
--- Name: marketplace_snapshots marketplace_snapshots_variant_id_recorded_at_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.marketplace_snapshots
-    ADD CONSTRAINT marketplace_snapshots_variant_id_recorded_at_key UNIQUE (variant_id, recorded_at);
-
-
---
 -- Name: marketplace_products marketplace_sources_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.marketplace_products
     ADD CONSTRAINT marketplace_sources_pkey PRIMARY KEY (id);
-
-
---
--- Name: marketplace_staging marketplace_staging_pkey; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.marketplace_staging
-    ADD CONSTRAINT marketplace_staging_pkey PRIMARY KEY (id);
 
 
 --
@@ -2330,24 +2290,10 @@ CREATE INDEX idx_marketplace_product_variants_printing_id ON public.marketplace_
 
 
 --
--- Name: idx_marketplace_snapshots_variant_id_recorded_at; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_marketplace_products_norm_name_trgm; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX idx_marketplace_snapshots_variant_id_recorded_at ON public.marketplace_snapshots USING btree (variant_id, recorded_at);
-
-
---
--- Name: idx_marketplace_staging_marketplace_group_id; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_marketplace_staging_marketplace_group_id ON public.marketplace_staging USING btree (marketplace, group_id);
-
-
---
--- Name: idx_marketplace_staging_norm_name_trgm; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_marketplace_staging_norm_name_trgm ON public.marketplace_staging USING gin (norm_name public.gin_trgm_ops);
+CREATE INDEX idx_marketplace_products_norm_name_trgm ON public.marketplace_products USING gin (norm_name public.gin_trgm_ops);
 
 
 --
@@ -2519,20 +2465,6 @@ CREATE UNIQUE INDEX marketplace_products_sku_key ON public.marketplace_products 
 
 
 --
--- Name: marketplace_staging_card_overrides_pkey; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX marketplace_staging_card_overrides_pkey ON public.marketplace_staging_card_overrides USING btree (marketplace, external_id, finish, language) NULLS NOT DISTINCT;
-
-
---
--- Name: marketplace_staging_marketplace_external_id_finish_language_rec; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE UNIQUE INDEX marketplace_staging_marketplace_external_id_finish_language_rec ON public.marketplace_staging USING btree (marketplace, external_id, finish, language, recorded_at) NULLS NOT DISTINCT;
-
-
---
 -- Name: uq_card_bans_active; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2673,10 +2605,10 @@ CREATE TRIGGER trg_finishes_protect_well_known BEFORE DELETE OR UPDATE ON public
 
 
 --
--- Name: marketplace_staging trg_marketplace_staging_set_norm_name; Type: TRIGGER; Schema: public; Owner: -
+-- Name: marketplace_products trg_marketplace_products_set_norm_name; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER trg_marketplace_staging_set_norm_name BEFORE INSERT OR UPDATE OF product_name ON public.marketplace_staging FOR EACH ROW EXECUTE FUNCTION public.marketplace_staging_set_norm_name();
+CREATE TRIGGER trg_marketplace_products_set_norm_name BEFORE INSERT OR UPDATE OF product_name ON public.marketplace_products FOR EACH ROW EXECUTE FUNCTION public.marketplace_products_set_norm_name();
 
 
 --
@@ -2831,13 +2763,6 @@ CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_product_va
 --
 
 CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_products FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
-
-
---
--- Name: marketplace_staging trg_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
---
-
-CREATE TRIGGER trg_set_updated_at BEFORE UPDATE ON public.marketplace_staging FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -3244,6 +3169,22 @@ ALTER TABLE ONLY public.marketplace_ignored_variants
 
 
 --
+-- Name: marketplace_product_card_overrides marketplace_product_card_overrides_product_fk; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_product_card_overrides
+    ADD CONSTRAINT marketplace_product_card_overrides_product_fk FOREIGN KEY (marketplace_product_id) REFERENCES public.marketplace_products(id) ON DELETE CASCADE;
+
+
+--
+-- Name: marketplace_product_prices marketplace_product_prices_marketplace_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_product_prices
+    ADD CONSTRAINT marketplace_product_prices_marketplace_product_id_fkey FOREIGN KEY (marketplace_product_id) REFERENCES public.marketplace_products(id) ON DELETE CASCADE;
+
+
+--
 -- Name: marketplace_product_variants marketplace_product_variants_printing_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3260,14 +3201,6 @@ ALTER TABLE ONLY public.marketplace_product_variants
 
 
 --
--- Name: marketplace_snapshots marketplace_snapshots_variant_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.marketplace_snapshots
-    ADD CONSTRAINT marketplace_snapshots_variant_id_fkey FOREIGN KEY (variant_id) REFERENCES public.marketplace_product_variants(id);
-
-
---
 -- Name: marketplace_products marketplace_sources_group_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3276,10 +3209,10 @@ ALTER TABLE ONLY public.marketplace_products
 
 
 --
--- Name: marketplace_staging_card_overrides marketplace_staging_card_overrides_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: marketplace_product_card_overrides marketplace_staging_card_overrides_card_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.marketplace_staging_card_overrides
+ALTER TABLE ONLY public.marketplace_product_card_overrides
     ADD CONSTRAINT marketplace_staging_card_overrides_card_id_fkey FOREIGN KEY (card_id) REFERENCES public.cards(id);
 
 
@@ -3431,5 +3364,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict wVimwcYeFvRSlYvwGK8xHMQwSO169M2q7svGjBAAIzgEgkD2G8YOsC6IHXbbEiz
+\unrestrict xSAUG7hFbt2rr5roBtAhhRzwSZBscOnH3dqxYKLiKkMl6tjVGn3Jg16uhXDxG9z
 

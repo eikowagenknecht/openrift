@@ -52,7 +52,7 @@ const BLUEPRINT_SEALED = {
 };
 
 const ZERO_COUNTS: UpsertCounts = {
-  snapshots: { total: 0, new: 0, updated: 0, unchanged: 0 },
+  prices: { total: 0, new: 0, updated: 0, unchanged: 0 },
   staging: { total: 0, new: 0, updated: 0, unchanged: 0 },
 };
 

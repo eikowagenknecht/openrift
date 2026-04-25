@@ -32,11 +32,8 @@ const mockBuildUnifiedMappings = vi.mocked(buildUnifiedMappingsResponse);
 // Mock repos and services
 // ---------------------------------------------------------------------------
 
-const mockMarketplaceTransfer = {
-  snapshotsByMarketplace: vi.fn(),
-  insertSnapshot: vi.fn(),
-  insertStagingFromSnapshot: vi.fn(),
-  bulkUnmapToStaging: vi.fn(),
+const mockMarketplaceMapping = {
+  pricesByMarketplace: vi.fn(),
 };
 
 const mockGetMappingOverview = vi.fn();
@@ -50,7 +47,7 @@ const USER_ID = "a0000000-0001-4000-a000-000000000001";
 const app = new Hono()
   .use("*", async (c, next) => {
     c.set("user", { id: USER_ID });
-    c.set("repos", { marketplaceTransfer: mockMarketplaceTransfer } as never);
+    c.set("repos", { marketplaceMapping: mockMarketplaceMapping } as never);
     c.set("transact", vi.fn() as never);
     c.set("services", { getMappingOverview: mockGetMappingOverview } as never);
     await next();

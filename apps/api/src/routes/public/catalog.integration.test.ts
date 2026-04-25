@@ -16,7 +16,7 @@ const MARKETPLACE = "tcgplayer";
 describe.skipIf(!ctx)("Catalog route (integration)", () => {
   const { app, db } = ctx!;
 
-  let variantId = "";
+  let productId = "";
 
   beforeAll(async () => {
     await db
@@ -32,18 +32,18 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       .onConflict((oc) => oc.columns(["printingId", "face", "provider"]).doNothing())
       .execute();
 
-    // Seed data has a tcgplayer variant for this printing; look it up so we
-    // can attach our snapshot to it.
+    // Seed data has a tcgplayer variant for this printing; look up its
+    // parent product so we can attach our price row to it.
     const existing = await db
       .selectFrom("marketplaceProductVariants as mpv")
       .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
-      .select("mpv.id as variantId")
+      .select("mp.id as productId")
       .where("mp.marketplace", "=", MARKETPLACE)
       .where("mpv.printingId", "=", SEED_PRINTING_ID)
       .executeTakeFirst();
 
     if (existing) {
-      variantId = existing.variantId;
+      productId = existing.productId;
     } else {
       // If seed data was somehow removed, create our own product + variant.
       const groupRow = await db
@@ -78,22 +78,21 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
         })
         .returning("id")
         .execute();
+      productId = product.id;
 
-      const [variant] = await db
+      await db
         .insertInto("marketplaceProductVariants")
         .values({
-          marketplaceProductId: product.id,
+          marketplaceProductId: productId,
           printingId: SEED_PRINTING_ID,
         })
-        .returning("id")
         .execute();
-      variantId = variant.id;
     }
 
     await db
-      .insertInto("marketplaceSnapshots")
+      .insertInto("marketplaceProductPrices")
       .values({
-        variantId,
+        marketplaceProductId: productId,
         recordedAt: new Date("2026-03-15T10:00:00Z"),
         marketCents: 350,
         lowCents: 200,
@@ -104,16 +103,16 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
         avg7Cents: null,
         avg30Cents: null,
       })
-      .onConflict((oc) => oc.columns(["variantId", "recordedAt"]).doNothing())
+      .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
       .execute();
   });
 
   afterAll(async () => {
     await db.deleteFrom("printingImages").where("provider", "=", "cat-test").execute();
-    if (variantId) {
+    if (productId) {
       await db
-        .deleteFrom("marketplaceSnapshots")
-        .where("variantId", "=", variantId)
+        .deleteFrom("marketplaceProductPrices")
+        .where("marketplaceProductId", "=", productId)
         .where("recordedAt", "=", new Date("2026-03-15T10:00:00Z"))
         .execute();
     }

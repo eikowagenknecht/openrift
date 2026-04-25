@@ -138,8 +138,11 @@ export function statusRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Gathers pricing/marketplace statistics per source.
-     * @returns Product counts, snapshot counts, and latest snapshot date per marketplace.
+     * Gathers pricing/marketplace statistics per source. Snapshots are
+     * reported from `marketplace_product_prices` (one row per SKU per
+     * recorded_at) — a notable drop from the old per-variant count once
+     * sibling bindings no longer fan snapshots out.
+     * @returns Product counts, price-row counts, and latest recorded_at per marketplace.
      */
     async getPricingStats(): Promise<PricingStats> {
       const [productRows, stagingRows] = await Promise.all([
@@ -154,11 +157,11 @@ export function statusRepo(db: Kysely<Database>) {
             mp.marketplace,
             count(DISTINCT mp.id)::int AS products,
             count(DISTINCT mpv.id)::int AS variants,
-            count(ms.id)::int AS snapshots,
-            max(ms.recorded_at)::text AS latest_snapshot
+            count(pp.*)::int AS snapshots,
+            max(pp.recorded_at)::text AS latest_snapshot
           FROM marketplace_products mp
           LEFT JOIN marketplace_product_variants mpv ON mpv.marketplace_product_id = mp.id
-          LEFT JOIN marketplace_snapshots ms ON ms.variant_id = mpv.id
+          LEFT JOIN marketplace_product_prices pp ON pp.marketplace_product_id = mp.id
           GROUP BY mp.marketplace
           ORDER BY mp.marketplace
         `

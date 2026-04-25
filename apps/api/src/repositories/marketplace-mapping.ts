@@ -40,10 +40,51 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /**
-     * Latest staging snapshot per (external_id, finish, language) for a marketplace.
-     * Historical price snapshots are deduped at the DB so the caller doesn't ship
-     * ~20× more rows than it actually uses.
-     * @returns One row per distinct variant, holding the most recent recorded_at.
+     * Latest price row per (printingId, externalId) for mapped printings in a
+     * given marketplace. Joins through `marketplace_product_prices` (keyed on
+     * the SKU) so every printing bound to a product shares the same history.
+     * DISTINCT ON collapses the history down to the most recent row at the
+     * DB so callers don't ship ~100× more rows than they use.
+     * @returns One row per distinct (printingId, externalId), newest first.
+     */
+    pricesByMarketplace(marketplace: string, printingIds: string[]) {
+      if (printingIds.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .innerJoin("marketplaceProductPrices as pp", "pp.marketplaceProductId", "mp.id")
+        .select([
+          "mpv.printingId as printingId",
+          "mp.externalId as externalId",
+          "mp.productName as productName",
+          "pp.marketCents",
+          "pp.lowCents",
+          "pp.midCents",
+          "pp.highCents",
+          "pp.trendCents",
+          "pp.avg1Cents",
+          "pp.avg7Cents",
+          "pp.avg30Cents",
+          "pp.recordedAt",
+        ])
+        .where("mp.marketplace", "=", marketplace)
+        .where("mpv.printingId", "in", printingIds)
+        .distinctOn(["mpv.printingId", "mp.externalId"])
+        .orderBy("mpv.printingId")
+        .orderBy("mp.externalId")
+        .orderBy("pp.recordedAt", "desc")
+        .execute();
+    },
+
+    /**
+     * Latest known price per *unbound* SKU for a marketplace — the admin's
+     * "unmatched products" feed. Reads from `marketplace_products` joined to
+     * the latest `marketplace_product_prices` row per product, excluding
+     * products that already have at least one variant binding (those products
+     * already belong to a card and aren't candidates for fresh suggestions).
+     * @returns One row per unbound SKU with the latest recorded prices.
      */
     async allStaging(marketplace: string) {
       const result = await sql<{
@@ -63,25 +104,35 @@ export function marketplaceMappingRepo(db: Db) {
         avg7Cents: number | null;
         avg30Cents: number | null;
       }>`
-        SELECT DISTINCT ON (external_id, finish, language)
-          marketplace,
-          external_id as "externalId",
-          group_id as "groupId",
-          product_name as "productName",
-          finish,
-          language,
-          recorded_at as "recordedAt",
-          market_cents as "marketCents",
-          low_cents as "lowCents",
-          mid_cents as "midCents",
-          high_cents as "highCents",
-          trend_cents as "trendCents",
-          avg1_cents as "avg1Cents",
-          avg7_cents as "avg7Cents",
-          avg30_cents as "avg30Cents"
-        FROM marketplace_staging
-        WHERE marketplace = ${marketplace}
-        ORDER BY external_id, finish, language, recorded_at DESC
+        SELECT
+          mp.marketplace,
+          mp.external_id as "externalId",
+          mp.group_id as "groupId",
+          mp.product_name as "productName",
+          mp.finish,
+          mp.language,
+          latest.recorded_at as "recordedAt",
+          latest.market_cents as "marketCents",
+          latest.low_cents as "lowCents",
+          latest.mid_cents as "midCents",
+          latest.high_cents as "highCents",
+          latest.trend_cents as "trendCents",
+          latest.avg1_cents as "avg1Cents",
+          latest.avg7_cents as "avg7Cents",
+          latest.avg30_cents as "avg30Cents"
+        FROM marketplace_products mp
+        INNER JOIN LATERAL (
+          SELECT *
+          FROM marketplace_product_prices pp
+          WHERE pp.marketplace_product_id = mp.id
+          ORDER BY pp.recorded_at DESC
+          LIMIT 1
+        ) latest ON true
+        WHERE mp.marketplace = ${marketplace}
+          AND NOT EXISTS (
+            SELECT 1 FROM marketplace_product_variants mpv
+            WHERE mpv.marketplace_product_id = mp.id
+          )
       `.execute(db);
       return result.rows;
     },
@@ -272,13 +323,20 @@ export function marketplaceMappingRepo(db: Db) {
       return result.rows;
     },
 
-    /** @returns Manual card overrides for a marketplace. */
-    stagingCardOverrides(marketplace: string) {
-      return db
-        .selectFrom("marketplaceStagingCardOverrides")
-        .select(["externalId", "finish", "language", "cardId"])
-        .where("marketplace", "=", marketplace)
+    /** @returns Manual card overrides for a marketplace, with the override's SKU axes inlined. */
+    async stagingCardOverrides(marketplace: string) {
+      const rows = await db
+        .selectFrom("marketplaceProductCardOverrides as ov")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "ov.marketplaceProductId")
+        .select([
+          "mp.externalId as externalId",
+          "mp.finish as finish",
+          "mp.language as language",
+          "ov.cardId as cardId",
+        ])
+        .where("mp.marketplace", "=", marketplace)
         .execute();
+      return rows;
     },
 
     // ── saveMappings queries ────────────────────────────────────────────────
@@ -292,14 +350,63 @@ export function marketplaceMappingRepo(db: Db) {
         .execute();
     },
 
-    /** @returns All staging rows for given external IDs in a marketplace. */
-    stagingByExternalIds(marketplace: string, externalIds: number[]) {
-      return db
-        .selectFrom("marketplaceStaging")
-        .selectAll()
-        .where("marketplace", "=", marketplace)
-        .where("externalId", "in", externalIds)
-        .execute();
+    /**
+     * Latest price + SKU metadata per product for the given external IDs in a
+     * marketplace. Used by `saveMappings` to resolve a (printing, externalId)
+     * mapping back to the SKU's group_id / product_name + most recent price.
+     * @returns One row per (externalId, finish, language) SKU with its latest price.
+     */
+    async stagingByExternalIds(marketplace: string, externalIds: number[]) {
+      if (externalIds.length === 0) {
+        return [];
+      }
+      const result = await sql<{
+        marketplace: string;
+        externalId: number;
+        groupId: number;
+        productName: string;
+        finish: string;
+        language: string | null;
+        recordedAt: Date;
+        marketCents: number | null;
+        lowCents: number | null;
+        midCents: number | null;
+        highCents: number | null;
+        trendCents: number | null;
+        avg1Cents: number | null;
+        avg7Cents: number | null;
+        avg30Cents: number | null;
+        zeroLowCents: number | null;
+      }>`
+        SELECT
+          mp.marketplace,
+          mp.external_id as "externalId",
+          mp.group_id as "groupId",
+          mp.product_name as "productName",
+          mp.finish,
+          mp.language,
+          latest.recorded_at as "recordedAt",
+          latest.market_cents as "marketCents",
+          latest.low_cents as "lowCents",
+          latest.mid_cents as "midCents",
+          latest.high_cents as "highCents",
+          latest.trend_cents as "trendCents",
+          latest.avg1_cents as "avg1Cents",
+          latest.avg7_cents as "avg7Cents",
+          latest.avg30_cents as "avg30Cents",
+          latest.zero_low_cents as "zeroLowCents"
+        FROM marketplace_products mp
+        INNER JOIN LATERAL (
+          SELECT *
+          FROM marketplace_product_prices pp
+          WHERE pp.marketplace_product_id = mp.id
+          ORDER BY pp.recorded_at DESC
+          LIMIT 1
+        ) latest ON true
+        WHERE mp.marketplace = ${marketplace}
+          AND mp.external_id = ANY(${externalIds}::integer[])
+      `.execute(db);
+      return result.rows;
     },
 
     /**
@@ -470,42 +577,6 @@ export function marketplaceMappingRepo(db: Db) {
       });
     },
 
-    /** Batch-insert snapshots with conflict resolution. */
-    async insertSnapshots(
-      rows: {
-        variantId: string;
-        recordedAt: Date;
-        marketCents: number | null;
-        lowCents: number | null;
-        midCents: number | null;
-        highCents: number | null;
-        trendCents: number | null;
-        avg1Cents: number | null;
-        avg7Cents: number | null;
-        avg30Cents: number | null;
-      }[],
-    ): Promise<void> {
-      if (rows.length === 0) {
-        return;
-      }
-      await db
-        .insertInto("marketplaceSnapshots")
-        .values(rows)
-        .onConflict((oc) =>
-          oc.columns(["variantId", "recordedAt"]).doUpdateSet({
-            marketCents: sql<number | null>`excluded.market_cents`,
-            lowCents: sql<number | null>`excluded.low_cents`,
-            midCents: sql<number | null>`excluded.mid_cents`,
-            highCents: sql<number | null>`excluded.high_cents`,
-            trendCents: sql<number | null>`excluded.trend_cents`,
-            avg1Cents: sql<number | null>`excluded.avg1_cents`,
-            avg7Cents: sql<number | null>`excluded.avg7_cents`,
-            avg30Cents: sql<number | null>`excluded.avg30_cents`,
-          }),
-        )
-        .execute();
-    },
-
     /** Delete staging rows by marketplace and (externalId, finish, language) tuples. */
     async deleteStagingTuples(
       marketplace: string,
@@ -566,24 +637,11 @@ export function marketplaceMappingRepo(db: Db) {
         .executeTakeFirstOrThrow();
     },
 
-    /** @returns All snapshots for a variant ID. */
-    snapshotsByVariantId(variantId: string) {
-      return db
-        .selectFrom("marketplaceSnapshots")
-        .selectAll()
-        .where("variantId", "=", variantId)
-        .execute();
-    },
-
-    /** Delete all snapshots for a variant ID. */
-    async deleteSnapshotsByVariantId(variantId: string): Promise<void> {
-      await db.deleteFrom("marketplaceSnapshots").where("variantId", "=", variantId).execute();
-    },
-
     /**
-     * Delete a marketplace variant by ID. The parent product row is left in
-     * place as an orphan — it still represents a known upstream listing and
-     * may be re-mapped later without re-creating the product.
+     * Delete a marketplace variant by ID. The parent product row + its price
+     * history are left in place — they represent a known upstream SKU and
+     * survive unmap, so a later rebind inherits full history without the
+     * product being recreated.
      */
     async deleteVariantById(id: string): Promise<void> {
       await db.deleteFrom("marketplaceProductVariants").where("id", "=", id).execute();
@@ -602,22 +660,10 @@ export function marketplaceMappingRepo(db: Db) {
       return result.count;
     },
 
-    /** Delete all snapshots for variants of a marketplace. */
-    async deleteSnapshotsForMappedVariants(marketplace: string): Promise<void> {
-      await sql`
-        DELETE FROM marketplace_snapshots
-        WHERE variant_id IN (
-          SELECT mpv.id FROM marketplace_product_variants mpv
-          JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
-          WHERE mp.marketplace = ${marketplace}
-        )
-      `.execute(db);
-    },
-
     /**
      * Delete all mapped variants for a marketplace, leaving parent products
-     * as orphans. (Orphan products are harmless — they still represent upstream
-     * listings and may be re-mapped later without being re-created.)
+     * and their price history in place. Re-running mapping is cheap — the
+     * product rows survive and price history is preserved per-SKU.
      */
     async deleteMappedVariants(marketplace: string): Promise<void> {
       await sql`
@@ -756,67 +802,72 @@ export function marketplaceMappingRepo(db: Db) {
           JOIN target_card tc ON cna.card_id = tc.id
           WHERE cna.norm_name <> ''
         ),
-        -- Candidate staging IDs. Three branches UNIONed so the planner can use
-        -- the GIN trigram index on marketplace_staging.norm_name for the LIKE
+        -- Candidate product IDs. Three branches UNIONed so the planner can use
+        -- the GIN trigram index on marketplace_products.norm_name for the LIKE
         -- filters. The prefix/substring matches may include rows that actually
         -- belong to a different card whose alias is longer (e.g. alias
         -- blastcone prefix-matches blastconefae product) — the caller does
         -- that tiebreak in JS where it is cheap against 1k aliases.
         candidate_ids AS (
-          SELECT s.id
-          FROM marketplace_staging s
-          JOIN marketplace_staging_card_overrides ov
-            ON ov.marketplace = s.marketplace
-           AND ov.external_id = s.external_id
-           AND ov.finish = s.finish
-           AND ov.language = s.language
+          SELECT mp.id
+          FROM marketplace_products mp
+          JOIN marketplace_product_card_overrides ov ON ov.marketplace_product_id = mp.id
           JOIN target_card tc ON ov.card_id = tc.id
-          WHERE s.marketplace = ANY(${marketplaces}::text[])
+          WHERE mp.marketplace = ANY(${marketplaces}::text[])
           UNION
-          SELECT s.id
-          FROM marketplace_staging s, target_aliases a
-          WHERE s.marketplace = ANY(${marketplaces}::text[])
-            AND s.norm_name LIKE a.norm_name || '%'
+          SELECT mp.id
+          FROM marketplace_products mp, target_aliases a
+          WHERE mp.marketplace = ANY(${marketplaces}::text[])
+            AND mp.norm_name LIKE a.norm_name || '%'
           UNION
-          SELECT s.id
-          FROM marketplace_staging s, target_aliases a
-          WHERE s.marketplace = ANY(${marketplaces}::text[])
+          SELECT mp.id
+          FROM marketplace_products mp, target_aliases a
+          WHERE mp.marketplace = ANY(${marketplaces}::text[])
             AND length(a.norm_name) >= 5
-            AND s.norm_name LIKE '%' || a.norm_name || '%'
+            AND mp.norm_name LIKE '%' || a.norm_name || '%'
         ),
         matched AS (
-          SELECT DISTINCT ON (s.marketplace, s.external_id, s.finish, s.language)
-            s.marketplace,
-            s.external_id,
-            s.product_name,
-            s.finish,
-            s.language,
-            s.group_id,
-            s.market_cents,
-            s.low_cents,
-            s.mid_cents,
-            s.high_cents,
-            s.trend_cents,
-            s.avg1_cents,
-            s.avg7_cents,
-            s.avg30_cents,
-            s.recorded_at
-          FROM marketplace_staging s
-          WHERE s.id IN (SELECT id FROM candidate_ids)
+          SELECT
+            mp.id,
+            mp.marketplace,
+            mp.external_id,
+            mp.product_name,
+            mp.finish,
+            mp.language,
+            mp.group_id,
+            latest.market_cents,
+            latest.low_cents,
+            latest.mid_cents,
+            latest.high_cents,
+            latest.trend_cents,
+            latest.avg1_cents,
+            latest.avg7_cents,
+            latest.avg30_cents,
+            latest.recorded_at
+          FROM marketplace_products mp
+          INNER JOIN LATERAL (
+            SELECT *
+            FROM marketplace_product_prices pp
+            WHERE pp.marketplace_product_id = mp.id
+            ORDER BY pp.recorded_at DESC
+            LIMIT 1
+          ) latest ON true
+          WHERE mp.id IN (SELECT id FROM candidate_ids)
             AND NOT EXISTS (
               SELECT 1 FROM marketplace_ignored_products ip
-              WHERE ip.marketplace = s.marketplace AND ip.external_id = s.external_id
+              WHERE ip.marketplace = mp.marketplace AND ip.external_id = mp.external_id
             )
             AND NOT EXISTS (
-              SELECT 1
-              FROM marketplace_ignored_variants iv
-              JOIN marketplace_products mp ON mp.id = iv.marketplace_product_id
-              WHERE mp.marketplace = s.marketplace
-                AND mp.external_id = s.external_id
-                AND mp.finish = s.finish
-                AND mp.language IS NOT DISTINCT FROM s.language
+              SELECT 1 FROM marketplace_ignored_variants iv
+              WHERE iv.marketplace_product_id = mp.id
             )
-          ORDER BY s.marketplace, s.external_id, s.finish, s.language, s.recorded_at DESC
+            -- Already-bound products aren't candidates for new suggestions.
+            -- Matches today's behaviour where saveMappings deletes the staging
+            -- row on assign.
+            AND NOT EXISTS (
+              SELECT 1 FROM marketplace_product_variants mpv
+              WHERE mpv.marketplace_product_id = mp.id
+            )
         )
         SELECT
           m.marketplace,
@@ -837,11 +888,8 @@ export function marketplaceMappingRepo(db: Db) {
           m.avg30_cents as "avg30Cents",
           m.recorded_at as "recordedAt",
           EXISTS (
-            SELECT 1 FROM marketplace_staging_card_overrides ov, target_card tc
-            WHERE ov.marketplace = m.marketplace
-              AND ov.external_id = m.external_id
-              AND ov.finish = m.finish
-              AND ov.language = m.language
+            SELECT 1 FROM marketplace_product_card_overrides ov, target_card tc
+            WHERE ov.marketplace_product_id = m.id
               AND ov.card_id = tc.id
           ) as "isOverride"
         FROM matched m

@@ -1,5 +1,5 @@
 import type { Repos } from "../../deps.js";
-import type { marketplaceTransferRepo } from "../../repositories/marketplace-transfer.js";
+import type { marketplaceMappingRepo } from "../../repositories/marketplace-mapping.js";
 
 // ── Unified product-info shape consumed by the frontend ─────────────────────
 
@@ -19,7 +19,7 @@ export interface ProductInfo {
 
 // ── Row shapes used by config callbacks ─────────────────────────────────────
 
-/** All 8 price columns shared by marketplace_snapshots and marketplace_staging. */
+/** All 8 price columns shared by marketplace_product_prices and marketplace_staging. */
 interface PriceColumns {
   marketCents: number | null;
   lowCents: number | null;
@@ -42,13 +42,8 @@ export interface StagingRow extends PriceColumns {
   recordedAt: Date;
 }
 
-/** Snapshot row (all 8 price columns + recorded_at). */
-interface SnapshotRow extends PriceColumns {
-  recordedAt: Date;
-}
-
-/** Mapped snapshot query result (sources JOIN snapshots). */
-interface MappedSnapshotRow extends PriceColumns {
+/** Latest-price query result for a bound printing (join through mpv → mp → prices). */
+interface MappedPriceRow extends PriceColumns {
   printingId: string;
   externalId: number;
   productName: string;
@@ -62,21 +57,10 @@ export interface MarketplaceConfig {
   currency: string;
   /** Map a staging row → the unified product-info price fields */
   mapStagingPrices(row: StagingRow): Omit<ProductInfo, "productName" | "recordedAt">;
-  /** Select + map snapshot prices for mapped products */
-  snapshotQuery(printingIds: string[]): Promise<MappedSnapshotRow[]>;
-  /** Map a snapshot query result → unified product-info */
-  mapSnapshotPrices(row: MappedSnapshotRow): ProductInfo;
-  /** Insert a snapshot row from staging during the POST (map) operation */
-  insertSnapshot(variantId: string, row: StagingRow): Promise<void>;
-  /** Insert a staging row from a snapshot during the DELETE (unmap) operation */
-  insertStagingFromSnapshot(
-    product: { externalId: number; groupId: number; productName: string },
-    finish: string,
-    language: string | null,
-    snap: SnapshotRow,
-  ): Promise<void>;
-  /** Raw SQL to bulk-copy all snapshots back to staging (DELETE /all) */
-  bulkUnmapSql(): Promise<void>;
+  /** Fetch the latest price row per (printing × product) for the given printings. */
+  priceQuery(printingIds: string[]): Promise<MappedPriceRow[]>;
+  /** Map a price query result → unified product-info */
+  mapPriceRow(row: MappedPriceRow): ProductInfo;
 }
 
 // ── Factory helper ──────────────────────────────────────────────────────────
@@ -85,7 +69,7 @@ function createMarketplaceConfig(opts: {
   marketplace: string;
   currency: string;
   mapPrices(row: PriceColumns): Omit<ProductInfo, "productName" | "recordedAt">;
-  repo: ReturnType<typeof marketplaceTransferRepo>;
+  repo: ReturnType<typeof marketplaceMappingRepo>;
 }): MarketplaceConfig {
   const { marketplace, mapPrices, repo } = opts;
 
@@ -95,20 +79,13 @@ function createMarketplaceConfig(opts: {
 
     mapStagingPrices: mapPrices,
 
-    snapshotQuery: (printingIds) => repo.snapshotsByMarketplace(marketplace, printingIds),
+    priceQuery: (printingIds) => repo.pricesByMarketplace(marketplace, printingIds),
 
-    mapSnapshotPrices: (row) => ({
+    mapPriceRow: (row) => ({
       productName: row.productName,
       recordedAt: row.recordedAt.toISOString(),
       ...mapPrices(row),
     }),
-
-    insertSnapshot: (variantId, row) => repo.insertSnapshot(variantId, row),
-
-    insertStagingFromSnapshot: (product, finish, language, snap) =>
-      repo.insertStagingFromSnapshot(marketplace, product, finish, language, snap),
-
-    bulkUnmapSql: () => repo.bulkUnmapToStaging(marketplace),
   };
 }
 
@@ -151,7 +128,7 @@ const ctMapPrices = (row: PriceColumns) => ({
 });
 
 export function createMarketplaceConfigs(repos: Repos) {
-  const repo = repos.marketplaceTransfer;
+  const repo = repos.marketplaceMapping;
   return {
     tcgplayer: createMarketplaceConfig({
       marketplace: "tcgplayer",

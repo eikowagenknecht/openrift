@@ -4,7 +4,7 @@
  * Fetches blueprints per expansion, then marketplace listings per expansion
  * to compute the lowest price per blueprint. Auto-matches blueprints to
  * existing printings via TCGPlayer/Cardmarket cross-references, writes
- * snapshots for already-mapped sources into marketplace_snapshots, and
+ * snapshots for already-mapped sources into marketplace_product_prices, and
  * stages unmatched products in marketplace_staging for admin mapping.
  */
 

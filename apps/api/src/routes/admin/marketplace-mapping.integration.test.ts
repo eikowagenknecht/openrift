@@ -212,7 +212,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(json.saved).toBe(1);
     });
 
-    it("after mapping, staging row is deleted and snapshot is created", async () => {
+    it("after mapping, the variant binding exists and the staging row is deleted", async () => {
       // Staging row for this external_id + finish should be gone
       const stagingRows = await db
         .selectFrom("marketplaceStaging")
@@ -224,6 +224,8 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       expect(stagingRows).toHaveLength(0);
 
       // marketplace_products + variant row should exist (keyed on printingId via the variant).
+      // Prices live on the product (marketplace_product_prices) and accumulate on future fetches;
+      // saveMappings no longer copies staging into per-variant snapshots.
       const variantRow = await db
         .selectFrom("marketplaceProductVariants as mpv")
         .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
@@ -233,15 +235,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .executeTakeFirst();
       expect(variantRow).toBeDefined();
       expect(variantRow?.externalId).toBe(12_345);
-
-      // marketplace_snapshots should have at least one row
-      const snapshots = await db
-        .selectFrom("marketplaceSnapshots")
-        .selectAll()
-        .where("variantId", "=", variantRow?.variantId as string)
-        .execute();
-      expect(snapshots.length).toBeGreaterThanOrEqual(1);
-      expect(snapshots[0].marketCents).toBe(100);
     });
 
     it("mapped printing shows externalId in overview", async () => {

@@ -37,7 +37,6 @@ describe("createRepos", () => {
       "wishLists",
       "ingest",
       "marketplaceMapping",
-      "marketplaceTransfer",
       "priceRefresh",
     ];
     for (const key of expectedKeys) {

@@ -72,7 +72,7 @@ const PRICE_TEEMO = {
 };
 
 const ZERO_COUNTS: UpsertCounts = {
-  snapshots: { total: 0, new: 0, updated: 0, unchanged: 0 },
+  prices: { total: 0, new: 0, updated: 0, unchanged: 0 },
   staging: { total: 0, new: 0, updated: 0, unchanged: 0 },
 };
 
@@ -472,7 +472,7 @@ describe("refreshCardmarketPrices", () => {
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, [], []);
       const customCounts: UpsertCounts = {
-        snapshots: { total: 20, new: 10, updated: 5, unchanged: 5 },
+        prices: { total: 20, new: 10, updated: 5, unchanged: 5 },
         staging: { total: 15, new: 8, updated: 4, unchanged: 3 },
       };
       upsertSpy.mockResolvedValue(customCounts);

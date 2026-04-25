@@ -179,11 +179,15 @@ export interface MarketplaceProductVariantsTable {
   updatedAt: UpdatedAt;
 }
 
-/** @see marketplaceSnapshotFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
-export interface MarketplaceSnapshotsTable {
-  id: Generated<string>;
-  variantId: string;
-  recordedAt: CreatedAt;
+/**
+ * Price history per marketplace SKU. One row per
+ * `(marketplace_product_id, recorded_at)`; every bound printing for a SKU
+ * shares the same price history through
+ * `marketplace_products → marketplace_product_variants`.
+ * @see marketplaceProductPriceFieldRules in `schemas.ts` for Zod validation of CHECK constraints */
+export interface MarketplaceProductPricesTable {
+  marketplaceProductId: string;
+  recordedAt: Date;
   /** CHECK: >= 0. Null for marketplaces without a true "market" price (e.g. cardtrader, where lowCents is the headline). */
   marketCents: number | null;
   /** CHECK: >= 0 */
@@ -202,30 +206,7 @@ export interface MarketplaceSnapshotsTable {
   avg7Cents: number | null;
   /** CHECK: >= 0 */
   avg30Cents: number | null;
-}
-
-export interface MarketplaceStagingTable {
-  id: Generated<string>;
-  marketplace: string;
-  externalId: number;
-  groupId: number;
-  productName: string;
-  finish: string;
-  /** NULL when the marketplace doesn't expose language as a SKU dimension (CM/TCG). */
-  language: string | null;
-  recordedAt: Date;
-  marketCents: number | null;
-  lowCents: number | null;
-  /** Lowest asking price among CardTrader Zero (hub-eligible) sellers. Null for non-cardtrader marketplaces. */
-  zeroLowCents: number | null;
-  midCents: number | null;
-  highCents: number | null;
-  trendCents: number | null;
-  avg1Cents: number | null;
-  avg7Cents: number | null;
-  avg30Cents: number | null;
   createdAt: CreatedAt;
-  updatedAt: UpdatedAt;
 }
 
 /** Level 2 ignores: deny an entire upstream product (e.g. sealed product, bundles). */
@@ -245,12 +226,12 @@ export interface MarketplaceIgnoredVariantsTable {
   updatedAt: UpdatedAt;
 }
 
-export interface MarketplaceStagingCardOverridesTable {
-  marketplace: string;
-  externalId: number;
-  finish: string;
-  /** NULL for CM/TCG (see MarketplaceStagingTable.language). */
-  language: string | null;
+/**
+ * Pin a specific marketplace SKU to a card, overriding name-based matching.
+ * Keyed on the product row so the override survives across price refreshes.
+ */
+export interface MarketplaceProductCardOverridesTable {
+  marketplaceProductId: string;
   cardId: string;
   createdAt: CreatedAt;
 }
@@ -882,11 +863,10 @@ export interface Database {
   marketplaceGroups: MarketplaceGroupsTable;
   marketplaceProducts: MarketplaceProductsTable;
   marketplaceProductVariants: MarketplaceProductVariantsTable;
-  marketplaceSnapshots: MarketplaceSnapshotsTable;
-  marketplaceStaging: MarketplaceStagingTable;
+  marketplaceProductPrices: MarketplaceProductPricesTable;
   marketplaceIgnoredProducts: MarketplaceIgnoredProductsTable;
   marketplaceIgnoredVariants: MarketplaceIgnoredVariantsTable;
-  marketplaceStagingCardOverrides: MarketplaceStagingCardOverridesTable;
+  marketplaceProductCardOverrides: MarketplaceProductCardOverridesTable;
 
   // Admin (migration 012)
   admins: AdminsTable;

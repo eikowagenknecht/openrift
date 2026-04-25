@@ -115,7 +115,6 @@ export type {
   PrintingImage,
   ProviderSettingResponse,
   ProviderStatsResponse,
-  ReconcileSnapshotsResponse,
   RangeKey,
   Rarity,
   RegenerateImageResponse,

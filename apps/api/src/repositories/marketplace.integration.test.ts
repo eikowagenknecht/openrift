@@ -18,9 +18,10 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   const mpCm = "mp-repo-test-cm";
 
   let tcgVariantId = "";
+  let tcgProductId = "";
 
-  // Track snapshot IDs for cleanup
-  const createdSnapshotIds: string[] = [];
+  // Track recordedAt timestamps we inserted for cleanup
+  const createdPriceKeys: { productId: string; recordedAt: Date }[] = [];
 
   beforeAll(async () => {
     // Create marketplace groups for our test marketplaces
@@ -47,6 +48,7 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
       })
       .returning("id")
       .execute();
+    tcgProductId = tcgProduct.id;
 
     const [tcgVariant] = await db
       .insertInto("marketplaceProductVariants")
@@ -81,8 +83,12 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   });
 
   afterAll(async () => {
-    for (const id of createdSnapshotIds.toReversed()) {
-      await db.deleteFrom("marketplaceSnapshots").where("id", "=", id).execute();
+    for (const key of createdPriceKeys.toReversed()) {
+      await db
+        .deleteFrom("marketplaceProductPrices")
+        .where("marketplaceProductId", "=", key.productId)
+        .where("recordedAt", "=", key.recordedAt)
+        .execute();
     }
     // Delete variants first (FK), then products.
     await sql`
@@ -120,32 +126,33 @@ describe.skipIf(!ctx)("marketplaceRepo (integration)", () => {
   // ---------------------------------------------------------------------------
 
   it("returns snapshots ordered by recordedAt ascending", async () => {
-    // Insert two snapshots for our TCG variant
-    const snap1 = await db
-      .insertInto("marketplaceSnapshots")
-      .values({
-        variantId: tcgVariantId,
-        marketCents: 100,
-        lowCents: 80,
-        recordedAt: new Date("2026-01-01T00:00:00Z"),
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow();
-    createdSnapshotIds.push(snap1.id);
+    // Insert two price rows for our TCG product. `snapshots()` reads per-product
+    // via the mpv ↔ product join.
+    const snap1At = new Date("2026-01-01T00:00:00Z");
+    const snap2At = new Date("2026-02-01T00:00:00Z");
+    await db
+      .insertInto("marketplaceProductPrices")
+      .values([
+        {
+          marketplaceProductId: tcgProductId,
+          marketCents: 100,
+          lowCents: 80,
+          recordedAt: snap1At,
+        },
+        {
+          marketplaceProductId: tcgProductId,
+          marketCents: 120,
+          lowCents: 90,
+          recordedAt: snap2At,
+        },
+      ])
+      .execute();
+    createdPriceKeys.push(
+      { productId: tcgProductId, recordedAt: snap1At },
+      { productId: tcgProductId, recordedAt: snap2At },
+    );
 
-    const snap2 = await db
-      .insertInto("marketplaceSnapshots")
-      .values({
-        variantId: tcgVariantId,
-        marketCents: 120,
-        lowCents: 90,
-        recordedAt: new Date("2026-02-01T00:00:00Z"),
-      })
-      .returningAll()
-      .executeTakeFirstOrThrow();
-    createdSnapshotIds.push(snap2.id);
-
-    // Refresh the MV so latestPrices() sees the new snapshots
+    // Refresh the MV so latestPrices() sees the new rows
     await sql`REFRESH MATERIALIZED VIEW mv_latest_printing_prices`.execute(db);
 
     const snaps = await repo.snapshots(tcgVariantId, null);

@@ -127,9 +127,3 @@ export const clearActions = {
     description: "Delete all CardTrader price sources, snapshots, and staging data",
   },
 } as const;
-
-export const reconcileActions = {
-  tcgplayer: { key: "reconcile-tcgplayer", source: "tcgplayer" as const },
-  cardmarket: { key: "reconcile-cardmarket", source: "cardmarket" as const },
-  cardtrader: { key: "reconcile-cardtrader", source: "cardtrader" as const },
-} as const;

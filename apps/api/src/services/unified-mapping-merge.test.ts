@@ -733,8 +733,8 @@ describe("buildUnifiedMappingsCardResponse", () => {
         avg7Cents: row.avg7Cents,
         avg30Cents: row.avg30Cents,
       }),
-      snapshotQuery: vi.fn().mockResolvedValue([]),
-      mapSnapshotPrices: vi.fn(),
+      priceQuery: vi.fn().mockResolvedValue([]),
+      mapPriceRow: vi.fn(),
     } as unknown as MarketplaceConfig;
   }
 
@@ -1042,7 +1042,7 @@ describe("buildUnifiedMappingsCardResponse", () => {
     // cardtrader printing because the card had no current staging rows — the
     // groupName map was only seeded from staging. Now the unified query carries
     // sourceGroupName and seeds the map up front.
-    const snapshotQuery = vi.fn().mockResolvedValue([
+    const priceQuery = vi.fn().mockResolvedValue([
       {
         printingId: "p-allay",
         externalId: 379_431,
@@ -1058,7 +1058,7 @@ describe("buildUnifiedMappingsCardResponse", () => {
         avg30Cents: null,
       },
     ]);
-    const mapSnapshotPrices = vi.fn().mockReturnValue({
+    const mapPriceRow = vi.fn().mockReturnValue({
       productName: "Allay - Eager Admirer",
       marketCents: 100,
       lowCents: 80,
@@ -1073,8 +1073,8 @@ describe("buildUnifiedMappingsCardResponse", () => {
     });
     const config = {
       ...makeScopedCardConfig("cardtrader"),
-      snapshotQuery,
-      mapSnapshotPrices,
+      priceQuery,
+      mapPriceRow,
     } as unknown as MarketplaceConfig;
 
     const repos = {

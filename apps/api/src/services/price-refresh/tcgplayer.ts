@@ -2,7 +2,7 @@
  * Refreshes TCGPlayer price data from the TCGCSV API.
  *
  * Fetches groups, products, and prices, writes snapshots for already-mapped
- * sources into marketplace_snapshots, and stages all products in
+ * sources into marketplace_product_prices, and stages all products in
  * marketplace_staging for manual admin mapping.
  *
  * Usage: bun scripts/refresh-tcgplayer-prices.ts

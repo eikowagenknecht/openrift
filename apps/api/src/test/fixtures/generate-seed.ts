@@ -180,14 +180,14 @@ const marketplaceProducts = await sql<Record<string, unknown>[]>`
 `;
 
 const marketplaceProductVariants = await sql<Record<string, unknown>[]>`
-  SELECT mpv.id, mpv.marketplace_product_id, mpv.printing_id, mpv.finish, mpv.language
+  SELECT mpv.id, mpv.marketplace_product_id, mpv.printing_id
   FROM marketplace_product_variants mpv
   JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
   JOIN printings p ON p.id = mpv.printing_id
   JOIN sets s ON s.id = p.set_id
   JOIN cards c ON c.id = p.card_id
   WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
-  ORDER BY mp.marketplace, mp.external_id, mpv.finish, mpv.language
+  ORDER BY mp.marketplace, mp.external_id, mp.finish, mp.language
 `;
 
 const distributionChannels = await sql<Record<string, unknown>[]>`
@@ -336,22 +336,23 @@ const imageFiles =
       `
     : [];
 
-const marketplaceSnapshots = await sql<Record<string, unknown>[]>`
-  SELECT id, variant_id, recorded_at,
+const marketplaceProductPrices = await sql<Record<string, unknown>[]>`
+  SELECT marketplace_product_id, recorded_at,
     market_cents, low_cents, mid_cents, high_cents,
-    trend_cents, avg1_cents, avg7_cents, avg30_cents
+    trend_cents, avg1_cents, avg7_cents, avg30_cents, zero_low_cents
   FROM (
-    SELECT ms.*,
-      ROW_NUMBER() OVER (PARTITION BY ms.variant_id ORDER BY ms.recorded_at DESC) AS rn
-    FROM marketplace_snapshots ms
-    JOIN marketplace_product_variants mpv ON mpv.id = ms.variant_id
+    SELECT pp.*,
+      ROW_NUMBER() OVER (PARTITION BY pp.marketplace_product_id ORDER BY pp.recorded_at DESC) AS rn
+    FROM marketplace_product_prices pp
+    JOIN marketplace_products mp ON mp.id = pp.marketplace_product_id
+    JOIN marketplace_product_variants mpv ON mpv.marketplace_product_id = mp.id
     JOIN printings p ON p.id = mpv.printing_id
     JOIN sets s ON s.id = p.set_id
     JOIN cards c ON c.id = p.card_id
     WHERE s.slug = ${SET_SLUG} OR c.slug = ANY(${EXTRA_CARD_SLUGS})
   ) ranked
   WHERE rn <= 5
-  ORDER BY variant_id, recorded_at
+  ORDER BY marketplace_product_id, recorded_at
 `;
 
 const ruleVersions = await sql<Record<string, unknown>[]>`
@@ -496,7 +497,7 @@ const seedSql = [
   toInsert("marketplace_groups", marketplaceGroups),
   toInsert("marketplace_products", marketplaceProducts),
   toInsert("marketplace_product_variants", marketplaceProductVariants),
-  toInsert("marketplace_snapshots", marketplaceSnapshots),
+  toInsert("marketplace_product_prices", marketplaceProductPrices),
   "",
   "-- Feature flags",
   toInsert("feature_flags", syntheticFeatureFlags),
@@ -519,7 +520,7 @@ console.log(
     `    ${cardNameAliases.length} aliases, ${syntheticCardErrata.length} errata (synthetic), ${distributionChannels.length} distribution channels`,
     `  Printings: ${printings.length} printings, ${imageFiles.length} image files, ${printingImages.length} printing images, ${printingMarkers.length} marker links, ${printingDistributionChannels.length} channel links`,
     `  Bans: ${syntheticCardBans.length} card bans (synthetic)`,
-    `  Marketplace: ${marketplaceGroups.length} groups, ${marketplaceProducts.length} products, ${marketplaceProductVariants.length} variants, ${marketplaceSnapshots.length} snapshots`,
+    `  Marketplace: ${marketplaceGroups.length} groups, ${marketplaceProducts.length} products, ${marketplaceProductVariants.length} variants, ${marketplaceProductPrices.length} prices`,
     `  Feature flags: ${syntheticFeatureFlags.length} (synthetic, all enabled)`,
     `  Rules: ${ruleVersions.length} rule versions, ${rules.length} rules`,
   ].join("\n"),

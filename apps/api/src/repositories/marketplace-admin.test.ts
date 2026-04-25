@@ -140,8 +140,10 @@ describe("marketplaceAdminRepo", () => {
     expect(await marketplaceAdminRepo(db).deleteIgnoredVariants("tcgplayer", [])).toBe(0);
   });
 
-  it("upsertStagingCardOverride upserts an override", async () => {
-    const db = createMockDb([]);
+  it("upsertStagingCardOverride upserts an override (product exists)", async () => {
+    // The mock proxy returns the same shape for every query; it satisfies both
+    // the product-id resolve (`inserted: 1`) and the override insert.
+    const db = createMockDb([{ inserted: 1 }]);
     await expect(
       marketplaceAdminRepo(db).upsertStagingCardOverride({
         marketplace: "tcgplayer",
@@ -151,6 +153,19 @@ describe("marketplaceAdminRepo", () => {
         cardId: "c-1",
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it("upsertStagingCardOverride throws when the product does not exist", async () => {
+    const db = createMockDb([]);
+    await expect(
+      marketplaceAdminRepo(db).upsertStagingCardOverride({
+        marketplace: "tcgplayer",
+        externalId: 999,
+        finish: "normal",
+        language: "EN",
+        cardId: "c-1",
+      }),
+    ).rejects.toThrow("no marketplace_products row");
   });
 
   it("deleteStagingCardOverride deletes an override", async () => {
@@ -163,18 +178,6 @@ describe("marketplaceAdminRepo", () => {
   it("clearPriceData returns counts", async () => {
     const db = createMockDb([{ numDeletedRows: 5n, deleted: 5 }]);
     const result = await marketplaceAdminRepo(db).clearPriceData("tcgplayer");
-    expect(result).toEqual({ snapshots: 5, variants: 5, products: 5, staging: 5 });
-  });
-
-  it("reconcileStagingSnapshots returns inserted count", async () => {
-    const db = createMockDb([{ inserted: 14 }]);
-    const result = await marketplaceAdminRepo(db).reconcileStagingSnapshots("cardtrader");
-    expect(result).toBe(14);
-  });
-
-  it("reconcileStagingSnapshots returns 0 when nothing to reconcile", async () => {
-    const db = createMockDb([]);
-    const result = await marketplaceAdminRepo(db).reconcileStagingSnapshots("cardtrader");
-    expect(result).toBe(0);
+    expect(result).toEqual({ prices: 5, variants: 5, products: 5 });
   });
 });

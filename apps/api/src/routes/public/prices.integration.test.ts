@@ -20,9 +20,9 @@ let setId: string;
 let cardId: string;
 let printingId: string;
 let printingNoSourceId: string;
-let tcgVariantId: string;
-let cmVariantId: string;
-let ctVariantId: string;
+let _tcgVariantId: string;
+let _cmVariantId: string;
+let _ctVariantId: string;
 
 if (ctx) {
   const { db } = ctx;
@@ -121,7 +121,7 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  tcgVariantId = tcgVariant.id;
+  _tcgVariantId = tcgVariant.id;
 
   // Cardmarket product + variant for printingId. CM also has no per-language SKU axis.
   const [cmProduct] = await db
@@ -144,61 +144,52 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  cmVariantId = cmVariant.id;
+  _cmVariantId = cmVariant.id;
 
-  // TCGPlayer snapshots at various dates
+  // TCGPlayer prices at various dates. Prices are keyed on the SKU product,
+  // not the variant — every variant bound to the product inherits the history.
   const now = new Date();
   const daysAgo = (d: number) => new Date(now.getTime() - d * 86_400_000);
 
-  // Recent snapshot (2 days ago) — should appear in all ranges
   await db
-    .insertInto("marketplaceSnapshots")
-    .values({
-      variantId: tcgVariantId,
-      recordedAt: daysAgo(2),
-      marketCents: 250,
-      lowCents: 120,
-    })
+    .insertInto("marketplaceProductPrices")
+    .values([
+      // Recent (2 days ago) — should appear in all ranges
+      {
+        marketplaceProductId: tcgProduct.id,
+        recordedAt: daysAgo(2),
+        marketCents: 250,
+        lowCents: 120,
+      },
+      // 15 days ago — should appear in 30d, 90d, all
+      {
+        marketplaceProductId: tcgProduct.id,
+        recordedAt: daysAgo(15),
+        marketCents: 200,
+        lowCents: 100,
+      },
+      // 60 days ago — should appear in 90d, all
+      {
+        marketplaceProductId: tcgProduct.id,
+        recordedAt: daysAgo(60),
+        marketCents: 150,
+        lowCents: 80,
+      },
+      // 120 days ago — should only appear in "all"
+      {
+        marketplaceProductId: tcgProduct.id,
+        recordedAt: daysAgo(120),
+        marketCents: 100,
+        lowCents: 50,
+      },
+    ])
     .execute();
 
-  // Older snapshot (15 days ago) — should appear in 30d, 90d, all
+  // Cardmarket price (2 days ago)
   await db
-    .insertInto("marketplaceSnapshots")
+    .insertInto("marketplaceProductPrices")
     .values({
-      variantId: tcgVariantId,
-      recordedAt: daysAgo(15),
-      marketCents: 200,
-      lowCents: 100,
-    })
-    .execute();
-
-  // Old snapshot (60 days ago) — should appear in 90d, all
-  await db
-    .insertInto("marketplaceSnapshots")
-    .values({
-      variantId: tcgVariantId,
-      recordedAt: daysAgo(60),
-      marketCents: 150,
-      lowCents: 80,
-    })
-    .execute();
-
-  // Very old snapshot (120 days ago) — should only appear in "all"
-  await db
-    .insertInto("marketplaceSnapshots")
-    .values({
-      variantId: tcgVariantId,
-      recordedAt: daysAgo(120),
-      marketCents: 100,
-      lowCents: 50,
-    })
-    .execute();
-
-  // Cardmarket snapshot (2 days ago)
-  await db
-    .insertInto("marketplaceSnapshots")
-    .values({
-      variantId: cmVariantId,
+      marketplaceProductId: cmProduct.id,
       recordedAt: daysAgo(2),
       marketCents: 180,
       lowCents: 100,
@@ -227,30 +218,27 @@ if (ctx) {
     })
     .returning("id")
     .execute();
-  ctVariantId = ctVariant.id;
+  _ctVariantId = ctVariant.id;
 
-  // CardTrader snapshot with a Zero-eligible low (2 days ago)
+  // CardTrader prices: Zero-eligible low 2 days ago + plain low 5 days ago.
   await db
-    .insertInto("marketplaceSnapshots")
-    .values({
-      variantId: ctVariantId,
-      recordedAt: daysAgo(2),
-      marketCents: null,
-      lowCents: 300,
-      zeroLowCents: 420,
-    })
-    .execute();
-
-  // CardTrader snapshot with no Zero data (5 days ago) — tests zeroLow: null
-  await db
-    .insertInto("marketplaceSnapshots")
-    .values({
-      variantId: ctVariantId,
-      recordedAt: daysAgo(5),
-      marketCents: null,
-      lowCents: 280,
-      zeroLowCents: null,
-    })
+    .insertInto("marketplaceProductPrices")
+    .values([
+      {
+        marketplaceProductId: ctProduct.id,
+        recordedAt: daysAgo(2),
+        marketCents: null,
+        lowCents: 300,
+        zeroLowCents: 420,
+      },
+      {
+        marketplaceProductId: ctProduct.id,
+        recordedAt: daysAgo(5),
+        marketCents: null,
+        lowCents: 280,
+        zeroLowCents: null,
+      },
+    ])
     .execute();
 }
 

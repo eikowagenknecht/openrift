@@ -436,8 +436,7 @@ export interface PriceRefreshResponse {
     prices: number;
   };
   upserted: {
-    snapshots: PriceRefreshUpsertCounts;
-    staging: PriceRefreshUpsertCounts;
+    prices: PriceRefreshUpsertCounts;
   };
 }
 
@@ -471,12 +470,7 @@ export interface JobRunsListResponse {
 
 export interface ClearPricesResponse {
   marketplace: string;
-  deleted: { snapshots: number; variants: number; products: number; staging: number };
-}
-
-export interface ReconcileSnapshotsResponse {
-  marketplace: string;
-  snapshotsInserted: number;
+  deleted: { prices: number; variants: number; products: number };
 }
 
 // ── Unified marketplace mappings response types ─────────────────────────────

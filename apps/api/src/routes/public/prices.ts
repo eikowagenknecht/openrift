@@ -74,8 +74,8 @@ export const pricesRoute = pricesApp
   /**
    * `GET /prices` — Returns the latest market price per marketplace for every printing.
    *
-   * Uses `DISTINCT ON` to efficiently pick only the most recent snapshot per
-   * marketplace source without scanning the full `marketplace_snapshots` table.
+   * Uses `DISTINCT ON` to efficiently pick only the most recent price row per
+   * marketplace source without scanning the full `marketplace_product_prices` table.
    * Returned as `{ [printingId]: { tcgplayer?, cardmarket?, cardtrader? } }`,
    * with each value in dollars.
    */

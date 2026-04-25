@@ -55,6 +55,11 @@ import * as m106 from "./106-staging-nullable-language.js";
 import * as m107 from "./107-backfill-sibling-variants.js";
 import * as m108 from "./108-simplify-latest-prices-mv.js";
 import * as m109 from "./109-marketplace-group-kind.js";
+import * as m110 from "./110-marketplace-product-prices.js";
+import * as m111 from "./111-latest-prices-mv-on-product-prices.js";
+import * as m112 from "./112-product-norm-name.js";
+import * as m113 from "./113-product-card-overrides.js";
+import * as m114 from "./114-drop-snapshots-and-staging.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -169,4 +174,9 @@ export const migrations: Record<string, Migration> = {
   "107-backfill-sibling-variants": m107,
   "108-simplify-latest-prices-mv": m108,
   "109-marketplace-group-kind": m109,
+  "110-marketplace-product-prices": m110,
+  "111-latest-prices-mv-on-product-prices": m111,
+  "112-product-norm-name": m112,
+  "113-product-card-overrides": m113,
+  "114-drop-snapshots-and-staging": m114,
 };

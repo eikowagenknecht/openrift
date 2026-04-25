@@ -29,7 +29,6 @@ const mockRefreshCardtrader = vi.mocked(refreshCardtraderPrices);
 
 const mockMktAdmin = {
   clearPriceData: vi.fn(),
-  reconcileStagingSnapshots: vi.fn(),
 };
 
 const mockMarketplace = { refreshLatestPrices: vi.fn() };
@@ -81,8 +80,7 @@ const app = new Hono()
 const priceRefreshResult = {
   transformed: { groups: 5, products: 100, prices: 300 },
   upserted: {
-    snapshots: { total: 100, new: 50, updated: 30, unchanged: 20 },
-    staging: { total: 100, new: 40, updated: 35, unchanged: 25 },
+    prices: { total: 100, new: 50, updated: 30, unchanged: 20 },
   },
 };
 
@@ -97,10 +95,9 @@ describe("POST /api/v1/clear-prices", () => {
 
   it("returns 200 with deleted counts", async () => {
     mockMktAdmin.clearPriceData.mockResolvedValue({
-      snapshots: 10,
+      prices: 10,
       variants: 15,
       products: 20,
-      staging: 5,
     });
 
     const res = await app.request("/api/v1/clear-prices", {
@@ -112,17 +109,16 @@ describe("POST /api/v1/clear-prices", () => {
     const json = await res.json();
     expect(json).toEqual({
       marketplace: "tcgplayer",
-      deleted: { snapshots: 10, variants: 15, products: 20, staging: 5 },
+      deleted: { prices: 10, variants: 15, products: 20 },
     });
     expect(mockMktAdmin.clearPriceData).toHaveBeenCalledWith("tcgplayer");
   });
 
   it("works with cardmarket marketplace", async () => {
     mockMktAdmin.clearPriceData.mockResolvedValue({
-      snapshots: 0,
+      prices: 0,
       variants: 0,
       products: 0,
-      staging: 0,
     });
 
     const res = await app.request("/api/v1/clear-prices", {
@@ -246,40 +242,5 @@ describe("POST /api/v1/refresh-cardtrader-prices", () => {
         "test-token-123",
       );
     });
-  });
-});
-
-describe("POST /api/v1/reconcile-snapshots", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("returns 200 with inserted count and refreshes latest prices when rows inserted", async () => {
-    mockMktAdmin.reconcileStagingSnapshots.mockResolvedValue(14);
-
-    const res = await app.request("/api/v1/reconcile-snapshots", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ marketplace: "cardtrader" }),
-    });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual({ marketplace: "cardtrader", snapshotsInserted: 14 });
-    expect(mockMktAdmin.reconcileStagingSnapshots).toHaveBeenCalledWith("cardtrader");
-    expect(mockMarketplace.refreshLatestPrices).toHaveBeenCalled();
-  });
-
-  it("skips the latest-price refresh when no rows were inserted", async () => {
-    mockMktAdmin.reconcileStagingSnapshots.mockResolvedValue(0);
-
-    const res = await app.request("/api/v1/reconcile-snapshots", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ marketplace: "tcgplayer" }),
-    });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.snapshotsInserted).toBe(0);
-    expect(mockMarketplace.refreshLatestPrices).not.toHaveBeenCalled();
   });
 });

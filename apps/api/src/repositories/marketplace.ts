@@ -1,7 +1,7 @@
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, MarketplaceSnapshotsTable } from "../db/index.js";
+import type { Database, MarketplaceProductPricesTable } from "../db/index.js";
 
 interface CollectionValueHistoryPoint {
   date: string;
@@ -139,23 +139,34 @@ export function marketplaceRepo(db: Kysely<Database>) {
       return result.rows;
     },
 
-    /** @returns Snapshots for a single variant, optionally filtered by a cutoff date, ordered chronologically. */
+    /**
+     * Price history for the product a variant is bound to. Every variant for
+     * the same SKU resolves to the same history — prices live on the product,
+     * not the binding.
+     * @returns Rows for the variant's parent product, optionally filtered by
+     *          a cutoff date, ordered chronologically.
+     */
     snapshots(
       variantId: string,
       cutoff: Date | null,
     ): Promise<
       Pick<
-        Selectable<MarketplaceSnapshotsTable>,
+        Selectable<MarketplaceProductPricesTable>,
         "recordedAt" | "marketCents" | "lowCents" | "zeroLowCents"
       >[]
     > {
       let query = db
-        .selectFrom("marketplaceSnapshots")
-        .select(["recordedAt", "marketCents", "lowCents", "zeroLowCents"])
-        .where("variantId", "=", variantId)
-        .orderBy("recordedAt", "asc");
+        .selectFrom("marketplaceProductPrices as pp")
+        .innerJoin(
+          "marketplaceProductVariants as mpv",
+          "mpv.marketplaceProductId",
+          "pp.marketplaceProductId",
+        )
+        .select(["pp.recordedAt", "pp.marketCents", "pp.lowCents", "pp.zeroLowCents"])
+        .where("mpv.id", "=", variantId)
+        .orderBy("pp.recordedAt", "asc");
       if (cutoff) {
-        query = query.where("recordedAt", ">=", cutoff);
+        query = query.where("pp.recordedAt", ">=", cutoff);
       }
       return query.execute();
     },
@@ -361,8 +372,8 @@ export function marketplaceRepo(db: Kysely<Database>) {
       // naturally fall back to low_cents.
       const headlineExpr =
         marketplace === "cardtrader"
-          ? sql`COALESCE(snap.zero_low_cents, snap.low_cents)`
-          : sql`COALESCE(snap.market_cents, snap.low_cents)`;
+          ? sql`COALESCE(pp.zero_low_cents, pp.low_cents)`
+          : sql`COALESCE(pp.market_cents, pp.low_cents)`;
       const dailyPrices = await sql<{
         printingId: string;
         day: string;
@@ -370,15 +381,15 @@ export function marketplaceRepo(db: Kysely<Database>) {
       }>`
         SELECT DISTINCT ON (mpv.printing_id, day)
           mpv.printing_id AS "printingId",
-          date_trunc('day', snap.recorded_at)::date::text AS day,
+          date_trunc('day', pp.recorded_at)::date::text AS day,
           ${headlineExpr} AS "headlineCents"
         FROM marketplace_product_variants mpv
         JOIN marketplace_products mp ON mp.id = mpv.marketplace_product_id
-        JOIN marketplace_snapshots snap ON snap.variant_id = mpv.id
+        JOIN marketplace_product_prices pp ON pp.marketplace_product_id = mp.id
         WHERE mpv.printing_id IN (${sql.join(printingIds.map((id) => sql`${id}::uuid`))})
           AND mp.marketplace = ${marketplace}
           AND ${headlineExpr} IS NOT NULL
-        ORDER BY mpv.printing_id, day, snap.recorded_at DESC
+        ORDER BY mpv.printing_id, day, pp.recorded_at DESC
       `.execute(db);
 
       // Build a lookup: printingId -> day -> headlineCents

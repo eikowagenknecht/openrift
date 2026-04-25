@@ -146,49 +146,65 @@ export function priceRefreshRepo(db: Db) {
         .execute();
     },
 
-    // ── Variant lookup ──────────────────────────────────────────────────────
+    // ── Product upsert ──────────────────────────────────────────────────────
 
     /**
-     * @returns One row per variant in a marketplace, with its parent's SKU axes
-     *          (external_id, finish, language) — the SKU lives on the product
-     *          row since migration 104. `id` is the variant id, suitable for
-     *          use as snapshot.variantId.
+     * Upsert `marketplace_products` rows for a batch of SKUs and return their
+     * IDs. Every fetched SKU gets a product row so
+     * `marketplace_product_prices` has a FK target. `group_id` and
+     * `product_name` update on conflict — they legitimately change over time
+     * (renames, category moves).
+     *
+     * @returns One row per input SKU with its product id.
      */
-    variantsWithSku(marketplace: string) {
-      return db
-        .selectFrom("marketplaceProductVariants as mpv")
-        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
-        .select([
-          "mpv.id as id",
-          "mpv.printingId as printingId",
-          "mp.externalId as externalId",
-          "mp.finish as finish",
-          "mp.language as language",
-        ])
-        .where("mp.marketplace", "=", marketplace)
-        .execute();
+    async upsertProductsForMarketplace(
+      marketplace: string,
+      skus: {
+        externalId: number;
+        finish: string;
+        language: string | null;
+        groupId: number;
+        productName: string;
+      }[],
+    ): Promise<{ externalId: number; finish: string; language: string | null; id: string }[]> {
+      if (skus.length === 0) {
+        return [];
+      }
+      const dedupByKey = new Map<string, (typeof skus)[number]>();
+      for (const sku of skus) {
+        dedupByKey.set(skuKey(sku.externalId, sku.finish, sku.language), sku);
+      }
+      const rows = await sql<{
+        id: string;
+        externalId: number;
+        finish: string;
+        language: string | null;
+      }>`
+        INSERT INTO marketplace_products (marketplace, external_id, group_id, product_name, finish, language)
+        VALUES ${sql.join(
+          [...dedupByKey.values()].map(
+            (r) =>
+              sql`(${marketplace}, ${r.externalId}, ${r.groupId}, ${r.productName}, ${r.finish}, ${r.language})`,
+          ),
+        )}
+        ON CONFLICT (marketplace, external_id, finish, language)
+        DO UPDATE SET
+          group_id = EXCLUDED.group_id,
+          product_name = EXCLUDED.product_name
+        RETURNING id, external_id AS "externalId", finish, language
+      `.execute(db);
+      return rows.rows;
     },
 
     // ── Row counts ──────────────────────────────────────────────────────────
 
-    /** @returns Row count for marketplace snapshots (joined via variants and products). */
-    async countSnapshots(marketplace: string): Promise<number> {
+    /** @returns Row count for marketplace product prices (joined via products). */
+    async countProductPrices(marketplace: string): Promise<number> {
       const result = await db
-        .selectFrom("marketplaceSnapshots as snap")
-        .innerJoin("marketplaceProductVariants as mpv", "mpv.id", "snap.variantId")
-        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .selectFrom("marketplaceProductPrices as pp")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "pp.marketplaceProductId")
         .select(sql<number>`count(*)::int`.as("count"))
         .where("mp.marketplace", "=", marketplace)
-        .executeTakeFirstOrThrow();
-      return result.count;
-    },
-
-    /** @returns Row count for marketplace staging. */
-    async countStaging(marketplace: string): Promise<number> {
-      const result = await db
-        .selectFrom("marketplaceStaging")
-        .select(sql<number>`count(*)::int`.as("count"))
-        .where("marketplace", "=", marketplace)
         .executeTakeFirstOrThrow();
       return result.count;
     },
@@ -196,12 +212,14 @@ export function priceRefreshRepo(db: Db) {
     // ── Batch upserts ───────────────────────────────────────────────────────
 
     /**
-     * Batch-upsert snapshots with IS DISTINCT FROM filtering.
+     * Batch-upsert marketplace_product_prices with IS DISTINCT FROM filtering.
+     * Rows are keyed on (marketplaceProductId, recordedAt) — one row per SKU
+     * per fetch cycle, regardless of how many printings are bound to that SKU.
      * @returns The number of affected rows.
      */
-    async upsertSnapshots(
+    async upsertProductPrices(
       batch: {
-        variantId: string;
+        marketplaceProductId: string;
         recordedAt: Date;
         marketCents: number | null;
         lowCents: number | null;
@@ -214,61 +232,14 @@ export function priceRefreshRepo(db: Db) {
         avg30Cents: number | null;
       }[],
     ): Promise<number> {
-      const distinctWhere = buildDistinctWhere("marketplace_snapshots", PRICE_COL_NAMES);
+      const distinctWhere = buildDistinctWhere("marketplace_product_prices", PRICE_COL_NAMES);
       const rows = await db
-        .insertInto("marketplaceSnapshots")
+        .insertInto("marketplaceProductPrices")
         .values(batch)
         .onConflict((oc) =>
           oc
-            .columns(["variantId", "recordedAt"])
+            .columns(["marketplaceProductId", "recordedAt"])
             .doUpdateSet(PRICE_EXCLUDED_SET)
-            .where(distinctWhere),
-        )
-        .returning(sql<number>`1`.as("_"))
-        .execute();
-      return rows.length;
-    },
-
-    /**
-     * Batch-upsert staging rows with IS DISTINCT FROM filtering.
-     * @returns The number of affected rows.
-     */
-    async upsertStaging(
-      marketplace: string,
-      batch: {
-        externalId: number;
-        finish: string;
-        language: string | null;
-        productName: string;
-        recordedAt: Date;
-        groupId: number;
-        marketCents: number | null;
-        lowCents: number | null;
-        zeroLowCents: number | null;
-        midCents: number | null;
-        highCents: number | null;
-        trendCents: number | null;
-        avg1Cents: number | null;
-        avg7Cents: number | null;
-        avg30Cents: number | null;
-      }[],
-    ): Promise<number> {
-      const stagingUpdateSet = {
-        groupId: sql<number>`excluded.group_id`,
-        ...PRICE_EXCLUDED_SET,
-      };
-      const distinctWhere = buildDistinctWhere("marketplace_staging", [
-        "group_id",
-        ...PRICE_COL_NAMES,
-      ]);
-
-      const rows = await db
-        .insertInto("marketplaceStaging")
-        .values(batch.map((r) => ({ ...r, marketplace })))
-        .onConflict((oc) =>
-          oc
-            .columns(["marketplace", "externalId", "finish", "language", "recordedAt"])
-            .doUpdateSet(stagingUpdateSet)
             .where(distinctWhere),
         )
         .returning(sql<number>`1`.as("_"))

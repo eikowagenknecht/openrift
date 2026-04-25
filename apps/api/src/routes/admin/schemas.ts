@@ -166,15 +166,6 @@ export const clearPricesSchema = z.object({
   marketplace: clearPriceMarketplaceSchema,
 });
 
-export const reconcileSnapshotsSchema = z.object({
-  marketplace: clearPriceMarketplaceSchema,
-});
-
-export const reconcileSnapshotsResponseSchema = z.object({
-  marketplace: clearPriceMarketplaceSchema,
-  snapshotsInserted: z.number().openapi({ example: 14 }),
-});
-
 // ── Job runs ──────────────────────────────────────────────────────────────
 
 export const jobRunStartedResponseSchema = z.object({

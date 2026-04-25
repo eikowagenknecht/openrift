@@ -451,7 +451,7 @@ export async function buildUnifiedMappingsCardResponse(
   // Partition once; each marketplace loop reads its own slice.
   const stagedByMarketplace = Map.groupBy(stagedForThisCard, (row) => row.marketplace);
 
-  // Per-marketplace response groups — each runs its own snapshotQuery (for
+  // Per-marketplace response groups — each runs its own priceQuery (for
   // prices on already-mapped printings) in parallel.
   const perMarketplaceResults = await Promise.all(
     configs.map(async (config) => {
@@ -516,16 +516,13 @@ export async function buildUnifiedMappingsCardResponse(
           }
         }
       }
-      const mappedProductInfo = new Map<
-        string,
-        ReturnType<MarketplaceConfig["mapSnapshotPrices"]>
-      >();
+      const mappedProductInfo = new Map<string, ReturnType<MarketplaceConfig["mapPriceRow"]>>();
       if (mappedPrintingIds.size > 0) {
-        const mappedRows = await config.snapshotQuery([...mappedPrintingIds]);
+        const mappedRows = await config.priceQuery([...mappedPrintingIds]);
         for (const row of mappedRows) {
           const key = `${row.printingId}::${row.externalId}`;
           if (!mappedProductInfo.has(key)) {
-            mappedProductInfo.set(key, config.mapSnapshotPrices(row));
+            mappedProductInfo.set(key, config.mapPriceRow(row));
           }
         }
       }

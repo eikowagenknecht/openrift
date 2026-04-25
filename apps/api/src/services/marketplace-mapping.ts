@@ -11,7 +11,6 @@ import type {
   ProductInfo,
   StagingRow,
 } from "../routes/admin/marketplace-configs.js";
-import { createMarketplaceConfigs } from "../routes/admin/marketplace-configs.js";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -422,15 +421,15 @@ export async function getMappingOverview(
     }
   }
 
-  // Key by (printingId, externalId) so we don't share snapshot info across
+  // Key by (printingId, externalId) so we don't share price info across
   // different products that happen to map to the same printing.
   const mappedProductInfo = new Map<string, ProductInfo>();
   if (mappedPrintingIds.size > 0) {
-    const mappedRows = await config.snapshotQuery([...mappedPrintingIds]);
+    const mappedRows = await config.priceQuery([...mappedPrintingIds]);
     for (const row of mappedRows) {
       const key = `${row.printingId}::${row.externalId}`;
       if (!mappedProductInfo.has(key)) {
-        mappedProductInfo.set(key, config.mapSnapshotPrices(row));
+        mappedProductInfo.set(key, config.mapPriceRow(row));
       }
     }
   }
@@ -579,45 +578,26 @@ export async function saveMappings(
   const saved = await transact(async (trxRepos) => {
     const repo = trxRepos.marketplaceMapping;
 
-    // 1. Batch-fetch staging rows and already-upserted product rows for the
-    //    external IDs in this batch. The product-row fallback lets us rebind
-    //    a mapping even when staging has rotated out — common for products
-    //    that were mapped long ago.
+    // 1. Batch-fetch SKU metadata (group_id + product_name) for the external
+    //    IDs in this batch. With the unified prices table, every fetched SKU
+    //    has a `marketplace_products` row regardless of binding state, so this
+    //    one query covers both fresh and historical mappings.
     const externalIds = [...new Set(mappings.map((m) => m.externalId))];
-    const [allStagingRows, existingProducts] = await Promise.all([
-      repo.stagingByExternalIds(config.marketplace, externalIds),
-      repo.productsByExternalIds(config.marketplace, externalIds),
-    ]);
-
-    const stagingByKey = new Map<string, typeof allStagingRows>();
-    for (const row of allStagingRows) {
-      const key = skuKey(row.externalId, row.finish, row.language);
-      const list = stagingByKey.get(key) ?? [];
-      list.push(row);
-      stagingByKey.set(key, list);
-    }
+    const existingProducts = await repo.productsByExternalIds(config.marketplace, externalIds);
 
     const productByKey = new Map(
       existingProducts.map((p) => [skuKey(p.externalId, p.finish, p.language), p]),
     );
 
-    // Collect available SKU combos per external ID for error messages. Uses
-    // staging first, falls back to the product table when staging has rotated.
+    // Collect available SKU combos per external ID for error messages.
     const skusByExtId = new Map<number, Set<string>>();
-    const recordSku = (externalId: number, finish: string, language: string | null): void => {
-      const set = skusByExtId.get(externalId) ?? new Set();
-      set.add(language === null ? finish : `${finish}/${language}`);
-      skusByExtId.set(externalId, set);
-    };
-    for (const row of allStagingRows) {
-      recordSku(row.externalId, row.finish, row.language);
-    }
     for (const row of existingProducts) {
-      recordSku(row.externalId, row.finish, row.language);
+      const set = skusByExtId.get(row.externalId) ?? new Set();
+      set.add(row.language === null ? row.finish : `${row.finish}/${row.language}`);
+      skusByExtId.set(row.externalId, set);
     }
 
-    // 2. Resolve each mapping to a concrete SKU row (staging preferred, then
-    //    existing product as fallback) and build upsert values.
+    // 2. Resolve each mapping to a concrete SKU and build upsert values.
     const upsertValues: {
       marketplace: string;
       printingId: string;
@@ -629,34 +609,23 @@ export async function saveMappings(
     }[] = [];
     for (const m of mappings) {
       const key = skuKey(m.externalId, m.finish, m.language);
-      const stagingHit = stagingByKey.get(key)?.[0];
-      let groupId: number;
-      let productName: string;
-      if (stagingHit) {
-        groupId = stagingHit.groupId;
-        productName = stagingHit.productName;
-      } else {
-        const existing = productByKey.get(key);
-        if (existing) {
-          groupId = existing.groupId;
-          productName = existing.productName;
-        } else {
-          const available = skusByExtId.get(m.externalId);
-          const requested = m.language === null ? m.finish : `${m.finish}/${m.language}`;
-          const reason =
-            available && available.size > 0
-              ? `SKU mismatch: requested "${requested}" but product only has "${[...available].join(", ")}"`
-              : "no staging data found";
-          skipped.push({ externalId: m.externalId, reason });
-          continue;
-        }
+      const existing = productByKey.get(key);
+      if (!existing) {
+        const available = skusByExtId.get(m.externalId);
+        const requested = m.language === null ? m.finish : `${m.finish}/${m.language}`;
+        const reason =
+          available && available.size > 0
+            ? `SKU mismatch: requested "${requested}" but product only has "${[...available].join(", ")}"`
+            : "no marketplace product found";
+        skipped.push({ externalId: m.externalId, reason });
+        continue;
       }
       upsertValues.push({
         marketplace: config.marketplace,
         printingId: m.printingId,
         externalId: m.externalId,
-        groupId,
-        productName,
+        groupId: existing.groupId,
+        productName: existing.productName,
         finish: m.finish,
         language: m.language,
       });
@@ -666,71 +635,12 @@ export async function saveMappings(
       return 0;
     }
 
-    // 3. Upsert per-SKU product + variant bridge rows.
-    const upsertResults = await repo.upsertProductVariants(upsertValues);
-    const variantIdByKey = new Map(
-      upsertResults.map((r) => [
-        `${r.printingId}::${skuKey(r.externalId, r.finish, r.language)}`,
-        r.variantId,
-      ]),
-    );
-
-    // 4. Insert snapshots from any staging rows we just absorbed.
-    const snapshotRows: {
-      variantId: string;
-      recordedAt: Date;
-      marketCents: number | null;
-      lowCents: number | null;
-      midCents: number | null;
-      highCents: number | null;
-      trendCents: number | null;
-      avg1Cents: number | null;
-      avg7Cents: number | null;
-      avg30Cents: number | null;
-    }[] = [];
-    for (const sv of upsertValues) {
-      const variantId = variantIdByKey.get(
-        `${sv.printingId}::${skuKey(sv.externalId, sv.finish, sv.language)}`,
-      );
-      if (variantId === undefined) {
-        continue;
-      }
-      const rows = stagingByKey.get(skuKey(sv.externalId, sv.finish, sv.language)) ?? [];
-      for (const row of rows) {
-        snapshotRows.push({
-          variantId,
-          recordedAt: row.recordedAt,
-          marketCents: row.marketCents,
-          lowCents: row.lowCents,
-          midCents: row.midCents,
-          highCents: row.highCents,
-          trendCents: row.trendCents,
-          avg1Cents: row.avg1Cents,
-          avg7Cents: row.avg7Cents,
-          avg30Cents: row.avg30Cents,
-        });
-      }
-    }
-
-    if (snapshotRows.length > 0) {
-      await repo.insertSnapshots(snapshotRows);
-    }
-
-    // 5. Delete consumed staging rows so the unmatched-products panel
-    //    reflects current state.
-    const deleteTuples: { externalId: number; finish: string; language: string | null }[] = [];
-    for (const sv of upsertValues) {
-      const rows = stagingByKey.get(skuKey(sv.externalId, sv.finish, sv.language)) ?? [];
-      for (const row of rows) {
-        deleteTuples.push({
-          externalId: sv.externalId,
-          finish: row.finish,
-          language: row.language,
-        });
-      }
-    }
-
-    await repo.deleteStagingTuples(config.marketplace, deleteTuples);
+    // 3. Upsert per-SKU product + variant bridge rows. Prices already live
+    //    on the product (keyed in marketplace_product_prices by SKU, not
+    //    variant) — every binding inherits the full history, so there's
+    //    nothing to copy here. The unmatched-products panel filters bound
+    //    products via `NOT EXISTS (mpv)`, so no staging cleanup needed.
+    await repo.upsertProductVariants(upsertValues);
 
     return upsertValues.length;
   });
@@ -747,10 +657,6 @@ export async function unmapPrinting(
 ): Promise<void> {
   await transact(async (trxRepos) => {
     const repo = trxRepos.marketplaceMapping;
-    const trxConfig =
-      createMarketplaceConfigs(trxRepos)[
-        config.marketplace as keyof ReturnType<typeof createMarketplaceConfigs>
-      ];
 
     const variant = await repo.getVariantForPrinting(config.marketplace, printingId);
 
@@ -758,28 +664,12 @@ export async function unmapPrinting(
       return;
     }
 
-    const snapshots = await repo.snapshotsByVariantId(variant.variantId);
-
-    // Staging now mirrors the product's language semantics exactly — NULL for
-    // CM/TCG, a real code for CT — so we can pass the product's language
-    // straight through without any placeholder.
-    for (const snap of snapshots) {
-      await trxConfig.insertStagingFromSnapshot(
-        {
-          externalId: variant.externalId,
-          groupId: variant.groupId,
-          productName: variant.productName,
-        },
-        variant.finish,
-        variant.language,
-        snap,
-      );
-    }
-
-    await repo.deleteSnapshotsByVariantId(variant.variantId);
-    // Note: parent marketplace_products row intentionally left behind (Option A).
-    // It still represents a known upstream listing and can be re-mapped later
-    // without being re-created.
+    // Drop just the (printing ↔ product) binding. The product row + its
+    // price history live on `marketplace_products` / `marketplace_product_prices`
+    // and survive unmap — if the admin rebinds later (even to a different
+    // printing), full history is still there. The next fetch cycle restores
+    // the matching `marketplace_staging` row so the product reappears in the
+    // unmatched panel.
     await repo.deleteVariantById(variant.variantId);
   });
 }
@@ -792,15 +682,8 @@ export async function unmapAll(
 ): Promise<{ unmapped: number }> {
   const unmapped = await transact(async (trxRepos) => {
     const repo = trxRepos.marketplaceMapping;
-    const trxConfig =
-      createMarketplaceConfigs(trxRepos)[
-        config.marketplace as keyof ReturnType<typeof createMarketplaceConfigs>
-      ];
-
-    await trxConfig.bulkUnmapSql();
 
     const count = await repo.countMappedVariants(config.marketplace);
-    await repo.deleteSnapshotsForMappedVariants(config.marketplace);
     await repo.deleteMappedVariants(config.marketplace);
 
     return count;

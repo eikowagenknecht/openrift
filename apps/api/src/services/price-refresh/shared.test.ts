@@ -75,45 +75,38 @@ function makeMockLogger(): { log: Logger; messages: string[] } {
 }
 
 describe("logUpsertCounts", () => {
-  it("logs non-zero inserted counts", () => {
+  it("logs non-zero inserted prices", () => {
     const { log, messages } = makeMockLogger();
     const counts: UpsertCounts = {
-      snapshots: { total: 20, new: 10, updated: 0, unchanged: 10 },
-      staging: { total: 15, new: 3, updated: 0, unchanged: 12 },
+      prices: { total: 20, new: 10, updated: 0, unchanged: 10 },
     };
     logUpsertCounts(log, counts);
     expect(messages).toHaveLength(3);
-    expect(messages[0]).toContain("10 snapshots");
-    expect(messages[0]).toContain("3 staged");
+    expect(messages[0]).toContain("10 prices");
   });
 
-  it("logs non-zero updated counts", () => {
+  it("logs non-zero updated prices", () => {
     const { log, messages } = makeMockLogger();
     const counts: UpsertCounts = {
-      snapshots: { total: 20, new: 0, updated: 5, unchanged: 15 },
-      staging: { total: 15, new: 0, updated: 2, unchanged: 13 },
+      prices: { total: 20, new: 0, updated: 5, unchanged: 15 },
     };
     logUpsertCounts(log, counts);
-    expect(messages[1]).toContain("5 snapshots");
-    expect(messages[1]).toContain("2 staged");
+    expect(messages[1]).toContain("5 prices");
   });
 
-  it("logs non-zero unchanged counts", () => {
+  it("logs non-zero unchanged prices", () => {
     const { log, messages } = makeMockLogger();
     const counts: UpsertCounts = {
-      snapshots: { total: 20, new: 0, updated: 0, unchanged: 20 },
-      staging: { total: 15, new: 0, updated: 0, unchanged: 15 },
+      prices: { total: 20, new: 0, updated: 0, unchanged: 20 },
     };
     logUpsertCounts(log, counts);
-    expect(messages[2]).toContain("20 snapshots");
-    expect(messages[2]).toContain("15 staged");
+    expect(messages[2]).toContain("20 prices");
   });
 
   it("logs dash when all counts are zero", () => {
     const { log, messages } = makeMockLogger();
     const counts: UpsertCounts = {
-      snapshots: { total: 0, new: 0, updated: 0, unchanged: 0 },
-      staging: { total: 0, new: 0, updated: 0, unchanged: 0 },
+      prices: { total: 0, new: 0, updated: 0, unchanged: 0 },
     };
     logUpsertCounts(log, counts);
     expect(messages[0]).toContain("\u2014");
@@ -124,11 +117,10 @@ describe("logUpsertCounts", () => {
   it("mixes present and absent categories", () => {
     const { log, messages } = makeMockLogger();
     const counts: UpsertCounts = {
-      snapshots: { total: 5, new: 5, updated: 0, unchanged: 0 },
-      staging: { total: 0, new: 0, updated: 0, unchanged: 0 },
+      prices: { total: 5, new: 5, updated: 0, unchanged: 0 },
     };
     logUpsertCounts(log, counts);
-    expect(messages[0]).toContain("5 snapshots");
+    expect(messages[0]).toContain("5 prices");
     expect(messages[0]).not.toContain("staged");
   });
 });

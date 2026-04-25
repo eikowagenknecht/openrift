@@ -101,7 +101,7 @@ const PRICE_BOLT_NORMAL = {
 };
 
 const ZERO_COUNTS: UpsertCounts = {
-  snapshots: { total: 0, new: 0, updated: 0, unchanged: 0 },
+  prices: { total: 0, new: 0, updated: 0, unchanged: 0 },
   staging: { total: 0, new: 0, updated: 0, unchanged: 0 },
 };
 
@@ -607,7 +607,7 @@ describe("refreshTcgplayerPrices", () => {
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy);
       const customCounts: UpsertCounts = {
-        snapshots: { total: 10, new: 5, updated: 3, unchanged: 2 },
+        prices: { total: 10, new: 5, updated: 3, unchanged: 2 },
         staging: { total: 8, new: 4, updated: 2, unchanged: 2 },
       };
       upsertSpy.mockResolvedValue(customCounts);

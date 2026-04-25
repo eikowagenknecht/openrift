@@ -36,6 +36,7 @@ function makeStagingRow(
     recordedAt: new Date("2026-03-10T00:00:00Z"),
     marketCents: 100,
     lowCents: null,
+    zeroLowCents: null,
     midCents: null,
     highCents: null,
     trendCents: null,
@@ -50,22 +51,20 @@ function emptyIgnoredKeys(): LoadedIgnoredKeys {
   return { productIds: new Set<number>(), variantKeys: new Set<string>() };
 }
 
-function makeMockRepo(opts: {
-  ignoredKeys?: LoadedIgnoredKeys;
-  variants?: {
-    id: string;
-    printingId: string;
-    externalId: number;
-    finish: string;
-    language: string | null;
-  }[];
-  countResult?: number;
-}) {
+/**
+ * Build a mock `priceRefresh` repo. `upsertProductsForMarketplace` returns a
+ * product id per SKU by generating a stable key so tests can assert the same
+ * id appears in price rows keyed on it.
+ *
+ * @returns A mock repo plus helpers for asserting calls + inspecting
+ *          `upsertProductPrices` input rows.
+ */
+function makeMockRepo(opts: { ignoredKeys?: LoadedIgnoredKeys; countResult?: number }) {
   const ignoredKeys = opts.ignoredKeys ?? emptyIgnoredKeys();
-  const variants = opts.variants ?? [];
   const countResult = opts.countResult ?? 0;
   let upsertGroupsCalled = false;
   let upsertGroupsArgs: unknown[] = [];
+  const upsertedPrices: { marketplaceProductId: string; recordedAt: Date }[] = [];
 
   const repo = {
     loadIgnoredKeys: async () => ignoredKeys,
@@ -73,10 +72,33 @@ function makeMockRepo(opts: {
       upsertGroupsCalled = true;
       upsertGroupsArgs = args;
     },
-    variantsWithSku: async () => variants,
-    countSnapshots: async () => countResult,
+    upsertProductsForMarketplace: async (
+      _marketplace: string,
+      skus: {
+        externalId: number;
+        finish: string;
+        language: string | null;
+        groupId: number;
+        productName: string;
+      }[],
+    ) =>
+      skus.map((s) => ({
+        id: `mp-${s.externalId}-${s.finish}-${s.language ?? ""}`,
+        externalId: s.externalId,
+        finish: s.finish,
+        language: s.language,
+      })),
+    countProductPrices: async () => countResult,
     countStaging: async () => countResult,
-    upsertSnapshots: async () => 0,
+    upsertProductPrices: async (batch: { marketplaceProductId: string; recordedAt: Date }[]) => {
+      for (const row of batch) {
+        upsertedPrices.push({
+          marketplaceProductId: row.marketplaceProductId,
+          recordedAt: row.recordedAt,
+        });
+      }
+      return 0;
+    },
     upsertStaging: async () => 0,
   } as unknown as Repos["priceRefresh"];
 
@@ -84,6 +106,7 @@ function makeMockRepo(opts: {
     repo,
     wasUpsertGroupsCalled: () => upsertGroupsCalled,
     upsertGroupsArgs: () => upsertGroupsArgs,
+    upsertedPrices,
   };
 }
 
@@ -156,73 +179,40 @@ describe("upsertPriceData", () => {
     const { repo } = makeMockRepo({});
     const counts = await upsertPriceData(repo, noopLogger, config, []);
 
-    expect(counts.snapshots.total).toBe(0);
-    expect(counts.snapshots.new).toBe(0);
-    expect(counts.snapshots.updated).toBe(0);
-    expect(counts.snapshots.unchanged).toBe(0);
-    expect(counts.staging.total).toBe(0);
-    expect(counts.staging.new).toBe(0);
-    expect(counts.staging.updated).toBe(0);
-    expect(counts.staging.unchanged).toBe(0);
+    expect(counts.prices.total).toBe(0);
+    expect(counts.prices.new).toBe(0);
+    expect(counts.prices.updated).toBe(0);
+    expect(counts.prices.unchanged).toBe(0);
   });
 
-  it("builds no snapshots when no variants are mapped", async () => {
-    const { repo } = makeMockRepo({ variants: [] });
-    const staging = [makeStagingRow(999, "normal")];
-
-    const counts = await upsertPriceData(repo, noopLogger, config, staging);
-
-    expect(counts.snapshots.total).toBe(0);
-    // Staging should still be processed
-    expect(counts.staging.total).toBe(1);
-  });
-
-  it("builds snapshots when variants match staging entries", async () => {
+  it("writes one price row per staging SKU", async () => {
     const { log, messages } = makeMockLogger();
-    const { repo } = makeMockRepo({
-      variants: [
-        {
-          id: "var-1",
-          printingId: "print-1",
-          externalId: 1001,
-          finish: "normal",
-          language: "EN",
-        },
-      ],
-    });
+    const { repo, upsertedPrices } = makeMockRepo({});
     const staging = [makeStagingRow(1001, "normal")];
 
     const counts = await upsertPriceData(repo, log, config, staging);
 
-    // One variant maps to one snapshot
-    expect(counts.snapshots.total).toBe(1);
-    // Log message should mention the snapshot count
-    expect(messages.some((m) => m.includes("1 snapshots") || m.includes("1 snapshot"))).toBe(true);
+    expect(counts.prices.total).toBe(1);
+    expect(upsertedPrices).toHaveLength(1);
+    expect(upsertedPrices[0].marketplaceProductId).toBe("mp-1001-normal-EN");
+    expect(messages.some((m) => m.includes("1 price rows"))).toBe(true);
   });
 
-  it("deduplicates staging by (externalId, finish, language, recordedAt)", async () => {
-    const { repo } = makeMockRepo({});
+  it("collapses multiple staging rows for the same SKU into one price row per recorded_at", async () => {
+    const { repo, upsertedPrices } = makeMockRepo({});
+    // Two staging rows for the exact same SKU + recorded_at — the price-row
+    // dedup key is `(product_id, recorded_at)`, so these become one row.
     const row1 = makeStagingRow(2001, "normal", { marketCents: 100 });
     const row2 = makeStagingRow(2001, "normal", { marketCents: 200 });
-    // Same externalId, finish, language, and recordedAt — should deduplicate to 1
 
     const counts = await upsertPriceData(repo, noopLogger, config, [row1, row2]);
 
-    expect(counts.staging.total).toBe(1);
+    expect(counts.prices.total).toBe(1);
+    expect(upsertedPrices).toHaveLength(1);
   });
 
-  it("keeps separate staging entries for different finishes", async () => {
-    const { repo } = makeMockRepo({});
-    const normal = makeStagingRow(3001, "normal");
-    const foil = makeStagingRow(3001, "foil");
-
-    const counts = await upsertPriceData(repo, noopLogger, config, [normal, foil]);
-
-    expect(counts.staging.total).toBe(2);
-  });
-
-  it("keeps separate staging entries for different recordedAt", async () => {
-    const { repo } = makeMockRepo({});
+  it("keeps separate price rows for different recordedAt on the same SKU", async () => {
+    const { repo, upsertedPrices } = makeMockRepo({});
     const row1 = makeStagingRow(4001, "normal");
     const row2 = {
       ...makeStagingRow(4001, "normal"),
@@ -231,93 +221,49 @@ describe("upsertPriceData", () => {
 
     const counts = await upsertPriceData(repo, noopLogger, config, [row1, row2]);
 
-    expect(counts.staging.total).toBe(2);
+    expect(counts.prices.total).toBe(2);
+    expect(upsertedPrices).toHaveLength(2);
+    expect(upsertedPrices[0].marketplaceProductId).toBe(upsertedPrices[1].marketplaceProductId);
   });
 
-  it("maps multiple variants to multiple snapshots for same externalId+finish", async () => {
-    const { log } = makeMockLogger();
-    const { repo } = makeMockRepo({
-      variants: [
-        {
-          id: "var-1",
-          printingId: "print-1",
-          externalId: 5001,
-          finish: "normal",
-          language: "EN",
-        },
-        {
-          id: "var-2",
-          printingId: "print-2",
-          externalId: 5001,
-          finish: "normal",
-          language: "EN",
-        },
-      ],
-    });
-    const staging = [makeStagingRow(5001, "normal")];
+  it("keeps separate price rows for different finishes on the same external_id", async () => {
+    const { repo, upsertedPrices } = makeMockRepo({});
+    const normal = makeStagingRow(3001, "normal");
+    const foil = makeStagingRow(3001, "foil");
 
-    const counts = await upsertPriceData(repo, log, config, staging);
+    const counts = await upsertPriceData(repo, noopLogger, config, [normal, foil]);
 
-    // Two variants mapped to the same external_id::finish::language -> 2 snapshots
-    expect(counts.snapshots.total).toBe(2);
+    expect(counts.prices.total).toBe(2);
+    const productIds = new Set(upsertedPrices.map((r) => r.marketplaceProductId));
+    expect(productIds.size).toBe(2);
   });
 
-  it("does not log snapshot info message when there are no snapshots", async () => {
+  it("does not log a price-count message when there are no prices to write", async () => {
     const { log, messages } = makeMockLogger();
-    const { repo } = makeMockRepo({ variants: [] });
-    const staging = [makeStagingRow(9999, "normal")];
+    const { repo } = makeMockRepo({});
 
-    await upsertPriceData(repo, log, config, staging);
+    await upsertPriceData(repo, log, config, []);
 
-    // Should not have the "N snapshots for M mapped variants" message
-    expect(messages.some((m) => m.includes("snapshots"))).toBe(false);
+    expect(messages.some((m) => m.includes("price rows"))).toBe(false);
   });
 
-  it("matches NULL-language staging rows against NULL-language variants (CM/TCG)", async () => {
-    // Cardmarket's price guide is cross-language: staging rows are stored with
-    // `language = null` and variants also have `language = null`, so they match
-    // purely on (externalId, finish).
-    const cmConfig: PriceUpsertConfig = { marketplace: "cardmarket" };
-    const { repo } = makeMockRepo({
-      variants: [
-        {
-          id: "var-cm",
-          printingId: "print-en",
-          externalId: 12_345,
-          finish: "normal",
-          language: null,
-        },
-      ],
-    });
-    // Staging row from the CM scraper — language is null.
-    const staging = [{ ...makeStagingRow(12_345, "normal"), language: null }];
+  it("treats language=null SKUs (CM/TCG) as a distinct product from language='EN'", async () => {
+    const { repo, upsertedPrices } = makeMockRepo({});
+    const staging = [
+      { ...makeStagingRow(12_345, "normal"), language: null },
+      { ...makeStagingRow(12_345, "normal"), language: "EN" },
+    ];
 
-    const counts = await upsertPriceData(repo, noopLogger, cmConfig, staging);
+    const counts = await upsertPriceData(repo, noopLogger, config, staging);
 
-    expect(counts.snapshots.total).toBe(1);
+    expect(counts.prices.total).toBe(2);
+    const productIds = new Set(upsertedPrices.map((r) => r.marketplaceProductId));
+    expect(productIds.size).toBe(2);
   });
 
-  it("pins per-language variants for marketplaces that expose language (CT)", async () => {
+  it("pins per-language product rows for marketplaces that expose language (CT)", async () => {
     const ctConfig: PriceUpsertConfig = { marketplace: "cardtrader" };
-    const { repo } = makeMockRepo({
-      variants: [
-        {
-          id: "var-en",
-          printingId: "print-en",
-          externalId: 54_321,
-          finish: "normal",
-          language: "EN",
-        },
-        {
-          id: "var-zh",
-          printingId: "print-zh",
-          externalId: 54_321,
-          finish: "normal",
-          language: "ZH",
-        },
-      ],
-    });
-    // Two staging rows for the same external_id × finish, differing only on language.
+    const { repo, upsertedPrices } = makeMockRepo({});
     const staging = [
       { ...makeStagingRow(54_321, "normal"), language: "EN" },
       { ...makeStagingRow(54_321, "normal"), language: "ZH" },
@@ -325,7 +271,8 @@ describe("upsertPriceData", () => {
 
     const counts = await upsertPriceData(repo, noopLogger, ctConfig, staging);
 
-    // EN row goes to var-en, ZH row goes to var-zh — two distinct snapshots.
-    expect(counts.snapshots.total).toBe(2);
+    expect(counts.prices.total).toBe(2);
+    const productIds = new Set(upsertedPrices.map((r) => r.marketplaceProductId));
+    expect(productIds.size).toBe(2);
   });
 });

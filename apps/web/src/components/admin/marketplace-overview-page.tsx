@@ -5,12 +5,7 @@ import { formatRelativeTime, refreshActions } from "@/components/admin/refresh-a
 import type { CronStatus } from "@/components/admin/refresh-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  useClearPrices,
-  useLatestJobRun,
-  useReconcileSnapshots,
-  useRefreshPrices,
-} from "@/hooks/use-admin-prices";
+import { useClearPrices, useLatestJobRun, useRefreshPrices } from "@/hooks/use-admin-prices";
 import { useCronStatus } from "@/hooks/use-cron-status";
 import { useMarketplaceGroups } from "@/hooks/use-marketplace-groups";
 import type { JobRunView } from "@/lib/server-fns/api-types";
@@ -27,15 +22,6 @@ function isPriceRefreshResult(value: unknown): value is PriceRefreshResponse {
 
 function PriceRefreshResult({ result }: { result: PriceRefreshResponse }) {
   const { transformed, upserted } = result;
-  const insertedParts = [
-    upserted.snapshots.new > 0 ? `${upserted.snapshots.new} snapshots` : null,
-    upserted.staging.new > 0 ? `${upserted.staging.new} staged` : null,
-  ].filter(Boolean);
-  const updatedParts = [
-    upserted.snapshots.updated > 0 ? `${upserted.snapshots.updated} snapshots` : null,
-    upserted.staging.updated > 0 ? `${upserted.staging.updated} staged` : null,
-  ].filter(Boolean);
-
   return (
     <div className="text-muted-foreground space-y-0.5">
       <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
@@ -43,8 +29,8 @@ function PriceRefreshResult({ result }: { result: PriceRefreshResponse }) {
         Fetched {transformed.groups} groups, {transformed.products} products, {transformed.prices}{" "}
         prices
       </p>
-      {insertedParts.length > 0 && <p>Inserted: {insertedParts.join(", ")}</p>}
-      {updatedParts.length > 0 && <p>Updated: {updatedParts.join(", ")}</p>}
+      {upserted.prices.new > 0 && <p>Inserted: {upserted.prices.new} prices</p>}
+      {upserted.prices.updated > 0 && <p>Updated: {upserted.prices.updated} prices</p>}
     </div>
   );
 }
@@ -96,11 +82,10 @@ function PriceSection({
 
   const refreshMutation = useRefreshPrices(cronKey);
   const clearMutation = useClearPrices(cronKey);
-  const reconcileMutation = useReconcileSnapshots(cronKey);
   const latestRun = useLatestJobRun(refreshActions[cronKey].jobKind);
 
   const isRefreshRunning = refreshMutation.isPending || latestRun.data?.status === "running";
-  const anyPending = isRefreshRunning || clearMutation.isPending || reconcileMutation.isPending;
+  const anyPending = isRefreshRunning || clearMutation.isPending;
 
   return (
     <Card>
@@ -122,18 +107,6 @@ function PriceSection({
               isPending={clearMutation.isPending}
             />
             <Button
-              variant="outline"
-              disabled={anyPending}
-              onClick={() => reconcileMutation.mutate()}
-              title="Fill in snapshots for staging rows whose variants were added later. Run after a price refresh."
-            >
-              {reconcileMutation.isPending ? (
-                <LoaderIcon className="size-4 animate-spin" />
-              ) : (
-                "Reconcile"
-              )}
-            </Button>
-            <Button
               disabled={anyPending}
               onClick={() =>
                 refreshMutation.mutate(undefined, {
@@ -149,9 +122,7 @@ function PriceSection({
       {(latestRun.data ||
         refreshMutation.isError ||
         clearMutation.isSuccess ||
-        clearMutation.isError ||
-        reconcileMutation.isSuccess ||
-        reconcileMutation.isError) && (
+        clearMutation.isError) && (
         <CardContent className="pt-0">
           {latestRun.data && <JobRunDisplay run={latestRun.data} />}
           {refreshMutation.isError && (
@@ -164,28 +135,14 @@ function PriceSection({
             <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
               <CheckIcon className="size-4" />
               Cleared {clearMutation.data.deleted.products} products,{" "}
-              {clearMutation.data.deleted.snapshots} snapshots, {clearMutation.data.deleted.staging}{" "}
-              staging rows
+              {clearMutation.data.deleted.variants} variants, {clearMutation.data.deleted.prices}{" "}
+              prices
             </p>
           )}
           {clearMutation.isError && (
             <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
               <XIcon className="size-4" />
               {clearMutation.error.message}
-            </p>
-          )}
-          {reconcileMutation.isSuccess && (
-            <p className="flex items-center gap-1 text-sm text-green-600 dark:text-green-400">
-              <CheckIcon className="size-4" />
-              {reconcileMutation.data.snapshotsInserted === 0
-                ? "No snapshots to reconcile"
-                : `Inserted ${reconcileMutation.data.snapshotsInserted} snapshots from staging`}
-            </p>
-          )}
-          {reconcileMutation.isError && (
-            <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
-              <XIcon className="size-4" />
-              {reconcileMutation.error.message}
             </p>
           )}
         </CardContent>

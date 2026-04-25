@@ -235,7 +235,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
       };
     }
 
-    it("inserts new snapshots and staging rows", async () => {
+    it("inserts new price + staging rows", async () => {
       const staging: StagingRow[] = [
         makeStagingRow(94_101, "normal", {
           marketCents: 100,
@@ -249,9 +249,10 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
 
       const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
 
-      // Snapshot built internally from staging + mapped source for ext_id 94_101
-      expect(counts.snapshots.total).toBe(1);
-      expect(counts.snapshots.new).toBe(1);
+      // One price row per (product, recorded_at) regardless of how many
+      // printings are bound to the product.
+      expect(counts.prices.total).toBe(1);
+      expect(counts.prices.new).toBe(1);
 
       expect(counts.staging.total).toBe(1);
       expect(counts.staging.new).toBe(1);
@@ -272,8 +273,8 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
 
       const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
 
-      expect(counts.snapshots.new).toBe(0);
-      expect(counts.snapshots.unchanged).toBe(1);
+      expect(counts.prices.new).toBe(0);
+      expect(counts.prices.unchanged).toBe(1);
       expect(counts.staging.new).toBe(0);
       expect(counts.staging.unchanged).toBe(1);
     });
@@ -292,7 +293,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
 
       const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
 
-      expect(counts.snapshots.updated).toBeGreaterThan(0);
+      expect(counts.prices.updated).toBeGreaterThan(0);
       expect(counts.staging.updated).toBeGreaterThan(0);
     });
 
@@ -321,7 +322,9 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
       expect(counts.staging.total).toBe(1);
     });
 
-    it("builds no snapshots for staging with unmapped external_id", async () => {
+    it("creates the product row and writes a price row even for an externalId with no bound printings", async () => {
+      // Under the new model, every fetched SKU gets a product row + price row.
+      // Binding a printing later inherits the accumulated history.
       const staging: StagingRow[] = [
         makeStagingRow(99_999, "normal", {
           marketCents: 100,
@@ -335,15 +338,14 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
 
       const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, staging);
 
-      expect(counts.snapshots.total).toBe(0);
-      // Staging is still inserted even without a mapped source
+      expect(counts.prices.total).toBe(1);
       expect(counts.staging.total).toBe(1);
     });
 
     it("handles empty inputs", async () => {
       const counts = await upsertPriceData(repo, noopLogger, CM_CONFIG, []);
 
-      expect(counts.snapshots.total).toBe(0);
+      expect(counts.prices.total).toBe(0);
       expect(counts.staging.total).toBe(0);
     });
   });

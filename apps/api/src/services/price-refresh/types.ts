@@ -3,8 +3,7 @@ import type { PriceRefreshUpsertCounts } from "@openrift/shared";
 // ── Row-count types ─────────────────────────────────────────────────────
 
 export interface UpsertCounts {
-  snapshots: PriceRefreshUpsertCounts;
-  staging: PriceRefreshUpsertCounts;
+  prices: PriceRefreshUpsertCounts;
 }
 
 // ── Price upsert config ─────────────────────────────────────────────────
@@ -21,7 +20,7 @@ export interface GroupRow {
   abbreviation?: string;
 }
 
-/** All 9 price columns shared by marketplace_snapshots and marketplace_staging. */
+/** All 9 price columns on `marketplace_product_prices`. */
 export interface PriceColumns {
   marketCents: number | null;
   lowCents: number | null;
@@ -35,7 +34,13 @@ export interface PriceColumns {
   avg30Cents: number | null;
 }
 
-/** A staging row with all 8 price columns (unused ones are null). */
+/**
+ * A fetched-price row for a marketplace SKU. Used as the input row shape for
+ * the price-refresh upsert pipeline. Was originally a `marketplace_staging`
+ * insert payload; phase 4 retired the staging table but the in-memory row
+ * shape carries over since the fetchers still emit one row per
+ * (externalId, finish, language, recorded_at).
+ */
 export interface StagingRow extends PriceColumns {
   externalId: number;
   groupId: number;

@@ -1,8 +1,10 @@
 /**
  * Core upsert logic for price refresh workflows.
  *
- * Handles batch upserting of snapshots and staging rows,
- * deduplication, and conflict resolution with IS DISTINCT FROM.
+ * Per fetch cycle we upsert one `marketplace_products` row per SKU and one
+ * `marketplace_product_prices` row per (product, recorded_at). The unmatched
+ * products panel and fuzzy name match read directly off `marketplace_products`
+ * (LEFT JOIN bindings) — no staging side-table.
  */
 
 import type { Logger } from "@openrift/shared/logger";
@@ -69,33 +71,19 @@ function pickPrices(row: PriceColumns): PriceColumns {
   };
 }
 
-/**
- * Thin wrapper to count rows via the repo, keeping the two-arg call pattern.
- * @returns Row count.
- */
-function countRows(
-  repo: Repos["priceRefresh"],
-  table: "marketplaceSnapshots" | "marketplaceStaging",
-  marketplace: string,
-): Promise<number> {
-  return table === "marketplaceSnapshots"
-    ? repo.countSnapshots(marketplace)
-    : repo.countStaging(marketplace);
-}
-
 // ── Main upsert ────────────────────────────────────────────────────────────
 
-interface SnapshotInsertRow extends PriceColumns {
-  variantId: string;
+interface ProductPriceInsertRow extends PriceColumns {
+  marketplaceProductId: string;
   recordedAt: Date;
 }
 
 /**
- * Batch-upsert snapshots and staging rows for a single marketplace
- * (TCGPlayer or Cardmarket). Loads source mappings, builds snapshot rows
- * from staging data, deduplicates inputs, handles conflict resolution
- * with `IS DISTINCT FROM` to skip no-op updates, and returns per-table counts
- * of new / updated / unchanged rows.
+ * Batch-upsert product prices and staging rows for a single marketplace.
+ * For each distinct SKU in the fetch, upsert a `marketplace_products` row and
+ * then a `marketplace_product_prices` row per recorded_at. Every bound
+ * printing inherits the same price history through the shared product row —
+ * no more per-variant fan-out.
  *
  * @returns Per-table breakdown of new, updated, and unchanged rows.
  */
@@ -108,87 +96,86 @@ export async function upsertPriceData(
   const { marketplace } = config;
   const repo = priceRefresh;
 
-  // ── Variant lookup (single query for both snapshot building & ID mapping) ─
-
-  const dbVariants = await repo.variantsWithSku(marketplace);
-
-  // ── Build snapshots from staging + variant mappings ─────────────────────
-
-  // Match staging rows to variants by their shared SKU axes
-  // (externalId, finish, language). CM/TCG store NULL language on both sides
-  // so they collide naturally; CT keeps the language column honest.
-  const variantByKey = Map.groupBy(dbVariants, (src) =>
-    skuKey(src.externalId, src.finish, src.language),
-  );
-
-  const uniqueSnapshots = new Map<string, SnapshotInsertRow>();
+  // ── Product upsert ──────────────────────────────────────────────────────
+  //
+  // One `marketplace_products` row per SKU in the fetch. Multiple staging
+  // rows for the same SKU collapse onto a single product, so we feed the
+  // unique SKU set here. Groups/names update on conflict — they legitimately
+  // drift over time.
+  const uniqueSkus = new Map<
+    string,
+    {
+      externalId: number;
+      finish: string;
+      language: string | null;
+      groupId: number;
+      productName: string;
+    }
+  >();
   for (const staging of allStaging) {
-    const variants = variantByKey.get(skuKey(staging.externalId, staging.finish, staging.language));
-    if (!variants) {
+    uniqueSkus.set(skuKey(staging.externalId, staging.finish, staging.language), {
+      externalId: staging.externalId,
+      finish: staging.finish,
+      language: staging.language,
+      groupId: staging.groupId,
+      productName: staging.productName,
+    });
+  }
+
+  const productIdByKey = new Map<string, string>();
+  if (uniqueSkus.size > 0) {
+    const skus = [...uniqueSkus.values()];
+    for (let i = 0; i < skus.length; i += BATCH_SIZE) {
+      const chunk = skus.slice(i, i + BATCH_SIZE);
+      const products = await repo.upsertProductsForMarketplace(marketplace, chunk);
+      for (const row of products) {
+        productIdByKey.set(skuKey(row.externalId, row.finish, row.language), row.id);
+      }
+    }
+  }
+
+  // ── Build product_prices rows ───────────────────────────────────────────
+  //
+  // One row per (product_id, recorded_at). Multiple staging rows with the
+  // same SKU and timestamp (shouldn't happen, but the fetcher doesn't
+  // guarantee it) collapse to the last write — the upsert DO UPDATE step
+  // handles any remaining drift when the same (product, recorded_at) shows
+  // up twice.
+  const uniquePrices = new Map<string, ProductPriceInsertRow>();
+  for (const staging of allStaging) {
+    const productId = productIdByKey.get(
+      skuKey(staging.externalId, staging.finish, staging.language),
+    );
+    if (productId === undefined) {
       continue;
     }
-    for (const variant of variants) {
-      const snapKey = `${variant.id}|${staging.recordedAt.toISOString()}`;
-      uniqueSnapshots.set(snapKey, {
-        variantId: variant.id,
-        recordedAt: staging.recordedAt,
-        ...pickPrices(staging),
-      });
-    }
+    uniquePrices.set(`${productId}|${staging.recordedAt.toISOString()}`, {
+      marketplaceProductId: productId,
+      recordedAt: staging.recordedAt,
+      ...pickPrices(staging),
+    });
   }
 
-  if (uniqueSnapshots.size > 0) {
-    log.info(`${uniqueSnapshots.size} snapshots for ${dbVariants.length} mapped variants`);
+  const priceRows = [...uniquePrices.values()];
+  if (priceRows.length > 0) {
+    log.info(`${priceRows.length} price rows across ${uniqueSkus.size} SKUs`);
   }
 
-  const snapshotRows = [...uniqueSnapshots.values()];
-  const snapshotsBefore = await countRows(repo, "marketplaceSnapshots", marketplace);
-  let snapshotsAffected = 0;
-
-  for (let i = 0; i < snapshotRows.length; i += BATCH_SIZE) {
-    const batch = snapshotRows.slice(i, i + BATCH_SIZE);
-    snapshotsAffected += await repo.upsertSnapshots(batch);
+  const pricesBefore = await repo.countProductPrices(marketplace);
+  let pricesAffected = 0;
+  for (let i = 0; i < priceRows.length; i += BATCH_SIZE) {
+    const batch = priceRows.slice(i, i + BATCH_SIZE);
+    pricesAffected += await repo.upsertProductPrices(batch);
   }
-
-  const snapshotsAfter = await countRows(repo, "marketplaceSnapshots", marketplace);
-  const newSnapshots = snapshotsAfter - snapshotsBefore;
-
-  // ── Staging ────────────────────────────────────────────────────────────
-
-  // Deduplicate staging: keep last entry per (externalId, finish, language, recordedAt)
-  const uniqueStaging = new Map<string, StagingRow>();
-  for (const row of allStaging) {
-    uniqueStaging.set(
-      `${row.externalId}|${row.finish}|${row.language}|${row.recordedAt.toISOString()}`,
-      row,
-    );
-  }
-
-  const stagingRows = [...uniqueStaging.values()];
-  const stagingBefore = await countRows(repo, "marketplaceStaging", marketplace);
-  let stagingAffected = 0;
-
-  for (let i = 0; i < stagingRows.length; i += BATCH_SIZE) {
-    const batch = stagingRows.slice(i, i + BATCH_SIZE);
-    stagingAffected += await repo.upsertStaging(marketplace, batch);
-  }
-
-  const stagingAfter = await countRows(repo, "marketplaceStaging", marketplace);
-  const newStaging = stagingAfter - stagingBefore;
-  const updatedStaging = stagingAffected - newStaging;
+  const pricesAfter = await repo.countProductPrices(marketplace);
+  const newPrices = pricesAfter - pricesBefore;
 
   return {
-    snapshots: {
-      total: snapshotRows.length,
-      new: newSnapshots,
-      updated: snapshotsAffected - newSnapshots,
-      unchanged: snapshotRows.length - snapshotsAffected,
-    },
-    staging: {
-      total: stagingRows.length,
-      new: newStaging,
-      updated: updatedStaging,
-      unchanged: stagingRows.length - newStaging - updatedStaging,
+    prices: {
+      total: priceRows.length,
+      new: newPrices,
+      updated: pricesAffected - newPrices,
+      unchanged: priceRows.length - pricesAffected,
     },
   };
 }

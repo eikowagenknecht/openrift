@@ -99,30 +99,6 @@ describe("marketplaceMappingRepo", () => {
     expect(result[0].language).toBe("EN");
   });
 
-  it("insertSnapshots batch-inserts snapshots keyed by variantId", async () => {
-    const db = createMockDb([]);
-    const rows = [
-      {
-        variantId: "var-1",
-        recordedAt: new Date(),
-        marketCents: 500,
-        lowCents: 400,
-        midCents: 500,
-        highCents: 600,
-        trendCents: 450,
-        avg1Cents: 490,
-        avg7Cents: 480,
-        avg30Cents: 470,
-      },
-    ];
-    await expect(marketplaceMappingRepo(db).insertSnapshots(rows)).resolves.toBeUndefined();
-  });
-
-  it("insertSnapshots is a no-op for empty input", async () => {
-    const db = createMockDb([]);
-    await expect(marketplaceMappingRepo(db).insertSnapshots([])).resolves.toBeUndefined();
-  });
-
   it("deleteStagingTuples deletes staging rows by tuples", async () => {
     const db = createMockDb([]);
     await expect(
@@ -167,19 +143,6 @@ describe("marketplaceMappingRepo", () => {
     expect(await marketplaceMappingRepo(db).getPrintingFinishAndLanguage("p1")).toEqual(row);
   });
 
-  it("snapshotsByVariantId returns snapshots", async () => {
-    const rows = [{ variantId: "var-1", marketCents: 500 }];
-    const db = createMockDb(rows);
-    expect(await marketplaceMappingRepo(db).snapshotsByVariantId("var-1")).toEqual(rows);
-  });
-
-  it("deleteSnapshotsByVariantId deletes snapshots", async () => {
-    const db = createMockDb([]);
-    await expect(
-      marketplaceMappingRepo(db).deleteSnapshotsByVariantId("var-1"),
-    ).resolves.toBeUndefined();
-  });
-
   it("deleteVariantById deletes a variant (parent product left behind)", async () => {
     const db = createMockDb([]);
     await expect(marketplaceMappingRepo(db).deleteVariantById("var-1")).resolves.toBeUndefined();
@@ -188,13 +151,6 @@ describe("marketplaceMappingRepo", () => {
   it("countMappedVariants returns count", async () => {
     const db = createMockDb([{ count: 42 }]);
     expect(await marketplaceMappingRepo(db).countMappedVariants("tcgplayer")).toBe(42);
-  });
-
-  it("deleteSnapshotsForMappedVariants deletes snapshots", async () => {
-    const db = createMockDb([]);
-    await expect(
-      marketplaceMappingRepo(db).deleteSnapshotsForMappedVariants("tcgplayer"),
-    ).resolves.toBeUndefined();
   });
 
   it("deleteMappedVariants deletes all mapped variants (parent products left behind)", async () => {

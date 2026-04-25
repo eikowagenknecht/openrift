@@ -50,56 +50,40 @@ describe("priceRefreshRepo", () => {
     await expect(priceRefreshRepo(db).upsertGroups("tcgplayer", [])).resolves.toBeUndefined();
   });
 
-  it("variantsWithSku returns variants joined with their product SKU axes", async () => {
-    const db = createMockDb([
-      { id: "var-1", printingId: "p-1", externalId: 123, finish: "normal", language: "EN" },
+  it("upsertProductsForMarketplace returns product IDs per SKU", async () => {
+    const db = createMockDb([{ id: "mp-1", externalId: 123, finish: "normal", language: "EN" }]);
+    const result = await priceRefreshRepo(db).upsertProductsForMarketplace("tcgplayer", [
+      {
+        externalId: 123,
+        finish: "normal",
+        language: "EN",
+        groupId: 1,
+        productName: "Card",
+      },
     ]);
-    expect(await priceRefreshRepo(db).variantsWithSku("tcgplayer")).toHaveLength(1);
+    expect(result).toEqual([{ id: "mp-1", externalId: 123, finish: "normal", language: "EN" }]);
   });
 
-  it("countSnapshots returns count", async () => {
+  it("upsertProductsForMarketplace is a no-op for empty input", async () => {
+    const db = createMockDb([]);
+    expect(await priceRefreshRepo(db).upsertProductsForMarketplace("tcgplayer", [])).toEqual([]);
+  });
+
+  it("countProductPrices returns count", async () => {
     const db = createMockDb([{ count: 42 }]);
-    expect(await priceRefreshRepo(db).countSnapshots("tcgplayer")).toBe(42);
+    expect(await priceRefreshRepo(db).countProductPrices("tcgplayer")).toBe(42);
   });
 
-  it("countStaging returns count", async () => {
-    const db = createMockDb([{ count: 10 }]);
-    expect(await priceRefreshRepo(db).countStaging("tcgplayer")).toBe(10);
-  });
-
-  it("upsertSnapshots returns affected count", async () => {
+  it("upsertProductPrices returns affected count", async () => {
     const db = createMockDb([{ _: 1 }]);
     expect(
-      await priceRefreshRepo(db).upsertSnapshots([
+      await priceRefreshRepo(db).upsertProductPrices([
         {
-          variantId: "var-1",
+          marketplaceProductId: "mp-1",
           recordedAt: new Date(),
           marketCents: 1500,
           lowCents: null,
-          midCents: null,
-          highCents: null,
-          trendCents: null,
-          avg1Cents: null,
-          avg7Cents: null,
-          avg30Cents: null,
-        },
-      ]),
-    ).toBe(1);
-  });
-
-  it("upsertStaging returns affected count", async () => {
-    const db = createMockDb([{ _: 1 }]);
-    expect(
-      await priceRefreshRepo(db).upsertStaging("tcgplayer", [
-        {
-          externalId: 123,
-          finish: "normal",
-          language: "EN",
-          productName: "Card",
-          recordedAt: new Date(),
-          groupId: 1,
-          marketCents: 1500,
-          lowCents: null,
+          zeroLowCents: null,
           midCents: null,
           highCents: null,
           trendCents: null,

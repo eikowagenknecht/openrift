@@ -218,14 +218,14 @@ export const PRINTINGS = {
     rarity: "Showcase",
     finish: "foil",
   },
-  "OGN-007b:showcase:foil:promo:ZH": {
-    id: "019d69a4-f7b9-7222-bb93-cb745d47be9f",
+  "OGN-007b:showcase:foil:promo:EN": {
+    id: "019cfde8-86d5-734d-add4-3f4fc05c1173",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "Showcase",
     finish: "foil",
   },
-  "OGN-007b:showcase:foil:promo:EN": {
-    id: "019cfde8-86d5-734d-add4-3f4fc05c1173",
+  "OGN-007b:showcase:foil:promo:ZH": {
+    id: "019d69a4-f7b9-7222-bb93-cb745d47be9f",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "Showcase",
     finish: "foil",
@@ -248,14 +248,14 @@ export const PRINTINGS = {
     rarity: "Epic",
     finish: "normal",
   },
-  "OGS-002:uncommon:normal::EN": {
-    id: "019cfc3b-03d5-768e-91cf-8ac59b20fb0e",
+  "OGS-002:uncommon:normal::ZH": {
+    id: "019d6d05-9935-76e8-a805-ea6541cb99dd",
     cardId: "019cfc3b-038a-7e00-b828-03d838e5edab",
     rarity: "Uncommon",
     finish: "normal",
   },
-  "OGS-002:uncommon:normal::ZH": {
-    id: "019d6d05-9935-76e8-a805-ea6541cb99dd",
+  "OGS-002:uncommon:normal::EN": {
+    id: "019cfc3b-03d5-768e-91cf-8ac59b20fb0e",
     cardId: "019cfc3b-038a-7e00-b828-03d838e5edab",
     rarity: "Uncommon",
     finish: "normal",
@@ -272,6 +272,12 @@ export const PRINTINGS = {
     rarity: "Common",
     finish: "normal",
   },
+  "OGS-004:rare:normal::ZH": {
+    id: "019d6d05-a758-7fce-aadd-aafcc11baebe",
+    cardId: "019cfc3b-038a-7c1e-a8eb-57c9b27608ca",
+    rarity: "Rare",
+    finish: "normal",
+  },
   "OGS-004:rare:foil:promo:EN": {
     id: "019d17a6-13f6-74f3-bcaa-6974580b57db",
     cardId: "019cfc3b-038a-7c1e-a8eb-57c9b27608ca",
@@ -280,12 +286,6 @@ export const PRINTINGS = {
   },
   "OGS-004:rare:normal::EN": {
     id: "019cfc3b-03d6-74f2-bcff-7bd89d0061f5",
-    cardId: "019cfc3b-038a-7c1e-a8eb-57c9b27608ca",
-    rarity: "Rare",
-    finish: "normal",
-  },
-  "OGS-004:rare:normal::ZH": {
-    id: "019d6d05-a758-7fce-aadd-aafcc11baebe",
     cardId: "019cfc3b-038a-7c1e-a8eb-57c9b27608ca",
     rarity: "Rare",
     finish: "normal",
@@ -302,11 +302,11 @@ export const PRINTINGS = {
     rarity: "Uncommon",
     finish: "normal",
   },
-  "OGS-006:rare:normal::EN": {
-    id: "019cfc3b-03d6-7514-9347-be4597ff1eee",
+  "OGS-006:rare:foil:promo:EN": {
+    id: "019d1be8-3681-73b5-bf13-078b7e3c9096",
     cardId: "019cfc3b-038a-7aab-b290-3ac99454fe0e",
     rarity: "Rare",
-    finish: "normal",
+    finish: "foil",
   },
   "OGS-006:rare:normal::ZH": {
     id: "019d6d05-b0ac-79e3-8edc-0d6d436d148b",
@@ -314,11 +314,17 @@ export const PRINTINGS = {
     rarity: "Rare",
     finish: "normal",
   },
-  "OGS-006:rare:foil:promo:EN": {
-    id: "019d1be8-3681-73b5-bf13-078b7e3c9096",
+  "OGS-006:rare:normal::EN": {
+    id: "019cfc3b-03d6-7514-9347-be4597ff1eee",
     cardId: "019cfc3b-038a-7aab-b290-3ac99454fe0e",
     rarity: "Rare",
-    finish: "foil",
+    finish: "normal",
+  },
+  "OGS-007:rare:normal::ZH": {
+    id: "019d6d05-b656-79e4-b3df-2c0c6414f64b",
+    cardId: "019cfc3b-038a-7c30-8616-613222ef6b01",
+    rarity: "Rare",
+    finish: "normal",
   },
   "OGS-007:rare:foil:promo:EN": {
     id: "019d1bee-0857-793a-b76b-50b6ead8ddbb",
@@ -332,20 +338,14 @@ export const PRINTINGS = {
     rarity: "Rare",
     finish: "normal",
   },
-  "OGS-007:rare:normal::ZH": {
-    id: "019d6d05-b656-79e4-b3df-2c0c6414f64b",
-    cardId: "019cfc3b-038a-7c30-8616-613222ef6b01",
-    rarity: "Rare",
-    finish: "normal",
-  },
-  "OGS-008:common:normal::ZH": {
-    id: "019d6d05-b99e-7e0e-96dd-e1c9da4bdae3",
+  "OGS-008:common:normal::EN": {
+    id: "019cfc3b-03d6-753c-9ec3-7cf48219b1e8",
     cardId: "019cfc3b-038a-7e20-b240-25edfa53cbca",
     rarity: "Common",
     finish: "normal",
   },
-  "OGS-008:common:normal::EN": {
-    id: "019cfc3b-03d6-753c-9ec3-7cf48219b1e8",
+  "OGS-008:common:normal::ZH": {
+    id: "019d6d05-b99e-7e0e-96dd-e1c9da4bdae3",
     cardId: "019cfc3b-038a-7e20-b240-25edfa53cbca",
     rarity: "Common",
     finish: "normal",
@@ -356,22 +356,16 @@ export const PRINTINGS = {
     rarity: "Epic",
     finish: "normal",
   },
-  "OGS-009:epic:normal::EN": {
-    id: "019cfc3b-03d6-754e-a4de-ca223b302965",
-    cardId: "019cfc3b-038a-7abc-b43e-79b55463b059",
-    rarity: "Epic",
-    finish: "normal",
-  },
   "OGS-009:epic:foil:promo:EN": {
     id: "019d17ac-724a-732c-b83a-23cd257a74e5",
     cardId: "019cfc3b-038a-7abc-b43e-79b55463b059",
     rarity: "Epic",
     finish: "foil",
   },
-  "OGS-010:rare:normal::ZH": {
-    id: "019d6d05-c823-7069-95b6-1cdf23f82a9a",
-    cardId: "019cfc3b-038a-7c41-b170-c9f989adc4a8",
-    rarity: "Rare",
+  "OGS-009:epic:normal::EN": {
+    id: "019cfc3b-03d6-754e-a4de-ca223b302965",
+    cardId: "019cfc3b-038a-7abc-b43e-79b55463b059",
+    rarity: "Epic",
     finish: "normal",
   },
   "OGS-010:rare:normal::EN": {
@@ -386,6 +380,18 @@ export const PRINTINGS = {
     rarity: "Rare",
     finish: "foil",
   },
+  "OGS-010:rare:normal::ZH": {
+    id: "019d6d05-c823-7069-95b6-1cdf23f82a9a",
+    cardId: "019cfc3b-038a-7c41-b170-c9f989adc4a8",
+    rarity: "Rare",
+    finish: "normal",
+  },
+  "OGS-011:common:normal::ZH": {
+    id: "019d6d05-d8e2-7e53-8fe6-54fd10424a8b",
+    cardId: "019cfc3b-038a-7e2f-a482-917692bfd498",
+    rarity: "Common",
+    finish: "normal",
+  },
   "OGS-011:common:normal::EN": {
     id: "019cfc3b-03d6-7570-ac57-ad240fe24183",
     cardId: "019cfc3b-038a-7e2f-a482-917692bfd498",
@@ -397,12 +403,6 @@ export const PRINTINGS = {
     cardId: "019cfc3b-038a-7e2f-a482-917692bfd498",
     rarity: "Common",
     finish: "foil",
-  },
-  "OGS-011:common:normal::ZH": {
-    id: "019d6d05-d8e2-7e53-8fe6-54fd10424a8b",
-    cardId: "019cfc3b-038a-7e2f-a482-917692bfd498",
-    rarity: "Common",
-    finish: "normal",
   },
   "OGS-012:common:normal::ZH": {
     id: "019d6d05-d9e8-75ca-9545-64d46c8fb6cb",
@@ -416,6 +416,12 @@ export const PRINTINGS = {
     rarity: "Common",
     finish: "normal",
   },
+  "OGS-013:epic:normal::ZH": {
+    id: "019d6d05-e5d5-7c5b-8b55-90aeb47adb3e",
+    cardId: "019cfc3b-038a-7c52-b7f5-683161fa2c98",
+    rarity: "Epic",
+    finish: "normal",
+  },
   "OGS-013:epic:normal::EN": {
     id: "019cfc3b-03d6-7592-be7d-af8b5a85a818",
     cardId: "019cfc3b-038a-7c52-b7f5-683161fa2c98",
@@ -427,12 +433,6 @@ export const PRINTINGS = {
     cardId: "019cfc3b-038a-7c52-b7f5-683161fa2c98",
     rarity: "Epic",
     finish: "foil",
-  },
-  "OGS-013:epic:normal::ZH": {
-    id: "019d6d05-e5d5-7c5b-8b55-90aeb47adb3e",
-    cardId: "019cfc3b-038a-7c52-b7f5-683161fa2c98",
-    rarity: "Epic",
-    finish: "normal",
   },
   "OGS-014:epic:normal::ZH": {
     id: "019d6d05-f9be-789f-b21f-bfe68b1572d8",
@@ -464,16 +464,22 @@ export const PRINTINGS = {
     rarity: "Uncommon",
     finish: "normal",
   },
+  "OGS-016:common:normal::ZH": {
+    id: "019d6d06-0398-7088-8098-0484a6aa2fea",
+    cardId: "019cfc3b-038a-7c63-a32a-d4ca63b2bee9",
+    rarity: "Common",
+    finish: "normal",
+  },
   "OGS-016:common:normal::EN": {
     id: "019cfc3b-03d6-75ee-922c-1e736369b5d4",
     cardId: "019cfc3b-038a-7c63-a32a-d4ca63b2bee9",
     rarity: "Common",
     finish: "normal",
   },
-  "OGS-016:common:normal::ZH": {
-    id: "019d6d06-0398-7088-8098-0484a6aa2fea",
-    cardId: "019cfc3b-038a-7c63-a32a-d4ca63b2bee9",
-    rarity: "Common",
+  "OGS-017:rare:normal::EN": {
+    id: "019cfc3b-03d6-7600-9bd2-f43441e40ace",
+    cardId: "019cfc3b-038a-7e54-90c3-34a262a17bea",
+    rarity: "Rare",
     finish: "normal",
   },
   "OGS-017:rare:foil:promo:EN": {
@@ -488,20 +494,14 @@ export const PRINTINGS = {
     rarity: "Rare",
     finish: "metal",
   },
-  "OGS-017:rare:normal::ZH": {
-    id: "019d6d06-108e-726f-809e-13b31796be1c",
-    cardId: "019cfc3b-038a-7e54-90c3-34a262a17bea",
-    rarity: "Rare",
-    finish: "normal",
-  },
   "OGS-017:rare:metal-deluxe:promo:EN": {
     id: "019da5ac-fbc9-714d-b6c2-3505305416d9",
     cardId: "019cfc3b-038a-7e54-90c3-34a262a17bea",
     rarity: "Rare",
     finish: "metal-deluxe",
   },
-  "OGS-017:rare:normal::EN": {
-    id: "019cfc3b-03d6-7600-9bd2-f43441e40ace",
+  "OGS-017:rare:normal::ZH": {
+    id: "019d6d06-108e-726f-809e-13b31796be1c",
     cardId: "019cfc3b-038a-7e54-90c3-34a262a17bea",
     rarity: "Rare",
     finish: "normal",
@@ -590,17 +590,17 @@ export const PRINTINGS = {
     rarity: "Rare",
     finish: "foil",
   },
-  "OGS-021:rare:normal::ZH": {
-    id: "019d6d06-3071-78cb-871f-945422034de3",
-    cardId: "019cfc3b-038a-7aff-9f64-d915ada7e046",
-    rarity: "Rare",
-    finish: "normal",
-  },
   "OGS-021:rare:metal:promo:EN": {
     id: "019da5b3-3452-77b1-944c-ad84ab919340",
     cardId: "019cfc3b-038a-7aff-9f64-d915ada7e046",
     rarity: "Rare",
     finish: "metal",
+  },
+  "OGS-021:rare:normal::ZH": {
+    id: "019d6d06-3071-78cb-871f-945422034de3",
+    cardId: "019cfc3b-038a-7aff-9f64-d915ada7e046",
+    rarity: "Rare",
+    finish: "normal",
   },
   "OGS-022:epic:normal::EN": {
     id: "019cfc3b-03d8-7350-b433-2aee587b1912",
@@ -626,12 +626,6 @@ export const PRINTINGS = {
     rarity: "Rare",
     finish: "metal-deluxe",
   },
-  "OGS-023:rare:normal::ZH": {
-    id: "019d6d06-3485-71cd-bcef-9c7db6924832",
-    cardId: "019cfc3b-038a-7e76-9ea8-f1feb5c9d837",
-    rarity: "Rare",
-    finish: "normal",
-  },
   "OGS-023:rare:normal::EN": {
     id: "019cfc3b-03d8-7361-9a9a-915783d54e1c",
     cardId: "019cfc3b-038a-7e76-9ea8-f1feb5c9d837",
@@ -649,6 +643,12 @@ export const PRINTINGS = {
     cardId: "019cfc3b-038a-7e76-9ea8-f1feb5c9d837",
     rarity: "Rare",
     finish: "foil",
+  },
+  "OGS-023:rare:normal::ZH": {
+    id: "019d6d06-3485-71cd-bcef-9c7db6924832",
+    cardId: "019cfc3b-038a-7e76-9ea8-f1feb5c9d837",
+    rarity: "Rare",
+    finish: "normal",
   },
   "OGS-024:epic:foil:promo:EN": {
     id: "019d1c26-a105-7dbb-91c4-7219b21a7b25",
@@ -668,14 +668,14 @@ export const PRINTINGS = {
     rarity: "Epic",
     finish: "normal",
   },
-  "SFD-R01:common:normal::EN": {
-    id: "019cfded-5ed2-7f73-80a1-9cfea07679c8",
+  "SFD-R01:common:normal::ZH": {
+    id: "019d69a5-bdd0-7753-98b2-253827e5d3b5",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "Common",
     finish: "normal",
   },
-  "SFD-R01:common:normal::ZH": {
-    id: "019d69a5-bdd0-7753-98b2-253827e5d3b5",
+  "SFD-R01:common:normal::EN": {
+    id: "019cfded-5ed2-7f73-80a1-9cfea07679c8",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "Common",
     finish: "normal",
@@ -700,6 +700,18 @@ export const PRINTINGS = {
   },
   "SFD-R01b:showcase:foil:promo:ZH": {
     id: "019d69a5-e53a-7e57-886d-a4524d3da4f8",
+    cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
+    rarity: "Showcase",
+    finish: "foil",
+  },
+  "UNL-R01:common:normal::ZH": {
+    id: "019db508-6bb4-7979-8ed4-1dd06439966e",
+    cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
+    rarity: "Common",
+    finish: "normal",
+  },
+  "UNL-R01a:showcase:foil::ZH": {
+    id: "019db4fd-02f0-7141-9b06-26c8a1c9ff53",
     cardId: "019cfc3b-0387-7b61-be7a-edfadddd1879",
     rarity: "Showcase",
     finish: "foil",
@@ -783,7 +795,7 @@ export const MARKETPLACE_GROUPS = {
     id: "019da460-cc9e-750a-a4d0-83131b98f588",
     marketplace: "cardmarket",
     groupId: 6491,
-    name: null,
+    name: "Unleashed",
   },
   cardtrader_4166: {
     id: "019d1c29-9066-737b-8946-b9e3101587c1",

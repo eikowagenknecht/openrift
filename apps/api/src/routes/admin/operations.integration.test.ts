@@ -142,20 +142,19 @@ async function seedMarketplaceData(marketplace: string) {
     .execute();
 
   // marketplace_product_variants — pure (product, printing) link now that SKU axes live on the product.
-  const [variant] = await db
+  await db
     .insertInto("marketplaceProductVariants")
     .values({
       marketplaceProductId: product.id,
       printingId: printing.id,
     })
-    .returning("id")
     .execute();
 
-  // marketplace_snapshots (keyed on variantId)
+  // marketplace_product_prices (keyed on productId — shared across sibling variants)
   await db
-    .insertInto("marketplaceSnapshots")
+    .insertInto("marketplaceProductPrices")
     .values({
-      variantId: variant.id,
+      marketplaceProductId: product.id,
       recordedAt: new Date(),
       marketCents: 100,
       lowCents: 50,
