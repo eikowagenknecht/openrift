@@ -1,7 +1,9 @@
 import type { Marketplace, PriceLookup, Printing } from "@openrift/shared";
+import { preferredPrinting } from "@openrift/shared";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 
+import { useEffectiveLanguageOrder } from "./use-effective-language-order";
 import { usePrices } from "./use-prices";
 
 export interface CardOwnership {
@@ -11,12 +13,18 @@ export interface CardOwnership {
   needed: number;
   owned: number;
   shortfall: number;
-  cheapestPrice: number | undefined;
   /**
-   * The printing whose price backed `cheapestPrice` — used to deep-link to the
-   * matching marketplace product. `undefined` when no price was available.
+   * Price for the printing the deck builder shows for this card row — either
+   * the explicitly-pinned `preferredPrintingId` or the language-preference
+   * canonical fallback. `undefined` when no price is available for that
+   * printing on the selected marketplace.
    */
-  cheapestPrinting: { id: string; language: string; shortCode: string } | undefined;
+  displayPrice: number | undefined;
+  /**
+   * The printing whose price backed `displayPrice` — used to deep-link to the
+   * matching marketplace product. `undefined` when the card has no printings.
+   */
+  displayPrinting: { id: string; language: string; shortCode: string } | undefined;
 }
 
 export interface DeckOwnershipData {
@@ -41,6 +49,7 @@ export function computeDeckOwnership(
   ownedCountByPrinting: Record<string, number> | undefined,
   marketplace: Marketplace,
   prices: PriceLookup,
+  languageOrder: readonly string[],
 ): DeckOwnershipData {
   // Intentionally NOT `"use memo"`: when React Compiler memoizes a `"use
   // memo"` helper, it wraps the call site in a cache check. On cache hits
@@ -50,6 +59,18 @@ export function computeDeckOwnership(
   // warnings. `useDeckOwnership` already memoizes this call via the outer
   // compiler, so there's no benefit to marking this as `"use memo"` too.
 
+  // Index printings by cardId so we can resolve the deck row's preferred
+  // printing without scanning the full list per card.
+  const printingsByCardId = new Map<string, Printing[]>();
+  for (const printing of allPrintings) {
+    const bucket = printingsByCardId.get(printing.cardId);
+    if (bucket) {
+      bucket.push(printing);
+    } else {
+      printingsByCardId.set(printing.cardId, [printing]);
+    }
+  }
+
   // Build owned count by cardId (sum across all printings)
   const ownedByCardId = new Map<string, number>();
   if (ownedCountByPrinting) {
@@ -57,29 +78,6 @@ export function computeDeckOwnership(
       const count = ownedCountByPrinting[printing.id] ?? 0;
       if (count > 0) {
         ownedByCardId.set(printing.cardId, (ownedByCardId.get(printing.cardId) ?? 0) + count);
-      }
-    }
-  }
-
-  // Build cheapest price by cardId, remembering which printing supplied it so
-  // the missing-cards dialog can deep-link to the matching marketplace product.
-  const cheapestByCardId = new Map<
-    string,
-    { price: number; printing: { id: string; language: string; shortCode: string } }
-  >();
-  for (const printing of allPrintings) {
-    const price = prices.get(printing.id, marketplace);
-    if (price !== undefined) {
-      const existing = cheapestByCardId.get(printing.cardId);
-      if (existing === undefined || price < existing.price) {
-        cheapestByCardId.set(printing.cardId, {
-          price,
-          printing: {
-            id: printing.id,
-            language: printing.language,
-            shortCode: printing.shortCode,
-          },
-        });
       }
     }
   }
@@ -108,8 +106,30 @@ export function computeDeckOwnership(
 
     claimedByCardId.set(card.cardId, alreadyClaimed + ownedInZone);
 
-    const cheapest = cheapestByCardId.get(card.cardId);
-    const cheapestPrice = cheapest?.price;
+    // Resolve the printing the deck builder displays for this row, mirroring
+    // `usePreferredPrinting`: explicit pin first, then language-preference
+    // canonical fallback. Pricing the wrong language variant here would let
+    // a cheaper non-EN printing bleed into the missing-cards dialog even
+    // when the deck row pins (or canonically resolves to) EN.
+    const candidates = printingsByCardId.get(card.cardId) ?? [];
+    let resolvedPrinting: Printing | undefined;
+    if (card.preferredPrintingId) {
+      resolvedPrinting = candidates.find((p) => p.id === card.preferredPrintingId);
+    }
+    if (!resolvedPrinting) {
+      resolvedPrinting = preferredPrinting(candidates, languageOrder);
+    }
+
+    const displayPrice = resolvedPrinting
+      ? prices.get(resolvedPrinting.id, marketplace)
+      : undefined;
+    const displayPrinting = resolvedPrinting
+      ? {
+          id: resolvedPrinting.id,
+          language: resolvedPrinting.language,
+          shortCode: resolvedPrinting.shortCode,
+        }
+      : undefined;
 
     const entry: CardOwnership = {
       cardId: card.cardId,
@@ -118,8 +138,8 @@ export function computeDeckOwnership(
       needed: card.quantity,
       owned: ownedInZone,
       shortfall,
-      cheapestPrice,
-      cheapestPrinting: cheapest?.printing,
+      displayPrice,
+      displayPrinting,
     };
 
     byCardZone.set(`${card.cardId}:${card.zone}`, entry);
@@ -131,11 +151,11 @@ export function computeDeckOwnership(
       missingCards.push(entry);
     }
 
-    if (cheapestPrice !== undefined) {
+    if (displayPrice !== undefined) {
       hasPrices = true;
-      deckValueCents += cheapestPrice * card.quantity;
-      ownedValueCents += cheapestPrice * ownedInZone;
-      missingValueCents += cheapestPrice * shortfall;
+      deckValueCents += displayPrice * card.quantity;
+      ownedValueCents += displayPrice * ownedInZone;
+      missingValueCents += displayPrice * shortfall;
     }
   }
 
@@ -162,8 +182,16 @@ export function useDeckOwnership(
   marketplace: Marketplace,
 ): DeckOwnershipData | undefined {
   const prices = usePrices();
+  const languageOrder = useEffectiveLanguageOrder();
   if (!ownedCountByPrinting) {
     return undefined;
   }
-  return computeDeckOwnership(deckCards, allPrintings, ownedCountByPrinting, marketplace, prices);
+  return computeDeckOwnership(
+    deckCards,
+    allPrintings,
+    ownedCountByPrinting,
+    marketplace,
+    prices,
+    languageOrder,
+  );
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-25
+
+- fix: The missing-cards dialog on a deck now shows the price and short code of the printing the deck builder displays for each card (your pinned variant, or the language-preferred fallback), instead of the cheapest variant in any language. Previously a cheaper non-English variant could substitute its price and link in for an English deck row
+
 ## 2026-04-24
 
 - fix: The hover outline on card tiles no longer gets cut off at the corners while the 3D tilt effect is active

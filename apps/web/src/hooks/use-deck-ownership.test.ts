@@ -15,13 +15,15 @@ import {
 
 import { computeDeckOwnership } from "./use-deck-ownership";
 
+const EN_FIRST: readonly string[] = ["EN", "DE", "ZH"];
+
 beforeEach(() => {
   resetIdCounter();
 });
 
 describe("computeDeckOwnership", () => {
   it("returns all zeros for an empty deck", () => {
-    const result = computeDeckOwnership([], [], {}, "tcgplayer", EMPTY_PRICE_LOOKUP);
+    const result = computeDeckOwnership([], [], {}, "tcgplayer", EMPTY_PRICE_LOOKUP, EN_FIRST);
 
     expect(result.totalNeeded).toBe(0);
     expect(result.totalOwned).toBe(0);
@@ -43,6 +45,7 @@ describe("computeDeckOwnership", () => {
       owned,
       "tcgplayer",
       EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
     );
 
     expect(result.totalNeeded).toBe(3);
@@ -69,6 +72,7 @@ describe("computeDeckOwnership", () => {
       owned,
       "tcgplayer",
       EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
     );
 
     expect(result.totalOwned).toBe(1);
@@ -83,7 +87,14 @@ describe("computeDeckOwnership", () => {
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" })];
     const printings = [stubPrinting({ cardId })];
 
-    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", EMPTY_PRICE_LOOKUP);
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      {},
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+    );
 
     expect(result.totalOwned).toBe(0);
     expect(result.missingCount).toBe(2);
@@ -106,6 +117,7 @@ describe("computeDeckOwnership", () => {
       owned,
       "tcgplayer",
       EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
     );
 
     expect(result.totalOwned).toBe(3);
@@ -130,6 +142,7 @@ describe("computeDeckOwnership", () => {
       owned,
       "tcgplayer",
       EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
     );
 
     expect(result.totalNeeded).toBe(4);
@@ -137,28 +150,62 @@ describe("computeDeckOwnership", () => {
     expect(result.missingCount).toBe(1);
   });
 
-  it("computes deck value from cheapest printing price", () => {
+  it("computes deck value from the deck row's resolved printing", () => {
     const cardId = "card-1";
 
+    // No preferredPrintingId, so canonical fallback picks EN (p1) over DE (p2).
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" })];
-    const printings = [stubPrinting({ id: "p1", cardId }), stubPrinting({ id: "p2", cardId })];
+    const printings = [
+      stubPrinting({ id: "p1", cardId, language: "EN" }),
+      stubPrinting({ id: "p2", cardId, language: "DE" }),
+    ];
     const owned = { p1: 1 };
     const prices = stubPriceLookup({
       p1: { tcgplayer: 5 },
       p2: { tcgplayer: 3 },
     });
 
-    const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer", prices);
+    const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer", prices, EN_FIRST);
 
-    // Cheapest printing is $3.00, need 2 copies
-    expect(result.deckValueCents).toBe(6);
-    // Own 1 copy at cheapest price
-    expect(result.ownedValueCents).toBe(3);
-    // Missing 1 copy at cheapest price
-    expect(result.missingValueCents).toBe(3);
+    // Resolved printing is EN (p1) at $5, need 2 copies
+    expect(result.deckValueCents).toBe(10);
+    // Own 1 copy at EN price
+    expect(result.ownedValueCents).toBe(5);
+    // Missing 1 copy at EN price
+    expect(result.missingValueCents).toBe(5);
   });
 
-  it("tracks the printing that supplied the cheapest price", () => {
+  it("uses preferredPrintingId when set, even when another language is cheaper", () => {
+    // Regression: deck has EN Master Yi pinned; missing-cards dialog must show
+    // EN price/short code, not the cheaper ZH variant. (See bug report
+    // 2026-04-25: EN deck row was showing ZH prices because the hook picked
+    // the global cheapest printing instead of the deck row's chosen one.)
+    const cardId = "master-yi";
+
+    const deckCards = [
+      stubDeckBuilderCard({ cardId, quantity: 1, zone: "main", preferredPrintingId: "p-en" }),
+    ];
+    const printings = [
+      stubPrinting({ id: "p-en", cardId, language: "EN", shortCode: "OGN-001-EN" }),
+      stubPrinting({ id: "p-zh", cardId, language: "ZH", shortCode: "OGN-001-ZH" }),
+    ];
+    const prices = stubPriceLookup({
+      "p-en": { cardtrader: 500 },
+      "p-zh": { cardtrader: 100 },
+    });
+
+    const result = computeDeckOwnership(deckCards, printings, {}, "cardtrader", prices, EN_FIRST);
+    const [entry] = result.missingCards;
+    expect(entry?.displayPrinting).toEqual({
+      id: "p-en",
+      language: "EN",
+      shortCode: "OGN-001-EN",
+    });
+    expect(entry?.displayPrice).toBe(500);
+    expect(result.deckValueCents).toBe(500);
+  });
+
+  it("falls back to canonical (EN-preferring) printing when no preferredPrintingId", () => {
     const cardId = "card-1";
 
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
@@ -171,18 +218,28 @@ describe("computeDeckOwnership", () => {
       p2: { tcgplayer: 3 },
     });
 
-    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices);
+    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices, EN_FIRST);
     const [entry] = result.missingCards;
-    expect(entry?.cheapestPrinting).toEqual({ id: "p2", language: "DE", shortCode: "OGN-002" });
+    expect(entry?.displayPrinting).toEqual({ id: "p1", language: "EN", shortCode: "OGN-001" });
+    expect(entry?.displayPrice).toBe(5);
   });
 
-  it("omits cheapestPrinting when no price is available", () => {
+  it("omits displayPrice when the resolved printing has no price on the marketplace", () => {
+    // Even with cheaper data on a different language variant, we no longer
+    // borrow that price — show "--" until the resolved printing has its own.
     const cardId = "card-1";
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
-    const printings = [stubPrinting({ id: "p1", cardId })];
+    const printings = [
+      stubPrinting({ id: "p1", cardId, language: "EN", shortCode: "OGN-001" }),
+      stubPrinting({ id: "p2", cardId, language: "ZH", shortCode: "OGN-001-ZH" }),
+    ];
+    // Only the ZH printing has a price; canonical EN resolves but has none.
+    const prices = stubPriceLookup({ p2: { tcgplayer: 3 } });
 
-    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", EMPTY_PRICE_LOOKUP);
-    expect(result.missingCards[0]?.cheapestPrinting).toBeUndefined();
+    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", prices, EN_FIRST);
+    const [entry] = result.missingCards;
+    expect(entry?.displayPrinting?.id).toBe("p1");
+    expect(entry?.displayPrice).toBeUndefined();
   });
 
   it("returns undefined values when no price data is available", () => {
@@ -191,7 +248,14 @@ describe("computeDeckOwnership", () => {
     const deckCards = [stubDeckBuilderCard({ cardId, quantity: 1, zone: "main" })];
     const printings = [stubPrinting({ id: "p1", cardId })];
 
-    const result = computeDeckOwnership(deckCards, printings, {}, "tcgplayer", EMPTY_PRICE_LOOKUP);
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      {},
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+    );
 
     expect(result.deckValueCents).toBeUndefined();
     expect(result.ownedValueCents).toBeUndefined();
@@ -207,7 +271,7 @@ describe("computeDeckOwnership", () => {
       p1: { tcgplayer: 10, cardmarket: 8 },
     });
 
-    const result = computeDeckOwnership(deckCards, printings, {}, "cardmarket", prices);
+    const result = computeDeckOwnership(deckCards, printings, {}, "cardmarket", prices, EN_FIRST);
 
     expect(result.deckValueCents).toBe(8);
   });
@@ -230,7 +294,7 @@ describe("computeDeckOwnership", () => {
       pc: { tcgplayer: 2 },
     });
 
-    const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer", prices);
+    const result = computeDeckOwnership(deckCards, printings, owned, "tcgplayer", prices, EN_FIRST);
 
     expect(result.totalNeeded).toBe(6);
     expect(result.totalOwned).toBe(3); // 3 of Alpha, 0 of Beta, 0 of Gamma

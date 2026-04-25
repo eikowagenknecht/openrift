@@ -64,12 +64,12 @@ export function DeckMissingCardsDialog({
   // Fetch marketplace source metadata only when the dialog is open, so we don't
   // send the extra request until the user actually needs the deep-link URLs.
   const printingIds = open
-    ? sorted.flatMap((card) => (card.cheapestPrinting ? [card.cheapestPrinting.id] : []))
+    ? sorted.flatMap((card) => (card.displayPrinting ? [card.displayPrinting.id] : []))
     : [];
   const { data: marketplaceInfo } = useMarketplaceInfo(printingIds);
 
   const linkFor = (card: CardOwnership): string => {
-    const printing = card.cheapestPrinting;
+    const printing = card.displayPrinting;
     const info = printing ? marketplaceInfo?.infos[printing.id]?.[marketplace] : undefined;
     if (printing && info?.available && info.productId !== null) {
       return meta.productUrl(info.productId, printing.language);
@@ -79,10 +79,10 @@ export function DeckMissingCardsDialog({
 
   const handleCopy = async () => {
     const lines = sorted.map((card) => {
-      const code = card.cheapestPrinting?.shortCode;
+      const code = card.displayPrinting?.shortCode;
       const namePart = code ? `${code} ${card.cardName}` : card.cardName;
       const price =
-        card.cheapestPrice === undefined ? "" : ` - ${fmt(card.cheapestPrice * card.shortfall)}`;
+        card.displayPrice === undefined ? "" : ` - ${fmt(card.displayPrice * card.shortfall)}`;
       return `${card.shortfall}x ${namePart}${price}`;
     });
     // Use \r\n so line breaks survive iOS Safari's clipboard
@@ -139,19 +139,19 @@ export function DeckMissingCardsDialog({
                         className="hover:text-foreground underline decoration-dotted underline-offset-2"
                       >
                         <span className="text-muted-foreground mr-2 font-mono">
-                          {card.cheapestPrinting?.shortCode ?? "--"}
+                          {card.displayPrinting?.shortCode ?? "--"}
                         </span>
                         {card.cardName}
                       </a>
                     </td>
                     <td className="py-1.5 text-right">{card.shortfall}</td>
                     <td className="text-muted-foreground py-1.5 text-right">
-                      {card.cheapestPrice === undefined ? "--" : fmt(card.cheapestPrice)}
+                      {card.displayPrice === undefined ? "--" : fmt(card.displayPrice)}
                     </td>
                     <td className="py-1.5 text-right">
-                      {card.cheapestPrice === undefined
+                      {card.displayPrice === undefined
                         ? "--"
-                        : fmt(card.cheapestPrice * card.shortfall)}
+                        : fmt(card.displayPrice * card.shortfall)}
                     </td>
                   </tr>
                 ))}
