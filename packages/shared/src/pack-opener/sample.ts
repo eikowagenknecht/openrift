@@ -6,11 +6,14 @@ import {
   SHOWCASE_ALTART_RATE,
   SHOWCASE_OVERNUMBERED_RATE,
   SHOWCASE_SIGNED_RATE,
+  TOKEN_SLOT_ALTART_RUNE_RATE,
+  TOKEN_SLOT_FOIL_RUNE_RATE,
+  TOKEN_SLOT_TOKEN_RATE,
   ULTIMATE_RATE,
   UNCOMMONS_PER_PACK,
 } from "./rates.js";
 import type { Random } from "./rng.js";
-import { pickOne } from "./rng.js";
+import { pickOneUnique } from "./rng.js";
 import type { PackPool, PackPrinting, PackPull, PackResult } from "./types.js";
 
 /**
@@ -18,7 +21,7 @@ import type { PackPool, PackPrinting, PackPull, PackResult } from "./types.js";
  * if one of them is empty in the current pool (e.g. a set with no Epic foils).
  * @returns A printing for the foil slot.
  */
-function pickFoilSlot(rng: Random, pool: PackPool): PackPrinting {
+function pickFoilSlot(rng: Random, pool: PackPool, pulled: ReadonlySet<string>): PackPrinting {
   const buckets: { pool: PackPrinting[]; weight: number }[] = [
     { pool: pool.foilCommons, weight: FOIL_RARITY_WEIGHTS.common ?? 0 },
     { pool: pool.foilUncommons, weight: FOIL_RARITY_WEIGHTS.uncommon ?? 0 },
@@ -31,14 +34,14 @@ function pickFoilSlot(rng: Random, pool: PackPool): PackPrinting {
   for (const bucket of buckets) {
     roll -= bucket.weight;
     if (roll <= 0) {
-      return pickOne(rng, bucket.pool);
+      return pickOneUnique(rng, bucket.pool, pulled);
     }
   }
   const fallback = buckets.at(-1);
   if (!fallback) {
     throw new Error("pickFoilSlot called with no populated buckets");
   }
-  return pickOne(rng, fallback.pool);
+  return pickOneUnique(rng, fallback.pool, pulled);
 }
 
 /**
@@ -47,56 +50,96 @@ function pickFoilSlot(rng: Random, pool: PackPool): PackPrinting {
  * get absorbed into a more common outcome when a pool is empty.
  * @returns The special pull, or null to fall through to a regular foil.
  */
-function rollSpecialSlot(rng: Random, pool: PackPool): PackPull | null {
+function rollSpecialSlot(
+  rng: Random,
+  pool: PackPool,
+  pulled: ReadonlySet<string>,
+): PackPull | null {
   const roll = rng.next();
   let cursor = 0;
 
   cursor += pool.ultimates.length > 0 ? ULTIMATE_RATE : 0;
   if (roll < cursor) {
-    return { slot: "ultimate", printing: pickOne(rng, pool.ultimates) };
+    return { slot: "ultimate", printing: pickOneUnique(rng, pool.ultimates, pulled) };
   }
 
   cursor += pool.showcaseSigned.length > 0 ? SHOWCASE_SIGNED_RATE : 0;
   if (roll < cursor) {
-    return { slot: "showcase", printing: pickOne(rng, pool.showcaseSigned) };
+    return { slot: "showcase", printing: pickOneUnique(rng, pool.showcaseSigned, pulled) };
   }
 
   cursor += pool.showcaseOvernumbered.length > 0 ? SHOWCASE_OVERNUMBERED_RATE : 0;
   if (roll < cursor) {
-    return { slot: "showcase", printing: pickOne(rng, pool.showcaseOvernumbered) };
+    return { slot: "showcase", printing: pickOneUnique(rng, pool.showcaseOvernumbered, pulled) };
   }
 
   cursor += pool.showcaseAltart.length > 0 ? SHOWCASE_ALTART_RATE : 0;
   if (roll < cursor) {
-    return { slot: "showcase", printing: pickOne(rng, pool.showcaseAltart) };
+    return { slot: "showcase", printing: pickOneUnique(rng, pool.showcaseAltart, pulled) };
   }
 
   return null;
 }
 
 /**
- * Open a single booster pack from the given pool.
- * @returns A PackResult with all 13 pulls, in slot order.
+ * Cascading roll for the token slot: alt-art Rune → foil Rune → Token → regular
+ * Rune. Empty sub-pools skip their rate so probability mass falls through to
+ * the next tier (matches how empty showcase pools behave in the foil slot).
+ * @returns A pull for the token slot.
+ */
+function pickTokenSlot(rng: Random, pool: PackPool, pulled: ReadonlySet<string>): PackPull {
+  const roll = rng.next();
+  let cursor = 0;
+
+  cursor += pool.altArtRunes.length > 0 ? TOKEN_SLOT_ALTART_RUNE_RATE : 0;
+  if (roll < cursor) {
+    return { slot: "token", printing: pickOneUnique(rng, pool.altArtRunes, pulled) };
+  }
+
+  cursor += pool.foilRunes.length > 0 ? TOKEN_SLOT_FOIL_RUNE_RATE : 0;
+  if (roll < cursor) {
+    return { slot: "token", printing: pickOneUnique(rng, pool.foilRunes, pulled) };
+  }
+
+  cursor += pool.tokens.length > 0 ? TOKEN_SLOT_TOKEN_RATE : 0;
+  if (roll < cursor) {
+    return { slot: "token", printing: pickOneUnique(rng, pool.tokens, pulled) };
+  }
+
+  return { slot: "token", printing: pickOneUnique(rng, pool.runes, pulled) };
+}
+
+/**
+ * Open a single booster pack from the given pool. Real packs never contain the
+ * same printing twice, so each pull is constrained to printings not already in
+ * the pack — the second flex slot can't repeat the first flex's Rare, etc. A
+ * regular Common and its foil version are different printings and may coexist.
+ * @returns A PackResult with all 14 pulls, in slot order.
  */
 export function openPack(pool: PackPool, rng: Random): PackResult {
   const pulls: PackPull[] = [];
+  const pulled = new Set<string>();
+  const push = (pull: PackPull): void => {
+    pulls.push(pull);
+    pulled.add(pull.printing.id);
+  };
 
   for (let i = 0; i < COMMONS_PER_PACK; i++) {
-    pulls.push({ slot: "common", printing: pickOne(rng, pool.commons) });
+    push({ slot: "common", printing: pickOneUnique(rng, pool.commons, pulled) });
   }
   for (let i = 0; i < UNCOMMONS_PER_PACK; i++) {
-    pulls.push({ slot: "uncommon", printing: pickOne(rng, pool.uncommons) });
+    push({ slot: "uncommon", printing: pickOneUnique(rng, pool.uncommons, pulled) });
   }
   for (let i = 0; i < FLEX_SLOTS_PER_PACK; i++) {
     const isEpic = pool.epics.length > 0 && rng.next() < FLEX_EPIC_RATE;
     const bucket = isEpic ? pool.epics : pool.rares;
-    pulls.push({ slot: "flex", printing: pickOne(rng, bucket) });
+    push({ slot: "flex", printing: pickOneUnique(rng, bucket, pulled) });
   }
 
-  const special = rollSpecialSlot(rng, pool);
-  pulls.push(special ?? { slot: "foil", printing: pickFoilSlot(rng, pool) });
+  const special = rollSpecialSlot(rng, pool, pulled);
+  push(special ?? { slot: "foil", printing: pickFoilSlot(rng, pool, pulled) });
 
-  pulls.push({ slot: "rune", printing: pickOne(rng, pool.runes) });
+  push(pickTokenSlot(rng, pool, pulled));
 
   return { pulls };
 }

@@ -10,6 +10,7 @@ function printing(overrides: Partial<PackPrinting>): PackPrinting {
     cardName: "Card",
     cardSlug: "card",
     cardType: "Unit",
+    cardSuperTypes: [],
     rarity: "Common",
     finish: "normal",
     artVariant: "normal",
@@ -32,6 +33,9 @@ describe("buildPool", () => {
       printing({ id: "r1", rarity: "Rare", finish: "foil" }),
       printing({ id: "e1", rarity: "Epic", finish: "foil" }),
       printing({ id: "run1", cardType: "Rune", rarity: "Common" }),
+      printing({ id: "frun1", cardType: "Rune", rarity: "Common", finish: "foil" }),
+      printing({ id: "arun1", cardType: "Rune", rarity: "Common", artVariant: "altart" }),
+      printing({ id: "tok1", cardSuperTypes: ["Token"] }),
       printing({ id: "sa1", rarity: "Showcase", finish: "foil", artVariant: "altart" }),
       printing({ id: "so1", rarity: "Showcase", finish: "foil", artVariant: "overnumbered" }),
       printing({ id: "ss1", rarity: "Showcase", finish: "foil", isSigned: true }),
@@ -45,6 +49,9 @@ describe("buildPool", () => {
     expect(pool.rares.map((p) => p.id)).toEqual(["r1"]);
     expect(pool.epics.map((p) => p.id)).toEqual(["e1"]);
     expect(pool.runes.map((p) => p.id)).toEqual(["run1"]);
+    expect(pool.foilRunes.map((p) => p.id)).toEqual(["frun1"]);
+    expect(pool.altArtRunes.map((p) => p.id)).toEqual(["arun1"]);
+    expect(pool.tokens.map((p) => p.id)).toEqual(["tok1"]);
     expect(pool.showcaseAltart.map((p) => p.id)).toEqual(["sa1"]);
     expect(pool.showcaseOvernumbered.map((p) => p.id)).toEqual(["so1"]);
     expect(pool.showcaseSigned.map((p) => p.id)).toEqual(["ss1"]);
@@ -70,6 +77,17 @@ describe("buildPool", () => {
     const pool = buildPool(printings);
     expect(pool.commons.map((p) => p.id)).toEqual(["c"]);
     expect(pool.runes.map((p) => p.id)).toEqual(["rune"]);
+  });
+
+  it("keeps Token-supertype cards out of the common pool", () => {
+    const printings: PackPrinting[] = [
+      printing({ id: "c", rarity: "Common" }),
+      // Sprite/Recruit are Common-rarity Unit cards with the Token super type.
+      printing({ id: "sprite", cardType: "Unit", cardSuperTypes: ["Token"], rarity: "Common" }),
+    ];
+    const pool = buildPool(printings);
+    expect(pool.commons.map((p) => p.id)).toEqual(["c"]);
+    expect(pool.tokens.map((p) => p.id)).toEqual(["sprite"]);
   });
 
   it("routes ultimate printings to the ultimates pool regardless of rarity", () => {

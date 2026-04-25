@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 const SLOT_BORDER: Record<PackPull["slot"], string> = {
   common: "ring-border",
   uncommon: "ring-border",
-  rune: "ring-border",
+  token: "ring-border",
   flex: "ring-border",
   foil: "ring-sky-500/60",
   showcase: "ring-amber-400/70",
@@ -18,7 +18,7 @@ const SLOT_BORDER: Record<PackPull["slot"], string> = {
 const SLOT_GLOW: Record<PackPull["slot"], string> = {
   common: "",
   uncommon: "",
-  rune: "",
+  token: "",
   flex: "",
   foil: "",
   showcase: "shadow-[0_0_28px_-6px_rgba(245,158,11,0.55)]",
@@ -102,7 +102,16 @@ function slotLabel(pull: PackPull): string {
     case "foil": {
       return `Foil ${pull.printing.rarity}`;
     }
-    case "rune": {
+    case "token": {
+      if (pull.printing.cardSuperTypes.includes("Token")) {
+        return "Token";
+      }
+      if (pull.printing.finish === "foil") {
+        return "Foil Rune";
+      }
+      if (pull.printing.artVariant !== "normal") {
+        return "Alt Art Rune";
+      }
       return "Rune";
     }
     case "showcase": {

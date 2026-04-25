@@ -63,3 +63,25 @@ export const FOIL_RARITY_WEIGHTS: Readonly<Record<string, number>> = {
   rare: 0.04,
   epic: 0.01,
 };
+
+/**
+ * Token slot cascade rates. Riot describes the slot as "usually a basic Rune,
+ * occasionally a foil Rune, very rarely an alt-art basic Rune", and notes
+ * "there's also a possibility of getting a Token here instead of a Rune"
+ * (e.g. Sprite, Recruit). No published numbers — all ESTIMATE.
+ *
+ * Cascade order (rarer first, mass falls through if a pool is empty):
+ * alt-art Rune → foil Rune → Token → regular Rune (fallback).
+ */
+
+/** Per-pack rate of an alt-art basic Rune in the token slot. ESTIMATE: "very rarely". */
+export const TOKEN_SLOT_ALTART_RUNE_RATE = 0.005;
+
+/** Per-pack rate of a foil Rune in the token slot. ESTIMATE: "occasionally". */
+export const TOKEN_SLOT_FOIL_RUNE_RATE = 0.06;
+
+/**
+ * Per-pack rate of a Token-supertype card (Sprite, Recruit, …) in the token slot.
+ * ESTIMATE: "a possibility". The remainder of the slot is a regular Rune.
+ */
+export const TOKEN_SLOT_TOKEN_RATE = 0.08;
