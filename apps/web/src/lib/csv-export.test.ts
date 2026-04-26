@@ -73,4 +73,12 @@ describe("generateExportCSV", () => {
     const lines = csv.split("\n");
     expect(lines[1]).toContain('"Card, the Great"');
   });
+
+  it("emits straight apostrophes for card names with curly ones", () => {
+    const stack = makeStack({ shortCode: "OGN-269", name: "Kai’Sa, Survivor" });
+    const csv = generateExportCSV([stack]);
+    const lines = csv.split("\n");
+    expect(lines[1]).toContain("Kai'Sa, Survivor");
+    expect(lines[1]).not.toContain("’");
+  });
 });

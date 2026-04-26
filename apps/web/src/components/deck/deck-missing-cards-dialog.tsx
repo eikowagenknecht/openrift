@@ -1,4 +1,5 @@
 import type { Marketplace } from "@openrift/shared";
+import { straightenApostrophes } from "@openrift/shared";
 import { CheckIcon, CopyIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 
@@ -81,7 +82,8 @@ export function DeckMissingCardsDialog({
   const handleCopy = async () => {
     const lines = sorted.map((card) => {
       const code = card.displayPrinting?.shortCode;
-      const namePart = code ? `${code} ${card.cardName}` : card.cardName;
+      const cardName = straightenApostrophes(card.cardName);
+      const namePart = code ? `${code} ${cardName}` : cardName;
       const price =
         card.displayPrice === undefined ? "" : ` - ${fmt(card.displayPrice * card.shortfall)}`;
       return `${card.shortfall}x ${namePart}${price}`;

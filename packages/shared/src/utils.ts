@@ -57,6 +57,17 @@ export function normalizeNameForMatching(name: string): string {
 }
 
 /**
+ * Replace the typographic apostrophe (U+2019) with a plain ASCII apostrophe.
+ * Inverse of the apostrophe step in `fixTypography`. Used at export/clipboard
+ * boundaries so card names like "Kai'Sa" reach third-party tools as "Kai'Sa".
+ *
+ * @returns The text with curly apostrophes replaced by straight ones.
+ */
+export function straightenApostrophes(text: string): string {
+  return text.replaceAll("’", "'");
+}
+
+/**
  * Sort printings by (languageRank, canonicalRank) — bubbling the user's
  * preferred languages to the top while preserving canonical order within
  * each language bucket. Languages not listed in `languageOrder` sort after

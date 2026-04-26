@@ -1,3 +1,5 @@
+import { straightenApostrophes } from "@openrift/shared";
+
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 
 const HEADERS = [
@@ -31,7 +33,7 @@ export function generateExportCSV(stacks: StackedEntry[]): string {
     const { printing } = stack;
     const row = [
       printing.shortCode,
-      printing.card.name,
+      straightenApostrophes(printing.card.name),
       printing.rarity,
       printing.card.type,
       printing.card.domains.join(" / "),

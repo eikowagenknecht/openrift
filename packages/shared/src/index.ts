@@ -196,6 +196,7 @@ export {
   normalizeNameForMatching,
   slugifyName,
   sortByLanguageAndCanonicalRank,
+  straightenApostrophes,
 } from "./utils.js";
 
 export { extractBracketedTerms, extractKeywords } from "./keywords.js";

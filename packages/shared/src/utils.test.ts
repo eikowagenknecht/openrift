@@ -15,6 +15,7 @@ import {
   normalizeNameForMatching,
   preferredPrinting,
   sortByLanguageAndCanonicalRank,
+  straightenApostrophes,
   toCents,
   unique,
 } from "./utils";
@@ -176,6 +177,28 @@ describe("normalizeNameForMatching", () => {
 
   it("handles mixed case with numbers", () => {
     expect(normalizeNameForMatching("Unit-42X")).toBe("unit42x");
+  });
+});
+
+describe("straightenApostrophes", () => {
+  it("replaces curly apostrophes with straight ones", () => {
+    expect(straightenApostrophes("Kai’Sa, Survivor")).toBe("Kai'Sa, Survivor");
+  });
+
+  it("replaces every occurrence", () => {
+    expect(straightenApostrophes("don’t ’cause it’s")).toBe("don't 'cause it's");
+  });
+
+  it("leaves straight apostrophes unchanged", () => {
+    expect(straightenApostrophes("Kai'Sa")).toBe("Kai'Sa");
+  });
+
+  it("leaves text without any apostrophes unchanged", () => {
+    expect(straightenApostrophes("Fireball")).toBe("Fireball");
+  });
+
+  it("returns an empty string unchanged", () => {
+    expect(straightenApostrophes("")).toBe("");
   });
 });
 

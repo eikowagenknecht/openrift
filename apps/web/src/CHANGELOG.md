@@ -4,6 +4,7 @@
 
 - feat: Each collection now has an "available for deck building" toggle in its three-dot menu. Turn it off for cards you don't want to cannibalise (a display-case copy, cards lent out, an assembled deck), and the deck builder and shopping list will skip them when counting what you own. Excluded copies still show up as "locked" in the deck's ownership panel so you can see what you'd have available if you turned the collection back on
 - feat: Collections can now be renamed from the same Edit collection dialog
+- fix: Card names like "Kai'Sa" now export with a plain apostrophe in deck text exports, CSV collection exports, and the missing-cards copy button, instead of the typographic apostrophe that some external tools couldn't match
 
 ## 2026-04-25
 

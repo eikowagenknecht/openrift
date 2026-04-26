@@ -1,3 +1,4 @@
+import { straightenApostrophes } from "@openrift/shared";
 import type { DeckZone } from "@openrift/shared/types";
 
 import type { DeckCodecCard, EncodeResult } from "./types.js";
@@ -64,7 +65,7 @@ export function encodeText(cards: TextCodecCard[]): EncodeResult {
     }
     lines.push(`${ZONE_LABELS[zone]}:`);
     for (const card of zoneCards) {
-      lines.push(`${card.quantity} ${card.cardName}`);
+      lines.push(`${card.quantity} ${straightenApostrophes(card.cardName)}`);
     }
   }
 
