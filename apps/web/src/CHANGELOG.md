@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-26
+
+- feat: Card pages, set pages, the promos page, help articles, the rules page, and the changelog now expose richer structured data to search engines, so Google can show OpenRift listings with card images, set contents, and article snippets directly in search results
+- feat: The sitemap now includes the promos page, every help article, the privacy policy, and the legal notice, so search engines can discover and rank those pages too
+
 ## 2026-04-25
 
 - fix: The missing-cards dialog on a deck now shows the price and short code of the printing the deck builder displays for each card (your pinned variant, or the language-preferred fallback), instead of the cheapest variant in any language. Previously a cheaper non-English variant could substitute its price and link in for an English deck row

@@ -65,6 +65,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       description,
       path: cardPath,
       ogImage: imageUrl,
+      ogType: "product",
     });
 
     // Schema.org Product/Offer JSON-LD reads from the response's `prices` sibling

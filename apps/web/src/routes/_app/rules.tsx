@@ -4,17 +4,33 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { ruleVersionsQueryOptions, rulesQueryOptions } from "@/hooks/use-rules";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
-import { seoHead } from "@/lib/seo";
+import { articleJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
+const RULES_DESCRIPTION =
+  "Read the official Riftbound rules, with version history and keyword reference.";
+
 export const Route = createFileRoute("/_app/rules")({
-  head: () =>
-    seoHead({
-      siteUrl: getSiteUrl(),
+  head: () => {
+    const siteUrl = getSiteUrl();
+    const head = seoHead({
+      siteUrl,
       title: "Rules",
-      description: "Read the official Riftbound rules, with version history and keyword reference.",
+      description: RULES_DESCRIPTION,
       path: "/rules",
-    }),
+    });
+    return {
+      ...head,
+      scripts: [
+        articleJsonLd({
+          siteUrl,
+          headline: "Riftbound Rules",
+          description: RULES_DESCRIPTION,
+          path: "/rules",
+        }),
+      ],
+    };
+  },
   beforeLoad: async ({ context }) => {
     const flags = (await context.queryClient.ensureQueryData(
       featureFlagsQueryOptions,

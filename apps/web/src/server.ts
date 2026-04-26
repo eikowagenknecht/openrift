@@ -6,6 +6,7 @@ import type { SitemapDataResponse } from "@openrift/shared";
 import { wrapFetchWithSentry } from "@sentry/tanstackstart-react";
 import handler, { createServerEntry } from "@tanstack/react-start/server-entry";
 
+import { helpArticleList } from "./components/help/articles";
 import { applyPageCacheControl } from "./lib/page-cache";
 import { fetchApiJson } from "./lib/server-fns/fetch-api";
 
@@ -56,10 +57,13 @@ const STATIC_PAGES = [
   { path: "/", priority: "1.0", changefreq: "weekly" },
   { path: "/cards", priority: "0.8", changefreq: "weekly" },
   { path: "/sets", priority: "0.7", changefreq: "weekly" },
+  { path: "/promos", priority: "0.6", changefreq: "weekly" },
   { path: "/rules", priority: "0.5", changefreq: "monthly" },
   { path: "/help", priority: "0.4", changefreq: "monthly" },
   { path: "/roadmap", priority: "0.3", changefreq: "monthly" },
   { path: "/changelog", priority: "0.3", changefreq: "weekly" },
+  { path: "/legal-notice", priority: "0.1", changefreq: "yearly" },
+  { path: "/privacy-policy", priority: "0.1", changefreq: "yearly" },
 ];
 
 async function generateSitemap(): Promise<string> {
@@ -73,6 +77,17 @@ async function generateSitemap(): Promise<string> {
   for (const page of STATIC_PAGES) {
     urls.push(
       `  <url><loc>${siteUrl}${page.path}</loc><lastmod>${DEPLOY_DATE}</lastmod><changefreq>${page.changefreq}</changefreq><priority>${page.priority}</priority></url>`,
+    );
+  }
+  // Help articles are static content shipped with the bundle, so the deploy
+  // date is the closest "lastmod" we have. Skip feature-flagged articles —
+  // crawlers shouldn't see URLs that may 404 depending on flag state.
+  for (const article of helpArticleList) {
+    if (article.featureFlag) {
+      continue;
+    }
+    urls.push(
+      `  <url><loc>${siteUrl}/help/${article.slug}</loc><lastmod>${DEPLOY_DATE}</lastmod><changefreq>monthly</changefreq><priority>0.3</priority></url>`,
     );
   }
   for (const entry of data.cards) {

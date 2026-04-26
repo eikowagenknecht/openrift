@@ -6,9 +6,12 @@ import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
 import { FilterSearchProvider, filterSearchSchema } from "@/lib/search-schemas";
-import { seoHead } from "@/lib/seo";
+import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_PADDING, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+
+const CARDS_DESCRIPTION =
+  "Complete Riftbound TCG card database with marketplace price comparison. Filter by set, domain, rarity, cost, and keyword to browse every card and printing.";
 
 const cardsSearchSchema = filterSearchSchema.extend({
   // oxlint-disable-next-line unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch
@@ -38,14 +41,29 @@ export const Route = createFileRoute("/_app/cards")({
       throw redirect({ to: "/cards", search: cleaned, replace: true });
     }
   },
-  head: () =>
-    seoHead({
-      siteUrl: getSiteUrl(),
+  head: () => {
+    const siteUrl = getSiteUrl();
+    const head = seoHead({
+      siteUrl,
       title: "Cards",
-      description:
-        "Complete Riftbound TCG card database with marketplace price comparison. Filter by set, domain, rarity, cost, and keyword to browse every card and printing.",
+      description: CARDS_DESCRIPTION,
       path: "/cards",
-    }),
+    });
+    // CollectionPage only — the visible items depend on URL filters and the
+    // full catalog is too large to inline as an ItemList. The `Product` JSON-LD
+    // on each card detail page is the indexable signal for individual cards.
+    return {
+      ...head,
+      scripts: [
+        collectionPageJsonLd({
+          siteUrl,
+          name: "Riftbound Card Database",
+          description: CARDS_DESCRIPTION,
+          path: "/cards",
+        }),
+      ],
+    };
+  },
   component: CardsPage,
   pendingComponent: CardsPending,
   errorComponent: RouteErrorFallback,
