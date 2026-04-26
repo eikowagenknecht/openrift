@@ -154,6 +154,8 @@ export function CandidateUploadPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <FormatHelp />
+
           <div className="space-y-2">
             <Label htmlFor="file">JSON file</Label>
             <Input
@@ -338,6 +340,103 @@ export function CandidateUploadPage() {
         <ManageProvidersCard providerNames={providerNames} providerStats={providerStats} />
       )}
     </div>
+  );
+}
+
+const EXAMPLE_CANDIDATES_JSON = `[
+  {
+    "card": {
+      "name": "Jinx, Rebel",
+      "external_id": "jinx-rebel-001",
+      "type": "Champion Unit",
+      "super_types": ["Champion"],
+      "domains": ["Chaos"],
+      "might": 3,
+      "energy": 2,
+      "power": null,
+      "rules_text": "When this unit attacks, deal 2 damage to target unit.",
+      "effect_text": null,
+      "tags": ["Punk"],
+      "short_code": "OGN-202"
+    },
+    "printings": [
+      {
+        "short_code": "OGN-202",
+        "external_id": "jinx-rebel-001-en-foil",
+        "set_id": "ogn",
+        "set_name": "Origins",
+        "rarity": "Rare",
+        "finish": "foil",
+        "artist": "Jane Doe",
+        "language": "en",
+        "image_url": "https://example.com/cards/jinx-rebel.jpg"
+      }
+    ]
+  }
+]`;
+
+function FormatHelp() {
+  return (
+    <details className="rounded-md border">
+      <summary className="text-muted-foreground hover:text-foreground cursor-pointer px-3 py-2 text-sm font-medium select-none">
+        Format and example
+      </summary>
+      <div className="space-y-3 border-t px-3 py-3 text-sm">
+        <p>
+          The file must contain a JSON array of entries (or an object with a{" "}
+          <code className="bg-muted rounded px-1">candidates</code> field holding the array). Each
+          entry has a <code className="bg-muted rounded px-1">card</code> object and a{" "}
+          <code className="bg-muted rounded px-1">printings</code> array. Field names use
+          snake_case.
+        </p>
+        <p>
+          <span className="font-medium">Required card fields:</span>{" "}
+          <code className="bg-muted rounded px-1">name</code>,{" "}
+          <code className="bg-muted rounded px-1">external_id</code>. Optional:{" "}
+          <code className="bg-muted rounded px-1">type</code>,{" "}
+          <code className="bg-muted rounded px-1">super_types</code>,{" "}
+          <code className="bg-muted rounded px-1">domains</code>,{" "}
+          <code className="bg-muted rounded px-1">might</code>,{" "}
+          <code className="bg-muted rounded px-1">energy</code>,{" "}
+          <code className="bg-muted rounded px-1">power</code>,{" "}
+          <code className="bg-muted rounded px-1">might_bonus</code>,{" "}
+          <code className="bg-muted rounded px-1">rules_text</code>,{" "}
+          <code className="bg-muted rounded px-1">effect_text</code>,{" "}
+          <code className="bg-muted rounded px-1">tags</code>,{" "}
+          <code className="bg-muted rounded px-1">short_code</code>,{" "}
+          <code className="bg-muted rounded px-1">extra_data</code>.
+        </p>
+        <p>
+          <span className="font-medium">Required printing fields:</span>{" "}
+          <code className="bg-muted rounded px-1">short_code</code>,{" "}
+          <code className="bg-muted rounded px-1">external_id</code>. Optional:{" "}
+          <code className="bg-muted rounded px-1">set_id</code>,{" "}
+          <code className="bg-muted rounded px-1">set_name</code>,{" "}
+          <code className="bg-muted rounded px-1">rarity</code>,{" "}
+          <code className="bg-muted rounded px-1">art_variant</code>,{" "}
+          <code className="bg-muted rounded px-1">is_signed</code>,{" "}
+          <code className="bg-muted rounded px-1">marker_slugs</code>,{" "}
+          <code className="bg-muted rounded px-1">distribution_channel_slugs</code>,{" "}
+          <code className="bg-muted rounded px-1">finish</code>,{" "}
+          <code className="bg-muted rounded px-1">artist</code>,{" "}
+          <code className="bg-muted rounded px-1">public_code</code>,{" "}
+          <code className="bg-muted rounded px-1">printed_rules_text</code>,{" "}
+          <code className="bg-muted rounded px-1">printed_effect_text</code>,{" "}
+          <code className="bg-muted rounded px-1">image_url</code>,{" "}
+          <code className="bg-muted rounded px-1">flavor_text</code>,{" "}
+          <code className="bg-muted rounded px-1">language</code>,{" "}
+          <code className="bg-muted rounded px-1">printed_name</code>,{" "}
+          <code className="bg-muted rounded px-1">extra_data</code>.
+        </p>
+        <p className="text-muted-foreground">
+          Tip: use Export All Cards below to download a real file in the same format.
+        </p>
+        <p>Example:</p>
+        <pre className="bg-muted overflow-x-auto rounded-md p-3">
+          <code>{EXAMPLE_CANDIDATES_JSON}</code>
+        </pre>
+      </div>
+    </details>
   );
 }
 
