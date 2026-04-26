@@ -6,6 +6,23 @@ import { imageUrl } from "./query-helpers.js";
 
 const MAX_RETRIES = 5;
 
+// postgres.js under Bun returns jsonb columns as a JSON-encoded string rather
+// than a parsed value (see also user-preferences.ts). Rows that came back from
+// listPending/listByStatus need their `changes` field run through this before
+// callers can iterate it as an array.
+function parseChanges<T extends { changes: unknown }>(
+  row: T,
+): T & { changes: FieldChange[] | null } {
+  const raw = row.changes;
+  if (raw === null || raw === undefined) {
+    return { ...row, changes: null };
+  }
+  if (typeof raw === "string") {
+    return { ...row, changes: JSON.parse(raw) as FieldChange[] };
+  }
+  return { ...row, changes: raw as FieldChange[] };
+}
+
 /** A pending event enriched with printing/card/set/image context. */
 export interface EnrichedPrintingEvent {
   id: string;
@@ -78,8 +95,8 @@ export function printingEventsRepo(db: Kysely<Database>) {
      * Fetch all pending events with full printing/card/set/image context.
      * @returns Enriched pending events ordered by creation time.
      */
-    listPending(): Promise<EnrichedPrintingEvent[]> {
-      return db
+    async listPending(): Promise<EnrichedPrintingEvent[]> {
+      const rows = await db
         .selectFrom("printingEvents as pe")
         .innerJoin("printings as p", "p.id", "pe.printingId")
         .innerJoin("cards as c", "c.id", "p.cardId")
@@ -114,6 +131,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .where("pe.status", "=", "pending")
         .orderBy("pe.createdAt", "asc")
         .execute();
+      return rows.map((row) => parseChanges(row));
     },
 
     /**
@@ -121,11 +139,11 @@ export function printingEventsRepo(db: Kysely<Database>) {
      * context plus status + retryCount columns. Used by the admin queue view.
      * @returns Enriched events ordered by creation time descending (newest first).
      */
-    listByStatus(statuses: PrintingEventStatus[]): Promise<AdminPrintingEvent[]> {
+    async listByStatus(statuses: PrintingEventStatus[]): Promise<AdminPrintingEvent[]> {
       if (statuses.length === 0) {
-        return Promise.resolve([]);
+        return [];
       }
-      return db
+      const rows = await db
         .selectFrom("printingEvents as pe")
         .innerJoin("printings as p", "p.id", "pe.printingId")
         .innerJoin("cards as c", "c.id", "p.cardId")
@@ -162,6 +180,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
         .where("pe.status", "in", statuses)
         .orderBy("pe.createdAt", "desc")
         .execute();
+      return rows.map((row) => parseChanges(row));
     },
 
     /**

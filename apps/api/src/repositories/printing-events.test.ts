@@ -128,4 +128,62 @@ describe("printingEventsRepo", () => {
 
     expect(db.updateTable).not.toHaveBeenCalled();
   });
+
+  it("listByStatus parses the changes column when postgres.js returns it as a JSON string", async () => {
+    const stringRow = {
+      id: "evt-1",
+      eventType: "changed",
+      printingId: "p-1",
+      changes: '[{"field":"artist","from":"Old","to":"New"}]',
+      createdAt: new Date(),
+      status: "pending",
+      retryCount: 0,
+      cardName: null,
+      cardSlug: null,
+      setName: null,
+      shortCode: null,
+      rarity: null,
+      finish: null,
+      finishLabel: null,
+      artist: null,
+      language: null,
+      languageName: null,
+      frontImageUrl: null,
+    };
+    const db = mockDb();
+    db.chain.execute.mockResolvedValueOnce([stringRow]);
+    const repo = printingEventsRepo(db as any);
+
+    const [event] = await repo.listByStatus(["pending"]);
+
+    expect(event.changes).toEqual([{ field: "artist", from: "Old", to: "New" }]);
+  });
+
+  it("listPending leaves null changes alone for new-printing events", async () => {
+    const nullRow = {
+      id: "evt-1",
+      eventType: "new",
+      printingId: "p-1",
+      changes: null,
+      createdAt: new Date(),
+      cardName: null,
+      cardSlug: null,
+      setName: null,
+      shortCode: null,
+      rarity: null,
+      finish: null,
+      finishLabel: null,
+      artist: null,
+      language: null,
+      languageName: null,
+      frontImageUrl: null,
+    };
+    const db = mockDb();
+    db.chain.execute.mockResolvedValueOnce([nullRow]);
+    const repo = printingEventsRepo(db as any);
+
+    const [event] = await repo.listPending();
+
+    expect(event.changes).toBeNull();
+  });
 });
