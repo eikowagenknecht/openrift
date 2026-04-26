@@ -49,7 +49,15 @@ const printingTextFields: TextFieldConfig[] = [
   { field: "printedRulesText" },
   { field: "printedEffectText" },
   { field: "flavorText", options: { italicParens: false, keywordGlyphs: false } },
+  { field: "printedName", options: { italicParens: false, keywordGlyphs: false } },
 ];
+
+// Names and tags are short labels — disable italic-parens/keyword-glyph rewrites.
+const labelTypographyOptions = { italicParens: false, keywordGlyphs: false };
+
+function fixTagList(tags: string[]): string[] {
+  return tags.map((tag) => fixTypography(tag, labelTypographyOptions));
+}
 
 // ── Route ───────────────────────────────────────────────────────────────────
 
@@ -61,6 +69,33 @@ export const typographyReviewRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     const cards = await catalog.cards();
     const cardNameById = new Map(cards.map((card) => [card.id, card.name]));
+
+    // Card name + tags
+    for (const card of cards) {
+      const proposedName = fixTypography(card.name, labelTypographyOptions);
+      if (proposedName !== card.name) {
+        diffs.push({
+          entity: "card",
+          id: card.id,
+          name: card.name,
+          field: "name",
+          current: card.name,
+          proposed: proposedName,
+        });
+      }
+      const proposedTags = fixTagList(card.tags);
+      const tagsChanged = proposedTags.some((tag, idx) => tag !== card.tags[idx]);
+      if (tagsChanged) {
+        diffs.push({
+          entity: "card",
+          id: card.id,
+          name: card.name,
+          field: "tags",
+          current: card.tags.join(", "),
+          proposed: proposedTags.join(", "),
+        });
+      }
+    }
 
     // Check errata text fields for typography issues
     const errataRows = await catalog.cardErrata();
@@ -114,12 +149,28 @@ export const typographyReviewRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { entity, id, field, proposed } = c.req.valid("json");
 
     if (entity === "card") {
-      // "card" entity for typography review means errata text (correctedRulesText/correctedEffectText)
+      // Card-level fields (name, tags) live on the card row itself; for tags we
+      // re-derive the array from current DB state instead of parsing the joined
+      // display string sent by the client.
+      if (field === "name") {
+        await mut.updateCardById(id, { name: proposed });
+        return c.body(null, 204);
+      }
+      if (field === "tags") {
+        const allCards = await catalog.cards();
+        const target = allCards.find((card) => card.id === id);
+        if (!target) {
+          return c.body(null, 404);
+        }
+        await mut.updateCardById(id, { tags: fixTagList(target.tags) });
+        return c.body(null, 204);
+      }
+
+      // Otherwise treat as errata text (correctedRulesText / correctedEffectText)
       const errata = await mut.getCardErrata(id);
       if (!errata) {
         return c.body(null, 404);
       }
-      // Update the errata record with the corrected typography
       await mut.upsertCardErrata(id, {
         ...errata,
         effectiveDate: errata.effectiveDate

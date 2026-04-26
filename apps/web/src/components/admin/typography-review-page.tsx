@@ -117,6 +117,9 @@ const fieldLabels: Record<string, string> = {
   printedRulesText: "Printed Rules",
   printedEffectText: "Printed Effect",
   flavorText: "Flavor Text",
+  name: "Card Name",
+  tags: "Tags",
+  printedName: "Printed Name",
 };
 
 export function TypographyReviewPage() {
