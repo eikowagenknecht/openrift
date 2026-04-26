@@ -521,12 +521,15 @@ export function marketplaceMappingRepo(db: Db) {
     // ── unmapPrinting queries ───────────────────────────────────────────────
 
     /**
-     * @returns The variant mapping for a printing in a given marketplace, with
-     *          the parent product's SKU axes and metadata inlined. Finish and
-     *          language come from the product row, not the variant (which is
-     *          now a pure product↔printing bridge).
+     * @returns The variant mapping for a (printing, product) pair in a given
+     *          marketplace, with the parent product's SKU axes and metadata
+     *          inlined. Filtered by `externalId` because a single printing can
+     *          have multiple products mapped to it (e.g. duplicate CardTrader
+     *          listings for one card); without that filter the lookup is
+     *          ambiguous and `executeTakeFirst()` would non-deterministically
+     *          return either variant.
      */
-    getVariantForPrinting(marketplace: string, printingId: string) {
+    getVariantForPrinting(marketplace: string, printingId: string, externalId: number) {
       return db
         .selectFrom("marketplaceProductVariants as mpv")
         .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
@@ -542,6 +545,7 @@ export function marketplaceMappingRepo(db: Db) {
         ])
         .where("mp.marketplace", "=", marketplace)
         .where("mpv.printingId", "=", printingId)
+        .where("mp.externalId", "=", externalId)
         .executeTakeFirst();
     },
 

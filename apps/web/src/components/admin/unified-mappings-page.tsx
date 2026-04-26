@@ -311,7 +311,7 @@ function MarketplaceCell({
   assignedProducts: StagedProduct[];
   suggestion: { product: StagedProduct; score: number } | undefined;
   onSave: (product: StagedProduct) => void;
-  onUnmap: () => void;
+  onUnmap: (externalId: number) => void;
   isSaving: boolean;
   isUnmapping: boolean;
 }) {
@@ -351,7 +351,7 @@ function MarketplaceCell({
           <button
             type="button"
             className="hover:text-foreground disabled:opacity-50"
-            onClick={onUnmap}
+            onClick={() => onUnmap(externalId)}
             disabled={isUnmapping}
             title={`Unmap ${config.displayName}`}
           >
@@ -499,7 +499,9 @@ function UnifiedExpandedDetail({
                         ],
                       })
                     }
-                    onUnmap={() => tcgUnmap.mutate(p.printingId)}
+                    onUnmap={(externalId) =>
+                      tcgUnmap.mutate({ printingId: p.printingId, externalId })
+                    }
                     isSaving={tcgSave.isPending}
                     isUnmapping={tcgUnmap.isPending}
                   />
@@ -525,7 +527,9 @@ function UnifiedExpandedDetail({
                         ],
                       })
                     }
-                    onUnmap={() => cmUnmap.mutate(p.printingId)}
+                    onUnmap={(externalId) =>
+                      cmUnmap.mutate({ printingId: p.printingId, externalId })
+                    }
                     isSaving={cmSave.isPending}
                     isUnmapping={cmUnmap.isPending}
                   />
@@ -551,7 +555,9 @@ function UnifiedExpandedDetail({
                         ],
                       })
                     }
-                    onUnmap={() => ctUnmap.mutate(p.printingId)}
+                    onUnmap={(externalId) =>
+                      ctUnmap.mutate({ printingId: p.printingId, externalId })
+                    }
                     isSaving={ctSave.isPending}
                     isUnmapping={ctUnmap.isPending}
                   />
@@ -1089,7 +1095,7 @@ interface MutSave {
   isPending: boolean;
 }
 interface MutId {
-  mutate: (id: string) => void;
+  mutate: (input: { printingId: string; externalId: number }) => void;
   isPending: boolean;
 }
 interface MutProducts {

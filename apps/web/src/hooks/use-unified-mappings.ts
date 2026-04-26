@@ -125,7 +125,7 @@ export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" |
 }
 
 const unmapPrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { marketplace: string; printingId: string }) => input)
+  .inputValidator((input: { marketplace: string; printingId: string; externalId: number }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await fetchApi({
@@ -133,14 +133,19 @@ const unmapPrintingFn = createServerFn({ method: "POST" })
       cookie: context.cookie,
       path: `/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
       method: "DELETE",
-      body: { printingId: data.printingId },
+      body: { printingId: data.printingId, externalId: data.externalId },
     });
   });
 
 export function useUnifiedUnmapPrinting(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
-  return useUnifiedMutation(marketplace, async (printingId: string) => {
-    await unmapPrintingFn({ data: { marketplace, printingId } });
-  });
+  return useUnifiedMutation(
+    marketplace,
+    async (input: { printingId: string; externalId: number }) => {
+      await unmapPrintingFn({
+        data: { marketplace, printingId: input.printingId, externalId: input.externalId },
+      });
+    },
+  );
 }
 
 const ignoreVariantsFn = createServerFn({ method: "POST" })

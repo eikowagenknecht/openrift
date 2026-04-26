@@ -654,11 +654,12 @@ export async function unmapPrinting(
   transact: Transact,
   config: MarketplaceConfig,
   printingId: string,
+  externalId: number,
 ): Promise<void> {
   await transact(async (trxRepos) => {
     const repo = trxRepos.marketplaceMapping;
 
-    const variant = await repo.getVariantForPrinting(config.marketplace, printingId);
+    const variant = await repo.getVariantForPrinting(config.marketplace, printingId, externalId);
 
     if (!variant) {
       return;

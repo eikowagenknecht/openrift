@@ -1366,7 +1366,7 @@ describe("unmapPrinting", () => {
     const transact = mockTransact(repos);
     const config = createMockConfig();
 
-    await unmapPrinting(transact, config, "p-1");
+    await unmapPrinting(transact, config, "p-1", 12_345);
 
     expect(mappingRepo.deleteVariantById).not.toHaveBeenCalled();
   });
@@ -1388,8 +1388,9 @@ describe("unmapPrinting", () => {
     const transact = mockTransact(repos);
     const config = createMockConfig();
 
-    await unmapPrinting(transact, config, "p-1");
+    await unmapPrinting(transact, config, "p-1", 12_345);
 
+    expect(mappingRepo.getVariantForPrinting).toHaveBeenCalledWith("tcgplayer", "p-1", 12_345);
     expect(mappingRepo.deleteVariantById).toHaveBeenCalledWith("var-1");
   });
 });

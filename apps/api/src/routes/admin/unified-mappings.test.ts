@@ -226,11 +226,20 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
     const res = await app.request("/api/v1/marketplace-mappings?marketplace=tcgplayer", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ printingId: "00000000-0000-4000-a000-000000000001" }),
+      body: JSON.stringify({
+        printingId: "00000000-0000-4000-a000-000000000001",
+        externalId: 100,
+      }),
     });
 
     expect(res.status).toBe(204);
     expect(mockUnmapPrinting).toHaveBeenCalledTimes(1);
+    expect(mockUnmapPrinting).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      "00000000-0000-4000-a000-000000000001",
+      100,
+    );
   });
 
   it("returns 204 for cardmarket", async () => {
@@ -239,17 +248,33 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
     const res = await app.request("/api/v1/marketplace-mappings?marketplace=cardmarket", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ printingId: "00000000-0000-4000-a000-000000000002" }),
+      body: JSON.stringify({
+        printingId: "00000000-0000-4000-a000-000000000002",
+        externalId: 200,
+      }),
     });
 
     expect(res.status).toBe(204);
+  });
+
+  it("returns 400 when externalId is missing", async () => {
+    const res = await app.request("/api/v1/marketplace-mappings?marketplace=tcgplayer", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ printingId: "00000000-0000-4000-a000-000000000001" }),
+    });
+
+    expect(res.status).toBe(400);
   });
 
   it("returns 400 for invalid marketplace", async () => {
     const res = await app.request("/api/v1/marketplace-mappings?marketplace=invalid", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ printingId: "00000000-0000-4000-a000-000000000001" }),
+      body: JSON.stringify({
+        printingId: "00000000-0000-4000-a000-000000000001",
+        externalId: 100,
+      }),
     });
 
     expect(res.status).toBe(400);

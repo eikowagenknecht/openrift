@@ -271,6 +271,7 @@ export const saveMappingsSchema = z.object({
 
 export const unmapSchema = z.object({
   printingId: z.string().uuid(),
+  externalId: z.number().int(),
 });
 
 // ── Staging Card Overrides ─────────────────────────────────────────────────

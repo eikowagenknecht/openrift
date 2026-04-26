@@ -604,7 +604,7 @@ export function useDeleteProvider() {
 // ── Marketplace mappings (card-detail scoped) ────────────────────────────────
 
 const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { marketplace: string; printingId: string }) => input)
+  .inputValidator((input: { marketplace: string; printingId: string; externalId: number }) => input)
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     await fetchApi({
@@ -612,7 +612,7 @@ const unmapMarketplacePrintingFn = createServerFn({ method: "POST" })
       cookie: context.cookie,
       path: `/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
       method: "DELETE",
-      body: { printingId: data.printingId },
+      body: { printingId: data.printingId, externalId: data.externalId },
     });
   });
 
@@ -626,6 +626,7 @@ export function useUnmapMarketplacePrinting(invalidates: Scope = defaultMarketpl
     mutationFn: (input: {
       marketplace: "tcgplayer" | "cardmarket" | "cardtrader";
       printingId: string;
+      externalId: number;
     }) => unmapMarketplacePrintingFn({ data: input }),
     invalidates,
   });

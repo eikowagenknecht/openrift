@@ -79,7 +79,7 @@ export interface MarketplaceHandlers {
   ) => void;
   onBatchAssignToPrintings: (mappings: PrintingAssignment[]) => void;
   onUnassign: (externalId: number, finish: string, language: string | null) => void;
-  onUnmapPrinting: (printingId: string) => void;
+  onUnmapPrinting: (printingId: string, externalId: number) => void;
   isIgnoring: boolean;
   isAssigning: boolean;
   isAssigningToPrinting: boolean;
@@ -558,7 +558,7 @@ function MarketplaceProductRow({
                       aria-label={`Unassign ${label}`}
                       title="Unassign"
                       disabled={handlers.isUnmappingPrinting}
-                      onClick={() => handlers.onUnmapPrinting(p.printingId)}
+                      onClick={() => handlers.onUnmapPrinting(p.printingId, product.externalId)}
                       className="text-muted-foreground hover:text-destructive -mr-0.5 inline-flex size-3.5 items-center justify-center rounded-sm disabled:opacity-50"
                     >
                       <XIcon className="size-3" />

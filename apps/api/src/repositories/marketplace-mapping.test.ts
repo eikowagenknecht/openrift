@@ -105,13 +105,15 @@ describe("marketplaceMappingRepo", () => {
       marketplace: "tcgplayer",
     };
     const db = createMockDb([row]);
-    expect(await marketplaceMappingRepo(db).getVariantForPrinting("tcgplayer", "p1")).toEqual(row);
+    expect(await marketplaceMappingRepo(db).getVariantForPrinting("tcgplayer", "p1", 100)).toEqual(
+      row,
+    );
   });
 
   it("getVariantForPrinting returns undefined when not found", async () => {
     const db = createMockDb([]);
     expect(
-      await marketplaceMappingRepo(db).getVariantForPrinting("tcgplayer", "p-missing"),
+      await marketplaceMappingRepo(db).getVariantForPrinting("tcgplayer", "p-missing", 100),
     ).toBeUndefined();
   });
 

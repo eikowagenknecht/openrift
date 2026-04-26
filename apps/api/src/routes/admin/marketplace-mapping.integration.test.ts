@@ -306,7 +306,10 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   describe("DELETE /admin/marketplace-mappings?marketplace=tcgplayer", () => {
     it("unmaps a single printing, deletes the variant, keeps the product and its price history", async () => {
       const res = await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", { printingId }),
+        req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", {
+          printingId,
+          externalId: 12_345,
+        }),
       );
       expect(res.status).toBe(204);
 
@@ -427,9 +430,81 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
   describe("DELETE /admin/marketplace-mappings?marketplace=cardmarket", () => {
     it("unmaps a single printing", async () => {
       const res = await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", { printingId }),
+        req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", {
+          printingId,
+          externalId: 67_890,
+        }),
       );
       expect(res.status).toBe(204);
+    });
+
+    it("only removes the specified product when two are mapped to the same printing", async () => {
+      // Seed two CardTrader products and a CardTrader group. CardTrader is the
+      // realistic case for this bug — TCG/CM enforce one product per printing
+      // by SKU, but CardTrader doesn't, so an admin can legitimately end up
+      // with two product IDs bound to the same printing.
+      await db
+        .insertInto("marketplaceGroups")
+        .values({ marketplace: "cardtrader", groupId: 10_202, name: "MKM CT Group" })
+        .onConflict((oc) => oc.columns(["marketplace", "groupId"]).doNothing())
+        .execute();
+
+      for (const eid of [55_555, 66_666]) {
+        await db
+          .insertInto("marketplaceProducts")
+          .values({
+            marketplace: "cardtrader",
+            externalId: eid,
+            groupId: 10_202,
+            productName: `MKM CT Product ${eid}`,
+            finish: "normal",
+            language: "EN",
+          })
+          .onConflict((oc) =>
+            oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+          )
+          .execute();
+      }
+
+      // Map both products to the same printing.
+      const mapRes = await app.fetch(
+        req("POST", "/admin/marketplace-mappings?marketplace=cardtrader", {
+          mappings: [
+            { printingId, externalId: 55_555, finish: "normal", language: "EN" },
+            { printingId, externalId: 66_666, finish: "normal", language: "EN" },
+          ],
+        }),
+      );
+      expect(mapRes.status).toBe(200);
+
+      // Sanity: two variants exist for this (cardtrader, printingId).
+      const before = await db
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .select(["mp.externalId as externalId"])
+        .where("mp.marketplace", "=", "cardtrader")
+        .where("mpv.printingId", "=", printingId)
+        .execute();
+      expect(before.map((row) => row.externalId).toSorted()).toEqual([55_555, 66_666]);
+
+      // Unmap just product 55_555. Without the externalId filter the lookup
+      // is ambiguous and could non-deterministically delete the wrong variant.
+      const unmapRes = await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings?marketplace=cardtrader", {
+          printingId,
+          externalId: 55_555,
+        }),
+      );
+      expect(unmapRes.status).toBe(204);
+
+      const after = await db
+        .selectFrom("marketplaceProductVariants as mpv")
+        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
+        .select(["mp.externalId as externalId"])
+        .where("mp.marketplace", "=", "cardtrader")
+        .where("mpv.printingId", "=", printingId)
+        .execute();
+      expect(after.map((row) => row.externalId)).toEqual([66_666]);
     });
   });
 

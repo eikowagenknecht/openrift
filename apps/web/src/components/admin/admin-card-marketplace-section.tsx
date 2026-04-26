@@ -179,8 +179,11 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
       onBatchAssignToPrintings: applyAssignments("tcgplayer"),
       onUnassign: (eid, fin, lang) =>
         tcgUnassign.mutate({ externalId: eid, finish: fin, language: lang }, mutateOpts),
-      onUnmapPrinting: (pid) =>
-        unmapPrinting.mutate({ marketplace: "tcgplayer", printingId: pid }, mutateOpts),
+      onUnmapPrinting: (pid, eid) =>
+        unmapPrinting.mutate(
+          { marketplace: "tcgplayer", printingId: pid, externalId: eid },
+          mutateOpts,
+        ),
       isIgnoring: tcgIgnoreVariant.isPending || tcgIgnoreProduct.isPending,
       isAssigning: tcgAssignToCard.isPending,
       isAssigningToPrinting: tcgSaveMapping.isPending,
@@ -200,8 +203,11 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
       onBatchAssignToPrintings: applyAssignments("cardmarket"),
       onUnassign: (eid, fin, lang) =>
         cmUnassign.mutate({ externalId: eid, finish: fin, language: lang }, mutateOpts),
-      onUnmapPrinting: (pid) =>
-        unmapPrinting.mutate({ marketplace: "cardmarket", printingId: pid }, mutateOpts),
+      onUnmapPrinting: (pid, eid) =>
+        unmapPrinting.mutate(
+          { marketplace: "cardmarket", printingId: pid, externalId: eid },
+          mutateOpts,
+        ),
       isIgnoring: cmIgnoreVariant.isPending || cmIgnoreProduct.isPending,
       isAssigning: cmAssignToCard.isPending,
       isAssigningToPrinting: cmSaveMapping.isPending,
@@ -221,8 +227,11 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
       onBatchAssignToPrintings: applyAssignments("cardtrader"),
       onUnassign: (eid, fin, lang) =>
         ctUnassign.mutate({ externalId: eid, finish: fin, language: lang }, mutateOpts),
-      onUnmapPrinting: (pid) =>
-        unmapPrinting.mutate({ marketplace: "cardtrader", printingId: pid }, mutateOpts),
+      onUnmapPrinting: (pid, eid) =>
+        unmapPrinting.mutate(
+          { marketplace: "cardtrader", printingId: pid, externalId: eid },
+          mutateOpts,
+        ),
       isIgnoring: ctIgnoreVariant.isPending || ctIgnoreProduct.isPending,
       isAssigning: ctAssignToCard.isPending,
       isAssigningToPrinting: ctSaveMapping.isPending,
