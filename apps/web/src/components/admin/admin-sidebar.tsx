@@ -20,6 +20,7 @@ import {
   PaintbrushIcon,
   PaletteIcon,
   LayersIcon,
+  SendIcon,
   ShapesIcon,
   SparklesIcon,
   SwordsIcon,
@@ -81,6 +82,7 @@ const marketplacePages = [
 const systemPages = [
   { to: "/admin/status" as const, icon: ActivityIcon, title: "Status" },
   { to: "/admin/job-runs" as const, icon: ListChecksIcon, title: "Job Runs" },
+  { to: "/admin/printing-events" as const, icon: SendIcon, title: "Printing Events" },
   { to: "/admin/users" as const, icon: UsersIcon, title: "Users" },
   { to: "/admin/feature-flags" as const, icon: FlagIcon, title: "Feature Flags" },
   { to: "/admin/site-settings" as const, icon: GlobeIcon, title: "Site Settings" },

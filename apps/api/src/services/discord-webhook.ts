@@ -27,6 +27,15 @@ interface DiscordWebhookPayload {
   embeds: DiscordEmbed[];
 }
 
+export interface WebhookFailure {
+  /** Which webhook URL was being called. */
+  channel: "newPrintings" | "printingChanges";
+  /** HTTP status if Discord responded, undefined if fetch threw. */
+  status?: number;
+  /** Response body (for HTTP failures) or thrown error message. */
+  detail: string;
+}
+
 // Discord requires absolute URLs for embed images. Stored image paths are
 // relative (e.g. "/media/cards/xx/uuid-400w.webp"); prepend the app base URL.
 function absoluteImageUrl(appBaseUrl: string, url: string | null): string | undefined {
@@ -43,25 +52,30 @@ function absoluteImageUrl(appBaseUrl: string, url: string | null): string | unde
  * Build Discord embed messages from a batch of printing events and send them
  * to the configured webhook URLs.
  *
- * @returns IDs of events that were successfully delivered.
+ * @returns Sent/failed event ids and per-channel failure detail (HTTP status
+ * and response body) for any non-2xx responses or fetch errors.
  */
 export async function flushPrintingEvents(
   events: EnrichedPrintingEvent[],
   webhookUrls: { newPrintings: string | null; printingChanges: string | null },
   appBaseUrl: string,
   log: Logger,
-): Promise<{ sentIds: string[]; failedIds: string[] }> {
+): Promise<{ sentIds: string[]; failedIds: string[]; failures: WebhookFailure[] }> {
   const newEvents = events.filter((e) => e.eventType === "new");
   const changedEvents = events.filter((e) => e.eventType === "changed");
 
   const sentIds: string[] = [];
   const failedIds: string[] = [];
+  const failures: WebhookFailure[] = [];
 
   if (newEvents.length > 0 && webhookUrls.newPrintings) {
     const payloads = buildNewPrintingPayloads(newEvents, appBaseUrl);
-    const success = await sendPayloads(webhookUrls.newPrintings, payloads, log);
+    const result = await sendPayloads(webhookUrls.newPrintings, payloads, log);
     for (const event of newEvents) {
-      (success ? sentIds : failedIds).push(event.id);
+      (result.ok ? sentIds : failedIds).push(event.id);
+    }
+    for (const err of result.errors) {
+      failures.push({ ...err, channel: "newPrintings" });
     }
   } else {
     for (const event of newEvents) {
@@ -71,9 +85,12 @@ export async function flushPrintingEvents(
 
   if (changedEvents.length > 0 && webhookUrls.printingChanges) {
     const payloads = buildChangedPrintingPayloads(changedEvents, appBaseUrl);
-    const success = await sendPayloads(webhookUrls.printingChanges, payloads, log);
+    const result = await sendPayloads(webhookUrls.printingChanges, payloads, log);
     for (const event of changedEvents) {
-      (success ? sentIds : failedIds).push(event.id);
+      (result.ok ? sentIds : failedIds).push(event.id);
+    }
+    for (const err of result.errors) {
+      failures.push({ ...err, channel: "printingChanges" });
     }
   } else {
     for (const event of changedEvents) {
@@ -81,7 +98,7 @@ export async function flushPrintingEvents(
     }
   }
 
-  return { sentIds, failedIds };
+  return { sentIds, failedIds, failures };
 }
 
 function cardUrl(appBaseUrl: string, slug: string | null): string | undefined {
@@ -311,8 +328,9 @@ async function sendPayloads(
   webhookUrl: string,
   payloads: DiscordWebhookPayload[],
   log: Logger,
-): Promise<boolean> {
+): Promise<{ ok: boolean; errors: { status?: number; detail: string }[] }> {
   let allOk = true;
+  const errors: { status?: number; detail: string }[] = [];
 
   for (const payload of payloads) {
     try {
@@ -325,10 +343,13 @@ async function sendPayloads(
       if (!response.ok) {
         const body = await response.text().catch(() => "");
         log.warn({ status: response.status, body }, "Discord webhook request failed");
+        errors.push({ status: response.status, detail: body });
         allOk = false;
       }
     } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
       log.warn({ error }, "Discord webhook request error");
+      errors.push({ detail });
       allOk = false;
     }
 
@@ -337,5 +358,5 @@ async function sendPayloads(
     }
   }
 
-  return allOk;
+  return { ok: allOk, errors };
 }

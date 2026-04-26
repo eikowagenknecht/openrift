@@ -27,6 +27,14 @@ export interface EnrichedPrintingEvent {
   frontImageUrl: string | null;
 }
 
+export type PrintingEventStatus = "pending" | "sent" | "failed";
+
+/** EnrichedPrintingEvent plus status + retryCount for the admin queue view. */
+export interface AdminPrintingEvent extends EnrichedPrintingEvent {
+  status: PrintingEventStatus;
+  retryCount: number;
+}
+
 /**
  * Repository for printing event notifications (Discord webhook queue).
  *
@@ -105,6 +113,71 @@ export function printingEventsRepo(db: Kysely<Database>) {
         ])
         .where("pe.status", "=", "pending")
         .orderBy("pe.createdAt", "asc")
+        .execute();
+    },
+
+    /**
+     * Fetch events with the given statuses, enriched with printing/card/set/image
+     * context plus status + retryCount columns. Used by the admin queue view.
+     * @returns Enriched events ordered by creation time descending (newest first).
+     */
+    listByStatus(statuses: PrintingEventStatus[]): Promise<AdminPrintingEvent[]> {
+      if (statuses.length === 0) {
+        return Promise.resolve([]);
+      }
+      return db
+        .selectFrom("printingEvents as pe")
+        .innerJoin("printings as p", "p.id", "pe.printingId")
+        .innerJoin("cards as c", "c.id", "p.cardId")
+        .innerJoin("sets as s", "s.id", "p.setId")
+        .leftJoin("finishes as fi", "fi.slug", "p.finish")
+        .leftJoin("languages as lng", "lng.code", "p.language")
+        .leftJoin("printingImages as pi", (join) =>
+          join
+            .onRef("pi.printingId", "=", "p.id")
+            .on("pi.face", "=", "front")
+            .on("pi.isActive", "=", true),
+        )
+        .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
+        .select([
+          "pe.id",
+          "pe.eventType",
+          "pe.printingId",
+          "pe.changes",
+          "pe.createdAt",
+          "pe.status",
+          "pe.retryCount",
+          "c.name as cardName",
+          "c.slug as cardSlug",
+          "s.name as setName",
+          "p.shortCode",
+          "p.rarity",
+          "p.finish",
+          "fi.label as finishLabel",
+          "p.artist",
+          "p.language",
+          "lng.name as languageName",
+          sql<string | null>`${imageUrl("imgf")} || '-400w.webp'`.as("frontImageUrl"),
+        ])
+        .where("pe.status", "in", statuses)
+        .orderBy("pe.createdAt", "desc")
+        .execute();
+    },
+
+    /**
+     * Reset events back to pending and clear their retry counter so they get
+     * picked up by the next flush. Used by the admin queue view to retry events
+     * that had hit MAX_RETRIES.
+     * @returns Resolves when the events have been updated.
+     */
+    async retryFailed(ids: string[]): Promise<void> {
+      if (ids.length === 0) {
+        return;
+      }
+      await db
+        .updateTable("printingEvents")
+        .set({ status: "pending", retryCount: 0 })
+        .where("id", "in", ids)
         .execute();
     },
 
