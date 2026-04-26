@@ -260,10 +260,10 @@ export function useFilterActions() {
     } as Partial<FilterSearch>);
   };
 
-  const toggleOwned = (allowPlayset = true) => {
+  const toggleOwned = (allowIncomplete = true) => {
     trackEvent("filter-apply", { type: "owned" });
-    const cycle: (OwnedFilterState | undefined)[] = allowPlayset
-      ? ["owned", "missing", "playset", undefined]
+    const cycle: (OwnedFilterState | undefined)[] = allowIncomplete
+      ? ["owned", "missing", "incomplete", undefined]
       : ["owned", "missing", undefined];
     void router.navigate({
       to: ".",

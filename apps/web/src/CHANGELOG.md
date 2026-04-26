@@ -4,7 +4,7 @@
 
 - feat: Each collection now has an "available for deck building" toggle in its three-dot menu. Turn it off for cards you don't want to cannibalise (a display-case copy, cards lent out, an assembled deck), and the deck builder and shopping list will skip them when counting what you own. Excluded copies still show up as "locked" in the deck's ownership panel so you can see what you'd have available if you turned the collection back on
 - feat: Collections can now be renamed from the same Edit collection dialog
-- feat: The Owned filter on /cards has a new third state "Playset" that shows only cards where you own a complete deck-legal set — three copies for most cards, or one copy for Legends, Battlefields, and cards with the Unique keyword. Click the badge to cycle Owned → Missing → Playset → off
+- feat: The Owned filter on /cards has a new third state "Incomplete" that shows cards where you don't yet own a full deck-legal playset — anything below three copies for most cards, or below one for Legends, Battlefields, and cards with the Unique keyword. Click the badge to cycle Owned → Missing → Incomplete → off
 - fix: In the admin marketplace view, when two products are mapped to the same printing, clicking the X on one chip now reliably removes that specific product instead of sometimes removing the other one
 - fix: Card names like "Kai'Sa" now export with a plain apostrophe in deck text exports, CSV collection exports, and the missing-cards copy button, instead of the typographic apostrophe that some external tools couldn't match
 

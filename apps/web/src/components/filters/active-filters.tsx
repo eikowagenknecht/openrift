@@ -181,8 +181,8 @@ export function ActiveFilters({
             <Badge variant="secondary" className="gap-1">
               {filterState.owned === "missing"
                 ? "Missing"
-                : filterState.owned === "playset"
-                  ? "Playset"
+                : filterState.owned === "incomplete"
+                  ? "Incomplete"
                   : "Owned"}
               <button type="button" onClick={clearOwned} className="hover:text-foreground ml-0.5">
                 <XIcon className="size-3" />

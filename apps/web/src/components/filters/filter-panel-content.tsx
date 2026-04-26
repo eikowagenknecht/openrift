@@ -97,12 +97,12 @@ export function FilterBadgeSections({
   const { filterState, view } = useFilterValues();
   const { toggleOwned, toggleArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
     useFilterActions();
-  const allowPlayset = view !== "printings";
+  const allowIncomplete = view !== "printings";
   const ownedLabel =
     filterState.owned === "missing"
       ? "Missing"
-      : filterState.owned === "playset"
-        ? "Playset"
+      : filterState.owned === "incomplete"
+        ? "Incomplete"
         : "Owned";
   const languageLabels = useLanguageLabels();
   // Use overrides when URL state is empty (zone presets that aren't in the URL)
@@ -118,7 +118,7 @@ export function FilterBadgeSections({
           <Badge
             variant={filterState.owned === null ? "outline" : "default"}
             className="cursor-pointer"
-            onClick={() => toggleOwned(allowPlayset)}
+            onClick={() => toggleOwned(allowIncomplete)}
           >
             {ownedLabel}
           </Badge>

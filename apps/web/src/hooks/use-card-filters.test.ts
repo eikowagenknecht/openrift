@@ -354,7 +354,7 @@ describe("useCardFilters", () => {
     expect(source).not.toMatch(/\[`\$\{[^`]+}[^`]*`]\s*:/);
   });
 
-  it("toggleOwned cycles owned → missing → playset → cleared", () => {
+  it("toggleOwned cycles owned → missing → incomplete → cleared", () => {
     mockSearch = {};
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
@@ -369,16 +369,15 @@ describe("useCardFilters", () => {
     mockSearch = { owned: "missing" };
     mockNavigate.mockClear();
     act(() => result.current.toggleOwned());
-    expect(lastNavigateSearch()).toMatchObject({ owned: "playset" });
+    expect(lastNavigateSearch()).toMatchObject({ owned: "incomplete" });
 
-    mockSearch = { owned: "playset" };
+    mockSearch = { owned: "incomplete" };
     mockNavigate.mockClear();
     act(() => result.current.toggleOwned());
-    // undefined entries are stripped from the navigate call
     expect(lastNavigateSearch().owned).toBeUndefined();
   });
 
-  it("toggleOwned skips playset when allowPlayset=false", () => {
+  it("toggleOwned skips incomplete when allowIncomplete=false", () => {
     mockSearch = { owned: "missing" };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 

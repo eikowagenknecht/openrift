@@ -22,7 +22,7 @@ interface UseCardDataParams {
   allPrintings: Printing[];
   sets: SetInfo[];
   filters: CardFilters;
-  /** Owned filter state: "owned" | "missing" | "playset" | null (no filter). */
+  /** Owned filter state: "owned" | "missing" | "incomplete" | null (no filter). */
   ownedFilter?: OwnedFilterState | null;
   sortBy: SortOption;
   sortDir: "asc" | "desc";
@@ -166,9 +166,10 @@ export function useCardData({
   let filteredCards = filterCards(allPrintings, filters, { keywordReverseMap, getPrice });
 
   if (ownedFilter && ownedCountByPrinting) {
-    if (ownedFilter === "playset") {
-      // Playset is card-level: sum copies across all printings of each card,
-      // compare to per-card playset size (1 for Legends/Battlefields/Unique, 3 otherwise).
+    if (ownedFilter === "incomplete") {
+      // Incomplete is card-level: sum copies across all printings of each card,
+      // keep cards where the total is below the per-card playset size
+      // (1 for Legends/Battlefields/Unique, 3 otherwise).
       const ownedTotalByCard = new Map<string, number>();
       const cardById = new Map<string, Printing["card"]>();
       for (const printing of filteredCards) {
@@ -178,17 +179,17 @@ export function useCardData({
           cardById.set(printing.cardId, printing.card);
         }
       }
-      const playsetCardIds = new Set<string>();
+      const incompleteCardIds = new Set<string>();
       for (const [cardId, total] of ownedTotalByCard) {
         const card = cardById.get(cardId);
         if (!card) {
           continue;
         }
-        if (total >= getPlaysetSize(card.type, card.keywords)) {
-          playsetCardIds.add(cardId);
+        if (total < getPlaysetSize(card.type, card.keywords)) {
+          incompleteCardIds.add(cardId);
         }
       }
-      filteredCards = filteredCards.filter((printing) => playsetCardIds.has(printing.cardId));
+      filteredCards = filteredCards.filter((printing) => incompleteCardIds.has(printing.cardId));
     } else if (view === "printings") {
       filteredCards =
         ownedFilter === "owned"

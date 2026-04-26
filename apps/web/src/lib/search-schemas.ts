@@ -9,9 +9,9 @@ const stringField = () => z.string().optional().catch(undefined);
 const numberField = () => z.number().optional().catch(undefined);
 const stringArray = () => z.array(z.string()).optional().catch(undefined);
 const boolFlag = () => z.boolean().optional().catch(undefined);
-const ownedFilter = () => z.enum(["owned", "missing", "playset"]).optional().catch(undefined);
+const ownedFilter = () => z.enum(["owned", "missing", "incomplete"]).optional().catch(undefined);
 
-export type OwnedFilterState = "owned" | "missing" | "playset";
+export type OwnedFilterState = "owned" | "missing" | "incomplete";
 
 /**
  * Search param schema for routes that use the card filter system.
