@@ -14,6 +14,12 @@ export interface CardOwnership {
   owned: number;
   shortfall: number;
   /**
+   * Copies sitting in collections excluded from deck building (locked away).
+   * These don't reduce the shortfall — the user has to either move them or
+   * toggle the collection back on before they count.
+   */
+  locked: number;
+  /**
    * Price for the printing the deck builder shows for this card row — either
    * the explicitly-pinned `preferredPrintingId` or the language-preference
    * canonical fallback. `undefined` when no price is available for that
@@ -32,6 +38,7 @@ export interface DeckOwnershipData {
   byCardZone: Map<string, CardOwnership>;
   totalNeeded: number;
   totalOwned: number;
+  totalLocked: number;
   missingCount: number;
   deckValueCents: number | undefined;
   ownedValueCents: number | undefined;
@@ -50,6 +57,7 @@ export function computeDeckOwnership(
   marketplace: Marketplace,
   prices: PriceLookup,
   languageOrder: readonly string[],
+  lockedCountByPrinting?: Record<string, number>,
 ): DeckOwnershipData {
   // Intentionally NOT `"use memo"`: when React Compiler memoizes a `"use
   // memo"` helper, it wraps the call site in a cache check. On cache hits
@@ -82,15 +90,30 @@ export function computeDeckOwnership(
     }
   }
 
+  // Same fan-out for copies sitting in excluded ("locked") collections.
+  const lockedByCardId = new Map<string, number>();
+  if (lockedCountByPrinting) {
+    for (const printing of allPrintings) {
+      const count = lockedCountByPrinting[printing.id] ?? 0;
+      if (count > 0) {
+        lockedByCardId.set(printing.cardId, (lockedByCardId.get(printing.cardId) ?? 0) + count);
+      }
+    }
+  }
+
   // Track how many copies have been "claimed" across zones for each card.
   // A user who owns 2 copies of a card in main (need 3) and sideboard (need 1)
-  // should see the total 2 distributed across zones.
+  // should see the total 2 distributed across zones. Locked copies use a
+  // separate tracker so they're attributed in zone order without competing
+  // with available copies.
   const claimedByCardId = new Map<string, number>();
+  const claimedLockedByCardId = new Map<string, number>();
 
   const byCardZone = new Map<string, CardOwnership>();
   const missingCards: CardOwnership[] = [];
   let totalNeeded = 0;
   let totalOwned = 0;
+  let totalLocked = 0;
   let missingCount = 0;
   let hasPrices = false;
   let deckValueCents = 0;
@@ -105,6 +128,15 @@ export function computeDeckOwnership(
     const shortfall = card.quantity - ownedInZone;
 
     claimedByCardId.set(card.cardId, alreadyClaimed + ownedInZone);
+
+    // Locked copies cover whatever's still missing after available copies are
+    // applied — capped at the remaining shortfall so a card with 4 locked
+    // copies but only 1 still needed reports `locked: 1`, not 4.
+    const totalLockedForCard = lockedByCardId.get(card.cardId) ?? 0;
+    const alreadyClaimedLocked = claimedLockedByCardId.get(card.cardId) ?? 0;
+    const lockedAvailableForZone = Math.max(0, totalLockedForCard - alreadyClaimedLocked);
+    const lockedInZone = Math.min(shortfall, lockedAvailableForZone);
+    claimedLockedByCardId.set(card.cardId, alreadyClaimedLocked + lockedInZone);
 
     // Resolve the printing the deck builder displays for this row, mirroring
     // `usePreferredPrinting`: explicit pin first, then language-preference
@@ -138,6 +170,7 @@ export function computeDeckOwnership(
       needed: card.quantity,
       owned: ownedInZone,
       shortfall,
+      locked: lockedInZone,
       displayPrice,
       displayPrinting,
     };
@@ -145,6 +178,7 @@ export function computeDeckOwnership(
     byCardZone.set(`${card.cardId}:${card.zone}`, entry);
     totalNeeded += card.quantity;
     totalOwned += ownedInZone;
+    totalLocked += lockedInZone;
 
     if (shortfall > 0) {
       missingCount += shortfall;
@@ -163,6 +197,7 @@ export function computeDeckOwnership(
     byCardZone,
     totalNeeded,
     totalOwned,
+    totalLocked,
     missingCount,
     deckValueCents: hasPrices ? deckValueCents : undefined,
     ownedValueCents: hasPrices ? ownedValueCents : undefined,
@@ -180,6 +215,7 @@ export function useDeckOwnership(
   allPrintings: Printing[],
   ownedCountByPrinting: Record<string, number> | undefined,
   marketplace: Marketplace,
+  lockedCountByPrinting?: Record<string, number>,
 ): DeckOwnershipData | undefined {
   const prices = usePrices();
   const languageOrder = useEffectiveLanguageOrder();
@@ -193,5 +229,6 @@ export function useDeckOwnership(
     marketplace,
     prices,
     languageOrder,
+    lockedCountByPrinting,
   );
 }

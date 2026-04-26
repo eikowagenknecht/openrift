@@ -1,5 +1,5 @@
 import type { Marketplace } from "@openrift/shared";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { CardOwnership } from "@/hooks/use-deck-ownership";
 import { useMarketplaceInfo } from "@/hooks/use-marketplace-info";
 import { formatterForMarketplace } from "@/lib/format";
@@ -143,6 +144,21 @@ export function DeckMissingCardsDialog({
                         </span>
                         {card.cardName}
                       </a>
+                      {card.locked > 0 && (
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <span className="text-muted-foreground ml-1.5 inline-flex items-center align-middle" />
+                            }
+                          >
+                            <LockIcon className="size-3" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-56 text-xs">
+                            You have {card.locked} {card.locked === 1 ? "copy" : "copies"} in a
+                            collection that&apos;s excluded from deck building.
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </td>
                     <td className="py-1.5 text-right">{card.shortfall}</td>
                     <td className="text-muted-foreground py-1.5 text-right">

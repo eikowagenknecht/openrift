@@ -34,6 +34,53 @@ export function useOwnedCount(enabled: boolean): {
   return { data: aggregateTotals(copies) };
 }
 
+/**
+ * Splits owned copies into deck-building-available and locked-away buckets,
+ * based on each copy's collection `availableForDeckbuilding` flag.
+ * @returns Both maps keyed by printingId, or undefined when disabled or still loading.
+ */
+export function useDeckBuildingCounts(enabled: boolean): {
+  data:
+    | {
+        /** Per-printing counts in collections marked as available for deck building. */
+        available: Record<string, number>;
+        /** Per-printing counts in collections excluded from deck building (locked away). */
+        locked: Record<string, number>;
+      }
+    | undefined;
+} {
+  const queryClient = useQueryClient();
+  const copiesCollection = getCopiesCollection(queryClient);
+  const { data: collections } = useQuery({ ...collectionsQueryOptions, enabled });
+
+  const { data: copies } = useLiveQuery(
+    (q) => (enabled ? q.from({ copy: copiesCollection }) : null),
+    [enabled],
+  );
+
+  if (!enabled || !copies || !collections) {
+    return { data: undefined };
+  }
+
+  const availabilityById = new Map<string, boolean>();
+  for (const col of collections) {
+    availabilityById.set(col.id, col.availableForDeckbuilding);
+  }
+
+  const available: Record<string, number> = {};
+  const locked: Record<string, number> = {};
+  for (const copy of copies) {
+    // Default to available when the collection is unknown (race during create
+    // or stale collections cache) — better to count an in-flight copy than to
+    // mis-flag it as locked.
+    const isAvailable = availabilityById.get(copy.collectionId) ?? true;
+    const bucket = isAvailable ? available : locked;
+    bucket[copy.printingId] = (bucket[copy.printingId] ?? 0) + 1;
+  }
+
+  return { data: { available, locked } };
+}
+
 function aggregateByCollection(
   copies: readonly CopyResponse[],
   collectionNameById: Map<string, string>,

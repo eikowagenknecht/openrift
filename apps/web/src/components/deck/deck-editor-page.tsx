@@ -53,7 +53,7 @@ import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
-import { useOwnedCount } from "@/hooks/use-owned-count";
+import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -123,16 +123,18 @@ function DeckEditorContent({
   const [shareOpen, setShareOpen] = useState(false);
   const deckSharingEnabled = useFeatureEnabled("deck-sharing");
 
-  // Ownership data
+  // Ownership data — split available vs locked so the deck builder respects
+  // each collection's availableForDeckbuilding flag.
   const { data: session } = useSession();
-  const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
+  const { data: deckCounts } = useDeckBuildingCounts(Boolean(session?.user));
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const marketplace = marketplaceOrder[0] ?? "cardtrader";
   const ownershipData = useDeckOwnership(
     deckCards,
     allPrintings,
-    ownedCountByPrinting,
+    deckCounts?.available,
     marketplace,
+    deckCounts?.locked,
   );
 
   // Seed the draft from the server's deck detail when the deck id changes or

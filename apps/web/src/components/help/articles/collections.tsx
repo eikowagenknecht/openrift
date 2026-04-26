@@ -107,15 +107,20 @@ export default function CollectionsArticle() {
             <ShieldCheckIcon className="text-primary mt-0.5 size-5 shrink-0" />
             <div>
               <p className="text-muted-foreground text-sm">
-                <strong className="text-foreground">Coming soon:</strong> Each collection will have
-                an &quot;available for deck building&quot; flag. When turned off, copies in that
-                collection won&apos;t count toward your owned cards in the deck builder.
+                Each collection has an &quot;available for deck building&quot; toggle. Open a
+                collection, hit the three-dot menu, and pick <em>Edit collection</em> to change it.
+                When turned off, copies in that collection don&apos;t count toward owned cards in
+                the deck builder or the shopping list.
               </p>
               <p className="text-muted-foreground mt-2 text-sm">
-                This is useful for cards you don&apos;t want to include in decks: a high-value card
-                you keep in a display case, cards lent to a friend, or copies already committed to a
-                specific deck. The deck builder will only consider cards from collections
-                you&apos;ve marked as available.
+                This is useful for cards you don&apos;t want to cannibalise: a high-value card you
+                keep in a display case, cards lent to a friend, or copies already committed to a
+                specific deck. Locked-away copies still show up in the deck builder&apos;s ownership
+                panel as &quot;locked&quot;, so you can see what you&apos;d have available if you
+                turned the collection back on.
+              </p>
+              <p className="text-muted-foreground mt-2 text-sm">
+                The Inbox is always available for deck building and can&apos;t be toggled.
               </p>
             </div>
           </div>

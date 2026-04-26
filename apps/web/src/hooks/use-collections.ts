@@ -100,6 +100,39 @@ export function useCreateCollection() {
   });
 }
 
+const updateCollectionFn = createServerFn({ method: "POST" })
+  .inputValidator(
+    (input: {
+      id: string;
+      name?: string;
+      description?: string | null;
+      availableForDeckbuilding?: boolean;
+    }) => input,
+  )
+  .middleware([withCookies])
+  .handler(({ context, data }) => {
+    const { id, ...fields } = data;
+    return fetchApiJson<CollectionsResponse["items"][number]>({
+      errorTitle: "Couldn't update collection",
+      cookie: context.cookie,
+      path: `/api/v1/collections/${encodeURIComponent(id)}`,
+      method: "PATCH",
+      body: fields,
+    });
+  });
+
+export function useUpdateCollection() {
+  return useMutationWithInvalidation({
+    mutationFn: (body: {
+      id: string;
+      name?: string;
+      description?: string | null;
+      availableForDeckbuilding?: boolean;
+    }) => updateCollectionFn({ data: body }),
+    invalidates: [queryKeys.collections.all],
+  });
+}
+
 const deleteCollectionFn = createServerFn({ method: "POST" })
   .inputValidator((input: { id: string }) => input)
   .middleware([withCookies])

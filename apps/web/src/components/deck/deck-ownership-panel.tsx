@@ -62,6 +62,20 @@ function DeckOwnershipBody({ data, marketplace, onViewMissing }: DeckOwnershipPa
             value={`${data.missingCount} ${data.missingCount === 1 ? "card" : "cards"}`}
           />
         )}
+        {data.totalLocked > 0 && (
+          <Tooltip>
+            <TooltipTrigger render={<div />}>
+              <Row
+                label="Locked"
+                value={`${data.totalLocked} ${data.totalLocked === 1 ? "card" : "cards"}`}
+              />
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-64 text-xs">
+              Copies sitting in collections excluded from deck building. They don&apos;t count
+              toward missing — move them or turn the collection back on to use them.
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       {data.deckValueCents !== undefined && (

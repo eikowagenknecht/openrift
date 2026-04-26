@@ -7,6 +7,7 @@ import {
   LibraryBigIcon,
   PackageIcon,
   PackagePlusIcon,
+  PencilIcon,
   Trash2Icon,
   XIcon,
   ZapIcon,
@@ -76,6 +77,7 @@ import { DeleteCollectionDialog } from "./delete-collection-dialog";
 import { DisposeDialog } from "./dispose-dialog";
 import { DisposePickerPopover } from "./dispose-picker-popover";
 import { DraggableCard } from "./draggable-card";
+import { EditCollectionDialog } from "./edit-collection-dialog";
 import { MoveDialog } from "./move-dialog";
 import { QuickAddPalette } from "./quick-add-palette";
 
@@ -269,6 +271,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const [disposeOpen, setDisposeOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const moveCopies = useMoveCopies();
   const disposeCopies = useDisposeCopies();
   const deleteCollection = useDeleteCollection();
@@ -766,7 +769,9 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
       hasCards={stacks.length > 0}
       isAllSelected={selected.size === totalCopies}
       view={view}
+      canEdit={Boolean(currentCollection)}
       canDelete={canDeleteCollection}
+      onEdit={() => setEditOpen(true)}
       onDelete={() => setDeleteOpen(true)}
     />
   );
@@ -930,6 +935,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             isPending={deleteCollection.isPending}
           />
         )}
+        {currentCollection && (
+          <EditCollectionDialog
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            collectionId={currentCollection.id}
+            currentName={currentCollection.name}
+            currentAvailableForDeckbuilding={currentCollection.availableForDeckbuilding}
+            isInbox={currentCollection.isInbox}
+          />
+        )}
       </div>
     );
   }
@@ -1022,6 +1037,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             isPending={deleteCollection.isPending}
           />
         )}
+        {currentCollection && (
+          <EditCollectionDialog
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            collectionId={currentCollection.id}
+            currentName={currentCollection.name}
+            currentAvailableForDeckbuilding={currentCollection.availableForDeckbuilding}
+            isInbox={currentCollection.isInbox}
+          />
+        )}
       </BrowserCardViewer>
 
       {/* Variant add popover (portal, add mode only) */}
@@ -1097,7 +1122,9 @@ interface CollectionTopBarProps {
   hasCards: boolean;
   isAllSelected: boolean;
   view: string;
+  canEdit: boolean;
   canDelete: boolean;
+  onEdit: () => void;
   onDelete: () => void;
 }
 
@@ -1117,7 +1144,9 @@ function CollectionTopBar({
   hasCards,
   isAllSelected,
   view,
+  canEdit,
   canDelete,
+  onEdit,
   onDelete,
 }: CollectionTopBarProps) {
   return (
@@ -1190,20 +1219,28 @@ function CollectionTopBar({
                 </>
               )
             )}
-            {canDelete && (
+            {(canEdit || canDelete) && (
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
                   <EllipsisVerticalIcon className="size-4" />
                   <span className="sr-only">Collection actions</span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={onDelete}
-                  >
-                    <Trash2Icon className="size-4" />
-                    Delete collection
-                  </DropdownMenuItem>
+                  {canEdit && (
+                    <DropdownMenuItem onClick={onEdit}>
+                      <PencilIcon className="size-4" />
+                      Edit collection
+                    </DropdownMenuItem>
+                  )}
+                  {canDelete && (
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={onDelete}
+                    >
+                      <Trash2Icon className="size-4" />
+                      Delete collection
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}

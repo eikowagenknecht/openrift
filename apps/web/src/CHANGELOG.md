@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-04-26
+
+- feat: Each collection now has an "available for deck building" toggle in its three-dot menu. Turn it off for cards you don't want to cannibalise (a display-case copy, cards lent out, an assembled deck), and the deck builder and shopping list will skip them when counting what you own. Excluded copies still show up as "locked" in the deck's ownership panel so you can see what you'd have available if you turned the collection back on
+- feat: Collections can now be renamed from the same Edit collection dialog
+
 ## 2026-04-25
 
 - fix: The missing-cards dialog on a deck now shows the price and short code of the printing the deck builder displays for each card (your pinned variant, or the language-preferred fallback), instead of the cheapest variant in any language. Previously a cheaper non-English variant could substitute its price and link in for an English deck row

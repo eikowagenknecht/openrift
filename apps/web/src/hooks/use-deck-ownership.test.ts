@@ -276,6 +276,122 @@ describe("computeDeckOwnership", () => {
     expect(result.deckValueCents).toBe(8);
   });
 
+  it("treats locked copies as not-owned and reports them per zone", () => {
+    // Regression: when a collection is excluded from deck building, the
+    // deck-builder should not count its copies as fulfilling the deck. A
+    // user with 2 available + 2 locked copies of a 4-of card should see
+    // shortfall 2, owned 2, locked 2 — not owned 4.
+    const cardId = "card-1";
+    const printingId = "printing-1";
+
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 4, zone: "main" })];
+    const printings = [stubPrinting({ id: printingId, cardId })];
+    const available = { [printingId]: 2 };
+    const locked = { [printingId]: 2 };
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      available,
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+      locked,
+    );
+
+    expect(result.totalNeeded).toBe(4);
+    expect(result.totalOwned).toBe(2);
+    expect(result.totalLocked).toBe(2);
+    expect(result.missingCount).toBe(2);
+
+    const entry = result.byCardZone.get(`${cardId}:main`);
+    expect(entry?.owned).toBe(2);
+    expect(entry?.shortfall).toBe(2);
+    expect(entry?.locked).toBe(2);
+  });
+
+  it("caps locked count at the remaining shortfall", () => {
+    // 4 locked copies, but only 1 still missing → locked surfaces as 1.
+    const cardId = "card-1";
+    const printingId = "printing-1";
+
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 3, zone: "main" })];
+    const printings = [stubPrinting({ id: printingId, cardId })];
+    const available = { [printingId]: 2 };
+    const locked = { [printingId]: 4 };
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      available,
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+      locked,
+    );
+
+    expect(result.totalLocked).toBe(1);
+    expect(result.byCardZone.get(`${cardId}:main`)?.locked).toBe(1);
+  });
+
+  it("distributes locked copies across zones after available is exhausted", () => {
+    // Need 2 main + 2 sideboard = 4 total; own 1 available + 2 locked.
+    // Available covers main slot 1, locked fills main slot 2 (1 of 2 main
+    // shortfall; 1 locked copy remains but main only had 1 missing).
+    // Sideboard has 2 missing; the leftover 1 locked covers 1 of them.
+    const cardId = "card-1";
+    const printingId = "printing-1";
+
+    const deckCards = [
+      stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" }),
+      stubDeckBuilderCard({ cardId, quantity: 2, zone: "sideboard" }),
+    ];
+    const printings = [stubPrinting({ id: printingId, cardId })];
+    const available = { [printingId]: 1 };
+    const locked = { [printingId]: 2 };
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      available,
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+      locked,
+    );
+
+    expect(result.totalOwned).toBe(1);
+    expect(result.totalLocked).toBe(2);
+    expect(result.missingCount).toBe(3);
+
+    const main = result.byCardZone.get(`${cardId}:main`);
+    const side = result.byCardZone.get(`${cardId}:sideboard`);
+    expect(main?.owned).toBe(1);
+    expect(main?.locked).toBe(1);
+    expect(side?.owned).toBe(0);
+    expect(side?.locked).toBe(1);
+  });
+
+  it("defaults locked to 0 when no locked map is supplied", () => {
+    const cardId = "card-1";
+    const printingId = "printing-1";
+
+    const deckCards = [stubDeckBuilderCard({ cardId, quantity: 2, zone: "main" })];
+    const printings = [stubPrinting({ id: printingId, cardId })];
+
+    const result = computeDeckOwnership(
+      deckCards,
+      printings,
+      { [printingId]: 1 },
+      "tcgplayer",
+      EMPTY_PRICE_LOOKUP,
+      EN_FIRST,
+    );
+
+    expect(result.totalLocked).toBe(0);
+    expect(result.byCardZone.get(`${cardId}:main`)?.locked).toBe(0);
+  });
+
   it("handles multiple cards with mixed ownership", () => {
     const deckCards = [
       stubDeckBuilderCard({ cardId: "a", cardName: "Alpha", quantity: 3, zone: "main" }),
