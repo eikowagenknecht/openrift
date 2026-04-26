@@ -7,6 +7,8 @@
 
 ## 2026-04-25
 
+- feat: The pack opener's token slot now reflects what real packs deliver — usually a basic Rune, occasionally a foil Rune, very rarely an alt-art Rune, and sometimes a Token card like Sprite or Recruit. Previously you'd only ever see a regular Rune there, and Token cards were leaking into the regular common slots
+- fix: A simulated booster pack no longer contains the same printing twice. Real packs never repeat a card within one pack — for example the two rare-or-better slots are now guaranteed to be different cards
 - fix: The missing-cards dialog on a deck now shows the price and short code of the printing the deck builder displays for each card (your pinned variant, or the language-preferred fallback), instead of the cheapest variant in any language. Previously a cheaper non-English variant could substitute its price and link in for an English deck row
 
 ## 2026-04-24

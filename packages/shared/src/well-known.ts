@@ -28,6 +28,8 @@ export const WellKnown = {
     CHAMPION: "Champion",
     /** Signature detection for icon display. */
     SIGNATURE: "Signature",
+    /** Pack opener: routes the card to the token slot, not the regular common/uncommon slot. */
+    TOKEN: "Token",
   },
   finish: {
     /** Default finish when unspecified. */

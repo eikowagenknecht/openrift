@@ -8,6 +8,8 @@ import {
   SHOWCASE_ALTART_RATE,
   SHOWCASE_OVERNUMBERED_RATE,
   SHOWCASE_SIGNED_RATE,
+  TOKEN_SLOT_FOIL_RUNE_RATE,
+  TOKEN_SLOT_TOKEN_RATE,
   ULTIMATE_RATE,
   UNCOMMONS_PER_PACK,
 } from "./rates";
@@ -21,6 +23,7 @@ function p(overrides: Partial<PackPrinting> & { id: string }): PackPrinting {
     cardName: overrides.id,
     cardSlug: overrides.id,
     cardType: "Unit",
+    cardSuperTypes: [],
     rarity: "Common",
     finish: "normal",
     artVariant: "normal",
@@ -35,17 +38,20 @@ function p(overrides: Partial<PackPrinting> & { id: string }): PackPrinting {
 
 function samplePool() {
   const printings: PackPrinting[] = [
-    p({ id: "c1", rarity: "Common" }),
-    p({ id: "c2", rarity: "Common" }),
-    p({ id: "u1", rarity: "Uncommon" }),
-    p({ id: "u2", rarity: "Uncommon" }),
-    p({ id: "fc1", rarity: "Common", finish: "foil" }),
-    p({ id: "fu1", rarity: "Uncommon", finish: "foil" }),
-    p({ id: "r1", rarity: "Rare", finish: "foil" }),
-    p({ id: "r2", rarity: "Rare", finish: "foil" }),
-    p({ id: "e1", rarity: "Epic", finish: "foil" }),
-    p({ id: "e2", rarity: "Epic", finish: "foil" }),
-    p({ id: "run1", cardType: "Rune", rarity: "Common" }),
+    // Plenty of commons/uncommons/rares/epics so dedup never falls back.
+    ...Array.from({ length: 20 }, (_, i) => p({ id: `c${i}`, rarity: "Common" })),
+    ...Array.from({ length: 10 }, (_, i) => p({ id: `u${i}`, rarity: "Uncommon" })),
+    ...Array.from({ length: 8 }, (_, i) => p({ id: `fc${i}`, rarity: "Common", finish: "foil" })),
+    ...Array.from({ length: 8 }, (_, i) => p({ id: `fu${i}`, rarity: "Uncommon", finish: "foil" })),
+    ...Array.from({ length: 6 }, (_, i) => p({ id: `r${i}`, rarity: "Rare", finish: "foil" })),
+    ...Array.from({ length: 6 }, (_, i) => p({ id: `e${i}`, rarity: "Epic", finish: "foil" })),
+    ...Array.from({ length: 6 }, (_, i) =>
+      p({ id: `run${i}`, cardType: "Rune", rarity: "Common" }),
+    ),
+    p({ id: "frun1", cardType: "Rune", rarity: "Common", finish: "foil" }),
+    p({ id: "arun1", cardType: "Rune", rarity: "Common", artVariant: "altart" }),
+    p({ id: "tok1", cardSuperTypes: ["Token"], rarity: "Common" }),
+    p({ id: "tok2", cardSuperTypes: ["Token"], rarity: "Common" }),
     p({ id: "sa1", rarity: "Showcase", finish: "foil", artVariant: "altart" }),
     p({ id: "so1", rarity: "Showcase", finish: "foil", artVariant: "overnumbered" }),
     p({ id: "ss1", rarity: "Showcase", finish: "foil", isSigned: true }),
@@ -63,7 +69,7 @@ describe("openPack", () => {
     const commons = result.pulls.filter((pull) => pull.slot === "common");
     const uncommons = result.pulls.filter((pull) => pull.slot === "uncommon");
     const flex = result.pulls.filter((pull) => pull.slot === "flex");
-    const runes = result.pulls.filter((pull) => pull.slot === "rune");
+    const tokens = result.pulls.filter((pull) => pull.slot === "token");
     const special = result.pulls.filter(
       (pull) => pull.slot === "foil" || pull.slot === "showcase" || pull.slot === "ultimate",
     );
@@ -71,20 +77,112 @@ describe("openPack", () => {
     expect(commons).toHaveLength(COMMONS_PER_PACK);
     expect(uncommons).toHaveLength(UNCOMMONS_PER_PACK);
     expect(flex).toHaveLength(FLEX_SLOTS_PER_PACK);
-    expect(runes).toHaveLength(1);
+    expect(tokens).toHaveLength(1);
     expect(special).toHaveLength(1);
     expect(result.pulls).toHaveLength(
       COMMONS_PER_PACK + UNCOMMONS_PER_PACK + FLEX_SLOTS_PER_PACK + 1 + 1,
     );
   });
 
-  it("only pulls Runes for the rune slot", () => {
+  it("never repeats the same printing within one pack", () => {
+    const pool = samplePool();
+    const rng = mulberry32(1);
+    for (let i = 0; i < 500; i++) {
+      const result = openPack(pool, rng);
+      const ids = result.pulls.map((pull) => pull.printing.id);
+      expect(new Set(ids).size).toBe(ids.length);
+    }
+  });
+
+  it("falls back to allowing duplicates when a bucket is too small", () => {
+    // Only one common printing but 7 common slots — the fallback inside
+    // pickOneUnique kicks in and we get 7 copies of the same printing rather
+    // than throwing.
+    const pool = buildPool([
+      p({ id: "c", rarity: "Common" }),
+      p({ id: "u", rarity: "Uncommon" }),
+      p({ id: "fc", rarity: "Common", finish: "foil" }),
+      p({ id: "fu", rarity: "Uncommon", finish: "foil" }),
+      p({ id: "r", rarity: "Rare", finish: "foil" }),
+      p({ id: "e", rarity: "Epic", finish: "foil" }),
+      p({ id: "rn", cardType: "Rune", rarity: "Common" }),
+    ]);
+    const rng = mulberry32(7);
+    const result = openPack(pool, rng);
+    const commons = result.pulls.filter((pull) => pull.slot === "common");
+    expect(commons).toHaveLength(7);
+    expect(commons.every((pull) => pull.printing.id === "c")).toBe(true);
+  });
+
+  it("only pulls Runes or Token-supertype cards for the token slot", () => {
     const pool = samplePool();
     const rng = mulberry32(1);
     for (let i = 0; i < 200; i++) {
       const result = openPack(pool, rng);
-      const rune = result.pulls.find((pull) => pull.slot === "rune");
-      expect(rune?.printing.cardType).toBe("Rune");
+      const token = result.pulls.find((pull) => pull.slot === "token");
+      const isRune = token?.printing.cardType === "Rune";
+      const isToken = token?.printing.cardSuperTypes.includes("Token") ?? false;
+      expect(isRune || isToken).toBe(true);
+    }
+  });
+
+  it("routes Token-supertype cards into the token slot at roughly the published rate", () => {
+    const pool = samplePool();
+    const rng = mulberry32(2024);
+    const n = 20_000;
+    let tokenSupertypeCount = 0;
+    for (let i = 0; i < n; i++) {
+      const result = openPack(pool, rng);
+      for (const pull of result.pulls) {
+        if (pull.slot === "token" && pull.printing.cardSuperTypes.includes("Token")) {
+          tokenSupertypeCount++;
+        }
+      }
+    }
+    const observed = tokenSupertypeCount / n;
+    expect(observed).toBeGreaterThan(TOKEN_SLOT_TOKEN_RATE * 0.85);
+    expect(observed).toBeLessThan(TOKEN_SLOT_TOKEN_RATE * 1.15);
+  });
+
+  it("upgrades the token slot to a foil Rune at roughly the published rate", () => {
+    const pool = samplePool();
+    const rng = mulberry32(3030);
+    const n = 20_000;
+    let foilRuneCount = 0;
+    for (let i = 0; i < n; i++) {
+      const result = openPack(pool, rng);
+      for (const pull of result.pulls) {
+        if (
+          pull.slot === "token" &&
+          pull.printing.cardType === "Rune" &&
+          pull.printing.finish === "foil"
+        ) {
+          foilRuneCount++;
+        }
+      }
+    }
+    const observed = foilRuneCount / n;
+    expect(observed).toBeGreaterThan(TOKEN_SLOT_FOIL_RUNE_RATE * 0.8);
+    expect(observed).toBeLessThan(TOKEN_SLOT_FOIL_RUNE_RATE * 1.2);
+  });
+
+  it("falls through to a regular Rune when token-slot sub-pools are empty", () => {
+    // No tokens, no foil runes, no alt-art runes — every token slot must be a
+    // plain normal-art normal-finish Rune.
+    const pool = buildPool([
+      p({ id: "c", rarity: "Common" }),
+      p({ id: "u", rarity: "Uncommon" }),
+      p({ id: "fc", rarity: "Common", finish: "foil" }),
+      p({ id: "fu", rarity: "Uncommon", finish: "foil" }),
+      p({ id: "r", rarity: "Rare", finish: "foil" }),
+      p({ id: "e", rarity: "Epic", finish: "foil" }),
+      p({ id: "rn", cardType: "Rune", rarity: "Common" }),
+    ]);
+    const rng = mulberry32(11);
+    for (let i = 0; i < 200; i++) {
+      const result = openPack(pool, rng);
+      const token = result.pulls.find((pull) => pull.slot === "token");
+      expect(token?.printing.id).toBe("rn");
     }
   });
 
@@ -150,7 +248,8 @@ describe("openPack", () => {
       p({ id: "u", rarity: "Uncommon" }),
       p({ id: "fc", rarity: "Common", finish: "foil" }),
       p({ id: "fu", rarity: "Uncommon", finish: "foil" }),
-      p({ id: "r", rarity: "Rare", finish: "foil" }),
+      p({ id: "r1", rarity: "Rare", finish: "foil" }),
+      p({ id: "r2", rarity: "Rare", finish: "foil" }),
       p({ id: "rn", cardType: "Rune", rarity: "Common" }),
     ]);
     const rng = mulberry32(7);
