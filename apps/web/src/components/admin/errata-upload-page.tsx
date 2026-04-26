@@ -114,6 +114,8 @@ export function ErrataUploadPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <FormatHelp />
+
           <div className="space-y-2">
             <Label htmlFor="errata-file">JSON file</Label>
             <Input
@@ -187,6 +189,67 @@ export function ErrataUploadPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+const EXAMPLE_ERRATA_JSON = `[
+  {
+    "cardSlug": "jinx-rebel",
+    "correctedRulesText": "When this unit attacks, deal 2 damage to target unit.",
+    "correctedEffectText": null,
+    "source": "Official rulings, 2026-03-15",
+    "sourceUrl": "https://example.com/rulings",
+    "effectiveDate": "2026-03-15"
+  }
+]`;
+
+function FormatHelp() {
+  return (
+    <details className="rounded-md border">
+      <summary className="text-muted-foreground hover:text-foreground cursor-pointer px-3 py-2 text-sm font-medium select-none">
+        Format and example
+      </summary>
+      <div className="space-y-3 border-t px-3 py-3 text-sm">
+        <p>
+          The file must contain a JSON array of entries (or an object with an{" "}
+          <code className="bg-muted rounded px-1">entries</code> field holding the array). Each
+          entry has these fields:
+        </p>
+        <ul className="ml-5 list-disc space-y-1">
+          <li>
+            <code className="bg-muted rounded px-1">cardSlug</code> (string, required): slug of the
+            card to errata.
+          </li>
+          <li>
+            <code className="bg-muted rounded px-1">correctedRulesText</code> (string or{" "}
+            <code className="bg-muted rounded px-1">null</code>): corrected rules text. At least one
+            of rules or effect text must be set.
+          </li>
+          <li>
+            <code className="bg-muted rounded px-1">correctedEffectText</code> (string or{" "}
+            <code className="bg-muted rounded px-1">null</code>): corrected effect text.
+          </li>
+          <li>
+            <code className="bg-muted rounded px-1">source</code> (string, required): short label
+            describing where the correction comes from.
+          </li>
+          <li>
+            <code className="bg-muted rounded px-1">sourceUrl</code> (string or{" "}
+            <code className="bg-muted rounded px-1">null</code>, optional): link to the source.
+          </li>
+          <li>
+            <code className="bg-muted rounded px-1">effectiveDate</code> (string{" "}
+            <code className="bg-muted rounded px-1">YYYY-MM-DD</code> or{" "}
+            <code className="bg-muted rounded px-1">null</code>, optional): date the errata took
+            effect.
+          </li>
+        </ul>
+        <p>Example:</p>
+        <pre className="bg-muted overflow-x-auto rounded-md p-3">
+          <code>{EXAMPLE_ERRATA_JSON}</code>
+        </pre>
+      </div>
+    </details>
   );
 }
 
