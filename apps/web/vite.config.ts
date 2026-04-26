@@ -105,6 +105,9 @@ const compilerLogger = {
 // source maps when SENTRY_AUTH_TOKEN is set. The plugin internally disables
 // source-map upload (but keeps middleware auto-instrumentation) when the
 // auth token is absent, so this is safe to include in local/dev builds.
+// We keep the .map files in the output after upload so they're served alongside
+// the JS — OpenRift is open source, and shipping maps lets Lighthouse pass and
+// makes browser devtools debugging nicer.
 const sentryPlugins = sentryTanstackStart({
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
@@ -112,7 +115,6 @@ const sentryPlugins = sentryTanstackStart({
   release: { name: commitHash },
   sourcemaps: {
     disable: !process.env.SENTRY_AUTH_TOKEN,
-    filesToDeleteAfterUpload: ["./.output/**/*.map"],
   },
 });
 
