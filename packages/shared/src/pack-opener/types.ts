@@ -8,6 +8,7 @@ export interface PackPrinting {
   cardName: string;
   cardSlug: string;
   cardType: string;
+  cardSuperTypes: string[];
   rarity: string;
   finish: string;
   artVariant: string;
@@ -20,9 +21,10 @@ export interface PackPrinting {
 
 /**
  * Which slot in a pack produced the pull. Used for grouping the reveal UI and
- * for the stats panel (e.g. "1 flex slot was an Epic").
+ * for the stats panel (e.g. "1 flex slot was an Epic"). The token slot holds
+ * either a Rune (most of the time) or a Token-supertype card like Sprite.
  */
-export type PackSlot = "common" | "uncommon" | "flex" | "foil" | "rune" | "showcase" | "ultimate";
+export type PackSlot = "common" | "uncommon" | "flex" | "foil" | "token" | "showcase" | "ultimate";
 
 export interface PackPull {
   slot: PackSlot;
@@ -46,6 +48,9 @@ export interface PackPool {
   foilCommons: PackPrinting[];
   foilUncommons: PackPrinting[];
   runes: PackPrinting[];
+  foilRunes: PackPrinting[];
+  altArtRunes: PackPrinting[];
+  tokens: PackPrinting[];
   showcaseAltart: PackPrinting[];
   showcaseOvernumbered: PackPrinting[];
   showcaseSigned: PackPrinting[];
@@ -55,7 +60,8 @@ export interface PackPool {
 /**
  * True when every required slot has at least one printing. Sets missing any of
  * common/uncommon/rare/epic/foilCommon/foilUncommon/rune shouldn't be openable.
- * Showcase/ultimate pools may be empty; the opener handles that gracefully.
+ * Token, foilRune, altArtRune, showcase, and ultimate pools may be empty; the
+ * opener handles that gracefully.
  * @returns True if the set has a complete pool and can be opened.
  */
 export function isPoolOpenable(pool: PackPool): boolean {

@@ -40,7 +40,7 @@ export function mulberry32(seed: number): Random {
  * Pick an element uniformly at random from a non-empty array.
  * @returns One of the items, chosen uniformly.
  */
-export function pickOne<T>(rng: Random, items: readonly T[]): T {
+function pickOne<T>(rng: Random, items: readonly T[]): T {
   if (items.length === 0) {
     throw new Error("pickOne called with empty array");
   }
@@ -49,4 +49,23 @@ export function pickOne<T>(rng: Random, items: readonly T[]): T {
     throw new Error("pickOne drew an out-of-bounds index");
   }
   return item;
+}
+
+/**
+ * Pick an element uniformly from a non-empty array, excluding any whose `id` is
+ * already in `excluded`. If filtering leaves nothing (a sparse pool with fewer
+ * unique printings than slots), fall back to picking from the full list — real
+ * sets always have far more printings than slots, this guards tiny test pools.
+ * @returns One of the items, preferring one not in `excluded`.
+ */
+export function pickOneUnique<T extends { id: string }>(
+  rng: Random,
+  items: readonly T[],
+  excluded: ReadonlySet<string>,
+): T {
+  if (items.length === 0) {
+    throw new Error("pickOneUnique called with empty array");
+  }
+  const eligible = items.filter((item) => !excluded.has(item.id));
+  return pickOne(rng, eligible.length > 0 ? eligible : items);
 }

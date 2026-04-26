@@ -109,8 +109,8 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
 }
 
 function rarityKeyFor(pull: PackPull): string {
-  if (pull.slot === "rune") {
-    return "Rune";
+  if (pull.slot === "token") {
+    return pull.printing.cardSuperTypes.includes("Token") ? "Token" : "Rune";
   }
   if (pull.slot === "ultimate") {
     return "Ultimate";
@@ -331,7 +331,16 @@ function slotLabel(pull: PackPull): string {
     case "foil": {
       return `Foil ${pull.printing.rarity}`;
     }
-    case "rune": {
+    case "token": {
+      if (pull.printing.cardSuperTypes.includes("Token")) {
+        return "Token";
+      }
+      if (pull.printing.finish === "foil") {
+        return "Foil Rune";
+      }
+      if (pull.printing.artVariant !== "normal") {
+        return "Alt Art Rune";
+      }
       return "Rune";
     }
     case "showcase": {

@@ -16,6 +16,7 @@ export function buildPool(printings: readonly PackPrinting[]): PackPool {
   const normalFinish = WellKnown.finish.NORMAL;
   const foilFinish = WellKnown.finish.FOIL;
   const runeType = WellKnown.cardType.RUNE;
+  const tokenSuper = WellKnown.superType.TOKEN;
 
   const pool: PackPool = {
     commons: [],
@@ -25,6 +26,9 @@ export function buildPool(printings: readonly PackPrinting[]): PackPool {
     foilCommons: [],
     foilUncommons: [],
     runes: [],
+    foilRunes: [],
+    altArtRunes: [],
+    tokens: [],
     showcaseAltart: [],
     showcaseOvernumbered: [],
     showcaseSigned: [],
@@ -47,13 +51,28 @@ export function buildPool(printings: readonly PackPrinting[]): PackPool {
       // Plain non-signed Showcase with art=normal is an edge case; ignore it.
       continue;
     }
-    if (p.isSigned || p.artVariant !== normalArt) {
+    if (p.isSigned) {
+      continue;
+    }
+    // Token-supertype cards (Sprite, Recruit) belong in the token slot, not the
+    // common/uncommon slots. Riot pulls them from the token slot in real packs.
+    if (p.cardSuperTypes.includes(tokenSuper)) {
+      if (p.finish === normalFinish && p.artVariant === normalArt) {
+        pool.tokens.push(p);
+      }
       continue;
     }
     if (p.cardType === runeType) {
-      if (p.finish === normalFinish) {
+      if (p.finish === normalFinish && p.artVariant === normalArt) {
         pool.runes.push(p);
+      } else if (p.finish === foilFinish && p.artVariant === normalArt) {
+        pool.foilRunes.push(p);
+      } else if (p.finish === normalFinish && p.artVariant === altart) {
+        pool.altArtRunes.push(p);
       }
+      continue;
+    }
+    if (p.artVariant !== normalArt) {
       continue;
     }
     if (p.finish === normalFinish) {
