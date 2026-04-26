@@ -322,12 +322,12 @@ function isChecked(row: CandidateCardResponse | CandidatePrintingResponse): bool
   return row.checkedAt !== null;
 }
 
-function isTopProvider(
+function isFavoriteProvider(
   row: CandidateCardResponse | CandidatePrintingResponse,
-  providerLabels?: Record<string, string>,
-  topProvider?: string,
+  providerLabels: Record<string, string> | undefined,
+  favoriteProviders: Set<string>,
 ): boolean {
-  return topProvider !== undefined && getProviderLabel(row, providerLabels) === topProvider;
+  return favoriteProviders.has(getProviderLabel(row, providerLabels));
 }
 
 /** Inline combobox: type to filter suggestions, pick one, or press Enter to use custom text.
@@ -396,7 +396,9 @@ export function CandidateSpreadsheet({
   normalizeCandidate,
 }: CandidateSpreadsheetProps) {
   const settingsMap = new Map(providerSettings?.map((s) => [s.provider, s]));
-  const topProvider = providerSettings?.toSorted((a, b) => a.sortOrder - b.sortOrder)[0]?.provider;
+  const favoriteProviders = new Set(
+    providerSettings?.filter((s) => s.isFavorite).map((s) => s.provider),
+  );
   const sortedRows = candidateRows.toSorted((a, b) => {
     const aLabel = getProviderLabel(a, providerLabels);
     const bLabel = getProviderLabel(b, providerLabels);
@@ -450,7 +452,7 @@ export function CandidateSpreadsheet({
                 key={row.id}
                 className={cn(
                   "w-[300px] border-l px-3 py-2 text-left font-medium",
-                  isTopProvider(row, providerLabels, topProvider) &&
+                  isFavoriteProvider(row, providerLabels, favoriteProviders) &&
                     "bg-blue-50 dark:bg-blue-950/30",
                   isChecked(row) && "opacity-50",
                   columnClassName?.(row),
@@ -814,7 +816,7 @@ export function CandidateSpreadsheet({
                       className={cn(
                         "border-l px-3 py-1.5 break-words",
                         field.multiline && "whitespace-pre-wrap",
-                        isTopProvider(row, providerLabels, topProvider) &&
+                        isFavoriteProvider(row, providerLabels, favoriteProviders) &&
                           "bg-blue-50 dark:bg-blue-950/30",
                         isChecked(row) && "opacity-50",
                         invalidOption && "bg-red-50 line-through dark:bg-red-950/30",
