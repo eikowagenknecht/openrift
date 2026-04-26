@@ -550,6 +550,7 @@ export function useDeckViolations(deckId: string, format: DeckFormat): DeckViola
       superTypes: card.superTypes,
       domains: card.domains,
       tags: card.tags,
+      keywords: card.keywords,
     })),
   });
 }

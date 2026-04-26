@@ -2,6 +2,7 @@
 
 ## 2026-04-26
 
+- feat: The deck builder now enforces the [Unique] keyword rule, flagging any card with [Unique] that you've added more than once across the main deck or sideboard
 - feat: Each collection now has an "available for deck building" toggle in its three-dot menu. Turn it off for cards you don't want to cannibalise (a display-case copy, cards lent out, an assembled deck), and the deck builder and shopping list will skip them when counting what you own. Excluded copies still show up as "locked" in the deck's ownership panel so you can see what you'd have available if you turned the collection back on
 - feat: Collections can now be renamed from the same Edit collection dialog
 - feat: The Owned filter on /cards has a new third state "Incomplete" that shows cards where you don't yet own a full deck-legal playset — anything below three copies for most cards, or below one for Legends, Battlefields, and cards with the Unique keyword. Click the badge to cycle Owned → Missing → Incomplete → off

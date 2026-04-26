@@ -12,6 +12,7 @@ export interface DeckCard {
   superTypes: SuperType[];
   domains: Domain[];
   tags: string[];
+  keywords: string[];
 }
 
 export interface DeckState {
@@ -320,6 +321,27 @@ export const sideboardMaximum: DeckRule = (state) => {
   return [];
 };
 
+// Cards with the [Unique] keyword may only appear once across main + sideboard.
+export const uniqueCopyLimit: DeckRule = (state) => {
+  const violations: DeckViolation[] = [];
+
+  for (const card of [
+    ...cardsInZone(state.cards, "main"),
+    ...cardsInZone(state.cards, "sideboard"),
+  ]) {
+    if (card.keywords.includes(WellKnown.keyword.UNIQUE) && card.quantity > 1) {
+      violations.push({
+        zone: card.zone,
+        code: "UNIQUE_COPY_LIMIT",
+        message: `${card.cardName} has the [Unique] keyword — only 1 copy allowed`,
+        cardId: card.cardId,
+      });
+    }
+  }
+
+  return violations;
+};
+
 // Max 3 copies of any card in the sideboard.
 export const sideboardCopyLimit: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
@@ -481,6 +503,7 @@ export const CONSTRUCTED_RULES: DeckRule[] = [
   championCopyLimitAcrossZones,
   sideboardMaximum,
   sideboardCopyLimit,
+  uniqueCopyLimit,
   signatureTotalLimit,
   signatureMatchesLegendTag,
 ];

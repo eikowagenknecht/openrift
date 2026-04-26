@@ -16,6 +16,7 @@ import {
   runesMatchLegendDomains,
   sideboardCopyLimit,
   sideboardMaximum,
+  uniqueCopyLimit,
   validateDeck,
 } from "./deck-rules";
 
@@ -29,6 +30,7 @@ function makeCard(overrides: Partial<DeckCard> = {}): DeckCard {
     superTypes: [],
     domains: ["Fury"],
     tags: [],
+    keywords: [],
     ...overrides,
   };
 }
@@ -424,6 +426,66 @@ describe("sideboardCopyLimit", () => {
     );
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("SIDEBOARD_COPY_LIMIT");
+  });
+});
+
+// ── uniqueCopyLimit ─────────────────────────────────────────────────────────
+
+describe("uniqueCopyLimit", () => {
+  it("passes for non-Unique cards at 3 copies", () => {
+    expect(uniqueCopyLimit(makeState([makeCard({ quantity: 3 })]))).toEqual([]);
+  });
+
+  it("passes for a Unique card at 1 copy", () => {
+    expect(uniqueCopyLimit(makeState([makeCard({ quantity: 1, keywords: ["Unique"] })]))).toEqual(
+      [],
+    );
+  });
+
+  it("fails for a Unique card with 2 copies in main", () => {
+    const violations = uniqueCopyLimit(
+      makeState([
+        makeCard({ cardId: "uniq-1", cardName: "Lone Wolf", quantity: 2, keywords: ["Unique"] }),
+      ]),
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0].code).toBe("UNIQUE_COPY_LIMIT");
+    expect(violations[0].zone).toBe("main");
+    expect(violations[0].cardId).toBe("uniq-1");
+  });
+
+  it("fails for a Unique card with 2 copies in sideboard", () => {
+    const violations = uniqueCopyLimit(
+      makeState([
+        makeCard({
+          cardId: "uniq-2",
+          zone: "sideboard",
+          quantity: 2,
+          keywords: ["Unique"],
+        }),
+      ]),
+    );
+    expect(violations).toHaveLength(1);
+    expect(violations[0].code).toBe("UNIQUE_COPY_LIMIT");
+    expect(violations[0].zone).toBe("sideboard");
+  });
+
+  it("ignores Unique cards in non-main/sideboard zones", () => {
+    expect(
+      uniqueCopyLimit(
+        makeState([makeCard({ zone: "overflow", quantity: 2, keywords: ["Unique"] })]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("flags both main and sideboard copies independently", () => {
+    const violations = uniqueCopyLimit(
+      makeState([
+        makeCard({ cardId: "uniq", quantity: 2, keywords: ["Unique"] }),
+        makeCard({ cardId: "uniq", zone: "sideboard", quantity: 2, keywords: ["Unique"] }),
+      ]),
+    );
+    expect(violations).toHaveLength(2);
   });
 });
 

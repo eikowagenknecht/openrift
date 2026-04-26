@@ -353,6 +353,7 @@ export const decksRoute = decksApp
                 superTypes: card.superTypes as SuperType[],
                 domains: card.domains as Domain[],
                 tags: card.tags,
+                keywords: card.keywords,
               })),
             }).length === 0
           : true;

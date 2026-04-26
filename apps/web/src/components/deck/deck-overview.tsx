@@ -137,6 +137,7 @@ export function DeckOverview({
       superTypes: card.superTypes,
       domains: card.domains,
       tags: card.tags,
+      keywords: card.keywords,
     })),
   });
   const stats = useDeckStats(cards);
