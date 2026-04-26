@@ -19,7 +19,7 @@ function makeWrapper() {
       deckZones: [],
       languages: [],
     },
-    keywordStyles: {},
+    keywords: {},
   });
   function Wrapper({ children }: PropsWithChildren) {
     return <QueryClientProvider client={client}>{children}</QueryClientProvider>;

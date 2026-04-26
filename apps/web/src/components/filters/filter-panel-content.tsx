@@ -94,9 +94,16 @@ export function FilterBadgeSections({
   filterOverrides,
 }: FilterPanelContentProps) {
   const { labels } = useEnumOrders();
-  const { filterState } = useFilterValues();
+  const { filterState, view } = useFilterValues();
   const { toggleOwned, toggleArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
     useFilterActions();
+  const allowPlayset = view !== "printings";
+  const ownedLabel =
+    filterState.owned === "missing"
+      ? "Missing"
+      : filterState.owned === "playset"
+        ? "Playset"
+        : "Owned";
   const languageLabels = useLanguageLabels();
   // Use overrides when URL state is empty (zone presets that aren't in the URL)
   const selected = (key: keyof typeof filterState) => {
@@ -111,9 +118,9 @@ export function FilterBadgeSections({
           <Badge
             variant={filterState.owned === null ? "outline" : "default"}
             className="cursor-pointer"
-            onClick={toggleOwned}
+            onClick={() => toggleOwned(allowPlayset)}
           >
-            {filterState.owned === false ? "Missing" : "Owned"}
+            {ownedLabel}
           </Badge>
         </FilterSection>
       )}

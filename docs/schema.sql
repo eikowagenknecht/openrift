@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict xSAUG7hFbt2rr5roBtAhhRzwSZBscOnH3dqxYKLiKkMl6tjVGn3Jg16uhXDxG9z
+\restrict uoXbx4wJ8eyTr4bcPMdkFQbHRi7ul3wFAS4Xf5rxnOkh39FopDdJPQhvOLcKjjM
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -175,6 +175,30 @@ CREATE FUNCTION public.protect_well_known() RETURNS trigger
         END IF;
         IF OLD.is_well_known AND NOT NEW.is_well_known THEN
           RAISE EXCEPTION 'Cannot unmark well-known row "%"', OLD.slug;
+        END IF;
+      END IF;
+      RETURN COALESCE(NEW, OLD);
+    END;
+    $$;
+
+
+--
+-- Name: protect_well_known_keyword(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.protect_well_known_keyword() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+    BEGIN
+      IF TG_OP = 'DELETE' AND OLD.is_well_known THEN
+        RAISE EXCEPTION 'Cannot delete well-known keyword "%"', OLD.name;
+      END IF;
+      IF TG_OP = 'UPDATE' THEN
+        IF OLD.is_well_known AND NEW.name != OLD.name THEN
+          RAISE EXCEPTION 'Cannot rename well-known keyword "%"', OLD.name;
+        END IF;
+        IF OLD.is_well_known AND NOT NEW.is_well_known THEN
+          RAISE EXCEPTION 'Cannot unmark well-known keyword "%"', OLD.name;
         END IF;
       END IF;
       RETURN COALESCE(NEW, OLD);
@@ -830,21 +854,6 @@ CREATE TABLE public.job_runs (
 
 
 --
--- Name: keyword_styles; Type: TABLE; Schema: public; Owner: -
---
-
-CREATE TABLE public.keyword_styles (
-    name text NOT NULL,
-    color text NOT NULL,
-    dark_text boolean DEFAULT false NOT NULL,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    CONSTRAINT keyword_styles_color_check CHECK ((color ~ '^#[0-9a-fA-F]{6}$'::text)),
-    CONSTRAINT keyword_styles_name_check CHECK ((name <> ''::text))
-);
-
-
---
 -- Name: keyword_translations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -855,6 +864,22 @@ CREATE TABLE public.keyword_translations (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     CONSTRAINT chk_keyword_translations_label_not_empty CHECK ((label <> ''::text))
+);
+
+
+--
+-- Name: keywords; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.keywords (
+    name text CONSTRAINT keyword_styles_name_not_null NOT NULL,
+    color text CONSTRAINT keyword_styles_color_not_null NOT NULL,
+    dark_text boolean DEFAULT false CONSTRAINT keyword_styles_dark_text_not_null NOT NULL,
+    created_at timestamp with time zone DEFAULT now() CONSTRAINT keyword_styles_created_at_not_null NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() CONSTRAINT keyword_styles_updated_at_not_null NOT NULL,
+    is_well_known boolean DEFAULT false NOT NULL,
+    CONSTRAINT keywords_color_check CHECK ((color ~ '^#[0-9a-fA-F]{6}$'::text)),
+    CONSTRAINT keywords_name_check CHECK ((name <> ''::text))
 );
 
 
@@ -1722,11 +1747,11 @@ ALTER TABLE ONLY public.job_runs
 
 
 --
--- Name: keyword_styles keyword_styles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: keywords keywords_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY public.keyword_styles
-    ADD CONSTRAINT keyword_styles_pkey PRIMARY KEY (name);
+ALTER TABLE ONLY public.keywords
+    ADD CONSTRAINT keywords_pkey PRIMARY KEY (name);
 
 
 --
@@ -2507,10 +2532,10 @@ CREATE TRIGGER distribution_channels_validate BEFORE INSERT OR UPDATE ON public.
 
 
 --
--- Name: keyword_styles keyword_styles_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
+-- Name: keywords keywords_set_updated_at; Type: TRIGGER; Schema: public; Owner: -
 --
 
-CREATE TRIGGER keyword_styles_set_updated_at BEFORE UPDATE ON public.keyword_styles FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER keywords_set_updated_at BEFORE UPDATE ON public.keywords FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
 
 --
@@ -2602,6 +2627,13 @@ CREATE TRIGGER trg_domains_protect_well_known BEFORE DELETE OR UPDATE ON public.
 --
 
 CREATE TRIGGER trg_finishes_protect_well_known BEFORE DELETE OR UPDATE ON public.finishes FOR EACH ROW EXECUTE FUNCTION public.protect_well_known();
+
+
+--
+-- Name: keywords trg_keywords_protect_well_known; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_keywords_protect_well_known BEFORE DELETE OR UPDATE ON public.keywords FOR EACH ROW EXECUTE FUNCTION public.protect_well_known_keyword();
 
 
 --
@@ -3149,7 +3181,7 @@ ALTER TABLE ONLY public.wish_list_items
 --
 
 ALTER TABLE ONLY public.keyword_translations
-    ADD CONSTRAINT keyword_translations_keyword_name_fkey FOREIGN KEY (keyword_name) REFERENCES public.keyword_styles(name) ON UPDATE CASCADE ON DELETE CASCADE;
+    ADD CONSTRAINT keyword_translations_keyword_name_fkey FOREIGN KEY (keyword_name) REFERENCES public.keywords(name) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
@@ -3364,5 +3396,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict xSAUG7hFbt2rr5roBtAhhRzwSZBscOnH3dqxYKLiKkMl6tjVGn3Jg16uhXDxG9z
+\unrestrict uoXbx4wJ8eyTr4bcPMdkFQbHRi7ul3wFAS4Xf5rxnOkh39FopDdJPQhvOLcKjjM
 

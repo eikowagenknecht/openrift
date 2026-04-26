@@ -6,17 +6,24 @@ import type {
   SortCardsOptions,
   SortOption,
 } from "@openrift/shared";
-import { EMPTY_PRICE_LOOKUP, filterCards, getAvailableFilters, sortCards } from "@openrift/shared";
+import {
+  EMPTY_PRICE_LOOKUP,
+  filterCards,
+  getAvailableFilters,
+  getPlaysetSize,
+  sortCards,
+} from "@openrift/shared";
 
 import type { SetInfo } from "@/components/cards/card-grid";
 import { useEnumOrders } from "@/hooks/use-enums";
+import type { OwnedFilterState } from "@/lib/search-schemas";
 
 interface UseCardDataParams {
   allPrintings: Printing[];
   sets: SetInfo[];
   filters: CardFilters;
-  /** Tri-state ownership filter: true = owned only, false = missing only, null = all. */
-  isOwned?: boolean | null;
+  /** Owned filter state: "owned" | "missing" | "playset" | null (no filter). */
+  ownedFilter?: OwnedFilterState | null;
   sortBy: SortOption;
   sortDir: "asc" | "desc";
   view: "cards" | "printings";
@@ -116,7 +123,7 @@ export function useCardData({
   allPrintings,
   sets,
   filters,
-  isOwned,
+  ownedFilter,
   sortBy,
   sortDir,
   view,
@@ -158,23 +165,46 @@ export function useCardData({
   const availableFilters = getAvailableFilters(allPrintings, { orders, sets, getPrice });
   let filteredCards = filterCards(allPrintings, filters, { keywordReverseMap, getPrice });
 
-  // Apply ownership filter (frontend-only, needs user copy data)
-  if (isOwned !== null && isOwned !== undefined && ownedCountByPrinting) {
-    if (view === "printings") {
-      filteredCards = isOwned
-        ? filteredCards.filter((printing) => (ownedCountByPrinting[printing.id] ?? 0) > 0)
-        : filteredCards.filter((printing) => (ownedCountByPrinting[printing.id] ?? 0) === 0);
+  if (ownedFilter && ownedCountByPrinting) {
+    if (ownedFilter === "playset") {
+      // Playset is card-level: sum copies across all printings of each card,
+      // compare to per-card playset size (1 for Legends/Battlefields/Unique, 3 otherwise).
+      const ownedTotalByCard = new Map<string, number>();
+      const cardById = new Map<string, Printing["card"]>();
+      for (const printing of filteredCards) {
+        const count = ownedCountByPrinting[printing.id] ?? 0;
+        ownedTotalByCard.set(printing.cardId, (ownedTotalByCard.get(printing.cardId) ?? 0) + count);
+        if (!cardById.has(printing.cardId)) {
+          cardById.set(printing.cardId, printing.card);
+        }
+      }
+      const playsetCardIds = new Set<string>();
+      for (const [cardId, total] of ownedTotalByCard) {
+        const card = cardById.get(cardId);
+        if (!card) {
+          continue;
+        }
+        if (total >= getPlaysetSize(card.type, card.keywords)) {
+          playsetCardIds.add(cardId);
+        }
+      }
+      filteredCards = filteredCards.filter((printing) => playsetCardIds.has(printing.cardId));
+    } else if (view === "printings") {
+      filteredCards =
+        ownedFilter === "owned"
+          ? filteredCards.filter((printing) => (ownedCountByPrinting[printing.id] ?? 0) > 0)
+          : filteredCards.filter((printing) => (ownedCountByPrinting[printing.id] ?? 0) === 0);
     } else {
-      // Cards view: include if any printing of this card is owned
       const ownedCardIds = new Set<string>();
       for (const printing of filteredCards) {
         if ((ownedCountByPrinting[printing.id] ?? 0) > 0) {
           ownedCardIds.add(printing.cardId);
         }
       }
-      filteredCards = isOwned
-        ? filteredCards.filter((printing) => ownedCardIds.has(printing.cardId))
-        : filteredCards.filter((printing) => !ownedCardIds.has(printing.cardId));
+      filteredCards =
+        ownedFilter === "owned"
+          ? filteredCards.filter((printing) => ownedCardIds.has(printing.cardId))
+          : filteredCards.filter((printing) => !ownedCardIds.has(printing.cardId));
     }
   }
 

@@ -1,4 +1,4 @@
-import type { KeywordStyleEntry } from "./keyword-style.js";
+import type { KeywordEntry } from "./keyword.js";
 
 interface EnumRow {
   slug: string;
@@ -22,5 +22,5 @@ export interface InitResponse {
     deckZones: EnumRow[];
     languages: EnumRow[];
   };
-  keywordStyles: Record<string, KeywordStyleEntry>;
+  keywords: Record<string, KeywordEntry>;
 }

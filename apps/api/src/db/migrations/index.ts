@@ -61,6 +61,7 @@ import * as m112 from "./112-product-norm-name.js";
 import * as m113 from "./113-product-card-overrides.js";
 import * as m114 from "./114-drop-snapshots-and-staging.js";
 import * as m115 from "./115-token-super-type-well-known.js";
+import * as m116 from "./116-rename-keyword-styles-to-keywords.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -181,4 +182,5 @@ export const migrations: Record<string, Migration> = {
   "113-product-card-overrides": m113,
   "114-drop-snapshots-and-staging": m114,
   "115-token-super-type-well-known": m115,
+  "116-rename-keyword-styles-to-keywords": m116,
 };

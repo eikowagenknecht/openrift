@@ -14,7 +14,7 @@ import type {
 import { useRouter } from "@tanstack/react-router";
 
 import { trackEvent } from "@/lib/analytics";
-import type { FilterSearch } from "@/lib/search-schemas";
+import type { FilterSearch, OwnedFilterState } from "@/lib/search-schemas";
 import { useFilterSearch } from "@/lib/search-schemas";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSearchScopeStore } from "@/stores/search-scope-store";
@@ -91,7 +91,7 @@ export function useFilterValues() {
     domains: filterState.domains as Domain[],
     artVariants: filterState.artVariants as ArtVariant[],
     finishes: filterState.finishes as Finish[],
-    isOwned: filterState.owned ?? null,
+    ownedFilter: filterState.owned ?? null,
     isSigned: filterState.signed ?? null,
     hasAnyMarker: filterState.promo ?? null,
     markerSlugs: [],
@@ -260,10 +260,21 @@ export function useFilterActions() {
     } as Partial<FilterSearch>);
   };
 
-  const toggleOwned = () => {
+  const toggleOwned = (allowPlayset = true) => {
     trackEvent("filter-apply", { type: "owned" });
-    const next = filterState.owned === null ? true : filterState.owned === true ? false : undefined;
-    updateSearch({ owned: next });
+    const cycle: (OwnedFilterState | undefined)[] = allowPlayset
+      ? ["owned", "missing", "playset", undefined]
+      : ["owned", "missing", undefined];
+    void router.navigate({
+      to: ".",
+      search: (prev) => {
+        const currentIdx = cycle.indexOf((prev.owned as OwnedFilterState | undefined) ?? undefined);
+        const next = cycle[(currentIdx + 1) % cycle.length];
+        return Object.fromEntries(
+          Object.entries({ ...prev, owned: next }).filter(([, v]) => v !== undefined),
+        );
+      },
+    });
   };
   const clearOwned = () => updateSearch({ owned: undefined });
 

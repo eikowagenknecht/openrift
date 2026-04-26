@@ -1,4 +1,4 @@
-import type { KeywordStylesResponse } from "@openrift/shared";
+import type { KeywordsResponse } from "@openrift/shared";
 
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useKeywordStyles } from "@/hooks/use-keyword-styles";
@@ -126,7 +126,7 @@ export function CardText({ text, onKeywordClick, interactive = true }: CardTextP
 
 function renderTokens(
   tokens: CardTextToken[],
-  styles: KeywordStylesResponse["items"],
+  styles: KeywordsResponse["items"],
   onKeywordClick?: (keyword: string) => void,
   interactive = true,
   reverseMap?: Map<string, string>,

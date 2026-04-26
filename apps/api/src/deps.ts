@@ -24,7 +24,7 @@ import { healthRepo } from "./repositories/health.js";
 import { ignoredCandidatesRepo } from "./repositories/ignored-candidates.js";
 import { ingestRepo } from "./repositories/ingest.js";
 import { jobRunsRepo } from "./repositories/job-runs.js";
-import { keywordStylesRepo } from "./repositories/keyword-styles.js";
+import { keywordsRepo } from "./repositories/keywords.js";
 import { languagesRepo } from "./repositories/languages.js";
 import { markersRepo } from "./repositories/markers.js";
 import { marketplaceAdminRepo } from "./repositories/marketplace-admin.js";
@@ -75,7 +75,7 @@ export interface Repos {
   finishes: ReturnType<typeof finishesRepo>;
   userFeatureFlags: ReturnType<typeof userFeatureFlagsRepo>;
   health: ReturnType<typeof healthRepo>;
-  keywordStyles: ReturnType<typeof keywordStylesRepo>;
+  keywords: ReturnType<typeof keywordsRepo>;
   languages: ReturnType<typeof languagesRepo>;
   ignoredCandidates: ReturnType<typeof ignoredCandidatesRepo>;
   marketplace: ReturnType<typeof marketplaceRepo>;
@@ -136,7 +136,7 @@ export function createRepos(db: Kysely<Database>): Repos {
     finishes: finishesRepo(db),
     userFeatureFlags: userFeatureFlagsRepo(db),
     health: healthRepo(db),
-    keywordStyles: keywordStylesRepo(db),
+    keywords: keywordsRepo(db),
     languages: languagesRepo(db),
     ignoredCandidates: ignoredCandidatesRepo(db),
     marketplace: marketplaceRepo(db),

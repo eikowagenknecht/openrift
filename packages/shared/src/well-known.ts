@@ -19,6 +19,10 @@ export const WellKnown = {
     /** Champion icon detection for Unit cards. */
     UNIT: "Unit",
   },
+  keyword: {
+    /** Cards with this keyword cap at 1 copy in a deck (used by playset filter). */
+    UNIQUE: "Unique",
+  },
   domain: {
     /** No gradient, displays as "No Domain", wildcard in deck domain validation. */
     COLORLESS: "Colorless",

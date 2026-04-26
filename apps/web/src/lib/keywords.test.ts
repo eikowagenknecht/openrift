@@ -1,9 +1,9 @@
-import type { KeywordStylesResponse } from "@openrift/shared";
+import type { KeywordsResponse } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import { getKeywordStyle } from "./keywords";
 
-const MOCK_STYLES: KeywordStylesResponse["items"] = {
+const MOCK_STYLES: KeywordsResponse["items"] = {
   Accelerate: { color: "#24705f", darkText: false },
   Shield: { color: "#cd346f", darkText: false },
   Deathknell: { color: "#95b229", darkText: true },

@@ -1,14 +1,14 @@
-import type { KeywordStylesResponse } from "@openrift/shared";
+import type { KeywordsResponse } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { initQueryOptions } from "@/hooks/use-init";
 
 /**
- * Returns the keyword styles map from the init endpoint.
+ * Returns the keywords map from the init endpoint.
  *
- * @returns A record of keyword name to style entry.
+ * @returns A record of keyword name to keyword entry (color, darkText, translations).
  */
-export function useKeywordStyles(): KeywordStylesResponse["items"] {
+export function useKeywordStyles(): KeywordsResponse["items"] {
   const { data } = useSuspenseQuery(initQueryOptions);
-  return data.keywordStyles as KeywordStylesResponse["items"];
+  return data.keywords as KeywordsResponse["items"];
 }

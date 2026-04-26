@@ -179,7 +179,11 @@ export function ActiveFilters({
           <div className="flex items-center gap-1">
             <span className="text-muted-foreground text-xs">Owned:</span>
             <Badge variant="secondary" className="gap-1">
-              {filterState.owned === false ? "Missing" : "Owned"}
+              {filterState.owned === "missing"
+                ? "Missing"
+                : filterState.owned === "playset"
+                  ? "Playset"
+                  : "Owned"}
               <button type="button" onClick={clearOwned} className="hover:text-foreground ml-0.5">
                 <XIcon className="size-3" />
               </button>

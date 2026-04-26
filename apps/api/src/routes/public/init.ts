@@ -1,5 +1,5 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type { InitResponse, KeywordStyleEntry } from "@openrift/shared";
+import type { InitResponse, KeywordEntry } from "@openrift/shared";
 import { initResponseSchema } from "@openrift/shared/response-schemas";
 
 import type { Variables } from "../../types.js";
@@ -11,35 +11,33 @@ const getInit = createRoute({
   responses: {
     200: {
       content: { "application/json": { schema: initResponseSchema } },
-      description: "Bootstrap data: enums and keyword styles",
+      description: "Bootstrap data: enums and keywords",
     },
   },
 });
 
-/** Public: GET /init — returns enums + keyword styles in a single request. */
+/** Public: GET /init — returns enums + keywords in a single request. */
 export const initRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(getInit, async (c) => {
-  const { enums, keywordStyles } = c.get("repos");
-  const [enumData, styleRows, translations] = await Promise.all([
+  const { enums, keywords } = c.get("repos");
+  const [enumData, keywordRows, translations] = await Promise.all([
     enums.all(),
-    keywordStyles.listAll(),
-    keywordStyles.listAllTranslations(),
+    keywords.listAll(),
+    keywords.listAllTranslations(),
   ]);
 
-  const styles: Record<string, KeywordStyleEntry> = {};
-  for (const row of styleRows) {
-    styles[row.name] = { color: row.color, darkText: row.darkText };
+  const keywordsMap: Record<string, KeywordEntry> = {};
+  for (const row of keywordRows) {
+    keywordsMap[row.name] = { color: row.color, darkText: row.darkText };
   }
 
-  // Attach translations to their parent keyword style
   for (const translation of translations) {
-    const style = styles[translation.keywordName];
-    if (style) {
-      style.translations ??= {};
-      style.translations[translation.language] = translation.label;
+    const entry = keywordsMap[translation.keywordName];
+    if (entry) {
+      entry.translations ??= {};
+      entry.translations[translation.language] = translation.label;
     }
   }
 
-  // Strip isWellKnown from enum rows before sending
   const strippedEnums = Object.fromEntries(
     Object.entries(enumData).map(([key, rows]) => [
       key,
@@ -50,6 +48,6 @@ export const initRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(get
   c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
   return c.json({
     enums: strippedEnums,
-    keywordStyles: styles,
+    keywords: keywordsMap,
   } satisfies InitResponse);
 });

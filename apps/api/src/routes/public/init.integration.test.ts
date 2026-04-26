@@ -5,19 +5,18 @@ import { createUnauthenticatedTestContext, req } from "../../test/integration-co
 // ---------------------------------------------------------------------------
 // Integration tests: Init route
 //
-// GET /init — returns enums + keyword styles in a single response
+// GET /init — returns enums + keywords in a single response
 // Uses the shared integration database. Requires INTEGRATION_DB_URL.
 // Uses prefix INIT- for entities it creates.
 // ---------------------------------------------------------------------------
 
 const ctx = createUnauthenticatedTestContext();
 
-// Seed keyword styles so we have data to query
 if (ctx) {
   const { db } = ctx;
 
   await db
-    .insertInto("keywordStyles")
+    .insertInto("keywords")
     .values([
       { name: "INIT-Shield", color: "#4488ff", darkText: false },
       { name: "INIT-Burn", color: "#ff4400", darkText: true },
@@ -29,20 +28,20 @@ afterAll(async () => {
   if (!ctx) {
     return;
   }
-  await ctx.db.deleteFrom("keywordStyles").where("name", "like", "INIT-%").execute();
+  await ctx.db.deleteFrom("keywords").where("name", "like", "INIT-%").execute();
 });
 
 describe.skipIf(!ctx)("Init route (integration)", () => {
   // oxlint-disable-next-line typescript/no-non-null-assertion -- guarded by skipIf
   const { app } = ctx!;
 
-  it("returns 200 with enums and keywordStyles", async () => {
+  it("returns 200 with enums and keywords", async () => {
     const res = await app.fetch(req("GET", "/init"));
     expect(res.status).toBe(200);
 
     const json = await res.json();
     expect(json.enums).toBeDefined();
-    expect(json.keywordStyles).toBeDefined();
+    expect(json.keywords).toBeDefined();
   });
 
   it("contains enum arrays", async () => {
@@ -54,12 +53,12 @@ describe.skipIf(!ctx)("Init route (integration)", () => {
     expect(Array.isArray(json.enums.domains)).toBe(true);
   });
 
-  it("contains seeded keyword styles", async () => {
+  it("contains seeded keywords", async () => {
     const res = await app.fetch(req("GET", "/init"));
     const json = await res.json();
 
-    expect(json.keywordStyles["INIT-Shield"]).toEqual({ color: "#4488ff", darkText: false });
-    expect(json.keywordStyles["INIT-Burn"]).toEqual({ color: "#ff4400", darkText: true });
+    expect(json.keywords["INIT-Shield"]).toEqual({ color: "#4488ff", darkText: false });
+    expect(json.keywords["INIT-Burn"]).toEqual({ color: "#ff4400", darkText: true });
   });
 
   it("sets Cache-Control with public caching", async () => {

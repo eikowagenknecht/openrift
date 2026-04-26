@@ -4,17 +4,18 @@ import type { Kysely } from "kysely";
 import type { Database } from "../db/index.js";
 
 /**
- * Reference table name for each WellKnown category.
- * Used to look up slugs and produce clear error messages.
+ * Reference table info for each WellKnown category.
+ * `pk` is the primary-key column; most reference tables use `slug`, but `keywords` uses `name`.
  */
-const TABLE_MAP: Record<string, keyof Database> = {
-  cardType: "cardTypes",
-  domain: "domains",
-  superType: "superTypes",
-  finish: "finishes",
-  artVariant: "artVariants",
-  deckFormat: "deckFormats",
-  deckZone: "deckZones",
+const TABLE_MAP: Record<string, { table: keyof Database; pk: string }> = {
+  cardType: { table: "cardTypes", pk: "slug" },
+  domain: { table: "domains", pk: "slug" },
+  superType: { table: "superTypes", pk: "slug" },
+  finish: { table: "finishes", pk: "slug" },
+  artVariant: { table: "artVariants", pk: "slug" },
+  deckFormat: { table: "deckFormats", pk: "slug" },
+  deckZone: { table: "deckZones", pk: "slug" },
+  keyword: { table: "keywords", pk: "name" },
 };
 
 /**
@@ -27,20 +28,21 @@ export async function validateWellKnownSlugs(db: Kysely<Database>): Promise<void
   const errors: string[] = [];
 
   for (const [category, slugs] of Object.entries(WellKnown)) {
-    const table = TABLE_MAP[category];
-    if (!table) {
+    const entry = TABLE_MAP[category];
+    if (!entry) {
       continue;
     }
 
+    const { table, pk } = entry;
     const expectedSlugs = Object.values(slugs) as string[];
 
     const rows = (await db
       .selectFrom(table as any)
-      .select(["slug" as any, "isWellKnown" as any])
-      .where("slug" as any, "in", expectedSlugs)
-      .execute()) as { slug: string; isWellKnown: boolean }[];
+      .select([pk as any, "isWellKnown" as any])
+      .where(pk as any, "in", expectedSlugs)
+      .execute()) as { isWellKnown: boolean; [key: string]: unknown }[];
 
-    const found = new Map(rows.map((row) => [row.slug, row.isWellKnown]));
+    const found = new Map(rows.map((row) => [row[pk] as string, row.isWellKnown]));
 
     for (const [name, slug] of Object.entries(slugs)) {
       if (!found.has(slug)) {

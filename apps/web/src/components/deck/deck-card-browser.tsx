@@ -216,7 +216,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     allPrintings,
     sets,
     filters,
-    isOwned: filters.isOwned,
+    ownedFilter: filters.ownedFilter,
     sortBy,
     sortDir,
     view,

@@ -143,7 +143,7 @@ const PARALLEL_FILES = [
   "src/repositories/health.integration.test.ts",
   "src/repositories/catalog.integration.test.ts",
   "src/repositories/sets.integration.test.ts",
-  "src/repositories/keyword-styles.integration.test.ts",
+  "src/repositories/keywords.integration.test.ts",
   // Route integration tests — public + authenticated coverage
   "src/routes/public/health.integration.test.ts",
   "src/routes/public/init.integration.test.ts",

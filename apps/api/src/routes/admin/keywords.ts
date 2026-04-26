@@ -45,7 +45,7 @@ const getKeywordStats = createRoute({
 
 const updateKeywordStyle = createRoute({
   method: "put",
-  path: "/keyword-styles/{name}",
+  path: "/keywords/{name}",
   tags: ["Admin - Keywords"],
   request: {
     params: z.object({ name: z.string() }),
@@ -65,7 +65,7 @@ const updateKeywordStyle = createRoute({
 
 const createKeywordStyle = createRoute({
   method: "post",
-  path: "/keyword-styles",
+  path: "/keywords",
   tags: ["Admin - Keywords"],
   request: {
     body: {
@@ -85,7 +85,7 @@ const createKeywordStyle = createRoute({
 
 const deleteKeywordStyle = createRoute({
   method: "delete",
-  path: "/keyword-styles/{name}",
+  path: "/keywords/{name}",
   tags: ["Admin - Keywords"],
   request: { params: z.object({ name: z.string() }) },
   responses: { 204: { description: "Style deleted" } },
@@ -175,11 +175,11 @@ const deleteTranslation = createRoute({
 export const adminKeywordsRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   .openapi(getKeywordStats, async (c) => {
-    const { keywordStyles } = c.get("repos");
+    const { keywords } = c.get("repos");
     const [counts, allStyles, translations] = await Promise.all([
-      keywordStyles.getKeywordCounts(),
-      keywordStyles.listAll(),
-      keywordStyles.listAllTranslations(),
+      keywords.getKeywordCounts(),
+      keywords.listAll(),
+      keywords.listAllTranslations(),
     ]);
     const styles = allStyles.map((s) => ({ name: s.name, color: s.color, darkText: s.darkText }));
     return c.json({ counts, styles, translations });
@@ -188,19 +188,19 @@ export const adminKeywordsRoute = new OpenAPIHono<{ Variables: Variables }>()
   .openapi(updateKeywordStyle, async (c) => {
     const { name } = c.req.valid("param");
     const { color, darkText } = c.req.valid("json");
-    await c.get("repos").keywordStyles.upsertStyle({ name, color, darkText });
+    await c.get("repos").keywords.upsertStyle({ name, color, darkText });
     return c.body(null, 204);
   })
 
   .openapi(createKeywordStyle, async (c) => {
     const body = c.req.valid("json");
-    await c.get("repos").keywordStyles.createStyle(body);
+    await c.get("repos").keywords.createStyle(body);
     return c.body(null, 204);
   })
 
   .openapi(deleteKeywordStyle, async (c) => {
     const { name } = c.req.valid("param");
-    await c.get("repos").keywordStyles.deleteStyle(name);
+    await c.get("repos").keywords.deleteStyle(name);
     return c.body(null, 204);
   })
 
@@ -219,12 +219,12 @@ export const adminKeywordsRoute = new OpenAPIHono<{ Variables: Variables }>()
   .openapi(upsertTranslation, async (c) => {
     const { keywordName, language } = c.req.valid("param");
     const { label } = c.req.valid("json");
-    await c.get("repos").keywordStyles.upsertTranslation({ keywordName, language, label });
+    await c.get("repos").keywords.upsertTranslation({ keywordName, language, label });
     return c.body(null, 204);
   })
 
   .openapi(deleteTranslation, async (c) => {
     const { keywordName, language } = c.req.valid("param");
-    await c.get("repos").keywordStyles.deleteTranslation(keywordName, language);
+    await c.get("repos").keywords.deleteTranslation(keywordName, language);
     return c.body(null, 204);
   });

@@ -646,14 +646,15 @@ export interface ProviderSettingsTable {
   updatedAt: UpdatedAt;
 }
 
-// ─── Keyword styles (migration 043) ──────────────────────────────────────────
+// ─── Keywords (migration 043, renamed in 116) ────────────────────────────────
 
-export interface KeywordStylesTable {
+export interface KeywordsTable {
   /** PK — canonical keyword name */
   name: string;
   /** CHECK: matches ^#[0-9a-fA-F]{6}$ */
   color: string;
   darkText: boolean;
+  isWellKnown: boolean;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }
@@ -661,7 +662,7 @@ export interface KeywordStylesTable {
 // ─── Keyword translations (migration 071) ───────────────────────────────────
 
 export interface KeywordTranslationsTable {
-  /** FK → keyword_styles(name) ON UPDATE CASCADE */
+  /** FK → keywords(name) ON UPDATE CASCADE */
   keywordName: string;
   /** FK → languages(code) ON UPDATE CASCADE */
   language: string;
@@ -922,8 +923,8 @@ export interface Database {
   // User feature flag overrides (migration 057)
   userFeatureFlags: UserFeatureFlagsTable;
 
-  // Keyword styles (migration 043)
-  keywordStyles: KeywordStylesTable;
+  // Keywords (migration 043, renamed in 116)
+  keywords: KeywordsTable;
 
   // Keyword translations (migration 071)
   keywordTranslations: KeywordTranslationsTable;

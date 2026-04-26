@@ -79,8 +79,8 @@ export type {
   IgnoredProductResponse,
   LanguageResponse,
   InitResponse,
-  KeywordStyleEntry,
-  KeywordStylesResponse,
+  KeywordEntry,
+  KeywordsResponse,
   MappingPrintingResponse,
   Marketplace,
   MarketplaceAssignmentResponse,
@@ -200,6 +200,9 @@ export {
 } from "./utils.js";
 
 export { extractBracketedTerms, extractKeywords } from "./keywords.js";
+
+export type { PlaysetSize } from "./playset.js";
+export { getPlaysetSize } from "./playset.js";
 
 export type { SourceSlot } from "./zone-inference.js";
 export { inferZone } from "./zone-inference.js";

@@ -354,6 +354,38 @@ describe("useCardFilters", () => {
     expect(source).not.toMatch(/\[`\$\{[^`]+}[^`]*`]\s*:/);
   });
 
+  it("toggleOwned cycles owned → missing → playset → cleared", () => {
+    mockSearch = {};
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.toggleOwned());
+    expect(lastNavigateSearch()).toMatchObject({ owned: "owned" });
+
+    mockSearch = { owned: "owned" };
+    mockNavigate.mockClear();
+    act(() => result.current.toggleOwned());
+    expect(lastNavigateSearch()).toMatchObject({ owned: "missing" });
+
+    mockSearch = { owned: "missing" };
+    mockNavigate.mockClear();
+    act(() => result.current.toggleOwned());
+    expect(lastNavigateSearch()).toMatchObject({ owned: "playset" });
+
+    mockSearch = { owned: "playset" };
+    mockNavigate.mockClear();
+    act(() => result.current.toggleOwned());
+    // undefined entries are stripped from the navigate call
+    expect(lastNavigateSearch().owned).toBeUndefined();
+  });
+
+  it("toggleOwned skips playset when allowPlayset=false", () => {
+    mockSearch = { owned: "missing" };
+    const { result } = renderHook(() => useCardFilters(), { wrapper });
+
+    act(() => result.current.toggleOwned(false));
+    expect(lastNavigateSearch().owned).toBeUndefined();
+  });
+
   it("toggleArrayFilter reads latest router state for sequential calls", () => {
     mockSearch = {};
     const { result } = renderHook(() => useCardFilters(), { wrapper });

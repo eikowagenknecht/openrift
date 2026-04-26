@@ -1,6 +1,6 @@
 import { extractBracketedTerms } from "@openrift/shared";
 
-import type { keywordStylesRepo } from "../repositories/keyword-styles.js";
+import type { keywordsRepo } from "../repositories/keywords.js";
 
 interface DiscoveryResult {
   /** Number of card-language pairs examined. */
@@ -26,14 +26,14 @@ interface DiscoveryResult {
  * @returns Discovery results including inserted count and any conflicts.
  */
 export async function discoverKeywordTranslations(repos: {
-  keywordStyles: ReturnType<typeof keywordStylesRepo>;
+  keywords: ReturnType<typeof keywordsRepo>;
 }): Promise<DiscoveryResult> {
-  const [candidates, existingStyles] = await Promise.all([
-    repos.keywordStyles.getTranslationCandidates(),
-    repos.keywordStyles.listAll(),
+  const [candidates, existingKeywords] = await Promise.all([
+    repos.keywords.getTranslationCandidates(),
+    repos.keywords.listAll(),
   ]);
 
-  const knownKeywords = new Set(existingStyles.map((s) => s.name));
+  const knownKeywords = new Set(existingKeywords.map((k) => k.name));
 
   // Aggregate: (enKeyword, language) → Map<translatedLabel, count>
   const pairCounts = new Map<string, Map<string, number>>();
@@ -105,8 +105,7 @@ export async function discoverKeywordTranslations(repos: {
     discovered.push({ keyword, language, label: confidentLabels[0][0] });
   }
 
-  // Bulk insert, skipping existing rows (preserves manual corrections)
-  const inserted = await repos.keywordStyles.bulkInsertTranslations(
+  const inserted = await repos.keywords.bulkInsertTranslations(
     discovered.map((d) => ({
       keywordName: d.keyword,
       language: d.language,

@@ -108,9 +108,9 @@ export const featureFlagsResponseSchema = z
   })
   .openapi("FeatureFlagsResponse");
 
-// ── Keyword Styles ───────────────────────────────────────────────────────────
+// ── Keywords ─────────────────────────────────────────────────────────────────
 
-const keywordStyleEntrySchema = z.object({
+const keywordEntrySchema = z.object({
   color: z.string().openapi({ example: "#24705f" }),
   darkText: z.boolean().openapi({ example: false }),
   translations: z
@@ -144,7 +144,7 @@ export const initResponseSchema = z
       deckZones: z.array(enumRowSchema),
       languages: z.array(enumRowSchema),
     }),
-    keywordStyles: z.record(z.string(), keywordStyleEntrySchema),
+    keywords: z.record(z.string(), keywordEntrySchema),
   })
   .openapi("InitResponse");
 

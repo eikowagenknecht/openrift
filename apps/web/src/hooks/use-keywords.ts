@@ -54,7 +54,7 @@ const updateKeywordStyleFn = createServerFn({ method: "POST" })
     await fetchApi({
       errorTitle: "Couldn't update keyword style",
       cookie: context.cookie,
-      path: `/api/v1/admin/keyword-styles/${encodeURIComponent(data.name)}`,
+      path: `/api/v1/admin/keywords/${encodeURIComponent(data.name)}`,
       method: "PUT",
       body: { color: data.color, darkText: data.darkText },
     });
@@ -79,7 +79,7 @@ const createKeywordStyleFn = createServerFn({ method: "POST" })
     await fetchApi({
       errorTitle: "Couldn't create keyword style",
       cookie: context.cookie,
-      path: "/api/v1/admin/keyword-styles",
+      path: "/api/v1/admin/keywords",
       method: "POST",
       body: data,
     });
@@ -104,7 +104,7 @@ const deleteKeywordStyleFn = createServerFn({ method: "POST" })
     await fetchApi({
       errorTitle: "Couldn't delete keyword style",
       cookie: context.cookie,
-      path: `/api/v1/admin/keyword-styles/${encodeURIComponent(data.name)}`,
+      path: `/api/v1/admin/keywords/${encodeURIComponent(data.name)}`,
       method: "DELETE",
     });
   });

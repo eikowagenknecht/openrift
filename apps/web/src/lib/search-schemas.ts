@@ -9,6 +9,9 @@ const stringField = () => z.string().optional().catch(undefined);
 const numberField = () => z.number().optional().catch(undefined);
 const stringArray = () => z.array(z.string()).optional().catch(undefined);
 const boolFlag = () => z.boolean().optional().catch(undefined);
+const ownedFilter = () => z.enum(["owned", "missing", "playset"]).optional().catch(undefined);
+
+export type OwnedFilterState = "owned" | "missing" | "playset";
 
 /**
  * Search param schema for routes that use the card filter system.
@@ -33,7 +36,7 @@ export const filterSearchSchema = z.object({
   powerMax: numberField(),
   priceMin: numberField(),
   priceMax: numberField(),
-  owned: boolFlag(),
+  owned: ownedFilter(),
   signed: boolFlag(),
   promo: boolFlag(),
   banned: boolFlag(),

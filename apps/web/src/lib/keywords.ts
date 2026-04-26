@@ -1,4 +1,4 @@
-import type { KeywordStylesResponse } from "@openrift/shared";
+import type { KeywordsResponse } from "@openrift/shared";
 
 const FALLBACK_COLOR = "#6a6a6a";
 
@@ -8,9 +8,7 @@ const FALLBACK_COLOR = "#6a6a6a";
  *
  * @returns Map from translated label (lowercased) to canonical keyword name.
  */
-export function buildTranslationReverseMap(
-  styles: KeywordStylesResponse["items"],
-): Map<string, string> {
+export function buildTranslationReverseMap(styles: KeywordsResponse["items"]): Map<string, string> {
   const map = new Map<string, string>();
   for (const [canonical, entry] of Object.entries(styles)) {
     if (entry.translations) {
@@ -34,7 +32,7 @@ function resolveKeywordCanonical(keyword: string, reverseMap: Map<string, string
 
 export function getKeywordStyle(
   keyword: string,
-  styles: KeywordStylesResponse["items"],
+  styles: KeywordsResponse["items"],
   reverseMap?: Map<string, string>,
 ): { bg: string; dark: boolean } {
   // Strip trailing numbers (e.g. "Shield 2" → "Shield")

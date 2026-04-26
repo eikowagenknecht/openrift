@@ -1,7 +1,7 @@
 import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
-import type { Database, KeywordStylesTable } from "../db/index.js";
+import type { Database, KeywordsTable } from "../db/index.js";
 
 interface KeywordTranslationRow {
   keywordName: string;
@@ -10,15 +10,16 @@ interface KeywordTranslationRow {
 }
 
 /**
- * Queries for keyword styles and translations.
+ * Queries for keywords (canonical names with display styles) and their
+ * per-language translations.
  *
- * @returns An object with keyword style query methods bound to the given `db`.
+ * @returns An object with keyword query methods bound to the given `db`.
  */
-export function keywordStylesRepo(db: Kysely<Database>) {
+export function keywordsRepo(db: Kysely<Database>) {
   return {
-    /** @returns All keyword styles. */
-    listAll(): Promise<Selectable<KeywordStylesTable>[]> {
-      return db.selectFrom("keywordStyles").selectAll().orderBy("name").execute();
+    /** @returns All keywords. */
+    listAll(): Promise<Selectable<KeywordsTable>[]> {
+      return db.selectFrom("keywords").selectAll().orderBy("name").execute();
     },
 
     /** @returns All keyword translations. */
@@ -45,11 +46,11 @@ export function keywordStylesRepo(db: Kysely<Database>) {
       return rows.rows.map((row) => ({ keyword: row.keyword, count: Number(row.count) }));
     },
 
-    /** Insert or update a keyword style. */
+    /** Insert or update a keyword. */
     async upsertStyle(values: { name: string; color: string; darkText: boolean }): Promise<void> {
       await db
-        .insertInto("keywordStyles")
-        .values(values)
+        .insertInto("keywords")
+        .values({ ...values, isWellKnown: false })
         .onConflict((oc) =>
           oc.column("name").doUpdateSet((eb) => ({
             color: eb.ref("excluded.color"),
@@ -59,14 +60,17 @@ export function keywordStylesRepo(db: Kysely<Database>) {
         .execute();
     },
 
-    /** Insert a new keyword style. */
+    /** Insert a new keyword. */
     async createStyle(values: { name: string; color: string; darkText: boolean }): Promise<void> {
-      await db.insertInto("keywordStyles").values(values).execute();
+      await db
+        .insertInto("keywords")
+        .values({ ...values, isWellKnown: false })
+        .execute();
     },
 
-    /** Delete a keyword style by name. */
+    /** Delete a keyword by name. */
     async deleteStyle(name: string): Promise<void> {
-      await db.deleteFrom("keywordStyles").where("name", "=", name).execute();
+      await db.deleteFrom("keywords").where("name", "=", name).execute();
     },
 
     /** Upsert a single keyword translation. */

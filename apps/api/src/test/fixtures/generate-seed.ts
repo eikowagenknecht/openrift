@@ -301,9 +301,9 @@ const deckZones = await sql<Record<string, unknown>[]>`
   FROM deck_zones ORDER BY sort_order
 `;
 
-const keywordStyles = await sql<Record<string, unknown>[]>`
-  SELECT name, color, dark_text
-  FROM keyword_styles ORDER BY name
+const keywords = await sql<Record<string, unknown>[]>`
+  SELECT name, color, dark_text, is_well_known
+  FROM keywords ORDER BY name
 `;
 
 const keywordTranslations = await sql<Record<string, unknown>[]>`
@@ -474,7 +474,7 @@ const seedSql = [
   toUpsert("formats", formats, ["id"]),
   toUpsert("deck_formats", deckFormats, ["slug"]),
   toUpsert("deck_zones", deckZones, ["slug"]),
-  toUpsert("keyword_styles", keywordStyles, ["name"]),
+  toUpsert("keywords", keywords, ["name"]),
   toUpsert("keyword_translations", keywordTranslations, ["keyword_name", "language"]),
   "",
   "-- Sets and cards",
@@ -519,7 +519,7 @@ console.log(
     `Wrote seed.sql:`,
     `  Reference: ${domains.length} domains, ${rarities.length} rarities, ${cardTypes.length} card types, ${superTypes.length} super types,`,
     `    ${finishes.length} finishes, ${artVariants.length} art variants, ${languages.length} languages, ${formats.length} formats,`,
-    `    ${deckFormats.length} deck formats, ${deckZones.length} deck zones, ${keywordStyles.length} keyword styles, ${keywordTranslations.length} keyword translations`,
+    `    ${deckFormats.length} deck formats, ${deckZones.length} deck zones, ${keywords.length} keywords, ${keywordTranslations.length} keyword translations`,
     `  Catalog: ${sets.length} sets, ${cards.length} cards, ${cardSuperTypes.length} card super types, ${cardDomains.length} card domains,`,
     `    ${cardNameAliases.length} aliases, ${syntheticCardErrata.length} errata (synthetic), ${distributionChannels.length} distribution channels`,
     `  Printings: ${printings.length} printings, ${imageFiles.length} image files, ${printingImages.length} printing images, ${printingMarkers.length} marker links, ${printingDistributionChannels.length} channel links`,

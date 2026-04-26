@@ -11,7 +11,7 @@ export { PREFERENCE_DEFAULTS } from "./preferences.js";
 
 export type { InitResponse } from "./init.js";
 
-export type { KeywordStyleEntry, KeywordStylesResponse } from "./keyword-style.js";
+export type { KeywordEntry, KeywordsResponse } from "./keyword.js";
 
 export type {
   CardDetailResponse,

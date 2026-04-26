@@ -22,7 +22,7 @@ describe("createRepos", () => {
       "decks",
       "featureFlags",
       "health",
-      "keywordStyles",
+      "keywords",
       "ignoredCandidates",
       "marketplace",
       "marketplaceAdmin",
