@@ -150,42 +150,54 @@ export function breadcrumbJsonLd(siteUrl: string, items: BreadcrumbItem[]) {
   };
 }
 
+interface MarketplaceOffer {
+  /** Display name of the third-party seller (e.g. "TCGplayer"). */
+  seller: string;
+  /** ISO 4217 currency code matching the marketplace's prices. */
+  currency: string;
+  /** Lowest market price across all printings on this marketplace. */
+  priceLow: number;
+  /** Highest market price across all printings on this marketplace. */
+  priceHigh: number;
+}
+
 interface ProductJsonLdOptions {
   siteUrl: string;
   name: string;
   description: string;
   image?: string;
   url: string;
-  /** Lowest market price in USD across all printings. */
-  priceLow?: number;
-  /** Highest market price in USD across all printings. */
-  priceHigh?: number;
+  /** Per-marketplace price ranges. Each becomes an Offer or AggregateOffer attributed to its seller. */
+  marketplaceOffers?: MarketplaceOffer[];
 }
 
 /**
- * Schema.org Product JSON-LD for card detail pages. Enables price/availability
- * rich results in Google.
+ * Schema.org Product JSON-LD for card detail pages. Enables price rich results
+ * in Google search. Each marketplace becomes a separately-attributed Offer so
+ * the markup correctly identifies third-party sellers (OpenRift is not the
+ * point of sale). Availability is intentionally omitted — we don't verify
+ * real-time inventory on the affiliate target.
  *
  * @returns A script descriptor for TanStack Start's `head.scripts`.
  */
 export function productJsonLd(options: ProductJsonLdOptions) {
-  const offer =
-    options.priceLow === undefined
-      ? undefined
-      : options.priceLow === options.priceHigh || options.priceHigh === undefined
-        ? {
-            "@type": "Offer",
-            priceCurrency: "USD",
-            price: options.priceLow,
-            availability: "https://schema.org/InStock",
-          }
-        : {
-            "@type": "AggregateOffer",
-            priceCurrency: "USD",
-            lowPrice: options.priceLow,
-            highPrice: options.priceHigh,
-            availability: "https://schema.org/InStock",
-          };
+  const offers = (options.marketplaceOffers ?? []).map((entry) => {
+    const sellerNode = { "@type": "Organization", name: entry.seller };
+    return entry.priceLow === entry.priceHigh
+      ? {
+          "@type": "Offer",
+          priceCurrency: entry.currency,
+          price: entry.priceLow,
+          seller: sellerNode,
+        }
+      : {
+          "@type": "AggregateOffer",
+          priceCurrency: entry.currency,
+          lowPrice: entry.priceLow,
+          highPrice: entry.priceHigh,
+          seller: sellerNode,
+        };
+  });
 
   return {
     type: "application/ld+json",
@@ -197,7 +209,7 @@ export function productJsonLd(options: ProductJsonLdOptions) {
       image: options.image,
       url: `${options.siteUrl}${options.url}`,
       brand: { "@type": "Brand", name: "Riftbound" },
-      ...(offer ? { offers: offer } : {}),
+      ...(offers.length > 0 ? { offers } : {}),
     }),
   };
 }

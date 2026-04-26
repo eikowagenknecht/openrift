@@ -1,4 +1,4 @@
-import type { CardDetailResponse } from "@openrift/shared";
+import type { CardDetailResponse, Marketplace } from "@openrift/shared";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
@@ -36,6 +36,12 @@ interface CardDetailLoaderData {
   languageOrder: readonly string[];
 }
 
+const MARKETPLACE_OFFER_CONFIG: { key: Marketplace; seller: string; currency: string }[] = [
+  { key: "tcgplayer", seller: "TCGplayer", currency: "USD" },
+  { key: "cardmarket", seller: "Cardmarket", currency: "EUR" },
+  { key: "cardtrader", seller: "CardTrader", currency: "EUR" },
+];
+
 export const Route = createFileRoute("/_app/cards_/$cardSlug")({
   validateSearch: cardDetailSearchSchema,
   loaderDeps: ({ search }) => ({ printingId: search.printingId }),
@@ -69,12 +75,17 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
 
     // Schema.org Product/Offer JSON-LD reads from the response's `prices` sibling
     // (not from each printing) so the data is available synchronously at SSR time
-    // for crawlers that don't execute JS.
-    const tcgPrices = data.printings
-      .map((p) => data.prices[p.id]?.tcgplayer)
-      .filter((p): p is number => p !== undefined && p > 0);
-    const priceLow = tcgPrices.length > 0 ? Math.min(...tcgPrices) : undefined;
-    const priceHigh = tcgPrices.length > 0 ? Math.max(...tcgPrices) : undefined;
+    // for crawlers that don't execute JS. Each marketplace becomes its own offer
+    // so the markup correctly attributes the listing to the third-party seller.
+    const marketplaceOffers = MARKETPLACE_OFFER_CONFIG.flatMap(({ key, seller, currency }) => {
+      const prices = data.printings
+        .map((p) => data.prices[p.id]?.[key])
+        .filter((price): price is number => price !== undefined && price > 0);
+      if (prices.length === 0) {
+        return [];
+      }
+      return [{ seller, currency, priceLow: Math.min(...prices), priceHigh: Math.max(...prices) }];
+    });
 
     return {
       ...head,
@@ -85,8 +96,7 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
           description: `${data.card.name} is a ${data.card.type} card from Riftbound.`,
           image: imageUrl,
           url: cardPath,
-          priceLow,
-          priceHigh,
+          marketplaceOffers,
         }),
         breadcrumbJsonLd(siteUrl, [
           { name: "Cards", path: "/cards" },
