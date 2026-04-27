@@ -54,6 +54,7 @@ export function LandingPage() {
             <img
               src="/logo.webp"
               alt=""
+              fetchPriority="high"
               className={cn("size-36", spinning && "animate-logo-spin")}
             />
           </button>
