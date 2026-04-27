@@ -12,6 +12,9 @@ import type { Database } from "./types.js";
 export function createDb(connectionString: string) {
   const dialect = new PostgresJSDialect({
     postgres: postgres(connectionString, {
+      // Single API instance; Postgres max_connections defaults to 100.
+      // Explicit so a postgres.js default change can't shift pool size silently.
+      max: 20,
       types: {
         // Override only `date` (OID 1082) so Postgres returns "2024-01-15"
         // strings instead of Date objects. Timestamps (1114, 1184) are left

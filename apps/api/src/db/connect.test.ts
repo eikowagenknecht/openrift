@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 // Capture the options passed to postgres() so we can test the date type overrides
-// oxlint-disable-next-line typescript/ban-types, typescript/no-unsafe-function-type -- test: capturing arbitrary function refs
-let capturedOptions: { types?: { date?: { serialize: Function; parse: Function } } } | undefined;
+type FnRef = (...args: unknown[]) => unknown;
+let capturedOptions:
+  | { max?: number; types?: { date?: { serialize: FnRef; parse: FnRef } } }
+  | undefined;
 vi.mock("postgres", () => ({
   default: (_url: string, opts?: typeof capturedOptions) => {
     capturedOptions = opts;
@@ -18,6 +20,13 @@ describe("createDb", () => {
     const { db, dialect } = createDb("postgres://localhost/test");
     expect(db).toBeDefined();
     expect(dialect).toBeDefined();
+  });
+});
+
+describe("connection pool", () => {
+  it("sets an explicit max pool size", () => {
+    createDb("postgres://localhost/test");
+    expect(capturedOptions?.max).toBe(20);
   });
 });
 
