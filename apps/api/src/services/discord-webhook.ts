@@ -286,11 +286,19 @@ export function buildChangedPrintingPayloads(
       }
     }
 
-    const fields = [...fieldMap.entries()].map(([field, { from, to }]) => ({
-      name: humanizePrintingField(field),
-      value: formatChange(from, to),
-      inline: false,
-    }));
+    // Drop fields whose value flipped back to where it started — the user
+    // toggled and reverted, the net change is nothing.
+    const fields = [...fieldMap.entries()]
+      .filter(([, { from, to }]) => !valuesEqual(from, to))
+      .map(([field, { from, to }]) => ({
+        name: humanizePrintingField(field),
+        value: formatChange(from, to),
+        inline: false,
+      }));
+
+    if (fields.length === 0) {
+      continue;
+    }
 
     const titleParts = [first.cardName ?? "Unknown Card"];
     if (first.shortCode) {
@@ -310,6 +318,23 @@ export function buildChangedPrintingPayloads(
   }
 
   return chunkEmbeds(embeds);
+}
+
+// Deep equality for the JSON-shaped values that show up in FieldChange
+// (string, number, boolean, null, or arrays of those). Order matters for
+// arrays — markerSlugs ["a","b"] is treated as different from ["b","a"]
+// since the recording side already sorts them when comparing.
+function valuesEqual(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) {
+      return false;
+    }
+    return a.every((value, index) => valuesEqual(value, b[index]));
+  }
+  return false;
 }
 
 function formatValue(value: unknown): string {

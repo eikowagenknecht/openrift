@@ -245,6 +245,64 @@ describe("buildChangedPrintingPayloads", () => {
     expect(fields[0].value).toContain("promo, alt-art");
   });
 
+  it("drops fields whose net change is zero (toggled then reverted)", () => {
+    const events = [
+      makeEvent({
+        id: "evt-1",
+        eventType: "changed",
+        changes: [{ field: "finish", from: "foil", to: "normal" }],
+      }),
+      makeEvent({
+        id: "evt-2",
+        eventType: "changed",
+        changes: [{ field: "finish", from: "normal", to: "foil" }],
+      }),
+    ];
+
+    const payloads = buildChangedPrintingPayloads(events, APP_BASE_URL);
+
+    // Net no-op for the only field — no embed worth sending.
+    expect(payloads).toHaveLength(0);
+  });
+
+  it("keeps fields with real net changes when other fields are no-ops", () => {
+    const events = [
+      makeEvent({
+        id: "evt-1",
+        eventType: "changed",
+        changes: [
+          { field: "finish", from: "foil", to: "normal" },
+          { field: "rarity", from: "Common", to: "Rare" },
+        ],
+      }),
+      makeEvent({
+        id: "evt-2",
+        eventType: "changed",
+        changes: [{ field: "finish", from: "normal", to: "foil" }],
+      }),
+    ];
+
+    const payloads = buildChangedPrintingPayloads(events, APP_BASE_URL);
+
+    expect(payloads).toHaveLength(1);
+    const fields = payloads[0].embeds[0].fields ?? [];
+    expect(fields).toHaveLength(1);
+    expect(fields[0].name).toBe("Rarity");
+  });
+
+  it("treats arrays with the same elements in the same order as a no-op", () => {
+    const events = [
+      makeEvent({
+        eventType: "changed",
+        changes: [{ field: "markerSlugs", from: ["promo", "alt-art"], to: ["promo", "alt-art"] }],
+      }),
+    ];
+
+    const payloads = buildChangedPrintingPayloads(events, APP_BASE_URL);
+
+    expect(payloads).toHaveLength(0);
+  });
+
   it("consolidates multiple events for the same printing", () => {
     const events = [
       makeEvent({
