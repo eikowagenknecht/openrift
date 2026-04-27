@@ -1,6 +1,7 @@
 import type { Domain } from "@openrift/shared";
 import { Bar, BarChart, XAxis } from "recharts";
 
+import { CrispBar, CrispBarActive } from "@/components/deck/stats/crisp-bar";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import type { TypeCount } from "@/hooks/use-deck-stats";
@@ -59,8 +60,8 @@ export function TypeBreakdown({ data, domains, singleColor }: TypeBreakdownProps
             <Bar
               dataKey="total"
               fill="var(--color-primary)"
-              activeBar={{ opacity: 0.8 }}
-              radius={[3, 3, 0, 0]}
+              activeBar={<CrispBarActive />}
+              shape={<CrispBar />}
             />
           </BarChart>
         </ChartContainer>
@@ -77,14 +78,14 @@ export function TypeBreakdown({ data, domains, singleColor }: TypeBreakdownProps
         <BarChart data={labeledData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
           <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
           <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-          {domains.map((domain, index) => (
+          {domains.map((domain) => (
             <Bar
               key={domain}
               dataKey={domain}
               stackId="type"
               fill={getDomainColor(domain, domainColors)}
-              activeBar={{ opacity: 0.8 }}
-              radius={index === domains.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]}
+              activeBar={<CrispBarActive />}
+              shape={<CrispBar />}
             />
           ))}
         </BarChart>

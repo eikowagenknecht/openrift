@@ -1,5 +1,6 @@
-import { Bar, BarChart, Rectangle, XAxis } from "recharts";
+import { Bar, BarChart, XAxis } from "recharts";
 
+import { CrispBar, CrispBarActive } from "@/components/deck/stats/crisp-bar";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import type { DomainCombo, EnergyCostCount, PowerCount } from "@/hooks/use-deck-stats";
@@ -30,37 +31,6 @@ interface SingleChartProps {
   singleColor?: boolean;
 }
 
-/**
- * Custom bar shape that only rounds top corners when this bar is the topmost
- * visible segment in its stack.
- * @returns A Rectangle with conditional corner rounding.
- */
-function RoundedTopBar({
-  aboveKeys,
-  prefix,
-  ...props
-}: Record<string, unknown> & { aboveKeys: string[]; prefix: string }) {
-  const payload = props.payload as Record<string, number> | undefined;
-  const hasAbove = aboveKeys.some((key) => (payload?.[`${prefix}_${key}`] ?? 0) > 0);
-  const radius: [number, number, number, number] = hasAbove ? [0, 0, 0, 0] : [3, 3, 0, 0];
-  return <Rectangle {...props} radius={radius} />;
-}
-
-/**
- * Active (hovered) version of RoundedTopBar with reduced opacity.
- * @returns A Rectangle with conditional corner rounding and hover opacity.
- */
-function RoundedTopBarActive({
-  aboveKeys,
-  prefix,
-  ...props
-}: Record<string, unknown> & { aboveKeys: string[]; prefix: string }) {
-  const payload = props.payload as Record<string, number> | undefined;
-  const hasAbove = aboveKeys.some((key) => (payload?.[`${prefix}_${key}`] ?? 0) > 0);
-  const radius: [number, number, number, number] = hasAbove ? [0, 0, 0, 0] : [3, 3, 0, 0];
-  return <Rectangle {...props} radius={radius} opacity={0.8} />;
-}
-
 function buildChartConfig(
   stacks: DomainCombo[],
   prefix: string,
@@ -68,9 +38,13 @@ function buildChartConfig(
 ): ChartConfig {
   const config: ChartConfig = {};
   for (const stack of stacks) {
+    const isMulti = stack.domains.length > 1;
     config[`${prefix}_${stack.key}`] = {
       label: stack.domains.join(" + "),
-      color: stack.domains.length === 1 ? getDomainColor(stack.domains[0], colors) : "#737373",
+      color: isMulti ? "#737373" : getDomainColor(stack.domains[0], colors),
+      ...(isMulti && {
+        gradient: stack.domains.map((domain) => getDomainColor(domain, colors)),
+      }),
     };
   }
   return config;
@@ -177,12 +151,15 @@ function SingleChart({
         >
           <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
             <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-            <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
+            <ChartTooltip
+              cursor={false}
+              content={<ChartTooltipContent labelFormatter={(value) => `${value} ${label}`} />}
+            />
             <Bar
               dataKey={`${metric}_total`}
               fill="var(--color-primary)"
-              activeBar={{ opacity: 0.8 }}
-              radius={[3, 3, 0, 0]}
+              activeBar={<CrispBarActive />}
+              shape={<CrispBar />}
             />
           </BarChart>
         </ChartContainer>
@@ -207,20 +184,22 @@ function SingleChart({
         <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
           <GradientDefs stacks={stacks} colors={domainColors} />
           <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-          <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
-          {stacks.map((stack, index) => {
-            const aboveKeys = stacks.slice(index + 1).map((candidate) => candidate.key);
-            return (
-              <Bar
-                key={`${metric}_${stack.key}`}
-                dataKey={`${metric}_${stack.key}`}
-                stackId="a"
-                fill={comboFill(stack, domainColors)}
-                activeBar={<RoundedTopBarActive aboveKeys={aboveKeys} prefix={metric} />}
-                shape={<RoundedTopBar aboveKeys={aboveKeys} prefix={metric} />}
-              />
-            );
-          })}
+          <ChartTooltip
+            cursor={false}
+            content={
+              <ChartTooltipContent reverseOrder labelFormatter={(value) => `${value} ${label}`} />
+            }
+          />
+          {stacks.map((stack) => (
+            <Bar
+              key={`${metric}_${stack.key}`}
+              dataKey={`${metric}_${stack.key}`}
+              stackId="a"
+              fill={comboFill(stack, domainColors)}
+              activeBar={<CrispBarActive />}
+              shape={<CrispBar />}
+            />
+          ))}
         </BarChart>
       </ChartContainer>
     </div>

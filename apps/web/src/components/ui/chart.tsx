@@ -15,6 +15,7 @@ export type ChartConfig = Record<
   {
     label?: React.ReactNode;
     icon?: React.ComponentType;
+    gradient?: string[]; // custom: optional CSS-gradient stops for tooltip swatch (used for multi-domain bars)
   } & (
     | { color?: string; theme?: never }
     | { color?: never; theme: Record<keyof typeof THEMES, string> }
@@ -122,6 +123,7 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey,
+  reverseOrder = false, // custom: lets stacked-bar charts list payload top-to-bottom matching the visual stack
 }: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
   React.ComponentProps<"div"> & {
     hideLabel?: boolean;
@@ -129,6 +131,7 @@ function ChartTooltipContent({
     indicator?: "line" | "dot" | "dashed";
     nameKey?: string;
     labelKey?: string;
+    reverseOrder?: boolean; // custom: see prop above
   } & Omit<
     RechartsPrimitive.DefaultTooltipContentProps<TooltipValueType, TooltipNameType>,
     "accessibilityLayer"
@@ -177,12 +180,17 @@ function ChartTooltipContent({
       {/* custom: flip negated condition for oxlint no-negated-condition */}
       {nestLabel ? null : tooltipLabel}
       <div className="grid gap-1.5">
-        {payload
+        {(reverseOrder ? payload.toReversed() : payload) // custom: reverse so tooltip rows match visual stack top-to-bottom
           .filter((item) => item.type !== "none")
           .map((item, index) => {
             const key = `${nameKey ?? item.name ?? item.dataKey ?? "value"}`;
             const itemConfig = getPayloadConfigFromPayload(config, item, key);
             const indicatorColor = color ?? item.payload?.fill ?? item.color;
+            const gradientStops = itemConfig?.gradient; // custom: pull gradient stops for multi-domain swatch
+            const gradientBg =
+              gradientStops && gradientStops.length > 1
+                ? `linear-gradient(to top, ${gradientStops.join(", ")})`
+                : undefined; // custom: build CSS linear-gradient string mirroring the SVG bar gradient
 
             return (
               <div
@@ -215,6 +223,11 @@ function ChartTooltipContent({
                             {
                               "--color-bg": indicatorColor,
                               "--color-border": indicatorColor,
+                              // custom: gradient overrides solid bg for multi-domain combos (CSS can't resolve SVG paint URLs)
+                              ...(gradientBg && {
+                                background: gradientBg,
+                                borderColor: gradientStops?.[0],
+                              }),
                             } as React.CSSProperties
                           }
                         />
