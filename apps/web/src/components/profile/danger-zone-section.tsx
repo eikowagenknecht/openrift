@@ -39,7 +39,7 @@ export function DangerZoneSection() {
       setError(deleteError.message ?? "Failed to delete account.");
       return;
     }
-    clearUserScopedCache(queryClient);
+    await clearUserScopedCache(queryClient);
     void router.navigate({ to: "/" });
   }
 

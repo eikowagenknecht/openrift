@@ -9,7 +9,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { clearUserScopedCache } from "./auth-cache";
 
 describe("clearUserScopedCache", () => {
-  it("removes cached user-scoped data so a new user doesn't see the previous user's cache", () => {
+  it("removes cached user-scoped data so a new user doesn't see the previous user's cache", async () => {
     const queryClient = new QueryClient();
     queryClient.setQueryData(queryKeys.collections.all, {
       items: [{ id: "col-a", name: "User A collection", copyCount: 3, isInbox: false }],
@@ -17,29 +17,29 @@ describe("clearUserScopedCache", () => {
     queryClient.setQueryData(queryKeys.copies.all, { items: [{ id: "copy-a" }] });
     queryClient.setQueryData(queryKeys.decks.all, [{ id: "deck-a" }]);
 
-    clearUserScopedCache(queryClient);
+    await clearUserScopedCache(queryClient);
 
     expect(queryClient.getQueryData(queryKeys.collections.all)).toBeUndefined();
     expect(queryClient.getQueryData(queryKeys.copies.all)).toBeUndefined();
     expect(queryClient.getQueryData(queryKeys.decks.all)).toBeUndefined();
   });
 
-  it("tears down the copies collection so the previous user's rows don't survive in useLiveQuery subscribers", () => {
+  it("tears down the copies collection so the previous user's rows don't survive in useLiveQuery subscribers", async () => {
     const queryClient = new QueryClient();
     const collection = getCopiesCollection(queryClient);
     const cleanupSpy = vi.spyOn(collection, "cleanup");
 
-    clearUserScopedCache(queryClient);
+    await clearUserScopedCache(queryClient);
 
     expect(cleanupSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("tears down deck-builder draft collections and drops pending save state", () => {
+  it("tears down deck-builder draft collections and drops pending save state", async () => {
     const queryClient = new QueryClient();
     const draft = getDeckDraftCollection(queryClient, "deck-1");
     const cleanupSpy = vi.spyOn(draft, "cleanup");
 
-    clearUserScopedCache(queryClient);
+    await clearUserScopedCache(queryClient);
 
     expect(cleanupSpy).toHaveBeenCalledTimes(1);
   });
@@ -60,7 +60,7 @@ describe("clearUserScopedCache", () => {
     const unsubscribe = observer.subscribe(() => {});
     await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(1));
 
-    clearUserScopedCache(queryClient);
+    await clearUserScopedCache(queryClient);
 
     await vi.waitFor(() => {
       expect(queryClient.getQueryData(sessionKey)).toEqual({ user: { id: "user-b" } });

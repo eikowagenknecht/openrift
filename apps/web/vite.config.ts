@@ -181,17 +181,24 @@ export default defineConfig(({ mode, command }) => {
                 test: /node_modules\/react-dom/,
                 name: "react-dom",
               },
+              // tanstack-query must come before tanstack-db: query-core
+              // utilities (focusManager, onlineManager, subscribable…) are
+              // depended on by both @tanstack/react-query (loaded everywhere)
+              // and @tanstack/db. If db's group wins first, query-core gets
+              // pulled into the tanstack-db chunk and tanstack-router/query
+              // import from it, dragging tanstack-db into routes that don't
+              // actually use it (like the public homepage).
               {
-                test: /node_modules\/@tanstack\/(db|react-db|query-db-collection)/,
-                name: "tanstack-db",
+                test: /node_modules\/@tanstack\/(react-query|query-core)/,
+                name: "tanstack-query",
               },
               {
                 test: /node_modules\/@tanstack\/(react-router|router-core)/,
                 name: "tanstack-router",
               },
               {
-                test: /node_modules\/@tanstack\/(react-query|query-core)/,
-                name: "tanstack-query",
+                test: /node_modules\/@tanstack\/(db|react-db|query-db-collection)/,
+                name: "tanstack-db",
               },
               {
                 test: /node_modules\/(better-auth|@better-auth)/,

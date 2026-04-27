@@ -1,8 +1,9 @@
 import type { CollectionResponse } from "@openrift/shared";
 import { useLiveQuery } from "@tanstack/react-db";
-import { queryOptions, useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { collectionsQueryOptions } from "@/lib/collections-query";
 import { getCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
@@ -10,28 +11,10 @@ import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-const fetchCollections = createServerFn({ method: "GET" })
-  .middleware([withCookies])
-  .handler(
-    ({ context }): Promise<CollectionsResponse> =>
-      fetchApiJson<CollectionsResponse>({
-        errorTitle: "Couldn't load collections",
-        cookie: context.cookie,
-        path: "/api/v1/collections",
-      }),
-  );
-
-export const collectionsQueryOptions = queryOptions({
-  queryKey: queryKeys.collections.all,
-  queryFn: () => fetchCollections(),
-  select: (data: CollectionsResponse) => data.items,
-  // Default is 0 (immediately stale), which caused 3-4 fetches per
-  // navigation: each subscriber that mounted post-fetch saw stale data and
-  // kicked off another fetch. 5-minute freshness matches catalog conventions
-  // and still lets explicit invalidation (useCreateCollection /
-  // useDeleteCollection) force a refresh.
-  staleTime: 5 * 60 * 1000,
-});
+// Re-export for back-compat with consumers that pulled it from this module
+// before the split. Route loaders should import from @/lib/collections-query
+// directly so the loader path doesn't drag in @tanstack/react-db.
+export { collectionsQueryOptions };
 
 export function useCollections() {
   const queryClient = useQueryClient();

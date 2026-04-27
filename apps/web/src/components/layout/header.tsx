@@ -225,7 +225,7 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
 
   const handleSignOut = async () => {
     await signOut();
-    clearUserScopedCache(queryClient);
+    await clearUserScopedCache(queryClient);
     useDisplayStore.getState().reset();
     useThemeStore.getState().reset();
     useAddModeStore.getState().reset();

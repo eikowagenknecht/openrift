@@ -1,8 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 
 import { sessionQueryOptions } from "./auth-session";
-import { cleanupCopiesCollection } from "./copies-collection";
-import { cleanupDeckBuilderCollections } from "./deck-builder-collection";
 
 // Call whenever the authenticated user changes (sign in, sign out, account
 // deletion). Remove every non-session query so the new user can't see the
@@ -15,8 +13,16 @@ import { cleanupDeckBuilderCollections } from "./deck-builder-collection";
 // Query cache but a Collection keeps its own copy of the rows and active
 // useLiveQuery subscribers, so without an explicit cleanup() the sidebar and
 // "all cards" view keep rendering the previous user's copies until reload.
-export function clearUserScopedCache(queryClient: QueryClient) {
+//
+// The collection cleanup helpers are loaded lazily so anonymous visitors —
+// whose pages never call this function — don't pay for `@tanstack/react-db`
+// in the initial bundle.
+export async function clearUserScopedCache(queryClient: QueryClient) {
   const sessionKey = sessionQueryOptions().queryKey;
+  const [{ cleanupCopiesCollection }, { cleanupDeckBuilderCollections }] = await Promise.all([
+    import("./copies-collection"),
+    import("./deck-builder-collection"),
+  ]);
   cleanupCopiesCollection(queryClient);
   cleanupDeckBuilderCollections(queryClient);
   queryClient.removeQueries({

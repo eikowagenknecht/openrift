@@ -68,7 +68,7 @@ export function LoginForm({
       setServerError(form, error);
       return;
     }
-    clearUserScopedCache(queryClient);
+    await clearUserScopedCache(queryClient);
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
 
@@ -114,7 +114,7 @@ export function LoginForm({
       }
       return;
     }
-    clearUserScopedCache(queryClient);
+    await clearUserScopedCache(queryClient);
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
 
