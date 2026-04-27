@@ -440,7 +440,7 @@ function FeedbackPopover() {
     <Popover>
       <PopoverTrigger render={<Button variant="ghost" size="sm" />} className="gap-1.5">
         <MessageSquareIcon className="size-4" />
-        <span className="hidden md:inline">Feedback</span>
+        <span className="sr-only md:not-sr-only">Feedback</span>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-64 gap-1 p-1.5">
         <p className="text-muted-foreground px-2 pt-1.5 pb-1 text-xs">

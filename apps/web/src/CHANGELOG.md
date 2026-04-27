@@ -8,6 +8,7 @@
 - fix: Tooltips on the deck stats charts now include the metric name (e.g. "Energy 3"), and for multi-domain bars they show a matching gradient swatch and list segments top-to-bottom in the same order as the bar. Adjacent bar segments also no longer leave a hairline gap between them
 - fix: Display names are now capped at 50 characters and limited to letters, digits, spaces, periods, underscores, and hyphens, so names shown on shared deck pages stay readable
 - fix: After signing out and back in, the sidebar's owned-copies badges and the "owned" counts on /cards now refresh straight away instead of showing the previous session's numbers until you reload the page
+- fix: Screen readers now announce the header's Feedback button by name on mobile, where the label was previously hidden visually and from assistive tech
 
 ## 2026-04-26
 
