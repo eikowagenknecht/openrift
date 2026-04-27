@@ -12,23 +12,13 @@ import {
   getCardFrontImageFullUrl,
   pickCardMetaPrinting,
 } from "@/lib/card-meta";
-import { breadcrumbJsonLd, productJsonLd, seoHead } from "@/lib/seo";
+import { breadcrumbJsonLd, productJsonLd, seoHead, toAbsoluteUrl } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_PADDING } from "@/lib/utils";
 
 const cardDetailSearchSchema = z.object({
   printingId: z.string().optional(),
 });
-
-function toAbsoluteUrl(siteUrl: string, imageUrl: string | undefined): string | undefined {
-  if (!imageUrl) {
-    return undefined;
-  }
-  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
-    return imageUrl;
-  }
-  return `${siteUrl}${imageUrl.startsWith("/") ? "" : "/"}${imageUrl}`;
-}
 
 interface CardDetailLoaderData {
   data: CardDetailResponse;

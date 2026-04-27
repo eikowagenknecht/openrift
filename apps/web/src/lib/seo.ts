@@ -11,6 +11,22 @@ const DEFAULT_DESCRIPTION =
   "Browse, collect, and build decks for the Riftbound trading card game. Search cards, track your collection, compare prices, and share decks.";
 const TWITTER_SITE = "@eikowagenknecht";
 
+/**
+ * Resolves an image URL against `siteUrl` so og:image / twitter:image always
+ * carry an absolute URL (some unfurl crawlers reject relative ones).
+ *
+ * @returns The absolute URL, or `undefined` when no input was given.
+ */
+export function toAbsoluteUrl(siteUrl: string, imageUrl: string | undefined): string | undefined {
+  if (!imageUrl) {
+    return undefined;
+  }
+  if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
+    return imageUrl;
+  }
+  return `${siteUrl}${imageUrl.startsWith("/") ? "" : "/"}${imageUrl}`;
+}
+
 interface SeoOptions {
   /** Canonical origin for this deployment (from runtime env, not build time). */
   siteUrl: string;

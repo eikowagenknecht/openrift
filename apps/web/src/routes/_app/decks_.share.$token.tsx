@@ -27,7 +27,7 @@ import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { seoHead } from "@/lib/seo";
+import { seoHead, toAbsoluteUrl } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { CONTAINER_WIDTH, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -38,14 +38,19 @@ const FORMAT_LABELS: Record<"constructed" | "freeform", string> = {
 };
 
 export const Route = createFileRoute("/_app/decks_/share/$token")({
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     const siteUrl = getSiteUrl();
+    const path = `/decks/share/${params.token}`;
     const data = loaderData as PublicDeckDetailResponse | undefined;
     if (!data) {
-      return seoHead({ siteUrl, title: "Shared deck" });
+      return seoHead({ siteUrl, title: "Shared deck", path });
     }
-    const { deck, owner } = data;
-    const title = `${deck.name} — ${FORMAT_LABELS[deck.format]} deck`;
+    const { deck, owner, cards } = data;
+    // Constructed decks have exactly one Legend; freeform decks may have none,
+    // in which case seoHead falls back to the branded site og-image.
+    const legend = cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
+    const ogImage = toAbsoluteUrl(siteUrl, legend?.fullImageUrl ?? undefined);
+    const title = `${deck.name} (${FORMAT_LABELS[deck.format]} deck)`;
     const description =
       deck.description ??
       `A ${FORMAT_LABELS[deck.format]} Riftbound deck shared by ${owner.displayName}.`;
@@ -53,6 +58,8 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
       siteUrl,
       title,
       description,
+      path,
+      ogImage,
     });
   },
   loader: async ({ context, params }): Promise<PublicDeckDetailResponse> => {

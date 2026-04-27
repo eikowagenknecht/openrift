@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { productJsonLd } from "./seo";
+import { productJsonLd, toAbsoluteUrl } from "./seo";
 
 interface ProductOffer {
   "@type": string;
@@ -116,5 +116,37 @@ describe("productJsonLd", () => {
     const payload = parseProduct(productJsonLd({ ...baseOptions }));
     expect(payload.brand).toEqual({ "@type": "Brand", name: "Riftbound" });
     expect(payload.url).toBe("https://openrift.app/cards/test-card");
+  });
+});
+
+describe("toAbsoluteUrl", () => {
+  const siteUrl = "https://openrift.app";
+
+  it("returns undefined when no image URL is given", () => {
+    expect(toAbsoluteUrl(siteUrl, undefined)).toBeUndefined();
+  });
+
+  it("passes through fully-qualified https URLs unchanged", () => {
+    expect(toAbsoluteUrl(siteUrl, "https://cdn.example/img.webp")).toBe(
+      "https://cdn.example/img.webp",
+    );
+  });
+
+  it("passes through http URLs unchanged", () => {
+    expect(toAbsoluteUrl(siteUrl, "http://cdn.example/img.webp")).toBe(
+      "http://cdn.example/img.webp",
+    );
+  });
+
+  it("prefixes root-relative paths with the site URL", () => {
+    expect(toAbsoluteUrl(siteUrl, "/media/cards/foo.webp")).toBe(
+      "https://openrift.app/media/cards/foo.webp",
+    );
+  });
+
+  it("inserts a slash for relative paths missing one", () => {
+    expect(toAbsoluteUrl(siteUrl, "media/cards/foo.webp")).toBe(
+      "https://openrift.app/media/cards/foo.webp",
+    );
   });
 });
