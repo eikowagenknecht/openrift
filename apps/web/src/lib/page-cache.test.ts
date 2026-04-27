@@ -105,4 +105,35 @@ describe("applyPageCacheControl", () => {
     expect(allHeaders).toHaveLength(1);
     expect(allHeaders[0]?.[1]).toBe(PUBLIC);
   });
+
+  it("emits Link preload headers on 200 HTML responses for CF Early Hints", () => {
+    const result = applyPageCacheControl(getRequest("/cards"), htmlResponse());
+    const link = result.headers.get("Link") ?? "";
+    expect(link).toMatch(/rel=preload; as=style/);
+    expect(link).toMatch(/rel=preload; as=font; type="font\/woff2"; crossorigin/);
+  });
+
+  it("emits Link preload headers on private HTML routes too", () => {
+    // CF Early Hints caches Link headers independently of page cacheability,
+    // so logged-in views also benefit on subsequent visits.
+    const result = applyPageCacheControl(
+      getRequest("/cards", { cookie: "better-auth.session_token=abc" }),
+      htmlResponse(),
+    );
+    expect(result.headers.get("Link")).toMatch(/rel=preload/);
+  });
+
+  it("does not emit Link preload headers on non-200 HTML responses", () => {
+    const result = applyPageCacheControl(getRequest("/cards"), htmlResponse({}, 500));
+    expect(result.headers.get("Link")).toBeNull();
+  });
+
+  it("does not emit Link preload headers on non-HTML responses", () => {
+    const response = new Response("{}", {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+    const result = applyPageCacheControl(getRequest("/cards"), response);
+    expect(result.headers.get("Link")).toBeNull();
+  });
 });

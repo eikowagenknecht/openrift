@@ -1,5 +1,20 @@
+import interLatinWoff2 from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
+
+import indexCss from "@/index.css?url";
+
 const PUBLIC_PAGE_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300";
 const PRIVATE_PAGE_CACHE_CONTROL = "private, no-cache";
+
+// Cloudflare's Early Hints feature caches `Link: <...>; rel=preload` headers
+// from origin 200 responses and replays them as `103 Early Hints` on the next
+// visit, before this server even runs. Same hints work for every HTML route
+// (one CSS bundle, one Latin Inter face), so emitted statically here.
+// Bare `crossorigin` token (no `=anonymous`) is the canonical RFC 8288 form
+// for fonts; quoted attribute values would trip stricter parsers.
+const PRELOAD_LINKS = [
+  `<${indexCss}>; rel=preload; as=style`,
+  `<${interLatinWoff2}>; rel=preload; as=font; type="font/woff2"; crossorigin`,
+];
 
 const EXACT_PATHS = new Set(["/", "/cards", "/sets", "/rules", "/privacy-policy", "/promos"]);
 const PREFIX_PATHS = ["/cards/", "/sets/", "/decks/share/"];
@@ -64,6 +79,11 @@ export function applyPageCacheControl(request: Request, response: Response): Res
 
   const headers = new Headers(response.headers);
   headers.set("Cache-Control", cacheControl);
+  if (response.status === 200) {
+    for (const link of PRELOAD_LINKS) {
+      headers.append("Link", link);
+    }
+  }
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

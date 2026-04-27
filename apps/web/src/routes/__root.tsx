@@ -1,3 +1,4 @@
+import interLatinWoff2 from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { pacerDevtoolsPlugin } from "@tanstack/react-pacer-devtools";
 import type { QueryClient } from "@tanstack/react-query";
@@ -10,12 +11,12 @@ import { getCookie } from "@tanstack/react-start/server";
 
 import { Analytics } from "@/components/analytics";
 import { RouteNotFoundFallback } from "@/components/error-message";
-import { Toaster } from "@/components/ui/sonner";
 // Side-effect import: installs a dev-only stack-dumper for React Compiler
 // useMemoCache size-mismatch warnings. Body is `if (DEV)` so the block is
 // stripped from production bundles.
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect tracer
 import "@/lib/debug/memo-cache-trace";
+import { Toaster } from "@/components/ui/sonner";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { runtimeConfigScript } from "@/lib/runtime-config";
 import { getIsPreview } from "@/lib/site-config";
@@ -84,6 +85,18 @@ export const Route = createRootRouteWithContext<{
       { rel: "icon", type: "image/png", sizes: "64x64", href: "/favicon-64x64.png" },
       { rel: "icon", type: "image/webp", href: "/logo.webp" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon-180x180.png" },
+      // Preload the Latin Inter face so the browser fetches it in parallel
+      // with the stylesheet instead of waiting to discover the URL inside the
+      // parsed CSS. crossOrigin is required: browser font requests always go
+      // in CORS mode, so without it the preload doesn't match the later CSS-
+      // driven request and ends up unused.
+      {
+        rel: "preload",
+        as: "font",
+        type: "font/woff2",
+        href: interLatinWoff2,
+        crossOrigin: "anonymous",
+      },
       { rel: "stylesheet", href: indexCss },
     ],
   }),
