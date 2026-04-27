@@ -7,8 +7,6 @@ export type DeckListSort =
   | "created-desc"
   | "name-asc"
   | "name-desc"
-  | "cards-desc"
-  | "cards-asc"
   | "value-desc";
 
 export type DeckListDensity = "grid" | "list";
@@ -24,8 +22,6 @@ const SORT_OPTIONS: ReadonlySet<DeckListSort> = new Set([
   "created-desc",
   "name-asc",
   "name-desc",
-  "cards-desc",
-  "cards-asc",
   "value-desc",
 ]);
 

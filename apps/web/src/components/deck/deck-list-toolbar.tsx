@@ -22,8 +22,6 @@ const SORT_ITEMS: { value: DeckListSort; label: string }[] = [
   { value: "created-desc", label: "Recently created" },
   { value: "name-asc", label: "Name (A → Z)" },
   { value: "name-desc", label: "Name (Z → A)" },
-  { value: "cards-desc", label: "Most cards" },
-  { value: "cards-asc", label: "Fewest cards" },
   { value: "value-desc", label: "Highest value" },
 ];
 

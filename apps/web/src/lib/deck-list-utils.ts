@@ -111,12 +111,6 @@ function compareForSort(
     case "name-desc": {
       return right.deck.name.localeCompare(left.deck.name, undefined, { sensitivity: "base" });
     }
-    case "cards-desc": {
-      return right.totalCards - left.totalCards;
-    }
-    case "cards-asc": {
-      return left.totalCards - right.totalCards;
-    }
     case "value-desc": {
       return (right.totalValueCents ?? -1) - (left.totalValueCents ?? -1);
     }
