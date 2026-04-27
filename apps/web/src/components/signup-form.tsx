@@ -12,7 +12,15 @@ import { signUp } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
 
 const signUpSchema = z.object({
-  name: z.string().min(1, "Name is required."),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name is required.")
+    .max(50, "Name must be 50 characters or fewer.")
+    .regex(
+      /^[\p{L}\p{N} ._-]+$/u,
+      "Name may only contain letters, digits, spaces, periods, underscores, and hyphens.",
+    ),
   email: z.email("Please enter a valid email address."),
   password: z.string().min(8, "Password must be at least 8 characters."),
 });

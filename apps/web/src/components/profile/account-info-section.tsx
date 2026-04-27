@@ -14,7 +14,15 @@ import { setServerError } from "@/lib/auth-errors";
 import { sessionQueryOptions } from "@/lib/auth-session";
 
 const displayNameSchema = z.object({
-  name: z.string().min(1, "Name is required."),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name is required.")
+    .max(50, "Name must be 50 characters or fewer.")
+    .regex(
+      /^[\p{L}\p{N} ._-]+$/u,
+      "Name may only contain letters, digits, spaces, periods, underscores, and hyphens.",
+    ),
 });
 
 type DisplayNameValues = z.infer<typeof displayNameSchema>;

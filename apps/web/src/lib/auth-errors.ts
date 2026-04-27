@@ -26,6 +26,11 @@ const CODE_TO_FIELD: Record<
     field: "email",
     message: "New email is the same as your current email.",
   },
+  INVALID_NAME: {
+    field: "name",
+    message:
+      "Name may only contain letters, digits, spaces, periods, underscores, and hyphens (max 50).",
+  },
   OTP_EXPIRED: { field: "otp", message: "Code expired. Please request a new one." },
   INVALID_OTP: { field: "otp", message: "Incorrect code. Please try again." },
   TOO_MANY_ATTEMPTS: { field: "otp", message: "Too many attempts. Please request a new code." },

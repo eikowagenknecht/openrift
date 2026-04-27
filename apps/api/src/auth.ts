@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { APIError } from "better-auth/api";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import type { Kysely } from "kysely";
 import type { PostgresJSDialect } from "kysely-postgres-js";
@@ -6,6 +7,7 @@ import type { PostgresJSDialect } from "kysely-postgres-js";
 import type { createConfig } from "./config.js";
 import { matchOrigin } from "./cors.js";
 import type { Database } from "./db/index.js";
+import { sanitizeDisplayName, validateDisplayName } from "./display-name.js";
 import type { createEmailSender } from "./email.js";
 import { adminsRepo } from "./repositories/admins.js";
 import { collectionsRepo } from "./repositories/collections.js";
@@ -131,6 +133,15 @@ export function createAuth(deps: {
     databaseHooks: {
       user: {
         create: {
+          // oxlint-disable-next-line require-await -- better-auth hook signature requires Promise return
+          async before(user) {
+            const fallback = typeof user.email === "string" ? user.email.split("@")[0] : "";
+            const cleaned = sanitizeDisplayName(user.name, fallback ?? "");
+            if (cleaned === user.name) {
+              return;
+            }
+            return { data: { ...user, name: cleaned } };
+          },
           async after(user) {
             const collections = collectionsRepo(db);
             await collections.ensureInbox(user.id);
@@ -146,6 +157,25 @@ export function createAuth(deps: {
             if (adminEmail && user.email === adminEmail) {
               await adminsRepo(db).autoPromote(user.id);
             }
+          },
+        },
+        update: {
+          // oxlint-disable-next-line require-await -- better-auth hook signature requires Promise return
+          async before(user) {
+            if (!Object.hasOwn(user, "name")) {
+              return;
+            }
+            const result = validateDisplayName(user.name);
+            if (!result.ok) {
+              throw new APIError("BAD_REQUEST", {
+                code: "INVALID_NAME",
+                message: result.reason,
+              });
+            }
+            if (result.value === user.name) {
+              return;
+            }
+            return { data: { ...user, name: result.value } };
           },
         },
       },

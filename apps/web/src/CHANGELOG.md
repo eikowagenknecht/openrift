@@ -6,6 +6,7 @@
 - feat: The /decks page has a new toolbar — search by name, legend, or champion; sort by recent updates, name, card count, or value; filter by format, validity, and domain; group by format, domain combination, legend, or validity; and switch between the existing tile view and a new compact list view
 - feat: You can now pin frequently-used decks to keep them at the top of the deck list, and archive retired decks so they're hidden behind a toggle without being deleted
 - fix: Tooltips on the deck stats charts now include the metric name (e.g. "Energy 3"), and for multi-domain bars they show a matching gradient swatch and list segments top-to-bottom in the same order as the bar. Adjacent bar segments also no longer leave a hairline gap between them
+- fix: Display names are now capped at 50 characters and limited to letters, digits, spaces, periods, underscores, and hyphens, so names shown on shared deck pages stay readable
 
 ## 2026-04-26
 
