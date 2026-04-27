@@ -3,6 +3,7 @@ import { ChevronUpIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, XAxis, YAxis } from "recharts";
 
+import { TIME_RANGES } from "@/components/cards/price-history-chart-constants";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
@@ -10,13 +11,6 @@ import type { ChartConfig } from "@/components/ui/chart";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { formatterForMarketplace } from "@/lib/format";
 import { useDisplayStore } from "@/stores/display-store";
-
-export const TIME_RANGES: { value: TimeRange; label: string; days: number }[] = [
-  { value: "7d", label: "7D", days: 7 },
-  { value: "30d", label: "30D", days: 30 },
-  { value: "90d", label: "90D", days: 90 },
-  { value: "all", label: "All", days: 0 },
-];
 
 const chartConfig = {
   value: { label: "Market", color: "var(--chart-1)" },

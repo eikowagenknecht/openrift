@@ -1,15 +1,20 @@
 import type { AnySnapshot, TimeRange } from "@openrift/shared";
 import { snapshotHeadline } from "@openrift/shared";
 import { ChevronDownIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { Suspense, lazy, useId, useState } from "react";
 import { Area, AreaChart, Tooltip } from "recharts";
 
-import { PriceHistoryChart } from "@/components/cards/price-history-chart";
 import { ChartContainer } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePriceHistory } from "@/hooks/use-price-history";
 import { formatterForMarketplace } from "@/lib/format";
 import { useDisplayStore } from "@/stores/display-store";
+
+const PriceHistoryChart = lazy(async () => {
+  const m = await import("@/components/cards/price-history-chart");
+  return { default: m.PriceHistoryChart };
+});
 
 const chartConfig = {
   value: {
@@ -65,12 +70,14 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
 
   if (expanded) {
     return (
-      <PriceHistoryChart
-        printingId={printingId}
-        range={range}
-        onRangeChange={handleRangeChange}
-        onCollapse={() => setExpanded(false)}
-      />
+      <Suspense fallback={<Skeleton className="h-12 w-full rounded-lg" />}>
+        <PriceHistoryChart
+          printingId={printingId}
+          range={range}
+          onRangeChange={handleRangeChange}
+          onCollapse={() => setExpanded(false)}
+        />
+      </Suspense>
     );
   }
 

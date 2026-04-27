@@ -1,11 +1,20 @@
 import type { Printing, TimeRange } from "@openrift/shared";
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 
-import { PriceSparkline } from "@/components/cards/price-sparkline";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePrices } from "@/hooks/use-prices";
 import { useDisplayStore } from "@/stores/display-store";
 
 import { PricingSection } from "./pricing";
+
+const PriceSparkline = lazy(async () => {
+  const m = await import("@/components/cards/price-sparkline");
+  return { default: m.PriceSparkline };
+});
+
+function SparklineSkeleton() {
+  return <Skeleton data-testid="sparkline-skeleton" className="h-12 w-full rounded-lg" />;
+}
 
 export function CardFooter({ printing }: { printing: Printing }) {
   const [priceRange, setPriceRange] = useState<TimeRange>("30d");
@@ -21,7 +30,11 @@ export function CardFooter({ printing }: { printing: Printing }) {
         {printing.artist}
       </p>
       <PricingSection printing={printing} range={priceRange} />
-      {hasPrice && <PriceSparkline printingId={printing.id} onRangeChange={setPriceRange} />}
+      {hasPrice && (
+        <Suspense fallback={<SparklineSkeleton />}>
+          <PriceSparkline printingId={printing.id} onRangeChange={setPriceRange} />
+        </Suspense>
+      )}
     </div>
   );
 }

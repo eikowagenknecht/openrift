@@ -18,15 +18,16 @@ import {
   TriangleAlertIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { toast } from "sonner";
 
 import { CardText } from "@/components/cards/card-text";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
-import { PriceHistoryChart, TIME_RANGES } from "@/components/cards/price-history-chart";
+import { TIME_RANGES } from "@/components/cards/price-history-chart-constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cardDetailQueryOptions } from "@/hooks/use-card-detail";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
@@ -37,6 +38,11 @@ import { formatPublicCode, formatterForMarketplace } from "@/lib/format";
 import { getFilterIconPath, getTypeIconPath } from "@/lib/icons";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
+
+const PriceHistoryChart = lazy(async () => {
+  const m = await import("@/components/cards/price-history-chart");
+  return { default: m.PriceHistoryChart };
+});
 
 export const Route = createLazyFileRoute("/_app/cards_/$cardSlug")({
   component: CardDetailPage,
@@ -778,16 +784,18 @@ function PriceHistorySection({ printing }: { printing: Printing }) {
       {/* Chart + Table side by side */}
       <div className="flex flex-col gap-4 xl:flex-row">
         <div className="border-border bg-card min-w-0 rounded-lg border p-4 xl:flex-1 xl:basis-0">
-          <PriceHistoryChart
-            printingId={printing.id}
-            range={effectiveRange}
-            onRangeChange={setRange}
-            source={source}
-            onSourceChange={setSource}
-            hideControls
-            highlightedDate={hoveredDate}
-            onDateHover={setHoveredDate}
-          />
+          <Suspense fallback={<Skeleton className="aspect-[2.5/1] w-full rounded-lg" />}>
+            <PriceHistoryChart
+              printingId={printing.id}
+              range={effectiveRange}
+              onRangeChange={setRange}
+              source={source}
+              onSourceChange={setSource}
+              hideControls
+              highlightedDate={hoveredDate}
+              onDateHover={setHoveredDate}
+            />
+          </Suspense>
         </div>
         {tableRows.length > 0 && (
           <div className="min-w-0 xl:flex-1 xl:basis-0">
