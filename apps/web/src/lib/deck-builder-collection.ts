@@ -265,6 +265,27 @@ export function hydrateDeckDraft(
   setStatus(entry, { isSaving: false, isDirty: false, error: null });
 }
 
+// Tear down all per-deck draft collections for this client on auth changes.
+// Drafts are LocalOnly (no server sync) but they still hold the previous
+// user's in-flight edits and pending save timers in memory. Drop the entire
+// drafts map; the next deck-builder mount rebuilds entries from server state.
+export function cleanupDeckBuilderCollections(queryClient: QueryClient): void {
+  const drafts = cache.get(queryClient);
+  if (!drafts) {
+    return;
+  }
+  for (const entry of drafts.values()) {
+    if (entry.saveTimer) {
+      clearTimeout(entry.saveTimer);
+      entry.saveTimer = null;
+    }
+    entry.saveController?.abort();
+    entry.saveController = null;
+    void entry.collection.cleanup();
+  }
+  cache.delete(queryClient);
+}
+
 export function useDeckSaveStatus(queryClient: QueryClient, deckId: string): DeckSaveStatus {
   return useSyncExternalStore(
     // oxlint-disable-next-line promise/prefer-await-to-callbacks -- external-store subscribe signature

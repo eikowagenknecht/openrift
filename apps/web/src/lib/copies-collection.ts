@@ -54,3 +54,17 @@ export function getCopiesCollection(
   cache.set(queryClient, collection);
   return collection;
 }
+
+// Tear down the cached copies collection on auth changes (sign in / out).
+// removeQueries on the underlying queryKey doesn't reach into the collection's
+// own state — active live queries keep showing the previous user's rows until
+// the collection itself is told to drop them. cleanup() stops sync and clears
+// data; the next subscriber auto-restarts it via the queryFn against the new
+// session.
+export function cleanupCopiesCollection(queryClient: QueryClient): void {
+  const existing = cache.get(queryClient);
+  if (!existing) {
+    return;
+  }
+  void existing.cleanup();
+}
