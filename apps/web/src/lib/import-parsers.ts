@@ -1,4 +1,5 @@
 import type { ArtVariant, Finish } from "@openrift/shared";
+import { isAlwaysFoilRarity, WellKnown } from "@openrift/shared";
 
 import { parseCSV, parseCSVWithHeaders } from "@/lib/csv";
 
@@ -178,13 +179,13 @@ function parsePiltoverArchive(text: string): ParseResult {
     const parsed = parsePiltoverVariantNumber(variantNumber);
 
     // Finish: check the -Foil suffix, Variant Label, and rarity (rare/epic/showcase are always foil)
-    const rarity = record["Rarity"]?.trim().toLowerCase() ?? "";
-    const alwaysFoilRarity = rarity === "rare" || rarity === "epic" || rarity === "showcase";
+    const rarity = record["Rarity"]?.trim() ?? "";
+    const alwaysFoilRarity = isAlwaysFoilRarity(rarity);
     const hasFoilSuffix = parsed?.hasFoilSuffix ?? variantNumber.endsWith("-Foil");
     const finish: Finish =
       hasFoilSuffix || variantLabel.toLowerCase().includes("foil") || alwaysFoilRarity
-        ? "foil"
-        : "normal";
+        ? WellKnown.finish.FOIL
+        : WellKnown.finish.NORMAL;
 
     const rawFields = buildRawFields({
       "Source Code": variantNumber,
@@ -340,12 +341,17 @@ function parseOpenRift(text: string): ParseResult {
       continue;
     }
 
-    const finish: Finish = record["Finish"]?.trim() === "foil" ? "foil" : "normal";
+    const finish: Finish =
+      record["Finish"]?.trim() === WellKnown.finish.FOIL
+        ? WellKnown.finish.FOIL
+        : WellKnown.finish.NORMAL;
     const artVariantRaw = record["Art Variant"]?.trim();
     const artVariant: ArtVariant =
-      artVariantRaw === "altart" || artVariantRaw === "overnumbered" || artVariantRaw === "ultimate"
+      artVariantRaw === WellKnown.artVariant.ALTART ||
+      artVariantRaw === WellKnown.artVariant.OVERNUMBERED ||
+      artVariantRaw === WellKnown.artVariant.ULTIMATE
         ? artVariantRaw
-        : "normal";
+        : WellKnown.artVariant.NORMAL;
     const promoSlug = record["Promo"]?.trim() || undefined;
 
     entries.push({
@@ -493,8 +499,8 @@ function parseRiftCore(text: string): ParseResult {
       continue;
     }
 
-    const rarity = (rarityCol === -1 ? "" : (row[rarityCol]?.trim() ?? "")).toLowerCase();
-    const alwaysFoil = rarity === "rare" || rarity === "epic" || rarity === "showcase";
+    const rarity = rarityCol === -1 ? "" : (row[rarityCol]?.trim() ?? "");
+    const alwaysFoil = isAlwaysFoilRarity(rarity);
 
     const baseRawFields: Record<string, string | undefined> = {
       "Source Code": cardId,
@@ -506,7 +512,7 @@ function parseRiftCore(text: string): ParseResult {
     };
 
     if (standardQty > 0) {
-      const finish: Finish = alwaysFoil ? "foil" : "normal";
+      const finish: Finish = alwaysFoil ? WellKnown.finish.FOIL : WellKnown.finish.NORMAL;
       entries.push({
         setPrefix: parsed.setPrefix,
         finish,
@@ -516,7 +522,7 @@ function parseRiftCore(text: string): ParseResult {
         sourceCode: parsed.shortCode,
         rawFields: buildRawFields({
           ...baseRawFields,
-          Finish: finish === "foil" ? "Foil" : "Normal",
+          Finish: finish === WellKnown.finish.FOIL ? "Foil" : "Normal",
         }),
       });
     }
@@ -524,7 +530,7 @@ function parseRiftCore(text: string): ParseResult {
     if (foilQty > 0) {
       entries.push({
         setPrefix: parsed.setPrefix,
-        finish: "foil",
+        finish: WellKnown.finish.FOIL,
         artVariant: parsed.artVariant,
         quantity: foilQty,
         cardName,
@@ -620,8 +626,8 @@ function parseRiftMana(text: string): ParseResult {
       continue;
     }
 
-    const rarity = (record["Rarity"]?.trim() ?? "").toLowerCase();
-    const alwaysFoil = rarity === "rare" || rarity === "epic" || rarity === "showcase";
+    const rarity = record["Rarity"]?.trim() ?? "";
+    const alwaysFoil = isAlwaysFoilRarity(rarity);
     const language = normalizeLanguage(record["Language"]);
 
     const baseRawFields: Record<string, string | undefined> = {
@@ -633,7 +639,7 @@ function parseRiftMana(text: string): ParseResult {
     };
 
     if (normalQty > 0) {
-      const finish: Finish = alwaysFoil ? "foil" : "normal";
+      const finish: Finish = alwaysFoil ? WellKnown.finish.FOIL : WellKnown.finish.NORMAL;
       entries.push({
         setPrefix: parsed.setPrefix,
         finish,
@@ -645,7 +651,7 @@ function parseRiftMana(text: string): ParseResult {
         language,
         rawFields: buildRawFields({
           ...baseRawFields,
-          Finish: finish === "foil" ? "Foil" : "Normal",
+          Finish: finish === WellKnown.finish.FOIL ? "Foil" : "Normal",
           Condition: record["Normal Condition"],
         }),
       });
@@ -654,7 +660,7 @@ function parseRiftMana(text: string): ParseResult {
     if (foilQty > 0) {
       entries.push({
         setPrefix: parsed.setPrefix,
-        finish: "foil",
+        finish: WellKnown.finish.FOIL,
         artVariant: parsed.artVariant,
         quantity: foilQty,
         cardName,

@@ -63,6 +63,7 @@ import * as m114 from "./114-drop-snapshots-and-staging.js";
 import * as m115 from "./115-token-super-type-well-known.js";
 import * as m116 from "./116-rename-keyword-styles-to-keywords.js";
 import * as m117 from "./117-deck-pinning-archiving.js";
+import * as m118 from "./118-rarity-well-known.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -185,4 +186,5 @@ export const migrations: Record<string, Migration> = {
   "115-token-super-type-well-known": m115,
   "116-rename-keyword-styles-to-keywords": m116,
   "117-deck-pinning-archiving": m117,
+  "118-rarity-well-known": m118,
 };

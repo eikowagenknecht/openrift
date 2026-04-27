@@ -1,6 +1,6 @@
 import { useDndContext, useDraggable, useDroppable } from "@dnd-kit/core";
 import type { DeckFormat, DeckViolation, DeckZone, Marketplace } from "@openrift/shared";
-import { validateDeck } from "@openrift/shared";
+import { WellKnown, validateDeck } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
@@ -148,7 +148,7 @@ export function DeckOverview({
   const requiredProgress = cards
     .filter((card) => REQUIRED_ZONES.includes(card.zone))
     .reduce((sum, card) => sum + card.quantity, 0);
-  const hasLegend = cards.some((card) => card.zone === "legend");
+  const hasLegend = cards.some((card) => card.zone === WellKnown.deckZone.LEGEND);
   const hint =
     totalCards === 0
       ? "Start by picking a Legend, then Champions, Runes, and the main deck unlock around it."
@@ -292,12 +292,12 @@ export function DeckOverview({
           deckId={deck.id}
           zone="main"
           label={ZONE_LABELS.main}
-          cards={cards.filter((card) => card.zone === "main")}
+          cards={cards.filter((card) => card.zone === WellKnown.deckZone.MAIN)}
           allCards={cards}
           expected={ZONE_EXPECTED.main}
           emptyHint={ZONE_EMPTY_HINTS.main}
           zoneViolations={violations.filter(
-            (violation) => violation.zone === "main" && !violation.cardId,
+            (violation) => violation.zone === WellKnown.deckZone.MAIN && !violation.cardId,
           )}
           onClick={onZoneClick ? () => onZoneClick("main") : undefined}
           onHoverCard={onHoverCard}
@@ -309,12 +309,12 @@ export function DeckOverview({
           deckId={deck.id}
           zone="sideboard"
           label={ZONE_LABELS.sideboard}
-          cards={cards.filter((card) => card.zone === "sideboard")}
+          cards={cards.filter((card) => card.zone === WellKnown.deckZone.SIDEBOARD)}
           allCards={cards}
           expected={ZONE_EXPECTED.sideboard}
           emptyHint={ZONE_EMPTY_HINTS.sideboard}
           zoneViolations={violations.filter(
-            (violation) => violation.zone === "sideboard" && !violation.cardId,
+            (violation) => violation.zone === WellKnown.deckZone.SIDEBOARD && !violation.cardId,
           )}
           onClick={onZoneClick ? () => onZoneClick("sideboard") : undefined}
           onHoverCard={onHoverCard}
@@ -322,17 +322,17 @@ export function DeckOverview({
           readOnly={readOnly}
           getCardSlug={getCardSlug}
         />
-        {cards.some((card) => card.zone === "overflow") && (
+        {cards.some((card) => card.zone === WellKnown.deckZone.OVERFLOW) && (
           <ZoneTile
             deckId={deck.id}
             zone="overflow"
             label={ZONE_LABELS.overflow}
-            cards={cards.filter((card) => card.zone === "overflow")}
+            cards={cards.filter((card) => card.zone === WellKnown.deckZone.OVERFLOW)}
             allCards={cards}
             expected={ZONE_EXPECTED.overflow}
             emptyHint={ZONE_EMPTY_HINTS.overflow}
             zoneViolations={violations.filter(
-              (violation) => violation.zone === "overflow" && !violation.cardId,
+              (violation) => violation.zone === WellKnown.deckZone.OVERFLOW && !violation.cardId,
             )}
             onClick={onZoneClick ? () => onZoneClick("overflow") : undefined}
             onHoverCard={onHoverCard}
@@ -589,14 +589,15 @@ function ZoneTile({
     if (COPY_LIMIT_ZONES.has(zone) && crossZoneTotal(draggedCard.cardId) >= 3) {
       return true;
     }
-    if (zone === "battlefield") {
+    if (zone === WellKnown.deckZone.BATTLEFIELD) {
       return allCards.some(
-        (card) => card.cardId === draggedCard.cardId && card.zone === "battlefield",
+        (card) =>
+          card.cardId === draggedCard.cardId && card.zone === WellKnown.deckZone.BATTLEFIELD,
       );
     }
-    if (zone === "runes") {
+    if (zone === WellKnown.deckZone.RUNES) {
       const runeTotal = allCards
-        .filter((card) => card.zone === "runes")
+        .filter((card) => card.zone === WellKnown.deckZone.RUNES)
         .reduce((sum, card) => sum + card.quantity, 0);
       return runeTotal >= 12;
     }
@@ -665,7 +666,7 @@ function ZoneTile({
       </div>
 
       {isEmpty ? (
-        zone === "runes" || readOnly || !onClick ? (
+        zone === WellKnown.deckZone.RUNES || readOnly || !onClick ? (
           // Runes fills itself when a Legend is set, so the primary path
           // isn't "click this button" — mirror the CTA styling minus the
           // icon and interactivity, and rely on the always-visible pencil
@@ -720,7 +721,7 @@ function ZoneTile({
         </div>
       )}
 
-      {!readOnly && onClick && (!isEmpty || zone === "runes") && (
+      {!readOnly && onClick && (!isEmpty || zone === WellKnown.deckZone.RUNES) && (
         <button
           type="button"
           onClick={onClick}

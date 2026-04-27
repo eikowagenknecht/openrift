@@ -1,3 +1,4 @@
+import { WellKnown } from "../well-known.js";
 import {
   COMMONS_PER_PACK,
   FLEX_EPIC_RATE,
@@ -60,22 +61,34 @@ function rollSpecialSlot(
 
   cursor += pool.ultimates.length > 0 ? ULTIMATE_RATE : 0;
   if (roll < cursor) {
-    return { slot: "ultimate", printing: pickOneUnique(rng, pool.ultimates, pulled) };
+    return {
+      slot: WellKnown.packSlot.ULTIMATE,
+      printing: pickOneUnique(rng, pool.ultimates, pulled),
+    };
   }
 
   cursor += pool.showcaseSigned.length > 0 ? SHOWCASE_SIGNED_RATE : 0;
   if (roll < cursor) {
-    return { slot: "showcase", printing: pickOneUnique(rng, pool.showcaseSigned, pulled) };
+    return {
+      slot: WellKnown.packSlot.SHOWCASE,
+      printing: pickOneUnique(rng, pool.showcaseSigned, pulled),
+    };
   }
 
   cursor += pool.showcaseOvernumbered.length > 0 ? SHOWCASE_OVERNUMBERED_RATE : 0;
   if (roll < cursor) {
-    return { slot: "showcase", printing: pickOneUnique(rng, pool.showcaseOvernumbered, pulled) };
+    return {
+      slot: WellKnown.packSlot.SHOWCASE,
+      printing: pickOneUnique(rng, pool.showcaseOvernumbered, pulled),
+    };
   }
 
   cursor += pool.showcaseAltart.length > 0 ? SHOWCASE_ALTART_RATE : 0;
   if (roll < cursor) {
-    return { slot: "showcase", printing: pickOneUnique(rng, pool.showcaseAltart, pulled) };
+    return {
+      slot: WellKnown.packSlot.SHOWCASE,
+      printing: pickOneUnique(rng, pool.showcaseAltart, pulled),
+    };
   }
 
   return null;
@@ -93,20 +106,32 @@ function pickTokenSlot(rng: Random, pool: PackPool, pulled: ReadonlySet<string>)
 
   cursor += pool.altArtRunes.length > 0 ? TOKEN_SLOT_ALTART_RUNE_RATE : 0;
   if (roll < cursor) {
-    return { slot: "token", printing: pickOneUnique(rng, pool.altArtRunes, pulled) };
+    return {
+      slot: WellKnown.packSlot.TOKEN,
+      printing: pickOneUnique(rng, pool.altArtRunes, pulled),
+    };
   }
 
   cursor += pool.foilRunes.length > 0 ? TOKEN_SLOT_FOIL_RUNE_RATE : 0;
   if (roll < cursor) {
-    return { slot: "token", printing: pickOneUnique(rng, pool.foilRunes, pulled) };
+    return {
+      slot: WellKnown.packSlot.TOKEN,
+      printing: pickOneUnique(rng, pool.foilRunes, pulled),
+    };
   }
 
   cursor += pool.tokens.length > 0 ? TOKEN_SLOT_TOKEN_RATE : 0;
   if (roll < cursor) {
-    return { slot: "token", printing: pickOneUnique(rng, pool.tokens, pulled) };
+    return {
+      slot: WellKnown.packSlot.TOKEN,
+      printing: pickOneUnique(rng, pool.tokens, pulled),
+    };
   }
 
-  return { slot: "token", printing: pickOneUnique(rng, pool.runes, pulled) };
+  return {
+    slot: WellKnown.packSlot.TOKEN,
+    printing: pickOneUnique(rng, pool.runes, pulled),
+  };
 }
 
 /**
@@ -125,19 +150,25 @@ export function openPack(pool: PackPool, rng: Random): PackResult {
   };
 
   for (let i = 0; i < COMMONS_PER_PACK; i++) {
-    push({ slot: "common", printing: pickOneUnique(rng, pool.commons, pulled) });
+    push({
+      slot: WellKnown.packSlot.COMMON,
+      printing: pickOneUnique(rng, pool.commons, pulled),
+    });
   }
   for (let i = 0; i < UNCOMMONS_PER_PACK; i++) {
-    push({ slot: "uncommon", printing: pickOneUnique(rng, pool.uncommons, pulled) });
+    push({
+      slot: WellKnown.packSlot.UNCOMMON,
+      printing: pickOneUnique(rng, pool.uncommons, pulled),
+    });
   }
   for (let i = 0; i < FLEX_SLOTS_PER_PACK; i++) {
     const isEpic = pool.epics.length > 0 && rng.next() < FLEX_EPIC_RATE;
     const bucket = isEpic ? pool.epics : pool.rares;
-    push({ slot: "flex", printing: pickOneUnique(rng, bucket, pulled) });
+    push({ slot: WellKnown.packSlot.FLEX, printing: pickOneUnique(rng, bucket, pulled) });
   }
 
   const special = rollSpecialSlot(rng, pool, pulled);
-  push(special ?? { slot: "foil", printing: pickFoilSlot(rng, pool, pulled) });
+  push(special ?? { slot: WellKnown.packSlot.FOIL, printing: pickFoilSlot(rng, pool, pulled) });
 
   push(pickTokenSlot(rng, pool, pulled));
 

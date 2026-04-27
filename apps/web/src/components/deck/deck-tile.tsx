@@ -201,7 +201,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
               <span className="text-muted-foreground ml-1 text-[10px]">{typeSummary}</span>
             )}
           </span>
-          {deck.format === "freeform" ? (
+          {deck.format === WellKnown.deckFormat.FREEFORM ? (
             <Badge variant="outline" className="text-xs">
               Freeform
             </Badge>

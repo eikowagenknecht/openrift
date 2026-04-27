@@ -209,7 +209,12 @@ export { getPlaysetSize } from "./playset.js";
 export type { SourceSlot } from "./zone-inference.js";
 export { inferZone } from "./zone-inference.js";
 
-export { marketplaceFinish, WellKnown } from "./well-known.js";
+export {
+  isAlwaysFoilRarity,
+  marketplaceFinish,
+  RARITIES_ALWAYS_FOIL,
+  WellKnown,
+} from "./well-known.js";
 
 export type {
   PackPool,

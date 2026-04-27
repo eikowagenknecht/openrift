@@ -1,4 +1,5 @@
 import type { DeckFormat, DeckListItemResponse, DeckResponse } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -121,7 +122,10 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
 
   const handleFormatToggle = (event: React.MouseEvent) => {
     stop(event);
-    const newFormat: DeckFormat = deck.format === "constructed" ? "freeform" : "constructed";
+    const newFormat: DeckFormat =
+      deck.format === WellKnown.deckFormat.CONSTRUCTED
+        ? WellKnown.deckFormat.FREEFORM
+        : WellKnown.deckFormat.CONSTRUCTED;
     updateDeck.mutate({ deckId: deck.id, format: newFormat });
   };
 
@@ -183,7 +187,9 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleFormatToggle}>
             <RefreshCwIcon className="size-4" />
-            {deck.format === "constructed" ? "Change to freeform" : "Change to constructed"}
+            {deck.format === WellKnown.deckFormat.CONSTRUCTED
+              ? "Change to freeform"
+              : "Change to constructed"}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleClone}>
             <CopyIcon className="size-4" />

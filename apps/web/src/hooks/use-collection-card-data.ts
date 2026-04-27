@@ -7,6 +7,7 @@ import type {
   SortOption,
 } from "@openrift/shared";
 import {
+  WellKnown,
   filterCards,
   getAvailableFilters,
   sortByLanguageAndCanonicalRank,
@@ -68,7 +69,7 @@ export function useCollectionCardData({
 
   const availableFilters = getAvailableFilters(collectionPrintings, { orders, getPrice });
   availableFilters.supplementalSets = new Set(
-    sets.filter((s) => s.setType === "supplemental").map((s) => s.slug),
+    sets.filter((s) => s.setType === WellKnown.setType.SUPPLEMENTAL).map((s) => s.slug),
   );
 
   // Derived from the user's actual owned printings so the filter UI lists only

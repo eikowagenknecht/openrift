@@ -1,4 +1,5 @@
 import type { PublicDeckCardResponse, PublicDeckDetailResponse } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
 import { CopyIcon } from "lucide-react";
 import { Suspense, useMemo, useRef, useState } from "react";
@@ -145,7 +146,7 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
       if (card.fullImageUrl) {
         map.set(thumbKey(card.cardId, card.preferredPrintingId), {
           fullUrl: card.fullImageUrl,
-          landscape: card.cardType === "Battlefield",
+          landscape: card.cardType === WellKnown.cardType.BATTLEFIELD,
         });
       }
     }

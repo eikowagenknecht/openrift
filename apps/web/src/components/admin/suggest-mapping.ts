@@ -148,9 +148,9 @@ function scorePrintingProduct(
   // groupKind) bucket differ only in price, the expensive one is almost always
   // the altart and the cheap one the normal. Empirically true for basic-set
   // printings where marketplace product names don't disclose the variant.
-  if (priceRank === "priciest" && printing.artVariant === "altart") {
+  if (priceRank === "priciest" && printing.artVariant === WellKnown.artVariant.ALTART) {
     score += 50;
-  } else if (priceRank === "cheapest" && printing.artVariant === "normal") {
+  } else if (priceRank === "cheapest" && printing.artVariant === WellKnown.artVariant.NORMAL) {
     score += 50;
   }
 
@@ -168,13 +168,16 @@ function scorePrintingProduct(
     ) {
       score += 60;
     }
-    if (suffix.includes("overnumbered") && printing.artVariant === "overnumbered") {
+    if (
+      suffix.includes("overnumbered") &&
+      printing.artVariant === WellKnown.artVariant.OVERNUMBERED
+    ) {
       score += 60;
     }
     if (
       suffix.includes("signature") &&
       printing.isSigned &&
-      printing.artVariant === "overnumbered"
+      printing.artVariant === WellKnown.artVariant.OVERNUMBERED
     ) {
       score += 60;
     }

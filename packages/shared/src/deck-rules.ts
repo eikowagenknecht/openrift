@@ -43,21 +43,29 @@ function totalQuantity(cards: DeckCard[]): number {
 
 // Legend zone must have exactly 1 card of type Legend.
 export const legendExactlyOne: DeckRule = (state) => {
-  const legends = cardsInZone(state.cards, "legend");
+  const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
   const count = totalQuantity(legends);
 
   if (count === 0) {
-    return [{ zone: "legend", code: "LEGEND_REQUIRED", message: "A Legend is required" }];
+    return [
+      { zone: WellKnown.deckZone.LEGEND, code: "LEGEND_REQUIRED", message: "A Legend is required" },
+    ];
   }
   if (count > 1) {
-    return [{ zone: "legend", code: "LEGEND_TOO_MANY", message: "Only one Legend is allowed" }];
+    return [
+      {
+        zone: WellKnown.deckZone.LEGEND,
+        code: "LEGEND_TOO_MANY",
+        message: "Only one Legend is allowed",
+      },
+    ];
   }
 
   const legend = legends[0];
-  if (legend.cardType !== "Legend") {
+  if (legend.cardType !== WellKnown.cardType.LEGEND) {
     return [
       {
-        zone: "legend",
+        zone: WellKnown.deckZone.LEGEND,
         code: "LEGEND_WRONG_TYPE",
         message: `${legend.cardName} is not a Legend card`,
         cardId: legend.cardId,
@@ -70,18 +78,22 @@ export const legendExactlyOne: DeckRule = (state) => {
 
 // Champion zone must have exactly 1 card with Champion super type.
 export const championExactlyOne: DeckRule = (state) => {
-  const champions = cardsInZone(state.cards, "champion");
+  const champions = cardsInZone(state.cards, WellKnown.deckZone.CHAMPION);
   const count = totalQuantity(champions);
 
   if (count === 0) {
     return [
-      { zone: "champion", code: "CHAMPION_REQUIRED", message: "A Chosen Champion is required" },
+      {
+        zone: WellKnown.deckZone.CHAMPION,
+        code: "CHAMPION_REQUIRED",
+        message: "A Chosen Champion is required",
+      },
     ];
   }
   if (count > 1) {
     return [
       {
-        zone: "champion",
+        zone: WellKnown.deckZone.CHAMPION,
         code: "CHAMPION_TOO_MANY",
         message: "Only one Chosen Champion is allowed",
       },
@@ -89,10 +101,10 @@ export const championExactlyOne: DeckRule = (state) => {
   }
 
   const champion = champions[0];
-  if (!champion.superTypes.includes("Champion")) {
+  if (!champion.superTypes.includes(WellKnown.superType.CHAMPION)) {
     return [
       {
-        zone: "champion",
+        zone: WellKnown.deckZone.CHAMPION,
         code: "CHAMPION_WRONG_TYPE",
         message: `${champion.cardName} does not have the Champion type`,
         cardId: champion.cardId,
@@ -105,8 +117,8 @@ export const championExactlyOne: DeckRule = (state) => {
 
 // Champion's tags must overlap with the Legend's tags.
 export const championSharesTagWithLegend: DeckRule = (state) => {
-  const legends = cardsInZone(state.cards, "legend");
-  const champions = cardsInZone(state.cards, "champion");
+  const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
+  const champions = cardsInZone(state.cards, WellKnown.deckZone.CHAMPION);
 
   if (legends.length !== 1 || champions.length !== 1) {
     return [];
@@ -120,7 +132,7 @@ export const championSharesTagWithLegend: DeckRule = (state) => {
   if (!hasOverlap) {
     return [
       {
-        zone: "champion",
+        zone: WellKnown.deckZone.CHAMPION,
         code: "CHAMPION_LEGEND_MISMATCH",
         message: `${champion.cardName} does not match the Legend ${legend.cardName}`,
         cardId: champion.cardId,
@@ -133,16 +145,22 @@ export const championSharesTagWithLegend: DeckRule = (state) => {
 
 // Runes zone must have exactly 12 cards total.
 export const runesExactlyTwelve: DeckRule = (state) => {
-  const runes = cardsInZone(state.cards, "runes");
+  const runes = cardsInZone(state.cards, WellKnown.deckZone.RUNES);
   const count = totalQuantity(runes);
 
   if (count === 0) {
-    return [{ zone: "runes", code: "RUNES_REQUIRED", message: "12 Rune cards are required" }];
+    return [
+      {
+        zone: WellKnown.deckZone.RUNES,
+        code: "RUNES_REQUIRED",
+        message: "12 Rune cards are required",
+      },
+    ];
   }
   if (count < 12) {
     return [
       {
-        zone: "runes",
+        zone: WellKnown.deckZone.RUNES,
         code: "RUNES_TOO_FEW",
         message: `${count}/12 Rune cards — need ${12 - count} more`,
       },
@@ -151,7 +169,7 @@ export const runesExactlyTwelve: DeckRule = (state) => {
   if (count > 12) {
     return [
       {
-        zone: "runes",
+        zone: WellKnown.deckZone.RUNES,
         code: "RUNES_TOO_MANY",
         message: `${count}/12 Rune cards — remove ${count - 12}`,
       },
@@ -165,10 +183,10 @@ export const runesExactlyTwelve: DeckRule = (state) => {
 export const runesAllTypeRune: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
-  for (const card of cardsInZone(state.cards, "runes")) {
-    if (card.cardType !== "Rune") {
+  for (const card of cardsInZone(state.cards, WellKnown.deckZone.RUNES)) {
+    if (card.cardType !== WellKnown.cardType.RUNE) {
       violations.push({
-        zone: "runes",
+        zone: WellKnown.deckZone.RUNES,
         code: "RUNE_WRONG_TYPE",
         message: `${card.cardName} is not a Rune card`,
         cardId: card.cardId,
@@ -181,7 +199,7 @@ export const runesAllTypeRune: DeckRule = (state) => {
 
 // All runes must have a domain matching one of the Legend's 2 domains.
 export const runesMatchLegendDomains: DeckRule = (state) => {
-  const legends = cardsInZone(state.cards, "legend");
+  const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
   if (legends.length !== 1) {
     return [];
   }
@@ -189,11 +207,11 @@ export const runesMatchLegendDomains: DeckRule = (state) => {
   const legendDomains = new Set(legends[0].domains);
   const violations: DeckViolation[] = [];
 
-  for (const card of cardsInZone(state.cards, "runes")) {
+  for (const card of cardsInZone(state.cards, WellKnown.deckZone.RUNES)) {
     const matchesDomain = card.domains.some((domain) => legendDomains.has(domain));
     if (!matchesDomain) {
       violations.push({
-        zone: "runes",
+        zone: WellKnown.deckZone.RUNES,
         code: "RUNE_DOMAIN_MISMATCH",
         message: `${card.cardName} does not match the Legend's domains`,
         cardId: card.cardId,
@@ -206,14 +224,14 @@ export const runesMatchLegendDomains: DeckRule = (state) => {
 
 // Main deck + champion zone must total exactly 40 cards.
 export const mainDeckExactly: DeckRule = (state) => {
-  const mainCount = totalQuantity(cardsInZone(state.cards, "main"));
-  const championCount = totalQuantity(cardsInZone(state.cards, "champion"));
+  const mainCount = totalQuantity(cardsInZone(state.cards, WellKnown.deckZone.MAIN));
+  const championCount = totalQuantity(cardsInZone(state.cards, WellKnown.deckZone.CHAMPION));
   const count = mainCount + championCount;
 
   if (count < 40) {
     return [
       {
-        zone: "main",
+        zone: WellKnown.deckZone.MAIN,
         code: "MAIN_TOO_FEW",
         message: `${count}/40 main deck cards — need ${40 - count} more`,
       },
@@ -222,7 +240,7 @@ export const mainDeckExactly: DeckRule = (state) => {
   if (count > 40) {
     return [
       {
-        zone: "main",
+        zone: WellKnown.deckZone.MAIN,
         code: "MAIN_TOO_MANY",
         message: `${count}/40 main deck cards — remove ${count - 40}`,
       },
@@ -236,10 +254,10 @@ export const mainDeckExactly: DeckRule = (state) => {
 export const mainDeckCopyLimit: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
-  for (const card of cardsInZone(state.cards, "main")) {
+  for (const card of cardsInZone(state.cards, WellKnown.deckZone.MAIN)) {
     if (card.quantity > 3) {
       violations.push({
-        zone: "main",
+        zone: WellKnown.deckZone.MAIN,
         code: "MAIN_COPY_LIMIT",
         message: `${card.cardName} exceeds the 3-copy limit (${card.quantity})`,
         cardId: card.cardId,
@@ -252,7 +270,7 @@ export const mainDeckCopyLimit: DeckRule = (state) => {
 
 // Cards in main/sideboard must only have domains within the legend's domains (+ Colorless).
 export const mainDeckDomainMatch: DeckRule = (state) => {
-  const legends = cardsInZone(state.cards, "legend");
+  const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
   if (legends.length !== 1) {
     return [];
   }
@@ -261,8 +279,8 @@ export const mainDeckDomainMatch: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
   for (const card of [
-    ...cardsInZone(state.cards, "main"),
-    ...cardsInZone(state.cards, "sideboard"),
+    ...cardsInZone(state.cards, WellKnown.deckZone.MAIN),
+    ...cardsInZone(state.cards, WellKnown.deckZone.SIDEBOARD),
   ]) {
     const hasDisallowed = card.domains.some((domain) => !allowedDomains.has(domain));
     if (hasDisallowed) {
@@ -280,20 +298,20 @@ export const mainDeckDomainMatch: DeckRule = (state) => {
 
 // If a Champion card is in the champion zone, at most 2 more copies in main (3 total).
 export const championCopyLimitAcrossZones: DeckRule = (state) => {
-  const champions = cardsInZone(state.cards, "champion");
+  const champions = cardsInZone(state.cards, WellKnown.deckZone.CHAMPION);
   if (champions.length !== 1) {
     return [];
   }
 
   const championCardId = champions[0].cardId;
-  const mainCopies = cardsInZone(state.cards, "main").find(
+  const mainCopies = cardsInZone(state.cards, WellKnown.deckZone.MAIN).find(
     (card) => card.cardId === championCardId,
   );
 
   if (mainCopies && mainCopies.quantity > 2) {
     return [
       {
-        zone: "main",
+        zone: WellKnown.deckZone.MAIN,
         code: "CHAMPION_COPY_LIMIT",
         message: `${mainCopies.cardName} can have at most 2 copies in the main deck (1 is the Chosen Champion)`,
         cardId: mainCopies.cardId,
@@ -306,12 +324,12 @@ export const championCopyLimitAcrossZones: DeckRule = (state) => {
 
 // Sideboard can have at most 8 cards.
 export const sideboardMaximum: DeckRule = (state) => {
-  const count = totalQuantity(cardsInZone(state.cards, "sideboard"));
+  const count = totalQuantity(cardsInZone(state.cards, WellKnown.deckZone.SIDEBOARD));
 
   if (count > 8) {
     return [
       {
-        zone: "sideboard",
+        zone: WellKnown.deckZone.SIDEBOARD,
         code: "SIDEBOARD_TOO_MANY",
         message: `${count}/8 sideboard cards — remove ${count - 8}`,
       },
@@ -326,8 +344,8 @@ export const uniqueCopyLimit: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
   for (const card of [
-    ...cardsInZone(state.cards, "main"),
-    ...cardsInZone(state.cards, "sideboard"),
+    ...cardsInZone(state.cards, WellKnown.deckZone.MAIN),
+    ...cardsInZone(state.cards, WellKnown.deckZone.SIDEBOARD),
   ]) {
     if (card.keywords.includes(WellKnown.keyword.UNIQUE) && card.quantity > 1) {
       violations.push({
@@ -346,10 +364,10 @@ export const uniqueCopyLimit: DeckRule = (state) => {
 export const sideboardCopyLimit: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
-  for (const card of cardsInZone(state.cards, "sideboard")) {
+  for (const card of cardsInZone(state.cards, WellKnown.deckZone.SIDEBOARD)) {
     if (card.quantity > 3) {
       violations.push({
-        zone: "sideboard",
+        zone: WellKnown.deckZone.SIDEBOARD,
         code: "SIDEBOARD_COPY_LIMIT",
         message: `${card.cardName} exceeds the 3-copy limit (${card.quantity})`,
         cardId: card.cardId,
@@ -362,13 +380,13 @@ export const sideboardCopyLimit: DeckRule = (state) => {
 
 // Battlefield zone must have exactly 3 cards.
 export const battlefieldExactlyThree: DeckRule = (state) => {
-  const battlefields = cardsInZone(state.cards, "battlefield");
+  const battlefields = cardsInZone(state.cards, WellKnown.deckZone.BATTLEFIELD);
   const count = totalQuantity(battlefields);
 
   if (count === 0) {
     return [
       {
-        zone: "battlefield",
+        zone: WellKnown.deckZone.BATTLEFIELD,
         code: "BATTLEFIELD_REQUIRED",
         message: "3 Battlefield cards are required",
       },
@@ -377,7 +395,7 @@ export const battlefieldExactlyThree: DeckRule = (state) => {
   if (count < 3) {
     return [
       {
-        zone: "battlefield",
+        zone: WellKnown.deckZone.BATTLEFIELD,
         code: "BATTLEFIELD_TOO_FEW",
         message: `${count}/3 Battlefield cards — need ${3 - count} more`,
       },
@@ -386,7 +404,7 @@ export const battlefieldExactlyThree: DeckRule = (state) => {
   if (count > 3) {
     return [
       {
-        zone: "battlefield",
+        zone: WellKnown.deckZone.BATTLEFIELD,
         code: "BATTLEFIELD_TOO_MANY",
         message: `${count}/3 Battlefield cards — remove ${count - 3}`,
       },
@@ -400,10 +418,10 @@ export const battlefieldExactlyThree: DeckRule = (state) => {
 export const battlefieldAllTypeBattlefield: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
-  for (const card of cardsInZone(state.cards, "battlefield")) {
-    if (card.cardType !== "Battlefield") {
+  for (const card of cardsInZone(state.cards, WellKnown.deckZone.BATTLEFIELD)) {
+    if (card.cardType !== WellKnown.cardType.BATTLEFIELD) {
       violations.push({
-        zone: "battlefield",
+        zone: WellKnown.deckZone.BATTLEFIELD,
         code: "BATTLEFIELD_WRONG_TYPE",
         message: `${card.cardName} is not a Battlefield card`,
         cardId: card.cardId,
@@ -418,10 +436,10 @@ export const battlefieldAllTypeBattlefield: DeckRule = (state) => {
 export const battlefieldNoDuplicates: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
-  for (const card of cardsInZone(state.cards, "battlefield")) {
+  for (const card of cardsInZone(state.cards, WellKnown.deckZone.BATTLEFIELD)) {
     if (card.quantity > 1) {
       violations.push({
-        zone: "battlefield",
+        zone: WellKnown.deckZone.BATTLEFIELD,
         code: "BATTLEFIELD_DUPLICATE",
         message: `${card.cardName} — only 1 copy allowed in the battlefield zone`,
         cardId: card.cardId,
@@ -435,8 +453,8 @@ export const battlefieldNoDuplicates: DeckRule = (state) => {
 // Total Signature cards across main deck + sideboard must not exceed 3 (rule 103.2.d.1).
 const signatureTotalLimit: DeckRule = (state) => {
   const signatureCards = [
-    ...cardsInZone(state.cards, "main"),
-    ...cardsInZone(state.cards, "sideboard"),
+    ...cardsInZone(state.cards, WellKnown.deckZone.MAIN),
+    ...cardsInZone(state.cards, WellKnown.deckZone.SIDEBOARD),
   ].filter((card) => card.superTypes.includes(WellKnown.superType.SIGNATURE));
 
   const count = totalQuantity(signatureCards);
@@ -456,7 +474,7 @@ const signatureTotalLimit: DeckRule = (state) => {
 
 // All Signature cards must share a Champion tag with the Legend (rule 103.2.d.2).
 const signatureMatchesLegendTag: DeckRule = (state) => {
-  const legends = cardsInZone(state.cards, "legend");
+  const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
   if (legends.length !== 1) {
     return [];
   }
@@ -465,8 +483,8 @@ const signatureMatchesLegendTag: DeckRule = (state) => {
   const violations: DeckViolation[] = [];
 
   for (const card of [
-    ...cardsInZone(state.cards, "main"),
-    ...cardsInZone(state.cards, "sideboard"),
+    ...cardsInZone(state.cards, WellKnown.deckZone.MAIN),
+    ...cardsInZone(state.cards, WellKnown.deckZone.SIDEBOARD),
   ]) {
     if (!card.superTypes.includes(WellKnown.superType.SIGNATURE)) {
       continue;

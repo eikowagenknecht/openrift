@@ -1,5 +1,5 @@
 import type { CompletionScopePreference, Domain } from "@openrift/shared";
-import { getAvailableFilters } from "@openrift/shared";
+import { WellKnown, getAvailableFilters } from "@openrift/shared";
 import { Link, Navigate } from "@tanstack/react-router";
 import {
   ArrowDownIcon,
@@ -341,9 +341,13 @@ function CompletionSection({
 
   // For set grouping, split main/supplemental
   const mainEntries =
-    groupBy === "set" ? entries.filter((entry) => entry.setType === "main") : entries;
+    groupBy === "set"
+      ? entries.filter((entry) => entry.setType === WellKnown.setType.MAIN)
+      : entries;
   const supplementalEntries =
-    groupBy === "set" ? entries.filter((entry) => entry.setType === "supplemental") : [];
+    groupBy === "set"
+      ? entries.filter((entry) => entry.setType === WellKnown.setType.SUPPLEMENTAL)
+      : [];
 
   function rowBarColor(key: string): string | undefined {
     if (groupBy === "domain") {

@@ -1,12 +1,15 @@
 /**
- * Well-known reference table slugs.
+ * Well-known taxonomy values that application logic depends on.
  *
- * These match rows in the database reference tables (card_types, domains, etc.)
- * that application logic depends on. The tables can have MORE rows — these are
- * just the ones the code has special-case logic for.
+ * Most categories (`cardType`, `domain`, `rarity`, etc.) match rows in DB
+ * reference tables. The tables can have MORE rows — these are just the ones
+ * the code has special-case logic for. At API startup, a validator checks
+ * that every slug listed here exists in its reference table with
+ * `is_well_known = true`.
  *
- * At API startup, a validator checks that every slug listed here exists in its
- * reference table. If a row is missing, the server refuses to start.
+ * A few categories (`setType`, `packSlot`) are pure application enums that
+ * aren't backed by reference tables — they live here too so all taxonomy
+ * constants have one home.
  */
 export const WellKnown = {
   cardType: {
@@ -55,6 +58,16 @@ export const WellKnown = {
     /** Rarest tier, appears in <0.1% of packs. Only exists in sets that have one (e.g. UNL Baron Nashor). */
     ULTIMATE: "ultimate",
   },
+  rarity: {
+    COMMON: "Common",
+    UNCOMMON: "Uncommon",
+    /** Always foil-finish (drives import-time finish inference). */
+    RARE: "Rare",
+    /** Always foil-finish (drives import-time finish inference). */
+    EPIC: "Epic",
+    /** Always foil-finish (drives import-time finish inference); also routed to the showcase pack slot. */
+    SHOWCASE: "Showcase",
+  },
   deckFormat: {
     /** Applies constructed deck validation rules. */
     CONSTRUCTED: "constructed",
@@ -77,7 +90,52 @@ export const WellKnown = {
     /** Auto-zone for excess cards. */
     OVERFLOW: "overflow",
   },
+  /**
+   * Backed by the `set_type` Postgres ENUM, not a reference table — no DB validation.
+   * Adding a value requires a migration to alter the enum.
+   */
+  setType: {
+    MAIN: "main",
+    SUPPLEMENTAL: "supplemental",
+  },
+  /**
+   * Pack-opener slot identifiers. Pure application enum — no DB representation.
+   */
+  packSlot: {
+    COMMON: "common",
+    UNCOMMON: "uncommon",
+    /** Rare or Epic, weighted roll. */
+    FLEX: "flex",
+    /** Foil common/uncommon, replaced by `showcase` or `ultimate` on a special roll. */
+    FOIL: "foil",
+    /** Rune (most pulls) or Token-supertype card. */
+    TOKEN: "token",
+    /** Alt-art / overnumbered / signed showcase pull. */
+    SHOWCASE: "showcase",
+    /** Rarest tier (<0.1%); only in sets with an Ultimate printing. */
+    ULTIMATE: "ultimate",
+  },
 } as const;
+
+/**
+ * Rarities that are always printed with a foil finish — used by import parsers
+ * to infer the finish when the source CSV doesn't disambiguate.
+ */
+export const RARITIES_ALWAYS_FOIL: readonly string[] = [
+  WellKnown.rarity.RARE,
+  WellKnown.rarity.EPIC,
+  WellKnown.rarity.SHOWCASE,
+];
+
+/**
+ * Case-insensitive check against {@link RARITIES_ALWAYS_FOIL}. Import sources
+ * normalize rarity to lowercase before matching, so the comparison folds case.
+ * @returns True when the rarity is one that's always printed in foil.
+ */
+export function isAlwaysFoilRarity(rarity: string): boolean {
+  const normalized = rarity.toLowerCase();
+  return RARITIES_ALWAYS_FOIL.some((value) => value.toLowerCase() === normalized);
+}
 
 /**
  * Map a DB finish to the marketplace's coarser view of it.

@@ -1,4 +1,5 @@
 import type { Marketplace, PackPull, PackResult, PriceLookup } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { useState } from "react";
 
 import { useEnumOrders } from "@/hooks/use-enums";
@@ -109,10 +110,12 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
 }
 
 function rarityKeyFor(pull: PackPull): string {
-  if (pull.slot === "token") {
-    return pull.printing.cardSuperTypes.includes("Token") ? "Token" : "Rune";
+  if (pull.slot === WellKnown.packSlot.TOKEN) {
+    return pull.printing.cardSuperTypes.includes(WellKnown.superType.TOKEN)
+      ? WellKnown.superType.TOKEN
+      : WellKnown.cardType.RUNE;
   }
-  if (pull.slot === "ultimate") {
+  if (pull.slot === WellKnown.packSlot.ULTIMATE) {
     return "Ultimate";
   }
   return pull.printing.rarity;
@@ -135,9 +138,9 @@ function buildNotablePulls(
     }
     const isNotableRarity =
       NOTABLE_RARITIES.has(rarity) ||
-      pull.slot === "foil" ||
-      pull.slot === "showcase" ||
-      pull.slot === "ultimate";
+      pull.slot === WellKnown.packSlot.FOIL ||
+      pull.slot === WellKnown.packSlot.SHOWCASE ||
+      pull.slot === WellKnown.packSlot.ULTIMATE;
     if (!isNotableRarity) {
       continue;
     }

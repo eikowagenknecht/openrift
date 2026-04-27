@@ -13,7 +13,7 @@ import type {
   Domain,
   SuperType,
 } from "@openrift/shared";
-import { inferZone, validateDeck } from "@openrift/shared";
+import { WellKnown, inferZone, validateDeck } from "@openrift/shared";
 import {
   deckAvailabilityResponseSchema,
   deckCardsResponseSchema,
@@ -329,17 +329,21 @@ export const decksRoute = decksApp
 
     const cardTypeOrder = enumRows.cardTypes.map((row) => row.slug);
     const domainOrder = enumRows.domains.map((row) => row.slug);
-    const excludedTypes = new Set<string>(["Legend", "Rune", "Battlefield"]);
-    const countedZones = new Set<string>(["main", "champion"]);
+    const excludedTypes = new Set<string>([
+      WellKnown.cardType.LEGEND,
+      WellKnown.cardType.RUNE,
+      WellKnown.cardType.BATTLEFIELD,
+    ]);
+    const countedZones = new Set<string>([WellKnown.deckZone.MAIN, WellKnown.deckZone.CHAMPION]);
 
     const items: DeckListItemResponse[] = deckRows.map((row) => {
       const cards = cardsByDeckId.get(row.id) ?? [];
-      const legend = cards.find((card) => card.zone === "legend");
-      const champion = cards.find((card) => card.zone === "champion");
+      const legend = cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
+      const champion = cards.find((card) => card.zone === WellKnown.deckZone.CHAMPION);
 
       // Total cards (excluding overflow)
       const totalCards = cards
-        .filter((card) => card.zone !== "overflow")
+        .filter((card) => card.zone !== WellKnown.deckZone.OVERFLOW)
         .reduce((sum, card) => sum + card.quantity, 0);
 
       // Type counts (Unit/Spell/Gear from main+champion zones)
@@ -379,9 +383,9 @@ export const decksRoute = decksApp
 
       // Validation
       const isValid =
-        row.format === "constructed"
+        row.format === WellKnown.deckFormat.CONSTRUCTED
           ? validateDeck({
-              format: "constructed",
+              format: WellKnown.deckFormat.CONSTRUCTED,
               cards: cards.map((card) => ({
                 cardId: card.cardId,
                 zone: card.zone as DeckZone,

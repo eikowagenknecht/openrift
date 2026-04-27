@@ -103,13 +103,13 @@ function slotLabel(pull: PackPull): string {
       return `Foil ${pull.printing.rarity}`;
     }
     case "token": {
-      if (pull.printing.cardSuperTypes.includes("Token")) {
+      if (pull.printing.cardSuperTypes.includes(WellKnown.superType.TOKEN)) {
         return "Token";
       }
-      if (pull.printing.finish === "foil") {
+      if (pull.printing.finish === WellKnown.finish.FOIL) {
         return "Foil Rune";
       }
-      if (pull.printing.artVariant !== "normal") {
+      if (pull.printing.artVariant !== WellKnown.artVariant.NORMAL) {
         return "Alt Art Rune";
       }
       return "Rune";
@@ -118,7 +118,7 @@ function slotLabel(pull: PackPull): string {
       if (pull.printing.isSigned) {
         return "Signed";
       }
-      if (pull.printing.artVariant === "overnumbered") {
+      if (pull.printing.artVariant === WellKnown.artVariant.OVERNUMBERED) {
         return "Overnumbered";
       }
       return "Alt Art";

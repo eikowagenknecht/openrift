@@ -13,6 +13,7 @@ const TABLE_MAP: Record<string, { table: keyof Database; pk: string }> = {
   superType: { table: "superTypes", pk: "slug" },
   finish: { table: "finishes", pk: "slug" },
   artVariant: { table: "artVariants", pk: "slug" },
+  rarity: { table: "rarities", pk: "slug" },
   deckFormat: { table: "deckFormats", pk: "slug" },
   deckZone: { table: "deckZones", pk: "slug" },
   keyword: { table: "keywords", pk: "name" },

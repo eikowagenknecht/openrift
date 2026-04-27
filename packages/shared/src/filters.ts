@@ -11,6 +11,7 @@ import type {
 } from "./types/index.js";
 import { ALL_SEARCH_FIELDS, NONE, SEARCH_PREFIX_MAP } from "./types/index.js";
 import { boundsOf, unique } from "./utils.js";
+import { WellKnown } from "./well-known.js";
 
 export interface ParsedSearchTerm {
   field: SearchField | null;
@@ -404,7 +405,9 @@ export function getAvailableFilters(
   if (setMeta) {
     const setSlugOrder = new Map(
       setMeta
-        .toSorted((a, b) => (a.setType === b.setType ? 0 : a.setType === "main" ? -1 : 1))
+        .toSorted((a, b) =>
+          a.setType === b.setType ? 0 : a.setType === WellKnown.setType.MAIN ? -1 : 1,
+        )
         .map((s, i) => [s.slug, i]),
     );
     sets.sort((a, b) => (setSlugOrder.get(a) ?? Infinity) - (setSlugOrder.get(b) ?? Infinity));
@@ -434,7 +437,9 @@ export function getAvailableFilters(
   return {
     sets,
     supplementalSets: setMeta
-      ? new Set(setMeta.filter((s) => s.setType === "supplemental").map((s) => s.slug))
+      ? new Set(
+          setMeta.filter((s) => s.setType === WellKnown.setType.SUPPLEMENTAL).map((s) => s.slug),
+        )
       : new Set<string>(),
     domains,
     types,
