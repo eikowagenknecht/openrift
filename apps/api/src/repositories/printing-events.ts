@@ -44,10 +44,9 @@ export interface EnrichedPrintingEvent {
   frontImageUrl: string | null;
 }
 
-export type PrintingEventStatus = "pending" | "sent" | "failed";
+type PrintingEventStatus = "pending" | "sent" | "failed";
 
-/** EnrichedPrintingEvent plus status + retryCount for the admin queue view. */
-export interface AdminPrintingEvent extends EnrichedPrintingEvent {
+interface AdminPrintingEvent extends EnrichedPrintingEvent {
   status: PrintingEventStatus;
   retryCount: number;
 }

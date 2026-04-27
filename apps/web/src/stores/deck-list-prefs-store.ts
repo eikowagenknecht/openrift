@@ -6,7 +6,7 @@ export type DeckListSortField = "updated" | "created" | "name" | "value";
 
 export type SortDir = "asc" | "desc";
 
-export type DeckListDensity = "grid" | "list";
+type DeckListDensity = "grid" | "list";
 
 export type DeckListGroupBy = "none" | "format" | "domains" | "legend" | "validity";
 

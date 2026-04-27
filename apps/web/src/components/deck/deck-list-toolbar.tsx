@@ -4,7 +4,6 @@ import { LayoutGridIcon, ListIcon, SearchIcon, XIcon } from "lucide-react";
 
 import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -101,7 +100,7 @@ export function DeckListToolbar({
     (option) =>
       option.value === "none" ||
       option.value === groupBy ||
-      (option.value !== "none" && availability.usefulGroupings.has(option.value)),
+      availability.usefulGroupings.has(option.value),
   );
 
   const showFilterRow =
@@ -280,39 +279,6 @@ export function DeckListToolbar({
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-export function ActiveFilterBadges() {
-  const search = useDeckListPrefsStore((state) => state.search);
-  const formatFilter = useDeckListPrefsStore((state) => state.formatFilter);
-  const validityFilter = useDeckListPrefsStore((state) => state.validityFilter);
-  const domainFilter = useDeckListPrefsStore((state) => state.domainFilter);
-
-  const items: string[] = [];
-  if (search.trim() !== "") {
-    items.push(`"${search.trim()}"`);
-  }
-  if (formatFilter !== "all") {
-    items.push(formatFilter);
-  }
-  if (validityFilter !== "all") {
-    items.push(validityFilter);
-  }
-  for (const domain of domainFilter) {
-    items.push(domain);
-  }
-  if (items.length === 0) {
-    return null;
-  }
-  return (
-    <div className="flex flex-wrap gap-1">
-      {items.map((label) => (
-        <Badge key={label} variant="secondary" className="text-xs capitalize">
-          {label}
-        </Badge>
-      ))}
     </div>
   );
 }

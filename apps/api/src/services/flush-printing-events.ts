@@ -11,7 +11,7 @@ interface DiscordWebhookUrls {
   printingChanges: string | null;
 }
 
-export interface FlushSummary {
+interface FlushSummary {
   sent: number;
   failed: number;
   failures?: WebhookFailure[];

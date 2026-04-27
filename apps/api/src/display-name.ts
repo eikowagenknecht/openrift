@@ -3,7 +3,7 @@ export const MAX_DISPLAY_NAME_LENGTH = 50;
 const ALLOWED_CHARS = /^[\p{L}\p{N} ._-]+$/u;
 const DISALLOWED_CHARS = /[^\p{L}\p{N} ._-]/gu;
 
-export type ValidateResult = { ok: true; value: string } | { ok: false; reason: string };
+type ValidateResult = { ok: true; value: string } | { ok: false; reason: string };
 
 export function validateDisplayName(input: unknown): ValidateResult {
   if (typeof input !== "string") {

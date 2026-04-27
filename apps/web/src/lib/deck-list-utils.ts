@@ -9,7 +9,7 @@ import type {
   SortDir,
 } from "@/stores/deck-list-prefs-store";
 
-export interface DeckListFilters {
+interface DeckListFilters {
   search: string;
   format: DeckListFormatFilter;
   validity: DeckListValidityFilter;
@@ -24,7 +24,7 @@ interface DeckListEnrichedItem {
 
 export type DeckListItemWithNames = DeckListItemResponse & DeckListEnrichedItem;
 
-export interface DeckListEnrichment {
+interface DeckListEnrichment {
   legendName: string | null;
   championName: string | null;
   legendDomains: Domain[] | null;
@@ -135,7 +135,7 @@ export function sortDecks(
   });
 }
 
-export interface DeckListGroup {
+interface DeckListGroup {
   key: string;
   label: string;
   items: DeckListItemWithNames[];
