@@ -1,5 +1,4 @@
 import type { CatalogResponse } from "@openrift/shared";
-import { getOrientation } from "@openrift/shared";
 import { createServerFn } from "@tanstack/react-start";
 
 import { readCatalogFromServerCache } from "@/lib/catalog-query";
@@ -12,36 +11,59 @@ export interface FirstRowCard {
 }
 
 const FIRST_ROW_LIMIT = 12;
+const PREFERRED_LANGUAGE = "EN";
 
 /**
- * Slim, SSR-only view of the first N catalog printings in canonical order
- * (battlefields excluded). Used to seed real `<img>` tags in the SSR HTML so
- * the browser's preload scanner can fetch the LCP image before hydration.
+ * Slim, SSR-only view of the first N catalog printings in the same order the
+ * live `<CardBrowser>` renders for a default user (no URL filters,
+ * `groupBy="set"`, `sortBy="id"` ascending, language preference EN).
+ *
+ * - Sets are iterated in `catalog.sets` order (the API's `set.sort_order`).
+ * - Within each set, printings sort by `shortCode` (locale-aware ascending).
+ * - Same-`shortCode` ties resolve by EN-first, then `canonicalRank` — matching
+ *   the stable secondary order `useCards` produces for equal-shortCode rows.
+ *
+ * Battlefields are kept (the live grid shows them too); they render with the
+ * portrait aspect of the surrounding cells in this preview, then get
+ * CSS-rotated into landscape after hydration. The image URL is the same in
+ * both states, so the preload still primes the eventual LCP element.
  * @param catalog The catalog response held in `serverCache`.
  * @param limit Maximum number of cards to return.
- * @returns Up to `limit` slim card entries, sorted by `canonicalRank`.
+ * @returns Up to `limit` slim card entries in live-grid render order.
  */
 export function extractFirstRow(catalog: CatalogResponse, limit: number): FirstRowCard[] {
-  const result: FirstRowCard[] = [];
-  const candidates: { printingId: string; canonicalRank: number; cardId: string }[] = [];
+  const setIndex = new Map(catalog.sets.map((set, index) => [set.id, index]));
+  const fallbackSetIndex = catalog.sets.length;
 
-  for (const [printingId, printing] of Object.entries(catalog.printings)) {
-    const card = catalog.cards[printing.cardId];
-    if (!card || getOrientation(card.type) === "landscape") {
-      continue;
+  const printings = Object.entries(catalog.printings).map(([id, printing]) => ({
+    id,
+    printing,
+    setIndex: setIndex.get(printing.setId) ?? fallbackSetIndex,
+  }));
+
+  printings.sort((a, b) => {
+    if (a.setIndex !== b.setIndex) {
+      return a.setIndex - b.setIndex;
     }
-    candidates.push({ printingId, canonicalRank: printing.canonicalRank, cardId: printing.cardId });
-  }
+    const shortCodeCompare = a.printing.shortCode.localeCompare(b.printing.shortCode);
+    if (shortCodeCompare !== 0) {
+      return shortCodeCompare;
+    }
+    const aIsPreferred = a.printing.language === PREFERRED_LANGUAGE ? 0 : 1;
+    const bIsPreferred = b.printing.language === PREFERRED_LANGUAGE ? 0 : 1;
+    if (aIsPreferred !== bIsPreferred) {
+      return aIsPreferred - bIsPreferred;
+    }
+    return a.printing.canonicalRank - b.printing.canonicalRank;
+  });
 
-  candidates.sort((a, b) => a.canonicalRank - b.canonicalRank);
-
-  for (const { printingId, cardId } of candidates) {
+  const result: FirstRowCard[] = [];
+  for (const { id, printing } of printings) {
     if (result.length >= limit) {
       break;
     }
-    const printing = catalog.printings[printingId];
-    const card = catalog.cards[cardId];
-    if (!printing || !card) {
+    const card = catalog.cards[printing.cardId];
+    if (!card) {
       continue;
     }
     const front = printing.images.find((img) => img.face === "front") ?? printing.images[0];
@@ -49,13 +71,12 @@ export function extractFirstRow(catalog: CatalogResponse, limit: number): FirstR
       continue;
     }
     result.push({
-      printingId,
+      printingId: id,
       cardName: card.name,
       thumbnail: front.thumbnail,
       full: front.full,
     });
   }
-
   return result;
 }
 

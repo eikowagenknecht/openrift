@@ -2,10 +2,15 @@ import type {
   CatalogResponse,
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
+  CatalogSetResponse,
 } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
 import { extractFirstRow } from "./cards-first-row";
+
+function makeSet(id: string, slug: string): CatalogSetResponse {
+  return { id, slug, name: slug, releasedAt: null, released: true, setType: "main" };
+}
 
 function makeCard(overrides: Partial<CatalogResponseCardValue> = {}): CatalogResponseCardValue {
   return {
@@ -32,7 +37,7 @@ function makePrinting(
   return {
     cardId: "card-1",
     shortCode: "OGN-001",
-    setId: "set-1",
+    setId: "set-ogn",
     rarity: "Common",
     artVariant: "normal",
     isSigned: false,
@@ -62,33 +67,65 @@ function makePrinting(
 function makeCatalog(
   cards: Record<string, CatalogResponseCardValue>,
   printings: Record<string, CatalogResponsePrintingValue>,
+  sets: CatalogSetResponse[] = [makeSet("set-ogn", "OGN")],
 ): CatalogResponse {
-  return { sets: [], cards, printings, totalCopies: 0 };
+  return { sets, cards, printings, totalCopies: 0 };
 }
 
 describe("extractFirstRow", () => {
-  it("sorts printings by canonicalRank ascending", () => {
+  it("iterates sets in catalog.sets order before sorting by shortCode within a set", () => {
     const cards = { "card-1": makeCard() };
     const printings = {
-      "p-c": makePrinting({ canonicalRank: 30 }),
-      "p-a": makePrinting({ canonicalRank: 10 }),
-      "p-b": makePrinting({ canonicalRank: 20 }),
+      "p-arc": makePrinting({ shortCode: "ARC-001", setId: "set-arc" }),
+      "p-ogn": makePrinting({ shortCode: "OGN-005", setId: "set-ogn" }),
+    };
+    const sets = [makeSet("set-ogn", "OGN"), makeSet("set-arc", "ARC")];
+    const result = extractFirstRow(makeCatalog(cards, printings, sets), 10);
+    expect(result.map((r) => r.printingId)).toEqual(["p-ogn", "p-arc"]);
+  });
+
+  it("sorts by shortCode (locale-compare ascending) within a set", () => {
+    const cards = { "card-1": makeCard() };
+    const printings = {
+      "p-c": makePrinting({ shortCode: "OGN-003" }),
+      "p-a": makePrinting({ shortCode: "OGN-001" }),
+      "p-b": makePrinting({ shortCode: "OGN-002" }),
     };
     const result = extractFirstRow(makeCatalog(cards, printings), 10);
     expect(result.map((r) => r.printingId)).toEqual(["p-a", "p-b", "p-c"]);
   });
 
-  it("excludes battlefields (landscape orientation)", () => {
+  it("places EN before non-EN for printings sharing a shortCode", () => {
+    const cards = { "card-1": makeCard() };
+    const printings = {
+      "p-zh": makePrinting({ shortCode: "OGN-001", language: "ZH", canonicalRank: 1 }),
+      "p-en": makePrinting({ shortCode: "OGN-001", language: "EN", canonicalRank: 5 }),
+    };
+    const result = extractFirstRow(makeCatalog(cards, printings), 10);
+    expect(result.map((r) => r.printingId)).toEqual(["p-en", "p-zh"]);
+  });
+
+  it("breaks identical-shortCode same-language ties by canonicalRank", () => {
+    const cards = { "card-1": makeCard() };
+    const printings = {
+      "p-2": makePrinting({ shortCode: "OGN-001", canonicalRank: 50 }),
+      "p-1": makePrinting({ shortCode: "OGN-001", canonicalRank: 10 }),
+    };
+    const result = extractFirstRow(makeCatalog(cards, printings), 10);
+    expect(result.map((r) => r.printingId)).toEqual(["p-1", "p-2"]);
+  });
+
+  it("includes battlefields (the live grid shows them too)", () => {
     const cards = {
       "unit-card": makeCard({ type: "Unit" }),
       "bf-card": makeCard({ type: "Battlefield" }),
     };
     const printings = {
-      "p-bf": makePrinting({ cardId: "bf-card", canonicalRank: 1 }),
-      "p-unit": makePrinting({ cardId: "unit-card", canonicalRank: 2 }),
+      "p-bf": makePrinting({ cardId: "bf-card", shortCode: "OGN-100" }),
+      "p-unit": makePrinting({ cardId: "unit-card", shortCode: "OGN-001" }),
     };
     const result = extractFirstRow(makeCatalog(cards, printings), 10);
-    expect(result.map((r) => r.printingId)).toEqual(["p-unit"]);
+    expect(result.map((r) => r.printingId)).toEqual(["p-unit", "p-bf"]);
   });
 
   it("falls back to the first image when no front face exists", () => {
@@ -114,22 +151,26 @@ describe("extractFirstRow", () => {
     const cards = { "card-1": makeCard() };
     const printings: Record<string, CatalogResponsePrintingValue> = {};
     for (let i = 0; i < 20; i++) {
-      printings[`p-${i}`] = makePrinting({ canonicalRank: i });
+      printings[`p-${String(i).padStart(3, "0")}`] = makePrinting({
+        shortCode: `OGN-${String(i).padStart(3, "0")}`,
+      });
     }
     const result = extractFirstRow(makeCatalog(cards, printings), 12);
     expect(result).toHaveLength(12);
-    expect(result.map((r) => r.printingId)).toEqual(Array.from({ length: 12 }, (_, i) => `p-${i}`));
+    expect(result.map((r) => r.printingId)).toEqual(
+      Array.from({ length: 12 }, (_, i) => `p-${String(i).padStart(3, "0")}`),
+    );
   });
 
   it("returns an empty array for an empty catalog", () => {
-    expect(extractFirstRow(makeCatalog({}, {}), 12)).toEqual([]);
+    expect(extractFirstRow(makeCatalog({}, {}, []), 12)).toEqual([]);
   });
 
   it("skips printings with no images at all", () => {
     const cards = { "card-1": makeCard() };
     const printings = {
-      "p-noimg": makePrinting({ images: [], canonicalRank: 1 }),
-      "p-img": makePrinting({ canonicalRank: 2 }),
+      "p-noimg": makePrinting({ shortCode: "OGN-001", images: [] }),
+      "p-img": makePrinting({ shortCode: "OGN-002" }),
     };
     const result = extractFirstRow(makeCatalog(cards, printings), 10);
     expect(result.map((r) => r.printingId)).toEqual(["p-img"]);
