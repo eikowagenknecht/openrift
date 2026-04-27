@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import type { DeckListItemWithNames } from "./deck-list-utils";
 import {
-  attachNames,
   availableDomainsFrom,
+  enrichItem,
   filterDecks,
   groupDecks,
   partitionByArchived,
@@ -25,6 +25,7 @@ interface DeckOverrides {
   domains?: { domain: Domain; count: number }[];
   legendName?: string | null;
   championName?: string | null;
+  legendDomains?: Domain[] | null;
 }
 
 function makeItem(overrides: DeckOverrides = {}): DeckListItemWithNames {
@@ -46,7 +47,11 @@ function makeItem(overrides: DeckOverrides = {}): DeckListItemWithNames {
     isValid: overrides.isValid ?? true,
     totalValueCents: overrides.totalValueCents ?? null,
   };
-  return attachNames(base, overrides.legendName ?? null, overrides.championName ?? null);
+  return enrichItem(base, {
+    legendName: overrides.legendName ?? null,
+    championName: overrides.championName ?? null,
+    legendDomains: overrides.legendDomains ?? null,
+  });
 }
 
 describe("filterDecks", () => {
@@ -217,20 +222,39 @@ describe("groupDecks", () => {
     expect(byKey.freeform.items.map((item) => item.deck.id)).toEqual(["b"]);
   });
 
-  it("groups by primary domain (largest count) with a 'No domain' bucket at the end", () => {
+  it("groups by domain combination using legend domains, sorted alphabetically", () => {
+    const items = [
+      makeItem({ id: "a", legendDomains: ["Fury", "Body"] }),
+      makeItem({ id: "b", legendDomains: ["Body", "Fury"] }),
+      makeItem({ id: "c", legendDomains: ["Calm", "Mind"] }),
+    ];
+    const groups = groupDecks(items, "domains");
+    const byLabel = Object.fromEntries(groups.map((group) => [group.label, group]));
+    // "Body / Fury" and "Body / Fury" collapse into one bucket regardless of input order.
+    expect(byLabel["Body / Fury"].items.map((item) => item.deck.id)).toEqual(["a", "b"]);
+    expect(byLabel["Calm / Mind"].items.map((item) => item.deck.id)).toEqual(["c"]);
+  });
+
+  it("falls back to deck distribution when no legend domains are known, excluding Colorless", () => {
     const items = [
       makeItem({
         id: "a",
+        legendDomains: null,
         domains: [
-          { domain: "Fury", count: 12 },
-          { domain: "Body", count: 4 },
+          { domain: "Fury", count: 10 },
+          { domain: "Colorless", count: 6 },
         ],
       }),
-      makeItem({ id: "b", domains: [{ domain: "Calm", count: 8 }] }),
-      makeItem({ id: "c", domains: [] }),
+      makeItem({ id: "b", legendDomains: null, domains: [] }),
     ];
-    const groups = groupDecks(items, "primary-domain");
-    expect(groups.map((group) => group.label)).toEqual(["Calm", "Fury", "No domain"]);
+    const groups = groupDecks(items, "domains");
+    expect(groups.map((group) => group.label)).toEqual(["Fury", "No domain"]);
+  });
+
+  it("uses 'No domain' bucket when legend has only Colorless", () => {
+    const items = [makeItem({ id: "a", legendDomains: ["Colorless"] })];
+    const groups = groupDecks(items, "domains");
+    expect(groups.map((group) => group.label)).toEqual(["No domain"]);
   });
 
   it("groups validity with freeform decks bucketed separately from constructed validity", () => {

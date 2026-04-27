@@ -13,7 +13,7 @@ export type DeckListSort =
 
 export type DeckListDensity = "grid" | "list";
 
-export type DeckListGroupBy = "none" | "format" | "primary-domain" | "legend" | "validity";
+export type DeckListGroupBy = "none" | "format" | "domains" | "legend" | "validity";
 
 export type DeckListFormatFilter = "all" | "constructed" | "freeform";
 
@@ -32,7 +32,7 @@ const SORT_OPTIONS: ReadonlySet<DeckListSort> = new Set([
 const GROUP_OPTIONS: ReadonlySet<DeckListGroupBy> = new Set([
   "none",
   "format",
-  "primary-domain",
+  "domains",
   "legend",
   "validity",
 ]);

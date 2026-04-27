@@ -29,7 +29,7 @@ const SORT_ITEMS: { value: DeckListSort; label: string }[] = [
 const GROUP_ITEMS: { value: DeckListGroupBy; label: string }[] = [
   { value: "none", label: "No grouping" },
   { value: "format", label: "Group by format" },
-  { value: "primary-domain", label: "Group by primary domain" },
+  { value: "domains", label: "Group by domains" },
   { value: "legend", label: "Group by legend" },
   { value: "validity", label: "Group by validity" },
 ];

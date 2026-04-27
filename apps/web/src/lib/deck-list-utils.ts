@@ -1,4 +1,5 @@
 import type { DeckListItemResponse, Domain } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 
 import type {
   DeckListFormatFilter,
@@ -17,16 +18,22 @@ export interface DeckListFilters {
 interface DeckListEnrichedItem {
   legendName: string | null;
   championName: string | null;
+  legendDomains: Domain[] | null;
 }
 
 export type DeckListItemWithNames = DeckListItemResponse & DeckListEnrichedItem;
 
-export function attachNames(
+export interface DeckListEnrichment {
+  legendName: string | null;
+  championName: string | null;
+  legendDomains: Domain[] | null;
+}
+
+export function enrichItem(
   item: DeckListItemResponse,
-  legendName: string | null,
-  championName: string | null,
+  enrichment: DeckListEnrichment,
 ): DeckListItemWithNames {
-  return { ...item, legendName, championName };
+  return { ...item, ...enrichment };
 }
 
 function deckMatchesSearch(item: DeckListItemWithNames, query: string): boolean {
@@ -140,18 +147,18 @@ export interface DeckListGroup {
   items: DeckListItemWithNames[];
 }
 
-function primaryDomainOf(item: DeckListItemWithNames): Domain | null {
-  if (item.domainDistribution.length === 0) {
-    return null;
-  }
-  // domainDistribution is already ordered by canonical domain order from the API; pick the largest count, ties break on order.
-  let best = item.domainDistribution[0];
-  for (const entry of item.domainDistribution) {
-    if (entry.count > best.count) {
-      best = entry;
-    }
-  }
-  return best.domain;
+function domainComboOf(item: DeckListItemWithNames): Domain[] {
+  // Prefer the legend's identity (Riftbound's canonical color identity for constructed decks)
+  // and fall back to the deck's distribution for legend-less decks. Colorless is excluded
+  // since nearly every deck contains at least some Colorless cards and it doesn't define identity.
+  const source =
+    item.legendDomains && item.legendDomains.length > 0
+      ? item.legendDomains
+      : item.domainDistribution.map((entry) => entry.domain);
+  const real = source.filter((domain) => domain !== WellKnown.domain.COLORLESS);
+  return [...new Set(real)].sort((left, right) =>
+    left.localeCompare(right, undefined, { sensitivity: "base" }),
+  );
 }
 
 function groupKeyAndLabel(
@@ -164,11 +171,13 @@ function groupKeyAndLabel(
         ? { key: "constructed", label: "Constructed" }
         : { key: "freeform", label: "Freeform" };
     }
-    case "primary-domain": {
-      const domain = primaryDomainOf(item);
-      return domain
-        ? { key: `domain:${domain}`, label: domain }
-        : { key: "domain:none", label: "No domain" };
+    case "domains": {
+      const combo = domainComboOf(item);
+      if (combo.length === 0) {
+        return { key: "domains:none", label: "No domain" };
+      }
+      const label = combo.join(" / ");
+      return { key: `domains:${label}`, label };
     }
     case "legend": {
       const legend = item.legendName ?? "(No legend)";

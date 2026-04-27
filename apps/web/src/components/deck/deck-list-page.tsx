@@ -30,8 +30,8 @@ import { useCreateDeck, useDecks } from "@/hooks/use-decks";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckListItemWithNames } from "@/lib/deck-list-utils";
 import {
-  attachNames,
   availableDomainsFrom,
+  enrichItem,
   filterDecks,
   groupDecks,
   partitionByArchived,
@@ -117,13 +117,17 @@ function CreateDeckDialog({
 function useEnrichedItems(items: DeckListItemResponse[]): DeckListItemWithNames[] {
   const { getPreferredPrinting } = usePreferredPrinting();
   return items.map((item) => {
-    const legendName = item.legendCardId
-      ? (getPreferredPrinting(item.legendCardId)?.card.name ?? null)
-      : null;
-    const championName = item.championCardId
-      ? (getPreferredPrinting(item.championCardId)?.card.name ?? null)
-      : null;
-    return attachNames(item, legendName, championName);
+    const legendCard = item.legendCardId
+      ? getPreferredPrinting(item.legendCardId)?.card
+      : undefined;
+    const championCard = item.championCardId
+      ? getPreferredPrinting(item.championCardId)?.card
+      : undefined;
+    return enrichItem(item, {
+      legendName: legendCard?.name ?? null,
+      championName: championCard?.name ?? null,
+      legendDomains: legendCard?.domains ?? null,
+    });
   });
 }
 
