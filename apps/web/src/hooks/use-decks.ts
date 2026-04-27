@@ -25,7 +25,7 @@ const fetchDecks = createServerFn({ method: "GET" })
       fetchApiJson<DeckListResponse>({
         errorTitle: "Couldn't load decks",
         cookie: context.cookie,
-        path: "/api/v1/decks",
+        path: "/api/v1/decks?includeArchived=true",
       }),
   );
 
@@ -226,6 +226,70 @@ export function useUpdateDeck() {
         };
       });
     },
+  });
+}
+
+const setDeckPinnedFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { deckId: string; isPinned: boolean }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }) =>
+    fetchApiJson<DeckResponse>({
+      errorTitle: "Couldn't update deck",
+      cookie: context.cookie,
+      path: `/api/v1/decks/${encodeURIComponent(data.deckId)}/pin`,
+      method: "PATCH",
+      body: { isPinned: data.isPinned },
+    }),
+  );
+
+const setDeckArchivedFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { deckId: string; archived: boolean }) => input)
+  .middleware([withCookies])
+  .handler(({ context, data }) =>
+    fetchApiJson<DeckResponse>({
+      errorTitle: "Couldn't update deck",
+      cookie: context.cookie,
+      path: `/api/v1/decks/${encodeURIComponent(data.deckId)}/archive`,
+      method: "PATCH",
+      body: { archived: data.archived },
+    }),
+  );
+
+function applyDeckUpdateToCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  deckId: string,
+  data: DeckResponse,
+) {
+  queryClient.setQueryData<DeckDetailResponse>(queryKeys.decks.detail(deckId), (old) =>
+    old ? { ...old, deck: data } : old,
+  );
+  queryClient.setQueryData<DeckListResponse>(queryKeys.decks.all, (old) => {
+    if (!old) {
+      return old;
+    }
+    return {
+      items: old.items.map((item) =>
+        item.deck.id === deckId ? { ...item, deck: { ...item.deck, ...data } } : item,
+      ),
+    };
+  });
+}
+
+export function useSetDeckPinned() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ deckId, isPinned }: { deckId: string; isPinned: boolean }) =>
+      setDeckPinnedFn({ data: { deckId, isPinned } }),
+    onSuccess: (data, variables) => applyDeckUpdateToCaches(queryClient, variables.deckId, data),
+  });
+}
+
+export function useSetDeckArchived() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ deckId, archived }: { deckId: string; archived: boolean }) =>
+      setDeckArchivedFn({ data: { deckId, archived } }),
+    onSuccess: (data, variables) => applyDeckUpdateToCaches(queryClient, variables.deckId, data),
   });
 }
 

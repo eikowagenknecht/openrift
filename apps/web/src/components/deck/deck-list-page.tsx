@@ -1,4 +1,4 @@
-import type { DeckResponse } from "@openrift/shared";
+import type { DeckListItemResponse, DeckResponse } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { DownloadIcon, PlusIcon, SwordsIcon } from "lucide-react";
 import { useState } from "react";
@@ -27,8 +27,21 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateDeck, useDecks } from "@/hooks/use-decks";
+import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
+import type { DeckListItemWithNames } from "@/lib/deck-list-utils";
+import {
+  attachNames,
+  availableDomainsFrom,
+  filterDecks,
+  groupDecks,
+  partitionByArchived,
+  sortDecks,
+} from "@/lib/deck-list-utils";
 import { cn, CONTAINER_WIDTH, PAGE_PADDING_NO_TOP } from "@/lib/utils";
+import { useDeckListPrefsStore } from "@/stores/deck-list-prefs-store";
 
+import { DeckListRow } from "./deck-list-row";
+import { DeckListToolbar } from "./deck-list-toolbar";
 import { DeckTile } from "./deck-tile";
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -101,9 +114,67 @@ function CreateDeckDialog({
   );
 }
 
+function useEnrichedItems(items: DeckListItemResponse[]): DeckListItemWithNames[] {
+  const { getPreferredPrinting } = usePreferredPrinting();
+  return items.map((item) => {
+    const legendName = item.legendCardId
+      ? (getPreferredPrinting(item.legendCardId)?.card.name ?? null)
+      : null;
+    const championName = item.championCardId
+      ? (getPreferredPrinting(item.championCardId)?.card.name ?? null)
+      : null;
+    return attachNames(item, legendName, championName);
+  });
+}
+
+function GroupHeader({ label, count }: { label: string; count: number }) {
+  if (label === "") {
+    return null;
+  }
+  return (
+    <div className="text-muted-foreground mt-2 mb-1 flex items-center gap-2 text-sm font-medium">
+      <span>{label}</span>
+      <span className="text-xs tabular-nums">({count})</span>
+    </div>
+  );
+}
+
 export function DeckListPage() {
   const { data: deckItems } = useDecks();
   const [createOpen, setCreateOpen] = useState(false);
+
+  const search = useDeckListPrefsStore((state) => state.search);
+  const sort = useDeckListPrefsStore((state) => state.sort);
+  const density = useDeckListPrefsStore((state) => state.density);
+  const groupBy = useDeckListPrefsStore((state) => state.groupBy);
+  const formatFilter = useDeckListPrefsStore((state) => state.formatFilter);
+  const validityFilter = useDeckListPrefsStore((state) => state.validityFilter);
+  const domainFilter = useDeckListPrefsStore((state) => state.domainFilter);
+  const showArchived = useDeckListPrefsStore((state) => state.showArchived);
+
+  const enriched = useEnrichedItems(deckItems);
+  const availableDomains = availableDomainsFrom(deckItems);
+  const visible = partitionByArchived(enriched, showArchived);
+  const filtered = filterDecks(visible, {
+    search,
+    format: formatFilter,
+    validity: validityFilter,
+    domains: domainFilter,
+  });
+  const sorted = sortDecks(filtered, sort);
+  const groups = groupDecks(sorted, groupBy);
+
+  const containerClass =
+    density === "grid"
+      ? "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+      : "flex flex-col gap-1.5";
+
+  const renderItem = (item: DeckListItemWithNames) =>
+    density === "grid" ? (
+      <DeckTile key={item.deck.id} item={item} />
+    ) : (
+      <DeckListRow key={item.deck.id} item={item} />
+    );
 
   return (
     <div className={`${CONTAINER_WIDTH} ${PAGE_PADDING_NO_TOP}`}>
@@ -132,10 +203,23 @@ export function DeckListPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {deckItems.map((item) => (
-            <DeckTile key={item.deck.id} item={item} />
-          ))}
+        <div className="flex flex-col gap-4">
+          <DeckListToolbar availableDomains={availableDomains} />
+
+          {sorted.length === 0 ? (
+            <div className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center text-sm">
+              <p>No decks match your filters.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {groups.map((group) => (
+                <div key={group.key}>
+                  <GroupHeader label={group.label} count={group.items.length} />
+                  <div className={containerClass}>{group.items.map(renderItem)}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

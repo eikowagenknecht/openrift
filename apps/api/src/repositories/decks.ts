@@ -32,15 +32,24 @@ type DeckCardDetailRow = Pick<
  */
 export function decksRepo(db: Kysely<Database>) {
   return {
-    /** @returns All decks for a user, optionally filtered to wanted-only, ordered by name. */
-    listForUser(userId: string, wantedOnly?: boolean): Promise<Selectable<DecksTable>[]> {
+    /**
+     * @returns Decks for a user, ordered by name. Archived decks are excluded
+     * unless `options.includeArchived` is true.
+     */
+    listForUser(
+      userId: string,
+      options?: { wantedOnly?: boolean; includeArchived?: boolean },
+    ): Promise<Selectable<DecksTable>[]> {
       let query = db
         .selectFrom("decks")
         .selectAll()
         .where("userId", "=", userId)
         .orderBy((eb) => eb.fn("lower", ["name"]));
-      if (wantedOnly) {
+      if (options?.wantedOnly) {
         query = query.where("isWanted", "=", true);
+      }
+      if (!options?.includeArchived) {
+        query = query.where("archivedAt", "is", null);
       }
       return query.execute();
     },
@@ -320,6 +329,43 @@ export function decksRepo(db: Kysely<Database>) {
         .where("d.userId", "=", userId)
         .where("d.isWanted", "=", true)
         .execute();
+    },
+
+    /**
+     * Toggles a deck's pinned status, scoped to the owning user.
+     * @returns The updated deck row, or `undefined` if the deck is not owned by the user.
+     */
+    setPinned(
+      id: string,
+      userId: string,
+      isPinned: boolean,
+    ): Promise<Selectable<DecksTable> | undefined> {
+      return db
+        .updateTable("decks")
+        .set({ isPinned })
+        .where("id", "=", id)
+        .where("userId", "=", userId)
+        .returningAll()
+        .executeTakeFirst();
+    },
+
+    /**
+     * Archives or unarchives a deck. When archived, sets archived_at to now;
+     * when unarchived, nulls it. Scoped to the owning user.
+     * @returns The updated deck row, or `undefined` if the deck is not owned by the user.
+     */
+    setArchived(
+      id: string,
+      userId: string,
+      archived: boolean,
+    ): Promise<Selectable<DecksTable> | undefined> {
+      return db
+        .updateTable("decks")
+        .set({ archivedAt: archived ? sql`now()` : null })
+        .where("id", "=", id)
+        .where("userId", "=", userId)
+        .returningAll()
+        .executeTakeFirst();
     },
 
     /**

@@ -230,6 +230,41 @@ function generateShareToken(): string {
   return out.join("");
 }
 
+const pinDeckBodySchema = z.object({ isPinned: z.boolean() });
+const archiveDeckBodySchema = z.object({ archived: z.boolean() });
+
+const setDeckPinned = createRoute({
+  method: "patch",
+  path: "/{id}/pin",
+  tags: ["Decks"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: pinDeckBodySchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckResponseSchema } },
+      description: "Updated",
+    },
+  },
+});
+
+const setDeckArchived = createRoute({
+  method: "patch",
+  path: "/{id}/archive",
+  tags: ["Decks"],
+  request: {
+    params: idParamSchema,
+    body: { content: { "application/json": { schema: archiveDeckBodySchema } } },
+  },
+  responses: {
+    200: {
+      content: { "application/json": { schema: deckResponseSchema } },
+      description: "Updated",
+    },
+  },
+});
+
 const shareDeck = createRoute({
   method: "post",
   path: "/{id}/share",
@@ -273,10 +308,13 @@ export const decksRoute = decksApp
   .openapi(listDecks, async (c) => {
     const { decks, marketplace, userPreferences, enums } = c.get("repos");
     const userId = getUserId(c);
-    const { wanted } = c.req.valid("query");
+    const { wanted, includeArchived } = c.req.valid("query");
 
     const [deckRows, allCards, prefs, enumRows] = await Promise.all([
-      decks.listForUser(userId, wanted === "true"),
+      decks.listForUser(userId, {
+        wantedOnly: wanted === "true",
+        includeArchived: includeArchived === "true",
+      }),
       decks.allCardsForUser(userId),
       userPreferences.getByUserId(userId),
       enums.all(),
@@ -662,6 +700,32 @@ export const decksRoute = decksApp
     }
 
     return c.json({ cards, warnings } satisfies DeckImportPreviewResponse);
+  })
+
+  // ── PATCH /decks/:id/pin ──────────────────────────────────────────────────
+  .openapi(setDeckPinned, async (c) => {
+    const { decks } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+    const { isPinned } = c.req.valid("json");
+
+    const updated = await decks.setPinned(id, userId, isPinned);
+    assertFound(updated, "Not found");
+
+    return c.json(toDeck(updated));
+  })
+
+  // ── PATCH /decks/:id/archive ──────────────────────────────────────────────
+  .openapi(setDeckArchived, async (c) => {
+    const { decks } = c.get("repos");
+    const userId = getUserId(c);
+    const { id } = c.req.valid("param");
+    const { archived } = c.req.valid("json");
+
+    const updated = await decks.setArchived(id, userId, archived);
+    assertFound(updated, "Not found");
+
+    return c.json(toDeck(updated));
   })
 
   // ── POST /decks/:id/share ─────────────────────────────────────────────────

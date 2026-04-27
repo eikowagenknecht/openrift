@@ -349,6 +349,8 @@ export interface DecksTable {
   isWanted: boolean;
   isPublic: boolean;
   shareToken: string | null;
+  isPinned: Generated<boolean>;
+  archivedAt: Date | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

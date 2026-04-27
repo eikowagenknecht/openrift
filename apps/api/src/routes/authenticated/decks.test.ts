@@ -165,7 +165,10 @@ describe("GET /api/v1/decks", () => {
   it("passes wanted filter", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
     await app.request("/api/v1/decks?wanted=true");
-    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, true);
+    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, {
+      wantedOnly: true,
+      includeArchived: false,
+    });
   });
 });
 
@@ -453,13 +456,28 @@ describe("GET /api/v1/decks — wanted filter false", () => {
   it("passes wanted=false when query is not 'true'", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
     await app.request("/api/v1/decks?wanted=false");
-    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, false);
+    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, {
+      wantedOnly: false,
+      includeArchived: false,
+    });
   });
 
   it("passes wanted=false when query param absent", async () => {
     mockRepo.listForUser.mockResolvedValue([]);
     await app.request("/api/v1/decks");
-    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, false);
+    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, {
+      wantedOnly: false,
+      includeArchived: false,
+    });
+  });
+
+  it("passes includeArchived=true when query says so", async () => {
+    mockRepo.listForUser.mockResolvedValue([]);
+    await app.request("/api/v1/decks?includeArchived=true");
+    expect(mockRepo.listForUser).toHaveBeenCalledWith(USER_ID, {
+      wantedOnly: false,
+      includeArchived: true,
+    });
   });
 });
 

@@ -65,6 +65,7 @@ export const copiesQuerySchema = z.object({
 
 export const decksQuerySchema = z.object({
   wanted: z.enum(["true", "false"]).optional(),
+  includeArchived: z.enum(["true", "false"]).optional(),
 });
 
 // ---------------------------------------------------------------------------

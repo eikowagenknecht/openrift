@@ -487,6 +487,8 @@ export const deckResponseSchema = z
     isWanted: z.boolean(),
     isPublic: z.boolean(),
     shareToken: z.string().nullable(),
+    isPinned: z.boolean(),
+    archivedAt: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })
@@ -521,6 +523,8 @@ const deckSummaryResponseSchema = z
     id: z.string(),
     name: z.string(),
     format: deckFormatSchema,
+    isPinned: z.boolean(),
+    archivedAt: z.string().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
   })

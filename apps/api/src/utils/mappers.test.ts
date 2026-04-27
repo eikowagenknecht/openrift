@@ -89,6 +89,8 @@ describe("toDeck", () => {
       isWanted: true,
       isPublic: true,
       shareToken: "tok-abc",
+      isPinned: false,
+      archivedAt: null,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -100,6 +102,8 @@ describe("toDeck", () => {
       isWanted: true,
       isPublic: true,
       shareToken: "tok-abc",
+      isPinned: false,
+      archivedAt: null,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
@@ -115,6 +119,8 @@ describe("toDeck", () => {
       isWanted: false,
       isPublic: false,
       shareToken: null,
+      isPinned: false,
+      archivedAt: null,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -137,6 +143,8 @@ describe("toPublicDeck", () => {
       isWanted: false,
       isPublic: true,
       shareToken: "tok-abc",
+      isPinned: false,
+      archivedAt: null,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -169,6 +177,8 @@ describe("toDeckSummary", () => {
       isWanted: true,
       isPublic: true,
       shareToken: "abc123",
+      isPinned: true,
+      archivedAt: null,
       createdAt: NOW,
       updatedAt: LATER,
     });
@@ -176,9 +186,30 @@ describe("toDeckSummary", () => {
       id: "deck-1",
       name: "Aggro",
       format: "constructed",
+      isPinned: true,
+      archivedAt: null,
       createdAt: "2025-06-15T12:00:00.000Z",
       updatedAt: "2025-06-16T08:30:00.000Z",
     });
+  });
+
+  it("serializes archivedAt as an ISO string when present", () => {
+    const archived = new Date("2026-04-01T10:00:00.000Z");
+    const result = toDeckSummary({
+      id: "deck-2",
+      userId: "user-1",
+      name: "Old",
+      description: null,
+      format: "freeform",
+      isWanted: false,
+      isPublic: false,
+      shareToken: null,
+      isPinned: false,
+      archivedAt: archived,
+      createdAt: NOW,
+      updatedAt: LATER,
+    });
+    expect(result.archivedAt).toBe("2026-04-01T10:00:00.000Z");
   });
 });
 

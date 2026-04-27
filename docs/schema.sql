@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict uoXbx4wJ8eyTr4bcPMdkFQbHRi7ul3wFAS4Xf5rxnOkh39FopDdJPQhvOLcKjjM
+\restrict mEh10P7UejAhzarVHkcPpTg4eRkfmf5f5idFFurHtBLYWY9iF65XDkeABHVyrAZ
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -706,6 +706,8 @@ CREATE TABLE public.decks (
     share_token text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    is_pinned boolean DEFAULT false NOT NULL,
+    archived_at timestamp with time zone,
     CONSTRAINT chk_decks_name_not_empty CHECK ((name <> ''::text))
 );
 
@@ -3396,5 +3398,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict uoXbx4wJ8eyTr4bcPMdkFQbHRi7ul3wFAS4Xf5rxnOkh39FopDdJPQhvOLcKjjM
+\unrestrict mEh10P7UejAhzarVHkcPpTg4eRkfmf5f5idFFurHtBLYWY9iF65XDkeABHVyrAZ
 

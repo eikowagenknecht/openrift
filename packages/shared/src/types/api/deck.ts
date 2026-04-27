@@ -9,6 +9,8 @@ export interface DeckSummaryResponse {
   id: string;
   name: string;
   format: "constructed" | "freeform";
+  isPinned: boolean;
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,6 +38,8 @@ export interface DeckResponse {
   isWanted: boolean;
   isPublic: boolean;
   shareToken: string | null;
+  isPinned: boolean;
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
