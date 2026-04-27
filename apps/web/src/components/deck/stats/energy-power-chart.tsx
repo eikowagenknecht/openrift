@@ -106,7 +106,7 @@ function GradientDefs({
   return (
     <defs>
       {multiDomain.map((stack) => (
-        <linearGradient key={stack.key} id={`gradient-${stack.key}`} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient key={stack.key} id={`gradient-${stack.key}`} x1="0" y1="1" x2="0" y2="0">
           {stack.domains.map((domain, index) => {
             const count = stack.domains.length;
             return (
