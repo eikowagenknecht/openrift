@@ -21,8 +21,8 @@ export function getRouter() {
   setupRouterSsrQueryIntegration({ router, queryClient, wrapQueryClient: true });
 
   // Client-only init via dynamic import so the SSR bundle never statically
-  // resolves browser-only Sentry exports (replayIntegration et al.). Server
-  // Sentry bootstraps separately via apps/web/instrument.server.mjs.
+  // resolves browser-only Sentry exports. Server Sentry bootstraps separately
+  // via apps/web/instrument.server.mjs.
   if (!router.isServer) {
     void (async () => {
       const { initClientSentry } = await import("./lib/sentry-client");

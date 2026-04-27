@@ -6,12 +6,12 @@ type TanstackRouter = Parameters<typeof Sentry.tanstackRouterBrowserTracingInteg
 
 // Browser-only Sentry setup. Loaded via dynamic import from router.ts so the
 // SSR bundle never *executes* this code, but Nitro still bundles it into the
-// SSR asset graph because it serves the client chunks. replayIntegration is
-// browser-only and is undefined in the server entry of @sentry/tanstackstart-
-// react — this triggers a harmless IMPORT_IS_UNDEFINED warning during the SSR
-// build. Using a namespace import keeps it a warning; switching to named
-// imports escalates it to a MISSING_EXPORT error. The dynamic-import + isServer
-// gate in router.ts guarantee the module is never evaluated on the server.
+// SSR asset graph because it serves the client chunks. Some integrations are
+// browser-only and are undefined in the server entry of @sentry/tanstackstart-
+// react — using a namespace import keeps any IMPORT_IS_UNDEFINED warnings as
+// warnings; switching to named imports escalates them to MISSING_EXPORT errors.
+// The dynamic-import + isServer gate in router.ts guarantee the module is never
+// evaluated on the server.
 export function initClientSentry(router: TanstackRouter): void {
   const dsn = globalThis.__OPENRIFT_CONFIG__?.sentryDsn;
   if (!dsn) {
@@ -22,13 +22,8 @@ export function initClientSentry(router: TanstackRouter): void {
     dsn,
     release: COMMIT_HASH,
     environment: PROD ? "production" : "development",
-    integrations: [
-      Sentry.tanstackRouterBrowserTracingIntegration(router),
-      Sentry.replayIntegration(),
-    ],
+    integrations: [Sentry.tanstackRouterBrowserTracingIntegration(router)],
     tracesSampleRate: 0.1,
-    replaysSessionSampleRate: 0,
-    replaysOnErrorSampleRate: 1,
     // Shared openrift-ssr project also receives server-side events; the tag
     // distinguishes them in the issue list and for alert rules.
     initialScope: { tags: { service: "web-client" } },
