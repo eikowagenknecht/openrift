@@ -198,16 +198,8 @@ export default defineConfig(({ mode, command }) => {
                 name: "better-auth",
               },
               {
-                test: /node_modules\/@sentry/,
-                name: "sentry",
-              },
-              {
                 test: /node_modules\/(@base-ui|@floating-ui|sonner)/,
                 name: "base-ui",
-              },
-              {
-                test: /node_modules\/jspdf/,
-                name: "jspdf",
               },
             ],
           },
