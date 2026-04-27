@@ -2,6 +2,7 @@ import type { CardErrata, Marketplace, Printing, TimeRange } from "@openrift/sha
 import {
   ALL_MARKETPLACES,
   EUR_MARKETPLACES,
+  getOrientation,
   preferredPrinting,
   snapshotHeadline,
   WellKnown,
@@ -93,6 +94,9 @@ function CardDetailPage() {
   }
 
   const frontImage = selectedPrinting.images.find((i) => i.face === "front");
+  const isLandscape = getOrientation(card.type) === "landscape";
+  const heroWidth = isLandscape ? 558 : 400;
+  const heroHeight = isLandscape ? 400 : 558;
 
   // Info table rows: printing-specific on the left, card-level on the right.
   // The right column sits beside the left on desktop and stacks below on mobile.
@@ -207,7 +211,16 @@ function CardDetailPage() {
         {/* Left column: card image */}
         <div className="shrink-0 md:w-80">
           {frontImage ? (
-            <img src={frontImage.full} alt={card.name} className="w-full rounded-xl" />
+            <img
+              src={frontImage.thumbnail}
+              srcSet={`${frontImage.thumbnail} 400w, ${frontImage.full} 800w`}
+              sizes="(min-width: 768px) 320px, 100vw"
+              width={heroWidth}
+              height={heroHeight}
+              fetchPriority="high"
+              alt={card.name}
+              className="w-full rounded-xl"
+            />
           ) : (
             <div className="bg-muted aspect-card flex items-center justify-center rounded-xl">
               <span className="text-muted-foreground">No image</span>

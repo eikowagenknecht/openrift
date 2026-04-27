@@ -31,6 +31,12 @@ function makeWrapper() {
 
 const noopRef = () => {};
 
+const stubFrontImage = {
+  face: "front" as const,
+  full: "https://cdn.example.com/card-full.webp",
+  thumbnail: "https://cdn.example.com/card-400w.webp",
+};
+
 describe("CardImage preview overlay", () => {
   it("renders a PREVIEW ribbon when the printing's set is unreleased", () => {
     const printing = stubPrinting({ setReleased: false });
@@ -62,5 +68,94 @@ describe("CardImage preview overlay", () => {
       { wrapper: makeWrapper() },
     );
     expect(queryByText("Preview")).toBeNull();
+  });
+});
+
+describe("CardImage hero (responsive image)", () => {
+  it("renders a srcset with both -400w and -full URLs and a sizes attribute", () => {
+    const printing = stubPrinting({
+      images: [stubFrontImage],
+      card: { name: "Hero Card" },
+    });
+    const { getByAltText } = render(
+      <CardImage
+        innerRef={noopRef}
+        printing={printing}
+        orientation="portrait"
+        showImages
+        showFoil={false}
+        showShimmer={false}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    const img = getByAltText("Hero Card") as HTMLImageElement;
+    const srcset = img.getAttribute("srcset") ?? "";
+    expect(srcset).toContain(`${stubFrontImage.thumbnail} 400w`);
+    expect(srcset).toContain(`${stubFrontImage.full} 800w`);
+    expect(img.getAttribute("sizes")).toBe("(min-width: 768px) 376px, 100vw");
+    expect(img.getAttribute("src")).toBe(stubFrontImage.thumbnail);
+  });
+
+  it("renders explicit width/height matching portrait dimensions", () => {
+    const printing = stubPrinting({
+      images: [stubFrontImage],
+      card: { name: "Portrait Card" },
+    });
+    const { getByAltText } = render(
+      <CardImage
+        innerRef={noopRef}
+        printing={printing}
+        orientation="portrait"
+        showImages
+        showFoil={false}
+        showShimmer={false}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    const img = getByAltText("Portrait Card") as HTMLImageElement;
+    expect(img.getAttribute("width")).toBe("400");
+    expect(img.getAttribute("height")).toBe("558");
+  });
+
+  it("renders explicit width/height matching landscape dimensions", () => {
+    const printing = stubPrinting({
+      images: [stubFrontImage],
+      card: { name: "Landscape Card", type: "Battlefield" },
+    });
+    const { getByAltText } = render(
+      <CardImage
+        innerRef={noopRef}
+        printing={printing}
+        orientation="landscape"
+        showImages
+        showFoil={false}
+        showShimmer={false}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    const img = getByAltText("Landscape Card") as HTMLImageElement;
+    expect(img.getAttribute("width")).toBe("558");
+    expect(img.getAttribute("height")).toBe("400");
+  });
+
+  it("marks the hero image as high fetch priority", () => {
+    const printing = stubPrinting({
+      images: [stubFrontImage],
+      card: { name: "Priority Card" },
+    });
+    const { getByAltText } = render(
+      <CardImage
+        innerRef={noopRef}
+        printing={printing}
+        orientation="portrait"
+        showImages
+        showFoil={false}
+        showShimmer={false}
+      />,
+      { wrapper: makeWrapper() },
+    );
+    const img = getByAltText("Priority Card");
+    const priority = img.getAttribute("fetchpriority") ?? img.getAttribute("fetchPriority");
+    expect(priority).toBe("high");
   });
 });

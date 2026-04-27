@@ -62,7 +62,12 @@ export function CardImage({
                 style={LANDSCAPE_ROTATION_STYLE}
               >
                 <img
-                  src={frontImage.full}
+                  src={frontImage.thumbnail}
+                  srcSet={`${frontImage.thumbnail} 400w, ${frontImage.full} 800w`}
+                  sizes="(min-width: 768px) 376px, 100vw"
+                  width={558}
+                  height={400}
+                  fetchPriority="high"
                   alt={card.name}
                   className="size-full object-cover"
                   onLoad={() => setImgLoaded(true)}
@@ -70,7 +75,12 @@ export function CardImage({
               </div>
             ) : (
               <img
-                src={frontImage.full}
+                src={frontImage.thumbnail}
+                srcSet={`${frontImage.thumbnail} 400w, ${frontImage.full} 800w`}
+                sizes="(min-width: 768px) 376px, 100vw"
+                width={400}
+                height={558}
+                fetchPriority="high"
                 alt={card.name}
                 className={cn(
                   "absolute inset-0 block w-full transition-opacity duration-300",
