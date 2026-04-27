@@ -109,9 +109,8 @@ export function PrintingEventsPage() {
       toast.success(`Reset ${ids.length} event${ids.length === 1 ? "" : "s"} to pending`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Retry failed");
-    } finally {
-      setRetryingIds(new Set());
     }
+    setRetryingIds(new Set());
   }
 
   if (!data) {
