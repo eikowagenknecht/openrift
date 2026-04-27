@@ -33,6 +33,7 @@ import { publicDecksRoute } from "./routes/public/decks.js";
 import { featureFlagsRoute } from "./routes/public/feature-flags.js";
 import { healthRoute } from "./routes/public/health.js";
 import { initRoute } from "./routes/public/init.js";
+import { landingSummaryRoute } from "./routes/public/landing-summary.js";
 import { pricesRoute } from "./routes/public/prices.js";
 import { promosRoute } from "./routes/public/promos.js";
 import { rulesRoute } from "./routes/public/rules.js";
@@ -277,6 +278,7 @@ export function createApp(deps: AppDeps) {
 
       // ── Public routes (no auth required) ─────────────────────────────────
       .route("/api/v1", catalogRoute)
+      .route("/api/v1", landingSummaryRoute)
       .route("/api/v1", cardsRoute)
       .route("/api/v1", setsRoute)
       .route("/api/v1", promosRoute)

@@ -87,6 +87,54 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(result).toBeUndefined();
   });
 
+  it("landingSummary returns counts plus a sampled list of thumbnails", async () => {
+    const summary = await repo.landingSummary(36);
+    expect(typeof summary.cardCount).toBe("number");
+    expect(typeof summary.printingCount).toBe("number");
+    expect(typeof summary.copyCount).toBe("number");
+    expect(summary.cardCount).toBeGreaterThan(0);
+    expect(summary.printingCount).toBeGreaterThan(0);
+    expect(Array.isArray(summary.thumbnails)).toBe(true);
+    expect(summary.thumbnails.length).toBeLessThanOrEqual(36);
+    for (const url of summary.thumbnails) {
+      expect(typeof url).toBe("string");
+      expect(url.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("landingSummary respects the sampleSize cap", async () => {
+    const summary = await repo.landingSummary(3);
+    expect(summary.thumbnails.length).toBeLessThanOrEqual(3);
+  });
+
+  it("landingSummary returns the same thumbnail sample within a single day", async () => {
+    const a = await repo.landingSummary(36);
+    const b = await repo.landingSummary(36);
+    expect(b.thumbnails).toEqual(a.thumbnails);
+  });
+
+  it("landingSummary excludes battlefield printings from the thumbnail sample", async () => {
+    const summary = await repo.landingSummary(500);
+    if (summary.thumbnails.length === 0) {
+      return;
+    }
+    const battlefieldRows = await db
+      .selectFrom("printingImages")
+      .innerJoin("printings", "printings.id", "printingImages.printingId")
+      .innerJoin("cards", "cards.id", "printings.cardId")
+      .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+      .select(["ci.rehostedUrl as url"])
+      .where("printingImages.face", "=", "front")
+      .where("printingImages.isActive", "=", true)
+      .where("ci.rehostedUrl", "is not", null)
+      .where("cards.type", "=", "Battlefield")
+      .execute();
+    const battlefieldUrls = new Set(battlefieldRows.map((r) => r.url as string));
+    for (const url of summary.thumbnails) {
+      expect(battlefieldUrls.has(url)).toBe(false);
+    }
+  });
+
   it("printingsByCardId orders English printings before other languages", async () => {
     // Find a card that has both an EN printing and at least one non-EN printing
     // (e.g. a localized ZH version) so the sort key is exercised. SSR meta tags

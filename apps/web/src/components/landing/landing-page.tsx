@@ -1,57 +1,27 @@
-import type { CatalogResponse, Printing } from "@openrift/shared";
-import { getOrientation } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
-import { catalogQueryOptions } from "@/hooks/use-cards";
 import { useCountUp } from "@/hooks/use-count-up";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
+import { landingSummaryQueryOptions } from "@/lib/landing-summary-query";
 import { cn } from "@/lib/utils";
 
 import { CardScatter } from "./card-scatter";
 import { FeatureHighlights } from "./feature-highlights";
 import { HeroBackground } from "./hero-background";
 
-/** @returns Front-face thumbnail URLs, excluding battlefields (landscape aspect ratio). */
-function getCardThumbnailUrls(data: { allPrintings: Printing[] } | undefined): string[] {
-  if (!data) {
-    return [];
-  }
-  const urls: string[] = [];
-  for (const printing of data.allPrintings) {
-    if (getOrientation(printing.card.type) === "landscape") {
-      continue;
-    }
-    const front = printing.images.find((img) => img.face === "front");
-    if (front) {
-      urls.push(front.thumbnail);
-    }
-  }
-  return urls;
-}
-
 export function LandingPage() {
-  const { data } = useQuery(catalogQueryOptions);
-  const { data: copies = 0 } = useQuery({
-    ...catalogQueryOptions,
-    select: (catalog: CatalogResponse) => catalog.totalCopies,
-  });
+  const { data } = useQuery(landingSummaryQueryOptions);
   const copiesTracked = useFeatureEnabled("copies-tracked");
   const [spinning, setSpinning] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [hinting, setHinting] = useState(false);
 
-  const uniqueCards = data ? new Set(data.allPrintings.map((p) => p.cardId)).size : 0;
-  const printings = data?.allPrintings.length ?? 0;
-
-  // Extract front-face thumbnail URLs for the card scatter background
-  const cardImageUrls = getCardThumbnailUrls(data);
-
-  const animatedCards = useCountUp(uniqueCards);
-  const animatedPrintings = useCountUp(printings);
-  const animatedCopies = useCountUp(copies);
+  const animatedCards = useCountUp(data?.cardCount ?? 0);
+  const animatedPrintings = useCountUp(data?.printingCount ?? 0);
+  const animatedCopies = useCountUp(data?.copyCount ?? 0);
 
   function handleLogoTap() {
     setHinting(true);
@@ -73,7 +43,7 @@ export function LandingPage() {
           key={resetKey}
           flyIn={resetKey > 0}
           hinting={hinting}
-          imageUrls={cardImageUrls}
+          imageUrls={data?.thumbnails ?? []}
           onAllCollected={handleAllCollected}
         />
         <div

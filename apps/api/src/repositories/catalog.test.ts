@@ -72,4 +72,13 @@ describe("catalogRepo", () => {
     const db = createMockDb([{ id: "p-1" }]);
     expect(await catalogRepo(db).printingById("p-1")).toEqual({ id: "p-1" });
   });
+
+  it("landingSummary returns numeric counts and pre-resolved thumbnail URLs", async () => {
+    const db = createMockDb([{ count: "5", url: "https://example.com/img" }]);
+    const summary = await catalogRepo(db).landingSummary(36);
+    expect(summary.cardCount).toBe(5);
+    expect(summary.printingCount).toBe(5);
+    expect(summary.copyCount).toBe(5);
+    expect(summary.thumbnails).toEqual(["https://example.com/img"]);
+  });
 });

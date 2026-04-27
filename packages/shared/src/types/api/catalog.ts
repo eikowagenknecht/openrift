@@ -118,3 +118,16 @@ export interface SitemapDataResponse {
   cards: SitemapEntry[];
   sets: SitemapEntry[];
 }
+
+/**
+ * Lightweight payload for the public landing page. Only the values the hero
+ * needs: three counts for the count-up stats and a pre-filtered, sampled list
+ * of front-face thumbnail URLs for the decorative card scatter (battlefields
+ * excluded).
+ */
+export interface LandingSummaryResponse {
+  cardCount: number;
+  printingCount: number;
+  copyCount: number;
+  thumbnails: string[];
+}

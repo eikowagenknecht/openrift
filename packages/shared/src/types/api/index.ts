@@ -21,6 +21,7 @@ export type {
   CatalogResponseCardValue,
   CatalogResponsePrintingValue,
   CatalogSetResponse,
+  LandingSummaryResponse,
   PromosListResponse,
   SetDetailResponse,
   SetListEntry,

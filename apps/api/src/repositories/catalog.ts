@@ -229,6 +229,59 @@ export function catalogRepo(db: Kysely<Database>) {
       return Number(result.count);
     },
 
+    /**
+     * Counts and a sampled list of front-face thumbnails for the public
+     * landing page. Battlefield cards are excluded from the thumbnail sample
+     * (they're landscape and look wrong in the scatter). The sample is
+     * deterministic per UTC day — `md5(printing_id || current_date)` — so an
+     * edge cache can serve the same payload to every visitor for the day,
+     * with the scatter rotating once at midnight.
+     *
+     * @param sampleSize — maximum number of thumbnail URLs to return.
+     * @returns Distinct card count, total printing count, total copy count,
+     *   and at most `sampleSize` thumbnail URLs.
+     */
+    async landingSummary(sampleSize: number): Promise<{
+      cardCount: number;
+      printingCount: number;
+      copyCount: number;
+      thumbnails: string[];
+    }> {
+      const [cardCountRow, printingCountRow, copyCountRow, thumbnailRows] = await Promise.all([
+        db
+          .selectFrom("cards")
+          .select(sql<string>`COUNT(*)`.as("count"))
+          .executeTakeFirstOrThrow(),
+        db
+          .selectFrom("printings")
+          .select(sql<string>`COUNT(*)`.as("count"))
+          .executeTakeFirstOrThrow(),
+        db
+          .selectFrom("copies")
+          .select(sql<string>`COUNT(*)`.as("count"))
+          .executeTakeFirstOrThrow(),
+        db
+          .selectFrom("printingImages")
+          .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
+          .innerJoin("printings", "printings.id", "printingImages.printingId")
+          .innerJoin("cards", "cards.id", "printings.cardId")
+          .select(imageUrl("ci").as("url"))
+          .where("printingImages.face", "=", "front")
+          .where("printingImages.isActive", "=", true)
+          .where(sql`${imageUrl("ci")}`, "is not", null)
+          .where("cards.type", "!=", "Battlefield")
+          .orderBy(sql`md5(printing_images.printing_id::text || current_date::text)`)
+          .limit(sampleSize)
+          .execute() as Promise<{ url: string }[]>,
+      ]);
+      return {
+        cardCount: Number(cardCountRow.count),
+        printingCount: Number(printingCountRow.count),
+        copyCount: Number(copyCountRow.count),
+        thumbnails: thumbnailRows.map((r) => r.url),
+      };
+    },
+
     /** @returns The card's `id`, or `undefined` if not found. */
     cardById(id: string): Promise<Pick<Selectable<CardsTable>, "id"> | undefined> {
       return db.selectFrom("cards").select("id").where("id", "=", id).executeTakeFirst();

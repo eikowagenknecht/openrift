@@ -81,6 +81,7 @@ export type {
   InitResponse,
   KeywordEntry,
   KeywordsResponse,
+  LandingSummaryResponse,
   MappingPrintingResponse,
   Marketplace,
   MarketplaceAssignmentResponse,

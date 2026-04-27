@@ -12,6 +12,9 @@ export const queryKeys = {
   catalog: {
     all: ["catalog"] as const,
   },
+  landingSummary: {
+    all: ["landing-summary"] as const,
+  },
   prices: {
     all: ["prices"] as const,
   },

@@ -2,6 +2,7 @@
 
 ## 2026-04-27
 
+- feat: The homepage now loads faster on a fresh visit by only fetching the few stats and card thumbnails it actually shows, instead of pulling down the full card catalog
 - feat: The deck builder's three-dot menu now has an "Import & replace cards…" action that lets you paste a deck code or list and overwrite the current deck's contents in place, keeping the deck's name and format. Previously you could only import as a brand-new deck
 - feat: The /decks page has a new toolbar — search by name, legend, or champion; sort by recent updates, name, card count, or value; filter by format, validity, and domain; group by format, domain combination, legend, or validity; and switch between the existing tile view and a new compact list view
 - feat: You can now pin frequently-used decks to keep them at the top of the deck list, and archive retired decks so they're hidden behind a toggle without being deleted
