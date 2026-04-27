@@ -915,6 +915,16 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             </Button>
           </div>
         )}
+        <p className="text-center">
+          Coming from another tool?{" "}
+          <Link
+            to="/collections/import"
+            className="text-muted-foreground hover:text-foreground underline"
+          >
+            Import your cards
+          </Link>
+          .
+        </p>
         {addTarget && (
           <QuickAddPalette
             open={quickAddOpen}
