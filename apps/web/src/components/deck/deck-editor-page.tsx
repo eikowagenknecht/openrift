@@ -1,5 +1,6 @@
 import type { DeckZone } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
   CornerLeftUpIcon,
   EllipsisVerticalIcon,
@@ -7,6 +8,7 @@ import {
   PencilIcon,
   PrinterIcon,
   Share2Icon,
+  UploadIcon,
   XIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -106,6 +108,7 @@ function DeckEditorContent({
   topBarSlot: HTMLDivElement | null;
 }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { data } = useDeckDetail(deckId);
   const { cardsById, allPrintings } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
@@ -326,6 +329,17 @@ function DeckEditorContent({
                   <DropdownMenuItem onClick={() => setRenameOpen(true)}>
                     <PencilIcon className="size-4" />
                     Rename
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      void navigate({
+                        to: "/decks/import",
+                        search: { replaceDeckId: deckId },
+                      })
+                    }
+                  >
+                    <UploadIcon className="size-4" />
+                    Import &amp; replace cards…
                   </DropdownMenuItem>
                   {deckSharingEnabled && (
                     <DropdownMenuItem onClick={() => setShareOpen(true)}>

@@ -1,5 +1,6 @@
 import type { DeckFormat, DeckResponse, DeckZone, Printing } from "@openrift/shared";
 import { useDebouncedValue } from "@tanstack/react-pacer";
+import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
@@ -14,6 +15,16 @@ import {
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +39,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
-import { useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
+import { deckDetailQueryOptions, useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
 import { useZoneOrder } from "@/hooks/use-enums";
 import { initQueryOptions } from "@/hooks/use-init";
 import type { DeckMatchStatus, DeckMatchedEntry, ResolvedCard } from "@/lib/deck-import-matcher";
@@ -55,11 +66,26 @@ function entryDisplayName(entry: DeckMatchedEntry): string {
   ).toLowerCase();
 }
 
+interface DeckImportSearch {
+  replaceDeckId?: string;
+}
+
 export const Route = createFileRoute("/_app/_authenticated/decks/import")({
   ssr: "data-only",
+  validateSearch: (search: Record<string, unknown>): DeckImportSearch => {
+    const value = search.replaceDeckId;
+    if (typeof value === "string" && value.length > 0) {
+      return { replaceDeckId: value };
+    }
+    return {};
+  },
+  loaderDeps: ({ search }) => ({ replaceDeckId: search.replaceDeckId }),
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Import Deck", noIndex: true }),
-  loader: async ({ context }) => {
+  loader: async ({ context, deps }) => {
     await context.queryClient.ensureQueryData(initQueryOptions);
+    if (deps.replaceDeckId) {
+      await context.queryClient.ensureQueryData(deckDetailQueryOptions(deps.replaceDeckId));
+    }
   },
   component: DeckImportPage,
 });
@@ -135,11 +161,19 @@ const IMPORT_DESCRIPTIONS: Record<DeckImportFormat, React.ReactNode> = {
 };
 
 function DeckImportPage() {
+  const { replaceDeckId } = Route.useSearch();
   const { allPrintings } = useCards();
   const { zoneOrder, zoneLabels } = useZoneOrder();
   const createDeck = useCreateDeck();
   const saveDeckCards = useSaveDeckCards();
   const navigate = useNavigate();
+
+  const replaceDeckQuery = useQuery({
+    ...deckDetailQueryOptions(replaceDeckId ?? ""),
+    enabled: Boolean(replaceDeckId),
+  });
+  const replaceDeckName = replaceDeckQuery.data?.deck.name;
+  const isReplaceMode = Boolean(replaceDeckId);
 
   const [step, setStep] = useState<ImportStep>("input");
   const [rawText, setRawText] = useState("");
@@ -151,6 +185,7 @@ function DeckImportPage() {
   const [skippedIndices, setSkippedIndices] = useState<Set<number>>(new Set());
   const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
   const [isImporting, setIsImporting] = useState(false);
+  const [confirmReplaceOpen, setConfirmReplaceOpen] = useState(false);
 
   const handleParse = (text: string) => {
     const { entries, warnings } = parseDeckImportData(text, importFormat);
@@ -243,18 +278,10 @@ function DeckImportPage() {
   const skippedCount = skippedIndices.size;
   const totalCards = readyEntries.reduce((sum, entry) => sum + entry.entry.quantity, 0);
 
-  const handleImport = () => {
-    const trimmedName = deckName.trim();
-    if (!trimmedName) {
-      toast.error("Please enter a deck name.");
-      return;
-    }
-
-    setIsImporting(true);
-
-    // Build deck cards payload — group by cardId + zone + preferredPrintingId,
-    // summing quantities. Printing-specific matches (piltover/tts short codes)
-    // become distinct rows from any default-art rows of the same card.
+  const buildCards = () => {
+    // Group by cardId + zone + preferredPrintingId, summing quantities.
+    // Printing-specific matches (piltover/tts short codes) become distinct
+    // rows from any default-art rows of the same card.
     const cardMap = new Map<
       string,
       { cardId: string; zone: DeckZone; quantity: number; preferredPrintingId: string | null }
@@ -277,7 +304,39 @@ function DeckImportPage() {
         });
       }
     }
-    const cards = [...cardMap.values()];
+    return [...cardMap.values()];
+  };
+
+  const executeReplace = () => {
+    if (!replaceDeckId) {
+      return;
+    }
+    const targetName = replaceDeckName ?? "deck";
+    setIsImporting(true);
+    saveDeckCards.mutate(
+      { deckId: replaceDeckId, cards: buildCards() },
+      {
+        onSuccess: () => {
+          toast.success(`Replaced cards in "${targetName}" with ${totalCards} cards.`);
+          void navigate({ to: "/decks/$deckId", params: { deckId: replaceDeckId } });
+        },
+        onError: () => {
+          toast.error("Failed to replace deck cards.");
+          setIsImporting(false);
+        },
+      },
+    );
+  };
+
+  const executeCreate = () => {
+    const trimmedName = deckName.trim();
+    if (!trimmedName) {
+      toast.error("Please enter a deck name.");
+      return;
+    }
+
+    setIsImporting(true);
+    const cards = buildCards();
 
     createDeck.mutate(
       { name: trimmedName, format: deckFormat },
@@ -306,6 +365,14 @@ function DeckImportPage() {
     );
   };
 
+  const handleImport = () => {
+    if (isReplaceMode) {
+      setConfirmReplaceOpen(true);
+      return;
+    }
+    executeCreate();
+  };
+
   if (step === "input") {
     return (
       <InputStep
@@ -315,36 +382,64 @@ function DeckImportPage() {
         onImportFormatChange={setImportFormat}
         onParse={handleParse}
         parseWarnings={parseWarnings}
+        replaceDeckName={isReplaceMode ? (replaceDeckName ?? "") : undefined}
       />
     );
   }
 
   return (
-    <PreviewStep
-      matchedEntries={matchedEntries}
-      allPrintings={allPrintings}
-      parseWarnings={parseWarnings}
-      skippedIndices={skippedIndices}
-      expandedIndices={expandedIndices}
-      deckName={deckName}
-      deckFormat={deckFormat}
-      zoneOrder={zoneOrder}
-      zoneLabels={zoneLabels}
-      readyCount={readyEntries.length}
-      needsAttentionCount={needsAttention.length}
-      skippedCount={skippedCount}
-      totalCards={totalCards}
-      isImporting={isImporting}
-      onResolve={handleResolve}
-      onZoneChange={handleZoneChange}
-      onSkip={handleSkip}
-      onUnskip={handleUnskip}
-      onToggleExpand={handleToggleExpand}
-      onDeckNameChange={setDeckName}
-      onDeckFormatChange={setDeckFormat}
-      onImport={handleImport}
-      onBack={() => setStep("input")}
-    />
+    <>
+      <PreviewStep
+        matchedEntries={matchedEntries}
+        allPrintings={allPrintings}
+        parseWarnings={parseWarnings}
+        skippedIndices={skippedIndices}
+        expandedIndices={expandedIndices}
+        deckName={deckName}
+        deckFormat={deckFormat}
+        zoneOrder={zoneOrder}
+        zoneLabels={zoneLabels}
+        readyCount={readyEntries.length}
+        needsAttentionCount={needsAttention.length}
+        skippedCount={skippedCount}
+        totalCards={totalCards}
+        isImporting={isImporting}
+        replaceDeckName={isReplaceMode ? (replaceDeckName ?? "") : undefined}
+        onResolve={handleResolve}
+        onZoneChange={handleZoneChange}
+        onSkip={handleSkip}
+        onUnskip={handleUnskip}
+        onToggleExpand={handleToggleExpand}
+        onDeckNameChange={setDeckName}
+        onDeckFormatChange={setDeckFormat}
+        onImport={handleImport}
+        onBack={() => setStep("input")}
+      />
+      <AlertDialog open={confirmReplaceOpen} onOpenChange={setConfirmReplaceOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace deck contents?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove all existing cards in &ldquo;{replaceDeckName ?? "this deck"}&rdquo;
+              and replace them with the {totalCards} imported {totalCards === 1 ? "card" : "cards"}.
+              The deck&apos;s name and format are kept.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                setConfirmReplaceOpen(false);
+                executeReplace();
+              }}
+            >
+              Replace
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -359,6 +454,7 @@ function InputStep({
   onImportFormatChange,
   onParse,
   parseWarnings,
+  replaceDeckName,
 }: {
   rawText: string;
   onTextChange: (text: string) => void;
@@ -366,23 +462,44 @@ function InputStep({
   onImportFormatChange: (format: DeckImportFormat) => void;
   onParse: (text: string) => void;
   parseWarnings: string[];
+  replaceDeckName?: string;
 }) {
+  const isReplaceMode = replaceDeckName !== undefined;
   return (
     <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
       <div>
-        <h2 className="text-lg font-semibold">Import Deck</h2>
+        <h2 className="text-lg font-semibold">
+          {isReplaceMode ? "Replace deck contents" : "Import Deck"}
+        </h2>
         <p className="text-muted-foreground text-sm">
-          Paste a deck code, text list, or TTS string to import a deck. Want another format
-          supported?{" "}
-          <a
-            href="https://github.com/eikowagenknecht/openrift/issues"
-            target="_blank"
-            rel="noreferrer"
-            className="text-foreground underline"
-          >
-            Open a GitHub issue
-          </a>
-          .
+          {isReplaceMode ? (
+            <>
+              Paste a deck code, text list, or TTS string to replace the cards in
+              {replaceDeckName ? (
+                <>
+                  {" "}
+                  <strong className="text-foreground">&ldquo;{replaceDeckName}&rdquo;</strong>
+                </>
+              ) : (
+                " this deck"
+              )}
+              . The deck&apos;s name and format are kept.
+            </>
+          ) : (
+            <>
+              Paste a deck code, text list, or TTS string to import a deck. Want another format
+              supported?{" "}
+              <a
+                href="https://github.com/eikowagenknecht/openrift/issues"
+                target="_blank"
+                rel="noreferrer"
+                className="text-foreground underline"
+              >
+                Open a GitHub issue
+              </a>
+              .
+            </>
+          )}
         </p>
       </div>
 
@@ -451,6 +568,7 @@ function PreviewStep({
   skippedCount,
   totalCards,
   isImporting,
+  replaceDeckName,
   onResolve,
   onZoneChange,
   onSkip,
@@ -475,6 +593,7 @@ function PreviewStep({
   skippedCount: number;
   totalCards: number;
   isImporting: boolean;
+  replaceDeckName?: string;
   onResolve: (index: number, card: ResolvedCard) => void;
   onZoneChange: (index: number, zone: DeckZone) => void;
   onSkip: (index: number) => void;
@@ -485,15 +604,25 @@ function PreviewStep({
   onImport: () => void;
   onBack: () => void;
 }) {
-  const canImport = readyCount > 0 && deckName.trim().length > 0;
+  const isReplaceMode = replaceDeckName !== undefined;
+  const canImport = readyCount > 0 && (isReplaceMode || deckName.trim().length > 0);
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Import Preview</h2>
+          <h2 className="text-lg font-semibold">
+            {isReplaceMode ? "Replace Preview" : "Import Preview"}
+          </h2>
           <p className="text-muted-foreground text-sm">
             {matchedEntries.length} card{matchedEntries.length === 1 ? "" : "s"} parsed
+            {isReplaceMode && replaceDeckName ? (
+              <>
+                {" "}
+                — replacing contents of{" "}
+                <strong className="text-foreground">&ldquo;{replaceDeckName}&rdquo;</strong>
+              </>
+            ) : null}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={onBack}>
@@ -564,37 +693,51 @@ function PreviewStep({
         )}
 
         <div className="flex flex-wrap items-end gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="preview-deck-name">Deck name</Label>
-            <Input
-              id="preview-deck-name"
-              value={deckName}
-              onChange={(event) => onDeckNameChange(event.target.value)}
-              className="w-[200px]"
-            />
-          </div>
+          {!isReplaceMode && (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="preview-deck-name">Deck name</Label>
+                <Input
+                  id="preview-deck-name"
+                  value={deckName}
+                  onChange={(event) => onDeckNameChange(event.target.value)}
+                  className="w-[200px]"
+                />
+              </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="preview-deck-format">Format</Label>
-            <Select
-              value={deckFormat}
-              onValueChange={(value) => onDeckFormatChange(value as DeckFormat)}
-            >
-              <SelectTrigger id="preview-deck-format" className="mb-0 w-[140px]">
-                <SelectValue>{(value: string) => DECK_FORMAT_LABELS[value] ?? value}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="constructed">Constructed</SelectItem>
-                <SelectItem value="freeform">Freeform</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="preview-deck-format">Format</Label>
+                <Select
+                  value={deckFormat}
+                  onValueChange={(value) => onDeckFormatChange(value as DeckFormat)}
+                >
+                  <SelectTrigger id="preview-deck-format" className="mb-0 w-[140px]">
+                    <SelectValue>
+                      {(value: string) => DECK_FORMAT_LABELS[value] ?? value}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="constructed">Constructed</SelectItem>
+                    <SelectItem value="freeform">Freeform</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
 
-          <Button onClick={onImport} disabled={!canImport || isImporting}>
+          <Button
+            variant={isReplaceMode ? "destructive" : "default"}
+            onClick={onImport}
+            disabled={!canImport || isImporting}
+          >
             {isImporting ? (
               <>
                 <Loader2Icon className="mr-2 size-4 animate-spin" />
-                Importing...
+                {isReplaceMode ? "Replacing..." : "Importing..."}
+              </>
+            ) : isReplaceMode ? (
+              <>
+                Replace with {totalCards} {totalCards === 1 ? "card" : "cards"}
               </>
             ) : (
               <>

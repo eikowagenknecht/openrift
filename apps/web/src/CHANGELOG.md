@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-27
+
+- feat: The deck builder's three-dot menu now has an "Import & replace cards…" action that lets you paste a deck code or list and overwrite the current deck's contents in place, keeping the deck's name and format. Previously you could only import as a brand-new deck
+
 ## 2026-04-26
 
 - feat: The deck builder now enforces the [Unique] keyword rule, flagging any card with [Unique] that you've added more than once across the main deck or sideboard
