@@ -49,6 +49,17 @@ const getServerTheme = createServerFn({ method: "GET" }).handler((): "light" | "
   }
 });
 
+function safeOrigin(url: string | undefined): string | null {
+  if (!url) {
+    return null;
+  }
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
 // Blocking inline script that applies the correct theme before first paint.
 // The server resolves "auto" as "light" since it can't check matchMedia; this
 // script corrects it using the browser's actual preference. When there is no
@@ -130,6 +141,7 @@ export const Route = createRootRouteWithContext<{
 function RootDocument({ children }: { children: React.ReactNode }) {
   const { resolvedTheme } = Route.useRouteContext();
   const { data: siteSettings } = useSuspenseQuery(siteSettingsQueryOptions);
+  const umamiOrigin = safeOrigin(siteSettings["umami-url"]);
 
   return (
     // suppressHydrationWarning: the blocking script below may adjust the class
@@ -137,6 +149,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     // "auto" to "light" since it can't check matchMedia.
     <html lang="en" className={resolvedTheme === "dark" ? "dark" : ""} suppressHydrationWarning>
       <head>
+        {/* No crossOrigin: Umami's script.js loads as a non-CORS <script>. */}
+        {umamiOrigin && <link rel="preconnect" href={umamiOrigin} />}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: runtimeConfigScript(siteSettings) }} />
         <HeadContent />
