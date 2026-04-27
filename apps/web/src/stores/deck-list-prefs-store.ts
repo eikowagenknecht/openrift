@@ -2,12 +2,9 @@ import type { Domain } from "@openrift/shared";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type DeckListSort =
-  | "updated-desc"
-  | "created-desc"
-  | "name-asc"
-  | "name-desc"
-  | "value-desc";
+export type DeckListSortField = "updated" | "created" | "name" | "value";
+
+export type SortDir = "asc" | "desc";
 
 export type DeckListDensity = "grid" | "list";
 
@@ -17,13 +14,14 @@ export type DeckListFormatFilter = "all" | "constructed" | "freeform";
 
 export type DeckListValidityFilter = "all" | "valid" | "invalid";
 
-const SORT_OPTIONS: ReadonlySet<DeckListSort> = new Set([
-  "updated-desc",
-  "created-desc",
-  "name-asc",
-  "name-desc",
-  "value-desc",
+const SORT_FIELDS: ReadonlySet<DeckListSortField> = new Set([
+  "updated",
+  "created",
+  "name",
+  "value",
 ]);
+
+const SORT_DIRS: ReadonlySet<SortDir> = new Set(["asc", "desc"]);
 
 const GROUP_OPTIONS: ReadonlySet<DeckListGroupBy> = new Set([
   "none",
@@ -48,15 +46,20 @@ interface DeckListPrefsState {
   search: string;
   setSearch: (value: string) => void;
 
-  // Persisted preferences
-  sort: DeckListSort;
-  setSort: (value: DeckListSort) => void;
+  // Sort: field + direction (matches the /cards options-bar style)
+  sortField: DeckListSortField;
+  sortDir: SortDir;
+  setSortField: (value: DeckListSortField) => void;
+  setSortDir: (value: SortDir) => void;
 
   density: DeckListDensity;
   setDensity: (value: DeckListDensity) => void;
 
+  // Group: field + direction (controls the order of group headers)
   groupBy: DeckListGroupBy;
+  groupDir: SortDir;
   setGroupBy: (value: DeckListGroupBy) => void;
+  setGroupDir: (value: SortDir) => void;
 
   formatFilter: DeckListFormatFilter;
   setFormatFilter: (value: DeckListFormatFilter) => void;
@@ -76,9 +79,11 @@ interface DeckListPrefsState {
 }
 
 const DEFAULTS = {
-  sort: "updated-desc" as DeckListSort,
+  sortField: "updated" as DeckListSortField,
+  sortDir: "desc" as SortDir,
   density: "grid" as DeckListDensity,
   groupBy: "none" as DeckListGroupBy,
+  groupDir: "asc" as SortDir,
   formatFilter: "all" as DeckListFormatFilter,
   validityFilter: "all" as DeckListValidityFilter,
   domainFilter: [] as Domain[],
@@ -91,14 +96,18 @@ export const useDeckListPrefsStore = create<DeckListPrefsState>()(
       search: "",
       setSearch: (value) => set({ search: value }),
 
-      sort: DEFAULTS.sort,
-      setSort: (value) => set({ sort: value }),
+      sortField: DEFAULTS.sortField,
+      sortDir: DEFAULTS.sortDir,
+      setSortField: (value) => set({ sortField: value }),
+      setSortDir: (value) => set({ sortDir: value }),
 
       density: DEFAULTS.density,
       setDensity: (value) => set({ density: value }),
 
       groupBy: DEFAULTS.groupBy,
+      groupDir: DEFAULTS.groupDir,
       setGroupBy: (value) => set({ groupBy: value }),
+      setGroupDir: (value) => set({ groupDir: value }),
 
       formatFilter: DEFAULTS.formatFilter,
       setFormatFilter: (value) => set({ formatFilter: value }),
@@ -129,9 +138,11 @@ export const useDeckListPrefsStore = create<DeckListPrefsState>()(
     {
       name: "openrift-deck-list-prefs",
       partialize: (state) => ({
-        sort: state.sort,
+        sortField: state.sortField,
+        sortDir: state.sortDir,
         density: state.density,
         groupBy: state.groupBy,
+        groupDir: state.groupDir,
         formatFilter: state.formatFilter,
         validityFilter: state.validityFilter,
         domainFilter: state.domainFilter,
@@ -139,15 +150,21 @@ export const useDeckListPrefsStore = create<DeckListPrefsState>()(
       }),
       merge: (persisted, current) => {
         const raw = (persisted as Record<string, unknown>) ?? {};
-        const sort = SORT_OPTIONS.has(raw.sort as DeckListSort)
-          ? (raw.sort as DeckListSort)
-          : current.sort;
+        const sortField = SORT_FIELDS.has(raw.sortField as DeckListSortField)
+          ? (raw.sortField as DeckListSortField)
+          : current.sortField;
+        const sortDir = SORT_DIRS.has(raw.sortDir as SortDir)
+          ? (raw.sortDir as SortDir)
+          : current.sortDir;
         const density = DENSITY_OPTIONS.has(raw.density as DeckListDensity)
           ? (raw.density as DeckListDensity)
           : current.density;
         const groupBy = GROUP_OPTIONS.has(raw.groupBy as DeckListGroupBy)
           ? (raw.groupBy as DeckListGroupBy)
           : current.groupBy;
+        const groupDir = SORT_DIRS.has(raw.groupDir as SortDir)
+          ? (raw.groupDir as SortDir)
+          : current.groupDir;
         const formatFilter = FORMAT_OPTIONS.has(raw.formatFilter as DeckListFormatFilter)
           ? (raw.formatFilter as DeckListFormatFilter)
           : current.formatFilter;
@@ -161,9 +178,11 @@ export const useDeckListPrefsStore = create<DeckListPrefsState>()(
           typeof raw.showArchived === "boolean" ? raw.showArchived : current.showArchived;
         return {
           ...current,
-          sort,
+          sortField,
+          sortDir,
           density,
           groupBy,
+          groupDir,
           formatFilter,
           validityFilter,
           domainFilter,

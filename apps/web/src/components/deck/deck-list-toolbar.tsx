@@ -2,35 +2,29 @@ import type { Domain } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { LayoutGridIcon, ListIcon, SearchIcon, XIcon } from "lucide-react";
 
+import type { SortGroupOption } from "@/components/filters/sort-group-controls";
+import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DeckListFilterAvailability } from "@/lib/deck-list-utils";
-import type { DeckListGroupBy, DeckListSort } from "@/stores/deck-list-prefs-store";
+import type { DeckListGroupBy, DeckListSortField } from "@/stores/deck-list-prefs-store";
 import { useDeckListPrefsStore } from "@/stores/deck-list-prefs-store";
 
-const SORT_ITEMS: { value: DeckListSort; label: string }[] = [
-  { value: "updated-desc", label: "Recently updated" },
-  { value: "created-desc", label: "Recently created" },
-  { value: "name-asc", label: "Name (A → Z)" },
-  { value: "name-desc", label: "Name (Z → A)" },
-  { value: "value-desc", label: "Highest value" },
+const SORT_OPTIONS: SortGroupOption<DeckListSortField>[] = [
+  { value: "updated", label: "Updated" },
+  { value: "created", label: "Created" },
+  { value: "name", label: "Name" },
+  { value: "value", label: "Value" },
 ];
 
-const GROUP_ITEMS: { value: DeckListGroupBy; label: string }[] = [
-  { value: "none", label: "No grouping" },
-  { value: "format", label: "Group by format" },
-  { value: "domains", label: "Group by domains" },
-  { value: "legend", label: "Group by legend" },
-  { value: "validity", label: "Group by validity" },
+const GROUP_OPTIONS: SortGroupOption<DeckListGroupBy>[] = [
+  { value: "none", label: "None" },
+  { value: "format", label: "Format" },
+  { value: "domains", label: "Domains" },
+  { value: "legend", label: "Legend" },
+  { value: "validity", label: "Validity" },
 ];
 
 function DomainChip({
@@ -68,18 +62,26 @@ function DomainChip({
 export function DeckListToolbar({
   availableDomains,
   availability,
+  totalCount,
+  filteredCount,
 }: {
   availableDomains: Domain[];
   availability: DeckListFilterAvailability;
+  totalCount: number;
+  filteredCount: number;
 }) {
   const search = useDeckListPrefsStore((state) => state.search);
   const setSearch = useDeckListPrefsStore((state) => state.setSearch);
-  const sort = useDeckListPrefsStore((state) => state.sort);
-  const setSort = useDeckListPrefsStore((state) => state.setSort);
+  const sortField = useDeckListPrefsStore((state) => state.sortField);
+  const setSortField = useDeckListPrefsStore((state) => state.setSortField);
+  const sortDir = useDeckListPrefsStore((state) => state.sortDir);
+  const setSortDir = useDeckListPrefsStore((state) => state.setSortDir);
   const density = useDeckListPrefsStore((state) => state.density);
   const setDensity = useDeckListPrefsStore((state) => state.setDensity);
   const groupBy = useDeckListPrefsStore((state) => state.groupBy);
   const setGroupBy = useDeckListPrefsStore((state) => state.setGroupBy);
+  const groupDir = useDeckListPrefsStore((state) => state.groupDir);
+  const setGroupDir = useDeckListPrefsStore((state) => state.setGroupDir);
   const formatFilter = useDeckListPrefsStore((state) => state.formatFilter);
   const setFormatFilter = useDeckListPrefsStore((state) => state.setFormatFilter);
   const validityFilter = useDeckListPrefsStore((state) => state.validityFilter);
@@ -93,13 +95,13 @@ export function DeckListToolbar({
   const hasActiveFilter =
     search !== "" || formatFilter !== "all" || validityFilter !== "all" || domainFilter.length > 0;
 
-  // Keep "none", any grouping that produces >1 bucket, and the currently-selected option
-  // (so the dropdown trigger always reflects state, even if that grouping is no longer useful).
-  const visibleGroupItems = GROUP_ITEMS.filter(
-    (item) =>
-      item.value === "none" ||
-      item.value === groupBy ||
-      (item.value !== "none" && availability.usefulGroupings.has(item.value)),
+  // Hide group options that would yield a single bucket; keep "none" and the current selection
+  // so the trigger always reflects state even if that grouping is no longer useful.
+  const visibleGroupOptions = GROUP_OPTIONS.filter(
+    (option) =>
+      option.value === "none" ||
+      option.value === groupBy ||
+      (option.value !== "none" && availability.usefulGroupings.has(option.value)),
   );
 
   const showFilterRow =
@@ -109,76 +111,55 @@ export function DeckListToolbar({
     availability.hasArchived ||
     hasActiveFilter;
 
+  const countLabel =
+    hasActiveFilter && filteredCount !== totalCount
+      ? `${filteredCount} / ${totalCount}`
+      : String(totalCount);
+  const unitLabel = totalCount === 1 ? "deck" : "decks";
+
   return (
     <div className="flex flex-col gap-2">
-      {/* Row 1: search + sort + group + density */}
+      {/* Row 1: search + sort/group + density */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[200px] flex-1">
-          <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+          <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             type="search"
-            placeholder="Search decks…"
+            placeholder="Search decks..."
             value={search}
             onChange={(event) => setSearch(event.target.value)}
-            className="pl-8"
+            className={search ? "pr-28 pl-9" : "pr-20 pl-9"}
             aria-label="Search decks"
           />
-          {search !== "" && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="absolute top-1/2 right-1 -translate-y-1/2"
-              aria-label="Clear search"
-              onClick={() => setSearch("")}
-            >
-              <XIcon className="size-3.5" />
-            </Button>
-          )}
+          <span className="absolute top-1/2 right-3 flex -translate-y-1/2 items-center gap-2">
+            <span className="text-muted-foreground pointer-events-none text-xs">
+              {countLabel} {unitLabel}
+            </span>
+            {search && (
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => setSearch("")}
+                aria-label="Clear search"
+              >
+                <XIcon className="size-3.5" />
+              </button>
+            )}
+          </span>
         </div>
 
-        <Select
-          items={SORT_ITEMS}
-          value={sort}
-          onValueChange={(value) => {
-            if (value !== null) {
-              setSort(value);
-            }
-          }}
-        >
-          <SelectTrigger className="h-9 w-[180px]" aria-label="Sort decks">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SORT_ITEMS.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {visibleGroupItems.length > 1 && (
-          <Select
-            items={visibleGroupItems}
-            value={groupBy}
-            onValueChange={(value) => {
-              if (value !== null) {
-                setGroupBy(value);
-              }
-            }}
-          >
-            <SelectTrigger className="h-9 w-[200px]" aria-label="Group decks">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {visibleGroupItems.map((item) => (
-                <SelectItem key={item.value} value={item.value}>
-                  {item.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+        <SortGroupControls
+          sortOptions={SORT_OPTIONS}
+          groupOptions={visibleGroupOptions}
+          sortBy={sortField}
+          sortDir={sortDir}
+          groupBy={groupBy}
+          groupDir={groupDir}
+          onSortByChange={setSortField}
+          onSortDirChange={setSortDir}
+          onGroupByChange={setGroupBy}
+          onGroupDirChange={setGroupDir}
+        />
 
         <div className="ml-auto flex items-center gap-1 rounded-md border p-0.5">
           <Tooltip>

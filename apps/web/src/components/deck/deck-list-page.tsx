@@ -149,9 +149,11 @@ export function DeckListPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
   const search = useDeckListPrefsStore((state) => state.search);
-  const sort = useDeckListPrefsStore((state) => state.sort);
+  const sortField = useDeckListPrefsStore((state) => state.sortField);
+  const sortDir = useDeckListPrefsStore((state) => state.sortDir);
   const density = useDeckListPrefsStore((state) => state.density);
   const groupBy = useDeckListPrefsStore((state) => state.groupBy);
+  const groupDir = useDeckListPrefsStore((state) => state.groupDir);
   const formatFilter = useDeckListPrefsStore((state) => state.formatFilter);
   const validityFilter = useDeckListPrefsStore((state) => state.validityFilter);
   const domainFilter = useDeckListPrefsStore((state) => state.domainFilter);
@@ -169,8 +171,8 @@ export function DeckListPage() {
     validity: validityFilter,
     domains: domainFilter,
   });
-  const sorted = sortDecks(filtered, sort);
-  const groups = groupDecks(sorted, groupBy);
+  const sorted = sortDecks(filtered, sortField, sortDir);
+  const groups = groupDecks(sorted, groupBy, groupDir);
 
   const containerClass =
     density === "grid"
@@ -212,7 +214,12 @@ export function DeckListPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <DeckListToolbar availableDomains={availableDomains} availability={availability} />
+          <DeckListToolbar
+            availableDomains={availableDomains}
+            availability={availability}
+            totalCount={visible.length}
+            filteredCount={filtered.length}
+          />
 
           {sorted.length === 0 ? (
             <div className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center text-sm">

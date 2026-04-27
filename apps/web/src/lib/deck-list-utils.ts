@@ -4,8 +4,9 @@ import { WellKnown } from "@openrift/shared";
 import type {
   DeckListFormatFilter,
   DeckListGroupBy,
-  DeckListSort,
+  DeckListSortField,
   DeckListValidityFilter,
+  SortDir,
 } from "@/stores/deck-list-prefs-store";
 
 export interface DeckListFilters {
@@ -93,34 +94,33 @@ export function partitionByArchived(
   return showArchived ? items : items.filter((item) => item.deck.archivedAt === null);
 }
 
-function compareForSort(
+function compareAscending(
   left: DeckListItemWithNames,
   right: DeckListItemWithNames,
-  sort: DeckListSort,
+  field: DeckListSortField,
 ): number {
-  switch (sort) {
-    case "updated-desc": {
-      return right.deck.updatedAt.localeCompare(left.deck.updatedAt);
+  switch (field) {
+    case "updated": {
+      return left.deck.updatedAt.localeCompare(right.deck.updatedAt);
     }
-    case "created-desc": {
-      return right.deck.createdAt.localeCompare(left.deck.createdAt);
+    case "created": {
+      return left.deck.createdAt.localeCompare(right.deck.createdAt);
     }
-    case "name-asc": {
+    case "name": {
       return left.deck.name.localeCompare(right.deck.name, undefined, { sensitivity: "base" });
     }
-    case "name-desc": {
-      return right.deck.name.localeCompare(left.deck.name, undefined, { sensitivity: "base" });
-    }
-    case "value-desc": {
-      return (right.totalValueCents ?? -1) - (left.totalValueCents ?? -1);
+    case "value": {
+      return (left.totalValueCents ?? -1) - (right.totalValueCents ?? -1);
     }
   }
 }
 
 export function sortDecks(
   items: DeckListItemWithNames[],
-  sort: DeckListSort,
+  field: DeckListSortField,
+  dir: SortDir,
 ): DeckListItemWithNames[] {
+  const directionFactor = dir === "asc" ? 1 : -1;
   return items.toSorted((left, right) => {
     // Pinned floats to the top; archived sinks to the bottom; otherwise apply the chosen sort.
     const leftArchived = left.deck.archivedAt !== null;
@@ -131,7 +131,7 @@ export function sortDecks(
     if (left.deck.isPinned !== right.deck.isPinned) {
       return left.deck.isPinned ? -1 : 1;
     }
-    return compareForSort(left, right, sort);
+    return compareAscending(left, right, field) * directionFactor;
   });
 }
 
@@ -194,6 +194,7 @@ function groupKeyAndLabel(
 export function groupDecks(
   items: DeckListItemWithNames[],
   groupBy: DeckListGroupBy,
+  dir: SortDir = "asc",
 ): DeckListGroup[] {
   if (groupBy === "none") {
     return [{ key: "all", label: "", items }];
@@ -208,8 +209,10 @@ export function groupDecks(
     }
     group.items.push(item);
   }
-  // Sort groups by label, with "(No legend)" / "No domain" / "Freeform" buckets pushed to the end.
+  // Sort groups by label. "(No legend)" / "No domain" / "Freeform" catch-all buckets
+  // are always pinned to the end regardless of direction — they aren't a real group.
   const groups = [...map.values()];
+  const directionFactor = dir === "asc" ? 1 : -1;
   groups.sort((left, right) => {
     const leftIsCatchAll = left.key.endsWith(":none") || left.label.startsWith("(");
     const rightIsCatchAll = right.key.endsWith(":none") || right.label.startsWith("(");
@@ -219,7 +222,9 @@ export function groupDecks(
     if (!leftIsCatchAll && rightIsCatchAll) {
       return -1;
     }
-    return left.label.localeCompare(right.label, undefined, { sensitivity: "base" });
+    return (
+      left.label.localeCompare(right.label, undefined, { sensitivity: "base" }) * directionFactor
+    );
   });
   return groups;
 }

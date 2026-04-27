@@ -163,7 +163,7 @@ describe("sortDecks", () => {
       makeItem({ id: "b", name: "Bbb", isPinned: true }),
       makeItem({ id: "c", name: "Ccc", isPinned: false }),
     ];
-    expect(sortDecks(items, "name-asc").map((item) => item.deck.id)).toEqual(["b", "a", "c"]);
+    expect(sortDecks(items, "name", "asc").map((item) => item.deck.id)).toEqual(["b", "a", "c"]);
   });
 
   it("sinks archived decks to the bottom regardless of sort field", () => {
@@ -171,16 +171,30 @@ describe("sortDecks", () => {
       makeItem({ id: "a", name: "Aaa", archivedAt: "2026-01-01T00:00:00.000Z" }),
       makeItem({ id: "b", name: "Bbb", archivedAt: null }),
     ];
-    expect(sortDecks(items, "name-asc").map((item) => item.deck.id)).toEqual(["b", "a"]);
+    expect(sortDecks(items, "name", "asc").map((item) => item.deck.id)).toEqual(["b", "a"]);
   });
 
-  it("orders by updatedAt desc by default", () => {
+  it("orders by updatedAt descending", () => {
     const items = [
       makeItem({ id: "a", updatedAt: "2026-01-01T00:00:00.000Z" }),
       makeItem({ id: "b", updatedAt: "2026-04-15T00:00:00.000Z" }),
       makeItem({ id: "c", updatedAt: "2026-02-20T00:00:00.000Z" }),
     ];
-    expect(sortDecks(items, "updated-desc").map((item) => item.deck.id)).toEqual(["b", "c", "a"]);
+    expect(sortDecks(items, "updated", "desc").map((item) => item.deck.id)).toEqual([
+      "b",
+      "c",
+      "a",
+    ]);
+  });
+
+  it("flips the order when the direction toggles asc<->desc", () => {
+    const items = [
+      makeItem({ id: "a", name: "Apple" }),
+      makeItem({ id: "b", name: "Banana" }),
+      makeItem({ id: "c", name: "Cherry" }),
+    ];
+    expect(sortDecks(items, "name", "asc").map((item) => item.deck.id)).toEqual(["a", "b", "c"]);
+    expect(sortDecks(items, "name", "desc").map((item) => item.deck.id)).toEqual(["c", "b", "a"]);
   });
 
   it("orders by name ascending case-insensitively", () => {
@@ -189,7 +203,7 @@ describe("sortDecks", () => {
       makeItem({ id: "b", name: "Apple" }),
       makeItem({ id: "c", name: "mango" }),
     ];
-    expect(sortDecks(items, "name-asc").map((item) => item.deck.id)).toEqual(["b", "c", "a"]);
+    expect(sortDecks(items, "name", "asc").map((item) => item.deck.id)).toEqual(["b", "c", "a"]);
   });
 
   it("orders by total value descending and treats null as the lowest", () => {
@@ -198,7 +212,7 @@ describe("sortDecks", () => {
       makeItem({ id: "b", totalValueCents: null }),
       makeItem({ id: "c", totalValueCents: 12_000 }),
     ];
-    expect(sortDecks(items, "value-desc").map((item) => item.deck.id)).toEqual(["c", "a", "b"]);
+    expect(sortDecks(items, "value", "desc").map((item) => item.deck.id)).toEqual(["c", "a", "b"]);
   });
 });
 

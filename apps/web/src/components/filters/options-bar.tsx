@@ -1,7 +1,5 @@
 import type { AvailableFilters, GroupByField, SortOption } from "@openrift/shared";
 import {
-  ArrowDownNarrowWideIcon,
-  ArrowUpNarrowWideIcon,
   CopyIcon,
   MinusIcon,
   PlusIcon,
@@ -12,6 +10,7 @@ import {
 import type { ReactNode } from "react";
 import { useState } from "react";
 
+import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import {
@@ -23,7 +22,6 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
@@ -46,187 +44,6 @@ const groupByOptions: { value: GroupByField; label: string }[] = [
   { value: "domain", label: "Domain" },
   { value: "rarity", label: "Rarity" },
 ];
-
-/* ------------------------------------------------------------------ */
-/*  Shared sub-components (desktop / mobile via `compact` prop)       */
-/* ------------------------------------------------------------------ */
-
-function RadioOption({
-  selected,
-  onClick,
-  children,
-}: {
-  selected: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      className={cn(
-        "rounded-md px-2.5 py-1 text-left text-sm transition-colors",
-        selected
-          ? "bg-accent text-accent-foreground font-medium"
-          : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
-      )}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
-}
-
-function SortGroupSection({
-  title,
-  action,
-  children,
-}: {
-  title: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-0.5">
-      <div className="flex items-center justify-between px-2.5">
-        <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-          {title}
-        </span>
-        {action}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function SortGroupControls({
-  compact,
-  sortBy,
-  sortDir,
-  groupBy,
-  groupDir,
-  onSortByChange,
-  onSortDirChange,
-  onGroupByChange,
-  onGroupDirChange,
-}: {
-  compact?: boolean;
-  sortBy: SortOption;
-  sortDir: "asc" | "desc";
-  groupBy: GroupByField;
-  groupDir: "asc" | "desc";
-  onSortByChange: (v: SortOption) => void;
-  onSortDirChange: (v: "asc" | "desc") => void;
-  onGroupByChange: (v: GroupByField) => void;
-  onGroupDirChange: (v: "asc" | "desc") => void;
-}) {
-  const sortLabel = sortOptions.find((o) => o.value === sortBy)?.label ?? sortBy;
-  const groupLabel = groupByOptions.find((o) => o.value === groupBy)?.label ?? groupBy;
-
-  const dirToggle = (dir: "asc" | "desc", onToggle: (v: "asc" | "desc") => void) => (
-    <button
-      type="button"
-      className="text-muted-foreground hover:text-foreground -mr-1 rounded p-0.5 transition-colors"
-      onClick={() => onToggle(dir === "asc" ? "desc" : "asc")}
-      title={dir === "asc" ? "Ascending, click to reverse" : "Descending, click to reverse"}
-    >
-      {dir === "asc" ? (
-        <ArrowDownNarrowWideIcon className="size-3.5" />
-      ) : (
-        <ArrowUpNarrowWideIcon className="size-3.5" />
-      )}
-    </button>
-  );
-
-  if (compact) {
-    // Mobile: inline sections without popover
-    return (
-      <div className="flex flex-col gap-3">
-        <SortGroupSection
-          title="Group by"
-          action={groupBy === "none" ? undefined : dirToggle(groupDir, onGroupDirChange)}
-        >
-          <div className="flex flex-wrap gap-1">
-            {groupByOptions.map((option) => (
-              <RadioOption
-                key={option.value}
-                selected={groupBy === option.value}
-                onClick={() => onGroupByChange(option.value)}
-              >
-                {option.label}
-              </RadioOption>
-            ))}
-          </div>
-        </SortGroupSection>
-        <SortGroupSection title="Sort by" action={dirToggle(sortDir, onSortDirChange)}>
-          <div className="flex flex-wrap gap-1">
-            {sortOptions.map((option) => (
-              <RadioOption
-                key={option.value}
-                selected={sortBy === option.value}
-                onClick={() => onSortByChange(option.value)}
-              >
-                {option.label}
-              </RadioOption>
-            ))}
-          </div>
-        </SortGroupSection>
-      </div>
-    );
-  }
-
-  // Desktop: popover trigger
-  return (
-    <Popover>
-      <PopoverTrigger
-        className={cn(
-          "border-input bg-background ring-ring/10 dark:bg-input/30 hover:bg-muted hover:text-foreground dark:hover:bg-input/50 inline-flex h-8 items-center gap-2 rounded-md border px-3 text-sm whitespace-nowrap shadow-xs transition-colors",
-        )}
-      >
-        {groupBy !== "none" && (
-          <>
-            <span>{groupLabel}</span>
-            {groupDir === "desc" && (
-              <ArrowUpNarrowWideIcon className="text-muted-foreground size-3.5" />
-            )}
-            <span className="text-muted-foreground">·</span>
-          </>
-        )}
-        <span className={groupBy === "none" ? undefined : "text-muted-foreground"}>
-          {sortLabel}
-        </span>
-        {sortDir === "desc" && <ArrowUpNarrowWideIcon className="text-muted-foreground size-3.5" />}
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-56 gap-3 p-2">
-        <SortGroupSection
-          title="Group by"
-          action={groupBy === "none" ? undefined : dirToggle(groupDir, onGroupDirChange)}
-        >
-          {groupByOptions.map((option) => (
-            <RadioOption
-              key={option.value}
-              selected={groupBy === option.value}
-              onClick={() => onGroupByChange(option.value)}
-            >
-              {option.label}
-            </RadioOption>
-          ))}
-        </SortGroupSection>
-        <div className="bg-border -mx-2 h-px" />
-        <SortGroupSection title="Sort by" action={dirToggle(sortDir, onSortDirChange)}>
-          {sortOptions.map((option) => (
-            <RadioOption
-              key={option.value}
-              selected={sortBy === option.value}
-              onClick={() => onSortByChange(option.value)}
-            >
-              {option.label}
-            </RadioOption>
-          ))}
-        </SortGroupSection>
-      </PopoverContent>
-    </Popover>
-  );
-}
 
 function ViewModeToggle({
   compact,
@@ -453,6 +270,8 @@ export function DesktopOptionsBar({
   return (
     <div className={cn("items-center gap-3", className)}>
       <SortGroupControls
+        sortOptions={sortOptions}
+        groupOptions={groupByOptions}
         sortBy={sortBy}
         sortDir={sortDir}
         groupBy={groupBy}
@@ -540,6 +359,8 @@ export function MobileOptionsContent({ showCopies }: { showCopies?: boolean } = 
     <div className="space-y-2.5">
       <SortGroupControls
         compact
+        sortOptions={sortOptions}
+        groupOptions={groupByOptions}
         sortBy={sortBy}
         sortDir={sortDir}
         groupBy={groupBy}

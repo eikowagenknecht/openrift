@@ -18,9 +18,11 @@ describe("useDeckListPrefsStore", () => {
   it("starts with sensible defaults", () => {
     const state = useDeckListPrefsStore.getState();
     expect(state.search).toBe("");
-    expect(state.sort).toBe("updated-desc");
+    expect(state.sortField).toBe("updated");
+    expect(state.sortDir).toBe("desc");
     expect(state.density).toBe("grid");
     expect(state.groupBy).toBe("none");
+    expect(state.groupDir).toBe("asc");
     expect(state.formatFilter).toBe("all");
     expect(state.validityFilter).toBe("all");
     expect(state.domainFilter).toEqual([]);
@@ -47,15 +49,17 @@ describe("useDeckListPrefsStore", () => {
   });
 
   describe("resetFilters", () => {
-    it("clears search and filters but keeps density/sort/group", () => {
+    it("clears search and filters but keeps display preferences", () => {
       const store = useDeckListPrefsStore.getState();
       store.setSearch("aatrox");
       store.setFormatFilter("constructed");
       store.setValidityFilter("invalid");
       store.toggleDomainFilter("Fury");
-      store.setSort("name-asc");
+      store.setSortField("name");
+      store.setSortDir("asc");
       store.setDensity("list");
       store.setGroupBy("legend");
+      store.setGroupDir("desc");
 
       useDeckListPrefsStore.getState().resetFilters();
 
@@ -65,9 +69,11 @@ describe("useDeckListPrefsStore", () => {
       expect(after.validityFilter).toBe("all");
       expect(after.domainFilter).toEqual([]);
       // Display preferences are preserved.
-      expect(after.sort).toBe("name-asc");
+      expect(after.sortField).toBe("name");
+      expect(after.sortDir).toBe("asc");
       expect(after.density).toBe("list");
       expect(after.groupBy).toBe("legend");
+      expect(after.groupDir).toBe("desc");
     });
   });
 
@@ -76,9 +82,11 @@ describe("useDeckListPrefsStore", () => {
       const store = useDeckListPrefsStore;
       const current = store.getState();
       const persisted = {
-        sort: "bogus",
+        sortField: "bogus",
+        sortDir: "sideways",
         density: "grid-of-doom",
         groupBy: "moonphase",
+        groupDir: "diagonal",
         formatFilter: "all",
         validityFilter: "all",
         domainFilter: [],
@@ -87,9 +95,11 @@ describe("useDeckListPrefsStore", () => {
       const merge = store.persist?.getOptions()?.merge;
       const result = merge?.(persisted, current);
       if (result) {
-        expect(result.sort).toBe(current.sort);
+        expect(result.sortField).toBe(current.sortField);
+        expect(result.sortDir).toBe(current.sortDir);
         expect(result.density).toBe(current.density);
         expect(result.groupBy).toBe(current.groupBy);
+        expect(result.groupDir).toBe(current.groupDir);
       }
     });
 
@@ -110,9 +120,11 @@ describe("useDeckListPrefsStore", () => {
       const store = useDeckListPrefsStore;
       const current = store.getState();
       const persisted = {
-        sort: "name-asc",
+        sortField: "name",
+        sortDir: "asc",
         density: "list",
         groupBy: "format",
+        groupDir: "desc",
         formatFilter: "constructed",
         validityFilter: "valid",
         domainFilter: ["Fury"],
@@ -121,9 +133,11 @@ describe("useDeckListPrefsStore", () => {
       const merge = store.persist?.getOptions()?.merge;
       const result = merge?.(persisted, current);
       if (result) {
-        expect(result.sort).toBe("name-asc");
+        expect(result.sortField).toBe("name");
+        expect(result.sortDir).toBe("asc");
         expect(result.density).toBe("list");
         expect(result.groupBy).toBe("format");
+        expect(result.groupDir).toBe("desc");
         expect(result.formatFilter).toBe("constructed");
         expect(result.validityFilter).toBe("valid");
         expect(result.domainFilter).toEqual(["Fury"]);
