@@ -123,11 +123,15 @@ function CardShape({
       )}
       <div
         className={cn(
-          "bg-foil animate-foil-shimmer absolute inset-0 rounded-[inherit] bg-[length:200%_200%] transition-opacity duration-700",
+          "pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit] transition-opacity duration-700",
           active ? "opacity-30" : "opacity-0",
         )}
-        style={{ animationDelay: `${shimmerDelay}s` }}
-      />
+      >
+        <div
+          className="bg-foil animate-foil-shimmer absolute top-0 left-0 h-[200%] w-[200%]"
+          style={{ animationDelay: `${shimmerDelay}s` }}
+        />
+      </div>
     </button>
   );
 }
