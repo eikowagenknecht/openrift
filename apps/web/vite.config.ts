@@ -200,6 +200,7 @@ export default defineConfig(({ mode, command }) => {
       ...sentryPlugins,
     ],
     build: {
+      target: "es2024",
       sourcemap: true,
       // Lifted from 500kB default: `tanstack` (cached vendor) and
       // `proxy-export-dialog` (lazy, pulled only when the dialog opens) both
