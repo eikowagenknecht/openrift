@@ -11,7 +11,7 @@ export interface FirstRowCard {
   full: string;
 }
 
-export const FIRST_ROW_LIMIT = 12;
+const FIRST_ROW_LIMIT = 12;
 
 /**
  * Slim, SSR-only view of the first N catalog printings in canonical order

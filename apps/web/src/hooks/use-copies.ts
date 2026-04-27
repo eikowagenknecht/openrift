@@ -9,10 +9,6 @@ import { getCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
 import { withTimeout } from "@/lib/with-timeout";
 
-// Re-export for route loaders and direct useQuery consumers (collections
-// detail/index/stats/import all import from here).
-export { copiesQueryOptions } from "@/lib/copies-query";
-
 const BATCH_SIZE = 500;
 
 function chunks<T>(array: T[], size: number): T[][] {
