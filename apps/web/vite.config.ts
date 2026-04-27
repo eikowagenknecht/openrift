@@ -12,6 +12,7 @@ import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
+import Sonda from "sonda/vite";
 import type { Plugin } from "vite";
 import { defineConfig, loadEnv } from "vite";
 
@@ -118,50 +119,6 @@ const sentryPlugins = sentryTanstackStart({
   },
 });
 
-const REACT_CHUNK_NEEDLES = [
-  "/node_modules/react/",
-  "/node_modules/react-dom/",
-  "/node_modules/scheduler/",
-];
-
-// TanStack depends on React (one-way), so a separate chunk is safe.
-// Keep all @tanstack/* together so router/query/store share a single chunk
-// rather than fragmenting across routes. Devtools code is stripped in prod
-// by the @tanstack/devtools-vite plugin, so it doesn't bloat this chunk.
-const TANSTACK_CHUNK_NEEDLES = ["@tanstack/"];
-
-// Stable UI/vendor deps — large but rarely change.
-// Don't use a catch-all here; transitive deps (e.g. use-sync-external-store)
-// must stay with their consumers to avoid circular initialization.
-const UI_CHUNK_NEEDLES = [
-  "@base-ui/",
-  "@floating-ui/",
-  "tailwind-merge",
-  "better-auth",
-  "react-hook-form",
-  "@hookform/",
-  "/zod/",
-  "/sonner/",
-  "lucide-react",
-  "class-variance-authority",
-  "/clsx/",
-];
-
-function manualChunks(id: string): string | undefined {
-  if (!id.includes("node_modules")) {
-    return;
-  }
-  if (REACT_CHUNK_NEEDLES.some((needle) => id.includes(needle))) {
-    return "react";
-  }
-  if (TANSTACK_CHUNK_NEEDLES.some((needle) => id.includes(needle))) {
-    return "tanstack";
-  }
-  if (UI_CHUNK_NEEDLES.some((needle) => id.includes(needle))) {
-    return "ui";
-  }
-}
-
 export default defineConfig(({ mode, command }) => {
   // Load .env from the monorepo root into process.env so SSR code can access
   // server-only vars like API_INTERNAL_URL at runtime (not baked into the bundle).
@@ -198,16 +155,63 @@ export default defineConfig(({ mode, command }) => {
         presets: [withReactCompilerLogger(reactCompilerPreset())],
       }),
       ...sentryPlugins,
+      // Bundle treemap. Opt-in via `bun run analyze` (ANALYZE=1) to avoid the
+      // ~few-second post-build overhead on every prod build. Writes the report
+      // to apps/web/.sonda/.
+      ...(process.env.ANALYZE
+        ? [
+            Sonda({
+              open: false,
+              gzip: true,
+              brotli: true,
+              deep: true,
+              sources: true,
+            }),
+          ]
+        : []),
     ],
     build: {
       target: "es2024",
       sourcemap: true,
-      // Lifted from 500kB default: `tanstack` (cached vendor) and
-      // `proxy-export-dialog` (lazy, pulled only when the dialog opens) both
-      // legitimately exceed the default. 1000kB catches real regressions.
-      chunkSizeWarningLimit: 1000,
       rolldownOptions: {
-        output: { manualChunks },
+        output: {
+          codeSplitting: {
+            groups: [
+              {
+                test: /node_modules\/react-dom/,
+                name: "react-dom",
+              },
+              {
+                test: /node_modules\/@tanstack\/(db|react-db|query-db-collection)/,
+                name: "tanstack-db",
+              },
+              {
+                test: /node_modules\/@tanstack\/(react-router|router-core)/,
+                name: "tanstack-router",
+              },
+              {
+                test: /node_modules\/@tanstack\/(react-query|query-core)/,
+                name: "tanstack-query",
+              },
+              {
+                test: /node_modules\/(better-auth|@better-auth)/,
+                name: "better-auth",
+              },
+              {
+                test: /node_modules\/@sentry/,
+                name: "sentry",
+              },
+              {
+                test: /node_modules\/(@base-ui|@floating-ui|sonner)/,
+                name: "base-ui",
+              },
+              {
+                test: /node_modules\/jspdf/,
+                name: "jspdf",
+              },
+            ],
+          },
+        },
       },
     },
     server: {
