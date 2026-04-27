@@ -206,9 +206,43 @@ describe("buildChangedPrintingPayloads", () => {
 
     const fields = payloads[0].embeds[0].fields ?? [];
     expect(fields).toHaveLength(1);
-    expect(fields[0].name).toBe("artist");
+    expect(fields[0].name).toBe("Artist");
     expect(fields[0].value).toContain("Old");
     expect(fields[0].value).toContain("New");
+  });
+
+  it("uses a multi-line Before/After layout for long values like rules text", () => {
+    const longText = "Counter a spell. ".repeat(20);
+    const events = [
+      makeEvent({
+        eventType: "changed",
+        changes: [{ field: "printedRulesText", from: longText, to: longText.replace("a", "the") }],
+      }),
+    ];
+
+    const payloads = buildChangedPrintingPayloads(events, APP_BASE_URL);
+    const fields = payloads[0].embeds[0].fields ?? [];
+
+    expect(fields[0].name).toBe("Rules text");
+    expect(fields[0].value).toContain("**Before:**");
+    expect(fields[0].value).toContain("**After:**");
+    expect(fields[0].value).not.toContain(" → ");
+  });
+
+  it("formats array-typed values like markerSlugs as a comma-separated list", () => {
+    const events = [
+      makeEvent({
+        eventType: "changed",
+        changes: [{ field: "markerSlugs", from: ["unknown"], to: ["promo", "alt-art"] }],
+      }),
+    ];
+
+    const payloads = buildChangedPrintingPayloads(events, APP_BASE_URL);
+    const fields = payloads[0].embeds[0].fields ?? [];
+
+    expect(fields[0].name).toBe("Markers");
+    expect(fields[0].value).toContain("unknown");
+    expect(fields[0].value).toContain("promo, alt-art");
   });
 
   it("consolidates multiple events for the same printing", () => {

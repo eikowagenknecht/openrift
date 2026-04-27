@@ -1,3 +1,4 @@
+import { humanizePrintingField } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 
 import type { FieldChange } from "../db/index.js";
@@ -7,6 +8,12 @@ import type { EnrichedPrintingEvent } from "../repositories/printing-events.js";
 const MAX_EMBEDS_PER_MESSAGE = 10;
 // If more than this many new printings in a batch, send a summary instead
 const SUMMARY_THRESHOLD = 20;
+// Discord embed field value limit is 1024 chars; budget per side leaves room
+// for the separator/labels and a small safety margin.
+const FIELD_VALUE_MAX = 460;
+// Above this length on either side we switch to a multi-line "Before / After"
+// layout so long values like rules text stay readable.
+const MULTILINE_THRESHOLD = 80;
 
 const COLOR_NEW = 0x57_f2_87; // green
 const COLOR_CHANGED = 0xfe_e7_5c; // yellow
@@ -280,8 +287,8 @@ export function buildChangedPrintingPayloads(
     }
 
     const fields = [...fieldMap.entries()].map(([field, { from, to }]) => ({
-      name: field,
-      value: `${formatValue(from)} \u2192 ${formatValue(to)}`,
+      name: humanizePrintingField(field),
+      value: formatChange(from, to),
       inline: false,
     }));
 
@@ -309,11 +316,22 @@ function formatValue(value: unknown): string {
   if (value === null || value === undefined) {
     return "*empty*";
   }
-  const str = String(value);
-  if (str.length > 100) {
-    return `${str.slice(0, 97)}...`;
+  const str = Array.isArray(value) ? value.map(String).join(", ") : String(value);
+  if (str.length > FIELD_VALUE_MAX) {
+    return `${str.slice(0, FIELD_VALUE_MAX - 3)}...`;
   }
   return str;
+}
+
+function formatChange(from: unknown, to: unknown): string {
+  const fromStr = formatValue(from);
+  const toStr = formatValue(to);
+  // Long values (rules text, flavor text) wrap badly inside an inline arrow,
+  // so split them onto labelled lines for legibility.
+  if (fromStr.length > MULTILINE_THRESHOLD || toStr.length > MULTILINE_THRESHOLD) {
+    return `**Before:** ${fromStr}\n**After:** ${toStr}`;
+  }
+  return `${fromStr} → ${toStr}`;
 }
 
 function chunkEmbeds(embeds: DiscordEmbed[]): DiscordWebhookPayload[] {

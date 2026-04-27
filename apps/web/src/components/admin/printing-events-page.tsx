@@ -1,3 +1,4 @@
+import { humanizePrintingField } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { LoaderIcon, RefreshCwIcon, RotateCcwIcon, SendIcon } from "lucide-react";
 import { useState } from "react";
@@ -67,6 +68,9 @@ function formatTimeAgo(iso: string): string {
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) {
     return "—";
+  }
+  if (Array.isArray(value)) {
+    return value.length === 0 ? "—" : value.map(String).join(", ");
   }
   return String(value);
 }
@@ -249,19 +253,50 @@ function PrintingEventRow({
         <TableRow>
           <TableCell />
           <TableCell colSpan={6} className="pb-4 whitespace-normal">
-            <div className="space-y-1">
+            <div className="space-y-2">
               {event.changes.map((change, idx) => (
-                <div key={`${event.id}-${idx}`} className="text-sm">
-                  <span className="text-muted-foreground font-mono">{change.field}:</span>{" "}
-                  <span className="font-mono">{formatValue(change.from)}</span>
-                  <span className="text-muted-foreground"> → </span>
-                  <span className="font-mono">{formatValue(change.to)}</span>
-                </div>
+                <FieldChangeRow
+                  key={`${event.id}-${idx}`}
+                  field={change.field}
+                  from={change.from}
+                  to={change.to}
+                />
               ))}
             </div>
           </TableCell>
         </TableRow>
       )}
     </>
+  );
+}
+
+const MULTILINE_THRESHOLD = 80;
+
+function FieldChangeRow({ field, from, to }: { field: string; from: unknown; to: unknown }) {
+  const fromStr = formatValue(from);
+  const toStr = formatValue(to);
+  const isLong = fromStr.length > MULTILINE_THRESHOLD || toStr.length > MULTILINE_THRESHOLD;
+
+  if (isLong) {
+    return (
+      <div className="space-y-1 text-sm">
+        <div className="font-medium">{humanizePrintingField(field)}</div>
+        <div className="text-muted-foreground grid grid-cols-[5rem_1fr] gap-x-2 font-mono break-words">
+          <span>Before</span>
+          <span className="text-foreground">{fromStr}</span>
+          <span>After</span>
+          <span className="text-foreground">{toStr}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-sm break-words">
+      <span className="font-medium">{humanizePrintingField(field)}:</span>{" "}
+      <span className="font-mono">{fromStr}</span>
+      <span className="text-muted-foreground"> → </span>
+      <span className="font-mono">{toStr}</span>
+    </div>
   );
 }

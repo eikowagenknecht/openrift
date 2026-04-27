@@ -201,6 +201,8 @@ export {
 
 export { extractBracketedTerms, extractKeywords } from "./keywords.js";
 
+export { humanizePrintingField } from "./printing-event-fields.js";
+
 export type { PlaysetSize } from "./playset.js";
 export { getPlaysetSize } from "./playset.js";
 
