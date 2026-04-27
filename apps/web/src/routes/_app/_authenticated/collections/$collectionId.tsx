@@ -1,9 +1,8 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
-import { CollectionGrid } from "@/components/collection/collection-grid";
 import { CollectionPending } from "@/components/collection/collection-pending";
 import { RouteErrorFallback } from "@/components/error-message";
-import { collectionsQueryOptions, useCollectionsMap } from "@/hooks/use-collections";
+import { collectionsQueryOptions } from "@/hooks/use-collections";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -16,14 +15,6 @@ export const Route = createFileRoute("/_app/_authenticated/collections/$collecti
       throw notFound();
     }
   },
-  component: CollectionDetail,
   pendingComponent: CollectionPending,
   errorComponent: RouteErrorFallback,
 });
-
-function CollectionDetail() {
-  const { collectionId } = Route.useParams();
-  const collectionsMap = useCollectionsMap();
-  const collection = collectionsMap.get(collectionId);
-  return <CollectionGrid collectionId={collectionId} title={collection?.name ?? "Collection"} />;
-}
