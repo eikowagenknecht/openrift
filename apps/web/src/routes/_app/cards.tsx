@@ -3,6 +3,8 @@ import { z } from "zod";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { FirstRowCard } from "@/lib/cards-first-row";
+import { fetchFirstRowCards } from "@/lib/cards-first-row";
 import { filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
@@ -14,7 +16,6 @@ const cardsSearchSchema = filterSearchSchema.extend({
 });
 
 export const Route = createFileRoute("/_app/cards")({
-  ssr: "data-only",
   validateSearch: cardsSearchSchema,
   beforeLoad: ({ search, location }) => {
     // Strip unknown / malformed search params from the URL. TanStack merges
@@ -35,6 +36,17 @@ export const Route = createFileRoute("/_app/cards")({
     if (hasExtraneous) {
       throw redirect({ to: "/cards", search: cleaned, replace: true });
     }
+  },
+  // SSR-only payload: a slim list of front-face image URLs for the first row of
+  // cards. Rendered as real `<img>` tags inside the route's Suspense fallback so
+  // the preload scanner finds the LCP candidate without waiting for hydration.
+  // On client-side navigation we skip the server fn — the live catalog query is
+  // already warming, so the fallback would never paint.
+  loader: async (): Promise<{ firstRow: FirstRowCard[] }> => {
+    if (globalThis.window !== undefined) {
+      return { firstRow: [] };
+    }
+    return { firstRow: await fetchFirstRowCards() };
   },
   head: () =>
     seoHead({

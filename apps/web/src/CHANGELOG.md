@@ -6,6 +6,7 @@
 - feat: The deck builder's three-dot menu now has an "Import & replace cards…" action that lets you paste a deck code or list and overwrite the current deck's contents in place, keeping the deck's name and format. Previously you could only import as a brand-new deck
 - feat: The /decks page has a new toolbar — search by name, legend, or champion; sort by recent updates, name, card count, or value; filter by format, validity, and domain; group by format, domain combination, legend, or validity; and switch between the existing tile view and a new compact list view
 - feat: You can now pin frequently-used decks to keep them at the top of the deck list, and archive retired decks so they're hidden behind a toggle without being deleted
+- fix: The /cards page now shows the first row of cards instantly on a fresh visit instead of waiting for the full catalog and grid to load
 - fix: Card detail pages load faster on mobile by fetching a smaller image sized for the screen instead of the full-resolution one
 - fix: Tooltips on the deck stats charts now include the metric name (e.g. "Energy 3"), and for multi-domain bars they show a matching gradient swatch and list segments top-to-bottom in the same order as the bar. Adjacent bar segments also no longer leave a hairline gap between them
 - fix: Display names are now capped at 50 characters and limited to letters, digits, spaces, periods, underscores, and hyphens, so names shown on shared deck pages stay readable

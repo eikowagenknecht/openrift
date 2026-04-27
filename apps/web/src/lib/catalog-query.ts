@@ -15,16 +15,29 @@ export interface UseCardsResult {
   sets: SetInfo[];
 }
 
+/**
+ * Reads the full catalog from the standalone server-only QueryClient. Shared
+ * across server functions that derive different slim payloads from the same
+ * upstream `/api/v1/catalog` response, so 1 origin call serves N derivations.
+ *
+ * IMPORTANT: do not pass this through any per-request `context.queryClient` —
+ * that QueryClient is dehydrated to HTML and would inline the full 310 KB
+ * catalog. `serverCache` is never dehydrated.
+ * @returns The catalog response held in `serverCache`.
+ */
+export function readCatalogFromServerCache(): Promise<CatalogResponse> {
+  return serverCache.fetchQuery({
+    queryKey: ["server-cache", "catalog"],
+    queryFn: () =>
+      fetchApiJson<CatalogResponse>({
+        errorTitle: "Couldn't load catalog",
+        path: "/api/v1/catalog",
+      }),
+  });
+}
+
 const fetchCatalog = createServerFn({ method: "GET" }).handler(
-  (): Promise<CatalogResponse> =>
-    serverCache.fetchQuery({
-      queryKey: ["server-cache", "catalog"],
-      queryFn: () =>
-        fetchApiJson<CatalogResponse>({
-          errorTitle: "Couldn't load catalog",
-          path: "/api/v1/catalog",
-        }),
-    }),
+  (): Promise<CatalogResponse> => readCatalogFromServerCache(),
 );
 
 // Client-side catalog fetch goes directly to /api/v1/catalog so Cloudflare
