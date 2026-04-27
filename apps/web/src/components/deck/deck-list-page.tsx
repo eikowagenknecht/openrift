@@ -32,6 +32,7 @@ import type { DeckListItemWithNames } from "@/lib/deck-list-utils";
 import {
   availableDomainsFrom,
   enrichItem,
+  filterAvailabilityFrom,
   filterDecks,
   groupDecks,
   partitionByArchived,
@@ -157,7 +158,10 @@ export function DeckListPage() {
   const showArchived = useDeckListPrefsStore((state) => state.showArchived);
 
   const enriched = useEnrichedItems(deckItems);
+  // Compute filter availability against the enriched set (before any filter is applied)
+  // so a chip group doesn't disappear just because the user filtered everything out.
   const availableDomains = availableDomainsFrom(deckItems);
+  const availability = filterAvailabilityFrom(enriched);
   const visible = partitionByArchived(enriched, showArchived);
   const filtered = filterDecks(visible, {
     search,
@@ -208,7 +212,7 @@ export function DeckListPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-4">
-          <DeckListToolbar availableDomains={availableDomains} />
+          <DeckListToolbar availableDomains={availableDomains} availability={availability} />
 
           {sorted.length === 0 ? (
             <div className="text-muted-foreground flex flex-col items-center gap-2 py-12 text-center text-sm">

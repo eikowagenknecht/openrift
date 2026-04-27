@@ -5,6 +5,7 @@ import type { DeckListItemWithNames } from "./deck-list-utils";
 import {
   availableDomainsFrom,
   enrichItem,
+  filterAvailabilityFrom,
   filterDecks,
   groupDecks,
   partitionByArchived,
@@ -298,5 +299,78 @@ describe("availableDomainsFrom", () => {
 
   it("returns an empty array when no decks have domains", () => {
     expect(availableDomainsFrom([makeItem({ domains: [] })])).toEqual([]);
+  });
+});
+
+describe("filterAvailabilityFrom", () => {
+  it("reports no useful filters or groupings when every deck is identical", () => {
+    const items = [
+      makeItem({ id: "a", format: "constructed", isValid: true, legendName: "Aatrox" }),
+      makeItem({ id: "b", format: "constructed", isValid: true, legendName: "Aatrox" }),
+    ];
+    const availability = filterAvailabilityFrom(items);
+    expect(availability.hasMixedFormat).toBe(false);
+    expect(availability.hasMixedValidity).toBe(false);
+    expect(availability.hasArchived).toBe(false);
+    expect(availability.usefulGroupings.size).toBe(0);
+  });
+
+  it("flags hasMixedFormat only when both formats are present", () => {
+    expect(
+      filterAvailabilityFrom([
+        makeItem({ id: "a", format: "constructed" }),
+        makeItem({ id: "b", format: "freeform" }),
+      ]).hasMixedFormat,
+    ).toBe(true);
+    expect(filterAvailabilityFrom([makeItem({ format: "freeform" })]).hasMixedFormat).toBe(false);
+  });
+
+  it("flags hasMixedValidity only when both valid and invalid constructed decks exist", () => {
+    const av = filterAvailabilityFrom([
+      makeItem({ id: "a", format: "constructed", isValid: true }),
+      makeItem({ id: "b", format: "constructed", isValid: false }),
+    ]);
+    expect(av.hasMixedValidity).toBe(true);
+
+    // Freeform decks don't contribute (they're always considered valid by the API).
+    const freeformOnly = filterAvailabilityFrom([
+      makeItem({ id: "a", format: "freeform" }),
+      makeItem({ id: "b", format: "freeform" }),
+    ]);
+    expect(freeformOnly.hasMixedValidity).toBe(false);
+  });
+
+  it("flags hasArchived when at least one deck is archived", () => {
+    expect(filterAvailabilityFrom([makeItem({ archivedAt: null })]).hasArchived).toBe(false);
+    expect(
+      filterAvailabilityFrom([
+        makeItem({ id: "a", archivedAt: null }),
+        makeItem({ id: "b", archivedAt: "2026-01-01T00:00:00.000Z" }),
+      ]).hasArchived,
+    ).toBe(true);
+  });
+
+  it("includes a grouping in usefulGroupings only when it would yield more than one bucket", () => {
+    // All same legend, all same format, all same domains, all valid → no grouping is useful.
+    const noneUseful = filterAvailabilityFrom([
+      makeItem({ id: "a", legendName: "Aatrox", legendDomains: ["Fury"] }),
+      makeItem({ id: "b", legendName: "Aatrox", legendDomains: ["Fury"] }),
+    ]);
+    expect([...noneUseful.usefulGroupings]).toEqual([]);
+
+    // Mixed legends → "legend" grouping is useful.
+    const mixedLegend = filterAvailabilityFrom([
+      makeItem({ id: "a", legendName: "Aatrox", legendDomains: ["Fury"] }),
+      makeItem({ id: "b", legendName: "Sett", legendDomains: ["Fury"] }),
+    ]);
+    expect(mixedLegend.usefulGroupings.has("legend")).toBe(true);
+    expect(mixedLegend.usefulGroupings.has("domains")).toBe(false);
+
+    // Different legend domain combinations → "domains" grouping is useful.
+    const mixedDomains = filterAvailabilityFrom([
+      makeItem({ id: "a", legendDomains: ["Fury", "Body"] }),
+      makeItem({ id: "b", legendDomains: ["Calm", "Mind"] }),
+    ]);
+    expect(mixedDomains.usefulGroupings.has("domains")).toBe(true);
   });
 });

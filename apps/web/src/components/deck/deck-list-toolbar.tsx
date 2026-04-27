@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import type { DeckListFilterAvailability } from "@/lib/deck-list-utils";
 import type { DeckListGroupBy, DeckListSort } from "@/stores/deck-list-prefs-store";
 import { useDeckListPrefsStore } from "@/stores/deck-list-prefs-store";
 
@@ -66,7 +67,13 @@ function DomainChip({
   );
 }
 
-export function DeckListToolbar({ availableDomains }: { availableDomains: Domain[] }) {
+export function DeckListToolbar({
+  availableDomains,
+  availability,
+}: {
+  availableDomains: Domain[];
+  availability: DeckListFilterAvailability;
+}) {
   const search = useDeckListPrefsStore((state) => state.search);
   const setSearch = useDeckListPrefsStore((state) => state.setSearch);
   const sort = useDeckListPrefsStore((state) => state.sort);
@@ -87,6 +94,22 @@ export function DeckListToolbar({ availableDomains }: { availableDomains: Domain
 
   const hasActiveFilter =
     search !== "" || formatFilter !== "all" || validityFilter !== "all" || domainFilter.length > 0;
+
+  // Keep "none", any grouping that produces >1 bucket, and the currently-selected option
+  // (so the dropdown trigger always reflects state, even if that grouping is no longer useful).
+  const visibleGroupItems = GROUP_ITEMS.filter(
+    (item) =>
+      item.value === "none" ||
+      item.value === groupBy ||
+      (item.value !== "none" && availability.usefulGroupings.has(item.value)),
+  );
+
+  const showFilterRow =
+    availability.hasMixedFormat ||
+    availability.hasMixedValidity ||
+    availableDomains.length > 1 ||
+    availability.hasArchived ||
+    hasActiveFilter;
 
   return (
     <div className="flex flex-col gap-2">
@@ -136,26 +159,28 @@ export function DeckListToolbar({ availableDomains }: { availableDomains: Domain
           </SelectContent>
         </Select>
 
-        <Select
-          items={GROUP_ITEMS}
-          value={groupBy}
-          onValueChange={(value) => {
-            if (value !== null) {
-              setGroupBy(value);
-            }
-          }}
-        >
-          <SelectTrigger className="h-9 w-[200px]" aria-label="Group decks">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {GROUP_ITEMS.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {visibleGroupItems.length > 1 && (
+          <Select
+            items={visibleGroupItems}
+            value={groupBy}
+            onValueChange={(value) => {
+              if (value !== null) {
+                setGroupBy(value);
+              }
+            }}
+          >
+            <SelectTrigger className="h-9 w-[200px]" aria-label="Group decks">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {visibleGroupItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         <div className="ml-auto flex items-center gap-1 rounded-md border p-0.5">
           <Tooltip>
@@ -193,81 +218,89 @@ export function DeckListToolbar({ availableDomains }: { availableDomains: Domain
         </div>
       </div>
 
-      {/* Row 2: filter chips */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1">
-          <span className="text-muted-foreground text-xs">Format:</span>
-          {(["all", "constructed", "freeform"] as const).map((value) => (
+      {/* Row 2: filter chips (only render when there's at least one useful filter) */}
+      {showFilterRow && (
+        <div className="flex flex-wrap items-center gap-2">
+          {availability.hasMixedFormat && (
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground text-xs">Format:</span>
+              {(["all", "constructed", "freeform"] as const).map((value) => (
+                <Button
+                  key={value}
+                  type="button"
+                  variant={formatFilter === value ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 px-2.5 text-xs capitalize"
+                  aria-pressed={formatFilter === value}
+                  onClick={() => setFormatFilter(value)}
+                >
+                  {value}
+                </Button>
+              ))}
+            </div>
+          )}
+
+          {availability.hasMixedValidity && (
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground text-xs">Validity:</span>
+              {(["all", "valid", "invalid"] as const).map((value) => (
+                <Button
+                  key={value}
+                  type="button"
+                  variant={validityFilter === value ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 px-2.5 text-xs capitalize"
+                  aria-pressed={validityFilter === value}
+                  onClick={() => setValidityFilter(value)}
+                >
+                  {value}
+                </Button>
+              ))}
+            </div>
+          )}
+
+          {availableDomains.length > 1 && (
+            <div className="flex items-center gap-1">
+              <span className="text-muted-foreground text-xs">Domains:</span>
+              {availableDomains.map((domain) => (
+                <DomainChip
+                  key={domain}
+                  domain={domain}
+                  active={domainFilter.includes(domain)}
+                  onToggle={() => toggleDomainFilter(domain)}
+                />
+              ))}
+            </div>
+          )}
+
+          {availability.hasArchived && (
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant={showArchived ? "default" : "outline"}
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                aria-pressed={showArchived}
+                onClick={() => setShowArchived(!showArchived)}
+              >
+                {showArchived ? "Hide archived" : "Show archived"}
+              </Button>
+            </div>
+          )}
+
+          {hasActiveFilter && (
             <Button
-              key={value}
               type="button"
-              variant={formatFilter === value ? "default" : "outline"}
+              variant="ghost"
               size="sm"
-              className="h-7 px-2.5 text-xs capitalize"
-              aria-pressed={formatFilter === value}
-              onClick={() => setFormatFilter(value)}
+              className="h-7 px-2 text-xs"
+              onClick={resetFilters}
             >
-              {value}
+              Reset filters
             </Button>
-          ))}
+          )}
         </div>
-
-        <div className="flex items-center gap-1">
-          <span className="text-muted-foreground text-xs">Validity:</span>
-          {(["all", "valid", "invalid"] as const).map((value) => (
-            <Button
-              key={value}
-              type="button"
-              variant={validityFilter === value ? "default" : "outline"}
-              size="sm"
-              className="h-7 px-2.5 text-xs capitalize"
-              aria-pressed={validityFilter === value}
-              onClick={() => setValidityFilter(value)}
-            >
-              {value}
-            </Button>
-          ))}
-        </div>
-
-        {availableDomains.length > 0 && (
-          <div className="flex items-center gap-1">
-            <span className="text-muted-foreground text-xs">Domains:</span>
-            {availableDomains.map((domain) => (
-              <DomainChip
-                key={domain}
-                domain={domain}
-                active={domainFilter.includes(domain)}
-                onToggle={() => toggleDomainFilter(domain)}
-              />
-            ))}
-          </div>
-        )}
-
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant={showArchived ? "default" : "outline"}
-            size="sm"
-            className="h-7 px-2.5 text-xs"
-            aria-pressed={showArchived}
-            onClick={() => setShowArchived(!showArchived)}
-          >
-            {showArchived ? "Hide archived" : "Show archived"}
-          </Button>
-        </div>
-
-        {hasActiveFilter && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={resetFilters}
-          >
-            Reset filters
-          </Button>
-        )}
-      </div>
+      )}
     </div>
   );
 }

@@ -245,3 +245,56 @@ export function availableDomainsFrom(items: DeckListItemResponse[]): Domain[] {
     left.localeCompare(right, undefined, { sensitivity: "base" }),
   );
 }
+
+/** Summary of which filter and grouping categories are useful given the current deck set. */
+export interface DeckListFilterAvailability {
+  /** True when the deck set contains both formats — filtering by format adds value. */
+  hasMixedFormat: boolean;
+  /** True when the deck set contains both valid and invalid decks (only meaningful for constructed). */
+  hasMixedValidity: boolean;
+  /** True when at least one deck is archived — the show-archived toggle has something to reveal. */
+  hasArchived: boolean;
+  /** Group-by options that would produce more than one bucket (excludes "none"). */
+  usefulGroupings: Set<Exclude<DeckListGroupBy, "none">>;
+}
+
+export function filterAvailabilityFrom(items: DeckListItemWithNames[]): DeckListFilterAvailability {
+  const formats = new Set<string>();
+  let sawValid = false;
+  let sawInvalid = false;
+  let hasArchived = false;
+  const groupKeysByOption = {
+    format: new Set<string>(),
+    domains: new Set<string>(),
+    legend: new Set<string>(),
+    validity: new Set<string>(),
+  };
+  for (const item of items) {
+    formats.add(item.deck.format);
+    if (item.deck.format === "constructed") {
+      if (item.isValid) {
+        sawValid = true;
+      } else {
+        sawInvalid = true;
+      }
+    }
+    if (item.deck.archivedAt !== null) {
+      hasArchived = true;
+    }
+    for (const option of ["format", "domains", "legend", "validity"] as const) {
+      groupKeysByOption[option].add(groupKeyAndLabel(item, option).key);
+    }
+  }
+  const usefulGroupings = new Set<Exclude<DeckListGroupBy, "none">>();
+  for (const option of ["format", "domains", "legend", "validity"] as const) {
+    if (groupKeysByOption[option].size > 1) {
+      usefulGroupings.add(option);
+    }
+  }
+  return {
+    hasMixedFormat: formats.size > 1,
+    hasMixedValidity: sawValid && sawInvalid,
+    hasArchived,
+    usefulGroupings,
+  };
+}
