@@ -236,7 +236,15 @@ export function useCardData({
   // order, so `filterCards` preserves that order and the dedup/group below
   // can be first-occurrence without re-sorting.
   const availableFilters = getAvailableFilters(allPrintings, { orders, sets, getPrice });
-  const filterCounts = computeFilterCounts(allPrintings, filters, {
+  // Narrow the universe by owned BEFORE computing facet counts so the other
+  // chips (sets, rarities, colors, etc.) reflect the active owned selection.
+  // The owned-chip count itself is overridden below from the pre-owned set so
+  // it still answers "how many would match if owned were toggled".
+  const universeForCounts =
+    ownedFilter && ownedCountByPrinting
+      ? applyOwnedFilter(allPrintings, ownedFilter, view, ownedCountByPrinting)
+      : allPrintings;
+  const filterCounts = computeFilterCounts(universeForCounts, filters, {
     countBy: view === "cards" ? "card" : "printing",
     keywordReverseMap,
     getPrice,

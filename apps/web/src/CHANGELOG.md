@@ -3,6 +3,7 @@
 ## 2026-04-28
 
 - feat: Filter badges on the cards page now show how many cards each option matches under your other active filters, and options that would leave you with zero cards are dimmed
+- fix: When you filter the cards page by owned, missing, or incomplete, the other filter chips now narrow their counts to that subset instead of still reflecting the full catalog
 - fix: Resizing the browser window on the cards page now adjusts row heights smoothly again, so the rows no longer leave large gaps between them when you shrink the window
 - fix: On very wide screens the cards page no longer shows one fewer column briefly on first load before settling into the final layout
 - fix: The energy, might, power, and price sliders on the cards page are now smooth while dragging the thumb or holding an arrow key, and apply once you settle on a value
