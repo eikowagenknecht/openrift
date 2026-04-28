@@ -109,7 +109,7 @@ export function FilterBadgeSections({
   const allowIncomplete = view !== "printings";
   const ownedLabel =
     filterState.owned === "missing"
-      ? "Missing"
+      ? "No Playset"
       : filterState.owned === "incomplete"
         ? "Incomplete"
         : "Owned";
@@ -207,14 +207,6 @@ export function FilterBadgeSections({
         availableFilters.hasBanned ||
         availableFilters.hasErrata) && (
         <FilterSection label="More">
-          {!hiddenSections?.has("owned") && (
-            <FlagBadge
-              label={ownedLabel}
-              isActive={filterState.owned !== null}
-              count={filterCounts?.flags.owned}
-              onClick={() => toggleOwned(allowIncomplete)}
-            />
-          )}
           {availableFilters.hasSigned && (
             <FlagBadge
               label={filterState.signed === false ? "Not Signed" : "Signed"}
@@ -245,6 +237,14 @@ export function FilterBadgeSections({
               isActive={filterState.errata !== null}
               count={filterCounts?.flags.errata}
               onClick={toggleErrata}
+            />
+          )}
+          {!hiddenSections?.has("owned") && (
+            <FlagBadge
+              label={ownedLabel}
+              isActive={filterState.owned !== null}
+              count={filterCounts?.flags.owned}
+              onClick={() => toggleOwned(allowIncomplete)}
             />
           )}
         </FilterSection>

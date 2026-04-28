@@ -49,6 +49,10 @@ import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
+// Logged-out users have no collection counts, so the Owned chip would always
+// read 0 — hide it instead of leaving a dead filter in the panel.
+const OWNED_HIDDEN: ReadonlySet<string> = new Set(["owned"]);
+
 /**
  * Standalone catalog browser for the /cards route.
  * Provides filters, search, and a card detail pane — no collection or add-mode features.
@@ -158,6 +162,8 @@ export function CardBrowser() {
     prices,
     keywordReverseMap,
   });
+
+  const hiddenFilterSections = isLoggedIn ? undefined : OWNED_HIDDEN;
 
   const deferredSortedCards = useDeferredValue(sortedCards);
   const isGridStale = deferredSortedCards !== sortedCards;
@@ -305,6 +311,7 @@ export function CardBrowser() {
             availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
             filterCounts={filterCounts}
+            hiddenSections={hiddenFilterSections}
           />
         </MobileOptionsDrawer>
       </div>
@@ -313,6 +320,7 @@ export function CardBrowser() {
         availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
         filterCounts={filterCounts}
+        hiddenSections={hiddenFilterSections}
       />
     </>
   );
@@ -326,6 +334,7 @@ export function CardBrowser() {
           availableLanguages={availableLanguages}
           setDisplayLabel={setDisplayLabel}
           filterCounts={filterCounts}
+          hiddenSections={hiddenFilterSections}
         />
       </div>
     </Pane>

@@ -20,6 +20,10 @@ import { fromWireFacets } from "@/lib/cards-facets";
 
 const cardsRoute = getRouteApi("/_app/cards");
 
+// SSR can't tell whether the user is signed in, so we hide the Owned chip in
+// the shell. The live <CardBrowser> shows it for logged-in users on hydration.
+const SSR_HIDDEN: ReadonlySet<string> = new Set(["owned"]);
+
 /**
  * SSR-only preview of the cards page. Rendered inside the route's Suspense
  * fallback so the served HTML carries:
@@ -61,6 +65,7 @@ export function FirstRowPreview() {
                 availableFilters={availableFilters}
                 availableLanguages={availableLanguages}
                 setDisplayLabel={setDisplayLabel}
+                hiddenSections={SSR_HIDDEN}
               />
             </MobileOptionsDrawer>
           </div>
@@ -68,6 +73,7 @@ export function FirstRowPreview() {
             availableFilters={availableFilters}
             availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
+            hiddenSections={SSR_HIDDEN}
           />
         </>
       }
@@ -79,6 +85,7 @@ export function FirstRowPreview() {
               availableFilters={availableFilters}
               availableLanguages={availableLanguages}
               setDisplayLabel={setDisplayLabel}
+              hiddenSections={SSR_HIDDEN}
             />
           </div>
         </Pane>

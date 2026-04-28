@@ -180,7 +180,7 @@ export function ActiveFilters({
             <span className="text-muted-foreground text-xs">Owned:</span>
             <Badge variant="secondary" className="gap-1">
               {filterState.owned === "missing"
-                ? "Missing"
+                ? "No Playset"
                 : filterState.owned === "incomplete"
                   ? "Incomplete"
                   : "Owned"}
