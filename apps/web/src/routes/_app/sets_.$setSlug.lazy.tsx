@@ -16,6 +16,14 @@ export const Route = createLazyFileRoute("/_app/sets_/$setSlug")({
   pendingComponent: SetDetailPending,
 });
 
+// Mirrors the grid below: cols 2 / 3@640 / 4@768 / 5@1024 / 6@1280 / 8@1536,
+// gap-4 (16px) between cells, p-1.5 (6px) inside each cell, inside _app's
+// CONTAINER_WIDTH cap (1280 → 1720@wide → 2160@xwide → 2560@xxwide) plus
+// PAGE_PADDING (px-3 = -24px). Once the cap binds the per-cell size is
+// constant, so the wide breakpoints use fixed px values.
+const SETS_CARD_SIZES =
+  "(min-width: 2560px) 291px, (min-width: 2160px) 240px, (min-width: 1720px) 186px, (min-width: 1536px) 131px, (min-width: 1280px) 184px, (min-width: 1024px) calc((100vw - 88px) / 5 - 12px), (min-width: 768px) calc((100vw - 72px) / 4 - 12px), (min-width: 640px) calc((100vw - 56px) / 3 - 12px), calc((100vw - 40px) / 2 - 12px)";
+
 function SetDetailPage() {
   const { setSlug } = Route.useParams();
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
@@ -55,6 +63,7 @@ function SetDetailPage() {
             onClick={handleCardClick}
             showImages={showImages}
             display={display}
+            sizes={SETS_CARD_SIZES}
           />
         ))}
       </div>

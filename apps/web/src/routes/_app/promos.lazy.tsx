@@ -36,6 +36,15 @@ type ViewMode = "grid" | "list";
 
 const COMPACT_LEAF_THRESHOLD = 4;
 
+// Mirrors both card grids below: cols 2 / 3@640 / 4@1280 / 6@1720 / 8@2160,
+// gap-4 (16px) between cells, p-1.5 (6px) inside each cell, inside _app's
+// CONTAINER_WIDTH cap (1280 → 1720@wide → 2160@xwide → 2560@xxwide), with
+// PAGE_PADDING (px-3 = -24px) and an `lg:w-52` sidebar (208px) plus
+// `gap-8` (32px) at lg+. Once the cap binds the per-cell size is constant,
+// so the wide breakpoints use fixed px values.
+const PROMOS_CARD_SIZES =
+  "(min-width: 2560px) 261px, (min-width: 2160px) 211px, (min-width: 1720px) 217px, (min-width: 1280px) 230px, (min-width: 1024px) calc((100vw - 296px) / 3 - 12px), (min-width: 640px) calc((100vw - 56px) / 3 - 12px), calc((100vw - 40px) / 2 - 12px)";
+
 /**
  * A branch qualifies for compact-table rendering when every direct child is a
  * leaf and each leaf has ≤ COMPACT_LEAF_THRESHOLD printings. This collapses
@@ -630,6 +639,7 @@ function ChannelLeafSection({
                 onClick={onCardClick}
                 showImages={showImages}
                 display={display}
+                sizes={PROMOS_CARD_SIZES}
                 belowLabel={<MarkerChips printing={printing} />}
               />
             ))}
@@ -696,6 +706,7 @@ function CompactBranchGrid({
               onClick={onCardClick}
               showImages={showImages}
               display={display}
+              sizes={PROMOS_CARD_SIZES}
               belowLabel={<MarkerChips printing={printing} />}
             />
           </div>

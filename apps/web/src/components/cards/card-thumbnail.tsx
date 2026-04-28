@@ -255,6 +255,12 @@ interface CardThumbnailProps {
   priceRange?: { min: number; max: number };
   view?: "cards" | "printings";
   cardWidth?: number;
+  /**
+   * Static `sizes` attribute for non-virtualized callers (e.g. /sets/[slug],
+   * /promos) that don't have a measured per-cell pixel width. Ignored when
+   * `cardWidth` is provided — the pixel-precise value wins.
+   */
+  sizes?: string;
   priority?: boolean;
   /**
    * Grid-invariant display reads (preferences, prices, enum labels). Each
@@ -335,6 +341,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   priceRange,
   view,
   cardWidth,
+  sizes: sizesOverride,
   priority,
   display,
   aboveCard,
@@ -445,7 +452,7 @@ export const CardThumbnail = memo(function CardThumbnail({
         const siblingSrcSet = showSibling
           ? `${imageUrl(siblingImageId, "120w")} 120w, ${imageUrl(siblingImageId, "240w")} 240w, ${imageUrl(siblingImageId, "400w")} 400w, ${imageUrl(siblingImageId, "full")} 800w`
           : undefined;
-        const siblingSizes = cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined;
+        const siblingSizes = cardWidth ? `${Math.round(cardWidth - 12)}px` : sizesOverride;
         return (
           // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- decorative layer inside a parent <button>; keyboard nav handled by parent
           <div
@@ -505,7 +512,7 @@ export const CardThumbnail = memo(function CardThumbnail({
           <CardImageContent
             thumbnailUrl={thumbnailUrl}
             srcSet={srcSet}
-            sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
+            sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : sizesOverride}
             alt={card.name}
             priority={Boolean(priority)}
             imgLoaded={imgLoaded}
