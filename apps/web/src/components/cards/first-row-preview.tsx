@@ -166,7 +166,7 @@ export function FirstRowPreview() {
                   <img
                     src={imageUrl(card.imageId, "400w")}
                     srcSet={`${imageUrl(card.imageId, "120w")} 120w, ${imageUrl(card.imageId, "240w")} 240w, ${imageUrl(card.imageId, "400w")} 400w, ${imageUrl(card.imageId, "full")} 800w`}
-                    sizes="(min-width: 1536px) 14vw, (min-width: 1280px) 17vw, (min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
+                    sizes="(min-width: 1920px) 13vw, (min-width: 1600px) 14vw, (min-width: 1280px) 17vw, (min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
                     width={400}
                     height={558}
                     alt={card.cardName}
