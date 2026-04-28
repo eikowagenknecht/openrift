@@ -27,7 +27,7 @@ import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
 import { useCardData } from "@/hooks/use-card-data";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useCards } from "@/hooks/use-cards";
-import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
+import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckDetail } from "@/hooks/use-decks";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -45,7 +45,7 @@ import { useSelectionStore } from "@/stores/selection-store";
  * Build a map of domain → rune DeckBuilderCards from the full catalog.
  * @returns A map keyed by domain name, each value an array of rune cards in that domain.
  */
-function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCard[]> {
+export function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCard[]> {
   const runesByDomain = new Map<string, DeckBuilderCard[]>();
   for (const entry of allPrintings) {
     if (entry.card.type !== "Rune") {
@@ -154,7 +154,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   } = useFilterValues();
   const { setSearch } = useFilterActions();
   const { addCard, removeCard, setLegend, setQuantity } = useDeckBuilderActions(deckId);
-  const setRunesByDomain = useDeckBuilderUiStore((state) => state.setRunesByDomain);
   // Wrapper only renders this component when activeZone is set
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone) as DeckZone;
   const isSingleCardZone = activeZone === "legend" || activeZone === "champion";
@@ -179,15 +178,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       globalThis.removeEventListener("keyup", up);
     };
   }, []);
-
-  // Build runes-by-domain catalog map so rebalancing works even for loaded decks
-  useEffect(() => {
-    if (allPrintings.length === 0) {
-      return;
-    }
-    const map = buildRunesByDomain(allPrintings);
-    setRunesByDomain(map);
-  }, [allPrintings, setRunesByDomain]);
 
   const deckCards = useDeckCards(deckId);
   const singleCardZoneOccupied =
@@ -307,7 +297,8 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     .filter((card) => card.zone === "runes")
     .reduce((sum, card) => sum + card.quantity, 0);
 
-  const isMaxReached = (cardId: string): boolean => {
+  const isMaxReached = (item: CardViewerItem): boolean => {
+    const cardId = item.printing.cardId;
     if (activeZone === "legend" || activeZone === "champion") {
       return deckCards.some((card) => card.cardId === cardId && card.zone === activeZone);
     }
@@ -319,7 +310,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       return alreadyInZone || zoneFull;
     }
     if (activeZone === "runes") {
-      return runeTotal >= 12;
+      return !canAddRune(catalogCardToDeckBuilderCard(cardId, item.printing.card), deckCards);
     }
     return (copyLimitTotalByCard.get(cardId) ?? 0) >= 3;
   };
@@ -358,7 +349,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
             printing={item.printing}
             ownedCount={ownedCount}
             deckQuantity={deckQty}
-            maxReached={isMaxReached(cardId)}
+            maxReached={isMaxReached(item)}
             addLabel={
               isSingleCardZone
                 ? singleCardZoneOccupied && deckQty === 0

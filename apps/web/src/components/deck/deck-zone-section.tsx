@@ -11,7 +11,7 @@ import type {
   DeckDropData,
 } from "@/components/deck/deck-dnd-context";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
+import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey, isCardAllowedInZone } from "@/lib/deck-builder-card";
@@ -166,7 +166,8 @@ export function DeckZoneSection({
         draggable={DRAG_ZONES.has(zone)}
         shiftHeld={zone === "runes" ? undefined : shiftHeld}
         onIncrement={
-          copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= 3
+          (copyLimitZones.has(zone) && crossZoneTotal(card.cardId) >= 3) ||
+          (zone === "runes" && !canAddRune(card, allCards))
             ? undefined
             : (event) => addCard(card, zone, event.shiftKey ? 3 : undefined)
         }

@@ -14,7 +14,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { DeckCardBrowser } from "@/components/deck/deck-card-browser";
+import { buildRunesByDomain, DeckCardBrowser } from "@/components/deck/deck-card-browser";
 import { DeckDndContext } from "@/components/deck/deck-dnd-context";
 import { DeckExportDialog } from "@/components/deck/deck-export-dialog";
 import { DeckMissingCardsDialog } from "@/components/deck/deck-missing-cards-dialog";
@@ -119,6 +119,7 @@ function DeckEditorContent({
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
   const setActiveZone = useDeckBuilderUiStore((state) => state.setActiveZone);
   const resetUi = useDeckBuilderUiStore((state) => state.reset);
+  const setRunesByDomain = useDeckBuilderUiStore((state) => state.setRunesByDomain);
   const [renameOpen, setRenameOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [proxyOpen, setProxyOpen] = useState(false);
@@ -139,6 +140,16 @@ function DeckEditorContent({
     marketplace,
     deckCounts?.locked,
   );
+
+  // Build the runes-by-domain catalog up here (always-mounted parent) so the
+  // rebalance fallback can swap in an opposite-domain rune even on a fresh
+  // page load before the user has activated any zone.
+  useEffect(() => {
+    if (allPrintings.length === 0) {
+      return;
+    }
+    setRunesByDomain(buildRunesByDomain(allPrintings));
+  }, [allPrintings, setRunesByDomain]);
 
   // Seed the draft from the server's deck detail when the deck id changes or
   // when a fresh load arrives. The collection's save handler is auto-wired —

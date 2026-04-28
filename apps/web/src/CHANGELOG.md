@@ -4,6 +4,9 @@
 
 - feat: The cards page and your collections now show one tile per card by default, grouping printings of the same card together. Switch back to a tile per printing in your profile if you prefer the previous view
 - feat: Filter badges on the cards page now show how many cards each option matches under your other active filters, and options that would leave you with zero cards are dimmed
+- fix: The deck builder's + button on a rune is now disabled when adding would push the rune count past 12 with no opposite-domain rune to swap with, instead of silently leaving the deck stuck at 13
+- fix: Removing a rune in the deck builder right after a page reload now correctly swaps in a rune of the legend's other domain, instead of just decrementing the count
+- fix: Importing a deck from a deck code or TTS export no longer pins random non-English printings on the imported cards; the deck now displays in your preferred language like every other deck
 - fix: The owned-count popover on the cards page now lists each printing variant separately with its per-collection counts, instead of showing the breakdown for only one variant while the badge counted them all
 - fix: When showing owned counts on the cards page, the package icon above each card stays clickable on hover, instead of being hidden behind the variants fanning out from the stack
 - fix: On phones and tablets the cards page no longer downloads the stacked sibling-printing images that were only ever revealed by hovering, saving bandwidth without changing the look

@@ -135,6 +135,34 @@ function crossZoneTotal(cards: DeckBuilderCard[], cardId: string): number {
   return total;
 }
 
+/**
+ * Returns true when a rune of `card.domains` can be added without leaving the
+ * deck above RUNE_TARGET. Below the cap it's always allowed; at the cap an add
+ * is only allowed when rebalanceRunes will be able to decrement an
+ * opposite-domain rune already in the deck (the legend must be dual-domain,
+ * the card mustn't cover both domains, and a rune of the other domain must
+ * already exist).
+ *
+ * @returns Whether incrementing this rune is currently valid.
+ */
+export function canAddRune(card: DeckBuilderCard, deckCards: DeckBuilderCard[]): boolean {
+  const runeTotal = runeTotalOf(deckCards);
+  if (runeTotal < RUNE_TARGET) {
+    return true;
+  }
+  const legend = deckCards.find((entry) => entry.zone === "legend");
+  if (!legend || legend.domains.length < 2) {
+    return false;
+  }
+  const otherDomain = legend.domains.find((domain) => !card.domains.includes(domain));
+  if (!otherDomain) {
+    return false;
+  }
+  return deckCards.some(
+    (entry) => entry.zone === "runes" && entry.domains.some((domain) => domain === otherDomain),
+  );
+}
+
 // ── Action implementations ──────────────────────────────────────────────────
 
 export function addCardAction(
@@ -177,6 +205,9 @@ export function addCardAction(
     const addQty = count ?? 1;
     for (let step = 0; step < addQty; step++) {
       const cards = allCards(collection);
+      if (!canAddRune(card, cards)) {
+        break;
+      }
       const existing = cards.find(
         (entry) =>
           entry.cardId === card.cardId &&
@@ -191,10 +222,6 @@ export function addCardAction(
         collection.insert({ ...card, zone: "runes", quantity: 1, preferredPrintingId });
       }
       rebalanceRunes(collection, card.domains, runesByDomain);
-      if (runeTotalOf(allCards(collection)) > RUNE_TARGET) {
-        // Rebalance couldn't compensate (e.g. mono-domain legend) — stop.
-        break;
-      }
     }
     return;
   }

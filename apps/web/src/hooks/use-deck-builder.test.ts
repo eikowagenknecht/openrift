@@ -8,6 +8,7 @@ import { resetIdCounter, stubDeckBuilderCard } from "@/test/factories";
 
 import {
   addCardAction,
+  canAddRune,
   changePreferredPrintingAction,
   moveCardAction,
   moveOneCardAction,
@@ -163,6 +164,179 @@ describe("addCardAction", () => {
     expect(cards).toHaveLength(1);
     expect(cards[0].quantity).toBe(1);
   });
+
+  it("does not exceed 12 runes when no opposite-domain rune exists to swap", () => {
+    const legend = stubDeckBuilderCard({
+      cardId: "legend-1",
+      cardType: "Legend",
+      zone: "legend",
+      domains: ["Fury", "Calm"],
+    });
+    const furyRune = stubDeckBuilderCard({
+      cardId: "fury-rune",
+      cardType: "Rune",
+      zone: "runes",
+      domains: ["Fury"],
+      quantity: 12,
+    });
+    collection = createDraftCollection([legend, furyRune]);
+    const addCard = stubDeckBuilderCard({
+      cardId: "fury-rune",
+      cardType: "Rune",
+      domains: ["Fury"],
+    });
+    addCardAction(collection, addCard, "runes", undefined, EMPTY_RUNES);
+    const total = cardsOf(collection)
+      .filter((card) => card.zone === "runes")
+      .reduce((sum, card) => sum + card.quantity, 0);
+    expect(total).toBe(12);
+  });
+
+  it("allows a swap-add at 12 runes when an opposite-domain rune is in the deck", () => {
+    const legend = stubDeckBuilderCard({
+      cardId: "legend-1",
+      cardType: "Legend",
+      zone: "legend",
+      domains: ["Fury", "Calm"],
+    });
+    const furyRune = stubDeckBuilderCard({
+      cardId: "fury-rune",
+      cardType: "Rune",
+      zone: "runes",
+      domains: ["Fury"],
+      quantity: 6,
+    });
+    const calmRune = stubDeckBuilderCard({
+      cardId: "calm-rune",
+      cardType: "Rune",
+      zone: "runes",
+      domains: ["Calm"],
+      quantity: 6,
+    });
+    collection = createDraftCollection([legend, furyRune, calmRune]);
+    const addCard = stubDeckBuilderCard({
+      cardId: "fury-rune",
+      cardType: "Rune",
+      domains: ["Fury"],
+    });
+    addCardAction(collection, addCard, "runes", undefined, EMPTY_RUNES);
+    const runes = cardsOf(collection).filter((card) => card.zone === "runes");
+    const total = runes.reduce((sum, card) => sum + card.quantity, 0);
+    expect(total).toBe(12);
+    expect(runes.find((card) => card.cardId === "fury-rune")?.quantity).toBe(7);
+    expect(runes.find((card) => card.cardId === "calm-rune")?.quantity).toBe(5);
+  });
+
+  it("does not exceed 12 runes for a mono-domain legend", () => {
+    const legend = stubDeckBuilderCard({
+      cardId: "legend-1",
+      cardType: "Legend",
+      zone: "legend",
+      domains: ["Fury"],
+    });
+    const furyRune = stubDeckBuilderCard({
+      cardId: "fury-rune",
+      cardType: "Rune",
+      zone: "runes",
+      domains: ["Fury"],
+      quantity: 12,
+    });
+    collection = createDraftCollection([legend, furyRune]);
+    const addCard = stubDeckBuilderCard({
+      cardId: "fury-rune",
+      cardType: "Rune",
+      domains: ["Fury"],
+    });
+    addCardAction(collection, addCard, "runes", undefined, EMPTY_RUNES);
+    const total = cardsOf(collection)
+      .filter((card) => card.zone === "runes")
+      .reduce((sum, card) => sum + card.quantity, 0);
+    expect(total).toBe(12);
+  });
+});
+
+// ── canAddRune ──────────────────────────────────────────────────────────────
+
+describe("canAddRune", () => {
+  const dualLegend = () =>
+    stubDeckBuilderCard({
+      cardId: "legend-1",
+      cardType: "Legend",
+      zone: "legend",
+      domains: ["Fury", "Calm"],
+    });
+
+  it("allows adds below the cap", () => {
+    const card = stubDeckBuilderCard({ cardType: "Rune", domains: ["Fury"] });
+    const result = canAddRune(card, [
+      dualLegend(),
+      stubDeckBuilderCard({
+        cardId: "fury-rune",
+        cardType: "Rune",
+        zone: "runes",
+        domains: ["Fury"],
+        quantity: 5,
+      }),
+    ]);
+    expect(result).toBe(true);
+  });
+
+  it("blocks adds at the cap when no opposite-domain rune exists", () => {
+    const card = stubDeckBuilderCard({ cardType: "Rune", domains: ["Fury"] });
+    const result = canAddRune(card, [
+      dualLegend(),
+      stubDeckBuilderCard({
+        cardId: "fury-rune",
+        cardType: "Rune",
+        zone: "runes",
+        domains: ["Fury"],
+        quantity: 12,
+      }),
+    ]);
+    expect(result).toBe(false);
+  });
+
+  it("allows adds at the cap when an opposite-domain rune exists (swap)", () => {
+    const card = stubDeckBuilderCard({ cardType: "Rune", domains: ["Fury"] });
+    const result = canAddRune(card, [
+      dualLegend(),
+      stubDeckBuilderCard({
+        cardId: "fury-rune",
+        cardType: "Rune",
+        zone: "runes",
+        domains: ["Fury"],
+        quantity: 6,
+      }),
+      stubDeckBuilderCard({
+        cardId: "calm-rune",
+        cardType: "Rune",
+        zone: "runes",
+        domains: ["Calm"],
+        quantity: 6,
+      }),
+    ]);
+    expect(result).toBe(true);
+  });
+
+  it("blocks adds at the cap when the legend is mono-domain", () => {
+    const card = stubDeckBuilderCard({ cardType: "Rune", domains: ["Fury"] });
+    const result = canAddRune(card, [
+      stubDeckBuilderCard({
+        cardId: "legend-mono",
+        cardType: "Legend",
+        zone: "legend",
+        domains: ["Fury"],
+      }),
+      stubDeckBuilderCard({
+        cardId: "fury-rune",
+        cardType: "Rune",
+        zone: "runes",
+        domains: ["Fury"],
+        quantity: 12,
+      }),
+    ]);
+    expect(result).toBe(false);
+  });
 });
 
 // ── removeCardAction ────────────────────────────────────────────────────────
@@ -185,6 +359,62 @@ describe("removeCardAction", () => {
   it("does nothing when the card is not found", () => {
     removeCardAction(collection, "missing", "main", EMPTY_RUNES);
     expect(cardsOf(collection)).toHaveLength(0);
+  });
+
+  it("rebalance pulls an opposite-domain rune from the catalog when none in deck", () => {
+    const legend = stubDeckBuilderCard({
+      cardId: "legend-1",
+      cardType: "Legend",
+      zone: "legend",
+      domains: ["Fury", "Calm"],
+    });
+    const furyRune = stubDeckBuilderCard({
+      cardId: "fury-rune",
+      cardType: "Rune",
+      zone: "runes",
+      domains: ["Fury"],
+      quantity: 12,
+    });
+    const calmRune = stubDeckBuilderCard({
+      cardId: "calm-rune",
+      cardType: "Rune",
+      domains: ["Calm"],
+    });
+    const runesByDomain = new Map<string, DeckBuilderCard[]>([
+      ["Fury", [stubDeckBuilderCard({ cardId: "fury-rune", cardType: "Rune", domains: ["Fury"] })]],
+      ["Calm", [calmRune]],
+    ]);
+    collection = createDraftCollection([legend, furyRune]);
+    removeCardAction(collection, "fury-rune", "runes", runesByDomain);
+    const runes = cardsOf(collection).filter((card) => card.zone === "runes");
+    const total = runes.reduce((sum, card) => sum + card.quantity, 0);
+    expect(total).toBe(12);
+    expect(runes.find((card) => card.cardId === "fury-rune")?.quantity).toBe(11);
+    expect(runes.find((card) => card.cardId === "calm-rune")?.quantity).toBe(1);
+  });
+
+  it("rebalance is a no-op when runesByDomain catalog is empty (pre-hydration)", () => {
+    const legend = stubDeckBuilderCard({
+      cardId: "legend-1",
+      cardType: "Legend",
+      zone: "legend",
+      domains: ["Fury", "Calm"],
+    });
+    const furyRune = stubDeckBuilderCard({
+      cardId: "fury-rune",
+      cardType: "Rune",
+      zone: "runes",
+      domains: ["Fury"],
+      quantity: 12,
+    });
+    collection = createDraftCollection([legend, furyRune]);
+    removeCardAction(collection, "fury-rune", "runes", EMPTY_RUNES);
+    const runes = cardsOf(collection).filter((card) => card.zone === "runes");
+    const total = runes.reduce((sum, card) => sum + card.quantity, 0);
+    // Demonstrates the F5 bug shape: with an empty catalog, the rebalance can't
+    // backfill an opposite-domain rune. The fix lives in the deck-editor page,
+    // which now hydrates runesByDomain regardless of activeZone.
+    expect(total).toBe(11);
   });
 });
 
