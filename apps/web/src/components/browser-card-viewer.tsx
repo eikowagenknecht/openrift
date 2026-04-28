@@ -42,20 +42,28 @@ export function BrowserCardViewer({
   ...rest
 }: BrowserCardViewerProps) {
   const selectedCard = useSelectionStore((s) => s.selectedCard);
+  const selectedIndex = useSelectionStore((s) => s.selectedIndex);
 
-  // Prefer matching by printing id first: in cards+set the grid has multiple
-  // tiles per cardId (one per set), so a cardId-only match would always
-  // resolve to whichever tile sorts first and clicking the SFD reprint would
-  // visually highlight the OGN tile. The cardId fallback covers cards-only
-  // view where the user picked a variant via the chevron — the resulting
-  // selection isn't in `deferredSortedCards`, so we light up the
-  // representative tile for that card instead.
-  const gridSelectedId = selectedCard
-    ? (deferredSortedCards.find((c) => c.id === selectedCard.id)?.id ??
-      (view === "cards"
-        ? (deferredSortedCards.find((c) => c.cardId === selectedCard.cardId)?.id ?? selectedCard.id)
-        : selectedCard.id))
-    : undefined;
+  // The grid cell the user is anchored at — the one they originally clicked.
+  // Stays stable when the detail panel swaps to a sibling printing via
+  // setSelectedCard (which doesn't update selectedIndex), so both the
+  // visual highlight and arrow-key navigation keep working from that cell.
+  // Guard the index against stale items (filter changes can shrink the list).
+  const indexAnchor =
+    selectedIndex >= 0 && selectedIndex < items.length ? items[selectedIndex] : undefined;
+
+  // Prefer the index anchor, then exact printing.id match, then a cardId
+  // fallback for cards-only view where chevron-picked variants aren't in the
+  // grid items — light up the representative tile for that card instead.
+  const gridSelectedId =
+    indexAnchor?.id ??
+    (selectedCard
+      ? (deferredSortedCards.find((c) => c.id === selectedCard.id)?.id ??
+        (view === "cards"
+          ? (deferredSortedCards.find((c) => c.cardId === selectedCard.cardId)?.id ??
+            selectedCard.id)
+          : selectedCard.id))
+      : undefined);
 
   const siblingPrintings = selectedCard
     ? (printingsByCardId.get(selectedCard.cardId) ?? EMPTY_SIBLINGS)
@@ -66,7 +74,7 @@ export function BrowserCardViewer({
       {...rest}
       items={items}
       selectedItemId={gridSelectedId}
-      keyboardNavItemId={selectedCard?.id}
+      keyboardNavItemId={indexAnchor?.id ?? selectedCard?.id}
       onItemClick={onItemClick}
       siblingPrintings={siblingPrintings}
     />
