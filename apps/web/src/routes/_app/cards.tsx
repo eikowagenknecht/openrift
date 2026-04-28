@@ -7,8 +7,8 @@ import { Pane } from "@/components/layout/panes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initQueryOptions } from "@/hooks/use-init";
 import { pricesQueryOptions } from "@/hooks/use-prices";
-import type { AvailableFiltersWire, CardCounts } from "@/lib/cards-facets";
-import { fetchCardCounts, fetchCardFacets } from "@/lib/cards-facets";
+import type { AvailableFiltersWire, CardCounts, FilterCountsWire } from "@/lib/cards-facets";
+import { fetchCardCounts, fetchCardFacets, fetchCardFilterCounts } from "@/lib/cards-facets";
 import type { FirstRowCard } from "@/lib/cards-first-row";
 import { fetchFirstRowCards } from "@/lib/cards-first-row";
 import { catalogQueryOptions } from "@/lib/catalog-query";
@@ -71,6 +71,7 @@ export const Route = createFileRoute("/_app/cards")({
     availableLanguages: string[];
     setLabels: Record<string, string>;
     counts: CardCounts;
+    filterCounts: FilterCountsWire | null;
   }> => {
     if (globalThis.window !== undefined) {
       // Warm every suspense query CardBrowser triggers (catalog, prices, init)
@@ -89,13 +90,15 @@ export const Route = createFileRoute("/_app/cards")({
         availableLanguages: [],
         setLabels: {},
         counts: { totalCards: 0, filteredCount: 0 },
+        filterCounts: null,
       };
     }
     await context.queryClient.ensureQueryData(initQueryOptions);
-    const [firstRow, facetsPayload, counts] = await Promise.all([
+    const [firstRow, facetsPayload, counts, filterCounts] = await Promise.all([
       fetchFirstRowCards(),
       fetchCardFacets(),
       fetchCardCounts({ data: deps.search }),
+      fetchCardFilterCounts({ data: deps.search }),
     ]);
     return {
       firstRow,
@@ -103,6 +106,7 @@ export const Route = createFileRoute("/_app/cards")({
       availableLanguages: facetsPayload.availableLanguages,
       setLabels: facetsPayload.setLabels,
       counts,
+      filterCounts,
     };
   },
   head: () =>

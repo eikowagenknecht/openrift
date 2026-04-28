@@ -2154,17 +2154,28 @@ describe("computeFilterCounts", () => {
         isSigned: false,
         card: {
           slug: "c-plain",
-          bans: [{ format: "standard", reason: "test" } as Card["bans"][number]],
-          errata: { correctedRulesText: "x" } as Card["errata"],
+          bans: [
+            {
+              formatId: "f1",
+              formatName: "Standard",
+              bannedAt: "2026-01-01",
+              reason: "test",
+            },
+          ],
+          errata: {
+            correctedRulesText: "x",
+            correctedEffectText: null,
+            source: "test",
+            sourceUrl: null,
+            effectiveDate: null,
+          },
         },
       }),
       makePrinting({
         id: "p-promo",
         cardId: "c-promo",
         isSigned: false,
-        markers: [
-          { slug: "promo-stamp", label: "Promo", abbreviation: "P", iconUrl: null, sortOrder: 0 },
-        ],
+        markers: [{ id: "m1", slug: "promo-stamp", label: "Promo", description: null }],
         card: { slug: "c-promo", bans: [], errata: null },
       }),
     ];

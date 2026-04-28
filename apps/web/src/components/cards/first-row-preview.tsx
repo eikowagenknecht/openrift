@@ -16,7 +16,7 @@ import {
 } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { Pane } from "@/components/layout/panes";
-import { fromWireFacets } from "@/lib/cards-facets";
+import { fromWireFacets, fromWireFilterCounts } from "@/lib/cards-facets";
 
 const cardsRoute = getRouteApi("/_app/cards");
 
@@ -43,12 +43,14 @@ const SSR_HIDDEN: ReadonlySet<string> = new Set(["owned"]);
  * @returns The SSR shell, or null when there's no SSR loader payload.
  */
 export function FirstRowPreview() {
-  const { firstRow, facets, availableLanguages, setLabels, counts } = cardsRoute.useLoaderData();
+  const { firstRow, facets, availableLanguages, setLabels, counts, filterCounts } =
+    cardsRoute.useLoaderData();
   if (facets === null) {
     return null;
   }
 
   const availableFilters = fromWireFacets(facets);
+  const filterCountsHydrated = filterCounts ? fromWireFilterCounts(filterCounts) : undefined;
   const setDisplayLabel = (slug: string) => setLabels[slug] ?? slug;
 
   return (
@@ -66,6 +68,7 @@ export function FirstRowPreview() {
                 availableLanguages={availableLanguages}
                 setDisplayLabel={setDisplayLabel}
                 hiddenSections={SSR_HIDDEN}
+                filterCounts={filterCountsHydrated}
               />
             </MobileOptionsDrawer>
           </div>
@@ -74,6 +77,7 @@ export function FirstRowPreview() {
             availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
             hiddenSections={SSR_HIDDEN}
+            filterCounts={filterCountsHydrated}
           />
         </>
       }
@@ -86,6 +90,7 @@ export function FirstRowPreview() {
               availableLanguages={availableLanguages}
               setDisplayLabel={setDisplayLabel}
               hiddenSections={SSR_HIDDEN}
+              filterCounts={filterCountsHydrated}
             />
           </div>
         </Pane>

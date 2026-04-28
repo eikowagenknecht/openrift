@@ -5,6 +5,7 @@ import type {
   CatalogResponse,
   Domain,
   EnumOrders,
+  FilterCounts,
   Finish,
   InitResponse,
   Marketplace,
@@ -14,6 +15,7 @@ import type {
   SuperType,
 } from "@openrift/shared";
 import {
+  computeFilterCounts,
   DEFAULT_SEARCH_SCOPE,
   filterCards,
   getAvailableFilters,
@@ -200,6 +202,64 @@ export function fromWireFacets(wire: AvailableFiltersWire): AvailableFilters {
   return { ...wire, supplementalSets: new Set(wire.supplementalSets) };
 }
 
+// `FilterCounts` carries `Map<string, number>` per dimension which doesn't
+// serialize across the server-fn boundary; the wire shape uses plain records
+// and consumers rehydrate via `fromWireFilterCounts`.
+type CountMapWire = Record<string, number>;
+
+export interface FilterCountsWire {
+  sets: CountMapWire;
+  languages: CountMapWire;
+  domains: CountMapWire;
+  types: CountMapWire;
+  superTypes: CountMapWire;
+  rarities: CountMapWire;
+  artVariants: CountMapWire;
+  finishes: CountMapWire;
+  flags: {
+    signed: number;
+    promo: number;
+    banned: number;
+    errata: number;
+    // `owned` is omitted on purpose: it requires the user's collection
+    // counts, which the SSR layer doesn't have. The live `useCardData`
+    // call fills it in after hydration.
+  };
+}
+
+function toWireFilterCounts(counts: FilterCounts): FilterCountsWire {
+  return {
+    sets: Object.fromEntries(counts.sets),
+    languages: Object.fromEntries(counts.languages),
+    domains: Object.fromEntries(counts.domains),
+    types: Object.fromEntries(counts.types),
+    superTypes: Object.fromEntries(counts.superTypes),
+    rarities: Object.fromEntries(counts.rarities),
+    artVariants: Object.fromEntries(counts.artVariants),
+    finishes: Object.fromEntries(counts.finishes),
+    flags: {
+      signed: counts.flags.signed,
+      promo: counts.flags.promo,
+      banned: counts.flags.banned,
+      errata: counts.flags.errata,
+    },
+  };
+}
+
+export function fromWireFilterCounts(wire: FilterCountsWire): FilterCounts {
+  return {
+    sets: new Map(Object.entries(wire.sets)),
+    languages: new Map(Object.entries(wire.languages)),
+    domains: new Map(Object.entries(wire.domains)),
+    types: new Map(Object.entries(wire.types)),
+    superTypes: new Map(Object.entries(wire.superTypes)),
+    rarities: new Map(Object.entries(wire.rarities)),
+    artVariants: new Map(Object.entries(wire.artVariants)),
+    finishes: new Map(Object.entries(wire.finishes)),
+    flags: { ...wire.flags },
+  };
+}
+
 interface CardFacetsPayloadWire {
   facets: AvailableFiltersWire;
   availableLanguages: string[];
@@ -241,4 +301,29 @@ export const fetchCardCounts = createServerFn({ method: "GET" })
       readPricesFromServerCache(),
     ]);
     return extractCardCounts(catalog, prices, data);
+  });
+
+/**
+ * Server fn that pre-computes the per-dimension faceted filter counts for a
+ * given URL search, so the SSR shell can render badge counts and dim
+ * zero-match options before hydration. `flags.owned` is left unset because
+ * computing it requires the user's collection counts, which only become
+ * available after the auth check on the client.
+ */
+export const fetchCardFilterCounts = createServerFn({ method: "GET" })
+  .inputValidator((input: FilterSearch) => input)
+  .handler(async ({ data }): Promise<FilterCountsWire> => {
+    const [catalog, prices] = await Promise.all([
+      readCatalogFromServerCache(),
+      readPricesFromServerCache(),
+    ]);
+    const { allPrintings } = enrichCatalog(catalog);
+    const lookup = priceLookupFromMap(prices.prices);
+    const getPrice = (printing: Printing) => lookup.get(printing.id, SSR_MARKETPLACE);
+    const view = data.view ?? SSR_DEFAULT_VIEW;
+    const counts = computeFilterCounts(allPrintings, searchToFilters(data), {
+      countBy: view === "cards" ? "card" : "printing",
+      getPrice,
+    });
+    return toWireFilterCounts(counts);
   });
