@@ -41,8 +41,10 @@ export interface DeckMatchedEntry {
  * Groups printings by card to deduplicate — decks care about cards, not specific printings.
  */
 class CardIndex {
-  /** shortCode (lowercase) → {card, printingId} — printing-specific lookup. */
-  private byShortCode = new Map<string, { card: ResolvedCard; printingId: string }>();
+  /** shortCode (lowercase) → ResolvedCard. Multiple language printings share a
+   * shortCode; we don't pin one because the deck-code formats carry no language
+   * info — display falls back to the user's language preference. */
+  private byShortCode = new Map<string, ResolvedCard>();
   /** normalized card name → ResolvedCard */
   private byNormalizedName = new Map<string, ResolvedCard>();
   /** "normalizedTag:normalizedName" → ResolvedCard (for "Character, Title" lookups) */
@@ -55,11 +57,10 @@ class CardIndex {
     const cardMap = new Map<string, { resolved: ResolvedCard; tags: string[] }>();
 
     for (const printing of allPrintings) {
-      // Index every printing's short code so shortCode lookups preserve printing identity.
-      this.byShortCode.set(printing.shortCode.toLowerCase(), {
-        card: cardFromPrinting(printing),
-        printingId: printing.id,
-      });
+      const shortCodeKey = printing.shortCode.toLowerCase();
+      if (!this.byShortCode.has(shortCodeKey)) {
+        this.byShortCode.set(shortCodeKey, cardFromPrinting(printing));
+      }
 
       if (cardMap.has(printing.cardId)) {
         continue;
@@ -89,16 +90,13 @@ class CardIndex {
   }
 
   /**
-   * Looks up a card by short code. Returned ResolvedCard's preferredPrintingId
-   * identifies the specific printing matched.
+   * Looks up a card by short code. Returns a card with `preferredPrintingId: null`
+   * because deck-code formats encode card identity, not printing identity — the
+   * displayed printing is resolved later via the user's language preference.
    * @returns The resolved card, or null if not found.
    */
   lookupByCode(shortCode: string): ResolvedCard | null {
-    const match = this.byShortCode.get(shortCode.toLowerCase());
-    if (!match) {
-      return null;
-    }
-    return { ...match.card, preferredPrintingId: match.printingId };
+    return this.byShortCode.get(shortCode.toLowerCase()) ?? null;
   }
 
   /**

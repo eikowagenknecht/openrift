@@ -79,6 +79,44 @@ describe("matchDeckEntries", () => {
     });
   });
 
+  describe("shortCode lookup language independence", () => {
+    // Multiple language printings share a shortCode. The deck-code formats
+    // (Piltover, TTS) only encode card identity, so the matcher must not pin
+    // a specific language printing — display falls back to language preference.
+    const enPrinting = stubPrinting({
+      id: "printing-en",
+      shortCode: "OGN-001",
+      language: "EN",
+      card: { name: "Test Card", type: "Unit" },
+    });
+    const zhPrinting = stubPrinting({
+      id: "printing-zh",
+      shortCode: "OGN-001",
+      language: "ZH",
+      // Same cardId so they're treated as the same card.
+      cardId: enPrinting.cardId,
+      card: { ...enPrinting.card, name: "Test Card" },
+    });
+
+    it("does not pin a printingId for shortCode lookups (EN-first ordering)", () => {
+      const entries: DeckImportEntry[] = [
+        { shortCode: "OGN-001", quantity: 1, sourceSlot: "mainDeck", rawFields: {} },
+      ];
+      const result = matchDeckEntries(entries, [enPrinting, zhPrinting]);
+      expect(result[0].status).toBe("exact");
+      expect(result[0].resolvedCard?.preferredPrintingId).toBeNull();
+    });
+
+    it("does not pin a printingId for shortCode lookups (ZH-first ordering)", () => {
+      const entries: DeckImportEntry[] = [
+        { shortCode: "OGN-001", quantity: 1, sourceSlot: "mainDeck", rawFields: {} },
+      ];
+      const result = matchDeckEntries(entries, [zhPrinting, enPrinting]);
+      expect(result[0].status).toBe("exact");
+      expect(result[0].resolvedCard?.preferredPrintingId).toBeNull();
+    });
+  });
+
   describe("zone inference without headers", () => {
     const catalog = [
       stubPrinting({
