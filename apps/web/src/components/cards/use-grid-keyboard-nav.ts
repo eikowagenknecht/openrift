@@ -6,6 +6,13 @@ import type { VRow } from "./card-grid-types";
 
 interface UseGridKeyboardNavParams {
   selectedCardId?: string;
+  /**
+   * Optional fallback cardId — used when `selectedCardId` (the printing id)
+   * isn't in the grid (e.g. a chevron-picked or detail-pane-picked variant
+   * that isn't represented as its own tile). Lets arrow-key navigation still
+   * pick up from whichever tile in the grid shares this cardId.
+   */
+  selectedCardCardId?: string;
   virtualRows: VRow[];
   columns: number;
   onCardClick?: (printing: Printing) => void;
@@ -20,6 +27,7 @@ interface UseGridKeyboardNavParams {
  */
 export function useGridKeyboardNav({
   selectedCardId,
+  selectedCardCardId,
   virtualRows,
   columns,
   onCardClick,
@@ -78,8 +86,13 @@ export function useGridKeyboardNav({
         return;
       }
 
-      // Left/Right: grid navigation
+      // Left/Right: grid navigation. Index by both printing id and cardId so a
+      // detail-pane picker that lands on a non-grid printing (e.g. an
+      // off-grid art variant) can still navigate from whichever tile shares
+      // its cardId. First-seen-wins for cardId so multi-tile cards (cards+set)
+      // anchor consistently.
       const cardPos = new Map<string, { vRowIndex: number; colIndex: number }>();
+      const cardPosByCardId = new Map<string, { vRowIndex: number; colIndex: number }>();
       const cardRowIndices: number[] = [];
       for (let i = 0; i < virtualRows.length; i++) {
         const row = virtualRows[i];
@@ -88,11 +101,18 @@ export function useGridKeyboardNav({
         }
         cardRowIndices.push(i);
         for (let c = 0; c < row.items.length; c++) {
-          cardPos.set(row.items[c].printing.id, { vRowIndex: i, colIndex: c });
+          const pos = { vRowIndex: i, colIndex: c };
+          const printing = row.items[c].printing;
+          cardPos.set(printing.id, pos);
+          if (!cardPosByCardId.has(printing.cardId)) {
+            cardPosByCardId.set(printing.cardId, pos);
+          }
         }
       }
 
-      const current = cardPos.get(selectedCardId);
+      const current =
+        cardPos.get(selectedCardId) ??
+        (selectedCardCardId ? cardPosByCardId.get(selectedCardCardId) : undefined);
       if (!current) {
         return;
       }
@@ -138,5 +158,5 @@ export function useGridKeyboardNav({
 
     globalThis.addEventListener("keydown", handler);
     return () => globalThis.removeEventListener("keydown", handler);
-  }, [selectedCardId, virtualRows, columns, onCardClick, virtualizer]);
+  }, [selectedCardId, selectedCardCardId, virtualRows, columns, onCardClick, virtualizer]);
 }

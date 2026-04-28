@@ -344,6 +344,8 @@ interface CardGridProps {
   groupDir?: "asc" | "desc";
   selectedItemId?: string;
   keyboardNavItemId?: string;
+  /** Selected card's cardId — fallback anchor when the printing id isn't in the grid. */
+  keyboardNavCardId?: string;
   onItemClick?: (printing: Printing) => void;
   siblingPrintings?: Printing[];
   /** Extra height added to each card row (e.g. add-mode strip). */
@@ -361,6 +363,7 @@ export function CardGrid({
   groupDir = "asc",
   selectedItemId,
   keyboardNavItemId,
+  keyboardNavCardId,
   onItemClick,
   siblingPrintings,
   addStripHeight = 0,
@@ -460,6 +463,7 @@ export function CardGrid({
 
   useGridKeyboardNav({
     selectedCardId: keyboardNavItemId ?? selectedItemId,
+    selectedCardCardId: keyboardNavCardId,
     virtualRows,
     columns,
     onCardClick: onItemClick,
