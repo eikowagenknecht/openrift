@@ -534,16 +534,12 @@ export function CardGrid({
     return () => globalThis.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Invalidate the virtualizer's measurement cache when columns change so
-  // scrollToIndex uses fresh estimates instead of stale heights from the
-  // previous column layout.
-  const prevColumnsRef = useRef(columns);
+  // react-virtual's getMeasurements memo doesn't track estimateSize, so a
+  // smaller thumbWidth from resizing within the same column count produces
+  // stale (taller) row heights and visible gaps until measure() is called.
   useEffect(() => {
-    if (prevColumnsRef.current !== columns) {
-      prevColumnsRef.current = columns;
-      virtualizerRef.current.measure();
-    }
-  }, [columns]);
+    virtualizerRef.current.measure();
+  }, [columns, containerWidth, addStripHeight]);
 
   // Re-scroll when columns change: anchor to selected card or first visible card.
   useEffect(() => {
