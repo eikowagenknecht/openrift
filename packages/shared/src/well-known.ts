@@ -121,7 +121,7 @@ export const WellKnown = {
  * Rarities that are always printed with a foil finish — used by import parsers
  * to infer the finish when the source CSV doesn't disambiguate.
  */
-export const RARITIES_ALWAYS_FOIL: readonly string[] = [
+const RARITIES_ALWAYS_FOIL: readonly string[] = [
   WellKnown.rarity.RARE,
   WellKnown.rarity.EPIC,
   WellKnown.rarity.SHOWCASE,

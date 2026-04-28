@@ -13,7 +13,7 @@ import { ALL_SEARCH_FIELDS, NONE, SEARCH_PREFIX_MAP } from "./types/index.js";
 import { boundsOf, unique } from "./utils.js";
 import { WellKnown } from "./well-known.js";
 
-export interface ParsedSearchTerm {
+interface ParsedSearchTerm {
   field: SearchField | null;
   text: string;
 }
@@ -260,7 +260,7 @@ function matchesSearch(
   });
 }
 
-export interface FilterCardsOptions {
+interface FilterCardsOptions {
   /** Reverse map from translated keyword labels to canonical names, for cross-language search. */
   keywordReverseMap?: Map<string, string>;
   /**
@@ -359,7 +359,7 @@ export interface AvailableFilters {
   price: { min: number; max: number };
 }
 
-export interface GetAvailableFiltersOptions {
+interface GetAvailableFiltersOptions {
   /**
    * Sort orders for the enum dimensions of the result. Required — pass the
    * live orders from `/api/enums` (`useEnumOrders().orders`) so admin
@@ -509,7 +509,7 @@ export interface FilterCounts {
   };
 }
 
-export interface ComputeFilterCountsOptions extends FilterCardsOptions {
+interface ComputeFilterCountsOptions extends FilterCardsOptions {
   /**
    * Whether each tally counts one per printing (e.g. "Common (200)" = 200
    * Common-rarity printings) or one per unique card (200 distinct cardIds).

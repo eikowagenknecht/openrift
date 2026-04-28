@@ -2,7 +2,7 @@ import type { CardType } from "./types/enums.js";
 import { WellKnown } from "./well-known.js";
 
 /** Number of copies that constitute a complete playset for a card. */
-export type PlaysetSize = 1 | 3;
+type PlaysetSize = 1 | 3;
 
 /**
  * Returns the deck-relevant max copies for a card.

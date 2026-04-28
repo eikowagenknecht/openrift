@@ -27,7 +27,7 @@ export interface DeckViolation {
   cardId?: string;
 }
 
-export type DeckRule = (state: DeckState) => DeckViolation[];
+type DeckRule = (state: DeckState) => DeckViolation[];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -269,7 +269,7 @@ export const mainDeckCopyLimit: DeckRule = (state) => {
 };
 
 // Cards in main/sideboard must only have domains within the legend's domains (+ Colorless).
-export const mainDeckDomainMatch: DeckRule = (state) => {
+const mainDeckDomainMatch: DeckRule = (state) => {
   const legends = cardsInZone(state.cards, WellKnown.deckZone.LEGEND);
   if (legends.length !== 1) {
     return [];
@@ -505,7 +505,7 @@ const signatureMatchesLegendTag: DeckRule = (state) => {
 
 // ── Rule Sets ───────────────────────────────────────────────────────────────
 
-export const CONSTRUCTED_RULES: DeckRule[] = [
+const CONSTRUCTED_RULES: DeckRule[] = [
   legendExactlyOne,
   championExactlyOne,
   championSharesTagWithLegend,
