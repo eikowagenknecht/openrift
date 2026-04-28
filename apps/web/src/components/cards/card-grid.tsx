@@ -30,6 +30,11 @@ import { useStickyHeader } from "./use-sticky-header";
 
 export type { SetInfo } from "./card-grid-types";
 
+// Persists the measured grid offset across re-mounts within a session so the
+// first render can use the real value instead of 0. SSR initializes to 0; the
+// ResizeObserver below corrects it once the DOM is in place.
+let cachedScrollMargin = 0;
+
 interface CardGroup {
   group: GroupInfo;
   items: CardViewerItem[];
@@ -408,15 +413,30 @@ export function CardGrid({
   const rowStarts = computeRowStarts(virtualRows, estimateRowHeight);
 
   // ── Scroll margin (container's document offset) ────────────────────
-  const [scrollMargin, setScrollMargin] = useState(0);
+  // Module-level cache: lets re-mounts within the same session skip the
+  // initial 0 → measured re-render. The grid's document offset is determined
+  // by surrounding layout (sticky header, toolbar), not by items shown, so
+  // it's stable across mounts of the same page.
+  const [scrollMargin, setScrollMargin] = useState(() => cachedScrollMargin);
 
   useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) {
       return;
     }
-    setScrollMargin(Math.round(el.getBoundingClientRect().top + globalThis.scrollY));
-  }, [items, containerRef]);
+    const measure = () => {
+      const next = Math.round(el.getBoundingClientRect().top + globalThis.scrollY);
+      cachedScrollMargin = next;
+      setScrollMargin((prev) => (prev === next ? prev : next));
+    };
+    measure();
+    // ResizeObserver on body catches toolbar/chip wrap above the grid. The
+    // previous `[items]` dep re-measured on every filter change even when the
+    // grid's offset hadn't moved.
+    const observer = new ResizeObserver(measure);
+    observer.observe(document.body);
+    return () => observer.disconnect();
+  }, [containerRef]);
 
   // ── Virtualizer ────────────────────────────────────────────────────
   const { virtualizer, virtualItems, totalSize } = useWindowVirtualizerFresh({

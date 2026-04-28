@@ -35,6 +35,39 @@ const TILT_STYLE = {
 const AFTER_BORDER =
   "after:pointer-events-none after:absolute after:inset-0 after:z-10 after:rounded-[inherit] after:border after:border-[var(--border-opaque)]";
 
+const SHELL_INNER_CLASS = cn("relative", AFTER_BORDER, "hover:ring-primary/60 hover:ring-2");
+
+// Tilt shell: wraps card image content with refs wired to useCardTilt and
+// applies TILT_STYLE (perspective + preserve-3d), promoting the card to its
+// own compositing layer for the tilt animation.
+function TiltImageShell({ children }: { children: ReactNode }) {
+  const { containerRef, innerRef } = useCardTilt({ mode: "pointer", enabled: true });
+  return (
+    <div ref={containerRef} className="relative">
+      <div
+        ref={innerRef}
+        className={SHELL_INNER_CLASS}
+        style={{ borderRadius: CARD_BORDER_RADIUS, ...TILT_STYLE }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Plain shell: same DOM structure but no useCardTilt call and no TILT_STYLE.
+// Skipping the hook removes per-card useEffect bookkeeping; skipping the
+// transform keeps cards on the default 2D paint path during scroll.
+function PlainImageShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative">
+      <div className={SHELL_INNER_CLASS} style={{ borderRadius: CARD_BORDER_RADIUS }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function CardImageContent({
   thumbnailUrl,
   srcSet,
@@ -297,19 +330,12 @@ export const CardThumbnail = memo(function CardThumbnail({
   const { labels } = useEnumOrders();
   const finishTitle = labels.finishes[printing.finish] ?? printing.finish;
   const tiltEnabled = cardTilt && !IS_COARSE_POINTER;
-  // Destructure into locals: React Compiler's ref-detection heuristic flags
-  // property access on the hook result (e.g. `tilt.innerRef`) as a ref-value
-  // read during render, which bails out of compiling the entire component.
-  // Reading through plain locals avoids the property-access pattern.
-  const { containerRef: tiltContainerRef, innerRef: tiltInnerRef } = useCardTilt({
-    mode: "pointer",
-    enabled: tiltEnabled,
-  });
-  // Spreading TILT_STYLE creates a perspective + preserve-3d context, which
-  // promotes every card to its own compositing layer. When tilt is disabled,
-  // skip the transform entirely so the browser can keep cards on the default
-  // 2D paint path — measured to dramatically reduce paint cost during scroll.
-  const tiltStyle = tiltEnabled ? TILT_STYLE : undefined;
+  // Pick a shell: TiltImageShell calls useCardTilt internally, PlainImageShell
+  // skips the hook entirely. Toggling cardTilt remounts the shell (and all
+  // visible cards) once — cheap relative to paying for unused hook bookkeeping
+  // on every disabled-state render. The plain path also drops TILT_STYLE so
+  // cards stay on the 2D paint path during scroll.
+  const ImageShell = tiltEnabled ? TiltImageShell : PlainImageShell;
   const otherPrintings = siblings ? siblings.filter((s) => s.id !== printing.id).toReversed() : [];
   const fanStep = cardWidth === undefined ? 2 : Math.max(1, cardWidth * 0.01);
   const fanAngle = fancyFan ? 8 : 1.5;
@@ -401,63 +427,28 @@ export const CardThumbnail = memo(function CardThumbnail({
           </div>
         );
       })}
-      <div ref={tiltContainerRef} className="relative">
-        {rotated ? (
-          <div
-            ref={tiltInnerRef}
-            className={cn("relative", AFTER_BORDER, "hover:ring-primary/60 hover:ring-2")}
-            style={{ borderRadius: CARD_BORDER_RADIUS, ...tiltStyle }}
-          >
-            <div className="relative overflow-hidden" style={{ borderRadius: "inherit" }}>
-              <CardImageContent
-                thumbnailUrl={thumbnailUrl}
-                srcSet={srcSet}
-                sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
-                alt={card.name}
-                priority={Boolean(priority)}
-                imgLoaded={imgLoaded}
-                onImgLoad={() => setImgLoaded(true)}
-                rotated
-                rarity={printing.rarity}
-                publicCode={printing.publicCode}
-                artist={printing.artist}
-                card={card}
-                showFoil={isFoilCard && gridFoil}
-              />
-            </div>
-            {banDim}
-            {previewOverlay}
-            {banRibbon}
-          </div>
-        ) : (
-          <div
-            ref={tiltInnerRef}
-            className={cn("relative", AFTER_BORDER, "hover:ring-primary/60 hover:ring-2")}
-            style={{ borderRadius: CARD_BORDER_RADIUS, ...tiltStyle }}
-          >
-            <div className="relative overflow-hidden" style={{ borderRadius: "inherit" }}>
-              <CardImageContent
-                thumbnailUrl={thumbnailUrl}
-                srcSet={srcSet}
-                sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
-                alt={card.name}
-                priority={Boolean(priority)}
-                imgLoaded={imgLoaded}
-                onImgLoad={() => setImgLoaded(true)}
-                rotated={false}
-                rarity={printing.rarity}
-                publicCode={printing.publicCode}
-                artist={printing.artist}
-                card={card}
-                showFoil={isFoilCard && gridFoil}
-              />
-            </div>
-            {banDim}
-            {previewOverlay}
-            {banRibbon}
-          </div>
-        )}
-      </div>
+      <ImageShell>
+        <div className="relative overflow-hidden" style={{ borderRadius: "inherit" }}>
+          <CardImageContent
+            thumbnailUrl={thumbnailUrl}
+            srcSet={srcSet}
+            sizes={cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined}
+            alt={card.name}
+            priority={Boolean(priority)}
+            imgLoaded={imgLoaded}
+            onImgLoad={() => setImgLoaded(true)}
+            rotated={rotated}
+            rarity={printing.rarity}
+            publicCode={printing.publicCode}
+            artist={printing.artist}
+            card={card}
+            showFoil={isFoilCard && gridFoil}
+          />
+        </div>
+        {banDim}
+        {previewOverlay}
+        {banRibbon}
+      </ImageShell>
     </div>
   );
 
