@@ -1,6 +1,7 @@
 import type { AvailableFilters, FilterCounts, RangeKey } from "@openrift/shared";
 import { NONE } from "@openrift/shared";
 import type { ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { CardIcon } from "@/components/card-icon";
 import { Badge } from "@/components/ui/badge";
@@ -386,6 +387,67 @@ function RangeFilterSection({
     ? (pos: number) => sliderPosToValue(pos, availableMin, availableMax)
     : (value: number) => value;
 
+  const urlMin = toSlider(resolvedMin);
+  const urlMax = toSlider(resolvedMax);
+  // Local state mirrors the live thumb position; URL writes are debounced. Without this, keyboard auto-repeat fires onValueCommitted per keystroke (~30/sec), which both thrashes the catalog filter pipeline and trips the browser's history.replaceState rate limit (~200/30s in Firefox), wedging the route into the pending skeleton.
+  const [dragValue, setDragValue] = useState<[number, number] | null>(null);
+  const displayValue: [number, number] = dragValue ?? [urlMin, urlMax];
+  const displayMin = dragValue ? fromSlider(dragValue[0]) : resolvedMin;
+  const displayMax = dragValue ? fromSlider(dragValue[1]) : resolvedMax;
+
+  const commitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingCommitRef = useRef<[number, number] | null>(null);
+
+  // Drop the local mirror only when the URL has caught up AND no further input is queued — otherwise a keystroke arriving during commit propagation would briefly snap the thumb back to the previously-committed value.
+  useEffect(() => {
+    if (
+      dragValue !== null &&
+      commitTimerRef.current === null &&
+      pendingCommitRef.current === null
+    ) {
+      setDragValue(null);
+    }
+  }, [urlMin, urlMax, dragValue]);
+
+  useEffect(
+    () => () => {
+      if (commitTimerRef.current !== null) {
+        clearTimeout(commitTimerRef.current);
+      }
+    },
+    [],
+  );
+
+  const commit = (values: [number, number]) => {
+    const [newMin, newMax] = values;
+    const atLeftEdge = newMin === sMin;
+    const atRightEdge = newMax === sMax;
+    if (atLeftEdge && atRightEdge) {
+      onChange(null, null);
+      return;
+    }
+    const realMin = fromSlider(newMin);
+    const realMax = fromSlider(newMax);
+    const minVal = atLeftEdge ? (hasNone ? NONE : null) : realMin;
+    const maxVal = atRightEdge ? null : realMax;
+    onChange(minVal, maxVal);
+  };
+
+  const scheduleCommit = (values: [number, number]) => {
+    pendingCommitRef.current = values;
+    if (commitTimerRef.current !== null) {
+      clearTimeout(commitTimerRef.current);
+    }
+    commitTimerRef.current = setTimeout(() => {
+      commitTimerRef.current = null;
+      const next = pendingCommitRef.current;
+      pendingCommitRef.current = null;
+      if (next) {
+        commit(next);
+      }
+    }, 120);
+  };
+
   return (
     <div className="flex items-center gap-2">
       {/* Label */}
@@ -394,35 +456,31 @@ function RangeFilterSection({
       <div className="flex flex-1 items-center gap-1">
         {/* Min value */}
         <span className="text-2xs text-muted-foreground shrink-0 text-right tabular-nums">
-          {fmtNone(resolvedMin)}
+          {fmtNone(displayMin)}
         </span>
         {/* Slider */}
         <Slider
           min={sMin}
           max={sMax}
           step={sStep}
-          value={[toSlider(resolvedMin), toSlider(resolvedMax)]}
+          value={displayValue}
           aria-label={`${label} range`}
           onValueChange={(values) => {
             const arr = Array.isArray(values) ? values : [values];
-            const [newMin, newMax] = arr;
-            const atLeftEdge = newMin === sMin;
-            const atRightEdge = newMax === sMax;
-            if (atLeftEdge && atRightEdge) {
-              onChange(null, null);
-            } else {
-              const realMin = fromSlider(newMin ?? sMin);
-              const realMax = fromSlider(newMax ?? sMax);
-              const minVal = atLeftEdge ? (hasNone ? NONE : null) : realMin;
-              const maxVal = atRightEdge ? null : realMax;
-              onChange(minVal, maxVal);
-            }
+            const next: [number, number] = [arr[0] ?? sMin, arr[1] ?? sMax];
+            setDragValue(next);
+            scheduleCommit(next);
+          }}
+          onValueCommitted={(values) => {
+            const arr = Array.isArray(values) ? values : [values];
+            const next: [number, number] = [arr[0] ?? sMin, arr[1] ?? sMax];
+            scheduleCommit(next);
           }}
           className="flex-1"
         />
         {/* Max value */}
         <span className="text-2xs text-muted-foreground shrink-0 tabular-nums">
-          {fmtNone(resolvedMax)}
+          {fmtNone(displayMax)}
         </span>
       </div>
     </div>

@@ -74,17 +74,7 @@ export const Route = createFileRoute("/_app/cards")({
     filterCounts: FilterCountsWire | null;
   }> => {
     if (globalThis.window !== undefined) {
-      // Warm every suspense query CardBrowser triggers (catalog, prices, init)
-      // into the client QueryClient so the route renders the live grid in one
-      // shot. With idle preload from the homepage this completes before the
-      // user clicks /cards; on cold click the loader blocks here and
-      // `CardsPending` shows for the duration.
-      await Promise.all([
-        context.queryClient.ensureQueryData(catalogQueryOptions),
-        context.queryClient.ensureQueryData(pricesQueryOptions),
-        context.queryClient.ensureQueryData(initQueryOptions),
-      ]);
-      return {
+      const empty = {
         firstRow: [],
         facets: null,
         availableLanguages: [],
@@ -92,6 +82,20 @@ export const Route = createFileRoute("/_app/cards")({
         counts: { totalCards: 0, filteredCount: 0 },
         filterCounts: null,
       };
+      const warm =
+        context.queryClient.getQueryData(catalogQueryOptions.queryKey) !== undefined &&
+        context.queryClient.getQueryData(pricesQueryOptions.queryKey) !== undefined &&
+        context.queryClient.getQueryData(initQueryOptions.queryKey) !== undefined;
+      // Once warmed, return sync so per-URL-change reruns don't enter a router transition. On cold entry (e.g. direct nav to /cards from /collection without landing-page preload), block on Promise.all so the pending skeleton shows instead of CardBrowser flashing an empty Suspense fallback.
+      if (warm) {
+        return empty;
+      }
+      await Promise.all([
+        context.queryClient.ensureQueryData(catalogQueryOptions),
+        context.queryClient.ensureQueryData(pricesQueryOptions),
+        context.queryClient.ensureQueryData(initQueryOptions),
+      ]);
+      return empty;
     }
     await context.queryClient.ensureQueryData(initQueryOptions);
     const [firstRow, facetsPayload, counts, filterCounts] = await Promise.all([

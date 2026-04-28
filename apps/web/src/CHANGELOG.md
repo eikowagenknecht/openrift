@@ -3,6 +3,7 @@
 ## 2026-04-28
 
 - feat: Filter badges on the cards page now show how many cards each option matches under your other active filters, and options that would leave you with zero cards are dimmed
+- fix: The energy, might, power, and price sliders on the cards page are now smooth while dragging the thumb or holding an arrow key, and apply once you settle on a value
 - fix: The warning icons on cards (rules-text deviation, banned-format) now use the system tooltip instead of a custom one, matching the rest of the icon row
 - fix: The first row of cards shown on a fresh visit to the cards page is now always the English printings you'll see once the page loads, instead of occasionally flashing in non-English versions that get replaced
 - fix: The set name now sits above the first row of cards on a fresh visit to the cards page, so the cards no longer jump down once the grid finishes loading
