@@ -6,6 +6,12 @@ import type {
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 
+import type {
+  CatalogCardItem,
+  CatalogPrintingItem,
+  CatalogSetItem,
+} from "@/lib/catalog-collections";
+
 // Mock createServerFn to execute the handler directly instead of making RPC
 // calls. This is necessary because there is no TanStack Start server running
 // in the vitest/jsdom environment.
@@ -29,7 +35,7 @@ vi.mock("@/lib/server-cache", async () => {
 
 // Must import after the mock so the mock is applied.
 const { serverCache } = await import("@/lib/server-cache");
-const { catalogQueryOptions } = await import("./use-cards");
+const { catalogQueryOptions, enrichFromCollections } = await import("./use-cards");
 
 const CARD_A_ID = "00000000-0000-0000-0000-000000000001";
 const CARD_B_ID = "00000000-0000-0000-0000-000000000002";
@@ -191,5 +197,36 @@ describe("useCards", () => {
       expect(error).toBeInstanceOf(Error);
       expect((error as Error).message).toBe("Catalog fetch failed: 500");
     }
+  });
+});
+
+describe("enrichFromCollections", () => {
+  function makeSet(id: string, slug: string, sortOrder: number): CatalogSetItem {
+    return {
+      id,
+      slug,
+      name: slug.toUpperCase(),
+      releasedAt: null,
+      released: true,
+      setType: "main",
+      sortOrder,
+    };
+  }
+
+  // The live query iterates the sets collection by uuidv7 key (creation time)
+  // when no orderBy is given, so `rawSets` can arrive in any order. The output
+  // must reflect `sets.sort_order` (the API contract) regardless.
+  it("returns sets ordered by sortOrder even when input is shuffled", () => {
+    const rawSets: CatalogSetItem[] = [
+      makeSet("set-c", "ogs", 1),
+      makeSet("set-a", "sfd", 2),
+      makeSet("set-b", "ogn", 0),
+    ];
+    const rawCards: CatalogCardItem[] = [];
+    const rawPrintings: CatalogPrintingItem[] = [];
+
+    const result = enrichFromCollections(rawPrintings, rawCards, rawSets, []);
+
+    expect(result.sets.map((s) => s.slug)).toEqual(["ogn", "ogs", "sfd"]);
   });
 });

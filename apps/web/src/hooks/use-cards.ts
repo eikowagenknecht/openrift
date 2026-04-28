@@ -36,20 +36,27 @@ export function useCards(): UseCardsResult {
     q.from({ printing: printings }).orderBy(({ printing }) => printing.canonicalRank),
   );
   const { data: rawCards } = useLiveSuspenseQuery((q) => q.from({ card: cards }));
-  const { data: rawSets } = useLiveSuspenseQuery((q) => q.from({ set: sets }));
+  // Without an explicit orderBy, the live query iterates the collection by
+  // its uuidv7 key (creation time), not by `sets.sort_order`. Sort by the
+  // injected `sortOrder` so the live grid groups sets in the same order the
+  // API returned them.
+  const { data: rawSets } = useLiveSuspenseQuery((q) =>
+    q.from({ set: sets }).orderBy(({ set }) => set.sortOrder),
+  );
 
   const userLanguages = useDisplayStore((state) => state.languages);
 
   return enrichFromCollections(rawPrintings, rawCards, rawSets, userLanguages);
 }
 
-function enrichFromCollections(
+export function enrichFromCollections(
   rawPrintings: readonly CatalogPrintingItem[],
   rawCards: readonly CatalogCardItem[],
   rawSets: readonly CatalogSetItem[],
   userLanguages: readonly string[],
 ): UseCardsResult {
-  const setsById = new Map(rawSets.map((s) => [s.id, s]));
+  const orderedSets = rawSets.toSorted((a, b) => a.sortOrder - b.sortOrder);
+  const setsById = new Map(orderedSets.map((s) => [s.id, s]));
 
   const cardsById: Record<string, Card> = {};
   for (const { id, ...card } of rawCards) {
@@ -84,6 +91,6 @@ function enrichFromCollections(
     cardsById,
     printingsById,
     printingsByCardId,
-    sets: [...rawSets],
+    sets: orderedSets,
   };
 }

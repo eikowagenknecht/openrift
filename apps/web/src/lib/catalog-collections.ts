@@ -20,7 +20,11 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { catalogQueryOptions } from "@/lib/catalog-query";
 
-export type CatalogSetItem = CatalogSetResponse;
+// `sortOrder` mirrors the position of each set in `catalog.sets`, which the API
+// returns ordered by the `sets.sort_order` column. It's injected here because
+// the live query iterates by collection key (uuidv7 id) when no orderBy is
+// given, which would otherwise scramble the set order downstream.
+export type CatalogSetItem = CatalogSetResponse & { sortOrder: number };
 export type CatalogCardItem = CatalogResponseCardValue & { id: string };
 export type CatalogPrintingItem = CatalogResponsePrintingValue & { id: string };
 
@@ -57,7 +61,7 @@ export function getCatalogCollections(queryClient: QueryClient): CatalogCollecti
         queryKey: ["catalog-collection", "sets"],
         queryFn: async () => {
           const catalog = await ensureCatalog();
-          return catalog.sets;
+          return catalog.sets.map((set, sortOrder) => ({ ...set, sortOrder }));
         },
         getKey: (set) => set.id,
       }),
