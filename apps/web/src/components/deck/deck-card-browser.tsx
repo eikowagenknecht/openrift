@@ -4,7 +4,7 @@ import { useDeferredValue, useEffect, useState } from "react";
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import { CardThumbnail } from "@/components/cards/card-thumbnail";
+import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { DeckAddStrip } from "@/components/deck/deck-add-strip";
 import { DeckCardDetailMenu } from "@/components/deck/deck-card-detail-menu";
 import { DeckOverview } from "@/components/deck/deck-overview";
@@ -34,7 +34,6 @@ import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
-import { usePrices } from "@/hooks/use-prices";
 import { useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { catalogCardToDeckBuilderCard } from "@/lib/deck-builder-card";
@@ -139,7 +138,9 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
   const showImages = useDisplayStore((state) => state.showImages);
   const isMobile = useIsMobile();
   const { allPrintings, sets } = useCards();
-  const prices = usePrices();
+  // Lifted out of <CardThumbnail> — see useCardThumbnailDisplay for the why.
+  // We reuse display.prices / display.favoriteMarketplace below for useCardData.
+  const display = useCardThumbnailDisplay();
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
@@ -152,7 +153,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     hasActiveFilters,
   } = useFilterValues();
   const { setSearch } = useFilterActions();
-  const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
   const { addCard, removeCard, setLegend, setQuantity } = useDeckBuilderActions(deckId);
   const setRunesByDomain = useDeckBuilderUiStore((state) => state.setRunesByDomain);
   // Wrapper only renders this component when activeZone is set
@@ -221,8 +221,8 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     sortDir,
     view,
     ownedCountByPrinting,
-    favoriteMarketplace: marketplaceOrder[0] ?? "cardtrader",
-    prices,
+    favoriteMarketplace: display.favoriteMarketplace,
+    prices: display.prices,
     keywordReverseMap,
   });
 
@@ -345,6 +345,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
         view={view}
         cardWidth={ctx.cardWidth}
         priority={ctx.priority}
+        display={display}
         dimmed={ownedCount === 0 && deckQty === 0}
         dragData={{
           type: "browser-card",

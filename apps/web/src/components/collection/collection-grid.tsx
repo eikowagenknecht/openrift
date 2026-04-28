@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import { CardThumbnail } from "@/components/cards/card-thumbnail";
+import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { AddedCardsList } from "@/components/collection/added-cards-list";
 import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
@@ -62,7 +62,6 @@ import { useDisposeCopies, useMoveCopies } from "@/hooks/use-copies";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
-import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { useSession } from "@/lib/auth-session";
@@ -128,8 +127,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const { data: collections } = useCollections();
   const collectionsMap = useCollectionsMap();
   const showImages = useDisplayStore((state) => state.showImages);
-  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
-  const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
+  // Lifted out of <CardThumbnail> — see useCardThumbnailDisplay for the why.
+  // We reuse display.prices / display.favoriteMarketplace below for useCardData.
+  const display = useCardThumbnailDisplay();
+  const favoriteMarketplace = display.favoriteMarketplace;
 
   // ── Mode state ──────────────────────────────────────────────────────
   const { browsing: browsingParam } = useSearch({ strict: false });
@@ -141,7 +142,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
   const { filters, sortBy, sortDir, view, groupBy, groupDir, hasActiveFilters } = useFilterValues();
   const { setSearch, clearAllFilters } = useFilterActions();
   const { allPrintings, sets } = useCards();
-  const prices = usePrices();
+  const prices = display.prices;
   const { data: session } = useSession();
   const { data: ownedCountByPrinting } = useOwnedCount(Boolean(session?.user));
 
@@ -663,6 +664,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             view="printings"
             cardWidth={ctx.cardWidth}
             priority={ctx.priority}
+            display={display}
             isSelected={ctx.isSelected}
             isFlashing={ctx.isFlashing}
             aboveCard={aboveCard}
@@ -720,6 +722,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         view={dataView}
         cardWidth={ctx.cardWidth}
         priority={ctx.priority}
+        display={display}
         dimmed={ownedCount === 0}
         topSlot={
           handleQuickAdd && (

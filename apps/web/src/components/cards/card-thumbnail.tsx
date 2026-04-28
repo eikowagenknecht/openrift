@@ -1,5 +1,5 @@
 import { useDraggable } from "@dnd-kit/core";
-import type { Domain, Printing, Rarity } from "@openrift/shared";
+import type { Domain, Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
 import { WellKnown, getOrientation } from "@openrift/shared";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { memo, useRef, useState } from "react";
@@ -20,6 +20,58 @@ import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { IS_COARSE_POINTER } from "@/lib/pointer";
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
+
+export interface CardThumbnailDisplay {
+  fancyFan: boolean;
+  /** Pre-derived `foilEffect && hydrated` — foil is preference-driven so SSR can't know. */
+  gridFoil: boolean;
+  cardTilt: boolean;
+  domainColors: Record<string, string>;
+  finishLabels: Record<string, string>;
+  prices: PriceLookup;
+  favoriteMarketplace: Marketplace;
+  compactFmt: (n: number) => string;
+}
+
+/**
+ * Bundles every grid-invariant display read into one object. Each card grid
+ * subscribes once at the parent and threads the result through its
+ * `renderCard`, so the lifted reads do NOT run per card.
+ *
+ * Why this exists: <CardThumbnail> mounts up to 40 times on hydration of
+ * `/cards` (FIRST_ROW_LIMIT) and remounts continuously as the virtualizer
+ * mounts/unmounts rows during scroll. Reading these inside the card meant
+ * ~8 store/hook subscriptions per card — each with its own
+ * useSyncExternalStore effect setup/teardown. Lifting them to one parent
+ * call cuts that to N subscriptions for the whole grid instead of N ×
+ * cards. Steady-state re-render cost is unchanged (Zustand's strict-equality
+ * selectors already skip re-renders when slices don't change); the win is
+ * mount-time effect wiring during hydration and scroll.
+ *
+ * @returns The display context bundle a `CardThumbnail` consumer must pass.
+ */
+export function useCardThumbnailDisplay(): CardThumbnailDisplay {
+  "use memo";
+  const fancyFan = useDisplayStore((s) => s.fancyFan);
+  const foilEffect = useDisplayStore((s) => s.foilEffect);
+  const cardTilt = useDisplayStore((s) => s.cardTilt);
+  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
+  const hydrated = useHydrated();
+  const domainColors = useDomainColors();
+  const { labels } = useEnumOrders();
+  const prices = usePrices();
+  const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
+  return {
+    fancyFan,
+    gridFoil: foilEffect && hydrated,
+    cardTilt,
+    domainColors,
+    finishLabels: labels.finishes,
+    prices,
+    favoriteMarketplace,
+    compactFmt: compactFormatterForMarketplace(favoriteMarketplace),
+  };
+}
 
 const CARD_BORDER_RADIUS = "5% / 3.6%";
 /** Intrinsic dimensions matching the standard card aspect ratio (63×88mm). */
@@ -204,6 +256,13 @@ interface CardThumbnailProps {
   view?: "cards" | "printings";
   cardWidth?: number;
   priority?: boolean;
+  /**
+   * Grid-invariant display reads (preferences, prices, enum labels). Each
+   * caller obtains this once per render via {@link useCardThumbnailDisplay}
+   * and passes the same reference to every card in the grid. See that hook
+   * for the rationale.
+   */
+  display: CardThumbnailDisplay;
   /** Content rendered above the card image (e.g. OwnedCountStrip). */
   aboveCard?: ReactNode;
   /** Dims the card image (used in add mode for unowned cards). */
@@ -277,6 +336,7 @@ export const CardThumbnail = memo(function CardThumbnail({
   view,
   cardWidth,
   priority,
+  display,
   aboveCard,
   dimmed,
   topSlot,
@@ -293,7 +353,6 @@ export const CardThumbnail = memo(function CardThumbnail({
     effectText: printing.printedEffectText,
     flavorText: printing.flavorText,
   };
-  const domainColors = useDomainColors();
   const frontImage = printing.images[0] ?? null;
   // Read `printing.card.type` directly (not `card.type`): reading the derived
   // `card` object here would couple its construction to this call and prevent
@@ -313,22 +372,11 @@ export const CardThumbnail = memo(function CardThumbnail({
   // frame before onLoad fires, producing a flash-and-fade on hydration.
   const [imgLoaded, setImgLoaded] = useState(priority ?? false);
 
-  const fancyFan = useDisplayStore((s) => s.fancyFan);
-  const foilEffect = useDisplayStore((s) => s.foilEffect);
-  const cardTilt = useDisplayStore((s) => s.cardTilt);
-  // Foil is preference-driven, so SSR can't know the user's setting. Defer
-  // rendering the overlay until after hydration to avoid flashing foil on a
-  // user who has disabled it while the client catches up.
-  const hydrated = useHydrated();
-  const gridFoil = foilEffect && hydrated;
-  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
-  const favoriteMarketplace = marketplaceOrder[0] ?? "cardtrader";
-  const prices = usePrices();
+  const { fancyFan, gridFoil, cardTilt, domainColors, finishLabels, prices, favoriteMarketplace } =
+    display;
   const favoritePrice = prices.get(printing.id, favoriteMarketplace);
-  const compactFmt = compactFormatterForMarketplace(favoriteMarketplace);
   const isFoilCard = printing.finish === WellKnown.finish.FOIL;
-  const { labels } = useEnumOrders();
-  const finishTitle = labels.finishes[printing.finish] ?? printing.finish;
+  const finishTitle = finishLabels[printing.finish] ?? printing.finish;
   const tiltEnabled = cardTilt && !IS_COARSE_POINTER;
   // Pick a shell: TiltImageShell calls useCardTilt internally, PlainImageShell
   // skips the hook entirely. Toggling cardTilt remounts the shell (and all
@@ -457,13 +505,17 @@ export const CardThumbnail = memo(function CardThumbnail({
       priceRange &&
       priceRange.min !== priceRange.max ? (
       <span className="flex shrink-0 items-center gap-0.5">
-        <span className={priceColorClass(priceRange.min)}>{compactFmt(priceRange.min)}</span>
+        <span className={priceColorClass(priceRange.min)}>
+          {display.compactFmt(priceRange.min)}
+        </span>
         <span className="text-muted-foreground/60">&ndash;</span>
-        <span className={priceColorClass(priceRange.max)}>{compactFmt(priceRange.max)}</span>
+        <span className={priceColorClass(priceRange.max)}>
+          {display.compactFmt(priceRange.max)}
+        </span>
       </span>
     ) : (
       <span className={cn("shrink-0", priceColorClass(favoritePrice))}>
-        {compactFmt(favoritePrice)}
+        {display.compactFmt(favoritePrice)}
       </span>
     );
 

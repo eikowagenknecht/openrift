@@ -9,7 +9,7 @@ import { createPortal } from "react-dom";
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { ADD_STRIP_HEIGHT } from "@/components/cards/card-grid-constants";
-import { CardThumbnail } from "@/components/cards/card-thumbnail";
+import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import { CollectionAddStrip } from "@/components/collection/collection-add-strip";
 import { DisposePickerPopover } from "@/components/collection/dispose-picker-popover";
@@ -40,7 +40,6 @@ import { collectionsQueryOptions } from "@/hooks/use-collections";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
-import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
@@ -63,7 +62,9 @@ export function CardBrowser() {
   const catalogMode = useDisplayStore((s) => s.catalogMode);
   const cycleCatalogMode = useDisplayStore((s) => s.cycleCatalogMode);
   const { allPrintings, printingsById, sets } = useCards();
-  const prices = usePrices();
+  // Lifted out of <CardThumbnail> — see useCardThumbnailDisplay for the why.
+  // We reuse display.prices / display.favoriteMarketplace below for useCardData.
+  const display = useCardThumbnailDisplay();
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user);
   const { data: ownedCountByPrinting } = useOwnedCount(isLoggedIn);
@@ -128,7 +129,6 @@ export function CardBrowser() {
     hasActiveFilters,
   } = useFilterValues();
   const { setSearch } = useFilterActions();
-  const marketplaceOrder = useDisplayStore((s) => s.marketplaceOrder);
 
   // "copies" is a collection-only view — clamp to "printings" in the catalog browser
   const view = rawView === "copies" ? "printings" : rawView;
@@ -157,8 +157,8 @@ export function CardBrowser() {
     sortDir,
     view,
     ownedCountByPrinting,
-    favoriteMarketplace: marketplaceOrder[0] ?? "cardtrader",
-    prices,
+    favoriteMarketplace: display.favoriteMarketplace,
+    prices: display.prices,
     keywordReverseMap,
   });
 
@@ -265,6 +265,7 @@ export function CardBrowser() {
         view={view}
         cardWidth={ctx.cardWidth}
         priority={ctx.priority}
+        display={display}
         aboveCard={aboveCard}
       />
     );

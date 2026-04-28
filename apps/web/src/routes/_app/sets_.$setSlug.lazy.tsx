@@ -4,7 +4,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeftIcon } from "lucide-react";
 
-import { CardThumbnail } from "@/components/cards/card-thumbnail";
+import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEffectiveLanguageOrder } from "@/hooks/use-effective-language-order";
 import { publicSetDetailQueryOptions } from "@/hooks/use-public-sets";
@@ -21,6 +21,7 @@ function SetDetailPage() {
   const { data } = useSuspenseQuery(publicSetDetailQueryOptions(setSlug));
   const navigate = useNavigate();
   const showImages = useDisplayStore((s) => s.showImages);
+  const display = useCardThumbnailDisplay();
   const effectiveLanguageOrder = useEffectiveLanguageOrder();
 
   const uniquePrintings = deduplicateByCard(data.printings, effectiveLanguageOrder);
@@ -53,6 +54,7 @@ function SetDetailPage() {
             printing={printing}
             onClick={handleCardClick}
             showImages={showImages}
+            display={display}
           />
         ))}
       </div>

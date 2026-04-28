@@ -4,7 +4,8 @@ import { createLazyFileRoute, useLocation, useNavigate } from "@tanstack/react-r
 import { ChevronDownIcon, ChevronRightIcon, LayoutGridIcon, ListIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { CardThumbnail } from "@/components/cards/card-thumbnail";
+import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { MarkdownText } from "@/components/markdown-text";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,7 @@ function PromosPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const showImages = useDisplayStore((s) => s.showImages);
+  const display = useCardThumbnailDisplay();
   const languageOrder = useDisplayStore((s) => s.languages);
   const languageList = useLanguageList();
   const languageLabelMap = new Map(languageList.map((l) => [l.code, l.name]));
@@ -313,6 +315,7 @@ function PromosPage() {
                   registerSection={setSectionRef}
                   viewMode={viewMode}
                   showImages={showImages}
+                  display={display}
                   onCardClick={handleCardClick}
                 />
               );
@@ -332,6 +335,7 @@ interface BranchProps {
   registerSection: (id: string, el: HTMLElement | null) => void;
   viewMode: ViewMode;
   showImages: boolean;
+  display: CardThumbnailDisplay;
   onCardClick: (printing: Printing) => void;
 }
 
@@ -343,6 +347,7 @@ function ChannelBranch({
   registerSection,
   viewMode,
   showImages,
+  display,
   onCardClick,
 }: BranchProps) {
   const [open, setOpen] = useState(true);
@@ -366,6 +371,7 @@ function ChannelBranch({
         registerSection={registerSection}
         viewMode={viewMode}
         showImages={showImages}
+        display={display}
         onCardClick={onCardClick}
       />
     );
@@ -425,6 +431,7 @@ function ChannelBranch({
               node={node}
               languagePrefix={languagePrefix}
               showImages={showImages}
+              display={display}
               onCardClick={onCardClick}
             />
           ) : (
@@ -439,6 +446,7 @@ function ChannelBranch({
                   registerSection={registerSection}
                   viewMode={viewMode}
                   showImages={showImages}
+                  display={display}
                   onCardClick={onCardClick}
                 />
               ))}
@@ -460,6 +468,7 @@ interface LanguageSectionProps {
   registerSection: (id: string, el: HTMLElement | null) => void;
   viewMode: ViewMode;
   showImages: boolean;
+  display: CardThumbnailDisplay;
   onCardClick: (printing: Printing) => void;
 }
 
@@ -471,6 +480,7 @@ function LanguageSection({
   registerSection,
   viewMode,
   showImages,
+  display,
   onCardClick,
 }: LanguageSectionProps) {
   const [open, setOpen] = useState(true);
@@ -519,6 +529,7 @@ function LanguageSection({
               registerSection={registerSection}
               viewMode={viewMode}
               showImages={showImages}
+              display={display}
               onCardClick={onCardClick}
             />
           ))}
@@ -560,6 +571,7 @@ function ChannelLeafSection({
   registerSection,
   viewMode,
   showImages,
+  display,
   onCardClick,
 }: BranchProps) {
   const [open, setOpen] = useState(true);
@@ -616,6 +628,7 @@ function ChannelLeafSection({
                 printing={printing}
                 onClick={onCardClick}
                 showImages={showImages}
+                display={display}
                 belowLabel={<MarkerChips printing={printing} />}
               />
             ))}
@@ -631,11 +644,13 @@ function CompactBranchGrid({
   node,
   languagePrefix,
   showImages,
+  display,
   onCardClick,
 }: {
   node: ChannelNode;
   languagePrefix: string;
   showImages: boolean;
+  display: CardThumbnailDisplay;
   onCardClick: (printing: Printing) => void;
 }) {
   // Flatten every leaf's printings into one grid that uses the normal card
@@ -679,6 +694,7 @@ function CompactBranchGrid({
               printing={printing}
               onClick={onCardClick}
               showImages={showImages}
+              display={display}
               belowLabel={<MarkerChips printing={printing} />}
             />
           </div>
