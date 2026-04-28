@@ -26,7 +26,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   acceptFavoritePrintingsFn,
   useAcceptFavoritePrintings,
@@ -172,40 +171,29 @@ function MarketplaceSplitBadge({
   coverage: MarketplaceCoverage;
 }) {
   const textStatus = weakerStatus(coverage.printings.status, coverage.entries.status);
+  // Native title attributes instead of BaseUI Tooltip: rendered ~500 of these
+  // in the virtualized admin Cards table and the per-instance state machine
+  // dominated scroll cost. Plain strings, no rich content needed.
   return (
     <div className="relative inline-flex h-5 min-w-10 font-mono text-xs">
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <div
-              aria-label={`${fullLabel} printings status`}
-              className={cn(
-                "flex-1 cursor-default rounded-l-md border border-r-0",
-                HALF_BG_CLASS[coverage.printings.status],
-                BORDER_CLASS[coverage.printings.status],
-              )}
-            />
-          }
-        />
-        <TooltipContent>
-          {directionTooltip(fullLabel, "printings", coverage.printings)}
-        </TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <div
-              aria-label={`${fullLabel} entries status`}
-              className={cn(
-                "flex-1 cursor-default rounded-r-md border border-l-0",
-                HALF_BG_CLASS[coverage.entries.status],
-                BORDER_CLASS[coverage.entries.status],
-              )}
-            />
-          }
-        />
-        <TooltipContent>{directionTooltip(fullLabel, "entries", coverage.entries)}</TooltipContent>
-      </Tooltip>
+      <div
+        aria-label={`${fullLabel} printings status`}
+        title={directionTooltip(fullLabel, "printings", coverage.printings)}
+        className={cn(
+          "flex-1 cursor-default rounded-l-md border border-r-0",
+          HALF_BG_CLASS[coverage.printings.status],
+          BORDER_CLASS[coverage.printings.status],
+        )}
+      />
+      <div
+        aria-label={`${fullLabel} entries status`}
+        title={directionTooltip(fullLabel, "entries", coverage.entries)}
+        className={cn(
+          "flex-1 cursor-default rounded-r-md border border-l-0",
+          HALF_BG_CLASS[coverage.entries.status],
+          BORDER_CLASS[coverage.entries.status],
+        )}
+      />
       <span
         className={cn(
           "pointer-events-none absolute inset-0 flex items-center justify-center px-2",
