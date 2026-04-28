@@ -3,6 +3,7 @@
 ## 2026-04-28
 
 - feat: Filter badges on the cards page now show how many cards each option matches under your other active filters, and options that would leave you with zero cards are dimmed
+- fix: On phones and tablets the cards page no longer downloads the stacked sibling-printing images that were only ever revealed by hovering, saving bandwidth without changing the look
 - fix: The energy, might, and power sliders on the cards page no longer disappear when another filter narrows results to cards that all share the same value; they stay visible as disabled rows so the filter layout is preserved
 - fix: When you filter the cards page by owned, missing, or incomplete, the other filter chips now narrow their counts to that subset instead of still reflecting the full catalog
 - fix: Resizing the browser window on the cards page now adjusts row heights smoothly again, so the rows no longer leave large gaps between them when you shrink the window

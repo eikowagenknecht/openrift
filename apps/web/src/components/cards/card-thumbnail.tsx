@@ -434,7 +434,10 @@ export const CardThumbnail = memo(function CardThumbnail({
       {otherPrintings.map((sibling, i) => {
         const depth = otherPrintings.length - i;
         const siblingThumbnail = sibling.images[0]?.thumbnail ?? null;
-        const siblingUrl = fancyFan && showImages ? siblingThumbnail : null;
+        // Coarse-pointer devices never trigger the hover fan-out, so the
+        // sibling images sit hidden behind the front card forever. Skip
+        // the download and let the bg-muted/border decorative stack stand in.
+        const siblingUrl = fancyFan && showImages && !IS_COARSE_POINTER ? siblingThumbnail : null;
         return (
           // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- decorative layer inside a parent <button>; keyboard nav handled by parent
           <div
