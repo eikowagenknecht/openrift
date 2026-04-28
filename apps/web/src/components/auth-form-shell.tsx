@@ -21,7 +21,12 @@ export function AuthFormCard({
           <div className="p-6 md:p-8">
             <FieldGroup>
               <div className="flex flex-col items-center gap-2 text-center">
-                <img src="/logo-64x64.webp" alt="OpenRift" className="size-12 md:hidden" />
+                <img
+                  src="/logo-64x64.webp"
+                  srcSet="/logo-64x64.webp 1x, /logo-96x96.webp 2x, /logo-144x144.webp 3x"
+                  alt="OpenRift"
+                  className="size-12 md:hidden"
+                />
                 <h1 className="text-2xl font-bold">{title}</h1>
                 <p className="text-muted-foreground text-balance">{subtitle}</p>
               </div>

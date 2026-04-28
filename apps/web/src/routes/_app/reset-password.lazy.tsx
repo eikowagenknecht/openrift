@@ -85,7 +85,12 @@ function ResetPasswordPage() {
     <AuthPageLayout>
       <Card className="overflow-hidden p-0">
         <CardContent className="flex flex-col items-center gap-4 p-6 text-center md:p-8">
-          <img src="/logo-64x64.webp" alt="OpenRift" className="size-12" />
+          <img
+            src="/logo-64x64.webp"
+            srcSet="/logo-64x64.webp 1x, /logo-96x96.webp 2x, /logo-144x144.webp 3x"
+            alt="OpenRift"
+            className="size-12"
+          />
           <h1 className="text-2xl font-bold">Reset your password</h1>
 
           {step === "email" ? (
