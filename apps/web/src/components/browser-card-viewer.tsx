@@ -25,8 +25,6 @@ interface BrowserCardViewerProps {
   aboveGrid?: ReactNode;
   rightPane?: ReactNode;
   addStripHeight?: number;
-  /** Lift the eager-render floor for routes whose SSR shell preloaded cards. */
-  minEagerCount?: number;
   children?: ReactNode;
 }
 

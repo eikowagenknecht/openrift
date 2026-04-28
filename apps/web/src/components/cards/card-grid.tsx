@@ -345,14 +345,6 @@ interface CardGridProps {
   addStripHeight?: number;
   /** Total height of sticky elements above the grid (app header + toolbar). */
   stickyOffset?: number;
-  /**
-   * Minimum number of cards to render eagerly on first paint (priority + no
-   * deferred placeholder + initial imgLoaded=true). Used by routes whose SSR
-   * shell preloaded cards beyond the default `columns × 2` window so the
-   * cached images paint without the muted-grey + fade-in flash. The actual
-   * eager count is `max(columns × 2, minEagerCount)`.
-   */
-  minEagerCount?: number;
 }
 
 export function CardGrid({
@@ -368,7 +360,6 @@ export function CardGrid({
   siblingPrintings,
   addStripHeight = 0,
   stickyOffset = APP_HEADER_HEIGHT,
-  minEagerCount = 0,
 }: CardGridProps) {
   const { orders } = useEnumOrders();
 
@@ -555,7 +546,7 @@ export function CardGrid({
     }
   };
 
-  const eagerCount = Math.max(columns * 2, minEagerCount);
+  const eagerCount = columns;
 
   // ── Render ─────────────────────────────────────────────────────────
   if (items.length === 0) {

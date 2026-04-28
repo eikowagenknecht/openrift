@@ -28,8 +28,6 @@ interface CardViewerProps {
   rightPane?: ReactNode;
   /** Extra height added to each card row (e.g. add-mode strip). */
   addStripHeight?: number;
-  /** Lift the eager-render floor for routes whose SSR shell preloaded cards. */
-  minEagerCount?: number;
   children?: ReactNode;
 }
 
@@ -59,7 +57,6 @@ export function CardViewer({
   aboveGrid,
   rightPane,
   addStripHeight,
-  minEagerCount,
   children,
 }: CardViewerProps) {
   // No useHydrated() gate here: every CardViewer consumer (CardBrowser,
@@ -88,7 +85,6 @@ export function CardViewer({
           onItemClick={onItemClick}
           siblingPrintings={siblingPrintings}
           addStripHeight={addStripHeight}
-          minEagerCount={minEagerCount}
         />
       }
     >
@@ -110,7 +106,6 @@ type HydratedGridProps = Pick<
   | "onItemClick"
   | "siblingPrintings"
   | "addStripHeight"
-  | "minEagerCount"
 >;
 
 /**
