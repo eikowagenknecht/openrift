@@ -480,6 +480,21 @@ export interface FilterCounts {
   rarities: Map<string, number>;
   artVariants: Map<string, number>;
   finishes: Map<string, number>;
+  /**
+   * Counts for the single-chip "More"-section flags. Each value reflects the
+   * count *if the chip's currently-displayed state were applied*, combined
+   * with all other active filters. `owned` is left as `undefined` here — it
+   * lives in `useCardData` because computing it requires the user's
+   * collection counts and the active view, neither of which `filterCards`
+   * consumes.
+   */
+  flags: {
+    signed: number;
+    promo: number;
+    banned: number;
+    errata: number;
+    owned?: number;
+  };
 }
 
 export interface ComputeFilterCountsOptions extends FilterCardsOptions {
@@ -492,7 +507,7 @@ export interface ComputeFilterCountsOptions extends FilterCardsOptions {
 }
 
 interface CountableDimension {
-  key: keyof FilterCounts;
+  key: Exclude<keyof FilterCounts, "flags">;
   filterField: keyof CardFilters;
   values: (printing: Printing) => readonly string[];
 }
@@ -507,6 +522,25 @@ const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
   { key: "artVariants", filterField: "artVariants", values: (p) => [p.artVariant || "normal"] },
   { key: "finishes", filterField: "finishes", values: (p) => [p.finish] },
 ];
+
+interface FlagDimension {
+  key: keyof Omit<FilterCounts["flags"], "owned">;
+  filterField: "isSigned" | "hasAnyMarker" | "isBanned" | "hasErrata";
+}
+
+const FLAG_DIMENSIONS: readonly FlagDimension[] = [
+  { key: "signed", filterField: "isSigned" },
+  { key: "promo", filterField: "hasAnyMarker" },
+  { key: "banned", filterField: "isBanned" },
+  { key: "errata", filterField: "hasErrata" },
+];
+
+function countMatches(matched: Printing[], countBy: "printing" | "card"): number {
+  if (countBy === "card") {
+    return new Set(matched.map((p) => p.cardId)).size;
+  }
+  return matched.length;
+}
 
 /**
  * For each filterable dimension, returns a `value -> count` map showing how
@@ -532,7 +566,7 @@ export function computeFilterCounts(
   filters: CardFilters,
   options: ComputeFilterCountsOptions,
 ): FilterCounts {
-  const result = {} as FilterCounts;
+  const result = { flags: { signed: 0, promo: 0, banned: 0, errata: 0 } } as FilterCounts;
   for (const dim of COUNTABLE_DIMENSIONS) {
     const filtersWithoutDim = { ...filters, [dim.filterField]: [] };
     const matched = filterCards(printings, filtersWithoutDim, options);
@@ -557,6 +591,14 @@ export function computeFilterCounts(
       }
     }
     result[dim.key] = counts;
+  }
+  // Each flag chip cycles null → true → false → null. The displayed label
+  // reads "Signed" for null/true and "Not Signed" for false; the count
+  // reflects whichever state the label currently advertises.
+  for (const { key, filterField } of FLAG_DIMENSIONS) {
+    const targetValue = filters[filterField] !== false;
+    const matched = filterCards(printings, { ...filters, [filterField]: targetValue }, options);
+    result.flags[key] = countMatches(matched, options.countBy);
   }
   return result;
 }

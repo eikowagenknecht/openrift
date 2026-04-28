@@ -2139,4 +2139,69 @@ describe("computeFilterCounts", () => {
     expect(counts.domains.get("Mind")).toBe(1);
     expect(counts.domains.get("Body")).toBe(1);
   });
+
+  describe("flags", () => {
+    const flagSample = [
+      makePrinting({
+        id: "p-signed",
+        cardId: "c-signed",
+        isSigned: true,
+        card: { slug: "c-signed", bans: [], errata: null },
+      }),
+      makePrinting({
+        id: "p-plain",
+        cardId: "c-plain",
+        isSigned: false,
+        card: {
+          slug: "c-plain",
+          bans: [{ format: "standard", reason: "test" } as Card["bans"][number]],
+          errata: { correctedRulesText: "x" } as Card["errata"],
+        },
+      }),
+      makePrinting({
+        id: "p-promo",
+        cardId: "c-promo",
+        isSigned: false,
+        markers: [
+          { slug: "promo-stamp", label: "Promo", abbreviation: "P", iconUrl: null, sortOrder: 0 },
+        ],
+        card: { slug: "c-promo", bans: [], errata: null },
+      }),
+    ];
+
+    it("counts flags at their primary-on state when the chip is null/true", () => {
+      const counts = computeFilterCounts(flagSample, emptyFilters(), { countBy: "printing" });
+      expect(counts.flags.signed).toBe(1); // only p-signed has isSigned=true
+      expect(counts.flags.promo).toBe(1); // only p-promo has any marker
+      expect(counts.flags.banned).toBe(1); // only c-plain has bans
+      expect(counts.flags.errata).toBe(1); // only c-plain has errata
+    });
+
+    it("counts flags at their false state when the chip is in 'Not X' mode", () => {
+      // With isSigned=false selected, the chip displays "Not Signed" — the
+      // count should reflect the number of *unsigned* printings.
+      const counts = computeFilterCounts(flagSample, emptyFilters({ isSigned: false }), {
+        countBy: "printing",
+      });
+      expect(counts.flags.signed).toBe(2); // p-plain + p-promo are unsigned
+    });
+
+    it("flag counts respect other active filters", () => {
+      // With domains=[Fury] active (default for makePrinting), all three sample
+      // cards still match domain — none are filtered out — so counts are stable.
+      // Use a non-matching domain to verify narrowing.
+      const counts = computeFilterCounts(flagSample, emptyFilters({ domains: ["Calm"] }), {
+        countBy: "printing",
+      });
+      expect(counts.flags.signed).toBe(0);
+      expect(counts.flags.promo).toBe(0);
+      expect(counts.flags.banned).toBe(0);
+      expect(counts.flags.errata).toBe(0);
+    });
+
+    it("leaves flags.owned unset (computed in useCardData with collection state)", () => {
+      const counts = computeFilterCounts(flagSample, emptyFilters(), { countBy: "printing" });
+      expect(counts.flags.owned).toBeUndefined();
+    });
+  });
 });

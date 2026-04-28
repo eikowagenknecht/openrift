@@ -208,53 +208,72 @@ export function FilterBadgeSections({
         availableFilters.hasErrata) && (
         <FilterSection label="More">
           {!hiddenSections?.has("owned") && (
-            <Badge
-              variant={filterState.owned === null ? "outline" : "default"}
-              className="cursor-pointer"
+            <FlagBadge
+              label={ownedLabel}
+              isActive={filterState.owned !== null}
+              count={filterCounts?.flags.owned}
               onClick={() => toggleOwned(allowIncomplete)}
-            >
-              {ownedLabel}
-            </Badge>
+            />
           )}
           {availableFilters.hasSigned && (
-            <Badge
-              variant={filterState.signed === null ? "outline" : "default"}
-              className="cursor-pointer"
+            <FlagBadge
+              label={filterState.signed === false ? "Not Signed" : "Signed"}
+              isActive={filterState.signed !== null}
+              count={filterCounts?.flags.signed}
               onClick={toggleSigned}
-            >
-              {filterState.signed === false ? "Not Signed" : "Signed"}
-            </Badge>
+            />
           )}
           {availableFilters.hasAnyMarker && (
-            <Badge
-              variant={filterState.promo === null ? "outline" : "default"}
-              className="cursor-pointer"
+            <FlagBadge
+              label={filterState.promo === false ? "Not Promo" : "Promo"}
+              isActive={filterState.promo !== null}
+              count={filterCounts?.flags.promo}
               onClick={togglePromo}
-            >
-              {filterState.promo === false ? "Not Promo" : "Promo"}
-            </Badge>
+            />
           )}
           {availableFilters.hasBanned && (
-            <Badge
-              variant={filterState.banned === null ? "outline" : "default"}
-              className="cursor-pointer"
+            <FlagBadge
+              label={filterState.banned === false ? "Not Banned" : "Banned"}
+              isActive={filterState.banned !== null}
+              count={filterCounts?.flags.banned}
               onClick={toggleBanned}
-            >
-              {filterState.banned === false ? "Not Banned" : "Banned"}
-            </Badge>
+            />
           )}
           {availableFilters.hasErrata && (
-            <Badge
-              variant={filterState.errata === null ? "outline" : "default"}
-              className="cursor-pointer"
+            <FlagBadge
+              label={filterState.errata === false ? "No Errata" : "Errata"}
+              isActive={filterState.errata !== null}
+              count={filterCounts?.flags.errata}
               onClick={toggleErrata}
-            >
-              {filterState.errata === false ? "No Errata" : "Errata"}
-            </Badge>
+            />
           )}
         </FilterSection>
       )}
     </>
+  );
+}
+
+function FlagBadge({
+  label,
+  isActive,
+  count,
+  onClick,
+}: {
+  label: string;
+  isActive: boolean;
+  count?: number;
+  onClick: () => void;
+}) {
+  const isZero = count !== undefined && count === 0;
+  return (
+    <Badge
+      variant={isActive ? "default" : "outline"}
+      className={cn("cursor-pointer", isZero && !isActive && "opacity-40")}
+      onClick={onClick}
+    >
+      {label}
+      {count !== undefined && <span className="ml-1 tabular-nums opacity-60">{count}</span>}
+    </Badge>
   );
 }
 

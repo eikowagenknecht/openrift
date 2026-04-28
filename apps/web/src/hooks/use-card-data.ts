@@ -1,5 +1,6 @@
 import type {
   CardFilters,
+  FilterCounts,
   Marketplace,
   PriceLookup,
   Printing,
@@ -101,7 +102,7 @@ function buildOwnedCounts(
 const EMPTY_PRINTINGS_MAP = new Map<string, Printing[]>();
 const NO_OP_LABEL = (slug: string) => slug;
 
-const EMPTY_FILTER_COUNTS = {
+const EMPTY_FILTER_COUNTS: FilterCounts = {
   sets: new Map<string, number>(),
   languages: new Map<string, number>(),
   domains: new Map<string, number>(),
@@ -110,7 +111,60 @@ const EMPTY_FILTER_COUNTS = {
   rarities: new Map<string, number>(),
   artVariants: new Map<string, number>(),
   finishes: new Map<string, number>(),
+  flags: { signed: 0, promo: 0, banned: 0, errata: 0 },
 };
+
+/**
+ * Apply the owned/missing/incomplete filter to a printings list. Mirrors the
+ * same logic the main render path uses but takes the owned state as an
+ * argument so it can be reused to compute the owned-chip count for any
+ * hypothetical state.
+ *
+ * @returns Printings remaining after the owned filter is applied.
+ */
+function applyOwnedFilter(
+  cards: Printing[],
+  state: OwnedFilterState,
+  view: "cards" | "printings",
+  ownedCountByPrinting: Record<string, number>,
+): Printing[] {
+  if (state === "incomplete") {
+    const ownedTotalByCard = new Map<string, number>();
+    const cardById = new Map<string, Printing["card"]>();
+    for (const printing of cards) {
+      const count = ownedCountByPrinting[printing.id] ?? 0;
+      ownedTotalByCard.set(printing.cardId, (ownedTotalByCard.get(printing.cardId) ?? 0) + count);
+      if (!cardById.has(printing.cardId)) {
+        cardById.set(printing.cardId, printing.card);
+      }
+    }
+    const incompleteCardIds = new Set<string>();
+    for (const [cardId, total] of ownedTotalByCard) {
+      const card = cardById.get(cardId);
+      if (!card) {
+        continue;
+      }
+      if (total < getPlaysetSize(card.type, card.keywords)) {
+        incompleteCardIds.add(cardId);
+      }
+    }
+    return cards.filter((printing) => incompleteCardIds.has(printing.cardId));
+  }
+  if (view === "printings") {
+    return state === "owned"
+      ? cards.filter((printing) => (ownedCountByPrinting[printing.id] ?? 0) > 0)
+      : cards.filter((printing) => (ownedCountByPrinting[printing.id] ?? 0) === 0);
+  }
+  const ownedCardIds = new Set<string>();
+  for (const printing of cards) {
+    if ((ownedCountByPrinting[printing.id] ?? 0) > 0) {
+      ownedCardIds.add(printing.cardId);
+    }
+  }
+  return state === "owned"
+    ? cards.filter((printing) => ownedCardIds.has(printing.cardId))
+    : cards.filter((printing) => !ownedCardIds.has(printing.cardId));
+}
 
 /**
  * Keep the first printing encountered per `cardId`. Relies on the input
@@ -182,49 +236,23 @@ export function useCardData({
     getPrice,
   });
   let filteredCards = filterCards(allPrintings, filters, { keywordReverseMap, getPrice });
+  const cardsBeforeOwned = filteredCards;
 
   if (ownedFilter && ownedCountByPrinting) {
-    if (ownedFilter === "incomplete") {
-      // Incomplete is card-level: sum copies across all printings of each card,
-      // keep cards where the total is below the per-card playset size
-      // (1 for Legends/Battlefields/Unique, 3 otherwise).
-      const ownedTotalByCard = new Map<string, number>();
-      const cardById = new Map<string, Printing["card"]>();
-      for (const printing of filteredCards) {
-        const count = ownedCountByPrinting[printing.id] ?? 0;
-        ownedTotalByCard.set(printing.cardId, (ownedTotalByCard.get(printing.cardId) ?? 0) + count);
-        if (!cardById.has(printing.cardId)) {
-          cardById.set(printing.cardId, printing.card);
-        }
-      }
-      const incompleteCardIds = new Set<string>();
-      for (const [cardId, total] of ownedTotalByCard) {
-        const card = cardById.get(cardId);
-        if (!card) {
-          continue;
-        }
-        if (total < getPlaysetSize(card.type, card.keywords)) {
-          incompleteCardIds.add(cardId);
-        }
-      }
-      filteredCards = filteredCards.filter((printing) => incompleteCardIds.has(printing.cardId));
-    } else if (view === "printings") {
-      filteredCards =
-        ownedFilter === "owned"
-          ? filteredCards.filter((printing) => (ownedCountByPrinting[printing.id] ?? 0) > 0)
-          : filteredCards.filter((printing) => (ownedCountByPrinting[printing.id] ?? 0) === 0);
-    } else {
-      const ownedCardIds = new Set<string>();
-      for (const printing of filteredCards) {
-        if ((ownedCountByPrinting[printing.id] ?? 0) > 0) {
-          ownedCardIds.add(printing.cardId);
-        }
-      }
-      filteredCards =
-        ownedFilter === "owned"
-          ? filteredCards.filter((printing) => ownedCardIds.has(printing.cardId))
-          : filteredCards.filter((printing) => !ownedCardIds.has(printing.cardId));
-    }
+    filteredCards = applyOwnedFilter(filteredCards, ownedFilter, view, ownedCountByPrinting);
+  }
+
+  // The Owned chip count reflects whichever cycle state the chip is currently
+  // showing — null displays the "Owned" label, so we count owned matches.
+  if (ownedCountByPrinting) {
+    const ownedSubset = applyOwnedFilter(
+      cardsBeforeOwned,
+      ownedFilter ?? "owned",
+      view,
+      ownedCountByPrinting,
+    );
+    filterCounts.flags.owned =
+      view === "cards" ? new Set(ownedSubset.map((p) => p.cardId)).size : ownedSubset.length;
   }
 
   const displayCards = view === "cards" ? firstPrintingPerCard(filteredCards) : filteredCards;
