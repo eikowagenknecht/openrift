@@ -205,8 +205,12 @@ export default defineConfig(({ mode, command }) => {
                 name: "better-auth",
               },
               {
-                test: /node_modules\/(@base-ui|@floating-ui|sonner)/,
+                test: /node_modules\/(@base-ui|@floating-ui)/,
                 name: "base-ui",
+              },
+              {
+                test: /node_modules\/sonner/,
+                name: "sonner",
               },
             ],
           },
