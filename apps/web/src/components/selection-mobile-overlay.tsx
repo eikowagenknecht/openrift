@@ -83,6 +83,15 @@ export function SelectionMobileOverlay({
       ? () => navigateToIndex(selectedIndex + 1, items[selectedIndex + 1].printing)
       : undefined;
 
+  const handleSelectPrinting = (printing: Printing) => {
+    const idx = items.findIndex((item) => item.printing.id === printing.id);
+    if (idx === -1) {
+      setSelectedCard(printing);
+    } else {
+      navigateToIndex(idx, printing);
+    }
+  };
+
   return (
     <MobileDetailOverlay>
       <Suspense fallback={<CardDetailSkeleton />}>
@@ -95,7 +104,7 @@ export function SelectionMobileOverlay({
           onTagClick={(tag) => onSearchAndClose(`t:${tag}`)}
           onKeywordClick={(keyword) => onSearchAndClose(`k:${keyword}`)}
           printings={siblingPrintings}
-          onSelectPrinting={setSelectedCard}
+          onSelectPrinting={handleSelectPrinting}
         />
       </Suspense>
     </MobileDetailOverlay>

@@ -53,6 +53,19 @@ export function SelectionDetailPane({
       ? () => navigateToIndex(selectedIndex + 1, items[selectedIndex + 1].printing)
       : undefined;
 
+  // When a picked printing is also a grid tile (e.g. cards+set with multiple
+  // tiles per card), bump selectedIndex onto it so arrow-key navigation and
+  // grid highlighting both follow the picker. Otherwise leave the index alone
+  // so they keep tracking the original grid cell.
+  const handleSelectPrinting = (printing: Printing) => {
+    const idx = items.findIndex((item) => item.printing.id === printing.id);
+    if (idx === -1) {
+      setSelectedCard(printing);
+    } else {
+      navigateToIndex(idx, printing);
+    }
+  };
+
   return (
     <Pane className="@md:block">
       <Suspense fallback={<CardDetailSkeleton />}>
@@ -65,7 +78,7 @@ export function SelectionDetailPane({
           onTagClick={(tag) => onSearchAndClose(`t:${tag}`)}
           onKeywordClick={(keyword) => onSearchAndClose(`k:${keyword}`)}
           printings={siblingPrintings}
-          onSelectPrinting={setSelectedCard}
+          onSelectPrinting={handleSelectPrinting}
         />
       </Suspense>
     </Pane>
