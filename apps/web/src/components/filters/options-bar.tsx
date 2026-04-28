@@ -1,4 +1,4 @@
-import type { AvailableFilters, GroupByField, SortOption } from "@openrift/shared";
+import type { AvailableFilters, FilterCounts, GroupByField, SortOption } from "@openrift/shared";
 import {
   CopyIcon,
   MinusIcon,
@@ -390,12 +390,14 @@ export function MobileFilterContent({
   setDisplayLabel,
   hiddenSections,
   filterOverrides,
+  filterCounts,
 }: {
   availableFilters: AvailableFilters;
   availableLanguages?: string[];
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
   filterOverrides?: Partial<Record<string, string[]>>;
+  filterCounts?: FilterCounts;
 }) {
   return (
     <div className="border-t pt-4">
@@ -407,6 +409,7 @@ export function MobileFilterContent({
           setDisplayLabel={setDisplayLabel}
           hiddenSections={hiddenSections}
           filterOverrides={filterOverrides}
+          filterCounts={filterCounts}
         />
       </div>
     </div>

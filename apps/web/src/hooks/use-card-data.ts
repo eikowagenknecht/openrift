@@ -7,6 +7,7 @@ import type {
   SortOption,
 } from "@openrift/shared";
 import {
+  computeFilterCounts,
   EMPTY_PRICE_LOOKUP,
   filterCards,
   getAvailableFilters,
@@ -100,6 +101,17 @@ function buildOwnedCounts(
 const EMPTY_PRINTINGS_MAP = new Map<string, Printing[]>();
 const NO_OP_LABEL = (slug: string) => slug;
 
+const EMPTY_FILTER_COUNTS = {
+  sets: new Map<string, number>(),
+  languages: new Map<string, number>(),
+  domains: new Map<string, number>(),
+  types: new Map<string, number>(),
+  superTypes: new Map<string, number>(),
+  rarities: new Map<string, number>(),
+  artVariants: new Map<string, number>(),
+  finishes: new Map<string, number>(),
+};
+
 /**
  * Keep the first printing encountered per `cardId`. Relies on the input
  * being pre-sorted in the order the caller wants to break ties in — here,
@@ -141,6 +153,7 @@ export function useCardData({
     return {
       availableFilters: getAvailableFilters([], { orders }),
       availableLanguages: [] as string[],
+      filterCounts: EMPTY_FILTER_COUNTS,
       sortedCards: [] as Printing[],
       printingsByCardId: EMPTY_PRINTINGS_MAP,
       priceRangeByCardId: null,
@@ -163,6 +176,11 @@ export function useCardData({
   // order, so `filterCards` preserves that order and the dedup/group below
   // can be first-occurrence without re-sorting.
   const availableFilters = getAvailableFilters(allPrintings, { orders, sets, getPrice });
+  const filterCounts = computeFilterCounts(allPrintings, filters, {
+    countBy: view === "cards" ? "card" : "printing",
+    keywordReverseMap,
+    getPrice,
+  });
   let filteredCards = filterCards(allPrintings, filters, { keywordReverseMap, getPrice });
 
   if (ownedFilter && ownedCountByPrinting) {
@@ -246,6 +264,7 @@ export function useCardData({
   return {
     availableFilters,
     availableLanguages,
+    filterCounts,
     sortedCards,
     printingsByCardId,
     priceRangeByCardId,

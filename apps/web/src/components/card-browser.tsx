@@ -139,6 +139,7 @@ export function CardBrowser() {
   const {
     availableFilters,
     availableLanguages,
+    filterCounts,
     sortedCards,
     printingsByCardId,
     priceRangeByCardId,
@@ -303,6 +304,7 @@ export function CardBrowser() {
             availableFilters={availableFilters}
             availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
+            filterCounts={filterCounts}
           />
         </MobileOptionsDrawer>
       </div>
@@ -310,6 +312,7 @@ export function CardBrowser() {
         availableFilters={availableFilters}
         availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
+        filterCounts={filterCounts}
       />
     </>
   );
@@ -322,6 +325,7 @@ export function CardBrowser() {
           availableFilters={availableFilters}
           availableLanguages={availableLanguages}
           setDisplayLabel={setDisplayLabel}
+          filterCounts={filterCounts}
         />
       </div>
     </Pane>

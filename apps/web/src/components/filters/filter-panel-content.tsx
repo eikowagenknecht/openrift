@@ -1,4 +1,4 @@
-import type { AvailableFilters, RangeKey } from "@openrift/shared";
+import type { AvailableFilters, FilterCounts, RangeKey } from "@openrift/shared";
 import { NONE } from "@openrift/shared";
 import type { ReactNode } from "react";
 
@@ -52,8 +52,8 @@ interface RangeSection {
 
 const STAT_RANGE_SECTIONS: RangeSection[] = [
   { key: "energy", label: "Energy" },
-  { key: "might", label: "Might" },
   { key: "power", label: "Power" },
+  { key: "might", label: "Might" },
 ];
 
 interface FilterPanelContentProps {
@@ -63,6 +63,12 @@ interface FilterPanelContentProps {
   hiddenSections?: ReadonlySet<string>;
   /** Override selected values for array filters (e.g. zone presets in the deck builder). */
   filterOverrides?: Partial<Record<string, string[]>>;
+  /**
+   * Per-dimension faceted counts. When present, each badge shows its match
+   * count and zero-count options are dimmed. Omit to fall back to plain
+   * unfaceted badges (deck builder, collection grid).
+   */
+  filterCounts?: FilterCounts;
 }
 
 export function FilterPanelContent({
@@ -71,6 +77,7 @@ export function FilterPanelContent({
   setDisplayLabel,
   hiddenSections,
   filterOverrides,
+  filterCounts,
 }: FilterPanelContentProps) {
   return (
     <>
@@ -80,6 +87,7 @@ export function FilterPanelContent({
         setDisplayLabel={setDisplayLabel}
         hiddenSections={hiddenSections}
         filterOverrides={filterOverrides}
+        filterCounts={filterCounts}
       />
       <FilterRangeSections availableFilters={availableFilters} />
     </>
@@ -92,6 +100,7 @@ export function FilterBadgeSections({
   setDisplayLabel,
   hiddenSections,
   filterOverrides,
+  filterCounts,
 }: FilterPanelContentProps) {
   const { labels } = useEnumOrders();
   const { filterState, view } = useFilterValues();
@@ -113,17 +122,6 @@ export function FilterBadgeSections({
   };
   return (
     <>
-      {!hiddenSections?.has("owned") && (
-        <FilterSection label="Owned">
-          <Badge
-            variant={filterState.owned === null ? "outline" : "default"}
-            className="cursor-pointer"
-            onClick={() => toggleOwned(allowIncomplete)}
-          >
-            {ownedLabel}
-          </Badge>
-        </FilterSection>
-      )}
       <FilterSection
         label="Set"
         options={availableFilters.sets}
@@ -131,16 +129,9 @@ export function FilterBadgeSections({
         onToggle={(v) => toggleArrayFilter("sets", v)}
         displayLabel={setDisplayLabel}
         secondaryOptions={availableFilters.supplementalSets}
+        counts={filterCounts?.sets}
+        wide
       />
-      {availableLanguages && availableLanguages.length > 1 && (
-        <FilterSection
-          label="Language"
-          options={availableLanguages}
-          selected={filterState.languages}
-          onToggle={(v) => toggleArrayFilter("languages", v)}
-          displayLabel={(code) => languageLabels[code] ?? code}
-        />
-      )}
       {!hiddenSections?.has("domains") && (
         <FilterSection
           label="Domain"
@@ -149,8 +140,17 @@ export function FilterBadgeSections({
           onToggle={(v) => toggleArrayFilter("domains", v)}
           iconPath={(v) => getFilterIconPath("domains", v)}
           displayLabel={formatDomainFilterLabel}
+          counts={filterCounts?.domains}
         />
       )}
+      <FilterSection
+        label="Rarity"
+        options={availableFilters.rarities}
+        selected={filterState.rarities}
+        onToggle={(v) => toggleArrayFilter("rarities", v)}
+        iconPath={(v) => getFilterIconPath("rarities", v)}
+        counts={filterCounts?.rarities}
+      />
       {!hiddenSections?.has("types") && (
         <FilterSection
           label="Type"
@@ -158,6 +158,7 @@ export function FilterBadgeSections({
           selected={selected("types")}
           onToggle={(v) => toggleArrayFilter("types", v)}
           iconPath={(v) => getFilterIconPath("types", v)}
+          counts={filterCounts?.types}
         />
       )}
       {availableFilters.superTypes.length > 0 && !hiddenSections?.has("superTypes") && (
@@ -167,15 +168,9 @@ export function FilterBadgeSections({
           selected={selected("superTypes")}
           onToggle={(v) => toggleArrayFilter("superTypes", v)}
           iconPath={(v) => getFilterIconPath("superTypes", v)}
+          counts={filterCounts?.superTypes}
         />
       )}
-      <FilterSection
-        label="Rarity"
-        options={availableFilters.rarities}
-        selected={filterState.rarities}
-        onToggle={(v) => toggleArrayFilter("rarities", v)}
-        iconPath={(v) => getFilterIconPath("rarities", v)}
-      />
       {availableFilters.artVariants.length > 1 && (
         <FilterSection
           label="Art Variant"
@@ -183,6 +178,7 @@ export function FilterBadgeSections({
           selected={filterState.artVariants}
           onToggle={(v) => toggleArrayFilter("artVariants", v)}
           displayLabel={(v) => labels.artVariants[v] ?? v}
+          counts={filterCounts?.artVariants}
         />
       )}
       {availableFilters.finishes.length > 1 && (
@@ -192,13 +188,34 @@ export function FilterBadgeSections({
           selected={filterState.finishes}
           onToggle={(v) => toggleArrayFilter("finishes", v)}
           displayLabel={(v) => labels.finishes[v] ?? v}
+          counts={filterCounts?.finishes}
         />
       )}
-      {(availableFilters.hasSigned ||
+      {availableLanguages && availableLanguages.length > 1 && (
+        <FilterSection
+          label="Language"
+          options={availableLanguages}
+          selected={filterState.languages}
+          onToggle={(v) => toggleArrayFilter("languages", v)}
+          displayLabel={(code) => languageLabels[code] ?? code}
+          counts={filterCounts?.languages}
+        />
+      )}
+      {(!hiddenSections?.has("owned") ||
+        availableFilters.hasSigned ||
         availableFilters.hasAnyMarker ||
         availableFilters.hasBanned ||
         availableFilters.hasErrata) && (
-        <FilterSection label="Special">
+        <FilterSection label="More">
+          {!hiddenSections?.has("owned") && (
+            <Badge
+              variant={filterState.owned === null ? "outline" : "default"}
+              className="cursor-pointer"
+              onClick={() => toggleOwned(allowIncomplete)}
+            >
+              {ownedLabel}
+            </Badge>
+          )}
           {availableFilters.hasSigned && (
             <Badge
               variant={filterState.signed === null ? "outline" : "default"}
@@ -391,6 +408,8 @@ function FilterSection({
   iconPath,
   displayLabel,
   secondaryOptions,
+  counts,
+  wide,
   children,
 }: {
   label: string;
@@ -401,13 +420,16 @@ function FilterSection({
   iconPath?: (value: string) => string | undefined;
   displayLabel?: (value: string) => string;
   secondaryOptions?: ReadonlySet<string>;
+  counts?: Map<string, number>;
+  /** Span the full row in any multi-column parent grid. */
+  wide?: boolean;
 }) {
   if (!children && (!options || options.length === 0)) {
     return null;
   }
 
   return (
-    <div className="flex min-w-0 gap-2">
+    <div className={cn("flex min-w-0 gap-2", wide && "lg:col-span-2")}>
       <p className="text-muted-foreground w-18 text-xs font-medium">{label}</p>
       <div className="flex flex-1 flex-wrap gap-1">
         {children ??
@@ -415,15 +437,24 @@ function FilterSection({
             const icon = iconPath?.(option);
             const isSelected = selected?.includes(option);
             const isSecondary = secondaryOptions?.has(option);
+            const count = counts?.get(option);
+            const isZero = counts !== undefined && (count ?? 0) === 0;
             return (
               <Badge
                 key={option}
                 variant={isSelected ? "default" : "outline"}
-                className={cn("cursor-pointer", isSecondary && !isSelected && "opacity-65")}
+                className={cn(
+                  "cursor-pointer",
+                  isSecondary && !isSelected && "opacity-65",
+                  isZero && !isSelected && "opacity-40",
+                )}
                 onClick={() => onToggle?.(option)}
               >
                 {icon && <CardIcon src={icon} />}
                 {displayLabel ? displayLabel(option) : option}
+                {count !== undefined && (
+                  <span className="ml-1 tabular-nums opacity-60">{count}</span>
+                )}
               </Badge>
             );
           })}

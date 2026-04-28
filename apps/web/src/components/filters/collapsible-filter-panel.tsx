@@ -1,4 +1,4 @@
-import type { AvailableFilters } from "@openrift/shared";
+import type { AvailableFilters, FilterCounts } from "@openrift/shared";
 import { SlidersHorizontalIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ interface CollapsibleFilterPanelProps {
   setDisplayLabel?: (code: string) => string;
   hiddenSections?: ReadonlySet<string>;
   filterOverrides?: Partial<Record<string, string[]>>;
+  filterCounts?: FilterCounts;
 }
 
 /**
@@ -29,6 +30,7 @@ export function CollapsibleFilterPanel({
   setDisplayLabel,
   hiddenSections,
   filterOverrides,
+  filterCounts,
 }: CollapsibleFilterPanelProps) {
   const filtersExpanded = useDisplayStore((state) => state.filtersExpanded);
   const setFiltersExpanded = useDisplayStore((state) => state.setFiltersExpanded);
@@ -47,6 +49,7 @@ export function CollapsibleFilterPanel({
             setDisplayLabel={setDisplayLabel}
             hiddenSections={hiddenSections}
             filterOverrides={filterOverrides}
+            filterCounts={filterCounts}
           />
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 lg:grid-cols-4">

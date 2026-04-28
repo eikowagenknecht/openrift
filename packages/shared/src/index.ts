@@ -171,9 +171,16 @@ export {
   TIME_RANGE_DAYS,
 } from "./types/index.js";
 
-export type { AvailableFilters, ParsedSearchTerm } from "./filters.js";
-export { filterCards, getAvailableFilters, parseSearchTerms, sortCards } from "./filters.js";
+export type { AvailableFilters, FilterCounts, ParsedSearchTerm } from "./filters.js";
+export {
+  computeFilterCounts,
+  filterCards,
+  getAvailableFilters,
+  parseSearchTerms,
+  sortCards,
+} from "./filters.js";
 export type {
+  ComputeFilterCountsOptions,
   FilterCardsOptions,
   GetAvailableFiltersOptions,
   SortCardsOptions,

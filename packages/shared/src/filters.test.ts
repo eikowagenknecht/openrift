@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import {
+  computeFilterCounts,
   filterCards,
   getAvailableFilters as getAvailableFiltersRaw,
   parseSearchTerms,
@@ -2043,5 +2044,99 @@ describe("sortCards", () => {
 
   it("throws when sortBy is 'rarity' but no rarityOrder is supplied", () => {
     expect(() => sortCards([makePrinting()], "rarity")).toThrow(/rarityOrder/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeFilterCounts
+// ---------------------------------------------------------------------------
+
+describe("computeFilterCounts", () => {
+  const sample = [
+    makePrinting({
+      id: "p1",
+      cardId: "c1",
+      language: "EN",
+      rarity: "Common",
+      card: { slug: "c1", domains: ["Fury"] },
+    }),
+    makePrinting({
+      id: "p2",
+      cardId: "c1",
+      language: "DE",
+      rarity: "Common",
+      card: { slug: "c1", domains: ["Fury"] },
+    }),
+    makePrinting({
+      id: "p3",
+      cardId: "c2",
+      language: "EN",
+      rarity: "Rare",
+      card: { slug: "c2", domains: ["Calm"] },
+    }),
+    makePrinting({
+      id: "p4",
+      cardId: "c3",
+      language: "JA",
+      rarity: "Rare",
+      card: { slug: "c3", domains: ["Mind", "Body"] },
+    }),
+  ];
+
+  it("counts printings per option when no filters are active", () => {
+    const counts = computeFilterCounts(sample, emptyFilters(), { countBy: "printing" });
+    expect(counts.languages.get("EN")).toBe(2);
+    expect(counts.languages.get("DE")).toBe(1);
+    expect(counts.languages.get("JA")).toBe(1);
+    expect(counts.rarities.get("Common")).toBe(2);
+    expect(counts.rarities.get("Rare")).toBe(2);
+    expect(counts.domains.get("Fury")).toBe(2);
+    expect(counts.domains.get("Mind")).toBe(1);
+  });
+
+  it("excludes the dim's own filter so multi-select still widens", () => {
+    // With language=EN selected, the language counts must still show DE/JA's
+    // potential matches — otherwise the user couldn't multi-select.
+    const counts = computeFilterCounts(sample, emptyFilters({ languages: ["EN"] }), {
+      countBy: "printing",
+    });
+    expect(counts.languages.get("EN")).toBe(2);
+    expect(counts.languages.get("DE")).toBe(1);
+    expect(counts.languages.get("JA")).toBe(1);
+  });
+
+  it("narrows other dims based on the active filter", () => {
+    // With language=EN, rarity counts reflect only EN printings: c1 (Common) + c2 (Rare).
+    const counts = computeFilterCounts(sample, emptyFilters({ languages: ["EN"] }), {
+      countBy: "printing",
+    });
+    expect(counts.rarities.get("Common")).toBe(1);
+    expect(counts.rarities.get("Rare")).toBe(1);
+  });
+
+  it("returns 0 (missing) for options with no matches under current filters", () => {
+    const counts = computeFilterCounts(sample, emptyFilters({ languages: ["DE"] }), {
+      countBy: "printing",
+    });
+    // Only c1's DE printing matches; rarity Rare and domains Calm/Mind/Body have 0 matches.
+    expect(counts.rarities.get("Common")).toBe(1);
+    expect(counts.rarities.get("Rare") ?? 0).toBe(0);
+    expect(counts.domains.get("Fury")).toBe(1);
+    expect(counts.domains.get("Calm") ?? 0).toBe(0);
+  });
+
+  it("counts unique cards (not printings) when countBy='card'", () => {
+    // EN+DE printings of c1 should count once toward c1's domain "Fury".
+    const counts = computeFilterCounts(sample, emptyFilters(), { countBy: "card" });
+    expect(counts.domains.get("Fury")).toBe(1);
+    expect(counts.rarities.get("Common")).toBe(1);
+    expect(counts.rarities.get("Rare")).toBe(2);
+  });
+
+  it("counts each domain of a multi-domain card", () => {
+    // c3 has domains ["Mind", "Body"] — both should be counted.
+    const counts = computeFilterCounts(sample, emptyFilters(), { countBy: "card" });
+    expect(counts.domains.get("Mind")).toBe(1);
+    expect(counts.domains.get("Body")).toBe(1);
   });
 });

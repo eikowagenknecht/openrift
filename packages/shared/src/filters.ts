@@ -471,6 +471,96 @@ export function getAvailableFilters(
   };
 }
 
+export interface FilterCounts {
+  sets: Map<string, number>;
+  languages: Map<string, number>;
+  domains: Map<string, number>;
+  types: Map<string, number>;
+  superTypes: Map<string, number>;
+  rarities: Map<string, number>;
+  artVariants: Map<string, number>;
+  finishes: Map<string, number>;
+}
+
+export interface ComputeFilterCountsOptions extends FilterCardsOptions {
+  /**
+   * Whether each tally counts one per printing (e.g. "Common (200)" = 200
+   * Common-rarity printings) or one per unique card (200 distinct cardIds).
+   * Should mirror the active view so the badge counts match the grid total.
+   */
+  countBy: "printing" | "card";
+}
+
+interface CountableDimension {
+  key: keyof FilterCounts;
+  filterField: keyof CardFilters;
+  values: (printing: Printing) => readonly string[];
+}
+
+const COUNTABLE_DIMENSIONS: readonly CountableDimension[] = [
+  { key: "sets", filterField: "sets", values: (p) => [p.setSlug] },
+  { key: "languages", filterField: "languages", values: (p) => [p.language] },
+  { key: "domains", filterField: "domains", values: (p) => p.card.domains },
+  { key: "types", filterField: "types", values: (p) => [p.card.type] },
+  { key: "superTypes", filterField: "superTypes", values: (p) => p.card.superTypes },
+  { key: "rarities", filterField: "rarities", values: (p) => [p.rarity] },
+  { key: "artVariants", filterField: "artVariants", values: (p) => [p.artVariant || "normal"] },
+  { key: "finishes", filterField: "finishes", values: (p) => [p.finish] },
+];
+
+/**
+ * For each filterable dimension, returns a `value -> count` map showing how
+ * many printings (or distinct cards) would match if that one option were
+ * selected — combined with every *other* active filter. The dimension being
+ * counted ignores its own current selection so multi-select still widens
+ * results (e.g. picking `language=EN` doesn't make every other language drop
+ * to zero).
+ *
+ * Use the result to render faceted dropdowns: append `(n)` to each option
+ * label, and dim or disable options where `n === 0`.
+ *
+ * @returns A `FilterCounts` object with one count map per dimension.
+ *
+ * @example
+ * ```ts
+ * const counts = computeFilterCounts(allPrintings, filters, { countBy: "printing" });
+ * counts.rarities.get("Common"); // => 42
+ * ```
+ */
+export function computeFilterCounts(
+  printings: Printing[],
+  filters: CardFilters,
+  options: ComputeFilterCountsOptions,
+): FilterCounts {
+  const result = {} as FilterCounts;
+  for (const dim of COUNTABLE_DIMENSIONS) {
+    const filtersWithoutDim = { ...filters, [dim.filterField]: [] };
+    const matched = filterCards(printings, filtersWithoutDim, options);
+    const counts = new Map<string, number>();
+    if (options.countBy === "card") {
+      const seen = new Set<string>();
+      for (const printing of matched) {
+        for (const value of dim.values(printing)) {
+          const seenKey = `${printing.cardId}|${value}`;
+          if (seen.has(seenKey)) {
+            continue;
+          }
+          seen.add(seenKey);
+          counts.set(value, (counts.get(value) ?? 0) + 1);
+        }
+      }
+    } else {
+      for (const printing of matched) {
+        for (const value of dim.values(printing)) {
+          counts.set(value, (counts.get(value) ?? 0) + 1);
+        }
+      }
+    }
+    result[dim.key] = counts;
+  }
+  return result;
+}
+
 export interface SortCardsOptions {
   sortDir?: SortDirection;
   /**
