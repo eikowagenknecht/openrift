@@ -440,10 +440,12 @@ export const CardThumbnail = memo(function CardThumbnail({
         // Coarse-pointer devices never trigger the hover fan-out, so the
         // sibling images sit hidden behind the front card forever. Skip
         // the download and let the bg-muted/border decorative stack stand in.
-        const siblingUrl =
-          fancyFan && showImages && !IS_COARSE_POINTER && siblingImageId
-            ? imageUrl(siblingImageId, "120w")
-            : null;
+        const showSibling = fancyFan && showImages && !IS_COARSE_POINTER && siblingImageId !== null;
+        const siblingSrc = showSibling ? imageUrl(siblingImageId, "400w") : null;
+        const siblingSrcSet = showSibling
+          ? `${imageUrl(siblingImageId, "120w")} 120w, ${imageUrl(siblingImageId, "240w")} 240w, ${imageUrl(siblingImageId, "400w")} 400w, ${imageUrl(siblingImageId, "full")} 800w`
+          : undefined;
+        const siblingSizes = cardWidth ? `${Math.round(cardWidth - 12)}px` : undefined;
         return (
           // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- decorative layer inside a parent <button>; keyboard nav handled by parent
           <div
@@ -464,16 +466,30 @@ export const CardThumbnail = memo(function CardThumbnail({
               (onSiblingClick ?? onClick)(sibling);
             }}
           >
-            {siblingUrl &&
+            {siblingSrc &&
               (rotated ? (
                 <div
                   className="absolute top-1/2 left-1/2 overflow-hidden"
                   style={LANDSCAPE_ROTATION_STYLE}
                 >
-                  <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
+                  <img
+                    src={siblingSrc}
+                    srcSet={siblingSrcSet}
+                    sizes={siblingSizes}
+                    alt=""
+                    loading="lazy"
+                    className="size-full object-cover"
+                  />
                 </div>
               ) : (
-                <img src={siblingUrl} alt="" loading="lazy" className="size-full object-cover" />
+                <img
+                  src={siblingSrc}
+                  srcSet={siblingSrcSet}
+                  sizes={siblingSizes}
+                  alt=""
+                  loading="lazy"
+                  className="size-full object-cover"
+                />
               ))}
             {sibling.finish === WellKnown.finish.FOIL && gridFoil && <FoilOverlay active dim />}
             <FinishIcon
