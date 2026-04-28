@@ -66,9 +66,14 @@ export function LandingPage() {
           data-card-blocker=""
           className="flex flex-col items-center gap-3 rounded-2xl px-8 py-10"
         >
-          <button type="button" className="cursor-pointer" onClick={handleLogoTap}>
+          <button
+            type="button"
+            aria-label="OpenRift"
+            className="cursor-pointer"
+            onClick={handleLogoTap}
+          >
             <img
-              src="/logo.webp"
+              src="/logo-144x144.webp"
               alt=""
               fetchPriority="high"
               className={cn("size-36", spinning && "animate-logo-spin")}
