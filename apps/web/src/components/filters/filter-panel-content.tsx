@@ -320,9 +320,12 @@ export function FilterRangeSections({
             : undefined;
         const hasNone =
           facetedHasNone ?? (hasNullKey ? (availableFilters[hasNullKey] as boolean) : false);
-        const show =
-          key === "price" ? available.max > 0 : hasNone || available.min !== available.max;
-        if (!show) {
+        // Stat sliders always render — when the faceted range collapses
+        // (e.g. an extreme price filter narrows results to a single card),
+        // the slider is rendered disabled so the filter row keeps its
+        // layout instead of vanishing. Price hides only when no priced
+        // cards exist in the catalog at all.
+        if (key === "price" && available.max === 0) {
           return null;
         }
         return (
@@ -380,6 +383,13 @@ function RangeFilterSection({
   const sMin = logarithmic ? 0 : sliderMin;
   const sMax = logarithmic ? LOG_STEPS : availableMax;
   const sStep = logarithmic ? 1 : step;
+  // When the faceted range collapses to a single value, the slider math (Base
+  // UI computes thumb position as (value - min) / (max - min)) divides by zero.
+  // Render a disabled slider with a synthetic 1-unit range so the row stays in
+  // layout but is non-interactive.
+  const isDegenerate = sMax <= sMin;
+  const renderSliderMin = sMin;
+  const renderSliderMax = isDegenerate ? sMin + 1 : sMax;
   const toSlider = logarithmic
     ? (value: number) => valueToSliderPos(value, availableMin, availableMax)
     : (value: number) => value;
@@ -391,7 +401,9 @@ function RangeFilterSection({
   const urlMax = toSlider(resolvedMax);
   // Local state mirrors the live thumb position; URL writes are debounced. Without this, keyboard auto-repeat fires onValueCommitted per keystroke (~30/sec), which both thrashes the catalog filter pipeline and trips the browser's history.replaceState rate limit (~200/30s in Firefox), wedging the route into the pending skeleton.
   const [dragValue, setDragValue] = useState<[number, number] | null>(null);
-  const displayValue: [number, number] = dragValue ?? [urlMin, urlMax];
+  const displayValue: [number, number] = isDegenerate
+    ? [renderSliderMin, renderSliderMax]
+    : (dragValue ?? [urlMin, urlMax]);
   const displayMin = dragValue ? fromSlider(dragValue[0]) : resolvedMin;
   const displayMax = dragValue ? fromSlider(dragValue[1]) : resolvedMax;
 
@@ -460,10 +472,11 @@ function RangeFilterSection({
         </span>
         {/* Slider */}
         <Slider
-          min={sMin}
-          max={sMax}
+          min={renderSliderMin}
+          max={renderSliderMax}
           step={sStep}
           value={displayValue}
+          disabled={isDegenerate}
           aria-label={`${label} range`}
           onValueChange={(values) => {
             const arr = Array.isArray(values) ? values : [values];
