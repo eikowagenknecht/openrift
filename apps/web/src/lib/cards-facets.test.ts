@@ -200,7 +200,7 @@ describe("extractSetLabels", () => {
 describe("extractCardCounts", () => {
   const emptySearch: FilterSearch = {};
 
-  it("returns total + filtered counts in printings view by default", () => {
+  it("counts unique card ids in cards view (default)", () => {
     const cards = { "card-1": makeCard(), "card-2": makeCard() };
     const printings = {
       "p-1": makePrinting({ cardId: "card-1", shortCode: "OGN-001" }),
@@ -209,19 +209,21 @@ describe("extractCardCounts", () => {
     };
     const counts = extractCardCounts(makeCatalog(cards, printings), NO_PRICES, emptySearch);
 
-    expect(counts).toEqual({ totalCards: 3, filteredCount: 3 });
+    expect(counts).toEqual({ totalCards: 2, filteredCount: 2 });
   });
 
-  it("counts unique card ids when view=cards", () => {
+  it("counts every printing when view=printings", () => {
     const cards = { "card-1": makeCard(), "card-2": makeCard() };
     const printings = {
       "p-1": makePrinting({ cardId: "card-1", shortCode: "OGN-001" }),
       "p-2": makePrinting({ cardId: "card-1", shortCode: "OGN-002" }),
       "p-3": makePrinting({ cardId: "card-2", shortCode: "OGN-003" }),
     };
-    const counts = extractCardCounts(makeCatalog(cards, printings), NO_PRICES, { view: "cards" });
+    const counts = extractCardCounts(makeCatalog(cards, printings), NO_PRICES, {
+      view: "printings",
+    });
 
-    expect(counts).toEqual({ totalCards: 2, filteredCount: 2 });
+    expect(counts).toEqual({ totalCards: 3, filteredCount: 3 });
   });
 
   it("filteredCount drops when URL filters narrow the catalog", () => {

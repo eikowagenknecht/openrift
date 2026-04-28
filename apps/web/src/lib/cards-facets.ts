@@ -38,7 +38,7 @@ const SSR_MARKETPLACE: Marketplace = "cardtrader";
 // Default `view` mode when the URL doesn't carry one. Matches PREFERENCE_DEFAULTS
 // from shared/types/api/preferences.ts. Used to decide whether `totalCards`
 // counts unique card ids (cards view) or printings (printings view).
-const SSR_DEFAULT_VIEW = "printings";
+const SSR_DEFAULT_VIEW = "cards";
 
 function readPricesFromServerCache(): Promise<PricesResponse> {
   return serverCache.fetchQuery({
@@ -124,7 +124,7 @@ export function extractSetLabels(catalog: CatalogResponse): Record<string, strin
  *
  * @returns A `CardFilters` object suitable for passing to shared `filterCards`.
  */
-function searchToFilters(search: FilterSearch) {
+export function searchToFilters(search: FilterSearch) {
   return {
     search: search.search ?? "",
     searchScope: [...DEFAULT_SEARCH_SCOPE],

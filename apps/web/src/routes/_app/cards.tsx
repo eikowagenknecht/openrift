@@ -99,7 +99,7 @@ export const Route = createFileRoute("/_app/cards")({
     }
     await context.queryClient.ensureQueryData(initQueryOptions);
     const [firstRow, facetsPayload, counts, filterCounts] = await Promise.all([
-      fetchFirstRowCards(),
+      fetchFirstRowCards({ data: deps.search }),
       fetchCardFacets(),
       fetchCardCounts({ data: deps.search }),
       fetchCardFilterCounts({ data: deps.search }),

@@ -1,7 +1,10 @@
-import type { CatalogResponse } from "@openrift/shared";
+import type { CatalogResponse, GroupByField, Printing, SortOption } from "@openrift/shared";
+import { filterCards, sortByLanguageAndCanonicalRank, sortCards } from "@openrift/shared";
 import { createServerFn } from "@tanstack/react-start";
 
-import { readCatalogFromServerCache } from "@/lib/catalog-query";
+import { searchToFilters } from "@/lib/cards-facets";
+import { enrichCatalog, readCatalogFromServerCache } from "@/lib/catalog-query";
+import type { FilterSearch } from "@/lib/search-schemas";
 
 export interface FirstRowCard {
   printingId: string;
@@ -14,83 +17,120 @@ export interface FirstRowCard {
 // breakpoints render the same 16 cells but trim overflow with per-breakpoint
 // visibility classes in <FirstRowPreview> so each viewport shows complete rows.
 const FIRST_ROW_LIMIT = 16;
-const PREFERRED_LANGUAGE = "EN";
+
+// SSR can't read the user's `defaultCardView` / `languages` preferences (those
+// live in localStorage). Assume the new defaults from PREFERENCE_DEFAULTS so
+// the dominant cold-nav case matches the hydrated grid; users who flipped
+// their preference see a brief mismatch on first paint.
+const SSR_USER_LANGUAGES: readonly string[] = ["EN"];
+const SSR_DEFAULT_VIEW: "cards" | "printings" = "cards";
+const SSR_DEFAULT_GROUP_BY: GroupByField = "set";
+const SSR_DEFAULT_SORT: SortOption = "id";
+
+function dedupByCardSet(printings: Printing[]): Printing[] {
+  const seen = new Set<string>();
+  const result: Printing[] = [];
+  for (const printing of printings) {
+    const key = `${printing.cardId}|${printing.setId}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(printing);
+    }
+  }
+  return result;
+}
+
+function dedupByCard(printings: Printing[]): Printing[] {
+  const seen = new Set<string>();
+  const result: Printing[] = [];
+  for (const printing of printings) {
+    if (!seen.has(printing.cardId)) {
+      seen.add(printing.cardId);
+      result.push(printing);
+    }
+  }
+  return result;
+}
 
 /**
  * Slim, SSR-only view of the first N catalog printings in the same order the
- * live `<CardBrowser>` renders for a default user (no URL filters,
- * `groupBy="set"`, `sortBy="id"` ascending, language preference EN).
+ * live <CardBrowser> renders. Mirrors useCards → useCardData → card-grid so
+ * the SSR shell shows the same tiles the hydrated grid will:
  *
- * - Only EN printings are kept — `PREFERENCE_DEFAULTS.languages` is `["EN"]`,
- *   so a fresh user's grid filters out every non-EN printing. Including them
- *   here would make the SSR preview render cards that disappear on hydration.
- * - Sets are iterated in `catalog.sets` order (the API's `set.sort_order`).
- * - Within each set, printings sort by `shortCode` (locale-aware ascending).
- * - Same-`shortCode` ties resolve by `canonicalRank` — matching the stable
- *   secondary order `useCards` produces for equal-shortCode rows.
+ *  1. Order printings by (langRank, canonicalRank), default langs `["EN"]`.
+ *  2. Apply URL filters (search, sets, languages, etc.) via shared filterCards.
+ *  3. In cards view, dedup per (cardId, setId) when groupBy="set" (default), or
+ *     per cardId otherwise. Earliest in the (lang, canonicalRank) order wins.
+ *  4. Sort by `sortBy` (default "id" → shortCode asc).
+ *  5. When groupBy="set", reorder by set.sortOrder, preserving the within-set
+ *     order from step 4 (stable sort).
+ *  6. Slice to `limit` and project to the slim wire shape.
  *
  * Battlefields are kept (the live grid shows them too); they render with the
- * portrait aspect of the surrounding cells in this preview, then get
- * CSS-rotated into landscape after hydration. The image URL is the same in
- * both states, so the preload still primes the eventual LCP element.
- * @param catalog The catalog response held in `serverCache`.
- * @param limit Maximum number of cards to return.
+ * portrait aspect of the surrounding cells in this preview, then get CSS-
+ * rotated into landscape after hydration. The image URL is the same in both
+ * states, so the preload still primes the eventual LCP element.
+ *
  * @returns Up to `limit` slim card entries in live-grid render order.
  */
-export function extractFirstRow(catalog: CatalogResponse, limit: number): FirstRowCard[] {
-  const setIndex = new Map(catalog.sets.map((set, index) => [set.id, index]));
-  const setSlugById = new Map(catalog.sets.map((set) => [set.id, set.slug]));
-  const fallbackSetIndex = catalog.sets.length;
+export function extractFirstRow(
+  catalog: CatalogResponse,
+  search: FilterSearch,
+  limit: number,
+): FirstRowCard[] {
+  const view = search.view === "printings" ? "printings" : SSR_DEFAULT_VIEW;
+  const groupBy = (search.groupBy ?? SSR_DEFAULT_GROUP_BY) as GroupByField;
+  const requestedSort = (search.sort ?? SSR_DEFAULT_SORT) as SortOption;
+  // sortCards needs rarityOrder for "rarity" and a price lookup for "price";
+  // the SSR pipeline has neither, so fall back to "id" (shortCode) for those.
+  const sortBy: SortOption =
+    requestedSort === "rarity" || requestedSort === "price" ? "id" : requestedSort;
+  const sortDir: "asc" | "desc" = search.sortDir === "desc" ? "desc" : "asc";
 
-  const printings = Object.entries(catalog.printings)
-    .filter(([, printing]) => printing.language === PREFERRED_LANGUAGE)
-    .map(([id, printing]) => ({
-      id,
-      printing,
-      setIndex: setIndex.get(printing.setId) ?? fallbackSetIndex,
-    }));
+  const { allPrintings, sets } = enrichCatalog(catalog);
+  const ordered = sortByLanguageAndCanonicalRank(allPrintings, SSR_USER_LANGUAGES);
+  const filters = searchToFilters(search);
+  const filtered = filterCards(ordered, filters);
 
-  printings.sort((a, b) => {
-    if (a.setIndex !== b.setIndex) {
-      return a.setIndex - b.setIndex;
-    }
-    const shortCodeCompare = a.printing.shortCode.localeCompare(b.printing.shortCode);
-    if (shortCodeCompare !== 0) {
-      return shortCodeCompare;
-    }
-    return a.printing.canonicalRank - b.printing.canonicalRank;
-  });
+  let displayCards = filtered;
+  if (view === "cards") {
+    displayCards = groupBy === "set" ? dedupByCardSet(filtered) : dedupByCard(filtered);
+  }
+
+  let sortedCards = sortCards(displayCards, sortBy, { sortDir });
+
+  if (groupBy === "set") {
+    const setSortIndex = new Map(sets.map((set, index) => [set.id, index]));
+    const fallbackSetIndex = sets.length;
+    sortedCards = sortedCards.toSorted((a, b) => {
+      const aIdx = setSortIndex.get(a.setId) ?? fallbackSetIndex;
+      const bIdx = setSortIndex.get(b.setId) ?? fallbackSetIndex;
+      return aIdx - bIdx;
+    });
+  }
 
   const result: FirstRowCard[] = [];
-  for (const { id, printing } of printings) {
+  for (const printing of sortedCards) {
     if (result.length >= limit) {
       break;
-    }
-    const card = catalog.cards[printing.cardId];
-    if (!card) {
-      continue;
     }
     const front = printing.images.find((img) => img.face === "front") ?? printing.images[0];
     if (!front) {
       continue;
     }
-    const setSlug = setSlugById.get(printing.setId);
-    if (!setSlug) {
-      continue;
-    }
     result.push({
-      printingId: id,
-      cardName: card.name,
-      setSlug,
+      printingId: printing.id,
+      cardName: printing.card.name,
+      setSlug: printing.setSlug,
       imageId: front.imageId,
     });
   }
   return result;
 }
 
-export const fetchFirstRowCards = createServerFn({ method: "GET" }).handler(
-  async (): Promise<FirstRowCard[]> => {
+export const fetchFirstRowCards = createServerFn({ method: "GET" })
+  .inputValidator((input: FilterSearch) => input)
+  .handler(async ({ data }): Promise<FirstRowCard[]> => {
     const catalog = await readCatalogFromServerCache();
-    return extractFirstRow(catalog, FIRST_ROW_LIMIT);
-  },
-);
+    return extractFirstRow(catalog, data, FIRST_ROW_LIMIT);
+  });
