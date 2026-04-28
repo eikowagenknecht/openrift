@@ -125,7 +125,7 @@ For reference, this is what the production architecture would look like with Tan
 - Good, because deployment simplifies from 3 containers (web + api + db) to 2 (app + db).
 - Bad, because TanStack Start is at 1.x but effectively RC quality — the API surface is still shifting (Nitro v2 → v3, upcoming "Vite-native" mode).
 - Bad, because the refactor touches nearly every frontend layer: nuqs → TanStack Router search params, React Query → route loaders, Hono → server functions, Vite SPA → Nitro SSR, PWA service worker rethinking.
-- Bad, because SSR requires ~200–400 MB resident memory vs ~50–100 MB for nginx + Hono on a Hetzner CX22 (4 GB RAM).
+- Bad, because SSR requires ~200–400 MB resident memory vs ~50–100 MB for nginx + Hono on a Hetzner CX23 (4 GB RAM).
 - Bad, because server functions are not callable from external clients — a future mobile app would need the API extracted back out or kept alongside.
 
 ### Keep SPA, add SSR via a lightweight layer

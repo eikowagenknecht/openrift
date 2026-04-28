@@ -140,7 +140,7 @@ export function SupportPage() {
           <p>
             This site has no ads, no trackers, and no venture capital guys asking about our
             &ldquo;growth metrics.&rdquo; Just me, a database, and an alarming hosting bill. (Just
-            kidding, this is running on a Hetzner CX22 found in a Falkenstein scrapyard. But
+            kidding, this is running on a Hetzner CX23 found in a Falkenstein scrapyard. But
             upgrading it would be nice.)
           </p>
           <p>
