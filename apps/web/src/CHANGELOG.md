@@ -3,6 +3,7 @@
 ## 2026-04-28
 
 - fix: The cards page filter sidebar and toolbar now appear immediately on a fresh visit, so the cards no longer shift sideways once the filters load in
+- fix: Tapping "Browse cards" from the homepage now opens the cards page almost instantly, because the catalog quietly preloads in the background while you're on the homepage
 
 ## 2026-04-27
 

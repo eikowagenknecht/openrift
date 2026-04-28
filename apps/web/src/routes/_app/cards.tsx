@@ -1,17 +1,21 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
+import { CardBrowserLayout } from "@/components/card-browser-layout";
 import { RouteErrorFallback } from "@/components/error-message";
+import { Pane } from "@/components/layout/panes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initQueryOptions } from "@/hooks/use-init";
+import { pricesQueryOptions } from "@/hooks/use-prices";
 import type { AvailableFiltersWire, CardCounts } from "@/lib/cards-facets";
 import { fetchCardCounts, fetchCardFacets } from "@/lib/cards-facets";
 import type { FirstRowCard } from "@/lib/cards-first-row";
 import { fetchFirstRowCards } from "@/lib/cards-first-row";
+import { catalogQueryOptions } from "@/lib/catalog-query";
 import { filterSearchSchema } from "@/lib/search-schemas";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
-import { PAGE_PADDING } from "@/lib/utils";
+import { PAGE_PADDING_NO_TOP } from "@/lib/utils";
 
 const cardsSearchSchema = filterSearchSchema.extend({
   // oxlint-disable-next-line unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch
@@ -49,8 +53,11 @@ export const Route = createFileRoute("/_app/cards")({
   //  - `totalCards` / `filteredCount`: SearchBar's "X of Y" without flashing.
   // The init query is also primed into the per-request QueryClient so chrome
   // components calling `useSuspenseQuery(initQueryOptions)` resolve sync.
-  // On client-side navigation we skip the server fns — the live catalog
-  // query is already warming, so the SSR shell would never paint.
+  // On client-side navigation we don't need the SSR shell payload (the live
+  // CardBrowser will render directly), but we DO want the catalog warmed —
+  // so a route preload (`router.preloadRoute({ to: "/cards" })`) on idle from
+  // the homepage primes the client QueryClient and the eventual click renders
+  // the full grid with no Suspense fallback.
   // Forward URL search params into the loader so `fetchCardCounts` can compute
   // the filtered count over the catalog. Excludes `printingId` because it
   // doesn't affect counts and would invalidate the loader on every selection.
@@ -66,6 +73,16 @@ export const Route = createFileRoute("/_app/cards")({
     counts: CardCounts;
   }> => {
     if (globalThis.window !== undefined) {
+      // Warm every suspense query CardBrowser triggers (catalog, prices, init)
+      // into the client QueryClient so the route renders the live grid in one
+      // shot. With idle preload from the homepage this completes before the
+      // user clicks /cards; on cold click the loader blocks here and
+      // `CardsPending` shows for the duration.
+      await Promise.all([
+        context.queryClient.ensureQueryData(catalogQueryOptions),
+        context.queryClient.ensureQueryData(pricesQueryOptions),
+        context.queryClient.ensureQueryData(initQueryOptions),
+      ]);
       return {
         firstRow: [],
         facets: null,
@@ -100,18 +117,35 @@ export const Route = createFileRoute("/_app/cards")({
   errorComponent: RouteErrorFallback,
 });
 
-// Skeleton UI for the cards page while loading
+// Skeleton UI for the cards page while the lazy chunk loads. Renders through
+// the same `CardBrowserLayout` shell the SSR preview and hydrated CardBrowser
+// use, so the pending → SSR → hydrated transition stays dimensionally
+// consistent (no jump in toolbar height, left-pane width, or grid position).
 function CardsPending() {
   return (
-    <div className={`${PAGE_PADDING} space-y-4`}>
-      <Skeleton className="h-10 w-full rounded-lg" />
-      <div className="min-w-0 flex-1">
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
-          {Array.from({ length: 20 }, (_, i) => (
-            <Skeleton key={i} className="aspect-card rounded-lg" />
-          ))}
-        </div>
-      </div>
+    <div className={`flex flex-1 flex-col ${PAGE_PADDING_NO_TOP}`}>
+      <CardBrowserLayout
+        toolbar={
+          <div className="bg-input mb-1.5 h-9 w-full rounded-md sm:mb-3" aria-hidden="true" />
+        }
+        leftPane={
+          <Pane className="@wide:block px-3">
+            <Skeleton className="mb-4 h-7 w-24 rounded" />
+            <div className="space-y-3 pb-4">
+              {Array.from({ length: 8 }, (_, i) => (
+                <Skeleton key={i} className="h-9 w-full rounded" />
+              ))}
+            </div>
+          </Pane>
+        }
+        gridSlot={
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+            {Array.from({ length: 20 }, (_, i) => (
+              <Skeleton key={i} className="aspect-card rounded-lg" />
+            ))}
+          </div>
+        }
+      />
     </div>
   );
 }

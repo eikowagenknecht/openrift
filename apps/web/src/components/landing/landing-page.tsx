@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { Link, useRouter } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { useCountUp } from "@/hooks/use-count-up";
@@ -13,11 +13,27 @@ import { FeatureHighlights } from "./feature-highlights";
 import { HeroBackground } from "./hero-background";
 
 export function LandingPage() {
+  const router = useRouter();
   const { data } = useQuery(landingSummaryQueryOptions);
   const copiesTracked = useFeatureEnabled("copies-tracked");
   const [spinning, setSpinning] = useState(false);
   const [resetKey, setResetKey] = useState(0);
   const [hinting, setHinting] = useState(false);
+
+  // Idle-time preload of /cards: fetches the lazy chunk, runs the loader, and
+  // (via the loader's catalog query) warms the catalog into the client
+  // QueryClient. By the time a user taps "Browse cards" the route can render
+  // the live grid instantly — no chunk fetch, no SSR shell, no Suspense
+  // fallback. Mobile-friendly: doesn't depend on hover/touchstart intent.
+  useEffect(() => {
+    if (typeof requestIdleCallback === "undefined") {
+      return;
+    }
+    const handle = requestIdleCallback(() => {
+      void router.preloadRoute({ to: "/cards" });
+    });
+    return () => cancelIdleCallback(handle);
+  }, [router]);
 
   const animatedCards = useCountUp(data?.cardCount ?? 0);
   const animatedPrintings = useCountUp(data?.printingCount ?? 0);

@@ -29,7 +29,7 @@ async function fetchPricesFromEdge(): Promise<PricesResponse> {
   return res.json() as Promise<PricesResponse>;
 }
 
-const pricesQueryOptions = queryOptions({
+export const pricesQueryOptions = queryOptions({
   queryKey: queryKeys.prices.all,
   queryFn: () => (globalThis.window === undefined ? fetchPrices() : fetchPricesFromEdge()),
   // Prices refresh once per day, so a long staleTime is fine. The server cache
