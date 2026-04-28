@@ -35,7 +35,7 @@ INSERT INTO super_types (slug, label, sort_order, is_well_known) VALUES
   ('Basic', 'Basic', 0, FALSE),
   ('Champion', 'Champion', 1, TRUE),
   ('Signature', 'Signature', 2, TRUE),
-  ('Token', 'Token', 3, FALSE)
+  ('Token', 'Token', 3, TRUE)
   ON CONFLICT (slug) DO UPDATE SET label = EXCLUDED.label, sort_order = EXCLUDED.sort_order, is_well_known = EXCLUDED.is_well_known;
 
 INSERT INTO finishes (slug, label, sort_order, is_well_known) VALUES
