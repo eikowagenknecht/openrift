@@ -3,84 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { piltoverCodec } from "./piltover.js";
 import type { DeckCodecCard } from "./types.js";
 
-// Mock the Piltover library so we can control encode/decode without real binary codes.
+// Mock the Piltover library so we can control encoding without real binary codes.
 vi.mock("@piltoverarchive/riftbound-deck-codes", () => ({
   getCodeFromDeck: vi.fn(() => "MOCK_CODE"),
-  getDeckFromCode: vi.fn(),
 }));
 
 // oxlint-disable-next-line eslint-plugin-import(first) -- must import after vi.mock
-import { getCodeFromDeck, getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
+import { getCodeFromDeck } from "@piltoverarchive/riftbound-deck-codes";
 const mockGetCodeFromDeck = vi.mocked(getCodeFromDeck);
-const mockGetDeckFromCode = vi.mocked(getDeckFromCode);
-
-// ---------------------------------------------------------------------------
-// decode
-// ---------------------------------------------------------------------------
-
-describe("piltoverCodec.decode", () => {
-  it("does not double-count the chosen champion", () => {
-    mockGetDeckFromCode.mockReturnValue({
-      mainDeck: [
-        { cardCode: "OGN-007", count: 3 },
-        { cardCode: "OGN-001", count: 3 },
-      ],
-      sideboard: [],
-      chosenChampion: "OGN-007",
-    });
-
-    const result = piltoverCodec.decode("FAKECODE");
-
-    const championMain = result.cards.find(
-      (card) => card.cardCode === "OGN-007" && card.sourceSlot === "mainDeck",
-    );
-    const championEntry = result.cards.find(
-      (card) => card.cardCode === "OGN-007" && card.sourceSlot === "chosenChampion",
-    );
-    expect(championMain?.count).toBe(2);
-    expect(championEntry?.count).toBe(1);
-  });
-
-  it("omits mainDeck entry when champion has only 1 copy", () => {
-    mockGetDeckFromCode.mockReturnValue({
-      mainDeck: [{ cardCode: "OGN-007", count: 1 }],
-      sideboard: [],
-      chosenChampion: "OGN-007",
-    });
-
-    const result = piltoverCodec.decode("FAKECODE");
-
-    const mainEntries = result.cards.filter((card) => card.sourceSlot === "mainDeck");
-    const championEntries = result.cards.filter((card) => card.sourceSlot === "chosenChampion");
-    expect(mainEntries).toHaveLength(0);
-    expect(championEntries).toHaveLength(1);
-    expect(championEntries[0]?.count).toBe(1);
-  });
-
-  it("only subtracts 1 even when library returns multiple entries for the champion", () => {
-    mockGetDeckFromCode.mockReturnValue({
-      mainDeck: [
-        { cardCode: "OGN-007", count: 2 },
-        { cardCode: "OGN-007", count: 1 },
-      ],
-      sideboard: [],
-      chosenChampion: "OGN-007",
-    });
-
-    const result = piltoverCodec.decode("FAKECODE");
-
-    const mainEntries = result.cards.filter(
-      (card) => card.cardCode === "OGN-007" && card.sourceSlot === "mainDeck",
-    );
-    const totalMain = mainEntries.reduce((sum, card) => sum + card.count, 0);
-    // (2-1) + 1 = 2 in main, not (2-1) + (1-1) = 1
-    expect(totalMain).toBe(2);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// encode
-// ---------------------------------------------------------------------------
 
 describe("piltoverCodec.encode", () => {
   beforeEach(() => {

@@ -56,8 +56,6 @@ export type {
   DeckCloneResponse,
   DeckDetailResponse,
   DeckExportResponse,
-  DeckImportCardPreview,
-  DeckImportPreviewResponse,
   DeckFormat,
   DeckListItemResponse,
   DeckListResponse,

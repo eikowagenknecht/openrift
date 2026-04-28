@@ -143,11 +143,6 @@ export const deckExportQuerySchema = z.object({
   format: z.enum(["piltover", "text", "tts"]).default("piltover"),
 });
 
-export const deckImportPreviewSchema = z.object({
-  code: z.string().min(1).max(10_000),
-  format: z.enum(["piltover", "text", "tts"]).default("piltover"),
-});
-
 // ---------------------------------------------------------------------------
 // Wish list schemas
 // ---------------------------------------------------------------------------

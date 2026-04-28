@@ -20,21 +20,7 @@ export interface EncodeResult {
   warnings: string[];
 }
 
-/** A raw card entry decoded from an external format, before DB resolution. */
-export interface DecodedCardEntry {
-  cardCode: string;
-  count: number;
-  sourceSlot: "mainDeck" | "sideboard" | "chosenChampion";
-}
-
-/** Result of decoding a code string into raw card entries. */
-export interface DecodeResult {
-  cards: DecodedCardEntry[];
-  /** Issues encountered during decoding (e.g. malformed entries). */
-  warnings: string[];
-}
-
-/** A deck codec can encode and decode deck codes in a specific format. */
+/** A deck codec can encode deck cards into a specific format. */
 export interface DeckCodec {
   readonly formatId: string;
 
@@ -43,10 +29,4 @@ export interface DeckCodec {
    * Cards in the overflow zone are expected to already be filtered out.
    */
   encode(cards: DeckCodecCard[]): EncodeResult;
-
-  /**
-   * Decodes a code string into raw card entries.
-   * Card resolution (short code → UUID) and zone inference are done by the caller.
-   */
-  decode(code: string): DecodeResult;
 }

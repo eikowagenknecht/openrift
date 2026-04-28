@@ -1,7 +1,7 @@
-import { getCodeFromDeck, getDeckFromCode } from "@piltoverarchive/riftbound-deck-codes";
+import { getCodeFromDeck } from "@piltoverarchive/riftbound-deck-codes";
 import type { Card as PiltoverCard } from "@piltoverarchive/riftbound-deck-codes";
 
-import type { DeckCodec, DeckCodecCard, DecodeResult, EncodeResult } from "./types.js";
+import type { DeckCodec, DeckCodecCard, EncodeResult } from "./types.js";
 
 /**
  * Deck codec for Piltover Archive deck codes.
@@ -52,38 +52,5 @@ export const piltoverCodec: DeckCodec = {
 
     const code = getCodeFromDeck(mainDeck, sideboard, chosenChampion);
     return { code, warnings };
-  },
-
-  decode(code: string): DecodeResult {
-    const warnings: string[] = [];
-
-    const decoded = getDeckFromCode(code);
-
-    const cards: DecodeResult["cards"] = [];
-
-    // The Piltover format includes the chosen champion in mainDeck — subtract
-    // 1 copy so we don't double-count when we add the champion entry below.
-    let championSubtracted = false;
-    for (const card of decoded.mainDeck) {
-      let count = card.count;
-      if (!championSubtracted && decoded.chosenChampion === card.cardCode) {
-        count -= 1;
-        championSubtracted = true;
-      }
-
-      if (count > 0) {
-        cards.push({ cardCode: card.cardCode, count, sourceSlot: "mainDeck" });
-      }
-    }
-
-    for (const card of decoded.sideboard) {
-      cards.push({ cardCode: card.cardCode, count: card.count, sourceSlot: "sideboard" });
-    }
-
-    if (decoded.chosenChampion) {
-      cards.push({ cardCode: decoded.chosenChampion, count: 1, sourceSlot: "chosenChampion" });
-    }
-
-    return { cards, warnings };
   },
 };

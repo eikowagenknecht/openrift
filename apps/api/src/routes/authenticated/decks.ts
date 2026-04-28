@@ -6,21 +6,19 @@ import type {
   DeckDetailResponse,
   DeckExportResponse,
   DeckFormat,
-  DeckImportPreviewResponse,
   DeckListItemResponse,
   DeckListResponse,
   DeckZone,
   Domain,
   SuperType,
 } from "@openrift/shared";
-import { WellKnown, inferZone, validateDeck } from "@openrift/shared";
+import { WellKnown, validateDeck } from "@openrift/shared";
 import {
   deckAvailabilityResponseSchema,
   deckCardsResponseSchema,
   deckCloneResponseSchema,
   deckDetailResponseSchema,
   deckExportResponseSchema,
-  deckImportPreviewResponseSchema,
   deckListResponseSchema,
   deckResponseSchema,
   deckShareResponseSchema,
@@ -28,7 +26,6 @@ import {
 import {
   createDeckSchema,
   deckExportQuerySchema,
-  deckImportPreviewSchema,
   decksQuerySchema,
   idParamSchema,
   updateDeckCardsSchema,
@@ -37,18 +34,11 @@ import {
 import { PREFERENCE_DEFAULTS } from "@openrift/shared/types";
 import { z } from "zod";
 
-import { AppError, ERROR_CODES } from "../../errors.js";
 import { getUserId } from "../../middleware/get-user-id.js";
 import { requireAuth } from "../../middleware/require-auth.js";
 import { buildPatchUpdates } from "../../patch.js";
 import type { FieldMapping } from "../../patch.js";
-import {
-  decodeTTS,
-  decodeText,
-  encodeText,
-  encodeTTS,
-  piltoverCodec,
-} from "../../services/deck-codecs/index.js";
+import { encodeText, encodeTTS, piltoverCodec } from "../../services/deck-codecs/index.js";
 import type { TextCodecCard } from "../../services/deck-codecs/index.js";
 import type { Variables } from "../../types.js";
 import { assertDeleted, assertFound } from "../../utils/assertions.js";
@@ -180,21 +170,6 @@ const exportDeck = createRoute({
     200: {
       content: { "application/json": { schema: deckExportResponseSchema } },
       description: "Deck code",
-    },
-  },
-});
-
-const importPreview = createRoute({
-  method: "post",
-  path: "/import-preview",
-  tags: ["Decks"],
-  request: {
-    body: { content: { "application/json": { schema: deckImportPreviewSchema } } },
-  },
-  responses: {
-    200: {
-      content: { "application/json": { schema: deckImportPreviewResponseSchema } },
-      description: "Import preview",
     },
   },
 });
@@ -598,112 +573,6 @@ export const decksRoute = decksApp
       code: result.code,
       warnings: [...warnings, ...result.warnings],
     } satisfies DeckExportResponse);
-  })
-
-  // ── POST /decks/import-preview ───────────────────────────────────────────
-  // Decode a deck code and return resolved cards with inferred zones
-  .openapi(importPreview, async (c) => {
-    const { canonicalPrintings } = c.get("repos");
-    const body = c.req.valid("json");
-    const format = body.format ?? "piltover";
-
-    // Each format decodes into a uniform entry list + a resolvedMap keyed by lookupKey.
-    // Text format provides explicit zones; piltover/TTS provide sourceSlots for inference.
-    interface ImportEntry {
-      lookupKey: string;
-      label: string;
-      zone: DeckZone | null;
-      sourceSlot: "mainDeck" | "sideboard" | "chosenChampion" | null;
-      count: number;
-    }
-    let decodedWarnings: string[];
-    let entries: ImportEntry[];
-    let resolvedMap: Map<
-      string,
-      {
-        cardId: string;
-        shortCode: string;
-        printingId: string;
-        cardName: string;
-        cardType: CardType;
-        superTypes: SuperType[];
-        domains: Domain[];
-      }
-    >;
-    // Piltover and TTS codes carry variant-level printing info; text does not.
-    const formatCarriesPrinting = format !== "text";
-
-    if (format === "text") {
-      const decoded = decodeText(body.code);
-      decodedWarnings = decoded.warnings;
-      entries = decoded.cards.map((card) => ({
-        lookupKey: card.cardName.toLowerCase(),
-        label: `"${card.cardName}"`,
-        zone: card.zone,
-        sourceSlot: null,
-        count: card.count,
-      }));
-      const resolved = await canonicalPrintings.cardIdsByNames(
-        decoded.cards.map((card) => card.cardName),
-      );
-      resolvedMap = new Map(resolved.map((row) => [row.cardName.toLowerCase(), row]));
-
-      // Tag+name fallback for unresolved entries (e.g. "Sett, The Boss" → tag "Sett" + name "The Boss")
-      const unresolvedNames = decoded.cards
-        .filter((card) => !resolvedMap.has(card.cardName.toLowerCase()))
-        .map((card) => card.cardName);
-      if (unresolvedNames.length > 0) {
-        const tagResolved = await canonicalPrintings.cardIdsByTagAndName(unresolvedNames);
-        for (const row of tagResolved) {
-          resolvedMap.set(row.originalName.toLowerCase(), row);
-        }
-      }
-    } else {
-      let decoded;
-      try {
-        decoded = format === "tts" ? decodeTTS(body.code) : piltoverCodec.decode(body.code);
-      } catch {
-        throw new AppError(400, ERROR_CODES.INVALID_DECK_CODE, "Invalid or unsupported deck code");
-      }
-      decodedWarnings = decoded.warnings;
-      entries = decoded.cards.map((card) => ({
-        lookupKey: card.cardCode,
-        label: card.cardCode,
-        zone: null,
-        sourceSlot: card.sourceSlot,
-        count: card.count,
-      }));
-      const resolved = await canonicalPrintings.cardIdsByShortCodes(
-        decoded.cards.map((card) => card.cardCode),
-      );
-      resolvedMap = new Map(resolved.map((row) => [row.shortCode, row]));
-    }
-
-    const warnings = [...decodedWarnings];
-    const cards: DeckImportPreviewResponse["cards"] = [];
-
-    for (const entry of entries) {
-      const card = resolvedMap.get(entry.lookupKey);
-      if (!card) {
-        warnings.push(`Unknown card: ${entry.label} (skipped)`);
-        continue;
-      }
-
-      cards.push({
-        cardId: card.cardId,
-        shortCode: card.shortCode,
-        zone:
-          entry.zone ?? inferZone(card.cardType, card.superTypes, entry.sourceSlot ?? "mainDeck"),
-        quantity: entry.count,
-        cardName: card.cardName,
-        cardType: card.cardType,
-        superTypes: card.superTypes,
-        domains: card.domains,
-        preferredPrintingId: formatCarriesPrinting ? card.printingId : null,
-      });
-    }
-
-    return c.json({ cards, warnings } satisfies DeckImportPreviewResponse);
   })
 
   // ── PATCH /decks/:id/pin ──────────────────────────────────────────────────

@@ -118,21 +118,3 @@ export interface DeckExportResponse {
   code: string;
   warnings: string[];
 }
-
-export interface DeckImportCardPreview {
-  cardId: string;
-  shortCode: string;
-  zone: DeckZone;
-  quantity: number;
-  cardName: string;
-  cardType: CardType;
-  superTypes: SuperType[];
-  domains: Domain[];
-  /** Printing resolved from the imported code, when the format carries printing info. */
-  preferredPrintingId: string | null;
-}
-
-export interface DeckImportPreviewResponse {
-  cards: DeckImportCardPreview[];
-  warnings: string[];
-}
