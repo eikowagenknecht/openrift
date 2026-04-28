@@ -197,6 +197,27 @@ function firstPrintingPerCard(printings: Printing[]): Printing[] {
   return result;
 }
 
+/**
+ * Like {@link firstPrintingPerCard} but keys on `(cardId, setId)` so a card
+ * reprinted in N sets gets one row per set. Used for cards-view + set-grouping
+ * where each set section is meant to read as a complete index of the cards in
+ * that set, with one tile per card.
+ *
+ * @returns One printing per (cardId, setId) pair, in first-occurrence order.
+ */
+function firstPrintingPerCardPerSet(printings: Printing[]): Printing[] {
+  const seen = new Set<string>();
+  const result: Printing[] = [];
+  for (const printing of printings) {
+    const key = `${printing.cardId}|${printing.setId}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(printing);
+    }
+  }
+  return result;
+}
+
 export function useCardData({
   allPrintings,
   sets,
@@ -233,13 +254,6 @@ export function useCardData({
   const setSlugToName = new Map(sets.map((s) => [s.slug, s.name]));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
 
-  // When grouping by set in cards view, every printing keeps its own row so
-  // each set section is a complete index. Counts, owned filtering, owned
-  // counts, price ranges, and click selection all switch to per-printing
-  // semantics in that mode — same as printings view.
-  const dedupePrintings = view === "cards" && groupBy !== "set";
-  const effectiveView = dedupePrintings ? "cards" : "printings";
-
   // getPrice resolves a printing's price on the user's favorite marketplace.
   // Filters, sorting, and the available-price-range histogram all read prices
   // through this dependency rather than reading a field off the printing.
@@ -256,10 +270,10 @@ export function useCardData({
   // it still answers "how many would match if owned were toggled".
   const universeForCounts =
     ownedFilter && ownedCountByPrinting
-      ? applyOwnedFilter(allPrintings, ownedFilter, effectiveView, ownedCountByPrinting)
+      ? applyOwnedFilter(allPrintings, ownedFilter, view, ownedCountByPrinting)
       : allPrintings;
   const filterCounts = computeFilterCounts(universeForCounts, filters, {
-    countBy: dedupePrintings ? "card" : "printing",
+    countBy: view === "cards" ? "card" : "printing",
     keywordReverseMap,
     getPrice,
   });
@@ -267,12 +281,7 @@ export function useCardData({
   const cardsBeforeOwned = filteredCards;
 
   if (ownedFilter && ownedCountByPrinting) {
-    filteredCards = applyOwnedFilter(
-      filteredCards,
-      ownedFilter,
-      effectiveView,
-      ownedCountByPrinting,
-    );
+    filteredCards = applyOwnedFilter(filteredCards, ownedFilter, view, ownedCountByPrinting);
   }
 
   // The Owned chip count reflects whichever cycle state the chip is currently
@@ -281,21 +290,28 @@ export function useCardData({
     const ownedSubset = applyOwnedFilter(
       cardsBeforeOwned,
       ownedFilter ?? "owned",
-      effectiveView,
+      view,
       ownedCountByPrinting,
     );
-    filterCounts.flags.owned = dedupePrintings
-      ? new Set(ownedSubset.map((p) => p.cardId)).size
-      : ownedSubset.length;
+    filterCounts.flags.owned =
+      view === "cards" ? new Set(ownedSubset.map((p) => p.cardId)).size : ownedSubset.length;
   }
 
-  const displayCards = dedupePrintings ? firstPrintingPerCard(filteredCards) : filteredCards;
+  // Cards view dedupes by cardId so each card gets one tile. When also grouped
+  // by set, dedupe is per (cardId, setId) instead so a card reprinted in N
+  // sets shows up once under each — each set section reads as a complete
+  // index of the cards in that set.
+  const displayCards =
+    view === "cards"
+      ? groupBy === "set"
+        ? firstPrintingPerCardPerSet(filteredCards)
+        : firstPrintingPerCard(filteredCards)
+      : filteredCards;
 
   const printingsByCardId = Map.groupBy(filteredCards, (p) => p.cardId);
 
-  const priceRangeByCardId = dedupePrintings
-    ? computePriceRanges(printingsByCardId, lookup, favoriteMarketplace)
-    : null;
+  const priceRangeByCardId =
+    view === "cards" ? computePriceRanges(printingsByCardId, lookup, favoriteMarketplace) : null;
 
   const sortOptions: SortCardsOptions = { sortDir };
   if (sortBy === "price" && priceRangeByCardId) {
@@ -314,12 +330,11 @@ export function useCardData({
   const sortedCards = sortCards(displayCards, sortBy, sortOptions);
 
   const ownedCounts = ownedCountByPrinting
-    ? buildOwnedCounts(allPrintings, displayCards, ownedCountByPrinting, effectiveView)
+    ? buildOwnedCounts(allPrintings, displayCards, ownedCountByPrinting, view)
     : undefined;
 
-  const totalUniqueCards = dedupePrintings
-    ? new Set(allPrintings.map((c) => c.cardId)).size
-    : allPrintings.length;
+  const totalUniqueCards =
+    view === "cards" ? new Set(allPrintings.map((c) => c.cardId)).size : allPrintings.length;
 
   // Available languages are derived from ALL printings (before language filtering)
   // so the filter UI always shows every language that exists in the catalog.

@@ -11,7 +11,12 @@ interface AddedEntry {
 interface AddModeState {
   addedItems: Map<string, AddedEntry>;
   showAddedList: boolean;
-  variantPopover: { cardId: string; pos: { top: number; left: number } } | null;
+  variantPopover: {
+    cardId: string;
+    /** Optional setId — when present, the popover filters variants to this set. */
+    setId?: string;
+    pos: { top: number; left: number };
+  } | null;
   disposePicker: { printing: Printing; pos: { top: number; left: number } } | null;
 
   incrementPending: (printing: Printing) => void;
@@ -20,7 +25,7 @@ interface AddModeState {
   recordUndo: (printingId: string) => void;
   toggleAddedList: () => void;
   closeAddedList: () => void;
-  openVariants: (cardId: string, pos: { top: number; left: number }) => void;
+  openVariants: (cardId: string, pos: { top: number; left: number }, setId?: string) => void;
   closeVariants: () => void;
   openDisposePicker: (printing: Printing, pos: { top: number; left: number }) => void;
   closeDisposePicker: () => void;
@@ -102,7 +107,7 @@ export const useAddModeStore = create<AddModeState>()((set) => ({
 
   toggleAddedList: () => set((state) => ({ showAddedList: !state.showAddedList })),
   closeAddedList: () => set({ showAddedList: false }),
-  openVariants: (cardId, pos) => set({ variantPopover: { cardId, pos } }),
+  openVariants: (cardId, pos, setId) => set({ variantPopover: { cardId, setId, pos } }),
   closeVariants: () => set({ variantPopover: null }),
   openDisposePicker: (printing, pos) => set({ disposePicker: { printing, pos } }),
   closeDisposePicker: () => set({ disposePicker: null }),

@@ -128,7 +128,7 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
   const justClosedRef = useRef<string | null>(null);
 
   const handleOpenVariants = addTarget
-    ? (printing: Printing, anchorEl: HTMLElement) => {
+    ? (printing: Printing, anchorEl: HTMLElement, scopeToSet = false) => {
         const rect = anchorEl.getBoundingClientRect();
         if (justClosedRef.current === printing.cardId) {
           justClosedRef.current = null;
@@ -140,13 +140,17 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
           justClosedRef.current = printing.cardId;
           return;
         }
-        useAddModeStore.getState().openVariants(printing.cardId, {
-          top: rect.bottom + 4,
-          left: Math.max(
-            8,
-            Math.min(rect.left + rect.width / 2 - 112, globalThis.innerWidth - 232),
-          ),
-        });
+        useAddModeStore.getState().openVariants(
+          printing.cardId,
+          {
+            top: rect.bottom + 4,
+            left: Math.max(
+              8,
+              Math.min(rect.left + rect.width / 2 - 112, globalThis.innerWidth - 232),
+            ),
+          },
+          scopeToSet ? printing.setId : undefined,
+        );
       }
     : undefined;
 

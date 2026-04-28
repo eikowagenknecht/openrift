@@ -173,15 +173,23 @@ export function CardBrowser() {
     printing,
   }));
 
-  // In cards+set mode every printing is already its own cell, so the variant
-  // chevron and override mechanism (which swap the displayed printing within
-  // a single cell) are turned off — they'd otherwise show siblings already
-  // visible in the grid and stomp on each other across cells of the same
-  // card. Cards-only view still uses both. Click selection also switches to
-  // findBy=printing so clicking the SFD reprint doesn't jump back to the OGN
-  // row that shares its cardId.
-  const cellRepresentsCard = view === "cards" && groupBy !== "set";
-  const findBy: "card" | "printing" = cellRepresentsCard ? "card" : "printing";
+  // Cards+set renders one tile per (card, set), so multiple cells share a
+  // cardId and click selection has to navigate by printing — otherwise
+  // clicking the SFD reprint would jump back to the OGN tile that shares its
+  // cardId. The variant chevron, override mechanism, and per-tile owned count
+  // still treat the cell as a card; siblings are filtered to same-set so the
+  // chevron only offers in-set variants and the override-by-cardId fallback
+  // works correctly across the duplicated cells.
+  const inCardsView = view === "cards";
+  const scopeVariantsToSet = inCardsView && groupBy === "set";
+  const findBy: "card" | "printing" = inCardsView && groupBy !== "set" ? "card" : "printing";
+
+  // Tag the variant popover with the cell's setId in cards+set mode so the
+  // popover can filter to in-set variants only.
+  const handleOpenVariantsScoped = handleOpenVariants
+    ? (printing: Printing, anchorEl: HTMLElement) =>
+        handleOpenVariants(printing, anchorEl, scopeVariantsToSet)
+    : undefined;
 
   // Deep-link: open a specific printing when navigating from e.g. activity page
   const { printingId: linkedPrintingId } = useSearch({ from: "/_app/cards" });
@@ -222,9 +230,15 @@ export function CardBrowser() {
 
   const renderCard = (item: CardViewerItem, ctx: CardRenderContext) => {
     const cardId = item.printing.cardId;
-    const siblings = printingsByCardId.get(cardId);
+    const allCardSiblings = printingsByCardId.get(cardId);
+    // Filter to in-set siblings when grouping by set so the variant chevron
+    // and the override-by-cardId fallback don't cross set boundaries.
+    const siblings =
+      inCardsView && groupBy === "set"
+        ? allCardSiblings?.filter((sibling) => sibling.setId === item.printing.setId)
+        : allCardSiblings;
 
-    const overrideId = cellRepresentsCard ? topPrintingOverrides.get(cardId) : undefined;
+    const overrideId = inCardsView ? topPrintingOverrides.get(cardId) : undefined;
     const displayPrinting =
       overrideId && siblings
         ? (siblings.find((sibling) => sibling.id === overrideId) ?? item.printing)
@@ -232,7 +246,7 @@ export function CardBrowser() {
 
     let aboveCard: ReactNode | undefined;
     const ownedCount = showStrip
-      ? cellRepresentsCard
+      ? inCardsView
         ? (siblings?.reduce(
             (sum, p) => sum + adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
             0,
@@ -245,10 +259,10 @@ export function CardBrowser() {
         <CollectionAddStrip
           printing={displayPrinting}
           ownedCount={ownedCount}
-          hasVariants={cellRepresentsCard && (siblings?.length ?? 0) > 1}
+          hasVariants={inCardsView && (siblings?.length ?? 0) > 1}
           onQuickAdd={handleQuickAdd}
           onUndoAdd={handleUndoAdd}
-          onOpenVariants={handleOpenVariants}
+          onOpenVariants={handleOpenVariantsScoped}
         />
       ) : (
         <OwnedCountStrip
@@ -256,7 +270,7 @@ export function CardBrowser() {
           printingId={displayPrinting.id}
           cardName={displayPrinting.card.name}
           shortCode={displayPrinting.shortCode}
-          siblings={cellRepresentsCard ? siblings : undefined}
+          siblings={inCardsView ? siblings : undefined}
         />
       );
     }
@@ -270,7 +284,7 @@ export function CardBrowser() {
         isSelected={ctx.isSelected}
         isFlashing={ctx.isFlashing}
         dimmed={ownedCount === 0}
-        siblings={cellRepresentsCard ? siblings : undefined}
+        siblings={inCardsView ? siblings : undefined}
         priceRange={priceRangeByCardId?.get(cardId)}
         view={view}
         cardWidth={ctx.cardWidth}
@@ -402,7 +416,10 @@ export function CardBrowser() {
         handleQuickAdd &&
         handleUndoAdd &&
         (() => {
-          const variantPrintings = printingsByCardId.get(variantPopover.cardId);
+          const allCardPrintings = printingsByCardId.get(variantPopover.cardId);
+          const variantPrintings = variantPopover.setId
+            ? allCardPrintings?.filter((p) => p.setId === variantPopover.setId)
+            : allCardPrintings;
           if (!variantPrintings) {
             return null;
           }

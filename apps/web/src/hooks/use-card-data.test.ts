@@ -150,26 +150,27 @@ describe("useCardData", () => {
     expect(result.current.sortedCards).toHaveLength(1);
   });
 
-  it("keeps every printing as its own row when grouping by set in cards view", () => {
-    // Each set group must list every printing released in that set, so a
-    // reprinted card appears once under each set rather than only its first.
+  it("dedupes per (cardId, setId) when grouping by set in cards view", () => {
+    // A reprinted card must appear once under each set it's printed in (so
+    // each set section reads as a complete index), but the in-set art-variant
+    // printings still collapse to one tile so cards mode stays card-level.
     const cardId = "card-shared";
-    const ognPrinting = stubPrinting({ cardId, shortCode: "OGN-001" });
-    const sfdPrinting = stubPrinting({ cardId, shortCode: "SFD-001" });
+    const ognSetId = "set-ogn";
+    const sfdSetId = "set-sfd";
+    const ognNormal = stubPrinting({ cardId, setId: ognSetId, shortCode: "OGN-001" });
+    const ognAltart = stubPrinting({ cardId, setId: ognSetId, shortCode: "OGN-001-alt" });
+    const sfdNormal = stubPrinting({ cardId, setId: sfdSetId, shortCode: "SFD-001" });
 
     const { result } = renderHook(() =>
       useCardData({
         ...baseParams(),
-        allPrintings: [ognPrinting, sfdPrinting],
+        allPrintings: [ognNormal, ognAltart, sfdNormal],
         view: "cards",
         groupBy: "set",
       }),
     );
 
     expect(result.current.sortedCards).toHaveLength(2);
-    expect(result.current.sortedCards.map((p) => p.shortCode).toSorted()).toEqual([
-      "OGN-001",
-      "SFD-001",
-    ]);
+    expect(result.current.sortedCards.map((p) => p.setId).toSorted()).toEqual([ognSetId, sfdSetId]);
   });
 });
