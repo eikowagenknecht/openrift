@@ -51,7 +51,7 @@ async function fetchCatalogFromEdge(): Promise<CatalogResponse> {
   return res.json() as Promise<CatalogResponse>;
 }
 
-function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
+export function enrichCatalog(catalog: CatalogResponse): UseCardsResult {
   const setsById = new Map(catalog.sets.map((s) => [s.id, s]));
 
   // Cards are already in the right shape — identity lives in the map key.

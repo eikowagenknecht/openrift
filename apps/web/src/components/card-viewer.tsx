@@ -1,14 +1,11 @@
 import type { GroupByField, Printing } from "@openrift/shared";
 import type { ReactNode } from "react";
-import { use, useLayoutEffect, useRef, useState } from "react";
 
+import { CardBrowserLayout, useCardBrowserLayoutOffsets } from "@/components/card-browser-layout";
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { CardGrid } from "@/components/cards/card-grid";
-import { APP_HEADER_HEIGHT } from "@/components/cards/card-grid-constants";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
-import { PageTopBarHeightContext } from "@/components/layout/page-top-bar";
 import { useHydrated } from "@/hooks/use-hydrated";
-import { cn } from "@/lib/utils";
 
 interface CardViewerProps {
   items: CardViewerItem[];
@@ -38,6 +35,10 @@ interface CardViewerProps {
 /**
  * Shared layout shell used by both the card browser and the collection grid.
  * Renders a toolbar, an optional three-pane layout, and a virtualized CardGrid.
+ *
+ * Outer structure (sticky offsets, slots) lives in {@link CardBrowserLayout};
+ * this component owns the grid logic — items, render context, and the
+ * hydration toggle between the live `CardGrid` and the SSR-time skeleton.
  * @returns The card viewer layout.
  */
 export function CardViewer({
@@ -60,97 +61,62 @@ export function CardViewer({
   children,
 }: CardViewerProps) {
   const hydrated = useHydrated();
-  const pageTopBarHeight = use(PageTopBarHeightContext);
-  const toolbarRef = useRef<HTMLDivElement>(null);
-  const aboveGridRef = useRef<HTMLDivElement>(null);
-  const [toolbarHeight, setToolbarHeight] = useState(0);
-  const [aboveGridHeight, setAboveGridHeight] = useState(0);
-
-  useLayoutEffect(() => {
-    const el = toolbarRef.current;
-    if (!el) {
-      return;
-    }
-    const observer = new ResizeObserver(([entry]) => {
-      const height = entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
-      setToolbarHeight(Math.round(height));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  useLayoutEffect(() => {
-    const el = aboveGridRef.current;
-    if (!el) {
-      setAboveGridHeight(0);
-      return;
-    }
-    const observer = new ResizeObserver(([entry]) => {
-      const height = entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height;
-      setAboveGridHeight(Math.round(height));
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const headerOffset = APP_HEADER_HEIGHT + pageTopBarHeight;
-  const toolbarOffset = headerOffset + toolbarHeight;
-  const stickyOffset = toolbarOffset + aboveGridHeight;
 
   return (
-    <div className="@container flex flex-1 flex-col">
-      <div
-        ref={toolbarRef}
-        className={cn(
-          "bg-background/80 sticky z-20 -mx-3 px-3 pt-3 backdrop-blur-lg",
-          aboveGridHeight === 0 && "sm:rounded-b-xl",
-        )}
-        style={{ top: headerOffset }}
-      >
-        {toolbar}
-      </div>
-      <div
-        className="relative flex flex-1 items-stretch gap-6"
-        style={{ "--sticky-top": `${toolbarOffset}px` } as React.CSSProperties}
-      >
-        {leftPane}
-        <div
-          className={cn(
-            "flex min-w-0 flex-1 flex-col transition-opacity duration-150",
-            stale ? "opacity-60" : "opacity-100",
-          )}
-        >
-          <div
-            ref={aboveGridRef}
-            className="bg-background/80 sticky z-15 -mx-3 px-3 backdrop-blur-lg sm:rounded-b-xl"
-            style={{ top: toolbarOffset }}
-          >
-            {aboveGrid}
-          </div>
-          {hydrated ? (
-            <CardGrid
-              items={items}
-              totalItems={totalItems}
-              renderCard={renderCard}
-              setOrder={setOrder}
-              groupBy={groupBy}
-              groupDir={groupDir}
-              selectedItemId={selectedItemId}
-              keyboardNavItemId={keyboardNavItemId}
-              onItemClick={onItemClick}
-              siblingPrintings={siblingPrintings}
-              addStripHeight={addStripHeight}
-              stickyOffset={stickyOffset}
-            />
-          ) : (
-            <CardGridSkeleton />
-          )}
-        </div>
-        {rightPane}
-      </div>
+    <CardBrowserLayout
+      toolbar={toolbar}
+      leftPane={leftPane}
+      aboveGrid={aboveGrid}
+      rightPane={rightPane}
+      stale={stale}
+      gridSlot={
+        hydrated ? (
+          <HydratedGrid
+            items={items}
+            totalItems={totalItems}
+            renderCard={renderCard}
+            setOrder={setOrder}
+            groupBy={groupBy}
+            groupDir={groupDir}
+            selectedItemId={selectedItemId}
+            keyboardNavItemId={keyboardNavItemId}
+            onItemClick={onItemClick}
+            siblingPrintings={siblingPrintings}
+            addStripHeight={addStripHeight}
+          />
+        ) : (
+          <CardGridSkeleton />
+        )
+      }
+    >
       {children}
-    </div>
+    </CardBrowserLayout>
   );
+}
+
+type HydratedGridProps = Pick<
+  CardViewerProps,
+  | "items"
+  | "totalItems"
+  | "renderCard"
+  | "setOrder"
+  | "groupBy"
+  | "groupDir"
+  | "selectedItemId"
+  | "keyboardNavItemId"
+  | "onItemClick"
+  | "siblingPrintings"
+  | "addStripHeight"
+>;
+
+/**
+ * Reads the layout's sticky offset from context and forwards it to CardGrid.
+ *
+ * @returns The hydrated CardGrid wired up with the surrounding sticky offset.
+ */
+function HydratedGrid(props: HydratedGridProps) {
+  const { stickyOffset } = useCardBrowserLayoutOffsets();
+  return <CardGrid {...props} stickyOffset={stickyOffset} />;
 }
 
 /**

@@ -3,6 +3,9 @@ import { z } from "zod";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { Skeleton } from "@/components/ui/skeleton";
+import { initQueryOptions } from "@/hooks/use-init";
+import type { AvailableFiltersWire, CardCounts } from "@/lib/cards-facets";
+import { fetchCardCounts, fetchCardFacets } from "@/lib/cards-facets";
 import type { FirstRowCard } from "@/lib/cards-first-row";
 import { fetchFirstRowCards } from "@/lib/cards-first-row";
 import { filterSearchSchema } from "@/lib/search-schemas";
@@ -37,16 +40,53 @@ export const Route = createFileRoute("/_app/cards")({
       throw redirect({ to: "/cards", search: cleaned, replace: true });
     }
   },
-  // SSR-only payload: a slim list of front-face image URLs for the first row of
-  // cards. Rendered as real `<img>` tags inside the route's Suspense fallback so
-  // the preload scanner finds the LCP candidate without waiting for hydration.
-  // On client-side navigation we skip the server fn — the live catalog query is
-  // already warming, so the fallback would never paint.
-  loader: async (): Promise<{ firstRow: FirstRowCard[] }> => {
+  // SSR-only payload — slim views over the same server-cached catalog so the
+  // shell can render the live grid's chrome (filters, search, toolbar) and
+  // first-row LCP candidate before hydration:
+  //  - `firstRow`: front-face image URLs for the first row, real `<img>`s for
+  //    the preload scanner.
+  //  - `facets` + `availableLanguages` + `setLabels`: shape the filter chrome.
+  //  - `totalCards` / `filteredCount`: SearchBar's "X of Y" without flashing.
+  // The init query is also primed into the per-request QueryClient so chrome
+  // components calling `useSuspenseQuery(initQueryOptions)` resolve sync.
+  // On client-side navigation we skip the server fns — the live catalog
+  // query is already warming, so the SSR shell would never paint.
+  // Forward URL search params into the loader so `fetchCardCounts` can compute
+  // the filtered count over the catalog. Excludes `printingId` because it
+  // doesn't affect counts and would invalidate the loader on every selection.
+  loaderDeps: ({ search }) => ({ search }),
+  loader: async ({
+    context,
+    deps,
+  }): Promise<{
+    firstRow: FirstRowCard[];
+    facets: AvailableFiltersWire | null;
+    availableLanguages: string[];
+    setLabels: Record<string, string>;
+    counts: CardCounts;
+  }> => {
     if (globalThis.window !== undefined) {
-      return { firstRow: [] };
+      return {
+        firstRow: [],
+        facets: null,
+        availableLanguages: [],
+        setLabels: {},
+        counts: { totalCards: 0, filteredCount: 0 },
+      };
     }
-    return { firstRow: await fetchFirstRowCards() };
+    await context.queryClient.ensureQueryData(initQueryOptions);
+    const [firstRow, facetsPayload, counts] = await Promise.all([
+      fetchFirstRowCards(),
+      fetchCardFacets(),
+      fetchCardCounts({ data: deps.search }),
+    ]);
+    return {
+      firstRow,
+      facets: facetsPayload.facets,
+      availableLanguages: facetsPayload.availableLanguages,
+      setLabels: facetsPayload.setLabels,
+      counts,
+    };
   },
   head: () =>
     seoHead({

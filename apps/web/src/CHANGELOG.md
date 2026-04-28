@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-28
+
+- fix: The cards page filter sidebar and toolbar now appear immediately on a fresh visit, so the cards no longer shift sideways once the filters load in
+
 ## 2026-04-27
 
 - feat: The homepage now loads faster on a fresh visit by only fetching the few stats and card thumbnails it actually shows, instead of pulling down the full card catalog
