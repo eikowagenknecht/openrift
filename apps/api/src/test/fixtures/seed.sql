@@ -14,11 +14,11 @@ INSERT INTO domains (slug, label, sort_order, is_well_known, color) VALUES
   ON CONFLICT (slug) DO UPDATE SET label = EXCLUDED.label, sort_order = EXCLUDED.sort_order, is_well_known = EXCLUDED.is_well_known, color = EXCLUDED.color;
 
 INSERT INTO rarities (slug, label, sort_order, is_well_known, color) VALUES
-  ('Common', 'Common', 0, FALSE, '#A6A6A6'),
-  ('Uncommon', 'Uncommon', 1, FALSE, '#47D1D1'),
-  ('Rare', 'Rare', 2, FALSE, '#E052B1'),
-  ('Epic', 'Epic', 3, FALSE, '#FA8938'),
-  ('Showcase', 'Showcase', 4, FALSE, '#FFCC00')
+  ('Common', 'Common', 0, TRUE, '#A6A6A6'),
+  ('Uncommon', 'Uncommon', 1, TRUE, '#47D1D1'),
+  ('Rare', 'Rare', 2, TRUE, '#E052B1'),
+  ('Epic', 'Epic', 3, TRUE, '#FA8938'),
+  ('Showcase', 'Showcase', 4, TRUE, '#FFCC00')
   ON CONFLICT (slug) DO UPDATE SET label = EXCLUDED.label, sort_order = EXCLUDED.sort_order, is_well_known = EXCLUDED.is_well_known, color = EXCLUDED.color;
 
 INSERT INTO card_types (slug, label, sort_order, is_well_known) VALUES
