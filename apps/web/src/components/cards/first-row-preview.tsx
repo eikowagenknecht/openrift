@@ -25,13 +25,43 @@ const cardsRoute = getRouteApi("/_app/cards");
 // the shell. The live <CardBrowser> shows it for logged-in users on hydration.
 const SSR_HIDDEN: ReadonlySet<string> = new Set(["owned"]);
 
+// Per-cell visibility classes that pair with the grid's column breakpoints so
+// each viewport shows exactly two complete rows. We always render 16 cells
+// (two rows at the widest, 8-col breakpoint) and trim the overflow with
+// container-query `display:none` at narrower widths. Full class strings are
+// required for Tailwind's scanner — don't concatenate dynamically.
+function visibilityForIndex(i: number): string {
+  if (i < 4) {
+    return "";
+  }
+  if (i < 6) {
+    return "hidden @min-[640px]/grid:block";
+  }
+  if (i < 8) {
+    return "hidden @min-[768px]/grid:block";
+  }
+  if (i < 10) {
+    return "hidden @min-[1024px]/grid:block";
+  }
+  if (i < 12) {
+    return "hidden @min-[1280px]/grid:block";
+  }
+  if (i < 14) {
+    return "hidden @min-[1600px]/grid:block";
+  }
+  return "hidden @min-[1920px]/grid:block";
+}
+
 /**
  * SSR-only preview of the cards page. Rendered inside the route's Suspense
  * fallback so the served HTML carries:
  *  - Real filter chrome (toolbar, left pane, active filters) sized to its
  *    final dimensions, populated from the loader's `facets` payload — so the
  *    swap to the live `<CardBrowser>` on hydration doesn't shift the layout.
- *  - Real `<img>` tags for the first row of cards as the LCP candidate.
+ *  - Real `<img>` tags for the first two rows of cards as the LCP candidate.
+ *    The cells span the widest grid breakpoint (16 = 8 cols × 2 rows); narrower
+ *    breakpoints hide the overflow via `visibilityForIndex` so each viewport
+ *    shows exactly two complete rows.
  *
  * On client-side navigation the loader returns `facets: null` and this
  * component renders nothing — the live grid is already mounting.
@@ -132,7 +162,7 @@ export function FirstRowPreview() {
                 // Without the wrapper the SSR cells render ~12px wider and
                 // ~LABEL_HEIGHT shorter than the live cells, shifting the
                 // grid down and inward when CardBrowser hydrates.
-                <div key={card.printingId} className="rounded-lg p-1.5">
+                <div key={card.printingId} className={`rounded-lg p-1.5 ${visibilityForIndex(i)}`}>
                   <img
                     src={imageUrl(card.imageId, "400w")}
                     srcSet={`${imageUrl(card.imageId, "120w")} 120w, ${imageUrl(card.imageId, "240w")} 240w, ${imageUrl(card.imageId, "400w")} 400w, ${imageUrl(card.imageId, "full")} 800w`}

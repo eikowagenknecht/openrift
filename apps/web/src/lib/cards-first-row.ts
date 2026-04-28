@@ -10,8 +10,10 @@ export interface FirstRowCard {
   imageId: string;
 }
 
-/** Number of cards the SSR shell preloads via real `<img>` tags. */
-const FIRST_ROW_LIMIT = 40;
+// Two full rows at the widest grid breakpoint (8 cols at >= 1920px). Narrower
+// breakpoints render the same 16 cells but trim overflow with per-breakpoint
+// visibility classes in <FirstRowPreview> so each viewport shows complete rows.
+const FIRST_ROW_LIMIT = 16;
 const PREFERRED_LANGUAGE = "EN";
 
 /**

@@ -165,6 +165,34 @@ describe("FirstRowPreview", () => {
     expect(className).toContain("@min-[1920px]/grid:grid-cols-8");
   });
 
+  it("trims overflow cells per breakpoint so each viewport shows two complete rows", () => {
+    // We always render up to 16 cells (2 rows at the widest 8-col breakpoint).
+    // Narrower viewports hide the overflow via container-query `display:none`
+    // so 3-col / 5-col / 7-col layouts don't render a half row of cards on
+    // the SSR shell.
+    const cards = Array.from({ length: 16 }, (_, i) => makeCard(i));
+    mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: cards }));
+    const { container } = render(<FirstRowPreview />);
+    const cells = container.querySelectorAll(".grid > div");
+    expect(cells).toHaveLength(16);
+    // Items 0-3 always visible (2 cols × 2 rows at base).
+    for (let i = 0; i < 4; i++) {
+      expect(cells[i]?.className).not.toContain("hidden");
+    }
+    // Items 4-5 visible at 3-col breakpoint (640px).
+    for (let i = 4; i < 6; i++) {
+      expect(cells[i]?.className).toContain("hidden");
+      expect(cells[i]?.className).toContain("@min-[640px]/grid:block");
+    }
+    // Items 6-7 → 4 cols (768px), 8-9 → 5 cols (1024px), 10-11 → 6 cols (1280px),
+    // 12-13 → 7 cols (1600px), 14-15 → 8 cols (1920px).
+    expect(cells[7]?.className).toContain("@min-[768px]/grid:block");
+    expect(cells[9]?.className).toContain("@min-[1024px]/grid:block");
+    expect(cells[11]?.className).toContain("@min-[1280px]/grid:block");
+    expect(cells[13]?.className).toContain("@min-[1600px]/grid:block");
+    expect(cells[15]?.className).toContain("@min-[1920px]/grid:block");
+  });
+
   it("sets srcset, sizes, width, height, and alt on every image", () => {
     mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: [makeCard(0), makeCard(1)] }));
     const { container } = render(<FirstRowPreview />);
