@@ -18,7 +18,6 @@ interface BrowserCardViewerProps {
   deferredSortedCards: Printing[];
   printingsByCardId: Map<string, Printing[]>;
   view: "cards" | "printings";
-  onItemClick: (printing: Printing) => void;
   stale?: boolean;
   toolbar?: ReactNode;
   leftPane?: ReactNode;
@@ -30,7 +29,7 @@ interface BrowserCardViewerProps {
 
 /**
  * Thin wrapper around CardViewer that bridges the selection store to grid props.
- * Subscribes to `selectedCard` to compute `gridSelectedId` and `siblingPrintings`.
+ * Resolves the highlight target and the sibling-printing list from the store.
  * @returns The card viewer with selection-aware props.
  */
 export function BrowserCardViewer({
@@ -38,7 +37,6 @@ export function BrowserCardViewer({
   deferredSortedCards,
   printingsByCardId,
   view,
-  onItemClick,
   ...rest
 }: BrowserCardViewerProps) {
   const selectedCard = useSelectionStore((s) => s.selectedCard);
@@ -46,9 +44,7 @@ export function BrowserCardViewer({
 
   // The grid cell the user is anchored at — the one they originally clicked.
   // Stays stable when the detail panel swaps to a sibling printing via
-  // setSelectedCard (which doesn't update selectedIndex), so both the
-  // visual highlight and arrow-key navigation keep working from that cell.
-  // Guard the index against stale items (filter changes can shrink the list).
+  // setSelectedCard, so the highlight keeps tracking that cell.
   const indexAnchor =
     selectedIndex >= 0 && selectedIndex < items.length ? items[selectedIndex] : undefined;
 
@@ -74,9 +70,6 @@ export function BrowserCardViewer({
       {...rest}
       items={items}
       selectedItemId={gridSelectedId}
-      keyboardNavItemId={indexAnchor?.id ?? selectedCard?.id}
-      keyboardNavCardId={selectedCard?.cardId}
-      onItemClick={onItemClick}
       siblingPrintings={siblingPrintings}
     />
   );

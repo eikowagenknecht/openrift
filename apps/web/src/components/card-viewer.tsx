@@ -14,9 +14,6 @@ interface CardViewerProps {
   groupBy?: GroupByField;
   groupDir?: "asc" | "desc";
   selectedItemId?: string;
-  keyboardNavItemId?: string;
-  keyboardNavCardId?: string;
-  onItemClick?: (printing: Printing) => void;
   siblingPrintings?: Printing[];
 
   /** When true, dims the grid during deferred updates. */
@@ -49,9 +46,6 @@ export function CardViewer({
   groupBy,
   groupDir,
   selectedItemId,
-  keyboardNavItemId,
-  keyboardNavCardId,
-  onItemClick,
   siblingPrintings,
   stale,
   toolbar,
@@ -83,9 +77,6 @@ export function CardViewer({
           groupBy={groupBy}
           groupDir={groupDir}
           selectedItemId={selectedItemId}
-          keyboardNavItemId={keyboardNavItemId}
-          keyboardNavCardId={keyboardNavCardId}
-          onItemClick={onItemClick}
           siblingPrintings={siblingPrintings}
           addStripHeight={addStripHeight}
         />
@@ -105,9 +96,6 @@ type HydratedGridProps = Pick<
   | "groupBy"
   | "groupDir"
   | "selectedItemId"
-  | "keyboardNavItemId"
-  | "keyboardNavCardId"
-  | "onItemClick"
   | "siblingPrintings"
   | "addStripHeight"
 >;

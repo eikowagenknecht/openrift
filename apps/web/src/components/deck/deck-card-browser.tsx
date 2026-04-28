@@ -443,7 +443,6 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
       view={view}
       groupBy={groupBy}
       groupDir={groupDir}
-      onItemClick={handleCardClick}
       stale={isGridStale}
       toolbar={toolbar}
       leftPane={leftPane}

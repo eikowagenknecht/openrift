@@ -384,7 +384,6 @@ export function CardBrowser() {
       deferredSortedCards={deferredSortedCards}
       printingsByCardId={printingsByCardId}
       view={view}
-      onItemClick={handleGridCardClick}
       stale={isGridStale}
       toolbar={toolbar}
       leftPane={leftPane}

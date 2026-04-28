@@ -980,7 +980,6 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         deferredSortedCards={deferredSortedCards}
         printingsByCardId={printingsByCardId}
         view={dataView}
-        onItemClick={handleGridCardClick}
         stale={isGridStale}
         toolbar={toolbar}
         leftPane={leftPane}
