@@ -1,4 +1,4 @@
-import type { CopyCollectionBreakdownEntry, CopyResponse } from "@openrift/shared";
+import type { CopyCollectionBreakdownEntry, CopyResponse, Finish } from "@openrift/shared";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -123,14 +123,69 @@ export function useOwnedCollections(
   return { data: aggregateByCollection(copies, nameById) };
 }
 
+/** Minimal printing info needed to label and group an owned-by-variant breakdown. */
+export interface OwnedBreakdownVariant {
+  id: string;
+  shortCode: string;
+  finish: Finish;
+}
+
+/** Per-variant breakdown entry: variant identity plus its non-empty per-collection counts. */
+export interface VariantCollectionBreakdownEntry {
+  printingId: string;
+  shortCode: string;
+  finish: Finish;
+  collections: CopyCollectionBreakdownEntry[];
+}
+
+export function aggregateByVariant(
+  copies: readonly CopyResponse[],
+  variants: readonly OwnedBreakdownVariant[],
+  collectionNameById: Map<string, string>,
+): VariantCollectionBreakdownEntry[] {
+  const buckets = new Map<string, Map<string, number>>();
+  for (const variant of variants) {
+    buckets.set(variant.id, new Map());
+  }
+  for (const copy of copies) {
+    const bucket = buckets.get(copy.printingId);
+    if (!bucket) {
+      continue;
+    }
+    bucket.set(copy.collectionId, (bucket.get(copy.collectionId) ?? 0) + 1);
+  }
+  const result: VariantCollectionBreakdownEntry[] = [];
+  for (const variant of variants) {
+    const bucket = buckets.get(variant.id);
+    if (!bucket || bucket.size === 0) {
+      continue;
+    }
+    const collections: CopyCollectionBreakdownEntry[] = [];
+    for (const [collectionId, count] of bucket) {
+      collections.push({
+        collectionId,
+        collectionName: collectionNameById.get(collectionId) ?? "",
+        count,
+      });
+    }
+    result.push({
+      printingId: variant.id,
+      shortCode: variant.shortCode,
+      finish: variant.finish,
+      collections,
+    });
+  }
+  return result;
+}
+
 /**
- * Aggregates owned-collection breakdown across multiple printings of the same card.
- * @returns Merged per-collection entries with summed counts.
+ * Per-variant owned-collection breakdown for a set of sibling printings (same card).
+ * @returns One entry per variant that has at least one owned copy, in input order.
  */
-export function useOwnedCollectionsByPrintings(
-  printingIds: string[],
+export function useOwnedCollectionsByVariants(
+  variants: readonly OwnedBreakdownVariant[],
   enabled: boolean,
-): { data: CopyCollectionBreakdownEntry[] | undefined } {
+): { data: VariantCollectionBreakdownEntry[] | undefined } {
   const queryClient = useQueryClient();
   const copiesCollection = getCopiesCollection(queryClient);
   const { data: collections } = useQuery({ ...collectionsQueryOptions, enabled });
@@ -138,16 +193,15 @@ export function useOwnedCollectionsByPrintings(
   // Filter in JS — expressing "printingId in [array]" as a symbolic .where()
   // clause would need per-id or() composition, and the set typically has a
   // few entries. Perf is dominated by mutation propagation, not the filter.
-  const printingIdSet = new Set(printingIds);
+  const variantKey = variants.map((variant) => variant.id).join(",");
   const { data: copies } = useLiveQuery(
     (q) => (enabled ? q.from({ copy: copiesCollection }) : null),
-    [printingIds.join(","), enabled],
+    [variantKey, enabled],
   );
 
   if (!enabled || !copies) {
     return { data: undefined };
   }
-  const filtered = copies.filter((c) => printingIdSet.has(c.printingId));
   const nameById = new Map((collections ?? []).map((col) => [col.id, col.name]));
-  return { data: aggregateByCollection(filtered, nameById) };
+  return { data: aggregateByVariant(copies, variants, nameById) };
 }

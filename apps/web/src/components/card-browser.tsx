@@ -247,6 +247,7 @@ export function CardBrowser() {
           printingId={displayPrinting.id}
           cardName={displayPrinting.card.name}
           shortCode={displayPrinting.shortCode}
+          siblings={view === "cards" ? siblings : undefined}
         />
       );
     }

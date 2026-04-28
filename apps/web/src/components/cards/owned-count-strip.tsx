@@ -1,12 +1,13 @@
 import { OwnedCollectionsPopover } from "@/components/cards/card-detail/owned-collections-popover";
+import type { OwnedBreakdownVariant } from "@/hooks/use-owned-count";
 
 interface OwnedCountStripProps {
   count: number;
   printingId?: string;
   cardName?: string;
   shortCode?: string;
-  /** All printing IDs for the same card (cards view), passed to the popover for aggregated breakdown. */
-  allPrintingIds?: string[];
+  /** All sibling printings of the same card (cards view), passed to the popover for per-variant breakdown. */
+  siblings?: readonly OwnedBreakdownVariant[];
 }
 
 /**
@@ -21,18 +22,18 @@ export function OwnedCountStrip({
   printingId,
   cardName,
   shortCode,
-  allPrintingIds,
+  siblings,
 }: OwnedCountStripProps) {
   return (
     // ⚠ h-5 + mb-1 = 24px is mirrored as ADD_STRIP_HEIGHT in card-grid-constants — update both together
-    <div className="relative z-10 mb-1 flex h-5 items-center justify-center">
+    <div className="relative z-30 mb-1 flex h-5 items-center justify-center">
       {printingId && cardName && shortCode ? (
         <OwnedCollectionsPopover
           printingId={printingId}
           cardName={cardName}
           shortCode={shortCode}
           count={count}
-          allPrintingIds={allPrintingIds}
+          siblings={siblings}
           align="center"
         />
       ) : (

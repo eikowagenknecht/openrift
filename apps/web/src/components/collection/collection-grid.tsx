@@ -637,7 +637,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         printingId={item.printing.id}
         cardName={item.printing.card.name}
         shortCode={item.printing.shortCode}
-        allPrintingIds={allPrintingIdsByCardId.get(item.printing.cardId)}
+        siblings={dataView === "cards" ? printingsByCardId.get(item.printing.cardId) : undefined}
       />
     );
 

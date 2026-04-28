@@ -3,6 +3,8 @@
 ## 2026-04-28
 
 - feat: Filter badges on the cards page now show how many cards each option matches under your other active filters, and options that would leave you with zero cards are dimmed
+- fix: The owned-count popover on the cards page now lists each printing variant separately with its per-collection counts, instead of showing the breakdown for only one variant while the badge counted them all
+- fix: When showing owned counts on the cards page, the package icon above each card stays clickable on hover, instead of being hidden behind the variants fanning out from the stack
 - fix: On phones and tablets the cards page no longer downloads the stacked sibling-printing images that were only ever revealed by hovering, saving bandwidth without changing the look
 - fix: The energy, might, and power sliders on the cards page no longer disappear when another filter narrows results to cards that all share the same value; they stay visible as disabled rows so the filter layout is preserved
 - fix: When you filter the cards page by owned, missing, or incomplete, the other filter chips now narrow their counts to that subset instead of still reflecting the full catalog

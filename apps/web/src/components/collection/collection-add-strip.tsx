@@ -28,7 +28,7 @@ export function CollectionAddStrip({
 }: CollectionAddStripProps) {
   return (
     // ⚠ h-5 + mb-1 = 24px mirrors ADD_STRIP_HEIGHT in card-grid-constants
-    <div className="relative z-10 mb-1 flex h-5 items-center justify-between">
+    <div className="relative z-30 mb-1 flex h-5 items-center justify-between">
       <button
         type="button"
         tabIndex={-1}
