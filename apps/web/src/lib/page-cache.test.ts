@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { applyPageCacheControl } from "./page-cache";
 
-const PUBLIC = "public, max-age=60, stale-while-revalidate=300";
+const PUBLIC = "public, max-age=300, stale-while-revalidate=3600";
 const PRIVATE = "private, no-cache";
 
 function htmlResponse(extraHeaders: Record<string, string> = {}, status = 200): Response {
@@ -30,6 +30,11 @@ function getRequest(
 describe("applyPageCacheControl", () => {
   it("emits public cache headers for anonymous GETs on cacheable public pages", () => {
     const result = applyPageCacheControl(getRequest("/cards"), htmlResponse());
+    expect(result.headers.get("Cache-Control")).toBe(PUBLIC);
+  });
+
+  it("emits the same public cache headers on the homepage", () => {
+    const result = applyPageCacheControl(getRequest("/"), htmlResponse());
     expect(result.headers.get("Cache-Control")).toBe(PUBLIC);
   });
 

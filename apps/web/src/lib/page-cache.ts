@@ -2,7 +2,12 @@ import interLatinWoff2 from "@fontsource-variable/inter/files/inter-latin-wght-n
 
 import indexCss from "@/index.css?url";
 
-const PUBLIC_PAGE_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300";
+// Public SSR pages emit near-static HTML shells; dynamic data is fetched
+// client-side and edge-cached separately on its own /api/v1/* paths. Long swr
+// keeps the edge serving fast cached HTML during low-traffic periods (e.g.
+// cold Lighthouse runs) while a background revalidation picks up any deploy
+// changes; a request only hits origin when the swr window has fully elapsed.
+const PUBLIC_PAGE_CACHE_CONTROL = "public, max-age=300, stale-while-revalidate=3600";
 const PRIVATE_PAGE_CACHE_CONTROL = "private, no-cache";
 
 // Cloudflare's Early Hints feature caches `Link: <...>; rel=preload` headers
