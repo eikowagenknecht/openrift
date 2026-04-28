@@ -38,15 +38,15 @@ export interface CardThumbnailDisplay {
  * subscribes once at the parent and threads the result through its
  * `renderCard`, so the lifted reads do NOT run per card.
  *
- * Why this exists: <CardThumbnail> mounts up to 40 times on hydration of
- * `/cards` (FIRST_ROW_LIMIT) and remounts continuously as the virtualizer
- * mounts/unmounts rows during scroll. Reading these inside the card meant
- * ~8 store/hook subscriptions per card — each with its own
- * useSyncExternalStore effect setup/teardown. Lifting them to one parent
- * call cuts that to N subscriptions for the whole grid instead of N ×
- * cards. Steady-state re-render cost is unchanged (Zustand's strict-equality
- * selectors already skip re-renders when slices don't change); the win is
- * mount-time effect wiring during hydration and scroll.
+ * Why this exists: <CardThumbnail> remounts continuously as the virtualizer
+ * mounts/unmounts rows during scroll, on top of one row's worth of mounts
+ * at hydration. Reading these inside the card meant ~8 store/hook
+ * subscriptions per card — each with its own useSyncExternalStore effect
+ * setup/teardown. Lifting them to one parent call cuts that to N
+ * subscriptions for the whole grid instead of N × cards. Steady-state
+ * re-render cost is unchanged (Zustand's strict-equality selectors already
+ * skip re-renders when slices don't change); the win is mount-time effect
+ * wiring during hydration and scroll.
  *
  * @returns The display context bundle a `CardThumbnail` consumer must pass.
  */

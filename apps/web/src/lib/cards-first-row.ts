@@ -11,13 +11,8 @@ export interface FirstRowCard {
   full: string;
 }
 
-/**
- * Number of cards the SSR shell preloads via real `<img>` tags. Mirrored on
- * the client side by lifting `CardGrid`'s eager-render floor to this value
- * so every preloaded card paints from cache without the muted-grey + fade
- * flash on hydration.
- */
-export const FIRST_ROW_LIMIT = 40;
+/** Number of cards the SSR shell preloads via real `<img>` tags. */
+const FIRST_ROW_LIMIT = 40;
 const PREFERRED_LANGUAGE = "EN";
 
 /**
