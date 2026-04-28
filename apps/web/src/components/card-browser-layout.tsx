@@ -119,7 +119,7 @@ export function CardBrowserLayout({
           {leftPane}
           <div
             className={cn(
-              "flex min-w-0 flex-1 flex-col transition-opacity duration-150",
+              "@container/grid flex min-w-0 flex-1 flex-col transition-opacity duration-150",
               stale ? "opacity-60" : "opacity-100",
             )}
           >

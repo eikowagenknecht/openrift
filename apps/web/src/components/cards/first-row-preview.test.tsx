@@ -148,11 +148,21 @@ describe("FirstRowPreview", () => {
     expect(container.textContent).toContain("ARC");
   });
 
-  it("declares column counts up to 8 so the SSR grid matches the live grid on ≥1920px screens", () => {
+  it("uses @container/grid breakpoints that mirror the live useResponsiveColumns table", () => {
+    // SSR must query the same container (the center column) the live grid measures —
+    // otherwise the filter sidebar makes viewport-based breakpoints over-count
+    // columns vs. what `useResponsiveColumns` picks at runtime.
     mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: [makeCard(0)] }));
     const { container } = render(<FirstRowPreview />);
     const grid = container.querySelector(".grid");
-    expect(grid?.className).toContain("min-[1920px]:grid-cols-8");
+    const className = grid?.className ?? "";
+    expect(className).toContain("grid-cols-2");
+    expect(className).toContain("@min-[640px]/grid:grid-cols-3");
+    expect(className).toContain("@min-[768px]/grid:grid-cols-4");
+    expect(className).toContain("@min-[1024px]/grid:grid-cols-5");
+    expect(className).toContain("@min-[1280px]/grid:grid-cols-6");
+    expect(className).toContain("@min-[1600px]/grid:grid-cols-7");
+    expect(className).toContain("@min-[1920px]/grid:grid-cols-8");
   });
 
   it("sets srcset, sizes, width, height, and alt on every image", () => {

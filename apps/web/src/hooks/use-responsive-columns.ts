@@ -20,15 +20,13 @@ export function useResponsiveColumns(maxColumns?: number | null) {
     if (maxColumns !== undefined && maxColumns !== null) {
       return maxColumns;
     }
-    const width = typeof globalThis === "undefined" ? 1024 : globalThis.innerWidth;
-    const match = breakpoints.find((bp) => width >= bp.minWidth);
+    const match = breakpoints.find((bp) => globalThis.innerWidth >= bp.minWidth);
     return match?.cols ?? 2;
   });
   const [physicalMax, setPhysicalMax] = useState(8);
   const [physicalMin, setPhysicalMin] = useState(1);
   const [autoColumns, setAutoColumns] = useState(() => {
-    const width = typeof globalThis === "undefined" ? 1024 : globalThis.innerWidth;
-    const match = breakpoints.find((bp) => width >= bp.minWidth);
+    const match = breakpoints.find((bp) => globalThis.innerWidth >= bp.minWidth);
     return match?.cols ?? 2;
   });
   const [containerWidth, setContainerWidth] = useState(400);
