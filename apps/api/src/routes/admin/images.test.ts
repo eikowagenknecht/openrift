@@ -2,13 +2,14 @@ import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  REGENERATE_IMAGES_KIND,
   cleanupOrphanedFiles,
   clearAllRehosted,
   findBrokenImages,
   findLowResImages,
   getRehostStatus,
-  regenerateImages,
   rehostImages,
+  runRegenerateImagesJob,
   unrehostImages,
 } from "../../services/image-rehost.js";
 import { imagesRoute } from "./images";
@@ -17,19 +18,23 @@ import { imagesRoute } from "./images";
 // Mock service module — vitest hoists vi.mock() automatically
 // ---------------------------------------------------------------------------
 
-vi.mock("../../services/image-rehost.js", () => ({
-  rehostImages: vi.fn(),
-  regenerateImages: vi.fn(),
-  cleanupOrphanedFiles: vi.fn(),
-  clearAllRehosted: vi.fn(),
-  getRehostStatus: vi.fn(),
-  findBrokenImages: vi.fn(),
-  findLowResImages: vi.fn(),
-  unrehostImages: vi.fn(),
-}));
+vi.mock("../../services/image-rehost.js", async (importActual) => {
+  const actual = (await importActual()) as Record<string, unknown>;
+  return {
+    ...actual,
+    rehostImages: vi.fn(),
+    runRegenerateImagesJob: vi.fn(),
+    cleanupOrphanedFiles: vi.fn(),
+    clearAllRehosted: vi.fn(),
+    getRehostStatus: vi.fn(),
+    findBrokenImages: vi.fn(),
+    findLowResImages: vi.fn(),
+    unrehostImages: vi.fn(),
+  };
+});
 
 const mockRehostImages = vi.mocked(rehostImages);
-const mockRegenerateImages = vi.mocked(regenerateImages);
+const mockRunRegenerateImagesJob = vi.mocked(runRegenerateImagesJob);
 const mockCleanupOrphanedFiles = vi.mocked(cleanupOrphanedFiles);
 const mockClearAllRehosted = vi.mocked(clearAllRehosted);
 const mockGetRehostStatus = vi.mocked(getRehostStatus);
@@ -49,6 +54,20 @@ const mockCandidateCards = {
   listCardsWithMissingImages: vi.fn(),
 };
 
+const mockJobRuns = {
+  start: vi.fn(async () => ({ id: "run-test" })),
+  succeed: vi.fn(),
+  fail: vi.fn(),
+  findRunning: vi.fn(async () => null),
+  findLatestForResume: vi.fn(async () => null),
+  getResult: vi.fn(),
+  updateResult: vi.fn(),
+  listRecent: vi.fn(),
+  getLatestPerKind: vi.fn(),
+  sweepOrphaned: vi.fn(),
+  purgeOlderThan: vi.fn(),
+};
+
 // ---------------------------------------------------------------------------
 // Test app
 // ---------------------------------------------------------------------------
@@ -63,6 +82,7 @@ const app = new Hono()
     c.set("repos", {
       printingImages: mockPrintingImages,
       candidateCards: mockCandidateCards,
+      jobRuns: mockJobRuns,
     } as never);
     await next();
   })
@@ -101,63 +121,108 @@ describe("POST /api/v1/rehost-images", () => {
 describe("POST /api/v1/regenerate-images", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-  });
-
-  it("returns 200 with regenerate result using default offset", async () => {
-    const result = {
-      total: 100,
-      regenerated: 50,
-      failed: 2,
-      errors: [],
-      hasMore: true,
-      totalFiles: 200,
-    };
-    mockRegenerateImages.mockResolvedValue(result);
-
-    const res = await app.request("/api/v1/regenerate-images", { method: "POST" });
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json).toEqual(result);
-    expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, 0, {
-      skipExisting: false,
-    });
-  });
-
-  it("passes custom offset from query param", async () => {
-    const result = {
-      total: 50,
-      regenerated: 50,
-      failed: 0,
-      errors: [],
-      hasMore: false,
-      totalFiles: 100,
-    };
-    mockRegenerateImages.mockResolvedValue(result);
-
-    const res = await app.request("/api/v1/regenerate-images?offset=50", { method: "POST" });
-    expect(res.status).toBe(200);
-    expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, 50, {
-      skipExisting: false,
-    });
-  });
-
-  it("forwards skipExisting=true from query param", async () => {
-    mockRegenerateImages.mockResolvedValue({
-      total: 0,
+    mockJobRuns.start.mockResolvedValue({ id: "run-test" });
+    mockJobRuns.findRunning.mockResolvedValue(null);
+    mockJobRuns.findLatestForResume.mockResolvedValue(null);
+    mockRunRegenerateImagesJob.mockResolvedValue({
+      snapshot: [],
+      totalFiles: 0,
+      lastProcessedIndex: -1,
+      processed: 0,
       regenerated: 0,
       failed: 0,
       errors: [],
-      hasMore: false,
-      totalFiles: 0,
+      resumedFromRunId: null,
+      cancelRequested: false,
+      skipExisting: false,
+    });
+  });
+
+  it("kicks off a fresh job and returns runId immediately", async () => {
+    const res = await app.request("/api/v1/regenerate-images", { method: "POST" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ runId: "run-test", status: "running" });
+    expect(mockJobRuns.start).toHaveBeenCalledWith({
+      kind: REGENERATE_IMAGES_KIND,
+      trigger: "admin",
+    });
+    expect(mockJobRuns.findLatestForResume).toHaveBeenCalledWith(REGENERATE_IMAGES_KIND);
+  });
+
+  it("returns already_running when a regenerate job is already in flight", async () => {
+    mockJobRuns.findRunning.mockResolvedValue({ id: "earlier-run" });
+    const res = await app.request("/api/v1/regenerate-images", { method: "POST" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ runId: "earlier-run", status: "already_running" });
+    expect(mockJobRuns.start).not.toHaveBeenCalled();
+  });
+
+  it("does NOT pass resumeFrom when ?reset=true is present, even if a failed prior run exists", async () => {
+    mockJobRuns.findLatestForResume.mockResolvedValue({
+      id: "prior-failed",
+      kind: REGENERATE_IMAGES_KIND,
+      trigger: "admin",
+      status: "failed",
+      startedAt: new Date(),
+      finishedAt: new Date(),
+      durationMs: 1,
+      errorMessage: "boom",
+      result: {
+        snapshot: [{ imageId: "card-1", rehostedUrl: "/m/01/card-1" }],
+        totalFiles: 5,
+        lastProcessedIndex: 1,
+        processed: 2,
+        regenerated: 2,
+        failed: 0,
+        errors: [],
+        resumedFromRunId: null,
+        cancelRequested: false,
+        skipExisting: false,
+      },
     });
 
-    const res = await app.request("/api/v1/regenerate-images?skipExisting=true", {
-      method: "POST",
-    });
+    const res = await app.request("/api/v1/regenerate-images?reset=true", { method: "POST" });
     expect(res.status).toBe(200);
-    expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, 0, {
-      skipExisting: true,
+    expect(mockJobRuns.findLatestForResume).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/v1/regenerate-images/cancel", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("flips cancelRequested on the running row's checkpoint", async () => {
+    mockJobRuns.findRunning.mockResolvedValue({ id: "run-x" });
+    mockJobRuns.getResult.mockResolvedValue({
+      snapshot: [],
+      totalFiles: 5,
+      lastProcessedIndex: 1,
+      processed: 2,
+      regenerated: 2,
+      failed: 0,
+      errors: [],
+      resumedFromRunId: null,
+      cancelRequested: false,
+      skipExisting: false,
     });
+
+    const res = await app.request("/api/v1/regenerate-images/cancel", { method: "POST" });
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json).toEqual({ runId: "run-x", cancelRequested: true });
+    expect(mockJobRuns.updateResult).toHaveBeenCalledWith(
+      "run-x",
+      expect.objectContaining({ cancelRequested: true }),
+    );
+  });
+
+  it("404s when no regenerate job is running", async () => {
+    mockJobRuns.findRunning.mockResolvedValue(null);
+    const res = await app.request("/api/v1/regenerate-images/cancel", { method: "POST" });
+    expect(res.status).toBe(404);
   });
 });
 

@@ -8,17 +8,23 @@ import type {
   CleanupOrphanedResponse,
   ClearRehostedResponse,
   LowResImagesResponse,
-  RegenerateImageResponse,
+  RegenerateImagesCheckpoint,
   RehostImageResponse,
   RehostStatusDiskStats,
   RehostStatusResponse,
   UnrehostImagesResponse,
 } from "@openrift/shared";
+import type { Logger } from "@openrift/shared/logger";
 
 import type { Io } from "../io.js";
+import type { jobRunsRepo } from "../repositories/job-runs.js";
 import type { printingImagesRepo } from "../repositories/printing-images.js";
 
 type PrintingImagesRepo = ReturnType<typeof printingImagesRepo>;
+type JobRunsRepo = ReturnType<typeof jobRunsRepo>;
+
+/** Job-runs `kind` for the resumable regenerate-images flow. */
+export const REGENERATE_IMAGES_KIND = "images.regenerate";
 
 /**
  * Build the canonical rehosted URL for an image by its UUID.
@@ -355,7 +361,14 @@ export async function rehostSingleImage(
   }
 }
 
-const BATCH_SIZE = 10;
+/**
+ * Batch size for image-rehost and image-regenerate loops. Trades off four
+ * things: (1) Sharp encode parallelism per batch (memory pressure scales
+ * roughly linearly), (2) cancel-request latency (cancel is checked between
+ * batches), (3) job-run checkpoint write frequency, and (4) work lost to a
+ * crash mid-batch. 10 sits in the middle on all four.
+ */
+export const BATCH_SIZE = 10;
 
 export async function rehostImages(
   io: Io,
@@ -407,34 +420,25 @@ export async function rehostImages(
   return progress;
 }
 
-export async function regenerateImages(
+/** Cap on the number of error strings retained in a checkpoint, to keep the
+ * `job_runs.result` JSONB row from growing unbounded on bad runs. */
+const MAX_CHECKPOINT_ERRORS = 100;
+
+interface RegenerateBatchResult {
+  regenerated: number;
+  failed: number;
+  errors: string[];
+}
+
+export async function regenerateImagesBatch(
   io: Io,
   repo: PrintingImagesRepo,
-  offset: number,
+  batch: { imageId: string; rehostedUrl: string }[],
   options: { skipExisting?: boolean } = {},
-): Promise<RegenerateImageResponse> {
-  const progress: RegenerateImageResponse = {
-    total: 0,
-    regenerated: 0,
-    failed: 0,
-    errors: [],
-    hasMore: false,
-    totalFiles: 0,
-  };
-
-  // Drive pagination from the DB, not a disk scan. The DB list is stable across
-  // paginated calls even while regeneration is mutating disk state underneath;
-  // a disk scan reorders as variants get added/removed and causes slice()
-  // offsets to skip files between batches.
-  const allImages = await repo.listAllRehosted();
-  progress.totalFiles = allImages.length;
-
-  const batch = allImages.slice(offset, offset + BATCH_SIZE);
-  progress.total = batch.length;
-  progress.hasMore = offset + BATCH_SIZE < allImages.length;
-
+): Promise<RegenerateBatchResult> {
+  const out: RegenerateBatchResult = { regenerated: 0, failed: 0, errors: [] };
   if (batch.length === 0) {
-    return progress;
+    return out;
   }
 
   const rotations = await repo.getRotationsByIds(batch.map((img) => img.imageId));
@@ -477,18 +481,164 @@ export async function regenerateImages(
   for (let idx = 0; idx < results.length; idx++) {
     const result = results[idx];
     if (result.status === "fulfilled") {
-      progress.regenerated++;
+      out.regenerated++;
     } else {
-      progress.failed++;
+      out.failed++;
       const { imageId } = batch[idx];
       const message =
         result.reason instanceof Error ? result.reason.message : String(result.reason);
-      progress.errors.push(`${imageId}: ${message}`);
+      out.errors.push(`${imageId}: ${message}`);
       console.error(`[regenerate] ${imageId}:`, message);
     }
   }
 
-  return progress;
+  return out;
+}
+
+function appendCappedErrors(existing: string[], more: string[]): string[] {
+  if (more.length === 0) {
+    return existing;
+  }
+  const combined = [...existing, ...more];
+  if (combined.length <= MAX_CHECKPOINT_ERRORS) {
+    return combined;
+  }
+  // Keep the most recent failures; older noise gets dropped.
+  return combined.slice(combined.length - MAX_CHECKPOINT_ERRORS);
+}
+
+/**
+ * Type guard for the JSONB stored in `job_runs.result` for `images.regenerate`
+ * runs. Used to safely re-hydrate prior checkpoints when deciding whether to
+ * resume.
+ * @returns True when the value matches the checkpoint shape closely enough to
+ *   be re-used.
+ */
+export function isRegenerateCheckpoint(value: unknown): value is RegenerateImagesCheckpoint {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  const v = value as Record<string, unknown>;
+  return (
+    Array.isArray(v.snapshot) &&
+    typeof v.totalFiles === "number" &&
+    typeof v.lastProcessedIndex === "number" &&
+    typeof v.processed === "number" &&
+    typeof v.regenerated === "number" &&
+    typeof v.failed === "number" &&
+    Array.isArray(v.errors) &&
+    typeof v.cancelRequested === "boolean" &&
+    typeof v.skipExisting === "boolean"
+  );
+}
+
+interface RunRegenerateJobDeps {
+  io: Io;
+  printingImages: PrintingImagesRepo;
+  jobRuns: JobRunsRepo;
+  log: Logger;
+}
+
+interface RunRegenerateJobOptions {
+  /** When set, resume from this prior checkpoint's snapshot + counters. */
+  resumeFrom?: { runId: string; checkpoint: RegenerateImagesCheckpoint };
+  skipExisting?: boolean;
+}
+
+/**
+ * Run the resumable regenerate-images job for a single `job_runs` row.
+ *
+ * Snapshots the rehosted-image list at start (or carries over a prior
+ * checkpoint's snapshot when resuming), iterates `BATCH_SIZE` at a time, and
+ * writes a fresh checkpoint to the row's `result` JSONB after every batch.
+ * Between batches it re-reads the row to honor `cancelRequested` so a parallel
+ * cancel endpoint can stop the loop without killing the process.
+ *
+ * Errors thrown by the per-batch helper itself (vs per-image failures, which
+ * the helper records into `errors`) bubble up so `runJobAsync` records the
+ * run as `failed` with that message.
+ *
+ * @returns The final checkpoint state; `runJobAsync` stores it as the
+ *   succeeded run's `result`.
+ */
+export async function runRegenerateImagesJob(
+  deps: RunRegenerateJobDeps,
+  runId: string,
+  options: RunRegenerateJobOptions = {},
+): Promise<RegenerateImagesCheckpoint> {
+  const { io, printingImages, jobRuns, log } = deps;
+  const skipExisting = options.skipExisting ?? false;
+
+  let checkpoint: RegenerateImagesCheckpoint;
+  if (options.resumeFrom) {
+    const { runId: priorRunId, checkpoint: prior } = options.resumeFrom;
+    log.info(
+      {
+        runId,
+        priorRunId,
+        lastProcessedIndex: prior.lastProcessedIndex,
+        totalFiles: prior.totalFiles,
+      },
+      "Resuming regenerate-images from prior checkpoint",
+    );
+    checkpoint = {
+      ...prior,
+      resumedFromRunId: priorRunId,
+      cancelRequested: false,
+      skipExisting,
+    };
+  } else {
+    const snapshot = await printingImages.listAllRehosted();
+    checkpoint = {
+      snapshot,
+      totalFiles: snapshot.length,
+      lastProcessedIndex: -1,
+      processed: 0,
+      regenerated: 0,
+      failed: 0,
+      errors: [],
+      resumedFromRunId: null,
+      cancelRequested: false,
+      skipExisting,
+    };
+    log.info({ runId, totalFiles: snapshot.length }, "Starting fresh regenerate-images");
+  }
+
+  await jobRuns.updateResult(runId, checkpoint);
+
+  let cursor = checkpoint.lastProcessedIndex + 1;
+  while (cursor < checkpoint.totalFiles) {
+    const batch = checkpoint.snapshot.slice(cursor, cursor + BATCH_SIZE);
+    const batchResult = await regenerateImagesBatch(io, printingImages, batch, { skipExisting });
+
+    cursor += batch.length;
+    checkpoint = {
+      ...checkpoint,
+      lastProcessedIndex: cursor - 1,
+      processed: checkpoint.processed + batch.length,
+      regenerated: checkpoint.regenerated + batchResult.regenerated,
+      failed: checkpoint.failed + batchResult.failed,
+      errors: appendCappedErrors(checkpoint.errors, batchResult.errors),
+    };
+
+    // Re-read the row so an out-of-band cancel from the cancel endpoint is
+    // visible. Read-modify-write race with the cancel writer is a few µs
+    // wide and the worst case is the user re-clicks cancel — fine for an
+    // admin-only flow.
+    const latestResult = await jobRuns.getResult(runId);
+    const cancelRequested =
+      isRegenerateCheckpoint(latestResult) && latestResult.cancelRequested === true;
+    checkpoint = { ...checkpoint, cancelRequested };
+
+    await jobRuns.updateResult(runId, checkpoint);
+
+    if (cancelRequested) {
+      log.warn({ runId, cursor }, "regenerate-images cancelled mid-run");
+      throw new Error("cancelled");
+    }
+  }
+
+  return checkpoint;
 }
 
 /**

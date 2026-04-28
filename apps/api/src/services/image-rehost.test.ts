@@ -20,11 +20,13 @@ import {
   findLowResImages,
   getRehostStatus,
   imageRehostedUrl,
+  isRegenerateCheckpoint,
   processAndSave,
-  regenerateImages,
+  regenerateImagesBatch,
   rehostFilesExist,
   rehostImages,
   rehostSingleImage,
+  runRegenerateImagesJob,
   unrehostImages,
 } from "./image-rehost.js";
 
@@ -545,58 +547,37 @@ describe("unrehostImages", () => {
   });
 });
 
-describe("regenerateImages", () => {
-  it("returns empty when DB has no rehosted images", async () => {
-    const result = await regenerateImages(mockIo, makeMockRepo({ rehosted: [] }), 0);
-    expect(result).toEqual({
-      total: 0,
-      regenerated: 0,
-      failed: 0,
-      errors: [],
-      hasMore: false,
-      totalFiles: 0,
-    });
+/**
+ * Build a {imageId, rehostedUrl} entry shaped like `listAllRehosted` rows for
+ * the per-batch helper.
+ * @returns Snapshot entry.
+ */
+function snap(imageId: string, rehostedUrl?: string) {
+  return { imageId, rehostedUrl: rehostedUrl ?? `/media/cards/${imageId.slice(-2)}/${imageId}` };
+}
+
+describe("regenerateImagesBatch", () => {
+  it("returns empty totals on an empty batch (no repo or fs reads)", async () => {
+    const repo = makeMockRepo({});
+    const result = await regenerateImagesBatch(mockIo, repo, []);
+    expect(result).toEqual({ regenerated: 0, failed: 0, errors: [] });
+    expect(repo.getRotationsByIds).not.toHaveBeenCalled();
   });
 
-  it("regenerates variants from on-disk orig files for each DB row", async () => {
-    const repo = makeMockRepo({
-      rehosted: [{ imageId: "card-001" }, { imageId: "card-002" }],
-    });
+  it("regenerates variants from on-disk orig files for each entry", async () => {
+    const repo = makeMockRepo({});
     mockReaddir.mockImplementation(async () => ["card-001-orig.png", "card-002-orig.jpg"]);
-    const result = await regenerateImages(mockIo, repo, 0);
+    const result = await regenerateImagesBatch(mockIo, repo, [snap("card-001"), snap("card-002")]);
     expect(result.regenerated).toBe(2);
-    expect(result.totalFiles).toBe(2);
     expect(mockReadFile).toHaveBeenCalledTimes(2);
   });
 
-  it("sets hasMore when rehosted count exceeds batch size", async () => {
-    const rehosted = Array.from({ length: 15 }, (_, i) => ({ imageId: `card-${i}` }));
-    const repo = makeMockRepo({ rehosted });
-    mockReaddir.mockImplementation(async () => rehosted.map((r) => `${r.imageId}-orig.png`));
-    const result = await regenerateImages(mockIo, repo, 0);
-    expect(result.totalFiles).toBe(15);
-    expect(result.total).toBe(10);
-    expect(result.hasMore).toBe(true);
-    expect(result.regenerated).toBe(10);
-  });
-
-  it("paginates with offset > 0 over a stable DB list", async () => {
-    const rehosted = Array.from({ length: 15 }, (_, i) => ({ imageId: `card-${i}` }));
-    const repo = makeMockRepo({ rehosted });
-    mockReaddir.mockImplementation(async () => rehosted.map((r) => `${r.imageId}-orig.png`));
-    const result = await regenerateImages(mockIo, repo, 10);
-    expect(result.totalFiles).toBe(15);
-    expect(result.total).toBe(5);
-    expect(result.hasMore).toBe(false);
-    expect(result.regenerated).toBe(5);
-  });
-
   it("clears stale rehostedUrl when the prefix dir is missing entirely", async () => {
-    const repo = makeMockRepo({
-      rehosted: [{ imageId: "card-001", rehostedUrl: "/media/cards/01/card-001" }],
-    });
+    const repo = makeMockRepo({});
     mockReaddir.mockRejectedValue(new Error("ENOENT"));
-    const result = await regenerateImages(mockIo, repo, 0);
+    const result = await regenerateImagesBatch(mockIo, repo, [
+      snap("card-001", "/media/cards/01/card-001"),
+    ]);
     expect(result.failed).toBe(1);
     expect(result.regenerated).toBe(0);
     expect(result.errors[0]).toContain("prefix dir missing");
@@ -605,47 +586,48 @@ describe("regenerateImages", () => {
   });
 
   it("deletes dangling variants and clears DB when -orig is missing", async () => {
-    const repo = makeMockRepo({
-      rehosted: [{ imageId: "card-001", rehostedUrl: "/media/cards/01/card-001" }],
-    });
+    const repo = makeMockRepo({});
     mockReaddir.mockImplementation(async () => ["card-001-400w.webp", "card-001-full.webp"]);
-    const result = await regenerateImages(mockIo, repo, 0);
+    const result = await regenerateImagesBatch(mockIo, repo, [
+      snap("card-001", "/media/cards/01/card-001"),
+    ]);
     expect(result.failed).toBe(1);
     expect(result.regenerated).toBe(0);
     expect(result.errors[0]).toContain("no -orig file on disk");
     expect(result.errors[0]).toContain("cleared stale rehostedUrl");
-    // deleteRehostFiles unlinks the matching files it finds in the parent dir
     expect(mockUnlink).toHaveBeenCalled();
     expect(repo.updateRehostedUrl).toHaveBeenCalledWith("card-001", null);
   });
 
   it("counts readFile failures", async () => {
-    const repo = makeMockRepo({ rehosted: [{ imageId: "card-001" }] });
+    const repo = makeMockRepo({});
     mockReaddir.mockImplementation(async () => ["card-001-orig.png"]);
     mockReadFile.mockRejectedValue(new Error("read error"));
-    const result = await regenerateImages(mockIo, repo, 0);
+    const result = await regenerateImagesBatch(mockIo, repo, [snap("card-001")]);
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("read error");
   });
 
-  it("handles non-Error thrown values in regeneration", async () => {
-    const repo = makeMockRepo({ rehosted: [{ imageId: "card-001" }] });
+  it("handles non-Error thrown values", async () => {
+    const repo = makeMockRepo({});
     mockReaddir.mockImplementation(async () => ["card-001-orig.png"]);
     mockReadFile.mockRejectedValue("raw-string-error");
-    const result = await regenerateImages(mockIo, repo, 0);
+    const result = await regenerateImagesBatch(mockIo, repo, [snap("card-001")]);
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("raw-string-error");
   });
 
   it("with skipExisting only writes the variants missing from disk", async () => {
-    const repo = makeMockRepo({ rehosted: [{ imageId: "card-001" }] });
+    const repo = makeMockRepo({});
     // 240w + full on disk, 120w + 400w missing — write only the two gaps.
     mockReaddir.mockImplementation(async () => [
       "card-001-orig.png",
       "card-001-240w.webp",
       "card-001-full.webp",
     ]);
-    const result = await regenerateImages(mockIo, repo, 0, { skipExisting: true });
+    const result = await regenerateImagesBatch(mockIo, repo, [snap("card-001")], {
+      skipExisting: true,
+    });
     expect(result.regenerated).toBe(1);
     expect(mockWriteFile).toHaveBeenCalledTimes(2);
     expect(mockWriteFile).toHaveBeenCalledWith(
@@ -659,7 +641,7 @@ describe("regenerateImages", () => {
   });
 
   it("with skipExisting skips entirely when every variant exists", async () => {
-    const repo = makeMockRepo({ rehosted: [{ imageId: "card-001" }] });
+    const repo = makeMockRepo({});
     mockReaddir.mockImplementation(async () => [
       "card-001-orig.png",
       "card-001-120w.webp",
@@ -667,9 +649,172 @@ describe("regenerateImages", () => {
       "card-001-400w.webp",
       "card-001-full.webp",
     ]);
-    const result = await regenerateImages(mockIo, repo, 0, { skipExisting: true });
+    const result = await regenerateImagesBatch(mockIo, repo, [snap("card-001")], {
+      skipExisting: true,
+    });
     expect(result.regenerated).toBe(1);
     expect(mockWriteFile).not.toHaveBeenCalled();
+  });
+});
+
+// ─── runRegenerateImagesJob ──────────────────────────────────────────────
+
+/**
+ * Minimal in-memory job_runs repo good enough for runRegenerateImagesJob:
+ * tracks the current `result` JSONB. Tests can mutate the stored value
+ * directly via `setCancel` to simulate the cancel endpoint racing with the
+ * job loop.
+ * @returns A handle exposing the mock repo plus helpers to read/mutate the row.
+ */
+function makeFakeJobRunsRepo(initial: unknown = null) {
+  const state: { stored: unknown } = { stored: initial };
+  const repo = {
+    updateResult: vi.fn(async (_id: string, result: unknown) => {
+      state.stored = result;
+    }),
+    getResult: vi.fn(async () => state.stored),
+    start: vi.fn(),
+    succeed: vi.fn(),
+    fail: vi.fn(),
+    findRunning: vi.fn(),
+    listRecent: vi.fn(),
+    getLatestPerKind: vi.fn(),
+    sweepOrphaned: vi.fn(),
+    purgeOlderThan: vi.fn(),
+    findLatestForResume: vi.fn(),
+  };
+  /** @returns The current stored checkpoint, or null. */
+  const current = () => state.stored;
+  /** Simulate the cancel endpoint flipping the flag in the row. */
+  const setCancel = () => {
+    if (state.stored && typeof state.stored === "object") {
+      state.stored = { ...(state.stored as Record<string, unknown>), cancelRequested: true };
+    }
+  };
+  return { repo: repo as any, current, setCancel };
+}
+
+const noopLog = {
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+  fatal: vi.fn(),
+  trace: vi.fn(),
+  child: vi.fn(() => noopLog),
+} as any;
+
+describe("runRegenerateImagesJob", () => {
+  it("snapshots from listAllRehosted on a fresh start and processes everything", async () => {
+    const ids = Array.from({ length: 12 }, (_, i) => snap(`card-${String(i).padStart(3, "0")}`));
+    const printingImages = makeMockRepo({ rehosted: ids });
+    mockReaddir.mockImplementation(async () => ids.map((s) => `${s.imageId}-orig.png`));
+    const fake = makeFakeJobRunsRepo();
+
+    const result = await runRegenerateImagesJob(
+      { io: mockIo, printingImages, jobRuns: fake.repo, log: noopLog },
+      "run-1",
+    );
+
+    expect(result.totalFiles).toBe(12);
+    expect(result.lastProcessedIndex).toBe(11);
+    expect(result.processed).toBe(12);
+    expect(result.regenerated).toBe(12);
+    expect(result.failed).toBe(0);
+    expect(result.resumedFromRunId).toBeNull();
+    // 12 / batch_size 10 = 2 batches; plus the initial snapshot write = 3.
+    expect(fake.repo.updateResult).toHaveBeenCalledTimes(3);
+  });
+
+  it("resumes from a prior checkpoint and skips already-processed entries", async () => {
+    const ids = Array.from({ length: 12 }, (_, i) => snap(`card-${String(i).padStart(3, "0")}`));
+    const printingImages = makeMockRepo({ rehosted: [] });
+    // Disk reads succeed for everything we DO process.
+    mockReaddir.mockImplementation(async () => ids.map((s) => `${s.imageId}-orig.png`));
+    const fake = makeFakeJobRunsRepo();
+
+    const priorCheckpoint = {
+      snapshot: ids,
+      totalFiles: 12,
+      lastProcessedIndex: 4,
+      processed: 5,
+      regenerated: 5,
+      failed: 0,
+      errors: [],
+      resumedFromRunId: null,
+      cancelRequested: false,
+      skipExisting: false,
+    };
+
+    const result = await runRegenerateImagesJob(
+      { io: mockIo, printingImages, jobRuns: fake.repo, log: noopLog },
+      "run-2",
+      { resumeFrom: { runId: "run-1", checkpoint: priorCheckpoint } },
+    );
+
+    expect(printingImages.listAllRehosted).not.toHaveBeenCalled();
+    expect(result.lastProcessedIndex).toBe(11);
+    expect(result.processed).toBe(12);
+    // 5 already counted from prior + 7 from this run = 12.
+    expect(result.regenerated).toBe(12);
+    expect(result.resumedFromRunId).toBe("run-1");
+    // Per-batch helper sees only the 7 unprocessed entries (rotations called once).
+    const rotationCallArgs = (printingImages.getRotationsByIds as any).mock.calls[0][0];
+    expect(rotationCallArgs).toHaveLength(7);
+    expect(rotationCallArgs[0]).toBe("card-005");
+  });
+
+  it("stops mid-run and throws 'cancelled' when cancelRequested flips between batches", async () => {
+    const ids = Array.from({ length: 25 }, (_, i) => snap(`card-${String(i).padStart(3, "0")}`));
+    const printingImages = makeMockRepo({ rehosted: ids });
+    mockReaddir.mockImplementation(async () => ids.map((s) => `${s.imageId}-orig.png`));
+    const fake = makeFakeJobRunsRepo();
+
+    // The cancel-check happens after each batch's processing but before the
+    // batch's progress is written. To stop after exactly one batch, trip the
+    // cancel flag right after the initial snapshot write — by the time the
+    // loop's first cancel-check runs, the row already has cancelRequested=true.
+    let writes = 0;
+    const realUpdate = fake.repo.updateResult.getMockImplementation()!;
+    fake.repo.updateResult.mockImplementation(async (id: string, value: unknown) => {
+      await realUpdate(id, value);
+      writes++;
+      if (writes === 1) {
+        fake.setCancel();
+      }
+    });
+
+    await expect(
+      runRegenerateImagesJob(
+        { io: mockIo, printingImages, jobRuns: fake.repo, log: noopLog },
+        "run-cancel",
+      ),
+    ).rejects.toThrow("cancelled");
+
+    const final = fake.current() as { processed: number; cancelRequested: boolean };
+    // First batch (10) ran; cancel checked after; second batch did not start.
+    expect(final.processed).toBe(10);
+    expect(final.cancelRequested).toBe(true);
+  });
+
+  it("isRegenerateCheckpoint accepts the canonical shape and rejects partial values", () => {
+    const ok = {
+      snapshot: [],
+      totalFiles: 0,
+      lastProcessedIndex: -1,
+      processed: 0,
+      regenerated: 0,
+      failed: 0,
+      errors: [],
+      resumedFromRunId: null,
+      cancelRequested: false,
+      skipExisting: false,
+    };
+    expect(isRegenerateCheckpoint(ok)).toBe(true);
+    expect(isRegenerateCheckpoint(null)).toBe(false);
+    expect(isRegenerateCheckpoint({})).toBe(false);
+    expect(isRegenerateCheckpoint({ ...ok, snapshot: "not-an-array" })).toBe(false);
+    expect(isRegenerateCheckpoint({ ...ok, cancelRequested: "no" })).toBe(false);
   });
 });
 

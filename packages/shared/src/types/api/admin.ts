@@ -341,13 +341,41 @@ export interface UnrehostImagesResponse {
   errors: string[];
 }
 
-export interface RegenerateImageResponse {
-  total: number;
+/**
+ * Async-job kickoff response for regenerate-images. The actual progress is
+ * tracked on the corresponding `job_runs` row's `result` JSONB; clients
+ * poll that row to render progress and decide whether to offer resume.
+ */
+export interface RegenerateImagesKickoffResponse {
+  runId: string;
+  status: "running" | "already_running";
+}
+
+/**
+ * Per-batch checkpoint written to `job_runs.result` while a regenerate job is
+ * running, and left in place when the run finishes (succeeded, failed, or
+ * cancelled). The `snapshot` is captured at run start so retries iterate the
+ * same set even if images were added or removed in the meantime.
+ *
+ * Resume semantics: when the latest run for `images.regenerate` is `failed`
+ * with `lastProcessedIndex < snapshot.length - 1` and `cancelRequested` is
+ * false (or true — cancel is treated as a pause), a new run can pick up at
+ * `lastProcessedIndex + 1`.
+ */
+export interface RegenerateImagesCheckpoint {
+  snapshot: { imageId: string; rehostedUrl: string }[];
+  totalFiles: number;
+  /** -1 means nothing processed yet; resume starts at this index + 1. */
+  lastProcessedIndex: number;
+  /** Sum across resumes (regenerated + failed). */
+  processed: number;
   regenerated: number;
   failed: number;
+  /** Bounded list of error strings; older entries are dropped past the cap. */
   errors: string[];
-  hasMore: boolean;
-  totalFiles: number;
+  resumedFromRunId: string | null;
+  cancelRequested: boolean;
+  skipExisting: boolean;
 }
 
 export interface ClearRehostedResponse {

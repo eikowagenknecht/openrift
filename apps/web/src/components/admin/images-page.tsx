@@ -1,4 +1,4 @@
-import type { RehostImageResponse } from "@openrift/shared";
+import type { RegenerateImagesCheckpoint, RehostImageResponse } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { CheckIcon, LoaderIcon, XIcon } from "lucide-react";
 import { useState } from "react";
@@ -16,9 +16,10 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useProviderNames } from "@/hooks/use-admin-card-queries";
-import type { RegenerateAccumulator } from "@/hooks/use-rehost";
+import { useLatestJobRunByKind } from "@/hooks/use-job-runs";
 import {
   useBrokenImages,
+  useCancelRegenerateImages,
   useCleanupOrphaned,
   useClearRehosted,
   useLowResImages,
@@ -30,6 +31,28 @@ import {
   useRestoreImageUrls,
   useUnrehostImages,
 } from "@/hooks/use-rehost";
+
+const REGENERATE_KIND = "images.regenerate";
+
+/**
+ * Type guard mirroring the server-side checkpoint shape so we can read
+ * `job_runs.result` safely without sharing runtime code with the API.
+ * @returns True when the value matches the checkpoint shape closely enough.
+ */
+function isRegenerateCheckpoint(value: unknown): value is RegenerateImagesCheckpoint {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  const v = value as Record<string, unknown>;
+  return (
+    typeof v.totalFiles === "number" &&
+    typeof v.lastProcessedIndex === "number" &&
+    typeof v.processed === "number" &&
+    typeof v.regenerated === "number" &&
+    typeof v.failed === "number" &&
+    Array.isArray(v.errors)
+  );
+}
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -57,15 +80,15 @@ function MutationStatus({
   mutation: {
     isSuccess: boolean;
     isError: boolean;
-    data?: RehostImageResponse | RegenerateAccumulator;
+    data?: RehostImageResponse;
     error?: Error | null;
   };
   label: string;
 }) {
   if (mutation.isSuccess && mutation.data) {
     const d = mutation.data;
-    const count = "rehosted" in d ? d.rehosted : "regenerated" in d ? d.regenerated : 0;
-    const total = "total" in d ? d.total : 0;
+    const count = d.rehosted;
+    const total = d.total;
     const errors = d.errors;
     const verb = label === "rehost" ? "Rehosted" : "Regenerated";
     return (
@@ -96,6 +119,54 @@ function MutationStatus({
     );
   }
   return null;
+}
+
+/**
+ * Status block for the regenerate-images job, driven by the polled job_runs
+ * row rather than client-side mutation state, so it survives a tab refresh.
+ * @returns Progress bar plus per-status detail line, or null when there's
+ *   nothing to show.
+ */
+function RegenerateJobStatus({
+  run,
+}: {
+  run: { status: "running" | "succeeded" | "failed"; errorMessage: string | null; result: unknown };
+}) {
+  const checkpoint = isRegenerateCheckpoint(run.result) ? run.result : null;
+  if (!checkpoint) {
+    if (run.status === "failed") {
+      return (
+        <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+          <XIcon className="size-4" />
+          {run.errorMessage ?? "Regenerate failed"}
+        </p>
+      );
+    }
+    return null;
+  }
+
+  const pct =
+    checkpoint.totalFiles > 0
+      ? Math.round((checkpoint.processed / checkpoint.totalFiles) * 100)
+      : 0;
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between text-sm">
+        <span>
+          {checkpoint.processed} / {checkpoint.totalFiles} processed
+          {run.status === "running" && checkpoint.cancelRequested && " · cancelling…"}
+          {run.status === "failed" &&
+            (checkpoint.cancelRequested ? " · cancelled" : ` · failed: ${run.errorMessage ?? ""}`)}
+          {run.status === "succeeded" &&
+            ` · regenerated ${checkpoint.regenerated}, failed ${checkpoint.failed}`}
+        </span>
+        <span className="text-muted-foreground">{pct}%</span>
+      </div>
+      <Progress value={pct} />
+      <ErrorsList errors={checkpoint.errors} />
+    </div>
+  );
 }
 
 function SimpleMutationResult<T>({
@@ -144,22 +215,11 @@ function ErrorsList({ errors }: { errors: string[] }) {
 
 function ManageSection() {
   const { data: status, refetch } = useRehostStatus();
-
-  const [regenProgress, setRegenProgress] = useState<{
-    processed: number;
-    totalFiles: number;
-  } | null>(null);
+  const { data: latestRegenRun } = useLatestJobRunByKind(REGENERATE_KIND);
 
   const rehostMutation = useRehostImages(() => refetch());
-  const regenMutation = useRegenerateImages((processed, totalFiles) => {
-    setRegenProgress({ processed, totalFiles });
-  });
-  const fillMissingMutation = useRegenerateImages(
-    (processed, totalFiles) => {
-      setRegenProgress({ processed, totalFiles });
-    },
-    { skipExisting: true },
-  );
+  const regenMutation = useRegenerateImages();
+  const cancelRegenMutation = useCancelRegenerateImages();
   const clearMutation = useClearRehosted();
   const cleanupMutation = useCleanupOrphaned();
   const migrateMutation = useMigrateDirectories();
@@ -171,13 +231,24 @@ function ManageSection() {
   const pct = status.total > 0 ? (status.rehosted / status.total) * 100 : 0;
   const allDone = status.external === 0;
   const totalFiles = status.disk.sets.reduce((sum, s) => sum + s.fileCount, 0);
+  const regenRunning = latestRegenRun?.status === "running";
+  // A failed run with unprocessed items is auto-resumable from the server side;
+  // surface that as a "Resume" label so the user knows what'll happen.
+  const resumableCheckpoint =
+    latestRegenRun?.status === "failed" && isRegenerateCheckpoint(latestRegenRun.result)
+      ? latestRegenRun.result
+      : null;
+  const canResume =
+    resumableCheckpoint !== null &&
+    resumableCheckpoint.lastProcessedIndex < resumableCheckpoint.totalFiles - 1;
   const anyPending =
     rehostMutation.isPending ||
     regenMutation.isPending ||
-    fillMissingMutation.isPending ||
+    cancelRegenMutation.isPending ||
     clearMutation.isPending ||
     cleanupMutation.isPending ||
-    migrateMutation.isPending;
+    migrateMutation.isPending ||
+    regenRunning;
 
   return (
     <Card>
@@ -217,13 +288,9 @@ function ManageSection() {
           <Button
             variant="outline"
             disabled={anyPending || !status.disk.totalBytes}
-            onClick={() =>
-              fillMissingMutation.mutate(undefined, {
-                onSuccess: () => setRegenProgress(null),
-              })
-            }
+            onClick={() => regenMutation.mutate({ skipExisting: true, reset: true })}
           >
-            {fillMissingMutation.isPending ? (
+            {regenMutation.isPending ? (
               <LoaderIcon className="size-4 animate-spin" />
             ) : (
               "Fill missing variants"
@@ -232,18 +299,38 @@ function ManageSection() {
           <Button
             variant="outline"
             disabled={anyPending || !status.disk.totalBytes}
-            onClick={() =>
-              regenMutation.mutate(undefined, {
-                onSuccess: () => setRegenProgress(null),
-              })
-            }
+            onClick={() => regenMutation.mutate({})}
           >
-            {regenMutation.isPending ? (
+            {regenRunning ? (
               <LoaderIcon className="size-4 animate-spin" />
+            ) : resumableCheckpoint && canResume ? (
+              `Resume regeneration (${resumableCheckpoint.lastProcessedIndex + 1}/${resumableCheckpoint.totalFiles})`
             ) : (
               "Regenerate resolutions"
             )}
           </Button>
+          {canResume && (
+            <Button
+              variant="outline"
+              disabled={anyPending || !status.disk.totalBytes}
+              onClick={() => regenMutation.mutate({ reset: true })}
+            >
+              Start fresh
+            </Button>
+          )}
+          {regenRunning && (
+            <Button
+              variant="outline"
+              disabled={cancelRegenMutation.isPending}
+              onClick={() => cancelRegenMutation.mutate()}
+            >
+              {cancelRegenMutation.isPending ? (
+                <LoaderIcon className="size-4 animate-spin" />
+              ) : (
+                "Cancel regeneration"
+              )}
+            </Button>
+          )}
           <Button disabled={anyPending || allDone} onClick={() => rehostMutation.mutate()}>
             {rehostMutation.isPending ? (
               <LoaderIcon className="size-4 animate-spin" />
@@ -272,19 +359,7 @@ function ManageSection() {
         </div>
 
         {/* ── Progress / results ─────────────────────────────────────── */}
-        {regenProgress && (
-          <div className="space-y-1.5">
-            <div className="flex items-baseline justify-between text-sm">
-              <span>
-                {regenProgress.processed} / {regenProgress.totalFiles} processed
-              </span>
-              <span className="text-muted-foreground">
-                {Math.round((regenProgress.processed / regenProgress.totalFiles) * 100)}%
-              </span>
-            </div>
-            <Progress value={(regenProgress.processed / regenProgress.totalFiles) * 100} />
-          </div>
-        )}
+        {latestRegenRun && <RegenerateJobStatus run={latestRegenRun} />}
 
         {migrateMutation.isSuccess && migrateMutation.data && (
           <div>
@@ -305,8 +380,18 @@ function ManageSection() {
         )}
 
         <MutationStatus mutation={rehostMutation} label="rehost" />
-        <MutationStatus mutation={fillMissingMutation} label="fill missing" />
-        <MutationStatus mutation={regenMutation} label="regenerate" />
+        {regenMutation.isError && (
+          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <XIcon className="size-4" />
+            {regenMutation.error?.message}
+          </p>
+        )}
+        {cancelRegenMutation.isError && (
+          <p className="flex items-center gap-1 text-sm text-red-600 dark:text-red-400">
+            <XIcon className="size-4" />
+            {cancelRegenMutation.error?.message}
+          </p>
+        )}
 
         {cleanupMutation.isSuccess && cleanupMutation.data && (
           <div>

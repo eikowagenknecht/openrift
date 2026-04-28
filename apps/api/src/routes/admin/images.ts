@@ -1,20 +1,31 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type { RestoreImageUrlsResponse } from "@openrift/shared";
+import type {
+  RegenerateImagesCheckpoint,
+  RegenerateImagesKickoffResponse,
+  RestoreImageUrlsResponse,
+} from "@openrift/shared";
+import { createLogger } from "@openrift/shared/logger";
+import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 
 import {
+  REGENERATE_IMAGES_KIND,
   cleanupOrphanedFiles,
   clearAllRehosted,
   findBrokenImages,
   findLowResImages,
   getRehostStatus,
+  isRegenerateCheckpoint,
   migrateImageDirectories,
-  regenerateImages,
   rehostImages,
+  runRegenerateImagesJob,
   unrehostImages,
 } from "../../services/image-rehost.js";
+import { runJobAsync } from "../../services/run-job.js";
 import type { Variables } from "../../types.js";
 import { restoreImageUrlsSchema } from "./schemas.js";
+
+const log = createLogger("admin");
 
 // ── Route definitions ───────────────────────────────────────────────────────
 
@@ -51,7 +62,10 @@ const regenerateImagesRoute = createRoute({
   tags: ["Admin - Images"],
   request: {
     query: z.object({
-      offset: z.coerce.number().int().min(0).optional(),
+      reset: z
+        .enum(["true", "false"])
+        .optional()
+        .transform((v) => v === "true"),
       skipExisting: z
         .enum(["true", "false"])
         .optional()
@@ -63,16 +77,31 @@ const regenerateImagesRoute = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            total: z.number().openapi({ example: 468 }),
-            regenerated: z.number().openapi({ example: 468 }),
-            failed: z.number().openapi({ example: 0 }),
-            errors: z.array(z.string()).openapi({ example: [] }),
-            hasMore: z.boolean().openapi({ example: false }),
-            totalFiles: z.number().openapi({ example: 1404 }),
+            runId: z.string().uuid(),
+            status: z.enum(["running", "already_running"]),
           }),
         },
       },
-      description: "Regenerate images result",
+      description: "Regenerate images job kicked off; poll job_runs for progress.",
+    },
+  },
+});
+
+const cancelRegenerateImagesRoute = createRoute({
+  method: "post",
+  path: "/regenerate-images/cancel",
+  tags: ["Admin - Images"],
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            runId: z.string().uuid(),
+            cancelRequested: z.literal(true),
+          }),
+        },
+      },
+      description: "Cancellation requested; the running job will stop after the next batch.",
     },
   },
 });
@@ -342,12 +371,49 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
   })
 
   .openapi(regenerateImagesRoute, async (c) => {
-    const { printingImages } = c.get("repos");
-    const query = c.req.valid("query");
-    const offset = query.offset ?? 0;
-    const skipExisting = query.skipExisting ?? false;
-    const result = await regenerateImages(c.get("io"), printingImages, offset, { skipExisting });
-    return c.json(result);
+    const repos = c.get("repos");
+    const io = c.get("io");
+    const { reset, skipExisting } = c.req.valid("query");
+
+    // Auto-resume from the most recent failed run with a valid checkpoint
+    // that still has work left, unless ?reset=true was passed.
+    let resumeFrom: { runId: string; checkpoint: RegenerateImagesCheckpoint } | undefined;
+    if (!reset) {
+      const prior = await repos.jobRuns.findLatestForResume(REGENERATE_IMAGES_KIND);
+      if (
+        prior?.status === "failed" &&
+        isRegenerateCheckpoint(prior.result) &&
+        prior.result.lastProcessedIndex < prior.result.totalFiles - 1
+      ) {
+        resumeFrom = { runId: prior.id, checkpoint: prior.result };
+      }
+    }
+
+    const kickoff = await runJobAsync({ repos, log }, REGENERATE_IMAGES_KIND, "admin", (runId) =>
+      runRegenerateImagesJob(
+        { io, printingImages: repos.printingImages, jobRuns: repos.jobRuns, log },
+        runId,
+        { resumeFrom, skipExisting: skipExisting ?? false },
+      ),
+    );
+
+    return c.json(kickoff satisfies RegenerateImagesKickoffResponse);
+  })
+
+  .openapi(cancelRegenerateImagesRoute, async (c) => {
+    const { jobRuns } = c.get("repos");
+    const running = await jobRuns.findRunning(REGENERATE_IMAGES_KIND);
+    if (!running) {
+      throw new HTTPException(404, { message: "No regenerate-images job is running" });
+    }
+    const current = await jobRuns.getResult(running.id);
+    if (!isRegenerateCheckpoint(current)) {
+      // Job started but hasn't written its first checkpoint yet — nothing to
+      // flag. The caller can retry once progress shows up.
+      throw new HTTPException(409, { message: "Job is still initializing; try again shortly" });
+    }
+    await jobRuns.updateResult(running.id, { ...current, cancelRequested: true });
+    return c.json({ runId: running.id, cancelRequested: true as const });
   })
 
   .openapi(cleanupOrphaned, async (c) => {

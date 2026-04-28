@@ -29,7 +29,7 @@ export async function runJob<T>(
   deps: RunJobDeps,
   kind: string,
   trigger: JobTrigger,
-  fn: () => Promise<T>,
+  fn: (runId: string) => Promise<T>,
   options?: RunJobOptions<T>,
 ): Promise<T | null> {
   const { repos, log } = deps;
@@ -45,7 +45,7 @@ export async function runJob<T>(
   log.info({ kind, runId: id, trigger }, "Job started");
 
   try {
-    const result = await fn();
+    const result = await fn(id);
     const durationMs = Date.now() - startMs;
     const summary = options?.summarize?.(result);
     await repos.jobRuns.succeed(id, { durationMs, result: summary });
@@ -75,7 +75,7 @@ export async function runJobAsync<T>(
   deps: RunJobDeps,
   kind: string,
   trigger: JobTrigger,
-  fn: () => Promise<T>,
+  fn: (runId: string) => Promise<T>,
   options?: RunJobOptions<T>,
 ): Promise<{ runId: string; status: "running" | "already_running" }> {
   const { repos, log } = deps;
@@ -95,7 +95,7 @@ export async function runJobAsync<T>(
   setImmediate(() => {
     void (async () => {
       try {
-        const result = await fn();
+        const result = await fn(id);
         const durationMs = Date.now() - startMs;
         const summary = options?.summarize?.(result);
         await repos.jobRuns.succeed(id, { durationMs, result: summary });

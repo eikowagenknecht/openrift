@@ -74,6 +74,38 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     expect(rows.every((r) => r.errorMessage === "server restarted during run")).toBe(true);
   });
 
+  it("updateResult overwrites only the result column without changing status", async () => {
+    const { id } = await repo.start({ kind: "test.kind", trigger: "admin" });
+    await repo.updateResult(id, { processed: 5, total: 10 });
+    const firstRows = await repo.listRecent({ kind: "test.kind" });
+    expect(firstRows[0]?.status).toBe("running");
+    expect(firstRows[0]?.finishedAt).toBeNull();
+    expect(firstRows[0]?.result).toEqual({ processed: 5, total: 10 });
+
+    await repo.updateResult(id, { processed: 10, total: 10 });
+    const secondRows = await repo.listRecent({ kind: "test.kind" });
+    expect(secondRows[0]?.result).toEqual({ processed: 10, total: 10 });
+  });
+
+  it("getResult returns the parsed JSONB or null", async () => {
+    const { id } = await repo.start({ kind: "test.kind", trigger: "admin" });
+    expect(await repo.getResult(id)).toBeNull();
+    await repo.updateResult(id, { foo: "bar" });
+    expect(await repo.getResult(id)).toEqual({ foo: "bar" });
+    expect(await repo.getResult("00000000-0000-4000-a000-000000000000")).toBeNull();
+  });
+
+  it("findLatestForResume returns the most recent run regardless of status", async () => {
+    expect(await repo.findLatestForResume("test.kind")).toBeNull();
+    const a = await repo.start({ kind: "test.kind", trigger: "cron" });
+    await repo.fail(a.id, { durationMs: 100, errorMessage: "boom" });
+    const b = await repo.start({ kind: "test.kind", trigger: "admin" });
+    await repo.succeed(b.id, { durationMs: 200, result: { ok: true } });
+    const latest = await repo.findLatestForResume("test.kind");
+    expect(latest?.id).toBe(b.id);
+    expect(latest?.status).toBe("succeeded");
+  });
+
   it("purgeOlderThan deletes rows whose started_at is before the cutoff", async () => {
     const { id } = await repo.start({ kind: "test.kind", trigger: "cron" });
     // Backdate the row so the cutoff catches it

@@ -88,6 +88,7 @@ export const queryKeys = {
     siteSettings: ["admin", "site-settings"] as const,
     status: ["admin", "status"] as const,
     jobRuns: ["admin", "job-runs"] as const,
+    jobRunsByKind: (kind: string) => ["admin", "job-runs", "by-kind", kind] as const,
     cronStatus: ["admin", "cron-status"] as const,
     cacheStatus: ["admin", "cache-status"] as const,
     rehostStatus: ["admin", "rehost-status"] as const,

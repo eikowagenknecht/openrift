@@ -86,6 +86,61 @@ export function jobRunsRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Read the result JSONB for a single run, if it exists. Used by resumable
+     * jobs to fetch their checkpoint without pulling the whole row.
+     * @returns The parsed result object, or null if the row or column is empty.
+     */
+    async getResult(id: string): Promise<unknown> {
+      const row = await db
+        .selectFrom("jobRuns")
+        .select("result")
+        .where("id", "=", id)
+        .executeTakeFirst();
+      return row?.result ?? null;
+    },
+
+    /**
+     * Overwrite just the `result` JSONB column of a run, leaving status and
+     * timestamps alone. Used by resumable jobs to checkpoint progress between
+     * batches.
+     * @returns Resolves when the row has been updated.
+     */
+    async updateResult(id: string, result: unknown): Promise<void> {
+      await db
+        .updateTable("jobRuns")
+        .set({ result: result === undefined ? null : JSON.stringify(result) })
+        .where("id", "=", id)
+        .execute();
+    },
+
+    /**
+     * Find the most recent run of a kind regardless of status. Used by
+     * resumable jobs to decide whether to resume from a prior checkpoint or
+     * start fresh.
+     * @returns The latest JobRun for the kind, or null.
+     */
+    async findLatestForResume(kind: string): Promise<JobRun | null> {
+      const row = await db
+        .selectFrom("jobRuns")
+        .select([
+          "id",
+          "kind",
+          "trigger",
+          "status",
+          "startedAt",
+          "finishedAt",
+          "durationMs",
+          "errorMessage",
+          "result",
+        ])
+        .where("kind", "=", kind)
+        .orderBy("startedAt", "desc")
+        .limit(1)
+        .executeTakeFirst();
+      return (row as JobRun | undefined) ?? null;
+    },
+
+    /**
      * List the most recent runs, optionally filtered by kind.
      * @returns Rows ordered by started_at descending.
      */

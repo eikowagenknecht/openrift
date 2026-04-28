@@ -1,7 +1,7 @@
 import type {
   BrokenImagesResponse,
   LowResImagesResponse,
-  RegenerateImageResponse,
+  RegenerateImagesKickoffResponse,
   RehostImageResponse,
   RehostStatusResponse,
   UnrehostImagesResponse,
@@ -12,12 +12,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
-
-/** Accumulated totals across regeneration batches (excludes per-batch pagination fields). */
-export type RegenerateAccumulator = Pick<
-  RegenerateImageResponse,
-  "total" | "regenerated" | "failed" | "errors"
->;
 
 // ── Server functions ─────────────────────────────────────────────────────────
 
@@ -82,21 +76,36 @@ const rehostImagesBatchFn = createServerFn({ method: "POST" })
     }),
   );
 
-const regenerateImagesBatchFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { offset: number; skipExisting?: boolean }) => input)
+const regenerateImagesKickoffFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { skipExisting?: boolean; reset?: boolean }) => input)
   .middleware([withCookies])
   .handler(({ context, data }) => {
-    const params = new URLSearchParams({ offset: String(data.offset) });
+    const params = new URLSearchParams();
     if (data.skipExisting) {
       params.set("skipExisting", "true");
     }
-    return fetchApiJson<RegenerateImageResponse>({
-      errorTitle: "Couldn't regenerate images",
+    if (data.reset) {
+      params.set("reset", "true");
+    }
+    const qs = params.toString();
+    return fetchApiJson<RegenerateImagesKickoffResponse>({
+      errorTitle: "Couldn't start regenerate images job",
       cookie: context.cookie,
-      path: `/api/v1/admin/regenerate-images?${params.toString()}`,
+      path: `/api/v1/admin/regenerate-images${qs ? `?${qs}` : ""}`,
       method: "POST",
     });
   });
+
+const cancelRegenerateImagesFn = createServerFn({ method: "POST" })
+  .middleware([withCookies])
+  .handler(({ context }) =>
+    fetchApiJson<{ runId: string; cancelRequested: true }>({
+      errorTitle: "Couldn't cancel regenerate images job",
+      cookie: context.cookie,
+      path: "/api/v1/admin/regenerate-images/cancel",
+      method: "POST",
+    }),
+  );
 
 const unrehostImagesFn = createServerFn({ method: "POST" })
   .inputValidator((input: { imageIds: string[] }) => input)
@@ -240,33 +249,40 @@ export function useUnrehostImages() {
   });
 }
 
-export function useRegenerateImages(
-  onProgress?: (processed: number, totalFiles: number) => void,
-  options: { skipExisting?: boolean } = {},
-) {
+/**
+ * Kick off the resumable regenerate-images job. Returns a `runId` immediately;
+ * progress is read separately via the `useLatestJobRunByKind` hook.
+ *
+ * The server auto-resumes from the most recent failed run unless `reset: true`
+ * is passed.
+ * @returns Mutation that POSTs the kickoff request and returns `{runId, status}`.
+ */
+export function useRegenerateImages() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (): Promise<RegenerateAccumulator> => {
-      const totals: RegenerateAccumulator = { total: 0, regenerated: 0, failed: 0, errors: [] };
-      let offset = 0;
-      while (true) {
-        const batch = await regenerateImagesBatchFn({
-          data: { offset, skipExisting: options.skipExisting },
-        });
-        totals.total += batch.total;
-        totals.regenerated += batch.regenerated;
-        totals.failed += batch.failed;
-        totals.errors.push(...batch.errors);
-        onProgress?.(offset + batch.total, batch.totalFiles);
-        if (!batch.hasMore) {
-          break;
-        }
-        offset += batch.total;
-      }
-      return totals;
-    },
+    mutationFn: (input: { skipExisting?: boolean; reset?: boolean } = {}) =>
+      regenerateImagesKickoffFn({ data: input }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.rehostStatus });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.jobRunsByKind("images.regenerate"),
+      });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.jobRuns });
+    },
+  });
+}
+
+/**
+ * Request cancellation of the currently-running regenerate-images job.
+ * @returns Mutation that POSTs the cancel request.
+ */
+export function useCancelRegenerateImages() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => cancelRegenerateImagesFn(),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.admin.jobRunsByKind("images.regenerate"),
+      });
     },
   });
 }
