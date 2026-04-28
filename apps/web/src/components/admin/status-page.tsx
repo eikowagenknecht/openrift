@@ -4,7 +4,6 @@ import {
   ClockIcon,
   CpuIcon,
   DatabaseIcon,
-  EraserIcon,
   LoaderIcon,
   RefreshCwIcon,
   SendIcon,
@@ -20,7 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFlushPrintingEvents } from "@/hooks/use-flush-printing-events";
 import { usePostChangelog } from "@/hooks/use-post-changelog";
 import { useThrowInApi, useThrowInSsr } from "@/hooks/use-sentry-test";
-import { useAdminStatus, useClearSsrCache } from "@/hooks/use-status";
+import { useAdminStatus } from "@/hooks/use-status";
 
 const SECONDS_PER_DAY = 86_400;
 const SECONDS_PER_HOUR = 3600;
@@ -111,7 +110,6 @@ function StatRow({ label, value }: { label: string; value: string | number }) {
 
 export function StatusPage() {
   const { data, refetch, isFetching, dataUpdatedAt } = useAdminStatus();
-  const clearCache = useClearSsrCache();
   const [lastUpdated, setLastUpdated] = useState("");
 
   useEffect(() => {
@@ -132,20 +130,10 @@ export function StatusPage() {
         <p className="text-muted-foreground text-sm">
           Auto-refreshes every 30 seconds.{lastUpdated && ` Last updated ${lastUpdated}.`}
         </p>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={() => clearCache.mutate()}
-            disabled={clearCache.isPending}
-          >
-            <EraserIcon />
-            {clearCache.isSuccess ? "Cache Cleared" : "Clear SSR Cache"}
-          </Button>
-          <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
-            <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
-            Refresh
-          </Button>
-        </div>
+        <Button variant="outline" onClick={() => refetch()} disabled={isFetching}>
+          <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
+          Refresh
+        </Button>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

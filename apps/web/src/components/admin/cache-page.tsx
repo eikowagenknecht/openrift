@@ -1,5 +1,5 @@
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
-import { LoaderIcon, TrashIcon } from "lucide-react";
+import { EraserIcon, LoaderIcon, RefreshCwIcon, TrashIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -15,10 +15,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCacheStatus, usePurgeCache } from "@/hooks/use-cache-purge";
+import { useRefreshMatviews } from "@/hooks/use-refresh-matviews";
+import { useClearSsrCache } from "@/hooks/use-status";
 
 export function CachePage() {
   const { data } = useCacheStatus();
   const purge = usePurgeCache();
+  const clearSsrCache = useClearSsrCache();
+  const refreshMatviews = useRefreshMatviews();
 
   async function handlePurge() {
     try {
@@ -29,8 +33,68 @@ export function CachePage() {
     }
   }
 
+  async function handleRefreshMatviews() {
+    try {
+      await refreshMatviews.mutateAsync();
+      toast.success("Materialized views refreshed");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Refresh failed");
+    }
+  }
+
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>SSR Cache</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-muted-foreground text-sm">
+            Clears the in-memory query cache the SSR layer uses to deduplicate API calls during a
+            single render. Use this when you&apos;ve fixed bad data on the API and want
+            server-rendered pages to pick up the change immediately instead of waiting for the cache
+            TTL.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => clearSsrCache.mutate()}
+            disabled={clearSsrCache.isPending}
+          >
+            {clearSsrCache.isPending ? (
+              <LoaderIcon className="size-4 animate-spin" />
+            ) : (
+              <EraserIcon className="size-4" />
+            )}
+            {clearSsrCache.isSuccess ? "Cache Cleared" : "Clear SSR Cache"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Materialized Views</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-muted-foreground text-sm">
+            Rebuilds the latest-prices and card-aggregates materialized views in Postgres. Cron
+            normally keeps these in sync, but you can refresh them on demand after a manual price
+            import or a fix that would otherwise leave stale aggregates around.
+          </p>
+          <Button
+            variant="outline"
+            onClick={handleRefreshMatviews}
+            disabled={refreshMatviews.isPending}
+          >
+            {refreshMatviews.isPending ? (
+              <LoaderIcon className="size-4 animate-spin" />
+            ) : (
+              <RefreshCwIcon className="size-4" />
+            )}
+            Refresh materialized views
+          </Button>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Cloudflare Cache</CardTitle>
