@@ -156,6 +156,7 @@ export function CardBrowser() {
     sortBy,
     sortDir,
     view,
+    groupBy,
     ownedCountByPrinting,
     favoriteMarketplace: display.favoriteMarketplace,
     prices: display.prices,
@@ -172,7 +173,15 @@ export function CardBrowser() {
     printing,
   }));
 
-  const findBy = view === "cards" ? "card" : ("printing" as const);
+  // In cards+set mode every printing is already its own cell, so the variant
+  // chevron and override mechanism (which swap the displayed printing within
+  // a single cell) are turned off — they'd otherwise show siblings already
+  // visible in the grid and stomp on each other across cells of the same
+  // card. Cards-only view still uses both. Click selection also switches to
+  // findBy=printing so clicking the SFD reprint doesn't jump back to the OGN
+  // row that shares its cardId.
+  const cellRepresentsCard = view === "cards" && groupBy !== "set";
+  const findBy: "card" | "printing" = cellRepresentsCard ? "card" : "printing";
 
   // Deep-link: open a specific printing when navigating from e.g. activity page
   const { printingId: linkedPrintingId } = useSearch({ from: "/_app/cards" });
@@ -215,7 +224,7 @@ export function CardBrowser() {
     const cardId = item.printing.cardId;
     const siblings = printingsByCardId.get(cardId);
 
-    const overrideId = topPrintingOverrides.get(cardId);
+    const overrideId = cellRepresentsCard ? topPrintingOverrides.get(cardId) : undefined;
     const displayPrinting =
       overrideId && siblings
         ? (siblings.find((sibling) => sibling.id === overrideId) ?? item.printing)
@@ -223,7 +232,7 @@ export function CardBrowser() {
 
     let aboveCard: ReactNode | undefined;
     const ownedCount = showStrip
-      ? view === "cards"
+      ? cellRepresentsCard
         ? (siblings?.reduce(
             (sum, p) => sum + adjustedCount(p.id, ownedCountByPrinting?.[p.id] ?? 0),
             0,
@@ -236,7 +245,7 @@ export function CardBrowser() {
         <CollectionAddStrip
           printing={displayPrinting}
           ownedCount={ownedCount}
-          hasVariants={view === "cards" && (siblings?.length ?? 0) > 1}
+          hasVariants={cellRepresentsCard && (siblings?.length ?? 0) > 1}
           onQuickAdd={handleQuickAdd}
           onUndoAdd={handleUndoAdd}
           onOpenVariants={handleOpenVariants}
@@ -247,7 +256,7 @@ export function CardBrowser() {
           printingId={displayPrinting.id}
           cardName={displayPrinting.card.name}
           shortCode={displayPrinting.shortCode}
-          siblings={view === "cards" ? siblings : undefined}
+          siblings={cellRepresentsCard ? siblings : undefined}
         />
       );
     }
@@ -261,7 +270,7 @@ export function CardBrowser() {
         isSelected={ctx.isSelected}
         isFlashing={ctx.isFlashing}
         dimmed={ownedCount === 0}
-        siblings={view === "cards" ? siblings : undefined}
+        siblings={cellRepresentsCard ? siblings : undefined}
         priceRange={priceRangeByCardId?.get(cardId)}
         view={view}
         cardWidth={ctx.cardWidth}

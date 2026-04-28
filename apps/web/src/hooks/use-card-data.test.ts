@@ -134,4 +134,42 @@ describe("useCardData", () => {
     expect(result.current.filterCounts.rarities.get("Common")).toBe(1);
     expect(result.current.filterCounts.rarities.get("Rare")).toBe(1);
   });
+
+  it("dedupes to one printing per cardId in cards view by default", () => {
+    // Regression: same logical card with two printings should collapse to one
+    // row when groupBy is anything other than "set" (the catalog default
+    // behavior before set-grouping was introduced).
+    const cardId = "card-shared";
+    const ognPrinting = stubPrinting({ cardId, shortCode: "OGN-001" });
+    const sfdPrinting = stubPrinting({ cardId, shortCode: "SFD-001" });
+
+    const { result } = renderHook(() =>
+      useCardData({ ...baseParams(), allPrintings: [ognPrinting, sfdPrinting], view: "cards" }),
+    );
+
+    expect(result.current.sortedCards).toHaveLength(1);
+  });
+
+  it("keeps every printing as its own row when grouping by set in cards view", () => {
+    // Each set group must list every printing released in that set, so a
+    // reprinted card appears once under each set rather than only its first.
+    const cardId = "card-shared";
+    const ognPrinting = stubPrinting({ cardId, shortCode: "OGN-001" });
+    const sfdPrinting = stubPrinting({ cardId, shortCode: "SFD-001" });
+
+    const { result } = renderHook(() =>
+      useCardData({
+        ...baseParams(),
+        allPrintings: [ognPrinting, sfdPrinting],
+        view: "cards",
+        groupBy: "set",
+      }),
+    );
+
+    expect(result.current.sortedCards).toHaveLength(2);
+    expect(result.current.sortedCards.map((p) => p.shortCode).toSorted()).toEqual([
+      "OGN-001",
+      "SFD-001",
+    ]);
+  });
 });

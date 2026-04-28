@@ -198,6 +198,10 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
     sortBy,
     sortDir,
     view: dataView,
+    // Intentionally not threading groupBy: collection's add-mode renderer
+    // assumes one cell per cardId for sibling/variant logic. Skipping the
+    // dedup here would require a parallel pass over those branches; the
+    // /cards catalog browser is the only consumer wired up so far.
     ownedCountByPrinting,
     favoriteMarketplace,
     prices,

@@ -1,6 +1,7 @@
 import type {
   CardFilters,
   FilterCounts,
+  GroupByField,
   Marketplace,
   PriceLookup,
   Printing,
@@ -29,6 +30,11 @@ interface UseCardDataParams {
   sortBy: SortOption;
   sortDir: "asc" | "desc";
   view: "cards" | "printings";
+  /**
+   * When grouping by set in cards view, the dedup is skipped so each set
+   * section lists every printing released in that set. Defaults to "none".
+   */
+  groupBy?: GroupByField;
   ownedCountByPrinting: Record<string, number> | undefined;
   favoriteMarketplace: Marketplace;
   prices: PriceLookup;
@@ -199,6 +205,7 @@ export function useCardData({
   sortBy,
   sortDir,
   view,
+  groupBy = "none",
   ownedCountByPrinting,
   favoriteMarketplace,
   prices,
@@ -226,6 +233,13 @@ export function useCardData({
   const setSlugToName = new Map(sets.map((s) => [s.slug, s.name]));
   const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
 
+  // When grouping by set in cards view, every printing keeps its own row so
+  // each set section is a complete index. Counts, owned filtering, owned
+  // counts, price ranges, and click selection all switch to per-printing
+  // semantics in that mode — same as printings view.
+  const dedupePrintings = view === "cards" && groupBy !== "set";
+  const effectiveView = dedupePrintings ? "cards" : "printings";
+
   // getPrice resolves a printing's price on the user's favorite marketplace.
   // Filters, sorting, and the available-price-range histogram all read prices
   // through this dependency rather than reading a field off the printing.
@@ -242,10 +256,10 @@ export function useCardData({
   // it still answers "how many would match if owned were toggled".
   const universeForCounts =
     ownedFilter && ownedCountByPrinting
-      ? applyOwnedFilter(allPrintings, ownedFilter, view, ownedCountByPrinting)
+      ? applyOwnedFilter(allPrintings, ownedFilter, effectiveView, ownedCountByPrinting)
       : allPrintings;
   const filterCounts = computeFilterCounts(universeForCounts, filters, {
-    countBy: view === "cards" ? "card" : "printing",
+    countBy: dedupePrintings ? "card" : "printing",
     keywordReverseMap,
     getPrice,
   });
@@ -253,7 +267,12 @@ export function useCardData({
   const cardsBeforeOwned = filteredCards;
 
   if (ownedFilter && ownedCountByPrinting) {
-    filteredCards = applyOwnedFilter(filteredCards, ownedFilter, view, ownedCountByPrinting);
+    filteredCards = applyOwnedFilter(
+      filteredCards,
+      ownedFilter,
+      effectiveView,
+      ownedCountByPrinting,
+    );
   }
 
   // The Owned chip count reflects whichever cycle state the chip is currently
@@ -262,19 +281,21 @@ export function useCardData({
     const ownedSubset = applyOwnedFilter(
       cardsBeforeOwned,
       ownedFilter ?? "owned",
-      view,
+      effectiveView,
       ownedCountByPrinting,
     );
-    filterCounts.flags.owned =
-      view === "cards" ? new Set(ownedSubset.map((p) => p.cardId)).size : ownedSubset.length;
+    filterCounts.flags.owned = dedupePrintings
+      ? new Set(ownedSubset.map((p) => p.cardId)).size
+      : ownedSubset.length;
   }
 
-  const displayCards = view === "cards" ? firstPrintingPerCard(filteredCards) : filteredCards;
+  const displayCards = dedupePrintings ? firstPrintingPerCard(filteredCards) : filteredCards;
 
   const printingsByCardId = Map.groupBy(filteredCards, (p) => p.cardId);
 
-  const priceRangeByCardId =
-    view === "cards" ? computePriceRanges(printingsByCardId, lookup, favoriteMarketplace) : null;
+  const priceRangeByCardId = dedupePrintings
+    ? computePriceRanges(printingsByCardId, lookup, favoriteMarketplace)
+    : null;
 
   const sortOptions: SortCardsOptions = { sortDir };
   if (sortBy === "price" && priceRangeByCardId) {
@@ -293,11 +314,12 @@ export function useCardData({
   const sortedCards = sortCards(displayCards, sortBy, sortOptions);
 
   const ownedCounts = ownedCountByPrinting
-    ? buildOwnedCounts(allPrintings, displayCards, ownedCountByPrinting, view)
+    ? buildOwnedCounts(allPrintings, displayCards, ownedCountByPrinting, effectiveView)
     : undefined;
 
-  const totalUniqueCards =
-    view === "cards" ? new Set(allPrintings.map((c) => c.cardId)).size : allPrintings.length;
+  const totalUniqueCards = dedupePrintings
+    ? new Set(allPrintings.map((c) => c.cardId)).size
+    : allPrintings.length;
 
   // Available languages are derived from ALL printings (before language filtering)
   // so the filter UI always shows every language that exists in the catalog.

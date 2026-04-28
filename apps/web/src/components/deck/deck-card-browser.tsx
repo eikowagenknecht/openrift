@@ -210,6 +210,7 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     sortBy,
     sortDir,
     view,
+    groupBy,
     ownedCountByPrinting,
     favoriteMarketplace: display.favoriteMarketplace,
     prices: display.prices,
@@ -232,7 +233,10 @@ function DeckCardBrowserInner({ deckId }: { deckId: string }) {
     printing,
   }));
 
-  const findBy = view === "cards" ? "card" : ("printing" as const);
+  // Match useCardData: in cards+set the grid renders one cell per printing,
+  // so click selection navigates by printing too.
+  const cellRepresentsCard = view === "cards" && groupBy !== "set";
+  const findBy: "card" | "printing" = cellRepresentsCard ? "card" : "printing";
 
   const handleCardClick = (printing: Printing) => {
     useSelectionStore.getState().selectCard(printing, items, findBy);

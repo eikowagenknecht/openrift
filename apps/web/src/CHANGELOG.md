@@ -3,6 +3,7 @@
 ## 2026-04-28
 
 - feat: The cards page and your collections now show one tile per card by default, grouping printings of the same card together. Switch back to a tile per printing in your profile if you prefer the previous view
+- feat: On the cards page, grouping by set now lists every printing released in each set, so a card reprinted in two sets appears once under each — earlier sets no longer hide later reprints
 - feat: Filter badges on the cards page now show how many cards each option matches under your other active filters, and options that would leave you with zero cards are dimmed
 - fix: The deck builder's + button on a rune is now disabled when adding would push the rune count past 12 with no opposite-domain rune to swap with, instead of silently leaving the deck stuck at 13
 - fix: Removing a rune in the deck builder right after a page reload now correctly swaps in a rune of the legend's other domain, instead of just decrementing the count
