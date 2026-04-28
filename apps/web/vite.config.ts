@@ -149,7 +149,14 @@ export default defineConfig(({ mode, command }) => {
       // Only enable Nitro for production builds — in dev it caches stale SSR
       // HTML after HMR updates, causing hydration mismatches.
       // See https://github.com/TanStack/router/issues/6556
-      command === "build" && nitro({ preset: "bun" }),
+      command === "build" &&
+        nitro({
+          preset: "bun",
+          // Opt-in via `bun run start:lh` (COMPRESS=1) so local Lighthouse runs
+          // see realistic transfer sizes. Off by default — prod is fronted by
+          // Cloudflare/nginx, which already compresses responses.
+          compressPublicAssets: process.env.COMPRESS ? { gzip: true, brotli: true } : false,
+        }),
       viteReact(),
       babel({
         presets: [withReactCompilerLogger(reactCompilerPreset())],
