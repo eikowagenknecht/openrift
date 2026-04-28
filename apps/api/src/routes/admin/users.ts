@@ -26,6 +26,10 @@ const listUsers = createRoute({
                 deckCount: z.number().openapi({ example: 5 }),
                 collectionCount: z.number().openapi({ example: 3 }),
                 createdAt: z.string().openapi({ example: "2026-03-11T18:04:22.059Z" }),
+                lastActiveAt: z
+                  .string()
+                  .nullable()
+                  .openapi({ example: "2026-04-22T09:13:51.412Z" }),
               }),
             ),
           }),
@@ -56,6 +60,7 @@ export const adminUsersRoute = new OpenAPIHono<{ Variables: Variables }>().opena
           deckCount: r.deckCount,
           collectionCount: r.collectionCount,
           createdAt: r.createdAt.toISOString(),
+          lastActiveAt: r.lastActiveAt ? r.lastActiveAt.toISOString() : null,
         }),
       ),
     });

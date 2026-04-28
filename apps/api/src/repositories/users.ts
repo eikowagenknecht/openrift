@@ -13,6 +13,7 @@ interface UserWithCounts {
   deckCount: number;
   collectionCount: number;
   createdAt: Date;
+  lastActiveAt: Date | null;
 }
 
 /**
@@ -30,6 +31,7 @@ export function usersRepo(db: Kysely<Database>) {
         .leftJoin("copies as co", "co.userId", "u.id")
         .leftJoin("decks as d", "d.userId", "u.id")
         .leftJoin("collections as cl", "cl.userId", "u.id")
+        .leftJoin("sessions as s", "s.userId", "u.id")
         .select([
           "u.id",
           "u.email",
@@ -40,6 +42,7 @@ export function usersRepo(db: Kysely<Database>) {
           sql<number>`count(distinct co.id)`.as("cardCount"),
           sql<number>`count(distinct d.id)`.as("deckCount"),
           sql<number>`count(distinct cl.id)`.as("collectionCount"),
+          sql<Date | null>`max(s.updated_at)`.as("lastActiveAt"),
         ])
         .groupBy(["u.id", "u.email", "u.name", "u.image", "u.createdAt", "a.userId"])
         .orderBy("u.createdAt", "desc")
@@ -55,6 +58,7 @@ export function usersRepo(db: Kysely<Database>) {
         deckCount: Number(r.deckCount),
         collectionCount: Number(r.collectionCount),
         createdAt: r.createdAt,
+        lastActiveAt: r.lastActiveAt,
       }));
     },
   };

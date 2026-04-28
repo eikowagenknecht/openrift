@@ -621,6 +621,7 @@ export interface AdminUserResponse {
   deckCount: number;
   collectionCount: number;
   createdAt: string;
+  lastActiveAt: string | null;
 }
 
 export interface UnifiedMappingsResponse {

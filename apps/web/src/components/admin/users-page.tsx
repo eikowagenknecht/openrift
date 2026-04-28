@@ -78,6 +78,16 @@ const columns: AdminColumnDef<AdminUserResponse>[] = [
       <span className="text-muted-foreground text-sm">{formatDate(user.createdAt)}</span>
     ),
   },
+  {
+    header: "Last active",
+    width: "w-32",
+    sortValue: (user) => user.lastActiveAt ?? "",
+    cell: (user) => (
+      <span className="text-muted-foreground text-sm">
+        {user.lastActiveAt ? formatDate(user.lastActiveAt) : "Never"}
+      </span>
+    ),
+  },
 ];
 
 export function UsersPage() {
