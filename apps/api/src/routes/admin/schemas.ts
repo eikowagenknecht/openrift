@@ -44,10 +44,6 @@ export const updateFlagSchema = z
 
 // ── User Feature Flags ─────────────────────────────────────────────────────
 
-export const userIdParamSchema = z.object({
-  id: z.string().min(1),
-});
-
 export const userKeyParamSchema = z.object({
   id: z.string().min(1),
   key: z.string().min(1),

@@ -4,11 +4,6 @@ import { sql } from "kysely";
 import type { Database } from "../db/index.js";
 import { imageId } from "./query-helpers.js";
 
-interface CanonicalShortCode {
-  cardId: string;
-  shortCode: string;
-}
-
 /** Input row for per-row short code resolution. */
 interface DeckRowForShortCode {
   cardId: string;
@@ -77,28 +72,6 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
   }
 
   return {
-    /**
-     * Maps card UUIDs to their canonical short codes.
-     *
-     * @returns One entry per card that has a resolvable printing. Cards with no
-     *   matching printing at all are omitted from the result.
-     */
-    async canonicalShortCodesByCardIds(cardIds: string[]): Promise<CanonicalShortCode[]> {
-      if (cardIds.length === 0) {
-        return [];
-      }
-
-      const rows = await appendCanonicalOrder(
-        baseQuery()
-          .select(["p.cardId", "p.shortCode"])
-          .where("p.cardId", "in", cardIds)
-          .distinctOn("p.cardId")
-          .orderBy("p.cardId"),
-      ).execute();
-
-      return rows;
-    },
-
     /**
      * Resolves a short code per deck row. If a row has a preferredPrintingId,
      * uses that printing's short code; otherwise falls back to the card's

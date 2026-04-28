@@ -9,6 +9,23 @@ import type { Database } from "../db/index.js";
  * @returns An object with printing-image query methods bound to the given `db`.
  */
 export function printingImagesRepo(db: Kysely<Database>) {
+  async function findOrCreateImageFile(originalUrl: string): Promise<string> {
+    const existing = await db
+      .selectFrom("imageFiles")
+      .select("id")
+      .where("originalUrl", "=", originalUrl)
+      .executeTakeFirst();
+    if (existing) {
+      return existing.id;
+    }
+    const row = await db
+      .insertInto("imageFiles")
+      .values({ originalUrl })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+    return row.id;
+  }
+
   return {
     /** @returns A printing image by ID with its image_file's rehostedUrl. */
     getIdAndRehostedUrl(
@@ -127,27 +144,6 @@ export function printingImagesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Find or create an image_files row for a given original URL.
-     * @returns The image_file ID.
-     */
-    async findOrCreateImageFile(originalUrl: string): Promise<string> {
-      const existing = await db
-        .selectFrom("imageFiles")
-        .select("id")
-        .where("originalUrl", "=", originalUrl)
-        .executeTakeFirst();
-      if (existing) {
-        return existing.id;
-      }
-      const row = await db
-        .insertInto("imageFiles")
-        .values({ originalUrl })
-        .returning("id")
-        .executeTakeFirstOrThrow();
-      return row.id;
-    },
-
-    /**
      * Insert an image record into printing_images.
      *
      * @param mode - `'main'`: deactivate current active image, insert/update as active.
@@ -164,7 +160,7 @@ export function printingImagesRepo(db: Kysely<Database>) {
         return null;
       }
 
-      const imageFileId = await this.findOrCreateImageFile(imageUrl);
+      const imageFileId = await findOrCreateImageFile(imageUrl);
 
       if (mode === "main") {
         await this.deactivateActiveFront(printingId);
@@ -473,16 +469,6 @@ export function printingImagesRepo(db: Kysely<Database>) {
     /** @returns A printing's ID by its primary key. */
     getPrintingById(id: string): Promise<{ id: string } | undefined> {
       return db.selectFrom("printings").select("id").where("id", "=", id).executeTakeFirst();
-    },
-
-    /** @returns A printing's ID and set slug by printing ID. */
-    getPrintingWithSetById(id: string) {
-      return db
-        .selectFrom("printings")
-        .innerJoin("sets", "sets.id", "printings.setId")
-        .select(["printings.id", "sets.slug as setSlug"])
-        .where("printings.id", "=", id)
-        .executeTakeFirst();
     },
 
     /**

@@ -17,11 +17,6 @@ interface OverrideWithUser {
  */
 export function userFeatureFlagsRepo(db: Kysely<Database>) {
   return {
-    /** @returns All overrides for a given user. */
-    listByUser(userId: string): Promise<UserFeatureFlagsTable[]> {
-      return db.selectFrom("userFeatureFlags").selectAll().where("userId", "=", userId).execute();
-    },
-
     /** @returns All overrides across all users, joined with user name/email for admin display. */
     async listAllWithUsers(): Promise<OverrideWithUser[]> {
       const rows = await db

@@ -473,26 +473,6 @@ export function catalogRepo(db: Kysely<Database>) {
       );
     },
 
-    /** @returns Distinct card count in a set. */
-    async setCardCount(setId: string): Promise<number> {
-      const result = await db
-        .selectFrom("printings")
-        .select(sql<string>`COUNT(DISTINCT "card_id")`.as("count"))
-        .where("setId", "=", setId)
-        .executeTakeFirstOrThrow();
-      return Number(result.count);
-    },
-
-    /** @returns Total printing count in a set. */
-    async setPrintingCount(setId: string): Promise<number> {
-      const result = await db
-        .selectFrom("printings")
-        .select(sql<string>`COUNT(*)`.as("count"))
-        .where("setId", "=", setId)
-        .executeTakeFirstOrThrow();
-      return Number(result.count);
-    },
-
     /**
      * Card count and printing count per set, in a single query.
      *

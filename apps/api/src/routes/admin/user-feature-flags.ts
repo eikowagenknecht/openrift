@@ -4,7 +4,7 @@ import { z } from "zod";
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
 import { assertDeleted } from "../../utils/assertions.js";
-import { upsertOverrideSchema, userIdParamSchema, userKeyParamSchema } from "./schemas.js";
+import { upsertOverrideSchema, userKeyParamSchema } from "./schemas.js";
 
 // ── Route definitions ───────────────────────────────────────────────────────
 
@@ -30,30 +30,6 @@ const listAllOverrides = createRoute({
         },
       },
       description: "List all per-user feature flag overrides",
-    },
-  },
-});
-
-const listUserOverrides = createRoute({
-  method: "get",
-  path: "/users/{id}/feature-flags",
-  tags: ["Admin - Feature Flags"],
-  request: { params: userIdParamSchema },
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({
-            overrides: z.array(
-              z.object({
-                flagKey: z.string().openapi({ example: "collection" }),
-                enabled: z.boolean().openapi({ example: true }),
-              }),
-            ),
-          }),
-        },
-      },
-      description: "List feature flag overrides for a user",
     },
   },
 });
@@ -90,17 +66,6 @@ export const adminUserFeatureFlagsRoute = new OpenAPIHono<{ Variables: Variables
     const { userFeatureFlags } = c.get("repos");
     const rows = await userFeatureFlags.listAllWithUsers();
     return c.json({ overrides: rows });
-  })
-
-  // ── GET /users/:id/feature-flags ────────────────────────────────────────
-  .openapi(listUserOverrides, async (c) => {
-    const { userFeatureFlags } = c.get("repos");
-    const { id } = c.req.valid("param");
-
-    const rows = await userFeatureFlags.listByUser(id);
-    return c.json({
-      overrides: rows.map((r) => ({ flagKey: r.flagKey, enabled: r.enabled })),
-    });
   })
 
   // ── PUT /users/:id/feature-flags/:key ───────────────────────────────────
