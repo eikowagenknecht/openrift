@@ -38,7 +38,7 @@ coverage/
 routeTree.gen.ts
 
 # Self-hosted media files (card images, set images — generated at runtime, bind-mounted in Docker)
-media
+/media
 
 # Docker bind-mounted data (PostgreSQL, etc.)
 /data/
