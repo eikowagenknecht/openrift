@@ -1,6 +1,7 @@
 import { getRouteApi } from "@tanstack/react-router";
 
 import { CardBrowserLayout } from "@/components/card-browser-layout";
+import { LABEL_HEIGHT } from "@/components/cards/card-grid-constants";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import {
   CollapsibleFilterPanel,
@@ -87,21 +88,49 @@ export function FirstRowPreview() {
       }
       gridSlot={
         firstRow.length === 0 ? null : (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
-            {firstRow.map((card, i) => (
-              <img
-                key={card.printingId}
-                src={card.thumbnail}
-                srcSet={`${card.thumbnail} 400w, ${card.full} 800w`}
-                sizes="(min-width: 1536px) 14vw, (min-width: 1280px) 17vw, (min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
-                width={400}
-                height={558}
-                alt={card.cardName}
-                fetchPriority={i === 0 ? "high" : undefined}
-                className="aspect-card w-full rounded-lg object-cover"
-              />
-            ))}
-          </div>
+          <>
+            {/* Set-group header — mirrors <HeaderRow> in card-grid.tsx so the
+                live grid lands here on hydration without shifting cards down.
+                aria-hidden because the live grid renders an interactive button
+                with the same text; we just need the SSR HTML to occupy the
+                matching height/baseline. */}
+            <div className="flex items-center gap-3 pt-4 pb-2" aria-hidden="true">
+              <div className="bg-border h-px flex-1" />
+              <span className="flex flex-row gap-3 text-sm">
+                <span className="text-muted-foreground font-medium">{firstRow[0]?.setSlug}</span>
+                <span className="font-semibold">
+                  {setLabels[firstRow[0]?.setSlug ?? ""] ?? firstRow[0]?.setSlug}
+                </span>
+              </span>
+              <div className="bg-border h-px flex-1" />
+            </div>
+            {/* mt-4 mirrors the virtualizer's GAP (16px) between adjacent
+                rows — header → first card row. Without it the cards sit
+                ~16px too high vs. the hydrated grid. */}
+            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+              {firstRow.map((card, i) => (
+                // Mirrors the live <CardRowContent> deferred-cell shape:
+                // p-1.5 wrapper (BUTTON_PAD), card image, then a label-height
+                // spacer matching CardThumbnail's two-line CardMetaLabel block.
+                // Without the wrapper the SSR cells render ~12px wider and
+                // ~LABEL_HEIGHT shorter than the live cells, shifting the
+                // grid down and inward when CardBrowser hydrates.
+                <div key={card.printingId} className="rounded-lg p-1.5">
+                  <img
+                    src={card.thumbnail}
+                    srcSet={`${card.thumbnail} 400w, ${card.full} 800w`}
+                    sizes="(min-width: 1536px) 14vw, (min-width: 1280px) 17vw, (min-width: 1024px) 20vw, (min-width: 768px) 25vw, (min-width: 640px) 33vw, 50vw"
+                    width={400}
+                    height={558}
+                    alt={card.cardName}
+                    fetchPriority={i === 0 ? "high" : undefined}
+                    className="aspect-card w-full rounded-lg object-cover"
+                  />
+                  <div aria-hidden="true" style={{ height: LABEL_HEIGHT }} />
+                </div>
+              ))}
+            </div>
+          </>
         )
       }
     />

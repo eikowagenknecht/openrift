@@ -44,6 +44,7 @@ import { usePrices } from "@/hooks/use-prices";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
 import { useSession } from "@/lib/auth-session";
+import { FIRST_ROW_LIMIT } from "@/lib/cards-first-row";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -355,6 +356,7 @@ export function CardBrowser() {
       }
       rightPane={rightPane}
       addStripHeight={showStrip ? ADD_STRIP_HEIGHT : undefined}
+      minEagerCount={FIRST_ROW_LIMIT}
     >
       {isMobile && (
         <SelectionMobileOverlay

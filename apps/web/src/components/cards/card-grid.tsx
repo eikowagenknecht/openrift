@@ -20,10 +20,7 @@ import {
   HEADER_CONTENT_HEIGHT,
   HEADER_PB,
   HEADER_PT,
-  LABEL_WRAPPER_MT,
-  META_LABEL_PY,
-  META_LINE_GAP,
-  META_LINE_HEIGHT,
+  LABEL_HEIGHT,
 } from "./card-grid-constants";
 import { CardGridDebug } from "./card-grid-debug";
 import type { GroupInfo, VRow } from "./card-grid-types";
@@ -165,10 +162,6 @@ function buildVirtualRows(groups: CardGroup[], columns: number): VRow[] {
   return rows;
 }
 
-/** All fields are always visible — height is constant. */
-const LABEL_HEIGHT =
-  LABEL_WRAPPER_MT + META_LABEL_PY + META_LINE_HEIGHT + META_LINE_GAP + META_LINE_HEIGHT;
-
 /**
  * Builds a prefix-sum array of Y-offsets so `rowStarts[i]` is the pixel
  * position where row `i` begins in the virtual scroll container.
@@ -270,7 +263,12 @@ const CardRowContent = memo(function CardRowContent({
   // real content when the browser is idle. During fast scroll the browser stays
   // busy so placeholders persist; during slow scroll or once stopped, the idle
   // callback fires quickly and real content appears.
-  const [deferred, setDeferred] = useState(true);
+  // Eager rows (those containing priority/LCP cards) skip the deferred phase —
+  // their images were preloaded by the SSR <FirstRowPreview>, so rendering the
+  // muted-grey placeholder on hydration just adds a visible flash before the
+  // cached image paints.
+  const isEager = row.cardsBefore < eagerCount;
+  const [deferred, setDeferred] = useState(!isEager);
   useEffect(() => {
     if (!deferred) {
       return;
@@ -347,6 +345,14 @@ interface CardGridProps {
   addStripHeight?: number;
   /** Total height of sticky elements above the grid (app header + toolbar). */
   stickyOffset?: number;
+  /**
+   * Minimum number of cards to render eagerly on first paint (priority + no
+   * deferred placeholder + initial imgLoaded=true). Used by routes whose SSR
+   * shell preloaded cards beyond the default `columns × 2` window so the
+   * cached images paint without the muted-grey + fade-in flash. The actual
+   * eager count is `max(columns × 2, minEagerCount)`.
+   */
+  minEagerCount?: number;
 }
 
 export function CardGrid({
@@ -362,6 +368,7 @@ export function CardGrid({
   siblingPrintings,
   addStripHeight = 0,
   stickyOffset = APP_HEADER_HEIGHT,
+  minEagerCount = 0,
 }: CardGridProps) {
   const { orders } = useEnumOrders();
 
@@ -548,7 +555,7 @@ export function CardGrid({
     }
   };
 
-  const eagerCount = columns * 2;
+  const eagerCount = Math.max(columns * 2, minEagerCount);
 
   // ── Render ─────────────────────────────────────────────────────────
   if (items.length === 0) {

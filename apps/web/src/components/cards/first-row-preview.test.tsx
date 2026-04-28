@@ -45,10 +45,11 @@ vi.mock("@/components/filters/active-filters", () => ({
 // oxlint-disable-next-line import/first -- must import after vi.mock
 import { FirstRowPreview } from "./first-row-preview";
 
-function makeCard(i: number): FirstRowCard {
+function makeCard(i: number, setSlug = "OGN"): FirstRowCard {
   return {
     printingId: `p-${i}`,
     cardName: `Card ${i}`,
+    setSlug,
     thumbnail: `https://cdn.test/p-${i}-400w.webp`,
     full: `https://cdn.test/p-${i}-full.webp`,
   };
@@ -126,6 +127,26 @@ describe("FirstRowPreview", () => {
     expect(imgs[0]?.getAttribute("fetchpriority")).toBe("high");
     expect(imgs[1]?.getAttribute("fetchpriority")).toBeNull();
     expect(imgs[2]?.getAttribute("fetchpriority")).toBeNull();
+  });
+
+  it("renders the set-group header above the cards using setLabels", () => {
+    mockUseLoaderData.mockReturnValue(
+      makeLoaderData({
+        firstRow: [makeCard(0, "OGN"), makeCard(1, "OGN")],
+        setLabels: { OGN: "Origins" },
+      }),
+    );
+    const { container } = render(<FirstRowPreview />);
+    expect(container.textContent).toContain("OGN");
+    expect(container.textContent).toContain("Origins");
+  });
+
+  it("falls back to the slug when setLabels has no entry for the set", () => {
+    mockUseLoaderData.mockReturnValue(
+      makeLoaderData({ firstRow: [makeCard(0, "ARC")], setLabels: {} }),
+    );
+    const { container } = render(<FirstRowPreview />);
+    expect(container.textContent).toContain("ARC");
   });
 
   it("sets srcset, sizes, width, height, and alt on every image", () => {

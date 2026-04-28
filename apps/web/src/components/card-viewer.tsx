@@ -5,7 +5,6 @@ import { CardBrowserLayout, useCardBrowserLayoutOffsets } from "@/components/car
 import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer-types";
 import { CardGrid } from "@/components/cards/card-grid";
 import type { GroupInfo } from "@/components/cards/card-grid-types";
-import { useHydrated } from "@/hooks/use-hydrated";
 
 interface CardViewerProps {
   items: CardViewerItem[];
@@ -29,6 +28,8 @@ interface CardViewerProps {
   rightPane?: ReactNode;
   /** Extra height added to each card row (e.g. add-mode strip). */
   addStripHeight?: number;
+  /** Lift the eager-render floor for routes whose SSR shell preloaded cards. */
+  minEagerCount?: number;
   children?: ReactNode;
 }
 
@@ -58,10 +59,15 @@ export function CardViewer({
   aboveGrid,
   rightPane,
   addStripHeight,
+  minEagerCount,
   children,
 }: CardViewerProps) {
-  const hydrated = useHydrated();
-
+  // No useHydrated() gate here: every CardViewer consumer (CardBrowser,
+  // deck-card-browser, collection-grid via BrowserCardViewer) only mounts
+  // post-hydration, so the previous SSR-skeleton fallback only ever rendered
+  // for one frame on initial mount due to useSyncExternalStore returning the
+  // server snapshot first — producing a visible flash between FirstRowPreview
+  // and the live grid.
   return (
     <CardBrowserLayout
       toolbar={toolbar}
@@ -70,23 +76,20 @@ export function CardViewer({
       rightPane={rightPane}
       stale={stale}
       gridSlot={
-        hydrated ? (
-          <HydratedGrid
-            items={items}
-            totalItems={totalItems}
-            renderCard={renderCard}
-            setOrder={setOrder}
-            groupBy={groupBy}
-            groupDir={groupDir}
-            selectedItemId={selectedItemId}
-            keyboardNavItemId={keyboardNavItemId}
-            onItemClick={onItemClick}
-            siblingPrintings={siblingPrintings}
-            addStripHeight={addStripHeight}
-          />
-        ) : (
-          <CardGridSkeleton />
-        )
+        <HydratedGrid
+          items={items}
+          totalItems={totalItems}
+          renderCard={renderCard}
+          setOrder={setOrder}
+          groupBy={groupBy}
+          groupDir={groupDir}
+          selectedItemId={selectedItemId}
+          keyboardNavItemId={keyboardNavItemId}
+          onItemClick={onItemClick}
+          siblingPrintings={siblingPrintings}
+          addStripHeight={addStripHeight}
+          minEagerCount={minEagerCount}
+        />
       }
     >
       {children}
@@ -107,6 +110,7 @@ type HydratedGridProps = Pick<
   | "onItemClick"
   | "siblingPrintings"
   | "addStripHeight"
+  | "minEagerCount"
 >;
 
 /**
@@ -117,19 +121,4 @@ type HydratedGridProps = Pick<
 function HydratedGrid(props: HydratedGridProps) {
   const { stickyOffset } = useCardBrowserLayoutOffsets();
   return <CardGrid {...props} stickyOffset={stickyOffset} />;
-}
-
-/**
- * Placeholder grid shown during SSR while the virtualizer is not yet mounted.
- *
- * @returns A CSS grid of animated placeholder cards.
- */
-function CardGridSkeleton() {
-  return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
-      {Array.from({ length: 20 }, (_, i) => (
-        <div key={i} className="bg-muted aspect-card animate-pulse rounded-lg" />
-      ))}
-    </div>
-  );
 }

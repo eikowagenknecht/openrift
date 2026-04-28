@@ -2,6 +2,8 @@
 
 ## 2026-04-28
 
+- fix: The first row of cards shown on a fresh visit to the cards page is now always the English printings you'll see once the page loads, instead of occasionally flashing in non-English versions that get replaced
+- fix: The set name now sits above the first row of cards on a fresh visit to the cards page, so the cards no longer jump down once the grid finishes loading
 - fix: The cards page filter sidebar and toolbar now appear immediately on a fresh visit, so the cards no longer shift sideways once the filters load in
 - fix: Tapping "Browse cards" from the homepage now opens the cards page almost instantly, because the catalog quietly preloads in the background while you're on the homepage
 - fix: Sets on the cards page are again grouped in the order configured in the admin panel, instead of by when each set was first added

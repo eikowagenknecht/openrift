@@ -95,17 +95,27 @@ describe("extractFirstRow", () => {
     expect(result.map((r) => r.printingId)).toEqual(["p-a", "p-b", "p-c"]);
   });
 
-  it("places EN before non-EN for printings sharing a shortCode", () => {
+  it("excludes non-EN printings (the live grid hides them for default users)", () => {
     const cards = { "card-1": makeCard() };
     const printings = {
       "p-zh": makePrinting({ shortCode: "OGN-001", language: "ZH", canonicalRank: 1 }),
-      "p-en": makePrinting({ shortCode: "OGN-001", language: "EN", canonicalRank: 5 }),
+      "p-en": makePrinting({ shortCode: "OGN-005", language: "EN", canonicalRank: 5 }),
     };
     const result = extractFirstRow(makeCatalog(cards, printings), 10);
-    expect(result.map((r) => r.printingId)).toEqual(["p-en", "p-zh"]);
+    expect(result.map((r) => r.printingId)).toEqual(["p-en"]);
   });
 
-  it("breaks identical-shortCode same-language ties by canonicalRank", () => {
+  it("does not let an earlier-shortCode non-EN printing displace an EN one", () => {
+    const cards = { "card-1": makeCard() };
+    const printings = {
+      "p-de-first": makePrinting({ shortCode: "OGN-001", language: "DE" }),
+      "p-en-later": makePrinting({ shortCode: "OGN-002", language: "EN" }),
+    };
+    const result = extractFirstRow(makeCatalog(cards, printings), 1);
+    expect(result.map((r) => r.printingId)).toEqual(["p-en-later"]);
+  });
+
+  it("breaks identical-shortCode ties by canonicalRank", () => {
     const cards = { "card-1": makeCard() };
     const printings = {
       "p-2": makePrinting({ shortCode: "OGN-001", canonicalRank: 50 }),
@@ -183,8 +193,20 @@ describe("extractFirstRow", () => {
     expect(card).toEqual({
       printingId: "p-1",
       cardName: "Garen, the Might of Demacia",
+      setSlug: "OGN",
       thumbnail: "https://cdn.test/front-400w.webp",
       full: "https://cdn.test/front-full.webp",
     });
+  });
+
+  it("populates setSlug per-card from the catalog set lookup", () => {
+    const cards = { "card-1": makeCard() };
+    const printings = {
+      "p-arc": makePrinting({ shortCode: "ARC-001", setId: "set-arc" }),
+      "p-ogn": makePrinting({ shortCode: "OGN-001", setId: "set-ogn" }),
+    };
+    const sets = [makeSet("set-ogn", "OGN"), makeSet("set-arc", "ARC")];
+    const result = extractFirstRow(makeCatalog(cards, printings, sets), 10);
+    expect(result.map((r) => r.setSlug)).toEqual(["OGN", "ARC"]);
   });
 });

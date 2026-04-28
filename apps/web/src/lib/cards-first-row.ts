@@ -6,11 +6,18 @@ import { readCatalogFromServerCache } from "@/lib/catalog-query";
 export interface FirstRowCard {
   printingId: string;
   cardName: string;
+  setSlug: string;
   thumbnail: string;
   full: string;
 }
 
-const FIRST_ROW_LIMIT = 12;
+/**
+ * Number of cards the SSR shell preloads via real `<img>` tags. Mirrored on
+ * the client side by lifting `CardGrid`'s eager-render floor to this value
+ * so every preloaded card paints from cache without the muted-grey + fade
+ * flash on hydration.
+ */
+export const FIRST_ROW_LIMIT = 40;
 const PREFERRED_LANGUAGE = "EN";
 
 /**
@@ -18,10 +25,13 @@ const PREFERRED_LANGUAGE = "EN";
  * live `<CardBrowser>` renders for a default user (no URL filters,
  * `groupBy="set"`, `sortBy="id"` ascending, language preference EN).
  *
+ * - Only EN printings are kept — `PREFERENCE_DEFAULTS.languages` is `["EN"]`,
+ *   so a fresh user's grid filters out every non-EN printing. Including them
+ *   here would make the SSR preview render cards that disappear on hydration.
  * - Sets are iterated in `catalog.sets` order (the API's `set.sort_order`).
  * - Within each set, printings sort by `shortCode` (locale-aware ascending).
- * - Same-`shortCode` ties resolve by EN-first, then `canonicalRank` — matching
- *   the stable secondary order `useCards` produces for equal-shortCode rows.
+ * - Same-`shortCode` ties resolve by `canonicalRank` — matching the stable
+ *   secondary order `useCards` produces for equal-shortCode rows.
  *
  * Battlefields are kept (the live grid shows them too); they render with the
  * portrait aspect of the surrounding cells in this preview, then get
@@ -33,13 +43,16 @@ const PREFERRED_LANGUAGE = "EN";
  */
 export function extractFirstRow(catalog: CatalogResponse, limit: number): FirstRowCard[] {
   const setIndex = new Map(catalog.sets.map((set, index) => [set.id, index]));
+  const setSlugById = new Map(catalog.sets.map((set) => [set.id, set.slug]));
   const fallbackSetIndex = catalog.sets.length;
 
-  const printings = Object.entries(catalog.printings).map(([id, printing]) => ({
-    id,
-    printing,
-    setIndex: setIndex.get(printing.setId) ?? fallbackSetIndex,
-  }));
+  const printings = Object.entries(catalog.printings)
+    .filter(([, printing]) => printing.language === PREFERRED_LANGUAGE)
+    .map(([id, printing]) => ({
+      id,
+      printing,
+      setIndex: setIndex.get(printing.setId) ?? fallbackSetIndex,
+    }));
 
   printings.sort((a, b) => {
     if (a.setIndex !== b.setIndex) {
@@ -48,11 +61,6 @@ export function extractFirstRow(catalog: CatalogResponse, limit: number): FirstR
     const shortCodeCompare = a.printing.shortCode.localeCompare(b.printing.shortCode);
     if (shortCodeCompare !== 0) {
       return shortCodeCompare;
-    }
-    const aIsPreferred = a.printing.language === PREFERRED_LANGUAGE ? 0 : 1;
-    const bIsPreferred = b.printing.language === PREFERRED_LANGUAGE ? 0 : 1;
-    if (aIsPreferred !== bIsPreferred) {
-      return aIsPreferred - bIsPreferred;
     }
     return a.printing.canonicalRank - b.printing.canonicalRank;
   });
@@ -70,9 +78,14 @@ export function extractFirstRow(catalog: CatalogResponse, limit: number): FirstR
     if (!front) {
       continue;
     }
+    const setSlug = setSlugById.get(printing.setId);
+    if (!setSlug) {
+      continue;
+    }
     result.push({
       printingId: id,
       cardName: card.name,
+      setSlug,
       thumbnail: front.thumbnail,
       full: front.full,
     });

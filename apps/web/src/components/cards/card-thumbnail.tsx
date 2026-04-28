@@ -273,7 +273,12 @@ export const CardThumbnail = memo(function CardThumbnail({
   const srcSet =
     showImages && frontImage ? `${frontImage.thumbnail} 400w, ${frontImage.full} 800w` : undefined;
   const rotated = needsCssRotation(orientation);
-  const [imgLoaded, setImgLoaded] = useState(false);
+  // Priority images are LCP candidates the SSR shell already painted via
+  // <FirstRowPreview>'s real <img> tags, so the browser has them cached.
+  // Skip the opacity-0 → opacity-100 fade for these; otherwise the first
+  // paint after hydration shows them at opacity-0 (over bg-muted/40) for a
+  // frame before onLoad fires, producing a flash-and-fade on hydration.
+  const [imgLoaded, setImgLoaded] = useState(priority ?? false);
 
   const fancyFan = useDisplayStore((s) => s.fancyFan);
   const foilEffect = useDisplayStore((s) => s.foilEffect);
