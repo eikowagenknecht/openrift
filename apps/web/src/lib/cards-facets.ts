@@ -192,7 +192,7 @@ export type AvailableFiltersWire = Omit<AvailableFilters, "supplementalSets"> & 
   supplementalSets: string[];
 };
 
-export function toWireFacets(facets: AvailableFilters): AvailableFiltersWire {
+function toWireFacets(facets: AvailableFilters): AvailableFiltersWire {
   return { ...facets, supplementalSets: [...facets.supplementalSets] };
 }
 
@@ -200,7 +200,7 @@ export function fromWireFacets(wire: AvailableFiltersWire): AvailableFilters {
   return { ...wire, supplementalSets: new Set(wire.supplementalSets) };
 }
 
-export interface CardFacetsPayloadWire {
+interface CardFacetsPayloadWire {
   facets: AvailableFiltersWire;
   availableLanguages: string[];
   /** Slug → display name lookup for the Filters panel and ActiveFilters chips. */
