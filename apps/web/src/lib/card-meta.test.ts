@@ -95,11 +95,13 @@ describe("getCardFrontImageFullUrl", () => {
       ...makePrinting(null),
       id: "p-2",
       images: [
-        { face: "back", full: "back-full.webp", thumbnail: "back-400w.webp" },
-        { face: "front", full: "front-full.webp", thumbnail: "front-400w.webp" },
+        { face: "back", imageId: "019d6c25-b081-74b3-a901-64da4ae0bbbb" },
+        { face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae0aaaa" },
       ],
     };
-    expect(getCardFrontImageFullUrl(printingWithImages)).toBe("front-full.webp");
+    expect(getCardFrontImageFullUrl(printingWithImages)).toBe(
+      "/media/cards/aa/019d6c25-b081-74b3-a901-64da4ae0aaaa-full.webp",
+    );
   });
 
   it("returns undefined when the printing has no front image", () => {

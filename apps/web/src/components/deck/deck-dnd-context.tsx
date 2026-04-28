@@ -9,6 +9,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { snapCenterToCursor } from "@dnd-kit/modifiers";
+import { imageUrl } from "@openrift/shared";
 import type { DeckZone } from "@openrift/shared";
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
@@ -305,9 +306,8 @@ export function DeckDndContext({ deckId, children }: { deckId: string; children:
     (dragInfo.fromBrowser ? browserRemaining > 1 : dragInfo.quantity > 1);
 
   const { getPreferredFrontImage } = usePreferredPrinting();
-  const dragImageUrl = dragInfo
-    ? (getPreferredFrontImage(dragInfo.cardId)?.thumbnail ?? null)
-    : null;
+  const dragImageId = dragInfo ? (getPreferredFrontImage(dragInfo.cardId)?.imageId ?? null) : null;
+  const dragImageUrl = dragImageId ? imageUrl(dragImageId, "400w") : null;
 
   const dragCount = moveAll
     ? dragInfo?.fromBrowser

@@ -1,3 +1,4 @@
+import { imageUrl } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -22,9 +23,9 @@ function useFuryRuneImages() {
   }
   for (const printing of data.printings) {
     if (DIAGRAM_SHORT_CODES.includes(printing.shortCode) && !imageByCode.has(printing.shortCode)) {
-      const thumbnail = printing.images[0]?.thumbnail;
-      if (thumbnail) {
-        imageByCode.set(printing.shortCode, thumbnail);
+      const id = printing.images[0]?.imageId;
+      if (id) {
+        imageByCode.set(printing.shortCode, imageUrl(id, "400w"));
       }
     }
   }

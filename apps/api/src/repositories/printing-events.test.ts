@@ -148,7 +148,7 @@ describe("printingEventsRepo", () => {
       artist: null,
       language: null,
       languageName: null,
-      frontImageUrl: null,
+      frontImageId: null,
     };
     const db = mockDb();
     db.chain.execute.mockResolvedValueOnce([stringRow]);
@@ -176,7 +176,7 @@ describe("printingEventsRepo", () => {
       artist: null,
       language: null,
       languageName: null,
-      frontImageUrl: null,
+      frontImageId: null,
     };
     const db = mockDb();
     db.chain.execute.mockResolvedValueOnce([nullRow]);

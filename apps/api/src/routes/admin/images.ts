@@ -50,7 +50,13 @@ const regenerateImagesRoute = createRoute({
   path: "/regenerate-images",
   tags: ["Admin - Images"],
   request: {
-    query: z.object({ offset: z.coerce.number().int().min(0).optional() }),
+    query: z.object({
+      offset: z.coerce.number().int().min(0).optional(),
+      skipExisting: z
+        .enum(["true", "false"])
+        .optional()
+        .transform((v) => v === "true"),
+    }),
   },
   responses: {
     200: {
@@ -337,8 +343,10 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
   .openapi(regenerateImagesRoute, async (c) => {
     const { printingImages } = c.get("repos");
-    const offset = c.req.valid("query").offset ?? 0;
-    const result = await regenerateImages(c.get("io"), printingImages, offset);
+    const query = c.req.valid("query");
+    const offset = query.offset ?? 0;
+    const skipExisting = query.skipExisting ?? false;
+    const result = await regenerateImages(c.get("io"), printingImages, offset, { skipExisting });
     return c.json(result);
   })
 

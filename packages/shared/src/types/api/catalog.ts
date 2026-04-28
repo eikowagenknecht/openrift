@@ -1,6 +1,5 @@
 import type {
   Card,
-  CardImageVariants,
   DistributionChannelWithCount,
   Marker,
   PrintingDistributionChannel,
@@ -79,7 +78,7 @@ export interface CardDetailResponse {
 export interface SetListEntry extends CatalogSetResponse {
   cardCount: number;
   printingCount: number;
-  coverImage: CardImageVariants | null;
+  coverImageId: string | null;
 }
 
 export interface SetListResponse {
@@ -122,12 +121,12 @@ export interface SitemapDataResponse {
 /**
  * Lightweight payload for the public landing page. Only the values the hero
  * needs: three counts for the count-up stats and a pre-filtered, sampled list
- * of front-face thumbnail URLs for the decorative card scatter (battlefields
- * excluded).
+ * of front-face image_files.id values for the decorative card scatter
+ * (battlefields excluded). The client builds thumbnail URLs via `imageUrl()`.
  */
 export interface LandingSummaryResponse {
   cardCount: number;
   printingCount: number;
   copyCount: number;
-  thumbnails: string[];
+  thumbnailIds: string[];
 }

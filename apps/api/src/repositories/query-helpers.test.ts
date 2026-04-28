@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createMockDb } from "../test/mock-db.js";
 import {
-  imageUrl,
+  imageId,
   imageUrlWithOriginal,
   resolveCardId,
   selectCopyWithCard,
@@ -15,9 +15,9 @@ describe("resolveCardId", () => {
   });
 });
 
-describe("imageUrl", () => {
+describe("imageId", () => {
   it("returns a raw builder expression", () => {
-    const result = imageUrl("pi");
+    const result = imageId("pi");
     expect(result).toBeDefined();
   });
 });

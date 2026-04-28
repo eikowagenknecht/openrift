@@ -63,7 +63,7 @@ function makePrinting(
     markers: [],
     distributionChannels: [],
     finish: "normal",
-    images: [{ face: "front", full: "thumb-full.webp", thumbnail: "thumb-400w.webp" }],
+    images: [{ face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae01dab" }],
     artist: "Jane Doe",
     publicCode: "ABCD",
     printedRulesText: null,
@@ -240,7 +240,7 @@ describe("filterCards", () => {
       rarity: "Rare",
       artVariant: "normal",
       finish: "normal",
-      images: [{ face: "front", full: "t-full.webp", thumbnail: "t-400w.webp" }],
+      images: [{ face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae01dab" }],
       artist: "Alice",
       cardId: "SET1-001",
       card: {
@@ -270,7 +270,7 @@ describe("filterCards", () => {
       rarity: "Common",
       artVariant: "normal",
       finish: "foil",
-      images: [{ face: "front", full: "t-full.webp", thumbnail: "t-400w.webp" }],
+      images: [{ face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae01dab" }],
       artist: "Bob",
       cardId: "SET1-002",
       card: {
@@ -300,7 +300,7 @@ describe("filterCards", () => {
       rarity: "Epic",
       artVariant: "altart",
       finish: "normal",
-      images: [{ face: "front", full: "t-full.webp", thumbnail: "t-400w.webp" }],
+      images: [{ face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae01dab" }],
       artist: "Carol",
       cardId: "SET2-001",
       card: {

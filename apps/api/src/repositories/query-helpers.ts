@@ -20,13 +20,16 @@ export const resolveCardId = (alias: string): RawBuilder<string | null> =>
   )`;
 
 /**
- * Resolves the self-hosted image URL from an image_files alias.
- * Only returns the rehosted URL; external provider URLs are excluded
- * so they never appear on public pages.
- * @returns A raw SQL expression: alias.rehosted_url (or NULL if not rehosted)
+ * Resolves the image_files.id (UUID) for a self-hosted image. Returns NULL
+ * when the row hasn't been rehosted yet, so callers can keep the existing
+ * `IS NOT NULL` filter to exclude external-only entries from public pages.
+ * The client constructs variant URLs from this ID via `imageUrl()` in shared.
+ * @returns A raw SQL expression: alias.id (or NULL if not rehosted)
  */
-export function imageUrl(alias: string): RawBuilder<string | null> {
-  return sql<string | null>`${sql.ref(`${alias}.rehostedUrl`)}`;
+export function imageId(alias: string): RawBuilder<string | null> {
+  return sql<
+    string | null
+  >`CASE WHEN ${sql.ref(`${alias}.rehostedUrl`)} IS NOT NULL THEN ${sql.ref(`${alias}.id`)} ELSE NULL END`;
 }
 
 /**

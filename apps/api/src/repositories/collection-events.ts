@@ -3,7 +3,7 @@ import type { Kysely, Selectable } from "kysely";
 import { sql } from "kysely";
 
 import type { CollectionEventsTable, Database, PrintingsTable } from "../db/index.js";
-import { imageUrl } from "./query-helpers.js";
+import { imageId } from "./query-helpers.js";
 
 const CURSOR_SEPARATOR = "_";
 
@@ -40,7 +40,7 @@ type CollectionEventRow = Pick<
   | "createdAt"
 > &
   Pick<Selectable<PrintingsTable>, "shortCode" | "rarity"> & {
-    imageUrl: string | null;
+    imageId: string | null;
     cardName: string;
     cardType: CardType;
     cardSuperTypes: string[];
@@ -81,7 +81,7 @@ export function collectionEventsRepo(db: Kysely<Database>) {
           "ce.toCollectionId",
           "ce.toCollectionName",
           "ce.createdAt",
-          imageUrl("ci").as("imageUrl"),
+          imageId("ci").as("imageId"),
           "p.shortCode",
           "p.rarity",
           "card.name as cardName",

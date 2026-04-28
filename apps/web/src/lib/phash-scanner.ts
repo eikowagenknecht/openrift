@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 
 export interface PhashMatch {
   printing: Printing;
@@ -326,7 +327,7 @@ export async function buildPhashIndex(
           return null;
         }
 
-        const hash = await hashImageUrl(frontImage.thumbnail, config);
+        const hash = await hashImageUrl(imageUrl(frontImage.imageId, "400w"), config);
         if (!hash) {
           return null;
         }

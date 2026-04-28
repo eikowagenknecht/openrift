@@ -47,7 +47,7 @@ const printingEventViewSchema = z.object({
   artist: z.string().nullable(),
   language: z.string().nullable(),
   languageName: z.string().nullable(),
-  frontImageUrl: z.string().nullable(),
+  frontImageId: z.string().nullable(),
   changes: z.array(fieldChangeSchema).nullable(),
   createdAt: z.string(),
 });
@@ -155,7 +155,7 @@ export const adminPrintingEventsRoute = new OpenAPIHono<{ Variables: Variables }
         artist: e.artist,
         language: e.language,
         languageName: e.languageName,
-        frontImageUrl: e.frontImageUrl,
+        frontImageId: e.frontImageId,
         changes: e.changes,
         createdAt: e.createdAt.toISOString(),
       })),

@@ -1,4 +1,5 @@
 import type { ActivityAction, CollectionEventResponse } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeftRightIcon,
@@ -238,9 +239,9 @@ function EventCard({
         <Icon className={cn("size-3.5", config.color)} />
       </div>
 
-      {event.image ? (
+      {event.imageId ? (
         <img
-          src={event.image.thumbnail}
+          src={imageUrl(event.imageId, "120w")}
           alt={event.cardName}
           className="h-12 w-[2.15rem] shrink-0 rounded-sm object-cover"
         />

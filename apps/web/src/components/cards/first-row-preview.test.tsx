@@ -50,8 +50,7 @@ function makeCard(i: number, setSlug = "OGN"): FirstRowCard {
     printingId: `p-${i}`,
     cardName: `Card ${i}`,
     setSlug,
-    thumbnail: `https://cdn.test/p-${i}-400w.webp`,
-    full: `https://cdn.test/p-${i}-full.webp`,
+    imageId: `019d6c25-b081-74b3-a901-64da4ae0p-${i}`,
   };
 }
 

@@ -1,3 +1,4 @@
+import { imageUrl } from "@openrift/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
@@ -33,8 +34,7 @@ const noopRef = () => {};
 
 const stubFrontImage = {
   face: "front" as const,
-  full: "https://cdn.example.com/card-full.webp",
-  thumbnail: "https://cdn.example.com/card-400w.webp",
+  imageId: "019d6c25-b081-74b3-a901-64da4ae0abcd",
 };
 
 describe("CardImage preview overlay", () => {
@@ -90,10 +90,10 @@ describe("CardImage hero (responsive image)", () => {
     );
     const img = getByAltText("Hero Card") as HTMLImageElement;
     const srcset = img.getAttribute("srcset") ?? "";
-    expect(srcset).toContain(`${stubFrontImage.thumbnail} 400w`);
-    expect(srcset).toContain(`${stubFrontImage.full} 800w`);
+    expect(srcset).toContain(`${imageUrl(stubFrontImage.imageId, "400w")} 400w`);
+    expect(srcset).toContain(`${imageUrl(stubFrontImage.imageId, "full")} 800w`);
     expect(img.getAttribute("sizes")).toBe("(min-width: 768px) 376px, 100vw");
-    expect(img.getAttribute("src")).toBe(stubFrontImage.thumbnail);
+    expect(img.getAttribute("src")).toBe(imageUrl(stubFrontImage.imageId, "400w"));
   });
 
   it("renders explicit width/height matching portrait dimensions", () => {

@@ -273,7 +273,7 @@ describe("toTradeListItemDetail", () => {
       copyId: "copy-1",
       printingId: "p-1",
       collectionId: "col-1",
-      imageUrl: "/media/cards/ab/uuid-base",
+      imageId: "uuid-base",
       setId: "set-1",
       rarity: "Rare",
       finish: "foil",
@@ -286,10 +286,7 @@ describe("toTradeListItemDetail", () => {
       copyId: "copy-1",
       printingId: "p-1",
       collectionId: "col-1",
-      image: {
-        full: "/media/cards/ab/uuid-base-full.webp",
-        thumbnail: "/media/cards/ab/uuid-base-400w.webp",
-      },
+      imageId: "uuid-base",
       setId: "set-1",
       rarity: "Rare",
       finish: "foil",
@@ -298,21 +295,21 @@ describe("toTradeListItemDetail", () => {
     });
   });
 
-  it("maps null imageUrl to null image", () => {
+  it("maps null imageId to null", () => {
     const result = toTradeListItemDetail({
       id: "tli-1",
       tradeListId: "tl-1",
       copyId: "copy-1",
       printingId: "p-1",
       collectionId: "col-1",
-      imageUrl: null,
+      imageId: null,
       setId: "set-1",
       rarity: "Rare",
       finish: "foil",
       cardName: "Fire Dragon",
       cardType: "Unit",
     });
-    expect(result.image).toBeNull();
+    expect(result.imageId).toBeNull();
   });
 });
 
@@ -405,7 +402,7 @@ describe("toCollectionEvent", () => {
       createdAt: NOW,
       shortCode: "OGS-005",
       rarity: "Rare",
-      imageUrl: "/media/cards/ab/uuid-base",
+      imageId: "uuid-base",
       cardName: "Shadow Knight",
       cardType: "Unit",
       cardSuperTypes: ["Champion"],
@@ -422,17 +419,14 @@ describe("toCollectionEvent", () => {
       createdAt: "2025-06-15T12:00:00.000Z",
       shortCode: "OGS-005",
       rarity: "Rare",
-      image: {
-        full: "/media/cards/ab/uuid-base-full.webp",
-        thumbnail: "/media/cards/ab/uuid-base-400w.webp",
-      },
+      imageId: "uuid-base",
       cardName: "Shadow Knight",
       cardType: "Unit",
       cardSuperTypes: ["Champion"],
     });
   });
 
-  it("maps null imageUrl to null image", () => {
+  it("maps null imageId to null", () => {
     const result = toCollectionEvent({
       id: "ev-1",
       action: "added",
@@ -445,12 +439,12 @@ describe("toCollectionEvent", () => {
       createdAt: NOW,
       shortCode: "OGS-005",
       rarity: "Rare",
-      imageUrl: null,
+      imageId: null,
       cardName: "Shadow Knight",
       cardType: "Unit",
       cardSuperTypes: ["Champion"],
     });
-    expect(result.image).toBeNull();
+    expect(result.imageId).toBeNull();
   });
 });
 

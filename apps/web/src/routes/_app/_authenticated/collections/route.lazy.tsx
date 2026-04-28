@@ -7,6 +7,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
+import { imageUrl } from "@openrift/shared";
 import { createLazyFileRoute, Outlet } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -185,7 +186,8 @@ function DragPreview({ drag, shiftHeld }: { drag: CardDragData; shiftHeld: boole
       {cards.toReversed().map((printing, reversedIndex) => {
         const index = cards.length - 1 - reversedIndex;
         const offset = FAN_OFFSETS[index];
-        const thumbnail = printing.images[0]?.thumbnail;
+        const firstImageId = printing.images[0]?.imageId;
+        const thumbnail = firstImageId ? imageUrl(firstImageId, "240w") : undefined;
         return (
           <img
             key={printing.id}

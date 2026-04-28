@@ -4,6 +4,7 @@ import type {
   PriceLookup,
   Printing,
 } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { Area, AreaChart, ReferenceArea, ReferenceDot, XAxis, YAxis } from "recharts";
 
 import type { ChartConfig } from "@/components/ui/chart";
@@ -131,10 +132,11 @@ function computeForCards(
     if (cheapest === undefined) {
       unpricedMissing++;
     } else {
+      const cheapestImageId = cheapestPrinting?.images[0]?.imageId;
       missingItems.push({
         label: cardName,
         price: cheapest,
-        thumbnail: cheapestPrinting?.images[0]?.thumbnail,
+        thumbnail: cheapestImageId ? imageUrl(cheapestImageId, "240w") : undefined,
       });
     }
   }
@@ -166,10 +168,11 @@ function computeForPrintings(
     if (price === undefined) {
       unpricedMissing++;
     } else {
+      const firstImageId = printing.images[0]?.imageId;
       missingItems.push({
         label: printing.card.name,
         price,
-        thumbnail: printing.images[0]?.thumbnail,
+        thumbnail: firstImageId ? imageUrl(firstImageId, "240w") : undefined,
       });
     }
   }
@@ -237,7 +240,8 @@ function computeForCopies(
     if (cheapest === undefined) {
       unpricedMissing += missing;
     } else {
-      const thumb = cheapestPrinting?.images[0]?.thumbnail;
+      const cheapestImgId = cheapestPrinting?.images[0]?.imageId;
+      const thumb = cheapestImgId ? imageUrl(cheapestImgId, "240w") : undefined;
       for (let index = 0; index < missing; index++) {
         missingItems.push({ label: card.name, price: cheapest, thumbnail: thumb });
       }

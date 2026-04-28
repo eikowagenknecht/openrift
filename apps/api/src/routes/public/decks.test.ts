@@ -84,8 +84,7 @@ const printingMeta = {
   preferredPrintingId: null,
   resolvedPrintingId: "p0000000-0001-4000-a000-000000000001",
   shortCode: "OGS-001",
-  thumbnailUrl: "/media/cards/aa/abc-400w.webp",
-  fullImageUrl: "/media/cards/aa/abc-full.webp",
+  imageId: "abc",
 };
 
 describe("GET /api/v1/decks/share/:token", () => {
@@ -117,8 +116,7 @@ describe("GET /api/v1/decks/share/:token", () => {
       cardType: cardMeta.type,
       resolvedPrintingId: printingMeta.resolvedPrintingId,
       shortCode: printingMeta.shortCode,
-      thumbnailUrl: printingMeta.thumbnailUrl,
-      fullImageUrl: printingMeta.fullImageUrl,
+      imageId: printingMeta.imageId,
     });
     expect(json.owner.displayName).toBe("Alice");
   });

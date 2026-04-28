@@ -12,7 +12,6 @@ import { promosListResponseSchema } from "@openrift/shared/response-schemas";
 import { etag } from "hono/etag";
 
 import type { Variables } from "../../types.js";
-import { toCardImageVariants } from "../../utils/card-image.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
 const getPromos = createRoute({
@@ -101,7 +100,7 @@ export const promosRoute = promosApp.openapi(getPromos, async (c) => {
     distributionChannels: channelsByPrinting.get(rest.id) ?? [],
     images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
       face: i.face,
-      ...toCardImageVariants(i.url),
+      imageId: i.imageId,
     })),
   }));
 

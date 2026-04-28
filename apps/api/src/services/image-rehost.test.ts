@@ -217,15 +217,17 @@ describe("rehostFilesExist", () => {
 });
 
 describe("processAndSave", () => {
-  it("writes original and 2 webp variants", async () => {
+  it("writes original and 4 webp variants", async () => {
     const buf = Buffer.from("test-img");
     await processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001", 0);
 
     // mkdir: once in processAndSave, once in generateWebpVariants
     expect(mockMkdir).toHaveBeenCalledTimes(2);
-    // 1 orig + 2 webp
-    expect(mockWriteFile).toHaveBeenCalledTimes(3);
+    // 1 orig + 4 webp (120w, 240w, 400w, full)
+    expect(mockWriteFile).toHaveBeenCalledTimes(5);
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-orig.png", buf);
+    expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-120w.webp", expect.any(Buffer));
+    expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-240w.webp", expect.any(Buffer));
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-400w.webp", expect.any(Buffer));
     expect(mockWriteFile).toHaveBeenCalledWith("/tmp/out/card-001-full.webp", expect.any(Buffer));
   });
@@ -243,7 +245,7 @@ describe("processAndSave", () => {
     mockReaddir.mockResolvedValue(["card-001-orig.png"]);
     const buf = Buffer.from("test-img");
     await processAndSave(mockIo, buf, ".png", "/tmp/out", "card-001", 0, true);
-    expect(mockWriteFile).toHaveBeenCalledTimes(3);
+    expect(mockWriteFile).toHaveBeenCalledTimes(5);
   });
 
   it("resizes portrait sources on the width axis", async () => {
@@ -251,6 +253,8 @@ describe("processAndSave", () => {
     await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "portrait-1", 0);
 
     // Portrait → width capped, height null
+    expect(mockSharpInstance.resize).toHaveBeenCalledWith(120, null, { withoutEnlargement: true });
+    expect(mockSharpInstance.resize).toHaveBeenCalledWith(240, null, { withoutEnlargement: true });
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(400, null, { withoutEnlargement: true });
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(800, null, { withoutEnlargement: true });
   });
@@ -260,6 +264,8 @@ describe("processAndSave", () => {
     await processAndSave(mockIo, Buffer.from("l"), ".png", "/tmp/out", "landscape-1", 0);
 
     // Landscape → height capped, width null
+    expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 120, { withoutEnlargement: true });
+    expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 240, { withoutEnlargement: true });
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 400, { withoutEnlargement: true });
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 800, { withoutEnlargement: true });
   });
@@ -271,6 +277,8 @@ describe("processAndSave", () => {
     await processAndSave(mockIo, Buffer.from("p"), ".png", "/tmp/out", "rotated-1", 90);
 
     expect(mockSharpInstance.rotate).toHaveBeenCalledWith(90);
+    expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 120, { withoutEnlargement: true });
+    expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 240, { withoutEnlargement: true });
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 400, { withoutEnlargement: true });
     expect(mockSharpInstance.resize).toHaveBeenCalledWith(null, 800, { withoutEnlargement: true });
   });
@@ -627,6 +635,41 @@ describe("regenerateImages", () => {
     const result = await regenerateImages(mockIo, repo, 0);
     expect(result.failed).toBe(1);
     expect(result.errors[0]).toContain("raw-string-error");
+  });
+
+  it("with skipExisting only writes the variants missing from disk", async () => {
+    const repo = makeMockRepo({ rehosted: [{ imageId: "card-001" }] });
+    // 240w + full on disk, 120w + 400w missing — write only the two gaps.
+    mockReaddir.mockImplementation(async () => [
+      "card-001-orig.png",
+      "card-001-240w.webp",
+      "card-001-full.webp",
+    ]);
+    const result = await regenerateImages(mockIo, repo, 0, { skipExisting: true });
+    expect(result.regenerated).toBe(1);
+    expect(mockWriteFile).toHaveBeenCalledTimes(2);
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      expect.stringContaining("card-001-120w.webp"),
+      expect.any(Buffer),
+    );
+    expect(mockWriteFile).toHaveBeenCalledWith(
+      expect.stringContaining("card-001-400w.webp"),
+      expect.any(Buffer),
+    );
+  });
+
+  it("with skipExisting skips entirely when every variant exists", async () => {
+    const repo = makeMockRepo({ rehosted: [{ imageId: "card-001" }] });
+    mockReaddir.mockImplementation(async () => [
+      "card-001-orig.png",
+      "card-001-120w.webp",
+      "card-001-240w.webp",
+      "card-001-400w.webp",
+      "card-001-full.webp",
+    ]);
+    const result = await regenerateImages(mockIo, repo, 0, { skipExisting: true });
+    expect(result.regenerated).toBe(1);
+    expect(mockWriteFile).not.toHaveBeenCalled();
   });
 });
 
@@ -1026,7 +1069,13 @@ describe("findBrokenImages", () => {
 
   it("returns empty broken list when orig + all SIZES variants exist", async () => {
     const repo = { listAllRehostedWithContext: vi.fn(async () => [sampleImage]) } as any;
-    mockReaddir.mockResolvedValue(["img-1-orig.png", "img-1-400w.webp", "img-1-full.webp"]);
+    mockReaddir.mockResolvedValue([
+      "img-1-orig.png",
+      "img-1-120w.webp",
+      "img-1-240w.webp",
+      "img-1-400w.webp",
+      "img-1-full.webp",
+    ]);
 
     const result = await findBrokenImages(mockIo, repo);
 

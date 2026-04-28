@@ -1,6 +1,6 @@
 import { useDraggable } from "@dnd-kit/core";
 import type { Domain, Marketplace, PriceLookup, Printing, Rarity } from "@openrift/shared";
-import { WellKnown, getOrientation } from "@openrift/shared";
+import { WellKnown, getOrientation, imageUrl } from "@openrift/shared";
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { memo, useRef, useState } from "react";
 
@@ -359,11 +359,14 @@ export const CardThumbnail = memo(function CardThumbnail({
   // React Compiler from memoizing `card`. That unmemoized `card` would then
   // cascade into re-creating the `<CardImageContent>` JSX on every render.
   const orientation = getOrientation(printing.card.type);
-  const thumbnailUrl = showImages && frontImage ? frontImage.thumbnail : null;
-  // Two on-disk variants (400w + full) — let the browser pick when grid rows
-  // are scaled large.
+  const thumbnailUrl = showImages && frontImage ? imageUrl(frontImage.imageId, "400w") : null;
+  // Full ladder so the browser can pick a smaller variant for tight cells
+  // (DPR-1 phones, dense desktop grids) without sacrificing sharpness on
+  // larger ones.
   const srcSet =
-    showImages && frontImage ? `${frontImage.thumbnail} 400w, ${frontImage.full} 800w` : undefined;
+    showImages && frontImage
+      ? `${imageUrl(frontImage.imageId, "120w")} 120w, ${imageUrl(frontImage.imageId, "240w")} 240w, ${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`
+      : undefined;
   const rotated = needsCssRotation(orientation);
   // Priority images are LCP candidates the SSR shell already painted via
   // <FirstRowPreview>'s real <img> tags, so the browser has them cached.
@@ -433,11 +436,14 @@ export const CardThumbnail = memo(function CardThumbnail({
     >
       {otherPrintings.map((sibling, i) => {
         const depth = otherPrintings.length - i;
-        const siblingThumbnail = sibling.images[0]?.thumbnail ?? null;
+        const siblingImageId = sibling.images[0]?.imageId ?? null;
         // Coarse-pointer devices never trigger the hover fan-out, so the
         // sibling images sit hidden behind the front card forever. Skip
         // the download and let the bg-muted/border decorative stack stand in.
-        const siblingUrl = fancyFan && showImages && !IS_COARSE_POINTER ? siblingThumbnail : null;
+        const siblingUrl =
+          fancyFan && showImages && !IS_COARSE_POINTER && siblingImageId
+            ? imageUrl(siblingImageId, "120w")
+            : null;
         return (
           // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- decorative layer inside a parent <button>; keyboard nav handled by parent
           <div

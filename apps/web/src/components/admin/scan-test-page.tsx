@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -621,7 +622,7 @@ function MatchResults({
           >
             {match.printing.images[0] && (
               <img
-                src={match.printing.images[0].thumbnail}
+                src={imageUrl(match.printing.images[0].imageId, "400w")}
                 alt={match.printing.card.name}
                 className="h-16 w-auto rounded"
               />

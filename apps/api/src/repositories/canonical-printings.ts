@@ -2,8 +2,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
-import { toCardImageVariants } from "../utils/card-image.js";
-import { imageUrl } from "./query-helpers.js";
+import { imageId } from "./query-helpers.js";
 
 interface CanonicalShortCode {
   cardId: string;
@@ -31,8 +30,7 @@ interface ResolvedRowShortCode extends DeckRowForShortCode {
 interface ResolvedRowPrintingMeta extends DeckRowForShortCode {
   resolvedPrintingId: string | null;
   shortCode: string | null;
-  thumbnailUrl: string | null;
-  fullImageUrl: string | null;
+  imageId: string | null;
 }
 
 /**
@@ -183,16 +181,8 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
       interface PrintingMetaRow {
         printingId: string;
         shortCode: string;
-        imageBase: string | null;
+        imageId: string | null;
       }
-
-      const toVariants = (imageBase: string | null) => {
-        if (!imageBase) {
-          return { thumbnailUrl: null, fullImageUrl: null };
-        }
-        const variants = toCardImageVariants(imageBase);
-        return { thumbnailUrl: variants.thumbnail, fullImageUrl: variants.full };
-      };
 
       const preferredIds = [
         ...new Set(rows.flatMap((r) => (r.preferredPrintingId ? [r.preferredPrintingId] : []))),
@@ -208,7 +198,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
               .on("pi.isActive", "=", true),
           )
           .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
-          .select(["p.id as printingId", "p.shortCode", imageUrl("imgf").as("imageBase")])
+          .select(["p.id as printingId", "p.shortCode", imageId("imgf").as("imageId")])
           .where("p.id", "in", preferredIds)
           .execute();
         for (const row of preferredRows) {
@@ -237,12 +227,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
               .on("pi.isActive", "=", true),
           )
           .leftJoin("imageFiles as imgf", "imgf.id", "pi.imageFileId")
-          .select([
-            "p.cardId",
-            "p.id as printingId",
-            "p.shortCode",
-            imageUrl("imgf").as("imageBase"),
-          ])
+          .select(["p.cardId", "p.id as printingId", "p.shortCode", imageId("imgf").as("imageId")])
           .where("p.cardId", "in", cardIdsNeedingCanonical)
           .distinctOn("p.cardId")
           .orderBy("p.cardId")
@@ -252,7 +237,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
           canonicalMap.set(row.cardId, {
             printingId: row.printingId,
             shortCode: row.shortCode,
-            imageBase: row.imageBase,
+            imageId: row.imageId,
           });
         }
       }
@@ -268,18 +253,15 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
             preferredPrintingId: row.preferredPrintingId,
             resolvedPrintingId: null,
             shortCode: null,
-            thumbnailUrl: null,
-            fullImageUrl: null,
+            imageId: null,
           };
         }
-        const { thumbnailUrl, fullImageUrl } = toVariants(meta.imageBase);
         return {
           cardId: row.cardId,
           preferredPrintingId: row.preferredPrintingId,
           resolvedPrintingId: meta.printingId,
           shortCode: meta.shortCode,
-          thumbnailUrl,
-          fullImageUrl,
+          imageId: meta.imageId,
         };
       });
     },

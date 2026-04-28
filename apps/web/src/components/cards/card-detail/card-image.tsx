@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
@@ -62,8 +63,8 @@ export function CardImage({
                 style={LANDSCAPE_ROTATION_STYLE}
               >
                 <img
-                  src={frontImage.thumbnail}
-                  srcSet={`${frontImage.thumbnail} 400w, ${frontImage.full} 800w`}
+                  src={imageUrl(frontImage.imageId, "400w")}
+                  srcSet={`${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`}
                   sizes="(min-width: 768px) 376px, 100vw"
                   width={558}
                   height={400}
@@ -75,8 +76,8 @@ export function CardImage({
               </div>
             ) : (
               <img
-                src={frontImage.thumbnail}
-                srcSet={`${frontImage.thumbnail} 400w, ${frontImage.full} 800w`}
+                src={imageUrl(frontImage.imageId, "400w")}
+                srcSet={`${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`}
                 sizes="(min-width: 768px) 376px, 100vw"
                 width={400}
                 height={558}

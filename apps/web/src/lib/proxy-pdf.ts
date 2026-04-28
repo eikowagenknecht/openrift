@@ -1,5 +1,5 @@
 import type { Card, CatalogResponse, Printing, Rarity } from "@openrift/shared";
-import { preferredPrinting } from "@openrift/shared";
+import { imageUrl, preferredPrinting } from "@openrift/shared";
 import { jsPDF } from "jspdf";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -109,7 +109,8 @@ export function resolveProxyCards(
       }
     }
 
-    const imageFullUrl = printing?.images[0]?.full ?? null;
+    const firstImageId = printing?.images[0]?.imageId ?? null;
+    const imageFullUrl = firstImageId ? imageUrl(firstImageId, "full") : null;
     const flavorText = printing?.flavorText ?? null;
     // Use printing-level text (falls back to errata if available)
     const rulesText = printing?.printedRulesText ?? card.errata?.correctedRulesText ?? null;

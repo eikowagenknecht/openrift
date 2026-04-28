@@ -3,6 +3,7 @@ import {
   ALL_MARKETPLACES,
   EUR_MARKETPLACES,
   getOrientation,
+  imageUrl,
   preferredPrinting,
   snapshotHeadline,
   WellKnown,
@@ -218,8 +219,8 @@ function CardDetailPage() {
         <div className="shrink-0 md:w-80">
           {frontImage ? (
             <img
-              src={frontImage.thumbnail}
-              srcSet={`${frontImage.thumbnail} 400w, ${frontImage.full} 800w`}
+              src={imageUrl(frontImage.imageId, "400w")}
+              srcSet={`${imageUrl(frontImage.imageId, "400w")} 400w, ${imageUrl(frontImage.imageId, "full")} 800w`}
               sizes="(min-width: 768px) 320px, 100vw"
               width={heroWidth}
               height={heroHeight}
@@ -631,7 +632,7 @@ function PrintingCard({
       <div className="bg-muted aspect-card w-10 shrink-0 overflow-hidden rounded">
         {frontImage ? (
           <img
-            src={frontImage.thumbnail}
+            src={imageUrl(frontImage.imageId, "120w")}
             alt={printing.card.name}
             className="size-full object-cover"
             loading="lazy"

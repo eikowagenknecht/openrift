@@ -35,13 +35,7 @@ const display: CardThumbnailDisplay = {
 function makePrintingWithImage(slug: string): Printing {
   return stubPrinting({
     card: { slug },
-    images: [
-      {
-        face: "front",
-        thumbnail: `https://cdn.test/${slug}-thumb.webp`,
-        full: `https://cdn.test/${slug}-full.webp`,
-      },
-    ],
+    images: [{ face: "front", imageId: `${slug}-image-id-aa` }],
   });
 }
 
@@ -60,8 +54,8 @@ describe("CardThumbnail siblings", () => {
       />,
     );
     const srcs = [...container.querySelectorAll("img")].map((img) => img.getAttribute("src"));
-    expect(srcs).toContain("https://cdn.test/RB1-001-thumb.webp");
-    expect(srcs).toContain("https://cdn.test/RB1-001-foil-thumb.webp");
+    expect(srcs).toContain("/media/cards/aa/RB1-001-image-id-aa-400w.webp");
+    expect(srcs).toContain("/media/cards/aa/RB1-001-foil-image-id-aa-120w.webp");
   });
 
   // The fan-out is hover-driven (`hover:[--fan:1]`), so on coarse-pointer
@@ -81,7 +75,7 @@ describe("CardThumbnail siblings", () => {
       />,
     );
     const srcs = [...container.querySelectorAll("img")].map((img) => img.getAttribute("src"));
-    expect(srcs).toContain("https://cdn.test/RB1-001-thumb.webp");
-    expect(srcs).not.toContain("https://cdn.test/RB1-001-foil-thumb.webp");
+    expect(srcs).toContain("/media/cards/aa/RB1-001-image-id-aa-400w.webp");
+    expect(srcs).not.toContain("/media/cards/aa/RB1-001-foil-image-id-aa-120w.webp");
   });
 });

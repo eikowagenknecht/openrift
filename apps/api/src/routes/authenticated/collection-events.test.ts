@@ -50,7 +50,7 @@ const dbEvent = {
   createdAt: now,
   shortCode: "ALP-001",
   rarity: "Rare",
-  imageUrl: "/media/cards/ab/uuid-base",
+  imageId: "uuid-base",
   cardName: "Fire Dragon",
   cardType: "Unit",
   cardSuperTypes: ["Dragon"],
@@ -145,10 +145,7 @@ describe("GET /api/v1/collection-events", () => {
     expect(event.createdAt).toBe(now.toISOString());
     expect(event.shortCode).toBe("ALP-001");
     expect(event.rarity).toBe("Rare");
-    expect(event.image).toEqual({
-      full: "/media/cards/ab/uuid-base-full.webp",
-      thumbnail: "/media/cards/ab/uuid-base-400w.webp",
-    });
+    expect(event.imageId).toBe("uuid-base");
     expect(event.cardName).toBe("Fire Dragon");
     expect(event.cardType).toBe("Unit");
     expect(event.cardSuperTypes).toEqual(["Dragon"]);

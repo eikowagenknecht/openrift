@@ -14,7 +14,7 @@ describe.skipIf(!ctx)("Landing summary route (integration)", () => {
     expect(typeof json.cardCount).toBe("number");
     expect(typeof json.printingCount).toBe("number");
     expect(typeof json.copyCount).toBe("number");
-    expect(Array.isArray(json.thumbnails)).toBe(true);
+    expect(Array.isArray(json.thumbnailIds)).toBe(true);
   });
 
   it("excludes the heavy CatalogResponse fields", async () => {
@@ -25,14 +25,15 @@ describe.skipIf(!ctx)("Landing summary route (integration)", () => {
     expect("sets" in json).toBe(false);
   });
 
-  it("returns thumbnails as resolved 400w webp URLs, not raw base URLs", async () => {
+  it("returns thumbnailIds as raw UUIDs, not URLs", async () => {
     const res = await app.fetch(req("GET", "/landing-summary"));
     const json = await res.json();
-    if (json.thumbnails.length === 0) {
+    if (json.thumbnailIds.length === 0) {
       return;
     }
-    for (const url of json.thumbnails) {
-      expect(url).toMatch(/-400w\.webp$/);
+    for (const id of json.thumbnailIds) {
+      expect(id).not.toContain("/");
+      expect(id).not.toContain(".webp");
     }
   });
 
@@ -46,6 +47,6 @@ describe.skipIf(!ctx)("Landing summary route (integration)", () => {
   it("never returns more than 36 thumbnails", async () => {
     const res = await app.fetch(req("GET", "/landing-summary"));
     const json = await res.json();
-    expect(json.thumbnails.length).toBeLessThanOrEqual(36);
+    expect(json.thumbnailIds.length).toBeLessThanOrEqual(36);
   });
 });

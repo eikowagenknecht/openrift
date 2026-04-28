@@ -6,6 +6,7 @@ import type {
   PriceLookup,
   SetListEntry,
 } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { useCards } from "@/hooks/use-cards";
@@ -347,6 +348,9 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
       unpricedCount += stack.copyIds.length;
     } else {
       estimatedValue += price * stack.copyIds.length;
+      const firstImageId = stack.printing.images[0]?.imageId;
+      const thumbnail = firstImageId ? imageUrl(firstImageId, "400w") : undefined;
+      const fullImage = firstImageId ? imageUrl(firstImageId, "full") : undefined;
       if (price > 0 && (cheapestPrinting === null || price < cheapestPrinting.price)) {
         cheapestPrinting = {
           name: stack.printing.card.name,
@@ -354,8 +358,8 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
           price,
           setSlug: stack.printing.setSlug,
           cardSlug: stack.printing.card.slug,
-          thumbnail: stack.printing.images[0]?.thumbnail,
-          fullImage: stack.printing.images[0]?.full,
+          thumbnail,
+          fullImage,
         };
       }
       if (mostExpensivePrinting === null || price > mostExpensivePrinting.price) {
@@ -365,8 +369,8 @@ export function computeCollectionStats(input: ComputeInput): Omit<CollectionStat
           price,
           setSlug: stack.printing.setSlug,
           cardSlug: stack.printing.card.slug,
-          thumbnail: stack.printing.images[0]?.thumbnail,
-          fullImage: stack.printing.images[0]?.full,
+          thumbnail,
+          fullImage,
         };
       }
     }

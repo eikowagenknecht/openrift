@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 
 import { useEnumOrders } from "@/hooks/use-enums";
 import { formatCardId, formatPrintingLabel } from "@/lib/format";
@@ -18,7 +19,8 @@ export function PrintingOptionContent({
   siblings?: Printing[];
 }) {
   const { labels } = useEnumOrders();
-  const thumbnail = printing.images.find((image) => image.face === "front")?.thumbnail ?? null;
+  const frontImageId = printing.images.find((image) => image.face === "front")?.imageId ?? null;
+  const thumbnail = frontImageId ? imageUrl(frontImageId, "120w") : null;
   const label = formatPrintingLabel(printing, siblings, labels);
   const landscape = printing.card.type === "Battlefield";
   const thumbnailSize = landscape ? "h-10 w-14" : "h-14 w-10";

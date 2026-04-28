@@ -22,7 +22,7 @@ function makeEvent(overrides: Partial<EnrichedPrintingEvent> = {}): EnrichedPrin
     artist: "Artist A",
     language: "EN",
     languageName: "English",
-    frontImageUrl: "/media/cards/00/OGN-001-400w.webp",
+    frontImageId: "OGN-001-uuid",
     ...overrides,
   };
 }
@@ -65,26 +65,18 @@ describe("buildNewPrintingPayloads", () => {
     expect(payloads[0].embeds[0].author).toBeUndefined();
   });
 
-  it("prepends app base URL to relative image paths", () => {
-    const events = [makeEvent({ frontImageUrl: "/media/cards/ab/abc-400w.webp" })];
+  it("builds the absolute 400w image URL from the image id", () => {
+    const events = [makeEvent({ frontImageId: "019d6c25-b081-74b3-a901-64da4ae0abcd" })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
     expect(payloads[0].embeds[0].image?.url).toBe(
-      "https://openrift.app/media/cards/ab/abc-400w.webp",
+      "https://openrift.app/media/cards/cd/019d6c25-b081-74b3-a901-64da4ae0abcd-400w.webp",
     );
   });
 
-  it("preserves absolute image URLs unchanged", () => {
-    const events = [makeEvent({ frontImageUrl: "https://cdn.example.com/card.webp" })];
-
-    const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
-
-    expect(payloads[0].embeds[0].image?.url).toBe("https://cdn.example.com/card.webp");
-  });
-
-  it("omits image when no front image is available", () => {
-    const events = [makeEvent({ frontImageUrl: null })];
+  it("omits image when no front image id is available", () => {
+    const events = [makeEvent({ frontImageId: null })];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
@@ -201,7 +193,7 @@ describe("buildChangedPrintingPayloads", () => {
     expect(payloads[0].embeds[0].title).toBe("Updated: Test Card (OGN-001)");
     expect(payloads[0].embeds[0].url).toBe("https://openrift.app/cards/OGN-001");
     expect(payloads[0].embeds[0].thumbnail?.url).toBe(
-      "https://openrift.app/media/cards/00/OGN-001-400w.webp",
+      "https://openrift.app/media/cards/id/OGN-001-uuid-400w.webp",
     );
 
     const fields = payloads[0].embeds[0].fields ?? [];

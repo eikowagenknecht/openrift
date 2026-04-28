@@ -1,5 +1,5 @@
 import type { DeckListItemResponse, PrintingImage } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 import { ArchiveIcon, CheckIcon, CircleAlertIcon, PinIcon, SwordsIcon } from "lucide-react";
 
@@ -42,8 +42,8 @@ function CardPreviewImage({
 }) {
   return (
     <img
-      src={image.thumbnail}
-      srcSet={`${image.thumbnail} 400w, ${image.full} 800w`}
+      src={imageUrl(image.imageId, "240w")}
+      srcSet={`${imageUrl(image.imageId, "120w")} 120w, ${imageUrl(image.imageId, "240w")} 240w, ${imageUrl(image.imageId, "400w")} 400w, ${imageUrl(image.imageId, "full")} 800w`}
       sizes={sizes}
       alt={alt}
       loading="lazy"

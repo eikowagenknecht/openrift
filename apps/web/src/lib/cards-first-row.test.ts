@@ -44,13 +44,7 @@ function makePrinting(
     markers: [],
     distributionChannels: [],
     finish: "normal",
-    images: [
-      {
-        face: "front",
-        full: "https://cdn.test/front-full.webp",
-        thumbnail: "https://cdn.test/front-400w.webp",
-      },
-    ],
+    images: [{ face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae0aaaa" }],
     artist: "Test Artist",
     publicCode: "ogn-001",
     printedRulesText: null,
@@ -142,19 +136,12 @@ describe("extractFirstRow", () => {
     const cards = { "card-1": makeCard() };
     const printings = {
       "p-1": makePrinting({
-        images: [
-          {
-            face: "back",
-            full: "https://cdn.test/back-full.webp",
-            thumbnail: "https://cdn.test/back-400w.webp",
-          },
-        ],
+        images: [{ face: "back", imageId: "019d6c25-b081-74b3-a901-64da4ae0bbbb" }],
       }),
     };
     const result = extractFirstRow(makeCatalog(cards, printings), 10);
     expect(result).toHaveLength(1);
-    expect(result[0]?.thumbnail).toBe("https://cdn.test/back-400w.webp");
-    expect(result[0]?.full).toBe("https://cdn.test/back-full.webp");
+    expect(result[0]?.imageId).toBe("019d6c25-b081-74b3-a901-64da4ae0bbbb");
   });
 
   it("caps results at the requested limit", () => {
@@ -194,8 +181,7 @@ describe("extractFirstRow", () => {
       printingId: "p-1",
       cardName: "Garen, the Might of Demacia",
       setSlug: "OGN",
-      thumbnail: "https://cdn.test/front-400w.webp",
-      full: "https://cdn.test/front-full.webp",
+      imageId: "019d6c25-b081-74b3-a901-64da4ae0aaaa",
     });
   });
 

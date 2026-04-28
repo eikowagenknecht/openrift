@@ -16,7 +16,6 @@ export type {
   Card,
   CardBan,
   CardErrata,
-  CardImageVariants,
   DistributionChannel,
   DistributionChannelKind,
   DistributionChannelWithCount,

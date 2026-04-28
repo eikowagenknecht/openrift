@@ -1,4 +1,5 @@
 import type { SetListEntry } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, createLazyFileRoute } from "@tanstack/react-router";
 import { CalendarIcon, LayersIcon } from "lucide-react";
@@ -27,12 +28,12 @@ function HeroSetCard({ set }: { set: SetListEntry }) {
       className="border-border bg-card hover:bg-accent group flex overflow-hidden rounded-xl border transition-colors"
     >
       <div className="relative w-28 shrink-0 sm:w-36">
-        {set.coverImage ? (
+        {set.coverImageId ? (
           <>
             <div className="aspect-card bg-muted/40" />
             <img
-              src={set.coverImage.thumbnail}
-              srcSet={`${set.coverImage.thumbnail} 400w, ${set.coverImage.full} 800w`}
+              src={imageUrl(set.coverImageId, "400w")}
+              srcSet={`${imageUrl(set.coverImageId, "400w")} 400w, ${imageUrl(set.coverImageId, "full")} 800w`}
               sizes="144px"
               alt={set.name}
               loading="lazy"

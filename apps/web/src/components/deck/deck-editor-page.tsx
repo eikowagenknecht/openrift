@@ -1,4 +1,5 @@
 import type { DeckZone } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -286,8 +287,8 @@ function DeckEditorContent({
   const hoveredCard =
     hoveredPrinting && hoveredFrontImage
       ? {
-          thumbnailUrl: hoveredFrontImage.thumbnail,
-          fullUrl: hoveredFrontImage.full,
+          thumbnailUrl: imageUrl(hoveredFrontImage.imageId, "400w"),
+          fullUrl: imageUrl(hoveredFrontImage.imageId, "full"),
           landscape: hoveredPrinting.card.type === "Battlefield",
         }
       : null;

@@ -1,3 +1,4 @@
+import { imageUrl } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -59,7 +60,7 @@ export function LandingPage() {
           key={resetKey}
           flyIn={resetKey > 0}
           hinting={hinting}
-          imageUrls={data?.thumbnails ?? []}
+          imageUrls={(data?.thumbnailIds ?? []).map((id) => imageUrl(id, "400w"))}
           onAllCollected={handleAllCollected}
         />
         <div

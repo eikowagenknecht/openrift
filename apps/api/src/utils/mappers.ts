@@ -28,7 +28,6 @@ import type {
   WishListsTable,
 } from "../db/index.js";
 import type { CollectionValue } from "../repositories/marketplace.js";
-import { toCardImageVariants } from "./card-image.js";
 
 // ── Simple entity mappers ──────────────────────────────────────────────────
 
@@ -149,7 +148,7 @@ export function toCollectionEvent(row: {
   createdAt: Date;
   shortCode: string;
   rarity: string;
-  imageUrl: string | null;
+  imageId: string | null;
   cardName: string;
   cardType: string;
   cardSuperTypes: string[];
@@ -166,7 +165,7 @@ export function toCollectionEvent(row: {
     createdAt: row.createdAt.toISOString(),
     shortCode: row.shortCode,
     rarity: row.rarity as CollectionEventResponse["rarity"],
-    image: toCardImageVariants(row.imageUrl),
+    imageId: row.imageId,
     cardName: row.cardName,
     cardType: row.cardType as CollectionEventResponse["cardType"],
     cardSuperTypes: row.cardSuperTypes,
@@ -234,8 +233,7 @@ export function toPublicDeckCard(
   printingMeta: {
     resolvedPrintingId: string | null;
     shortCode: string | null;
-    thumbnailUrl: string | null;
-    fullImageUrl: string | null;
+    imageId: string | null;
   },
 ): PublicDeckCardResponse {
   return {
@@ -255,8 +253,7 @@ export function toPublicDeckCard(
     power: cardMeta.power,
     resolvedPrintingId: printingMeta.resolvedPrintingId,
     shortCode: printingMeta.shortCode,
-    thumbnailUrl: printingMeta.thumbnailUrl,
-    fullImageUrl: printingMeta.fullImageUrl,
+    imageId: printingMeta.imageId,
   };
 }
 
@@ -270,7 +267,7 @@ export function toTradeListItemDetail(row: {
   copyId: string;
   printingId: string;
   collectionId: string;
-  imageUrl: string | null;
+  imageId: string | null;
   setId: string;
   rarity: string;
   finish: string;
@@ -283,7 +280,7 @@ export function toTradeListItemDetail(row: {
     copyId: row.copyId,
     printingId: row.printingId,
     collectionId: row.collectionId,
-    image: toCardImageVariants(row.imageUrl),
+    imageId: row.imageId,
     setId: row.setId,
     rarity: row.rarity as TradeListItemDetailResponse["rarity"],
     finish: row.finish as TradeListItemDetailResponse["finish"],

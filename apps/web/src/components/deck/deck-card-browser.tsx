@@ -1,4 +1,5 @@
 import type { DeckZone, Marketplace, Printing } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { useDeferredValue, useEffect, useState } from "react";
 
 import { BrowserCardViewer } from "@/components/browser-card-viewer";
@@ -124,9 +125,10 @@ function DeckOverviewForEditor({
       cards={cards}
       ownershipData={ownershipData}
       marketplace={marketplace}
-      getThumbnail={(cardId, preferredPrintingId) =>
-        getPreferredFrontImage(cardId, preferredPrintingId)?.thumbnail
-      }
+      getThumbnail={(cardId, preferredPrintingId) => {
+        const id = getPreferredFrontImage(cardId, preferredPrintingId)?.imageId;
+        return id ? imageUrl(id, "400w") : undefined;
+      }}
       onZoneClick={onZoneClick}
       onViewMissing={onViewMissing}
       onHoverCard={onHoverCard}

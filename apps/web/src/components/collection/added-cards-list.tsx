@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { XIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -32,7 +33,8 @@ export function AddedCardsList({ onCardClick, onClose }: AddedCardsListProps) {
       </div>
       <div className="space-y-1 pb-4">
         {entries.map((entry) => {
-          const thumbnailUrl = entry.printing.images[0]?.thumbnail ?? null;
+          const firstImageId = entry.printing.images[0]?.imageId ?? null;
+          const thumbnailUrl = firstImageId ? imageUrl(firstImageId, "400w") : null;
 
           return (
             <button

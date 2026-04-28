@@ -7,8 +7,7 @@ export interface FirstRowCard {
   printingId: string;
   cardName: string;
   setSlug: string;
-  thumbnail: string;
-  full: string;
+  imageId: string;
 }
 
 /** Number of cards the SSR shell preloads via real `<img>` tags. */
@@ -81,8 +80,7 @@ export function extractFirstRow(catalog: CatalogResponse, limit: number): FirstR
       printingId: id,
       cardName: card.name,
       setSlug,
-      thumbnail: front.thumbnail,
-      full: front.full,
+      imageId: front.imageId,
     });
   }
   return result;

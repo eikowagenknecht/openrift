@@ -1,8 +1,7 @@
 import type { Kysely } from "kysely";
-import { sql } from "kysely";
 
 import type { Database, FieldChange } from "../db/index.js";
-import { imageUrl } from "./query-helpers.js";
+import { imageId } from "./query-helpers.js";
 
 const MAX_RETRIES = 5;
 
@@ -41,7 +40,7 @@ export interface EnrichedPrintingEvent {
   artist: string | null;
   language: string | null;
   languageName: string | null;
-  frontImageUrl: string | null;
+  frontImageId: string | null;
 }
 
 type PrintingEventStatus = "pending" | "sent" | "failed";
@@ -125,7 +124,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
           "p.artist",
           "p.language",
           "lng.name as languageName",
-          sql<string | null>`${imageUrl("imgf")} || '-400w.webp'`.as("frontImageUrl"),
+          imageId("imgf").as("frontImageId"),
         ])
         .where("pe.status", "=", "pending")
         .orderBy("pe.createdAt", "asc")
@@ -174,7 +173,7 @@ export function printingEventsRepo(db: Kysely<Database>) {
           "p.artist",
           "p.language",
           "lng.name as languageName",
-          sql<string | null>`${imageUrl("imgf")} || '-400w.webp'`.as("frontImageUrl"),
+          imageId("imgf").as("frontImageId"),
         ])
         .where("pe.status", "in", statuses)
         .orderBy("pe.createdAt", "desc")

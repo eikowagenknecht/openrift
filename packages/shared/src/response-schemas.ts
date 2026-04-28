@@ -258,23 +258,11 @@ const printingDistributionChannelSchema = z.object({
   ancestorLabels: z.array(z.string()).openapi({ example: [] }),
 });
 
-const cardImageVariantsSchema = z.object({
-  full: z
-    .string()
-    .openapi({ example: "/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe-full.webp" }),
-  thumbnail: z
-    .string()
-    .openapi({ example: "/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe-400w.webp" }),
-});
+const imageIdSchema = z.string().openapi({ example: "019d02f1-d14f-769f-9295-9852db692dbe" });
 
 const printingImageSchema = z.object({
   face: cardFaceSchema,
-  full: z
-    .string()
-    .openapi({ example: "/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe-full.webp" }),
-  thumbnail: z
-    .string()
-    .openapi({ example: "/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe-400w.webp" }),
+  imageId: imageIdSchema,
 });
 
 const cardBanSchema = z.object({
@@ -352,8 +340,8 @@ export const landingSummaryResponseSchema = z
     cardCount: z.number().openapi({ example: 312 }),
     printingCount: z.number().openapi({ example: 468 }),
     copyCount: z.number().openapi({ example: 142 }),
-    thumbnails: z.array(z.string()).openapi({
-      example: ["/media/cards/be/019d02f1-d14f-769f-9295-9852db692dbe-400w.webp"],
+    thumbnailIds: z.array(z.string()).openapi({
+      example: ["019d02f1-d14f-769f-9295-9852db692dbe"],
     }),
   })
   .openapi("LandingSummaryResponse");
@@ -374,7 +362,7 @@ export const cardDetailResponseSchema = z
 const setListEntrySchema = catalogSetResponseSchema.extend({
   cardCount: z.number().openapi({ example: 312 }),
   printingCount: z.number().openapi({ example: 468 }),
-  coverImage: cardImageVariantsSchema.nullable(),
+  coverImageId: imageIdSchema.nullable(),
 });
 
 export const setListResponseSchema = z
@@ -475,7 +463,7 @@ const collectionEventResponseSchema = z
     createdAt: z.string(),
     shortCode: z.string(),
     rarity: raritySchema,
-    image: cardImageVariantsSchema.nullable(),
+    imageId: imageIdSchema.nullable(),
     cardName: z.string(),
     cardType: cardTypeSchema,
     cardSuperTypes: z.array(z.string()),
@@ -593,8 +581,7 @@ const publicDeckCardResponseSchema = z
     power: z.number().nullable(),
     resolvedPrintingId: z.string().nullable(),
     shortCode: z.string().nullable(),
-    thumbnailUrl: z.string().nullable(),
-    fullImageUrl: z.string().nullable(),
+    imageId: z.string().nullable(),
   })
   .openapi("PublicDeckCardResponse");
 
@@ -711,7 +698,7 @@ const tradeListItemDetailResponseSchema = z
     copyId: z.string(),
     printingId: z.string(),
     collectionId: z.string(),
-    image: cardImageVariantsSchema.nullable(),
+    imageId: imageIdSchema.nullable(),
     setId: z.string(),
     rarity: raritySchema,
     finish: finishSchema,

@@ -23,7 +23,7 @@ function stubSet(overrides: Partial<SetListEntry> = {}): SetListEntry {
     setType: overrides.setType ?? "main",
     cardCount: overrides.cardCount ?? 100,
     printingCount: overrides.printingCount ?? 150,
-    coverImage: overrides.coverImage ?? null,
+    coverImageId: overrides.coverImageId ?? null,
   };
 }
 

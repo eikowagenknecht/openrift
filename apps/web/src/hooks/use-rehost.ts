@@ -83,10 +83,13 @@ const rehostImagesBatchFn = createServerFn({ method: "POST" })
   );
 
 const regenerateImagesBatchFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { offset: number }) => input)
+  .inputValidator((input: { offset: number; skipExisting?: boolean }) => input)
   .middleware([withCookies])
   .handler(({ context, data }) => {
     const params = new URLSearchParams({ offset: String(data.offset) });
+    if (data.skipExisting) {
+      params.set("skipExisting", "true");
+    }
     return fetchApiJson<RegenerateImageResponse>({
       errorTitle: "Couldn't regenerate images",
       cookie: context.cookie,
@@ -237,14 +240,19 @@ export function useUnrehostImages() {
   });
 }
 
-export function useRegenerateImages(onProgress?: (processed: number, totalFiles: number) => void) {
+export function useRegenerateImages(
+  onProgress?: (processed: number, totalFiles: number) => void,
+  options: { skipExisting?: boolean } = {},
+) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (): Promise<RegenerateAccumulator> => {
       const totals: RegenerateAccumulator = { total: 0, regenerated: 0, failed: 0, errors: [] };
       let offset = 0;
       while (true) {
-        const batch = await regenerateImagesBatchFn({ data: { offset } });
+        const batch = await regenerateImagesBatchFn({
+          data: { offset, skipExisting: options.skipExisting },
+        });
         totals.total += batch.total;
         totals.regenerated += batch.regenerated;
         totals.failed += batch.failed;

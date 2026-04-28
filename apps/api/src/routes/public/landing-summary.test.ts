@@ -9,7 +9,7 @@ const mockCatalogRepo = {
       cardCount: 0,
       printingCount: 0,
       copyCount: 0,
-      thumbnails: [] as string[],
+      thumbnailIds: [] as string[],
     }),
   ),
 };
@@ -29,7 +29,7 @@ describe("GET /api/v1/landing-summary", () => {
       cardCount: 312,
       printingCount: 468,
       copyCount: 142,
-      thumbnails: ["/media/cards/be/abc-001", "/media/cards/cd/def-002"],
+      thumbnailIds: ["abc-001", "def-002"],
     });
   });
 
@@ -41,7 +41,7 @@ describe("GET /api/v1/landing-summary", () => {
       cardCount: 312,
       printingCount: 468,
       copyCount: 142,
-      thumbnails: ["/media/cards/be/abc-001-400w.webp", "/media/cards/cd/def-002-400w.webp"],
+      thumbnailIds: ["abc-001", "def-002"],
     });
   });
 
@@ -71,16 +71,16 @@ describe("GET /api/v1/landing-summary", () => {
     expect(second.status).toBe(304);
   });
 
-  it("returns an empty thumbnails array when the catalog has none", async () => {
+  it("returns an empty thumbnailIds array when the catalog has none", async () => {
     mockCatalogRepo.landingSummary.mockResolvedValue({
       cardCount: 0,
       printingCount: 0,
       copyCount: 0,
-      thumbnails: [],
+      thumbnailIds: [],
     });
     const res = await app.request("/api/v1/landing-summary");
     const json = await res.json();
-    expect(json.thumbnails).toEqual([]);
+    expect(json.thumbnailIds).toEqual([]);
     expect(json.cardCount).toBe(0);
   });
 });

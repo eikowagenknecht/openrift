@@ -1,4 +1,3 @@
-import type { CardImageVariants } from "../catalog.js";
 import type { ActivityAction, CardType, Rarity } from "../enums.js";
 
 export interface CollectionEventResponse {
@@ -13,7 +12,7 @@ export interface CollectionEventResponse {
   createdAt: string;
   shortCode: string;
   rarity: Rarity;
-  image: CardImageVariants | null;
+  imageId: string | null;
   cardName: string;
   cardType: CardType;
   cardSuperTypes: string[];

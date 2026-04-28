@@ -1,4 +1,4 @@
-import { humanizePrintingField } from "@openrift/shared";
+import { humanizePrintingField, imageUrl } from "@openrift/shared";
 import type { Logger } from "@openrift/shared/logger";
 
 import type { FieldChange } from "../db/index.js";
@@ -43,16 +43,13 @@ export interface WebhookFailure {
   detail: string;
 }
 
-// Discord requires absolute URLs for embed images. Stored image paths are
-// relative (e.g. "/media/cards/xx/uuid-400w.webp"); prepend the app base URL.
-function absoluteImageUrl(appBaseUrl: string, url: string | null): string | undefined {
-  if (!url) {
+// Discord requires absolute URLs for embed images. Build the 400w variant
+// from the image id and prepend the app base URL.
+function absoluteImageUrl(appBaseUrl: string, id: string | null): string | undefined {
+  if (!id) {
     return undefined;
   }
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    return url;
-  }
-  return `${appBaseUrl}${url}`;
+  return `${appBaseUrl}${imageUrl(id, "400w")}`;
 }
 
 /**
@@ -151,7 +148,7 @@ export function buildNewPrintingPayloads(
       lines.push(`Artist: ${event.artist}`);
     }
 
-    const image = absoluteImageUrl(appBaseUrl, event.frontImageUrl);
+    const image = absoluteImageUrl(appBaseUrl, event.frontImageId);
 
     return {
       ...(event.setName ? { author: { name: event.setName } } : {}),
@@ -305,7 +302,7 @@ export function buildChangedPrintingPayloads(
       titleParts.push(`(${first.shortCode})`);
     }
 
-    const thumbnail = absoluteImageUrl(appBaseUrl, first.frontImageUrl);
+    const thumbnail = absoluteImageUrl(appBaseUrl, first.frontImageId);
 
     embeds.push({
       title: `Updated: ${titleParts.join(" ")}`,

@@ -1,5 +1,5 @@
 import type { PublicDeckDetailResponse } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, imageUrl } from "@openrift/shared";
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
@@ -26,7 +26,10 @@ export const Route = createFileRoute("/_app/decks_/share/$token")({
     // Constructed decks have exactly one Legend; freeform decks may have none,
     // in which case seoHead falls back to the branded site og-image.
     const legend = cards.find((card) => card.zone === WellKnown.deckZone.LEGEND);
-    const ogImage = toAbsoluteUrl(siteUrl, legend?.fullImageUrl ?? undefined);
+    const ogImage = toAbsoluteUrl(
+      siteUrl,
+      legend?.imageId ? imageUrl(legend.imageId, "full") : undefined,
+    );
     const title = `${deck.name} (${FORMAT_LABELS[deck.format]} deck)`;
     const description =
       deck.description ??

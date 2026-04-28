@@ -55,13 +55,7 @@ function makePrinting(
     markers: [],
     distributionChannels: [],
     finish: "normal",
-    images: [
-      {
-        face: "front",
-        full: "https://cdn.test/front-full.webp",
-        thumbnail: "https://cdn.test/front-400w.webp",
-      },
-    ],
+    images: [{ face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae0aaaa" }],
     artist: "Test Artist",
     publicCode: "ogn-001",
     printedRulesText: null,

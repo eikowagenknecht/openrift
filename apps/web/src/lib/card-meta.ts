@@ -1,5 +1,5 @@
 import type { CardDetailResponse, CatalogPrintingResponse, Printing } from "@openrift/shared";
-import { preferredPrinting } from "@openrift/shared";
+import { imageUrl, preferredPrinting } from "@openrift/shared";
 
 const META_DESCRIPTION_LIMIT = 155;
 
@@ -75,5 +75,6 @@ export function buildCardMetaDescription(
 export function getCardFrontImageFullUrl(
   printing: CatalogPrintingResponse | undefined,
 ): string | undefined {
-  return printing?.images.find((i) => i.face === "front")?.full;
+  const id = printing?.images.find((i) => i.face === "front")?.imageId;
+  return id ? imageUrl(id, "full") : undefined;
 }

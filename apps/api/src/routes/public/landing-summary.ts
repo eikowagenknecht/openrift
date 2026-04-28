@@ -4,7 +4,6 @@ import { landingSummaryResponseSchema } from "@openrift/shared/response-schemas"
 import { etag } from "hono/etag";
 
 import type { Variables } from "../../types.js";
-import { toCardImageVariants } from "../../utils/card-image.js";
 
 // Cap the scatter at desktop's full deck (36 cards) — mobile uses fewer.
 const THUMBNAIL_SAMPLE_SIZE = 36;
@@ -41,7 +40,7 @@ export const landingSummaryRoute = landingSummaryApp
       cardCount: summary.cardCount,
       printingCount: summary.printingCount,
       copyCount: summary.copyCount,
-      thumbnails: summary.thumbnails.map((url) => toCardImageVariants(url).thumbnail),
+      thumbnailIds: summary.thumbnailIds,
     };
 
     // Match /catalog so Cloudflare can serve from the edge with the same

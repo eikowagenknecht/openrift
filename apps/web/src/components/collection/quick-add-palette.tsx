@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { getOrientation } from "@openrift/shared";
+import { getOrientation, imageUrl } from "@openrift/shared";
 import { ChevronRightIcon, MinusIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -125,7 +125,8 @@ function PaletteInner({
   const previewPrinting = expandedCardId
     ? (results.find((r) => r.cardId === expandedCardId)?.printings[expandedIndex] ?? null)
     : null;
-  const previewThumbnail = previewPrinting?.images[0]?.thumbnail ?? null;
+  const previewImageId = previewPrinting?.images[0]?.imageId ?? null;
+  const previewThumbnail = previewImageId ? imageUrl(previewImageId, "400w") : null;
   const previewRotated = previewPrinting
     ? needsCssRotation(getOrientation(previewPrinting.card.type))
     : false;

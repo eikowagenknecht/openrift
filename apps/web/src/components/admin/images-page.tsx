@@ -154,6 +154,12 @@ function ManageSection() {
   const regenMutation = useRegenerateImages((processed, totalFiles) => {
     setRegenProgress({ processed, totalFiles });
   });
+  const fillMissingMutation = useRegenerateImages(
+    (processed, totalFiles) => {
+      setRegenProgress({ processed, totalFiles });
+    },
+    { skipExisting: true },
+  );
   const clearMutation = useClearRehosted();
   const cleanupMutation = useCleanupOrphaned();
   const migrateMutation = useMigrateDirectories();
@@ -168,6 +174,7 @@ function ManageSection() {
   const anyPending =
     rehostMutation.isPending ||
     regenMutation.isPending ||
+    fillMissingMutation.isPending ||
     clearMutation.isPending ||
     cleanupMutation.isPending ||
     migrateMutation.isPending;
@@ -205,6 +212,21 @@ function ManageSection() {
               <LoaderIcon className="size-4 animate-spin" />
             ) : (
               "Migrate directories"
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            disabled={anyPending || !status.disk.totalBytes}
+            onClick={() =>
+              fillMissingMutation.mutate(undefined, {
+                onSuccess: () => setRegenProgress(null),
+              })
+            }
+          >
+            {fillMissingMutation.isPending ? (
+              <LoaderIcon className="size-4 animate-spin" />
+            ) : (
+              "Fill missing variants"
             )}
           </Button>
           <Button
@@ -283,6 +305,7 @@ function ManageSection() {
         )}
 
         <MutationStatus mutation={rehostMutation} label="rehost" />
+        <MutationStatus mutation={fillMissingMutation} label="fill missing" />
         <MutationStatus mutation={regenMutation} label="regenerate" />
 
         {cleanupMutation.isSuccess && cleanupMutation.data && (

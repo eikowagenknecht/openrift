@@ -70,15 +70,9 @@ export interface Card {
   bans: CardBan[];
 }
 
-export interface CardImageVariants {
-  full: string;
-  thumbnail: string;
-}
-
 export interface PrintingImage {
   face: CardFace;
-  full: string;
-  thumbnail: string;
+  imageId: string;
 }
 
 export interface Printing {

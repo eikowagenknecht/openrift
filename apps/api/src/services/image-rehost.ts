@@ -45,11 +45,13 @@ function findProjectRoot(): string {
 const MEDIA_DIR = join(findProjectRoot(), "media");
 export const CARD_MEDIA_DIR = join(MEDIA_DIR, "cards");
 
-// Both variants are capped on the **short edge** so portrait and landscape
+// Variants are capped on the **short edge** so portrait and landscape
 // cards end up at the same visual size after layout. `full` is not the
 // pristine original — that's kept separately as `-orig.{ext}`.
 const SIZES = [
-  { suffix: "400w", shortEdge: 400, quality: 85 },
+  { suffix: "120w", shortEdge: 120, quality: 75 },
+  { suffix: "240w", shortEdge: 240, quality: 80 },
+  { suffix: "400w", shortEdge: 400, quality: 80 },
   { suffix: "full", shortEdge: 800, quality: 85 },
 ] as const;
 
@@ -106,8 +108,24 @@ async function generateWebpVariants(
   outputDir: string,
   fileBase: string,
   rotation: number,
+  /** When true, variants already on disk are kept as-is. */
+  skipExisting = false,
 ): Promise<void> {
   await io.fs.mkdir(outputDir, { recursive: true });
+
+  let existing = new Set<string>();
+  if (skipExisting) {
+    try {
+      existing = new Set(await io.fs.readdir(outputDir));
+    } catch {
+      // Directory unreadable — fall through; sharp/writeFile errors will surface.
+    }
+    const allPresent = SIZES.every((size) => existing.has(`${fileBase}-${size.suffix}.webp`));
+    if (allPresent) {
+      return;
+    }
+  }
+
   const meta = await io.sharp(buffer).metadata();
   const rawWidth = meta.width ?? 0;
   const rawHeight = meta.height ?? 0;
@@ -154,6 +172,10 @@ async function generateWebpVariants(
 
   const isLandscape = preppedWidth > preppedHeight;
   for (const size of SIZES) {
+    const filename = `${fileBase}-${size.suffix}.webp`;
+    if (skipExisting && existing.has(filename)) {
+      continue;
+    }
     const webpBuffer = await io
       .sharp(preppedBuffer)
       .resize(isLandscape ? null : size.shortEdge, isLandscape ? size.shortEdge : null, {
@@ -161,7 +183,7 @@ async function generateWebpVariants(
       })
       .webp({ quality: size.quality })
       .toBuffer();
-    await io.fs.writeFile(join(outputDir, `${fileBase}-${size.suffix}.webp`), webpBuffer);
+    await io.fs.writeFile(join(outputDir, filename), webpBuffer);
   }
 }
 
@@ -389,6 +411,7 @@ export async function regenerateImages(
   io: Io,
   repo: PrintingImagesRepo,
   offset: number,
+  options: { skipExisting?: boolean } = {},
 ): Promise<RegenerateImageResponse> {
   const progress: RegenerateImageResponse = {
     total: 0,
@@ -446,6 +469,7 @@ export async function regenerateImages(
         prefixDir,
         img.imageId,
         rotations.get(img.imageId) ?? 0,
+        options.skipExisting,
       );
     }),
   );

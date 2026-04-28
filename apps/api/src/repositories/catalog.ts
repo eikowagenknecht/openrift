@@ -11,7 +11,7 @@ import type {
   PrintingsTable,
   SetsTable,
 } from "../db/index.js";
-import { imageUrl } from "./query-helpers.js";
+import { imageId } from "./query-helpers.js";
 
 /** Card columns returned by the catalog (excludes normName and timestamps). */
 type CatalogCardRow = Omit<Selectable<CardsTable>, "normName" | "createdAt" | "updatedAt"> & {
@@ -37,9 +37,9 @@ type CatalogSetRow = Pick<
   "id" | "slug" | "name" | "releasedAt" | "released" | "setType"
 >;
 
-/** Active printing image with resolved URL (null URLs filtered at query level). */
+/** Active printing image with resolved image_files.id (null IDs filtered at query level). */
 type CatalogPrintingImageRow = Pick<Selectable<PrintingImagesTable>, "printingId" | "face"> & {
-  url: string;
+  imageId: string;
 };
 
 /**
@@ -212,9 +212,9 @@ export function catalogRepo(db: Kysely<Database>) {
       return db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
-        .select(["printingId", "face", imageUrl("ci").as("url")])
+        .select(["printingId", "face", imageId("ci").as("imageId")])
         .where("isActive", "=", true)
-        .where(sql`${imageUrl("ci")}`, "is not", null)
+        .where(sql`${imageId("ci")}`, "is not", null)
         .orderBy("printingId")
         .orderBy("face")
         .execute() as Promise<CatalogPrintingImageRow[]>;
@@ -237,15 +237,15 @@ export function catalogRepo(db: Kysely<Database>) {
      * edge cache can serve the same payload to every visitor for the day,
      * with the scatter rotating once at midnight.
      *
-     * @param sampleSize — maximum number of thumbnail URLs to return.
+     * @param sampleSize — maximum number of thumbnail image IDs to return.
      * @returns Distinct card count, total printing count, total copy count,
-     *   and at most `sampleSize` thumbnail URLs.
+     *   and at most `sampleSize` thumbnail image IDs.
      */
     async landingSummary(sampleSize: number): Promise<{
       cardCount: number;
       printingCount: number;
       copyCount: number;
-      thumbnails: string[];
+      thumbnailIds: string[];
     }> {
       const [cardCountRow, printingCountRow, copyCountRow, thumbnailRows] = await Promise.all([
         db
@@ -265,20 +265,20 @@ export function catalogRepo(db: Kysely<Database>) {
           .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
           .innerJoin("printings", "printings.id", "printingImages.printingId")
           .innerJoin("cards", "cards.id", "printings.cardId")
-          .select(imageUrl("ci").as("url"))
+          .select(imageId("ci").as("imageId"))
           .where("printingImages.face", "=", "front")
           .where("printingImages.isActive", "=", true)
-          .where(sql`${imageUrl("ci")}`, "is not", null)
+          .where(sql`${imageId("ci")}`, "is not", null)
           .where("cards.type", "!=", "Battlefield")
           .orderBy(sql`md5(printing_images.printing_id::text || current_date::text)`)
           .limit(sampleSize)
-          .execute() as Promise<{ url: string }[]>,
+          .execute() as Promise<{ imageId: string }[]>,
       ]);
       return {
         cardCount: Number(cardCountRow.count),
         printingCount: Number(printingCountRow.count),
         copyCount: Number(copyCountRow.count),
-        thumbnails: thumbnailRows.map((r) => r.url),
+        thumbnailIds: thumbnailRows.map((r) => r.imageId),
       };
     },
 
@@ -336,10 +336,10 @@ export function catalogRepo(db: Kysely<Database>) {
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
         .innerJoin("printings", "printings.id", "printingImages.printingId")
-        .select(["printingImages.printingId", "printingImages.face", imageUrl("ci").as("url")])
+        .select(["printingImages.printingId", "printingImages.face", imageId("ci").as("imageId")])
         .where("printings.cardId", "=", cardId)
         .where("printingImages.isActive", "=", true)
-        .where(sql`${imageUrl("ci")}`, "is not", null)
+        .where(sql`${imageId("ci")}`, "is not", null)
         .orderBy("printingImages.printingId")
         .orderBy("printingImages.face")
         .execute() as Promise<CatalogPrintingImageRow[]>;
@@ -444,31 +444,33 @@ export function catalogRepo(db: Kysely<Database>) {
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
         .innerJoin("printings", "printings.id", "printingImages.printingId")
-        .select(["printingImages.printingId", "printingImages.face", imageUrl("ci").as("url")])
+        .select(["printingImages.printingId", "printingImages.face", imageId("ci").as("imageId")])
         .where("printings.setId", "=", setId)
         .where("printingImages.isActive", "=", true)
-        .where(sql`${imageUrl("ci")}`, "is not", null)
+        .where(sql`${imageId("ci")}`, "is not", null)
         .orderBy("printingImages.printingId")
         .orderBy("printingImages.face")
         .execute() as Promise<CatalogPrintingImageRow[]>;
     },
 
-    /** @returns A cover image URL per set (first available printing image). */
-    async setCoverImages(): Promise<Map<string, string>> {
+    /** @returns The image_files.id of a cover image per set (first available printing image). */
+    async setCoverImageIds(): Promise<Map<string, string>> {
       const rows = await db
         .selectFrom("printings")
         .innerJoin("printingImages", "printingImages.printingId", "printings.id")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
-        .select(["printings.setId", imageUrl("ci").as("url")])
+        .select(["printings.setId", imageId("ci").as("imageId")])
         .where("printingImages.isActive", "=", true)
         .where("printingImages.face", "=", "front")
-        .where(sql`${imageUrl("ci")}`, "is not", null)
+        .where(sql`${imageId("ci")}`, "is not", null)
         .distinctOn("printings.setId")
         .orderBy("printings.setId")
         .orderBy(sql`(printings.language = 'EN') DESC`)
         .orderBy("printings.shortCode")
         .execute();
-      return new Map(rows.filter((r) => r.url !== null).map((r) => [r.setId, r.url as string]));
+      return new Map(
+        rows.filter((r) => r.imageId !== null).map((r) => [r.setId, r.imageId as string]),
+      );
     },
 
     /** @returns Distinct card count in a set. */
@@ -534,10 +536,10 @@ export function catalogRepo(db: Kysely<Database>) {
       return db
         .selectFrom("printingImages")
         .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
-        .select(["printingImages.printingId", "printingImages.face", imageUrl("ci").as("url")])
+        .select(["printingImages.printingId", "printingImages.face", imageId("ci").as("imageId")])
         .where("printingImages.printingId", "in", printingIds)
         .where("printingImages.isActive", "=", true)
-        .where(sql`${imageUrl("ci")}`, "is not", null)
+        .where(sql`${imageId("ci")}`, "is not", null)
         .orderBy("printingImages.printingId")
         .orderBy("printingImages.face")
         .execute() as Promise<CatalogPrintingImageRow[]>;

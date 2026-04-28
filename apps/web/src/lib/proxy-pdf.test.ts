@@ -56,7 +56,7 @@ describe("resolveProxyCards", () => {
       setId: "set-1",
       shortCode: "RB1-001",
       language: "EN",
-      images: [{ face: "front", full: "en.png", thumbnail: "en-thumb.png" }],
+      images: [{ face: "front", imageId: "en-image-id-aa" }],
       card,
     });
     const zhPrinting = stubPrinting({
@@ -64,7 +64,7 @@ describe("resolveProxyCards", () => {
       setId: "set-1",
       shortCode: "RB1-001",
       language: "zh-Hans",
-      images: [{ face: "front", full: "zh.png", thumbnail: "zh-thumb.png" }],
+      images: [{ face: "front", imageId: "zh-image-id-bb" }],
       card,
     });
     const catalog = buildCatalog([stubSet({ id: "set-1" })], [enPrinting, zhPrinting]);
@@ -76,7 +76,7 @@ describe("resolveProxyCards", () => {
 
     expect(proxies).toHaveLength(1);
     expect(proxies[0].printingId).toBe(zhPrinting.id);
-    expect(proxies[0].imageFullUrl).toBe("zh.png");
+    expect(proxies[0].imageFullUrl).toBe("/media/cards/bb/zh-image-id-bb-full.webp");
   });
 
   it("respects the user language preference when no printing is pinned", () => {
@@ -87,7 +87,7 @@ describe("resolveProxyCards", () => {
       setId: "set-2",
       shortCode: "RB1-002",
       language: "zh-Hans",
-      images: [{ face: "front", full: "zh.png", thumbnail: "zh-thumb.png" }],
+      images: [{ face: "front", imageId: "zh-image-id-bb" }],
       card,
     });
     const jaPrinting = stubPrinting({
@@ -95,7 +95,7 @@ describe("resolveProxyCards", () => {
       setId: "set-2",
       shortCode: "RB1-002",
       language: "ja",
-      images: [{ face: "front", full: "ja.png", thumbnail: "ja-thumb.png" }],
+      images: [{ face: "front", imageId: "ja-image-id-cc" }],
       card,
     });
     const enPrinting = stubPrinting({
@@ -103,7 +103,7 @@ describe("resolveProxyCards", () => {
       setId: "set-2",
       shortCode: "RB1-002",
       language: "EN",
-      images: [{ face: "front", full: "en.png", thumbnail: "en-thumb.png" }],
+      images: [{ face: "front", imageId: "en-image-id-aa" }],
       card,
     });
     const catalog = buildCatalog([stubSet({ id: "set-2" })], [zhPrinting, jaPrinting, enPrinting]);
@@ -112,7 +112,7 @@ describe("resolveProxyCards", () => {
     const proxies = resolveProxyCards(deckCards, catalog, ["EN"]);
 
     expect(proxies[0].printingId).toBe(enPrinting.id);
-    expect(proxies[0].imageFullUrl).toBe("en.png");
+    expect(proxies[0].imageFullUrl).toBe("/media/cards/aa/en-image-id-aa-full.webp");
   });
 
   it("emits distinct printingIds for two deck rows pinned to different printings of the same card", () => {
@@ -122,7 +122,7 @@ describe("resolveProxyCards", () => {
       setId: "set-3",
       shortCode: "RB1-003",
       language: "EN",
-      images: [{ face: "front", full: "en.png", thumbnail: "en-thumb.png" }],
+      images: [{ face: "front", imageId: "en-image-id-aa" }],
       card,
     });
     const zhPrinting = stubPrinting({
@@ -130,7 +130,7 @@ describe("resolveProxyCards", () => {
       setId: "set-3",
       shortCode: "RB1-003",
       language: "zh-Hans",
-      images: [{ face: "front", full: "zh.png", thumbnail: "zh-thumb.png" }],
+      images: [{ face: "front", imageId: "zh-image-id-bb" }],
       card,
     });
     const catalog = buildCatalog([stubSet({ id: "set-3" })], [enPrinting, zhPrinting]);
@@ -153,9 +153,12 @@ describe("resolveProxyCards", () => {
 
     expect(proxies).toHaveLength(3);
     expect(proxies.slice(0, 2).map((p) => p.printingId)).toEqual([enPrinting.id, enPrinting.id]);
-    expect(proxies.slice(0, 2).map((p) => p.imageFullUrl)).toEqual(["en.png", "en.png"]);
+    expect(proxies.slice(0, 2).map((p) => p.imageFullUrl)).toEqual([
+      "/media/cards/aa/en-image-id-aa-full.webp",
+      "/media/cards/aa/en-image-id-aa-full.webp",
+    ]);
     expect(proxies[2].printingId).toBe(zhPrinting.id);
-    expect(proxies[2].imageFullUrl).toBe("zh.png");
+    expect(proxies[2].imageFullUrl).toBe("/media/cards/bb/zh-image-id-bb-full.webp");
   });
 
   it("composes with sortCardsLikeSidebar to print cards in sidebar order", () => {

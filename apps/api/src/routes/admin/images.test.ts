@@ -118,7 +118,9 @@ describe("POST /api/v1/regenerate-images", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json).toEqual(result);
-    expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, 0);
+    expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, 0, {
+      skipExisting: false,
+    });
   });
 
   it("passes custom offset from query param", async () => {
@@ -134,7 +136,28 @@ describe("POST /api/v1/regenerate-images", () => {
 
     const res = await app.request("/api/v1/regenerate-images?offset=50", { method: "POST" });
     expect(res.status).toBe(200);
-    expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, 50);
+    expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, 50, {
+      skipExisting: false,
+    });
+  });
+
+  it("forwards skipExisting=true from query param", async () => {
+    mockRegenerateImages.mockResolvedValue({
+      total: 0,
+      regenerated: 0,
+      failed: 0,
+      errors: [],
+      hasMore: false,
+      totalFiles: 0,
+    });
+
+    const res = await app.request("/api/v1/regenerate-images?skipExisting=true", {
+      method: "POST",
+    });
+    expect(res.status).toBe(200);
+    expect(mockRegenerateImages).toHaveBeenCalledWith(mockIo, mockPrintingImages, 0, {
+      skipExisting: true,
+    });
   });
 });
 

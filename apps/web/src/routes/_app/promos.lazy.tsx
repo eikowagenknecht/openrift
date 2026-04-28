@@ -1,4 +1,5 @@
 import type { Printing } from "@openrift/shared";
+import { imageUrl } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createLazyFileRoute, useLocation, useNavigate } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, LayoutGridIcon, ListIcon } from "lucide-react";
@@ -761,7 +762,7 @@ function CompactBranchTable({
                   className="w-auto border-0 bg-transparent p-0 shadow-none ring-0"
                 >
                   <img
-                    src={image.full}
+                    src={imageUrl(image.imageId, "full")}
                     alt={printing.card.name}
                     className="h-96 w-auto rounded-lg shadow-xl"
                   />
@@ -825,7 +826,7 @@ function PromoListView({
                       className="w-auto border-0 bg-transparent p-0 shadow-none ring-0"
                     >
                       <img
-                        src={image.full}
+                        src={imageUrl(image.imageId, "full")}
                         alt={printing.card.name}
                         className="h-96 w-auto rounded-lg shadow-xl"
                       />
@@ -851,7 +852,7 @@ function PromoListView({
             >
               {image ? (
                 <img
-                  src={image.thumbnail}
+                  src={imageUrl(image.imageId, "400w")}
                   alt={printing.card.name}
                   className="aspect-card h-20 shrink-0 rounded object-cover"
                 />

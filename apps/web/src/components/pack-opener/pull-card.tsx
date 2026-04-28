@@ -1,5 +1,5 @@
 import type { CatalogPrintingResponse, PackPull } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { FoilOverlay } from "@/components/cards/foil-overlay";
@@ -63,8 +63,8 @@ export function PullCard({ pull, image, className, shimmer = true }: PullCardPro
       >
         {image ? (
           <img
-            src={image.thumbnail}
-            srcSet={`${image.thumbnail} 400w, ${image.full} 800w`}
+            src={imageUrl(image.imageId, "240w")}
+            srcSet={`${imageUrl(image.imageId, "240w")} 240w, ${imageUrl(image.imageId, "400w")} 400w`}
             sizes="(max-width: 640px) 40vw, 160px"
             alt={printing.cardName}
             loading="lazy"

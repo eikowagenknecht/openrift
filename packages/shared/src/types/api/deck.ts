@@ -87,8 +87,7 @@ export interface PublicDeckCardResponse extends DeckCardResponse {
   /** Resolved printing: the preferred one when set, otherwise the canonical default. Null when the card has no printing. */
   resolvedPrintingId: string | null;
   shortCode: string | null;
-  thumbnailUrl: string | null;
-  fullImageUrl: string | null;
+  imageId: string | null;
 }
 
 export interface PublicDeckDetailResponse {

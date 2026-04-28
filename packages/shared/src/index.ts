@@ -22,7 +22,6 @@ export type {
   CardErrata,
   CardFilters,
   CardFace,
-  CardImageVariants,
   AnySnapshot,
   CardmarketSnapshot,
   CardtraderSnapshot,
@@ -206,6 +205,9 @@ export {
 } from "./utils.js";
 
 export { extractBracketedTerms, extractKeywords } from "./keywords.js";
+
+export type { ImageVariant } from "./image-url.js";
+export { imageUrl } from "./image-url.js";
 
 export { humanizePrintingField } from "./printing-event-fields.js";
 

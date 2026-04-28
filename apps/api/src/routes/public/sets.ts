@@ -14,7 +14,6 @@ import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
 import type { Variables } from "../../types.js";
-import { toCardImageVariants } from "../../utils/card-image.js";
 import { loadMarkerAndChannelMaps, resolveMarkers } from "../../utils/printing-response.js";
 
 const setSlugParamSchema = z.object({ setSlug: z.string() });
@@ -54,9 +53,9 @@ export const setsRoute = setsApp
   .openapi(getSetList, async (c) => {
     const { catalog } = c.get("repos");
 
-    const [allSets, coverImages, counts] = await Promise.all([
+    const [allSets, coverImageIds, counts] = await Promise.all([
       catalog.sets(),
-      catalog.setCoverImages(),
+      catalog.setCoverImageIds(),
       catalog.setCountsAll(),
     ]);
     const entries = allSets.map((set) => {
@@ -65,7 +64,7 @@ export const setsRoute = setsApp
         ...set,
         cardCount: setCounts?.cardCount ?? 0,
         printingCount: setCounts?.printingCount ?? 0,
-        coverImage: toCardImageVariants(coverImages.get(set.id) ?? null),
+        coverImageId: coverImageIds.get(set.id) ?? null,
       };
     });
 
@@ -154,7 +153,7 @@ export const setsRoute = setsApp
       distributionChannels: channelsByPrinting.get(rest.id) ?? [],
       images: (imagesByPrinting.get(rest.id) ?? []).map((i) => ({
         face: i.face,
-        ...toCardImageVariants(i.url),
+        imageId: i.imageId,
       })),
     }));
 

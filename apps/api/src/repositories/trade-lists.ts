@@ -8,13 +8,13 @@ import type {
   TradeListItemsTable,
   TradeListsTable,
 } from "../db/index.js";
-import { imageUrl } from "./query-helpers.js";
+import { imageId } from "./query-helpers.js";
 
 /** Trade list item row with copy, printing, card, and image details. */
 type TradeListItemRow = Pick<Selectable<TradeListItemsTable>, "id" | "tradeListId" | "copyId"> &
   Pick<Selectable<CopiesTable>, "printingId" | "collectionId"> &
   Pick<Selectable<PrintingsTable>, "setId" | "rarity" | "finish"> & {
-    imageUrl: string | null;
+    imageId: string | null;
     cardName: string;
     cardType: CardType;
   };
@@ -112,7 +112,7 @@ export function tradeListsRepo(db: Kysely<Database>) {
           "tli.copyId",
           "cp.printingId",
           "cp.collectionId",
-          imageUrl("ci").as("imageUrl"),
+          imageId("ci").as("imageId"),
           "p.setId",
           "p.rarity",
           "p.finish",

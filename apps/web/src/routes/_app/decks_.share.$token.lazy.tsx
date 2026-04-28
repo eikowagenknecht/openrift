@@ -1,5 +1,5 @@
 import type { PublicDeckCardResponse } from "@openrift/shared";
-import { WellKnown } from "@openrift/shared";
+import { WellKnown, imageUrl } from "@openrift/shared";
 import { createLazyFileRoute, useNavigate } from "@tanstack/react-router";
 import { CopyIcon } from "lucide-react";
 import { Suspense, useMemo, useRef, useState } from "react";
@@ -100,8 +100,8 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
   const thumbByKey = useMemo(() => {
     const map = new Map<string, string>();
     for (const card of data.cards) {
-      if (card.thumbnailUrl) {
-        map.set(thumbKey(card.cardId, card.preferredPrintingId), card.thumbnailUrl);
+      if (card.imageId) {
+        map.set(thumbKey(card.cardId, card.preferredPrintingId), imageUrl(card.imageId, "400w"));
       }
     }
     return map;
@@ -109,9 +109,9 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
   const hoverMeta = useMemo(() => {
     const map = new Map<string, { fullUrl: string; landscape: boolean }>();
     for (const card of data.cards) {
-      if (card.fullImageUrl) {
+      if (card.imageId) {
         map.set(thumbKey(card.cardId, card.preferredPrintingId), {
-          fullUrl: card.fullImageUrl,
+          fullUrl: imageUrl(card.imageId, "full"),
           landscape: card.cardType === WellKnown.cardType.BATTLEFIELD,
         });
       }
