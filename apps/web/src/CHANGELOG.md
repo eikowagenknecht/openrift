@@ -2,6 +2,7 @@
 
 ## 2026-04-28
 
+- feat: The cards page and your collections now show one tile per card by default, grouping printings of the same card together. Switch back to a tile per printing in your profile if you prefer the previous view
 - feat: Filter badges on the cards page now show how many cards each option matches under your other active filters, and options that would leave you with zero cards are dimmed
 - fix: The owned-count popover on the cards page now lists each printing variant separately with its per-collection counts, instead of showing the breakdown for only one variant while the badge counted them all
 - fix: When showing owned counts on the cards page, the package icon above each card stays clickable on hover, instead of being hidden behind the variants fanning out from the stack

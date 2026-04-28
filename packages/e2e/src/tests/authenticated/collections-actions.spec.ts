@@ -158,9 +158,8 @@ test.describe("collection actions", () => {
       await page.goto(`/collections/${inboxId}`);
       await waitForCollectionReady(page);
 
-      // Default view is "printings" (see feat: default to Printings view).
-      // We seeded one copy each of two distinct printings, so each gets its
-      // own tile.
+      // We seeded one copy each of two distinct cards, so each gets its own
+      // tile in any view mode (cards, printings, or copies).
       await expect(page.getByText(ANNIE_FIERY).first()).toBeVisible({ timeout: 10_000 });
 
       await enterSelectMode(page);

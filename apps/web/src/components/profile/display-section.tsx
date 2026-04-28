@@ -178,8 +178,8 @@ function ThemePicker({
 }
 
 const DEFAULT_CARD_VIEW_OPTIONS: { value: DefaultCardView; label: string }[] = [
-  { value: "printings", label: "Printings" },
   { value: "cards", label: "Cards" },
+  { value: "printings", label: "Printings" },
 ];
 
 function DefaultCardViewPicker({

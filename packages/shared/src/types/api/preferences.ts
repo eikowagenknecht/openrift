@@ -61,5 +61,5 @@ export const PREFERENCE_DEFAULTS: ResolvedPreferences = {
   marketplaceOrder: [...ALL_MARKETPLACES],
   languages: ["EN"],
   completionScope: {},
-  defaultCardView: "printings",
+  defaultCardView: "cards",
 };
