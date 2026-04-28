@@ -2,6 +2,7 @@
 
 ## 2026-04-28
 
+- feat: The owned-count badge in the card detail pane now sits next to each entry in the Printings list, so you can see how many of each printing you own at a glance instead of seeing one ambiguous count next to the card name
 - feat: The cards page and your collections now show one tile per card by default, grouping printings of the same card together. Switch back to a tile per printing in your profile if you prefer the previous view
 - feat: On the cards page in card view, grouping by set now puts each card under every set it was printed in, instead of only the earliest one. Multiple printings within the same set still collapse to a single tile, just like the rest of card view
 - feat: Filter badges on the cards page now show how many cards each option matches under your other active filters, and options that would leave you with zero cards are dimmed

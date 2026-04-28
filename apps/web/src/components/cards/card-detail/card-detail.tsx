@@ -22,7 +22,6 @@ import { CardDetailHeading } from "./card-detail-heading";
 import { CardFooter } from "./card-footer";
 import { CardImage } from "./card-image";
 import { ErrataNotice } from "./errata-notice";
-import { OwnedCollectionsPopover } from "./owned-collections-popover";
 import { PrintingNotesSection } from "./printing-notes-section";
 import { PrintingPicker } from "./printing-picker";
 import { StatChip } from "./stat-chip";
@@ -126,13 +125,6 @@ export function CardDetail({
             onTagClick={onTagClick}
             truncate
             titleClassName="pr-8"
-            subtitleTrailing={
-              <OwnedCollectionsPopover
-                printingId={printing.id}
-                cardName={card.name}
-                shortCode={printing.shortCode}
-              />
-            }
           />
         </div>
       )}
@@ -155,13 +147,6 @@ export function CardDetail({
           setNumber={setNumber}
           onTagClick={onTagClick}
           titleClassName={onClose ? "pr-8" : undefined}
-          subtitleTrailing={
-            <OwnedCollectionsPopover
-              printingId={printing.id}
-              cardName={card.name}
-              shortCode={printing.shortCode}
-            />
-          }
         />
       </div>
 

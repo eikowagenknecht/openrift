@@ -67,6 +67,7 @@ export function OwnedCollectionsPopover({
   return (
     <Popover>
       <PopoverTrigger
+        onClick={(event) => event.stopPropagation()}
         className={cn(
           "bg-muted hover:bg-muted/80 inline-flex items-center gap-1 rounded-md px-2 py-0.5",
           "text-muted-foreground text-xs font-medium tabular-nums transition-colors",

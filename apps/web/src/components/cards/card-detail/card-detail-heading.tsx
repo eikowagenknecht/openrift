@@ -1,5 +1,4 @@
 import type { Printing } from "@openrift/shared";
-import type { ReactNode } from "react";
 
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
@@ -10,14 +9,12 @@ export function CardDetailHeading({
   onTagClick,
   truncate,
   titleClassName,
-  subtitleTrailing,
 }: {
   printing: Printing;
   setNumber: string;
   onTagClick?: (tag: string) => void;
   truncate?: boolean;
   titleClassName?: string;
-  subtitleTrailing?: ReactNode;
 }) {
   const { card } = printing;
   const typeIconPath = getTypeIconPath(card.type, card.superTypes);
@@ -54,7 +51,6 @@ export function CardDetailHeading({
             </span>
           </button>
         ))}
-        {subtitleTrailing}
       </div>
     </div>
   );

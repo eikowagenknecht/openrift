@@ -14,6 +14,8 @@ import {
 import { cn } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
+import { OwnedCollectionsPopover } from "./owned-collections-popover";
+
 export function PrintingPicker({
   current,
   printings,
@@ -67,6 +69,11 @@ export function PrintingPicker({
                   />
                 )}
               </span>
+              <OwnedCollectionsPopover
+                printingId={p.id}
+                cardName={p.card.name}
+                shortCode={p.shortCode}
+              />
               <PrintingPrices printing={p} />
             </button>
           );
