@@ -6,6 +6,7 @@
 - feat: The cards page and your collections now show one tile per card by default, grouping printings of the same card together. Switch back to a tile per printing in your profile if you prefer the previous view
 - feat: On the cards page in card view, grouping by set now puts each card under every set it was printed in, instead of only the earliest one. Multiple printings within the same set still collapse to a single tile, just like the rest of card view
 - feat: Filter badges on the cards page now show how many cards each option matches under your other active filters, and options that would leave you with zero cards are dimmed
+- fix: In the deck builder, dragging a card you already have at the 3-copy limit now lets you drop it back into its original zone (or move it between main, sideboard, and overflow), instead of forcing you to discard it
 - fix: The first row of cards shown on a fresh visit to the cards page now matches what you'll see once the page loads, applying any active search and showing one tile per card instead of every printing
 - fix: When grouping the cards page by set, clicking a reprinted card under one set now highlights and opens that set's tile instead of jumping back to whichever set the card was first printed in
 - fix: Left- and right-arrow navigation on the cards page detail view now works after switching to a non-default printing variant; previously the keys only worked while the first variant was still selected

@@ -10,6 +10,13 @@ import { WellKnown } from "@openrift/shared";
 
 const EMPTY_ARRAY: string[] = [];
 
+const COPY_LIMIT_ZONES: ReadonlySet<DeckZone> = new Set([
+  WellKnown.deckZone.MAIN,
+  WellKnown.deckZone.SIDEBOARD,
+  WellKnown.deckZone.OVERFLOW,
+  WellKnown.deckZone.CHAMPION,
+]);
+
 export interface DeckBuilderCard {
   cardId: string;
   zone: DeckZone;
@@ -81,6 +88,46 @@ export function isCardAllowedInZone(
       return false;
     }
   }
+}
+
+/**
+ * Determines whether dropping the currently dragged card into `zone` would
+ * exceed a zone's capacity (3-copy cap, 12-rune cap, battlefield uniqueness).
+ *
+ * Cross-zone moves of an existing deck card preserve the cross-zone copy
+ * total, so the 3-copy cap doesn't apply — including for drops back into the
+ * source zone, which would otherwise force the user to discard the card.
+ *
+ * @returns true if the zone should reject the drop.
+ */
+export function isDeckZoneFullForDrag(args: {
+  zone: DeckZone;
+  draggedCardId: string;
+  /** Source zone of the dragged card, or null when the drag started in the card browser. */
+  fromZone: DeckZone | null;
+  allCards: readonly { cardId: string; zone: DeckZone; quantity: number }[];
+}): boolean {
+  const { zone, draggedCardId, fromZone, allCards } = args;
+  if (COPY_LIMIT_ZONES.has(zone) && fromZone === null) {
+    const total = allCards
+      .filter((entry) => entry.cardId === draggedCardId && COPY_LIMIT_ZONES.has(entry.zone))
+      .reduce((sum, entry) => sum + entry.quantity, 0);
+    if (total >= 3) {
+      return true;
+    }
+  }
+  if (zone === WellKnown.deckZone.BATTLEFIELD) {
+    return allCards.some(
+      (card) => card.cardId === draggedCardId && card.zone === WellKnown.deckZone.BATTLEFIELD,
+    );
+  }
+  if (zone === WellKnown.deckZone.RUNES) {
+    const runeTotal = allCards
+      .filter((card) => card.zone === WellKnown.deckZone.RUNES)
+      .reduce((sum, card) => sum + card.quantity, 0);
+    return runeTotal >= 12;
+  }
+  return false;
 }
 
 export function catalogCardToDeckBuilderCard(cardId: string, card: Card): DeckBuilderCard {

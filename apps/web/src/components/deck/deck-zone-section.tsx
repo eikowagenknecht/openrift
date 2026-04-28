@@ -14,7 +14,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { canAddRune, useDeckBuilderActions, useDeckCards } from "@/hooks/use-deck-builder";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { getDeckCardKey, isCardAllowedInZone } from "@/lib/deck-builder-card";
+import {
+  getDeckCardKey,
+  isCardAllowedInZone,
+  isDeckZoneFullForDrag,
+} from "@/lib/deck-builder-card";
 import { compareGroupedCards, GROUPED_ZONES, TYPE_GROUP_ORDER } from "@/lib/deck-card-order";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { getTypeIconPath } from "@/lib/icons";
@@ -95,26 +99,15 @@ export function DeckZoneSection({
       .reduce((sum, entry) => sum + entry.quantity, 0);
 
   // Determine if this zone should reject the currently dragged card
-  const isZoneFull = (() => {
-    if (!isDragging || !draggedCard) {
-      return false;
-    }
-    if (copyLimitZones.has(zone) && crossZoneTotal(draggedCard.cardId) >= 3) {
-      return true;
-    }
-    if (zone === "battlefield") {
-      return allCards.some(
-        (card) => card.cardId === draggedCard.cardId && card.zone === "battlefield",
-      );
-    }
-    if (zone === "runes") {
-      const runeTotal = allCards
-        .filter((card) => card.zone === "runes")
-        .reduce((sum, card) => sum + card.quantity, 0);
-      return runeTotal >= 12;
-    }
-    return false;
-  })();
+  const isZoneFull =
+    isDragging && draggedCard
+      ? isDeckZoneFullForDrag({
+          zone,
+          draggedCardId: draggedCard.cardId,
+          fromZone: dragData?.type === "deck-card" ? dragData.fromZone : null,
+          allCards,
+        })
+      : false;
 
   const dropDisabled =
     isDragging &&

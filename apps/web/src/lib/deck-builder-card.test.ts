@@ -1,7 +1,7 @@
 import type { DeckZone, SuperType } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { isCardAllowedInZone } from "./deck-builder-card";
+import { isCardAllowedInZone, isDeckZoneFullForDrag } from "./deck-builder-card";
 
 describe("isCardAllowedInZone", () => {
   it("allows Legend cards only in the legend zone", () => {
@@ -51,5 +51,98 @@ describe("isCardAllowedInZone", () => {
   it("returns false for unknown zones", () => {
     const card = { cardType: "Unit" as const, superTypes: [] as SuperType[] };
     expect(isCardAllowedInZone(card, "unknown" as DeckZone)).toBe(false);
+  });
+});
+
+describe("isDeckZoneFullForDrag", () => {
+  const cardId = "card-1";
+
+  it("allows dropping back into the source zone when at the 3-copy cap", () => {
+    // Regression: previously, dragging a card at 3 copies disabled every
+    // copy-limit zone — including its own source — forcing the user to discard.
+    const allCards = [{ cardId, zone: "main" as DeckZone, quantity: 3 }];
+    expect(
+      isDeckZoneFullForDrag({ zone: "main", draggedCardId: cardId, fromZone: "main", allCards }),
+    ).toBe(false);
+  });
+
+  it("allows cross-zone moves between copy-limit zones at the cap", () => {
+    // Move preserves the cross-zone total, so the cap is not violated.
+    const allCards = [
+      { cardId, zone: "main" as DeckZone, quantity: 2 },
+      { cardId, zone: "sideboard" as DeckZone, quantity: 1 },
+    ];
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "sideboard",
+        draggedCardId: cardId,
+        fromZone: "main",
+        allCards,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks browser-card adds when the cross-zone total is at the cap", () => {
+    const allCards = [
+      { cardId, zone: "main" as DeckZone, quantity: 2 },
+      { cardId, zone: "sideboard" as DeckZone, quantity: 1 },
+    ];
+    expect(
+      isDeckZoneFullForDrag({ zone: "main", draggedCardId: cardId, fromZone: null, allCards }),
+    ).toBe(true);
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "overflow",
+        draggedCardId: cardId,
+        fromZone: null,
+        allCards,
+      }),
+    ).toBe(true);
+  });
+
+  it("allows browser-card adds below the cap", () => {
+    const allCards = [{ cardId, zone: "main" as DeckZone, quantity: 2 }];
+    expect(
+      isDeckZoneFullForDrag({ zone: "main", draggedCardId: cardId, fromZone: null, allCards }),
+    ).toBe(false);
+  });
+
+  it("blocks battlefield drops when the card already sits in battlefield", () => {
+    const allCards = [{ cardId, zone: "battlefield" as DeckZone, quantity: 1 }];
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "battlefield",
+        draggedCardId: cardId,
+        fromZone: null,
+        allCards,
+      }),
+    ).toBe(true);
+  });
+
+  it("blocks rune drops when the rune zone holds 12 cards", () => {
+    const allCards = Array.from({ length: 12 }, (_, index) => ({
+      cardId: `rune-${index}`,
+      zone: "runes" as DeckZone,
+      quantity: 1,
+    }));
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "runes",
+        draggedCardId: "rune-new",
+        fromZone: null,
+        allCards,
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false for non-capped zones (legend)", () => {
+    expect(
+      isDeckZoneFullForDrag({
+        zone: "legend",
+        draggedCardId: cardId,
+        fromZone: null,
+        allCards: [],
+      }),
+    ).toBe(false);
   });
 });

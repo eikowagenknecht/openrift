@@ -29,7 +29,11 @@ import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useDomainColors } from "@/hooks/use-domain-colors";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
-import { getDeckCardKey, isCardAllowedInZone } from "@/lib/deck-builder-card";
+import {
+  getDeckCardKey,
+  isCardAllowedInZone,
+  isDeckZoneFullForDrag,
+} from "@/lib/deck-builder-card";
 import { GROUPED_ZONES, sortOverviewCards, TYPE_GROUP_ORDER } from "@/lib/deck-card-sort";
 import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { formatterForMarketplace } from "@/lib/format";
@@ -512,12 +516,6 @@ function SignInKpi({ href }: { href: string }) {
 // Zones where cards can be freely re-homed via drag. Mirrors the sidebar's
 // DRAG_ZONES so the two surfaces behave the same.
 const DRAG_SOURCE_ZONES: ReadonlySet<DeckZone> = new Set(["main", "sideboard", "overflow"]);
-const COPY_LIMIT_ZONES: ReadonlySet<DeckZone> = new Set([
-  "main",
-  "sideboard",
-  "overflow",
-  "champion",
-]);
 
 interface ZoneTileProps {
   deckId: string;
@@ -577,32 +575,16 @@ function ZoneTile({
           )
         : undefined;
   const isDragging = active !== null;
-  const crossZoneTotal = (cardId: string) =>
-    allCards
-      .filter((entry) => entry.cardId === cardId && COPY_LIMIT_ZONES.has(entry.zone))
-      .reduce((sum, entry) => sum + entry.quantity, 0);
 
-  const isZoneFull = (() => {
-    if (!isDragging || !draggedCard) {
-      return false;
-    }
-    if (COPY_LIMIT_ZONES.has(zone) && crossZoneTotal(draggedCard.cardId) >= 3) {
-      return true;
-    }
-    if (zone === WellKnown.deckZone.BATTLEFIELD) {
-      return allCards.some(
-        (card) =>
-          card.cardId === draggedCard.cardId && card.zone === WellKnown.deckZone.BATTLEFIELD,
-      );
-    }
-    if (zone === WellKnown.deckZone.RUNES) {
-      const runeTotal = allCards
-        .filter((card) => card.zone === WellKnown.deckZone.RUNES)
-        .reduce((sum, card) => sum + card.quantity, 0);
-      return runeTotal >= 12;
-    }
-    return false;
-  })();
+  const isZoneFull =
+    isDragging && draggedCard
+      ? isDeckZoneFullForDrag({
+          zone,
+          draggedCardId: draggedCard.cardId,
+          fromZone: dragData?.type === "deck-card" ? dragData.fromZone : null,
+          allCards,
+        })
+      : false;
 
   const dropDisabled =
     isDragging &&
