@@ -368,7 +368,7 @@ export async function rehostSingleImage(
  * batches), (3) job-run checkpoint write frequency, and (4) work lost to a
  * crash mid-batch. 10 sits in the middle on all four.
  */
-export const BATCH_SIZE = 10;
+const BATCH_SIZE = 10;
 
 export async function rehostImages(
   io: Io,
