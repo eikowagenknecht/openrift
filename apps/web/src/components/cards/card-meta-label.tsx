@@ -78,29 +78,19 @@ export function CardMetaLabel({
           />
           {finish && <FinishIcon finish={finish} title={finishTitle} />}
           {bans && bans.length > 0 && (
-            <Tooltip>
-              <TooltipTrigger className="cursor-default">
-                <TriangleAlertIcon className="size-3.5 text-red-500" />
-              </TooltipTrigger>
-              <TooltipContent className="flex-col items-start">
-                {bans.map((ban) => (
-                  <div key={ban.formatId}>
-                    <div>
-                      Banned in {ban.formatName} since {ban.bannedAt}
-                    </div>
-                    {ban.reason && <div className="opacity-80">{ban.reason}</div>}
-                  </div>
-                ))}
-              </TooltipContent>
-            </Tooltip>
+            <span
+              title={bans
+                .map((ban) => `Banned in ${ban.formatName} since ${ban.bannedAt}`)
+                .join("\n")}
+              className="inline-flex"
+            >
+              <TriangleAlertIcon className="size-3.5 text-red-500" />
+            </span>
           )}
           {hasRulesDeviation && (
-            <Tooltip>
-              <TooltipTrigger className="cursor-default">
-                <TriangleAlertIcon className="size-3.5 text-yellow-500" />
-              </TooltipTrigger>
-              <TooltipContent>Printed text differs from current rules</TooltipContent>
-            </Tooltip>
+            <span title="Printed text differs from current rules" className="inline-flex">
+              <TriangleAlertIcon className="size-3.5 text-yellow-500" />
+            </span>
           )}
           {printingComment && (
             <Tooltip>
