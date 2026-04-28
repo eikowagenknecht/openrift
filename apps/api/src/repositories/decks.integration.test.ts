@@ -83,7 +83,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
   });
 
   it("filters to wanted-only decks when wantedOnly is true", async () => {
-    const decks = await repo.listForUser(userId, true);
+    const decks = await repo.listForUser(userId, { wantedOnly: true });
 
     expect(decks.length).toBeGreaterThanOrEqual(1);
     for (const d of decks) {
@@ -92,8 +92,8 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
   });
 
   it("returns all decks when wantedOnly is false", async () => {
-    const all = await repo.listForUser(userId, false);
-    const wanted = await repo.listForUser(userId, true);
+    const all = await repo.listForUser(userId, { wantedOnly: false });
+    const wanted = await repo.listForUser(userId, { wantedOnly: true });
 
     expect(all.length).toBeGreaterThanOrEqual(wanted.length);
   });
