@@ -1,7 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
-import { saveMappings, unmapAll, unmapPrinting } from "../../services/marketplace-mapping.js";
+import { saveMappings, unmapPrinting } from "../../services/marketplace-mapping.js";
 import {
   buildUnifiedMappingsCardResponse,
   buildUnifiedMappingsResponse,
@@ -16,9 +16,6 @@ const listMappings = createRoute({
   method: "get",
   path: "/marketplace-mappings",
   tags: ["Admin - Mappings"],
-  request: {
-    query: z.object({ all: z.string().optional() }),
-  },
   responses: {
     200: {
       content: {
@@ -87,25 +84,6 @@ const unmapPrintingRoute = createRoute({
   },
 });
 
-const unmapAllRoute = createRoute({
-  method: "delete",
-  path: "/marketplace-mappings/all",
-  tags: ["Admin - Mappings"],
-  request: {
-    query: marketplaceSchema,
-  },
-  responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: z.object({ unmapped: z.number().openapi({ example: 312 }) }),
-        },
-      },
-      description: "All mappings removed",
-    },
-  },
-});
-
 // ── Route ───────────────────────────────────────────────────────────────────
 
 export const unifiedMappingsRoute = new OpenAPIHono<{ Variables: Variables }>()
@@ -114,7 +92,6 @@ export const unifiedMappingsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const repos = c.get("repos");
     const { getMappingOverview } = c.get("services");
     const { tcgplayer, cardmarket, cardtrader } = createMarketplaceConfigs(repos);
-    const showAll = c.req.valid("query").all === "true";
 
     const result = await buildUnifiedMappingsResponse(
       repos,
@@ -122,7 +99,6 @@ export const unifiedMappingsRoute = new OpenAPIHono<{ Variables: Variables }>()
       cardmarket,
       cardtrader,
       getMappingOverview,
-      showAll,
     );
 
     return c.json(result);
@@ -164,14 +140,4 @@ export const unifiedMappingsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { printingId, externalId } = c.req.valid("json");
     await unmapPrinting(transact, config, printingId, externalId);
     return c.body(null, 204);
-  })
-
-  .openapi(unmapAllRoute, async (c) => {
-    const repos = c.get("repos");
-    const transact = c.get("transact");
-    const { marketplace } = c.req.valid("query");
-    const configs = createMarketplaceConfigs(repos);
-    const config = configs[marketplace];
-    const result = await unmapAll(transact, config);
-    return c.json({ unmapped: result.unmapped });
   });

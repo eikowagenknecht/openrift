@@ -75,7 +75,6 @@ const contentPages = [
 const marketplacePages = [
   { to: "/admin/marketplace-overview" as const, icon: LayoutDashboardIcon, title: "Overview" },
   { to: "/admin/marketplace-groups" as const, icon: LayersIcon, title: "Groups" },
-  { to: "/admin/marketplace-mappings" as const, icon: MapIcon, title: "Mappings" },
   { to: "/admin/ignored-products" as const, icon: BanIcon, title: "Ignored Products" },
 ];
 

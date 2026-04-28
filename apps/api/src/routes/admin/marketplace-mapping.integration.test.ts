@@ -209,7 +209,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
 
   describe("GET /admin/marketplace-mappings (TCGPlayer data)", () => {
     it("returns overview with groups and staged products", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -285,7 +285,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
 
     it("mapped printing shows externalId in overview", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       const testGroup = json.groups.find(
@@ -341,37 +341,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .where("marketplaceProductId", "=", productRow.id)
         .execute();
       expect(priceRows.length).toBeGreaterThanOrEqual(1);
-    });
-  });
-
-  // ── TCGPlayer: DELETE /all (unmap all) ─────────────────────────────────────
-
-  describe("DELETE /admin/marketplace-mappings/all?marketplace=tcgplayer", () => {
-    it("unmaps all TCGPlayer mappings", async () => {
-      // First map something so there's data to unmap
-      await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          mappings: [{ printingId, externalId: 12_345, finish: "normal", language: null }],
-        }),
-      );
-
-      const res = await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings/all?marketplace=tcgplayer"),
-      );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.unmapped).toBeGreaterThanOrEqual(1);
-
-      // No variant rows should exist for TCGPlayer for our printing.
-      const variants = await db
-        .selectFrom("marketplaceProductVariants as mpv")
-        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
-        .selectAll("mpv")
-        .where("mp.marketplace", "=", "tcgplayer")
-        .where("mpv.printingId", "=", printingId)
-        .execute();
-      expect(variants).toHaveLength(0);
     });
   });
 
@@ -508,28 +477,6 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
     });
   });
 
-  // ── Cardmarket: DELETE /all (unmap all) ────────────────────────────────────
-
-  describe("DELETE /admin/marketplace-mappings/all?marketplace=cardmarket", () => {
-    it("unmaps all Cardmarket mappings", async () => {
-      // Phase 4: the product row was never deleted by the previous POST, so
-      // we can re-map directly without re-seeding anything.
-      await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
-          mappings: [{ printingId, externalId: 67_890, finish: "normal", language: null }],
-        }),
-      );
-
-      const res = await app.fetch(
-        req("DELETE", "/admin/marketplace-mappings/all?marketplace=cardmarket"),
-      );
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      expect(json.unmapped).toBeGreaterThanOrEqual(1);
-    });
-  });
-
   // ── Coverage: ignored-product filter ──────────────────────────────────────
 
   describe("staging row filtering edge cases", () => {
@@ -588,7 +535,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .onConflict((oc) => oc.columns(["marketplace", "externalId"]).doNothing())
         .execute();
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -672,7 +619,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .onConflict((oc) => oc.column("marketplaceProductId").doNothing())
         .execute();
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -705,13 +652,11 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
       // enough (>= 5 chars). Insert an unbound marketplace product whose
       // name doesn't start with "Annie, Fiery" but contains it.
       //
-      // Earlier tests in this file run `DELETE /admin/marketplace-mappings/all
-      // ?marketplace=tcgplayer`, which removes every tcgplayer variant. Annie
-      // still has cardmarket + cardtrader variants from the seed, so without a
-      // tcgplayer variant her card group falls out of `matchedCards` for the
-      // tcgplayer side of the unified response (the "no variants in any
-      // marketplace" inclusion path doesn't apply when other-marketplace
-      // variants exist). Restore one tcgplayer variant for Annie so the
+      // Annie has cardmarket + cardtrader variants from the seed but no
+      // tcgplayer variant — so without inserting one, her card group falls out
+      // of `matchedCards` for the tcgplayer side of the unified response (the
+      // "no variants in any marketplace" inclusion path doesn't apply when
+      // other-marketplace variants exist). Add a tcgplayer variant so the
       // matcher has a card group to attach the containment match to.
       const anniePrintingId = "019cfc3b-03d6-74cf-adec-1dce41f631eb";
       const annieTcgProductId = "019dc041-cda5-7eb9-bcfe-056f971e963a";
@@ -762,7 +707,7 @@ describe.skipIf(!ctx)("Marketplace mapping routes (integration)", () => {
         .onConflict((oc) => oc.columns(["marketplaceProductId", "recordedAt"]).doNothing())
         .execute();
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();

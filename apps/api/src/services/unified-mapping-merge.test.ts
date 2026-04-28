@@ -76,7 +76,6 @@ describe("buildUnifiedMappingsResponse", () => {
       makeConfig("cardmarket"),
       makeConfig("cardtrader"),
       getMappingOverview,
-      false,
     );
 
     expect(result.groups).toHaveLength(0);
@@ -105,7 +104,6 @@ describe("buildUnifiedMappingsResponse", () => {
       makeConfig("cardmarket"),
       makeConfig("cardtrader"),
       getMappingOverview,
-      true,
     );
 
     expect(result.groups).toHaveLength(1);
@@ -142,7 +140,6 @@ describe("buildUnifiedMappingsResponse", () => {
       makeConfig("cardmarket"),
       makeConfig("cardtrader"),
       getMappingOverview,
-      true,
     );
 
     expect(result.groups).toHaveLength(1);
@@ -176,149 +173,12 @@ describe("buildUnifiedMappingsResponse", () => {
       makeConfig("cardmarket"),
       makeConfig("cardtrader"),
       getMappingOverview,
-      true,
     );
 
     expect(result.groups).toHaveLength(2);
     const cardIds = result.groups.map((group) => group.cardId);
     expect(cardIds).toContain("card-cm-only");
     expect(cardIds).toContain("card-ct-only");
-  });
-
-  it("filters to only incomplete mappings when showAll is false", async () => {
-    const repos = {
-      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
-    } as unknown as Repos;
-    const fullyMappedGroup = makeGroup({
-      cardId: "fully-mapped",
-      printings: [
-        {
-          printingId: "p-1",
-          shortCode: "OGN-001",
-          rarity: "Common",
-          artVariant: "normal",
-          isSigned: false,
-          markerSlugs: [] as string[],
-          finish: "normal",
-          imageUrl: null,
-          externalId: 100,
-        },
-      ],
-    });
-    const incompleteTcgGroup = makeGroup({
-      cardId: "incomplete",
-      printings: [
-        {
-          printingId: "p-2",
-          shortCode: "OGN-002",
-          rarity: "Rare",
-          artVariant: "normal",
-          isSigned: false,
-          markerSlugs: [] as string[],
-          finish: "normal",
-          imageUrl: null,
-          externalId: null,
-        },
-      ],
-    });
-
-    const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
-      if (config.marketplace === "tcgplayer") {
-        return makeMappingResult({ groups: [fullyMappedGroup, incompleteTcgGroup] });
-      }
-      if (config.marketplace === "cardmarket") {
-        return makeMappingResult({
-          groups: [
-            makeGroup({
-              cardId: "fully-mapped",
-              printings: [{ printingId: "p-1", externalId: 200 }],
-            }),
-            makeGroup({
-              cardId: "incomplete",
-              printings: [{ printingId: "p-2", externalId: 201 }],
-            }),
-          ],
-        });
-      }
-      if (config.marketplace === "cardtrader") {
-        return makeMappingResult({
-          groups: [
-            makeGroup({
-              cardId: "fully-mapped",
-              printings: [{ printingId: "p-1", externalId: 300 }],
-            }),
-            makeGroup({
-              cardId: "incomplete",
-              printings: [{ printingId: "p-2", externalId: 301 }],
-            }),
-          ],
-        });
-      }
-      return makeMappingResult();
-    });
-
-    const result = await buildUnifiedMappingsResponse(
-      repos,
-      makeConfig("tcgplayer"),
-      makeConfig("cardmarket"),
-      makeConfig("cardtrader"),
-      getMappingOverview,
-      false,
-    );
-
-    // "fully-mapped" has all 3 externalIds → filtered out
-    // "incomplete" has tcgExternalId null → kept
-    expect(result.groups).toHaveLength(1);
-    expect(result.groups[0].cardId).toBe("incomplete");
-  });
-
-  it("keeps groups with staged products even when fully mapped", async () => {
-    const repos = {
-      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
-    } as unknown as Repos;
-    const groupWithStaged = makeGroup({
-      cardId: "with-staged",
-      stagedProducts: [{ id: "staged-1" }],
-    });
-
-    const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
-      if (config.marketplace === "tcgplayer") {
-        return makeMappingResult({ groups: [groupWithStaged] });
-      }
-      if (config.marketplace === "cardmarket") {
-        return makeMappingResult({
-          groups: [
-            makeGroup({
-              cardId: "with-staged",
-              printings: [{ printingId: "p-1", externalId: 200 }],
-            }),
-          ],
-        });
-      }
-      if (config.marketplace === "cardtrader") {
-        return makeMappingResult({
-          groups: [
-            makeGroup({
-              cardId: "with-staged",
-              printings: [{ printingId: "p-1", externalId: 300 }],
-            }),
-          ],
-        });
-      }
-      return makeMappingResult();
-    });
-
-    const result = await buildUnifiedMappingsResponse(
-      repos,
-      makeConfig("tcgplayer"),
-      makeConfig("cardmarket"),
-      makeConfig("cardtrader"),
-      getMappingOverview,
-      false,
-    );
-
-    expect(result.groups).toHaveLength(1);
-    expect(result.groups[0].cardId).toBe("with-staged");
   });
 
   it("sorts groups by primaryShortCode", async () => {
@@ -349,7 +209,6 @@ describe("buildUnifiedMappingsResponse", () => {
       makeConfig("cardmarket"),
       makeConfig("cardtrader"),
       getMappingOverview,
-      true,
     );
 
     expect(result.groups[0].primaryShortCode).toBe("OGN-001");
@@ -380,7 +239,6 @@ describe("buildUnifiedMappingsResponse", () => {
       makeConfig("cardmarket"),
       makeConfig("cardtrader"),
       getMappingOverview,
-      true,
     );
 
     expect(getMappingOverview).toHaveBeenCalledTimes(3);
@@ -415,7 +273,6 @@ describe("buildUnifiedMappingsResponse", () => {
       makeConfig("cardmarket"),
       makeConfig("cardtrader"),
       getMappingOverview,
-      true,
     );
 
     expect(result.allCards).toHaveLength(2);
@@ -492,7 +349,6 @@ describe("buildUnifiedMappingsResponse", () => {
       makeConfig("cardmarket"),
       makeConfig("cardtrader"),
       getMappingOverview,
-      true,
     );
 
     expect(result.groups).toHaveLength(1);
@@ -572,7 +428,6 @@ describe("buildUnifiedMappingsResponse", () => {
       makeConfig("cardmarket"),
       makeConfig("cardtrader"),
       getMappingOverview,
-      true,
     );
 
     const printingIds = result.groups[0].printings.map((p) => p.printingId);
@@ -632,7 +487,6 @@ describe("buildUnifiedMappingsResponse", () => {
       makeConfig("cardmarket"),
       makeConfig("cardtrader"),
       getMappingOverview,
-      true,
     );
 
     const group = result.groups[0];
@@ -665,7 +519,6 @@ describe("buildUnifiedMappingsResponse", () => {
       makeConfig("cardmarket"),
       makeConfig("cardtrader"),
       getMappingOverview,
-      true,
     );
 
     expect(result.groups[0].cardmarket.assignments).toEqual([]);
@@ -695,7 +548,6 @@ describe("buildUnifiedMappingsResponse", () => {
       makeConfig("cardmarket"),
       makeConfig("cardtrader"),
       getMappingOverview,
-      true,
     );
 
     expect(result.unmatchedProducts.tcgplayer).toHaveLength(1);

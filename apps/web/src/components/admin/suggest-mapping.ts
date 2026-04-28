@@ -195,7 +195,7 @@ function scorePrintingProduct(
  * is more honest than picking arbitrarily by iteration order.
  * @returns A map from printingId to the suggested product and score.
  */
-export function computeSuggestions(
+function computeSuggestions(
   group: MappingGroup,
   options: { enforceLanguage?: boolean } = {},
 ): Map<string, Suggestion> {
@@ -422,7 +422,7 @@ export function computeProductSuggestions(
  * product key so lookups don't need to reconstruct the string.
  * @returns Map keyed by `${externalId}|${finish}`, or empty if no assignments.
  */
-export function buildCrossLanguageEvidence(
+function buildCrossLanguageEvidence(
   group: UnifiedMappingGroup,
   marketplace: AdminMarketplaceName,
 ): ReadonlyMap<string, ReadonlySet<string>> {

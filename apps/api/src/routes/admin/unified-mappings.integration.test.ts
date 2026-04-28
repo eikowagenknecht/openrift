@@ -301,7 +301,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
   describe("GET /admin/marketplace-mappings (baseline)", () => {
     it("returns groups, unmatchedProducts, and allCards", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -315,9 +315,9 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
   // ── Merged data ────────────────────────────────────────────────────────────
 
-  describe("GET /admin/marketplace-mappings?all=true (seeded data)", () => {
+  describe("GET /admin/marketplace-mappings (seeded data)", () => {
     it("returns merged groups with both tcgplayer and cardmarket data per card", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
@@ -348,7 +348,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("printings have tcgExternalId and cmExternalId fields", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -364,7 +364,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("merged groups contain card metadata", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -380,7 +380,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("groups contain both cards from seed data", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       const cardNames = json.groups.map((g: { cardName: string }) => g.cardName);
@@ -389,7 +389,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("UNM Beta Card group has TCGPlayer data but no Cardmarket staged products", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       const betaGroup = json.groups.find(
@@ -401,73 +401,6 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(betaGroup.tcgplayer.stagedProducts.length).toBeGreaterThanOrEqual(1);
       // Cardmarket has no staged product for Beta Card
       expect(betaGroup.cardmarket.stagedProducts).toHaveLength(0);
-    });
-  });
-
-  // ── Filter behavior ────────────────────────────────────────────────────────
-
-  describe("GET /admin/marketplace-mappings (filter behavior)", () => {
-    it("without all=true, includes groups with unmapped printings or staged products", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
-      expect(res.status).toBe(200);
-
-      const json = await res.json();
-      // All returned groups should have at least one unmapped printing or staged products
-      for (const group of json.groups) {
-        const hasUnmappedTcg = group.printings.some(
-          (p: { tcgExternalId: number | null }) => p.tcgExternalId === null,
-        );
-        const hasUnmappedCm = group.printings.some(
-          (p: { cmExternalId: number | null }) => p.cmExternalId === null,
-        );
-        const hasUnmappedCt = group.printings.some(
-          (p: { ctExternalId: number | null }) => p.ctExternalId === null,
-        );
-        const hasStagedProducts =
-          group.tcgplayer.stagedProducts.length > 0 ||
-          group.cardmarket.stagedProducts.length > 0 ||
-          group.cardtrader.stagedProducts.length > 0;
-
-        expect(hasUnmappedTcg || hasUnmappedCm || hasUnmappedCt || hasStagedProducts).toBe(true);
-      }
-    });
-
-    it("excludes fully-mapped cards when all is not true", async () => {
-      // Map Alpha Card printing for both TCGPlayer and Cardmarket
-      await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=tcgplayer", {
-          mappings: [{ printingId, externalId: 11_111, finish: "normal", language: null }],
-        }),
-      );
-      await app.fetch(
-        req("POST", "/admin/marketplace-mappings?marketplace=cardmarket", {
-          mappings: [{ printingId, externalId: 22_222, finish: "normal", language: null }],
-        }),
-      );
-
-      // With all=true, Alpha Card should still appear
-      const resAll = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
-      const allJson = await resAll.json();
-      const alphaInAll = allJson.groups.find(
-        (g: { cardName: string }) => g.cardName === "UNM Alpha Card",
-      );
-      expect(alphaInAll).toBeDefined();
-
-      // Without all=true, Alpha Card may or may not appear depending on whether
-      // all its printings are fully mapped in both marketplaces and it has no
-      // staged products. If it has no staged products remaining (they were consumed
-      // by the mapping), and all printings are mapped, it should be excluded.
-      const resFiltered = await app.fetch(req("GET", "/admin/marketplace-mappings"));
-      const filteredJson = await resFiltered.json();
-      const filteredGroupCount = filteredJson.groups.length;
-      const allGroupCount = allJson.groups.length;
-
-      // The filtered list should be <= the all list
-      expect(filteredGroupCount).toBeLessThanOrEqual(allGroupCount);
-
-      // Clean up: unmap so other tests are not affected
-      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=tcgplayer"));
-      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=cardmarket"));
     });
   });
 
@@ -522,7 +455,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         }),
       );
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -539,7 +472,12 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(mapped.cmExternalId).toBeNull();
 
       // Clean up
-      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=tcgplayer"));
+      await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", {
+          printingId,
+          externalId: 11_111,
+        }),
+      );
     });
 
     it("printings reflect cmExternalId after Cardmarket-only mapping", async () => {
@@ -589,7 +527,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         }),
       );
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -607,7 +545,12 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(mapped.tcgExternalId).toBeNull();
 
       // Clean up
-      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=cardmarket"));
+      await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", {
+          printingId,
+          externalId: 22_222,
+        }),
+      );
     });
 
     it("printings reflect both tcgExternalId and cmExternalId after dual mapping", async () => {
@@ -702,7 +645,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         }),
       );
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -719,8 +662,18 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(mapped.cmExternalId).toBe(22_222);
 
       // Clean up
-      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=tcgplayer"));
-      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=cardmarket"));
+      await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", {
+          printingId,
+          externalId: 11_111,
+        }),
+      );
+      await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", {
+          printingId,
+          externalId: 22_222,
+        }),
+      );
     });
   });
 
@@ -728,7 +681,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
   describe("printing detail fields in merged groups", () => {
     it("printings contain all expected metadata fields", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -750,7 +703,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
     });
 
     it("merged group includes superTypes and might fields", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -767,7 +720,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
   describe("allCards response field", () => {
     it("allCards entries have cardId, cardName, setName, and shortCodes", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       expect(json.allCards).toEqual(expect.any(Array));
@@ -790,7 +743,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
 
   describe("unmatchedProducts response field", () => {
     it("unmatchedProducts has separate tcgplayer and cardmarket arrays", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       expect(json.unmatchedProducts).toBeDefined();
@@ -894,7 +847,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         }),
       );
 
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       const alphaGroup = json.groups.find(
@@ -915,12 +868,22 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(alphaGroup.cardmarket.stagedProducts).toHaveLength(0);
 
       // Clean up
-      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=tcgplayer"));
-      await app.fetch(req("DELETE", "/admin/marketplace-mappings/all?marketplace=cardmarket"));
+      await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", {
+          printingId,
+          externalId: 11_111,
+        }),
+      );
+      await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", {
+          printingId,
+          externalId: 22_222,
+        }),
+      );
     });
 
     it("Beta Card Cardmarket section has empty assignedProducts and stagedProducts", async () => {
-      const res = await app.fetch(req("GET", "/admin/marketplace-mappings?all=true"));
+      const res = await app.fetch(req("GET", "/admin/marketplace-mappings"));
       const json = await res.json();
 
       const betaGroup = json.groups.find(

@@ -310,8 +310,7 @@ function withPrimaryShortCode(
 
 /**
  * Merge TCGplayer, Cardmarket, and CardTrader mapping overviews into a unified response.
- * Combines data from all marketplaces per card, computes primary source IDs,
- * and filters to show only cards with incomplete mappings or staged products.
+ * Combines data from all marketplaces per card and computes primary source IDs.
  * @returns Unified mappings response with merged groups, unmatched products, and card list.
  */
 export async function buildUnifiedMappingsResponse(
@@ -320,7 +319,6 @@ export async function buildUnifiedMappingsResponse(
   cardmarketConfig: MarketplaceConfig,
   cardtraderConfig: MarketplaceConfig,
   getMappingOverview: GetMappingOverview,
-  showAll: boolean,
 ): Promise<UnifiedMappingsResponse> {
   // Fetch the heavy cards × printings × images join once for all three marketplaces
   // and project per-marketplace in JS, instead of running it 3× from the DB.
@@ -356,21 +354,8 @@ export async function buildUnifiedMappingsResponse(
   ]);
 
   const mergedMap = mergeOverviewsByCard(tcgResult, cmResult, ctResult);
-  const allGroupsWithPrimary = withPrimaryShortCode(mergedMap);
-  allGroupsWithPrimary.sort((a, b) => a.primaryShortCode.localeCompare(b.primaryShortCode));
-
-  // Filter after merge so all marketplaces have complete data
-  const filteredGroups = showAll
-    ? allGroupsWithPrimary
-    : allGroupsWithPrimary.filter(
-        (g) =>
-          g.printings.some(
-            (p) => p.tcgExternalId === null || p.cmExternalId === null || p.ctExternalId === null,
-          ) ||
-          g.tcgplayer.stagedProducts.length > 0 ||
-          g.cardmarket.stagedProducts.length > 0 ||
-          g.cardtrader.stagedProducts.length > 0,
-      );
+  const groups = withPrimaryShortCode(mergedMap);
+  groups.sort((a, b) => a.primaryShortCode.localeCompare(b.primaryShortCode));
 
   // allCards only needs to be sent once (same card pool for all)
   const allCards = [tcgResult.allCards, cmResult.allCards, ctResult.allCards].reduce((best, curr) =>
@@ -378,7 +363,7 @@ export async function buildUnifiedMappingsResponse(
   );
 
   return {
-    groups: filteredGroups,
+    groups,
     unmatchedProducts: {
       tcgplayer: tcgResult.unmatchedProducts,
       cardmarket: cmResult.unmatchedProducts,

@@ -127,16 +127,4 @@ describe("marketplaceMappingRepo", () => {
     const db = createMockDb([]);
     await expect(marketplaceMappingRepo(db).deleteVariantById("var-1")).resolves.toBeUndefined();
   });
-
-  it("countMappedVariants returns count", async () => {
-    const db = createMockDb([{ count: 42 }]);
-    expect(await marketplaceMappingRepo(db).countMappedVariants("tcgplayer")).toBe(42);
-  });
-
-  it("deleteMappedVariants deletes all mapped variants (parent products left behind)", async () => {
-    const db = createMockDb([]);
-    await expect(
-      marketplaceMappingRepo(db).deleteMappedVariants("tcgplayer"),
-    ).resolves.toBeUndefined();
-  });
 });

@@ -6,12 +6,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { Repos, Transact } from "../deps.js";
 import type { MarketplaceConfig, StagingRow } from "../routes/admin/marketplace-configs.js";
-import {
-  getMappingOverview,
-  saveMappings,
-  unmapPrinting,
-  unmapAll,
-} from "./marketplace-mapping.js";
+import { getMappingOverview, saveMappings, unmapPrinting } from "./marketplace-mapping.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -35,8 +30,6 @@ function createMockMappingRepo(overrides: Record<string, unknown> = {}) {
     getVariantForPrinting: vi.fn().mockResolvedValue(undefined),
     getPrintingFinishAndLanguage: vi.fn().mockResolvedValue({ finish: "normal", language: "EN" }),
     deleteVariantById: vi.fn().mockResolvedValue(undefined),
-    countMappedVariants: vi.fn().mockResolvedValue(0),
-    deleteMappedVariants: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -1392,30 +1385,6 @@ describe("unmapPrinting", () => {
 
     expect(mappingRepo.getVariantForPrinting).toHaveBeenCalledWith("tcgplayer", "p-1", 12_345);
     expect(mappingRepo.deleteVariantById).toHaveBeenCalledWith("var-1");
-  });
-});
-
-// ---------------------------------------------------------------------------
-// unmapAll
-// ---------------------------------------------------------------------------
-
-describe("unmapAll", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("deletes all mapped variants and returns the count", async () => {
-    const mappingRepo = createMockMappingRepo({
-      countMappedVariants: vi.fn().mockResolvedValue(5),
-    });
-    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
-    const transact = mockTransact(repos);
-    const config = createMockConfig();
-
-    const result = await unmapAll(transact, config);
-
-    expect(result.unmapped).toBe(5);
-    expect(mappingRepo.deleteMappedVariants).toHaveBeenCalledWith("tcgplayer");
   });
 });
 

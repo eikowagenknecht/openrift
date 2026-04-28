@@ -568,33 +568,6 @@ export function marketplaceMappingRepo(db: Db) {
       await db.deleteFrom("marketplaceProductVariants").where("id", "=", id).execute();
     },
 
-    // ── unmapAll queries ────────────────────────────────────────────────────
-
-    /** @returns Count of mapped variants for a marketplace. */
-    async countMappedVariants(marketplace: string): Promise<number> {
-      const result = await db
-        .selectFrom("marketplaceProductVariants as mpv")
-        .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
-        .select(sql<number>`count(*)::int`.as("count"))
-        .where("mp.marketplace", "=", marketplace)
-        .executeTakeFirstOrThrow();
-      return result.count;
-    },
-
-    /**
-     * Delete all mapped variants for a marketplace, leaving parent products
-     * and their price history in place. Re-running mapping is cheap — the
-     * product rows survive and price history is preserved per-SKU.
-     */
-    async deleteMappedVariants(marketplace: string): Promise<void> {
-      await sql`
-        DELETE FROM marketplace_product_variants mpv
-        USING marketplace_products mp
-        WHERE mp.id = mpv.marketplace_product_id
-          AND mp.marketplace = ${marketplace}
-      `.execute(db);
-    },
-
     // ── per-card detail queries ─────────────────────────────────────────────
 
     /**

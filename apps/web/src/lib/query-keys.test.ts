@@ -151,19 +151,16 @@ describe("queryKeys.admin.unifiedMappings", () => {
     expect(queryKeys.admin.unifiedMappings.all).toEqual(["admin", "unified-mappings"]);
   });
 
-  it("byFilter with showAll=true", () => {
-    expect(queryKeys.admin.unifiedMappings.byFilter(true)).toEqual([
-      "admin",
-      "unified-mappings",
-      { all: true },
-    ]);
+  it("list", () => {
+    expect(queryKeys.admin.unifiedMappings.list).toEqual(["admin", "unified-mappings", "list"]);
   });
 
-  it("byFilter with showAll=false", () => {
-    expect(queryKeys.admin.unifiedMappings.byFilter(false)).toEqual([
+  it("byCard", () => {
+    expect(queryKeys.admin.unifiedMappings.byCard("c-1")).toEqual([
       "admin",
       "unified-mappings",
-      { all: false },
+      "card",
+      "c-1",
     ]);
   });
 });

@@ -2,7 +2,6 @@ import type {
   AdminMarketplaceName,
   UnifiedMappingGroupResponse,
   UnifiedMappingsCardResponse,
-  UnifiedMappingsResponse,
 } from "@openrift/shared";
 import { useHotkey } from "@tanstack/react-hotkeys";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -30,9 +29,9 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
 
   // Most actions (ignore, unassign, reassign-to-card) await the invalidations
   // so `.mutate`'s promise only resolves after fresh data has been pulled. The
-  // per-card cache is what this page reads; the corpus-wide cache (shared with
-  // the /admin/marketplace-mappings page) is invalidated too so it can't
-  // disagree with this view after a mutation.
+  // per-card cache is what this page reads; the corpus-wide cache (used by the
+  // /admin/cards list for coverage badges and unmatched products) is
+  // invalidated too so it can't disagree with this view after a mutation.
   const mutateOpts = {
     onSuccess: async () => {
       await Promise.all([
@@ -303,49 +302,9 @@ function applyOptimisticAssignmentToGroup(
 }
 
 /**
- * Corpus-wide version of {@link applyOptimisticAssignmentToGroup} that locates
- * the target card inside the full {@link UnifiedMappingsResponse}. Kept
- * exported so the /admin/marketplace-mappings page can reuse the same logic.
- * @returns The updated response, or the original when nothing changed.
- */
-export function applyOptimisticAssignment(
-  response: UnifiedMappingsResponse,
-  cardId: string,
-  marketplace: AdminMarketplaceName,
-  externalId: number,
-  finish: string,
-  language: string | null,
-  printingId: string,
-): UnifiedMappingsResponse {
-  const groupIdx = response.groups.findIndex((g) => g.cardId === cardId);
-  if (groupIdx === -1) {
-    return response;
-  }
-  const group = response.groups[groupIdx];
-  const nextGroup = applyOptimisticAssignmentToGroup(
-    group,
-    marketplace,
-    externalId,
-    finish,
-    language,
-    printingId,
-  );
-  if (nextGroup === group) {
-    return response;
-  }
-  return {
-    ...response,
-    groups: [
-      ...response.groups.slice(0, groupIdx),
-      nextGroup,
-      ...response.groups.slice(groupIdx + 1),
-    ],
-  };
-}
-
-/**
- * Per-card variant of {@link applyOptimisticAssignment} for the card-detail
- * page's {@link UnifiedMappingsCardResponse} cache entry.
+ * Optimistic assignment for the card-detail page's
+ * {@link UnifiedMappingsCardResponse} cache entry — folds a single
+ * (product SKU → printing) assignment into the cached group.
  * @returns The updated response, or the original when nothing changed.
  */
 export function applyOptimisticAssignmentForCard(

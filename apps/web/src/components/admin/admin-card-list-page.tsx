@@ -24,7 +24,7 @@ const ALL_SETS = "__all__";
 
 export function AdminCardListPage() {
   const { data } = useAdminCardList();
-  const { data: unified } = useUnifiedMappings(true);
+  const { data: unified } = useUnifiedMappings();
   const { data: allCards } = useAllCards();
   const { data: setsData } = useSets();
   const { tab, setSlug } = Route.useSearch({

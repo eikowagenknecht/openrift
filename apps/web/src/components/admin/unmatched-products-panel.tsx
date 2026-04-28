@@ -97,7 +97,7 @@ export function buildAssignSuccessNavigation(
 
 export function UnmatchedProductsPanel() {
   const navigate = useNavigate();
-  const { data } = useUnifiedMappings(true);
+  const { data } = useUnifiedMappings();
 
   const [marketplaceFilter, setMarketplaceFilter] = useState<"all" | Marketplace>("all");
   const [finishFilter, setFinishFilter] = useState<"all" | string>("all");

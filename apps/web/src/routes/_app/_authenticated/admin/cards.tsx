@@ -24,7 +24,7 @@ export const Route = createFileRoute("/_app/_authenticated/admin/cards")({
       context.queryClient.ensureQueryData(adminCardListQueryOptions),
       context.queryClient.ensureQueryData(providerSettingsQueryOptions),
       context.queryClient.ensureQueryData(allCardsQueryOptions),
-      context.queryClient.ensureQueryData(unifiedMappingsQueryOptions(true)),
+      context.queryClient.ensureQueryData(unifiedMappingsQueryOptions()),
       context.queryClient.ensureQueryData(setsQueryOptions),
     ]);
   },

@@ -8,30 +8,25 @@ import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 
 const fetchUnifiedMappings = createServerFn({ method: "GET" })
-  .inputValidator((input: { showAll: boolean }) => input)
   .middleware([withCookies])
-  .handler(({ context, data }): Promise<UnifiedMappingsResponse> => {
-    const params = new URLSearchParams();
-    if (data.showAll) {
-      params.set("all", "true");
-    }
-    const qs = params.toString();
-    return fetchApiJson<UnifiedMappingsResponse>({
-      errorTitle: "Couldn't load unified mappings",
-      cookie: context.cookie,
-      path: `/api/v1/admin/marketplace-mappings${qs ? `?${qs}` : ""}`,
-    });
-  });
+  .handler(
+    ({ context }): Promise<UnifiedMappingsResponse> =>
+      fetchApiJson<UnifiedMappingsResponse>({
+        errorTitle: "Couldn't load unified mappings",
+        cookie: context.cookie,
+        path: "/api/v1/admin/marketplace-mappings",
+      }),
+  );
 
-export function unifiedMappingsQueryOptions(showAll = false) {
+export function unifiedMappingsQueryOptions() {
   return queryOptions({
-    queryKey: queryKeys.admin.unifiedMappings.byFilter(showAll),
-    queryFn: () => fetchUnifiedMappings({ data: { showAll } }),
+    queryKey: queryKeys.admin.unifiedMappings.list,
+    queryFn: () => fetchUnifiedMappings(),
   });
 }
 
-export function useUnifiedMappings(showAll = false) {
-  return useSuspenseQuery(unifiedMappingsQueryOptions(showAll));
+export function useUnifiedMappings() {
+  return useSuspenseQuery(unifiedMappingsQueryOptions());
 }
 
 const fetchUnifiedMappingsForCard = createServerFn({ method: "GET" })
@@ -122,30 +117,6 @@ export function useUnifiedSaveMappings(marketplace: "tcgplayer" | "cardmarket" |
     }
     return result;
   });
-}
-
-const unmapPrintingFn = createServerFn({ method: "POST" })
-  .inputValidator((input: { marketplace: string; printingId: string; externalId: number }) => input)
-  .middleware([withCookies])
-  .handler(async ({ context, data }) => {
-    await fetchApi({
-      errorTitle: "Couldn't unmap printing",
-      cookie: context.cookie,
-      path: `/api/v1/admin/marketplace-mappings?marketplace=${encodeURIComponent(data.marketplace)}`,
-      method: "DELETE",
-      body: { printingId: data.printingId, externalId: data.externalId },
-    });
-  });
-
-export function useUnifiedUnmapPrinting(marketplace: "tcgplayer" | "cardmarket" | "cardtrader") {
-  return useUnifiedMutation(
-    marketplace,
-    async (input: { printingId: string; externalId: number }) => {
-      await unmapPrintingFn({
-        data: { marketplace, printingId: input.printingId, externalId: input.externalId },
-      });
-    },
-  );
 }
 
 const ignoreVariantsFn = createServerFn({ method: "POST" })

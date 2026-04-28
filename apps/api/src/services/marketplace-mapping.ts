@@ -674,21 +674,3 @@ export async function unmapPrinting(
     await repo.deleteVariantById(variant.variantId);
   });
 }
-
-// ── unmapAll ────────────────────────────────────────────────────────────────
-
-export async function unmapAll(
-  transact: Transact,
-  config: MarketplaceConfig,
-): Promise<{ unmapped: number }> {
-  const unmapped = await transact(async (trxRepos) => {
-    const repo = trxRepos.marketplaceMapping;
-
-    const count = await repo.countMappedVariants(config.marketplace);
-    await repo.deleteMappedVariants(config.marketplace);
-
-    return count;
-  });
-
-  return { unmapped };
-}

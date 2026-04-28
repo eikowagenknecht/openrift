@@ -5,7 +5,7 @@
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { saveMappings, unmapPrinting, unmapAll } from "../../services/marketplace-mapping.js";
+import { saveMappings, unmapPrinting } from "../../services/marketplace-mapping.js";
 import { buildUnifiedMappingsResponse } from "../../services/unified-mapping-merge.js";
 import { unifiedMappingsRoute } from "./unified-mappings";
 
@@ -16,7 +16,6 @@ import { unifiedMappingsRoute } from "./unified-mappings";
 vi.mock("../../services/marketplace-mapping.js", () => ({
   saveMappings: vi.fn(),
   unmapPrinting: vi.fn(),
-  unmapAll: vi.fn(),
 }));
 
 vi.mock("../../services/unified-mapping-merge.js", () => ({
@@ -25,7 +24,6 @@ vi.mock("../../services/unified-mapping-merge.js", () => ({
 
 const mockSaveMappings = vi.mocked(saveMappings);
 const mockUnmapPrinting = vi.mocked(unmapPrinting);
-const mockUnmapAll = vi.mocked(unmapAll);
 const mockBuildUnifiedMappings = vi.mocked(buildUnifiedMappingsResponse);
 
 // ---------------------------------------------------------------------------
@@ -77,24 +75,6 @@ describe("GET /api/v1/marketplace-mappings", () => {
     const json = await res.json();
     expect(json).toEqual(mockResponse);
     expect(mockBuildUnifiedMappings).toHaveBeenCalledTimes(1);
-  });
-
-  it("passes showAll=true when all=true query param is set", async () => {
-    mockBuildUnifiedMappings.mockResolvedValue({} as any);
-
-    await app.request("/api/v1/marketplace-mappings?all=true");
-
-    const lastCallArgs = mockBuildUnifiedMappings.mock.calls[0];
-    expect(lastCallArgs[5]).toBe(true);
-  });
-
-  it("passes showAll=false when all query param is not set", async () => {
-    mockBuildUnifiedMappings.mockResolvedValue({} as any);
-
-    await app.request("/api/v1/marketplace-mappings");
-
-    const lastCallArgs = mockBuildUnifiedMappings.mock.calls[0];
-    expect(lastCallArgs[5]).toBe(false);
   });
 
   it("passes all three marketplace configs", async () => {
@@ -275,45 +255,6 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
         printingId: "00000000-0000-4000-a000-000000000001",
         externalId: 100,
       }),
-    });
-
-    expect(res.status).toBe(400);
-  });
-});
-
-describe("DELETE /api/v1/marketplace-mappings/all", () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it("returns 200 with unmapped count for tcgplayer", async () => {
-    mockUnmapAll.mockResolvedValue({ unmapped: 10 });
-
-    const res = await app.request("/api/v1/marketplace-mappings/all?marketplace=tcgplayer", {
-      method: "DELETE",
-    });
-
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.unmapped).toBe(10);
-    expect(mockUnmapAll).toHaveBeenCalledTimes(1);
-  });
-
-  it("returns 200 with unmapped count for cardtrader", async () => {
-    mockUnmapAll.mockResolvedValue({ unmapped: 5 });
-
-    const res = await app.request("/api/v1/marketplace-mappings/all?marketplace=cardtrader", {
-      method: "DELETE",
-    });
-
-    expect(res.status).toBe(200);
-    const json = await res.json();
-    expect(json.unmapped).toBe(5);
-  });
-
-  it("returns 400 for invalid marketplace", async () => {
-    const res = await app.request("/api/v1/marketplace-mappings/all?marketplace=invalid", {
-      method: "DELETE",
     });
 
     expect(res.status).toBe(400);
