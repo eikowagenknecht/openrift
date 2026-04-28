@@ -149,6 +149,13 @@ describe("FirstRowPreview", () => {
     expect(container.textContent).toContain("ARC");
   });
 
+  it("declares column counts up to 8 so the SSR grid matches the live grid on ≥1920px screens", () => {
+    mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: [makeCard(0)] }));
+    const { container } = render(<FirstRowPreview />);
+    const grid = container.querySelector(".grid");
+    expect(grid?.className).toContain("min-[1920px]:grid-cols-8");
+  });
+
   it("sets srcset, sizes, width, height, and alt on every image", () => {
     mockUseLoaderData.mockReturnValue(makeLoaderData({ firstRow: [makeCard(0), makeCard(1)] }));
     const { container } = render(<FirstRowPreview />);

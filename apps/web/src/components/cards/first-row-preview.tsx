@@ -119,7 +119,7 @@ export function FirstRowPreview() {
             {/* mt-4 mirrors the virtualizer's GAP (16px) between adjacent
                 rows — header → first card row. Without it the cards sit
                 ~16px too high vs. the hydrated grid. */}
-            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+            <div className="mt-4 grid grid-cols-2 gap-4 min-[1920px]:grid-cols-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
               {firstRow.map((card, i) => (
                 // Mirrors the live <CardRowContent> deferred-cell shape:
                 // p-1.5 wrapper (BUTTON_PAD), card image, then a label-height
