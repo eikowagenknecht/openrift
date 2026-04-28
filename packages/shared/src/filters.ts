@@ -495,6 +495,18 @@ export interface FilterCounts {
     errata: number;
     owned?: number;
   };
+  /**
+   * Bounds for each range slider, faceted to the subset that matches every
+   * other active filter (the slider's own filter is excluded so the user can
+   * still drag the handles outward to widen). `hasNullStat` mirrors
+   * `availableFilters.hasNullEnergy/Might/Power` but on the filtered subset.
+   */
+  ranges: {
+    energy: { min: number; max: number; hasNullStat: boolean };
+    might: { min: number; max: number; hasNullStat: boolean };
+    power: { min: number; max: number; hasNullStat: boolean };
+    price: { min: number; max: number };
+  };
 }
 
 export interface ComputeFilterCountsOptions extends FilterCardsOptions {
@@ -507,7 +519,7 @@ export interface ComputeFilterCountsOptions extends FilterCardsOptions {
 }
 
 interface CountableDimension {
-  key: Exclude<keyof FilterCounts, "flags">;
+  key: Exclude<keyof FilterCounts, "flags" | "ranges">;
   filterField: keyof CardFilters;
   values: (printing: Printing) => readonly string[];
 }
@@ -561,12 +573,22 @@ function countMatches(matched: Printing[], countBy: "printing" | "card"): number
  * counts.rarities.get("Common"); // => 42
  * ```
  */
+const EMPTY_RANGE: FilterRange = { min: null, max: null };
+
 export function computeFilterCounts(
   printings: Printing[],
   filters: CardFilters,
   options: ComputeFilterCountsOptions,
 ): FilterCounts {
-  const result = { flags: { signed: 0, promo: 0, banned: 0, errata: 0 } } as FilterCounts;
+  const result = {
+    flags: { signed: 0, promo: 0, banned: 0, errata: 0 },
+    ranges: {
+      energy: { min: 0, max: 0, hasNullStat: false },
+      might: { min: 0, max: 0, hasNullStat: false },
+      power: { min: 0, max: 0, hasNullStat: false },
+      price: { min: 0, max: 0 },
+    },
+  } as FilterCounts;
   for (const dim of COUNTABLE_DIMENSIONS) {
     const filtersWithoutDim = { ...filters, [dim.filterField]: [] };
     const matched = filterCards(printings, filtersWithoutDim, options);
@@ -599,6 +621,37 @@ export function computeFilterCounts(
     const targetValue = filters[filterField] !== false;
     const matched = filterCards(printings, { ...filters, [filterField]: targetValue }, options);
     result.flags[key] = countMatches(matched, options.countBy);
+  }
+  // Per-dimension faceted slider bounds: filter with this dim's range
+  // cleared, then derive bounds from what's left. The user's selected range
+  // stays in URL state; if it falls outside the new bounds, the slider
+  // visually clamps to the new bounds and a subsequent drag rewrites the
+  // value within range — same tradeoff as a faceted-search range slider
+  // anywhere else.
+  const statDims: { key: "energy" | "might" | "power"; pick: (p: Printing) => number | null }[] = [
+    { key: "energy", pick: (p) => p.card.energy },
+    { key: "might", pick: (p) => p.card.might },
+    { key: "power", pick: (p) => p.card.power },
+  ];
+  for (const { key, pick } of statDims) {
+    const matched = filterCards(printings, { ...filters, [key]: EMPTY_RANGE }, options);
+    const values = matched.flatMap((p) => {
+      const v = pick(p);
+      return v === null ? [] : [v];
+    });
+    result.ranges[key] = {
+      ...boundsOf(values),
+      hasNullStat: matched.some((p) => pick(p) === null),
+    };
+  }
+  if (options.getPrice) {
+    const matchedForPrice = filterCards(printings, { ...filters, price: EMPTY_RANGE }, options);
+    const priceGetter = options.getPrice;
+    const prices = matchedForPrice.flatMap((p) => {
+      const price = priceGetter(p);
+      return price === undefined ? [] : [price];
+    });
+    result.ranges.price = boundsOf(prices);
   }
   return result;
 }

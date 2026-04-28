@@ -89,7 +89,7 @@ export function FilterPanelContent({
         filterOverrides={filterOverrides}
         filterCounts={filterCounts}
       />
-      <FilterRangeSections availableFilters={availableFilters} />
+      <FilterRangeSections availableFilters={availableFilters} filterCounts={filterCounts} />
     </>
   );
 }
@@ -285,6 +285,7 @@ const HAS_NULL_KEY: Partial<Record<RangeKey, keyof AvailableFilters>> = {
 
 export function FilterRangeSections({
   availableFilters,
+  filterCounts,
 }: Omit<FilterPanelContentProps, "setDisplayLabel">) {
   const { ranges } = useFilterValues();
   const { setRange } = useFilterActions();
@@ -306,9 +307,18 @@ export function FilterRangeSections({
   return (
     <>
       {sections.map(({ key, label, ...rest }) => {
-        const available = availableFilters[key];
+        // Prefer faceted bounds when available — they reflect the subset
+        // matching every other active filter, so the slider track narrows
+        // as the user filters and widens as they unselect.
+        const facetedRange = filterCounts?.ranges[key];
+        const available = facetedRange ?? availableFilters[key];
         const hasNullKey = HAS_NULL_KEY[key];
-        const hasNone = hasNullKey ? (availableFilters[hasNullKey] as boolean) : false;
+        const facetedHasNone =
+          key !== "price" && facetedRange
+            ? (facetedRange as { hasNullStat: boolean }).hasNullStat
+            : undefined;
+        const hasNone =
+          facetedHasNone ?? (hasNullKey ? (availableFilters[hasNullKey] as boolean) : false);
         const show =
           key === "price" ? available.max > 0 : hasNone || available.min !== available.max;
         if (!show) {

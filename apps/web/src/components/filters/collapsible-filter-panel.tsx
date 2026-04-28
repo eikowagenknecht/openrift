@@ -53,7 +53,7 @@ export function CollapsibleFilterPanel({
           />
         </div>
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 lg:grid-cols-4">
-          <FilterRangeSections availableFilters={availableFilters} />
+          <FilterRangeSections availableFilters={availableFilters} filterCounts={filterCounts} />
         </div>
       </CollapsibleContent>
     </Collapsible>

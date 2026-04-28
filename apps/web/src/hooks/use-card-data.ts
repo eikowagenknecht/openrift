@@ -112,6 +112,12 @@ const EMPTY_FILTER_COUNTS: FilterCounts = {
   artVariants: new Map<string, number>(),
   finishes: new Map<string, number>(),
   flags: { signed: 0, promo: 0, banned: 0, errata: 0 },
+  ranges: {
+    energy: { min: 0, max: 0, hasNullStat: false },
+    might: { min: 0, max: 0, hasNullStat: false },
+    power: { min: 0, max: 0, hasNullStat: false },
+    price: { min: 0, max: 0 },
+  },
 };
 
 /**

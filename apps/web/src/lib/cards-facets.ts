@@ -225,6 +225,7 @@ export interface FilterCountsWire {
     // counts, which the SSR layer doesn't have. The live `useCardData`
     // call fills it in after hydration.
   };
+  ranges: FilterCounts["ranges"];
 }
 
 function toWireFilterCounts(counts: FilterCounts): FilterCountsWire {
@@ -243,6 +244,7 @@ function toWireFilterCounts(counts: FilterCounts): FilterCountsWire {
       banned: counts.flags.banned,
       errata: counts.flags.errata,
     },
+    ranges: counts.ranges,
   };
 }
 
@@ -257,6 +259,7 @@ export function fromWireFilterCounts(wire: FilterCountsWire): FilterCounts {
     artVariants: new Map(Object.entries(wire.artVariants)),
     finishes: new Map(Object.entries(wire.finishes)),
     flags: { ...wire.flags },
+    ranges: wire.ranges,
   };
 }
 

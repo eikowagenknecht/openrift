@@ -2215,4 +2215,58 @@ describe("computeFilterCounts", () => {
       expect(counts.flags.owned).toBeUndefined();
     });
   });
+
+  describe("ranges", () => {
+    const rangeSample = [
+      makePrinting({
+        id: "rp1",
+        cardId: "rc1",
+        rarity: "Common",
+        card: { slug: "rc1", energy: 1, might: 2, power: 3 },
+      }),
+      makePrinting({
+        id: "rp2",
+        cardId: "rc2",
+        rarity: "Rare",
+        card: { slug: "rc2", energy: 5, might: 4, power: 7 },
+      }),
+      makePrinting({
+        id: "rp3",
+        cardId: "rc3",
+        rarity: "Rare",
+        card: { slug: "rc3", energy: null, might: null, power: null },
+      }),
+    ];
+
+    it("returns the full bounds when no filters narrow the set", () => {
+      const counts = computeFilterCounts(rangeSample, emptyFilters(), { countBy: "printing" });
+      expect(counts.ranges.energy).toEqual({ min: 1, max: 5, hasNullStat: true });
+      expect(counts.ranges.might).toEqual({ min: 2, max: 4, hasNullStat: true });
+      expect(counts.ranges.power).toEqual({ min: 3, max: 7, hasNullStat: true });
+    });
+
+    it("narrows bounds based on other active filters", () => {
+      const counts = computeFilterCounts(rangeSample, emptyFilters({ rarities: ["Common"] }), {
+        countBy: "printing",
+      });
+      expect(counts.ranges.energy).toEqual({ min: 1, max: 1, hasNullStat: false });
+      expect(counts.ranges.might).toEqual({ min: 2, max: 2, hasNullStat: false });
+    });
+
+    it("ignores its own filter so the slider can still drag outward", () => {
+      // With energy clamped to 1..1, the energy bounds should still reflect
+      // the catalog (1..5) so the user can drag the upper handle out.
+      const counts = computeFilterCounts(
+        rangeSample,
+        emptyFilters({ energy: { min: 1, max: 1 } }),
+        { countBy: "printing" },
+      );
+      expect(counts.ranges.energy).toEqual({ min: 1, max: 5, hasNullStat: true });
+    });
+
+    it("returns 0..0 price bounds when no getPrice resolver is supplied", () => {
+      const counts = computeFilterCounts(rangeSample, emptyFilters(), { countBy: "printing" });
+      expect(counts.ranges.price).toEqual({ min: 0, max: 0 });
+    });
+  });
 });
