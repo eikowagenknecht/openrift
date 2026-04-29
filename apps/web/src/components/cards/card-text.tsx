@@ -134,8 +134,19 @@ function renderTokens(
   return tokens.map((token, i) => {
     switch (token.type) {
       case "glyph": {
+        const energyMatch = /^energy_?(\d+)$/.exec(token.name);
+        if (energyMatch) {
+          return (
+            <span
+              key={`${i}-${token.name}`}
+              aria-label={`energy ${energyMatch[1]}`}
+              className="bg-foreground text-background inline-flex size-4 items-center justify-center rounded-full align-text-bottom text-[0.7em] font-bold not-italic"
+            >
+              {energyMatch[1]}
+            </span>
+          );
+        }
         const monoWhite = token.name === "might" || token.name === "exhaust";
-        const energy = token.name.startsWith("energy");
         return (
           <img
             key={`${i}-${token.name}`}
@@ -144,7 +155,6 @@ function renderTokens(
             className={cn(
               "inline-block size-4 align-text-bottom",
               monoWhite && "brightness-0 dark:invert",
-              energy && "invert dark:invert-0",
             )}
           />
         );
