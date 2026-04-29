@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 
 import { trackEvent } from "@/lib/analytics";
-import { useRequiredUserId } from "@/lib/auth-session";
+import { useUserId } from "@/lib/auth-session";
 import { useCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
 import { withTimeout } from "@/lib/with-timeout";
@@ -113,7 +113,7 @@ async function disposeCopiesApi(body: { copyIds: string[] }, signal: AbortSignal
 }
 
 export function useAddCopies() {
-  const userId = useRequiredUserId();
+  const userId = useUserId();
   const queryClient = useQueryClient();
   const copiesCollection = useCopiesCollection();
 
@@ -131,6 +131,12 @@ export function useAddCopies() {
       // atomically; on failure we remove the temps.
       tempIds?: string[];
     }): Promise<AddCopyResult[]> => {
+      // Hook runs on the public /cards page (via useQuickAddActions ->
+      // useBatchedAddCopies), but the add buttons are gated on isLoggedIn,
+      // so reaching mutationFn without a userId means a UI bug.
+      if (!userId) {
+        throw new Error("Cannot add copies while signed out");
+      }
       const controller = new AbortController();
       const tempIds = body.tempIds ?? [];
       const hasTempIds = tempIds.length > 0;
@@ -179,7 +185,7 @@ export function useAddCopies() {
 }
 
 export function useMoveCopies() {
-  const userId = useRequiredUserId();
+  const userId = useUserId();
   const queryClient = useQueryClient();
   const copiesCollection = useCopiesCollection();
 
@@ -192,7 +198,7 @@ export function useMoveCopies() {
       copyIds: string[];
       toCollectionId: string;
     }) => {
-      if (!copiesCollection) {
+      if (!userId || !copiesCollection) {
         return;
       }
       const collection = copiesCollection;
@@ -329,14 +335,14 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
 }
 
 export function useDisposeCopies() {
-  const userId = useRequiredUserId();
+  const userId = useUserId();
   const queryClient = useQueryClient();
   const copiesCollection = useCopiesCollection();
 
   return useMutation({
     networkMode: "always",
     mutationFn: async ({ copyIds }: { copyIds: string[] }) => {
-      if (!copiesCollection) {
+      if (!userId || !copiesCollection) {
         return;
       }
       const collection = copiesCollection;

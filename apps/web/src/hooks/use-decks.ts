@@ -13,7 +13,7 @@ import type {
 import { useMutation, useQueryClient, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
-import { useRequiredUserId } from "@/lib/auth-session";
+import { useRequiredUserId, useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -450,9 +450,13 @@ const cloneSharedDeckFn = createServerFn({ method: "POST" })
   );
 
 export function useCloneSharedDeck() {
-  const userId = useRequiredUserId();
+  // Hook runs on the public /decks/share/$token route. Logged-out
+  // viewers see a "Sign in to clone" prompt, so the mutate path
+  // shouldn't fire without a userId — but keep the invalidate
+  // conditional so the hook itself never throws.
+  const userId = useUserId();
   return useMutationWithInvalidation<DeckCloneResponse, string>({
     mutationFn: (token) => cloneSharedDeckFn({ data: token }),
-    invalidates: [queryKeys.decks.all(userId)],
+    invalidates: userId ? [queryKeys.decks.all(userId)] : [],
   });
 }
