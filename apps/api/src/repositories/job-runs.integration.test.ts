@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { createDbContext } from "../test/integration-context.js";
@@ -104,6 +105,33 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     const latest = await repo.findLatestForResume("test.kind");
     expect(latest?.id).toBe(b.id);
     expect(latest?.status).toBe("succeeded");
+  });
+
+  it("returns parsed objects from result columns stored as JSONB strings", async () => {
+    // Regression: postgres.js under Bun does not auto-parse jsonb (OID 3802),
+    // and the existing rows were written via JSON.stringify so they're stored
+    // with `jsonb_typeof = 'string'`. The repo must defensively parse on read.
+    const { id } = await repo.start({ kind: "test.kind", trigger: "admin" });
+    // Write the value as a JSON-encoded string directly, bypassing the repo's
+    // own writer, so the column ends up with `jsonb_typeof = 'string'`.
+    const encoded = JSON.stringify({ processed: 5, total: 10, errors: ["a", "b"] });
+    await sql`UPDATE job_runs SET result = ${encoded}::jsonb WHERE id = ${id}`.execute(db);
+
+    expect(await repo.getResult(id)).toEqual({
+      processed: 5,
+      total: 10,
+      errors: ["a", "b"],
+    });
+    const list = await repo.listRecent({ kind: "test.kind" });
+    expect(list[0]?.result).toEqual({ processed: 5, total: 10, errors: ["a", "b"] });
+    const latest = await repo.findLatestForResume("test.kind");
+    expect(latest?.result).toEqual({ processed: 5, total: 10, errors: ["a", "b"] });
+    const perKind = await repo.getLatestPerKind();
+    expect(perKind["test.kind"]?.result).toEqual({
+      processed: 5,
+      total: 10,
+      errors: ["a", "b"],
+    });
   });
 
   it("purgeOlderThan deletes rows whose started_at is before the cutoff", async () => {

@@ -15,6 +15,18 @@ export interface JobRun {
   result: unknown;
 }
 
+/** postgres.js under Bun returns jsonb columns as a JSON-encoded string instead
+ *  of a parsed object (it doesn't register a parser for OID 3802). All existing
+ *  rows in this table were also written via JSON.stringify, so they're stored
+ *  with `jsonb_typeof = 'string'`. Either way, normalise to the parsed value.
+ *  @returns The parsed value, or null if the input was null/undefined. */
+function parseResult(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  return typeof value === "string" ? JSON.parse(value) : value;
+}
+
 /**
  * Repository for tracking background job executions (cron + admin-triggered).
  *
@@ -96,7 +108,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
         .select("result")
         .where("id", "=", id)
         .executeTakeFirst();
-      return row?.result ?? null;
+      return parseResult(row?.result);
     },
 
     /**
@@ -137,14 +149,17 @@ export function jobRunsRepo(db: Kysely<Database>) {
         .orderBy("startedAt", "desc")
         .limit(1)
         .executeTakeFirst();
-      return (row as JobRun | undefined) ?? null;
+      if (!row) {
+        return null;
+      }
+      return { ...row, result: parseResult(row.result) } as JobRun;
     },
 
     /**
      * List the most recent runs, optionally filtered by kind.
      * @returns Rows ordered by started_at descending.
      */
-    listRecent(params: { kind?: string; limit?: number }): Promise<JobRun[]> {
+    async listRecent(params: { kind?: string; limit?: number }): Promise<JobRun[]> {
       let q = db
         .selectFrom("jobRuns")
         .select([
@@ -163,7 +178,8 @@ export function jobRunsRepo(db: Kysely<Database>) {
       if (params.kind !== undefined) {
         q = q.where("kind", "=", params.kind);
       }
-      return q.execute() as Promise<JobRun[]>;
+      const rows = await q.execute();
+      return rows.map((row) => ({ ...row, result: parseResult(row.result) }) as JobRun);
     },
 
     /**
@@ -182,7 +198,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
       `.execute(db);
       const out: Record<string, JobRun> = {};
       for (const row of rows.rows) {
-        out[row.kind] = row;
+        out[row.kind] = { ...row, result: parseResult(row.result) };
       }
       return out;
     },

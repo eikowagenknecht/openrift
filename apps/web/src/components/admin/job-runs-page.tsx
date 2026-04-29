@@ -1,4 +1,4 @@
-import { ChevronDownIcon, ChevronRightIcon, RefreshCwIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, LoaderIcon, RefreshCwIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAdminJobRuns } from "@/hooks/use-job-runs";
+import { useCancelRegenerateImages } from "@/hooks/use-rehost";
 import type { JobRunView } from "@/lib/server-fns/api-types";
+
+/** Job kinds that expose a cancel endpoint. Only resumable jobs that re-read
+ *  `result` between batches can be cancelled mid-run; everything else has no
+ *  way to honour a cancel request, so we don't show a button for it. */
+const CANCELLABLE_KINDS = new Set<string>(["images.regenerate"]);
 
 const ANY = "__any";
 
@@ -194,12 +200,13 @@ export function JobRunsPage() {
             <TableHead className="w-28">Status</TableHead>
             <TableHead className="w-44">Started</TableHead>
             <TableHead className="w-32">Duration</TableHead>
+            <TableHead className="w-28" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {filtered.length === 0 && (
             <TableRow>
-              <TableCell colSpan={6} className="text-muted-foreground h-24 text-center">
+              <TableCell colSpan={7} className="text-muted-foreground h-24 text-center">
                 {runs.length === 0 ? "No job runs yet." : "No runs match the current filters."}
               </TableCell>
             </TableRow>
@@ -234,6 +241,9 @@ function JobRunRow({
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  const cancelRegen = useCancelRegenerateImages();
+  const canCancel = run.status === "running" && CANCELLABLE_KINDS.has(run.kind);
+
   return (
     <>
       <TableRow>
@@ -274,11 +284,23 @@ function JobRunRow({
             formatDuration(run.durationMs)
           )}
         </TableCell>
+        <TableCell className="p-1">
+          {canCancel && (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={cancelRegen.isPending}
+              onClick={() => cancelRegen.mutate()}
+            >
+              {cancelRegen.isPending ? <LoaderIcon className="size-3.5 animate-spin" /> : "Cancel"}
+            </Button>
+          )}
+        </TableCell>
       </TableRow>
       {isOpen && showDetails && (
         <TableRow>
           <TableCell />
-          <TableCell colSpan={5} className="whitespace-normal">
+          <TableCell colSpan={6} className="whitespace-normal">
             {run.errorMessage !== null && (
               <div className="mb-2">
                 <div className="text-muted-foreground uppercase">Error</div>

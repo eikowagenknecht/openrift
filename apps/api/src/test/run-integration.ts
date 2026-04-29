@@ -141,6 +141,7 @@ const PARALLEL_FILES = [
   "src/repositories/admins.integration.test.ts",
   "src/repositories/ignored-candidates.integration.test.ts",
   "src/repositories/health.integration.test.ts",
+  "src/repositories/job-runs.integration.test.ts",
   "src/repositories/catalog.integration.test.ts",
   "src/repositories/sets.integration.test.ts",
   "src/repositories/keywords.integration.test.ts",

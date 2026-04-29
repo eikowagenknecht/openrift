@@ -389,12 +389,25 @@ export const imagesRoute = new OpenAPIHono<{ Variables: Variables }>()
       }
     }
 
-    const kickoff = await runJobAsync({ repos, log }, REGENERATE_IMAGES_KIND, "admin", (runId) =>
-      runRegenerateImagesJob(
-        { io, printingImages: repos.printingImages, jobRuns: repos.jobRuns, log },
-        runId,
-        { resumeFrom, skipExisting: skipExisting ?? false },
-      ),
+    const kickoff = await runJobAsync(
+      { repos, log },
+      REGENERATE_IMAGES_KIND,
+      "admin",
+      (runId) =>
+        runRegenerateImagesJob(
+          { io, printingImages: repos.printingImages, jobRuns: repos.jobRuns, log },
+          runId,
+          { resumeFrom, skipExisting: skipExisting ?? false },
+        ),
+      // Persist the final checkpoint as the run's `result` so the admin UI can
+      // show counts + per-image errors after the job finishes. Without this,
+      // `runJobAsync` would overwrite the per-batch `updateResult` checkpoint
+      // with NULL on success. Drop the per-image `snapshot` since it's only
+      // needed for mid-run resume, and would bloat the row by thousands of
+      // entries.
+      {
+        summarize: ({ snapshot: _snapshot, ...summary }) => summary,
+      },
     );
 
     return c.json(kickoff satisfies RegenerateImagesKickoffResponse);

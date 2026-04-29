@@ -452,16 +452,32 @@ export async function regenerateImagesBatch(
       } catch {
         // Prefix dir is gone entirely — the DB still thinks this image is
         // rehosted. Clean up the stale DB entry so a future rehost-images
-        // run can re-fetch it fresh.
+        // run can re-fetch it fresh. Uploaded images (no originalUrl) can't
+        // be re-fetched, and clearing rehostedUrl on them would violate
+        // `chk_image_files_has_url` — surface a clear error instead.
+        const file = await repo.getImageFileById(img.imageId);
+        if (!file?.originalUrl) {
+          throw new Error(
+            `prefix dir missing and no originalUrl to re-fetch (uploaded image); leaving DB unchanged`,
+          );
+        }
         await repo.updateRehostedUrl(img.imageId, null);
         throw new Error(`prefix dir missing; cleared stale rehostedUrl`);
       }
       const origFile = files.find((f) => f.startsWith(`${img.imageId}-orig.`));
       if (!origFile) {
         // Variants exist but the -orig archive is gone — we can't regenerate
-        // from local files, and regenerate is a local-only operation. Delete
-        // the dangling variants and clear rehostedUrl in the DB; the next
-        // rehost-images run will re-download and rebuild everything.
+        // from local files, and regenerate is a local-only operation. The
+        // next rehost-images run will re-download and rebuild everything,
+        // but only if there's an originalUrl to re-fetch from. Uploaded
+        // images (no originalUrl) can't be recovered, and clearing
+        // rehostedUrl on them violates `chk_image_files_has_url`.
+        const file = await repo.getImageFileById(img.imageId);
+        if (!file?.originalUrl) {
+          throw new Error(
+            `no -orig file on disk and no originalUrl to re-fetch (uploaded image); leaving DB unchanged`,
+          );
+        }
         await deleteRehostFiles(io, img.rehostedUrl);
         await repo.updateRehostedUrl(img.imageId, null);
         throw new Error(`no -orig file on disk; cleared stale rehostedUrl and removed variants`);

@@ -283,6 +283,7 @@ export function useCancelRegenerateImages() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.admin.jobRunsByKind("images.regenerate"),
       });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.jobRuns });
     },
   });
 }

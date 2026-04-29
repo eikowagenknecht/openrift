@@ -94,9 +94,18 @@ const mockIo: Io = {
  * @returns Mock repo object.
  */
 function makeMockRepo(
-  opts: { selectResult?: any; updateResult?: any; rehosted?: { imageId: string }[] } = {},
+  opts: {
+    selectResult?: any;
+    updateResult?: any;
+    rehosted?: { imageId: string }[];
+    /** When set, getImageFileById returns this row regardless of id. Default
+     *  returns a row with both URLs set so existing tests keep their
+     *  "rehosted url cleared" behavior. */
+    imageFile?: { id: string; originalUrl: string | null; rehostedUrl: string | null } | null;
+  } = {},
 ) {
   const updateRehostedUrlFn = vi.fn(() => Promise.resolve());
+  const defaultFile = { id: "default", originalUrl: "https://x.test/a.png", rehostedUrl: null };
   return {
     listUnrehosted: vi.fn(() => Promise.resolve(opts.selectResult ?? [])),
     updateRehostedUrl: updateRehostedUrlFn,
@@ -108,6 +117,9 @@ function makeMockRepo(
     allRehostedUrls: vi.fn(() => Promise.resolve([])),
     getRotationsByIds: vi.fn(() => Promise.resolve(new Map())),
     listAllRehosted: vi.fn(() => Promise.resolve(opts.rehosted ?? [])),
+    getImageFileById: vi.fn(() =>
+      Promise.resolve(opts.imageFile === undefined ? defaultFile : opts.imageFile),
+    ),
   } as any;
 }
 
@@ -597,6 +609,33 @@ describe("regenerateImagesBatch", () => {
     expect(result.errors[0]).toContain("cleared stale rehostedUrl");
     expect(mockUnlink).toHaveBeenCalled();
     expect(repo.updateRehostedUrl).toHaveBeenCalledWith("card-001", null);
+  });
+
+  it("does not clear rehostedUrl for uploaded images (no originalUrl) when -orig is missing", async () => {
+    // Regression: previously called `updateRehostedUrl(id, null)` regardless of
+    // originalUrl, which violated `chk_image_files_has_url` for uploaded images
+    // (no originalUrl set) and surfaced as a Postgres error in admin UI.
+    const repo = makeMockRepo({
+      imageFile: { id: "card-001", originalUrl: null, rehostedUrl: "/some/url" },
+    });
+    mockReaddir.mockImplementation(async () => ["card-001-400w.webp"]);
+    const result = await regenerateImagesBatch(mockIo, repo, [snap("card-001")]);
+    expect(result.failed).toBe(1);
+    expect(result.regenerated).toBe(0);
+    expect(result.errors[0]).toContain("uploaded image");
+    expect(repo.updateRehostedUrl).not.toHaveBeenCalled();
+    expect(mockUnlink).not.toHaveBeenCalled();
+  });
+
+  it("does not clear rehostedUrl for uploaded images when prefix dir is missing", async () => {
+    const repo = makeMockRepo({
+      imageFile: { id: "card-001", originalUrl: null, rehostedUrl: "/some/url" },
+    });
+    mockReaddir.mockRejectedValue(new Error("ENOENT"));
+    const result = await regenerateImagesBatch(mockIo, repo, [snap("card-001")]);
+    expect(result.failed).toBe(1);
+    expect(result.errors[0]).toContain("uploaded image");
+    expect(repo.updateRehostedUrl).not.toHaveBeenCalled();
   });
 
   it("counts readFile failures", async () => {
