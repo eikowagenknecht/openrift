@@ -55,7 +55,7 @@ import { useIsAdmin } from "@/hooks/use-admin";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { clearUserScopedCache } from "@/lib/auth-cache";
 import { signOut } from "@/lib/auth-client";
-import { useSession } from "@/lib/auth-session";
+import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { useGravatarUrl } from "@/lib/gravatar";
 import { getUserInitials } from "@/lib/user-initials";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
@@ -224,12 +224,20 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
 
   const handleSignOut = async () => {
     await signOut();
-    await clearUserScopedCache(queryClient);
+    // Flip the cached session to null synchronously so live queries gated on
+    // `enabled: isLoggedIn` (e.g. useOwnedCount on the public /cards page)
+    // see the change on their next render and detach. Then await navigation
+    // so authenticated route subscribers (collection grid, sidebar, owned-
+    // count chips) unmount during the route transition. Only then run
+    // clearUserScopedCache — its collection.cleanup() puts any still-attached
+    // live query into error state, which is what was flooding the console.
+    queryClient.setQueryData(sessionQueryOptions().queryKey, null);
     useDisplayStore.getState().reset();
     useThemeStore.getState().reset();
     useAddModeStore.getState().reset();
     useDeckBuilderUiStore.getState().reset();
-    void router.navigate({ to: "/cards", search: {} });
+    await router.navigate({ to: "/cards", search: {} });
+    await clearUserScopedCache(queryClient);
   };
 
   return (

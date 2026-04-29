@@ -14,6 +14,16 @@ import { sessionQueryOptions } from "./auth-session";
 // useLiveQuery subscribers, so without an explicit cleanup() the sidebar and
 // "all cards" view keep rendering the previous user's copies until reload.
 //
+// INVARIANT: callers must ensure no useLiveQuery is subscribed to a user-
+// scoped collection when this runs. cleanup() transitions the collection to
+// `cleaned-up` status, which puts every attached live query into error state
+// and logs `[Live Query Error] Source collection 'copies' was manually
+// cleaned up while live query 'live-query-N' depends on it.` per subscriber.
+// Sign-in / verify-email callers run from auth pages with no subscribers, so
+// they're safe. Sign-out / account-delete callers must first set the cached
+// session to null AND await navigation to a public route — see the handlers
+// in header.tsx and danger-zone-section.tsx for the pattern.
+//
 // The collection cleanup helpers are loaded lazily so anonymous visitors —
 // whose pages never call this function — don't pay for `@tanstack/react-db`
 // in the initial bundle.
