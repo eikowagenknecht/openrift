@@ -69,7 +69,6 @@ function ImportExportPage() {
     return (
       <div className="space-y-10">
         {topBarPortal}
-        <ExportSection />
         <InputStep
           rawText={flow.rawText}
           fallbackLanguage={flow.fallbackLanguage}
@@ -80,6 +79,7 @@ function ImportExportPage() {
           fileRef={flow.fileRef}
           parseErrors={flow.parseErrors}
         />
+        <ExportSection />
       </div>
     );
   }
