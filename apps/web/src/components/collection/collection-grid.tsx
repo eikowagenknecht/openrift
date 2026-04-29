@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import {
   CheckIcon,
   CheckSquareIcon,
+  DownloadIcon,
   EllipsisVerticalIcon,
   LibraryBigIcon,
   PackageIcon,
@@ -44,7 +45,7 @@ import { PageTopBar, PageTopBarActions, PageTopBarTitle } from "@/components/lay
 import { Pane } from "@/components/layout/panes";
 import { SelectionDetailPane } from "@/components/selection-detail-pane";
 import { SelectionMobileOverlay } from "@/components/selection-mobile-overlay";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -910,28 +911,24 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         >
           Learn about cards, printings &amp; copies
         </Link>
-        {addTarget && (
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setQuickAddOpen(true)}>
-              <ZapIcon className="mr-1 size-3.5" />
-              Quick add
-            </Button>
-            <Button onClick={startBrowsing}>
-              <LibraryBigIcon className="mr-1 size-3.5" />
-              Browse & add
-            </Button>
-          </div>
-        )}
-        <p className="text-center">
-          Coming from another tool?{" "}
-          <Link
-            to="/collections/import"
-            className="text-muted-foreground hover:text-foreground underline"
-          >
-            Import your cards
+        <div className="flex flex-wrap justify-center gap-2">
+          {addTarget && (
+            <>
+              <Button variant="outline" onClick={() => setQuickAddOpen(true)}>
+                <ZapIcon className="mr-1 size-3.5" />
+                Quick add
+              </Button>
+              <Button onClick={startBrowsing}>
+                <LibraryBigIcon className="mr-1 size-3.5" />
+                Browse & add
+              </Button>
+            </>
+          )}
+          <Link to="/collections/import" className={buttonVariants({ variant: "outline" })}>
+            <DownloadIcon className="mr-1 size-3.5" />
+            Import from another tool
           </Link>
-          .
-        </p>
+        </div>
         {addTarget && (
           <QuickAddPalette
             open={quickAddOpen}

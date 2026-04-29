@@ -205,12 +205,19 @@ export function DeckListPage() {
       </div>
 
       {deckItems.length === 0 ? (
-        <div className="text-muted-foreground flex flex-col items-center gap-2 py-16 text-center">
+        <div className="text-muted-foreground flex flex-col items-center gap-3 py-16 text-center">
           <SwordsIcon className="size-10 opacity-50" />
           <p>No decks yet</p>
-          <Button variant="outline" onClick={() => setCreateOpen(true)}>
-            Create your first deck
-          </Button>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button onClick={() => setCreateOpen(true)}>
+              <PlusIcon className="size-4" />
+              Create your first deck
+            </Button>
+            <Link to="/decks/import" className={buttonVariants({ variant: "outline" })}>
+              <DownloadIcon className="size-4" />
+              Import a deck
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-4">

@@ -2,6 +2,8 @@
 
 ## 2026-04-29
 
+- feat: After signing up, you now land on your Collections page with clear next steps, instead of the public card catalog
+- feat: The empty Collections and Decks pages now offer an Import button alongside the create options, so you can pull in your existing data from another tool in one click
 - fix: The OpenRift logo on the homepage, header, and login flows no longer shows a white square around it on high-resolution phone screens
 
 ## 2026-04-28
