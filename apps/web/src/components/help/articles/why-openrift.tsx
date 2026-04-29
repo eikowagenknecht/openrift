@@ -129,7 +129,7 @@ export default function WhyOpenRiftArticle() {
           I&apos;m not sure.
         </p>
         <p className="text-muted-foreground mb-3">
-          Last verified on 2026-04-19. When you&apos;re reading this, it&apos;s probably already
+          Last verified on 2026-04-29. When you&apos;re reading this, it&apos;s probably already
           slightly out of date, as counts and features change regularly.
         </p>
 
@@ -311,10 +311,10 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "English printings tracked",
-    values: [1504, 1365, 1085, 1085, 1032],
+    values: [1559, 1365, 1085, 1085, 1032],
     detail: {
       general:
-        "Count of English-language printings in each site's catalog as of 2026-04-14. Covers all sets released to date; higher is more complete.",
+        "Count of English-language printings in each site's catalog as of 2026-04-29. Covers all sets released to date; higher is more complete.",
       riftmana:
         "Common/uncommon normal and foil variants are merged into single entries, so the effective count is higher.",
     },
@@ -322,10 +322,10 @@ const COMPARISON_ITEMS: ComparisonItem[] = [
   {
     kind: "row",
     feature: "Multi-language printings",
-    values: [1411, "partial", "partial", "partial", "no"],
+    values: [1459, "partial", "partial", "partial", "no"],
     detail: {
-      general: "Printings in languages other than English tracked by each site, as of 2026-04-14.",
-      openrift: "1410 Chinese printings plus 1 French printing.",
+      general: "Printings in languages other than English tracked by each site, as of 2026-04-29.",
+      openrift: "1458 Chinese printings plus 1 French printing.",
       piltoverArchive: "A few Chinese printings available, like the ARC set.",
       riftmana: "Chinese printings are available in collections but not in the card browser.",
       riftboundGg: "A few Chinese printings available, like the ARC set.",
