@@ -45,40 +45,62 @@ describe("clearUserScopedCache", () => {
     expect(cleanupSpy).toHaveBeenCalledTimes(1);
   });
 
-  // Regression: signing out used to spam `[Live Query Error] Source
-  // collection 'copies' was manually cleaned up while live query
+  // Regression: signing out flooded the console with `[Live Query Error]
+  // Source collection 'copies' was manually cleaned up while live query
   // 'live-query-N' depends on it.` once per mounted useLiveQuery (collection
-  // grid, sidebar, owned-count chips, etc.). The handler now flips the
-  // session and awaits navigation before invoking clearUserScopedCache, so
-  // every live query has unsubscribed by the time cleanup() runs. This test
-  // pins the contract: when callers respect the invariant, cleanup is silent.
-  it("does not fire `[Live Query Error]` warnings when no live query is subscribed", async () => {
+  // grid, sidebar, owned-count chips, etc.). Most of those hooks DON'T gate
+  // on session, so they only detach when the route unmounts — and `await
+  // router.navigate(...)` resolves before React commits the unmount, leaving
+  // cleanup() to find them attached. The fix: cleanup waits for
+  // subscriberCount to drop before invoking collection.cleanup().
+  it("waits for live-query subscribers to detach before calling collection.cleanup()", async () => {
     const queryClient = new QueryClient();
-    // Prime the underlying ['copies'] query so the collection's queryFn
-    // resolves from cache instead of hitting /api/v1/copies (no fetch in the
-    // jsdom env).
     queryClient.setQueryData(queryKeys.copies.all, { items: [], nextCursor: null });
     const copies = getCopiesCollection(queryClient);
 
-    // A live query that subscribed but already unmounted — mimics a sidebar
-    // or grid that was active before the route transition and has since
-    // detached.
     const liveQuery = createLiveQueryCollection({
       query: (q) => q.from({ copy: copies }),
       startSync: true,
     });
     const subscription = liveQuery.subscribeChanges(() => {});
-    // Wait until the live query has wired up its status:change listener on
-    // the source — this is what fires the [Live Query Error] when the
-    // source transitions to `cleaned-up` while a live query is depending on
-    // it. Subscriber count > 0 is a proxy for "listener attached".
     await vi.waitFor(() => expect(copies.subscriberCount).toBeGreaterThan(0));
+
+    const cleanupSpy = vi.spyOn(copies, "cleanup");
+    const clearPromise = clearUserScopedCache(queryClient);
+
+    // Cleanup must not run while subscribers are still attached.
+    // oxlint-disable-next-line promise/avoid-new no-promise-executor-return -- need to await a fixed delay to verify cleanup hasn't fired yet
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(cleanupSpy).not.toHaveBeenCalled();
+
+    // Mimic React committing the route unmount: the live query detaches.
     subscription.unsubscribe();
     await liveQuery.cleanup();
 
+    await clearPromise;
+    expect(cleanupSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fire `[Live Query Error]` warnings when the route unmounts before cleanup completes", async () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(queryKeys.copies.all, { items: [], nextCursor: null });
+    const copies = getCopiesCollection(queryClient);
+
+    const liveQuery = createLiveQueryCollection({
+      query: (q) => q.from({ copy: copies }),
+      startSync: true,
+    });
+    const subscription = liveQuery.subscribeChanges(() => {});
+    await vi.waitFor(() => expect(copies.subscriberCount).toBeGreaterThan(0));
+
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      await clearUserScopedCache(queryClient);
+      const clearPromise = clearUserScopedCache(queryClient);
+      // Detach the live query mid-flight, like the route transition would.
+      subscription.unsubscribe();
+      await liveQuery.cleanup();
+      await clearPromise;
+
       const liveQueryErrors = errorSpy.mock.calls.filter(
         (call) => typeof call[0] === "string" && call[0].includes("[Live Query Error]"),
       );
@@ -96,7 +118,6 @@ describe("clearUserScopedCache", () => {
       .mockResolvedValueOnce({ user: { id: "user-a" } })
       .mockResolvedValueOnce({ user: { id: "user-b" } });
 
-    // Simulate a mounted useSession() observer.
     const observer = new QueryObserver(queryClient, {
       queryKey: sessionKey,
       queryFn,

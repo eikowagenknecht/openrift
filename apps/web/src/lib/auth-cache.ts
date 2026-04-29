@@ -3,40 +3,42 @@ import type { QueryClient } from "@tanstack/react-query";
 import { sessionQueryOptions } from "./auth-session";
 
 // Call whenever the authenticated user changes (sign in, sign out, account
-// deletion). Remove every non-session query so the new user can't see the
-// previous user's cached collections, copies, decks, etc. (most have a
-// staleTime > 0). Then reset the session query so active useSession observers
-// refetch — queryClient.clear() removes the query without triggering a refetch,
-// leaving the header stuck on the old auth state until a full reload.
+// deletion). Drops every non-session query so the prior user's cached
+// collections / copies / decks can't survive across the boundary, tears down
+// the user-scoped TanStack DB collections so their in-memory rows don't
+// leak through useLiveQuery, and refetches the session query so active
+// useSession observers see the new auth state.
 //
-// TanStack DB collections are also torn down: removeQueries clears the React
-// Query cache but a Collection keeps its own copy of the rows and active
-// useLiveQuery subscribers, so without an explicit cleanup() the sidebar and
-// "all cards" view keep rendering the previous user's copies until reload.
+// Sign-out callers MUST `await router.navigate(...)` to a public route
+// before invoking this — the user-scoped useLiveQuery hooks (collection
+// grid, sidebar, owned-count chips, dispose picker) live on authenticated
+// routes and only detach when the route unmounts. The cleanup helpers
+// internally wait for subscriberCount to drop to 0 before calling
+// collection.cleanup() (which transitions attached live queries to error
+// state and floods the console with [Live Query Error] warnings) — but
+// they need the route to actually start unmounting first.
 //
-// INVARIANT: callers must ensure no useLiveQuery is subscribed to a user-
-// scoped collection when this runs. cleanup() transitions the collection to
-// `cleaned-up` status, which puts every attached live query into error state
-// and logs `[Live Query Error] Source collection 'copies' was manually
-// cleaned up while live query 'live-query-N' depends on it.` per subscriber.
-// Sign-in / verify-email callers run from auth pages with no subscribers, so
-// they're safe. Sign-out / account-delete callers must first set the cached
-// session to null AND await navigation to a public route — see the handlers
-// in header.tsx and danger-zone-section.tsx for the pattern.
+// Sign-in callers run from public auth pages (/login, /verify-email) where
+// no user-scoped live query is mounted, so the wait resolves immediately.
 //
 // The collection cleanup helpers are loaded lazily so anonymous visitors —
 // whose pages never call this function — don't pay for `@tanstack/react-db`
 // in the initial bundle.
-export async function clearUserScopedCache(queryClient: QueryClient) {
+export async function clearUserScopedCache(queryClient: QueryClient): Promise<void> {
   const sessionKey = sessionQueryOptions().queryKey;
+  // Sync flip session to null so useSession() observers re-render as logged
+  // out immediately. resetQueries below triggers a refetch — for sign-out
+  // it returns null again (cookie is gone); for sign-in it fetches the new
+  // user, briefly overwriting this null.
+  queryClient.setQueryData(sessionKey, null);
+  queryClient.removeQueries({
+    predicate: (query) => query.queryKey[0] !== sessionKey[0],
+  });
   const [{ cleanupCopiesCollection }, { cleanupDeckBuilderCollections }] = await Promise.all([
     import("./copies-collection"),
     import("./deck-builder-collection"),
   ]);
-  cleanupCopiesCollection(queryClient);
-  cleanupDeckBuilderCollections(queryClient);
-  queryClient.removeQueries({
-    predicate: (query) => query.queryKey[0] !== sessionKey[0],
-  });
+  await cleanupCopiesCollection(queryClient);
+  await cleanupDeckBuilderCollections(queryClient);
   void queryClient.resetQueries({ queryKey: sessionKey });
 }

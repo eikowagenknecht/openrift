@@ -61,10 +61,50 @@ export function getCopiesCollection(
 // the collection itself is told to drop them. cleanup() stops sync and clears
 // data; the next subscriber auto-restarts it via the queryFn against the new
 // session.
-export function cleanupCopiesCollection(queryClient: QueryClient): void {
+//
+// We wait for subscribers to detach before invoking cleanup(): on sign-out
+// the caller has already awaited router.navigate(...) to a public route, but
+// router.navigate's promise resolves before React commits the unmount of the
+// authenticated route. Calling cleanup() while live queries are still
+// attached transitions every subscriber to error state and floods the
+// console with `[Live Query Error] Source collection 'copies' was manually
+// cleaned up while live query 'live-query-N' depends on it.` The wait
+// covers that React-commit gap.
+export async function cleanupCopiesCollection(queryClient: QueryClient): Promise<void> {
   const existing = cache.get(queryClient);
   if (!existing) {
     return;
   }
-  void existing.cleanup();
+  await waitForNoSubscribers(existing);
+  await existing.cleanup();
+}
+
+const SUBSCRIBER_DETACH_TIMEOUT_MS = 1000;
+
+/**
+ * Poll subscriberCount until it reaches 0 or the timeout elapses. Used to
+ * defer `collection.cleanup()` until React has finished unmounting the
+ * authenticated route's useLiveQuery hooks.
+ *
+ * If the timeout expires we proceed with cleanup anyway — better to log the
+ * spam than to hang the sign-out flow on a wedged subscriber.
+ */
+async function waitForNoSubscribers(
+  collection: { subscriberCount: number },
+  maxMs = SUBSCRIBER_DETACH_TIMEOUT_MS,
+): Promise<void> {
+  if (collection.subscriberCount === 0) {
+    return;
+  }
+  const deadline = Date.now() + maxMs;
+  while (collection.subscriberCount > 0 && Date.now() < deadline) {
+    // oxlint-disable-next-line promise/avoid-new -- need to wrap rAF/setTimeout in a promise to await a paint frame
+    await new Promise<void>((resolve) => {
+      if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(() => resolve());
+      } else {
+        setTimeout(resolve, 16);
+      }
+    });
+  }
 }

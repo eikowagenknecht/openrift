@@ -17,7 +17,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { clearUserScopedCache } from "@/lib/auth-cache";
 import { authClient } from "@/lib/auth-client";
-import { sessionQueryOptions } from "@/lib/auth-session";
 
 export function DangerZoneSection() {
   const [open, setOpen] = useState(false);
@@ -40,10 +39,9 @@ export function DangerZoneSection() {
       setError(deleteError.message ?? "Failed to delete account.");
       return;
     }
-    // Flip the cached session synchronously and navigate before cleanup so
-    // any active live queries unmount first; otherwise cleanup() would put
-    // them into error state. Mirrors the sign-out flow in header.tsx.
-    queryClient.setQueryData(sessionQueryOptions().queryKey, null);
+    // Navigate first so authenticated route subscribers unmount before
+    // clearUserScopedCache tears down the collections. See header.tsx
+    // handleSignOut for the rationale.
     await router.navigate({ to: "/" });
     await clearUserScopedCache(queryClient);
   }

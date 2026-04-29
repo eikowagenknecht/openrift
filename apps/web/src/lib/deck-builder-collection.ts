@@ -269,7 +269,11 @@ export function hydrateDeckDraft(
 // Drafts are LocalOnly (no server sync) but they still hold the previous
 // user's in-flight edits and pending save timers in memory. Drop the entire
 // drafts map; the next deck-builder mount rebuilds entries from server state.
-export function cleanupDeckBuilderCollections(queryClient: QueryClient): void {
+//
+// Same React-commit-gap concern as cleanupCopiesCollection: wait for live-
+// query subscribers to detach before calling collection.cleanup() so we
+// don't transition active subscribers to error state.
+export async function cleanupDeckBuilderCollections(queryClient: QueryClient): Promise<void> {
   const drafts = cache.get(queryClient);
   if (!drafts) {
     return;
@@ -281,9 +285,32 @@ export function cleanupDeckBuilderCollections(queryClient: QueryClient): void {
     }
     entry.saveController?.abort();
     entry.saveController = null;
-    void entry.collection.cleanup();
+    await waitForNoSubscribers(entry.collection);
+    await entry.collection.cleanup();
   }
   cache.delete(queryClient);
+}
+
+const SUBSCRIBER_DETACH_TIMEOUT_MS = 1000;
+
+async function waitForNoSubscribers(
+  collection: { subscriberCount: number },
+  maxMs = SUBSCRIBER_DETACH_TIMEOUT_MS,
+): Promise<void> {
+  if (collection.subscriberCount === 0) {
+    return;
+  }
+  const deadline = Date.now() + maxMs;
+  while (collection.subscriberCount > 0 && Date.now() < deadline) {
+    // oxlint-disable-next-line promise/avoid-new -- need to wrap rAF/setTimeout in a promise to await a paint frame
+    await new Promise<void>((resolve) => {
+      if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(() => resolve());
+      } else {
+        setTimeout(resolve, 16);
+      }
+    });
+  }
 }
 
 export function useDeckSaveStatus(queryClient: QueryClient, deckId: string): DeckSaveStatus {
