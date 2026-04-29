@@ -40,6 +40,7 @@ import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useImportFlow } from "@/hooks/use-import-flow";
+import { useRequiredUserId } from "@/lib/auth-session";
 import { copiesQueryOptions } from "@/lib/copies-query";
 import { downloadCSV, generateExportCSV } from "@/lib/csv-export";
 import type { MatchStatus, MatchedEntry } from "@/lib/import-matcher";
@@ -118,12 +119,13 @@ function ImportExportPage() {
 // ---------------------------------------------------------------------------
 
 function ExportSection() {
+  const userId = useRequiredUserId();
   const { data: collections } = useCollections();
   const { allPrintings } = useCards();
   const [exportCollectionId, setExportCollectionId] = useState<string>("__all__");
 
   const queryCollectionId = exportCollectionId === "__all__" ? undefined : exportCollectionId;
-  const { data: copies, isLoading } = useQuery(copiesQueryOptions(queryCollectionId));
+  const { data: copies, isLoading } = useQuery(copiesQueryOptions(userId, queryCollectionId));
 
   const handleExport = () => {
     if (!copies) {

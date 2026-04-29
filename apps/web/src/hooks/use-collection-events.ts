@@ -2,6 +2,7 @@ import type { CollectionEventListResponse } from "@openrift/shared";
 import { infiniteQueryOptions, useSuspenseInfiniteQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -22,16 +23,19 @@ const fetchCollectionEventsFn = createServerFn({ method: "GET" })
     });
   });
 
-export const collectionEventsQueryOptions = infiniteQueryOptions({
-  queryKey: queryKeys.collectionEvents.all,
-  queryFn: ({ pageParam }) =>
-    fetchCollectionEventsFn({
-      data: { cursor: pageParam },
-    }) as Promise<CollectionEventListResponse>,
-  initialPageParam: undefined as string | undefined,
-  getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-});
+export function collectionEventsQueryOptions(userId: string) {
+  return infiniteQueryOptions({
+    queryKey: queryKeys.collectionEvents.all(userId),
+    queryFn: ({ pageParam }): Promise<CollectionEventListResponse> =>
+      fetchCollectionEventsFn({
+        data: { cursor: pageParam },
+      }) as Promise<CollectionEventListResponse>,
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage: CollectionEventListResponse) => lastPage.nextCursor ?? undefined,
+  });
+}
 
 export function useCollectionEvents() {
-  return useSuspenseInfiniteQuery(collectionEventsQueryOptions);
+  const userId = useRequiredUserId();
+  return useSuspenseInfiniteQuery(collectionEventsQueryOptions(userId));
 }

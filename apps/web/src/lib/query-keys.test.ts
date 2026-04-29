@@ -20,16 +20,24 @@ describe("queryKeys", () => {
     expect(queryKeys.catalog.all).toEqual(["catalog"]);
   });
 
-  it("collections.all", () => {
-    expect(queryKeys.collections.all).toEqual(["collections"]);
+  it("collections.all keys per user", () => {
+    expect(queryKeys.collections.all("user-1")).toEqual(["collections", "user-1"]);
   });
 
-  it("copies.all", () => {
-    expect(queryKeys.copies.all).toEqual(["copies"]);
+  it("copies.all keys per user", () => {
+    expect(queryKeys.copies.all("user-1")).toEqual(["copies", "user-1"]);
   });
 
-  it("copies.byCollection returns tuple with id", () => {
-    expect(queryKeys.copies.byCollection("abc")).toEqual(["copies", "abc"]);
+  it("copies.byCollection keys per (user, collection)", () => {
+    expect(queryKeys.copies.byCollection("user-1", "abc")).toEqual(["copies", "user-1", "abc"]);
+  });
+
+  it("decks.all keys per user", () => {
+    expect(queryKeys.decks.all("user-1")).toEqual(["decks", "user-1"]);
+  });
+
+  it("decks.detail keys per (user, deck)", () => {
+    expect(queryKeys.decks.detail("user-1", "deck-1")).toEqual(["decks", "user-1", "deck-1"]);
   });
 
   it("ownedCount.all", () => {

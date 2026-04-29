@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_app/_authenticated/collections/")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Collections", noIndex: true }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(collectionsQueryOptions);
+    await context.queryClient.ensureQueryData(collectionsQueryOptions(context.userId));
   },
   pendingComponent: CollectionPending,
   errorComponent: RouteErrorFallback,

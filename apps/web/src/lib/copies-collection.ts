@@ -1,39 +1,54 @@
-// Copies collection: all of a user's copies, keyed by copy id. Per-collection
+// Copies collection: all of one user's copies, keyed by copy id. Per-collection
 // views are live-query filters on `collectionId`, not separate collections.
 //
-// Bound to the router's QueryClient via a per-client WeakMap so SSR per-request
-// isolation holds (copies are user-scoped — cross-request leakage would be a
-// security bug, unlike the public catalog).
+// Collection identity is tied to (queryClient, userId): different users get
+// different collection instances, segregating data by construction. On a user
+// change the previous entry is evicted from the cache and `markOrphaned`
+// instruments it so we can verify subscribers detach. We never call
+// `cleanup()` ourselves — TanStack DB's auto-GC fires it once subscriberCount
+// hits 0, by which point no live query is attached, so the cleanup is silent.
 
 import type { CopyResponse } from "@openrift/shared";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import type { Collection } from "@tanstack/react-db";
 import { createCollection } from "@tanstack/react-db";
+import { useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 
+import { useSession } from "@/lib/auth-session";
+import { markOrphaned } from "@/lib/collection-cleanup";
 import { copiesQueryOptions } from "@/lib/copies-query";
 
-const cache = new WeakMap<QueryClient, Collection<CopyResponse, string | number>>();
+interface CacheEntry {
+  userId: string;
+  collection: Collection<CopyResponse, string | number>;
+}
+
+const cache = new WeakMap<QueryClient, CacheEntry>();
 
 export function getCopiesCollection(
   queryClient: QueryClient,
+  userId: string,
 ): Collection<CopyResponse, string | number> {
   const existing = cache.get(queryClient);
+  if (existing && existing.userId === userId) {
+    return existing.collection;
+  }
   if (existing) {
-    return existing;
+    markOrphaned(existing.collection, `copies:${existing.userId}`);
   }
 
-  const options = copiesQueryOptions();
+  const options = copiesQueryOptions(userId);
   const collection = createCollection(
     queryCollectionOptions<CopyResponse>({
-      id: "copies",
+      id: `copies:${userId}`,
       queryClient,
-      // Collection uses its own queryKey because QueryCollection stores an
-      // array at this key, while copiesQueryOptions stores a CopyListResponse
-      // object (with .items) at queryKeys.copies.all. Sharing the key
-      // confuses the shape-checker. The fetch is still deduped across both
-      // via ensureQueryData on the public key below.
-      queryKey: ["copies-collection"],
+      // Per-user queryKey so user A's copies cache and user B's never share
+      // a slot. Distinct from copiesQueryOptions' queryKey: this one stores
+      // an array (what QueryCollection expects), the other stores the full
+      // CopyListResponse object. The fetch is deduped via fetchQuery below.
+      queryKey: ["copies-collection", userId],
       queryFn: async () => {
         // fetchQuery respects staleTime: returns cached data if fresh, but
         // refetches from the server if stale. ensureQueryData (what we used
@@ -51,60 +66,26 @@ export function getCopiesCollection(
     }),
   );
 
-  cache.set(queryClient, collection);
+  cache.set(queryClient, { userId, collection });
   return collection;
 }
 
-// Tear down the cached copies collection on auth changes (sign in / out).
-// removeQueries on the underlying queryKey doesn't reach into the collection's
-// own state — active live queries keep showing the previous user's rows until
-// the collection itself is told to drop them. cleanup() stops sync and clears
-// data; the next subscriber auto-restarts it via the queryFn against the new
-// session.
-//
-// We wait for subscribers to detach before invoking cleanup(): on sign-out
-// the caller has already awaited router.navigate(...) to a public route, but
-// router.navigate's promise resolves before React commits the unmount of the
-// authenticated route. Calling cleanup() while live queries are still
-// attached transitions every subscriber to error state and floods the
-// console with `[Live Query Error] Source collection 'copies' was manually
-// cleaned up while live query 'live-query-N' depends on it.` The wait
-// covers that React-commit gap.
-export async function cleanupCopiesCollection(queryClient: QueryClient): Promise<void> {
-  const existing = cache.get(queryClient);
-  if (!existing) {
-    return;
-  }
-  await waitForNoSubscribers(existing);
-  await existing.cleanup();
-}
-
-const SUBSCRIBER_DETACH_TIMEOUT_MS = 1000;
-
 /**
- * Poll subscriberCount until it reaches 0 or the timeout elapses. Used to
- * defer `collection.cleanup()` until React has finished unmounting the
- * authenticated route's useLiveQuery hooks.
+ * Hook variant: derives the active userId from the session and returns the
+ * current user's copies collection, or null when no one is signed in.
  *
- * If the timeout expires we proceed with cleanup anyway — better to log the
- * spam than to hang the sign-out flow on a wedged subscriber.
+ * Live-query consumers should pass the result into the live-query body and
+ * include it in their dependency array — when the collection identity
+ * changes (sign-in / sign-out / verify-email), the live query re-subscribes.
+ *
+ * @returns The current user's copies collection, or null when signed out.
  */
-async function waitForNoSubscribers(
-  collection: { subscriberCount: number },
-  maxMs = SUBSCRIBER_DETACH_TIMEOUT_MS,
-): Promise<void> {
-  if (collection.subscriberCount === 0) {
-    return;
-  }
-  const deadline = Date.now() + maxMs;
-  while (collection.subscriberCount > 0 && Date.now() < deadline) {
-    // oxlint-disable-next-line promise/avoid-new -- need to wrap rAF/setTimeout in a promise to await a paint frame
-    await new Promise<void>((resolve) => {
-      if (typeof requestAnimationFrame === "function") {
-        requestAnimationFrame(() => resolve());
-      } else {
-        setTimeout(resolve, 16);
-      }
-    });
-  }
+export function useCopiesCollection(): Collection<CopyResponse, string | number> | null {
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+  const userId = session?.user?.id ?? null;
+  return useMemo(
+    () => (userId ? getCopiesCollection(queryClient, userId) : null),
+    [queryClient, userId],
+  );
 }

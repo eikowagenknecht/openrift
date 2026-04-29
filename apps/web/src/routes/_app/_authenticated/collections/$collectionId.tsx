@@ -10,7 +10,9 @@ export const Route = createFileRoute("/_app/_authenticated/collections/$collecti
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Collection", noIndex: true }),
   loader: async ({ context, params }) => {
-    const collections = await context.queryClient.ensureQueryData(collectionsQueryOptions);
+    const collections = await context.queryClient.ensureQueryData(
+      collectionsQueryOptions(context.userId),
+    );
     if (!collections.items.some((col) => col.id === params.collectionId)) {
       throw notFound();
     }

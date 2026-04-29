@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_app/_authenticated/decks/")({
   ssr: "data-only",
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Decks", noIndex: true }),
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(decksQueryOptions);
+    await context.queryClient.ensureQueryData(decksQueryOptions(context.userId));
   },
   errorComponent: RouteErrorFallback,
 });

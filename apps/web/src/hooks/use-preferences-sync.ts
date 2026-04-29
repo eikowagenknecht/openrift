@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 import { useEffect, useRef } from "react";
 
+import { useUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { sanitizeServerResponse, sanitizeTheme } from "@/lib/sanitize-preferences";
 import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
@@ -67,21 +68,25 @@ function getPrefsSnapshot(): UserPreferencesResponse & { theme?: string | null }
  */
 export function usePreferencesSync(enabled: boolean) {
   const queryClient = useQueryClient();
+  const userId = useUserId();
   const hydrating = useRef(false);
   const saving = useRef(false);
 
   const { data, isError } = useQuery({
-    queryKey: queryKeys.preferences.all,
+    queryKey: queryKeys.preferences.all(userId ?? ""),
     queryFn: () => fetchPreferencesFn(),
-    enabled,
+    enabled: enabled && Boolean(userId),
   });
 
   const debouncedSave = useDebouncedCallback(
     async () => {
+      if (!userId) {
+        return;
+      }
       const prefs = getPrefsSnapshot();
       await patchPreferencesFn({ data: { prefs } });
       saving.current = true;
-      queryClient.setQueryData(queryKeys.preferences.all, prefs);
+      queryClient.setQueryData(queryKeys.preferences.all(userId), prefs);
     },
     { wait: 1000 },
   );

@@ -15,8 +15,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { clearUserScopedCache } from "@/lib/auth-cache";
 import { authClient } from "@/lib/auth-client";
+import { sessionQueryOptions } from "@/lib/auth-session";
 
 export function DangerZoneSection() {
   const [open, setOpen] = useState(false);
@@ -39,11 +39,11 @@ export function DangerZoneSection() {
       setError(deleteError.message ?? "Failed to delete account.");
       return;
     }
-    // Navigate first so authenticated route subscribers unmount before
-    // clearUserScopedCache tears down the collections. See header.tsx
-    // handleSignOut for the rationale.
+    // Flip session to null so useSession observers detach immediately.
+    // Per-user query keying handles the rest: nothing reads the deleted
+    // user's data after this render.
+    queryClient.setQueryData(sessionQueryOptions().queryKey, null);
     await router.navigate({ to: "/" });
-    await clearUserScopedCache(queryClient);
   }
 
   return (

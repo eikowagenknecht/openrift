@@ -17,14 +17,16 @@ const fetchCollections = createServerFn({ method: "GET" })
       }),
   );
 
-export const collectionsQueryOptions = queryOptions({
-  queryKey: queryKeys.collections.all,
-  queryFn: () => fetchCollections(),
-  select: (data: CollectionsResponse) => data.items,
-  // Default is 0 (immediately stale), which caused 3-4 fetches per
-  // navigation: each subscriber that mounted post-fetch saw stale data and
-  // kicked off another fetch. 5-minute freshness matches catalog conventions
-  // and still lets explicit invalidation (useCreateCollection /
-  // useDeleteCollection) force a refresh.
-  staleTime: 5 * 60 * 1000,
-});
+export function collectionsQueryOptions(userId: string) {
+  return queryOptions({
+    queryKey: queryKeys.collections.all(userId),
+    queryFn: () => fetchCollections(),
+    select: (data: CollectionsResponse) => data.items,
+    // Default is 0 (immediately stale), which caused 3-4 fetches per
+    // navigation: each subscriber that mounted post-fetch saw stale data and
+    // kicked off another fetch. 5-minute freshness matches catalog conventions
+    // and still lets explicit invalidation (useCreateCollection /
+    // useDeleteCollection) force a refresh.
+    staleTime: 5 * 60 * 1000,
+  });
+}

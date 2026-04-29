@@ -32,9 +32,11 @@ export async function fetchCopies(collectionId?: string): Promise<CopiesResponse
   return { items: allItems, nextCursor: null };
 }
 
-export function copiesQueryOptions(collectionId?: string) {
+export function copiesQueryOptions(userId: string, collectionId?: string) {
   return queryOptions({
-    queryKey: collectionId ? queryKeys.copies.byCollection(collectionId) : queryKeys.copies.all,
+    queryKey: collectionId
+      ? queryKeys.copies.byCollection(userId, collectionId)
+      : queryKeys.copies.all(userId),
     queryFn: () => fetchCopies(collectionId),
     select: (data: CopyListResponse) => data.items,
     // Default 0 means every subscriber mount triggers a refetch. 5 min

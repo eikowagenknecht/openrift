@@ -41,6 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import { deckDetailQueryOptions, useCreateDeck, useSaveDeckCards } from "@/hooks/use-decks";
 import { useZoneOrder } from "@/hooks/use-enums";
+import { useRequiredUserId } from "@/lib/auth-session";
 import type { DeckMatchStatus, DeckMatchedEntry, ResolvedCard } from "@/lib/deck-import-matcher";
 import { matchDeckEntries } from "@/lib/deck-import-matcher";
 import type { DeckImportFormat } from "@/lib/deck-import-parsers";
@@ -138,6 +139,7 @@ const IMPORT_DESCRIPTIONS: Record<DeckImportFormat, React.ReactNode> = {
 };
 
 function DeckImportPage() {
+  const userId = useRequiredUserId();
   const { replaceDeckId } = Route.useSearch();
   const { allPrintings } = useCards();
   const { zoneOrder, zoneLabels } = useZoneOrder();
@@ -146,7 +148,7 @@ function DeckImportPage() {
   const navigate = useNavigate();
 
   const replaceDeckQuery = useQuery({
-    ...deckDetailQueryOptions(replaceDeckId ?? ""),
+    ...deckDetailQueryOptions(userId, replaceDeckId ?? ""),
     enabled: Boolean(replaceDeckId),
   });
   const replaceDeckName = replaceDeckQuery.data?.deck.name;

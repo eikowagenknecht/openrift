@@ -13,6 +13,9 @@ export const Route = createFileRoute("/_app/_authenticated")({
         search: { redirect: location.href || undefined, email: undefined },
       });
     }
+    // Extend route context with userId so child route loaders can pass it
+    // to user-scoped query factories without re-reading the session.
+    return { userId: session.user.id };
   },
   component: AuthenticatedLayout,
 });

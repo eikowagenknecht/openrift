@@ -53,6 +53,7 @@ import {
   useSetDeckPinned,
   useUpdateDeck,
 } from "@/hooks/use-decks";
+import { useRequiredUserId } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 
@@ -65,6 +66,7 @@ import { ProxyExportDialog } from "./proxy-export-dialog";
  * @returns The actions menu element.
  */
 export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
+  const userId = useRequiredUserId();
   const { deck } = item;
   const navigate = useNavigate();
   const cloneDeck = useCloneDeck();
@@ -82,7 +84,7 @@ export function DeckActionsMenu({ item }: { item: DeckListItemResponse }) {
   // Lazy-fetch full card detail only when export/proxy dialogs are open
   const needsDetail = exportOpen || proxyOpen;
   const { data: detail } = useQuery({
-    ...deckDetailQueryOptions(deck.id),
+    ...deckDetailQueryOptions(userId, deck.id),
     enabled: needsDetail,
   });
   const { cardsById } = useCards();

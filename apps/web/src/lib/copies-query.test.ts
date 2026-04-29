@@ -80,8 +80,14 @@ describe("copiesQueryOptions", () => {
   });
 
   it("uses distinct query keys for the global and per-collection variants", () => {
-    const globalKey = copiesQueryOptions().queryKey;
-    const scopedKey = copiesQueryOptions("col-1").queryKey;
+    const globalKey = copiesQueryOptions("user-1").queryKey;
+    const scopedKey = copiesQueryOptions("user-1", "col-1").queryKey;
     expect(globalKey).not.toEqual(scopedKey);
+  });
+
+  it("isolates query keys across users", () => {
+    const aliceKey = copiesQueryOptions("alice").queryKey;
+    const bobKey = copiesQueryOptions("bob").queryKey;
+    expect(aliceKey).not.toEqual(bobKey);
   });
 });

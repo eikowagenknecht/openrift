@@ -3,8 +3,9 @@ import { useLiveQuery } from "@tanstack/react-db";
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { useRequiredUserId } from "@/lib/auth-session";
 import { collectionsQueryOptions } from "@/lib/collections-query";
-import { getCopiesCollection } from "@/lib/copies-collection";
+import { useCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
 import type { CollectionsResponse } from "@/lib/server-fns/api-types";
 import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
@@ -17,9 +18,9 @@ import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidatio
 export { collectionsQueryOptions };
 
 export function useCollections() {
-  const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
-  const serverQuery = useSuspenseQuery(collectionsQueryOptions);
+  const userId = useRequiredUserId();
+  const copiesCollection = useCopiesCollection();
+  const serverQuery = useSuspenseQuery(collectionsQueryOptions(userId));
 
   // Skip the live query during SSR: TanStack DB's live-query internals use
   // useSyncExternalStore without providing a getServerSnapshot, so running
@@ -28,8 +29,15 @@ export function useCollections() {
   // load). On the client, once the collection subscription is established,
   // we override copyCount with the derived value so mutations reflect
   // without waiting on a server round-trip.
-  const { data: copies } = useLiveQuery((q) =>
-    globalThis.window === undefined ? null : q.from({ copy: copiesCollection }),
+  //
+  // copiesCollection is null mid-sign-out (this hook itself unmounts an
+  // instant later); same-shape fallback applies.
+  const { data: copies } = useLiveQuery(
+    (q) =>
+      globalThis.window === undefined || !copiesCollection
+        ? null
+        : q.from({ copy: copiesCollection }),
+    [copiesCollection],
   );
 
   if (!copies) {
@@ -73,13 +81,14 @@ const createCollectionFn = createServerFn({ method: "POST" })
   );
 
 export function useCreateCollection() {
+  const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (body: {
       name: string;
       description?: string | null;
       availableForDeckbuilding?: boolean;
     }) => createCollectionFn({ data: body }),
-    invalidates: [queryKeys.collections.all],
+    invalidates: [queryKeys.collections.all(userId)],
   });
 }
 
@@ -105,6 +114,7 @@ const updateCollectionFn = createServerFn({ method: "POST" })
   });
 
 export function useUpdateCollection() {
+  const userId = useRequiredUserId();
   return useMutationWithInvalidation({
     mutationFn: (body: {
       id: string;
@@ -112,7 +122,7 @@ export function useUpdateCollection() {
       description?: string | null;
       availableForDeckbuilding?: boolean;
     }) => updateCollectionFn({ data: body }),
-    invalidates: [queryKeys.collections.all],
+    invalidates: [queryKeys.collections.all(userId)],
   });
 }
 
@@ -129,8 +139,9 @@ const deleteCollectionFn = createServerFn({ method: "POST" })
   });
 
 export function useDeleteCollection() {
+  const userId = useRequiredUserId();
   const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
+  const copiesCollection = useCopiesCollection();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -143,10 +154,12 @@ export function useDeleteCollection() {
       // collection so live queries (sidebar counts, owned-count, grids)
       // reflect it immediately. Invalidating queryKeys.copies.all alone
       // doesn't work, because the TanStack DB collection is keyed
-      // separately as ["copies-collection"].
-      const cached = queryClient.getQueryData<CollectionsResponse>(queryKeys.collections.all);
+      // separately as ["copies-collection", userId].
+      const cached = queryClient.getQueryData<CollectionsResponse>(
+        queryKeys.collections.all(userId),
+      );
       const inboxId = cached?.items.find((col) => col.isInbox)?.id;
-      if (inboxId) {
+      if (inboxId && copiesCollection) {
         const affected = copiesCollection.toArray.filter((copy) => copy.collectionId === deletedId);
         if (affected.length > 0) {
           copiesCollection.utils.writeUpdate(
@@ -154,9 +167,9 @@ export function useDeleteCollection() {
           );
         }
       }
-      void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.collections.all(userId) });
       void queryClient.invalidateQueries({
-        queryKey: queryKeys.copies.all,
+        queryKey: queryKeys.copies.all(userId),
         refetchType: "none",
       });
     },

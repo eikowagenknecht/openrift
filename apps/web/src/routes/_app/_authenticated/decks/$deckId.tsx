@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_app/_authenticated/decks/$deckId")({
   staticData: { hideFooter: true },
   loader: async ({ context, params }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(deckDetailQueryOptions(params.deckId)),
+      context.queryClient.ensureQueryData(deckDetailQueryOptions(context.userId, params.deckId)),
       context.queryClient.ensureQueryData(initQueryOptions),
     ]);
   },

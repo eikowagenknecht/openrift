@@ -5,7 +5,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 
 import { trackEvent } from "@/lib/analytics";
-import { getCopiesCollection } from "@/lib/copies-collection";
+import { useRequiredUserId } from "@/lib/auth-session";
+import { useCopiesCollection } from "@/lib/copies-collection";
 import { queryKeys } from "@/lib/query-keys";
 import { withTimeout } from "@/lib/with-timeout";
 
@@ -23,17 +24,19 @@ export function useCopies(collectionId?: string): {
   data: CopyResponse[];
   isReady: boolean;
 } {
-  const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
+  const copiesCollection = useCopiesCollection();
 
   const { data, isReady } = useLiveQuery(
     (q) => {
+      if (!copiesCollection) {
+        return null;
+      }
       const base = q.from({ copy: copiesCollection });
       return collectionId === undefined
         ? base
         : base.where(({ copy }) => eq(copy.collectionId, collectionId));
     },
-    [collectionId],
+    [collectionId, copiesCollection],
   );
 
   return { data: data ?? [], isReady };
@@ -110,8 +113,9 @@ async function disposeCopiesApi(body: { copyIds: string[] }, signal: AbortSignal
 }
 
 export function useAddCopies() {
+  const userId = useRequiredUserId();
   const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
+  const copiesCollection = useCopiesCollection();
 
   return useMutation({
     // "always" means the mutationFn runs regardless of browser online state.
@@ -143,27 +147,29 @@ export function useAddCopies() {
           printingId: item.printingId,
           collectionId: item.collectionId,
         }));
-        if (hasTempIds) {
-          copiesCollection.utils.writeBatch(() => {
-            copiesCollection.utils.writeDelete(tempIds);
+        if (copiesCollection) {
+          if (hasTempIds) {
+            copiesCollection.utils.writeBatch(() => {
+              copiesCollection.utils.writeDelete(tempIds);
+              copiesCollection.utils.writeInsert(realRows);
+            });
+          } else {
             copiesCollection.utils.writeInsert(realRows);
-          });
-        } else {
-          copiesCollection.utils.writeInsert(realRows);
+          }
         }
-        // Mark the shared ["copies"] cache stale (without an eager refetch).
-        // The collection's queryFn reads this cache via ensureQueryData, so
-        // if it isn't invalidated, the next refetch (e.g. on network
-        // reconnect) would hand back pre-mutation data and clobber our
-        // writes to the synced store.
+        // Mark the shared per-user copies cache stale (without an eager
+        // refetch). The collection's queryFn reads this cache via
+        // ensureQueryData, so without invalidation the next refetch (e.g.
+        // on network reconnect) would hand back pre-mutation data and
+        // clobber our writes to the synced store.
         void queryClient.invalidateQueries({
-          queryKey: queryKeys.copies.all,
+          queryKey: queryKeys.copies.all(userId),
           refetchType: "none",
         });
         trackEvent("collection-add", { count: apiResult.length });
         return apiResult;
       } catch (error) {
-        if (hasTempIds) {
+        if (hasTempIds && copiesCollection) {
           copiesCollection.utils.writeDelete(tempIds);
         }
         throw error;
@@ -173,8 +179,9 @@ export function useAddCopies() {
 }
 
 export function useMoveCopies() {
+  const userId = useRequiredUserId();
   const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
+  const copiesCollection = useCopiesCollection();
 
   return useMutation({
     networkMode: "always",
@@ -185,6 +192,10 @@ export function useMoveCopies() {
       copyIds: string[];
       toCollectionId: string;
     }) => {
+      if (!copiesCollection) {
+        return;
+      }
+      const collection = copiesCollection;
       const tx = createTransaction<CopyResponse>({
         mutationFn: async ({ transaction }) => {
           const ids = transaction.mutations.map((m) => String(m.key));
@@ -199,18 +210,16 @@ export function useMoveCopies() {
             );
           }
           // Confirm the move in the synced store — partial updates keyed by id.
-          copiesCollection.utils.writeUpdate(
-            ids.map((id) => ({ id, collectionId: toCollectionId })),
-          );
+          collection.utils.writeUpdate(ids.map((id) => ({ id, collectionId: toCollectionId })));
           void queryClient.invalidateQueries({
-            queryKey: queryKeys.copies.all,
+            queryKey: queryKeys.copies.all(userId),
             refetchType: "none",
           });
         },
       });
       tx.mutate(() => {
         for (const id of copyIds) {
-          copiesCollection.update(id, (draft) => {
+          collection.update(id, (draft) => {
             draft.collectionId = toCollectionId;
           });
         }
@@ -252,8 +261,7 @@ interface BatchedAddCallbacks {
  *   tracking, and an `isPending` flag.
  */
 export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
-  const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
+  const copiesCollection = useCopiesCollection();
   const addCopies = useAddCopies();
   // useBatcher captures its handler once; ref keeps the latest callbacks
   // so we don't recreate the batcher whenever the consumer re-renders.
@@ -305,7 +313,9 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
       // can record it in session-level "recently added" UI immediately and
       // swap for the real id after the API confirms.
       const tempId = `temp-${crypto.randomUUID()}`;
-      copiesCollection.utils.writeInsert([{ id: tempId, printingId, collectionId }]);
+      if (copiesCollection) {
+        copiesCollection.utils.writeInsert([{ id: tempId, printingId, collectionId }]);
+      }
       // oxlint-disable-next-line promise/avoid-new -- deferred pattern needed to batch individual calls into one POST
       const result = new Promise<AddCopyResult>((resolve, reject) => {
         batcher.addItem({ printingId, collectionId, tempId, resolve, reject });
@@ -319,12 +329,17 @@ export function useBatchedAddCopies(callbacks?: BatchedAddCallbacks) {
 }
 
 export function useDisposeCopies() {
+  const userId = useRequiredUserId();
   const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
+  const copiesCollection = useCopiesCollection();
 
   return useMutation({
     networkMode: "always",
     mutationFn: async ({ copyIds }: { copyIds: string[] }) => {
+      if (!copiesCollection) {
+        return;
+      }
+      const collection = copiesCollection;
       const tx = createTransaction<CopyResponse>({
         mutationFn: async ({ transaction }) => {
           const ids = transaction.mutations.map((m) => String(m.key));
@@ -336,16 +351,16 @@ export function useDisposeCopies() {
             });
           }
           // Confirm the deletions in the synced store.
-          copiesCollection.utils.writeDelete(ids);
+          collection.utils.writeDelete(ids);
           void queryClient.invalidateQueries({
-            queryKey: queryKeys.copies.all,
+            queryKey: queryKeys.copies.all(userId),
             refetchType: "none",
           });
         },
       });
       tx.mutate(() => {
         for (const id of copyIds) {
-          copiesCollection.delete(id);
+          collection.delete(id);
         }
       });
       await tx.isPersisted.promise;

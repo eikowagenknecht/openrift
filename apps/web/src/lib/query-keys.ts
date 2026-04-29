@@ -2,6 +2,14 @@ import type { TimeRange } from "@openrift/shared";
 
 import type { SourceMappingConfig } from "@/components/admin/price-mappings-types";
 
+// User-scoped keys take a `userId` first segment so user A's cache slot and
+// user B's never collide. Public/global keys are plain string tuples.
+//
+// Convention: anything that fetches per-user data from the API (collections,
+// copies, decks, preferences, collection events, value history) is keyed
+// per-user. Catalog data, sets, prices, marketplace info, and admin queries
+// are not — they're either public or admin-scoped.
+
 export const queryKeys = {
   featureFlags: {
     all: ["feature-flags"] as const,
@@ -32,17 +40,17 @@ export const queryKeys = {
     all: ["init"] as const,
   },
   collections: {
-    all: ["collections"] as const,
+    all: (userId: string) => ["collections", userId] as const,
   },
   preferences: {
-    all: ["preferences"] as const,
+    all: (userId: string) => ["preferences", userId] as const,
   },
   copies: {
-    all: ["copies"] as const,
-    byCollection: (id: string) => ["copies", id] as const,
+    all: (userId: string) => ["copies", userId] as const,
+    byCollection: (userId: string, id: string) => ["copies", userId, id] as const,
   },
   collectionEvents: {
-    all: ["collection-events"] as const,
+    all: (userId: string) => ["collection-events", userId] as const,
   },
   ownedCount: {
     all: ["ownedCount"] as const,
@@ -55,13 +63,18 @@ export const queryKeys = {
     byPrintings: (printingIds: readonly string[]) => ["marketplaceInfo", printingIds] as const,
   },
   collectionValueHistory: {
-    byParams: (marketplace: string, range: TimeRange, collectionId?: string, scope?: string) =>
-      ["collectionValueHistory", marketplace, range, collectionId, scope] as const,
+    byParams: (
+      userId: string,
+      marketplace: string,
+      range: TimeRange,
+      collectionId?: string,
+      scope?: string,
+    ) => ["collectionValueHistory", userId, marketplace, range, collectionId, scope] as const,
   },
   decks: {
-    all: ["decks"] as const,
-    detail: (id: string) => ["decks", id] as const,
-    availability: (id: string) => ["decks", id, "availability"] as const,
+    all: (userId: string) => ["decks", userId] as const,
+    detail: (userId: string, id: string) => ["decks", userId, id] as const,
+    availability: (userId: string, id: string) => ["decks", userId, id, "availability"] as const,
     publicByToken: (token: string) => ["decks", "share", token] as const,
   },
   rules: {

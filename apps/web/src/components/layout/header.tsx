@@ -53,9 +53,8 @@ import {
 } from "@/components/ui/sheet";
 import { useIsAdmin } from "@/hooks/use-admin";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
-import { clearUserScopedCache } from "@/lib/auth-cache";
 import { signOut } from "@/lib/auth-client";
-import { useSession } from "@/lib/auth-session";
+import { sessionQueryOptions, useSession } from "@/lib/auth-session";
 import { useGravatarUrl } from "@/lib/gravatar";
 import { getUserInitials } from "@/lib/user-initials";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
@@ -228,14 +227,13 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
     useThemeStore.getState().reset();
     useAddModeStore.getState().reset();
     useDeckBuilderUiStore.getState().reset();
-    // Navigate to a public route first so authenticated route components
-    // (collection grid, sidebar, owned-count chips) start unmounting and
-    // their useLiveQuery hooks unsubscribe from copiesCollection. Then
-    // clearUserScopedCache tears the collection down — its internal wait
-    // covers the React-commit gap so live queries are detached by the time
-    // collection.cleanup() runs.
+    // Flip session to null synchronously so useSession observers re-render
+    // as logged out immediately. User-scoped queries are keyed by userId, so
+    // every consumer that reads the session sees no userId and skips its
+    // queries; nothing imperative needs to clear a cache. The TanStack DB
+    // collections evict the previous user's entry on the next render.
+    queryClient.setQueryData(sessionQueryOptions().queryKey, null);
     await router.navigate({ to: "/cards", search: {} });
-    await clearUserScopedCache(queryClient);
   };
 
   return (

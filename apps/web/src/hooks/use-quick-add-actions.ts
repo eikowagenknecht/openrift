@@ -1,11 +1,10 @@
 import type { Printing } from "@openrift/shared";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
 import { toast } from "sonner";
 
 import { useBatchedAddCopies, useDisposeCopies } from "@/hooks/use-copies";
 import { decideRemoval, pickNewestCopy } from "@/hooks/use-quick-add-actions-helpers";
-import { getCopiesCollection } from "@/lib/copies-collection";
+import { useCopiesCollection } from "@/lib/copies-collection";
 import { summarizeBatchAdd } from "@/lib/summarize-batch-add";
 import { useAddModeStore } from "@/stores/add-mode-store";
 
@@ -48,8 +47,7 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
     },
   });
   const disposeCopies = useDisposeCopies();
-  const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
+  const copiesCollection = useCopiesCollection();
 
   const handleQuickAdd = addTarget
     ? async (printing: Printing) => {
@@ -87,6 +85,9 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
 
         // 2. Pre-existing copies: decide whether to silently dispose the
         //    newest (single-collection scope) or open the picker (ambiguous).
+        if (!copiesCollection) {
+          return;
+        }
         const decision = decideRemoval(copiesCollection.toArray, printing.id, viewCollectionId);
         if (decision.kind === "none") {
           return;
@@ -113,6 +114,9 @@ export function useQuickAddActions(addTarget?: string, viewCollectionId?: string
     : undefined;
 
   const handleDisposeFromCollection = async (printing: Printing, fromCollectionId: string) => {
+    if (!copiesCollection) {
+      return;
+    }
     const copies = copiesCollection.toArray.filter(
       (c) => c.printingId === printing.id && c.collectionId === fromCollectionId,
     );

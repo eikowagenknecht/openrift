@@ -42,7 +42,7 @@ import { useKeywordReverseMap } from "@/hooks/use-keyword-reverse-map";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { useQuickAddActions } from "@/hooks/use-quick-add-actions";
 import { useSeedLanguagesFromPrefs } from "@/hooks/use-seed-languages-from-prefs";
-import { useSession } from "@/lib/auth-session";
+import { useSession, useUserId } from "@/lib/auth-session";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
@@ -66,10 +66,11 @@ export function CardBrowser() {
   // We reuse display.prices / display.favoriteMarketplace below for useCardData.
   const display = useCardThumbnailDisplay();
   const { data: session } = useSession();
+  const userId = useUserId();
   const isLoggedIn = Boolean(session?.user);
   const { data: ownedCountByPrinting } = useOwnedCount(isLoggedIn);
   const { data: collections } = useQuery({
-    ...collectionsQueryOptions,
+    ...collectionsQueryOptions(userId ?? ""),
     enabled: isLoggedIn,
   });
   const inboxId = collections?.find((col) => col.isInbox)?.id;

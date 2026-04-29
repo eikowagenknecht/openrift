@@ -7,6 +7,7 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
+import { useRequiredUserId } from "@/lib/auth-session";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
@@ -84,9 +85,16 @@ export function useCollectionValueHistory(
   collectionId?: string,
   scope?: CompletionScopePreference,
 ) {
+  const userId = useRequiredUserId();
   const scopeStr = JSON.stringify(scope ?? {});
   return useQuery({
-    queryKey: queryKeys.collectionValueHistory.byParams(marketplace, range, collectionId, scopeStr),
+    queryKey: queryKeys.collectionValueHistory.byParams(
+      userId,
+      marketplace,
+      range,
+      collectionId,
+      scopeStr,
+    ),
     queryFn: () =>
       fetchCollectionValueHistory({
         data: {

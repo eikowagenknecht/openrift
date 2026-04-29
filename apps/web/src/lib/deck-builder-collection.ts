@@ -1,21 +1,25 @@
 // Deck-builder draft: the user's in-progress edits for a single deck, held
-// as a per-(QueryClient × deckId) LocalOnlyCollection. Writes are applied
-// synchronously to the collection (optimistic), and a 1s-debounced handler
-// ships the full card set to the server via `saveDeckCardsFn`. The save
-// status (dirty / saving / error) is exposed to React via
+// as a per-(QueryClient × userId × deckId) LocalOnlyCollection. Writes are
+// applied synchronously to the collection (optimistic), and a 1s-debounced
+// handler ships the full card set to the server via `saveDeckCardsFn`. The
+// save status (dirty / saving / error) is exposed to React via
 // `useDeckSaveStatus`.
 //
-// This replaces the previous `useDeckBuilderStore` Zustand store. Keeping
-// drafts in a collection lets consumers use live queries (zone filters,
-// violations, stats) in the same shape as server-backed collections.
+// Drafts are user-scoped: when the active user changes, every draft from
+// the previous user is evicted from the cache and `cleanupWhenIdle` runs
+// cleanup() the moment its subscriberCount transitions to 0 — reactive
+// teardown, no polling, no [Live Query Error] warnings.
 
 import type { DeckDetailResponse } from "@openrift/shared";
 import type { Collection } from "@tanstack/react-db";
 import { createCollection, localOnlyCollectionOptions } from "@tanstack/react-db";
+import { useQueryClient } from "@tanstack/react-query";
 import type { QueryClient } from "@tanstack/react-query";
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 
 import { saveDeckCardsFn } from "@/hooks/use-decks";
+import { useUserId } from "@/lib/auth-session";
+import { cleanupWhenIdle, markOrphaned } from "@/lib/collection-cleanup";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { getDeckCardKey } from "@/lib/deck-builder-card";
 import { queryKeys } from "@/lib/query-keys";
@@ -48,16 +52,12 @@ interface DraftEntry {
   suppressSave: boolean;
 }
 
-const cache = new WeakMap<QueryClient, Map<string, DraftEntry>>();
-
-function getDraftsForClient(queryClient: QueryClient): Map<string, DraftEntry> {
-  let drafts = cache.get(queryClient);
-  if (!drafts) {
-    drafts = new Map();
-    cache.set(queryClient, drafts);
-  }
-  return drafts;
+interface CacheEntry {
+  userId: string;
+  drafts: Map<string, DraftEntry>;
 }
+
+const cache = new WeakMap<QueryClient, CacheEntry>();
 
 function notify(entry: DraftEntry): void {
   for (const listener of entry.subscribers) {
@@ -79,7 +79,7 @@ function setStatus(entry: DraftEntry, partial: Partial<DeckSaveStatus>): void {
   notify(entry);
 }
 
-async function runSave(queryClient: QueryClient, entry: DraftEntry): Promise<void> {
+async function runSave(queryClient: QueryClient, userId: string, entry: DraftEntry): Promise<void> {
   entry.saveController?.abort();
   const controller = new AbortController();
   entry.saveController = controller;
@@ -107,12 +107,13 @@ async function runSave(queryClient: QueryClient, entry: DraftEntry): Promise<voi
     }
     entry.lastAppliedSeq = seq;
 
-    queryClient.setQueryData<DeckDetailResponse>(queryKeys.decks.detail(entry.deckId), (old) =>
-      old ? { ...old, cards: result.cards } : old,
+    queryClient.setQueryData<DeckDetailResponse>(
+      queryKeys.decks.detail(userId, entry.deckId),
+      (old) => (old ? { ...old, cards: result.cards } : old),
     );
     // Aggregate stats on the deck list (type counts, domain distribution)
     // need refreshing. Detail cache is already up-to-date; don't refetch it.
-    void queryClient.invalidateQueries({ queryKey: queryKeys.decks.all, exact: true });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.decks.all(userId), exact: true });
 
     // If more edits queued up a fresh save while we were in flight, leave
     // isDirty true — the next debounced save will clear it on success.
@@ -131,7 +132,7 @@ async function runSave(queryClient: QueryClient, entry: DraftEntry): Promise<voi
   }
 }
 
-function scheduleSave(queryClient: QueryClient, entry: DraftEntry): void {
+function scheduleSave(queryClient: QueryClient, userId: string, entry: DraftEntry): void {
   if (entry.suppressSave) {
     return;
   }
@@ -141,11 +142,11 @@ function scheduleSave(queryClient: QueryClient, entry: DraftEntry): void {
   }
   entry.saveTimer = setTimeout(() => {
     entry.saveTimer = null;
-    void runSave(queryClient, entry);
+    void runSave(queryClient, userId, entry);
   }, SAVE_DEBOUNCE_MS);
 }
 
-function createEntry(queryClient: QueryClient, deckId: string): DraftEntry {
+function createEntry(queryClient: QueryClient, userId: string, deckId: string): DraftEntry {
   const entry: DraftEntry = {
     deckId,
     collection: null as unknown as Collection<DeckBuilderCard, string | number>,
@@ -160,21 +161,21 @@ function createEntry(queryClient: QueryClient, deckId: string): DraftEntry {
 
   entry.collection = createCollection(
     localOnlyCollectionOptions<DeckBuilderCard>({
-      id: `deck-draft-${deckId}`,
+      id: `deck-draft:${userId}:${deckId}`,
       getKey: getDeckCardKey,
       // Handler types require a Promise return, but the save is fire-and-
       // forget (debounced inside scheduleSave). `Promise.resolve()` satisfies
       // the type without forcing async keyword + the require-await lint rule.
       onInsert: () => {
-        scheduleSave(queryClient, entry);
+        scheduleSave(queryClient, userId, entry);
         return Promise.resolve();
       },
       onUpdate: () => {
-        scheduleSave(queryClient, entry);
+        scheduleSave(queryClient, userId, entry);
         return Promise.resolve();
       },
       onDelete: () => {
-        scheduleSave(queryClient, entry);
+        scheduleSave(queryClient, userId, entry);
         return Promise.resolve();
       },
     }),
@@ -183,24 +184,50 @@ function createEntry(queryClient: QueryClient, deckId: string): DraftEntry {
   return entry;
 }
 
+function getDraftsForUser(queryClient: QueryClient, userId: string): Map<string, DraftEntry> {
+  const existing = cache.get(queryClient);
+  if (existing && existing.userId === userId) {
+    return existing.drafts;
+  }
+  if (existing) {
+    // User changed: orphan every previous-user draft and schedule reactive
+    // cleanup. Local-only collections don't auto-GC (gcTime: 0), so without
+    // this they would leak indefinitely.
+    for (const [draftDeckId, draft] of existing.drafts) {
+      if (draft.saveTimer) {
+        clearTimeout(draft.saveTimer);
+        draft.saveTimer = null;
+      }
+      draft.saveController?.abort();
+      draft.saveController = null;
+      markOrphaned(draft.collection, `deck-draft:${existing.userId}:${draftDeckId}`);
+      cleanupWhenIdle(draft.collection);
+    }
+  }
+  const entry: CacheEntry = { userId, drafts: new Map() };
+  cache.set(queryClient, entry);
+  return entry.drafts;
+}
+
 export function getDeckDraftCollection(
   queryClient: QueryClient,
+  userId: string,
   deckId: string,
 ): Collection<DeckBuilderCard, string | number> {
-  const drafts = getDraftsForClient(queryClient);
+  const drafts = getDraftsForUser(queryClient, userId);
   let entry = drafts.get(deckId);
   if (!entry) {
-    entry = createEntry(queryClient, deckId);
+    entry = createEntry(queryClient, userId, deckId);
     drafts.set(deckId, entry);
   }
   return entry.collection;
 }
 
-function getOrCreateEntry(queryClient: QueryClient, deckId: string): DraftEntry {
-  const drafts = getDraftsForClient(queryClient);
+function getOrCreateEntry(queryClient: QueryClient, userId: string, deckId: string): DraftEntry {
+  const drafts = getDraftsForUser(queryClient, userId);
   let entry = drafts.get(deckId);
   if (!entry) {
-    entry = createEntry(queryClient, deckId);
+    entry = createEntry(queryClient, userId, deckId);
     drafts.set(deckId, entry);
   }
   return entry;
@@ -214,10 +241,11 @@ function getOrCreateEntry(queryClient: QueryClient, deckId: string): DraftEntry 
  */
 export function hydrateDeckDraft(
   queryClient: QueryClient,
+  userId: string,
   deckId: string,
   cards: DeckBuilderCard[],
 ): void {
-  const entry = getOrCreateEntry(queryClient, deckId);
+  const entry = getOrCreateEntry(queryClient, userId, deckId);
 
   if (entry.saveTimer) {
     clearTimeout(entry.saveTimer);
@@ -265,63 +293,44 @@ export function hydrateDeckDraft(
   setStatus(entry, { isSaving: false, isDirty: false, error: null });
 }
 
-// Tear down all per-deck draft collections for this client on auth changes.
-// Drafts are LocalOnly (no server sync) but they still hold the previous
-// user's in-flight edits and pending save timers in memory. Drop the entire
-// drafts map; the next deck-builder mount rebuilds entries from server state.
-//
-// Same React-commit-gap concern as cleanupCopiesCollection: wait for live-
-// query subscribers to detach before calling collection.cleanup() so we
-// don't transition active subscribers to error state.
-export async function cleanupDeckBuilderCollections(queryClient: QueryClient): Promise<void> {
-  const drafts = cache.get(queryClient);
-  if (!drafts) {
-    return;
-  }
-  for (const entry of drafts.values()) {
-    if (entry.saveTimer) {
-      clearTimeout(entry.saveTimer);
-      entry.saveTimer = null;
-    }
-    entry.saveController?.abort();
-    entry.saveController = null;
-    await waitForNoSubscribers(entry.collection);
-    await entry.collection.cleanup();
-  }
-  cache.delete(queryClient);
+/**
+ * Hook variant: returns the current user's draft collection for the given
+ * deck, or null when no one is signed in. Live-query consumers should
+ * include the result in their dependency array so the live query
+ * re-subscribes when the user (or deckId) changes.
+ *
+ * @returns The current user's draft collection for `deckId`, or null when signed out.
+ */
+export function useDeckDraftCollection(
+  deckId: string,
+): Collection<DeckBuilderCard, string | number> | null {
+  const queryClient = useQueryClient();
+  const userId = useUserId();
+  return useMemo(
+    () => (userId ? getDeckDraftCollection(queryClient, userId, deckId) : null),
+    [queryClient, userId, deckId],
+  );
 }
 
-const SUBSCRIBER_DETACH_TIMEOUT_MS = 1000;
-
-async function waitForNoSubscribers(
-  collection: { subscriberCount: number },
-  maxMs = SUBSCRIBER_DETACH_TIMEOUT_MS,
-): Promise<void> {
-  if (collection.subscriberCount === 0) {
-    return;
-  }
-  const deadline = Date.now() + maxMs;
-  while (collection.subscriberCount > 0 && Date.now() < deadline) {
-    // oxlint-disable-next-line promise/avoid-new -- need to wrap rAF/setTimeout in a promise to await a paint frame
-    await new Promise<void>((resolve) => {
-      if (typeof requestAnimationFrame === "function") {
-        requestAnimationFrame(() => resolve());
-      } else {
-        setTimeout(resolve, 16);
-      }
-    });
-  }
-}
-
-export function useDeckSaveStatus(queryClient: QueryClient, deckId: string): DeckSaveStatus {
+export function useDeckSaveStatus(
+  queryClient: QueryClient,
+  userId: string,
+  deckId: string,
+): DeckSaveStatus {
   return useSyncExternalStore(
     // oxlint-disable-next-line promise/prefer-await-to-callbacks -- external-store subscribe signature
     (listener) => {
-      const entry = getOrCreateEntry(queryClient, deckId);
+      const entry = getOrCreateEntry(queryClient, userId, deckId);
       entry.subscribers.add(listener);
       return () => entry.subscribers.delete(listener);
     },
-    () => cache.get(queryClient)?.get(deckId)?.status ?? CLEAN_STATUS,
+    () => {
+      const cached = cache.get(queryClient);
+      if (!cached || cached.userId !== userId) {
+        return CLEAN_STATUS;
+      }
+      return cached.drafts.get(deckId)?.status ?? CLEAN_STATUS;
+    },
     () => CLEAN_STATUS,
   );
 }

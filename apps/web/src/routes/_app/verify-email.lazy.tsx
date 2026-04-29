@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
-import { clearUserScopedCache } from "@/lib/auth-cache";
 import { authClient } from "@/lib/auth-client";
+import { sessionQueryOptions } from "@/lib/auth-session";
 
 export const Route = createLazyFileRoute("/_app/verify-email")({
   component: VerifyEmailPage,
@@ -43,7 +43,11 @@ function VerifyEmailPage() {
       }
       return;
     }
-    await clearUserScopedCache(queryClient);
+    // Refetch the session: better-auth set the cookie, but our React Query
+    // cache for ["session"] still holds null from the pre-verify state.
+    // User-scoped queries are keyed by the new userId, so once the session
+    // lands every consumer attaches automatically.
+    await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
     void navigate({ to: "/collections" });
   }
 

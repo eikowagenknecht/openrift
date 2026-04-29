@@ -1,9 +1,10 @@
 import type { CopyCollectionBreakdownEntry, CopyResponse, Finish } from "@openrift/shared";
 import { eq, useLiveQuery } from "@tanstack/react-db";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 import { collectionsQueryOptions } from "@/hooks/use-collections";
-import { getCopiesCollection } from "@/lib/copies-collection";
+import { useUserId } from "@/lib/auth-session";
+import { useCopiesCollection } from "@/lib/copies-collection";
 
 function aggregateTotals(copies: readonly CopyResponse[]): Record<string, number> {
   const totals: Record<string, number> = {};
@@ -16,16 +17,17 @@ function aggregateTotals(copies: readonly CopyResponse[]): Record<string, number
 export function useOwnedCount(enabled: boolean): {
   data: Record<string, number> | undefined;
 } {
-  const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
+  const copiesCollection = useCopiesCollection();
 
   // Returning null from queryFn disables the live query; when disabled
   // nothing subscribes to the copies collection, so its queryFn never fires.
   // This preserves the public /cards page's behavior for logged-out users
-  // (the copies endpoint requires auth).
+  // (the copies endpoint requires auth) — and during sign-out, the collection
+  // becomes null an instant before the consumer rerenders with `enabled=false`,
+  // which the null check below handles silently.
   const { data: copies } = useLiveQuery(
-    (q) => (enabled ? q.from({ copy: copiesCollection }) : null),
-    [enabled],
+    (q) => (enabled && copiesCollection ? q.from({ copy: copiesCollection }) : null),
+    [enabled, copiesCollection],
   );
 
   if (!enabled || !copies) {
@@ -49,13 +51,16 @@ export function useDeckBuildingCounts(enabled: boolean): {
       }
     | undefined;
 } {
-  const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
-  const { data: collections } = useQuery({ ...collectionsQueryOptions, enabled });
+  const userId = useUserId();
+  const copiesCollection = useCopiesCollection();
+  const { data: collections } = useQuery({
+    ...collectionsQueryOptions(userId ?? ""),
+    enabled: enabled && Boolean(userId),
+  });
 
   const { data: copies } = useLiveQuery(
-    (q) => (enabled ? q.from({ copy: copiesCollection }) : null),
-    [enabled],
+    (q) => (enabled && copiesCollection ? q.from({ copy: copiesCollection }) : null),
+    [enabled, copiesCollection],
   );
 
   if (!enabled || !copies || !collections) {
@@ -104,16 +109,19 @@ export function useOwnedCollections(
   printingId: string,
   enabled: boolean,
 ): { data: CopyCollectionBreakdownEntry[] | undefined } {
-  const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
-  const { data: collections } = useQuery({ ...collectionsQueryOptions, enabled });
+  const userId = useUserId();
+  const copiesCollection = useCopiesCollection();
+  const { data: collections } = useQuery({
+    ...collectionsQueryOptions(userId ?? ""),
+    enabled: enabled && Boolean(userId),
+  });
 
   const { data: copies } = useLiveQuery(
     (q) =>
-      enabled
+      enabled && copiesCollection
         ? q.from({ copy: copiesCollection }).where(({ copy }) => eq(copy.printingId, printingId))
         : null,
-    [printingId, enabled],
+    [printingId, enabled, copiesCollection],
   );
 
   if (!enabled || !copies) {
@@ -186,17 +194,20 @@ export function useOwnedCollectionsByVariants(
   variants: readonly OwnedBreakdownVariant[],
   enabled: boolean,
 ): { data: VariantCollectionBreakdownEntry[] | undefined } {
-  const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
-  const { data: collections } = useQuery({ ...collectionsQueryOptions, enabled });
+  const userId = useUserId();
+  const copiesCollection = useCopiesCollection();
+  const { data: collections } = useQuery({
+    ...collectionsQueryOptions(userId ?? ""),
+    enabled: enabled && Boolean(userId),
+  });
 
   // Filter in JS — expressing "printingId in [array]" as a symbolic .where()
   // clause would need per-id or() composition, and the set typically has a
   // few entries. Perf is dominated by mutation propagation, not the filter.
   const variantKey = variants.map((variant) => variant.id).join(",");
   const { data: copies } = useLiveQuery(
-    (q) => (enabled ? q.from({ copy: copiesCollection }) : null),
-    [variantKey, enabled],
+    (q) => (enabled && copiesCollection ? q.from({ copy: copiesCollection }) : null),
+    [variantKey, enabled, copiesCollection],
   );
 
   if (!enabled || !copies) {

@@ -23,7 +23,9 @@ export const Route = createFileRoute("/_app/_authenticated/decks/import")({
   loader: async ({ context, deps }) => {
     await context.queryClient.ensureQueryData(initQueryOptions);
     if (deps.replaceDeckId) {
-      await context.queryClient.ensureQueryData(deckDetailQueryOptions(deps.replaceDeckId));
+      await context.queryClient.ensureQueryData(
+        deckDetailQueryOptions(context.userId, deps.replaceDeckId),
+      );
     }
   },
 });

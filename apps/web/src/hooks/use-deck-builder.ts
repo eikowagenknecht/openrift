@@ -2,11 +2,10 @@ import type { DeckFormat, DeckViolation, DeckZone, Domain } from "@openrift/shar
 import { validateDeck } from "@openrift/shared";
 import { useLiveQuery } from "@tanstack/react-db";
 import type { Collection } from "@tanstack/react-db";
-import { useQueryClient } from "@tanstack/react-query";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { deckCardKey, isCardAllowedInZone } from "@/lib/deck-builder-card";
-import { getDeckDraftCollection } from "@/lib/deck-builder-collection";
+import { useDeckDraftCollection } from "@/lib/deck-builder-collection";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
 
 const RUNE_TARGET = 12;
@@ -523,10 +522,27 @@ interface DeckBuilderActions {
 }
 
 export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
-  const queryClient = useQueryClient();
-  const collection = getDeckDraftCollection(queryClient, deckId);
+  const collection = useDeckDraftCollection(deckId);
   const runesByDomain = useDeckBuilderUiStore((state) => state.runesByDomain);
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
+
+  // Mid-sign-out the collection briefly goes null while React commits the
+  // unmount of this route. Make all actions no-ops in that window — by the
+  // next paint the user is on a public route and this hook is gone.
+  if (!collection) {
+    // oxlint-disable-next-line typescript/no-empty-function -- intentional no-op stand-ins while the collection is null
+    const noop = (): void => {};
+    const noopActions: DeckBuilderActions = {
+      addCard: noop,
+      removeCard: noop,
+      moveCard: noop,
+      moveOneCard: noop,
+      setQuantity: noop,
+      changePreferredPrinting: noop,
+      setLegend: noop,
+    };
+    return noopActions;
+  }
 
   return {
     addCard: (card, zone, count) => {
@@ -558,9 +574,11 @@ export function useDeckBuilderActions(deckId: string): DeckBuilderActions {
 }
 
 export function useDeckCards(deckId: string): DeckBuilderCard[] {
-  const queryClient = useQueryClient();
-  const collection = getDeckDraftCollection(queryClient, deckId);
-  const { data } = useLiveQuery((q) => q.from({ card: collection }), [deckId]);
+  const collection = useDeckDraftCollection(deckId);
+  const { data } = useLiveQuery(
+    (q) => (collection ? q.from({ card: collection }) : null),
+    [deckId, collection],
+  );
   return data ?? EMPTY_CARDS;
 }
 

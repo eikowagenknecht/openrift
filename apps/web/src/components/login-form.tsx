@@ -11,9 +11,9 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { clearUserScopedCache } from "@/lib/auth-cache";
 import { authClient, signIn } from "@/lib/auth-client";
 import { setServerError } from "@/lib/auth-errors";
+import { sessionQueryOptions } from "@/lib/auth-session";
 
 const signInSchema = z.object({
   email: z.email("Please enter a valid email address."),
@@ -68,7 +68,11 @@ export function LoginForm({
       setServerError(form, error);
       return;
     }
-    await clearUserScopedCache(queryClient);
+    // Refetch the session: better-auth set the cookie, but our React Query
+    // cache for ["session"] still holds the prior value. User-scoped queries
+    // are keyed by userId, so once the new session lands every consumer
+    // attaches to the new user's data automatically.
+    await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
 
@@ -114,7 +118,7 @@ export function LoginForm({
       }
       return;
     }
-    await clearUserScopedCache(queryClient);
+    await queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
     void navigate({ to: (redirectTo as "/") ?? "/" });
   }
 

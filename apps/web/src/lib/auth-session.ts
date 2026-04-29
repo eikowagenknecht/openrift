@@ -61,3 +61,34 @@ export const sessionQueryOptions = () =>
 export function useSession() {
   return useQuery(sessionQueryOptions());
 }
+
+/**
+ * Returns the current user's id, or null when signed out / still loading.
+ * Use for hooks that may run on public pages where authentication is
+ * optional (e.g. owned-count chips on /cards).
+ *
+ * @returns The current user id, or null when no one is signed in.
+ */
+export function useUserId(): string | null {
+  const { data: session } = useSession();
+  return session?.user?.id ?? null;
+}
+
+/**
+ * Returns the current user's id, throwing if no one is signed in. Use for
+ * hooks that only run on routes guarded by `_authenticated` — the route
+ * guard already redirects unauthenticated users, so reaching this branch
+ * indicates a programming error (called from a public route).
+ *
+ * @returns The current user id.
+ */
+export function useRequiredUserId(): string {
+  const userId = useUserId();
+  if (!userId) {
+    throw new Error(
+      "useRequiredUserId() called without an authenticated session. " +
+        "Move this call inside an `_authenticated` route, or switch to useUserId() and handle the null case.",
+    );
+  }
+  return userId;
+}

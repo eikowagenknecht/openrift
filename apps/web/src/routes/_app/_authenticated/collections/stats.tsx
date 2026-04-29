@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_app/_authenticated/collections/stats")({
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Collection Statistics", noIndex: true }),
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(collectionsQueryOptions),
+      context.queryClient.ensureQueryData(collectionsQueryOptions(context.userId)),
       context.queryClient.ensureQueryData(publicSetListQueryOptions),
     ]);
   },

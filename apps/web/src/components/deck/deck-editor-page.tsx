@@ -58,7 +58,7 @@ import { useDeckDetail } from "@/hooks/use-decks";
 import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
-import { useSession } from "@/lib/auth-session";
+import { useRequiredUserId, useSession } from "@/lib/auth-session";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import { toDeckBuilderCard } from "@/lib/deck-builder-card";
 import { hydrateDeckDraft, useDeckSaveStatus } from "@/lib/deck-builder-collection";
@@ -109,13 +109,14 @@ function DeckEditorContent({
   topBarSlot: HTMLDivElement | null;
 }) {
   const queryClient = useQueryClient();
+  const userId = useRequiredUserId();
   const navigate = useNavigate();
   const { data } = useDeckDetail(deckId);
   const { cardsById, allPrintings } = useCards();
   const { getPreferredPrinting } = usePreferredPrinting();
   const [hydratedId, setHydratedId] = useState<string | null>(null);
   const deckCards = useDeckCards(deckId);
-  const saveStatus = useDeckSaveStatus(queryClient, deckId);
+  const saveStatus = useDeckSaveStatus(queryClient, userId, deckId);
   const { isMobile, setOpenMobile, toggleSidebar } = useSidebar();
   const activeZone = useDeckBuilderUiStore((state) => state.activeZone);
   const setActiveZone = useDeckBuilderUiStore((state) => state.setActiveZone);
@@ -160,17 +161,18 @@ function DeckEditorContent({
       const builderCards = data.cards
         .map((card) => toDeckBuilderCard(card, cardsById))
         .filter((card): card is DeckBuilderCard => card !== null);
-      hydrateDeckDraft(queryClient, deckId, builderCards);
+      hydrateDeckDraft(queryClient, userId, deckId, builderCards);
       setHydratedId(deckId);
     }
-  }, [data, deckId, hydratedId, queryClient, cardsById]);
+  }, [data, deckId, hydratedId, queryClient, userId, cardsById]);
 
   // On unmount, reset UI scalars (active zone, runes catalog) so the next
   // deck load starts clean. The draft collection itself is intentionally
-  // left alone — child zone/card components still hold live queries against
-  // it during unmount, and calling `cleanup()` would warn. Any debounced /
-  // in-flight save also keeps running so edits made right before navigating
-  // away still persist.
+  // left alone: it stays cached per user so re-entering the same deck after
+  // a brief navigation away skips re-hydration. On a user change the cache
+  // is evicted and `cleanupWhenIdle` tears it down reactively. Any
+  // debounced / in-flight save also keeps running so edits made right
+  // before navigating away still persist.
   useEffect(
     () => () => {
       resetUi();

@@ -10,8 +10,8 @@ export const Route = createFileRoute("/_app/_authenticated/collections/activity"
   head: () => seoHead({ siteUrl: getSiteUrl(), title: "Collection Activity", noIndex: true }),
   loader: async ({ context }) => {
     await Promise.all([
-      context.queryClient.ensureInfiniteQueryData(collectionEventsQueryOptions),
-      context.queryClient.ensureQueryData(collectionsQueryOptions),
+      context.queryClient.ensureInfiniteQueryData(collectionEventsQueryOptions(context.userId)),
+      context.queryClient.ensureQueryData(collectionsQueryOptions(context.userId)),
     ]);
   },
 });

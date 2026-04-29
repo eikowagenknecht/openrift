@@ -1,10 +1,11 @@
 import type { CollectionResponse, Printing } from "@openrift/shared";
 import { useLiveQuery } from "@tanstack/react-db";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { BookOpenIcon, InboxIcon } from "lucide-react";
 
 import { collectionsQueryOptions } from "@/hooks/use-collections";
-import { getCopiesCollection } from "@/lib/copies-collection";
+import { useRequiredUserId } from "@/lib/auth-session";
+import { useCopiesCollection } from "@/lib/copies-collection";
 
 interface DisposePickerPopoverProps {
   printing: Printing;
@@ -17,10 +18,13 @@ interface PickerRow {
 }
 
 export function DisposePickerPopover({ printing, onPick }: DisposePickerPopoverProps) {
-  const queryClient = useQueryClient();
-  const copiesCollection = getCopiesCollection(queryClient);
-  const { data: collections } = useQuery(collectionsQueryOptions);
-  const { data: copies } = useLiveQuery((q) => q.from({ copy: copiesCollection }));
+  const userId = useRequiredUserId();
+  const copiesCollection = useCopiesCollection();
+  const { data: collections } = useQuery(collectionsQueryOptions(userId));
+  const { data: copies } = useLiveQuery(
+    (q) => (copiesCollection ? q.from({ copy: copiesCollection }) : null),
+    [copiesCollection],
+  );
 
   const rows: PickerRow[] = [];
   if (collections && copies) {
