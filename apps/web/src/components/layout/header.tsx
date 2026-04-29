@@ -77,12 +77,7 @@ function LogoLink({ className }: { className?: string }) {
         }
       }}
     >
-      <img
-        src="/logo-64x64.webp"
-        srcSet="/logo-64x64.webp 1x, /logo-96x96.webp 3x"
-        alt="OpenRift"
-        className="size-8"
-      />
+      <img src="/logo-color.svg" alt="OpenRift" className="size-8" />
       <span className="text-xl font-bold">OpenRift</span>
       <span className="bg-primary/10 text-primary rounded-sm px-1.5 py-0.5 text-[10px] leading-none font-semibold uppercase">
         Unofficial
@@ -366,12 +361,7 @@ function MobileNav({
               className="flex items-center gap-2 font-bold"
               onClick={() => onOpenChange(false)}
             >
-              <img
-                src="/logo-64x64.webp"
-                srcSet="/logo-64x64.webp 1x, /logo-96x96.webp 3x"
-                alt="OpenRift"
-                className="size-6"
-              />
+              <img src="/logo-color.svg" alt="OpenRift" className="size-6" />
               OpenRift
               <span className="bg-primary/10 text-primary rounded-sm px-1.5 py-0.5 text-[10px] leading-none font-semibold uppercase">
                 Unofficial

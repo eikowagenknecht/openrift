@@ -449,17 +449,17 @@ async function loadLogoDataUrl(): Promise<string> {
     const image = new Image();
     image.addEventListener("load", () => resolve(image));
     image.addEventListener("error", reject);
-    image.src = "/logo.webp";
+    image.src = "/logo-color.svg";
   });
 
   const canvas = document.createElement("canvas");
-  canvas.width = img.naturalWidth;
-  canvas.height = img.naturalHeight;
+  canvas.width = 512;
+  canvas.height = 512;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     throw new Error("Failed to get canvas 2d context");
   }
-  ctx.drawImage(img, 0, 0);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   cachedLogoDataUrl = canvas.toDataURL("image/png");
   return cachedLogoDataUrl;
 }

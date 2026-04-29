@@ -73,7 +73,7 @@ test.describe("landing page", () => {
     // The logo button has no accessible name (alt=""), so select it via the
     // image src. Clicking triggers the `hinting` state which adds
     // border-primary/40 to every CardShape button for 400ms.
-    await page.locator('button:has(img[src*="logo.webp"])').click();
+    await page.locator('button:has(img[src*="logo-color.svg"])').click();
     await expect(firstCard.locator("button")).toHaveClass(/border-primary\/40/);
   });
 
@@ -184,7 +184,7 @@ test.describe("landing page", () => {
 
     // Once gone.size >= reachableCount, the scatter fires onAllCollected after
     // a 500ms debounce and the logo gets animate-logo-spin for 1000ms.
-    const logo = page.locator('img[src*="logo.webp"]');
+    const logo = page.locator('img[src*="logo-color.svg"]');
     await expect(logo).toHaveClass(/animate-logo-spin/);
 
     // After the spin, CardScatter is re-keyed and state resets, so the

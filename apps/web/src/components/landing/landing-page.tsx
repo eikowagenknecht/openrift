@@ -74,8 +74,7 @@ export function LandingPage() {
             onClick={handleLogoTap}
           >
             <img
-              src="/logo-144x144.webp"
-              srcSet="/logo-144x144.webp 1x, /logo-288x288.webp 2x, /logo-432x432.webp 3x"
+              src="/logo-color.svg"
               alt=""
               fetchPriority="high"
               className={cn("size-36", spinning && "animate-logo-spin")}
