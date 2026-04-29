@@ -13,6 +13,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { useLanguageList } from "@/hooks/use-enums";
 import { useSession } from "@/lib/auth-session";
 import { useGravatarUrl } from "@/lib/gravatar";
+import { getUserInitials } from "@/lib/user-initials";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 export const Route = createLazyFileRoute("/_app/_authenticated/profile")({
@@ -66,11 +67,7 @@ function ProfilePage() {
     return null;
   }
 
-  const initials = (user.name ?? user.email ?? "?")
-    .split(/[\s@]/)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase() ?? "")
-    .join("");
+  const initials = getUserInitials(user.name, user.email);
 
   const createdAt = user.createdAt
     ? new Date(user.createdAt).toLocaleDateString(undefined, {

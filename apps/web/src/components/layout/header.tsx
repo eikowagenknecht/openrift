@@ -57,6 +57,7 @@ import { clearUserScopedCache } from "@/lib/auth-cache";
 import { signOut } from "@/lib/auth-client";
 import { useSession } from "@/lib/auth-session";
 import { useGravatarUrl } from "@/lib/gravatar";
+import { getUserInitials } from "@/lib/user-initials";
 import { cn, CONTAINER_WIDTH } from "@/lib/utils";
 import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDeckBuilderUiStore } from "@/stores/deck-builder-ui-store";
@@ -206,9 +207,7 @@ function UserMenuTrigger({
     return (
       <Avatar size="sm">
         {gravatarUrl && <AvatarImage src={gravatarUrl} alt={user.name ?? user.email} />}
-        <AvatarFallback>
-          <UserIcon className="size-3" />
-        </AvatarFallback>
+        <AvatarFallback>{getUserInitials(user.name, user.email)}</AvatarFallback>
       </Avatar>
     );
   }
