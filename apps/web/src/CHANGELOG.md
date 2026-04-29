@@ -6,6 +6,7 @@
 - feat: After signing up, you now land on your Collections page with clear next steps, instead of the public card catalog
 - feat: The empty Collections and Decks pages now offer an Import button alongside the create options, so you can pull in your existing data from another tool in one click
 - fix: Energy cost icons in card text now render for any value, including 6 and 7 (used on Master Yi and Jayce), instead of showing a broken-image placeholder
+- fix: Opening a card on the cards page no longer prints a hydration warning to the browser console caused by the printing list's owned-count badge sitting inside the row's clickable area
 - fix: After verifying your email at signup you now land on the page you were headed for and are immediately recognised as signed in, instead of being dropped onto the card catalog and needing to refresh the page before the app sees your session
 - fix: Signing out no longer floods the browser console with live-query warnings while the page transitions away
 - fix: The OpenRift logo on the homepage, header, and login flows no longer shows a white square around it on high-resolution phone screens

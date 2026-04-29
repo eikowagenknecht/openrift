@@ -38,13 +38,21 @@ export function PrintingPicker({
           const isActive = p.id === current.id;
           const label = formatPrintingLabel(p, printings, labels);
           return (
-            <button
+            <div
               key={p.id}
-              type="button"
+              // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- can't use <button>; the row contains the OwnedCollectionsPopover trigger button, and nested buttons are invalid HTML
+              role="button"
+              tabIndex={0}
               aria-pressed={isActive}
               onClick={() => onSelect(p)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect(p);
+                }
+              }}
               className={cn(
-                "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
+                "flex w-full cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition-colors",
                 isActive ? "bg-muted ring-border ring-1" : "hover:bg-muted/50",
               )}
             >
@@ -75,7 +83,7 @@ export function PrintingPicker({
                 shortCode={p.shortCode}
               />
               <PrintingPrices printing={p} />
-            </button>
+            </div>
           );
         })}
       </div>
