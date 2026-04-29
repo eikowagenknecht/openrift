@@ -302,13 +302,7 @@ export function LoginForm({
       <SocialAuthButtons redirectTo={redirectTo} />
       <FieldDescription className="text-center">
         Don&apos;t have an account?{" "}
-        <Link
-          to="/signup"
-          search={{
-            redirect: redirectTo === "/" ? undefined : redirectTo,
-            email: currentEmail || undefined,
-          }}
-        >
+        <Link to="/signup" search={{ email: currentEmail || undefined }}>
           Sign up
         </Link>
       </FieldDescription>

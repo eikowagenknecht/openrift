@@ -15,7 +15,7 @@ export const Route = createLazyFileRoute("/_app/verify-email")({
 });
 
 function VerifyEmailPage() {
-  const { email, redirect } = Route.useSearch();
+  const { email } = Route.useSearch();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [otp, setOtp] = useState("");
@@ -44,7 +44,7 @@ function VerifyEmailPage() {
       return;
     }
     await clearUserScopedCache(queryClient);
-    void navigate({ to: (redirect as "/") ?? "/" });
+    void navigate({ to: "/collections" });
   }
 
   async function handleResend() {

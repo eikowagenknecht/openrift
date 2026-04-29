@@ -29,12 +29,10 @@ type SignUpValues = z.infer<typeof signUpSchema>;
 
 export function SignupForm({
   className,
-  redirectTo,
   initialEmail = "",
   emailPlaceholder,
   ...props
 }: React.ComponentProps<"div"> & {
-  redirectTo?: string;
   initialEmail?: string;
   emailPlaceholder: string;
 }) {
@@ -55,10 +53,7 @@ export function SignupForm({
       setServerError(form, error);
       return;
     }
-    void navigate({
-      to: "/verify-email",
-      search: { email: values.email, redirect: redirectTo },
-    });
+    void navigate({ to: "/verify-email", search: { email: values.email } });
   }
 
   return (
@@ -134,16 +129,10 @@ export function SignupForm({
           </Field>
         </FieldGroup>
       </form>
-      <SocialAuthButtons redirectTo={redirectTo} />
+      <SocialAuthButtons redirectTo="/collections" />
       <FieldDescription className="text-center">
         Already have an account?{" "}
-        <Link
-          to="/login"
-          search={{
-            redirect: redirectTo === "/" ? undefined : redirectTo,
-            email: watchedEmail || undefined,
-          }}
-        >
+        <Link to="/login" search={{ redirect: undefined, email: watchedEmail || undefined }}>
           Sign in
         </Link>
       </FieldDescription>

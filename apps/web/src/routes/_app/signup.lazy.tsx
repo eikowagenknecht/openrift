@@ -8,16 +8,12 @@ export const Route = createLazyFileRoute("/_app/signup")({
 });
 
 function SignupPage() {
-  const { redirect: redirectTo = "/", email } = Route.useSearch();
+  const { email } = Route.useSearch();
   const { emailPlaceholder } = Route.useLoaderData();
 
   return (
     <AuthPageLayout size="2xl">
-      <SignupForm
-        redirectTo={redirectTo}
-        initialEmail={email}
-        emailPlaceholder={emailPlaceholder}
-      />
+      <SignupForm initialEmail={email} emailPlaceholder={emailPlaceholder} />
     </AuthPageLayout>
   );
 }

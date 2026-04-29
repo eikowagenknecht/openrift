@@ -181,7 +181,7 @@ test.describe("verify email page", () => {
   });
 
   test.describe("success", () => {
-    test("verifies, redirects to /cards, and marks email_verified true", async ({
+    test("verifies, redirects to /collections, and marks email_verified true", async ({
       page,
       request,
     }) => {
@@ -195,7 +195,7 @@ test.describe("verify email page", () => {
         await page.goto(`/verify-email?email=${encodeURIComponent(email)}`);
         await page.locator(OTP_INPUT).fill(otp);
 
-        await expect(page).toHaveURL(/\/cards/, { timeout: 15_000 });
+        await expect(page).toHaveURL(/\/collections/, { timeout: 15_000 });
 
         const rows = (await sql`
           SELECT email_verified FROM users WHERE email = ${email}
