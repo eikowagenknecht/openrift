@@ -227,13 +227,16 @@ function UserMenuItems({ isLoggedIn }: { isLoggedIn: boolean }) {
     useThemeStore.getState().reset();
     useAddModeStore.getState().reset();
     useDeckBuilderUiStore.getState().reset();
-    // Flip session to null synchronously so useSession observers re-render
-    // as logged out immediately. User-scoped queries are keyed by userId, so
-    // every consumer that reads the session sees no userId and skips its
-    // queries; nothing imperative needs to clear a cache. The TanStack DB
-    // collections evict the previous user's entry on the next render.
-    queryClient.setQueryData(sessionQueryOptions().queryKey, null);
+    // Navigate first so authenticated routes start unmounting, then
+    // refetch the session (the cookie is gone, the server returns null).
+    // Synchronously setting the session to null would re-render the
+    // still-mounted CollectionGrid / CollectionSidebar / deck builder
+    // before React commits the unmount — useRequiredUserId throws and
+    // the route crashes. The refetch is async; its network round-trip
+    // gives React time to commit, so observers only see the new state
+    // once those components are gone.
     await router.navigate({ to: "/cards", search: {} });
+    void queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
   };
 
   return (

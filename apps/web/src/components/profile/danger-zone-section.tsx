@@ -39,11 +39,15 @@ export function DangerZoneSection() {
       setError(deleteError.message ?? "Failed to delete account.");
       return;
     }
-    // Flip session to null so useSession observers detach immediately.
-    // Per-user query keying handles the rest: nothing reads the deleted
-    // user's data after this render.
-    queryClient.setQueryData(sessionQueryOptions().queryKey, null);
+    // Navigate first so the profile page (and any other authenticated
+    // subtree) starts unmounting, then refetch the session — the deleted
+    // user's cookie is gone, the server returns null. Synchronously
+    // flipping the session would re-render hooks under the still-mounted
+    // authenticated routes with no userId — useRequiredUserId throws.
+    // The refetch is async; its network round-trip gives React time to
+    // commit the unmount before observers see the new state.
     await router.navigate({ to: "/" });
+    void queryClient.invalidateQueries({ queryKey: sessionQueryOptions().queryKey });
   }
 
   return (
