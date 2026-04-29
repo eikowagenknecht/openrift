@@ -38,7 +38,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { Textarea } from "@/components/ui/textarea";
 import { useCards } from "@/hooks/use-cards";
 import { useCollections } from "@/hooks/use-collections";
-import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useImportFlow } from "@/hooks/use-import-flow";
 import { copiesQueryOptions } from "@/lib/copies-query";
 import { downloadCSV, generateExportCSV } from "@/lib/csv-export";
@@ -71,9 +71,7 @@ function ImportExportPage() {
         {topBarPortal}
         <InputStep
           rawText={flow.rawText}
-          fallbackLanguage={flow.fallbackLanguage}
           onTextChange={flow.handleRawTextChange}
-          onFallbackLanguageChange={flow.handleFallbackLanguageChange}
           onParse={flow.handleParse}
           onFileUpload={flow.handleFileUpload}
           fileRef={flow.fileRef}
@@ -249,25 +247,19 @@ function ExportSection() {
 
 function InputStep({
   rawText,
-  fallbackLanguage,
   onTextChange,
-  onFallbackLanguageChange,
   onParse,
   onFileUpload,
   fileRef,
   parseErrors,
 }: {
   rawText: string;
-  fallbackLanguage: string;
   onTextChange: (text: string) => void;
-  onFallbackLanguageChange: (language: string) => void;
   onParse: (text: string) => void;
   onFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   fileRef: React.RefObject<HTMLInputElement | null>;
   parseErrors: string[];
 }) {
-  const languages = useLanguageList();
-
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
@@ -349,33 +341,6 @@ function InputStep({
             onChange={onFileUpload}
             className="hidden"
           />
-
-          <div className="ml-auto flex items-center gap-2">
-            <label className="text-muted-foreground text-sm" htmlFor="fallback-language">
-              Language
-            </label>
-            <Select
-              value={fallbackLanguage}
-              onValueChange={(value) => onFallbackLanguageChange(value ?? "")}
-              items={{
-                "": "Auto-detect",
-                ...Object.fromEntries(languages.map((lang) => [lang.code, lang.name])),
-              }}
-            >
-              <SelectTrigger className="w-[150px]" id="fallback-language">
-                <SelectValue placeholder="Auto-detect" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Auto-detect</SelectItem>
-                <SelectSeparator />
-                {languages.map((lang) => (
-                  <SelectItem key={lang.code} value={lang.code}>
-                    {lang.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
         </div>
       </div>
 
