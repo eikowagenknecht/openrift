@@ -2,6 +2,7 @@
 
 ## 2026-04-29
 
+- feat: The Why OpenRift help article has been refreshed, and its feature comparison now lays out as cards on phones instead of being squashed into an illegible table
 - feat: After signing up, you now land on your Collections page with clear next steps, instead of the public card catalog
 - feat: The empty Collections and Decks pages now offer an Import button alongside the create options, so you can pull in your existing data from another tool in one click
 - fix: After verifying your email at signup you now land on the page you were headed for and are immediately recognised as signed in, instead of being dropped onto the card catalog and needing to refresh the page before the app sees your session
