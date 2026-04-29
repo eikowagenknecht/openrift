@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-29
+
+- fix: The OpenRift logo on the homepage, header, and login flows no longer shows a white square around it on high-resolution phone screens
+
 ## 2026-04-28
 
 - feat: The owned-count badge in the card detail pane now sits next to each entry in the Printings list, so you can see how many of each printing you own at a glance instead of seeing one ambiguous count next to the card name
