@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FieldError, FieldGroup } from "@/components/ui/field";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { clearUserScopedCache } from "@/lib/auth-cache";
 import { authClient } from "@/lib/auth-client";
 
 export const Route = createLazyFileRoute("/_app/verify-email")({
@@ -13,8 +15,9 @@ export const Route = createLazyFileRoute("/_app/verify-email")({
 });
 
 function VerifyEmailPage() {
-  const { email } = Route.useSearch();
+  const { email, redirect } = Route.useSearch();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [otp, setOtp] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
@@ -40,7 +43,8 @@ function VerifyEmailPage() {
       }
       return;
     }
-    void navigate({ to: "/cards" });
+    await clearUserScopedCache(queryClient);
+    void navigate({ to: (redirect as "/") ?? "/" });
   }
 
   async function handleResend() {

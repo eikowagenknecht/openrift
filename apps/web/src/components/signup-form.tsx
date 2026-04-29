@@ -55,7 +55,10 @@ export function SignupForm({
       setServerError(form, error);
       return;
     }
-    void navigate({ to: "/verify-email", search: { email: values.email } });
+    void navigate({
+      to: "/verify-email",
+      search: { email: values.email, redirect: redirectTo },
+    });
   }
 
   return (
