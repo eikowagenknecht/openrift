@@ -22,33 +22,32 @@ const tiers: SupportTier[] = [
   {
     rarity: "Common",
     price: "$1/mo",
-    effect: "We acknowledge your existence. [Reaction]: We nod in your general direction.",
+    effect: "I see you over there. [Reaction]: I nod in your general direction.",
     rarityImage: "/images/rarities/common.webp",
   },
   {
     rarity: "Uncommon",
     price: "$3/mo",
-    effect: "A warm fuzzy feeling. [Shield]: Protects us from existential dread for 72 hours.",
+    effect: "A warm fuzzy feeling. [Shield]: Protects me from existential dread for 72 hours.",
     rarityImage: "/images/rarities/uncommon.webp",
   },
   {
     rarity: "Rare",
     price: "$5/mo",
-    effect:
-      "Our servers gain +1 :rb_might:. They survive approximately 4.7 more minutes per month.",
+    effect: "My server gains +1 :rb_might:. It survives approximately 4.7 more minutes per month.",
     rarityImage: "/images/rarities/rare.webp",
   },
   {
     rarity: "Epic",
     price: "$10/mo",
-    effect: "You're keeping the lights on. [Deathknell]: We name a bug after you.",
+    effect: "You're keeping the lights on. [Deathknell]: I name a bug after you.",
     rarityImage: "/images/rarities/epic.webp",
   },
   {
     rarity: "Showcase",
     price: "$25/mo",
     effect:
-      "You basically own the site now. [Buff]: Our morale goes through the roof. A sticker may or may not materialize.",
+      "You basically own the site now. [Buff]: My morale goes through the roof. A sticker may or may not materialize.",
     rarityImage: "/images/rarities/showcase.webp",
   },
 ];
@@ -134,17 +133,17 @@ export function SupportPage() {
         <h1 className="mb-4 text-2xl font-bold">Support the Rift</h1>
         <div className="text-muted-foreground space-y-3 text-sm leading-relaxed">
           <p>
-            Every day, our servers burn Energy to keep the Rift open so you can browse cards instead
+            Every day, my server burns Energy to keep the Rift open so you can browse cards instead
             of whatever you were supposed to be doing.
           </p>
           <p>
-            This site has no ads, no trackers, and no venture capital guys asking about our
+            This site has no ads, no trackers, and no venture capital guys asking about my
             &ldquo;growth metrics.&rdquo; Just me, a database, and an alarming hosting bill. (Just
             kidding, this is running on a Hetzner CX23 found in a Falkenstein scrapyard. But
             upgrading it would be nice.)
           </p>
           <p>
-            You can help. Or don&apos;t. We&apos;ll just be here. In the basement. Waiting for
+            You can help. Or don&apos;t. I&apos;ll just be here. In the basement. Waiting for
             reinforcements.
           </p>
         </div>
@@ -201,7 +200,7 @@ export function SupportPage() {
             href={`https://x.com/intent/tweet?text=${tweetText}`}
           />
           <ShareButton
-            label="Tell Reddit about us"
+            label="Tell Reddit about OpenRift"
             icon={<SimpleIcon icon={siReddit} />}
             href={`https://reddit.com/submit?url=${encodeURIComponent(siteUrl)}&title=${encodeURIComponent("OpenRift — free card browser for Riftbound")}`}
           />
@@ -235,9 +234,9 @@ export function SupportPage() {
           >
             Cardtrader
           </a>{" "}
-          link from a card&apos;s prices and end up buying something, we get a very small commission
+          link from a card&apos;s prices and end up buying something, I get a very small commission
           at no extra cost to you. (Cardmarket doesn&apos;t do this, so those links are just regular
-          links.) Buying cards you were going to buy anyway through our links is a sneaky-easy way
+          links.) Buying cards you were going to buy anyway through these links is a sneaky-easy way
           to help out.
         </p>
       </section>
@@ -246,7 +245,7 @@ export function SupportPage() {
       <section className="mb-10">
         <h2 className="mb-1 text-lg font-semibold">Join the Party</h2>
         <p className="text-muted-foreground mb-4 text-sm">
-          Got feedback, questions, or just want to talk cards? We&apos;re on Discord.
+          Got feedback, questions, or just want to talk cards? Come hang out on Discord.
         </p>
         <a
           href="https://discord.gg/Qb6RcjXq6z"
@@ -255,7 +254,7 @@ export function SupportPage() {
           className="inline-flex items-center gap-2 rounded-md bg-[#5865F2] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#4752C4]"
         >
           <SimpleIcon icon={siDiscord} className="size-4" />
-          Join our Discord
+          Join the Discord
         </a>
       </section>
 
@@ -268,7 +267,7 @@ export function SupportPage() {
               Coming Soon&trade;
             </CardTitle>
             <CardDescription>
-              Our Gear department (population: one) is working on it. Check back before the heat
+              My Gear department (population: one) is working on it. Check back before the heat
               death of the universe.
             </CardDescription>
           </CardHeader>

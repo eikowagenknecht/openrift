@@ -50,7 +50,7 @@ export function HelpIndexPage() {
             >
               <path d={siDiscord.path} />
             </svg>
-            Ask us on Discord
+            Ask on Discord
           </a>
         </p>
       </div>

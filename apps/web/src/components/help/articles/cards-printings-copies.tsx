@@ -235,8 +235,8 @@ export default function CardsPrintingsCopiesArticle() {
           A <strong className="text-foreground">copy</strong> is a single physical card you own.
           When you add a card to your collection, you are adding a copy of a specific printing. If
           you own three of the same foil printing, that is three copies. In the real world, each
-          copy could have its own condition details (like a PSA grading or a coffee stain), but we
-          don&apos;t track those yet.
+          copy could have its own condition details (like a PSA grading or a coffee stain), but
+          those aren&apos;t tracked yet.
         </p>
         <p className="text-muted-foreground mt-2">
           In your{" "}

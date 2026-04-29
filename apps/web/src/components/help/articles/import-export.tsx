@@ -91,7 +91,7 @@ export default function ImportExportArticle() {
 
         <p className="text-muted-foreground mt-3 text-sm">
           Using a different tool? Export it as CSV and try importing. If the format isn&apos;t
-          recognized, OpenRift will tell you. Let us know on{" "}
+          recognized, OpenRift will tell you. Let me know on{" "}
           <a
             href="https://discord.gg/Qb6RcjXq6z"
             target="_blank"
@@ -109,7 +109,7 @@ export default function ImportExportArticle() {
           >
             GitHub
           </a>{" "}
-          if you&apos;d like support for another tool and we&apos;ll do our best to add it.
+          if you&apos;d like support for another tool and I&apos;ll do my best to add it.
         </p>
       </section>
 

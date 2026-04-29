@@ -26,7 +26,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       slug: "why-openrift",
       title: "Why OpenRift?",
       description:
-        "A transparent comparison with other Riftbound card browsers: what we do well and where we're still catching up.",
+        "A transparent comparison with other Riftbound card browsers: what OpenRift does well and where it's still catching up.",
       icon: ScaleIcon,
       component: () => import("./articles/why-openrift"),
     },

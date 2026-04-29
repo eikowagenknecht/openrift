@@ -104,8 +104,8 @@ export default function ProxyPrintingArticle() {
                 Right now, proxy printing requires a deck. You can&apos;t yet print arbitrary cards
                 from your collection or a custom selection. The deck editor also picks a default
                 printing for each card, so you can&apos;t choose which specific art or edition
-                appears on the proxy. We&apos;re working on improving this so you can select
-                concrete printings and print proxies without needing a deck.
+                appears on the proxy. I&apos;m working on improving this so you can select concrete
+                printings and print proxies without needing a deck.
               </p>
             </div>
           </div>

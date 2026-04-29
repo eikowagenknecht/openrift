@@ -61,7 +61,7 @@ export function MarketplacesSection() {
             <CardDescription className="space-y-2">
               <p>Enable and reorder price sources. The first one is shown in the card grid.</p>
               <p>
-                We recommend CardTrader, since it separates prices by language and condition, so you
+                I recommend CardTrader, since it separates prices by language and condition, so you
                 get the real Near Mint price. Cardmarket only shows the overall lowest price, and
                 TCGplayer only lists English printings (but in USD, which may be more convenient for
                 US buyers).
