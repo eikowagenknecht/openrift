@@ -41,6 +41,7 @@ function makePrinting(overrides: Partial<Printing> & { language: string }): Prin
     printedEffectText: null,
     flavorText: null,
     printedName: null,
+    printedYear: null,
     comment: null,
     canonicalRank: 0,
     card: {

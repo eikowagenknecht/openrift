@@ -124,6 +124,7 @@ export const acceptPrintingSchema = z.object({
     imageUrl: candidatePrintingFieldRules.imageUrl.optional(),
     language: z.string().min(1).max(5).optional(),
     printedName: z.string().min(1).optional().nullable(),
+    printedYear: printingFieldRules.printedYear.optional(),
   }),
   candidatePrintingIds: z.array(z.string()),
 });
@@ -146,6 +147,7 @@ export const createPrintingSchema = z.object({
   imageUrl: candidatePrintingFieldRules.imageUrl.optional(),
   language: z.string().min(1).max(5).optional(),
   printedName: z.string().min(1).optional().nullable(),
+  printedYear: printingFieldRules.printedYear.optional(),
 });
 
 export const setImageSchema = z.object({

@@ -78,6 +78,7 @@ const PRINTING_VIEW_COLUMNS = [
   "printingsOrdered.printedEffectText",
   "printingsOrdered.flavorText",
   "printingsOrdered.printedName",
+  "printingsOrdered.printedYear",
   "printingsOrdered.language",
   "printingsOrdered.markerSlugs",
   "printingsOrdered.comment",

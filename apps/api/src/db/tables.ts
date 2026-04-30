@@ -122,6 +122,8 @@ export interface PrintingsTable {
   comment: string | null;
   language: string;
   printedName: string | null;
+  /** Year stamped on the physical card (e.g. 2025). Differs from set release for reprints. */
+  printedYear: number | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

@@ -99,6 +99,7 @@ function buildFixture(): Printing[] {
       printedEffectText: null,
       flavorText: null,
       printedName: null,
+      printedYear: null,
       comment: null,
       language: pick(LANGUAGES, r),
       cardId: `card-${cardIdx}`,

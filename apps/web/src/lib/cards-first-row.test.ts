@@ -53,6 +53,7 @@ function makePrinting(
     printedEffectText: null,
     flavorText: null,
     printedName: null,
+    printedYear: null,
     language: "EN",
     comment: null,
     canonicalRank: 0,

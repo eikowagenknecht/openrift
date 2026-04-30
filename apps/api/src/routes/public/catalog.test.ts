@@ -72,6 +72,7 @@ const dbPrintingRow = {
   printedEffectText: "Deal 3 damage",
   flavorText: null,
   printedName: null,
+  printedYear: null,
   language: "EN",
 };
 

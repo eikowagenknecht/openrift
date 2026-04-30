@@ -63,6 +63,11 @@ export function CreatePrintingPage({
   const [publicCode, setPublicCode] = useState(source?.publicCode ?? "");
   const [language, setLanguage] = useState<string>(source?.language ?? languages[0]?.code ?? "EN");
   const [printedName, setPrintedName] = useState(source?.printedName ?? "");
+  const [printedYear, setPrintedYear] = useState<string>(
+    source?.printedYear !== undefined && source.printedYear !== null
+      ? String(source.printedYear)
+      : "",
+  );
   const [printedRulesText, setPrintedRulesText] = useState(source?.printedRulesText ?? "");
   const [printedEffectText, setPrintedEffectText] = useState(source?.printedEffectText ?? "");
   const [flavorText, setFlavorText] = useState(source?.flavorText ?? "");
@@ -102,6 +107,12 @@ export function CreatePrintingPage({
     }
     if (printedName.trim()) {
       printingFields.printedName = printedName.trim();
+    }
+    if (printedYear.trim()) {
+      const parsed = Number.parseInt(printedYear.trim(), 10);
+      if (Number.isFinite(parsed)) {
+        printingFields.printedYear = parsed;
+      }
     }
     if (printedRulesText.trim()) {
       printingFields.printedRulesText = printedRulesText.trim();
@@ -316,14 +327,26 @@ export function CreatePrintingPage({
           </div>
         </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="create-printing-printed-name">Printed name</Label>
-          <Input
-            id="create-printing-printed-name"
-            value={printedName}
-            onChange={(e) => setPrintedName(e.target.value)}
-            placeholder="Leave blank to use card name"
-          />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <Label htmlFor="create-printing-printed-name">Printed name</Label>
+            <Input
+              id="create-printing-printed-name"
+              value={printedName}
+              onChange={(e) => setPrintedName(e.target.value)}
+              placeholder="Leave blank to use card name"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="create-printing-printed-year">Printed year</Label>
+            <Input
+              id="create-printing-printed-year"
+              value={printedYear}
+              onChange={(e) => setPrintedYear(e.target.value)}
+              placeholder="e.g. 2025"
+              inputMode="numeric"
+            />
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

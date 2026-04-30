@@ -70,6 +70,7 @@ function makePrinting(
     printedEffectText: null,
     flavorText: null,
     printedName: null,
+    printedYear: null,
     comment: null,
     language: "EN",
     canonicalRank: 0,

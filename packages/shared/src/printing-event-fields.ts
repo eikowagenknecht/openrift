@@ -15,6 +15,7 @@ const FIELD_LABELS: Readonly<Record<string, string>> = {
   printedEffectText: "Effect text",
   printedName: "Printed name",
   printedRulesText: "Rules text",
+  printedYear: "Printed year",
   promoTypeId: "Promo type",
   publicCode: "Public code",
   rarity: "Rarity",

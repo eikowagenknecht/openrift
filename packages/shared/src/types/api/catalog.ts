@@ -38,6 +38,8 @@ export interface CatalogPrintingResponse {
   printedEffectText: string | null;
   flavorText: string | null;
   printedName: string | null;
+  /** Year stamped on the physical card (e.g. 2025). Differs from set release for reprints. */
+  printedYear: number | null;
   language: string;
   comment: string | null;
   cardId: string;

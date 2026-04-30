@@ -64,6 +64,7 @@ const basePrinting = {
   printedEffectText: null,
   flavorText: null,
   printedName: null,
+  printedYear: null,
   language: "EN",
   markerSlugs: [],
   comment: null,

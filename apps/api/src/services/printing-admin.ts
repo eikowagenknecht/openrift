@@ -159,6 +159,7 @@ interface AcceptPrintingFields {
   imageUrl?: string | null;
   language?: string;
   printedName?: string | null;
+  printedYear?: number | null;
 }
 
 /**
@@ -289,6 +290,7 @@ export async function acceptPrinting(
       }),
       language,
       printedName: printingFields.printedName ?? null,
+      printedYear: printingFields.printedYear ?? null,
     });
 
     // Sync the M2M joins to match the requested marker/channel slugs.

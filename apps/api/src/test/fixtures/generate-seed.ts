@@ -154,7 +154,7 @@ const printings = await sql<Record<string, unknown>[]>`
   SELECT p.id, p.card_id, p.set_id, p.short_code, p.rarity,
     p.art_variant, p.is_signed, p.finish, p.artist, p.public_code,
     p.printed_rules_text, p.printed_effect_text, p.flavor_text, p.comment,
-    p.marker_slugs, p.language, p.printed_name
+    p.marker_slugs, p.language, p.printed_name, p.printed_year
   FROM printings p
   JOIN sets s ON s.id = p.set_id
   JOIN cards c ON c.id = p.card_id

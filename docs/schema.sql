@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict mEh10P7UejAhzarVHkcPpTg4eRkfmf5f5idFFurHtBLYWY9iF65XDkeABHVyrAZ
+\restrict jR5iCaTNNh5QeTiZkJNv1d190H4IhWQCWxft5S2Ffz9aynEheR8vTuAWemX5OHE
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1189,6 +1189,7 @@ CREATE TABLE public.printings (
     language text DEFAULT 'EN'::text NOT NULL,
     printed_name text,
     marker_slugs text[] DEFAULT '{}'::text[] NOT NULL,
+    printed_year smallint,
     CONSTRAINT chk_printings_artist_not_empty CHECK ((artist <> ''::text)),
     CONSTRAINT chk_printings_no_empty_comment CHECK ((comment <> ''::text)),
     CONSTRAINT chk_printings_no_empty_flavor_text CHECK ((flavor_text <> ''::text)),
@@ -1245,6 +1246,7 @@ CREATE VIEW public.printings_ordered AS
     p.language,
     p.printed_name,
     p.marker_slugs,
+    p.printed_year,
     (row_number() OVER (ORDER BY l.sort_order, s.sort_order, p.short_code, (array_length(p.marker_slugs, 1) IS NOT NULL), COALESCE(( SELECT min(m.sort_order) AS min
            FROM public.markers m
           WHERE (m.slug = ANY (p.marker_slugs))), 0), f.sort_order))::integer AS canonical_rank
@@ -3398,5 +3400,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict mEh10P7UejAhzarVHkcPpTg4eRkfmf5f5idFFurHtBLYWY9iF65XDkeABHVyrAZ
+\unrestrict jR5iCaTNNh5QeTiZkJNv1d190H4IhWQCWxft5S2Ffz9aynEheR8vTuAWemX5OHE
 

@@ -27,6 +27,7 @@ function makePrinting(overrides: Partial<Printing> & { id: string; shortCode: st
     printedEffectText: null,
     flavorText: null,
     printedName: null,
+    printedYear: null,
     comment: null,
     language: "EN",
     canonicalRank: 0,

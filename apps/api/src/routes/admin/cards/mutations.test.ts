@@ -825,6 +825,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
       comment: null,
       language: "EN",
       printedName: null,
+      printedYear: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

@@ -51,6 +51,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
     printedEffectText: null,
     flavorText: null,
     printedName: null,
+    printedYear: null,
     comment: null,
     language: "EN",
     canonicalRank: 0,

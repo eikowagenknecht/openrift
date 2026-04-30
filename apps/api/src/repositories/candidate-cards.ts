@@ -376,6 +376,7 @@ export function candidateCardsRepo(db: Kysely<Database>) {
           "printedEffectText",
           "flavorText",
           "printedName",
+          "printedYear",
           "language",
           "comment",
           "canonicalRank",

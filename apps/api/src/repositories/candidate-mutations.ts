@@ -626,6 +626,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
       flavorText: string | null;
       language: string;
       printedName: string | null;
+      printedYear: number | null;
     }): Promise<string> {
       const sortedSlugs = [...values.markerSlugs].sort();
       const existing = await db
@@ -647,6 +648,7 @@ export function candidateMutationsRepo(db: Kysely<Database>) {
             printedEffectText: values.printedEffectText,
             flavorText: values.flavorText,
             printedName: values.printedName,
+            printedYear: values.printedYear,
           })
           .where("id", "=", existing.id)
           .execute();

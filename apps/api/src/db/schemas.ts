@@ -80,6 +80,7 @@ export const printingFieldRules = {
   printedEffectText: z.string().min(1).nullable(),
   flavorText: z.string().min(1).nullable(),
   comment: z.string().min(1).nullable(),
+  printedYear: z.number().int().min(1900).max(2999).nullable(),
 } satisfies Record<string, z.ZodType>;
 
 // ── Candidate cards ──────────────────────────────────────────────────────

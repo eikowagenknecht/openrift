@@ -315,6 +315,7 @@ const catalogPrintingResponseSchema = z.object({
   printedEffectText: z.string().nullable().openapi({ example: null }),
   flavorText: z.string().nullable().openapi({ example: null }),
   printedName: z.string().nullable().openapi({ example: null }),
+  printedYear: z.number().int().nullable().openapi({ example: 2025 }),
   language: z.string().openapi({ example: "EN" }),
   comment: z.string().nullable().openapi({ example: null }),
   cardId: z.string().openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),

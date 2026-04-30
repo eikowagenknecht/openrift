@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-04-30
+
+- feat: Card detail now shows the printed year stamped on the card, so you can tell reprints apart from the original at a glance
+
 ## 2026-04-29
 
 - feat: The Why OpenRift help article has been refreshed, and its feature comparison now lays out as cards on phones instead of being squashed into an illegible table

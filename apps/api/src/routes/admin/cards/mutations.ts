@@ -846,6 +846,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
       "flavorText",
       "language",
       "printedName",
+      "printedYear",
       "comment",
     ]);
 
@@ -874,6 +875,7 @@ export const mutationsRoute = new OpenAPIHono<{ Variables: Variables }>()
           `Invalid value for ${field}: ${parsed.error.issues[0].message}`,
         );
       }
+      normalizedValue = parsed.data;
     }
 
     // Read the printing before mutation so we can capture old values for change tracking

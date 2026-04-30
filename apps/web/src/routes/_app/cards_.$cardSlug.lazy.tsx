@@ -171,6 +171,9 @@ function CardDetailPage() {
       </span>,
     ]);
   }
+  if (selectedPrinting.printedYear !== null) {
+    leftRows.push(["Year", selectedPrinting.printedYear]);
+  }
 
   const rightRows: [string, ReactNode][] = [
     ["Type", <TypeValue key="type" type={card.type} superTypes={card.superTypes} />],

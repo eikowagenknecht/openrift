@@ -102,6 +102,7 @@ function buildFixture() {
       printedEffectText: null,
       flavorText: null,
       printedName: null,
+      printedYear: null,
       comment: null,
       language: pick(LANGUAGES, r),
       canonicalRank: i + 1,

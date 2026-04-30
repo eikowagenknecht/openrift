@@ -95,6 +95,8 @@ export interface Printing {
   printedEffectText: string | null;
   flavorText: string | null;
   printedName: string | null;
+  /** Year stamped on the physical card (e.g. 2025). Differs from set release for reprints. */
+  printedYear: number | null;
   language: string;
   /** Editor note about this specific printing. Surfaced as a small icon + tooltip. */
   comment: string | null;
