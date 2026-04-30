@@ -25,6 +25,7 @@ import { EnergyPowerChart } from "@/components/deck/stats/energy-power-chart";
 import { ActiveFilters } from "@/components/filters/active-filters";
 import { FilterBadgeSections } from "@/components/filters/filter-panel-content";
 import { PageTopBar, PageTopBarTitle } from "@/components/layout/page-top-bar";
+import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -109,10 +110,9 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
           </p>
         </CardContent>
       </Card>
-      <a
+      <MarketplaceLink
+        marketplace={stats.marketplace}
         href={MARKETPLACE_META[stats.marketplace].searchUrl("riftbound")}
-        target="_blank"
-        rel="noreferrer"
         className="no-underline"
       >
         <Card className="hover:bg-muted/50 h-full transition-colors">
@@ -143,7 +143,7 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
             </div>
           </CardContent>
         </Card>
-      </a>
+      </MarketplaceLink>
     </div>
   );
 }

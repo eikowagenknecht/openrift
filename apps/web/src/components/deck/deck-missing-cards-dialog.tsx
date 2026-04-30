@@ -3,6 +3,7 @@ import { straightenApostrophes } from "@openrift/shared";
 import { CheckIcon, CopyIcon, LockIcon } from "lucide-react";
 import { useState } from "react";
 
+import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -135,17 +136,16 @@ export function DeckMissingCardsDialog({
                 {cards.map((card) => (
                   <tr key={`${card.cardId}:${card.zone}`} className="border-t">
                     <td className="py-1.5">
-                      <a
+                      <MarketplaceLink
+                        marketplace={marketplace}
                         href={linkFor(card)}
-                        target="_blank"
-                        rel="noreferrer"
                         className="hover:text-foreground underline decoration-dotted underline-offset-2"
                       >
                         <span className="text-muted-foreground mr-2 font-mono">
                           {card.displayPrinting?.shortCode ?? "--"}
                         </span>
                         {card.cardName}
-                      </a>
+                      </MarketplaceLink>
                       {card.locked > 0 && (
                         <Tooltip>
                           <TooltipTrigger

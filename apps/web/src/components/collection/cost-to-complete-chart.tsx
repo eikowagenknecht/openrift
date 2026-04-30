@@ -7,6 +7,7 @@ import type {
 import { imageUrl } from "@openrift/shared";
 import { Area, AreaChart, ReferenceArea, ReferenceDot, XAxis, YAxis } from "recharts";
 
+import { trackMarketplaceClick } from "@/components/marketplace-link";
 import type { ChartConfig } from "@/components/ui/chart";
 import { ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import type { CompletionCountMode } from "@/hooks/use-collection-stats";
@@ -488,7 +489,9 @@ export function CostToCompleteChart({
                   className="cursor-pointer"
                   onClick={() => {
                     if (props.payload.label) {
-                      window.open(searchUrl(props.payload.label), "_blank", "noreferrer");
+                      const url = searchUrl(props.payload.label);
+                      trackMarketplaceClick(marketplace, url);
+                      window.open(url, "_blank", "noreferrer");
                     }
                   }}
                 >

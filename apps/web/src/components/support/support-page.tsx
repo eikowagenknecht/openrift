@@ -3,6 +3,7 @@ import { Suspense, useState } from "react";
 import { siDiscord, siGithubsponsors, siKofi, siReddit, siX } from "simple-icons";
 
 import { CardText } from "@/components/cards/card-text";
+import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSiteUrl } from "@/lib/site-config";
@@ -217,23 +218,21 @@ export function SupportPage() {
         <h2 className="mb-1 text-lg font-semibold">Shop Through the Rift</h2>
         <p className="text-muted-foreground text-sm">
           When you click a{" "}
-          <a
+          <MarketplaceLink
+            marketplace="tcgplayer"
             href="https://partner.tcgplayer.com/openrift?u=https%3A%2F%2Fwww.tcgplayer.com%2F"
-            target="_blank"
-            rel="noreferrer"
             className="text-primary underline-offset-4 hover:underline"
           >
             TCGplayer
-          </a>{" "}
+          </MarketplaceLink>{" "}
           or{" "}
-          <a
+          <MarketplaceLink
+            marketplace="cardtrader"
             href="https://www.cardtrader.com/?share_code=openrift"
-            target="_blank"
-            rel="noreferrer"
             className="text-primary underline-offset-4 hover:underline"
           >
             Cardtrader
-          </a>{" "}
+          </MarketplaceLink>{" "}
           link from a card&apos;s prices and end up buying something, I get a very small commission
           at no extra cost to you. (Cardmarket doesn&apos;t do this, so those links are just regular
           links.) Buying cards you were going to buy anyway through these links is a sneaky-easy way

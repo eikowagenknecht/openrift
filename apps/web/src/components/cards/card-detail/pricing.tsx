@@ -2,6 +2,7 @@ import type { Marketplace, Printing, TimeRange } from "@openrift/shared";
 import { snapshotHeadline } from "@openrift/shared";
 import { TrendingDownIcon, TrendingUpIcon } from "lucide-react";
 
+import { MarketplaceLink } from "@/components/marketplace-link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePriceHistory } from "@/hooks/use-price-history";
@@ -101,6 +102,7 @@ export function PricingSection({ printing, range }: { printing: Printing; range:
         return (
           <PriceChip
             key={marketplace}
+            marketplace={marketplace}
             label={config.label}
             icon={config.icon}
             iconClassName={config.iconClassName}
@@ -176,6 +178,7 @@ function PriceTrend({
 }
 
 function PriceChip({
+  marketplace,
   label,
   icon,
   value,
@@ -185,6 +188,7 @@ function PriceChip({
   isFavorite,
   isAffiliate,
 }: {
+  marketplace: Marketplace;
   label: string;
   icon?: string;
   value: number;
@@ -217,7 +221,11 @@ function PriceChip({
               variant={variant}
               size="sm"
               render={
-                <a href={url} target="_blank" rel="noreferrer" aria-label={`Buy on ${label}`} />
+                <MarketplaceLink
+                  marketplace={marketplace}
+                  href={url}
+                  aria-label={`Buy on ${label}`}
+                />
               }
               className={chipClassName}
             />
