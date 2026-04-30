@@ -53,7 +53,7 @@ export interface FieldDef {
   key: string;
   label: string;
   readOnly?: boolean;
-  type?: "boolean";
+  type?: "boolean" | "number";
   options?: readonly string[];
   /** Options with distinct value/label pairs (e.g. UUID -> human label). Takes precedence over `options`. */
   labeledOptions?: readonly { value: string; label: string }[];
@@ -159,6 +159,7 @@ export function buildCandidatePrintingFields(
       labeledOptions: languages && languages.length > 0 ? languages : undefined,
     },
     { key: "printedName", label: "Printed Name" },
+    { key: "printedYear", label: "Printed Year", type: "number" },
     { key: "printedRulesText", label: "Printed Rules", multiline: true },
     { key: "printedEffectText", label: "Printed Effect", multiline: true },
     { key: "flavorText", label: "Flavor Text", multiline: true },
@@ -435,6 +436,15 @@ export function CandidateSpreadsheet({
       onActiveChange(fieldKey, items.length > 0 ? items : null);
       return;
     }
+    if (fieldDef?.type === "number") {
+      if (!trimmed) {
+        onActiveChange(fieldKey, null);
+        return;
+      }
+      const parsed = Number.parseInt(trimmed, 10);
+      onActiveChange(fieldKey, Number.isFinite(parsed) ? parsed : null);
+      return;
+    }
     onActiveChange(fieldKey, trimmed || null);
   }
 
@@ -703,6 +713,7 @@ export function CandidateSpreadsheet({
                     <input
                       ref={inputRef}
                       type="text"
+                      inputMode={field.type === "number" ? "numeric" : undefined}
                       defaultValue={
                         hasValue(activeValue)
                           ? Array.isArray(activeValue)
