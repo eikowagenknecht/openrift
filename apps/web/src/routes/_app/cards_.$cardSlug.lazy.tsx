@@ -22,6 +22,7 @@ import type { ReactNode } from "react";
 import { Suspense, lazy, useState } from "react";
 import { toast } from "sonner";
 
+import { PricingSection } from "@/components/cards/card-detail/pricing";
 import { CardText } from "@/components/cards/card-text";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { TIME_RANGES } from "@/components/cards/price-history-chart-constants";
@@ -376,6 +377,10 @@ function CardDetailPage() {
               )}
             </tbody>
           </table>
+
+          <div className="border-border mt-3 border-t pt-3 empty:hidden">
+            <PricingSection printing={selectedPrinting} range="30d" />
+          </div>
         </div>
       </div>
 

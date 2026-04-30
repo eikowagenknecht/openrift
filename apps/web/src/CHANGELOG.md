@@ -4,6 +4,7 @@
 
 - feat: First-time deck builders now see a four-step quick guide on the empty deck overview, with a link to the full help article and a one-click dismiss for when you've got the hang of it
 - feat: The Decks page now has a help icon next to Import and New Deck, and the New Deck dialog links to the deck-building guide, so the docs are one click away whenever you need them
+- feat: The standalone card page now shows Buy on TCGplayer, Cardmarket, and CardTrader links with the latest price for the selected printing, matching what you already see in the side-pane card preview
 - feat: Card detail now shows the printed year stamped on the card, so you can tell reprints apart from the original at a glance
 
 ## 2026-04-29
