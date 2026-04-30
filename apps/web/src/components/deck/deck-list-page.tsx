@@ -1,6 +1,6 @@
 import type { DeckListItemResponse, DeckResponse } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { DownloadIcon, PlusIcon, SwordsIcon } from "lucide-react";
+import { CircleHelpIcon, DownloadIcon, PlusIcon, SwordsIcon } from "lucide-react";
 import { useState } from "react";
 
 import {
@@ -104,6 +104,14 @@ function CreateDeckDialog({
               </SelectContent>
             </Select>
           </div>
+          <Link
+            to="/help/$slug"
+            params={{ slug: "deck-building" }}
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5"
+          >
+            <CircleHelpIcon className="size-3.5" />
+            New to deck building? See how it works →
+          </Link>
         </div>
         <DialogFooter>
           <Button onClick={handleCreate} disabled={!name.trim() || createDeck.isPending}>
@@ -192,6 +200,14 @@ export function DeckListPage() {
         <PageTopBar>
           <PageTopBarTitle>Decks</PageTopBarTitle>
           <PageTopBarActions>
+            <Link
+              to="/help/$slug"
+              params={{ slug: "deck-building" }}
+              aria-label="Deck building help"
+              className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+            >
+              <CircleHelpIcon className="size-4" />
+            </Link>
             <Link to="/decks/import" className={buttonVariants({ variant: "outline" })}>
               <DownloadIcon className="size-4" />
               Import

@@ -5,10 +5,12 @@ import { Link } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
   CheckCircle2Icon,
+  InfoIcon,
   LogInIcon,
   PackageSearchIcon,
   PencilIcon,
   PlusIcon,
+  XIcon,
 } from "lucide-react";
 
 import { DeckCardPrintingMenu } from "@/components/deck/deck-card-printing-menu";
@@ -39,6 +41,7 @@ import { ZONE_LABELS } from "@/lib/deck-zone-labels";
 import { formatterForMarketplace } from "@/lib/format";
 import { getTypeIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
+import { useOnboardingStore } from "@/stores/onboarding-store";
 
 const ZONE_EXPECTED: Partial<Record<DeckZone, number>> = {
   legend: 1,
@@ -153,12 +156,13 @@ export function DeckOverview({
     .filter((card) => REQUIRED_ZONES.includes(card.zone))
     .reduce((sum, card) => sum + card.quantity, 0);
   const hasLegend = cards.some((card) => card.zone === WellKnown.deckZone.LEGEND);
-  const hint =
-    totalCards === 0
-      ? "Start by picking a Legend, then Champions, Runes, and the main deck unlock around it."
-      : hasLegend
-        ? null
-        : "Pick a Legend to unlock matching Champions and auto-fill Runes.";
+  const introDismissed = useOnboardingStore((state) => state.deckBuilderIntroDismissed);
+  const dismissIntro = useOnboardingStore((state) => state.dismissDeckBuilderIntro);
+  const showIntroBanner = !readOnly && totalCards === 0 && !introDismissed;
+  const fallbackHint =
+    !readOnly && totalCards > 0 && !hasLegend
+      ? "Pick a Legend to unlock matching Champions and auto-fill Runes."
+      : null;
 
   const hasAnyViolation = violations.length > 0;
   const isComplete = requiredProgress === REQUIRED_TOTAL && !hasAnyViolation;
@@ -170,7 +174,8 @@ export function DeckOverview({
       {description && (
         <p className="text-muted-foreground text-sm whitespace-pre-wrap">{description}</p>
       )}
-      {!readOnly && hint && <p className="text-sm">{hint}</p>}
+      {showIntroBanner && <DeckBuilderIntroBanner onDismiss={dismissIntro} />}
+      {fallbackHint && <p className="text-sm">{fallbackHint}</p>}
 
       {totalCards > 0 && (
         <div className="grid grid-cols-2 gap-2 @3xl:grid-cols-5">
@@ -874,5 +879,61 @@ function ZoneThumb({
     <DeckCardPrintingMenu deckId={deckId} card={card}>
       {thumbBody}
     </DeckCardPrintingMenu>
+  );
+}
+
+const INTRO_STEPS: readonly { title: string; description: string }[] = [
+  { title: "Pick a Legend", description: "Sets your deck's domains. Runes auto-fill 6/6." },
+  { title: "Choose a Champion", description: "Suggested by your Legend's tag." },
+  { title: "Add Battlefields", description: "Three unique battlefield cards." },
+  { title: "Fill the Main Deck", description: "39 units, spells, and gear from your domains." },
+];
+
+function DeckBuilderIntroBanner({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="border-border bg-muted/30 relative rounded-lg border p-4">
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss this guide"
+        className="text-muted-foreground hover:text-foreground absolute top-2 right-2 rounded p-1"
+      >
+        <XIcon className="size-4" />
+      </button>
+      <div className="flex gap-3 pr-6">
+        <InfoIcon className="text-primary mt-0.5 size-5 shrink-0" />
+        <div className="flex flex-col gap-3">
+          <div>
+            <p className="font-medium">Build your deck in four steps</p>
+            <p className="text-muted-foreground mt-0.5">
+              The card browser auto-filters as you fill each zone, so you only see what fits.
+            </p>
+          </div>
+          <ol className="grid gap-2 @lg:grid-cols-2">
+            {INTRO_STEPS.map((step, index) => (
+              <li
+                key={step.title}
+                className="border-border bg-background flex items-start gap-2 rounded-md border p-2"
+              >
+                <span className="bg-primary/10 text-primary flex size-5 shrink-0 items-center justify-center rounded-full font-semibold">
+                  {index + 1}
+                </span>
+                <div>
+                  <span className="font-medium">{step.title}</span>
+                  <p className="text-muted-foreground">{step.description}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <Link
+            to="/help/$slug"
+            params={{ slug: "deck-building" }}
+            className="text-primary hover:underline"
+          >
+            Read the full guide →
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
