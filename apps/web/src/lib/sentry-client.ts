@@ -24,6 +24,10 @@ export function initClientSentry(router: TanstackRouter): void {
     environment: PROD ? "production" : "development",
     integrations: [Sentry.tanstackRouterBrowserTracingIntegration(router)],
     tracesSampleRate: 0.1,
+    // Route envelopes through our own origin so they aren't dropped by Firefox
+    // Enhanced Tracking Protection or ad-blockers (which list *.ingest.sentry.io
+    // as a tracker). The API forwards them to Sentry server-side.
+    tunnel: "/api/v1/sentry-tunnel",
     // Shared openrift-ssr project also receives server-side events; the tag
     // distinguishes them in the issue list and for alert rules.
     initialScope: { tags: { service: "web-client" } },

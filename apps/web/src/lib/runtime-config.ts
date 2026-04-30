@@ -1,11 +1,5 @@
-import type { SiteSettings } from "@/lib/site-settings";
-
 interface RuntimeConfig {
   sentryDsn: string;
-}
-
-function getRuntimeConfig(siteSettings: SiteSettings): RuntimeConfig {
-  return { sentryDsn: siteSettings["sentry-dsn"] ?? "" };
 }
 
 // Build the regex from fromCodePoint so the source stays pure ASCII. Typing
@@ -18,8 +12,8 @@ const OPEN_BRACKET = /</g;
 
 /**
  * Serialize runtime config as a `<script>` body. Inlined by the SSR shell so
- * values from site_settings are available on `globalThis.__OPENRIFT_CONFIG__`
- * before hydration (needed by `initSentry()` in client.tsx).
+ * the Sentry DSN (sourced from `SENTRY_DSN_SSR` server-side) is available on
+ * `globalThis.__OPENRIFT_CONFIG__` before hydration (needed by `initSentry()`).
  *
  * Escapes sequences that could break out of a `<script>` block: `</` (any
  * closing tag) and U+2028/U+2029, which JSON allows raw in strings but
@@ -27,9 +21,10 @@ const OPEN_BRACKET = /</g;
  *
  * @returns A JS statement assigning the config to `globalThis.__OPENRIFT_CONFIG__`.
  */
-export function runtimeConfigScript(siteSettings: SiteSettings): string {
+export function runtimeConfigScript(dsn: string): string {
+  const config: RuntimeConfig = { sentryDsn: dsn };
   // oxlint-disable unicorn/prefer-string-raw -- the suggested String.raw rewrite interprets \uXXXX as literal code points, defeating the escape.
-  const json = JSON.stringify(getRuntimeConfig(siteSettings))
+  const json = JSON.stringify(config)
     .replace(OPEN_BRACKET, "\\u003c")
     .replace(
       LINE_TERMINATORS,

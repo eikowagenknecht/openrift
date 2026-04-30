@@ -37,6 +37,7 @@ import { landingSummaryRoute } from "./routes/public/landing-summary.js";
 import { pricesRoute } from "./routes/public/prices.js";
 import { promosRoute } from "./routes/public/promos.js";
 import { rulesRoute } from "./routes/public/rules.js";
+import { sentryTunnelRoute } from "./routes/public/sentry-tunnel.js";
 import { setsRoute } from "./routes/public/sets.js";
 import { siteSettingsRoute } from "./routes/public/site-settings.js";
 import { sitemapDataRoute } from "./routes/public/sitemap.js";
@@ -289,6 +290,7 @@ export function createApp(deps: AppDeps) {
       .route("/api/v1", siteSettingsRoute)
       .route("/api/v1", rulesRoute)
       .route("/api/v1", publicDecksRoute)
+      .route("/api/v1", sentryTunnelRoute)
 
       // ── Authenticated routes (require a valid session) ──────────────────
       .route("/api/v1", collectionsRoute)

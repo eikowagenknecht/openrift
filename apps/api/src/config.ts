@@ -34,6 +34,7 @@ export function createConfig(env: Record<string, string | undefined>) {
     },
 
     sentryDsn: env.SENTRY_DSN_API ?? "",
+    sentryDsnSsr: env.SENTRY_DSN_SSR ?? "",
 
     cardtraderApiToken: env.CARDTRADER_API_TOKEN ?? "",
 

@@ -49,6 +49,13 @@ const getServerTheme = createServerFn({ method: "GET" }).handler((): "light" | "
   }
 });
 
+// Reads the Sentry DSN from the server environment so it can be inlined into
+// the SSR shell on `globalThis.__OPENRIFT_CONFIG__` and picked up by the
+// browser SDK before hydration.
+const getServerSentryDsn = createServerFn({ method: "GET" }).handler(
+  (): string => process.env.SENTRY_DSN_SSR ?? "",
+);
+
 function safeOrigin(url: string | undefined): string | null {
   if (!url) {
     return null;
@@ -112,8 +119,9 @@ export const Route = createRootRouteWithContext<{
     ],
   }),
   beforeLoad: async ({ context }) => {
-    const [resolvedTheme] = await Promise.all([
+    const [resolvedTheme, sentryDsn] = await Promise.all([
       getServerTheme(),
+      getServerSentryDsn(),
       (async () => {
         try {
           await context.queryClient.ensureQueryData(featureFlagsQueryOptions);
@@ -131,7 +139,7 @@ export const Route = createRootRouteWithContext<{
         }
       })(),
     ]);
-    return { resolvedTheme };
+    return { resolvedTheme, sentryDsn };
   },
   component: RootComponent,
   notFoundComponent: RouteNotFoundFallback,
@@ -139,7 +147,7 @@ export const Route = createRootRouteWithContext<{
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const { resolvedTheme } = Route.useRouteContext();
+  const { resolvedTheme, sentryDsn } = Route.useRouteContext();
   const { data: siteSettings } = useSuspenseQuery(siteSettingsQueryOptions);
   const umamiOrigin = safeOrigin(siteSettings["umami-url"]);
 
@@ -152,7 +160,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         {/* No crossOrigin: Umami's script.js loads as a non-CORS <script>. */}
         {umamiOrigin && <link rel="preconnect" href={umamiOrigin} />}
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-        <script dangerouslySetInnerHTML={{ __html: runtimeConfigScript(siteSettings) }} />
+        <script dangerouslySetInnerHTML={{ __html: runtimeConfigScript(sentryDsn) }} />
         <HeadContent />
       </head>
       <body className="overflow-x-clip">

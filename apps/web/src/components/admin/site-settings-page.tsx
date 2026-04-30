@@ -55,13 +55,6 @@ const KNOWN_SETTINGS: KnownSetting[] = [
     description: "Umami website ID (both umami keys must be set for analytics to load)",
     placeholder: "a1b2c3d4-...",
   },
-  {
-    key: "sentry-dsn",
-    scope: "web",
-    description:
-      "Sentry DSN for browser error tracking. Public by design, shipped to every browser. Leave unset to disable.",
-    placeholder: "https://abc123@o0.ingest.sentry.io/1234567",
-  },
 ];
 
 // ── Component ───────────────────────────────────────────────────────────────

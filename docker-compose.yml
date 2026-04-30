@@ -61,8 +61,9 @@ services:
       # and SITE_URL in its own .env.
       APP_ENV: "${APP_ENV:-production}"
       SITE_URL: "${SITE_URL}"
-      # Server-side Sentry DSN for the SSR shell (read by instrument.server.mjs
-      # at boot). Client-side DSN comes from site_settings and does not live here.
+      # Sentry DSN shared by the SSR Node process and the browser SDK (the
+      # browser receives it inlined into the SSR shell). The api service
+      # also reads this via env_file to derive its tunnel forwarding target.
       SENTRY_DSN_SSR: "${SENTRY_DSN_SSR-}"
     logging:
       driver: json-file
