@@ -889,6 +889,13 @@ const INTRO_STEPS: readonly { title: string; description: string }[] = [
   { title: "Fill the Main Deck", description: "39 units, spells, and gear from your domains." },
 ];
 
+const INTRO_TIPS: readonly string[] = [
+  "Decks track cards, not specific printings, so any printing you own counts toward the deck.",
+  "Click + to quick-add, or drag a card from the browser onto a zone. Hold Shift to move all copies.",
+  "Constructed validates the rules live; switch to Freeform to experiment without restrictions.",
+  "Edits save automatically as you go.",
+];
+
 function DeckBuilderIntroBanner({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div className="border-border bg-muted/30 relative rounded-lg border p-4">
@@ -925,6 +932,14 @@ function DeckBuilderIntroBanner({ onDismiss }: { onDismiss: () => void }) {
               </li>
             ))}
           </ol>
+          <div>
+            <p className="font-medium">Good to know</p>
+            <ul className="text-muted-foreground mt-1 list-disc space-y-0.5 pl-5">
+              {INTRO_TIPS.map((tip) => (
+                <li key={tip}>{tip}</li>
+              ))}
+            </ul>
+          </div>
           <Link
             to="/help/$slug"
             params={{ slug: "deck-building" }}
