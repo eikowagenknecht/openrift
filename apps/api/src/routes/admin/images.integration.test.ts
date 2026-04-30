@@ -186,25 +186,24 @@ describe.skipIf(!ctx)("Admin image routes (integration)", () => {
   // ── POST /admin/regenerate-images ──────────────────────────────────────
 
   describe("POST /admin/regenerate-images", () => {
-    it("returns regenerate result shape with default offset", async () => {
+    it("returns kickoff shape with runId and status", async () => {
       const res = await app.fetch(req("POST", "/admin/regenerate-images"));
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(json).toHaveProperty("total");
-      expect(json).toHaveProperty("regenerated");
-      expect(json).toHaveProperty("failed");
-      expect(json).toHaveProperty("errors");
-      expect(json).toHaveProperty("hasMore");
-      expect(json).toHaveProperty("totalFiles");
+      expect(json).toHaveProperty("runId");
+      expect(json).toHaveProperty("status");
+      expect(["running", "already_running"]).toContain(json.status);
     });
 
-    it("accepts a custom offset query param", async () => {
-      const res = await app.fetch(req("POST", "/admin/regenerate-images?offset=10"));
+    it("accepts reset and skipExisting query params", async () => {
+      const res = await app.fetch(
+        req("POST", "/admin/regenerate-images?reset=false&skipExisting=true"),
+      );
       expect(res.status).toBe(200);
 
       const json = await res.json();
-      expect(typeof json.total).toBe("number");
+      expect(typeof json.runId).toBe("string");
     });
   });
 

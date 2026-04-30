@@ -66,11 +66,10 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
   it("printingImages returns active images", async () => {
     const images = await repo.printingImages();
     expect(Array.isArray(images)).toBe(true);
-    // May be empty if seed has no images with URLs
     if (images.length > 0) {
       expect(images[0]).toHaveProperty("printingId");
       expect(images[0]).toHaveProperty("face");
-      expect(images[0]).toHaveProperty("url");
+      expect(images[0]).toHaveProperty("imageId");
     }
   });
 
@@ -94,28 +93,28 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
     expect(typeof summary.copyCount).toBe("number");
     expect(summary.cardCount).toBeGreaterThan(0);
     expect(summary.printingCount).toBeGreaterThan(0);
-    expect(Array.isArray(summary.thumbnails)).toBe(true);
-    expect(summary.thumbnails.length).toBeLessThanOrEqual(36);
-    for (const url of summary.thumbnails) {
-      expect(typeof url).toBe("string");
-      expect(url.length).toBeGreaterThan(0);
+    expect(Array.isArray(summary.thumbnailIds)).toBe(true);
+    expect(summary.thumbnailIds.length).toBeLessThanOrEqual(36);
+    for (const imageId of summary.thumbnailIds) {
+      expect(typeof imageId).toBe("string");
+      expect(imageId.length).toBeGreaterThan(0);
     }
   });
 
   it("landingSummary respects the sampleSize cap", async () => {
     const summary = await repo.landingSummary(3);
-    expect(summary.thumbnails.length).toBeLessThanOrEqual(3);
+    expect(summary.thumbnailIds.length).toBeLessThanOrEqual(3);
   });
 
   it("landingSummary returns the same thumbnail sample within a single day", async () => {
     const a = await repo.landingSummary(36);
     const b = await repo.landingSummary(36);
-    expect(b.thumbnails).toEqual(a.thumbnails);
+    expect(b.thumbnailIds).toEqual(a.thumbnailIds);
   });
 
   it("landingSummary excludes battlefield printings from the thumbnail sample", async () => {
     const summary = await repo.landingSummary(500);
-    if (summary.thumbnails.length === 0) {
+    if (summary.thumbnailIds.length === 0) {
       return;
     }
     const battlefieldRows = await db
@@ -123,15 +122,15 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
       .innerJoin("printings", "printings.id", "printingImages.printingId")
       .innerJoin("cards", "cards.id", "printings.cardId")
       .innerJoin("imageFiles as ci", "ci.id", "printingImages.imageFileId")
-      .select(["ci.rehostedUrl as url"])
+      .select(["ci.id as imageId"])
       .where("printingImages.face", "=", "front")
       .where("printingImages.isActive", "=", true)
       .where("ci.rehostedUrl", "is not", null)
       .where("cards.type", "=", "Battlefield")
       .execute();
-    const battlefieldUrls = new Set(battlefieldRows.map((r) => r.url as string));
-    for (const url of summary.thumbnails) {
-      expect(battlefieldUrls.has(url)).toBe(false);
+    const battlefieldImageIds = new Set(battlefieldRows.map((r) => r.imageId));
+    for (const imageId of summary.thumbnailIds) {
+      expect(battlefieldImageIds.has(imageId)).toBe(false);
     }
   });
 
