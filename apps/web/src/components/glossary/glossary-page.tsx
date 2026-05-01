@@ -74,37 +74,33 @@ function DomainsSection({
     <section>
       <SectionHeading id="domains" title="Domains" />
       <p className="text-muted-foreground mt-2">
-        The six domains define a card&apos;s identity and what runes can pay its costs. Your
-        Champion Legend&apos;s domains determine your deck&apos;s domain identity.
+        Domains define a card&apos;s identity and what runes can pay its costs. Your Champion
+        Legend&apos;s domains determine your deck&apos;s domain identity.
       </p>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {visible.map((domain) => (
-          <li
-            key={domain.slug}
-            className="border-border flex items-center gap-3 rounded-md border p-3"
-          >
-            <img
-              src={`/images/domains/${domain.slug.toLowerCase()}.webp`}
-              alt={domain.label}
-              width={40}
-              height={40}
-              className="size-10 shrink-0"
-            />
-            <div className="min-w-0">
+        {visible.map((domain) => {
+          const slug = domain.slug.toLowerCase();
+          const hasIcon = slug !== "colorless";
+          return (
+            <li
+              key={domain.slug}
+              className="border-border flex items-center gap-3 rounded-md border p-3"
+            >
+              {hasIcon && (
+                <img
+                  src={`/images/domains/${slug}.webp`}
+                  alt={domain.label}
+                  width={40}
+                  height={40}
+                  className="size-10 shrink-0"
+                />
+              )}
               <div className="font-medium" style={domain.color ? { color: domain.color } : {}}>
                 {domain.label}
               </div>
-              <img
-                src={`/images/glyphs/rune-${domain.slug.toLowerCase()}.svg`}
-                alt={`${domain.label} rune`}
-                title={`${domain.label} rune cost glyph`}
-                width={20}
-                height={20}
-                className="mt-1 size-5 brightness-0 dark:invert"
-              />
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
