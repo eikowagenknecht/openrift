@@ -468,7 +468,7 @@ function FeedbackPopover() {
           <ExternalLinkIcon className="text-muted-foreground ml-auto size-3.5" />
         </a>
         <a
-          href="https://github.com/eikowagenknecht/openrift/issues/new/choose"
+          href="https://github.com/openriftapp/openrift/issues/new/choose"
           target="_blank"
           rel="noreferrer"
           className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"

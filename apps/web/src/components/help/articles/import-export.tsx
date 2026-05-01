@@ -102,7 +102,7 @@ export default function ImportExportArticle() {
           </a>{" "}
           or{" "}
           <a
-            href="https://github.com/eikowagenknecht/openrift/issues"
+            href="https://github.com/openriftapp/openrift/issues"
             target="_blank"
             rel="noreferrer"
             className="text-primary hover:underline"

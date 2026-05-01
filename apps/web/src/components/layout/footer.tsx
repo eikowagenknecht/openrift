@@ -37,7 +37,7 @@ export function Footer({ className }: { className?: string }) {
         </a>
         <span aria-hidden="true"> · </span>
         <a
-          href="https://github.com/eikowagenknecht/openrift/commits/main/"
+          href="https://github.com/openriftapp/openrift/commits/main/"
           target="_blank"
           rel="noreferrer"
           className="hover:text-muted-foreground"

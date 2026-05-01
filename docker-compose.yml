@@ -25,7 +25,7 @@ services:
 
   # Hono API server (runs migrations on startup, schedules cron jobs).
   api:
-    image: ghcr.io/eikowagenknecht/openrift-api:${IMAGE_TAG:-latest}
+    image: ghcr.io/openriftapp/openrift-api:${IMAGE_TAG:-latest}
     user: "${UID:-1000}:${GID:-1000}"
     depends_on:
       db:
@@ -45,7 +45,7 @@ services:
 
   # TanStack Start SSR server (internal only — not exposed to host).
   web:
-    image: ghcr.io/eikowagenknecht/openrift-web:${IMAGE_TAG:-latest}
+    image: ghcr.io/openriftapp/openrift-web:${IMAGE_TAG:-latest}
     depends_on:
       - api
     healthcheck:
@@ -75,7 +75,7 @@ services:
 
   # Nginx reverse proxy + static asset serving (exposed to host).
   proxy:
-    image: ghcr.io/eikowagenknecht/openrift-proxy:${IMAGE_TAG:-latest}
+    image: ghcr.io/openriftapp/openrift-proxy:${IMAGE_TAG:-latest}
     depends_on:
       - web
       - api

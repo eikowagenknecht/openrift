@@ -384,7 +384,7 @@ test.describe("collections import/export", () => {
         ["RiftCore", /riftcore\.app/],
         ["RiftMana", /riftmana\.com/],
         ["Discord", /discord\.gg/],
-        ["GitHub", /github\.com\/eikowagenknecht\/openrift/],
+        ["GitHub", /github\.com\/openriftapp\/openrift/],
       ];
 
       for (const [name, hrefPattern] of expected) {

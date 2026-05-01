@@ -469,7 +469,7 @@ function InputStep({
               Paste a deck code, text list, or TTS string to import a deck. Want another format
               supported?{" "}
               <a
-                href="https://github.com/eikowagenknecht/openrift/issues"
+                href="https://github.com/openriftapp/openrift/issues"
                 target="_blank"
                 rel="noreferrer"
                 className="text-foreground underline"
@@ -660,7 +660,7 @@ function PreviewStep({
           <p className="text-muted-foreground text-sm">
             Having trouble importing?{" "}
             <a
-              href="https://github.com/eikowagenknecht/openrift/issues"
+              href="https://github.com/openriftapp/openrift/issues"
               target="_blank"
               rel="noreferrer"
               className="text-foreground underline"

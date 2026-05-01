@@ -9,12 +9,12 @@ Docker images are built in GitHub Actions and pushed to GHCR. The VPS only pulls
 
 ## Architecture
 
-| Container | Image                                    | Role                                                   |
-| --------- | ---------------------------------------- | ------------------------------------------------------ |
-| `db`      | `postgres:18-alpine`                     | Database (unchanged across deploys)                    |
-| `api`     | `ghcr.io/eikowagenknecht/openrift-api`   | API + migrations on startup + cron jobs (Bun)          |
-| `web`     | `ghcr.io/eikowagenknecht/openrift-web`   | TanStack Start SSR server (Bun, internal only)         |
-| `proxy`   | `ghcr.io/eikowagenknecht/openrift-proxy` | Nginx reverse proxy + static assets (exposed on :8080) |
+| Container | Image                                | Role                                                   |
+| --------- | ------------------------------------ | ------------------------------------------------------ |
+| `db`      | `postgres:18-alpine`                 | Database (unchanged across deploys)                    |
+| `api`     | `ghcr.io/openriftapp/openrift-api`   | API + migrations on startup + cron jobs (Bun)          |
+| `web`     | `ghcr.io/openriftapp/openrift-web`   | TanStack Start SSR server (Bun, internal only)         |
+| `proxy`   | `ghcr.io/openriftapp/openrift-proxy` | Nginx reverse proxy + static assets (exposed on :8080) |
 
 The `api` container:
 

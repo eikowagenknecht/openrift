@@ -63,7 +63,7 @@ export default function WhyOpenRiftArticle() {
               <>
                 Full source code on{" "}
                 <a
-                  href="https://github.com/eikowagenknecht/openrift"
+                  href="https://github.com/openriftapp/openrift"
                   target="_blank"
                   rel="noreferrer"
                   className="text-primary hover:underline"
