@@ -1,25 +1,37 @@
 import type { Logger } from "@openrift/shared/logger";
 
+import type { jobRunsRepo } from "../repositories/job-runs.js";
+
 interface ChangelogEntry {
   type: "feat" | "fix";
   message: string;
 }
 
+interface ChangelogSection {
+  date: string;
+  entries: ChangelogEntry[];
+}
+
+export interface ChangelogJobResult {
+  posted: number;
+  lastPostedDate: string | null;
+}
+
+const DEFAULT_POST_DELAY_MS = 3000;
+
 /**
- * Parses a changelog markdown string and returns entries for the given date.
+ * Parses a changelog markdown document into all dated sections.
+ * Sections without any feat/fix entries are dropped.
  *
- * @returns Entries matching the date, or an empty array if none found.
+ * @returns Sections sorted oldest-first by date.
  */
-export function parseChangelogForDate(markdown: string, date: string): ChangelogEntry[] {
-  const sections = markdown.split(/^## /m).slice(1);
+export function parseChangelogSections(markdown: string): ChangelogSection[] {
+  const sections: ChangelogSection[] = [];
+  const blocks = markdown.split(/^## /m).slice(1);
 
-  for (const section of sections) {
-    const lines = section.trim().split("\n");
-    const sectionDate = lines[0].trim();
-    if (sectionDate !== date) {
-      continue;
-    }
-
+  for (const block of blocks) {
+    const lines = block.trim().split("\n");
+    const date = lines[0].trim();
     const entries: ChangelogEntry[] = [];
     for (const line of lines.slice(1)) {
       const match = line.match(/^- (feat|fix): (.+)$/);
@@ -27,10 +39,12 @@ export function parseChangelogForDate(markdown: string, date: string): Changelog
         entries.push({ type: match[1] as "feat" | "fix", message: match[2] });
       }
     }
-    return entries;
+    if (entries.length > 0) {
+      sections.push({ date, entries });
+    }
   }
 
-  return [];
+  return sections.toSorted((a, b) => a.date.localeCompare(b.date));
 }
 
 /**
@@ -62,52 +76,110 @@ export function buildDiscordPayload(date: string, entries: ChangelogEntry[]) {
 }
 
 /**
- * Reads today's changelog entries and posts them to Discord if the webhook is configured.
+ * Extracts a watermark date from a prior job run's stored result.
  *
- * @returns Whether a message was posted.
+ * @returns The last-posted date string, or null if no usable watermark.
+ */
+export function extractWatermark(result: unknown): string | null {
+  if (result === null || typeof result !== "object") {
+    return null;
+  }
+  const candidate = (result as { lastPostedDate?: unknown }).lastPostedDate;
+  return typeof candidate === "string" ? candidate : null;
+}
+
+interface PostChangelogParams {
+  webhookUrl: string | null;
+  changelogPath: string;
+  jobRuns: ReturnType<typeof jobRunsRepo>;
+  runId: string;
+  fromDate: string | null;
+  log: Logger;
+  postDelayMs?: number;
+  fetcher?: typeof fetch;
+  sleeper?: (ms: number) => Promise<void>;
+  readFile?: (path: string) => Promise<string>;
+}
+
+/**
+ * Posts every changelog section dated strictly after `fromDate` to the
+ * Discord webhook, oldest first, throttled to one message per `postDelayMs`.
+ * Checkpoints the watermark after each successful post so a crash mid-run
+ * doesn't replay already-posted entries.
+ *
+ * @returns The number posted and the new watermark.
  */
 export async function postChangelogToDiscord(
-  webhookUrl: string | null,
-  changelogPath: string,
-  log: Logger,
-): Promise<boolean> {
+  params: PostChangelogParams,
+): Promise<ChangelogJobResult> {
+  const {
+    webhookUrl,
+    changelogPath,
+    jobRuns,
+    runId,
+    fromDate,
+    log,
+    postDelayMs = DEFAULT_POST_DELAY_MS,
+    fetcher = fetch,
+    sleeper = (ms) => Bun.sleep(ms),
+    readFile = (path) => Bun.file(path).text(),
+  } = params;
+
   if (!webhookUrl) {
     log.info("No DISCORD_WEBHOOK_CHANGELOG configured, skipping");
-    return false;
+    return { posted: 0, lastPostedDate: fromDate };
   }
-
-  const today = new Date().toISOString().slice(0, 10);
 
   let markdown: string;
   try {
-    markdown = await Bun.file(changelogPath).text();
+    markdown = await readFile(changelogPath);
   } catch {
     log.warn({ path: changelogPath }, "Could not read changelog file");
-    return false;
+    return { posted: 0, lastPostedDate: fromDate };
   }
 
-  const entries = parseChangelogForDate(markdown, today);
-  if (entries.length === 0) {
-    log.info({ date: today }, "No changelog entries for today");
-    return false;
+  const allSections = parseChangelogSections(markdown);
+  const pending = fromDate ? allSections.filter((section) => section.date > fromDate) : allSections;
+
+  if (pending.length === 0) {
+    log.info({ fromDate }, "No new changelog entries to post");
+    return { posted: 0, lastPostedDate: fromDate };
   }
 
-  const payload = buildDiscordPayload(today, entries);
+  log.info({ fromDate, pendingDates: pending.length }, "Posting changelog backlog to Discord");
 
-  const response = await fetch(webhookUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  let posted = 0;
+  let lastPostedDate = fromDate;
 
-  if (!response.ok) {
-    log.error(
-      { status: response.status, body: await response.text() },
-      "Discord webhook request failed",
+  for (const [index, section] of pending.entries()) {
+    if (index > 0) {
+      await sleeper(postDelayMs);
+    }
+
+    const payload = buildDiscordPayload(section.date, section.entries);
+    const response = await fetcher(webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      log.error(
+        { status: response.status, body, date: section.date },
+        "Discord webhook request failed",
+      );
+      throw new Error(`Discord webhook ${response.status}: ${body.slice(0, 200)}`);
+    }
+
+    posted += 1;
+    lastPostedDate = section.date;
+    await jobRuns.updateResult(runId, { posted, lastPostedDate });
+    log.info(
+      { date: section.date, count: section.entries.length },
+      "Posted changelog section to Discord",
     );
-    return false;
   }
 
-  log.info({ date: today, count: entries.length }, "Posted changelog to Discord");
-  return true;
+  return { posted, lastPostedDate };
 }

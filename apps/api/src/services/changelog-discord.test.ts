@@ -1,6 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { buildDiscordPayload, parseChangelogForDate } from "./changelog-discord.js";
+import {
+  buildDiscordPayload,
+  extractWatermark,
+  parseChangelogSections,
+  postChangelogToDiscord,
+} from "./changelog-discord.js";
 
 const SAMPLE_CHANGELOG = `# Changelog
 
@@ -16,63 +21,70 @@ const SAMPLE_CHANGELOG = `# Changelog
 - fix: Search bar in copies view now shows the total number of copies
 `;
 
-describe("parseChangelogForDate", () => {
-  it("returns entries for a matching date", () => {
-    const entries = parseChangelogForDate(SAMPLE_CHANGELOG, "2026-04-08");
+const noopLog = {
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  debug: vi.fn(),
+  trace: vi.fn(),
+  fatal: vi.fn(),
+  child: () => noopLog,
+} as never;
 
-    expect(entries).toEqual([
-      {
-        type: "feat",
-        message: "Card pages can now show prices and breadcrumb trails in Google search results",
-      },
-      { type: "feat", message: "Each card now has its own dedicated page at /cards/{name}" },
-      {
-        type: "fix",
-        message: "Footer on the collections page is no longer hidden below the viewport",
-      },
-    ]);
-  });
+function makeJobRunsStub() {
+  return { updateResult: vi.fn(async () => {}) } as never;
+}
 
-  it("returns entries for a different date", () => {
-    const entries = parseChangelogForDate(SAMPLE_CHANGELOG, "2026-04-07");
+function makeOkFetcher() {
+  return vi.fn(async () => new Response("", { status: 200 })) as never;
+}
 
-    expect(entries).toEqual([
-      {
-        type: "feat",
-        message: "Collection import now supports re-importing your own OpenRift CSV exports",
-      },
-      { type: "fix", message: "Search bar in copies view now shows the total number of copies" },
-    ]);
-  });
+describe("parseChangelogSections", () => {
+  it("returns all sections sorted oldest first", () => {
+    const sections = parseChangelogSections(SAMPLE_CHANGELOG);
 
-  it("returns empty array when date has no entries", () => {
-    const entries = parseChangelogForDate(SAMPLE_CHANGELOG, "2026-01-01");
-
-    expect(entries).toEqual([]);
+    expect(sections.map((s) => s.date)).toEqual(["2026-04-07", "2026-04-08"]);
+    expect(sections[0].entries).toHaveLength(2);
+    expect(sections[1].entries).toHaveLength(3);
   });
 
   it("returns empty array for empty markdown", () => {
-    const entries = parseChangelogForDate("", "2026-04-08");
-
-    expect(entries).toEqual([]);
+    expect(parseChangelogSections("")).toEqual([]);
   });
 
   it("ignores lines that do not match the entry pattern", () => {
-    const markdown = `# Changelog
-
-## 2026-04-08
+    const markdown = `## 2026-04-08
 
 - feat: Valid entry
 Some random text
 - not a valid prefix: something
 - fix: Another valid entry
 `;
-    const entries = parseChangelogForDate(markdown, "2026-04-08");
+    const sections = parseChangelogSections(markdown);
 
-    expect(entries).toEqual([
-      { type: "feat", message: "Valid entry" },
-      { type: "fix", message: "Another valid entry" },
+    expect(sections).toEqual([
+      {
+        date: "2026-04-08",
+        entries: [
+          { type: "feat", message: "Valid entry" },
+          { type: "fix", message: "Another valid entry" },
+        ],
+      },
     ]);
+  });
+
+  it("drops sections with no feat/fix entries", () => {
+    const markdown = `## 2026-04-08
+
+just notes, no real entries
+
+## 2026-04-09
+
+- feat: real entry
+`;
+    const sections = parseChangelogSections(markdown);
+
+    expect(sections.map((s) => s.date)).toEqual(["2026-04-09"]);
   });
 });
 
@@ -94,16 +106,168 @@ describe("buildDiscordPayload", () => {
       ],
     });
   });
+});
 
-  it("builds payload with only feats", () => {
-    const payload = buildDiscordPayload("2026-04-08", [{ type: "feat", message: "New thing" }]);
-
-    expect(payload.embeds[0].description).toBe("🆕 New thing");
+describe("extractWatermark", () => {
+  it("returns the lastPostedDate string from a result object", () => {
+    expect(extractWatermark({ lastPostedDate: "2026-04-08", posted: 1 })).toBe("2026-04-08");
   });
 
-  it("builds payload with only fixes", () => {
-    const payload = buildDiscordPayload("2026-04-08", [{ type: "fix", message: "Bug squashed" }]);
+  it("returns null for missing or non-string lastPostedDate", () => {
+    expect(extractWatermark(null)).toBeNull();
+    expect(extractWatermark({})).toBeNull();
+    expect(extractWatermark({ lastPostedDate: null })).toBeNull();
+    expect(extractWatermark({ lastPostedDate: 42 })).toBeNull();
+    expect(extractWatermark("string")).toBeNull();
+  });
+});
 
-    expect(payload.embeds[0].description).toBe("🔧 Bug squashed");
+describe("postChangelogToDiscord", () => {
+  const baseParams = {
+    webhookUrl: "https://discord.test/webhook",
+    changelogPath: "apps/web/src/CHANGELOG.md",
+    runId: "run-1",
+    log: noopLog,
+    postDelayMs: 0,
+    sleeper: vi.fn(async () => {}),
+    readFile: async () => SAMPLE_CHANGELOG,
+  };
+
+  it("returns early without posting when webhook is not configured", async () => {
+    const fetcher = makeOkFetcher();
+    const jobRuns = makeJobRunsStub();
+
+    const result = await postChangelogToDiscord({
+      ...baseParams,
+      webhookUrl: null,
+      jobRuns,
+      fromDate: "2026-04-07",
+      fetcher,
+    });
+
+    expect(result).toEqual({ posted: 0, lastPostedDate: "2026-04-07" });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("posts every section oldest first when no watermark is set (backfill case)", async () => {
+    const fetcher = makeOkFetcher();
+    const jobRuns = makeJobRunsStub();
+
+    const result = await postChangelogToDiscord({
+      ...baseParams,
+      jobRuns,
+      fromDate: null,
+      fetcher,
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    const firstBody = JSON.parse(
+      (fetcher as never as { mock: { calls: unknown[][] } }).mock.calls[0][1].body,
+    );
+    const secondBody = JSON.parse(
+      (fetcher as never as { mock: { calls: unknown[][] } }).mock.calls[1][1].body,
+    );
+    expect(firstBody.embeds[0].title).toBe("What's new (2026-04-07)");
+    expect(secondBody.embeds[0].title).toBe("What's new (2026-04-08)");
+    expect(result).toEqual({ posted: 2, lastPostedDate: "2026-04-08" });
+  });
+
+  it("posts only sections strictly newer than the watermark", async () => {
+    const fetcher = makeOkFetcher();
+    const jobRuns = makeJobRunsStub();
+
+    const result = await postChangelogToDiscord({
+      ...baseParams,
+      jobRuns,
+      fromDate: "2026-04-07",
+      fetcher,
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ posted: 1, lastPostedDate: "2026-04-08" });
+  });
+
+  it("returns 0 posted when watermark is at or past the latest section", async () => {
+    const fetcher = makeOkFetcher();
+    const jobRuns = makeJobRunsStub();
+
+    const result = await postChangelogToDiscord({
+      ...baseParams,
+      jobRuns,
+      fromDate: "2026-04-08",
+      fetcher,
+    });
+
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(result).toEqual({ posted: 0, lastPostedDate: "2026-04-08" });
+  });
+
+  it("checkpoints the watermark after each successful post", async () => {
+    const fetcher = makeOkFetcher();
+    const updateResult = vi.fn(async () => {});
+    const jobRuns = { updateResult } as never;
+
+    await postChangelogToDiscord({
+      ...baseParams,
+      jobRuns,
+      fromDate: null,
+      fetcher,
+    });
+
+    expect(updateResult).toHaveBeenCalledTimes(2);
+    expect(updateResult).toHaveBeenNthCalledWith(1, "run-1", {
+      posted: 1,
+      lastPostedDate: "2026-04-07",
+    });
+    expect(updateResult).toHaveBeenNthCalledWith(2, "run-1", {
+      posted: 2,
+      lastPostedDate: "2026-04-08",
+    });
+  });
+
+  it("waits between posts but not before the first one", async () => {
+    const fetcher = makeOkFetcher();
+    const jobRuns = makeJobRunsStub();
+    const sleeper = vi.fn(async () => {});
+
+    await postChangelogToDiscord({
+      ...baseParams,
+      jobRuns,
+      fromDate: null,
+      fetcher,
+      sleeper,
+      postDelayMs: 3000,
+    });
+
+    expect(sleeper).toHaveBeenCalledTimes(1);
+    expect(sleeper).toHaveBeenCalledWith(3000);
+  });
+
+  it("throws after a failed post so already-checkpointed work is preserved", async () => {
+    let call = 0;
+    const fetcher = vi.fn(async () => {
+      call += 1;
+      if (call === 1) {
+        return new Response("", { status: 200 });
+      }
+      return new Response("rate limited", { status: 429 });
+    }) as never;
+    const updateResult = vi.fn(async () => {});
+    const jobRuns = { updateResult } as never;
+
+    await expect(
+      postChangelogToDiscord({
+        ...baseParams,
+        jobRuns,
+        fromDate: null,
+        fetcher,
+      }),
+    ).rejects.toThrow(/Discord webhook 429/);
+
+    expect(updateResult).toHaveBeenCalledTimes(1);
+    expect(updateResult).toHaveBeenLastCalledWith("run-1", {
+      posted: 1,
+      lastPostedDate: "2026-04-07",
+    });
   });
 });

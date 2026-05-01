@@ -6,6 +6,7 @@ import { withCookies } from "@/lib/server-fns/middleware";
 
 interface PostChangelogResponse {
   posted: boolean;
+  count: number;
 }
 
 const postChangelogFn = createServerFn({ method: "POST" })

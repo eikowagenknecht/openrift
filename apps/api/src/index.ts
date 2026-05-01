@@ -10,7 +10,7 @@ import { createDb } from "./db/connect.js";
 import { migrate } from "./db/migrate.js";
 import { createRepos } from "./deps.js";
 import { createEmailSender } from "./email.js";
-import { postChangelogToDiscord } from "./services/changelog-discord.js";
+import { extractWatermark, postChangelogToDiscord } from "./services/changelog-discord.js";
 import { flushPendingPrintingEvents } from "./services/flush-printing-events.js";
 import {
   refreshCardmarketPrices,
@@ -118,12 +118,22 @@ if (config.cron.changelogSchedule) {
   const clSchedule = config.cron.changelogSchedule;
 
   cronJobs.changelog = new Cron(clSchedule, { protect: true }, async () => {
+    const prior = await repos.jobRuns.findLatestForResume("discord.post_changelog");
+    const fromDate = extractWatermark(prior?.result);
     await runJob(
       { repos, log: clLog },
       "discord.post_changelog",
       "cron",
-      () => postChangelogToDiscord(config.discordWebhooks.changelog, config.changelogPath, clLog),
-      { summarize: (posted) => ({ posted }) },
+      (runId) =>
+        postChangelogToDiscord({
+          webhookUrl: config.discordWebhooks.changelog,
+          changelogPath: config.changelogPath,
+          jobRuns: repos.jobRuns,
+          runId,
+          fromDate,
+          log: clLog,
+        }),
+      { summarize: (result) => result },
     );
   });
   clLog.info(`Cron registered (${clSchedule})`);

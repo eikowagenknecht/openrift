@@ -427,9 +427,11 @@ function PostChangelogButton() {
     try {
       const result = await post.mutateAsync();
       if (result.posted) {
-        toast.success("Changelog posted to Discord");
+        toast.success(
+          `Changelog posted to Discord (${result.count} ${result.count === 1 ? "entry" : "entries"})`,
+        );
       } else {
-        toast.success("No entries to post (no webhook configured or no entries dated today)");
+        toast.success("No new entries to post");
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Post failed");
@@ -443,7 +445,7 @@ function PostChangelogButton() {
       className="size-7"
       onClick={handlePost}
       disabled={post.isPending}
-      title="Post today's changelog to Discord now"
+      title="Post pending changelog entries to Discord now"
     >
       {post.isPending ? (
         <LoaderIcon className="size-3.5 animate-spin" />
