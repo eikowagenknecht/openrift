@@ -104,9 +104,10 @@ export function PrintingEventsPage() {
 
   async function handleRetry(ids: string[]) {
     setRetryingIds(new Set(ids));
+    const suffix = ids.length === 1 ? "" : "s";
     try {
       await retry.mutateAsync(ids);
-      toast.success(`Reset ${ids.length} event${ids.length === 1 ? "" : "s"} to pending`);
+      toast.success(`Reset ${ids.length} event${suffix} to pending`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Retry failed");
     }
