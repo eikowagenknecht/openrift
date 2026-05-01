@@ -52,6 +52,8 @@
     "sort-imports": "off",
     "sort-keys": "off",
     "func-style": "off",
+    "func-name-matching": "off", // Allow named function expressions assigned to differently-named properties (helpful in stack traces)
+    "no-underscore-dangle": "off", // `_` prefix marks intentionally-unused vars; `__name__` is used for build-time globals (Vite)
     "new-cap": "off",
     "import/exports-last": "off",
     "import/no-named-export": "off",
@@ -87,6 +89,7 @@
     "unicorn/number-literal-case": "off", // Conflicts with oxfmt
     "unicorn/no-nested-ternary": "off", // Conflicts with oxfmt
     "unicorn/no-object-as-default-parameter": "off",
+    "oxc/branches-sharing-code": "off", // Intentional duplication is sometimes clearer than refactored shared tails
 
     // Restriction Overwrites
     "no-empty": "error",
