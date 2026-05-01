@@ -1,12 +1,14 @@
 import type { RuleResponse, RuleVersionResponse, RulesListResponse } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { SearchIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { useRules, useRuleVersions } from "@/hooks/use-rules";
+import { KEYWORD_INFO, keywordAnchorSlug } from "@/lib/glossary";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { cn, PAGE_PADDING } from "@/lib/utils";
@@ -42,6 +44,39 @@ function formatRuleNumber(ruleNumber: string): string {
   return ruleNumber.replace(/\.$/, "");
 }
 
+const KEYWORD_REGEX = (() => {
+  const names = Object.keys(KEYWORD_INFO).toSorted((a, b) => b.length - a.length);
+  const escaped = names.map((name) => name.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`));
+  return new RegExp(String.raw`(?<![A-Za-z])(${escaped.join("|")})(?![A-Za-z])`, "g");
+})();
+
+/**
+ * Splits rule content into plain text and Link nodes that point each known
+ * keyword name into the /glossary page's matching anchor.
+ *
+ * @returns React nodes for the rendered content.
+ */
+function linkifyKeywords(content: string): React.ReactNode {
+  const parts = content.split(KEYWORD_REGEX);
+  if (parts.length === 1) {
+    return content;
+  }
+  return parts.map((part, index) =>
+    KEYWORD_INFO[part] ? (
+      <Link
+        key={index}
+        to="/glossary"
+        hash={keywordAnchorSlug(part)}
+        className="text-primary hover:underline"
+      >
+        {part}
+      </Link>
+    ) : (
+      <Fragment key={index}>{part}</Fragment>
+    ),
+  );
+}
+
 function RuleRow({ rule, searchQuery }: { rule: RuleResponse; searchQuery: string }) {
   const isTitle = rule.ruleType === "title";
   const isSubtitle = rule.ruleType === "subtitle";
@@ -72,7 +107,7 @@ function RuleRow({ rule, searchQuery }: { rule: RuleResponse; searchQuery: strin
         {formatRuleNumber(rule.ruleNumber)}
       </span>
       <span className={cn(isTitle && "text-base font-bold", isSubtitle && "font-semibold")}>
-        {rule.content}
+        {isTitle || isSubtitle ? rule.content : linkifyKeywords(rule.content)}
       </span>
     </div>
   );

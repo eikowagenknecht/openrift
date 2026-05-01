@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useMatch, useRouter } from "@tanstack/react-router";
 import {
   BookOpenIcon,
+  BookTextIcon,
   CircleHelpIcon,
   ExternalLinkIcon,
   GavelIcon,
@@ -102,11 +103,13 @@ function MenuButton({ onClick, className }: { onClick: () => void; className?: s
 
 function DesktopNav({
   showRules,
+  showGlossary,
   showCollection,
   showDecks,
   showPackOpener,
 }: {
   showRules: boolean;
+  showGlossary: boolean;
   showCollection: boolean;
   showDecks: boolean;
   showPackOpener: boolean;
@@ -159,6 +162,19 @@ function DesktopNav({
                     <div>
                       <div className="font-medium">Rules</div>
                       <div className="text-muted-foreground text-xs">Official rules reference</div>
+                    </div>
+                  </NavigationMenuLink>
+                </li>
+              )}
+              {showGlossary && (
+                <li>
+                  <NavigationMenuLink render={<Link to="/glossary" />}>
+                    <BookTextIcon />
+                    <div>
+                      <div className="font-medium">Glossary</div>
+                      <div className="text-muted-foreground text-xs">
+                        Symbols, keywords, and shorthand
+                      </div>
                     </div>
                   </NavigationMenuLink>
                 </li>
@@ -346,6 +362,7 @@ function MobileNav({
   open,
   onOpenChange,
   showRules,
+  showGlossary,
   showCollection,
   showDecks,
   showPackOpener,
@@ -353,6 +370,7 @@ function MobileNav({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   showRules: boolean;
+  showGlossary: boolean;
   showCollection: boolean;
   showDecks: boolean;
   showPackOpener: boolean;
@@ -408,6 +426,14 @@ function MobileNav({
               icon={<GavelIcon className="text-muted-foreground size-5" />}
             >
               Rules
+            </MobileNavLink>
+          )}
+          {showGlossary && (
+            <MobileNavLink
+              to="/glossary"
+              icon={<BookTextIcon className="text-muted-foreground size-5" />}
+            >
+              Glossary
             </MobileNavLink>
           )}
           <MobileNavLink to="/promos" icon={<GiftIcon className="text-muted-foreground size-5" />}>
@@ -493,9 +519,11 @@ export function Header() {
   const { data: session, isPending } = useSession();
   const gravatarUrl = useGravatarUrl(session?.user?.email);
   const rulesEnabled = useFeatureEnabled("rules");
+  const glossaryEnabled = useFeatureEnabled("glossary");
   const packOpenerEnabled = useFeatureEnabled("packopener");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const showRules = rulesEnabled;
+  const showGlossary = glossaryEnabled;
   const showPackOpener = packOpenerEnabled;
   const showCollection = Boolean(session?.user);
   const showDecks = Boolean(session?.user);
@@ -516,6 +544,7 @@ export function Header() {
           <LogoLink />
           <DesktopNav
             showRules={showRules}
+            showGlossary={showGlossary}
             showCollection={showCollection}
             showDecks={showDecks}
             showPackOpener={showPackOpener}
@@ -546,6 +575,7 @@ export function Header() {
         open={mobileMenuOpen}
         onOpenChange={setMobileMenuOpen}
         showRules={showRules}
+        showGlossary={showGlossary}
         showCollection={showCollection}
         showDecks={showDecks}
         showPackOpener={showPackOpener}

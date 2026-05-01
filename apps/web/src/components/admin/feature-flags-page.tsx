@@ -48,6 +48,10 @@ const KNOWN_FLAGS: KnownFlag[] = [
     description: "Show the game rules page and header link",
   },
   {
+    key: "glossary",
+    description: "Show the glossary page (symbols, keywords) and header link",
+  },
+  {
     key: "price-history",
     description: "Show the Value Over Time chart on the collection stats page",
   },

@@ -6,6 +6,8 @@
 
 ## 2026-04-30
 
+- feat: A new Glossary page collects Riftbound's domains, card types, rarities, keywords, and in-text symbols in one searchable reference, with each keyword linking out to its full definition in the rules
+- feat: Keyword names mentioned in the rules now link to their glossary entry, so you can jump from a rule to the keyword's icon and summary in one click
 - feat: First-time deck builders now see a four-step quick guide and key tips on the empty deck overview, with a link to the full help article and a one-click dismiss for when you've got the hang of it
 - feat: The Decks page now has a help icon next to Import and New Deck, and the New Deck dialog links to the deck-building guide, so the docs are one click away whenever you need them
 - feat: The standalone card page now shows Buy on TCGplayer, Cardmarket, and CardTrader links with the latest price for the selected printing, matching what you already see in the side-pane card preview
