@@ -100,7 +100,7 @@ function DomainsSection({
                 title={`${domain.label} rune cost glyph`}
                 width={20}
                 height={20}
-                className="mt-1 size-5"
+                className="mt-1 size-5 brightness-0 dark:invert"
               />
             </div>
           </li>
@@ -143,7 +143,7 @@ function CardTypesSection({
                   alt={cardType.label}
                   width={32}
                   height={32}
-                  className="size-8 shrink-0"
+                  className="size-8 shrink-0 brightness-0 dark:invert"
                 />
               )}
               <span className="font-medium">{cardType.label}</span>
@@ -318,7 +318,7 @@ function SymbolsSection({ query }: { query: string }) {
               alt={sym.label}
               width={32}
               height={32}
-              className="size-8 shrink-0"
+              className="size-8 shrink-0 brightness-0 dark:invert"
             />
             <div className="min-w-0">
               <div className="font-medium">{sym.label}</div>
