@@ -95,8 +95,20 @@ function DomainsSection({
                   className="size-10 shrink-0"
                 />
               )}
-              <div className="font-medium" style={domain.color ? { color: domain.color } : {}}>
-                {domain.label}
+              <div className="min-w-0">
+                <div className="font-medium" style={domain.color ? { color: domain.color } : {}}>
+                  {domain.label}
+                </div>
+                {hasIcon && (
+                  <img
+                    src={`/images/glyphs/rune-${slug}.svg`}
+                    alt={`${domain.label} rune`}
+                    title={`${domain.label} rune cost glyph`}
+                    width={20}
+                    height={20}
+                    className="mt-1 size-5"
+                  />
+                )}
               </div>
             </li>
           );
