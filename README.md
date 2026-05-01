@@ -6,7 +6,7 @@ _Built with Fury. Maintained with Calm._
 
 > Built in 2026. Live, actively developed, and improving fast. See the [changelog](apps/web/src/CHANGELOG.md).
 
-**[openrift.app](https://openrift.app)** · [Help](https://openrift.app/help) · [Roadmap](https://openrift.app/roadmap) · [Discord](https://discord.gg/Qb6RcjXq6z)
+**[openrift.app](https://openrift.app)** · [Help](https://openrift.app/help) · [Roadmap](https://openrift.app/roadmap) · [Card data](https://github.com/openriftapp/openrift-data) · [Discord](https://discord.gg/Qb6RcjXq6z)
 
 ![OpenRift card browser](docs/assets/screenshot.webp)
 
@@ -37,7 +37,7 @@ Turborepo monorepo: TanStack Start frontend (`apps/web`), Hono API (`apps/api`),
 - [Deployment](docs/deployment.md) — VPS setup, Docker Compose, CI/CD
 - [Contributing](docs/contributing.md) — code style, conventions, changelog
 
-Issues and PRs welcome.
+Issues and PRs welcome. To contribute card data (not code), see [openrift-data](https://github.com/openriftapp/openrift-data).
 
 ## Legal
 
