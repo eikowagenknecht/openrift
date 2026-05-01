@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-01
+
+- feat: The deck builder's first-time guide reads more clearly. Its tips lay out in two columns on wide screens, link to the cards-and-printings explainer, point at the + button on each card row, and describe whichever format your deck actually uses
+
 ## 2026-04-30
 
 - feat: First-time deck builders now see a four-step quick guide and key tips on the empty deck overview, with a link to the full help article and a one-click dismiss for when you've got the hang of it

@@ -174,7 +174,7 @@ export function DeckOverview({
       {description && (
         <p className="text-muted-foreground text-sm whitespace-pre-wrap">{description}</p>
       )}
-      {showIntroBanner && <DeckBuilderIntroBanner onDismiss={dismissIntro} />}
+      {showIntroBanner && <DeckBuilderIntroBanner format={deck.format} onDismiss={dismissIntro} />}
       {fallbackHint && <p className="text-sm">{fallbackHint}</p>}
 
       {totalCards > 0 && (
@@ -890,13 +890,21 @@ const INTRO_STEPS: readonly { title: string; description: string }[] = [
 ];
 
 const INTRO_TIPS: readonly string[] = [
-  "Decks track cards, not specific printings, so any printing you own counts toward the deck.",
-  "Click + to quick-add, or drag a card from the browser onto a zone. Hold Shift to move all copies.",
-  "Constructed validates the rules live; switch to Freeform to experiment without restrictions.",
+  "Once you're inside a zone, each card in the browser has a small + button on its row — click it to add a copy, or drag the card onto a zone in the sidebar. Hold Shift to add the maximum allowed copies at once.",
   "Edits save automatically as you go.",
 ];
 
-function DeckBuilderIntroBanner({ onDismiss }: { onDismiss: () => void }) {
+function DeckBuilderIntroBanner({
+  format,
+  onDismiss,
+}: {
+  format: DeckFormat;
+  onDismiss: () => void;
+}) {
+  const formatTip =
+    format === WellKnown.deckFormat.CONSTRUCTED
+      ? "This deck uses the Constructed format, so it's checked against the rules as you build and violations show up right away. Switch to Freeform if you want to experiment without those restrictions."
+      : "This deck uses the Freeform format, so you can build without rule restrictions. Switch to Constructed if you want the rules validated as you go.";
   return (
     <div className="border-border bg-muted/30 relative rounded-lg border p-4">
       <button
@@ -907,7 +915,7 @@ function DeckBuilderIntroBanner({ onDismiss }: { onDismiss: () => void }) {
       >
         <XIcon className="size-4" />
       </button>
-      <div className="flex gap-3 pr-6">
+      <div className="mx-auto flex max-w-5xl gap-3 pr-6">
         <InfoIcon className="text-primary mt-0.5 size-5 shrink-0" />
         <div className="flex flex-col gap-3">
           <div>
@@ -916,29 +924,43 @@ function DeckBuilderIntroBanner({ onDismiss }: { onDismiss: () => void }) {
               The card browser auto-filters as you fill each zone, so you only see what fits.
             </p>
           </div>
-          <ol className="grid gap-2 @lg:grid-cols-2">
-            {INTRO_STEPS.map((step, index) => (
-              <li
-                key={step.title}
-                className="border-border bg-background flex items-start gap-2 rounded-md border p-2"
-              >
-                <span className="bg-primary/10 text-primary flex size-5 shrink-0 items-center justify-center rounded-full font-semibold">
-                  {index + 1}
-                </span>
-                <div>
-                  <span className="font-medium">{step.title}</span>
-                  <p className="text-muted-foreground">{step.description}</p>
-                </div>
-              </li>
-            ))}
-          </ol>
-          <div>
-            <p className="font-medium">Good to know</p>
-            <ul className="text-muted-foreground mt-1 list-disc space-y-0.5 pl-5">
-              {INTRO_TIPS.map((tip) => (
-                <li key={tip}>{tip}</li>
+          <div className="grid gap-4 @lg:grid-cols-2">
+            <ol className="grid gap-2 self-start">
+              {INTRO_STEPS.map((step, index) => (
+                <li
+                  key={step.title}
+                  className="border-border bg-background flex items-start gap-2 rounded-md border p-2"
+                >
+                  <span className="bg-primary/10 text-primary flex size-5 shrink-0 items-center justify-center rounded-full font-semibold">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <span className="font-medium">{step.title}</span>
+                    <p className="text-muted-foreground">{step.description}</p>
+                  </div>
+                </li>
               ))}
-            </ul>
+            </ol>
+            <div>
+              <p className="font-medium">Good to know</p>
+              <ul className="text-muted-foreground mt-1 list-disc space-y-0.5 pl-5">
+                <li>
+                  Decks track{" "}
+                  <Link
+                    to="/help/$slug"
+                    params={{ slug: "cards-printings-copies" }}
+                    className="text-primary hover:underline"
+                  >
+                    cards, not specific printings
+                  </Link>
+                  , so any printing you own counts toward the deck.
+                </li>
+                {INTRO_TIPS.map((tip) => (
+                  <li key={tip}>{tip}</li>
+                ))}
+                <li>{formatTip}</li>
+              </ul>
+            </div>
           </div>
           <Link
             to="/help/$slug"
