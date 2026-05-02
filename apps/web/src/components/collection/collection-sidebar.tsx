@@ -27,7 +27,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { useCollections, useCreateCollection } from "@/hooks/use-collections";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { cn } from "@/lib/utils";
 
 import type { CardDragData } from "./dnd-types";
@@ -55,7 +54,6 @@ export function CollectionSidebar() {
   const browsing = browsingParam ?? false;
   const { isMobile, setOpenMobile } = useSidebar();
   const { data: collections } = useCollections();
-  const statsEnabled = useFeatureEnabled("stats");
 
   // Close the mobile sidebar when the user navigates to a different page
   useEffect(() => {
@@ -185,17 +183,15 @@ export function CollectionSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Manage</SidebarGroupLabel>
           <SidebarMenu className="gap-1">
-            {statsEnabled && (
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={currentPath === "/collections/stats"}
-                  render={<Link to="/collections/stats" />}
-                >
-                  <ChartBarIcon />
-                  <span>Statistics</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            )}
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={currentPath === "/collections/stats"}
+                render={<Link to="/collections/stats" />}
+              >
+                <ChartBarIcon />
+                <span>Statistics</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
             <SidebarMenuItem>
               <SidebarMenuButton
                 isActive={currentPath === "/collections/import"}

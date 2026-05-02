@@ -55,7 +55,6 @@ import { useCards } from "@/hooks/use-cards";
 import { useDeckCards } from "@/hooks/use-deck-builder";
 import { useDeckOwnership } from "@/hooks/use-deck-ownership";
 import { useDeckDetail } from "@/hooks/use-decks";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useDeckBuildingCounts } from "@/hooks/use-owned-count";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import { useRequiredUserId, useSession } from "@/lib/auth-session";
@@ -127,7 +126,6 @@ function DeckEditorContent({
   const [proxyOpen, setProxyOpen] = useState(false);
   const [missingOpen, setMissingOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const deckSharingEnabled = useFeatureEnabled("deck-sharing");
 
   // Ownership data — split available vs locked so the deck builder respects
   // each collection's availableForDeckbuilding flag.
@@ -355,12 +353,10 @@ function DeckEditorContent({
                     <UploadIcon className="size-4" />
                     Import &amp; replace cards…
                   </DropdownMenuItem>
-                  {deckSharingEnabled && (
-                    <DropdownMenuItem onClick={() => setShareOpen(true)}>
-                      <LinkIcon className="size-4" />
-                      Share deck
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuItem onClick={() => setShareOpen(true)}>
+                    <LinkIcon className="size-4" />
+                    Share deck
+                  </DropdownMenuItem>
                   <div className="md:hidden">
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={() => setExportOpen(true)}>
@@ -384,15 +380,13 @@ function DeckEditorContent({
         open={renameOpen}
         onOpenChange={setRenameOpen}
       />
-      {deckSharingEnabled && (
-        <DeckShareDialog
-          deckId={deckId}
-          isPublic={data.deck.isPublic}
-          shareToken={data.deck.shareToken}
-          open={shareOpen}
-          onOpenChange={setShareOpen}
-        />
-      )}
+      <DeckShareDialog
+        deckId={deckId}
+        isPublic={data.deck.isPublic}
+        shareToken={data.deck.shareToken}
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+      />
       <DeckExportDialog
         deckId={deckId}
         deckName={data.deck.name}

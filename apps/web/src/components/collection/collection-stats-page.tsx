@@ -1,6 +1,6 @@
 import type { CompletionScopePreference, Domain } from "@openrift/shared";
 import { WellKnown, getAvailableFilters } from "@openrift/shared";
-import { Link, Navigate } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -780,16 +780,6 @@ function CollectionSelector({
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export function CollectionStatsPage() {
-  const statsEnabled = useFeatureEnabled("stats");
-
-  if (!statsEnabled) {
-    return <Navigate to="/collections" />;
-  }
-
-  return <CollectionStatsContent />;
-}
-
-function CollectionStatsContent() {
   const { toggleSidebar } = useSidebar();
   const topBarSlot = use(TopBarSlotContext);
   const [collectionScope, setCollectionScope] = useState("all");

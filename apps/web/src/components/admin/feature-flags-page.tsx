@@ -55,18 +55,6 @@ const KNOWN_FLAGS: KnownFlag[] = [
     key: "price-history",
     description: "Show the Value Over Time chart on the collection stats page",
   },
-  {
-    key: "stats",
-    description: "Show the collection statistics page and sidebar link",
-  },
-  {
-    key: "packopener",
-    description: "Show the booster pack simulator page and More-menu link",
-  },
-  {
-    key: "deck-sharing",
-    description: "Enable sharing decks via unlisted links and the public share page",
-  },
 ];
 
 function GlobalFlagsSection() {

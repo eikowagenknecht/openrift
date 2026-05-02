@@ -158,69 +158,6 @@ async function withSignedInContext<T>(
 }
 
 test.describe("collection stats", () => {
-  test.describe("feature flag gate", () => {
-    test.describe.configure({ mode: "serial" });
-
-    let state: BlockState;
-
-    test.beforeAll(async ({ browser }) => {
-      state = await setupBlock(browser, "gate");
-    });
-
-    test.afterAll(async () => {
-      const sql = loadDb();
-      try {
-        await clearFlagOverride(sql, state.userId, "stats");
-      } finally {
-        await sql.end();
-      }
-    });
-
-    test("with stats off: /collections/stats redirects to /collections and sidebar hides the link", async ({
-      browser,
-    }) => {
-      const sql = loadDb();
-      try {
-        await setFlagOverride(sql, state.userId, "stats", false);
-      } finally {
-        await sql.end();
-      }
-
-      await withSignedInContext(state.user, browser, async (context) => {
-        const page = await context.newPage();
-        await page.goto("/collections/stats");
-        // Per-user override disables the flag → <Navigate /> bounces to
-        // /collections on first render; no polling needed because the
-        // authenticated /feature-flags response is not server-cached.
-        await expect(page).toHaveURL(/\/collections(\?.*)?$/, { timeout: 15_000 });
-        await expect(page.getByRole("link", { name: "Statistics" })).toHaveCount(0);
-      });
-    });
-
-    test("with stats on: /collections/stats renders the page and sidebar shows the link", async ({
-      browser,
-    }) => {
-      const sql = loadDb();
-      try {
-        await clearFlagOverride(sql, state.userId, "stats");
-      } finally {
-        await sql.end();
-      }
-
-      await withSignedInContext(state.user, browser, async (context) => {
-        const page = await context.newPage();
-        await page.goto("/collections/stats");
-        await expect(page).toHaveURL(/\/collections\/stats$/, { timeout: 15_000 });
-        // The page loads its empty state (fresh user has zero copies), which
-        // only renders when the stats flag is on.
-        await expect(page.getByText("No cards in collection yet")).toBeVisible({
-          timeout: 15_000,
-        });
-        await expect(page.getByRole("link", { name: "Statistics" })).toBeVisible();
-      });
-    });
-  });
-
   test.describe("empty state", () => {
     test.describe.configure({ mode: "serial" });
 

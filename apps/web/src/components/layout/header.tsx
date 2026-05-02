@@ -107,13 +107,11 @@ function DesktopNav({
   showGlossary,
   showCollection,
   showDecks,
-  showPackOpener,
 }: {
   showRules: boolean;
   showGlossary: boolean;
   showCollection: boolean;
   showDecks: boolean;
-  showPackOpener: boolean;
 }) {
   return (
     <NavigationMenu>
@@ -191,19 +189,17 @@ function DesktopNav({
                   </div>
                 </NavigationMenuLink>
               </li>
-              {showPackOpener && (
-                <li>
-                  <NavigationMenuLink render={<Link to="/pack-opener" />}>
-                    <PackagePlusIcon />
-                    <div>
-                      <div className="font-medium">Pack opener</div>
-                      <div className="text-muted-foreground text-xs">
-                        Simulate opening boosters with real pull rates
-                      </div>
+              <li>
+                <NavigationMenuLink render={<Link to="/pack-opener" />}>
+                  <PackagePlusIcon />
+                  <div>
+                    <div className="font-medium">Pack opener</div>
+                    <div className="text-muted-foreground text-xs">
+                      Simulate opening boosters with real pull rates
                     </div>
-                  </NavigationMenuLink>
-                </li>
-              )}
+                  </div>
+                </NavigationMenuLink>
+              </li>
             </ul>
           </NavigationMenuContent>
         </NavigationMenuItem>
@@ -366,7 +362,6 @@ function MobileNav({
   showGlossary,
   showCollection,
   showDecks,
-  showPackOpener,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -374,7 +369,6 @@ function MobileNav({
   showGlossary: boolean;
   showCollection: boolean;
   showDecks: boolean;
-  showPackOpener: boolean;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -440,14 +434,12 @@ function MobileNav({
           <MobileNavLink to="/promos" icon={<GiftIcon className="text-muted-foreground size-5" />}>
             Promos
           </MobileNavLink>
-          {showPackOpener && (
-            <MobileNavLink
-              to="/pack-opener"
-              icon={<PackagePlusIcon className="text-muted-foreground size-5" />}
-            >
-              Pack opener
-            </MobileNavLink>
-          )}
+          <MobileNavLink
+            to="/pack-opener"
+            icon={<PackagePlusIcon className="text-muted-foreground size-5" />}
+          >
+            Pack opener
+          </MobileNavLink>
         </nav>
         <SheetFooter className="border-t px-4 pt-4">
           <a
@@ -531,11 +523,9 @@ export function Header() {
   const gravatarUrl = useGravatarUrl(session?.user?.email);
   const rulesEnabled = useFeatureEnabled("rules");
   const glossaryEnabled = useFeatureEnabled("glossary");
-  const packOpenerEnabled = useFeatureEnabled("packopener");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const showRules = rulesEnabled;
   const showGlossary = glossaryEnabled;
-  const showPackOpener = packOpenerEnabled;
   const showCollection = Boolean(session?.user);
   const showDecks = Boolean(session?.user);
 
@@ -558,7 +548,6 @@ export function Header() {
             showGlossary={showGlossary}
             showCollection={showCollection}
             showDecks={showDecks}
-            showPackOpener={showPackOpener}
           />
         </div>
 
@@ -589,7 +578,6 @@ export function Header() {
         showGlossary={showGlossary}
         showCollection={showCollection}
         showDecks={showDecks}
-        showPackOpener={showPackOpener}
       />
     </header>
   );

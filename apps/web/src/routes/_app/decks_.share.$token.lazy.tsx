@@ -20,7 +20,6 @@ import {
 import { Button } from "@/components/ui/button";
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useCloneSharedDeck, usePublicDeck } from "@/hooks/use-decks";
-import { useFeatureEnabled } from "@/hooks/use-feature-flags";
 import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useSession } from "@/lib/auth-session";
@@ -78,7 +77,6 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
   const { data } = usePublicDeck(token);
   const { data: session } = useSession();
   const isLoggedIn = Boolean(session?.user);
-  const deckSharingEnabled = useFeatureEnabled("deck-sharing");
   const cloneMutation = useCloneSharedDeck();
   const navigate = useNavigate();
   const marketplaceOrder = useDisplayStore((state) => state.marketplaceOrder);
@@ -173,12 +171,10 @@ function SharedDeckContent({ topBarSlot }: { topBarSlot: HTMLDivElement | null }
               </span>
             </div>
             <PageTopBarActions>
-              {deckSharingEnabled && (
-                <Button size="sm" onClick={handleClone} disabled={cloneMutation.isPending}>
-                  <CopyIcon />
-                  {isLoggedIn ? "Copy to my decks" : "Sign in to copy"}
-                </Button>
-              )}
+              <Button size="sm" onClick={handleClone} disabled={cloneMutation.isPending}>
+                <CopyIcon />
+                {isLoggedIn ? "Copy to my decks" : "Sign in to copy"}
+              </Button>
             </PageTopBarActions>
           </PageTopBar>,
           topBarSlot,

@@ -391,11 +391,6 @@ const syntheticFeatureFlags: Record<string, unknown>[] = [
     enabled: true,
     description: "Show the Value Over Time chart on the collection stats page",
   },
-  {
-    key: "stats",
-    enabled: true,
-    description: "Show the collection statistics page and sidebar link",
-  },
 ];
 
 interface SyntheticCardRow {
