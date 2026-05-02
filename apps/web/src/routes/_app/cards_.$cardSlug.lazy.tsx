@@ -14,6 +14,7 @@ import {
   ArrowLeftIcon,
   CheckIcon,
   PaletteIcon,
+  PencilLineIcon,
   Share2Icon,
   TagIcon,
   TriangleAlertIcon,
@@ -406,6 +407,17 @@ function CardDetailPage() {
 
       {/* Price history section for selected printing */}
       {selectedPrinting && <PriceHistorySection printing={selectedPrinting} />}
+
+      <div className="border-border text-muted-foreground border-t pt-4">
+        <Link
+          to="/contribute/$cardSlug"
+          params={{ cardSlug }}
+          className="hover:text-foreground inline-flex items-center gap-1.5"
+        >
+          <PencilLineIcon className="size-4" />
+          Suggest a correction for this card
+        </Link>
+      </div>
     </div>
   );
 }

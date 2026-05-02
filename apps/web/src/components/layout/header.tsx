@@ -16,6 +16,7 @@ import {
   MessageSquareIcon,
   MoonIcon,
   PackagePlusIcon,
+  PencilLineIcon,
   ShieldIcon,
   SparklesIcon,
   SunIcon,
@@ -510,6 +511,16 @@ function FeedbackPopover() {
           </div>
           <ExternalLinkIcon className="text-muted-foreground ml-auto size-3.5" />
         </a>
+        <Link
+          to="/contribute"
+          className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
+        >
+          <PencilLineIcon className="size-4 shrink-0" />
+          <div>
+            <div className="font-medium">Contribute card data</div>
+            <div className="text-muted-foreground text-xs">Add a missing card or fix a typo</div>
+          </div>
+        </Link>
       </PopoverContent>
     </Popover>
   );

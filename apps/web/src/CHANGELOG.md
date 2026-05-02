@@ -2,12 +2,11 @@
 
 ## 2026-05-01
 
+- feat: A new Contribute page lets you submit a missing card or suggest a correction; it opens a prefilled pull request against the openrift-data repo so your changes get reviewed and rolled into the catalog
 - feat: The deck builder's first-time guide reads more clearly. Its tips lay out in two columns on wide screens, link to the cards-and-printings explainer, point at the + button on each card row, and describe whichever format your deck actually uses
 
 ## 2026-04-30
 
-- feat: A new Glossary page collects Riftbound's domains, card types, rarities, keywords, and in-text symbols in one searchable reference, with each keyword linking out to its full definition in the rules
-- feat: Keyword names mentioned in the rules now link to their glossary entry, so you can jump from a rule to the keyword's icon and summary in one click
 - feat: First-time deck builders now see a four-step quick guide and key tips on the empty deck overview, with a link to the full help article and a one-click dismiss for when you've got the hang of it
 - feat: The Decks page now has a help icon next to Import and New Deck, and the New Deck dialog links to the deck-building guide, so the docs are one click away whenever you need them
 - feat: The standalone card page now shows Buy on TCGplayer, Cardmarket, and CardTrader links with the latest price for the selected printing, matching what you already see in the side-pane card preview
@@ -22,7 +21,6 @@
 - fix: Opening a card on the cards page no longer prints a hydration warning to the browser console caused by the printing list's owned-count badge sitting inside the row's clickable area
 - fix: After verifying your email at signup you now land on the page you were headed for and are immediately recognised as signed in, instead of being dropped onto the card catalog and needing to refresh the page before the app sees your session
 - fix: Signing out no longer floods the browser console with live-query warnings while the page transitions away
-- fix: The OpenRift logo on the homepage, header, and login flows no longer shows a white square around it on high-resolution phone screens
 
 ## 2026-04-28
 
@@ -73,7 +71,6 @@
 - feat: Each collection now has an "available for deck building" toggle in its three-dot menu. Turn it off for cards you don't want to cannibalise (a display-case copy, cards lent out, an assembled deck), and the deck builder and shopping list will skip them when counting what you own. Excluded copies still show up as "locked" in the deck's ownership panel so you can see what you'd have available if you turned the collection back on
 - feat: Collections can now be renamed from the same Edit collection dialog
 - feat: The Owned filter on /cards has a new third state "Incomplete" that shows cards where you don't yet own a full deck-legal playset — anything below three copies for most cards, or below one for Legends, Battlefields, and cards with the Unique keyword. Click the badge to cycle Owned → Missing → Incomplete → off
-- fix: In the admin marketplace view, when two products are mapped to the same printing, clicking the X on one chip now reliably removes that specific product instead of sometimes removing the other one
 - fix: Card names like "Kai'Sa" now export with a plain apostrophe in deck text exports, CSV collection exports, and the missing-cards copy button, instead of the typographic apostrophe that some external tools couldn't match
 
 ## 2026-04-25
@@ -261,7 +258,6 @@
 
 ## 2026-04-14
 
-- feat: The top menu now has a "More" dropdown grouping Rules and the Promo Cards page, making both easier to find
 - feat: The Promo Cards page now shows all printings (including multiple languages of the same card) with a language filter at the top so you can narrow to what you want to see
 - feat: The landing page now shows actual card art in the background instead of abstract card shapes, with a different random selection every visit
 - feat: The landing page now explains what OpenRift is and has sign up, browse, and sign in buttons all in one place, plus three feature blocks describing what you can do
@@ -281,7 +277,6 @@
 - feat: You can now import collections from RiftMana CSV exports, with support for normal/foil splits, alt art, promos, and language detection
 - feat: Importing from Piltover Archive now uses the Language column to automatically match the correct language variant, so English imports no longer collide with Chinese or French printings
 - feat: Cards without artwork now show a branded placeholder image instead of a blank space
-- feat: New "Value Over Time" chart on the Statistics page shows how your collection's total value has changed over time, with support for all filters, time ranges, and marketplace selection
 - feat: Clicking the minus button on a card you already own in add mode now explains why it can't be removed and how to manage existing copies
 - feat: Active filters bar in the card browser now stays visible as you scroll, so you always see which filters are applied
 - feat: New "Cost to Complete" chart on the Statistics page shows how much you'd spend to reach 100% completion, with cards sorted cheapest-first so you can see where diminishing returns kick in
@@ -316,7 +311,6 @@
 - feat: Cardmarket prices now appear on Chinese printings too, marked with a small star and an "any language" tooltip — Cardmarket only publishes one price per card across all languages, so the same number now correctly shows up wherever you view the card. Clicking through opens Cardmarket pre-filtered to the language you're viewing.
 - feat: Chinese printings now show CardTrader prices and price history, so you can see and track the value of your Chinese cards the same way as English ones
 - feat: The Support page now explains that buying through TCGplayer or Cardtrader price links earns us a small commission, so shopping you were going to do anyway can help fund the site
-- fix: Cardmarket prices now show the cheapest current listing instead of an average that could get stuck on a wrong value for days when a single odd sale skewed Cardmarket's own sales history
 - fix: Set pages now show cards in your preferred language instead of randomly mixing printings from different languages
 - fix: Hovering a card in the deck editor now shows the preview instantly instead of waiting for a full-resolution image to download, then crisps up once the higher-res version arrives
 - fix: Sharing a card page on Telegram, WhatsApp, or Discord now shows the card image in the preview, instead of nothing
