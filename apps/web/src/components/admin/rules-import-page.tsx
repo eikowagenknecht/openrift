@@ -55,7 +55,9 @@ export function RulesImportPage() {
       <div>
         <h2 className="text-lg font-semibold">Import Rules</h2>
         <p className="text-muted-foreground text-sm">
-          Paste rules in structured text format: <code>rule_number | rule_type | content</code>
+          Paste rules as one per line: <code>{"<rule_number>. <markdown>"}</code>. Use{" "}
+          <code># Heading</code> for titles, <code>## Subheading</code> for subtitles, and a literal{" "}
+          <code>\n</code> inside a line for hard newlines.
         </p>
       </div>
 
@@ -119,7 +121,7 @@ export function RulesImportPage() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder={
-              "000 | title | Golden and Silver Rules\n001 | subtitle | Golden Rule\n002 | text | Card text supersedes rules text."
+              "000. # Golden and Silver Rules\n001. ## Golden Rule\n002. Card text supersedes rules text. Whenever a card fundamentally contradicts the rules, the card's indication is what is true."
             }
             rows={16}
             className="font-mono text-sm"

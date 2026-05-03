@@ -73,13 +73,17 @@ function computeDepth(ruleNumber: string): number {
   return Math.min(parts.length - 1, 3);
 }
 
+const RULE_LINE_REGEX = /^(\d+(?:\.[A-Za-z0-9]+)*)\.\s+(.*)$/;
+
 /**
- * Parses the structured text format into rule rows.
- * Format per line: `rule_number | rule_type | content`
+ * Parses the markdown rule format into rule rows. Each non-blank line is
+ * `<rule_number>. <markdown_content>`, where a leading `# ` marks a title and
+ * `## ` a subtitle. Literal `\n` sequences in the content become real newlines
+ * so a single line can hold a multi-paragraph rule.
  *
  * @returns Array of parsed rules.
  */
-function parseRulesText(text: string): ParsedRule[] {
+export function parseRulesText(text: string): ParsedRule[] {
   const rules: ParsedRule[] = [];
   const lines = text.split("\n");
   let sortOrder = 0;
@@ -90,20 +94,29 @@ function parseRulesText(text: string): ParsedRule[] {
       continue;
     }
 
-    const parts = line.split("|").map((p) => p.trim());
-    if (parts.length < 3) {
+    const match = RULE_LINE_REGEX.exec(line);
+    if (!match) {
       continue;
     }
 
-    const ruleNumber = parts[0];
-    const ruleType = parts[1];
-    const content = parts.slice(2).join("|").trim();
-
-    if (!ruleNumber || !ruleType || !content) {
+    const ruleNumber = match[1];
+    const rest = match[2];
+    if (!ruleNumber || !rest) {
       continue;
     }
 
-    if (ruleType !== "title" && ruleType !== "subtitle" && ruleType !== "text") {
+    let ruleType: ParsedRule["ruleType"] = "text";
+    let content = rest;
+    if (rest.startsWith("## ")) {
+      ruleType = "subtitle";
+      content = rest.slice(3);
+    } else if (rest.startsWith("# ")) {
+      ruleType = "title";
+      content = rest.slice(2);
+    }
+
+    content = content.replaceAll(String.raw`\n`, "\n").trim();
+    if (!content) {
       continue;
     }
 

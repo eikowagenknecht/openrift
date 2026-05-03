@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { SearchIcon } from "lucide-react";
-import { Fragment, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import type { Components } from "react-markdown";
+import ReactMarkdown from "react-markdown";
 
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
@@ -50,30 +52,106 @@ const KEYWORD_REGEX = (() => {
   return new RegExp(String.raw`(?<![A-Za-z])(${escaped.join("|")})(?![A-Za-z])`, "g");
 })();
 
-/**
- * Splits rule content into plain text and Link nodes that point each known
- * keyword name into the /glossary page's matching anchor.
- *
- * @returns React nodes for the rendered content.
- */
-function linkifyKeywords(content: string): React.ReactNode {
-  const parts = content.split(KEYWORD_REGEX);
+interface MdNode {
+  type: string;
+  value?: string;
+  url?: string;
+  children?: MdNode[];
+}
+
+function splitTextOnKeywords(text: string): MdNode[] {
+  const parts = text.split(KEYWORD_REGEX);
   if (parts.length === 1) {
-    return content;
+    return [{ type: "text", value: text }];
   }
-  return parts.map((part, index) =>
-    KEYWORD_INFO[part] ? (
-      <Link
-        key={index}
-        to="/glossary"
-        hash={keywordAnchorSlug(part)}
-        className="text-primary hover:underline"
-      >
-        {part}
-      </Link>
-    ) : (
-      <Fragment key={index}>{part}</Fragment>
-    ),
+  const result: MdNode[] = [];
+  for (const part of parts) {
+    if (!part) {
+      continue;
+    }
+    if (KEYWORD_INFO[part]) {
+      result.push({
+        type: "link",
+        url: `/glossary#${keywordAnchorSlug(part)}`,
+        children: [{ type: "text", value: part }],
+      });
+    } else {
+      result.push({ type: "text", value: part });
+    }
+  }
+  return result;
+}
+
+function visitTextNodes(node: MdNode): void {
+  if (!node.children) {
+    return;
+  }
+  for (let index = 0; index < node.children.length; index++) {
+    const child = node.children[index];
+    if (child.type === "link") {
+      // Don't linkify text inside an existing link.
+      continue;
+    }
+    if (child.type === "text" && typeof child.value === "string") {
+      const replacements = splitTextOnKeywords(child.value);
+      const isUnchanged =
+        replacements.length === 1 &&
+        replacements[0].type === "text" &&
+        replacements[0].value === child.value;
+      if (!isUnchanged) {
+        node.children.splice(index, 1, ...replacements);
+        index += replacements.length - 1;
+      }
+      continue;
+    }
+    visitTextNodes(child);
+  }
+}
+
+const remarkLinkifyKeywords = () => (tree: MdNode) => {
+  visitTextNodes(tree);
+};
+
+const MARKDOWN_COMPONENTS: Components = {
+  a: ({ href, children }) => {
+    if (typeof href === "string" && href.startsWith("/glossary#")) {
+      const hash = href.slice("/glossary#".length);
+      return (
+        <Link to="/glossary" hash={hash} className="text-primary hover:underline">
+          {children}
+        </Link>
+      );
+    }
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+        {children}
+      </a>
+    );
+  },
+};
+
+const ALLOWED_MARKDOWN_ELEMENTS = ["em", "strong", "code", "a", "br"];
+
+/**
+ * Renders a rule's body as a constrained markdown subset, with any known
+ * keyword names automatically linked into the /glossary page's anchor.
+ *
+ * @returns The rendered rule body.
+ */
+export function RuleContent({ content }: { content: string }) {
+  // Treat every newline in the source as a hard line break by appending the
+  // markdown two-space hard-break marker before each \n.
+  const processed = content.replaceAll("\n", "  \n");
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkLinkifyKeywords]}
+      components={MARKDOWN_COMPONENTS}
+      allowedElements={ALLOWED_MARKDOWN_ELEMENTS}
+      unwrapDisallowed
+      skipHtml
+    >
+      {processed}
+    </ReactMarkdown>
   );
 }
 
@@ -107,7 +185,7 @@ function RuleRow({ rule, searchQuery }: { rule: RuleResponse; searchQuery: strin
         {formatRuleNumber(rule.ruleNumber)}
       </span>
       <span className={cn(isTitle && "text-base font-bold", isSubtitle && "font-semibold")}>
-        {isTitle || isSubtitle ? rule.content : linkifyKeywords(rule.content)}
+        {isTitle || isSubtitle ? rule.content : <RuleContent content={rule.content} />}
       </span>
     </div>
   );
