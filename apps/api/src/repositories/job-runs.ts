@@ -126,10 +126,10 @@ export function jobRunsRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Find the most recent run of a kind regardless of status. Used by
-     * resumable jobs to decide whether to resume from a prior checkpoint or
-     * start fresh.
-     * @returns The latest JobRun for the kind, or null.
+     * Find the most recent run of a kind that has a stored checkpoint.
+     * Rows with a null `result` are skipped so a failure that never wrote
+     * a checkpoint doesn't shadow an earlier run's progress.
+     * @returns The latest JobRun for the kind whose result is non-null, or null.
      */
     async findLatestForResume(kind: string): Promise<JobRun | null> {
       const row = await db
@@ -146,6 +146,7 @@ export function jobRunsRepo(db: Kysely<Database>) {
           "result",
         ])
         .where("kind", "=", kind)
+        .where("result", "is not", null)
         .orderBy("startedAt", "desc")
         .limit(1)
         .executeTakeFirst();

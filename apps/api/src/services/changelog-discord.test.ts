@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  buildDiscordPayload,
+  buildDiscordPayloads,
   extractWatermark,
   parseChangelogSections,
   postChangelogToDiscord,
@@ -88,23 +88,46 @@ just notes, no real entries
   });
 });
 
-describe("buildDiscordPayload", () => {
-  it("builds payload with feats before fixes", () => {
-    const payload = buildDiscordPayload("2026-04-08", [
+describe("buildDiscordPayloads", () => {
+  it("builds a single payload with feats before fixes when entries fit", () => {
+    const payloads = buildDiscordPayloads("2026-04-08", [
       { type: "fix", message: "Fixed a bug" },
       { type: "feat", message: "Added a feature" },
       { type: "feat", message: "Another feature" },
     ]);
 
-    expect(payload).toEqual({
-      embeds: [
-        {
-          title: "What's new (2026-04-08)",
-          description: "🆕 Added a feature\n🆕 Another feature\n🔧 Fixed a bug",
-          color: 0x24_70_5f,
-        },
-      ],
-    });
+    expect(payloads).toEqual([
+      {
+        embeds: [
+          {
+            title: "What's new (2026-04-08)",
+            description: "🆕 Added a feature\n🆕 Another feature\n🔧 Fixed a bug",
+            color: 0x24_70_5f,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("splits entries into multiple payloads when description would exceed Discord's 4096 limit", () => {
+    // Regression: 2026-04-18 in real changelog had ~4449 chars and Discord
+    // returned 400 because embed[0].description exceeded 4096.
+    const longEntry = {
+      type: "feat" as const,
+      message: "x".repeat(500),
+    };
+    const payloads = buildDiscordPayloads(
+      "2026-04-18",
+      Array.from({ length: 10 }, () => longEntry),
+    );
+
+    expect(payloads.length).toBeGreaterThan(1);
+    for (const payload of payloads) {
+      expect(payload.embeds[0].title).toBe("What's new (2026-04-18)");
+      expect(payload.embeds[0].description.length).toBeLessThanOrEqual(4096);
+    }
+    const recombined = payloads.map((p) => p.embeds[0].description).join("\n");
+    expect(recombined.split("\n")).toHaveLength(10);
   });
 });
 
@@ -241,6 +264,39 @@ describe("postChangelogToDiscord", () => {
 
     expect(sleeper).toHaveBeenCalledTimes(1);
     expect(sleeper).toHaveBeenCalledWith(3000);
+  });
+
+  it("posts multiple webhooks for a section that exceeds the embed limit, advancing watermark only once", async () => {
+    const longLine = `- feat: ${"x".repeat(500)}`;
+    const longBlock = Array.from({ length: 10 }, () => longLine).join("\n");
+    const longChangelog = `# Changelog
+
+## 2026-04-18
+
+${longBlock}
+`;
+    const fetcher = makeOkFetcher();
+    const updateResult = vi.fn(async () => {});
+    const jobRuns = { updateResult } as never;
+
+    const result = await postChangelogToDiscord({
+      ...baseParams,
+      jobRuns,
+      fromDate: null,
+      fetcher,
+      readFile: async () => longChangelog,
+    });
+
+    // The 10 long lines should chunk into more than one webhook post.
+    const callCount = (fetcher as never as { mock: { calls: unknown[][] } }).mock.calls.length;
+    expect(callCount).toBeGreaterThan(1);
+    // But the watermark only advances once, after all chunks for the date.
+    expect(updateResult).toHaveBeenCalledTimes(1);
+    expect(updateResult).toHaveBeenCalledWith("run-1", {
+      posted: 1,
+      lastPostedDate: "2026-04-18",
+    });
+    expect(result).toEqual({ posted: 1, lastPostedDate: "2026-04-18" });
   });
 
   it("throws after a failed post so already-checkpointed work is preserved", async () => {

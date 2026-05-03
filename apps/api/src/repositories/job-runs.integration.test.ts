@@ -96,7 +96,7 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     expect(await repo.getResult("00000000-0000-4000-a000-000000000000")).toBeNull();
   });
 
-  it("findLatestForResume returns the most recent run regardless of status", async () => {
+  it("findLatestForResume returns the most recent run with a non-null result", async () => {
     expect(await repo.findLatestForResume("test.kind")).toBeNull();
     const a = await repo.start({ kind: "test.kind", trigger: "cron" });
     await repo.fail(a.id, { durationMs: 100, errorMessage: "boom" });
@@ -105,6 +105,19 @@ describe.skipIf(!ctx)("jobRunsRepo (integration)", () => {
     const latest = await repo.findLatestForResume("test.kind");
     expect(latest?.id).toBe(b.id);
     expect(latest?.status).toBe("succeeded");
+  });
+
+  it("findLatestForResume skips later runs whose result is null", async () => {
+    // Regression: a failure that never wrote a checkpoint must not shadow
+    // the watermark from an earlier partially-progressed run.
+    const old = await repo.start({ kind: "test.kind", trigger: "cron" });
+    await repo.updateResult(old.id, { lastPostedDate: "2026-04-17" });
+    await repo.fail(old.id, { durationMs: 100, errorMessage: "boom" });
+    const fresh = await repo.start({ kind: "test.kind", trigger: "admin" });
+    await repo.fail(fresh.id, { durationMs: 50, errorMessage: "first post 400'd" });
+    const latest = await repo.findLatestForResume("test.kind");
+    expect(latest?.id).toBe(old.id);
+    expect(latest?.result).toEqual({ lastPostedDate: "2026-04-17" });
   });
 
   it("returns parsed objects from result columns stored as JSONB strings", async () => {

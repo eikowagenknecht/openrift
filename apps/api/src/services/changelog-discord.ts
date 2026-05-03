@@ -19,6 +19,10 @@ export interface ChangelogJobResult {
 
 const DEFAULT_POST_DELAY_MS = 3000;
 
+// Discord caps embed.description at 4096 chars. Leave headroom for any
+// counting differences between JS UTF-16 length and Discord's own count.
+const MAX_DESCRIPTION_CHARS = 4000;
+
 /**
  * Parses a changelog markdown document into all dated sections.
  * Sections without any feat/fix entries are dropped.
@@ -47,15 +51,9 @@ export function parseChangelogSections(markdown: string): ChangelogSection[] {
   return sections.toSorted((a, b) => a.date.localeCompare(b.date));
 }
 
-/**
- * Builds a Discord webhook payload from changelog entries.
- *
- * @returns The JSON body to POST to a Discord webhook URL.
- */
-export function buildDiscordPayload(date: string, entries: ChangelogEntry[]) {
+function formatEntryLines(entries: ChangelogEntry[]): string[] {
   const feats = entries.filter((entry) => entry.type === "feat");
   const fixes = entries.filter((entry) => entry.type === "fix");
-
   const lines: string[] = [];
   for (const entry of feats) {
     lines.push(`🆕 ${entry.message}`);
@@ -63,16 +61,49 @@ export function buildDiscordPayload(date: string, entries: ChangelogEntry[]) {
   for (const entry of fixes) {
     lines.push(`🔧 ${entry.message}`);
   }
+  return lines;
+}
 
-  return {
+function chunkLinesToFit(lines: string[], limit: number): string[][] {
+  const chunks: string[][] = [];
+  let current: string[] = [];
+  let currentLen = 0;
+  for (const line of lines) {
+    const addedLen = current.length === 0 ? line.length : 1 + line.length;
+    if (currentLen + addedLen > limit && current.length > 0) {
+      chunks.push(current);
+      current = [line];
+      currentLen = line.length;
+    } else {
+      current.push(line);
+      currentLen += addedLen;
+    }
+  }
+  if (current.length > 0) {
+    chunks.push(current);
+  }
+  return chunks;
+}
+
+/**
+ * Builds one or more Discord webhook payloads for a single date's entries.
+ * A long day's worth of entries is split across multiple payloads so each
+ * description stays under Discord's 4096-char embed limit.
+ *
+ * @returns One payload per chunk, in display order.
+ */
+export function buildDiscordPayloads(date: string, entries: ChangelogEntry[]) {
+  const lines = formatEntryLines(entries);
+  const chunks = chunkLinesToFit(lines, MAX_DESCRIPTION_CHARS);
+  return chunks.map((chunk) => ({
     embeds: [
       {
         title: `What's new (${date})`,
-        description: lines.join("\n"),
+        description: chunk.join("\n"),
         color: 0x24_70_5f,
       },
     ],
-  };
+  }));
 }
 
 /**
@@ -104,10 +135,12 @@ interface PostChangelogParams {
 /**
  * Posts every changelog section dated strictly after `fromDate` to the
  * Discord webhook, oldest first, throttled to one message per `postDelayMs`.
- * Checkpoints the watermark after each successful post so a crash mid-run
- * doesn't replay already-posted entries.
+ * Long sections are split across multiple webhook posts so each embed
+ * stays under Discord's 4096-char description limit. The watermark only
+ * advances after every chunk for a date is posted, so a crash mid-date
+ * re-posts the whole date on the next run rather than skipping the rest.
  *
- * @returns The number posted and the new watermark.
+ * @returns The number of dates posted and the new watermark.
  */
 export async function postChangelogToDiscord(
   params: PostChangelogParams,
@@ -150,33 +183,39 @@ export async function postChangelogToDiscord(
 
   let posted = 0;
   let lastPostedDate = fromDate;
+  let postsSent = 0;
 
-  for (const [index, section] of pending.entries()) {
-    if (index > 0) {
-      await sleeper(postDelayMs);
-    }
+  for (const section of pending) {
+    const payloads = buildDiscordPayloads(section.date, section.entries);
 
-    const payload = buildDiscordPayload(section.date, section.entries);
-    const response = await fetcher(webhookUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    for (const payload of payloads) {
+      if (postsSent > 0) {
+        await sleeper(postDelayMs);
+      }
 
-    if (!response.ok) {
-      const body = await response.text();
-      log.error(
-        { status: response.status, body, date: section.date },
-        "Discord webhook request failed",
-      );
-      throw new Error(`Discord webhook ${response.status}: ${body.slice(0, 200)}`);
+      const response = await fetcher(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const body = await response.text();
+        log.error(
+          { status: response.status, body, date: section.date },
+          "Discord webhook request failed",
+        );
+        throw new Error(`Discord webhook ${response.status}: ${body.slice(0, 200)}`);
+      }
+
+      postsSent += 1;
     }
 
     posted += 1;
     lastPostedDate = section.date;
     await jobRuns.updateResult(runId, { posted, lastPostedDate });
     log.info(
-      { date: section.date, count: section.entries.length },
+      { date: section.date, count: section.entries.length, chunks: payloads.length },
       "Posted changelog section to Discord",
     );
   }
