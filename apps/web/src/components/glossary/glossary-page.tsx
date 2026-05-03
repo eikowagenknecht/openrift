@@ -23,6 +23,7 @@ const SECTIONS: Section[] = [
   { id: "art-variants", title: "Art variants" },
   { id: "finishes", title: "Finishes" },
   { id: "markers", title: "Markers" },
+  { id: "printing-details", title: "Printing details" },
   { id: "sets", title: "Sets" },
   { id: "keywords", title: "Keywords" },
   { id: "symbols", title: "In-text symbols" },
@@ -405,6 +406,46 @@ interface SetEntry {
   cardCount: number;
 }
 
+function PrintingDetailsSection({ query }: { query: string }) {
+  const items = [
+    {
+      key: "artist",
+      label: "Artist",
+      description:
+        "Illustrator credit printed on the card. Tracked per printing so reprints can credit the original artist.",
+    },
+    {
+      key: "signature",
+      label: "Signature",
+      description:
+        "A printing flag indicating the card carries the artist's signature, usually overlaid on a foil alt-art or Ultimate variant.",
+    },
+  ];
+  const visible = items.filter((i) => matches(query, i.label, i.description));
+  if (visible.length === 0) {
+    return null;
+  }
+  return (
+    <section>
+      <SectionHeading id="printing-details" title="Printing details" />
+      <p className="text-muted-foreground mt-2">
+        Per-printing metadata that doesn&apos;t fit a rarity, art variant, finish, or marker.
+      </p>
+      <ul className="mt-4 space-y-2">
+        {visible.map((item) => (
+          <li
+            key={item.key}
+            className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
+          >
+            <span className="font-medium sm:w-32 sm:shrink-0">{item.label}</span>
+            <p className="text-muted-foreground">{item.description}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function SetsSection({ sets, query }: { sets: SetEntry[]; query: string }) {
   const visible = sets.filter((s) => matches(query, s.slug, s.name, s.setType));
   if (visible.length === 0) {
@@ -582,18 +623,6 @@ function SymbolsSection({ query }: { query: string }) {
         "Marked [A]. A Power cost that can be paid with a rune of any domain — this is the wild Power symbol.",
       icon: "/images/glyphs/rune-rainbow.svg",
     },
-    {
-      key: "signature",
-      label: "Signature",
-      summary:
-        "A foil printing carrying the artist's signature — usually overlaid on an alt-art or Ultimate variant.",
-    },
-    {
-      key: "artist",
-      label: "Artist",
-      summary:
-        "Illustrator credit printed on each card. Stored per printing so reprints can credit the original artist.",
-    },
   ];
   const visible = symbols.filter((s) => matches(query, s.label, s.summary));
   if (visible.length === 0) {
@@ -750,6 +779,7 @@ export function GlossaryPage() {
           <ArtVariantsSection artVariants={artVariants} query={query} />
           <FinishesSection finishes={finishes} query={query} />
           <MarkersSection query={query} />
+          <PrintingDetailsSection query={query} />
           <SetsSection sets={sets} query={query} />
           <KeywordsSection keywords={keywordRows} query={query} />
           <SymbolsSection query={query} />
