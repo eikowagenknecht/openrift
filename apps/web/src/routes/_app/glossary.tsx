@@ -2,6 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { initQueryOptions } from "@/hooks/use-init";
+import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { seoHead } from "@/lib/seo";
@@ -25,7 +26,10 @@ export const Route = createFileRoute("/_app/glossary")({
     }
   },
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(initQueryOptions);
+    await Promise.all([
+      context.queryClient.ensureQueryData(initQueryOptions),
+      context.queryClient.ensureQueryData(publicSetListQueryOptions),
+    ]);
   },
   errorComponent: RouteErrorFallback,
 });
