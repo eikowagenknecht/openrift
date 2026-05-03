@@ -3,7 +3,7 @@ import { mkdir, readFile, readdir, rename, stat, unlink, writeFile } from "node:
 
 import sharp from "sharp";
 
-export interface Fs {
+interface Fs {
   mkdir: typeof mkdir;
   readFile: typeof readFile;
   readdir: typeof readdir;
@@ -15,7 +15,7 @@ export interface Fs {
 
 export type Fetch = typeof globalThis.fetch;
 
-export type Sharp = typeof sharp;
+type Sharp = typeof sharp;
 
 export interface Io {
   fs: Fs;

@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
 
-export interface PhashMatch {
+interface PhashMatch {
   printing: Printing;
   distance: number;
   similarity: number;
@@ -14,7 +14,7 @@ export interface PhashResult {
   debug?: PhashDebug;
 }
 
-export interface PhashDebug {
+interface PhashDebug {
   croppedDataUrl: string;
   downsampledDataUrl: string;
   grayValues: number[];

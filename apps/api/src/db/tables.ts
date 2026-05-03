@@ -132,7 +132,7 @@ export interface PrintingsTable {
 
 export type MarketplaceGroupKind = "basic" | "special";
 
-export interface MarketplaceGroupsTable {
+interface MarketplaceGroupsTable {
   id: Generated<string>;
   marketplace: string;
   groupId: number;
@@ -152,7 +152,7 @@ export interface MarketplaceGroupsTable {
  * language as implicit). The unique index is NULLS NOT DISTINCT so CM/TCG
  * can't accidentally get two NULL-language rows for the same pair.
  */
-export interface MarketplaceProductsTable {
+interface MarketplaceProductsTable {
   id: Generated<string>;
   /** CHECK: <> '' ; FK composite → marketplace_groups(marketplace, group_id) */
   marketplace: string;
@@ -173,7 +173,7 @@ export interface MarketplaceProductsTable {
  * can fan out to multiple printings (e.g. Cardmarket's language-aggregate row
  * covers every language of the same card).
  */
-export interface MarketplaceProductVariantsTable {
+interface MarketplaceProductVariantsTable {
   id: Generated<string>;
   marketplaceProductId: string;
   printingId: string;
@@ -212,7 +212,7 @@ export interface MarketplaceProductPricesTable {
 }
 
 /** Level 2 ignores: deny an entire upstream product (e.g. sealed product, bundles). */
-export interface MarketplaceIgnoredProductsTable {
+interface MarketplaceIgnoredProductsTable {
   marketplace: string;
   externalId: number;
   productName: string;
@@ -221,7 +221,7 @@ export interface MarketplaceIgnoredProductsTable {
 }
 
 /** Level 3 ignores: deny a specific marketplace SKU (identified by product row) from auto-binding. */
-export interface MarketplaceIgnoredVariantsTable {
+interface MarketplaceIgnoredVariantsTable {
   marketplaceProductId: string;
   productName: string;
   createdAt: CreatedAt;
@@ -232,7 +232,7 @@ export interface MarketplaceIgnoredVariantsTable {
  * Pin a specific marketplace SKU to a card, overriding name-based matching.
  * Keyed on the product row so the override survives across price refreshes.
  */
-export interface MarketplaceProductCardOverridesTable {
+interface MarketplaceProductCardOverridesTable {
   marketplaceProductId: string;
   cardId: string;
   createdAt: CreatedAt;
@@ -240,7 +240,7 @@ export interface MarketplaceProductCardOverridesTable {
 
 // ─── Admin (migration 012) ────────────────────────────────────────────────
 
-export interface AdminsTable {
+interface AdminsTable {
   userId: string;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
@@ -248,7 +248,7 @@ export interface AdminsTable {
 
 // ─── Auth (migration 003) ─────────────────────────────────────────────────
 
-export interface UsersTable {
+interface UsersTable {
   id: string;
   email: string;
   name: string | null;
@@ -258,7 +258,7 @@ export interface UsersTable {
   updatedAt: UpdatedAt;
 }
 
-export interface SessionsTable {
+interface SessionsTable {
   id: string;
   userId: string;
   token: string;
@@ -269,7 +269,7 @@ export interface SessionsTable {
   updatedAt: UpdatedAt;
 }
 
-export interface AccountsTable {
+interface AccountsTable {
   id: string;
   userId: string;
   accountId: string;
@@ -285,7 +285,7 @@ export interface AccountsTable {
   updatedAt: UpdatedAt;
 }
 
-export interface VerificationsTable {
+interface VerificationsTable {
   id: string;
   identifier: string;
   value: string;
@@ -519,7 +519,7 @@ export interface IgnoredCandidatePrintingsTable {
   createdAt: CreatedAt;
 }
 
-export interface PrintingLinkOverridesTable {
+interface PrintingLinkOverridesTable {
   /** CHECK: <> '' */
   externalId: string;
   finish: string;
@@ -532,6 +532,10 @@ export interface PrintingLinkOverridesTable {
  * Deduplicated image storage. Multiple printing_images rows can reference the
  * same image_files row, avoiding duplicate files on disk.
  */
+// Must stay exported — TypeScript names it in inferred Kysely query return
+// types (e.g. selectCopyWithCard in repositories/query-helpers.ts).
+// oxlint-disable-next-line jsdoc/check-tag-names -- @public is consumed by knip to suppress the unused-export warning
+/** @public */
 export interface ImageFilesTable {
   id: Generated<string>;
   /** CHECK: <> '' */
@@ -569,7 +573,7 @@ export interface CardNameAliasesTable {
 
 // ─── Languages (migration 054) ───────────────────────────────────────────────
 
-export interface LanguagesTable {
+interface LanguagesTable {
   code: string;
   name: string;
   sortOrder: number;
@@ -583,7 +587,7 @@ export interface LanguagesTable {
  * Visual markers stamped/printed on a card (e.g. "promo", "top-8", "prerelease").
  * Identity-bearing: two printings with different marker sets are distinct.
  */
-export interface MarkersTable {
+interface MarkersTable {
   id: Generated<string>;
   /** CHECK: <> '' */
   slug: string;
@@ -596,7 +600,7 @@ export interface MarkersTable {
   updatedAt: UpdatedAt;
 }
 
-export interface PrintingMarkersTable {
+interface PrintingMarkersTable {
   /** PK part 1 — FK ON DELETE CASCADE */
   printingId: string;
   /** PK part 2 — FK ON DELETE RESTRICT */
@@ -610,7 +614,7 @@ export interface PrintingMarkersTable {
  * starter decks, etc. Many-to-many with printings via `printing_distribution_channels`.
  * Not identity-bearing — two printings can share visuals but differ in distribution.
  */
-export interface DistributionChannelsTable {
+interface DistributionChannelsTable {
   id: Generated<string>;
   /** CHECK: <> '' */
   slug: string;
@@ -629,7 +633,7 @@ export interface DistributionChannelsTable {
   updatedAt: UpdatedAt;
 }
 
-export interface PrintingDistributionChannelsTable {
+interface PrintingDistributionChannelsTable {
   /** PK part 1 — FK ON DELETE CASCADE */
   printingId: string;
   /** PK part 2 — FK ON DELETE RESTRICT */
@@ -640,7 +644,7 @@ export interface PrintingDistributionChannelsTable {
 
 // ─── Provider settings (migration 035, renamed in 038) ───────────────────────
 
-export interface ProviderSettingsTable {
+interface ProviderSettingsTable {
   /** PK — matches candidate_cards.provider */
   provider: string;
   sortOrder: number;
@@ -665,7 +669,7 @@ export interface KeywordsTable {
 
 // ─── Keyword translations (migration 071) ───────────────────────────────────
 
-export interface KeywordTranslationsTable {
+interface KeywordTranslationsTable {
   /** FK → keywords(name) ON UPDATE CASCADE */
   keywordName: string;
   /** FK → languages(code) ON UPDATE CASCADE */
@@ -717,7 +721,7 @@ export interface UserPreferencesTable {
 
 // ─── Formats (migration 054) ────────────────────────────────────────────────
 
-export interface FormatsTable {
+interface FormatsTable {
   /** CHECK: <> '' */
   id: string;
   /** CHECK: <> '' */
@@ -740,7 +744,7 @@ export interface CardBansTable {
 
 // ─── Rules (migration 060) ──────────────────────────────────────────────────
 
-export interface RuleVersionsTable {
+interface RuleVersionsTable {
   version: string;
   sourceType: string;
   sourceUrl: string | null;
@@ -748,7 +752,7 @@ export interface RuleVersionsTable {
   importedAt: ColumnType<Date, Date | undefined, Date>;
 }
 
-export interface RulesTable {
+interface RulesTable {
   id: Generated<string>;
   version: string;
   /** CHECK: <> '' */
@@ -773,22 +777,22 @@ export interface ReferenceTable {
   isWellKnown: boolean;
 }
 
-export type CardTypesTable = ReferenceTable;
+type CardTypesTable = ReferenceTable;
 export interface RaritiesTable extends ReferenceTable {
   color: string | null;
 }
 export interface DomainsTable extends ReferenceTable {
   color: string | null;
 }
-export type SuperTypesTable = ReferenceTable;
-export type FinishesTable = ReferenceTable;
-export type ArtVariantsTable = ReferenceTable;
-export type DeckFormatsTable = ReferenceTable;
-export type DeckZonesTable = ReferenceTable;
+type SuperTypesTable = ReferenceTable;
+type FinishesTable = ReferenceTable;
+type ArtVariantsTable = ReferenceTable;
+type DeckFormatsTable = ReferenceTable;
+type DeckZonesTable = ReferenceTable;
 
 // ─── Printing events (migration 071) ────────────────────────────────────────
 
-export interface PrintingEventsTable {
+interface PrintingEventsTable {
   id: Generated<string>;
   eventType: "new" | "changed";
   printingId: string;
@@ -811,7 +815,7 @@ export interface FieldChange {
 export type JobTrigger = "cron" | "admin" | "api";
 export type JobStatus = "running" | "succeeded" | "failed";
 
-export interface JobRunsTable {
+interface JobRunsTable {
   id: Generated<string>;
   kind: string;
   trigger: JobTrigger;
@@ -825,26 +829,26 @@ export interface JobRunsTable {
 
 // ─── Junction tables (migration 059) ─────────────────────────────────────────
 
-export interface CardDomainsTable {
+interface CardDomainsTable {
   cardId: string;
   domainSlug: string;
   ordinal: number;
 }
 
-export interface CardSuperTypesTable {
+interface CardSuperTypesTable {
   cardId: string;
   superTypeSlug: string;
 }
 
 // ─── Materialized views (migration 085) ─────────────────────────────────────
 
-export interface MvLatestPrintingPricesView {
+interface MvLatestPrintingPricesView {
   printingId: string;
   marketplace: string;
   headlineCents: number;
 }
 
-export interface MvCardAggregatesView {
+interface MvCardAggregatesView {
   cardId: string;
   domains: string[];
   superTypes: string[];
@@ -853,7 +857,7 @@ export interface MvCardAggregatesView {
 // ─── Views (migration 096) ───────────────────────────────────────────────────
 
 /** Every column of `printings` plus a precomputed `canonical_rank` integer. */
-export type PrintingsOrderedView = PrintingsTable & { canonicalRank: number };
+type PrintingsOrderedView = PrintingsTable & { canonicalRank: number };
 
 // ─── Database ────────────────────────────────────────────────────────────────
 

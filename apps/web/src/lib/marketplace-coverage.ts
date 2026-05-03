@@ -1,7 +1,7 @@
 import type { UnifiedMappingGroupResponse } from "@openrift/shared";
 
 /** Coverage status for one direction (printings-side or entries-side) on one marketplace. */
-export type MarketplaceCoverageStatus = "full" | "partial" | "none" | "na";
+type MarketplaceCoverageStatus = "full" | "partial" | "none" | "na";
 
 export interface DirectionCoverage {
   status: MarketplaceCoverageStatus;

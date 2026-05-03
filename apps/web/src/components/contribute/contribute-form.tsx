@@ -539,7 +539,7 @@ function SingleSelect({
   return (
     <Select
       value={value ?? ""}
-      onValueChange={(next: string) => onChange(next || null)}
+      onValueChange={(next: string | null) => onChange(next || null)}
       items={options.map((slug) => ({ value: slug, label: labels[slug] ?? slug }))}
     >
       <SelectTrigger className="w-full">

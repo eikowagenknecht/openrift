@@ -47,7 +47,7 @@ import { CM_CONFIG, CT_CONFIG, TCG_CONFIG } from "./source-configs";
 import type { ProductSuggestion } from "./suggest-mapping";
 import { productSuggestionKey, STRONG_MATCH_THRESHOLD } from "./suggest-mapping";
 
-export interface PrintingAssignment {
+interface PrintingAssignment {
   externalId: number;
   finish: string;
   language: string | null;

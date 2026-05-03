@@ -12,7 +12,7 @@ interface ChangelogSection {
   entries: ChangelogEntry[];
 }
 
-export interface ChangelogJobResult {
+interface ChangelogJobResult {
   posted: number;
   lastPostedDate: string | null;
 }

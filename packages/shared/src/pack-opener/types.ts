@@ -24,7 +24,7 @@ export interface PackPrinting {
  * for the stats panel (e.g. "1 flex slot was an Epic"). The token slot holds
  * either a Rune (most of the time) or a Token-supertype card like Sprite.
  */
-export type PackSlot = "common" | "uncommon" | "flex" | "foil" | "token" | "showcase" | "ultimate";
+type PackSlot = "common" | "uncommon" | "flex" | "foil" | "token" | "showcase" | "ultimate";
 
 export interface PackPull {
   slot: PackSlot;

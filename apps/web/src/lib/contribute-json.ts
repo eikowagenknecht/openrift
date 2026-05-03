@@ -12,11 +12,10 @@ import type { Card, Printing } from "@openrift/shared";
 
 const REPO = "openriftapp/openrift-data";
 const SCHEMA_REF = "../card.schema.json";
-const COMMUNITY_ID_PATTERN = /^community:[A-Za-z0-9][A-Za-z0-9:_-]*$/;
 const LANGUAGE_PATTERN = /^[a-z]{2,5}$/;
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
-export interface ContributeFormCard {
+interface ContributeFormCard {
   name: string;
   type: string | null;
   superTypes: string[];
@@ -63,12 +62,12 @@ export interface ValidationError {
   message: string;
 }
 
-export interface ValidationResult {
+interface ValidationResult {
   ok: boolean;
   errors: ValidationError[];
 }
 
-export function emptyCard(): ContributeFormCard {
+function emptyCard(): ContributeFormCard {
   return {
     name: "",
     type: null,
@@ -172,7 +171,7 @@ export function validateContribution(state: ContributeFormState): ValidationResu
 type SnakeCardJson = Record<string, unknown>;
 type SnakePrintingJson = Record<string, unknown>;
 
-export interface ContributionJson {
+interface ContributionJson {
   $schema: string;
   card: SnakeCardJson;
   printings: SnakePrintingJson[];
@@ -298,13 +297,6 @@ export function buildGithubNewFileUrl(filename: string, json: ContributionJson):
   const params = new URLSearchParams({ filename, value: body });
   return `https://github.com/${REPO}/new/main?${params.toString()}`;
 }
-
-export const CONTRIBUTE_CONSTANTS = {
-  COMMUNITY_ID_PATTERN,
-  LANGUAGE_PATTERN,
-  SLUG_PATTERN,
-  REPO,
-};
 
 /**
  * Converts an existing OpenRift card + its printings into form state suitable

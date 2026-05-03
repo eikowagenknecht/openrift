@@ -3,7 +3,7 @@ import { normalizeNameForMatching } from "@openrift/shared";
 import type { Worker } from "tesseract.js";
 import { createWorker } from "tesseract.js";
 
-export interface OcrMatch {
+interface OcrMatch {
   printing: Printing;
   confidence: number;
   rawText: string;
