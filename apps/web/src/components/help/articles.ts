@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
   ArrowRightLeftIcon,
+  BookOpenIcon,
   LayersIcon,
   LibraryIcon,
   PrinterIcon,
@@ -29,6 +30,18 @@ export const helpArticles = new Map<string, HelpArticle>([
         "A transparent comparison with other Riftbound card browsers: what OpenRift does well and where it's still catching up.",
       icon: ScaleIcon,
       component: () => import("./articles/why-openrift"),
+    },
+  ],
+  [
+    "how-to-play",
+    {
+      slug: "how-to-play",
+      title: "How to Play Riftbound",
+      description:
+        "A short visual primer on the rules: how to win, what's in your deck, how a turn flows, and how battlefields are fought over.",
+      icon: BookOpenIcon,
+      component: () => import("./articles/how-to-play"),
+      featureFlag: "help-how-to-play",
     },
   ],
   [

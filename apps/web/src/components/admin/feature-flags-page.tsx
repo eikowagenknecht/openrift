@@ -55,6 +55,10 @@ const KNOWN_FLAGS: KnownFlag[] = [
     key: "price-history",
     description: "Show the Value Over Time chart on the collection stats page",
   },
+  {
+    key: "help-how-to-play",
+    description: "Show the How to Play Riftbound help article",
+  },
 ];
 
 function GlobalFlagsSection() {
