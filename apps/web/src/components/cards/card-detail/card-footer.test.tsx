@@ -3,12 +3,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitForElementToBeRemoved } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
 import { Suspense } from "react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useDisplayStore } from "@/stores/display-store";
 import { stubPrinting } from "@/test/factories";
 import { createStoreResetter } from "@/test/store-helpers";
 
+vi.mock("@/hooks/use-price-history", () => ({
+  usePriceHistory: () => ({ data: undefined }),
+}));
+
+// oxlint-disable-next-line import/first -- must import after vi.mock
 import { CardFooter } from "./card-footer";
 
 function makeWrapper(prices: Record<string, Partial<Record<Marketplace, number>>>) {
