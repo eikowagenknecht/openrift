@@ -108,6 +108,86 @@ const remarkLinkifyKeywords = () => (tree: MdNode) => {
   visitTextNodes(tree);
 };
 
+// Tournament penalty labels — matched as literal `[Label]` strings inside rule
+// bodies and styled with the IPG-derived color codes.
+const PENALTY_STYLES: Record<string, string> = {
+  Warning: "bg-[#ffe599] text-black",
+  Warnings: "bg-[#ffe599] text-black",
+  "Game Loss": "bg-[#f9cb9c] text-black",
+  "No Penalty": "bg-[#cccccc] text-black",
+  "Match Loss": "bg-[#ea9999] text-black",
+  Disqualification: "bg-[#990000] text-white",
+};
+
+const PENALTY_REGEX = /\[(Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\]/g;
+
+// IPG-style sources often italicize the label inside the brackets, e.g.
+// `[*Warnings*]`. Strip the inner emphasis markers so the regex above (and the
+// markdown parser) see clean `[Label]` tokens.
+const PENALTY_NORMALIZE_REGEX =
+  /\[\s*[*_]*\s*(Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\s*[*_]*\s*\]/g;
+
+interface HastNode {
+  type: string;
+  tagName?: string;
+  value?: string;
+  properties?: Record<string, unknown>;
+  children?: HastNode[];
+}
+
+function splitTextOnPenalties(text: string): HastNode[] {
+  const result: HastNode[] = [];
+  let last = 0;
+  PENALTY_REGEX.lastIndex = 0;
+  let match: RegExpExecArray | null = PENALTY_REGEX.exec(text);
+  while (match !== null) {
+    if (match.index > last) {
+      result.push({ type: "text", value: text.slice(last, match.index) });
+    }
+    result.push({
+      type: "element",
+      tagName: "span",
+      properties: { "data-penalty": match[1] },
+      children: [{ type: "text", value: match[0] }],
+    });
+    last = match.index + match[0].length;
+    match = PENALTY_REGEX.exec(text);
+  }
+  if (last < text.length) {
+    result.push({ type: "text", value: text.slice(last) });
+  }
+  return result;
+}
+
+function visitHastTextNodes(node: HastNode): void {
+  if (node.tagName === "a") {
+    // Don't restyle text inside an existing link.
+    return;
+  }
+  if (!node.children) {
+    return;
+  }
+  for (let index = 0; index < node.children.length; index++) {
+    const child = node.children[index];
+    if (child.type === "text" && typeof child.value === "string") {
+      if (!PENALTY_REGEX.test(child.value)) {
+        PENALTY_REGEX.lastIndex = 0;
+        continue;
+      }
+      PENALTY_REGEX.lastIndex = 0;
+      const replacements = splitTextOnPenalties(child.value);
+      node.children.splice(index, 1, ...replacements);
+      index += replacements.length - 1;
+      continue;
+    }
+    visitHastTextNodes(child);
+  }
+}
+
+const rehypeHighlightPenalties = () => (tree: HastNode) => {
+  visitHastTextNodes(tree);
+};
+
 const MARKDOWN_COMPONENTS: Components = {
   a: ({ href, children }) => {
     if (typeof href === "string" && href.startsWith("/glossary#")) {
@@ -124,9 +204,22 @@ const MARKDOWN_COMPONENTS: Components = {
       </a>
     );
   },
+  span: ({ children, ...props }) => {
+    const penalty = (props as { "data-penalty"?: string })["data-penalty"];
+    if (penalty && PENALTY_STYLES[penalty]) {
+      return (
+        <span
+          className={cn("rounded px-1.5 py-0.5 text-sm font-semibold", PENALTY_STYLES[penalty])}
+        >
+          {children}
+        </span>
+      );
+    }
+    return <span {...props}>{children}</span>;
+  },
 };
 
-const ALLOWED_MARKDOWN_ELEMENTS = ["em", "strong", "code", "a", "br"];
+const ALLOWED_MARKDOWN_ELEMENTS = ["em", "strong", "code", "a", "br", "span"];
 
 /**
  * Renders a rule's body as a constrained markdown subset, with any known
@@ -136,11 +229,14 @@ const ALLOWED_MARKDOWN_ELEMENTS = ["em", "strong", "code", "a", "br"];
  */
 export function RuleContent({ content }: { content: string }) {
   // Treat every newline in the source as a hard line break by appending the
-  // markdown two-space hard-break marker before each \n.
-  const processed = content.replaceAll("\n", "  \n");
+  // markdown two-space hard-break marker before each \n. Normalize penalty
+  // labels first so `[*Warning*]` collapses to `[Warning]` and the rehype
+  // matcher recognizes it as a single text node.
+  const processed = content.replaceAll(PENALTY_NORMALIZE_REGEX, "[$1]").replaceAll("\n", "  \n");
   return (
     <ReactMarkdown
       remarkPlugins={[remarkLinkifyKeywords]}
+      rehypePlugins={[rehypeHighlightPenalties]}
       components={MARKDOWN_COMPONENTS}
       allowedElements={ALLOWED_MARKDOWN_ELEMENTS}
       unwrapDisallowed
@@ -148,6 +244,55 @@ export function RuleContent({ content }: { content: string }) {
     >
       {processed}
     </ReactMarkdown>
+  );
+}
+
+const VERSION_COMMENT_MARKDOWN_ELEMENTS = [
+  "p",
+  "em",
+  "strong",
+  "code",
+  "a",
+  "br",
+  "ul",
+  "ol",
+  "li",
+  "h2",
+  "h3",
+  "h4",
+  "blockquote",
+  "hr",
+];
+
+const VERSION_COMMENT_COMPONENTS: Components = {
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+      {children}
+    </a>
+  ),
+  ul: ({ children }) => <ul className="my-2 ml-6 list-disc">{children}</ul>,
+  ol: ({ children }) => <ol className="my-2 ml-6 list-decimal">{children}</ol>,
+  h2: ({ children }) => <h2 className="mt-3 text-lg font-semibold">{children}</h2>,
+  h3: ({ children }) => <h3 className="mt-3 font-semibold">{children}</h3>,
+  blockquote: ({ children }) => (
+    <blockquote className="border-border text-muted-foreground my-2 border-l-2 pl-3">
+      {children}
+    </blockquote>
+  ),
+};
+
+function VersionComments({ markdown }: { markdown: string }) {
+  return (
+    <div className="border-border bg-muted/30 mb-4 rounded-md border p-3">
+      <ReactMarkdown
+        components={VERSION_COMMENT_COMPONENTS}
+        allowedElements={VERSION_COMMENT_MARKDOWN_ELEMENTS}
+        unwrapDisallowed
+        skipHtml
+      >
+        {markdown}
+      </ReactMarkdown>
+    </div>
   );
 }
 
@@ -364,6 +509,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const versions = versionsData.versions;
+  const comments = versions.find((v) => v.version === version)?.comments ?? null;
 
   const searchResultsQuery = useQuery({
     queryKey: queryKeys.rules.search(kind, searchQuery),
@@ -473,6 +619,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
             </div>
           </aside>
           <div className="min-w-0 flex-1">
+            {comments && !isSearching && <VersionComments markdown={comments} />}
             {visibleRules.map((rule) => (
               <RuleRow
                 key={rule.id}
