@@ -9,7 +9,7 @@ export const Route = createFileRoute("/_app/sets")({
   head: () =>
     seoHead({
       siteUrl: getSiteUrl(),
-      title: "Card Sets — Riftbound",
+      title: "Riftbound Card Sets",
       description:
         "Browse all Riftbound card sets. View cards, printings, and details for each set.",
       path: "/sets",

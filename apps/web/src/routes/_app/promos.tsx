@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_app/promos")({
     const siteUrl = getSiteUrl();
     return seoHead({
       siteUrl,
-      title: "Promo Cards — Riftbound",
+      title: "Promo Cards",
       description:
         "Browse all promotional card printings for the Riftbound trading card game, grouped by promo type.",
       path: "/promos",

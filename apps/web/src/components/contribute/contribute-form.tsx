@@ -4,6 +4,7 @@ import { ExternalLinkIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
+import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,16 +55,12 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
   const languages = useLanguageList();
   const { data: setListData } = useSuspenseQuery(publicSetListQueryOptions);
 
-  const setSlug = (slug: string) => {
-    setState((s) => ({ ...s, slug }));
-  };
   const setCardField = <K extends keyof ContributeFormState["card"]>(
     key: K,
     value: ContributeFormState["card"][K],
   ) => {
     setState((s) => {
-      const nextSlug =
-        !lockedSlug && key === "name" && !s.slug ? nameToSlug(value as string) : s.slug;
+      const nextSlug = !lockedSlug && key === "name" ? nameToSlug(value as string) : s.slug;
       return { ...s, slug: nextSlug, card: { ...s.card, [key]: value } };
     });
   };
@@ -108,28 +105,27 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-8">
       <IntroBlock lockedSlug={lockedSlug} />
 
+      <CardLayoutHelp state={state} />
+
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Card</h2>
-        <FieldRow label="Name" required error={errorAt("card.name")}>
-          <Input
-            value={state.card.name}
-            onChange={(e) => setCardField("name", e.target.value)}
-            placeholder="Ahri, Alluring"
-          />
-        </FieldRow>
-        <FieldRow
-          label="Slug"
-          required
-          error={errorAt("slug")}
-          hint="Lowercase, hyphenated. Used as the file name."
-        >
-          <Input
-            value={state.slug}
-            onChange={(e) => setSlug(e.target.value)}
-            disabled={Boolean(lockedSlug)}
-            placeholder="ahri-alluring"
-          />
-        </FieldRow>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FieldRow label="Name" required error={errorAt("card.name")}>
+            <Input
+              value={state.card.name}
+              onChange={(e) => setCardField("name", e.target.value)}
+              placeholder="Ahri, Alluring"
+            />
+          </FieldRow>
+          <FieldRow
+            label="Slug"
+            required
+            error={errorAt("slug")}
+            hint="Auto-generated from the name. Used as the file name."
+          >
+            <Input value={state.slug} disabled readOnly placeholder="ahri-alluring" />
+          </FieldRow>
+        </div>
         <FieldRow label="Type">
           <SingleSelect
             value={state.card.type}
@@ -244,41 +240,120 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit">
           <ExternalLinkIcon className="size-4" />
-          Open prefilled GitHub PR
+          Submit your contribution
         </Button>
         <p className="text-muted-foreground text-sm">
-          A new tab opens with the file ready to commit. GitHub will fork the repo for you.
+          A new tab opens with everything filled in. GitHub forks the repo for you, so all you need
+          to do is click &ldquo;Propose changes&rdquo;.
         </p>
       </div>
     </form>
   );
 }
 
-function IntroBlock({ lockedSlug }: { lockedSlug?: string }) {
+const LAYOUT_LEGEND: { label: string; region: string }[] = [
+  { label: "Card name", region: "Centre band" },
+  { label: "Type, super types", region: "Italic stripe above the name" },
+  { label: "Tags", region: "Italic stripes next to the type" },
+  { label: "Energy", region: "Top-left circle" },
+  { label: "Might", region: "Top-right shield" },
+  { label: "Power", region: "Coloured dots below energy" },
+  { label: "Domains", region: "Card colour and footer glyphs" },
+  { label: "Rules text", region: "Top of the text box" },
+  { label: "Effect text", region: "Highlighted band in the text box" },
+  { label: "Might bonus", region: "Small +N inside the effect band" },
+  { label: "Flavor text", region: "Italic, dimmed line" },
+  { label: "Rarity", region: "Glyph in the footer centre" },
+  { label: "Public code", region: "Bottom-left of the footer" },
+  { label: "Artist", region: "Bottom-right of the footer" },
+];
+
+function CardLayoutHelp({ state }: { state: ContributeFormState }) {
+  const firstPrinting = state.printings[0];
+  const cardName = state.card.name || "Your card name";
+  const cardDomains = state.card.domains.length > 0 ? state.card.domains : ["Fury"];
+  const cardType = state.card.type ?? "Unit";
+  const cardSuperTypes = state.card.superTypes.length > 0 ? state.card.superTypes : ["Champion"];
+  const cardTags = state.card.tags.length > 0 ? state.card.tags : ["Tag"];
+  const cardEnergy = state.card.energy ?? 3;
+  const cardMight = state.card.might ?? 4;
+  const cardPower = state.card.power ?? 2;
+  const cardRulesText = state.card.rulesText || "Rules text appears in this section.";
+  const cardEffectText = state.card.effectText || "Effect text gets a highlighted band.";
+  const cardMightBonus = state.card.mightBonus;
+  const printingFlavor = firstPrinting?.flavorText || "Optional flavor line, in italics.";
+  const printingRarity = firstPrinting?.rarity || "Common";
+  const printingPublicCode = firstPrinting?.publicCode || "ABC-001/002";
+  const printingArtist = firstPrinting?.artist || "Artist name";
   return (
-    <div className="border-border bg-muted/30 rounded-md border p-4 text-sm">
-      {lockedSlug ? (
-        <p>
-          You&apos;re suggesting a correction for <span className="font-mono">{lockedSlug}</span>.
-          Adjust any fields you need to fix and submit. A maintainer will review the diff before
-          it&apos;s merged into the openrift-data repo.
-        </p>
-      ) : (
-        <p>
-          Add a card that&apos;s missing from OpenRift. Fill in what you have, leave the rest blank.
-          The form opens a prefilled pull request against the{" "}
-          <a
-            href="https://github.com/openriftapp/openrift-data"
-            target="_blank"
-            rel="noreferrer"
-            className="underline decoration-dotted underline-offset-2"
-          >
-            openrift-data
-          </a>{" "}
-          repo.
-        </p>
-      )}
-    </div>
+    <details className="border-border rounded-md border p-3">
+      <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-sm select-none">
+        Where do these fields appear on a card?
+      </summary>
+      <div className="mt-4 grid gap-6 sm:grid-cols-[14rem_1fr] sm:items-start">
+        <div className="w-56 justify-self-center sm:justify-self-start">
+          <CardPlaceholderImage
+            name={cardName}
+            domain={cardDomains}
+            energy={cardEnergy}
+            might={cardMight}
+            power={cardPower}
+            type={cardType}
+            superTypes={cardSuperTypes}
+            tags={cardTags}
+            rulesText={cardRulesText}
+            effectText={cardEffectText}
+            mightBonus={cardMightBonus}
+            flavorText={printingFlavor}
+            rarity={printingRarity}
+            publicCode={printingPublicCode}
+            artist={printingArtist}
+          />
+        </div>
+        <div className="text-sm">
+          <p className="text-muted-foreground">
+            Empty fields show placeholder values so you can see the layout; as you fill in the form,
+            your real values replace them. Pure-metadata fields (slug, set, language, finish, art
+            variant, markers, image URL, etc.) don&apos;t appear on the card.
+          </p>
+          <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 md:grid-cols-2">
+            {LAYOUT_LEGEND.map((entry) => (
+              <div key={entry.label} className="flex justify-between gap-3">
+                <dt className="font-medium">{entry.label}</dt>
+                <dd className="text-muted-foreground text-right">{entry.region}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </div>
+    </details>
+  );
+}
+
+function IntroBlock({ lockedSlug }: { lockedSlug?: string }) {
+  if (lockedSlug) {
+    return (
+      <p className="text-muted-foreground">
+        You&apos;re suggesting a correction for <span className="font-mono">{lockedSlug}</span>.
+        Edit any field that needs fixing and submit. I&apos;ll review the diff before it&apos;s
+        merged.
+      </p>
+    );
+  }
+  return (
+    <p className="text-muted-foreground">
+      Fill in whatever details you have and leave the rest blank; even partial entries are useful,
+      and I&apos;ll tidy up the rest. Submitting opens a prefilled pull request on the{" "}
+      <a
+        href="https://github.com/openriftapp/openrift-data"
+        target="_blank"
+        rel="noreferrer"
+        className="underline decoration-dotted underline-offset-2"
+      >
+        openrift-data
+      </a>{" "}
+      repo (GitHub will fork it for you in one click), and I&apos;ll review it before it goes live.
+    </p>
   );
 }
 

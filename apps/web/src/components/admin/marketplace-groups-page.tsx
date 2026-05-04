@@ -170,7 +170,7 @@ export function MarketplaceGroupsPage() {
       columns={columns}
       data={groups}
       getRowKey={(g) => `${g.marketplace}:${g.groupId}`}
-      emptyText="No groups yet — they appear after a price scrape runs."
+      emptyText="No groups yet. They appear after a price scrape runs."
     />
   );
 }

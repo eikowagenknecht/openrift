@@ -31,7 +31,8 @@ function ContributeCorrectionPage() {
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-bold">Suggest a correction</h1>
         <p className="text-muted-foreground">
-          Adjust any field on <span className="font-medium">{data.card.name}</span> and submit.
+          Spotted something off on <span className="font-medium">{data.card.name}</span>? Edit any
+          field that needs fixing and we&apos;ll review the change.
         </p>
       </header>
       <ContributeForm initial={initial} lockedSlug={cardSlug} />

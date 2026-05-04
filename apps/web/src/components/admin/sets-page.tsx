@@ -302,7 +302,7 @@ export function SetsPage() {
           description: (
             <>
               This will permanently delete the set <strong>{s.name}</strong>. Sets with printings
-              cannot be deleted — remove their printings first.
+              cannot be deleted. Remove their printings first.
             </>
           ),
         }),

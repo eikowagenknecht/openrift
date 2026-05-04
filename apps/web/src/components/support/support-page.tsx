@@ -124,7 +124,7 @@ function CopyButton({ text, label, icon }: { text: string; label: string; icon: 
 
 export function SupportPage() {
   const siteUrl = getSiteUrl();
-  const shareText = `Check out OpenRift — a free card browser for Riftbound! ${siteUrl}`;
+  const shareText = `Check out OpenRift, a free card browser for Riftbound! ${siteUrl}`;
   const tweetText = encodeURIComponent(shareText);
 
   return (

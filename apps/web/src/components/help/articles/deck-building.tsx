@@ -79,7 +79,7 @@ export default function DeckBuildingArticle() {
           <ZoneCard
             name="Main Deck"
             count="40"
-            description="Units, spells, and gear — includes your champion toward the count"
+            description="Units, spells, and gear, includes your champion toward the count"
             color="text-foreground"
           />
           <ZoneCard

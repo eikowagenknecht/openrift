@@ -2,6 +2,7 @@
 
 ## 2026-05-04
 
+- feat: The Contribute form now shows a live preview of where each field appears on the printed card, and the slug is filled in for you as you type the name
 - feat: The Rules section is now live for everyone, with the official Riftbound core rules and tournament rules linked from the More menu
 
 ## 2026-05-01
@@ -60,7 +61,7 @@
 
 - feat: The homepage now loads faster on a fresh visit by only fetching the few stats and card thumbnails it actually shows, instead of pulling down the full card catalog
 - feat: The deck builder's three-dot menu now has an "Import & replace cards…" action that lets you paste a deck code or list and overwrite the current deck's contents in place, keeping the deck's name and format. Previously you could only import as a brand-new deck
-- feat: The /decks page has a new toolbar — search by name, legend, or champion; sort by recent updates, name, card count, or value; filter by format, validity, and domain; group by format, domain combination, legend, or validity; and switch between the existing tile view and a new compact list view
+- feat: The /decks page has a new toolbar: search by name, legend, or champion; sort by recent updates, name, card count, or value; filter by format, validity, and domain; group by format, domain combination, legend, or validity; and switch between the existing tile view and a new compact list view
 - feat: You can now pin frequently-used decks to keep them at the top of the deck list, and archive retired decks so they're hidden behind a toggle without being deleted
 - fix: The /cards page now shows the first row of cards instantly on a fresh visit instead of waiting for the full catalog and grid to load
 - fix: Card detail pages load faster on mobile by fetching a smaller image sized for the screen instead of the full-resolution one
@@ -74,13 +75,13 @@
 - feat: The deck builder now enforces the [Unique] keyword rule, flagging any card with [Unique] that you've added more than once across the main deck or sideboard
 - feat: Each collection now has an "available for deck building" toggle in its three-dot menu. Turn it off for cards you don't want to cannibalise (a display-case copy, cards lent out, an assembled deck), and the deck builder and shopping list will skip them when counting what you own. Excluded copies still show up as "locked" in the deck's ownership panel so you can see what you'd have available if you turned the collection back on
 - feat: Collections can now be renamed from the same Edit collection dialog
-- feat: The Owned filter on /cards has a new third state "Incomplete" that shows cards where you don't yet own a full deck-legal playset — anything below three copies for most cards, or below one for Legends, Battlefields, and cards with the Unique keyword. Click the badge to cycle Owned → Missing → Incomplete → off
+- feat: The Owned filter on /cards has a new third state "Incomplete" that shows cards where you don't yet own a full deck-legal playset: anything below three copies for most cards, or below one for Legends, Battlefields, and cards with the Unique keyword. Click the badge to cycle Owned → Missing → Incomplete → off
 - fix: Card names like "Kai'Sa" now export with a plain apostrophe in deck text exports, CSV collection exports, and the missing-cards copy button, instead of the typographic apostrophe that some external tools couldn't match
 
 ## 2026-04-25
 
-- feat: The pack opener's token slot now reflects what real packs deliver — usually a basic Rune, occasionally a foil Rune, very rarely an alt-art Rune, and sometimes a Token card like Sprite or Recruit. Previously you'd only ever see a regular Rune there, and Token cards were leaking into the regular common slots
-- fix: A simulated booster pack no longer contains the same printing twice. Real packs never repeat a card within one pack — for example the two rare-or-better slots are now guaranteed to be different cards
+- feat: The pack opener's token slot now reflects what real packs deliver: usually a basic Rune, occasionally a foil Rune, very rarely an alt-art Rune, and sometimes a Token card like Sprite or Recruit. Previously you'd only ever see a regular Rune there, and Token cards were leaking into the regular common slots
+- fix: A simulated booster pack no longer contains the same printing twice. Real packs never repeat a card within one pack. For example, the two rare-or-better slots are now guaranteed to be different cards
 - fix: The missing-cards dialog on a deck now shows the price and short code of the printing the deck builder displays for each card (your pinned variant, or the language-preferred fallback), instead of the cheapest variant in any language. Previously a cheaper non-English variant could substitute its price and link in for an English deck row
 
 ## 2026-04-24
@@ -101,17 +102,17 @@
 - fix: Importing a text-format deck now respects an explicit "Legend:" header for a Champion-superType card. Previously the first Champion card was auto-promoted to the Champion zone even if the import declared it as a Legend, so the card silently moved to the wrong zone
 - fix: Importing a deck in text format now recognizes "Rune Pool:" and "Main Deck:" as zone headers (the labels riftdecks.com exports use), so runes and main-deck cards land in the right zones instead of inheriting the previous zone. Unknown zone headers no longer silently dump their cards into the prior zone either, and the warning panel is now expanded by default so it's harder to miss
 - fix: Cheapest prices from CardTrader are more accurate now, since listings from sellers on vacation or multi-card bundles (whose price is the whole-pack total, not per card) are no longer counted as singles
-- fix: CardTrader prices in Chinese (and any other non-English language) now show up alongside their English counterparts — previously, once the English listing of a card was wired up, every later-appearing language was silently dropped
+- fix: CardTrader prices in Chinese (and any other non-English language) now show up alongside their English counterparts. Previously, once the English listing of a card was wired up, every later-appearing language was silently dropped
 
 ## 2026-04-21
 
 - feat: Every section on the Promos page can now be folded down to a single heading line, including language groups and individual card lists, so you can collapse the groups you don't care about
 - feat: The Promos page sidebar now lists sub-channels of compact sections too, so you can jump straight to any sub-group from the sidebar
 - feat: Shared deck pages now load with the full deck and card thumbnails visible immediately on first paint, instead of showing a skeleton while the catalog downloads, and repeat opens of the same share link are served from the edge cache in a fraction of the time
-- feat: Shared deck pages now use the standard sticky top bar — the deck name and the "Copy to my decks" / "Sign in to copy" button stay visible while you scroll, and the Shared by line is folded into the deck's format line
+- feat: Shared deck pages now use the standard sticky top bar: the deck name and the "Copy to my decks" / "Sign in to copy" button stay visible while you scroll, and the Shared by line is folded into the deck's format line
 - feat: Logged-out viewers of a shared deck now see the deck's estimated build cost too, with a "View prices" button that opens a per-card price breakdown, and the Ownership tile becomes a Sign in prompt that returns them to the same shared deck after sign-in
 - fix: The Promos page sidebar now scrolls independently when it's taller than the viewport, so you can reach every language and channel entry instead of the bottom ones being cut off
-- fix: Your collection now shows every card you own, regardless of language — previously, setting a language preference silently hid owned cards in other languages, with no option in the collection filter panel to bring them back. The Language filter is also now available in the collection and deck builder filter panels, so you can narrow by language manually if you want
+- fix: Your collection now shows every card you own, regardless of language. Previously, setting a language preference silently hid owned cards in other languages, with no option in the collection filter panel to bring them back. The Language filter is also now available in the collection and deck builder filter panels, so you can narrow by language manually if you want
 - fix: Signing in and signing out now takes effect immediately, without needing a page refresh for the header and page content to reflect the new account
 - fix: Hovering a card in the deck editor or on a shared deck page no longer briefly flashes the preview in the top-left corner before snapping to the cursor
 - fix: Right-clicking a card in the deck editor now always opens the printings menu, including for cards that only have a single printing available
@@ -122,19 +123,19 @@
 - fix: The sign-in page now focuses the email field on load, auto-focuses the code input as soon as it appears when signing in with a code, and fixes keyboard tab order so the Password / Email code switcher and the Google, Discord, and Sign up buttons are reachable without cycling through the whole page
 - fix: The sign-up page now focuses the name field on load, so you can start typing without clicking it first
 - fix: The password reset page now focuses the email or code input as soon as it appears, and pressing Enter submits the form
-- fix: Manage mode on the Collections page is more readable — the entry button is now labeled "Manage cards" / "Manage printings", the selection checkbox aligns with the card image edge, and the floating action bar with Move and Dispose buttons is larger and easier to see
+- fix: Manage mode on the Collections page is more readable: the entry button is now labeled "Manage cards" / "Manage printings", the selection checkbox aligns with the card image edge, and the floating action bar with Move and Dispose buttons is larger and easier to see
 - fix: The "Preview" and "Banned" ribbons on cards now sit in the top-right corner instead of the top-left, so they no longer cover the card's power pips
 - fix: The Back button in the deck editor's top bar now shows a proper square hover highlight, matching the other icon buttons next to it
 
 ## 2026-04-20
 
 - feat: Hovering a card on a shared deck page now brings up the same large image preview as the deck builder, and signed-in viewers also see the ownership and value tiles for the deck against their own collection
-- feat: Share a deck by generating a link — friends can view the deck without an account, and if they have one they can copy it into their own decks in a click
+- feat: Share a deck by generating a link. Friends can view the deck without an account, and if they have one they can copy it into their own decks in a click
 - feat: A new pack opener simulator lets you open virtual Riftbound boosters with the real published pull rates, open one pack and flip each card by clicking, or crack a whole booster display at once and see the rarity breakdown, average value per pack, and your best pulls
 - feat: Cards from sets that Riot has previewed but not yet officially released now carry a visible "Preview" ribbon on the card image, so it's clear which cards aren't yet available in official play
 - feat: The deck builder's Missing cards dialog now groups rows by zone with section headings, shows each card's short code inline with its name (also included in the "Copy to clipboard" output), and splits pricing into per-copy Cost and line Total columns
 - feat: When a row in the Import Collection preview needs you to pick a printing, the dropdown now shows each candidate's card image, and hovering a candidate brings up a large preview of the card so you can confidently pick the right printing
-- feat: The cards browser and your collections now open to the Printings view by default, so each finish/variant shows up as its own tile — switch back to Cards from the toolbar, or set a permanent default in your profile's Display settings
+- feat: The cards browser and your collections now open to the Printings view by default, so each finish/variant shows up as its own tile. Switch back to Cards from the toolbar, or set a permanent default in your profile's Display settings
 - feat: The badge next to the OpenRift logo now reads "Unofficial" instead of "Beta", to make it clearer this is a fan project and not an official Riot product
 - feat: Each language heading on the Promos page now shows a total of how many distinct printings and cards are covered in that language, so you can see the scope of a language at a glance
 - feat: Banned cards now carry a red "Banned" ribbon in the top-left corner of the card image everywhere they appear, not just in the deck builder, matching the style of the "Preview" ribbon
@@ -145,7 +146,7 @@
 - fix: Piltover Archive CSV imports now pick the right promo printing even when the promo type is new or unrecognized, instead of silently matching the non-promo version of the card
 - fix: The collapse caret next to section headings on the Promos page no longer gets clipped off the left edge of the screen on phones
 - fix: The Promos page no longer double-counts a printing in its section totals when that printing was distributed through multiple channels (e.g. both a tournament and a bundle), so the roll-up numbers match what you actually see below
-- fix: Printings in the deck builder's "Change printing" menu (and other printing lists) now appear in a consistent order — by set, then card number, then finish — instead of an unpredictable order based on when each printing was added to the database
+- fix: Printings in the deck builder's "Change printing" menu (and other printing lists) now appear in a consistent order (by set, then card number, then finish), instead of an unpredictable order based on when each printing was added to the database
 - fix: Battlefield thumbnails in the deck builder's printing picker are now shown in their natural landscape orientation instead of being squashed into a portrait frame
 - fix: Promo cards are sized more comfortably across screen widths, and the sidebar only appears on wider desktops so the grid can use the full width on laptop screens
 
@@ -154,10 +155,10 @@
 - feat: New accounts start with a "Binder" collection alongside the Inbox, so there's somewhere to sort cards into from the very first booster
 - feat: The mobile card detail view now has a close (X) icon in the top right instead of a back arrow in the top left
 - feat: Your own cards in a collection now show plus/minus buttons above each thumbnail, so you can add or remove copies without switching into add mode
-- feat: When a card in the Cards view has copies of more than one printing (e.g. normal and foil), clicking the minus now opens the variant popover so you can pick which printing to remove — in both browse mode and add mode, instead of silently removing from the displayed variant
+- feat: When a card in the Cards view has copies of more than one printing (e.g. normal and foil), clicking the minus now opens the variant popover so you can pick which printing to remove, in both browse mode and add mode, instead of silently removing from the displayed variant
 - feat: In the deck builder on phones, tapping a card now adds it to the active zone, and long-pressing opens the card's detail view
 - feat: Dragging a card stack between collections now moves just one copy by default, and holding Shift while dropping moves the whole stack, matching how moves work in the deckbuilder
-- feat: In add mode, the minus button now works on cards you already owned before opening add mode, not only on ones you added this session — when you own copies in just one collection it removes the newest; when copies are spread across multiple collections (All Cards view) a small picker lets you choose which collection to take from
+- feat: In add mode, the minus button now works on cards you already owned before opening add mode, not only on ones you added this session. When you own copies in just one collection it removes the newest; when copies are spread across multiple collections (All Cards view) a small picker lets you choose which collection to take from
 - feat: Generated card placeholders (for cards without an uploaded image) now show a subtle OpenRift logo watermark in the art area
 - feat: The printing info table on a card's detail page is trimmed to just the core attributes, with language moved up next to set and code, and the promo markers, distribution channels, and editor's note now shown in a combined box at the bottom (matching the side detail pane)
 - feat: Metal and metal-deluxe printings now show their own icons (anvil for metal, trophy for metal-deluxe) across card grids, the card detail page, and printing menus, instead of being visually indistinguishable from normal printings
@@ -165,20 +166,20 @@
 - feat: The Promos page now also lists product-based distributions (starter decks, bundles, promo packs), not only event-based ones
 - feat: The Promos page has a sticky sidebar that lists every language and channel heading, so you can jump straight to a section without scrolling through the tree
 - feat: Cards on the Promos page show small marker chips ("Promo", "Champion", ...) below each image, so you can tell at a glance what makes each printing distinct
-- feat: Printings with an editor's note now show a small ⓘ icon next to the rarity — hover to read the full note, on any card view across the site
+- feat: Printings with an editor's note now show a small ⓘ icon next to the rarity. Hover to read the full note, on any card view across the site
 - feat: The card detail page now shows a "Distribution & printing notes" block with markers, the full channel breadcrumb, channel descriptions, and the printing's note when any of these apply
 - feat: Each printing in the variant list on a card's detail page now shows its artist and distribution channel next to the code, so you can tell variants apart without clicking each one
 - feat: Card detail pages now have a Share button that opens the native share sheet on mobile (Messages, WhatsApp, etc.) or copies the link on desktop, and the link points at the exact printing you're currently viewing
 - feat: Selecting a printing on a card detail page now updates the URL, and sharing that link unfurls with the matching art and text on Discord, Slack, and social sites
-- feat: The foil shimmer effect on card images is now off by default, and turning it on gives you a smooth, fluid shimmer instead of the stepped version — toggle it in your profile's Display settings
+- feat: The foil shimmer effect on card images is now off by default, and turning it on gives you a smooth, fluid shimmer instead of the stepped version. Toggle it in your profile's Display settings
 - feat: The page top bar (back button, title, actions) now stays pinned under the global header as you scroll, so the zone count, export button, and other page-level controls are always within reach
 - fix: The printing picker in the deck builder no longer shows the "shift-click to split 1" hint on phones, where it doesn't apply
 - fix: The owned-count number above each card now stays consistent when you switch between browsing and add mode, instead of jumping to the across-all-collections total in add mode
 - fix: The energy and power charts in the deck stats panel now stack domain colors in the same order as the type chart and the domain bar, instead of flipping bottom-to-top
-- fix: The card count next to the search bar no longer shows "407 / 407 cards" when no filters are narrowing the list — it just shows "407 cards"
+- fix: The card count next to the search bar no longer shows "407 / 407 cards" when no filters are narrowing the list. It just shows "407 cards"
 - fix: Discord posts announcing new or changed printings now include the card's thumbnail image, and the finish and language fields show their proper display names (e.g. "Metal", "French") instead of the raw slug or code
 - fix: The scroll position badge on touch devices now fades away shortly after you stop scrolling, instead of hovering over the page for a few seconds and getting in the way of taps
-- fix: When adding cards to a collection, the recording indicator in the sidebar no longer hides the collection's card count — both are shown side by side
+- fix: When adding cards to a collection, the recording indicator in the sidebar no longer hides the collection's card count. Both are shown side by side
 - fix: The Language row on a card's detail page now shows the full language name (e.g. "English") instead of the two-letter code
 - fix: On Firefox, promo cards without an uploaded image no longer spill out below the page footer
 - fix: Art variant labels on the card detail page now show their proper display name (e.g. "Overnumbered", "Alt Art") instead of the raw lowercase slug
@@ -205,7 +206,7 @@
 - fix: The "Quick add" button now uses a lightning bolt icon instead of a box with a plus, so it's no longer visually confused with the "Browse & add" box icon next to it
 - fix: Each printing in the quick-add palette now uses a − N + stepper showing the total owned count, so it's clear how many you have and easy to undo a fresh add
 - fix: The quick-add palette no longer shows keyboard shortcut hints on mobile, where there's no keyboard
-- fix: Rapidly clicking the minus button in the quick-add palette's stepper no longer errors with "Failed to remove" — each click now advances to the next copy instead of racing on the same one
+- fix: Rapidly clicking the minus button in the quick-add palette's stepper no longer errors with "Failed to remove". Each click now advances to the next copy instead of racing on the same one
 - fix: The "new this session" count on a collection now resets when you switch to another collection, instead of carrying over from the previous one
 - fix: Starting "Browse & add" from All Cards now stays on All Cards (with a "→ Inbox" hint showing where adds go) instead of teleporting you to the Inbox and leaving you stranded there when you exit add mode
 - fix: The "Browse the card catalog..." message on an empty collection is now centered when it wraps on narrow screens, instead of being left-aligned
@@ -307,12 +308,12 @@
 
 ## 2026-04-11
 
-- fix: Sharing a card page on Telegram, WhatsApp, or Discord now actually shows the card preview — the previous attempt was pointing crawlers at a URL that returned 404. Previews also use the English art and a clean description, instead of whichever language happened to come first or rules text leaking unrendered icon shortcodes
+- fix: Sharing a card page on Telegram, WhatsApp, or Discord now actually shows the card preview. The previous attempt was pointing crawlers at a URL that returned 404. Previews also use the English art and a clean description, instead of whichever language happened to come first or rules text leaking unrendered icon shortcodes
 - fix: Card detail pages now default to the English printing instead of whichever printing happens to sort first
 
 ## 2026-04-10
 
-- feat: Cardmarket prices now appear on Chinese printings too, marked with a small star and an "any language" tooltip — Cardmarket only publishes one price per card across all languages, so the same number now correctly shows up wherever you view the card. Clicking through opens Cardmarket pre-filtered to the language you're viewing.
+- feat: Cardmarket prices now appear on Chinese printings too, marked with a small star and an "any language" tooltip. Cardmarket only publishes one price per card across all languages, so the same number now correctly shows up wherever you view the card. Clicking through opens Cardmarket pre-filtered to the language you're viewing.
 - feat: Chinese printings now show CardTrader prices and price history, so you can see and track the value of your Chinese cards the same way as English ones
 - feat: The Support page now explains that buying through TCGplayer or Cardtrader price links earns us a small commission, so shopping you were going to do anyway can help fund the site
 - fix: Set pages now show cards in your preferred language instead of randomly mixing printings from different languages
@@ -393,10 +394,10 @@
 ## 2026-04-02
 
 - feat: You can now download a printable tournament deck registration sheet PDF from the export dialog
-- feat: Deck import and export now support three formats — Deck Code, Text (human-readable list), and TTS (Tabletop Simulator) — switchable via tabs
+- feat: Deck import and export now support three formats, switchable via tabs: Deck Code, Text (a human-readable list), and TTS (Tabletop Simulator)
 - feat: Deck overview tiles now show the estimated deck value based on cheapest available printing
 - feat: You can now export proxy PDFs directly from the deck overview without opening the editor
-- feat: Deck stats panel is more compact — domain colors are shown as a bar in the header, and energy and power curves are merged into a single butterfly chart
+- feat: Deck stats panel is more compact. Domain colors are shown as a bar in the header, and energy and power curves are merged into a single butterfly chart
 - feat: Deck overview tiles now show a domain color bar and type counts at a glance
 - feat: Deck zones are now ordered Legend, Champion, Main Deck, then Battlefield and Runes at the bottom
 - feat: Power curve and card type charts in deck stats are now colored by domain
@@ -420,13 +421,13 @@
 ## 2026-03-31
 
 - feat: Energy curve in the deck builder now shows domain colors stacked on top of each other so you can see the color distribution at each cost
-- feat: Import and export decks using Piltover Archive deck codes — paste a code to import, or copy a code from the deck editor to share
+- feat: Import and export decks using Piltover Archive deck codes. Paste a code to import, or copy a code from the deck editor to share
 - feat: Deck names can be renamed by clicking the name in the deck editor
 - feat: Banned cards in the deck builder now show a large diagonal "BANNED" overlay across the card image
-- feat: Build decks with a guided flow — choose a Legend, Champion, Battlefields, and Runes, then fill your main deck and sideboard with full card browser integration
+- feat: Build decks with a guided flow: choose a Legend, Champion, Battlefields, and Runes, then fill your main deck and sideboard with full card browser integration
 - feat: Deck list shows each deck's domain colors, card count, and Standard validity at a glance
 - feat: Live stats panel shows domain distribution, energy curve, power curve, and card type breakdown with stacked main/sideboard bars
-- feat: Drag and drop cards between zones — drag one copy by default, hold Shift to move all
+- feat: Drag and drop cards between zones. Drag one copy by default, hold Shift to move all
 - feat: Drag cards from the browser grid directly into deck zones
 - fix: Cards view no longer shows the same card multiple times across different set or rarity groups
 - fix: Help articles no longer show garbled characters for apostrophes and dashes
@@ -435,35 +436,35 @@
 
 - feat: Cards that are banned in a format now show a red "Banned" badge in the grid and a banner with the reason in the detail panel
 - feat: The active page is now highlighted in the navigation menu so you can see where you are at a glance
-- feat: Cards can now have different language printings (English, French, Chinese) — your preferences control which languages appear in the card browser, defaulting to English only
+- feat: Cards can now have different language printings (English, French, Chinese). Your preferences control which languages appear in the card browser, defaulting to English only
 - feat: Energy, might, and power range filters now have a "None" option so you can find cards without a stat (e.g. spells with no energy cost)
-- feat: Cards can now be grouped by set, type, supertype, domain, rarity, art variant, or shown ungrouped — choose from the new Sort & Group popover
+- feat: Cards can now be grouped by set, type, supertype, domain, rarity, art variant, or shown ungrouped. Choose from the new Sort & Group popover
 - feat: Clicking a collection name in the "In your collections" popover now opens that collection filtered to the card you're viewing
 - feat: You can now export any collection (or all cards) as a CSV file from the Import / Export page
 - feat: On mobile, the collection sidebar now opens from a tappable title instead of a separate sidebar icon, reducing visual clutter near the menu button
-- feat: Drag and drop cards from the grid onto a collection in the sidebar to move them — works with multi-select too
+- feat: Drag and drop cards from the grid onto a collection in the sidebar to move them. Works with multi-select too
 - feat: Each collection now shows its total market value based on your preferred trading platform, with an indicator for cards that don't have price data yet
 - feat: The app now shows a "Beta" badge next to the logo so it's clear this is an early release
 - feat: Import preview now shows all parsed CSV fields (set, rarity, finish, condition, etc.) in an expandable detail row so you can sanity-check each entry before importing
-- feat: Quick add palette (⌘K) now lets you undo cards added by mistake — each printing row shows a minus button, or press Shift+Enter to undo the selected printing
+- feat: Quick add palette (⌘K) now lets you undo cards added by mistake. Each printing row shows a minus button, or press Shift+Enter to undo the selected printing
 - feat: Quick add palette now always expands to show printings before adding, making the flow consistent for all cards
 - feat: Clicking a card in the Activity page opens it in the card browser with full details
-- feat: Collections now have full search and filters — find cards by name, type, rarity, and more without entering add mode
+- feat: Collections now have full search and filters. Find cards by name, type, rarity, and more without entering add mode
 - feat: Selection checkboxes are hidden by default and appear when you click "Select" or Ctrl+click a card, keeping the default view clean
 - feat: Unowned cards are dimmed in add mode so you can instantly see what you already have
 - feat: Foil cards now show a sparkle icon next to the rarity badge in the card grid and detail view, so you can tell them apart even with the foil effect turned off
 - fix: Filtering by set no longer shows card variants from other sets in the sibling fan, price ranges, and detail pane
 - fix: The owned count badge in cards view now shows the total across all printings of a card, not just the displayed variant
-- fix: Clicking the card name or price below the image no longer selects the card — only clicking the image does
+- fix: Clicking the card name or price below the image no longer selects the card. Only clicking the image does
 - fix: Owned count is now shown consistently above every card instead of as a small badge in the corner
-- fix: Rapidly clicking the add button no longer loses count — all clicks are now tracked immediately and show up in the "added this session" panel
+- fix: Rapidly clicking the add button no longer loses count. All clicks are now tracked immediately and show up in the "added this session" panel
 - fix: Set header pill no longer briefly shows when jumping to a section
 - fix: Clicking a card in the grid now scrolls its row to the top of the screen so the detail pane lines up with the selected card
 
 ## 2026-03-29
 
-- feat: Import your collection from Piltover Archive or RiftCore — upload or paste a CSV export, preview matched cards, resolve any ambiguous printings, and import into any collection
-- feat: New Activity page in the collection sidebar shows a timeline of every card you've added, removed, or moved — grouped by day with card counts and value summaries
+- feat: Import your collection from Piltover Archive or RiftCore. Upload or paste a CSV export, preview matched cards, resolve any ambiguous printings, and import into any collection
+- feat: New Activity page in the collection sidebar shows a timeline of every card you've added, removed, or moved, grouped by day with card counts and value summaries
 - feat: Filter your activity by action type, collection, or date range (today, 7 days, 30 days)
 - fix: Active and hovered items in the collection sidebar are now more visually distinct
 - fix: Alt art printings of the same card now sort in a consistent, stable order instead of sometimes appearing shuffled
@@ -475,16 +476,16 @@
 
 ## 2026-03-28
 
-- feat: "Browse & add" now opens the full card browser inline within the collection page — the sidebar stays visible so you always know which collection you're adding to
-- feat: Press ⌘K in any collection to open a quick-add palette — type a card name, pick a printing, and add it without leaving the page
+- feat: "Browse & add" now opens the full card browser inline within the collection page. The sidebar stays visible so you always know which collection you're adding to
+- feat: Press ⌘K in any collection to open a quick-add palette: type a card name, pick a printing, and add it without leaving the page
 - feat: Clicking a stacked variant in the card grid now swaps it to the front of the stack
 - fix: Owned count now shows consistently for all cards in add mode, not just cards with multiple printings
-- fix: Clicking above or below a card in add mode no longer accidentally opens the detail pane — only the card image is clickable
+- fix: Clicking above or below a card in add mode no longer accidentally opens the detail pane. Only the card image is clickable
 
 ## 2026-03-27
 
-- feat: You can now choose which marketplaces to show and in what order — the first one appears on card thumbnails in the grid
-- feat: Cards without images now show a full placeholder with card type, tags, rules text, effect text, and flavor text — like a mini text-only version of the real card
+- feat: You can now choose which marketplaces to show and in what order. The first one appears on card thumbnails in the grid
+- feat: Cards without images now show a full placeholder with card type, tags, rules text, effect text, and flavor text, like a mini text-only version of the real card
 - fix: Dark theme no longer resets to light on page refresh for signed-in users
 - fix: Marketplace preferences no longer show blank rows when stored settings get out of sync
 - fix: EUR prices (Cardmarket, CardTrader) now display as 1,23 € instead of €1.23
@@ -493,7 +494,7 @@
 
 - feat: Cards without images now show their power as repeated domain icons, matching the real card layout
 - feat: Your display preferences (theme, card images, rich effects, and visible card fields) now sync across devices when you're signed in
-- fix: Battlefield cards no longer appear as squares in the card browser — they now fill the full card frame
+- fix: Battlefield cards no longer appear as squares in the card browser. They now fill the full card frame
 - fix: Icons inside keyword brackets (like Equip costs) now render correctly instead of showing raw text
 - fix: Swiping to navigate between cards on mobile now only works on the card image, not the entire detail pane
 
@@ -525,8 +526,8 @@
 ## 2026-03-10
 
 - feat: OpenRift now has a landing page at / with sign-in and a quick link to browse cards
-- feat: There's a hidden easter egg on the landing page — see if you can find it
-- fix: App updates now install automatically instead of requiring a manual reload — fixes a crash loop on some devices where stale cached code prevented the update prompt from appearing
+- feat: There's a hidden easter egg on the landing page. See if you can find it
+- fix: App updates now install automatically instead of requiring a manual reload. Fixes a crash loop on some devices where stale cached code prevented the update prompt from appearing
 
 ## 2026-03-09
 
@@ -539,7 +540,7 @@
 - feat: Changelog date headers now stick as you scroll, showing relative dates like "Today" or "3 days ago"
 - feat: The changelog header scrolls away to give more room for entries
 - feat: Check for updates now lives inline in the changelog panel instead of taking up footer space
-- feat: Profile menu now includes dark mode, what's new, and update controls — the separate settings gear icon is gone
+- feat: Profile menu now includes dark mode, what's new, and update controls. The separate settings gear icon is gone
 - feat: Card display settings (show images, rich effects, visible fields) now live in the card browser next to sort and view controls
 - fix: The scrollbar now fades out faster on desktop after you stop scrolling
 - fix: The blue update dot no longer disappears when dismissing the update notification
@@ -575,7 +576,7 @@
 - feat: Cardmarket prices now appear alongside TCGplayer prices, with all prices refreshing daily
 - feat: Card detail now shows the official card text, with a note when the printed version differs
 - feat: Price chips now show a TCGplayer icon instead of a text label
-- feat: The card browser now groups printings of the same card into one tile by default, with a price range and fan preview on hover — switch to "Printings" view to see every version individually
+- feat: The card browser now groups printings of the same card into one tile by default, with a price range and fan preview on hover. Switch to "Printings" view to see every version individually
 - feat: You can now link or unlink Google and Discord accounts from your profile page
 - feat: You can now sign in with your Google or Discord account
 - feat: You can now filter cards by Signed and Promo status using three-state toggles in the filter panel
@@ -585,7 +586,7 @@
 - feat: Changing your email on the profile page now uses a secure two-step code verification instead of email links
 - feat: The profile page now lets you change your email, update your password, and delete your account
 - feat: Profile page has a new card-based layout with separate sections for each setting
-- fix: The column stepper no longer lets you shrink to absurdly few columns on wide screens — the minimum now scales with your screen size
+- fix: The column stepper no longer lets you shrink to absurdly few columns on wide screens. The minimum now scales with your screen size
 - fix: The card grid now shows a "Couldn't load cards" message with a retry button when data fails to load, instead of "No cards found"
 - fix: Empty filter sections no longer show bare headings when no cards are loaded
 - fix: The column plus/minus buttons no longer start disabled when you first open the page
@@ -608,7 +609,7 @@
 ## 2026-02-26
 
 - feat: Your profile page shows your account info and lets you update your display name
-- feat: You can now sign up and sign in with email and password — your account is ready for upcoming collection features
+- feat: You can now sign up and sign in with email and password. Your account is ready for upcoming collection features
 - feat: Browser back and forward buttons now work correctly between pages
 
 ## 2026-02-25
@@ -616,7 +617,7 @@
 - feat: Filters now show in a persistent sidebar on wide screens (1600px+), so you don't need to open a panel to change them
 - feat: The grid now uses more screen space on ultrawide monitors with new wider layout breakpoints
 - feat: The scroll indicator grows while dragging and snaps more precisely to set boundaries
-- feat: Card data is now served from a real database instead of static files — everything should feel just as fast
+- feat: Card data is now served from a real database instead of static files. Everything should feel just as fast
 - fix: Drawers now smoothly slide closed when tapping outside or releasing a half-swipe, instead of instantly disappearing
 - fix: The grid no longer jumps when a sticky set header pill appears or when the window is resized
 - fix: The header and footer now stretch to match the content width on wide screens
@@ -624,23 +625,23 @@
 
 ## 2026-02-24
 
-- feat: Prices are now color-coded by value — grey for bulk, green for $1–10, amber for $10–50, and rose for $50+
+- feat: Prices are now color-coded by value: grey for bulk, green for $1–10, amber for $10–50, and rose for $50+
 - feat: Card prices in the grid now always show whether they're normal or foil, even when only one variant exists
 - feat: Tap the card image in the detail view to toggle the holographic foil effect on or off
-- feat: The scroll indicator is now always draggable — no need to enable it in settings
+- feat: The scroll indicator is now always draggable. No need to enable it in settings
 - feat: The scroll indicator now has an accent dot, a glowing ring, and smartly avoids overlapping other elements
 - feat: Card descriptions and effects now sit in distinct styled panels, with effects tinted in the card's domain color
 - feat: Pricing is now shown as compact chips at the bottom of the card detail instead of a separate block
 - feat: Card thumbnails now load at the right resolution for their display size, saving bandwidth on smaller screens
 - feat: Keywords are now styled inline within card descriptions, with reminder text in italics and proper line breaks
 - feat: The card detail sidebar has a fresh layout with card-accurate keyword styling and clearer type info
-- fix: Prices no longer burst out of small cards — they now wrap, drop labels when narrow, and use a compact format ($25, $1.2k) to fit tight spaces
+- fix: Prices no longer burst out of small cards. They now wrap, drop labels when narrow, and use a compact format ($25, $1.2k) to fit tight spaces
 - fix: Card IDs in compact view now show as #001 instead of OGS-001, so they fit without clipping
-- fix: Card info below thumbnails no longer gets cut off on narrow columns — the ID, type, and rarity now share a compact row with icons only, and the title gets its own line
+- fix: Card info below thumbnails no longer gets cut off on narrow columns. The ID, type, and rarity now share a compact row with icons only, and the title gets its own line
 - fix: The column zoom control now resets to auto when you tap the number, and stepping from auto snaps to the next size up or down
 - fix: Dismissing the update popup and then checking for updates again now correctly re-shows the update instead of saying you're on the latest version
 - fix: Tapping a keyword or tag in the card detail now closes the detail pane on mobile so you can see the filtered results
-- fix: The card grid no longer shows 4 columns on mobile when first opened — it now matches your screen size immediately
+- fix: The card grid no longer shows 4 columns on mobile when first opened. It now matches your screen size immediately
 - fix: The tilt effect toggle on iOS no longer disappears after denying gyroscope permission
 - fix: Cards without a description no longer show an empty text box in the detail view
 - fix: The 3D tilt effect on cards is now subtler and less exaggerated
@@ -673,8 +674,8 @@
 - feat: Active filters show with a distinct background and icons
 - feat: You can now flip the sort order with a toggle
 - feat: Tapping a set header scrolls back to the start of that set
-- feat: Each card can show or hide specific fields — ID, title, type, rarity
-- feat: Filters slide up from the bottom on mobile — easier to reach with one hand
+- feat: Each card can show or hide specific fields: ID, title, type, rarity
+- feat: Filters slide up from the bottom on mobile, easier to reach with one hand
 - feat: Cards are grouped by set, with the set name staying visible as you scroll
 - feat: You can now filter by the Signed card variant
 - fix: Tapping a filter quickly no longer accidentally deselects it
@@ -682,9 +683,9 @@
 ## 2026-02-20
 
 - feat: You can filter by card version (Normal, Alt Art, Overnumbered) and search by ID
-- feat: Search works across name, type, and card text — scope chips let you choose which fields to search
+- feat: Search works across name, type, and card text. Scope chips let you choose which fields to search
 - feat: The card count shows inline in the filter bar
-- feat: Card detail opens as a sidebar — tap any card to see more
+- feat: Card detail opens as a sidebar. Tap any card to see more
 - feat: Cards show rarity, type, and domain icons with domain-based coloring
 - feat: A settings menu gives you access to dark mode and filter controls
 - feat: Cards are sorted by ID by default

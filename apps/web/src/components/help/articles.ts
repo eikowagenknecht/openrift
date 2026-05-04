@@ -60,7 +60,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       slug: "collections",
       title: "Managing Your Collection",
       description:
-        "Organize cards by where they physically are — deck boxes, binders, or lent to friends — and control which are available for deck building.",
+        "Organize cards by where they physically are (deck boxes, binders, or lent to friends) and control which are available for deck building.",
       icon: LibraryIcon,
       component: () => import("./articles/collections"),
     },

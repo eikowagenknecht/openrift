@@ -10,7 +10,7 @@ export const Route = createFileRoute("/_app/pack-opener")({
   head: () =>
     seoHead({
       siteUrl: getSiteUrl(),
-      title: "Pack opener — Riftbound",
+      title: "Pack opener",
       description:
         "Open virtual Riftbound booster packs with the real published pull rates. Entertainment only.",
       path: "/pack-opener",
