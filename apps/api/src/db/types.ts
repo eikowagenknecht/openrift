@@ -29,6 +29,7 @@ export type {
   WishListsTable,
   // Reference tables (migration 062)
   DomainsTable,
+  MarkersTable,
   RaritiesTable,
   ReferenceTable,
   // Printing events (migration 071)

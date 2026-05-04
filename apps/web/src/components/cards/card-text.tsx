@@ -110,9 +110,20 @@ interface CardTextProps {
   text: string;
   onKeywordClick?: (keyword: string) => void;
   interactive?: boolean;
+  /**
+   * When true, glyphs render in their always-light treatment (white energy
+   * badge, white-inverted might/exhaust). Use on dark backgrounds where the
+   * default theme-aware tokens would render dark on dark.
+   */
+  onDark?: boolean;
 }
 
-export function CardText({ text, onKeywordClick, interactive = true }: CardTextProps) {
+export function CardText({
+  text,
+  onKeywordClick,
+  interactive = true,
+  onDark = false,
+}: CardTextProps) {
   const styles = useKeywordStyles();
   const reverseMap = useKeywordReverseMap();
   return renderTokens(
@@ -121,6 +132,7 @@ export function CardText({ text, onKeywordClick, interactive = true }: CardTextP
     interactive ? onKeywordClick : undefined,
     interactive,
     reverseMap,
+    onDark,
   );
 }
 
@@ -130,6 +142,7 @@ function renderTokens(
   onKeywordClick?: (keyword: string) => void,
   interactive = true,
   reverseMap?: Map<string, string>,
+  onDark = false,
 ): React.ReactNode[] {
   return tokens.map((token, i) => {
     switch (token.type) {
@@ -140,7 +153,10 @@ function renderTokens(
             <span
               key={`${i}-${token.name}`}
               aria-label={`energy ${energyMatch[1]}`}
-              className="bg-foreground text-background inline-flex size-4 items-center justify-center rounded-full align-text-bottom text-[0.7em] font-bold not-italic"
+              className={cn(
+                "inline-flex size-[1.45em] items-center justify-center rounded-full align-text-bottom text-[0.7em] font-bold not-italic",
+                onDark ? "bg-white text-black" : "bg-foreground text-background",
+              )}
             >
               {energyMatch[1]}
             </span>
@@ -153,8 +169,8 @@ function renderTokens(
             src={`/images/glyphs/${token.name.replaceAll("_", "-")}.svg`}
             alt={token.name.replaceAll("_", " ")}
             className={cn(
-              "inline-block size-4 align-text-bottom",
-              monoWhite && "brightness-0 dark:invert",
+              "inline-block size-[1em] align-text-bottom",
+              monoWhite && (onDark ? "brightness-0 invert" : "brightness-0 dark:invert"),
             )}
           />
         );
@@ -188,7 +204,14 @@ function renderTokens(
                 kw.dark ? "text-black" : "text-white",
               )}
             >
-              {renderTokens(token.children, styles, onKeywordClick, interactive, reverseMap)}
+              {renderTokens(
+                token.children,
+                styles,
+                onKeywordClick,
+                interactive,
+                reverseMap,
+                onDark,
+              )}
             </span>
           </Tag>
         );
@@ -196,14 +219,15 @@ function renderTokens(
       case "paren": {
         return (
           <span key={`${i}-paren`} className="italic">
-            ({renderTokens(token.children, styles, onKeywordClick, interactive, reverseMap)})
+            ({renderTokens(token.children, styles, onKeywordClick, interactive, reverseMap, onDark)}
+            )
           </span>
         );
       }
       case "italic": {
         return (
           <span key={`${i}-italic`} className="italic">
-            {renderTokens(token.children, styles, onKeywordClick, interactive, reverseMap)}
+            {renderTokens(token.children, styles, onKeywordClick, interactive, reverseMap, onDark)}
           </span>
         );
       }

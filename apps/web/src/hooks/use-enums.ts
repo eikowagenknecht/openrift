@@ -77,6 +77,23 @@ export function useLanguageList(): { code: string; name: string }[] {
   return sorted(data.enums.languages ?? []).map((row) => ({ code: row.slug, name: row.label }));
 }
 
+export interface MarkerListEntry {
+  slug: string;
+  label: string;
+  description: string | null;
+}
+
+/**
+ * Returns ordered marker rows from the /init endpoint, including descriptions.
+ *
+ * @returns An ordered array of `{ slug, label, description }` marker entries.
+ */
+export function useMarkerList(): MarkerListEntry[] {
+  const { data } = useSuspenseQuery(initQueryOptions);
+  const rows = (data.enums.markers ?? []).toSorted((a, b) => a.sortOrder - b.sortOrder);
+  return rows.map((row) => ({ slug: row.slug, label: row.label, description: row.description }));
+}
+
 /**
  * Returns DB-derived sort orders and display labels for all game-data enums.
  * Use this instead of hardcoded *_ORDER arrays and *_LABELS maps.

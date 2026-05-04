@@ -587,7 +587,7 @@ interface LanguagesTable {
  * Visual markers stamped/printed on a card (e.g. "promo", "top-8", "prerelease").
  * Identity-bearing: two printings with different marker sets are distinct.
  */
-interface MarkersTable {
+export interface MarkersTable {
   id: Generated<string>;
   /** CHECK: <> '' */
   slug: string;

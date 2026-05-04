@@ -56,4 +56,57 @@ describe("CardPlaceholderImage", () => {
 
     expect(container.querySelectorAll("button")).toHaveLength(0);
   });
+
+  it("renders the might-bonus badge when no rules / effect / flavor text is set", () => {
+    // Regression: the outer text wrapper used to be gated only on rulesText /
+    // effectText / flavorText, so a card with only mightBonus had its "+N"
+    // badge silently dropped from the placeholder.
+    const { container } = render(
+      <CardPlaceholderImage
+        name="Pure Bonus"
+        domain={["Fury"]}
+        energy={null}
+        might={null}
+        power={null}
+        type="Gear"
+        superTypes={[]}
+        tags={[]}
+        rulesText={null}
+        effectText={null}
+        mightBonus={2}
+        flavorText={null}
+        rarity="Common"
+      />,
+      { wrapper: makeWrapper() },
+    );
+
+    expect(container.textContent).toContain("+2");
+  });
+
+  it("renders inline rules-text glyphs with em-relative sizing so they scale with the card", () => {
+    // Regression: glyphs in rules text used `size-4` (fixed 16px), so they
+    // didn't scale when the card was rendered at a different font size (e.g.
+    // the placeholder text-[3.5cqw]). Switched to `size-[1em]`.
+    const { container } = render(
+      <CardPlaceholderImage
+        name="Energy Ant"
+        domain={["Fury"]}
+        energy={1}
+        might={null}
+        power={null}
+        type="Spell"
+        superTypes={[]}
+        tags={[]}
+        rulesText="Pay :rb_energy_1: to draw."
+        effectText={null}
+        mightBonus={null}
+        flavorText={null}
+        rarity="Common"
+      />,
+      { wrapper: makeWrapper() },
+    );
+
+    const energyBadge = container.querySelector('[aria-label="energy 1"]');
+    expect(energyBadge?.className).toContain("size-[1.45em]");
+  });
 });

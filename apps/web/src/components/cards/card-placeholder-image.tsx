@@ -180,12 +180,15 @@ export function CardPlaceholderImage({
           the placeholder in a <button>, and HTML5 forbids nested buttons.
           Firefox's parser auto-closes the outer button mid-tree, which punts
           the rest of the thumbnail out of its grid cell and below the footer. */}
-      {(rulesText || effectText || flavorText) && (
+      {(rulesText ||
+        effectText ||
+        flavorText ||
+        (mightBonus !== null && mightBonus !== undefined && mightBonus > 0)) && (
         <div className="card-text-scaled absolute inset-x-0 top-[67%] flex flex-col gap-[1.5cqw] px-[8cqw]">
           {/* Rules */}
           {rulesText && (
             <p className="px-[2cqw] text-[3.5cqw] leading-[1.3] text-white/80">
-              <CardText text={rulesText} interactive={false} />
+              <CardText text={rulesText} interactive={false} onDark />
             </p>
           )}
           {/* Effect + Might Bonus or Flavor Text + Might Bonus */}
@@ -197,7 +200,7 @@ export function CardPlaceholderImage({
               <div className="flex-1">
                 {effectText ? (
                   <p className="text-[3.5cqw] leading-[1.3] text-white/80">
-                    <CardText text={effectText} interactive={false} />
+                    <CardText text={effectText} interactive={false} onDark />
                   </p>
                 ) : (
                   flavorText && (

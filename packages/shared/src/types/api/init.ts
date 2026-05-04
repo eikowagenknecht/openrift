@@ -10,6 +10,10 @@ interface ColoredEnumRow extends EnumRow {
   color: string | null;
 }
 
+interface DescribedEnumRow extends EnumRow {
+  description: string | null;
+}
+
 export interface InitResponse {
   enums: {
     cardTypes: EnumRow[];
@@ -21,6 +25,7 @@ export interface InitResponse {
     deckFormats: EnumRow[];
     deckZones: EnumRow[];
     languages: EnumRow[];
+    markers: DescribedEnumRow[];
   };
   keywords: Record<string, KeywordEntry>;
 }

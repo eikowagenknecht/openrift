@@ -24,21 +24,16 @@ interface ContributeFormCard {
   energy: number | null;
   power: number | null;
   mightBonus: number | null;
-  rulesText: string | null;
-  effectText: string | null;
   tags: string[];
-  shortCode: string | null;
 }
 
 export interface ContributeFormPrinting {
-  shortCode: string;
   setId: string | null;
   setName: string | null;
   rarity: string | null;
   artVariant: string | null;
   isSigned: boolean;
   markerSlugs: string[];
-  distributionChannelSlugs: string[];
   finish: string | null;
   artist: string | null;
   publicCode: string | null;
@@ -55,6 +50,8 @@ export interface ContributeFormState {
   slug: string;
   card: ContributeFormCard;
   printings: ContributeFormPrinting[];
+  /** Optional free-text note for the maintainer. Emitted as `comment` in the JSON. */
+  comment: string;
 }
 
 export interface ValidationError {
@@ -77,23 +74,18 @@ function emptyCard(): ContributeFormCard {
     energy: null,
     power: null,
     mightBonus: null,
-    rulesText: null,
-    effectText: null,
     tags: [],
-    shortCode: null,
   };
 }
 
 export function emptyPrinting(): ContributeFormPrinting {
   return {
-    shortCode: "",
     setId: null,
     setName: null,
     rarity: null,
     artVariant: null,
     isSigned: false,
     markerSlugs: [],
-    distributionChannelSlugs: [],
     finish: null,
     artist: null,
     publicCode: null,
@@ -107,7 +99,7 @@ export function emptyPrinting(): ContributeFormPrinting {
 }
 
 export function emptyFormState(): ContributeFormState {
-  return { slug: "", card: emptyCard(), printings: [emptyPrinting()] };
+  return { slug: "", card: emptyCard(), printings: [emptyPrinting()], comment: "" };
 }
 
 export function nameToSlug(name: string): string {
@@ -152,9 +144,6 @@ export function validateContribution(state: ContributeFormState): ValidationResu
   }
   for (const [index, printing] of state.printings.entries()) {
     const prefix = `printings[${index.toString()}]`;
-    if (!printing.shortCode.trim()) {
-      errors.push({ path: `${prefix}.shortCode`, message: "Short code is required." });
-    }
     if (printing.imageUrl && !printing.imageUrl.startsWith("https://")) {
       errors.push({ path: `${prefix}.imageUrl`, message: "Image URL must start with https://." });
     }
@@ -175,6 +164,7 @@ interface ContributionJson {
   $schema: string;
   card: SnakeCardJson;
   printings: SnakePrintingJson[];
+  comment?: string;
 }
 
 function trimOrNull(value: string | null): string | null {
@@ -209,10 +199,7 @@ function buildCardJson(card: ContributeFormCard, externalId: string): SnakeCardJ
   setIfPresent(out, "energy", card.energy, isNonNull);
   setIfPresent(out, "power", card.power, isNonNull);
   setIfPresent(out, "might_bonus", card.mightBonus, isNonNull);
-  setIfPresent(out, "rules_text", trimOrNull(card.rulesText), isNonEmptyString);
-  setIfPresent(out, "effect_text", trimOrNull(card.effectText), isNonEmptyString);
   setIfPresent(out, "tags", card.tags, isNonEmptyArray);
-  setIfPresent(out, "short_code", trimOrNull(card.shortCode), isNonEmptyString);
   return out;
 }
 
@@ -221,7 +208,6 @@ function buildPrintingJson(
   externalId: string,
 ): SnakePrintingJson {
   const out: SnakePrintingJson = {
-    short_code: printing.shortCode.trim(),
     external_id: externalId,
   };
   setIfPresent(out, "set_id", trimOrNull(printing.setId), isNonEmptyString);
@@ -232,12 +218,6 @@ function buildPrintingJson(
     out.is_signed = true;
   }
   setIfPresent(out, "marker_slugs", printing.markerSlugs, isNonEmptyArray);
-  setIfPresent(
-    out,
-    "distribution_channel_slugs",
-    printing.distributionChannelSlugs,
-    isNonEmptyArray,
-  );
   setIfPresent(out, "finish", trimOrNull(printing.finish), isNonEmptyString);
   setIfPresent(out, "artist", trimOrNull(printing.artist), isNonEmptyString);
   setIfPresent(out, "public_code", trimOrNull(printing.publicCode), isNonEmptyString);
@@ -272,12 +252,15 @@ export function buildContributionJson(
   const printings = state.printings.map((printing, index) => {
     const finish = trimOrNull(printing.finish) ?? "normal";
     const language = trimOrNull(printing.language) ?? "en";
-    const printingExternalId =
-      `community:${printing.shortCode.trim() || `${state.slug}-${index.toString()}`}` +
-      `--${dateStamp}:${finish}:${language}`;
+    const printingExternalId = `community:${state.slug}-${index.toString()}--${dateStamp}:${finish}:${language}`;
     return buildPrintingJson(printing, printingExternalId);
   });
-  return { $schema: SCHEMA_REF, card, printings };
+  const out: ContributionJson = { $schema: SCHEMA_REF, card, printings };
+  const trimmedComment = state.comment.trim();
+  if (trimmedComment) {
+    out.comment = trimmedComment;
+  }
+  return out;
 }
 
 export function buildContributionFilename(slug: string, dateStamp: string): string {
@@ -325,20 +308,15 @@ export function prefillFromCard(
       energy: card.energy,
       power: card.power,
       mightBonus: card.mightBonus,
-      rulesText: null,
-      effectText: null,
       tags: [...card.tags],
-      shortCode: null,
     },
     printings: printings.map((p) => ({
-      shortCode: p.shortCode,
       setId: setSlugById.get(p.setId) ?? null,
       setName: setNameById.get(p.setId) ?? null,
       rarity: p.rarity || null,
       artVariant: p.artVariant || null,
       isSigned: p.isSigned,
       markerSlugs: p.markers.map((m) => m.slug),
-      distributionChannelSlugs: p.distributionChannels.map((c) => c.channel.slug),
       finish: p.finish || null,
       artist: p.artist || null,
       publicCode: p.publicCode || null,
@@ -349,5 +327,6 @@ export function prefillFromCard(
       language: (p.language || "en").toLowerCase(),
       printedName: p.printedName,
     })),
+    comment: "",
   };
 }

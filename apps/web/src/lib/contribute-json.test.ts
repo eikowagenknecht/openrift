@@ -25,21 +25,16 @@ function fullState(): ContributeFormState {
       energy: 5,
       power: 1,
       mightBonus: null,
-      rulesText: "When I hold, you score 1 point.",
-      effectText: null,
       tags: ["Ahri", "Ionia"],
-      shortCode: "OGN-066",
     },
     printings: [
       {
-        shortCode: "OGN-066",
         setId: "ogn",
         setName: "Origins",
         rarity: "Rare",
         artVariant: "normal",
         isSigned: false,
         markerSlugs: [],
-        distributionChannelSlugs: [],
         finish: "foil",
         artist: "League Splash Team",
         publicCode: "OGN-066/298",
@@ -51,6 +46,7 @@ function fullState(): ContributeFormState {
         printedName: null,
       },
     ],
+    comment: "",
   };
 }
 
@@ -97,7 +93,6 @@ describe("validateContribution", () => {
     const paths = result.errors.map((e) => e.path);
     expect(paths).toContain("slug");
     expect(paths).toContain("card.name");
-    expect(paths).toContain("printings[0].shortCode");
   });
 
   it("rejects a slug with uppercase letters", () => {
@@ -141,12 +136,9 @@ describe("buildContributionJson", () => {
       might: 4,
       energy: 5,
       power: 1,
-      rules_text: "When I hold, you score 1 point.",
       tags: ["Ahri", "Ionia"],
-      short_code: "OGN-066",
     });
     expect(json.printings[0]).toMatchObject({
-      short_code: "OGN-066",
       set_id: "ogn",
       set_name: "Origins",
       rarity: "Rare",
@@ -162,17 +154,15 @@ describe("buildContributionJson", () => {
   it("appends the date stamp to external IDs so check-uniqueness.mjs accepts the PR", () => {
     const json = buildContributionJson(fullState(), STAMP);
     expect(json.card.external_id).toBe(`community:ahri-alluring--${STAMP}`);
-    expect(json.printings[0].external_id).toBe(`community:OGN-066--${STAMP}:foil:en`);
+    expect(json.printings[0].external_id).toBe(`community:ahri-alluring-0--${STAMP}:foil:en`);
   });
 
   it("omits empty strings, nulls, and empty arrays", () => {
     const state = fullState();
-    state.card.effectText = null;
     state.card.tags = [];
     state.printings[0].markerSlugs = [];
     state.printings[0].printedEffectText = null;
     const json = buildContributionJson(state, STAMP);
-    expect(json.card).not.toHaveProperty("effect_text");
     expect(json.card).not.toHaveProperty("tags");
     expect(json.printings[0]).not.toHaveProperty("marker_slugs");
     expect(json.printings[0]).not.toHaveProperty("printed_effect_text");
@@ -191,10 +181,22 @@ describe("buildContributionJson", () => {
   it("trims whitespace from string fields", () => {
     const state = fullState();
     state.card.name = "  Ahri  ";
-    state.card.rulesText = "  text  ";
+    state.printings[0].printedRulesText = "  text  ";
     const json = buildContributionJson(state, STAMP);
     expect(json.card.name).toBe("Ahri");
-    expect(json.card.rules_text).toBe("text");
+    expect(json.printings[0].printed_rules_text).toBe("text");
+  });
+
+  it("emits a top-level comment when set", () => {
+    const state = fullState();
+    state.comment = "  spotted in a preview pack  ";
+    const json = buildContributionJson(state, STAMP);
+    expect(json.comment).toBe("spotted in a preview pack");
+  });
+
+  it("omits the comment when blank", () => {
+    const json = buildContributionJson(fullState(), STAMP);
+    expect(json).not.toHaveProperty("comment");
   });
 });
 

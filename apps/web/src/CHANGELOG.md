@@ -3,7 +3,11 @@
 ## 2026-05-04
 
 - feat: The Contribute form now shows a live preview of where each field appears on the printed card, and the slug is filled in for you as you type the name
+- feat: When contributing a card, you can leave a note for the maintainer, pick markers from a dropdown of known options, and the printing's name pre-fills from the card name so you don't type it twice
+- feat: Domain pickers on the Contribute form show their icon next to each name, cap at two domains per card, and keep Colorless on its own
 - feat: The Rules section is now live for everyone, with the official Riftbound core rules and tournament rules linked from the More menu
+- fix: Cards that only have a Might bonus (no rules or effect text) now show the bonus on the placeholder card art
+- fix: Card text glyphs (Energy, Might, runes) scale with the surrounding text, so they look right inside small card previews
 
 ## 2026-05-01
 

@@ -131,6 +131,10 @@ const coloredEnumRowSchema = enumRowSchema.extend({
   color: z.string().nullable().openapi({ example: "#b8336a" }),
 });
 
+const describedEnumRowSchema = enumRowSchema.extend({
+  description: z.string().nullable().openapi({ example: "Promo stamp around the rarity symbol" }),
+});
+
 export const initResponseSchema = z
   .object({
     enums: z.object({
@@ -143,6 +147,7 @@ export const initResponseSchema = z
       deckFormats: z.array(enumRowSchema),
       deckZones: z.array(enumRowSchema),
       languages: z.array(enumRowSchema),
+      markers: z.array(describedEnumRowSchema),
     }),
     keywords: z.record(z.string(), keywordEntrySchema),
   })

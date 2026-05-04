@@ -1,14 +1,24 @@
 import type { SetListResponse } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { ExternalLinkIcon, PlusIcon, Trash2Icon, XIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  ExternalLinkIcon,
+  PlusIcon,
+  Trash2Icon,
+  XIcon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
 import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
+import { CardTextInput } from "@/components/contribute/card-text-input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -18,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
+import { useEnumOrders, useLanguageList, useMarkerList } from "@/hooks/use-enums";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type {
   ContributeFormPrinting,
@@ -34,6 +44,7 @@ import {
   nameToSlug,
   validateContribution,
 } from "@/lib/contribute-json";
+import { getFilterIconPath } from "@/lib/icons";
 import { cn } from "@/lib/utils";
 
 interface ContributeFormProps {
@@ -53,6 +64,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
 
   const { orders, labels } = useEnumOrders();
   const languages = useLanguageList();
+  const markerOptions = useMarkerList();
   const { data: setListData } = useSuspenseQuery(publicSetListQueryOptions);
 
   const setCardField = <K extends keyof ContributeFormState["card"]>(
@@ -80,6 +92,9 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
   const removePrinting = (index: number) => {
     setState((s) => ({ ...s, printings: s.printings.filter((_, i) => i !== index) }));
   };
+  const setComment = (comment: string) => {
+    setState((s) => ({ ...s, comment }));
+  };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -100,6 +115,10 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     submitted ? errors.find((e) => e.path === path)?.message : undefined;
 
   const sets = setListData.sets;
+  const domainDisabled = computeDomainDisabled(state.card.domains, orders.domains);
+  const domainIcons = Object.fromEntries(
+    orders.domains.map((slug) => [slug, getFilterIconPath("domains", slug)]),
+  );
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-8">
@@ -117,40 +136,40 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
               placeholder="Ahri, Alluring"
             />
           </FieldRow>
-          <FieldRow
-            label="Slug"
-            required
-            error={errorAt("slug")}
-            hint="Auto-generated from the name. Used as the file name."
-          >
+          <FieldRow label="Slug" error={errorAt("slug")}>
             <Input value={state.slug} disabled readOnly placeholder="ahri-alluring" />
           </FieldRow>
         </div>
-        <FieldRow label="Type">
-          <SingleSelect
-            value={state.card.type}
-            onChange={(v) => setCardField("type", v)}
-            options={orders.cardTypes}
-            labels={labels.cardTypes}
-            placeholder="Pick a type"
-          />
-        </FieldRow>
-        <FieldRow label="Super types">
-          <ToggleGroup
-            value={state.card.superTypes}
-            onChange={(v) => setCardField("superTypes", v)}
-            options={orders.superTypes}
-            labels={labels.superTypes}
-          />
-        </FieldRow>
         <FieldRow label="Domains">
           <ToggleGroup
             value={state.card.domains}
             onChange={(v) => setCardField("domains", v)}
             options={orders.domains}
             labels={labels.domains}
+            disabledOptions={domainDisabled}
+            icons={domainIcons}
           />
         </FieldRow>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FieldRow label="Type">
+            <SingleSelect
+              value={state.card.type}
+              onChange={(v) => setCardField("type", v)}
+              options={orders.cardTypes}
+              labels={labels.cardTypes}
+              placeholder="Pick a type"
+            />
+          </FieldRow>
+          <FieldRow label="Super types">
+            <ToggleGroup
+              value={state.card.superTypes}
+              onChange={(v) => setCardField("superTypes", v)}
+              options={orders.superTypes}
+              labels={labels.superTypes}
+            />
+          </FieldRow>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
           <FieldRow label="Might">
             <NumberInput value={state.card.might} onChange={(v) => setCardField("might", v)} />
@@ -168,32 +187,11 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
             />
           </FieldRow>
         </div>
-        <FieldRow label="Rules text">
-          <Textarea
-            rows={2}
-            value={state.card.rulesText ?? ""}
-            onChange={(e) => setCardField("rulesText", e.target.value || null)}
-          />
-        </FieldRow>
-        <FieldRow label="Effect text">
-          <Textarea
-            rows={2}
-            value={state.card.effectText ?? ""}
-            onChange={(e) => setCardField("effectText", e.target.value || null)}
-          />
-        </FieldRow>
         <FieldRow label="Tags" hint="Press Enter or comma to add.">
           <ChipInput
             value={state.card.tags}
             onChange={(v) => setCardField("tags", v)}
             placeholder="Ahri"
-          />
-        </FieldRow>
-        <FieldRow label="Short code" hint='e.g. "OGN-066".'>
-          <Input
-            value={state.card.shortCode ?? ""}
-            onChange={(e) => setCardField("shortCode", e.target.value || null)}
-            placeholder="OGN-066"
           />
         </FieldRow>
       </section>
@@ -211,9 +209,11 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
             key={index}
             index={index}
             printing={printing}
+            cardName={state.card.name}
             errorAt={errorAt}
             sets={sets}
             languages={languages}
+            markers={markerOptions}
             orders={orders}
             labels={labels}
             onChange={(key, value) => setPrintingField(index, key, value)}
@@ -221,6 +221,23 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
           />
         ))}
       </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold">Notes</h2>
+        <FieldRow
+          label="Comment"
+          hint="Anything you'd like me to know about this contribution. Optional."
+        >
+          <Textarea
+            rows={3}
+            value={state.comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="e.g. spotted in a preview pack, art variant unconfirmed, etc."
+          />
+        </FieldRow>
+      </section>
+
+      <LivePreview state={state} />
 
       {submitted && errors.length > 0 && (
         <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm">
@@ -251,6 +268,34 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
   );
 }
 
+const MAX_DOMAINS = 2;
+
+function computeDomainDisabled(
+  selected: string[],
+  options: readonly string[],
+): ReadonlySet<string> {
+  const disabled = new Set<string>();
+  const hasColorless = selected.includes(WellKnown.domain.COLORLESS);
+  const atMax = selected.length >= MAX_DOMAINS;
+  for (const slug of options) {
+    if (selected.includes(slug)) {
+      continue;
+    }
+    if (hasColorless) {
+      disabled.add(slug);
+      continue;
+    }
+    if (slug === WellKnown.domain.COLORLESS) {
+      if (selected.length > 0) {
+        disabled.add(slug);
+      }
+    } else if (atMax) {
+      disabled.add(slug);
+    }
+  }
+  return disabled;
+}
+
 const LAYOUT_LEGEND: { label: string; region: string }[] = [
   { label: "Card name", region: "Centre band" },
   { label: "Type, super types", region: "Italic stripe above the name" },
@@ -278,9 +323,9 @@ function CardLayoutHelp({ state }: { state: ContributeFormState }) {
   const cardEnergy = state.card.energy ?? 3;
   const cardMight = state.card.might ?? 4;
   const cardPower = state.card.power ?? 2;
-  const cardRulesText = state.card.rulesText || "Rules text appears in this section.";
-  const cardEffectText = state.card.effectText || "Effect text gets a highlighted band.";
-  const cardMightBonus = state.card.mightBonus;
+  const cardRulesText = firstPrinting?.printedRulesText || "Rules text appears in this section.";
+  const cardEffectText = firstPrinting?.printedEffectText || "Effect text gets a highlighted band.";
+  const cardMightBonus = state.card.mightBonus ?? 1;
   const printingFlavor = firstPrinting?.flavorText || "Optional flavor line, in italics.";
   const printingRarity = firstPrinting?.rarity || "Common";
   const printingPublicCode = firstPrinting?.publicCode || "ABC-001/002";
@@ -316,17 +361,45 @@ function CardLayoutHelp({ state }: { state: ContributeFormState }) {
             your real values replace them. Pure-metadata fields (slug, set, language, finish, art
             variant, markers, image URL, etc.) don&apos;t appear on the card.
           </p>
-          <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 md:grid-cols-2">
+          <dl className="mt-3 flex flex-col gap-y-1.5">
             {LAYOUT_LEGEND.map((entry) => (
-              <div key={entry.label} className="flex justify-between gap-3">
+              <div key={entry.label} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
                 <dt className="font-medium">{entry.label}</dt>
-                <dd className="text-muted-foreground text-right">{entry.region}</dd>
+                <dd className="text-muted-foreground">{entry.region}</dd>
               </div>
             ))}
           </dl>
         </div>
       </div>
     </details>
+  );
+}
+
+function LivePreview({ state }: { state: ContributeFormState }) {
+  const firstPrinting = state.printings[0];
+  return (
+    <section className="flex flex-col gap-4">
+      <h2 className="text-lg font-semibold">Preview</h2>
+      <div className="w-full max-w-sm">
+        <CardPlaceholderImage
+          name={state.card.name}
+          domain={state.card.domains}
+          energy={state.card.energy}
+          might={state.card.might}
+          power={state.card.power}
+          type={state.card.type ?? undefined}
+          superTypes={state.card.superTypes}
+          tags={state.card.tags}
+          rulesText={firstPrinting?.printedRulesText ?? null}
+          effectText={firstPrinting?.printedEffectText ?? null}
+          mightBonus={state.card.mightBonus}
+          flavorText={firstPrinting?.flavorText ?? null}
+          rarity={firstPrinting?.rarity ?? "Common"}
+          publicCode={firstPrinting?.publicCode ?? undefined}
+          artist={firstPrinting?.artist ?? undefined}
+        />
+      </div>
+    </section>
   );
 }
 
@@ -360,9 +433,11 @@ function IntroBlock({ lockedSlug }: { lockedSlug?: string }) {
 interface PrintingCardProps {
   index: number;
   printing: ContributeFormPrinting;
+  cardName: string;
   errorAt: (path: string) => string | undefined;
   sets: SetListResponse["sets"];
   languages: { code: string; name: string }[];
+  markers: { slug: string; label: string }[];
   orders: ReturnType<typeof useEnumOrders>["orders"];
   labels: ReturnType<typeof useEnumOrders>["labels"];
   onChange: <K extends keyof ContributeFormPrinting>(
@@ -375,9 +450,11 @@ interface PrintingCardProps {
 function PrintingCard({
   index,
   printing,
+  cardName,
   errorAt,
   sets,
   languages,
+  markers,
   orders,
   labels,
   onChange,
@@ -401,27 +478,14 @@ function PrintingCard({
         )}
       </div>
       <div className="flex flex-col gap-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FieldRow
-            label="Short code"
-            required
-            error={errorAt(`printings[${index.toString()}].shortCode`)}
-          >
-            <Input
-              value={printing.shortCode}
-              onChange={(e) => onChange("shortCode", e.target.value)}
-              placeholder="OGN-066"
-            />
-          </FieldRow>
-          <FieldRow label="Public code" hint='Printed code, e.g. "OGN-066/298".'>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FieldRow label="Code">
             <Input
               value={printing.publicCode ?? ""}
               onChange={(e) => onChange("publicCode", e.target.value || null)}
               placeholder="OGN-066/298"
             />
           </FieldRow>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
           <FieldRow label="Set">
             <SingleSelect
               value={printing.setId}
@@ -489,23 +553,48 @@ function PrintingCard({
             </div>
           </FieldRow>
         </div>
-        <FieldRow label="Markers" hint="Free-form slugs. Press Enter or comma to add.">
-          <ChipInput
+        <FieldRow label="Promo markers">
+          <MultiSelectDropdown
             value={printing.markerSlugs}
             onChange={(v) => onChange("markerSlugs", v)}
-            placeholder="prerelease"
+            options={markers}
+            placeholder="None"
           />
         </FieldRow>
-        <FieldRow label="Distribution channels" hint="Free-form slugs.">
-          <ChipInput
-            value={printing.distributionChannelSlugs}
-            onChange={(v) => onChange("distributionChannelSlugs", v)}
-            placeholder="lcs-promo"
+
+        <FieldRow
+          label="Name"
+          hint={
+            printing.printedName === null
+              ? "Defaulting to the card name. Edit only if the printed name differs (e.g. for non-English versions)."
+              : undefined
+          }
+        >
+          <Input
+            value={printing.printedName ?? cardName}
+            onChange={(e) => onChange("printedName", e.target.value || null)}
+          />
+        </FieldRow>
+        <CardTextInput
+          label="Rules text"
+          value={printing.printedRulesText ?? ""}
+          onChange={(v) => onChange("printedRulesText", v || null)}
+        />
+        <CardTextInput
+          label="Effect text"
+          value={printing.printedEffectText ?? ""}
+          onChange={(v) => onChange("printedEffectText", v || null)}
+        />
+        <FieldRow label="Flavor text">
+          <Textarea
+            rows={2}
+            value={printing.flavorText ?? ""}
+            onChange={(e) => onChange("flavorText", e.target.value || null)}
           />
         </FieldRow>
         <FieldRow
           label="Image URL"
-          hint="Stable HTTPS link. Don't hotlink the official Riftbound site."
+          hint="A link to the official image is preferred. The link should point directly to the image file itself."
           error={errorAt(`printings[${index.toString()}].imageUrl`)}
         >
           <Input
@@ -513,33 +602,6 @@ function PrintingCard({
             value={printing.imageUrl ?? ""}
             onChange={(e) => onChange("imageUrl", e.target.value || null)}
             placeholder="https://..."
-          />
-        </FieldRow>
-        <FieldRow label="Printed name" hint="Only if it differs from the card name.">
-          <Input
-            value={printing.printedName ?? ""}
-            onChange={(e) => onChange("printedName", e.target.value || null)}
-          />
-        </FieldRow>
-        <FieldRow label="Printed rules text">
-          <Textarea
-            rows={2}
-            value={printing.printedRulesText ?? ""}
-            onChange={(e) => onChange("printedRulesText", e.target.value || null)}
-          />
-        </FieldRow>
-        <FieldRow label="Printed effect text">
-          <Textarea
-            rows={2}
-            value={printing.printedEffectText ?? ""}
-            onChange={(e) => onChange("printedEffectText", e.target.value || null)}
-          />
-        </FieldRow>
-        <FieldRow label="Flavor text">
-          <Textarea
-            rows={2}
-            value={printing.flavorText ?? ""}
-            onChange={(e) => onChange("flavorText", e.target.value || null)}
           />
         </FieldRow>
       </div>
@@ -638,11 +700,15 @@ function ToggleGroup({
   onChange,
   options,
   labels,
+  disabledOptions,
+  icons,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
   options: readonly string[];
   labels: Record<string, string>;
+  disabledOptions?: ReadonlySet<string>;
+  icons?: Record<string, string | undefined>;
 }) {
   const toggle = (slug: string) => {
     onChange(value.includes(slug) ? value.filter((v) => v !== slug) : [...value, slug]);
@@ -651,23 +717,79 @@ function ToggleGroup({
     <div className="flex flex-wrap gap-1.5">
       {options.map((slug) => {
         const selected = value.includes(slug);
+        const disabled = !selected && (disabledOptions?.has(slug) ?? false);
+        const iconSrc = icons?.[slug];
         return (
           <button
             key={slug}
             type="button"
             onClick={() => toggle(slug)}
+            disabled={disabled}
             className={cn(
-              "border-input rounded-md border px-2.5 py-1 transition-colors",
+              "border-input inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 transition-colors",
               selected
                 ? "bg-primary text-primary-foreground border-primary"
                 : "bg-background hover:bg-accent",
+              disabled && "hover:bg-background cursor-not-allowed opacity-40",
             )}
           >
+            {iconSrc && <img src={iconSrc} alt="" className="size-4 shrink-0" />}
             {labels[slug] ?? slug}
           </button>
         );
       })}
     </div>
+  );
+}
+
+function MultiSelectDropdown({
+  value,
+  onChange,
+  options,
+  placeholder,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+  options: { slug: string; label: string }[];
+  placeholder: string;
+}) {
+  const labelFor = (slug: string) => options.find((opt) => opt.slug === slug)?.label ?? slug;
+  const toggle = (slug: string) => {
+    onChange(value.includes(slug) ? value.filter((v) => v !== slug) : [...value, slug]);
+  };
+  const summary = value.length === 0 ? placeholder : value.map((slug) => labelFor(slug)).join(", ");
+  return (
+    <Popover>
+      <PopoverTrigger
+        className={cn(
+          "border-input bg-background hover:bg-accent inline-flex w-full items-center justify-between gap-2 rounded-md border px-3 py-1.5 text-left transition-colors",
+          value.length === 0 && "text-muted-foreground",
+        )}
+      >
+        <span className="truncate">{summary}</span>
+        <ChevronDownIcon className="size-4 shrink-0 opacity-60" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="max-h-72 w-72 overflow-auto p-1">
+        {options.map((opt) => {
+          const selected = value.includes(opt.slug);
+          return (
+            <button
+              key={opt.slug}
+              type="button"
+              onClick={() => toggle(opt.slug)}
+              className={cn(
+                "hover:bg-accent flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm",
+              )}
+            >
+              <CheckIcon
+                className={cn("size-4 shrink-0", selected ? "opacity-100" : "opacity-0")}
+              />
+              <span>{opt.label}</span>
+            </button>
+          );
+        })}
+      </PopoverContent>
+    </Popover>
   );
 }
 

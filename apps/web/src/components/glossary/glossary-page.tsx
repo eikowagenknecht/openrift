@@ -7,6 +7,7 @@ import { PageToc } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { useMarkerList } from "@/hooks/use-enums";
 import { initQueryOptions } from "@/hooks/use-init";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type { KeywordEntry } from "@/lib/glossary";
@@ -150,69 +151,6 @@ const PACK_SLOTS: PackSlotEntry[] = [
     label: "1× Rune or Token",
     description:
       "Usually a basic Rune. Occasionally a foil Rune, sometimes a Token-supertype card (e.g. Sprite, Recruit), and very rarely an alt-art Rune.",
-  },
-];
-
-interface MarkerEntry {
-  slug: string;
-  label: string;
-  description: string;
-}
-
-const MARKERS: MarkerEntry[] = [
-  {
-    slug: "promo",
-    label: "Promo",
-    description:
-      "Catch-all promo printing — typically given out at events or bundled with retail products.",
-  },
-  {
-    slug: "champion",
-    label: "Champion",
-    description: "Awarded to winners of regional and national competitive events.",
-  },
-  {
-    slug: "summoner",
-    label: "Summoner",
-    description:
-      "Distributed through Summoner's Skirmish events for participation, top-8, or 1st-place finishes.",
-  },
-  {
-    slug: "regional",
-    label: "Tournament",
-    description:
-      "Distributed through regional and national tournaments. Tiers include participation, top-8, 1st place, prize wall, and best-of.",
-  },
-  {
-    slug: "launch-exclusive",
-    label: "Launch",
-    description: "Given out at the launch event for a set.",
-  },
-  {
-    slug: "origins",
-    label: "Origins",
-    description: "Distributed through Origins-tied events such as Nexus Night and Pre-Rift.",
-  },
-  {
-    slug: "judge",
-    label: "Judge",
-    description: "Awarded through the Judge program for officials running sanctioned events.",
-  },
-  {
-    slug: "city",
-    label: "City Challenge",
-    description: "Distributed through monthly City Challenge events at participating stores.",
-  },
-  {
-    slug: "participation",
-    label: "Participation",
-    description:
-      "A participation-tier promo within a larger event series (e.g. Summoner, Regional, National).",
-  },
-  {
-    slug: "prerelease",
-    label: "Prerelease",
-    description: "Given out at prerelease events ahead of a new set's launch.",
   },
 ];
 
@@ -606,8 +544,16 @@ function FinishesSection({
   );
 }
 
-function MarkersSection({ query }: { query: string }) {
-  const visible = MARKERS.filter((m) => matches(query, m.label, m.slug, m.description));
+function MarkersSection({
+  markers,
+  query,
+}: {
+  markers: { slug: string; label: string; description: string | null }[];
+  query: string;
+}) {
+  const visible = markers.filter((m) =>
+    matches(query, m.label, m.slug, m.description ?? undefined),
+  );
   if (visible.length === 0) {
     return null;
   }
@@ -628,7 +574,9 @@ function MarkersSection({ query }: { query: string }) {
             className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
           >
             <span className="font-medium sm:w-36 sm:shrink-0">{marker.label}</span>
-            <p className="text-muted-foreground">{marker.description}</p>
+            <p className="text-muted-foreground">
+              {marker.description ?? <span className="italic">No description yet.</span>}
+            </p>
           </li>
         ))}
       </ul>
@@ -964,6 +912,7 @@ function NumberingSection({ query }: { query: string }) {
 export function GlossaryPage() {
   const { data: init } = useSuspenseQuery(initQueryOptions);
   const { data: setList } = useSuspenseQuery(publicSetListQueryOptions);
+  const markers = useMarkerList();
   const [query, setQuery] = useState("");
 
   const keywordRows = useMemo<KeywordRow[]>(() => {
@@ -1036,7 +985,7 @@ export function GlossaryPage() {
             <BoosterPacksSection query={query} />
             <ArtVariantsSection artVariants={artVariants} query={query} />
             <FinishesSection finishes={finishes} query={query} />
-            <MarkersSection query={query} />
+            <MarkersSection markers={markers} query={query} />
             <PrintingDetailsSection query={query} />
           </section>
           <section>

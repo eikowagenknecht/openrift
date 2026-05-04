@@ -41,9 +41,15 @@ export const initRoute = new OpenAPIHono<{ Variables: Variables }>().openapi(get
   const strippedEnums = Object.fromEntries(
     Object.entries(enumData).map(([key, rows]) => [
       key,
-      rows.map(({ isWellKnown: _, ...rest }) => rest),
+      rows.map((row) => {
+        const { isWellKnown: _isWellKnown, ...rest } = row as { isWellKnown?: boolean } & Record<
+          string,
+          unknown
+        >;
+        return rest;
+      }),
     ]),
-  ) as InitResponse["enums"];
+  ) as unknown as InitResponse["enums"];
 
   c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
   return c.json({
