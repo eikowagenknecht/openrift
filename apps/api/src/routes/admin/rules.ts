@@ -1,4 +1,5 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import type { RuleKind } from "@openrift/shared";
 import { z } from "zod";
 
 import { AppError, ERROR_CODES } from "../../errors.js";
@@ -11,9 +12,7 @@ const ruleKindEnum = z.enum(["core", "tournament"]);
 const importRulesSchema = z.object({
   kind: ruleKindEnum,
   version: z.string().min(1),
-  sourceType: z.enum(["pdf", "text", "html", "manual"]),
-  sourceUrl: z.string().nullable().optional(),
-  publishedAt: z.string().nullable().optional(),
+  comments: z.string().nullable().optional(),
   content: z.string().min(1),
 });
 
@@ -54,6 +53,36 @@ const deleteVersion = createRoute({
   },
   responses: {
     204: { description: "Version deleted" },
+  },
+});
+
+const updateVersion = createRoute({
+  method: "patch",
+  path: "/rules/{kind}/versions/{version}",
+  tags: ["Admin - Rules"],
+  request: {
+    params: z.object({ kind: ruleKindEnum, version: z.string() }),
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({ comments: z.string().nullable() }),
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            kind: ruleKindEnum,
+            version: z.string(),
+            comments: z.string().nullable(),
+          }),
+        },
+      },
+      description: "Version updated",
+    },
   },
 });
 
@@ -163,9 +192,22 @@ export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No valid rules found in content");
     }
 
-    // Get the previous version's rules (within this kind) to compute diffs
+    // Get the previous version's rules (within this kind) to compute diffs.
+    // Versions are ordered ASC so `at(-1)` is the highest existing version.
     const versions = await repo.listVersions(body.kind);
     const previousVersion = versions.at(-1)?.version;
+
+    // The diff model assumes versions arrive in chronological order. Importing
+    // a version older than what's already on file would corrupt reads of the
+    // existing newer versions (no tombstones were written for rules the new
+    // older one might add). Reject up front.
+    if (previousVersion && body.version < previousVersion) {
+      throw new AppError(
+        400,
+        ERROR_CODES.BAD_REQUEST,
+        `Version "${body.version}" is older than the latest "${previousVersion}" for kind "${body.kind}". Imports must arrive in chronological order — delete newer versions first if you need to insert an older one.`,
+      );
+    }
 
     let previousRulesMap = new Map<string, string>();
     if (previousVersion) {
@@ -251,9 +293,7 @@ export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
       await txRepos.rules.createVersion({
         kind: body.kind,
         version: body.version,
-        sourceType: body.sourceType,
-        sourceUrl: body.sourceUrl ?? null,
-        publishedAt: body.publishedAt ?? null,
+        comments: body.comments ?? null,
       });
 
       if (rulesWithChanges.length > 0) {
@@ -290,4 +330,25 @@ export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     await repo.deleteVersion(kind, version);
     return c.body(null, 204);
+  })
+
+  // ── PATCH /admin/rules/{kind}/versions/{version} ──────────────────────
+  .openapi(updateVersion, async (c) => {
+    const { rules: repo } = c.get("repos");
+    const { kind, version } = c.req.valid("param");
+    const { comments } = c.req.valid("json");
+
+    const updated = await repo.updateComments(kind, version, comments);
+    if (!updated) {
+      throw new AppError(
+        404,
+        ERROR_CODES.NOT_FOUND,
+        `Version "${version}" not found for kind "${kind}"`,
+      );
+    }
+
+    return c.json(
+      { kind: updated.kind as RuleKind, version: updated.version, comments: updated.comments },
+      200,
+    );
   });

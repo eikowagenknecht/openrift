@@ -42,7 +42,6 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
         req("POST", "/admin/rules/import", {
           kind: "core",
           version: "ar-int-forbidden",
-          sourceType: "manual",
           content: SAMPLE_CONTENT,
         }),
       );
@@ -56,7 +55,6 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
         req("POST", "/admin/rules/import", {
           kind: "core",
           version: CORE_VERSION,
-          sourceType: "manual",
           content: SAMPLE_CONTENT,
         }),
       );
@@ -72,7 +70,6 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
         req("POST", "/admin/rules/import", {
           kind: "tournament",
           version: CORE_VERSION,
-          sourceType: "manual",
           content: SAMPLE_CONTENT,
         }),
       );
@@ -87,7 +84,6 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
         req("POST", "/admin/rules/import", {
           kind: "core",
           version: COLLISION_VERSION,
-          sourceType: "manual",
           content: SAMPLE_CONTENT,
         }),
       );
@@ -97,7 +93,6 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
         req("POST", "/admin/rules/import", {
           kind: "core",
           version: COLLISION_VERSION,
-          sourceType: "manual",
           content: SAMPLE_CONTENT,
         }),
       );
@@ -109,11 +104,26 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
         req("POST", "/admin/rules/import", {
           kind: "bogus",
           version: "ar-int-bogus",
-          sourceType: "manual",
           content: SAMPLE_CONTENT,
         }),
       );
       expect(res.status).toBe(400);
+    });
+
+    it("rejects a version older than the latest existing one for that kind", async () => {
+      // CORE_VERSION ("ar-int-core") was imported earlier in this suite. An
+      // import with a lower version string for the same kind must be rejected
+      // — the diff model can't safely insert older versions in-place.
+      const res = await app.fetch(
+        req("POST", "/admin/rules/import", {
+          kind: "core",
+          version: "ar-int-aaa",
+          content: SAMPLE_CONTENT,
+        }),
+      );
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error?.message ?? body.message).toMatch(/older|chronological/i);
     });
   });
 
@@ -124,7 +134,6 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
         req("POST", "/admin/rules/import", {
           kind: "tournament",
           version: TOURNAMENT_VERSION,
-          sourceType: "manual",
           content: SAMPLE_CONTENT,
         }),
       );

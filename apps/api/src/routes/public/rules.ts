@@ -127,9 +127,7 @@ export const rulesRoute = new OpenAPIHono<{ Variables: Variables }>()
         (r): RuleVersionResponse => ({
           kind: r.kind as RuleKind,
           version: r.version,
-          sourceType: r.sourceType,
-          sourceUrl: r.sourceUrl,
-          publishedAt: r.publishedAt,
+          comments: r.comments,
           importedAt: r.importedAt.toISOString(),
         }),
       ),

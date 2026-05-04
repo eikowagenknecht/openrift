@@ -15,9 +15,7 @@ export interface RuleResponse {
 export interface RuleVersionResponse {
   kind: RuleKind;
   version: string;
-  sourceType: string;
-  sourceUrl: string | null;
-  publishedAt: string | null;
+  comments: string | null;
   importedAt: string;
 }
 

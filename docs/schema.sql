@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 9z70Nf9LfB85DQoKEn6w8kRjJx9JlPFfHMHhWZ2iChqKJTiZyMlczt5LsCsK8x5
+\restrict xcTaG8QC1SyBRFXbdaswpmRJ9FdLa10rtBFSxMg7NwZSlFiQQr2a9DUNtPpzc6g
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1291,13 +1291,10 @@ CREATE TABLE public.rarities (
 
 CREATE TABLE public.rule_versions (
     version text NOT NULL,
-    source_type text NOT NULL,
-    source_url text,
-    published_at date,
     imported_at timestamp with time zone DEFAULT now() NOT NULL,
     kind text NOT NULL,
-    CONSTRAINT rule_versions_kind_check CHECK ((kind = ANY (ARRAY['core'::text, 'tournament'::text]))),
-    CONSTRAINT rule_versions_source_type_check CHECK ((source_type = ANY (ARRAY['pdf'::text, 'text'::text, 'html'::text, 'manual'::text])))
+    comments text,
+    CONSTRAINT rule_versions_kind_check CHECK ((kind = ANY (ARRAY['core'::text, 'tournament'::text])))
 );
 
 
@@ -3404,5 +3401,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 9z70Nf9LfB85DQoKEn6w8kRjJx9JlPFfHMHhWZ2iChqKJTiZyMlczt5LsCsK8x5
+\unrestrict xcTaG8QC1SyBRFXbdaswpmRJ9FdLa10rtBFSxMg7NwZSlFiQQr2a9DUNtPpzc6g
 

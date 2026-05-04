@@ -23,12 +23,10 @@ describe.skipIf(!ctx)("rulesRepo (integration)", () => {
     await repo.createVersion({
       kind: "core",
       version: sharedVersion,
-      sourceType: "manual",
     });
     await repo.createVersion({
       kind: "tournament",
       version: sharedVersion,
-      sourceType: "manual",
     });
 
     await repo.insertRules([
@@ -95,8 +93,8 @@ describe.skipIf(!ctx)("rulesRepo (integration)", () => {
 
   it("deleteVersion only removes the specified kind", async () => {
     const tempVersion = "test-kind-0044-delete";
-    await repo.createVersion({ kind: "core", version: tempVersion, sourceType: "manual" });
-    await repo.createVersion({ kind: "tournament", version: tempVersion, sourceType: "manual" });
+    await repo.createVersion({ kind: "core", version: tempVersion });
+    await repo.createVersion({ kind: "tournament", version: tempVersion });
 
     await repo.deleteVersion("core", tempVersion);
 

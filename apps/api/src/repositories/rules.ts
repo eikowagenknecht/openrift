@@ -111,21 +111,13 @@ export function rulesRepo(db: Kysely<Database>) {
      *
      * @returns The inserted version row.
      */
-    createVersion(values: {
-      kind: RuleKind;
-      version: string;
-      sourceType: string;
-      sourceUrl?: string | null;
-      publishedAt?: string | null;
-    }) {
+    createVersion(values: { kind: RuleKind; version: string; comments?: string | null }) {
       return db
         .insertInto("ruleVersions")
         .values({
           kind: values.kind,
           version: values.version,
-          sourceType: values.sourceType,
-          sourceUrl: values.sourceUrl ?? null,
-          publishedAt: values.publishedAt ?? null,
+          comments: values.comments ?? null,
         })
         .returningAll()
         .executeTakeFirstOrThrow();
@@ -166,6 +158,21 @@ export function rulesRepo(db: Kysely<Database>) {
         .selectAll()
         .where("kind", "=", kind)
         .where("version", "=", version)
+        .executeTakeFirst();
+    },
+
+    /**
+     * Updates the freeform comments on an existing version.
+     *
+     * @returns The updated row, or undefined if no matching version exists.
+     */
+    updateComments(kind: RuleKind, version: string, comments: string | null) {
+      return db
+        .updateTable("ruleVersions")
+        .set({ comments })
+        .where("kind", "=", kind)
+        .where("version", "=", version)
+        .returningAll()
         .executeTakeFirst();
     },
 

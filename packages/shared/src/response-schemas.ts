@@ -758,9 +758,7 @@ const ruleResponseSchema = z.object({
 const ruleVersionResponseSchema = z.object({
   kind: ruleKindSchema,
   version: z.string().openapi({ example: "1.2.0" }),
-  sourceType: z.string().openapi({ example: "pdf" }),
-  sourceUrl: z.string().nullable().openapi({ example: "https://example.com/rules-1.2.0.pdf" }),
-  publishedAt: z.string().nullable().openapi({ example: "2026-02-15" }),
+  comments: z.string().nullable().openapi({ example: "First public release." }),
   importedAt: z.string().openapi({ example: "2026-02-16T08:30:00Z" }),
 });
 

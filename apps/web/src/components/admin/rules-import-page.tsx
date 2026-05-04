@@ -12,12 +12,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useDeleteRuleVersion, useImportRules, useRuleVersions } from "@/hooks/use-rules";
+import {
+  useDeleteRuleVersion,
+  useImportRules,
+  useRuleVersions,
+  useUpdateRuleVersionComments,
+} from "@/hooks/use-rules";
 
 const KIND_LABELS: Record<RuleKind, string> = {
   core: "Core",
   tournament: "Tournament",
 };
+
+const KIND_ITEMS: { value: RuleKind; label: string }[] = [
+  { value: "core", label: "Core" },
+  { value: "tournament", label: "Tournament" },
+];
 
 export function RulesImportPage() {
   const { data: versionsData } = useRuleVersions();
@@ -26,9 +36,7 @@ export function RulesImportPage() {
 
   const [kind, setKind] = useState<RuleKind>("core");
   const [version, setVersion] = useState("");
-  const [sourceType, setSourceType] = useState("text");
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [publishedAt, setPublishedAt] = useState("");
+  const [comments, setComments] = useState("");
   const [content, setContent] = useState("");
   const [result, setResult] = useState<{
     kind: RuleKind;
@@ -44,9 +52,7 @@ export function RulesImportPage() {
     const response = await importMutation.mutateAsync({
       kind,
       version: version.trim(),
-      sourceType,
-      sourceUrl: sourceUrl.trim() || null,
-      publishedAt: publishedAt.trim() || null,
+      comments: comments.trim() || null,
       content,
     });
     setResult(response);
@@ -82,6 +88,7 @@ export function RulesImportPage() {
         <div className="grid gap-1.5">
           <Label htmlFor="kind">Kind</Label>
           <Select
+            items={KIND_ITEMS}
             value={kind}
             onValueChange={(value) => {
               if (value === "core" || value === "tournament") {
@@ -93,8 +100,11 @@ export function RulesImportPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="core">Core</SelectItem>
-              <SelectItem value="tournament">Tournament</SelectItem>
+              {KIND_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -110,44 +120,13 @@ export function RulesImportPage() {
         </div>
 
         <div className="grid gap-1.5">
-          <Label htmlFor="sourceType">Source Type</Label>
-          <Select
-            value={sourceType}
-            onValueChange={(value) => {
-              if (value) {
-                setSourceType(value);
-              }
-            }}
-          >
-            <SelectTrigger id="sourceType">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pdf">PDF</SelectItem>
-              <SelectItem value="text">Text</SelectItem>
-              <SelectItem value="html">HTML</SelectItem>
-              <SelectItem value="manual">Manual</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="grid gap-1.5">
-          <Label htmlFor="sourceUrl">Source URL (optional)</Label>
-          <Input
-            id="sourceUrl"
-            value={sourceUrl}
-            onChange={(e) => setSourceUrl(e.target.value)}
-            placeholder="https://..."
-          />
-        </div>
-
-        <div className="grid gap-1.5">
-          <Label htmlFor="publishedAt">Published Date (optional)</Label>
-          <Input
-            id="publishedAt"
-            value={publishedAt}
-            onChange={(e) => setPublishedAt(e.target.value)}
-            placeholder="2026-03-30"
+          <Label htmlFor="comments">Comments (optional, markdown)</Label>
+          <Textarea
+            id="comments"
+            value={comments}
+            onChange={(e) => setComments(e.target.value)}
+            placeholder="Notes about this version, source links, change summary..."
+            rows={4}
           />
         </div>
 
@@ -200,32 +179,98 @@ export function RulesImportPage() {
             </h3>
             <div className="space-y-2">
               {entries.map((entry) => (
-                <div
+                <VersionRow
                   key={`${entry.kind}-${entry.version}`}
-                  className="border-border flex items-center justify-between rounded-md border p-2 text-sm"
-                >
-                  <div>
-                    <span className="font-mono font-semibold">{entry.version}</span>
-                    <span className="text-muted-foreground ml-2">({entry.sourceType})</span>
-                    {entry.publishedAt && (
-                      <span className="text-muted-foreground ml-2">
-                        published {entry.publishedAt}
-                      </span>
-                    )}
-                  </div>
-                  <Button
-                    variant="destructive"
-                    onClick={() => handleDelete(entry.kind, entry.version)}
-                    disabled={deleteMutation.isPending}
-                  >
-                    Delete
-                  </Button>
-                </div>
+                  entry={entry}
+                  onDelete={handleDelete}
+                  isDeleting={deleteMutation.isPending}
+                />
               ))}
             </div>
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function VersionRow({
+  entry,
+  onDelete,
+  isDeleting,
+}: {
+  entry: RuleVersionResponse;
+  onDelete: (kind: RuleKind, version: string) => void;
+  isDeleting: boolean;
+}) {
+  const updateMutation = useUpdateRuleVersionComments();
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(entry.comments ?? "");
+
+  function startEdit() {
+    setDraft(entry.comments ?? "");
+    setIsEditing(true);
+  }
+
+  async function save() {
+    const trimmed = draft.trim();
+    await updateMutation.mutateAsync({
+      kind: entry.kind,
+      version: entry.version,
+      comments: trimmed.length > 0 ? trimmed : null,
+    });
+    setIsEditing(false);
+  }
+
+  function cancel() {
+    setDraft(entry.comments ?? "");
+    setIsEditing(false);
+  }
+
+  return (
+    <div className="border-border space-y-2 rounded-md border p-2 text-sm">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <span className="font-mono font-semibold">{entry.version}</span>
+          {!isEditing && entry.comments && (
+            <span className="text-muted-foreground ml-2 line-clamp-1">{entry.comments}</span>
+          )}
+        </div>
+        <div className="flex shrink-0 gap-2">
+          {isEditing ? (
+            <>
+              <Button variant="outline" onClick={cancel} disabled={updateMutation.isPending}>
+                Cancel
+              </Button>
+              <Button onClick={save} disabled={updateMutation.isPending}>
+                {updateMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={startEdit}>
+                Edit comments
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => onDelete(entry.kind, entry.version)}
+                disabled={isDeleting}
+              >
+                Delete
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+      {isEditing && (
+        <Textarea
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Notes about this version, source links, change summary..."
+          rows={4}
+          disabled={updateMutation.isPending}
+        />
+      )}
     </div>
   );
 }

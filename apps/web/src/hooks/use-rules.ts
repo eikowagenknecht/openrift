@@ -72,14 +72,8 @@ export function useRuleVersions(kind?: RuleKind) {
 
 const importRulesFn = createServerFn({ method: "POST" })
   .inputValidator(
-    (input: {
-      kind: RuleKind;
-      version: string;
-      sourceType: string;
-      sourceUrl?: string | null;
-      publishedAt?: string | null;
-      content: string;
-    }) => input,
+    (input: { kind: RuleKind; version: string; comments?: string | null; content: string }) =>
+      input,
   )
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
@@ -98,9 +92,7 @@ const importRulesFn = createServerFn({ method: "POST" })
       body: {
         kind: data.kind,
         version: data.version,
-        sourceType: data.sourceType as "pdf" | "text" | "html" | "manual",
-        sourceUrl: data.sourceUrl,
-        publishedAt: data.publishedAt,
+        comments: data.comments,
         content: data.content,
       },
     });
@@ -114,9 +106,7 @@ export function useImportRules() {
     mutationFn: (vars: {
       kind: RuleKind;
       version: string;
-      sourceType: string;
-      sourceUrl?: string | null;
-      publishedAt?: string | null;
+      comments?: string | null;
       content: string;
     }) => importRulesFn({ data: vars }),
     invalidates: [["rules"], queryKeys.admin.rules.versions],
@@ -142,6 +132,35 @@ const deleteRuleVersionFn = createServerFn({ method: "POST" })
 export function useDeleteRuleVersion() {
   return useMutationWithInvalidation({
     mutationFn: (vars: { kind: RuleKind; version: string }) => deleteRuleVersionFn({ data: vars }),
+    invalidates: [["rules"], queryKeys.admin.rules.versions],
+  });
+}
+
+const updateRuleVersionCommentsFn = createServerFn({ method: "POST" })
+  .inputValidator((input: { kind: RuleKind; version: string; comments: string | null }) => input)
+  .middleware([withCookies])
+  .handler(async ({ context, data }) => {
+    const result = await fetchApiJson<{
+      kind: RuleKind;
+      version: string;
+      comments: string | null;
+    }>({
+      errorTitle: "Couldn't update version comments",
+      cookie: context.cookie,
+      path: `/api/v1/admin/rules/${encodeURIComponent(data.kind)}/versions/${encodeURIComponent(
+        data.version,
+      )}`,
+      method: "PATCH",
+      body: { comments: data.comments },
+    });
+    await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules-versions"] });
+    return result;
+  });
+
+export function useUpdateRuleVersionComments() {
+  return useMutationWithInvalidation({
+    mutationFn: (vars: { kind: RuleKind; version: string; comments: string | null }) =>
+      updateRuleVersionCommentsFn({ data: vars }),
     invalidates: [["rules"], queryKeys.admin.rules.versions],
   });
 }

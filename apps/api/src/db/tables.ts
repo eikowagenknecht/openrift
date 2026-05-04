@@ -748,9 +748,7 @@ interface RuleVersionsTable {
   /** CHECK: IN ('core', 'tournament') */
   kind: string;
   version: string;
-  sourceType: string;
-  sourceUrl: string | null;
-  publishedAt: string | null;
+  comments: string | null;
   importedAt: ColumnType<Date, Date | undefined, Date>;
 }
 

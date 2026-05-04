@@ -66,6 +66,7 @@ import * as m117 from "./117-deck-pinning-archiving.js";
 import * as m118 from "./118-rarity-well-known.js";
 import * as m119 from "./119-printing-printed-year.js";
 import * as m120 from "./120-rules-kind.js";
+import * as m121 from "./121-rules-version-comments.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -191,4 +192,5 @@ export const migrations: Record<string, Migration> = {
   "118-rarity-well-known": m118,
   "119-printing-printed-year": m119,
   "120-rules-kind": m120,
+  "121-rules-version-comments": m121,
 };
