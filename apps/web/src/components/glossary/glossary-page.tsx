@@ -3,6 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { SearchIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { PageToc } from "@/components/layout/page-toc";
+import type { PageTocItem } from "@/components/layout/page-toc";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { initQueryOptions } from "@/hooks/use-init";
@@ -206,33 +208,14 @@ function SectionHeading({ id, title }: Section) {
   );
 }
 
-function GlossaryToc() {
-  return (
-    <nav className="space-y-4">
-      {GROUPS.map((group) => (
-        <div key={group.id}>
-          <a
-            href={`#${group.id}`}
-            className="text-foreground hover:text-primary block truncate font-bold"
-          >
-            {group.title}
-          </a>
-          <div className="mt-1 space-y-0.5 pl-3">
-            {group.sections.map((section) => (
-              <a
-                key={section.id}
-                href={`#${section.id}`}
-                className="text-muted-foreground hover:text-foreground block truncate"
-              >
-                {section.title}
-              </a>
-            ))}
-          </div>
-        </div>
-      ))}
-    </nav>
-  );
-}
+const TOC_ITEMS: PageTocItem[] = GROUPS.flatMap((group) => [
+  { id: group.id, label: group.title },
+  ...group.sections.map((section) => ({
+    id: section.id,
+    label: section.title,
+    level: 1 as const,
+  })),
+]);
 
 function DomainsSection({
   domains,
@@ -967,11 +950,7 @@ export function GlossaryPage() {
       </div>
 
       <div className="flex gap-6">
-        <aside className="hidden w-48 shrink-0 lg:block">
-          <div className="sticky top-16">
-            <GlossaryToc />
-          </div>
-        </aside>
+        <PageToc items={TOC_ITEMS} />
         <div className="min-w-0 flex-1 space-y-12">
           <section>
             <GroupHeading id="game-vocabulary" title="Game vocabulary" />

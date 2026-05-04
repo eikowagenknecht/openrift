@@ -8,6 +8,8 @@ import { useRef, useState } from "react";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 
+import { PageToc } from "@/components/layout/page-toc";
+import type { PageTocItem } from "@/components/layout/page-toc";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -426,26 +428,14 @@ function RuleRow({
   );
 }
 
-function RulesToc({ rules }: { rules: RuleResponse[] }) {
-  const sections = rules.filter((r) => r.ruleType === "title" || r.ruleType === "subtitle");
-
-  return (
-    <nav className="space-y-0.5">
-      {sections.map((rule) => (
-        <a
-          key={rule.ruleNumber}
-          href={`#rule-${rule.ruleNumber}`}
-          className={cn(
-            "text-muted-foreground hover:text-foreground block truncate text-xs",
-            rule.ruleType === "title" && "mt-2 font-semibold first:mt-0",
-            rule.ruleType === "subtitle" && "pl-3",
-          )}
-        >
-          {formatRuleNumber(rule.ruleNumber)} {rule.content}
-        </a>
-      ))}
-    </nav>
-  );
+function buildRulesTocItems(rules: RuleResponse[]): PageTocItem[] {
+  return rules
+    .filter((rule) => rule.ruleType === "title" || rule.ruleType === "subtitle")
+    .map((rule) => ({
+      id: `rule-${rule.ruleNumber}`,
+      label: `${formatRuleNumber(rule.ruleNumber)} ${rule.content}`,
+      level: rule.ruleType === "subtitle" ? 1 : 0,
+    }));
 }
 
 const KIND_TITLES: Record<RuleKind, string> = {
@@ -613,11 +603,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
         </div>
       ) : (
         <div className="flex gap-6">
-          <aside className="hidden w-56 shrink-0 lg:block">
-            <div className="sticky top-16 max-h-[calc(100vh-5rem)] overflow-y-auto">
-              <RulesToc rules={rules} />
-            </div>
-          </aside>
+          <PageToc items={buildRulesTocItems(rules)} />
           <div className="min-w-0 flex-1">
             {comments && !isSearching && <VersionComments markdown={comments} />}
             {visibleRules.map((rule) => (
