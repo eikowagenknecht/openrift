@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_app/rules_/$kind")({
       path: `/rules/${kind}`,
     });
   },
-  loader: async ({ params, context }) => {
+  loader: async ({ params, context, location }) => {
     if (!VALID_KINDS.has(params.kind as RuleKind)) {
       throw notFound();
     }
@@ -47,6 +47,7 @@ export const Route = createFileRoute("/_app/rules_/$kind")({
       throw redirect({
         to: "/rules/$kind/$version",
         params: { kind, version: latest.version },
+        hash: location.hash || undefined,
         replace: true,
       });
     }
