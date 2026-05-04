@@ -40,6 +40,7 @@ const GROUPS: Group[] = [
     title: "Printing variants",
     sections: [
       { id: "rarities", title: "Rarities" },
+      { id: "booster-packs", title: "Booster pack contents" },
       { id: "art-variants", title: "Art variants" },
       { id: "finishes", title: "Finishes" },
       { id: "markers", title: "Markers" },
@@ -120,6 +121,37 @@ const FINISH_DESCRIPTIONS: Record<string, string> = {
   metal: "Premium metal-stamped collectible printing.",
   "metal-deluxe": "Higher-tier metal printing with extra finishing.",
 };
+
+interface PackSlotEntry {
+  label: string;
+  description: string;
+}
+
+const PACK_SLOTS: PackSlotEntry[] = [
+  {
+    label: "7× Common",
+    description: "Standard Common-rarity cards.",
+  },
+  {
+    label: "3× Uncommon",
+    description: "Standard Uncommon-rarity cards.",
+  },
+  {
+    label: "2× Rare-or-better",
+    description:
+      "Each flex slot rolls Epic about 13.4% of the time and Rare otherwise, which works out to roughly 1 in 4 packs containing at least one Epic.",
+  },
+  {
+    label: "1× Foil",
+    description:
+      "Usually a Common (~70%) or Uncommon (~25%) foil, occasionally upgrading to a Rare (~4%) or Epic (~1%) foil. The whole slot can be replaced by a Showcase alt-art (~1 per 12 packs), an overnumbered Showcase (1 per 72 packs), a signed Showcase (1 per 720 packs), or an Ultimate (~0.1% of packs, where the pool has one).",
+  },
+  {
+    label: "1× Rune or Token",
+    description:
+      "Usually a basic Rune. Occasionally a foil Rune, sometimes a Token-supertype card (e.g. Sprite, Recruit), and very rarely an alt-art Rune.",
+  },
+];
 
 interface MarkerEntry {
   slug: string;
@@ -451,6 +483,45 @@ function RaritiesSection({
           );
         })}
       </ul>
+    </section>
+  );
+}
+
+function BoosterPacksSection({ query }: { query: string }) {
+  const visible = PACK_SLOTS.filter((slot) => matches(query, slot.label, slot.description));
+  if (visible.length === 0) {
+    return null;
+  }
+  return (
+    <section>
+      <SectionHeading id="booster-packs" title="Booster pack contents" />
+      <p className="text-muted-foreground mt-2">
+        A standard Riftbound booster contains 14 cards across five slot types. Three slots are fixed
+        by rarity (7 Commons, 3 Uncommons, and 2 Rare-or-better flex slots), and the other two (the
+        foil slot and the Rune-or-Token slot) can cascade into rarer pulls like Showcase alt-arts or
+        an Ultimate. The{" "}
+        <Link to="/pack-opener" className="text-primary hover:underline">
+          Pack opener
+        </Link>{" "}
+        simulates this same distribution.
+      </p>
+      <ul className="mt-4 space-y-2">
+        {visible.map((slot) => (
+          <li
+            key={slot.label}
+            className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
+          >
+            <span className="font-medium sm:w-36 sm:shrink-0">{slot.label}</span>
+            <p className="text-muted-foreground">{slot.description}</p>
+          </li>
+        ))}
+      </ul>
+      <p className="text-muted-foreground mt-3">
+        Headline rates (slot counts, the Epic frequency, Showcase pulls, and the Ultimate rate) come
+        from Riot&apos;s Origins announcement on collectability. Foil-slot upgrade percentages and
+        the Rune-or-Token cascade rates are community estimates that match Riot&apos;s qualitative
+        descriptions (&quot;usually&quot;, &quot;occasionally&quot;, &quot;very rarely&quot;).
+      </p>
     </section>
   );
 }
@@ -962,6 +1033,7 @@ export function GlossaryPage() {
           <section>
             <GroupHeading id="printing-variants" title="Printing variants" />
             <RaritiesSection rarities={rarities} query={query} />
+            <BoosterPacksSection query={query} />
             <ArtVariantsSection artVariants={artVariants} query={query} />
             <FinishesSection finishes={finishes} query={query} />
             <MarkersSection query={query} />
