@@ -13,6 +13,10 @@ body {
   overscroll-behavior-y: none;
 }
 
+html {
+  scroll-padding-top: calc(var(--header-height) + 0.5rem);
+}
+
 html.hide-scrollbar,
 html.hide-scrollbar body {
   scrollbar-width: none;
