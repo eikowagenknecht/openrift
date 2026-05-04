@@ -6,7 +6,10 @@ import type { Variables } from "../../types.js";
 
 // ── Schemas ─────────────────────────────────────────────────────────────────
 
+const ruleKindEnum = z.enum(["core", "tournament"]);
+
 const importRulesSchema = z.object({
+  kind: ruleKindEnum,
   version: z.string().min(1),
   sourceType: z.enum(["pdf", "text", "html", "manual"]),
   sourceUrl: z.string().nullable().optional(),
@@ -28,6 +31,7 @@ const importRules = createRoute({
       content: {
         "application/json": {
           schema: z.object({
+            kind: ruleKindEnum,
             version: z.string().openapi({ example: "1.2.0" }),
             rulesCount: z.number().openapi({ example: 248 }),
             added: z.number().openapi({ example: 12 }),
@@ -43,10 +47,10 @@ const importRules = createRoute({
 
 const deleteVersion = createRoute({
   method: "delete",
-  path: "/rules/versions/{version}",
+  path: "/rules/{kind}/versions/{version}",
   tags: ["Admin - Rules"],
   request: {
-    params: z.object({ version: z.string() }),
+    params: z.object({ kind: ruleKindEnum, version: z.string() }),
   },
   responses: {
     204: { description: "Version deleted" },
@@ -145,9 +149,13 @@ export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const transact = c.get("transact");
     const body = c.req.valid("json");
 
-    const existing = await repo.getVersion(body.version);
+    const existing = await repo.getVersion(body.kind, body.version);
     if (existing) {
-      throw new AppError(409, ERROR_CODES.CONFLICT, `Version "${body.version}" already exists`);
+      throw new AppError(
+        409,
+        ERROR_CODES.CONFLICT,
+        `Version "${body.version}" already exists for kind "${body.kind}"`,
+      );
     }
 
     const parsed = parseRulesText(body.content);
@@ -155,19 +163,20 @@ export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
       throw new AppError(400, ERROR_CODES.BAD_REQUEST, "No valid rules found in content");
     }
 
-    // Get the previous version's rules to compute diffs
-    const versions = await repo.listVersions();
+    // Get the previous version's rules (within this kind) to compute diffs
+    const versions = await repo.listVersions(body.kind);
     const previousVersion = versions.at(-1)?.version;
 
     let previousRulesMap = new Map<string, string>();
     if (previousVersion) {
-      const previousRules = await repo.listLatest();
+      const previousRules = await repo.listLatest(body.kind);
       previousRulesMap = new Map(previousRules.map((r) => [r.ruleNumber, r.content]));
     }
 
     // Compute change types
     const newRuleNumbers = new Set(parsed.map((r) => r.ruleNumber));
     const rulesWithChanges: {
+      kind: typeof body.kind;
       version: string;
       ruleNumber: string;
       sortOrder: number;
@@ -187,6 +196,7 @@ export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
         const previousContent = previousRulesMap.get(rule.ruleNumber);
         if (previousContent === undefined) {
           rulesWithChanges.push({
+            kind: body.kind,
             version: body.version,
             ...rule,
             changeType: "added",
@@ -194,6 +204,7 @@ export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
           added++;
         } else if (previousContent !== rule.content) {
           rulesWithChanges.push({
+            kind: body.kind,
             version: body.version,
             ...rule,
             changeType: "modified",
@@ -207,6 +218,7 @@ export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
       for (const [ruleNumber] of previousRulesMap) {
         if (!newRuleNumbers.has(ruleNumber)) {
           rulesWithChanges.push({
+            kind: body.kind,
             version: body.version,
             ruleNumber,
             sortOrder: parsed.length + removed,
@@ -219,9 +231,10 @@ export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
         }
       }
     } else {
-      // First version: all rules are "added"
+      // First version (for this kind): all rules are "added"
       for (const rule of parsed) {
         rulesWithChanges.push({
+          kind: body.kind,
           version: body.version,
           ruleNumber: rule.ruleNumber,
           sortOrder: rule.sortOrder,
@@ -236,6 +249,7 @@ export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     await transact(async (txRepos) => {
       await txRepos.rules.createVersion({
+        kind: body.kind,
         version: body.version,
         sourceType: body.sourceType,
         sourceUrl: body.sourceUrl ?? null,
@@ -249,6 +263,7 @@ export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
 
     return c.json(
       {
+        kind: body.kind,
         version: body.version,
         rulesCount: rulesWithChanges.length,
         added,
@@ -259,16 +274,20 @@ export const adminRulesRoute = new OpenAPIHono<{ Variables: Variables }>()
     );
   })
 
-  // ── DELETE /admin/rules/versions/:version ─────────────────────────────
+  // ── DELETE /admin/rules/{kind}/versions/{version} ─────────────────────
   .openapi(deleteVersion, async (c) => {
     const { rules: repo } = c.get("repos");
-    const { version } = c.req.valid("param");
+    const { kind, version } = c.req.valid("param");
 
-    const existing = await repo.getVersion(version);
+    const existing = await repo.getVersion(kind, version);
     if (!existing) {
-      throw new AppError(404, ERROR_CODES.NOT_FOUND, `Version "${version}" not found`);
+      throw new AppError(
+        404,
+        ERROR_CODES.NOT_FOUND,
+        `Version "${version}" not found for kind "${kind}"`,
+      );
     }
 
-    await repo.deleteVersion(version);
+    await repo.deleteVersion(kind, version);
     return c.body(null, 204);
   });

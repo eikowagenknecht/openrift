@@ -1,5 +1,6 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type {
+  RuleKind,
   RuleResponse,
   RulesListResponse,
   RuleVersionResponse,
@@ -13,6 +14,8 @@ import { z } from "zod";
 
 import type { Variables } from "../../types.js";
 
+const ruleKindEnum = z.enum(["core", "tournament"]);
+
 // ── Route definitions ───────────────────────────────────────────────────────
 
 const listRules = createRoute({
@@ -21,6 +24,7 @@ const listRules = createRoute({
   tags: ["Rules"],
   request: {
     query: z.object({
+      kind: ruleKindEnum,
       version: z.string().optional(),
       q: z.string().optional(),
     }),
@@ -37,6 +41,11 @@ const listVersions = createRoute({
   method: "get",
   path: "/rules/versions",
   tags: ["Rules"],
+  request: {
+    query: z.object({
+      kind: ruleKindEnum.optional(),
+    }),
+  },
   responses: {
     200: {
       content: { "application/json": { schema: ruleVersionsListResponseSchema } },
@@ -54,6 +63,7 @@ const listVersions = createRoute({
  */
 function toRuleResponse(row: {
   id: string;
+  kind: string;
   version: string;
   ruleNumber: string;
   sortOrder: number;
@@ -64,6 +74,7 @@ function toRuleResponse(row: {
 }): RuleResponse {
   return {
     id: row.id,
+    kind: row.kind as RuleKind,
     version: row.version,
     ruleNumber: row.ruleNumber,
     sortOrder: row.sortOrder,
@@ -81,23 +92,24 @@ export const rulesRoute = new OpenAPIHono<{ Variables: Variables }>()
   // ── GET /rules ──────────────────────────────────────────────────────────
   .openapi(listRules, async (c) => {
     const { rules: repo } = c.get("repos");
-    const { version, q } = c.req.valid("query");
+    const { kind, version, q } = c.req.valid("query");
 
     let rows;
     if (q) {
-      rows = await repo.search(q, version);
+      rows = await repo.search(kind, q, version);
     } else if (version) {
-      rows = await repo.listAtVersion(version);
+      rows = await repo.listAtVersion(kind, version);
     } else {
-      rows = await repo.listLatest();
+      rows = await repo.listLatest(kind);
     }
 
-    const versions = await repo.listVersions();
+    const versions = await repo.listVersions(kind);
     const latestVersion = versions.at(-1)?.version ?? "";
     const effectiveVersion = version ?? latestVersion;
 
     c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     return c.json({
+      kind,
       rules: rows.map((row) => toRuleResponse(row)),
       version: effectiveVersion,
     } satisfies RulesListResponse);
@@ -106,12 +118,14 @@ export const rulesRoute = new OpenAPIHono<{ Variables: Variables }>()
   // ── GET /rules/versions ─────────────────────────────────────────────────
   .openapi(listVersions, async (c) => {
     const { rules: repo } = c.get("repos");
-    const rows = await repo.listVersions();
+    const { kind } = c.req.valid("query");
+    const rows = await repo.listVersions(kind);
 
     c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     return c.json({
       versions: rows.map(
         (r): RuleVersionResponse => ({
+          kind: r.kind as RuleKind,
           version: r.version,
           sourceType: r.sourceType,
           sourceUrl: r.sourceUrl,

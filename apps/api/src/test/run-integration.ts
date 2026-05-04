@@ -155,6 +155,9 @@ const PARALLEL_FILES = [
   "src/routes/admin/provider-settings.integration.test.ts",
   "src/routes/admin/site-settings.integration.test.ts",
   "src/routes/admin/ignored-candidates.integration.test.ts",
+  "src/routes/admin/rules.integration.test.ts",
+  // Rules repository
+  "src/repositories/rules.integration.test.ts",
   // Batch 4 — additional repo coverage
   "src/repositories/printing-images.integration.test.ts",
   "src/repositories/price-refresh.integration.test.ts",

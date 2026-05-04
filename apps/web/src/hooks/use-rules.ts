@@ -1,4 +1,4 @@
-import type { RulesListResponse, RuleVersionsListResponse } from "@openrift/shared";
+import type { RuleKind, RulesListResponse, RuleVersionsListResponse } from "@openrift/shared";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -8,55 +8,72 @@ import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { withCookies } from "@/lib/server-fns/middleware";
 import { useMutationWithInvalidation } from "@/lib/use-mutation-with-invalidation";
 
-const fetchRules = createServerFn({ method: "GET" }).handler(
-  (): Promise<RulesListResponse> =>
-    serverCache.fetchQuery({
-      queryKey: ["server-cache", "rules"],
-      queryFn: () =>
-        fetchApiJson<RulesListResponse>({
-          errorTitle: "Couldn't load rules",
-          path: "/api/v1/rules",
-        }),
-    }),
-);
+const fetchRulesAtVersion = createServerFn({ method: "GET" })
+  .inputValidator((input: { kind: RuleKind; version: string }) => input)
+  .handler(
+    ({ data }): Promise<RulesListResponse> =>
+      serverCache.fetchQuery({
+        queryKey: ["server-cache", "rules", data.kind, data.version],
+        queryFn: () => {
+          const params = new URLSearchParams({ kind: data.kind, version: data.version });
+          return fetchApiJson<RulesListResponse>({
+            errorTitle: "Couldn't load rules",
+            path: `/api/v1/rules?${params.toString()}`,
+          });
+        },
+      }),
+  );
 
-const fetchVersions = createServerFn({ method: "GET" }).handler(
-  (): Promise<RuleVersionsListResponse> =>
-    serverCache.fetchQuery({
-      queryKey: ["server-cache", "rules-versions"],
-      queryFn: () =>
-        fetchApiJson<RuleVersionsListResponse>({
+const fetchVersions = createServerFn({ method: "GET" })
+  .inputValidator((input: { kind?: RuleKind } | undefined) => input ?? {})
+  .handler(({ data }): Promise<RuleVersionsListResponse> => {
+    const cacheKey = data.kind
+      ? ["server-cache", "rules-versions", data.kind]
+      : ["server-cache", "rules-versions"];
+    return serverCache.fetchQuery({
+      queryKey: cacheKey,
+      queryFn: () => {
+        const path = data.kind
+          ? `/api/v1/rules/versions?kind=${encodeURIComponent(data.kind)}`
+          : "/api/v1/rules/versions";
+        return fetchApiJson<RuleVersionsListResponse>({
           errorTitle: "Couldn't load rule versions",
-          path: "/api/v1/rules/versions",
-        }),
-    }),
-);
+          path,
+        });
+      },
+    });
+  });
 
-export const rulesQueryOptions = queryOptions({
-  queryKey: queryKeys.rules.all,
-  queryFn: () => fetchRules(),
-  staleTime: 5 * 60 * 1000,
-  refetchOnWindowFocus: false,
-});
-
-export const ruleVersionsQueryOptions = queryOptions({
-  queryKey: queryKeys.rules.versions,
-  queryFn: () => fetchVersions(),
-  staleTime: 5 * 60 * 1000,
-  refetchOnWindowFocus: false,
-});
-
-export function useRules() {
-  return useSuspenseQuery(rulesQueryOptions);
+export function rulesAtVersionQueryOptions(kind: RuleKind, version: string) {
+  return queryOptions({
+    queryKey: queryKeys.rules.byVersion(kind, version),
+    queryFn: () => fetchRulesAtVersion({ data: { kind, version } }),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
 }
 
-export function useRuleVersions() {
-  return useSuspenseQuery(ruleVersionsQueryOptions);
+export function ruleVersionsQueryOptions(kind?: RuleKind) {
+  return queryOptions({
+    queryKey: kind ? queryKeys.rules.versions(kind) : (["rules", "versions", "all"] as const),
+    queryFn: () => fetchVersions({ data: kind ? { kind } : undefined }),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useRulesAtVersion(kind: RuleKind, version: string) {
+  return useSuspenseQuery(rulesAtVersionQueryOptions(kind, version));
+}
+
+export function useRuleVersions(kind?: RuleKind) {
+  return useSuspenseQuery(ruleVersionsQueryOptions(kind));
 }
 
 const importRulesFn = createServerFn({ method: "POST" })
   .inputValidator(
     (input: {
+      kind: RuleKind;
       version: string;
       sourceType: string;
       sourceUrl?: string | null;
@@ -67,6 +84,7 @@ const importRulesFn = createServerFn({ method: "POST" })
   .middleware([withCookies])
   .handler(async ({ context, data }) => {
     const result = await fetchApiJson<{
+      kind: RuleKind;
       version: string;
       rulesCount: number;
       added: number;
@@ -78,6 +96,7 @@ const importRulesFn = createServerFn({ method: "POST" })
       path: "/api/v1/admin/rules/import",
       method: "POST",
       body: {
+        kind: data.kind,
         version: data.version,
         sourceType: data.sourceType as "pdf" | "text" | "html" | "manual",
         sourceUrl: data.sourceUrl,
@@ -93,24 +112,27 @@ const importRulesFn = createServerFn({ method: "POST" })
 export function useImportRules() {
   return useMutationWithInvalidation({
     mutationFn: (vars: {
+      kind: RuleKind;
       version: string;
       sourceType: string;
       sourceUrl?: string | null;
       publishedAt?: string | null;
       content: string;
     }) => importRulesFn({ data: vars }),
-    invalidates: [queryKeys.rules.all, queryKeys.rules.versions, queryKeys.admin.rules.versions],
+    invalidates: [["rules"], queryKeys.admin.rules.versions],
   });
 }
 
 const deleteRuleVersionFn = createServerFn({ method: "POST" })
-  .inputValidator((input: string) => input)
+  .inputValidator((input: { kind: RuleKind; version: string }) => input)
   .middleware([withCookies])
-  .handler(async ({ context, data: version }) => {
+  .handler(async ({ context, data }) => {
     await fetchApi({
       errorTitle: "Couldn't delete rule version",
       cookie: context.cookie,
-      path: `/api/v1/admin/rules/versions/${encodeURIComponent(version)}`,
+      path: `/api/v1/admin/rules/${encodeURIComponent(data.kind)}/versions/${encodeURIComponent(
+        data.version,
+      )}`,
       method: "DELETE",
     });
     await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules"] });
@@ -119,7 +141,7 @@ const deleteRuleVersionFn = createServerFn({ method: "POST" })
 
 export function useDeleteRuleVersion() {
   return useMutationWithInvalidation({
-    mutationFn: (version: string) => deleteRuleVersionFn({ data: version }),
-    invalidates: [queryKeys.rules.all, queryKeys.rules.versions, queryKeys.admin.rules.versions],
+    mutationFn: (vars: { kind: RuleKind; version: string }) => deleteRuleVersionFn({ data: vars }),
+    invalidates: [["rules"], queryKeys.admin.rules.versions],
   });
 }

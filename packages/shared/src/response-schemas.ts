@@ -739,8 +739,11 @@ export const shoppingListResponseSchema = z
 
 // ── Rules ───────────────────────────────────────────────────────────────────
 
+export const ruleKindSchema = z.enum(["core", "tournament"]);
+
 const ruleResponseSchema = z.object({
   id: z.string().openapi({ example: "019cfc3b-0369-7000-8000-000000000100" }),
+  kind: ruleKindSchema,
   version: z.string().openapi({ example: "1.2.0" }),
   ruleNumber: z.string().openapi({ example: "3.4.1" }),
   sortOrder: z.number().openapi({ example: 120 }),
@@ -753,6 +756,7 @@ const ruleResponseSchema = z.object({
 });
 
 const ruleVersionResponseSchema = z.object({
+  kind: ruleKindSchema,
   version: z.string().openapi({ example: "1.2.0" }),
   sourceType: z.string().openapi({ example: "pdf" }),
   sourceUrl: z.string().nullable().openapi({ example: "https://example.com/rules-1.2.0.pdf" }),
@@ -762,6 +766,7 @@ const ruleVersionResponseSchema = z.object({
 
 export const rulesListResponseSchema = z
   .object({
+    kind: ruleKindSchema,
     rules: z.array(ruleResponseSchema),
     version: z.string(),
   })

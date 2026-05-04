@@ -78,10 +78,10 @@ export const queryKeys = {
     publicByToken: (token: string) => ["decks", "share", token] as const,
   },
   rules: {
-    all: ["rules"] as const,
-    versions: ["rules", "versions"] as const,
-    byVersion: (version: string) => ["rules", version] as const,
-    search: (query: string) => ["rules", "search", query] as const,
+    all: (kind: string) => ["rules", kind] as const,
+    versions: (kind: string) => ["rules", kind, "versions"] as const,
+    byVersion: (kind: string, version: string) => ["rules", kind, version] as const,
+    search: (kind: string, query: string) => ["rules", kind, "search", query] as const,
   },
   admin: {
     me: ["admin", "me"] as const,

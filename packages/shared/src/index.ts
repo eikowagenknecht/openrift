@@ -98,6 +98,7 @@ export type {
   DistributionChannelWithCount,
   Marker,
   PrintingDistributionChannel,
+  RuleKind,
   RuleResponse,
   RulesListResponse,
   RuleVersionResponse,

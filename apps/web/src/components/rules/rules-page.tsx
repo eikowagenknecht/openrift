@@ -1,6 +1,6 @@
-import type { RuleResponse, RulesListResponse } from "@openrift/shared";
+import type { RuleKind, RuleResponse, RulesListResponse } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { ChevronDownIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
 import { useRef, useState } from "react";
@@ -16,28 +16,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useRules, useRuleVersions } from "@/hooks/use-rules";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useRuleVersions, useRulesAtVersion } from "@/hooks/use-rules";
 import { KEYWORD_INFO, keywordAnchorSlug } from "@/lib/glossary";
 import { queryKeys } from "@/lib/query-keys";
 import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
-// ── Server functions (public, no auth) ───────────────────────────────────────
-
-const fetchRulesByVersionFn = createServerFn({ method: "GET" })
-  .inputValidator((input: { version: string }) => input)
-  .handler(({ data }): Promise<RulesListResponse> => {
-    const params = new URLSearchParams({ version: data.version });
-    return fetchApiJson<RulesListResponse>({
-      errorTitle: "Couldn't load rules",
-      path: `/api/v1/rules?${params.toString()}`,
-    });
-  });
-
 const searchRulesFn = createServerFn({ method: "GET" })
-  .inputValidator((input: { query: string }) => input)
+  .inputValidator((input: { kind: RuleKind; query: string }) => input)
   .handler(({ data }): Promise<RulesListResponse> => {
-    const params = new URLSearchParams({ q: data.query });
+    const params = new URLSearchParams({ kind: data.kind, q: data.query });
     return fetchApiJson<RulesListResponse>({
       errorTitle: "Couldn't search rules",
       path: `/api/v1/rules?${params.toString()}`,
@@ -314,41 +303,77 @@ function RulesToc({ rules }: { rules: RuleResponse[] }) {
   );
 }
 
-export function RulesPage() {
-  const { data: latestData } = useRules();
-  const { data: versionsData } = useRuleVersions();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedVersionIndex, setSelectedVersionIndex] = useState(
-    versionsData.versions.length - 1,
+const KIND_TITLES: Record<RuleKind, string> = {
+  core: "Core Rules",
+  tournament: "Tournament Rules",
+};
+
+function KindTabs({ kind }: { kind: RuleKind }) {
+  const navigate = useNavigate();
+  return (
+    <Tabs
+      value={kind}
+      onValueChange={(value) => {
+        if (value !== "core" && value !== "tournament") {
+          return;
+        }
+        if (value === kind) {
+          return;
+        }
+        navigate({ to: "/rules/$kind", params: { kind: value } });
+      }}
+    >
+      <TabsList variant="line">
+        <TabsTrigger value="core">Core</TabsTrigger>
+        <TabsTrigger value="tournament">Tournament</TabsTrigger>
+      </TabsList>
+    </Tabs>
   );
+}
+
+export function RulesPage({ kind, version }: { kind: RuleKind; version: string | null }) {
+  if (version === null) {
+    return <RulesEmpty kind={kind} />;
+  }
+  return <RulesContent kind={kind} version={version} />;
+}
+
+function RulesEmpty({ kind }: { kind: RuleKind }) {
+  return (
+    <div className={`mx-auto w-full max-w-6xl ${PAGE_PADDING}`}>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold">{KIND_TITLES[kind]}</h1>
+      </div>
+      <div className="mb-4">
+        <KindTabs kind={kind} />
+      </div>
+      <div className="text-muted-foreground py-16 text-center">
+        <p className="text-lg font-medium">No rules available yet</p>
+        <p>Rules will appear here once imported by an administrator.</p>
+      </div>
+    </div>
+  );
+}
+
+function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
+  const navigate = useNavigate();
+  const { data: rulesData } = useRulesAtVersion(kind, version);
+  const { data: versionsData } = useRuleVersions(kind);
+  const [searchQuery, setSearchQuery] = useState("");
   const [foldedRules, setFoldedRules] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const versions = versionsData.versions;
-  const isLatest = selectedVersionIndex === versions.length - 1;
-  const selectedVersion = versions[selectedVersionIndex]?.version;
-
-  const versionedQuery = useQuery({
-    queryKey: queryKeys.rules.byVersion(selectedVersion ?? ""),
-    queryFn: () => fetchRulesByVersionFn({ data: { version: selectedVersion ?? "" } }),
-    enabled: !isLatest && Boolean(selectedVersion),
-    staleTime: 5 * 60 * 1000,
-  });
 
   const searchResultsQuery = useQuery({
-    queryKey: queryKeys.rules.search(searchQuery),
-    queryFn: () => searchRulesFn({ data: { query: searchQuery } }),
+    queryKey: queryKeys.rules.search(kind, searchQuery),
+    queryFn: () => searchRulesFn({ data: { kind, query: searchQuery } }),
     enabled: searchQuery.length >= 2,
     staleTime: 60 * 1000,
   });
 
   const isSearching = searchQuery.length >= 2;
-  const activeData = isSearching
-    ? searchResultsQuery.data
-    : isLatest
-      ? latestData
-      : versionedQuery.data;
-
+  const activeData = isSearching ? searchResultsQuery.data : rulesData;
   const rules = activeData?.rules ?? [];
   const isEmpty = rules.length === 0 && !searchQuery;
 
@@ -379,33 +404,38 @@ export function RulesPage() {
   return (
     <div className={`mx-auto w-full max-w-6xl ${PAGE_PADDING}`}>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold">Riftbound Rules</h1>
-        {selectedVersion &&
-          (versions.length > 1 ? (
-            <Select
-              value={selectedVersion}
-              onValueChange={(value) => {
-                const nextIndex = versions.findIndex((v) => v.version === value);
-                if (nextIndex === -1) {
-                  return;
-                }
-                setSelectedVersionIndex(nextIndex);
-              }}
-            >
-              <SelectTrigger size="sm" className="text-muted-foreground font-mono">
-                v<SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {versions.toReversed().map((version) => (
-                  <SelectItem key={version.version} value={version.version}>
-                    v{version.version}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <span className="text-muted-foreground font-mono text-sm">v{selectedVersion}</span>
-          ))}
+        <h1 className="text-2xl font-bold">{KIND_TITLES[kind]}</h1>
+        {versions.length > 1 ? (
+          <Select
+            value={version}
+            onValueChange={(nextVersion) => {
+              if (typeof nextVersion !== "string" || nextVersion === version) {
+                return;
+              }
+              navigate({
+                to: "/rules/$kind/$version",
+                params: { kind, version: nextVersion },
+              });
+            }}
+          >
+            <SelectTrigger size="sm" className="text-muted-foreground font-mono">
+              v<SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {versions.toReversed().map((entry) => (
+                <SelectItem key={entry.version} value={entry.version}>
+                  v{entry.version}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <span className="text-muted-foreground font-mono text-sm">v{version}</span>
+        )}
+      </div>
+
+      <div className="mb-4">
+        <KindTabs kind={kind} />
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -433,7 +463,7 @@ export function RulesPage() {
       {isEmpty ? (
         <div className="text-muted-foreground py-16 text-center">
           <p className="text-lg font-medium">No rules available yet</p>
-          <p className="text-sm">Rules will appear here once imported by an administrator.</p>
+          <p>Rules will appear here once imported by an administrator.</p>
         </div>
       ) : (
         <div className="flex gap-6">

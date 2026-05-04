@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict jR5iCaTNNh5QeTiZkJNv1d190H4IhWQCWxft5S2Ffz9aynEheR8vTuAWemX5OHE
+\restrict 9z70Nf9LfB85DQoKEn6w8kRjJx9JlPFfHMHhWZ2iChqKJTiZyMlczt5LsCsK8x5
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -1295,6 +1295,8 @@ CREATE TABLE public.rule_versions (
     source_url text,
     published_at date,
     imported_at timestamp with time zone DEFAULT now() NOT NULL,
+    kind text NOT NULL,
+    CONSTRAINT rule_versions_kind_check CHECK ((kind = ANY (ARRAY['core'::text, 'tournament'::text]))),
     CONSTRAINT rule_versions_source_type_check CHECK ((source_type = ANY (ARRAY['pdf'::text, 'text'::text, 'html'::text, 'manual'::text])))
 );
 
@@ -1313,8 +1315,10 @@ CREATE TABLE public.rules (
     content text NOT NULL,
     change_type text DEFAULT 'added'::text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
+    kind text NOT NULL,
     CONSTRAINT rules_change_type_check CHECK ((change_type = ANY (ARRAY['added'::text, 'modified'::text, 'removed'::text]))),
     CONSTRAINT rules_depth_check CHECK (((depth >= 0) AND (depth <= 3))),
+    CONSTRAINT rules_kind_check CHECK ((kind = ANY (ARRAY['core'::text, 'tournament'::text]))),
     CONSTRAINT rules_rule_number_check CHECK ((rule_number <> ''::text)),
     CONSTRAINT rules_rule_type_check CHECK ((rule_type = ANY (ARRAY['title'::text, 'subtitle'::text, 'text'::text])))
 );
@@ -1931,7 +1935,15 @@ ALTER TABLE ONLY public.rarities
 --
 
 ALTER TABLE ONLY public.rule_versions
-    ADD CONSTRAINT rule_versions_pkey PRIMARY KEY (version);
+    ADD CONSTRAINT rule_versions_pkey PRIMARY KEY (kind, version);
+
+
+--
+-- Name: rules rules_kind_version_rule_number_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.rules
+    ADD CONSTRAINT rules_kind_version_rule_number_key UNIQUE (kind, version, rule_number);
 
 
 --
@@ -1940,14 +1952,6 @@ ALTER TABLE ONLY public.rule_versions
 
 ALTER TABLE ONLY public.rules
     ADD CONSTRAINT rules_pkey PRIMARY KEY (id);
-
-
---
--- Name: rules rules_version_rule_number_key; Type: CONSTRAINT; Schema: public; Owner: -
---
-
-ALTER TABLE ONLY public.rules
-    ADD CONSTRAINT rules_version_rule_number_key UNIQUE (version, rule_number);
 
 
 --
@@ -2417,17 +2421,17 @@ CREATE INDEX idx_printings_set_id ON public.printings USING btree (set_id);
 
 
 --
+-- Name: idx_rules_kind_version_sort; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_rules_kind_version_sort ON public.rules USING btree (kind, version, sort_order);
+
+
+--
 -- Name: idx_rules_search; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX idx_rules_search ON public.rules USING gin (to_tsvector('english'::regconfig, content));
-
-
---
--- Name: idx_rules_version_sort; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_rules_version_sort ON public.rules USING btree (version, sort_order);
 
 
 --
@@ -3325,11 +3329,11 @@ ALTER TABLE ONLY public.printings
 
 
 --
--- Name: rules rules_version_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: rules rules_kind_version_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.rules
-    ADD CONSTRAINT rules_version_fkey FOREIGN KEY (version) REFERENCES public.rule_versions(version) ON DELETE CASCADE;
+    ADD CONSTRAINT rules_kind_version_fkey FOREIGN KEY (kind, version) REFERENCES public.rule_versions(kind, version) ON DELETE CASCADE;
 
 
 --
@@ -3400,5 +3404,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict jR5iCaTNNh5QeTiZkJNv1d190H4IhWQCWxft5S2Ffz9aynEheR8vTuAWemX5OHE
+\unrestrict 9z70Nf9LfB85DQoKEn6w8kRjJx9JlPFfHMHhWZ2iChqKJTiZyMlczt5LsCsK8x5
 

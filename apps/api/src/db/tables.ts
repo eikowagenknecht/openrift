@@ -745,6 +745,8 @@ export interface CardBansTable {
 // ─── Rules (migration 060) ──────────────────────────────────────────────────
 
 interface RuleVersionsTable {
+  /** CHECK: IN ('core', 'tournament') */
+  kind: string;
   version: string;
   sourceType: string;
   sourceUrl: string | null;
@@ -754,6 +756,8 @@ interface RuleVersionsTable {
 
 interface RulesTable {
   id: Generated<string>;
+  /** CHECK: IN ('core', 'tournament') */
+  kind: string;
   version: string;
   /** CHECK: <> '' */
   ruleNumber: string;

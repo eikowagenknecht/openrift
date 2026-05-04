@@ -1,3 +1,4 @@
+import type { RuleKind } from "@openrift/shared";
 import type { Kysely, SqlBool } from "kysely";
 import { sql } from "kysely";
 
@@ -6,15 +7,17 @@ import type { Database } from "../db/index.js";
 export function rulesRepo(db: Kysely<Database>) {
   return {
     /**
-     * Returns the latest version of every rule (excluding removed rules).
-     * Uses DISTINCT ON to pick the newest version per rule_number.
+     * Returns the latest version of every rule for a given kind (excluding
+     * removed rules). Uses DISTINCT ON to pick the newest version per
+     * rule_number within the kind.
      *
      * @returns All current rules ordered by sort_order.
      */
-    listLatest() {
+    listLatest(kind: RuleKind) {
       return db
         .selectFrom("rules")
         .selectAll()
+        .where("kind", "=", kind)
         .where("changeType", "!=", "removed")
         .where(
           "id",
@@ -22,6 +25,7 @@ export function rulesRepo(db: Kysely<Database>) {
           db
             .selectFrom("rules as r2")
             .select(sql<string>`DISTINCT ON (r2.rule_number) r2.id`.as("id"))
+            .where("r2.kind", "=", kind)
             .orderBy("r2.ruleNumber")
             .orderBy("r2.version", "desc"),
         )
@@ -30,14 +34,15 @@ export function rulesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Returns all rules at or before a specific version.
+     * Returns all rules of a kind at or before a specific version.
      *
      * @returns Full ruleset as it was at the given version.
      */
-    listAtVersion(version: string) {
+    listAtVersion(kind: RuleKind, version: string) {
       return db
         .selectFrom("rules")
         .selectAll()
+        .where("kind", "=", kind)
         .where("changeType", "!=", "removed")
         .where("version", "<=", version)
         .where(
@@ -46,6 +51,7 @@ export function rulesRepo(db: Kysely<Database>) {
           db
             .selectFrom("rules as r2")
             .select(sql<string>`DISTINCT ON (r2.rule_number) r2.id`.as("id"))
+            .where("r2.kind", "=", kind)
             .where("r2.version", "<=", version)
             .orderBy("r2.ruleNumber")
             .orderBy("r2.version", "desc"),
@@ -55,14 +61,16 @@ export function rulesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Full-text search across rule content, optionally scoped to a version.
+     * Full-text search across rule content within a kind, optionally scoped
+     * to a version.
      *
      * @returns Matching rules from the given version (or latest if omitted).
      */
-    search(query: string, version?: string) {
+    search(kind: RuleKind, query: string, version?: string) {
       let versionSubquery = db
         .selectFrom("rules as r2")
         .select(sql<string>`DISTINCT ON (r2.rule_number) r2.id`.as("id"))
+        .where("r2.kind", "=", kind)
         .orderBy("r2.ruleNumber")
         .orderBy("r2.version", "desc");
 
@@ -73,6 +81,7 @@ export function rulesRepo(db: Kysely<Database>) {
       return db
         .selectFrom("rules")
         .selectAll()
+        .where("kind", "=", kind)
         .where("changeType", "!=", "removed")
         .where("id", "in", versionSubquery)
         .where(
@@ -83,12 +92,18 @@ export function rulesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Returns all known rule versions ordered chronologically.
+     * Returns known rule versions ordered chronologically. When `kind` is
+     * provided, results are scoped to that kind; otherwise all kinds are
+     * returned (used by admin views).
      *
      * @returns Version metadata list.
      */
-    listVersions() {
-      return db.selectFrom("ruleVersions").selectAll().orderBy("version", "asc").execute();
+    listVersions(kind?: RuleKind) {
+      let query = db.selectFrom("ruleVersions").selectAll();
+      if (kind) {
+        query = query.where("kind", "=", kind);
+      }
+      return query.orderBy("version", "asc").execute();
     },
 
     /**
@@ -97,6 +112,7 @@ export function rulesRepo(db: Kysely<Database>) {
      * @returns The inserted version row.
      */
     createVersion(values: {
+      kind: RuleKind;
       version: string;
       sourceType: string;
       sourceUrl?: string | null;
@@ -105,6 +121,7 @@ export function rulesRepo(db: Kysely<Database>) {
       return db
         .insertInto("ruleVersions")
         .values({
+          kind: values.kind,
           version: values.version,
           sourceType: values.sourceType,
           sourceUrl: values.sourceUrl ?? null,
@@ -121,6 +138,7 @@ export function rulesRepo(db: Kysely<Database>) {
      */
     async insertRules(
       rules: {
+        kind: RuleKind;
         version: string;
         ruleNumber: string;
         sortOrder: number;
@@ -138,14 +156,15 @@ export function rulesRepo(db: Kysely<Database>) {
     },
 
     /**
-     * Gets a version by its identifier.
+     * Gets a version by its (kind, version) identifier.
      *
      * @returns The version row or undefined.
      */
-    getVersion(version: string) {
+    getVersion(kind: RuleKind, version: string) {
       return db
         .selectFrom("ruleVersions")
         .selectAll()
+        .where("kind", "=", kind)
         .where("version", "=", version)
         .executeTakeFirst();
     },
@@ -155,8 +174,12 @@ export function rulesRepo(db: Kysely<Database>) {
      *
      * @returns void
      */
-    deleteVersion(version: string) {
-      return db.deleteFrom("ruleVersions").where("version", "=", version).execute();
+    deleteVersion(kind: RuleKind, version: string) {
+      return db
+        .deleteFrom("ruleVersions")
+        .where("kind", "=", kind)
+        .where("version", "=", version)
+        .execute();
     },
   };
 }

@@ -1,5 +1,8 @@
+export type RuleKind = "core" | "tournament";
+
 export interface RuleResponse {
   id: string;
+  kind: RuleKind;
   version: string;
   ruleNumber: string;
   sortOrder: number;
@@ -10,6 +13,7 @@ export interface RuleResponse {
 }
 
 export interface RuleVersionResponse {
+  kind: RuleKind;
   version: string;
   sourceType: string;
   sourceUrl: string | null;
@@ -18,6 +22,7 @@ export interface RuleVersionResponse {
 }
 
 export interface RulesListResponse {
+  kind: RuleKind;
   rules: RuleResponse[];
   version: string;
 }

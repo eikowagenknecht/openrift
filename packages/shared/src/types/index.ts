@@ -123,6 +123,7 @@ export type {
 export { PREFERENCE_DEFAULTS } from "./api/index.js";
 
 export type {
+  RuleKind,
   RuleResponse,
   RulesListResponse,
   RuleVersionResponse,

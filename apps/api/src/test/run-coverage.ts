@@ -188,6 +188,8 @@ const integrationFiles = [
   "src/routes/admin/provider-settings.integration.test.ts",
   "src/routes/admin/site-settings.integration.test.ts",
   "src/routes/admin/ignored-candidates.integration.test.ts",
+  "src/routes/admin/rules.integration.test.ts",
+  "src/repositories/rules.integration.test.ts",
   "src/repositories/printing-images.integration.test.ts",
   "src/repositories/price-refresh.integration.test.ts",
   "src/repositories/marketplace-transfer.integration.test.ts",

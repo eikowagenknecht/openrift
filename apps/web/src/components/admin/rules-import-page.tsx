@@ -1,3 +1,4 @@
+import type { RuleKind, RuleVersionResponse } from "@openrift/shared";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -13,17 +14,24 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useDeleteRuleVersion, useImportRules, useRuleVersions } from "@/hooks/use-rules";
 
+const KIND_LABELS: Record<RuleKind, string> = {
+  core: "Core",
+  tournament: "Tournament",
+};
+
 export function RulesImportPage() {
   const { data: versionsData } = useRuleVersions();
   const importMutation = useImportRules();
   const deleteMutation = useDeleteRuleVersion();
 
+  const [kind, setKind] = useState<RuleKind>("core");
   const [version, setVersion] = useState("");
   const [sourceType, setSourceType] = useState("text");
   const [sourceUrl, setSourceUrl] = useState("");
   const [publishedAt, setPublishedAt] = useState("");
   const [content, setContent] = useState("");
   const [result, setResult] = useState<{
+    kind: RuleKind;
     version: string;
     rulesCount: number;
     added: number;
@@ -34,6 +42,7 @@ export function RulesImportPage() {
   async function handleImport() {
     setResult(null);
     const response = await importMutation.mutateAsync({
+      kind,
       version: version.trim(),
       sourceType,
       sourceUrl: sourceUrl.trim() || null,
@@ -44,11 +53,19 @@ export function RulesImportPage() {
     setContent("");
   }
 
-  async function handleDelete(versionToDelete: string) {
-    await deleteMutation.mutateAsync(versionToDelete);
+  async function handleDelete(targetKind: RuleKind, versionToDelete: string) {
+    await deleteMutation.mutateAsync({ kind: targetKind, version: versionToDelete });
   }
 
   const canImport = version.trim() && content.trim() && !importMutation.isPending;
+
+  const versionsByKind = new Map<RuleKind, RuleVersionResponse[]>([
+    ["core", []],
+    ["tournament", []],
+  ]);
+  for (const entry of versionsData.versions) {
+    versionsByKind.get(entry.kind)?.push(entry);
+  }
 
   return (
     <div className="space-y-8 p-4">
@@ -62,6 +79,26 @@ export function RulesImportPage() {
       </div>
 
       <div className="grid max-w-xl gap-4">
+        <div className="grid gap-1.5">
+          <Label htmlFor="kind">Kind</Label>
+          <Select
+            value={kind}
+            onValueChange={(value) => {
+              if (value === "core" || value === "tournament") {
+                setKind(value);
+              }
+            }}
+          >
+            <SelectTrigger id="kind">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="core">Core</SelectItem>
+              <SelectItem value="tournament">Tournament</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="grid gap-1.5">
           <Label htmlFor="version">Version (date)</Label>
           <Input
@@ -134,7 +171,9 @@ export function RulesImportPage() {
 
         {result && (
           <div className="bg-muted rounded-md p-3 text-sm">
-            <p className="font-semibold">Imported version {result.version}</p>
+            <p className="font-semibold">
+              Imported {KIND_LABELS[result.kind]} v{result.version}
+            </p>
             <p>
               {result.rulesCount} rules total: {result.added} added, {result.modified} modified,{" "}
               {result.removed} removed
@@ -149,34 +188,44 @@ export function RulesImportPage() {
         )}
       </div>
 
-      {versionsData.versions.length > 0 && (
-        <div>
-          <h3 className="mb-2 text-sm font-semibold">Existing Versions</h3>
-          <div className="space-y-2">
-            {versionsData.versions.map((v) => (
-              <div
-                key={v.version}
-                className="border-border flex items-center justify-between rounded-md border p-2 text-sm"
-              >
-                <div>
-                  <span className="font-mono font-semibold">{v.version}</span>
-                  <span className="text-muted-foreground ml-2">({v.sourceType})</span>
-                  {v.publishedAt && (
-                    <span className="text-muted-foreground ml-2">published {v.publishedAt}</span>
-                  )}
-                </div>
-                <Button
-                  variant="destructive"
-                  onClick={() => handleDelete(v.version)}
-                  disabled={deleteMutation.isPending}
+      {(["core", "tournament"] as const).map((targetKind) => {
+        const entries = versionsByKind.get(targetKind) ?? [];
+        if (entries.length === 0) {
+          return null;
+        }
+        return (
+          <div key={targetKind}>
+            <h3 className="mb-2 text-sm font-semibold">
+              Existing {KIND_LABELS[targetKind]} Versions
+            </h3>
+            <div className="space-y-2">
+              {entries.map((entry) => (
+                <div
+                  key={`${entry.kind}-${entry.version}`}
+                  className="border-border flex items-center justify-between rounded-md border p-2 text-sm"
                 >
-                  Delete
-                </Button>
-              </div>
-            ))}
+                  <div>
+                    <span className="font-mono font-semibold">{entry.version}</span>
+                    <span className="text-muted-foreground ml-2">({entry.sourceType})</span>
+                    {entry.publishedAt && (
+                      <span className="text-muted-foreground ml-2">
+                        published {entry.publishedAt}
+                      </span>
+                    )}
+                  </div>
+                  <Button
+                    variant="destructive"
+                    onClick={() => handleDelete(entry.kind, entry.version)}
+                    disabled={deleteMutation.isPending}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })}
     </div>
   );
 }
