@@ -385,7 +385,6 @@ const syntheticFeatureFlags: Record<string, unknown>[] = [
     enabled: true,
     description: "Show the total copies tracked counter on the landing page",
   },
-  { key: "rules", enabled: true, description: "Show the game rules page and header link" },
   {
     key: "price-history",
     enabled: true,

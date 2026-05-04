@@ -44,10 +44,6 @@ const KNOWN_FLAGS: KnownFlag[] = [
     description: "Show the total copies tracked counter on the landing page",
   },
   {
-    key: "rules",
-    description: "Show the game rules page and header link",
-  },
-  {
     key: "glossary",
     description: "Show the glossary page (symbols, keywords) and header link",
   },

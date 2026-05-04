@@ -1,10 +1,8 @@
 import type { RuleKind } from "@openrift/shared";
-import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { rulesAtVersionQueryOptions, ruleVersionsQueryOptions } from "@/hooks/use-rules";
-import type { FeatureFlags } from "@/lib/feature-flags";
-import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -33,12 +31,6 @@ export const Route = createFileRoute("/_app/rules_/$kind_/$version")({
   loader: async ({ params, context }) => {
     if (!VALID_KINDS.has(params.kind as RuleKind)) {
       throw notFound();
-    }
-    const flags = (await context.queryClient.ensureQueryData(
-      featureFlagsQueryOptions,
-    )) as FeatureFlags;
-    if (!featureEnabled(flags, "rules")) {
-      throw redirect({ to: "/cards" });
     }
     const kind = params.kind as RuleKind;
     await Promise.all([

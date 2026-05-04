@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-04
+
+- feat: The Rules section is now live for everyone, with the official Riftbound core rules and tournament rules linked from the More menu
+
 ## 2026-05-01
 
 - feat: A new Contribute page lets you submit a missing card or suggest a correction; it opens a prefilled pull request against the openrift-data repo so your changes get reviewed and rolled into the catalog

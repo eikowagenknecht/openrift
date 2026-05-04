@@ -103,12 +103,10 @@ function MenuButton({ onClick, className }: { onClick: () => void; className?: s
 }
 
 function DesktopNav({
-  showRules,
   showGlossary,
   showCollection,
   showDecks,
 }: {
-  showRules: boolean;
   showGlossary: boolean;
   showCollection: boolean;
   showDecks: boolean;
@@ -154,17 +152,15 @@ function DesktopNav({
           <NavigationMenuTrigger>More</NavigationMenuTrigger>
           <NavigationMenuContent>
             <ul className="grid w-64 gap-1 p-1">
-              {showRules && (
-                <li>
-                  <NavigationMenuLink render={<Link to="/rules" />}>
-                    <GavelIcon />
-                    <div>
-                      <div className="font-medium">Rules</div>
-                      <div className="text-muted-foreground text-xs">Core and tournament rules</div>
-                    </div>
-                  </NavigationMenuLink>
-                </li>
-              )}
+              <li>
+                <NavigationMenuLink render={<Link to="/rules" />}>
+                  <GavelIcon />
+                  <div>
+                    <div className="font-medium">Rules</div>
+                    <div className="text-muted-foreground text-xs">Core and tournament rules</div>
+                  </div>
+                </NavigationMenuLink>
+              </li>
               {showGlossary && (
                 <li>
                   <NavigationMenuLink render={<Link to="/glossary" />}>
@@ -358,14 +354,12 @@ function MobileNavLink({
 function MobileNav({
   open,
   onOpenChange,
-  showRules,
   showGlossary,
   showCollection,
   showDecks,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  showRules: boolean;
   showGlossary: boolean;
   showCollection: boolean;
   showDecks: boolean;
@@ -415,14 +409,9 @@ function MobileNav({
           <div className="text-muted-foreground mt-3 px-3 pb-1 font-semibold tracking-wide uppercase">
             More
           </div>
-          {showRules && (
-            <MobileNavLink
-              to="/rules"
-              icon={<GavelIcon className="text-muted-foreground size-5" />}
-            >
-              Rules
-            </MobileNavLink>
-          )}
+          <MobileNavLink to="/rules" icon={<GavelIcon className="text-muted-foreground size-5" />}>
+            Rules
+          </MobileNavLink>
           {showGlossary && (
             <MobileNavLink
               to="/glossary"
@@ -521,10 +510,8 @@ function FeedbackPopover() {
 export function Header() {
   const { data: session, isPending } = useSession();
   const gravatarUrl = useGravatarUrl(session?.user?.email);
-  const rulesEnabled = useFeatureEnabled("rules");
   const glossaryEnabled = useFeatureEnabled("glossary");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const showRules = rulesEnabled;
   const showGlossary = glossaryEnabled;
   const showCollection = Boolean(session?.user);
   const showDecks = Boolean(session?.user);
@@ -544,7 +531,6 @@ export function Header() {
         <div className="hidden gap-4 md:flex">
           <LogoLink />
           <DesktopNav
-            showRules={showRules}
             showGlossary={showGlossary}
             showCollection={showCollection}
             showDecks={showDecks}
@@ -574,7 +560,6 @@ export function Header() {
       <MobileNav
         open={mobileMenuOpen}
         onOpenChange={setMobileMenuOpen}
-        showRules={showRules}
         showGlossary={showGlossary}
         showCollection={showCollection}
         showDecks={showDecks}
