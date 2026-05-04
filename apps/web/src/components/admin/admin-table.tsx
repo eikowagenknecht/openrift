@@ -6,7 +6,13 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowDownIcon, ArrowUpIcon, ChevronsUpDownIcon, Trash2Icon } from "lucide-react";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  ChevronsUpDownIcon,
+  DownloadIcon,
+  Trash2Icon,
+} from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 
@@ -29,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { downloadJSON } from "@/lib/json-export";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -123,6 +130,14 @@ interface AdminTableProps<TData, TDraft = TData> {
     isPending?: boolean;
   };
 
+  // --- Export ---
+  export?: {
+    /** Filename for the downloaded JSON file (e.g. "sets.json"). */
+    filename: string;
+    /** Optional transform applied to the data before serializing. Defaults to identity. */
+    transform?: (data: TData[]) => unknown;
+  };
+
   /** Extra content in each row's action cell (rendered before Edit/Delete). */
   actions?: (row: TData, index: number) => ReactNode;
 }
@@ -203,6 +218,7 @@ export function AdminTable<TData, TDraft = TData>({
   edit,
   delete: del,
   reorder,
+  export: exportConfig,
   actions,
 }: AdminTableProps<TData, TDraft>) {
   const [adding, setAdding] = useState(false);
@@ -324,14 +340,28 @@ export function AdminTable<TData, TDraft = TData>({
 
   return (
     <div className="space-y-4">
-      {(toolbar || add) && (
+      {(toolbar || add || exportConfig) && (
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1">{toolbar}</div>
-          {add && !adding && (
-            <Button variant="outline" onClick={startAdding}>
-              {add.label ?? "Add"}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {exportConfig && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const payload = exportConfig.transform ? exportConfig.transform(data) : data;
+                  downloadJSON(payload, exportConfig.filename);
+                }}
+              >
+                <DownloadIcon className="h-4 w-4" />
+                Export JSON
+              </Button>
+            )}
+            {add && !adding && (
+              <Button variant="outline" onClick={startAdding}>
+                {add.label ?? "Add"}
+              </Button>
+            )}
+          </div>
         </div>
       )}
 

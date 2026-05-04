@@ -187,6 +187,7 @@ export function RaritiesPage() {
         onMove: moveRarity,
         isPending: reorderMutation.isPending,
       }}
+      export={{ filename: "rarities.json" }}
       delete={{
         onDelete: (rarity) => deleteMutation.mutateAsync(rarity.slug),
       }}

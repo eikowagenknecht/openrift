@@ -130,6 +130,7 @@ export function SuperTypesPage() {
         onMove: moveSuperType,
         isPending: reorderMutation.isPending,
       }}
+      export={{ filename: "super-types.json" }}
       delete={{
         onDelete: (superType) => deleteMutation.mutateAsync(superType.slug),
       }}

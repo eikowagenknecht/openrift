@@ -127,6 +127,7 @@ export function FinishesPage() {
         onMove: moveFinish,
         isPending: reorderMutation.isPending,
       }}
+      export={{ filename: "finishes.json" }}
       delete={{
         onDelete: (finish) => deleteMutation.mutateAsync(finish.slug),
       }}

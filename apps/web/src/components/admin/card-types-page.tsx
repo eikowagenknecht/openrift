@@ -128,6 +128,7 @@ export function CardTypesPage() {
         onMove: moveCardType,
         isPending: reorderMutation.isPending,
       }}
+      export={{ filename: "card-types.json" }}
       delete={{
         onDelete: (cardType) => deleteMutation.mutateAsync(cardType.slug),
       }}

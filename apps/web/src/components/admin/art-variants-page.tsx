@@ -130,6 +130,7 @@ export function ArtVariantsPage() {
         onMove: moveArtVariant,
         isPending: reorderMutation.isPending,
       }}
+      export={{ filename: "art-variants.json" }}
       delete={{
         onDelete: (artVariant) => deleteMutation.mutateAsync(artVariant.slug),
       }}

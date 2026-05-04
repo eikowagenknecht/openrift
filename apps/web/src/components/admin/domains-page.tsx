@@ -187,6 +187,7 @@ export function DomainsPage() {
         onMove: moveDomain,
         isPending: reorderMutation.isPending,
       }}
+      export={{ filename: "domains.json" }}
       delete={{
         onDelete: (domain) => deleteMutation.mutateAsync(domain.slug),
       }}

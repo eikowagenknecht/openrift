@@ -116,6 +116,7 @@ export function LanguagesPage() {
         onMove: moveLanguage,
         isPending: reorderMutation.isPending,
       }}
+      export={{ filename: "languages.json" }}
       delete={{
         onDelete: (lang) => deleteMutation.mutateAsync(lang.code),
       }}
