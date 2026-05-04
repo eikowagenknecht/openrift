@@ -30,6 +30,52 @@ const SECTIONS: Section[] = [
   { id: "numbering", title: "Card numbering" },
 ];
 
+const DOMAIN_RULES: Record<string, string> = {
+  fury: "134.2.a",
+  calm: "134.2.b",
+  mind: "134.2.c",
+  body: "134.2.d",
+  chaos: "134.2.e",
+  order: "134.2.f",
+};
+
+const CARD_TYPE_RULES: Record<string, string> = {
+  unit: "140",
+  gear: "147",
+  spell: "152",
+  rune: "159",
+  battlefield: "168",
+  legend: "172",
+};
+
+interface SupertypeEntry {
+  slug: string;
+  label: string;
+  description: string;
+  ruleNumber: string;
+}
+
+const SUPERTYPES: SupertypeEntry[] = [
+  {
+    slug: "champion",
+    label: "Champion",
+    description: "Applies exclusively to Units. Determines who can be your Chosen Champion.",
+    ruleNumber: "133.7.a",
+  },
+  {
+    slug: "signature",
+    label: "Signature",
+    description: "Can apply to any card type. Limited to 3 per deck, tied to your Champion's tag.",
+    ruleNumber: "133.7.b",
+  },
+  {
+    slug: "token",
+    label: "Token",
+    description: "Temporary game objects created by effects, not part of a deck.",
+    ruleNumber: "133.7.c",
+  },
+];
+
 const ART_VARIANT_DESCRIPTIONS: Record<string, string> = {
   normal: "Standard art for the printing.",
   altart:
@@ -167,6 +213,7 @@ function DomainsSection({
         {visible.map((domain) => {
           const slug = domain.slug.toLowerCase();
           const hasIcon = slug !== "colorless";
+          const ruleNumber = DOMAIN_RULES[slug];
           return (
             <li
               key={domain.slug}
@@ -181,9 +228,20 @@ function DomainsSection({
                   className="size-10 shrink-0"
                 />
               )}
-              <div className="min-w-0">
-                <div className="font-medium" style={domain.color ? { color: domain.color } : {}}>
-                  {domain.label}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="font-medium" style={domain.color ? { color: domain.color } : {}}>
+                    {domain.label}
+                  </div>
+                  {ruleNumber && (
+                    <Link
+                      to="/rules"
+                      hash={`rule-${ruleNumber}`}
+                      className="text-primary text-xs hover:underline"
+                    >
+                      Rule {ruleNumber} →
+                    </Link>
+                  )}
                 </div>
                 {hasIcon && (
                   <img
@@ -212,39 +270,84 @@ function CardTypesSection({
   query: string;
 }) {
   const visible = types.filter((t) => matches(query, t.label, t.slug));
-  if (visible.length === 0) {
+  const visibleSupertypes = SUPERTYPES.filter((s) =>
+    matches(query, s.label, s.slug, s.description),
+  );
+  if (visible.length === 0 && visibleSupertypes.length === 0) {
     return null;
   }
   const knownIcons = new Set(["battlefield", "gear", "legend", "rune", "spell", "unit"]);
   return (
     <section>
       <SectionHeading id="card-types" title="Card types" />
-      <p className="text-muted-foreground mt-2">
-        Every card has a type that determines where and when it can be played.
-      </p>
-      <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {visible.map((cardType) => {
-          const slug = cardType.slug.toLowerCase();
-          const hasIcon = knownIcons.has(slug);
-          return (
-            <li
-              key={cardType.slug}
-              className="border-border flex items-center gap-3 rounded-md border p-3"
-            >
-              {hasIcon && (
-                <img
-                  src={`/images/types/${slug}.svg`}
-                  alt={cardType.label}
-                  width={32}
-                  height={32}
-                  className="size-8 shrink-0 brightness-0 dark:invert"
-                />
-              )}
-              <span className="font-medium">{cardType.label}</span>
-            </li>
-          );
-        })}
-      </ul>
+      {visible.length > 0 && (
+        <>
+          <p className="text-muted-foreground mt-2">
+            Every card has a type that determines where and when it can be played.
+          </p>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {visible.map((cardType) => {
+              const slug = cardType.slug.toLowerCase();
+              const hasIcon = knownIcons.has(slug);
+              const ruleNumber = CARD_TYPE_RULES[slug];
+              return (
+                <li
+                  key={cardType.slug}
+                  className="border-border flex items-center gap-3 rounded-md border p-3"
+                >
+                  {hasIcon && (
+                    <img
+                      src={`/images/types/${slug}.svg`}
+                      alt={cardType.label}
+                      width={32}
+                      height={32}
+                      className="size-8 shrink-0 brightness-0 dark:invert"
+                    />
+                  )}
+                  <div className="flex min-w-0 flex-1 items-baseline justify-between gap-2">
+                    <span className="font-medium">{cardType.label}</span>
+                    {ruleNumber && (
+                      <Link
+                        to="/rules"
+                        hash={`rule-${ruleNumber}`}
+                        className="text-primary text-xs hover:underline"
+                      >
+                        Rule {ruleNumber} →
+                      </Link>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+      {visibleSupertypes.length > 0 && (
+        <>
+          <h3 className="mt-6 text-base font-semibold">Supertypes</h3>
+          <p className="text-muted-foreground mt-1">
+            Supertypes apply on top of a card&apos;s type and affect deck building or game state.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {visibleSupertypes.map((supertype) => (
+              <li
+                key={supertype.slug}
+                className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
+              >
+                <span className="font-medium sm:w-32 sm:shrink-0">{supertype.label}</span>
+                <p className="text-muted-foreground flex-1">{supertype.description}</p>
+                <Link
+                  to="/rules"
+                  hash={`rule-${supertype.ruleNumber}`}
+                  className="text-primary shrink-0 text-xs hover:underline"
+                >
+                  Rule {supertype.ruleNumber} →
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   );
 }
