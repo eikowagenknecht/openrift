@@ -1,14 +1,21 @@
-import type { RuleResponse, RuleVersionResponse, RulesListResponse } from "@openrift/shared";
+import type { RuleResponse, RulesListResponse } from "@openrift/shared";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { SearchIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
 import { useRef, useState } from "react";
+// oxlint-disable no-unused-vars -- perf experiment; will restore markdown rendering shortly
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 
 import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useRules, useRuleVersions } from "@/hooks/use-rules";
 import { KEYWORD_INFO, keywordAnchorSlug } from "@/lib/glossary";
 import { queryKeys } from "@/lib/query-keys";
@@ -155,27 +162,115 @@ export function RuleContent({ content }: { content: string }) {
   );
 }
 
-function RuleRow({ rule, searchQuery }: { rule: RuleResponse; searchQuery: string }) {
+/**
+ * Computes, for each foldable rule, the half-open `[start, end)` range of
+ * sibling indices that collapse with it. Three grouping rules apply:
+ *
+ * - A `title` groups every rule until the next `title` (or the end of list).
+ * - A `subtitle` groups every rule until the next `subtitle` or `title`.
+ * - A `text` rule groups any directly dot-nested descendants
+ *   (e.g. `103` groups `103.1`, `103.1.a`, etc.).
+ *
+ * Only rules that actually have at least one child get an entry.
+ *
+ * @returns Map of rule number to the index range of its children.
+ */
+function computeFoldGroups(rules: RuleResponse[]): Map<string, [number, number]> {
+  const groups = new Map<string, [number, number]>();
+  for (let index = 0; index < rules.length; index++) {
+    const rule = rules[index];
+    let endExclusive = index + 1;
+    if (rule.ruleType === "title") {
+      while (endExclusive < rules.length && rules[endExclusive].ruleType !== "title") {
+        endExclusive++;
+      }
+    } else if (rule.ruleType === "subtitle") {
+      while (
+        endExclusive < rules.length &&
+        rules[endExclusive].ruleType !== "subtitle" &&
+        rules[endExclusive].ruleType !== "title"
+      ) {
+        endExclusive++;
+      }
+    } else {
+      const prefix = `${rule.ruleNumber}.`;
+      while (endExclusive < rules.length && rules[endExclusive].ruleNumber.startsWith(prefix)) {
+        endExclusive++;
+      }
+    }
+    if (endExclusive > index + 1) {
+      groups.set(rule.ruleNumber, [index + 1, endExclusive]);
+    }
+  }
+  return groups;
+}
+
+/**
+ * Builds an index-aligned boolean array marking which rules are hidden
+ * because a fold range that covers them is collapsed.
+ *
+ * @returns Array of the same length as `rules`; true at positions that should be hidden.
+ */
+function computeHiddenIndices(
+  rules: RuleResponse[],
+  groups: Map<string, [number, number]>,
+  foldedSet: Set<string>,
+): boolean[] {
+  const hidden = Array.from<boolean>({ length: rules.length }).fill(false);
+  for (const ruleNumber of foldedSet) {
+    const range = groups.get(ruleNumber);
+    if (!range) {
+      continue;
+    }
+    for (let index = range[0]; index < range[1]; index++) {
+      hidden[index] = true;
+    }
+  }
+  return hidden;
+}
+
+function RuleRow({
+  rule,
+  hasChildren,
+  isFolded,
+  onToggleFold,
+}: {
+  rule: RuleResponse;
+  hasChildren: boolean;
+  isFolded: boolean;
+  onToggleFold: (ruleNumber: string) => void;
+}) {
   const isTitle = rule.ruleType === "title";
   const isSubtitle = rule.ruleType === "subtitle";
-  const indentClass =
+  const contentIndentClass =
     rule.depth === 0 ? "" : rule.depth === 1 ? "pl-6" : rule.depth === 2 ? "pl-12" : "pl-18";
-
-  const highlight = searchQuery && rule.content.toLowerCase().includes(searchQuery.toLowerCase());
 
   return (
     <div
       id={`rule-${rule.ruleNumber}`}
       className={cn(
         "border-border/50 flex gap-3 border-b py-1.5 text-sm",
-        indentClass,
-        isTitle && "bg-muted/50 border-border mt-4 first:mt-0",
+        isTitle && "border-border mt-4 first:mt-0",
         isSubtitle && "border-border mt-2",
-        highlight && "bg-yellow-500/10",
-        rule.changeType === "modified" && "bg-blue-500/5",
-        rule.changeType === "added" && rule.version !== "initial" && "bg-green-500/5",
       )}
     >
+      <span className="flex w-4 shrink-0 items-start">
+        {hasChildren ? (
+          <button
+            type="button"
+            onClick={() => onToggleFold(rule.ruleNumber)}
+            aria-label={isFolded ? "Expand rule group" : "Collapse rule group"}
+            aria-expanded={!isFolded}
+            className="text-muted-foreground hover:text-foreground flex size-4 items-center justify-center rounded"
+          >
+            {isFolded ? (
+              <ChevronRightIcon className="size-3" />
+            ) : (
+              <ChevronDownIcon className="size-3" />
+            )}
+          </button>
+        ) : null}
+      </span>
       <span
         className={cn(
           "text-muted-foreground w-24 shrink-0 font-mono text-xs",
@@ -184,44 +279,14 @@ function RuleRow({ rule, searchQuery }: { rule: RuleResponse; searchQuery: strin
       >
         {formatRuleNumber(rule.ruleNumber)}
       </span>
-      <span className={cn(isTitle && "text-base font-bold", isSubtitle && "font-semibold")}>
+      <span
+        className={cn(
+          contentIndentClass,
+          isTitle && "text-base font-bold",
+          isSubtitle && "font-semibold",
+        )}
+      >
         {isTitle || isSubtitle ? rule.content : <RuleContent content={rule.content} />}
-      </span>
-    </div>
-  );
-}
-
-function VersionSlider({
-  versions,
-  selectedIndex,
-  onChange,
-}: {
-  versions: RuleVersionResponse[];
-  selectedIndex: number;
-  onChange: (index: number) => void;
-}) {
-  if (versions.length <= 1) {
-    return null;
-  }
-
-  return (
-    <div className="flex items-center gap-3">
-      <span className="text-muted-foreground shrink-0 font-mono text-xs">
-        {versions[0].version}
-      </span>
-      <Slider
-        value={[selectedIndex]}
-        onValueChange={(value) => {
-          const index = Array.isArray(value) ? value[0] : value;
-          onChange(index);
-        }}
-        min={0}
-        max={versions.length - 1}
-        step={1}
-        className="flex-1"
-      />
-      <span className="text-muted-foreground shrink-0 font-mono text-xs">
-        {versions.at(-1)?.version}
       </span>
     </div>
   );
@@ -256,6 +321,7 @@ export function RulesPage() {
   const [selectedVersionIndex, setSelectedVersionIndex] = useState(
     versionsData.versions.length - 1,
   );
+  const [foldedRules, setFoldedRules] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const versions = versionsData.versions;
@@ -276,40 +342,92 @@ export function RulesPage() {
     staleTime: 60 * 1000,
   });
 
-  const activeData =
-    searchQuery.length >= 2 ? searchResultsQuery.data : isLatest ? latestData : versionedQuery.data;
+  const isSearching = searchQuery.length >= 2;
+  const activeData = isSearching
+    ? searchResultsQuery.data
+    : isLatest
+      ? latestData
+      : versionedQuery.data;
 
   const rules = activeData?.rules ?? [];
   const isEmpty = rules.length === 0 && !searchQuery;
+
+  const foldGroups = computeFoldGroups(rules);
+  const hidden = isSearching
+    ? Array.from<boolean>({ length: rules.length }).fill(false)
+    : computeHiddenIndices(rules, foldGroups, foldedRules);
+  const visibleRules = rules.filter((_, index) => !hidden[index]);
+
+  const allCollapsed = foldGroups.size > 0 && foldedRules.size >= foldGroups.size;
+
+  function toggleFold(ruleNumber: string) {
+    setFoldedRules((previous) => {
+      const next = new Set(previous);
+      if (next.has(ruleNumber)) {
+        next.delete(ruleNumber);
+      } else {
+        next.add(ruleNumber);
+      }
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setFoldedRules(allCollapsed ? new Set() : new Set(foldGroups.keys()));
+  }
 
   return (
     <div className={`mx-auto w-full max-w-6xl ${PAGE_PADDING}`}>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold">Riftbound Rules</h1>
-        {selectedVersion && (
-          <span className="text-muted-foreground font-mono text-sm">v{selectedVersion}</span>
-        )}
+        {selectedVersion &&
+          (versions.length > 1 ? (
+            <Select
+              value={selectedVersion}
+              onValueChange={(value) => {
+                const nextIndex = versions.findIndex((v) => v.version === value);
+                if (nextIndex === -1) {
+                  return;
+                }
+                setSelectedVersionIndex(nextIndex);
+              }}
+            >
+              <SelectTrigger size="sm" className="text-muted-foreground font-mono">
+                v<SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {versions.toReversed().map((version) => (
+                  <SelectItem key={version.version} value={version.version}>
+                    v{version.version}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <span className="text-muted-foreground font-mono text-sm">v{selectedVersion}</span>
+          ))}
       </div>
 
-      {versions.length > 1 && (
-        <div className="mb-4 max-w-md">
-          <VersionSlider
-            versions={versions}
-            selectedIndex={selectedVersionIndex}
-            onChange={setSelectedVersionIndex}
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative max-w-md flex-1">
+          <SearchIcon className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 size-4" />
+          <Input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search rules..."
+            className="pl-9"
           />
         </div>
-      )}
-
-      <div className="relative mb-4 max-w-md">
-        <SearchIcon className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 size-4" />
-        <Input
-          ref={searchInputRef}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search rules..."
-          className="pl-9"
-        />
+        {foldGroups.size > 0 && !isSearching && (
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="text-muted-foreground hover:text-foreground text-xs font-medium"
+          >
+            {allCollapsed ? "Expand all" : "Collapse all"}
+          </button>
+        )}
       </div>
 
       {isEmpty ? (
@@ -325,8 +443,14 @@ export function RulesPage() {
             </div>
           </aside>
           <div className="min-w-0 flex-1">
-            {rules.map((rule) => (
-              <RuleRow key={rule.id} rule={rule} searchQuery={searchQuery} />
+            {visibleRules.map((rule) => (
+              <RuleRow
+                key={rule.id}
+                rule={rule}
+                hasChildren={foldGroups.has(rule.ruleNumber)}
+                isFolded={foldedRules.has(rule.ruleNumber)}
+                onToggleFold={toggleFold}
+              />
             ))}
           </div>
         </div>

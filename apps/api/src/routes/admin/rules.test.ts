@@ -86,4 +86,20 @@ describe("parseRulesText", () => {
       '*Card*, when written in card effects, is shorthand for "Main Deck card."',
     );
   });
+
+  it("strips a leading pipe separator before detecting the markdown prefix", () => {
+    const input = [
+      "000. | # Golden and Silver Rules",
+      "001. | ## Golden Rule",
+      "002. | Card text supersedes rules text.",
+    ].join("\n");
+
+    const rules = parseRulesText(input);
+
+    expect(rules.map((rule) => [rule.ruleType, rule.content])).toEqual([
+      ["title", "Golden and Silver Rules"],
+      ["subtitle", "Golden Rule"],
+      ["text", "Card text supersedes rules text."],
+    ]);
+  });
 });

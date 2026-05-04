@@ -100,7 +100,9 @@ export function parseRulesText(text: string): ParsedRule[] {
     }
 
     const ruleNumber = match[1];
-    const rest = match[2];
+    // Tolerate a leading "| " column-separator from sources that mirror the
+    // legacy pipe-delimited format.
+    const rest = match[2].replace(/^\|\s*/, "");
     if (!ruleNumber || !rest) {
       continue;
     }

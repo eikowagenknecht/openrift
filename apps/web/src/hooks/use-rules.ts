@@ -65,8 +65,8 @@ const importRulesFn = createServerFn({ method: "POST" })
     }) => input,
   )
   .middleware([withCookies])
-  .handler(({ context, data }) =>
-    fetchApiJson<{
+  .handler(async ({ context, data }) => {
+    const result = await fetchApiJson<{
       version: string;
       rulesCount: number;
       added: number;
@@ -84,8 +84,11 @@ const importRulesFn = createServerFn({ method: "POST" })
         publishedAt: data.publishedAt,
         content: data.content,
       },
-    }),
-  );
+    });
+    await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules"] });
+    await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules-versions"] });
+    return result;
+  });
 
 export function useImportRules() {
   return useMutationWithInvalidation({
@@ -110,6 +113,8 @@ const deleteRuleVersionFn = createServerFn({ method: "POST" })
       path: `/api/v1/admin/rules/versions/${encodeURIComponent(version)}`,
       method: "DELETE",
     });
+    await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules"] });
+    await serverCache.invalidateQueries({ queryKey: ["server-cache", "rules-versions"] });
   });
 
 export function useDeleteRuleVersion() {
