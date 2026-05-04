@@ -127,7 +127,10 @@ export function FinishesPage() {
         onMove: moveFinish,
         isPending: reorderMutation.isPending,
       }}
-      export={{ filename: "finishes.json" }}
+      export={{
+        filename: "finishes.json",
+        transform: (rows) => rows.map(({ isWellKnown: _isWellKnown, ...rest }) => rest),
+      }}
       delete={{
         onDelete: (finish) => deleteMutation.mutateAsync(finish.slug),
       }}

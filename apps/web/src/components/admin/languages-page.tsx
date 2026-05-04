@@ -116,7 +116,11 @@ export function LanguagesPage() {
         onMove: moveLanguage,
         isPending: reorderMutation.isPending,
       }}
-      export={{ filename: "languages.json" }}
+      export={{
+        filename: "languages.json",
+        transform: (rows) =>
+          rows.map(({ createdAt: _createdAt, updatedAt: _updatedAt, ...rest }) => rest),
+      }}
       delete={{
         onDelete: (lang) => deleteMutation.mutateAsync(lang.code),
       }}

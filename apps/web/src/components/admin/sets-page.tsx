@@ -230,7 +230,13 @@ export function SetsPage() {
         onMove: moveSet,
         isPending: reorderMutation.isPending,
       }}
-      export={{ filename: "sets.json" }}
+      export={{
+        filename: "sets.json",
+        transform: (rows) =>
+          rows.map(
+            ({ id: _id, cardCount: _cardCount, printingCount: _printingCount, ...rest }) => rest,
+          ),
+      }}
       add={{
         emptyDraft: {
           id: "",

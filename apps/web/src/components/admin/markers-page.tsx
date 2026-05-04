@@ -153,7 +153,11 @@ export function MarkersPage() {
         onMove: moveMarker,
         isPending: reorderMutation.isPending,
       }}
-      export={{ filename: "markers.json" }}
+      export={{
+        filename: "markers.json",
+        transform: (rows) =>
+          rows.map(({ id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...rest }) => rest),
+      }}
       delete={{
         onDelete: (m) => deleteMutation.mutateAsync(m.id),
       }}
