@@ -16,18 +16,42 @@ interface Section {
   title: string;
 }
 
-const SECTIONS: Section[] = [
-  { id: "domains", title: "Domains" },
-  { id: "card-types", title: "Card types" },
-  { id: "rarities", title: "Rarities" },
-  { id: "art-variants", title: "Art variants" },
-  { id: "finishes", title: "Finishes" },
-  { id: "markers", title: "Markers" },
-  { id: "printing-details", title: "Printing details" },
-  { id: "sets", title: "Sets" },
-  { id: "keywords", title: "Keywords" },
-  { id: "symbols", title: "In-text symbols" },
-  { id: "numbering", title: "Card numbering" },
+interface Group {
+  id: string;
+  title: string;
+  sections: Section[];
+}
+
+const GROUPS: Group[] = [
+  {
+    id: "game-vocabulary",
+    title: "Game vocabulary",
+    sections: [
+      { id: "domains", title: "Domains" },
+      { id: "card-types", title: "Card types" },
+      { id: "keywords", title: "Keywords" },
+      { id: "symbols", title: "In-text symbols" },
+    ],
+  },
+  {
+    id: "printing-variants",
+    title: "Printing variants",
+    sections: [
+      { id: "rarities", title: "Rarities" },
+      { id: "art-variants", title: "Art variants" },
+      { id: "finishes", title: "Finishes" },
+      { id: "markers", title: "Markers" },
+      { id: "artist-and-signature", title: "Artist and signature" },
+    ],
+  },
+  {
+    id: "sets-and-numbering",
+    title: "Sets and numbering",
+    sections: [
+      { id: "sets", title: "Sets" },
+      { id: "numbering", title: "Card numbering" },
+    ],
+  },
 ];
 
 const DOMAIN_RULES: Record<string, string> = {
@@ -54,6 +78,8 @@ interface SupertypeEntry {
   description: string;
   ruleNumber: string;
 }
+
+const SUPERTYPE_ICONS = new Set(["champion"]);
 
 const SUPERTYPES: SupertypeEntry[] = [
   {
@@ -164,28 +190,45 @@ function matches(query: string, ...fields: (string | undefined | null)[]): boole
   return fields.some((field) => field?.toLowerCase().includes(needle));
 }
 
-function SectionHeading({ id, title }: Section) {
+function GroupHeading({ id, title }: { id: string; title: string }) {
   return (
-    <h2
-      id={id}
-      className="border-border mt-8 scroll-mt-20 border-b pb-1 text-xl font-bold first:mt-0"
-    >
+    <h2 id={id} className="scroll-mt-20 text-xl font-bold">
       {title}
     </h2>
   );
 }
 
+function SectionHeading({ id, title }: Section) {
+  return (
+    <h3 id={id} className="mt-8 scroll-mt-20 text-lg font-semibold">
+      {title}
+    </h3>
+  );
+}
+
 function GlossaryToc() {
   return (
-    <nav className="space-y-0.5">
-      {SECTIONS.map((section) => (
-        <a
-          key={section.id}
-          href={`#${section.id}`}
-          className="text-muted-foreground hover:text-foreground block truncate font-semibold"
-        >
-          {section.title}
-        </a>
+    <nav className="space-y-4">
+      {GROUPS.map((group) => (
+        <div key={group.id}>
+          <a
+            href={`#${group.id}`}
+            className="text-foreground hover:text-primary block truncate font-bold"
+          >
+            {group.title}
+          </a>
+          <div className="mt-1 space-y-0.5 pl-3">
+            {group.sections.map((section) => (
+              <a
+                key={section.id}
+                href={`#${section.id}`}
+                className="text-muted-foreground hover:text-foreground block truncate"
+              >
+                {section.title}
+              </a>
+            ))}
+          </div>
+        </div>
       ))}
     </nav>
   );
@@ -206,8 +249,11 @@ function DomainsSection({
     <section>
       <SectionHeading id="domains" title="Domains" />
       <p className="text-muted-foreground mt-2">
-        Domains define a card&apos;s identity and what runes can pay its costs. Your Champion
-        Legend&apos;s domains determine your deck&apos;s domain identity.
+        Riftbound has six domains, each with its own colour and symbol: Fury, Calm, Mind, Body,
+        Chaos, and Order. A card&apos;s domain is shown by glyphs in the lower-right corner of the
+        card, and runes of that domain produce the Power needed to pay its costs. Your Champion
+        Legend&apos;s domains determine your deck&apos;s Domain Identity, which limits which other
+        cards you can include.
       </p>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {visible.map((domain) => {
@@ -235,7 +281,8 @@ function DomainsSection({
                   </div>
                   {ruleNumber && (
                     <Link
-                      to="/rules"
+                      to="/rules/$kind"
+                      params={{ kind: "core" }}
                       hash={`rule-${ruleNumber}`}
                       className="text-primary text-xs hover:underline"
                     >
@@ -283,7 +330,11 @@ function CardTypesSection({
       {visible.length > 0 && (
         <>
           <p className="text-muted-foreground mt-2">
-            Every card has a type that determines where and when it can be played.
+            A card&apos;s type tells you how and where it interacts with the game. Units fight on
+            battlefields, Gear attaches to a Unit you control, Spells resolve their effects and
+            leave play, Runes sit in your Rune Pool to produce Energy and Power, Battlefields are
+            the locations Units fight over, and Legends sit beside your deck and represent your
+            Champion.
           </p>
           <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {visible.map((cardType) => {
@@ -308,7 +359,8 @@ function CardTypesSection({
                     <span className="font-medium">{cardType.label}</span>
                     {ruleNumber && (
                       <Link
-                        to="/rules"
+                        to="/rules/$kind"
+                        params={{ kind: "core" }}
                         hash={`rule-${ruleNumber}`}
                         className="text-primary text-xs hover:underline"
                       >
@@ -324,27 +376,46 @@ function CardTypesSection({
       )}
       {visibleSupertypes.length > 0 && (
         <>
-          <h3 className="mt-6 text-base font-semibold">Supertypes</h3>
+          <h4 className="mt-6 text-base font-semibold">Supertypes</h4>
           <p className="text-muted-foreground mt-1">
-            Supertypes apply on top of a card&apos;s type and affect deck building or game state.
+            Supertypes apply on top of a card&apos;s type and are listed before it on the card face.
+            They mostly affect deckbuilding: Champions are Units eligible to be your Chosen
+            Champion, Signature cards are tied to a Champion&apos;s tag and capped at three per
+            deck, and Tokens are temporary game objects created by effects rather than included in a
+            deck.
           </p>
           <ul className="mt-3 space-y-2">
-            {visibleSupertypes.map((supertype) => (
-              <li
-                key={supertype.slug}
-                className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
-              >
-                <span className="font-medium sm:w-32 sm:shrink-0">{supertype.label}</span>
-                <p className="text-muted-foreground flex-1">{supertype.description}</p>
-                <Link
-                  to="/rules"
-                  hash={`rule-${supertype.ruleNumber}`}
-                  className="text-primary shrink-0 text-xs hover:underline"
+            {visibleSupertypes.map((supertype) => {
+              const hasIcon = SUPERTYPE_ICONS.has(supertype.slug);
+              return (
+                <li
+                  key={supertype.slug}
+                  className="border-border flex flex-col gap-1 rounded-md border p-3 sm:flex-row sm:items-baseline sm:gap-3"
                 >
-                  Rule {supertype.ruleNumber} →
-                </Link>
-              </li>
-            ))}
+                  <span className="flex items-center gap-2 font-medium sm:w-32 sm:shrink-0">
+                    {hasIcon && (
+                      <img
+                        src={`/images/supertypes/${supertype.slug}.svg`}
+                        alt=""
+                        width={20}
+                        height={20}
+                        className="size-5 shrink-0 brightness-0 dark:invert"
+                      />
+                    )}
+                    {supertype.label}
+                  </span>
+                  <p className="text-muted-foreground flex-1">{supertype.description}</p>
+                  <Link
+                    to="/rules/$kind"
+                    params={{ kind: "core" }}
+                    hash={`rule-${supertype.ruleNumber}`}
+                    className="text-primary shrink-0 text-xs hover:underline"
+                  >
+                    Rule {supertype.ruleNumber} →
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}
@@ -368,7 +439,10 @@ function RaritiesSection({
     <section>
       <SectionHeading id="rarities" title="Rarities" />
       <p className="text-muted-foreground mt-2">
-        Each printing has a rarity, indicated by a coloured glyph on the card.
+        Every printing has a rarity, shown by the coloured glyph in the middle of the card face.
+        Rarity reflects how often a card appears in booster packs and the visual treatment of its
+        frame, not its strength in play. The five tiers run from Common up through Uncommon, Rare,
+        and Epic to Showcase, which is reserved for premium full-art and alternative-art printings.
       </p>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {visible.map((rarity) => {
@@ -416,8 +490,10 @@ function ArtVariantsSection({
     <section>
       <SectionHeading id="art-variants" title="Art variants" />
       <p className="text-muted-foreground mt-2">
-        An art variant describes a printing&apos;s artwork independently of its rarity. A card can
-        keep its rarity (e.g. Showcase) while having an Ultimate art variant.
+        An art variant describes which illustration appears on a printing, and it&apos;s a separate
+        axis from rarity. The same card can be a Showcase rarity and have an Ultimate art variant at
+        the same time, because the rarity glyph and the artwork are tracked independently. Alt-art
+        printings are usually marked by a lowercase letter suffix on the card number, like OGN-120a.
       </p>
       <ul className="mt-4 space-y-2">
         {visible.map((variant) => (
@@ -454,7 +530,10 @@ function FinishesSection({
     <section>
       <SectionHeading id="finishes" title="Finishes" />
       <p className="text-muted-foreground mt-2">
-        Each printing has a finish describing how the card is produced.
+        Finish describes the physical production treatment of a printing. Most cards use a normal
+        cardstock finish, foil printings add a glossy reflective coating across the card face, and a
+        small number have been released as premium metal collectibles. Finish is independent of
+        rarity and art variant, so the same artwork can exist as both a normal and a foil printing.
       </p>
       <ul className="mt-4 space-y-2">
         {visible.map((finish) => (
@@ -482,8 +561,11 @@ function MarkersSection({ query }: { query: string }) {
     <section>
       <SectionHeading id="markers" title="Markers" />
       <p className="text-muted-foreground mt-2">
-        Markers identify how a particular printing was distributed — events, tournaments, or special
-        product channels.
+        Markers describe how a printing was distributed rather than what&apos;s on the card. They
+        cover promotional channels like prereleases, tournaments, judge programs, and store-level
+        events, and a single printing can carry more than one. Markers sit alongside rarity and
+        finish, so the same artwork can ship as both a regular Common and a Tournament-marked
+        Common.
       </p>
       <ul className="mt-4 space-y-2">
         {visible.map((marker) => (
@@ -530,9 +612,11 @@ function PrintingDetailsSection({ query }: { query: string }) {
   }
   return (
     <section>
-      <SectionHeading id="printing-details" title="Printing details" />
+      <SectionHeading id="artist-and-signature" title="Artist and signature" />
       <p className="text-muted-foreground mt-2">
-        Per-printing metadata that doesn&apos;t fit a rarity, art variant, finish, or marker.
+        Artist credit is tracked per printing so reprints can preserve the original illustrator, and
+        the signature flag marks printings where the artist&apos;s signature is overlaid on the
+        artwork (usually on a foil alt-art or Ultimate variant).
       </p>
       <ul className="mt-4 space-y-2">
         {visible.map((item) => (
@@ -558,14 +642,16 @@ function SetsSection({ sets, query }: { sets: SetEntry[]; query: string }) {
     <section>
       <SectionHeading id="sets" title="Sets" />
       <p className="text-muted-foreground mt-2">
-        Each set has a three-letter code that prefixes every card number in the set. Browse the full
-        catalogue of a set on the{" "}
+        Sets are how Riftbound releases new cards. Each set has a three-letter code that prefixes
+        every card number in it, and is classified as either a main set (the regular release
+        cadence) or a supplemental set (smaller drops outside the main schedule). Browse the full
+        catalogue of any set on the{" "}
         <Link to="/sets" className="text-primary hover:underline">
           Sets page
         </Link>
         .
       </p>
-      <ul className="mt-4 space-y-2">
+      <ul className="mt-4 grid gap-2 lg:grid-cols-2">
         {visible.map((set) => (
           <li key={set.slug} className="border-border rounded-md border p-3">
             <div className="flex flex-wrap items-baseline gap-2">
@@ -639,10 +725,11 @@ function KeywordsSection({ keywords, query }: { keywords: KeywordRow[]; query: s
     <section>
       <SectionHeading id="keywords" title="Keywords" />
       <p className="text-muted-foreground mt-2">
-        Keywords are shorthand for longer rules text. Tap a rule reference to read the full
-        definition.
+        Keywords are short words or phrases that stand in for a longer rule. They appear in card
+        text in square brackets, like [Equip] or [Deathknell], and each one expands to a paragraph
+        in the comprehensive rules. Tap a rule reference to jump to the full definition.
       </p>
-      <ul className="mt-4 space-y-3">
+      <ul className="mt-4 grid gap-3 lg:grid-cols-2">
         {visible.map((kw) => (
           <li
             id={keywordAnchorSlug(kw.name)}
@@ -653,11 +740,12 @@ function KeywordsSection({ keywords, query }: { keywords: KeywordRow[]; query: s
               <KeywordPill name={kw.name} color={kw.color} darkText={kw.darkText} />
               {kw.info?.ruleNumber && (
                 <Link
-                  to="/rules"
+                  to="/rules/$kind"
+                  params={{ kind: "core" }}
                   hash={`rule-${kw.info.ruleNumber}`}
-                  className="text-primary hover:underline"
+                  className="text-primary text-xs hover:underline"
                 >
-                  See Rule {kw.info.ruleNumber} →
+                  Rule {kw.info.ruleNumber} →
                 </Link>
               )}
             </div>
@@ -735,7 +823,10 @@ function SymbolsSection({ query }: { query: string }) {
     <section>
       <SectionHeading id="symbols" title="In-text symbols" />
       <p className="text-muted-foreground mt-2">
-        These glyphs and concepts appear inline in card text, costs, and credits.
+        Riftbound uses a small set of inline symbols on cards to express costs and core game
+        concepts compactly. Energy costs can be paid with any rune, Power costs require a rune of a
+        specific domain, and the rainbow [A] symbol stands in for Power of any domain. Other symbols
+        describe game actions like Exhaust and Recycle, or stats like Might.
       </p>
       <ul className="mt-4 grid gap-3 sm:grid-cols-2">
         {visible.map((sym) => (
@@ -779,12 +870,12 @@ function NumberingSection({ query }: { query: string }) {
         "A number above the set's printed total is an Overnumbered variant — usually a special reprint slotted into a later set.",
     },
     {
-      pattern: "OGN-T1",
+      pattern: "SFD-T01",
       summary:
         "T prefix indicates a token printed for the set. T and R prefixes were introduced with Spiritforged; Origins used standard numbering for tokens and runes.",
     },
     {
-      pattern: "OGN-R1",
+      pattern: "SFD-R01",
       summary: "R prefix indicates a rune printed for the set (introduced in Spiritforged).",
     },
   ];
@@ -796,7 +887,11 @@ function NumberingSection({ query }: { query: string }) {
     <section>
       <SectionHeading id="numbering" title="Card numbering" />
       <p className="text-muted-foreground mt-2">
-        Card numbers combine a three-letter set code with a number and optional suffix.
+        Every printing has a short code combining the three-letter set code with a card number, like
+        OGN-007. Letter suffixes mark variants of the same base card (usually an alternative
+        artwork), and a number above the set&apos;s printed total marks an Overnumbered variant.
+        Starting with Spiritforged, T and R prefixes mark tokens and runes printed alongside the
+        set; earlier sets used plain numbers for those.
       </p>
       <ul className="mt-4 space-y-2">
         {visible.map((item) => (
@@ -856,7 +951,9 @@ export function GlossaryPage() {
     <div className={cn("mx-auto w-full max-w-6xl", PAGE_PADDING)}>
       <h1 className="text-2xl font-bold">Glossary</h1>
       <p className="text-muted-foreground mt-1">
-        Riftbound symbols, keywords, and shorthand. Keyword entries link into the official rules.
+        A reference for the terms, symbols, and printing details you&apos;ll see on Riftbound cards
+        and across OpenRift. Entries link to the comprehensive rules where there&apos;s more to
+        read.
       </p>
 
       <div className="relative mt-4 mb-4 max-w-md">
@@ -875,18 +972,27 @@ export function GlossaryPage() {
             <GlossaryToc />
           </div>
         </aside>
-        <div className="min-w-0 flex-1 space-y-6">
-          <DomainsSection domains={domains} query={query} />
-          <CardTypesSection types={cardTypes} query={query} />
-          <RaritiesSection rarities={rarities} query={query} />
-          <ArtVariantsSection artVariants={artVariants} query={query} />
-          <FinishesSection finishes={finishes} query={query} />
-          <MarkersSection query={query} />
-          <PrintingDetailsSection query={query} />
-          <SetsSection sets={sets} query={query} />
-          <KeywordsSection keywords={keywordRows} query={query} />
-          <SymbolsSection query={query} />
-          <NumberingSection query={query} />
+        <div className="min-w-0 flex-1 space-y-12">
+          <section>
+            <GroupHeading id="game-vocabulary" title="Game vocabulary" />
+            <DomainsSection domains={domains} query={query} />
+            <CardTypesSection types={cardTypes} query={query} />
+            <KeywordsSection keywords={keywordRows} query={query} />
+            <SymbolsSection query={query} />
+          </section>
+          <section>
+            <GroupHeading id="printing-variants" title="Printing variants" />
+            <RaritiesSection rarities={rarities} query={query} />
+            <ArtVariantsSection artVariants={artVariants} query={query} />
+            <FinishesSection finishes={finishes} query={query} />
+            <MarkersSection query={query} />
+            <PrintingDetailsSection query={query} />
+          </section>
+          <section>
+            <GroupHeading id="sets-and-numbering" title="Sets and numbering" />
+            <SetsSection sets={sets} query={query} />
+            <NumberingSection query={query} />
+          </section>
         </div>
       </div>
     </div>
