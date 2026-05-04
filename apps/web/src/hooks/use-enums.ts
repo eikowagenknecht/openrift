@@ -77,18 +77,12 @@ export function useLanguageList(): { code: string; name: string }[] {
   return sorted(data.enums.languages ?? []).map((row) => ({ code: row.slug, name: row.label }));
 }
 
-export interface MarkerListEntry {
-  slug: string;
-  label: string;
-  description: string | null;
-}
-
 /**
  * Returns ordered marker rows from the /init endpoint, including descriptions.
  *
  * @returns An ordered array of `{ slug, label, description }` marker entries.
  */
-export function useMarkerList(): MarkerListEntry[] {
+export function useMarkerList(): { slug: string; label: string; description: string | null }[] {
   const { data } = useSuspenseQuery(initQueryOptions);
   const rows = (data.enums.markers ?? []).toSorted((a, b) => a.sortOrder - b.sortOrder);
   return rows.map((row) => ({ slug: row.slug, label: row.label, description: row.description }));
