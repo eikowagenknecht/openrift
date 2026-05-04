@@ -160,7 +160,7 @@ function DesktopNav({
                     <GavelIcon />
                     <div>
                       <div className="font-medium">Rules</div>
-                      <div className="text-muted-foreground text-xs">Official rules reference</div>
+                      <div className="text-muted-foreground text-xs">Core and tournament rules</div>
                     </div>
                   </NavigationMenuLink>
                 </li>
