@@ -27,7 +27,7 @@ function makeCard(overrides: Partial<CatalogResponseCardValue> = {}): CatalogRes
   return {
     slug: "test-card",
     name: "Test Card",
-    type: "Unit",
+    type: "unit",
     superTypes: [],
     domains: [],
     might: null,
@@ -49,7 +49,7 @@ function makePrinting(
     cardId: "card-1",
     shortCode: "OGN-001",
     setId: "set-ogn",
-    rarity: "Common",
+    rarity: "common",
     artVariant: "normal",
     isSigned: false,
     markers: [],
@@ -80,9 +80,9 @@ function makeCatalog(
 
 const ORDERS: EnumOrders = {
   finishes: ["normal", "foil"],
-  rarities: ["Common", "Uncommon", "Rare", "Mythic"],
+  rarities: ["common", "uncommon", "rare", "Mythic"],
   domains: ["body", "mind", "calm"],
-  cardTypes: ["Unit", "Spell", "Battlefield"],
+  cardTypes: ["unit", "spell", "battlefield"],
   superTypes: [],
   artVariants: ["normal", "alternate"],
 };
@@ -92,14 +92,14 @@ const NO_PRICES: PricesResponse = { prices: {} };
 describe("extractCatalogFacets", () => {
   it("returns facets shape derived from the catalog", () => {
     const cards = {
-      "card-1": makeCard({ type: "Unit", domains: ["body"], might: 3, energy: 2, power: 4 }),
-      "card-2": makeCard({ type: "Spell", domains: ["mind"], might: null, energy: 5, power: null }),
+      "card-1": makeCard({ type: "unit", domains: ["body"], might: 3, energy: 2, power: 4 }),
+      "card-2": makeCard({ type: "spell", domains: ["mind"], might: null, energy: 5, power: null }),
     };
     const printings = {
-      "p-1": makePrinting({ cardId: "card-1", rarity: "Common", finish: "normal" }),
+      "p-1": makePrinting({ cardId: "card-1", rarity: "common", finish: "normal" }),
       "p-2": makePrinting({
         cardId: "card-2",
-        rarity: "Rare",
+        rarity: "rare",
         finish: "foil",
         shortCode: "OGN-002",
       }),
@@ -107,9 +107,9 @@ describe("extractCatalogFacets", () => {
     const facets = extractCatalogFacets(makeCatalog(cards, printings), NO_PRICES, ORDERS);
 
     expect(facets.sets).toEqual(["OGN"]);
-    expect(facets.types).toEqual(["Spell", "Unit"]);
+    expect(facets.types).toEqual(["spell", "unit"]);
     expect(facets.domains).toEqual(["body", "mind"]);
-    expect(facets.rarities).toEqual(["Common", "Rare"]);
+    expect(facets.rarities).toEqual(["common", "rare"]);
     expect(facets.finishes).toEqual(["normal", "foil"]);
     expect(facets.energy).toEqual({ min: 2, max: 5 });
     expect(facets.might).toEqual({ min: 3, max: 3 });
@@ -229,15 +229,15 @@ describe("extractCardCounts", () => {
 
   it("filteredCount drops when URL filters narrow the catalog", () => {
     const cards = {
-      "card-unit": makeCard({ type: "Unit" }),
-      "card-spell": makeCard({ type: "Spell" }),
+      "card-unit": makeCard({ type: "unit" }),
+      "card-spell": makeCard({ type: "spell" }),
     };
     const printings = {
       "p-1": makePrinting({ cardId: "card-unit", shortCode: "OGN-001" }),
       "p-2": makePrinting({ cardId: "card-spell", shortCode: "OGN-002" }),
     };
     const counts = extractCardCounts(makeCatalog(cards, printings), NO_PRICES, {
-      types: ["Unit"],
+      types: ["unit"],
     });
 
     expect(counts).toEqual({ totalCards: 2, filteredCount: 1 });
@@ -255,15 +255,15 @@ describe("extractCatalogFacets ↔ useCardData parity", () => {
   it("returns the same value the client-side path computes for default-marketplace users", () => {
     const cards = {
       "card-unit": makeCard({
-        type: "Unit",
+        type: "unit",
         domains: ["body", "mind"],
         might: 4,
         energy: 3,
         power: 5,
-        superTypes: ["Champion"],
+        superTypes: ["champion"],
       }),
       "card-spell": makeCard({
-        type: "Spell",
+        type: "spell",
         domains: ["calm"],
         might: null,
         energy: 1,
@@ -274,13 +274,13 @@ describe("extractCatalogFacets ↔ useCardData parity", () => {
       "p-unit-c": makePrinting({
         cardId: "card-unit",
         shortCode: "OGN-001",
-        rarity: "Common",
+        rarity: "common",
         finish: "normal",
       }),
       "p-unit-r-foil": makePrinting({
         cardId: "card-unit",
         shortCode: "OGN-001*",
-        rarity: "Rare",
+        rarity: "rare",
         finish: "foil",
         artVariant: "alternate",
         isSigned: true,
@@ -288,7 +288,7 @@ describe("extractCatalogFacets ↔ useCardData parity", () => {
       "p-spell": makePrinting({
         cardId: "card-spell",
         shortCode: "OGN-002",
-        rarity: "Uncommon",
+        rarity: "uncommon",
         finish: "normal",
       }),
     };

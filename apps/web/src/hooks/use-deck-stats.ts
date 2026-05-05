@@ -1,4 +1,5 @@
 import type { Domain } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 
 import { useEnumOrders } from "@/hooks/use-enums";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -36,7 +37,11 @@ interface DeckStats {
 const MAIN_ZONES = new Set(["main", "champion"]);
 
 // Types with dedicated zones are excluded from the type breakdown chart
-const EXCLUDED_CARD_TYPES = new Set(["Legend", "Rune", "Battlefield"]);
+const EXCLUDED_CARD_TYPES = new Set<string>([
+  WellKnown.cardType.LEGEND,
+  WellKnown.cardType.RUNE,
+  WellKnown.cardType.BATTLEFIELD,
+]);
 
 /**
  * Computes deck statistics from the given deck-builder cards.

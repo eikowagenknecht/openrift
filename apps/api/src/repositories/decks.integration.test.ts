@@ -210,7 +210,7 @@ describe.skipIf(!ctx)("decksRepo (integration)", () => {
     expect(cards[0].zone).toBe("main");
     expect(cards[0].quantity).toBe(3);
     expect(cards[0].cardName).toBe("Annie, Fiery");
-    expect(cards[0].cardType).toBe("Unit");
+    expect(cards[0].cardType).toBe("unit");
   });
 
   it("returns card requirements for a deck", async () => {

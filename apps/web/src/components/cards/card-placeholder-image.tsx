@@ -87,7 +87,7 @@ export function CardPlaceholderImage({
             {energy}
           </div>
         )}
-        {type === "Legend" &&
+        {type === WellKnown.cardType.LEGEND &&
           domain.some((d) => d !== WellKnown.domain.COLORLESS) &&
           domain
             .filter((d) => d !== WellKnown.domain.COLORLESS)

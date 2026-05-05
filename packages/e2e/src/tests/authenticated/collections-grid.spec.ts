@@ -315,7 +315,7 @@ test.describe("collections grid", () => {
     test("?domains=Body keeps only Garen visible on /collections", async ({ browser }) => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
-        await page.goto(`/collections?domains=${encodeURIComponent(JSON.stringify(["Body"]))}`);
+        await page.goto(`/collections?domains=${encodeURIComponent(JSON.stringify(["body"]))}`);
 
         await expect(page.getByText("Garen, Rugged")).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText("Annie, Fiery")).toBeHidden();
@@ -346,7 +346,7 @@ test.describe("collections grid", () => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
         await page.goto(
-          `/collections/${state.inboxId}?domains=${encodeURIComponent(JSON.stringify(["Body"]))}`,
+          `/collections/${state.inboxId}?domains=${encodeURIComponent(JSON.stringify(["body"]))}`,
         );
 
         await expect(page.getByText("Garen, Rugged")).toBeVisible({ timeout: 15_000 });

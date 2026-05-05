@@ -79,7 +79,7 @@ if (ctx) {
     .values({
       slug: "CSI-001",
       name: "CSI Test Card",
-      type: "Unit",
+      type: "unit",
       might: null,
       energy: 2,
       power: null,
@@ -92,7 +92,7 @@ if (ctx) {
 
   await db
     .insertInto("cardDomains")
-    .values({ cardId: card.id, domainSlug: "Mind", ordinal: 0 })
+    .values({ cardId: card.id, domainSlug: "mind", ordinal: 0 })
     .execute();
 
   // Seed printing
@@ -102,7 +102,7 @@ if (ctx) {
       cardId: card.id,
       setId: set.id,
       shortCode: "CSI-001",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -123,9 +123,9 @@ if (ctx) {
     .values({
       provider: "csi-source",
       name: "CSI Test Card",
-      type: "Unit",
+      type: "unit",
       superTypes: [],
-      domains: ["Mind"],
+      domains: ["mind"],
       might: null,
       energy: 2,
       power: null,
@@ -149,7 +149,7 @@ if (ctx) {
       shortCode: "CSI-001",
       setId: "CSI",
       setName: "CSI Test Set",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -172,9 +172,9 @@ if (ctx) {
     .values({
       provider: "csi-source-2",
       name: "CSI Test Card",
-      type: "Unit",
+      type: "unit",
       superTypes: [],
-      domains: ["Mind"],
+      domains: ["mind"],
       might: null,
       energy: 2,
       power: null,
@@ -198,7 +198,7 @@ if (ctx) {
       shortCode: "CSI-001b",
       setId: "CSI",
       setName: "CSI Test Set",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -224,7 +224,7 @@ if (ctx) {
       shortCode: "CSI-002",
       setId: "CSI",
       setName: "CSI Test Set",
-      rarity: "Rare",
+      rarity: "rare",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -292,9 +292,9 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
         .values({
           provider: "csi-alt-source",
           name: "CSI Test Card",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
-          domains: ["Mind"],
+          domains: ["mind"],
           might: null,
           energy: 2,
           power: null,
@@ -317,7 +317,7 @@ describe.skipIf(!ctx)("Card-sources images routes (integration)", () => {
           shortCode: "CSI-001-ALT",
           setId: "CSI",
           setName: "CSI Test Set",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           finish: "normal",

@@ -36,9 +36,9 @@ test.describe("card filter panel (desktop)", () => {
 
     // Known badge contents inside the panel.
     await expect(panel.getByText("Proving Grounds", { exact: true })).toBeVisible();
-    await expect(panel.getByText("Fury", { exact: true })).toBeVisible();
-    await expect(panel.getByText("Unit", { exact: true })).toBeVisible();
-    await expect(panel.getByText("Epic", { exact: true })).toBeVisible();
+    await expect(panel.getByText("fury", { exact: true })).toBeVisible();
+    await expect(panel.getByText("unit", { exact: true })).toBeVisible();
+    await expect(panel.getByText("epic", { exact: true })).toBeVisible();
   });
 
   test("clicking a set filter narrows the grid, adds an active-filter chip, and updates the URL", async ({
@@ -70,8 +70,8 @@ test.describe("card filter panel (desktop)", () => {
     await waitForCardsLoaded(page);
     await openDesktopFilterPanel(page);
 
-    // Click the "Fury" domain badge (inside the filter panel).
-    await page.getByText("Fury", { exact: true }).first().click();
+    // Click the "fury" domain badge (inside the filter panel).
+    await page.getByText("fury", { exact: true }).first().click();
     await expect(page).toHaveURL(/domains=[^&]*Fury/);
     await expect(page.getByText("Domain:", { exact: true })).toBeVisible();
 
@@ -80,7 +80,7 @@ test.describe("card filter panel (desktop)", () => {
     await expect(page.getByText("Lux, Illuminated").first()).toBeHidden();
 
     // Now add a Type=Spell filter — AND should hide Fury-Unit cards like Annie.
-    await page.getByText("Spell", { exact: true }).first().click();
+    await page.getByText("spell", { exact: true }).first().click();
     await expect(page).toHaveURL(/types=[^&]*Spell/);
     await expect(page).toHaveURL(/domains=[^&]*Fury/);
     await expect(page.getByText("Type:", { exact: true })).toBeVisible();
@@ -95,12 +95,12 @@ test.describe("card filter panel (desktop)", () => {
     await page.goto(CARDS_URL);
     await waitForCardsLoaded(page);
     await openDesktopFilterPanel(page);
-    await page.getByText("Fury", { exact: true }).first().click();
+    await page.getByText("fury", { exact: true }).first().click();
 
     await expect(page.getByText("Domain:", { exact: true })).toBeVisible();
     await expect(page.getByText("Lux, Illuminated").first()).toBeHidden();
 
-    // The chip for "Fury" is a Badge containing the label and a close button.
+    // The chip for "fury" is a Badge containing the label and a close button.
     // Remove it by clicking the X button inside that chip.
     const furyChip = page.locator("span", { hasText: /^Fury$/ }).filter({
       has: page.locator("button"),
@@ -118,8 +118,8 @@ test.describe("card filter panel (desktop)", () => {
     await page.goto(CARDS_URL);
     await waitForCardsLoaded(page);
     await openDesktopFilterPanel(page);
-    await page.getByText("Fury", { exact: true }).first().click();
-    await page.getByText("Spell", { exact: true }).first().click();
+    await page.getByText("fury", { exact: true }).first().click();
+    await page.getByText("spell", { exact: true }).first().click();
 
     await expect(page.getByText("Domain:", { exact: true })).toBeVisible();
     await expect(page.getByText("Type:", { exact: true })).toBeVisible();
@@ -230,7 +230,7 @@ test.describe("card filter panel (mobile)", () => {
     ).toBeVisible();
 
     // Apply a filter by clicking a domain badge inside the drawer.
-    await drawer.getByText("Fury", { exact: true }).first().click();
+    await drawer.getByText("fury", { exact: true }).first().click();
 
     // With a filter active, the footer button shows "Show N cards" or "Show N printings".
     await expect(

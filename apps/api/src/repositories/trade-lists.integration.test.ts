@@ -196,7 +196,7 @@ describe.skipIf(!ctx)("tradeListsRepo (integration)", () => {
     expect(items[0].printingId).toBe(PRINTING_1.id);
     expect(items[0].cardName).toBeTypeOf("string");
     expect(items[0].cardType).toBeTypeOf("string");
-    expect(items[0].rarity).toBe("Epic");
+    expect(items[0].rarity).toBe("epic");
     expect(items[0].finish).toBe("normal");
   });
 

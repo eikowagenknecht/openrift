@@ -87,7 +87,7 @@ describe("useCardFilters", () => {
   });
 
   it("detects active filters when arrays are non-empty", () => {
-    mockSearch = { rarities: ["Rare"] };
+    mockSearch = { rarities: ["rare"] };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
     expect(result.current.hasActiveFilters).toBe(true);
   });
@@ -133,10 +133,10 @@ describe("useCardFilters", () => {
   });
 
   it("toggleArrayFilter strips key when removing the last value", () => {
-    mockSearch = { rarities: ["Rare"] };
+    mockSearch = { rarities: ["rare"] };
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
-    act(() => result.current.toggleArrayFilter("rarities", "Rare"));
+    act(() => result.current.toggleArrayFilter("rarities", "rare"));
 
     expect(lastNavigateSearch()).not.toHaveProperty("rarities");
   });
@@ -389,16 +389,16 @@ describe("useCardFilters", () => {
     mockSearch = {};
     const { result } = renderHook(() => useCardFilters(), { wrapper });
 
-    // First toggle: adds "Unit"
-    act(() => result.current.toggleArrayFilter("types", "Unit"));
-    expect(lastNavigateSearch()).toMatchObject({ types: ["Unit"] });
+    // First toggle: adds "unit"
+    act(() => result.current.toggleArrayFilter("types", "unit"));
+    expect(lastNavigateSearch()).toMatchObject({ types: ["unit"] });
 
     // Simulate router state updating synchronously after navigate
-    mockSearch = { types: ["Unit"] };
+    mockSearch = { types: ["unit"] };
     mockNavigate.mockClear();
 
-    // Second toggle: should see ["Unit"] and add "Spell"
-    act(() => result.current.toggleArrayFilter("types", "Spell"));
-    expect(lastNavigateSearch()).toMatchObject({ types: ["Unit", "Spell"] });
+    // Second toggle: should see ["unit"] and add "spell"
+    act(() => result.current.toggleArrayFilter("types", "spell"));
+    expect(lastNavigateSearch()).toMatchObject({ types: ["unit", "spell"] });
   });
 });

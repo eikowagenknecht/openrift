@@ -67,15 +67,15 @@ const cardMeta = {
   id: dbCard.cardId,
   slug: "fury-aggro-legend",
   name: "Fury Aggro Legend",
-  type: "Legend",
+  type: "legend",
   might: null,
   energy: null,
   power: null,
   mightBonus: null,
   keywords: [],
   tags: [],
-  domains: ["Fury"],
-  superTypes: ["Champion"],
+  domains: ["fury"],
+  superTypes: ["champion"],
   comment: null,
 };
 

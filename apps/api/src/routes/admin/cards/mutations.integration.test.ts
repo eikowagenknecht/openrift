@@ -46,7 +46,7 @@ if (ctx) {
     .values({
       slug: "CSM-001",
       name: "CSM Test Card",
-      type: "Unit",
+      type: "unit",
       might: null,
       energy: 2,
       power: null,
@@ -58,7 +58,7 @@ if (ctx) {
     .execute();
   cardId = cardRow.id;
 
-  await db.insertInto("cardDomains").values({ cardId, domainSlug: "Mind", ordinal: 0 }).execute();
+  await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
 
   // Printing 1
   const [printingRow] = await db
@@ -67,7 +67,7 @@ if (ctx) {
       cardId,
       setId,
       shortCode: "CSM-001",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -89,7 +89,7 @@ if (ctx) {
       cardId,
       setId,
       shortCode: "CSM-002",
-      rarity: "Rare",
+      rarity: "rare",
       artVariant: "normal",
       isSigned: false,
       finish: "foil",
@@ -110,9 +110,9 @@ if (ctx) {
     .values({
       provider: "csm-spreadsheet",
       name: "CSM Test Card",
-      type: "Unit",
+      type: "unit",
       superTypes: [],
-      domains: ["Mind"],
+      domains: ["mind"],
       might: null,
       energy: 2,
       power: null,
@@ -134,9 +134,9 @@ if (ctx) {
     .values({
       provider: "csm-gallery",
       name: "CSM New Card",
-      type: "Spell",
+      type: "spell",
       superTypes: [],
-      domains: ["Calm"],
+      domains: ["calm"],
       might: null,
       energy: 1,
       power: null,
@@ -161,7 +161,7 @@ if (ctx) {
       shortCode: "CSM-001",
       setId: "CSM-TEST",
       setName: "CSM Test Set",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -187,7 +187,7 @@ if (ctx) {
       shortCode: "CSM-NEW-001",
       setId: "CSM-TEST",
       setName: "CSM Test Set",
-      rarity: "Rare",
+      rarity: "rare",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -210,9 +210,9 @@ if (ctx) {
     .values({
       provider: "csm-accept-new-src",
       name: "CSM Test Card",
-      type: "Unit",
+      type: "unit",
       superTypes: [],
-      domains: ["Mind"],
+      domains: ["mind"],
       might: null,
       energy: 2,
       power: null,
@@ -237,7 +237,7 @@ if (ctx) {
       shortCode: "CSM-ACCEPT-001",
       setId: "CSM-TEST",
       setName: "CSM Test Set",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -386,7 +386,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
   describe("PATCH /candidate-printings/:id", () => {
     it("updates rarity on a printing source", async () => {
       const res = await app.fetch(
-        req("PATCH", `${P}/candidate-printings/${psId}`, { rarity: "Rare" }),
+        req("PATCH", `${P}/candidate-printings/${psId}`, { rarity: "rare" }),
       );
       expect(res.status).toBe(204);
 
@@ -396,7 +396,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .select("rarity")
         .where("id", "=", psId)
         .executeTakeFirstOrThrow();
-      expect(row.rarity).toBe("Rare");
+      expect(row.rarity).toBe("rare");
     });
 
     it("updates multiple fields at once", async () => {
@@ -429,7 +429,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           finish: "normal",
           isSigned: false,
           shortCode: "CSM-001",
-          rarity: "Common",
+          rarity: "common",
         })
         .where("id", "=", psId)
         .execute();
@@ -443,7 +443,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
     it("returns 404 for non-existent printing source", async () => {
       const fakeId = "00000000-0000-4000-a000-000000000000";
       const res = await app.fetch(
-        req("PATCH", `${P}/candidate-printings/${fakeId}`, { rarity: "Rare" }),
+        req("PATCH", `${P}/candidate-printings/${fakeId}`, { rarity: "rare" }),
       );
       expect(res.status).toBe(404);
     });
@@ -670,7 +670,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `${P}/${cardId}/accept-field`, {
           field: "type",
-          value: "Spell",
+          value: "spell",
         }),
       );
       expect(res.status).toBe(204);
@@ -680,10 +680,10 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .select("type")
         .where("slug", "=", cardSlug)
         .executeTakeFirstOrThrow();
-      expect(row.type).toBe("Spell");
+      expect(row.type).toBe("spell");
 
       // Restore
-      await db.updateTable("cards").set({ type: "Unit" }).where("slug", "=", cardSlug).execute();
+      await db.updateTable("cards").set({ type: "unit" }).where("slug", "=", cardSlug).execute();
     });
 
     it("returns 400 for validation error on type", async () => {
@@ -732,7 +732,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `${P}/printing/${printingId}/accept-field`, {
           field: "rarity",
-          value: "Rare",
+          value: "rare",
         }),
       );
       expect(res.status).toBe(204);
@@ -742,12 +742,12 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .select("rarity")
         .where("id", "=", printingId)
         .executeTakeFirstOrThrow();
-      expect(row.rarity).toBe("Rare");
+      expect(row.rarity).toBe("rare");
 
       // Restore
       await db
         .updateTable("printings")
-        .set({ rarity: "Common" })
+        .set({ rarity: "common" })
         .where("id", "=", printingId)
         .execute();
     });
@@ -846,7 +846,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           cardId,
           setId,
           shortCode: "CSM-LANG-UQ",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           finish: "normal",
@@ -869,7 +869,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           cardId,
           setId,
           shortCode: "CSM-LANG-UQ",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           finish: "normal",
@@ -909,8 +909,8 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           cardFields: {
             id: "CSM-NEW-001",
             name: "CSM New Card",
-            type: "Spell",
-            domains: ["Calm"],
+            type: "spell",
+            domains: ["calm"],
             energy: 1,
           },
         }),
@@ -927,7 +927,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
       expect(card!.name).toBe("CSM New Card");
       // oxlint-disable-next-line typescript-eslint/no-non-null-assertion -- asserted above
-      expect(card!.type).toBe("Spell");
+      expect(card!.type).toBe("spell");
 
       // Verify alias was created (every accepted card must have at least one)
       const alias = await db
@@ -949,9 +949,9 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .values({
           provider: "csm-gallery",
           name: "CSM Another Unmatched",
-          type: "Rune",
+          type: "rune",
           superTypes: [],
-          domains: ["Mind"],
+          domains: ["mind"],
           might: null,
           energy: null,
           power: null,
@@ -1006,7 +1006,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           shortCode: "CSM-AP-001",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
-          rarity: "Uncommon",
+          rarity: "uncommon",
           artVariant: "normal",
           isSigned: false,
           finish: "normal",
@@ -1028,7 +1028,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             shortCode: "CSM-AP-001",
             setId: "CSM-TEST",
             setName: "CSM Test Set",
-            rarity: "Uncommon",
+            rarity: "uncommon",
             artVariant: "normal",
             finish: "normal",
             artist: "AP Artist",
@@ -1054,7 +1054,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
         .executeTakeFirst();
       expect(printing).toBeDefined();
       // oxlint-disable-next-line typescript/no-non-null-assertion -- asserted above
-      expect(printing!.rarity).toBe("Uncommon");
+      expect(printing!.rarity).toBe("uncommon");
 
       // Verify the printing source was linked and checked
       const ps = await db
@@ -1075,7 +1075,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           shortCode: "CSM-AP-FOIL",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
-          rarity: "Epic",
+          rarity: "epic",
           artVariant: "normal",
           isSigned: false,
           finish: "foil",
@@ -1096,7 +1096,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printingFields: {
             shortCode: "CSM-AP-FOIL",
             setId: "CSM-TEST",
-            rarity: "Epic",
+            rarity: "epic",
             finish: "foil",
             artist: "Custom Artist",
             publicCode: "CSM",
@@ -1119,7 +1119,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           shortCode: "CSM-AP-PROMO",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: true,
           markerSlugs: [PROMO_MARKER_SLUG],
@@ -1141,7 +1141,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           printingFields: {
             shortCode: "CSM-AP-PROMO",
             setId: "CSM-TEST",
-            rarity: "Common",
+            rarity: "common",
             finish: "foil",
             isSigned: true,
             markerSlugs: [PROMO_MARKER_SLUG],
@@ -1204,7 +1204,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           shortCode: "CSM-AP-NEWSET",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           finish: "normal",
@@ -1226,7 +1226,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             shortCode: "CSM-AP-NEWSET",
             setId: "CSM-NEW-SET",
             setName: "CSM Brand New Set",
-            rarity: "Common",
+            rarity: "common",
             finish: "normal",
             artist: "A",
             publicCode: "X",
@@ -1259,9 +1259,9 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
             {
               card: {
                 name: "CSM Upload Card",
-                type: "Unit",
+                type: "unit",
                 super_types: [],
-                domains: ["Mind"],
+                domains: ["mind"],
                 might: null,
                 energy: 3,
                 power: null,
@@ -1278,7 +1278,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
                   external_id: "CSM-UPLOAD-001",
                   set_id: "CSM-TEST",
                   set_name: "CSM Test Set",
-                  rarity: "Common",
+                  rarity: "common",
                   art_variant: "normal",
                   is_signed: false,
                   is_promo: false,
@@ -1305,7 +1305,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
       const res = await app.fetch(
         req("POST", `${P}/upload`, {
           provider: "",
-          candidates: [{ card: { name: "X", type: "Unit" }, printings: [] }],
+          candidates: [{ card: { name: "X", type: "unit" }, printings: [] }],
         }),
       );
       expect(res.status).toBe(400);
@@ -1650,7 +1650,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           cardId,
           setId,
           shortCode: "CSM-DELETE-TEST",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           finish: "normal",
@@ -1690,7 +1690,7 @@ describe.skipIf(!ctx)("Card-sources mutation routes (integration)", () => {
           shortCode: "CSM-DELETE-TEST",
           setId: "CSM-TEST",
           setName: "CSM Test Set",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           finish: "normal",

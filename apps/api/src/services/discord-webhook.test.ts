@@ -16,7 +16,7 @@ function makeEvent(overrides: Partial<EnrichedPrintingEvent> = {}): EnrichedPrin
     cardSlug: "OGN-001",
     setName: "Origins",
     shortCode: "OGN-001",
-    rarity: "Common",
+    rarity: "common",
     finish: "normal",
     finishLabel: "Normal",
     artist: "Artist A",
@@ -86,13 +86,13 @@ describe("buildNewPrintingPayloads", () => {
 
   it("builds a markdown description with code, rarity, and finish", () => {
     const events = [
-      makeEvent({ shortCode: "OGN-001", rarity: "Rare", finish: "metal", finishLabel: "Metal" }),
+      makeEvent({ shortCode: "OGN-001", rarity: "rare", finish: "metal", finishLabel: "Metal" }),
     ];
 
     const payloads = buildNewPrintingPayloads(events, APP_BASE_URL);
 
     expect(payloads[0].embeds[0].description).toContain("**OGN-001**");
-    expect(payloads[0].embeds[0].description).toContain("Rare");
+    expect(payloads[0].embeds[0].description).toContain("rare");
     expect(payloads[0].embeds[0].description).toContain("Metal");
   });
 
@@ -264,7 +264,7 @@ describe("buildChangedPrintingPayloads", () => {
         eventType: "changed",
         changes: [
           { field: "finish", from: "foil", to: "normal" },
-          { field: "rarity", from: "Common", to: "Rare" },
+          { field: "rarity", from: "common", to: "rare" },
         ],
       }),
       makeEvent({
@@ -304,7 +304,7 @@ describe("buildChangedPrintingPayloads", () => {
       makeEvent({
         id: "evt-2",
         eventType: "changed",
-        changes: [{ field: "rarity", from: "Common", to: "Rare" }],
+        changes: [{ field: "rarity", from: "common", to: "rare" }],
       }),
     ];
 

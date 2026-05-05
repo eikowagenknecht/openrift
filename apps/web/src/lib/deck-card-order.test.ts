@@ -9,18 +9,18 @@ describe("compareGroupedCards", () => {
   });
 
   it("orders by type group first (Unit → Spell → Gear)", () => {
-    const spell = stubDeckBuilderCard({ cardType: "Spell", cardName: "A", energy: 1 });
-    const gear = stubDeckBuilderCard({ cardType: "Gear", cardName: "A", energy: 1 });
-    const unit = stubDeckBuilderCard({ cardType: "Unit", cardName: "A", energy: 1 });
+    const spell = stubDeckBuilderCard({ cardType: "spell", cardName: "A", energy: 1 });
+    const gear = stubDeckBuilderCard({ cardType: "gear", cardName: "A", energy: 1 });
+    const unit = stubDeckBuilderCard({ cardType: "unit", cardName: "A", energy: 1 });
 
     const sorted = [gear, spell, unit].toSorted(compareGroupedCards);
 
-    expect(sorted.map((card) => card.cardType)).toEqual(["Unit", "Spell", "Gear"]);
+    expect(sorted.map((card) => card.cardType)).toEqual(["unit", "spell", "gear"]);
   });
 
   it("orders by energy asc within the same type", () => {
-    const high = stubDeckBuilderCard({ cardType: "Unit", energy: 5, cardName: "B" });
-    const low = stubDeckBuilderCard({ cardType: "Unit", energy: 1, cardName: "A" });
+    const high = stubDeckBuilderCard({ cardType: "unit", energy: 5, cardName: "B" });
+    const low = stubDeckBuilderCard({ cardType: "unit", energy: 1, cardName: "A" });
 
     const sorted = [high, low].toSorted(compareGroupedCards);
 
@@ -29,19 +29,19 @@ describe("compareGroupedCards", () => {
 
   it("breaks ties by power, then name", () => {
     const aHighPower = stubDeckBuilderCard({
-      cardType: "Unit",
+      cardType: "unit",
       energy: 2,
       power: 4,
       cardName: "Aaa",
     });
     const aLowPower = stubDeckBuilderCard({
-      cardType: "Unit",
+      cardType: "unit",
       energy: 2,
       power: 1,
       cardName: "Zzz",
     });
     const bSamePower = stubDeckBuilderCard({
-      cardType: "Unit",
+      cardType: "unit",
       energy: 2,
       power: 4,
       cardName: "Zzz",
@@ -54,8 +54,8 @@ describe("compareGroupedCards", () => {
   });
 
   it("treats null energy/power as 0", () => {
-    const hasEnergy = stubDeckBuilderCard({ cardType: "Unit", energy: 3, cardName: "A" });
-    const nullEnergy = stubDeckBuilderCard({ cardType: "Unit", energy: null, cardName: "B" });
+    const hasEnergy = stubDeckBuilderCard({ cardType: "unit", energy: 3, cardName: "A" });
+    const nullEnergy = stubDeckBuilderCard({ cardType: "unit", energy: null, cardName: "B" });
 
     const sorted = [hasEnergy, nullEnergy].toSorted(compareGroupedCards);
 
@@ -79,9 +79,9 @@ describe("sortCardsLikeSidebar", () => {
   ] as const;
 
   it("orders cards by zone order", () => {
-    const mainCard = stubDeckBuilderCard({ zone: "main", cardType: "Unit", cardName: "M" });
-    const legendCard = stubDeckBuilderCard({ zone: "legend", cardType: "Legend", cardName: "L" });
-    const runesCard = stubDeckBuilderCard({ zone: "runes", cardType: "Rune", cardName: "R" });
+    const mainCard = stubDeckBuilderCard({ zone: "main", cardType: "unit", cardName: "M" });
+    const legendCard = stubDeckBuilderCard({ zone: "legend", cardType: "legend", cardName: "L" });
+    const runesCard = stubDeckBuilderCard({ zone: "runes", cardType: "rune", cardName: "R" });
 
     const sorted = sortCardsLikeSidebar([runesCard, mainCard, legendCard], [...ZONE_ORDER]);
 
@@ -91,23 +91,23 @@ describe("sortCardsLikeSidebar", () => {
   it("sorts cards inside grouped zones but keeps insertion order for non-grouped zones", () => {
     const bfFirst = stubDeckBuilderCard({
       zone: "battlefield",
-      cardType: "Battlefield",
+      cardType: "battlefield",
       cardName: "Zulu",
     });
     const bfSecond = stubDeckBuilderCard({
       zone: "battlefield",
-      cardType: "Battlefield",
+      cardType: "battlefield",
       cardName: "Alpha",
     });
     const mainUnit = stubDeckBuilderCard({
       zone: "main",
-      cardType: "Unit",
+      cardType: "unit",
       energy: 3,
       cardName: "Z",
     });
     const mainSpell = stubDeckBuilderCard({
       zone: "main",
-      cardType: "Spell",
+      cardType: "spell",
       energy: 1,
       cardName: "A",
     });
@@ -119,8 +119,8 @@ describe("sortCardsLikeSidebar", () => {
 
   it("does not mutate the input array", () => {
     const cards = [
-      stubDeckBuilderCard({ zone: "main", cardType: "Spell", energy: 5, cardName: "B" }),
-      stubDeckBuilderCard({ zone: "main", cardType: "Unit", energy: 1, cardName: "A" }),
+      stubDeckBuilderCard({ zone: "main", cardType: "spell", energy: 5, cardName: "B" }),
+      stubDeckBuilderCard({ zone: "main", cardType: "unit", energy: 1, cardName: "A" }),
     ];
     const snapshot = cards.map((card) => card.cardName);
 

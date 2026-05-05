@@ -137,11 +137,11 @@ const app = new Hono()
       sets: mockSets,
       rarities: {
         listAll: vi.fn().mockResolvedValue([
-          { slug: "Common", label: "Common", color: null, sortOrder: 1, isWellKnown: true },
-          { slug: "Uncommon", label: "Uncommon", color: null, sortOrder: 2, isWellKnown: true },
-          { slug: "Rare", label: "Rare", color: null, sortOrder: 3, isWellKnown: true },
-          { slug: "Epic", label: "Epic", color: null, sortOrder: 4, isWellKnown: true },
-          { slug: "Showcase", label: "Showcase", color: null, sortOrder: 5, isWellKnown: true },
+          { slug: "common", label: "common", color: null, sortOrder: 1, isWellKnown: true },
+          { slug: "uncommon", label: "uncommon", color: null, sortOrder: 2, isWellKnown: true },
+          { slug: "rare", label: "rare", color: null, sortOrder: 3, isWellKnown: true },
+          { slug: "epic", label: "epic", color: null, sortOrder: 4, isWellKnown: true },
+          { slug: "showcase", label: "showcase", color: null, sortOrder: 5, isWellKnown: true },
         ]),
       },
     } as never);
@@ -437,7 +437,7 @@ describe("PATCH /api/v1/candidate-printings/:id", () => {
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rarity: "Rare" }),
+        body: JSON.stringify({ rarity: "rare" }),
       },
     );
     expect(res.status).toBe(404);
@@ -812,7 +812,7 @@ describe("POST /api/v1/printing/:printingId/accept-field", () => {
       cardId: "card-uuid",
       setId: "set-uuid",
       shortCode: "OGS-001",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       markerSlugs: [],
@@ -1088,8 +1088,8 @@ describe("POST /api/v1/new/:name/accept", () => {
         cardFields: {
           id: "fire-dragon",
           name: "Fire Dragon",
-          type: "Unit",
-          domains: ["Fury"],
+          type: "unit",
+          domains: ["fury"],
         },
       }),
     });

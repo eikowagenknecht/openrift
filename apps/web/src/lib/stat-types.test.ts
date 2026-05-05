@@ -3,20 +3,20 @@ import { describe, expect, it } from "vitest";
 
 import { comboKey, sortCombos } from "./stat-types";
 
-const DOMAIN_ORDER: Domain[] = ["Fury", "Calm", "Mind", "Body", "Chaos", "Order", "Colorless"];
+const DOMAIN_ORDER: Domain[] = ["fury", "calm", "mind", "body", "chaos", "order", "colorless"];
 
 describe("comboKey", () => {
   it("returns a single domain as-is", () => {
-    expect(comboKey(["Fury"], DOMAIN_ORDER)).toBe("Fury");
+    expect(comboKey(["fury"], DOMAIN_ORDER)).toBe("fury");
   });
 
   it("sorts multi-domain combos by canonical order", () => {
-    expect(comboKey(["Mind", "Fury"], DOMAIN_ORDER)).toBe("Fury+Mind");
-    expect(comboKey(["Order", "Chaos"], DOMAIN_ORDER)).toBe("Chaos+Order");
+    expect(comboKey(["mind", "fury"], DOMAIN_ORDER)).toBe("fury+mind");
+    expect(comboKey(["order", "chaos"], DOMAIN_ORDER)).toBe("chaos+order");
   });
 
   it("handles three domains", () => {
-    expect(comboKey(["Body", "Fury", "Calm"], DOMAIN_ORDER)).toBe("Fury+Calm+Body");
+    expect(comboKey(["body", "fury", "calm"], DOMAIN_ORDER)).toBe("fury+calm+body");
   });
 });
 
@@ -26,25 +26,25 @@ describe("sortCombos", () => {
   });
 
   it("sorts single-domain combos by canonical order", () => {
-    const combos = sortCombos(new Set(["Mind", "Fury", "Calm"]), DOMAIN_ORDER);
-    expect(combos.map((combo) => combo.key)).toEqual(["Fury", "Calm", "Mind"]);
+    const combos = sortCombos(new Set(["mind", "fury", "calm"]), DOMAIN_ORDER);
+    expect(combos.map((combo) => combo.key)).toEqual(["fury", "calm", "mind"]);
   });
 
   it("includes domain arrays in results", () => {
-    const combos = sortCombos(new Set(["Fury+Mind"]), DOMAIN_ORDER);
-    expect(combos).toEqual([{ key: "Fury+Mind", domains: ["Fury", "Mind"] }]);
+    const combos = sortCombos(new Set(["fury+mind"]), DOMAIN_ORDER);
+    expect(combos).toEqual([{ key: "fury+mind", domains: ["fury", "mind"] }]);
   });
 
   it("sorts singles before multi-domain at same average position", () => {
-    // Fury is at index 0, Calm is at index 1, Fury+Calm average = 0.5
-    // So Fury (0) comes before Fury+Calm (0.5) which comes before Calm (1)
-    const combos = sortCombos(new Set(["Calm", "Fury", "Fury+Calm"]), DOMAIN_ORDER);
-    expect(combos.map((combo) => combo.key)).toEqual(["Fury", "Fury+Calm", "Calm"]);
+    // Fury is at index 0, Calm is at index 1, fury+calm average = 0.5
+    // So Fury (0) comes before fury+calm (0.5) which comes before Calm (1)
+    const combos = sortCombos(new Set(["calm", "fury", "fury+calm"]), DOMAIN_ORDER);
+    expect(combos.map((combo) => combo.key)).toEqual(["fury", "fury+calm", "calm"]);
   });
 
   it("interleaves combos by average domain position", () => {
-    const combos = sortCombos(new Set(["Chaos", "Fury", "Fury+Mind"]), DOMAIN_ORDER);
+    const combos = sortCombos(new Set(["chaos", "fury", "fury+mind"]), DOMAIN_ORDER);
     // Fury = 0, Fury+Mind avg = (0+2)/2 = 1, Chaos = 4
-    expect(combos.map((combo) => combo.key)).toEqual(["Fury", "Fury+Mind", "Chaos"]);
+    expect(combos.map((combo) => combo.key)).toEqual(["fury", "fury+mind", "chaos"]);
   });
 });

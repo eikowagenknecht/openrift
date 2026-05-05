@@ -290,7 +290,7 @@ test.describe("card detail route — info panel", () => {
     await expect(page.getByText("Language", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Artist", { exact: true }).first()).toBeVisible();
     // Annie, Fiery's seed printings are Epic rarity and Polar Engine Studio art.
-    await expect(page.getByText("Epic").first()).toBeVisible();
+    await expect(page.getByText("epic").first()).toBeVisible();
     await expect(page.getByText("Polar Engine Studio").first()).toBeVisible();
   });
 
@@ -391,7 +391,7 @@ test.describe("card detail route — info panel", () => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
     await expect(page.getByText("Type", { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("Unit", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("unit", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Domains", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Energy", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Might", { exact: true }).first()).toBeVisible();

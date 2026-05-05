@@ -67,6 +67,7 @@ import * as m118 from "./118-rarity-well-known.js";
 import * as m119 from "./119-printing-printed-year.js";
 import * as m120 from "./120-rules-kind.js";
 import * as m121 from "./121-rules-version-comments.js";
+import * as m122 from "./122-lowercase-taxonomy-slugs.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -193,4 +194,5 @@ export const migrations: Record<string, Migration> = {
   "119-printing-printed-year": m119,
   "120-rules-kind": m120,
   "121-rules-version-comments": m121,
+  "122-lowercase-taxonomy-slugs": m122,
 };

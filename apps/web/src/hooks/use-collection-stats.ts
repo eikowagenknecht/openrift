@@ -6,7 +6,7 @@ import type {
   PriceLookup,
   SetListEntry,
 } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl, WellKnown } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { useCards } from "@/hooks/use-cards";
@@ -81,8 +81,8 @@ export interface CollectionStats {
 
 /** Max copies of a card allowed in a deck, by card type. */
 const COPIES_TARGET: Record<string, number> = {
-  Legend: 1,
-  Battlefield: 1,
+  [WellKnown.cardType.LEGEND]: 1,
+  [WellKnown.cardType.BATTLEFIELD]: 1,
 };
 const DEFAULT_COPIES_TARGET = 3;
 

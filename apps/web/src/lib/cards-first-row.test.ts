@@ -18,7 +18,7 @@ function makeCard(overrides: Partial<CatalogResponseCardValue> = {}): CatalogRes
   return {
     slug: "test-card",
     name: "Test Card",
-    type: "Unit",
+    type: "unit",
     superTypes: [],
     domains: [],
     might: null,
@@ -40,7 +40,7 @@ function makePrinting(
     cardId: "card-1",
     shortCode: "OGN-001",
     setId: "set-ogn",
-    rarity: "Common",
+    rarity: "common",
     artVariant: "normal",
     isSigned: false,
     markers: [],
@@ -130,8 +130,8 @@ describe("extractFirstRow", () => {
 
   it("includes battlefields (the live grid shows them too)", () => {
     const cards = {
-      "unit-card": makeCard({ type: "Unit" }),
-      "bf-card": makeCard({ type: "Battlefield" }),
+      "unit-card": makeCard({ type: "unit" }),
+      "bf-card": makeCard({ type: "battlefield" }),
     };
     const printings = {
       "p-bf": makePrinting({ cardId: "bf-card", shortCode: "OGN-100" }),

@@ -14,13 +14,13 @@
 export const WellKnown = {
   cardType: {
     /** Zone inference: Legend cards go to the "legend" zone. */
-    LEGEND: "Legend",
+    LEGEND: "legend",
     /** Zone inference: Rune cards go to the "runes" zone. */
-    RUNE: "Rune",
+    RUNE: "rune",
     /** Zone inference: Battlefield cards go to the "battlefield" zone; landscape orientation. */
-    BATTLEFIELD: "Battlefield",
+    BATTLEFIELD: "battlefield",
     /** Champion icon detection for Unit cards. */
-    UNIT: "Unit",
+    UNIT: "unit",
   },
   keyword: {
     /** Cards with this keyword cap at 1 copy in a deck (used by playset filter). */
@@ -28,15 +28,15 @@ export const WellKnown = {
   },
   domain: {
     /** No gradient, displays as "No Domain", wildcard in deck domain validation. */
-    COLORLESS: "Colorless",
+    COLORLESS: "colorless",
   },
   superType: {
     /** Champion detection for zone inference and icon display. */
-    CHAMPION: "Champion",
+    CHAMPION: "champion",
     /** Signature detection for icon display. */
-    SIGNATURE: "Signature",
+    SIGNATURE: "signature",
     /** Pack opener: routes the card to the token slot, not the regular common/uncommon slot. */
-    TOKEN: "Token",
+    TOKEN: "token",
   },
   finish: {
     /** Default finish when unspecified. */
@@ -59,14 +59,14 @@ export const WellKnown = {
     ULTIMATE: "ultimate",
   },
   rarity: {
-    COMMON: "Common",
-    UNCOMMON: "Uncommon",
+    COMMON: "common",
+    UNCOMMON: "uncommon",
     /** Always foil-finish (drives import-time finish inference). */
-    RARE: "Rare",
+    RARE: "rare",
     /** Always foil-finish (drives import-time finish inference). */
-    EPIC: "Epic",
+    EPIC: "epic",
     /** Always foil-finish (drives import-time finish inference); also routed to the showcase pack slot. */
-    SHOWCASE: "Showcase",
+    SHOWCASE: "showcase",
   },
   deckFormat: {
     /** Applies constructed deck validation rules. */

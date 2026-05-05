@@ -40,22 +40,22 @@ const mockEnums = {
   all: vi.fn(() =>
     Promise.resolve({
       cardTypes: [
-        { slug: "Legend", label: "Legend", sortOrder: 1, isWellKnown: true },
-        { slug: "Unit", label: "Unit", sortOrder: 2, isWellKnown: true },
-        { slug: "Rune", label: "Rune", sortOrder: 3, isWellKnown: true },
-        { slug: "Spell", label: "Spell", sortOrder: 4, isWellKnown: true },
-        { slug: "Gear", label: "Gear", sortOrder: 5, isWellKnown: true },
-        { slug: "Battlefield", label: "Battlefield", sortOrder: 6, isWellKnown: true },
-        { slug: "Other", label: "Other", sortOrder: 7, isWellKnown: true },
+        { slug: "legend", label: "legend", sortOrder: 1, isWellKnown: true },
+        { slug: "unit", label: "unit", sortOrder: 2, isWellKnown: true },
+        { slug: "rune", label: "rune", sortOrder: 3, isWellKnown: true },
+        { slug: "spell", label: "spell", sortOrder: 4, isWellKnown: true },
+        { slug: "gear", label: "gear", sortOrder: 5, isWellKnown: true },
+        { slug: "battlefield", label: "battlefield", sortOrder: 6, isWellKnown: true },
+        { slug: "other", label: "other", sortOrder: 7, isWellKnown: true },
       ],
       domains: [
-        { slug: "Fury", label: "Fury", sortOrder: 1, isWellKnown: true, color: null },
-        { slug: "Calm", label: "Calm", sortOrder: 2, isWellKnown: true, color: null },
-        { slug: "Mind", label: "Mind", sortOrder: 3, isWellKnown: true, color: null },
-        { slug: "Body", label: "Body", sortOrder: 4, isWellKnown: true, color: null },
-        { slug: "Chaos", label: "Chaos", sortOrder: 5, isWellKnown: true, color: null },
-        { slug: "Order", label: "Order", sortOrder: 6, isWellKnown: true, color: null },
-        { slug: "Colorless", label: "Colorless", sortOrder: 7, isWellKnown: true, color: null },
+        { slug: "fury", label: "fury", sortOrder: 1, isWellKnown: true, color: null },
+        { slug: "calm", label: "calm", sortOrder: 2, isWellKnown: true, color: null },
+        { slug: "mind", label: "mind", sortOrder: 3, isWellKnown: true, color: null },
+        { slug: "body", label: "body", sortOrder: 4, isWellKnown: true, color: null },
+        { slug: "chaos", label: "chaos", sortOrder: 5, isWellKnown: true, color: null },
+        { slug: "order", label: "order", sortOrder: 6, isWellKnown: true, color: null },
+        { slug: "colorless", label: "colorless", sortOrder: 7, isWellKnown: true, color: null },
       ],
       rarities: [],
       superTypes: [],
@@ -129,9 +129,9 @@ const dbDeckCardFull = {
   zone: "main",
   quantity: 4,
   cardName: "Fire Dragon",
-  cardType: "Unit",
+  cardType: "unit",
   superTypes: [],
-  domains: ["Fury"],
+  domains: ["fury"],
   tags: [],
   keywords: [],
   energy: 5,
@@ -158,7 +158,7 @@ describe("GET /api/v1/decks", () => {
     expect(json.items).toHaveLength(1);
     expect(json.items[0].deck.name).toBe("Fury Aggro");
     expect(json.items[0].totalCards).toBe(4);
-    expect(json.items[0].typeCounts).toEqual([{ cardType: "Unit", count: 4 }]);
+    expect(json.items[0].typeCounts).toEqual([{ cardType: "unit", count: 4 }]);
     expect(json.items[0].isValid).toBe(false);
   });
 

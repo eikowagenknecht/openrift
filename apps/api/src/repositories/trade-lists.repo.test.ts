@@ -61,11 +61,11 @@ describe("tradeListsRepo", () => {
       printingId: "p-1",
       collectionId: "col-1",
       setId: "s-1",
-      rarity: "Rare",
+      rarity: "rare",
       finish: "normal",
       imageUrl: null,
       cardName: "Card",
-      cardType: "Unit",
+      cardType: "unit",
     };
     const db = createMockDb([row]);
     expect(await tradeListsRepo(db).itemsWithDetails("tl-1", "u1")).toEqual([row]);

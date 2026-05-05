@@ -31,7 +31,7 @@ test.describe("card browser URL params", () => {
   });
 
   test("?rarities=Epic narrows the grid to Epic printings", async ({ page }) => {
-    await page.goto(`/cards?rarities=${encodeURIComponent(JSON.stringify(["Epic"]))}`);
+    await page.goto(`/cards?rarities=${encodeURIComponent(JSON.stringify(["epic"]))}`);
 
     // Annie, Fiery has an Epic printing in the seed
     await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: LOAD_TIMEOUT });
@@ -40,7 +40,7 @@ test.describe("card browser URL params", () => {
   });
 
   test("?domains=Fury narrows the grid to Fury cards", async ({ page }) => {
-    await page.goto(`/cards?domains=${encodeURIComponent(JSON.stringify(["Fury"]))}`);
+    await page.goto(`/cards?domains=${encodeURIComponent(JSON.stringify(["fury"]))}`);
 
     await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: LOAD_TIMEOUT });
     // Lux, Illuminated is a Mind card, filtered out
@@ -48,7 +48,7 @@ test.describe("card browser URL params", () => {
   });
 
   test("?types=Legend narrows the grid to Legend cards", async ({ page }) => {
-    await page.goto(`/cards?types=${encodeURIComponent(JSON.stringify(["Legend"]))}`);
+    await page.goto(`/cards?types=${encodeURIComponent(JSON.stringify(["legend"]))}`);
 
     await expect(page.getByText("Dark Child, Starter").first()).toBeVisible({
       timeout: LOAD_TIMEOUT,
@@ -131,7 +131,7 @@ test.describe("card browser URL params", () => {
     // unambiguously target the headers. The grid is window-virtualized
     // (see card-grid.tsx), so headers below the fold need to be scrolled
     // into view first.
-    for (const name of ["Unit", "Spell", "Legend"]) {
+    for (const name of ["unit", "spell", "legend"]) {
       await scrollUntilVisible(page, page.getByRole("button", { name, exact: true }), {
         timeout: LOAD_TIMEOUT,
       });

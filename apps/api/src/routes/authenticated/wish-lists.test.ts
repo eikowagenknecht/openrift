@@ -349,16 +349,16 @@ describe("PATCH /api/v1/wish-lists/:id — rules update", () => {
   });
 
   it("serializes rules via patchFields transform", async () => {
-    const updated = { ...dbWishList, rules: '{"minRarity":"Rare"}' };
+    const updated = { ...dbWishList, rules: '{"minRarity":"rare"}' };
     mockRepo.update.mockResolvedValue(updated);
     const res = await app.request(`/api/v1/wish-lists/${WISH_LIST_ID}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rules: { minRarity: "Rare" } }),
+      body: JSON.stringify({ rules: { minRarity: "rare" } }),
     });
     expect(res.status).toBe(200);
     expect(mockRepo.update).toHaveBeenCalledWith(WISH_LIST_ID, USER_ID, {
-      rules: '{"minRarity":"Rare"}',
+      rules: '{"minRarity":"rare"}',
     });
   });
 

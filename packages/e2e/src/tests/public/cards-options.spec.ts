@@ -132,7 +132,7 @@ test.describe("card browser — options bar", () => {
     // name as the accessible name. Seed data has Legend, Unit, Spell types.
     // The grid is window-virtualized (see card-grid.tsx), so headers below
     // the fold are not in the DOM until scrolled into view.
-    for (const name of ["Legend", "Unit", "Spell"]) {
+    for (const name of ["legend", "unit", "spell"]) {
       await scrollUntilVisible(page, page.getByRole("button", { name, exact: true }));
     }
   });
@@ -146,7 +146,7 @@ test.describe("card browser — options bar", () => {
     await page.keyboard.press("Escape");
 
     // Order with asc: the seeded card_types table sort_order is
-    // ["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield", "Other"].
+    // ["legend", "unit", "rune", "spell", "gear", "battlefield", "other"].
     // Only Legend / Unit / Spell are present in seed, so asc order starts
     // with Legend; flipping should put Spell first. The grid is window-
     // virtualized (see card-grid.tsx), so headers below the fold aren't in
@@ -154,7 +154,7 @@ test.describe("card browser — options bar", () => {
     // list.
     const firstHeader = page.getByRole("button", { name: /^(Legend|Unit|Spell)$/ }).first();
 
-    await expect(firstHeader).toHaveText("Legend");
+    await expect(firstHeader).toHaveText("legend");
 
     // Re-open the popover and flip the Group by direction. The action button
     // sits in the "Group by" section header next to the title span — the only
@@ -164,6 +164,6 @@ test.describe("card browser — options bar", () => {
     await groupByRow.getByRole("button").click();
     await page.keyboard.press("Escape");
 
-    await expect(firstHeader).toHaveText("Spell");
+    await expect(firstHeader).toHaveText("spell");
   });
 });

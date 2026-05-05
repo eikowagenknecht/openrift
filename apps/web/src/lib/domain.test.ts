@@ -13,24 +13,24 @@ import {
 
 describe("getDomainGradientStyle", () => {
   it("returns a solid background color for a single domain", () => {
-    const style = getDomainGradientStyle(["Fury"]);
+    const style = getDomainGradientStyle(["fury"]);
     expect(style).toEqual({ backgroundColor: "#CB212D" });
   });
 
   it("returns a linear gradient for a dual domain", () => {
-    const style = getDomainGradientStyle(["Mind", "Chaos"]);
+    const style = getDomainGradientStyle(["mind", "chaos"]);
     expect(style).toEqual({
       background: "linear-gradient(90deg, #227799 30%, #6B4891 70%)",
     });
   });
 
   it("applies alpha suffix when provided", () => {
-    const style = getDomainGradientStyle(["Fury"], "40");
+    const style = getDomainGradientStyle(["fury"], "40");
     expect(style).toEqual({ backgroundColor: "#CB212D40" });
   });
 
   it("applies alpha to both colors in a gradient", () => {
-    const style = getDomainGradientStyle(["Mind", "Chaos"], "80");
+    const style = getDomainGradientStyle(["mind", "chaos"], "80");
     expect(style).toEqual({
       background: "linear-gradient(90deg, #22779980 30%, #6B489180 70%)",
     });
@@ -49,7 +49,7 @@ describe("getDomainGradientStyle", () => {
   });
 
   it("applies alpha to both colors in a dual-domain gradient", () => {
-    const style = getDomainGradientStyle(["Fury", "Calm"], "40");
+    const style = getDomainGradientStyle(["fury", "calm"], "40");
     expect(style).toEqual({
       background: "linear-gradient(90deg, #CB212D40 30%, #16AA7140 70%)",
     });
@@ -62,13 +62,13 @@ describe("getDomainGradientStyle", () => {
 
 describe("getDomainTintStyle", () => {
   it("returns a single-color gradient for a single domain", () => {
-    const style = getDomainTintStyle(["Fury"]);
+    const style = getDomainTintStyle(["fury"]);
     expect(style.backgroundImage).toContain("#CB212D");
     expect(style.backgroundImage).toContain("to bottom");
   });
 
   it("returns a two-color gradient for a dual domain", () => {
-    const style = getDomainTintStyle(["Mind", "Chaos"]);
+    const style = getDomainTintStyle(["mind", "chaos"]);
     expect(style.backgroundImage).toContain("#227799");
     expect(style.backgroundImage).toContain("#6B4891");
     expect(style.backgroundImage).toContain("135deg");
@@ -87,15 +87,17 @@ describe("getDomainTintStyle", () => {
 
 describe("formatDomainDisplay", () => {
   it('returns "No Domain" for Colorless', () => {
-    expect(formatDomainDisplay(["Colorless"])).toBe("No Domain");
+    expect(formatDomainDisplay(["colorless"])).toBe("No Domain");
   });
 
   it("returns the domain name for a single domain", () => {
-    expect(formatDomainDisplay(["Fury"])).toBe("Fury");
+    expect(formatDomainDisplay(["fury"])).toBe("fury");
   });
 
   it("joins dual domains with spaced slash", () => {
-    expect(formatDomainDisplay(["Mind", "Chaos"])).toBe("Mind / Chaos");
+    expect(formatDomainDisplay(["mind", "chaos"], { mind: "Mind", chaos: "Chaos" })).toBe(
+      "Mind / Chaos",
+    );
   });
 });
 
@@ -105,10 +107,10 @@ describe("formatDomainDisplay", () => {
 
 describe("formatDomainFilterLabel", () => {
   it('returns "None" for Colorless', () => {
-    expect(formatDomainFilterLabel("Colorless")).toBe("None");
+    expect(formatDomainFilterLabel("colorless")).toBe("None");
   });
 
   it("returns the domain name as-is for other domains", () => {
-    expect(formatDomainFilterLabel("Fury")).toBe("Fury");
+    expect(formatDomainFilterLabel("fury")).toBe("fury");
   });
 });

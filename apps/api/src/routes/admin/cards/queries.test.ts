@@ -77,8 +77,8 @@ describe("GET /api/v1/all-cards", () => {
 
   it("returns 200 with all cards", async () => {
     const cards = [
-      { id: "card-1", slug: "fireball", name: "Fireball", type: "Spell" },
-      { id: "card-2", slug: "bolt", name: "Bolt", type: "Spell" },
+      { id: "card-1", slug: "fireball", name: "Fireball", type: "spell" },
+      { id: "card-2", slug: "bolt", name: "Bolt", type: "spell" },
     ];
     mockCandidateCards.listAllCards.mockResolvedValue(cards);
 
@@ -195,7 +195,7 @@ describe("GET /api/v1/export", () => {
   it("returns 200 with export data", async () => {
     const exportData = [
       {
-        card: { name: "Fireball", type: "Spell" },
+        card: { name: "Fireball", type: "spell" },
         printings: [],
       },
     ];

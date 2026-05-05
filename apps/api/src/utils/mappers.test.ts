@@ -275,10 +275,10 @@ describe("toTradeListItemDetail", () => {
       collectionId: "col-1",
       imageId: "uuid-base",
       setId: "set-1",
-      rarity: "Rare",
+      rarity: "rare",
       finish: "foil",
       cardName: "Fire Dragon",
-      cardType: "Unit",
+      cardType: "unit",
     });
     expect(result).toEqual({
       id: "tli-1",
@@ -288,10 +288,10 @@ describe("toTradeListItemDetail", () => {
       collectionId: "col-1",
       imageId: "uuid-base",
       setId: "set-1",
-      rarity: "Rare",
+      rarity: "rare",
       finish: "foil",
       cardName: "Fire Dragon",
-      cardType: "Unit",
+      cardType: "unit",
     });
   });
 
@@ -304,10 +304,10 @@ describe("toTradeListItemDetail", () => {
       collectionId: "col-1",
       imageId: null,
       setId: "set-1",
-      rarity: "Rare",
+      rarity: "rare",
       finish: "foil",
       cardName: "Fire Dragon",
-      cardType: "Unit",
+      cardType: "unit",
     });
     expect(result.imageId).toBeNull();
   });
@@ -401,11 +401,11 @@ describe("toCollectionEvent", () => {
       toCollectionName: "Main",
       createdAt: NOW,
       shortCode: "OGS-005",
-      rarity: "Rare",
+      rarity: "rare",
       imageId: "uuid-base",
       cardName: "Shadow Knight",
-      cardType: "Unit",
-      cardSuperTypes: ["Champion"],
+      cardType: "unit",
+      cardSuperTypes: ["champion"],
     });
     expect(result).toEqual({
       id: "ev-1",
@@ -418,11 +418,11 @@ describe("toCollectionEvent", () => {
       toCollectionName: "Main",
       createdAt: "2025-06-15T12:00:00.000Z",
       shortCode: "OGS-005",
-      rarity: "Rare",
+      rarity: "rare",
       imageId: "uuid-base",
       cardName: "Shadow Knight",
-      cardType: "Unit",
-      cardSuperTypes: ["Champion"],
+      cardType: "unit",
+      cardSuperTypes: ["champion"],
     });
   });
 
@@ -438,11 +438,11 @@ describe("toCollectionEvent", () => {
       toCollectionName: "Main",
       createdAt: NOW,
       shortCode: "OGS-005",
-      rarity: "Rare",
+      rarity: "rare",
       imageId: null,
       cardName: "Shadow Knight",
-      cardType: "Unit",
-      cardSuperTypes: ["Champion"],
+      cardType: "unit",
+      cardSuperTypes: ["champion"],
     });
     expect(result.imageId).toBeNull();
   });

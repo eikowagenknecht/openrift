@@ -68,7 +68,7 @@ if (ctx) {
     .values({
       slug: "IMG-001",
       name: "IMG Test Card",
-      type: "Unit",
+      type: "unit",
       might: null,
       energy: 2,
       power: null,
@@ -81,7 +81,7 @@ if (ctx) {
 
   await db
     .insertInto("cardDomains")
-    .values({ cardId: card.id, domainSlug: "Mind", ordinal: 0 })
+    .values({ cardId: card.id, domainSlug: "mind", ordinal: 0 })
     .execute();
 
   const [printing] = await db
@@ -90,7 +90,7 @@ if (ctx) {
       cardId: card.id,
       setId: set.id,
       shortCode: "IMG-001",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -111,9 +111,9 @@ if (ctx) {
     .values({
       provider: "img-source",
       name: "IMG Test Card",
-      type: "Unit",
+      type: "unit",
       superTypes: [],
-      domains: ["Mind"],
+      domains: ["mind"],
       might: null,
       energy: 2,
       power: null,
@@ -136,7 +136,7 @@ if (ctx) {
       shortCode: "IMG-001",
       setId: "IMG",
       setName: "IMG Test Set",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",

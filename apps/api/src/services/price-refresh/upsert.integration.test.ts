@@ -56,7 +56,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
       .values({
         slug: cardSlug,
         name: "UPS Test Card",
-        type: "Unit",
+        type: "unit",
         might: 2,
         energy: 3,
         power: 4,
@@ -68,7 +68,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
       .executeTakeFirstOrThrow();
     cardId = insertedCard.id;
 
-    await db.insertInto("cardDomains").values({ cardId, domainSlug: "Mind", ordinal: 0 }).execute();
+    await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
 
     // Seed group for cardmarket marketplace
     await db
@@ -84,7 +84,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
           cardId,
           setId,
           shortCode: "UPS-001",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           finish: "normal",
@@ -98,7 +98,7 @@ describe.skipIf(!ctx)("refresh-prices-shared integration", () => {
           cardId,
           setId,
           shortCode: "UPS-001",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           finish: "foil",

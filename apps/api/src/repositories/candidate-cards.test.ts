@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createMockDb } from "../test/mock-db.js";
 import { candidateCardsRepo } from "./candidate-cards.js";
 
-const CARD = { id: "c-1", slug: "OGS-001", name: "Annie", type: "Unit" };
+const CARD = { id: "c-1", slug: "OGS-001", name: "Annie", type: "unit" };
 const CARD_WITH_SETS = { ...CARD, setSlugs: ["ogs"] };
 const CC = { id: "cc-1", provider: "test", name: "Annie", normName: "annie" };
 

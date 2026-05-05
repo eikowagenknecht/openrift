@@ -9,9 +9,9 @@ function printing(overrides: Partial<PackPrinting>): PackPrinting {
     cardId: "c",
     cardName: "Card",
     cardSlug: "card",
-    cardType: "Unit",
+    cardType: "unit",
     cardSuperTypes: [],
-    rarity: "Common",
+    rarity: "common",
     finish: "normal",
     artVariant: "normal",
     isSigned: false,
@@ -26,19 +26,19 @@ function printing(overrides: Partial<PackPrinting>): PackPrinting {
 describe("buildPool", () => {
   it("buckets each printing into exactly one slot pool", () => {
     const printings: PackPrinting[] = [
-      printing({ id: "c1", rarity: "Common" }),
-      printing({ id: "u1", rarity: "Uncommon" }),
-      printing({ id: "fc1", rarity: "Common", finish: "foil" }),
-      printing({ id: "fu1", rarity: "Uncommon", finish: "foil" }),
-      printing({ id: "r1", rarity: "Rare", finish: "foil" }),
-      printing({ id: "e1", rarity: "Epic", finish: "foil" }),
-      printing({ id: "run1", cardType: "Rune", rarity: "Common" }),
-      printing({ id: "frun1", cardType: "Rune", rarity: "Common", finish: "foil" }),
-      printing({ id: "arun1", cardType: "Rune", rarity: "Common", artVariant: "altart" }),
-      printing({ id: "tok1", cardSuperTypes: ["Token"] }),
-      printing({ id: "sa1", rarity: "Showcase", finish: "foil", artVariant: "altart" }),
-      printing({ id: "so1", rarity: "Showcase", finish: "foil", artVariant: "overnumbered" }),
-      printing({ id: "ss1", rarity: "Showcase", finish: "foil", isSigned: true }),
+      printing({ id: "c1", rarity: "common" }),
+      printing({ id: "u1", rarity: "uncommon" }),
+      printing({ id: "fc1", rarity: "common", finish: "foil" }),
+      printing({ id: "fu1", rarity: "uncommon", finish: "foil" }),
+      printing({ id: "r1", rarity: "rare", finish: "foil" }),
+      printing({ id: "e1", rarity: "epic", finish: "foil" }),
+      printing({ id: "run1", cardType: "rune", rarity: "common" }),
+      printing({ id: "frun1", cardType: "rune", rarity: "common", finish: "foil" }),
+      printing({ id: "arun1", cardType: "rune", rarity: "common", artVariant: "altart" }),
+      printing({ id: "tok1", cardSuperTypes: ["token"] }),
+      printing({ id: "sa1", rarity: "showcase", finish: "foil", artVariant: "altart" }),
+      printing({ id: "so1", rarity: "showcase", finish: "foil", artVariant: "overnumbered" }),
+      printing({ id: "ss1", rarity: "showcase", finish: "foil", isSigned: true }),
       printing({ id: "ult1", artVariant: "ultimate" }),
     ];
     const pool = buildPool(printings);
@@ -60,9 +60,9 @@ describe("buildPool", () => {
 
   it("excludes metal finishes and signed non-Showcase cards from the flex pool", () => {
     const printings: PackPrinting[] = [
-      printing({ id: "metal", rarity: "Rare", finish: "metal" }),
-      printing({ id: "metaldlx", rarity: "Rare", finish: "metal-deluxe" }),
-      printing({ id: "signedEpic", rarity: "Epic", finish: "foil", isSigned: true }),
+      printing({ id: "metal", rarity: "rare", finish: "metal" }),
+      printing({ id: "metaldlx", rarity: "rare", finish: "metal-deluxe" }),
+      printing({ id: "signedEpic", rarity: "epic", finish: "foil", isSigned: true }),
     ];
     const pool = buildPool(printings);
     expect(pool.rares).toHaveLength(0);
@@ -71,8 +71,8 @@ describe("buildPool", () => {
 
   it("keeps Common Runes out of the common pool", () => {
     const printings: PackPrinting[] = [
-      printing({ id: "c", rarity: "Common" }),
-      printing({ id: "rune", cardType: "Rune", rarity: "Common" }),
+      printing({ id: "c", rarity: "common" }),
+      printing({ id: "rune", cardType: "rune", rarity: "common" }),
     ];
     const pool = buildPool(printings);
     expect(pool.commons.map((p) => p.id)).toEqual(["c"]);
@@ -81,9 +81,9 @@ describe("buildPool", () => {
 
   it("keeps Token-supertype cards out of the common pool", () => {
     const printings: PackPrinting[] = [
-      printing({ id: "c", rarity: "Common" }),
+      printing({ id: "c", rarity: "common" }),
       // Sprite/Recruit are Common-rarity Unit cards with the Token super type.
-      printing({ id: "sprite", cardType: "Unit", cardSuperTypes: ["Token"], rarity: "Common" }),
+      printing({ id: "sprite", cardType: "unit", cardSuperTypes: ["token"], rarity: "common" }),
     ];
     const pool = buildPool(printings);
     expect(pool.commons.map((p) => p.id)).toEqual(["c"]);
@@ -92,7 +92,7 @@ describe("buildPool", () => {
 
   it("routes ultimate printings to the ultimates pool regardless of rarity", () => {
     const pool = buildPool([
-      printing({ id: "u", rarity: "Showcase", artVariant: "ultimate", finish: "foil" }),
+      printing({ id: "u", rarity: "showcase", artVariant: "ultimate", finish: "foil" }),
     ]);
     expect(pool.ultimates).toHaveLength(1);
     expect(pool.showcaseAltart).toHaveLength(0);

@@ -316,9 +316,9 @@ const LAYOUT_LEGEND: { label: string; region: string }[] = [
 function CardLayoutHelp({ state }: { state: ContributeFormState }) {
   const firstPrinting = state.printings[0];
   const cardName = state.card.name || "Your card name";
-  const cardDomains = state.card.domains.length > 0 ? state.card.domains : ["Fury"];
-  const cardType = state.card.type ?? "Unit";
-  const cardSuperTypes = state.card.superTypes.length > 0 ? state.card.superTypes : ["Champion"];
+  const cardDomains = state.card.domains.length > 0 ? state.card.domains : ["fury"];
+  const cardType = state.card.type ?? WellKnown.cardType.UNIT;
+  const cardSuperTypes = state.card.superTypes.length > 0 ? state.card.superTypes : ["champion"];
   const cardTags = state.card.tags.length > 0 ? state.card.tags : ["Tag"];
   const cardEnergy = state.card.energy ?? 3;
   const cardMight = state.card.might ?? 4;
@@ -327,7 +327,7 @@ function CardLayoutHelp({ state }: { state: ContributeFormState }) {
   const cardEffectText = firstPrinting?.printedEffectText || "Effect text gets a highlighted band.";
   const cardMightBonus = state.card.mightBonus ?? 1;
   const printingFlavor = firstPrinting?.flavorText || "Optional flavor line, in italics.";
-  const printingRarity = firstPrinting?.rarity || "Common";
+  const printingRarity = firstPrinting?.rarity || WellKnown.rarity.COMMON;
   const printingPublicCode = firstPrinting?.publicCode || "ABC-001/002";
   const printingArtist = firstPrinting?.artist || "Artist name";
   return (
@@ -394,7 +394,7 @@ function LivePreview({ state }: { state: ContributeFormState }) {
           effectText={firstPrinting?.printedEffectText ?? null}
           mightBonus={state.card.mightBonus}
           flavorText={firstPrinting?.flavorText ?? null}
-          rarity={firstPrinting?.rarity ?? "Common"}
+          rarity={firstPrinting?.rarity ?? WellKnown.rarity.COMMON}
           publicCode={firstPrinting?.publicCode ?? undefined}
           artist={firstPrinting?.artist ?? undefined}
         />

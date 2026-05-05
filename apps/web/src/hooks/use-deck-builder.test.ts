@@ -50,7 +50,7 @@ afterEach(() => {
 
 describe("addCardAction", () => {
   it("adds a card to the target zone", () => {
-    const card = stubDeckBuilderCard({ cardType: "Unit" });
+    const card = stubDeckBuilderCard({ cardType: "unit" });
     addCardAction(collection, card, "main", undefined, EMPTY_RUNES);
     const cards = cardsOf(collection);
     expect(cards).toHaveLength(1);
@@ -59,19 +59,19 @@ describe("addCardAction", () => {
   });
 
   it("adds to an explicit zone override", () => {
-    const card = stubDeckBuilderCard({ cardType: "Unit" });
+    const card = stubDeckBuilderCard({ cardType: "unit" });
     addCardAction(collection, card, "sideboard", undefined, EMPTY_RUNES);
     expect(cardsOf(collection)[0].zone).toBe("sideboard");
   });
 
   it("rejects cards that don't belong in the target zone", () => {
-    const legend = stubDeckBuilderCard({ cardType: "Legend" });
+    const legend = stubDeckBuilderCard({ cardType: "legend" });
     addCardAction(collection, legend, "main", undefined, EMPTY_RUNES);
     expect(cardsOf(collection)).toHaveLength(0);
   });
 
   it("increments quantity for an existing entry", () => {
-    const card = stubDeckBuilderCard({ cardId: "card-1", cardType: "Unit", zone: "main" });
+    const card = stubDeckBuilderCard({ cardId: "card-1", cardType: "unit", zone: "main" });
     collection = createDraftCollection([{ ...card, quantity: 1 }]);
     addCardAction(collection, card, "main", undefined, EMPTY_RUNES);
     expect(cardsOf(collection)[0].quantity).toBe(2);
@@ -80,7 +80,7 @@ describe("addCardAction", () => {
   it("enforces max 3 copies across main/sideboard/overflow/champion", () => {
     const card = stubDeckBuilderCard({
       cardId: "card-1",
-      cardType: "Unit",
+      cardType: "unit",
       zone: "main",
       quantity: 3,
     });
@@ -93,7 +93,7 @@ describe("addCardAction", () => {
   it("clamps partial additions up to the 3-copy limit", () => {
     const card = stubDeckBuilderCard({
       cardId: "card-1",
-      cardType: "Unit",
+      cardType: "unit",
       zone: "main",
       quantity: 2,
     });
@@ -106,11 +106,11 @@ describe("addCardAction", () => {
   it("replaces the legend zone when adding a legend", () => {
     const oldLegend = stubDeckBuilderCard({
       cardId: "old",
-      cardType: "Legend",
+      cardType: "legend",
       zone: "legend",
     });
     collection = createDraftCollection([oldLegend]);
-    const newLegend = stubDeckBuilderCard({ cardId: "new", cardType: "Legend" });
+    const newLegend = stubDeckBuilderCard({ cardId: "new", cardType: "legend" });
     addCardAction(collection, newLegend, "legend", undefined, EMPTY_RUNES);
     const legends = cardsOf(collection).filter((c) => c.zone === "legend");
     expect(legends).toHaveLength(1);
@@ -120,15 +120,15 @@ describe("addCardAction", () => {
   it("replaces the champion zone when adding a champion", () => {
     const oldChamp = stubDeckBuilderCard({
       cardId: "old-champ",
-      cardType: "Unit",
-      superTypes: ["Champion"],
+      cardType: "unit",
+      superTypes: ["champion"],
       zone: "champion",
     });
     collection = createDraftCollection([oldChamp]);
     const newChamp = stubDeckBuilderCard({
       cardId: "new-champ",
-      cardType: "Unit",
-      superTypes: ["Champion"],
+      cardType: "unit",
+      superTypes: ["champion"],
     });
     addCardAction(collection, newChamp, "champion", undefined, EMPTY_RUNES);
     const champs = cardsOf(collection).filter((c) => c.zone === "champion");
@@ -140,13 +140,13 @@ describe("addCardAction", () => {
     const bfs = Array.from({ length: 3 }, (_, index) =>
       stubDeckBuilderCard({
         cardId: `bf-${index}`,
-        cardType: "Battlefield",
+        cardType: "battlefield",
         zone: "battlefield",
         quantity: 1,
       }),
     );
     collection = createDraftCollection(bfs);
-    const newBf = stubDeckBuilderCard({ cardId: "bf-new", cardType: "Battlefield" });
+    const newBf = stubDeckBuilderCard({ cardId: "bf-new", cardType: "battlefield" });
     addCardAction(collection, newBf, "battlefield", undefined, EMPTY_RUNES);
     expect(cardsOf(collection).filter((c) => c.zone === "battlefield")).toHaveLength(3);
   });
@@ -154,7 +154,7 @@ describe("addCardAction", () => {
   it("prevents duplicate battlefields in the same zone", () => {
     const bf = stubDeckBuilderCard({
       cardId: "bf-1",
-      cardType: "Battlefield",
+      cardType: "battlefield",
       zone: "battlefield",
       quantity: 1,
     });
@@ -168,22 +168,22 @@ describe("addCardAction", () => {
   it("does not exceed 12 runes when no opposite-domain rune exists to swap", () => {
     const legend = stubDeckBuilderCard({
       cardId: "legend-1",
-      cardType: "Legend",
+      cardType: "legend",
       zone: "legend",
-      domains: ["Fury", "Calm"],
+      domains: ["fury", "calm"],
     });
     const furyRune = stubDeckBuilderCard({
       cardId: "fury-rune",
-      cardType: "Rune",
+      cardType: "rune",
       zone: "runes",
-      domains: ["Fury"],
+      domains: ["fury"],
       quantity: 12,
     });
     collection = createDraftCollection([legend, furyRune]);
     const addCard = stubDeckBuilderCard({
       cardId: "fury-rune",
-      cardType: "Rune",
-      domains: ["Fury"],
+      cardType: "rune",
+      domains: ["fury"],
     });
     addCardAction(collection, addCard, "runes", undefined, EMPTY_RUNES);
     const total = cardsOf(collection)
@@ -195,29 +195,29 @@ describe("addCardAction", () => {
   it("allows a swap-add at 12 runes when an opposite-domain rune is in the deck", () => {
     const legend = stubDeckBuilderCard({
       cardId: "legend-1",
-      cardType: "Legend",
+      cardType: "legend",
       zone: "legend",
-      domains: ["Fury", "Calm"],
+      domains: ["fury", "calm"],
     });
     const furyRune = stubDeckBuilderCard({
       cardId: "fury-rune",
-      cardType: "Rune",
+      cardType: "rune",
       zone: "runes",
-      domains: ["Fury"],
+      domains: ["fury"],
       quantity: 6,
     });
     const calmRune = stubDeckBuilderCard({
       cardId: "calm-rune",
-      cardType: "Rune",
+      cardType: "rune",
       zone: "runes",
-      domains: ["Calm"],
+      domains: ["calm"],
       quantity: 6,
     });
     collection = createDraftCollection([legend, furyRune, calmRune]);
     const addCard = stubDeckBuilderCard({
       cardId: "fury-rune",
-      cardType: "Rune",
-      domains: ["Fury"],
+      cardType: "rune",
+      domains: ["fury"],
     });
     addCardAction(collection, addCard, "runes", undefined, EMPTY_RUNES);
     const runes = cardsOf(collection).filter((card) => card.zone === "runes");
@@ -230,22 +230,22 @@ describe("addCardAction", () => {
   it("does not exceed 12 runes for a mono-domain legend", () => {
     const legend = stubDeckBuilderCard({
       cardId: "legend-1",
-      cardType: "Legend",
+      cardType: "legend",
       zone: "legend",
-      domains: ["Fury"],
+      domains: ["fury"],
     });
     const furyRune = stubDeckBuilderCard({
       cardId: "fury-rune",
-      cardType: "Rune",
+      cardType: "rune",
       zone: "runes",
-      domains: ["Fury"],
+      domains: ["fury"],
       quantity: 12,
     });
     collection = createDraftCollection([legend, furyRune]);
     const addCard = stubDeckBuilderCard({
       cardId: "fury-rune",
-      cardType: "Rune",
-      domains: ["Fury"],
+      cardType: "rune",
+      domains: ["fury"],
     });
     addCardAction(collection, addCard, "runes", undefined, EMPTY_RUNES);
     const total = cardsOf(collection)
@@ -261,20 +261,20 @@ describe("canAddRune", () => {
   const dualLegend = () =>
     stubDeckBuilderCard({
       cardId: "legend-1",
-      cardType: "Legend",
+      cardType: "legend",
       zone: "legend",
-      domains: ["Fury", "Calm"],
+      domains: ["fury", "calm"],
     });
 
   it("allows adds below the cap", () => {
-    const card = stubDeckBuilderCard({ cardType: "Rune", domains: ["Fury"] });
+    const card = stubDeckBuilderCard({ cardType: "rune", domains: ["fury"] });
     const result = canAddRune(card, [
       dualLegend(),
       stubDeckBuilderCard({
         cardId: "fury-rune",
-        cardType: "Rune",
+        cardType: "rune",
         zone: "runes",
-        domains: ["Fury"],
+        domains: ["fury"],
         quantity: 5,
       }),
     ]);
@@ -282,14 +282,14 @@ describe("canAddRune", () => {
   });
 
   it("blocks adds at the cap when no opposite-domain rune exists", () => {
-    const card = stubDeckBuilderCard({ cardType: "Rune", domains: ["Fury"] });
+    const card = stubDeckBuilderCard({ cardType: "rune", domains: ["fury"] });
     const result = canAddRune(card, [
       dualLegend(),
       stubDeckBuilderCard({
         cardId: "fury-rune",
-        cardType: "Rune",
+        cardType: "rune",
         zone: "runes",
-        domains: ["Fury"],
+        domains: ["fury"],
         quantity: 12,
       }),
     ]);
@@ -297,21 +297,21 @@ describe("canAddRune", () => {
   });
 
   it("allows adds at the cap when an opposite-domain rune exists (swap)", () => {
-    const card = stubDeckBuilderCard({ cardType: "Rune", domains: ["Fury"] });
+    const card = stubDeckBuilderCard({ cardType: "rune", domains: ["fury"] });
     const result = canAddRune(card, [
       dualLegend(),
       stubDeckBuilderCard({
         cardId: "fury-rune",
-        cardType: "Rune",
+        cardType: "rune",
         zone: "runes",
-        domains: ["Fury"],
+        domains: ["fury"],
         quantity: 6,
       }),
       stubDeckBuilderCard({
         cardId: "calm-rune",
-        cardType: "Rune",
+        cardType: "rune",
         zone: "runes",
-        domains: ["Calm"],
+        domains: ["calm"],
         quantity: 6,
       }),
     ]);
@@ -319,19 +319,19 @@ describe("canAddRune", () => {
   });
 
   it("blocks adds at the cap when the legend is mono-domain", () => {
-    const card = stubDeckBuilderCard({ cardType: "Rune", domains: ["Fury"] });
+    const card = stubDeckBuilderCard({ cardType: "rune", domains: ["fury"] });
     const result = canAddRune(card, [
       stubDeckBuilderCard({
         cardId: "legend-mono",
-        cardType: "Legend",
+        cardType: "legend",
         zone: "legend",
-        domains: ["Fury"],
+        domains: ["fury"],
       }),
       stubDeckBuilderCard({
         cardId: "fury-rune",
-        cardType: "Rune",
+        cardType: "rune",
         zone: "runes",
-        domains: ["Fury"],
+        domains: ["fury"],
         quantity: 12,
       }),
     ]);
@@ -364,25 +364,25 @@ describe("removeCardAction", () => {
   it("rebalance pulls an opposite-domain rune from the catalog when none in deck", () => {
     const legend = stubDeckBuilderCard({
       cardId: "legend-1",
-      cardType: "Legend",
+      cardType: "legend",
       zone: "legend",
-      domains: ["Fury", "Calm"],
+      domains: ["fury", "calm"],
     });
     const furyRune = stubDeckBuilderCard({
       cardId: "fury-rune",
-      cardType: "Rune",
+      cardType: "rune",
       zone: "runes",
-      domains: ["Fury"],
+      domains: ["fury"],
       quantity: 12,
     });
     const calmRune = stubDeckBuilderCard({
       cardId: "calm-rune",
-      cardType: "Rune",
-      domains: ["Calm"],
+      cardType: "rune",
+      domains: ["calm"],
     });
     const runesByDomain = new Map<string, DeckBuilderCard[]>([
-      ["Fury", [stubDeckBuilderCard({ cardId: "fury-rune", cardType: "Rune", domains: ["Fury"] })]],
-      ["Calm", [calmRune]],
+      ["fury", [stubDeckBuilderCard({ cardId: "fury-rune", cardType: "rune", domains: ["fury"] })]],
+      ["calm", [calmRune]],
     ]);
     collection = createDraftCollection([legend, furyRune]);
     removeCardAction(collection, "fury-rune", "runes", runesByDomain);
@@ -396,15 +396,15 @@ describe("removeCardAction", () => {
   it("rebalance is a no-op when runesByDomain catalog is empty (pre-hydration)", () => {
     const legend = stubDeckBuilderCard({
       cardId: "legend-1",
-      cardType: "Legend",
+      cardType: "legend",
       zone: "legend",
-      domains: ["Fury", "Calm"],
+      domains: ["fury", "calm"],
     });
     const furyRune = stubDeckBuilderCard({
       cardId: "fury-rune",
-      cardType: "Rune",
+      cardType: "rune",
       zone: "runes",
-      domains: ["Fury"],
+      domains: ["fury"],
       quantity: 12,
     });
     collection = createDraftCollection([legend, furyRune]);
@@ -424,7 +424,7 @@ describe("moveCardAction", () => {
   it("moves all copies from one zone to another", () => {
     const card = stubDeckBuilderCard({
       cardId: "card-1",
-      cardType: "Unit",
+      cardType: "unit",
       zone: "main",
       quantity: 2,
     });
@@ -438,13 +438,13 @@ describe("moveCardAction", () => {
   it("merges quantity when the card already exists in the target zone", () => {
     const mainCard = stubDeckBuilderCard({
       cardId: "card-1",
-      cardType: "Unit",
+      cardType: "unit",
       zone: "main",
       quantity: 1,
     });
     const sideCard = stubDeckBuilderCard({
       cardId: "card-1",
-      cardType: "Unit",
+      cardType: "unit",
       zone: "sideboard",
       quantity: 1,
     });
@@ -459,7 +459,7 @@ describe("moveCardAction", () => {
   it("rejects moves to zones where the card type isn't allowed", () => {
     const unit = stubDeckBuilderCard({
       cardId: "card-1",
-      cardType: "Unit",
+      cardType: "unit",
       zone: "main",
       quantity: 1,
     });
@@ -475,7 +475,7 @@ describe("moveOneCardAction", () => {
   it("moves exactly one copy from source to target", () => {
     const card = stubDeckBuilderCard({
       cardId: "card-1",
-      cardType: "Unit",
+      cardType: "unit",
       zone: "main",
       quantity: 3,
     });
@@ -489,7 +489,7 @@ describe("moveOneCardAction", () => {
   it("removes the source entry when the last copy moves", () => {
     const card = stubDeckBuilderCard({
       cardId: "card-1",
-      cardType: "Unit",
+      cardType: "unit",
       zone: "main",
       quantity: 1,
     });
@@ -532,15 +532,15 @@ describe("setLegendAction", () => {
   it("replaces an existing legend", () => {
     const oldLegend = stubDeckBuilderCard({
       cardId: "old",
-      cardType: "Legend",
+      cardType: "legend",
       zone: "legend",
-      domains: ["Fury", "Calm"],
+      domains: ["fury", "calm"],
     });
     collection = createDraftCollection([oldLegend]);
     const newLegend = stubDeckBuilderCard({
       cardId: "new",
-      cardType: "Legend",
-      domains: ["Mind", "Body"],
+      cardType: "legend",
+      domains: ["mind", "body"],
     });
     setLegendAction(collection, newLegend, EMPTY_RUNES);
     const legends = cardsOf(collection).filter((c) => c.zone === "legend");
@@ -551,47 +551,47 @@ describe("setLegendAction", () => {
   it("clears incompatible runes when legend domains change", () => {
     const legend = stubDeckBuilderCard({
       cardId: "legend-1",
-      cardType: "Legend",
+      cardType: "legend",
       zone: "legend",
-      domains: ["Fury", "Calm"],
+      domains: ["fury", "calm"],
     });
     const rune = stubDeckBuilderCard({
       cardId: "rune-1",
-      cardType: "Rune",
+      cardType: "rune",
       zone: "runes",
-      domains: ["Fury"],
+      domains: ["fury"],
       quantity: 6,
     });
     collection = createDraftCollection([legend, rune]);
     const newLegend = stubDeckBuilderCard({
       cardId: "legend-2",
-      cardType: "Legend",
-      domains: ["Mind", "Body"],
+      cardType: "legend",
+      domains: ["mind", "body"],
     });
     setLegendAction(collection, newLegend, EMPTY_RUNES);
     const runes = cardsOf(collection).filter((c) => c.zone === "runes");
-    expect(runes.every((r) => r.domains.every((d) => ["Mind", "Body"].includes(d)))).toBe(true);
+    expect(runes.every((r) => r.domains.every((d) => ["mind", "body"].includes(d)))).toBe(true);
   });
 
   it("auto-populates runes when runesByDomain is provided", () => {
     const furyRune = stubDeckBuilderCard({
       cardId: "fury-rune",
-      cardType: "Rune",
-      domains: ["Fury"],
+      cardType: "rune",
+      domains: ["fury"],
     });
     const calmRune = stubDeckBuilderCard({
       cardId: "calm-rune",
-      cardType: "Rune",
-      domains: ["Calm"],
+      cardType: "rune",
+      domains: ["calm"],
     });
     const runesByDomain = new Map<string, DeckBuilderCard[]>([
-      ["Fury", [furyRune]],
-      ["Calm", [calmRune]],
+      ["fury", [furyRune]],
+      ["calm", [calmRune]],
     ]);
     const legend = stubDeckBuilderCard({
       cardId: "legend-1",
-      cardType: "Legend",
-      domains: ["Fury", "Calm"],
+      cardType: "legend",
+      domains: ["fury", "calm"],
     });
     setLegendAction(collection, legend, runesByDomain);
     const runes = cardsOf(collection).filter((c) => c.zone === "runes");
@@ -606,12 +606,12 @@ describe("preferred printings", () => {
   it("keeps separate rows when the same card is added with distinct printings", () => {
     const base = stubDeckBuilderCard({
       cardId: "c1",
-      cardType: "Unit",
+      cardType: "unit",
       preferredPrintingId: null,
     });
     const alt = stubDeckBuilderCard({
       cardId: "c1",
-      cardType: "Unit",
+      cardType: "unit",
       preferredPrintingId: "printing-alt",
     });
     addCardAction(collection, base, "main", 2, EMPTY_RUNES);
@@ -626,12 +626,12 @@ describe("preferred printings", () => {
   it("enforces the 3-copy cap across distinct printings of the same card", () => {
     const base = stubDeckBuilderCard({
       cardId: "c1",
-      cardType: "Unit",
+      cardType: "unit",
       preferredPrintingId: null,
     });
     const alt = stubDeckBuilderCard({
       cardId: "c1",
-      cardType: "Unit",
+      cardType: "unit",
       preferredPrintingId: "printing-alt",
     });
     addCardAction(collection, base, "main", 2, EMPTY_RUNES);
@@ -645,14 +645,14 @@ describe("preferred printings", () => {
   it("removeCard targets the default-art row when no printing is passed", () => {
     const base = stubDeckBuilderCard({
       cardId: "c1",
-      cardType: "Unit",
+      cardType: "unit",
       zone: "main",
       preferredPrintingId: null,
       quantity: 2,
     });
     const alt = stubDeckBuilderCard({
       cardId: "c1",
-      cardType: "Unit",
+      cardType: "unit",
       zone: "main",
       preferredPrintingId: "printing-alt",
       quantity: 1,
@@ -669,7 +669,7 @@ describe("preferred printings", () => {
   it("removeCard targets a specific row when preferredPrintingId is passed", () => {
     const alt = stubDeckBuilderCard({
       cardId: "c1",
-      cardType: "Unit",
+      cardType: "unit",
       zone: "main",
       preferredPrintingId: "printing-alt",
       quantity: 2,
@@ -683,7 +683,7 @@ describe("preferred printings", () => {
     it("repoints the whole row when count equals the row's quantity", () => {
       const row = stubDeckBuilderCard({
         cardId: "c1",
-        cardType: "Unit",
+        cardType: "unit",
         zone: "main",
         preferredPrintingId: null,
         quantity: 3,
@@ -699,7 +699,7 @@ describe("preferred printings", () => {
     it("splits into two rows when count is less than the source quantity", () => {
       const row = stubDeckBuilderCard({
         cardId: "c1",
-        cardType: "Unit",
+        cardType: "unit",
         zone: "main",
         preferredPrintingId: null,
         quantity: 3,
@@ -717,14 +717,14 @@ describe("preferred printings", () => {
     it("merges into an existing target row at the same (card, zone)", () => {
       const base = stubDeckBuilderCard({
         cardId: "c1",
-        cardType: "Unit",
+        cardType: "unit",
         zone: "main",
         preferredPrintingId: null,
         quantity: 2,
       });
       const alt = stubDeckBuilderCard({
         cardId: "c1",
-        cardType: "Unit",
+        cardType: "unit",
         zone: "main",
         preferredPrintingId: "printing-alt",
         quantity: 1,
@@ -740,7 +740,7 @@ describe("preferred printings", () => {
     it("no-ops when from and to printings match", () => {
       const row = stubDeckBuilderCard({
         cardId: "c1",
-        cardType: "Unit",
+        cardType: "unit",
         zone: "main",
         preferredPrintingId: "printing-alt",
         quantity: 2,

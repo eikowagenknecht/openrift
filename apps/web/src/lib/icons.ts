@@ -25,7 +25,7 @@ export function getTypeIconPath(type: string, superTypes: string[]): string | un
   ) {
     return "/images/supertypes/champion.svg";
   }
-  if (type === "Other") {
+  if (type === "other") {
     return undefined;
   }
   return `/images/types/${type.toLowerCase()}.svg`;
@@ -38,7 +38,7 @@ export function getFilterIconPath(category: FilterCategory, value: string): stri
       return `/images/domains/${lower}.${value === WellKnown.domain.COLORLESS ? "svg" : "webp"}`;
     }
     case "types": {
-      if (value === "Other") {
+      if (value === "other") {
         return undefined;
       }
       return `/images/types/${lower}.svg`;

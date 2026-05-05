@@ -27,14 +27,14 @@ describe("useDeckBuilderUiStore", () => {
   });
 
   it("stores the runes-by-domain catalog map", () => {
-    const map = new Map<string, []>([["Fury", []]]);
+    const map = new Map<string, []>([["fury", []]]);
     useDeckBuilderUiStore.getState().setRunesByDomain(map);
     expect(useDeckBuilderUiStore.getState().runesByDomain).toBe(map);
   });
 
   it("reset clears active zone and rune catalog", () => {
     useDeckBuilderUiStore.getState().setActiveZone("main");
-    useDeckBuilderUiStore.getState().setRunesByDomain(new Map([["Fury", []]]));
+    useDeckBuilderUiStore.getState().setRunesByDomain(new Map([["fury", []]]));
     useDeckBuilderUiStore.getState().reset();
     expect(useDeckBuilderUiStore.getState().activeZone).toBeNull();
     expect(useDeckBuilderUiStore.getState().runesByDomain.size).toBe(0);

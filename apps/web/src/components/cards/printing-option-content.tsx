@@ -22,7 +22,7 @@ export function PrintingOptionContent({
   const frontImageId = printing.images.find((image) => image.face === "front")?.imageId ?? null;
   const thumbnail = frontImageId ? imageUrl(frontImageId, "120w") : null;
   const label = formatPrintingLabel(printing, siblings, labels);
-  const landscape = printing.card.type === "Battlefield";
+  const landscape = printing.card.type === "battlefield";
   const thumbnailSize = landscape ? "h-10 w-14" : "h-14 w-10";
 
   return (

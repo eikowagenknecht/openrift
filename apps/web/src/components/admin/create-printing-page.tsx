@@ -1,4 +1,5 @@
 import type { AdminCardDetailResponse } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
@@ -50,7 +51,9 @@ export function CreatePrintingPage({
 
   const [shortCode, setShortCode] = useState(source?.shortCode ?? "");
   const [setId, setSetId] = useState<string>(source?.setSlug ?? firstSet);
-  const [rarity, setRarity] = useState<string>(source?.rarity ?? orders.rarities[0] ?? "Common");
+  const [rarity, setRarity] = useState<string>(
+    source?.rarity ?? orders.rarities[0] ?? WellKnown.rarity.COMMON,
+  );
   const [artVariant, setArtVariant] = useState<string>(
     source?.artVariant ?? orders.artVariants[0] ?? "normal",
   );

@@ -13,7 +13,7 @@ vi.mock("@/hooks/use-enums", () => ({
   useEnumOrders: () => ({
     orders: {
       finishes: ["normal"],
-      rarities: ["Common"],
+      rarities: ["common"],
       domains: [],
       cardTypes: [],
       superTypes: [],
@@ -21,7 +21,7 @@ vi.mock("@/hooks/use-enums", () => ({
     },
     labels: {
       finishes: { normal: "Normal" },
-      rarities: { Common: "Common" },
+      rarities: { Common: "common" },
       domains: {},
       cardTypes: {},
       superTypes: {},

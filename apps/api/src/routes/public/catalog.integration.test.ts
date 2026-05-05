@@ -149,9 +149,9 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       expect(annie).toBeDefined();
       expect(annie.id).toBeUndefined();
       expect(annie.name).toBe("Annie, Fiery");
-      expect(annie.type).toBe("Unit");
-      expect(annie.superTypes).toContain("Champion");
-      expect(annie.domains).toContain("Fury");
+      expect(annie.type).toBe("unit");
+      expect(annie.superTypes).toContain("champion");
+      expect(annie.domains).toContain("fury");
     });
 
     it("printings contain expected fields", async () => {
@@ -164,7 +164,7 @@ describe.skipIf(!ctx)("Catalog route (integration)", () => {
       expect(printing.cardId).toBe(CARD_FURY_UNIT.id);
       expect(printing.setId).toBe(SEED_SET_ID);
       expect(printing.shortCode).toBe("OGS-001");
-      expect(printing.rarity).toBe("Epic");
+      expect(printing.rarity).toBe("epic");
       expect(printing.markers).toEqual([]);
       expect(printing.distributionChannels).toEqual([]);
     });

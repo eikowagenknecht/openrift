@@ -19,7 +19,7 @@ function makeStack(overrides: {
 }): StackedEntry {
   const printing = {
     shortCode: overrides.shortCode ?? "OGN-001",
-    rarity: overrides.rarity ?? "Common",
+    rarity: overrides.rarity ?? "common",
     finish: overrides.finish ?? "normal",
     artVariant: overrides.artVariant ?? "normal",
     markers: overrides.markers ?? [],
@@ -27,7 +27,7 @@ function makeStack(overrides: {
     language: overrides.language ?? "EN",
     card: {
       name: overrides.name ?? "Test Card",
-      type: overrides.type ?? "Unit",
+      type: overrides.type ?? "unit",
       domains: overrides.domains ?? ["Arcane"],
     },
   } as unknown as Printing;
@@ -57,14 +57,14 @@ describe("generateExportCSV", () => {
     });
     const csv = generateExportCSV([stack]);
     const lines = csv.split("\n");
-    expect(lines[1]).toBe("OGN-042,Promo Card,Common,Unit,Arcane,normal,normal,nexus,EN,2");
+    expect(lines[1]).toBe("OGN-042,Promo Card,common,unit,Arcane,normal,normal,nexus,EN,2");
   });
 
   it("exports empty promo field for non-promo cards", () => {
     const stack = makeStack({ shortCode: "OGN-001", name: "Regular Card" });
     const csv = generateExportCSV([stack]);
     const lines = csv.split("\n");
-    expect(lines[1]).toBe("OGN-001,Regular Card,Common,Unit,Arcane,normal,normal,,EN,1");
+    expect(lines[1]).toBe("OGN-001,Regular Card,common,unit,Arcane,normal,normal,,EN,1");
   });
 
   it("escapes fields with commas", () => {

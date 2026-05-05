@@ -40,11 +40,16 @@ export function pickCardMetaPrinting(
 export function buildCardMetaDescription(
   card: CardDetailResponse["card"],
   printing: CatalogPrintingResponse | undefined,
+  labels?: { domains?: Record<string, string>; cardTypes?: Record<string, string> },
 ): string {
   const parts: string[] = [];
 
-  const domains = card.domains.length > 0 ? card.domains.join("/") : null;
-  const typeLine = domains ? `${domains} ${card.type}` : card.type;
+  const domainLabels =
+    card.domains.length > 0
+      ? card.domains.map((slug) => labels?.domains?.[slug] ?? slug).join("/")
+      : null;
+  const typeLabel = labels?.cardTypes?.[card.type] ?? card.type;
+  const typeLine = domainLabels ? `${domainLabels} ${typeLabel}` : typeLabel;
   parts.push(`${card.name} is a ${typeLine} card from Riftbound.`);
 
   const rulesText = printing?.printedRulesText;

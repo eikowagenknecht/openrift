@@ -75,7 +75,7 @@ async function seedMarketplaceData(marketplace: string) {
     .values({
       slug: `OPS-${marketplace}-${suffix}`,
       name: `OPS ${marketplace} Card ${suffix}`,
-      type: "Unit",
+      type: "unit",
       might: null,
       energy: 2,
       power: null,
@@ -88,7 +88,7 @@ async function seedMarketplaceData(marketplace: string) {
 
   await db
     .insertInto("cardDomains")
-    .values({ cardId: card.id, domainSlug: "Mind", ordinal: 0 })
+    .values({ cardId: card.id, domainSlug: "mind", ordinal: 0 })
     .execute();
 
   const [printing] = await db
@@ -97,7 +97,7 @@ async function seedMarketplaceData(marketplace: string) {
       cardId: card.id,
       setId: set.id,
       shortCode: `OPS-${marketplace}-${suffix}`,
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",

@@ -74,10 +74,10 @@ const dbTradeListItem = {
   collectionId: "a0000000-0001-4000-a000-000000000040",
   imageUrl: "https://example.com/img.jpg",
   setId: "OGS",
-  rarity: "Rare",
+  rarity: "rare",
   finish: "normal",
   cardName: "Fire Dragon",
-  cardType: "Unit",
+  cardType: "unit",
   createdAt: now,
   updatedAt: now,
 };
@@ -370,7 +370,7 @@ describe("GET /api/v1/trade-lists/:id — detail response fields", () => {
     expect(json.items[0].copyId).toBe(COPY_ID);
     expect(json.items[0].collectionId).toBe("a0000000-0001-4000-a000-000000000040");
     expect(json.items[0].setId).toBe("OGS");
-    expect(json.items[0].rarity).toBe("Rare");
+    expect(json.items[0].rarity).toBe("rare");
     expect(json.items[0].finish).toBe("normal");
   });
 

@@ -10,9 +10,9 @@ const markerField: FieldDef = {
   label: "Markers",
   array: true,
   labeledOptions: [
-    { value: "champion", label: "Champion" },
-    { value: "unit", label: "Unit" },
-    { value: "spell", label: "Spell" },
+    { value: "champion", label: "champion" },
+    { value: "unit", label: "unit" },
+    { value: "spell", label: "spell" },
   ],
 };
 
@@ -31,12 +31,12 @@ describe("CandidateSpreadsheet multi-select", () => {
     );
 
     // Open the multi-select editor by clicking the active cell (shows the current value).
-    await user.click(screen.getByText("Champion"));
+    await user.click(screen.getByText("champion"));
 
     // Toggle two items: deselect Champion, select Unit and Spell.
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "Champion" }));
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "Unit" }));
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "Spell" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "champion" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "unit" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "spell" }));
 
     // No mutation fired during the intermediate toggles.
     expect(onActiveChange).not.toHaveBeenCalled();
@@ -61,10 +61,10 @@ describe("CandidateSpreadsheet multi-select", () => {
       />,
     );
 
-    await user.click(screen.getByText("Champion"));
+    await user.click(screen.getByText("champion"));
     // Toggle Unit on then off — ends where it started.
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "Unit" }));
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "Unit" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "unit" }));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "unit" }));
     await user.keyboard("{Escape}");
 
     expect(onActiveChange).not.toHaveBeenCalled();
@@ -83,8 +83,8 @@ describe("CandidateSpreadsheet multi-select", () => {
       />,
     );
 
-    await user.click(screen.getByText("Champion"));
-    await user.click(screen.getByRole("menuitemcheckbox", { name: "Champion" }));
+    await user.click(screen.getByText("champion"));
+    await user.click(screen.getByRole("menuitemcheckbox", { name: "champion" }));
     await user.keyboard("{Escape}");
 
     expect(onActiveChange).toHaveBeenCalledTimes(1);

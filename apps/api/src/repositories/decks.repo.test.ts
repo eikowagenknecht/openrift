@@ -89,7 +89,7 @@ describe("decksRepo", () => {
         zone: "main",
         quantity: 4,
         cardName: "Card",
-        cardType: "Unit",
+        cardType: "unit",
         domains: [],
         energy: 3,
         might: 2,

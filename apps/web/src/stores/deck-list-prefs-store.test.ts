@@ -31,20 +31,20 @@ describe("useDeckListPrefsStore", () => {
 
   describe("toggleDomainFilter", () => {
     it("adds a domain that is not selected", () => {
-      useDeckListPrefsStore.getState().toggleDomainFilter("Fury");
-      expect(useDeckListPrefsStore.getState().domainFilter).toEqual(["Fury"]);
+      useDeckListPrefsStore.getState().toggleDomainFilter("fury");
+      expect(useDeckListPrefsStore.getState().domainFilter).toEqual(["fury"]);
     });
 
     it("removes a domain that is already selected", () => {
-      useDeckListPrefsStore.getState().toggleDomainFilter("Body");
-      useDeckListPrefsStore.getState().toggleDomainFilter("Body");
+      useDeckListPrefsStore.getState().toggleDomainFilter("body");
+      useDeckListPrefsStore.getState().toggleDomainFilter("body");
       expect(useDeckListPrefsStore.getState().domainFilter).toEqual([]);
     });
 
     it("supports multiple selected domains", () => {
-      useDeckListPrefsStore.getState().toggleDomainFilter("Calm");
-      useDeckListPrefsStore.getState().toggleDomainFilter("Mind");
-      expect(useDeckListPrefsStore.getState().domainFilter).toEqual(["Calm", "Mind"]);
+      useDeckListPrefsStore.getState().toggleDomainFilter("calm");
+      useDeckListPrefsStore.getState().toggleDomainFilter("mind");
+      expect(useDeckListPrefsStore.getState().domainFilter).toEqual(["calm", "mind"]);
     });
   });
 
@@ -54,7 +54,7 @@ describe("useDeckListPrefsStore", () => {
       store.setSearch("aatrox");
       store.setFormatFilter("constructed");
       store.setValidityFilter("invalid");
-      store.toggleDomainFilter("Fury");
+      store.toggleDomainFilter("fury");
       store.setSortField("name");
       store.setSortDir("asc");
       store.setDensity("list");
@@ -107,12 +107,12 @@ describe("useDeckListPrefsStore", () => {
       const store = useDeckListPrefsStore;
       const current = store.getState();
       const persisted = {
-        domainFilter: ["Fury", 42, null, "Body"],
+        domainFilter: ["fury", 42, null, "body"],
       };
       const merge = store.persist?.getOptions()?.merge;
       const result = merge?.(persisted, current);
       if (result) {
-        expect(result.domainFilter).toEqual(["Fury", "Body"]);
+        expect(result.domainFilter).toEqual(["fury", "body"]);
       }
     });
 
@@ -127,7 +127,7 @@ describe("useDeckListPrefsStore", () => {
         groupDir: "desc",
         formatFilter: "constructed",
         validityFilter: "valid",
-        domainFilter: ["Fury"],
+        domainFilter: ["fury"],
         showArchived: true,
       };
       const merge = store.persist?.getOptions()?.merge;
@@ -140,7 +140,7 @@ describe("useDeckListPrefsStore", () => {
         expect(result.groupDir).toBe("desc");
         expect(result.formatFilter).toBe("constructed");
         expect(result.validityFilter).toBe("valid");
-        expect(result.domainFilter).toEqual(["Fury"]);
+        expect(result.domainFilter).toEqual(["fury"]);
         expect(result.showArchived).toBe(true);
       }
     });

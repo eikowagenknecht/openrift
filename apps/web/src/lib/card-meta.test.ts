@@ -11,9 +11,9 @@ const baseCard: CardDetailResponse["card"] = {
   id: "card-1",
   slug: "brazen-buccaneer",
   name: "Brazen Buccaneer",
-  type: "Unit",
+  type: "unit",
   superTypes: [],
-  domains: ["Fury"],
+  domains: ["fury"],
   energy: 3,
   might: 4,
   power: 0,
@@ -30,7 +30,7 @@ function makePrinting(rulesText: string | null): CatalogPrintingResponse {
     cardId: "card-1",
     setId: "set-1",
     shortCode: "OGN-202",
-    rarity: "Rare",
+    rarity: "rare",
     artVariant: "normal",
     isSigned: false,
     markers: [],
@@ -50,21 +50,34 @@ function makePrinting(rulesText: string | null): CatalogPrintingResponse {
   };
 }
 
+const labels = {
+  domains: { fury: "Fury", calm: "Calm" },
+  cardTypes: { unit: "Unit", legend: "Legend" },
+};
+
 describe("buildCardMetaDescription", () => {
   it("uses the card name, domains and type when no rules text is present", () => {
-    expect(buildCardMetaDescription(baseCard, makePrinting(null))).toBe(
+    expect(buildCardMetaDescription(baseCard, makePrinting(null), labels)).toBe(
       "Brazen Buccaneer is a Fury Unit card from Riftbound.",
     );
   });
 
   it("strips :emoji_shortcodes: from rules text", () => {
-    const result = buildCardMetaDescription(baseCard, makePrinting("Costs :rb_energy_2: less."));
+    const result = buildCardMetaDescription(
+      baseCard,
+      makePrinting("Costs :rb_energy_2: less."),
+      labels,
+    );
     expect(result).not.toContain(":rb_energy_2:");
     expect(result).toContain("Costs less.");
   });
 
   it("strips [keyword:foo] markup from rules text", () => {
-    const result = buildCardMetaDescription(baseCard, makePrinting("[Equip] this to a unit."));
+    const result = buildCardMetaDescription(
+      baseCard,
+      makePrinting("[Equip] this to a unit."),
+      labels,
+    );
     expect(result).not.toContain("[Equip]");
     expect(result).toContain("this to a unit.");
   });
@@ -73,19 +86,20 @@ describe("buildCardMetaDescription", () => {
     const result = buildCardMetaDescription(
       baseCard,
       makePrinting("[Equip]  :rb_energy_1:  ready."),
+      labels,
     );
     expect(result).not.toMatch(/ {2}/);
   });
 
   it("truncates with ellipsis when over the description budget", () => {
     const long = "a ".repeat(200);
-    const result = buildCardMetaDescription(baseCard, makePrinting(long));
+    const result = buildCardMetaDescription(baseCard, makePrinting(long), labels);
     expect(result.length).toBeLessThanOrEqual(155);
     expect(result.endsWith("...")).toBe(true);
   });
 
   it("omits the rules-text segment entirely when it strips down to nothing", () => {
-    const result = buildCardMetaDescription(baseCard, makePrinting(":rb_energy_2:"));
+    const result = buildCardMetaDescription(baseCard, makePrinting(":rb_energy_2:"), labels);
     expect(result).toBe("Brazen Buccaneer is a Fury Unit card from Riftbound.");
   });
 });

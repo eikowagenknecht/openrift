@@ -16,10 +16,10 @@ import type { SetInfo } from "@/components/cards/card-grid";
 import { resetIdCounter, stubPrinting } from "@/test/factories";
 
 const TEST_ORDERS = {
-  rarities: ["Common", "Uncommon", "Rare", "Epic"],
+  rarities: ["common", "uncommon", "rare", "epic"],
   finishes: ["normal", "foil"],
-  domains: ["Fury"],
-  cardTypes: ["Unit"],
+  domains: ["fury"],
+  cardTypes: ["unit"],
   superTypes: [] as string[],
   artVariants: ["normal", "altart"],
   distributionChannels: [] as string[],
@@ -83,8 +83,8 @@ describe("useCardData", () => {
     // Regression: previously the owned filter was applied AFTER computeFilterCounts,
     // so the rarity/set/etc. chips kept showing counts from the entire catalog
     // even when the user had narrowed to owned cards.
-    const ownedCommon = stubPrinting({ rarity: "Common" });
-    const unownedRare = stubPrinting({ rarity: "Rare" });
+    const ownedCommon = stubPrinting({ rarity: "common" });
+    const unownedRare = stubPrinting({ rarity: "rare" });
 
     const params = {
       ...baseParams(),
@@ -95,16 +95,16 @@ describe("useCardData", () => {
 
     const { result } = renderHook(() => useCardData(params));
 
-    expect(result.current.filterCounts.rarities.get("Common")).toBe(1);
-    expect(result.current.filterCounts.rarities.get("Rare")).toBeUndefined();
+    expect(result.current.filterCounts.rarities.get("common")).toBe(1);
+    expect(result.current.filterCounts.rarities.get("rare")).toBeUndefined();
   });
 
   it("keeps the owned-chip count anchored to the pre-owned filtered set", () => {
     // The owned chip count must answer "how many cards would match if I
     // selected owned" — derived from cards filtered by everything EXCEPT
     // owned, so toggling owned doesn't shrink its own count to zero.
-    const ownedCommon = stubPrinting({ rarity: "Common" });
-    const unownedRare = stubPrinting({ rarity: "Rare" });
+    const ownedCommon = stubPrinting({ rarity: "common" });
+    const unownedRare = stubPrinting({ rarity: "rare" });
 
     const params = {
       ...baseParams(),
@@ -119,8 +119,8 @@ describe("useCardData", () => {
   });
 
   it("leaves facet counts unchanged when ownedFilter is null", () => {
-    const a = stubPrinting({ rarity: "Common" });
-    const b = stubPrinting({ rarity: "Rare" });
+    const a = stubPrinting({ rarity: "common" });
+    const b = stubPrinting({ rarity: "rare" });
 
     const params = {
       ...baseParams(),
@@ -131,8 +131,8 @@ describe("useCardData", () => {
 
     const { result } = renderHook(() => useCardData(params));
 
-    expect(result.current.filterCounts.rarities.get("Common")).toBe(1);
-    expect(result.current.filterCounts.rarities.get("Rare")).toBe(1);
+    expect(result.current.filterCounts.rarities.get("common")).toBe(1);
+    expect(result.current.filterCounts.rarities.get("rare")).toBe(1);
   });
 
   it("dedupes to one printing per cardId in cards view by default", () => {

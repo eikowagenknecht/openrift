@@ -301,7 +301,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
         .values({
           slug: "CAT-PRINT-001",
           name: "CAT Print Card",
-          type: "Unit",
+          type: "unit",
           might: null,
           energy: 1,
           power: null,
@@ -314,7 +314,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
 
       await testDb
         .insertInto("cardDomains")
-        .values({ cardId: tempCard.id, domainSlug: "Mind", ordinal: 0 })
+        .values({ cardId: tempCard.id, domainSlug: "mind", ordinal: 0 })
         .execute();
 
       await testDb
@@ -323,7 +323,7 @@ describe.skipIf(!ctx)("Admin catalog routes (integration)", () => {
           cardId: tempCard.id,
           setId: tempSetId,
           shortCode: "CAT-PRINT-001",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           finish: "normal",

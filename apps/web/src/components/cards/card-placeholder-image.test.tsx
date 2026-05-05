@@ -40,8 +40,8 @@ describe("CardPlaceholderImage", () => {
         energy={2}
         might={3}
         power={1}
-        type="Unit"
-        superTypes={["Champion"]}
+        type="unit"
+        superTypes={["champion"]}
         tags={["Yordle"]}
         rulesText="Pay :rb_energy_1: to hide a card with [Hidden] instead of :rb_rune_rainbow:."
         effectText="When played, draw 1 card [Haste]."
@@ -64,18 +64,18 @@ describe("CardPlaceholderImage", () => {
     const { container } = render(
       <CardPlaceholderImage
         name="Pure Bonus"
-        domain={["Fury"]}
+        domain={["fury"]}
         energy={null}
         might={null}
         power={null}
-        type="Gear"
+        type="gear"
         superTypes={[]}
         tags={[]}
         rulesText={null}
         effectText={null}
         mightBonus={2}
         flavorText={null}
-        rarity="Common"
+        rarity="common"
       />,
       { wrapper: makeWrapper() },
     );
@@ -90,18 +90,18 @@ describe("CardPlaceholderImage", () => {
     const { container } = render(
       <CardPlaceholderImage
         name="Energy Ant"
-        domain={["Fury"]}
+        domain={["fury"]}
         energy={1}
         might={null}
         power={null}
-        type="Spell"
+        type="spell"
         superTypes={[]}
         tags={[]}
         rulesText="Pay :rb_energy_1: to draw."
         effectText={null}
         mightBonus={null}
         flavorText={null}
-        rarity="Common"
+        rarity="common"
       />,
       { wrapper: makeWrapper() },
     );

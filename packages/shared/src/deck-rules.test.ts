@@ -26,9 +26,9 @@ function makeCard(overrides: Partial<DeckCard> = {}): DeckCard {
     zone: "main",
     quantity: 1,
     cardName: "Test Card",
-    cardType: "Unit",
+    cardType: "unit",
     superTypes: [],
-    domains: ["Fury"],
+    domains: ["fury"],
     tags: [],
     keywords: [],
     ...overrides,
@@ -40,8 +40,8 @@ function makeLegend(overrides: Partial<DeckCard> = {}): DeckCard {
     cardId: "legend-1",
     zone: "legend",
     cardName: "Fire Lord",
-    cardType: "Legend",
-    domains: ["Fury", "Body"],
+    cardType: "legend",
+    domains: ["fury", "body"],
     tags: ["FireLord"],
     ...overrides,
   });
@@ -52,20 +52,20 @@ function makeChampion(overrides: Partial<DeckCard> = {}): DeckCard {
     cardId: "champion-1",
     zone: "champion",
     cardName: "Fire Champion",
-    cardType: "Unit",
-    superTypes: ["Champion"],
-    domains: ["Fury"],
+    cardType: "unit",
+    superTypes: ["champion"],
+    domains: ["fury"],
     tags: ["FireLord"],
     ...overrides,
   });
 }
 
-function makeRune(domain: "Fury" | "Body", cardId?: string): DeckCard {
+function makeRune(domain: "fury" | "body", cardId?: string): DeckCard {
   return makeCard({
     cardId: cardId ?? `rune-${domain.toLowerCase()}-${Math.random().toString(36).slice(2, 6)}`,
     zone: "runes",
     cardName: `${domain} Rune`,
-    cardType: "Rune",
+    cardType: "rune",
     domains: [domain],
   });
 }
@@ -75,7 +75,7 @@ function makeBattlefield(cardId: string): DeckCard {
     cardId,
     zone: "battlefield",
     cardName: `Battlefield ${cardId}`,
-    cardType: "Battlefield",
+    cardType: "battlefield",
     domains: [],
   });
 }
@@ -84,8 +84,8 @@ function makeConstructedShell(): DeckCard[] {
   return [
     makeLegend(),
     makeChampion(),
-    ...Array.from({ length: 6 }, (_, index) => makeRune("Fury", `rune-fury-${index}`)),
-    ...Array.from({ length: 6 }, (_, index) => makeRune("Body", `rune-body-${index}`)),
+    ...Array.from({ length: 6 }, (_, index) => makeRune("fury", `rune-fury-${index}`)),
+    ...Array.from({ length: 6 }, (_, index) => makeRune("body", `rune-body-${index}`)),
     makeBattlefield("bf-1"),
     makeBattlefield("bf-2"),
     makeBattlefield("bf-3"),
@@ -119,7 +119,7 @@ describe("legendExactlyOne", () => {
   });
 
   it("fails when legend zone has non-Legend type", () => {
-    const violations = legendExactlyOne(makeState([makeLegend({ cardType: "Unit" })]));
+    const violations = legendExactlyOne(makeState([makeLegend({ cardType: "unit" })]));
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("LEGEND_WRONG_TYPE");
   });
@@ -177,14 +177,14 @@ describe("championSharesTagWithLegend", () => {
 
 describe("runesExactlyTwelve", () => {
   it("passes with exactly 12 runes", () => {
-    const runes = Array.from({ length: 12 }, (_, index) => makeRune("Fury", `rune-${index}`));
+    const runes = Array.from({ length: 12 }, (_, index) => makeRune("fury", `rune-${index}`));
     expect(runesExactlyTwelve(makeState(runes))).toEqual([]);
   });
 
   it("passes with quantity-based 12", () => {
     const runes = [
-      makeCard({ zone: "runes", cardType: "Rune", quantity: 6, cardId: "rune-a" }),
-      makeCard({ zone: "runes", cardType: "Rune", quantity: 6, cardId: "rune-b" }),
+      makeCard({ zone: "runes", cardType: "rune", quantity: 6, cardId: "rune-a" }),
+      makeCard({ zone: "runes", cardType: "rune", quantity: 6, cardId: "rune-b" }),
     ];
     expect(runesExactlyTwelve(makeState(runes))).toEqual([]);
   });
@@ -196,14 +196,14 @@ describe("runesExactlyTwelve", () => {
   });
 
   it("fails with too few runes", () => {
-    const runes = Array.from({ length: 8 }, (_, index) => makeRune("Fury", `rune-${index}`));
+    const runes = Array.from({ length: 8 }, (_, index) => makeRune("fury", `rune-${index}`));
     const violations = runesExactlyTwelve(makeState(runes));
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("RUNES_TOO_FEW");
   });
 
   it("fails with too many runes", () => {
-    const runes = Array.from({ length: 14 }, (_, index) => makeRune("Fury", `rune-${index}`));
+    const runes = Array.from({ length: 14 }, (_, index) => makeRune("fury", `rune-${index}`));
     const violations = runesExactlyTwelve(makeState(runes));
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("RUNES_TOO_MANY");
@@ -214,12 +214,12 @@ describe("runesExactlyTwelve", () => {
 
 describe("runesAllTypeRune", () => {
   it("passes when all runes are Rune type", () => {
-    expect(runesAllTypeRune(makeState([makeRune("Fury")]))).toEqual([]);
+    expect(runesAllTypeRune(makeState([makeRune("fury")]))).toEqual([]);
   });
 
   it("fails when a non-Rune card is in the runes zone", () => {
     const violations = runesAllTypeRune(
-      makeState([makeCard({ zone: "runes", cardType: "Spell", cardId: "bad" })]),
+      makeState([makeCard({ zone: "runes", cardType: "spell", cardId: "bad" })]),
     );
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("RUNE_WRONG_TYPE");
@@ -232,7 +232,7 @@ describe("runesAllTypeRune", () => {
 describe("runesMatchLegendDomains", () => {
   it("passes when all rune domains match legend", () => {
     const violations = runesMatchLegendDomains(
-      makeState([makeLegend({ domains: ["Fury", "Body"] }), makeRune("Fury"), makeRune("Body")]),
+      makeState([makeLegend({ domains: ["fury", "body"] }), makeRune("fury"), makeRune("body")]),
     );
     expect(violations).toEqual([]);
   });
@@ -240,12 +240,12 @@ describe("runesMatchLegendDomains", () => {
   it("fails when a rune does not match legend domains", () => {
     const violations = runesMatchLegendDomains(
       makeState([
-        makeLegend({ domains: ["Fury", "Body"] }),
-        makeRune("Fury"),
+        makeLegend({ domains: ["fury", "body"] }),
+        makeRune("fury"),
         makeCard({
           zone: "runes",
-          cardType: "Rune",
-          domains: ["Mind"],
+          cardType: "rune",
+          domains: ["mind"],
           cardId: "bad-rune",
           cardName: "Mind Rune",
         }),
@@ -257,7 +257,7 @@ describe("runesMatchLegendDomains", () => {
   });
 
   it("skips when no legend is present", () => {
-    expect(runesMatchLegendDomains(makeState([makeRune("Fury")]))).toEqual([]);
+    expect(runesMatchLegendDomains(makeState([makeRune("fury")]))).toEqual([]);
   });
 });
 
@@ -371,7 +371,7 @@ describe("battlefieldAllTypeBattlefield", () => {
 
   it("fails when a non-Battlefield card is in the zone", () => {
     const violations = battlefieldAllTypeBattlefield(
-      makeState([makeCard({ zone: "battlefield", cardType: "Spell", cardId: "bad" })]),
+      makeState([makeCard({ zone: "battlefield", cardType: "spell", cardId: "bad" })]),
     );
     expect(violations).toHaveLength(1);
     expect(violations[0].code).toBe("BATTLEFIELD_WRONG_TYPE");
@@ -389,7 +389,7 @@ describe("battlefieldNoDuplicates", () => {
   it("fails when a card has quantity > 1", () => {
     const violations = battlefieldNoDuplicates(
       makeState([
-        makeCard({ zone: "battlefield", cardType: "Battlefield", cardId: "bf-dup", quantity: 2 }),
+        makeCard({ zone: "battlefield", cardType: "battlefield", cardId: "bf-dup", quantity: 2 }),
       ]),
     );
     expect(violations).toHaveLength(1);
@@ -498,8 +498,8 @@ describe("signatureTotalLimit (via validateDeck)", () => {
   it("passes with 3 or fewer Signature cards", () => {
     const cards = [
       ...makeConstructedShell(),
-      makeCard({ cardId: "sig-1", superTypes: ["Signature"], tags: ["FireLord"], quantity: 2 }),
-      makeCard({ cardId: "sig-2", superTypes: ["Signature"], tags: ["FireLord"], quantity: 1 }),
+      makeCard({ cardId: "sig-1", superTypes: ["signature"], tags: ["FireLord"], quantity: 2 }),
+      makeCard({ cardId: "sig-2", superTypes: ["signature"], tags: ["FireLord"], quantity: 1 }),
       ...Array.from({ length: 11 }, (_, index) =>
         makeCard({ cardId: `filler-${index}`, quantity: 3 }),
       ),
@@ -522,14 +522,14 @@ describe("signatureTotalLimit (via validateDeck)", () => {
       ...makeConstructedShell(),
       makeCard({
         cardId: "sig-1",
-        superTypes: ["Signature"],
+        superTypes: ["signature"],
         tags: ["FireLord"],
         zone: "main",
         quantity: 2,
       }),
       makeCard({
         cardId: "sig-2",
-        superTypes: ["Signature"],
+        superTypes: ["signature"],
         tags: ["FireLord"],
         zone: "sideboard",
         quantity: 2,
@@ -547,7 +547,7 @@ describe("signatureTotalLimit (via validateDeck)", () => {
   it("ignores non-Signature cards when counting", () => {
     const cards = [
       ...makeConstructedShell(),
-      makeCard({ cardId: "sig-1", superTypes: ["Signature"], tags: ["FireLord"], quantity: 3 }),
+      makeCard({ cardId: "sig-1", superTypes: ["signature"], tags: ["FireLord"], quantity: 3 }),
       ...Array.from({ length: 12 }, (_, index) =>
         makeCard({ cardId: `filler-${index}`, quantity: 3 }),
       ),
@@ -567,7 +567,7 @@ describe("signatureMatchesLegendTag (via validateDeck)", () => {
       ...makeConstructedShell(),
       makeCard({
         cardId: "sig-1",
-        superTypes: ["Signature"],
+        superTypes: ["signature"],
         tags: ["FireLord"],
         cardName: "Fire Sig",
       }),
@@ -583,7 +583,7 @@ describe("signatureMatchesLegendTag (via validateDeck)", () => {
       ...makeConstructedShell(),
       makeCard({
         cardId: "sig-1",
-        superTypes: ["Signature"],
+        superTypes: ["signature"],
         tags: ["IceLord"],
         cardName: "Ice Sig",
       }),
@@ -603,14 +603,14 @@ describe("signatureMatchesLegendTag (via validateDeck)", () => {
       makeCard({
         cardId: "sig-main",
         zone: "main",
-        superTypes: ["Signature"],
+        superTypes: ["signature"],
         tags: ["IceLord"],
         cardName: "Main Sig",
       }),
       makeCard({
         cardId: "sig-side",
         zone: "sideboard",
-        superTypes: ["Signature"],
+        superTypes: ["signature"],
         tags: ["IceLord"],
         cardName: "Side Sig",
       }),
@@ -639,14 +639,14 @@ describe("signatureMatchesLegendTag (via validateDeck)", () => {
     const cards = [
       makeLegend({ tags: ["FireLord", "DragonKin"] }),
       makeChampion({ tags: ["FireLord"] }),
-      ...Array.from({ length: 6 }, (_, index) => makeRune("Fury", `rune-fury-${index}`)),
-      ...Array.from({ length: 6 }, (_, index) => makeRune("Body", `rune-body-${index}`)),
+      ...Array.from({ length: 6 }, (_, index) => makeRune("fury", `rune-fury-${index}`)),
+      ...Array.from({ length: 6 }, (_, index) => makeRune("body", `rune-body-${index}`)),
       makeBattlefield("bf-1"),
       makeBattlefield("bf-2"),
       makeBattlefield("bf-3"),
       makeCard({
         cardId: "sig-1",
-        superTypes: ["Signature"],
+        superTypes: ["signature"],
         tags: ["DragonKin"],
         cardName: "Dragon Sig",
       }),

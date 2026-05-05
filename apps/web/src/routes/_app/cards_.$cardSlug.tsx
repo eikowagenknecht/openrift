@@ -24,6 +24,8 @@ interface CardDetailLoaderData {
   data: CardDetailResponse;
   printingId: string | undefined;
   languageOrder: readonly string[];
+  domainLabels: Record<string, string>;
+  cardTypeLabels: Record<string, string>;
 }
 
 const MARKETPLACE_OFFER_CONFIG: { key: Marketplace; seller: string; currency: string }[] = [
@@ -51,7 +53,10 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
       : undefined;
     const metaPrinting = linked ?? pickCardMetaPrinting(data.printings, loaded.languageOrder);
     const imageUrl = toAbsoluteUrl(siteUrl, getCardFrontImageFullUrl(metaPrinting));
-    const description = buildCardMetaDescription(data.card, metaPrinting);
+    const description = buildCardMetaDescription(data.card, metaPrinting, {
+      domains: loaded.domainLabels,
+      cardTypes: loaded.cardTypeLabels,
+    });
     // Canonical always points at the query-less card URL so search engines
     // consolidate rankings for all variants onto one page.
     const cardPath = `/cards/${data.card.slug}`;
@@ -107,7 +112,15 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     // Loader runs for crawlers/anonymous users — no user preference available,
     // so pass [] and let the helper fall through to the DB default.
     const languageOrder = effectiveLanguageOrder([], languageRows);
-    return { data, printingId: deps.printingId, languageOrder };
+    const labelMap = (rows: readonly { slug: string; label: string }[]) =>
+      Object.fromEntries(rows.map((row) => [row.slug, row.label]));
+    return {
+      data,
+      printingId: deps.printingId,
+      languageOrder,
+      domainLabels: labelMap(init.enums.domains ?? []),
+      cardTypeLabels: labelMap(init.enums.cardTypes ?? []),
+    };
   },
   component: () => null,
   pendingComponent: CardDetailPending,

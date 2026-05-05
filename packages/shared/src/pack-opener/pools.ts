@@ -40,7 +40,7 @@ export function buildPool(printings: readonly PackPrinting[]): PackPool {
       pool.ultimates.push(p);
       continue;
     }
-    if (p.rarity === "Showcase") {
+    if (p.rarity === WellKnown.rarity.SHOWCASE) {
       if (p.isSigned) {
         pool.showcaseSigned.push(p);
       } else if (p.artVariant === altart) {
@@ -76,21 +76,21 @@ export function buildPool(printings: readonly PackPrinting[]): PackPool {
       continue;
     }
     if (p.finish === normalFinish) {
-      if (p.rarity === "Common") {
+      if (p.rarity === WellKnown.rarity.COMMON) {
         pool.commons.push(p);
-      } else if (p.rarity === "Uncommon") {
+      } else if (p.rarity === WellKnown.rarity.UNCOMMON) {
         pool.uncommons.push(p);
       }
       continue;
     }
     if (p.finish === foilFinish) {
-      if (p.rarity === "Common") {
+      if (p.rarity === WellKnown.rarity.COMMON) {
         pool.foilCommons.push(p);
-      } else if (p.rarity === "Uncommon") {
+      } else if (p.rarity === WellKnown.rarity.UNCOMMON) {
         pool.foilUncommons.push(p);
-      } else if (p.rarity === "Rare") {
+      } else if (p.rarity === WellKnown.rarity.RARE) {
         pool.rares.push(p);
-      } else if (p.rarity === "Epic") {
+      } else if (p.rarity === WellKnown.rarity.EPIC) {
         pool.epics.push(p);
       }
     }

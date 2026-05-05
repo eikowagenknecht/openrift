@@ -149,7 +149,7 @@ test.describe("deck editor zones + drag-drop", () => {
       authenticatedPage,
     }) => {
       const page = authenticatedPage;
-      const unit = await pickCardByType("Unit");
+      const unit = await pickCardByType("unit");
       const deckId = await createDeckViaApi(page.request, {
         name: `Zones Struct ${Date.now()}`,
         format: "constructed",
@@ -160,7 +160,7 @@ test.describe("deck editor zones + drag-drop", () => {
       await expect(page.getByText(/Constructed/).first()).toBeVisible({ timeout: 15_000 });
 
       for (const label of [
-        "Legend",
+        "legend",
         "Chosen Champion",
         "Runes",
         "Battlefields",
@@ -187,7 +187,7 @@ test.describe("deck editor zones + drag-drop", () => {
       authenticatedPage,
     }) => {
       const page = authenticatedPage;
-      const unit = await pickCardByType("Unit");
+      const unit = await pickCardByType("unit");
       const deckId = await createDeckViaApi(page.request, {
         name: `Zones Activate ${Date.now()}`,
         format: "constructed",
@@ -230,7 +230,7 @@ test.describe("deck editor zones + drag-drop", () => {
   test.describe("drag: browser-card → zone", () => {
     test("dragging a card tile onto Main Deck adds 1 copy", async ({ authenticatedPage }) => {
       const page = authenticatedPage;
-      const unit = await pickCardByType("Unit");
+      const unit = await pickCardByType("unit");
       const deckId = await createDeckViaApi(page.request, {
         name: `Drag Browser ${Date.now()}`,
         format: "constructed",
@@ -265,7 +265,7 @@ test.describe("deck editor zones + drag-drop", () => {
   test.describe("drag: browser-card → zone with Shift", () => {
     test("Shift-drag into Main Deck adds a 3-copy playset", async ({ authenticatedPage }) => {
       const page = authenticatedPage;
-      const unit = await pickCardByType("Unit");
+      const unit = await pickCardByType("unit");
       const deckId = await createDeckViaApi(page.request, {
         name: `Drag Shift Main ${Date.now()}`,
         format: "constructed",
@@ -296,7 +296,7 @@ test.describe("deck editor zones + drag-drop", () => {
       authenticatedPage,
     }) => {
       const page = authenticatedPage;
-      const rune = await pickCardByType("Rune");
+      const rune = await pickCardByType("rune");
       const deckId = await createDeckViaApi(page.request, {
         name: `Drag Shift Runes ${Date.now()}`,
         format: "freeform",
@@ -332,7 +332,7 @@ test.describe("deck editor zones + drag-drop", () => {
       authenticatedPage,
     }) => {
       const page = authenticatedPage;
-      const unit = await pickCardByType("Unit");
+      const unit = await pickCardByType("unit");
 
       // Run 1: no Shift → move one of two copies.
       const deckA = await createDeckViaApi(page.request, {
@@ -395,7 +395,7 @@ test.describe("deck editor zones + drag-drop", () => {
       authenticatedPage,
     }) => {
       const page = authenticatedPage;
-      const unit = await pickCardByType("Unit");
+      const unit = await pickCardByType("unit");
       const deckId = await createDeckViaApi(page.request, {
         name: `Drag Same Zone ${Date.now()}`,
         format: "freeform",
@@ -422,7 +422,7 @@ test.describe("deck editor zones + drag-drop", () => {
       authenticatedPage,
     }) => {
       const page = authenticatedPage;
-      const unit = await pickCardByType("Unit");
+      const unit = await pickCardByType("unit");
       const deckId = await createDeckViaApi(page.request, {
         name: `Drag Bad Zone ${Date.now()}`,
         format: "freeform",
@@ -451,7 +451,7 @@ test.describe("deck editor zones + drag-drop", () => {
       authenticatedPage,
     }) => {
       const page = authenticatedPage;
-      const unit = await pickCardByType("Unit");
+      const unit = await pickCardByType("unit");
 
       // Run 1: decrement by 1.
       const deckA = await createDeckViaApi(page.request, {
@@ -530,7 +530,7 @@ test.describe("deck editor zones + drag-drop", () => {
       authenticatedPage,
     }) => {
       const page = authenticatedPage;
-      const unit = await pickCardByType("Unit");
+      const unit = await pickCardByType("unit");
       const deckId = await createDeckViaApi(page.request, {
         name: `Drop Highlight ${Date.now()}`,
         format: "constructed",
@@ -572,7 +572,7 @@ test.describe("deck editor zones + drag-drop", () => {
       authenticatedPage,
     }) => {
       const page = authenticatedPage;
-      const unit = await pickCardByType("Unit");
+      const unit = await pickCardByType("unit");
       const deckId = await createDeckViaApi(page.request, {
         name: `Mobile Drag ${Date.now()}`,
         format: "freeform",

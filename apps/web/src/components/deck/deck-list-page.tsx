@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateDeck, useDecks } from "@/hooks/use-decks";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { usePreferredPrinting } from "@/hooks/use-preferred-printing";
 import type { DeckListItemWithNames } from "@/lib/deck-list-utils";
 import {
@@ -166,6 +167,7 @@ export function DeckListPage() {
   const validityFilter = useDeckListPrefsStore((state) => state.validityFilter);
   const domainFilter = useDeckListPrefsStore((state) => state.domainFilter);
   const showArchived = useDeckListPrefsStore((state) => state.showArchived);
+  const { labels } = useEnumOrders();
 
   const enriched = useEnrichedItems(deckItems);
   // Compute filter availability against the enriched set (before any filter is applied)
@@ -180,7 +182,7 @@ export function DeckListPage() {
     domains: domainFilter,
   });
   const sorted = sortDecks(filtered, sortField, sortDir);
-  const groups = groupDecks(sorted, groupBy, groupDir);
+  const groups = groupDecks(sorted, groupBy, groupDir, labels.domains);
 
   const containerClass =
     density === "grid"

@@ -140,7 +140,7 @@ export function FilterBadgeSections({
           selected={selected("domains")}
           onToggle={(v) => toggleArrayFilter("domains", v)}
           iconPath={(v) => getFilterIconPath("domains", v)}
-          displayLabel={formatDomainFilterLabel}
+          displayLabel={(v) => formatDomainFilterLabel(v, labels.domains)}
           counts={filterCounts?.domains}
         />
       )}
@@ -150,6 +150,7 @@ export function FilterBadgeSections({
         selected={filterState.rarities}
         onToggle={(v) => toggleArrayFilter("rarities", v)}
         iconPath={(v) => getFilterIconPath("rarities", v)}
+        displayLabel={(v) => labels.rarities[v] ?? v}
         counts={filterCounts?.rarities}
       />
       {!hiddenSections?.has("types") && (
@@ -159,6 +160,7 @@ export function FilterBadgeSections({
           selected={selected("types")}
           onToggle={(v) => toggleArrayFilter("types", v)}
           iconPath={(v) => getFilterIconPath("types", v)}
+          displayLabel={(v) => labels.cardTypes[v] ?? v}
           counts={filterCounts?.types}
         />
       )}
@@ -169,6 +171,7 @@ export function FilterBadgeSections({
           selected={selected("superTypes")}
           onToggle={(v) => toggleArrayFilter("superTypes", v)}
           iconPath={(v) => getFilterIconPath("superTypes", v)}
+          displayLabel={(v) => labels.superTypes[v] ?? v}
           counts={filterCounts?.superTypes}
         />
       )}

@@ -49,7 +49,7 @@ if (ctx) {
     .values({
       slug: "CSQ-001",
       name: "CSQ Test Card",
-      type: "Unit",
+      type: "unit",
       might: null,
       energy: 2,
       power: null,
@@ -63,7 +63,7 @@ if (ctx) {
 
   await db
     .insertInto("cardDomains")
-    .values({ cardId: card1Id, domainSlug: "Mind", ordinal: 0 })
+    .values({ cardId: card1Id, domainSlug: "mind", ordinal: 0 })
     .execute();
 
   const [card2] = await db
@@ -71,7 +71,7 @@ if (ctx) {
     .values({
       slug: "CSQ-002",
       name: "CSQ Another Card",
-      type: "Spell",
+      type: "spell",
       might: null,
       energy: 1,
       power: null,
@@ -85,7 +85,7 @@ if (ctx) {
 
   await db
     .insertInto("cardDomains")
-    .values({ cardId: card2.id, domainSlug: "Calm", ordinal: 0 })
+    .values({ cardId: card2.id, domainSlug: "calm", ordinal: 0 })
     .execute();
 
   // Card 3: has a printing with NO active front image (covers listCardsWithMissingImages)
@@ -94,7 +94,7 @@ if (ctx) {
     .values({
       slug: "CSQ-003",
       name: "CSQ No Image Card",
-      type: "Unit",
+      type: "unit",
       might: 3,
       energy: 4,
       power: 1,
@@ -108,7 +108,7 @@ if (ctx) {
 
   await db
     .insertInto("cardDomains")
-    .values({ cardId: card3Id, domainSlug: "Fury", ordinal: 0 })
+    .values({ cardId: card3Id, domainSlug: "fury", ordinal: 0 })
     .execute();
 
   // Create name aliases (every card must have at least its own normName as an alias)
@@ -128,7 +128,7 @@ if (ctx) {
       cardId: card1Id,
       setId,
       shortCode: "CSQ-001",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -150,7 +150,7 @@ if (ctx) {
       cardId: card3Id,
       setId,
       shortCode: "CSQ-003",
-      rarity: "Uncommon",
+      rarity: "uncommon",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -188,9 +188,9 @@ if (ctx) {
     .values({
       provider: "csq-spreadsheet",
       name: "CSQ Test Card",
-      type: "Unit",
+      type: "unit",
       superTypes: [],
-      domains: ["Mind"],
+      domains: ["mind"],
       might: null,
       energy: 2,
       power: null,
@@ -212,9 +212,9 @@ if (ctx) {
     .values({
       provider: "csq-gallery",
       name: "CSQ Unknown Card",
-      type: "Rune",
+      type: "rune",
       superTypes: [],
-      domains: ["Chaos"],
+      domains: ["chaos"],
       might: null,
       energy: 3,
       power: null,
@@ -236,9 +236,9 @@ if (ctx) {
     .values({
       provider: "csq-spreadsheet",
       name: "CSQ No Image Card",
-      type: "Unit",
+      type: "unit",
       superTypes: [],
-      domains: ["Fury"],
+      domains: ["fury"],
       might: 3,
       energy: 4,
       power: 1,
@@ -263,7 +263,7 @@ if (ctx) {
       shortCode: "CSQ-001",
       setId: "CSQ-TEST",
       setName: "CSQ Test Set",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -287,7 +287,7 @@ if (ctx) {
       shortCode: "CSQ-UNK-001",
       setId: "CSQ-TEST",
       setName: "CSQ Test Set",
-      rarity: "Rare",
+      rarity: "rare",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -311,7 +311,7 @@ if (ctx) {
       shortCode: "CSQ-003",
       setId: "CSQ-TEST",
       setName: "CSQ Test Set",
-      rarity: "Uncommon",
+      rarity: "uncommon",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -335,7 +335,7 @@ if (ctx) {
       shortCode: "CSQ-003",
       setId: "CSQ-TEST",
       setName: "CSQ Test Set",
-      rarity: "Uncommon",
+      rarity: "uncommon",
       artVariant: "altart",
       isSigned: false,
       finish: "foil",
@@ -545,7 +545,7 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(sorted[2].printings).toHaveLength(1);
       expect(sorted[2].printings[0].short_code).toBe("CSQ-001");
       expect(sorted[2].printings[0].set_id).toBe("CSQ-TEST");
-      expect(sorted[2].printings[0].rarity).toBe("Common");
+      expect(sorted[2].printings[0].rarity).toBe("common");
     });
   });
 
@@ -561,8 +561,8 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.card).toBeDefined();
       expect(json.card.slug).toBe("CSQ-001");
       expect(json.card.name).toBe("CSQ Test Card");
-      expect(json.card.type).toBe("Unit");
-      expect(json.card.domains).toEqual(["Mind"]);
+      expect(json.card.type).toBe("unit");
+      expect(json.card.domains).toEqual(["mind"]);
       expect(json.card.energy).toBe(2);
       expect(json.card.keywords).toEqual(["Flash"]);
 
@@ -580,7 +580,7 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.printings).toEqual(expect.any(Array));
       expect(json.printings).toHaveLength(1);
       expect(json.printings[0].shortCode).toBe("CSQ-001");
-      expect(json.printings[0].rarity).toBe("Common");
+      expect(json.printings[0].rarity).toBe("common");
       expect(json.printings[0].setId).toBe("CSQ-TEST");
     });
 
@@ -594,7 +594,7 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       const ps = json.candidatePrintings[0];
       expect(ps.shortCode).toBe("CSQ-001");
       expect(ps.setId).toBe("CSQ-TEST");
-      expect(ps.rarity).toBe("Common");
+      expect(ps.rarity).toBe("common");
       expect(ps.imageUrl).toBe("https://example.com/csq-test.png");
       expect(ps.candidateCardId).toBeTypeOf("string");
       expect(ps.checkedAt).toSatisfy((v: unknown) => v === null || typeof v === "string");
@@ -735,14 +735,14 @@ describe.skipIf(!ctx)("Card-sources query routes (integration)", () => {
       expect(json.sources).toHaveLength(1);
       expect(json.sources[0].provider).toBe("csq-gallery");
       expect(json.sources[0].name).toBe("CSQ Unknown Card");
-      expect(json.sources[0].type).toBe("Rune");
-      expect(json.sources[0].domains).toEqual(["Chaos"]);
+      expect(json.sources[0].type).toBe("rune");
+      expect(json.sources[0].domains).toEqual(["chaos"]);
 
       // Printing sources
       expect(json.candidatePrintings).toEqual(expect.any(Array));
       expect(json.candidatePrintings).toHaveLength(1);
       expect(json.candidatePrintings[0].shortCode).toBe("CSQ-UNK-001");
-      expect(json.candidatePrintings[0].rarity).toBe("Rare");
+      expect(json.candidatePrintings[0].rarity).toBe("rare");
     });
 
     it("returns 200 with empty sources for non-existent normalized name", async () => {

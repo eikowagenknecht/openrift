@@ -65,7 +65,7 @@ describe("candidateMutationsRepo", () => {
   it("patchCandidatePrinting updates fields", async () => {
     const db = createMockDb([{ numUpdatedRows: 1n }]);
     expect(
-      await candidateMutationsRepo(db).patchCandidatePrinting("cp-1", { rarity: "Rare" }),
+      await candidateMutationsRepo(db).patchCandidatePrinting("cp-1", { rarity: "rare" }),
     ).toBeDefined();
   });
 
@@ -94,7 +94,7 @@ describe("candidateMutationsRepo", () => {
       shortCode: "OGS-001",
       setId: "s-1",
       setName: "Proving Grounds",
-      rarity: "Rare",
+      rarity: "rare",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -114,7 +114,7 @@ describe("candidateMutationsRepo", () => {
     } as any;
     const target = {
       id: "p-new",
-      rarity: "Rare",
+      rarity: "rare",
       artVariant: "normal",
       isSigned: false,
       markerSlugs: [],
@@ -291,7 +291,7 @@ describe("candidateMutationsRepo", () => {
       cardId: "c-1",
       setId: "s-1",
       shortCode: "OGS-001",
-      rarity: "Rare",
+      rarity: "rare",
       artVariant: "normal",
       isSigned: false,
       markerSlugs: [],
@@ -330,8 +330,8 @@ describe("candidateMutationsRepo", () => {
         {
           id: "OGS-NEW",
           name: "New Card",
-          type: "Spell",
-          domains: ["Fury"],
+          type: "spell",
+          domains: ["fury"],
           rulesText: "Deal 3 damage.",
         },
         "newcard",
@@ -346,8 +346,8 @@ describe("candidateMutationsRepo", () => {
         {
           id: "OGS-DUP",
           name: "Keyword Card",
-          type: "Spell",
-          domains: ["Fury"],
+          type: "spell",
+          domains: ["fury"],
           rulesText: "[Shield] this unit. [Shield] again.",
           effectText: "[Shield] once more.",
         },

@@ -64,7 +64,7 @@ function buildFixture() {
     slug: `card-${i}`,
     name: `Card ${i} ${pick(["Hero", "Rebel", "Ghost", "Knight", "Sage"], r)}`,
     type: pick(TYPES, r),
-    superTypes: r() > 0.8 ? ["Champion"] : [],
+    superTypes: r() > 0.8 ? ["champion"] : [],
     domains: [pick(DOMAINS, r), ...(r() > 0.7 ? [pick(DOMAINS, r)] : [])],
     might: Math.floor(r() * 10) - 1,
     energy: Math.floor(r() * 8) + 1,

@@ -44,9 +44,9 @@ const dbCard = {
   id: "OGS-001",
   slug: "OGS-001",
   name: "Fire Dragon",
-  type: "Unit",
+  type: "unit",
   superTypes: ["Elite"],
-  domains: ["Fury"],
+  domains: ["fury"],
   might: 4,
   energy: 5,
   power: 6,
@@ -61,7 +61,7 @@ const dbPrintingRow = {
   cardId: "OGS-001",
   setId: "OGS",
   shortCode: "OGS-001",
-  rarity: "Rare",
+  rarity: "rare",
   artVariant: "normal",
   isSigned: false,
   markerSlugs: [],
@@ -172,7 +172,7 @@ describe("GET /api/v1/catalog", () => {
     expect(card.keywords).toEqual([]);
     expect(card.tags).toEqual([]);
     expect(card.name).toBe("Fire Dragon");
-    expect(card.domains).toEqual(["Fury"]);
+    expect(card.domains).toEqual(["fury"]);
   });
 
   it("preserves null fields and empty arrays on printings", async () => {

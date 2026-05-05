@@ -126,7 +126,7 @@ describe.skipIf(!ctx)("catalogRepo (integration)", () => {
       .where("printingImages.face", "=", "front")
       .where("printingImages.isActive", "=", true)
       .where("ci.rehostedUrl", "is not", null)
-      .where("cards.type", "=", "Battlefield")
+      .where("cards.type", "=", "battlefield")
       .execute();
     const battlefieldImageIds = new Set(battlefieldRows.map((r) => r.imageId));
     for (const imageId of summary.thumbnailIds) {

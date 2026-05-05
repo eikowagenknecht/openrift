@@ -25,5 +25,5 @@ export function toPackPrinting(p: Printing): PackPrinting {
 // printed backsides of other cards, not standalone pulls) under that type,
 // so they'd otherwise show up as fake pulls in the pool.
 export function isBoosterEligible(printing: Printing): boolean {
-  return printing.markers.length === 0 && printing.card.type !== "Other";
+  return printing.markers.length === 0 && printing.card.type !== "other";
 }

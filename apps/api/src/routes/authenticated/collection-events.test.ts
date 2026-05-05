@@ -49,10 +49,10 @@ const dbEvent = {
   toCollectionName: "Inbox",
   createdAt: now,
   shortCode: "ALP-001",
-  rarity: "Rare",
+  rarity: "rare",
   imageId: "uuid-base",
   cardName: "Fire Dragon",
-  cardType: "Unit",
+  cardType: "unit",
   cardSuperTypes: ["Dragon"],
 };
 
@@ -144,10 +144,10 @@ describe("GET /api/v1/collection-events", () => {
     expect(event.toCollectionName).toBe("Inbox");
     expect(event.createdAt).toBe(now.toISOString());
     expect(event.shortCode).toBe("ALP-001");
-    expect(event.rarity).toBe("Rare");
+    expect(event.rarity).toBe("rare");
     expect(event.imageId).toBe("uuid-base");
     expect(event.cardName).toBe("Fire Dragon");
-    expect(event.cardType).toBe("Unit");
+    expect(event.cardType).toBe("unit");
     expect(event.cardSuperTypes).toEqual(["Dragon"]);
   });
 

@@ -90,7 +90,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .values({
         slug: "IGT-001",
         name: "Ingest Alpha",
-        type: "Unit",
+        type: "unit",
         might: 3,
         energy: 2,
         power: 1,
@@ -105,7 +105,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
     await db
       .insertInto("cardDomains")
-      .values({ cardId: seedCardId, domainSlug: "Fury", ordinal: 0 })
+      .values({ cardId: seedCardId, domainSlug: "fury", ordinal: 0 })
       .onConflict((oc) => oc.columns(["cardId", "domainSlug"]).doNothing())
       .execute();
 
@@ -128,7 +128,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           cardId: seedCardId,
           setId: seedSetId,
           shortCode: "IGT-001",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           finish: "normal",
@@ -149,7 +149,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .values({
         slug: "IGT-002",
         name: "Ingest Beta Original",
-        type: "Spell",
+        type: "spell",
         might: null,
         energy: 4,
         power: null,
@@ -164,7 +164,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
 
     await db
       .insertInto("cardDomains")
-      .values({ cardId: aliasCardId, domainSlug: "Mind", ordinal: 0 })
+      .values({ cardId: aliasCardId, domainSlug: "mind", ordinal: 0 })
       .onConflict((oc) => oc.columns(["cardId", "domainSlug"]).doNothing())
       .execute();
 
@@ -215,9 +215,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Solo Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Fury"],
+        domains: ["fury"],
         might: 3,
         energy: 2,
         power: 1,
@@ -244,7 +244,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       .executeTakeFirst();
     expect(row).toBeDefined();
     expect(row?.name).toBe("Solo Card");
-    expect(row?.type).toBe("Unit");
+    expect(row?.type).toBe("unit");
     expect(row?.might).toBe(3);
   });
 
@@ -252,9 +252,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Card With Printings",
-        type: "Spell",
+        type: "spell",
         super_types: [],
-        domains: ["Mind"],
+        domains: ["mind"],
         might: null,
         energy: 5,
         power: null,
@@ -267,7 +267,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "CWP-001-P1",
             set_id: "SET-A",
-            rarity: "Common",
+            rarity: "common",
             art_variant: "normal",
             is_signed: false,
             finish: "normal",
@@ -310,9 +310,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Evolving Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Body"],
+        domains: ["body"],
         might: 2,
         energy: 3,
         power: 1,
@@ -329,9 +329,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Evolving Card",
-        type: "Unit",
-        super_types: ["Champion"],
-        domains: ["Body"],
+        type: "unit",
+        super_types: ["champion"],
+        domains: ["body"],
         might: 5,
         energy: 3,
         power: 2,
@@ -372,9 +372,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Stable Card",
-        type: "Rune",
+        type: "rune",
         super_types: [],
-        domains: ["Order"],
+        domains: ["order"],
         might: null,
         energy: 1,
         power: null,
@@ -391,9 +391,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Stable Card",
-        type: "Rune",
+        type: "rune",
         super_types: [],
-        domains: ["Order"],
+        domains: ["order"],
         might: null,
         energy: 1,
         power: null,
@@ -417,9 +417,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Bad Might Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Fury"],
+        domains: ["fury"],
         might: -1,
         energy: 2,
         power: 1,
@@ -442,9 +442,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Fury"],
+        domains: ["fury"],
         might: 1,
         energy: 2,
         power: 1,
@@ -466,9 +466,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Valid Card With Bad Printing",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Fury"],
+        domains: ["fury"],
         might: 1,
         energy: 2,
         power: 1,
@@ -481,7 +481,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "",
             set_id: "SET-X",
-            rarity: "Common",
+            rarity: "common",
             art_variant: "normal",
             is_signed: false,
             finish: "normal",
@@ -507,9 +507,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Print Update Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Chaos"],
+        domains: ["chaos"],
         might: 4,
         energy: 3,
         power: 2,
@@ -522,7 +522,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "PU-001-P1",
             set_id: "SET-PU",
-            rarity: "Uncommon",
+            rarity: "uncommon",
             art_variant: "normal",
             is_signed: false,
             finish: "normal",
@@ -553,9 +553,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Print Update Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Chaos"],
+        domains: ["chaos"],
         might: 4,
         energy: 3,
         power: 2,
@@ -568,7 +568,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "PU-001-P1",
             set_id: "SET-PU",
-            rarity: "Uncommon",
+            rarity: "uncommon",
             art_variant: "normal",
             is_signed: false,
             finish: "normal",
@@ -595,9 +595,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Print Stable Card",
-        type: "Gear",
+        type: "gear",
         super_types: [],
-        domains: ["Order"],
+        domains: ["order"],
         might: null,
         energy: 2,
         power: null,
@@ -610,7 +610,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "PS-001-P1",
             set_id: "SET-PS",
-            rarity: "Rare",
+            rarity: "rare",
             art_variant: "normal",
             is_signed: false,
             finish: "foil",
@@ -639,9 +639,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Print Stable Card",
-        type: "Gear",
+        type: "gear",
         super_types: [],
-        domains: ["Order"],
+        domains: ["order"],
         might: null,
         energy: 2,
         power: null,
@@ -654,7 +654,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "PS-001-P1",
             set_id: "SET-PS",
-            rarity: "Rare",
+            rarity: "rare",
             art_variant: "normal",
             is_signed: false,
             finish: "foil",
@@ -684,9 +684,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Ingest Alpha",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Fury"],
+        domains: ["fury"],
         might: 3,
         energy: 2,
         power: 1,
@@ -699,7 +699,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "IGT-001",
             set_id: "IGT",
-            rarity: "Common",
+            rarity: "common",
             art_variant: "normal",
             is_signed: false,
             finish: "normal",
@@ -737,9 +737,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Ingest Beta Alias",
-        type: "Spell",
+        type: "spell",
         super_types: [],
-        domains: ["Calm"],
+        domains: ["calm"],
         might: null,
         energy: 4,
         power: null,
@@ -763,9 +763,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Name One",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Mind"],
+        domains: ["mind"],
         might: 1,
         energy: 1,
         power: 1,
@@ -782,9 +782,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Name Two",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Mind"],
+        domains: ["mind"],
         might: 1,
         energy: 1,
         power: 1,
@@ -817,9 +817,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Name Only Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Chaos"],
+        domains: ["chaos"],
         might: 2,
         energy: 2,
         power: 2,
@@ -835,9 +835,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Name Only Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Chaos"],
+        domains: ["chaos"],
         might: 2,
         energy: 2,
         power: 2,
@@ -859,9 +859,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Extra Data Empty Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Fury"],
+        domains: ["fury"],
         might: 1,
         energy: 1,
         power: 1,
@@ -890,9 +890,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Extra Data Real Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Fury"],
+        domains: ["fury"],
         might: 1,
         energy: 1,
         power: 1,
@@ -926,9 +926,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     await ingestCandidates(transact, batchSource, [
       card({
         name: "Batch Unchanged",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Fury"],
+        domains: ["fury"],
         might: 1,
         energy: 1,
         power: 1,
@@ -941,9 +941,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       }),
       card({
         name: "Batch Will Update",
-        type: "Spell",
+        type: "spell",
         super_types: [],
-        domains: ["Mind"],
+        domains: ["mind"],
         might: null,
         energy: 3,
         power: null,
@@ -961,9 +961,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       // Unchanged
       card({
         name: "Batch Unchanged",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Fury"],
+        domains: ["fury"],
         might: 1,
         energy: 1,
         power: 1,
@@ -977,9 +977,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       // Updated (changed energy from 3 → 5; energy is a snake_case-matching field)
       card({
         name: "Batch Will Update",
-        type: "Spell",
+        type: "spell",
         super_types: [],
-        domains: ["Mind"],
+        domains: ["mind"],
         might: null,
         energy: 5,
         power: null,
@@ -993,9 +993,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       // New card
       card({
         name: "Batch New Card",
-        type: "Gear",
+        type: "gear",
         super_types: [],
-        domains: ["Body"],
+        domains: ["body"],
         might: null,
         energy: 1,
         power: null,
@@ -1009,9 +1009,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
       // Validation error (negative energy)
       card({
         name: "Batch Bad Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Order"],
+        domains: ["order"],
         might: -5,
         energy: 2,
         power: 1,
@@ -1038,9 +1038,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Normalize Test Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Calm"],
+        domains: ["calm"],
         might: 1,
         energy: 1,
         power: 1,
@@ -1057,9 +1057,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Normalize Test Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Calm"],
+        domains: ["calm"],
         might: 1,
         energy: 1,
         power: 1,
@@ -1084,9 +1084,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Totally Unknown Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Fury"],
+        domains: ["fury"],
         might: 1,
         energy: 1,
         power: 1,
@@ -1099,7 +1099,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "UNK-001-P1",
             set_id: "SET-UNK",
-            rarity: "Common",
+            rarity: "common",
             art_variant: "normal",
             is_signed: false,
             finish: "normal",
@@ -1135,9 +1135,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     const result = await ingestCandidates(transact, SOURCE, [
       card({
         name: "Entity ID Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Fury"],
+        domains: ["fury"],
         might: 1,
         energy: 1,
         power: 1,
@@ -1151,7 +1151,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
           {
             short_code: "ENTITY-001-P1",
             set_id: "SET-E",
-            rarity: "Common",
+            rarity: "common",
             art_variant: "normal",
             is_signed: false,
             finish: "normal",
@@ -1189,9 +1189,9 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
     await ingestCandidates(transact, SOURCE, [
       card({
         name: "Full Printing Card",
-        type: "Unit",
+        type: "unit",
         super_types: [],
-        domains: ["Fury"],
+        domains: ["fury"],
         might: 1,
         energy: 1,
         power: 1,
@@ -1205,7 +1205,7 @@ describe.skipIf(!ctx)("ingestCandidates integration", () => {
             short_code: "FP-001-P1",
             set_id: "SET-FP",
             set_name: "Full Print Set",
-            rarity: "Rare",
+            rarity: "rare",
             art_variant: "altart",
             is_signed: true,
             marker_slugs: ["promo"],

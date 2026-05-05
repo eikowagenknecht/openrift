@@ -6,6 +6,7 @@ import type {
   CandidatePrintingGroupResponse,
   CandidatePrintingResponse,
 } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { formatPrintingLabel, mostCommonValue, slugifyName } from "@openrift/shared/utils";
 import type { Selectable } from "kysely";
 
@@ -111,7 +112,9 @@ function resolveFinish(finish: string | null, rarity: string | null): string {
   if (!rarity) {
     return "";
   }
-  return rarity === "Common" || rarity === "Uncommon" ? "normal" : "foil";
+  return rarity === WellKnown.rarity.COMMON || rarity === WellKnown.rarity.UNCOMMON
+    ? WellKnown.finish.NORMAL
+    : WellKnown.finish.FOIL;
 }
 
 export async function buildCandidateCardList(

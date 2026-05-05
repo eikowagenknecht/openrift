@@ -8,7 +8,7 @@ function printing(overrides: Partial<UnifiedMappingPrinting> = {}): UnifiedMappi
   return {
     printingId: "p-en",
     shortCode: "OGN-001",
-    rarity: "Common",
+    rarity: "common",
     artVariant: "normal",
     isSigned: false,
     markerSlugs: [],
@@ -59,7 +59,7 @@ function group(
     cardId,
     cardSlug: cardId,
     cardName: cardId,
-    cardType: "Unit",
+    cardType: "unit",
     superTypes: [],
     domains: [],
     energy: null,

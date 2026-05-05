@@ -39,7 +39,7 @@ if (ctx) {
     .values({
       slug: "UNM-001",
       name: "UNM Alpha Card",
-      type: "Unit",
+      type: "unit",
       might: null,
       energy: 3,
       power: null,
@@ -51,7 +51,7 @@ if (ctx) {
     .execute();
   cardId = cardRow.id;
 
-  await db.insertInto("cardDomains").values({ cardId, domainSlug: "Mind", ordinal: 0 }).execute();
+  await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
 
   // Seed first printing
   const [printingRow] = await db
@@ -60,7 +60,7 @@ if (ctx) {
       cardId,
       setId,
       shortCode: "UNM-001",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -81,7 +81,7 @@ if (ctx) {
     .values({
       slug: "UNM-002",
       name: "UNM Beta Card",
-      type: "Spell",
+      type: "spell",
       might: null,
       energy: 1,
       power: null,
@@ -95,7 +95,7 @@ if (ctx) {
 
   await db
     .insertInto("cardDomains")
-    .values({ cardId: secondCardId, domainSlug: "Chaos", ordinal: 0 })
+    .values({ cardId: secondCardId, domainSlug: "chaos", ordinal: 0 })
     .execute();
 
   // Seed second printing
@@ -105,7 +105,7 @@ if (ctx) {
       cardId: secondCardId,
       setId,
       shortCode: "UNM-002",
-      rarity: "Rare",
+      rarity: "rare",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -373,8 +373,8 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       expect(alphaGroup).toBeDefined();
       expect(alphaGroup.cardId).toBeTypeOf("string");
       expect(alphaGroup.cardSlug).toBe("UNM-001");
-      expect(alphaGroup.cardType).toBe("Unit");
-      expect(alphaGroup.domains).toContain("Mind");
+      expect(alphaGroup.cardType).toBe("unit");
+      expect(alphaGroup.domains).toContain("mind");
       expect(alphaGroup.energy).toBe(3);
       expect(alphaGroup.setName).toBe("UNM Unified Test Set");
     });
@@ -695,7 +695,7 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       );
       expect(printing).toBeDefined();
       expect(printing.shortCode).toBe("UNM-001");
-      expect(printing.rarity).toBe("Common");
+      expect(printing.rarity).toBe("common");
       expect(printing.artVariant).toBe("normal");
       expect(printing.isSigned).toBe(false);
       expect(printing.markerSlugs).toEqual([]);

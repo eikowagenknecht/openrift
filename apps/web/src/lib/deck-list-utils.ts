@@ -158,6 +158,7 @@ function domainComboOf(item: DeckListItemWithNames): Domain[] {
 function groupKeyAndLabel(
   item: DeckListItemWithNames,
   groupBy: DeckListGroupBy,
+  domainLabels?: Record<string, string>,
 ): { key: string; label: string } {
   switch (groupBy) {
     case "format": {
@@ -170,7 +171,7 @@ function groupKeyAndLabel(
       if (combo.length === 0) {
         return { key: "domains:none", label: "No domain" };
       }
-      const label = combo.join(" / ");
+      const label = combo.map((slug) => domainLabels?.[slug] ?? slug).join(" / ");
       return { key: `domains:${label}`, label };
     }
     case "legend": {
@@ -195,13 +196,14 @@ export function groupDecks(
   items: DeckListItemWithNames[],
   groupBy: DeckListGroupBy,
   dir: SortDir = "asc",
+  domainLabels?: Record<string, string>,
 ): DeckListGroup[] {
   if (groupBy === "none") {
     return [{ key: "all", label: "", items }];
   }
   const map = new Map<string, DeckListGroup>();
   for (const item of items) {
-    const { key, label } = groupKeyAndLabel(item, groupBy);
+    const { key, label } = groupKeyAndLabel(item, groupBy, domainLabels);
     let group = map.get(key);
     if (!group) {
       group = { key, label, items: [] };

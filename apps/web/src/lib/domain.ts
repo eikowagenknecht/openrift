@@ -5,13 +5,13 @@ const FALLBACK_COLOR = "#737373";
 
 /** Fallback domain colors matching the initial database seed. */
 export const DEFAULT_DOMAIN_COLORS: Record<string, string> = {
-  Fury: "#CB212D",
-  Calm: "#16AA71",
-  Mind: "#227799",
-  Body: "#E2710C",
-  Chaos: "#6B4891",
-  Order: "#CDA902",
-  Colorless: "#737373",
+  fury: "#CB212D",
+  calm: "#16AA71",
+  mind: "#227799",
+  body: "#E2710C",
+  chaos: "#6B4891",
+  order: "#CDA902",
+  colorless: "#737373",
 } satisfies Record<Domain, string>;
 
 function resolve(colors: Record<string, string>, domain: string): string {
@@ -50,13 +50,13 @@ export function getDomainColor(
   return resolve(colors, domain);
 }
 
-export function formatDomainDisplay(domains: string[]): string {
+export function formatDomainDisplay(domains: string[], labels?: Record<string, string>): string {
   if (domains.length === 1 && domains[0] === WellKnown.domain.COLORLESS) {
     return "No Domain";
   }
-  return domains.join(" / ");
+  return domains.map((domain) => labels?.[domain] ?? domain).join(" / ");
 }
 
-export function formatDomainFilterLabel(value: string): string {
-  return value === WellKnown.domain.COLORLESS ? "None" : value;
+export function formatDomainFilterLabel(value: string, labels?: Record<string, string>): string {
+  return value === WellKnown.domain.COLORLESS ? "None" : (labels?.[value] ?? value);
 }

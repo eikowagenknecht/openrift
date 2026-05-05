@@ -49,7 +49,7 @@ import { useSelectionStore } from "@/stores/selection-store";
 export function buildRunesByDomain(allPrintings: Printing[]): Map<string, DeckBuilderCard[]> {
   const runesByDomain = new Map<string, DeckBuilderCard[]>();
   for (const entry of allPrintings) {
-    if (entry.card.type !== "Rune") {
+    if (entry.card.type !== "rune") {
       continue;
     }
     const runeCard = catalogCardToDeckBuilderCard(entry.cardId, entry.card);

@@ -26,7 +26,7 @@ export function PrintingHoverPreview({
   const front = printing.images.find((image) => image.face === "front");
   const thumbnail = front ? imageUrl(front.imageId, "400w") : null;
   const fullUrl = front ? imageUrl(front.imageId, "full") : null;
-  const landscape = printing.card.type === "Battlefield";
+  const landscape = printing.card.type === "battlefield";
   const [fullLoaded, setFullLoaded] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 

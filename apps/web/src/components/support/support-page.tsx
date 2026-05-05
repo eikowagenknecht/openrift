@@ -21,31 +21,31 @@ interface SupportTier {
 
 const tiers: SupportTier[] = [
   {
-    rarity: "Common",
+    rarity: "common",
     price: "$1/mo",
     effect: "I see you over there. [Reaction]: I nod in your general direction.",
     rarityImage: "/images/rarities/common.webp",
   },
   {
-    rarity: "Uncommon",
+    rarity: "uncommon",
     price: "$3/mo",
     effect: "A warm fuzzy feeling. [Shield]: Protects me from existential dread for 72 hours.",
     rarityImage: "/images/rarities/uncommon.webp",
   },
   {
-    rarity: "Rare",
+    rarity: "rare",
     price: "$5/mo",
     effect: "My server gains +1 :rb_might:. It survives approximately 4.7 more minutes per month.",
     rarityImage: "/images/rarities/rare.webp",
   },
   {
-    rarity: "Epic",
+    rarity: "epic",
     price: "$10/mo",
     effect: "You're keeping the lights on. [Deathknell]: I name a bug after you.",
     rarityImage: "/images/rarities/epic.webp",
   },
   {
-    rarity: "Showcase",
+    rarity: "showcase",
     price: "$25/mo",
     effect:
       "You basically own the site now. [Buff]: My morale goes through the roof. A sticker may or may not materialize.",

@@ -417,7 +417,7 @@ export function getAvailableFilters(
   );
   const types = unique(printings.map((p) => p.card.type)).sort();
   const superTypes = unique(printings.flatMap((p) => p.card.superTypes))
-    .filter((st) => st !== "Basic")
+    .filter((st) => st !== "basic")
     .sort();
   const rarities = unique(printings.map((p) => p.rarity)).sort(
     (a, b) => orderIndex(orders.rarities, a) - orderIndex(orders.rarities, b),

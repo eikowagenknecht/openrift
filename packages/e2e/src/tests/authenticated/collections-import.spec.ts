@@ -172,9 +172,9 @@ function buildOpenRiftCsv(
     const cells = [
       row.cardId,
       row.cardName,
-      row.rarity ?? "Common",
-      row.type ?? "Unit",
-      row.domain ?? "Fury",
+      row.rarity ?? "common",
+      row.type ?? "unit",
+      row.domain ?? "fury",
       row.finish ?? "normal",
       row.artVariant ?? "normal",
       row.promo ?? "",
@@ -341,7 +341,7 @@ test.describe("collections import/export", () => {
       });
 
       const csv = buildOpenRiftCsv([
-        { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "Rare", quantity: 2 },
+        { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "rare", quantity: 2 },
       ]);
 
       const fileInput = page.locator('input[type="file"]');
@@ -495,14 +495,14 @@ test.describe("collections import/export", () => {
     async function gotoPreview(page: Page) {
       const csv = buildOpenRiftCsv([
         // Exact: catalog has OGS-007 EN normal.
-        { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "Rare", quantity: 2 },
+        { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "rare", quantity: 2 },
         // Needs review: valid-format code that doesn't exist, but name fuzzy-matches.
         // artVariant=altart has no match among Annie Fiery's EN printings, so the
         // matcher returns needs-review with candidates.
         {
           cardId: "XXX-001",
           cardName: "Annie, Fiery",
-          rarity: "Epic",
+          rarity: "epic",
           artVariant: "altart",
           quantity: 1,
         },
@@ -510,7 +510,7 @@ test.describe("collections import/export", () => {
         {
           cardId: "XXX-999",
           cardName: "Totally Fake Nonexistent Card",
-          rarity: "Common",
+          rarity: "common",
           quantity: 1,
         },
       ]);
@@ -581,7 +581,7 @@ test.describe("collections import/export", () => {
     test("Back returns to step 1 with the pasted text preserved", async ({ page }) => {
       userEmail = await createAndLogin(page);
       const csv = buildOpenRiftCsv([
-        { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "Rare", quantity: 1 },
+        { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "rare", quantity: 1 },
       ]);
 
       await page.goto("/collections/import");
@@ -613,7 +613,7 @@ test.describe("collections import/export", () => {
 
     async function advanceToPreview(page: Page) {
       const csv = buildOpenRiftCsv([
-        { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "Rare", quantity: 2 },
+        { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "rare", quantity: 2 },
       ]);
       await page.goto("/collections/import");
       await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible({
@@ -702,7 +702,7 @@ test.describe("collections import/export", () => {
       });
 
       const csv = buildOpenRiftCsv([
-        { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "Rare", quantity: 2 },
+        { cardId: "OGS-007", cardName: "Garen, Rugged", rarity: "rare", quantity: 2 },
       ]);
       await page.goto("/collections/import");
       await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible({

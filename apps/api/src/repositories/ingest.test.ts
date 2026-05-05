@@ -61,7 +61,7 @@ describe("ingestRepo", () => {
   it("updateCandidatePrinting updates a printing", async () => {
     const db = createMockDb([]);
     await expect(
-      ingestRepo(db).updateCandidatePrinting("cp-1", { rarity: "Rare" }),
+      ingestRepo(db).updateCandidatePrinting("cp-1", { rarity: "rare" }),
     ).resolves.toBeUndefined();
   });
 

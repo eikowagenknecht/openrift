@@ -1,4 +1,5 @@
 import type { EnumOrders, GroupByField, Printing } from "@openrift/shared";
+import { WellKnown } from "@openrift/shared";
 import { SearchXIcon, WifiOffIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Fragment, memo, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -81,7 +82,7 @@ function groupItemsByField(
       order: orders.domains,
       getKeysAndItems: (item) => {
         const doms = item.printing.card.domains;
-        const keys = doms.length > 0 ? doms : ["Colorless"];
+        const keys = doms.length > 0 ? doms : [WellKnown.domain.COLORLESS];
         return keys.map((key) => ({ key, mapped: item }));
       },
     },

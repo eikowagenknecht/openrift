@@ -3,6 +3,7 @@ import { WellKnown, imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { FoilOverlay } from "@/components/cards/foil-overlay";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { cn } from "@/lib/utils";
 
 const SLOT_BORDER: Record<PackPull["slot"], string> = {
@@ -38,6 +39,7 @@ interface PullCardProps {
 // detail page. Shine ring indicates a special-slot pull.
 export function PullCard({ pull, image, className, shimmer = true }: PullCardProps) {
   const { printing } = pull;
+  const { labels } = useEnumOrders();
   const highlight = SLOT_BORDER[pull.slot];
   const glow = SLOT_GLOW[pull.slot];
   // Pack opener always shows the holo effect on foil-finish pulls, regardless
@@ -81,14 +83,15 @@ export function PullCard({ pull, image, className, shimmer = true }: PullCardPro
         <div className="text-foreground truncate">{printing.cardName}</div>
         <div className="text-muted-foreground flex items-center justify-between tabular-nums">
           <span>{printing.shortCode}</span>
-          <span>{slotLabel(pull)}</span>
+          <span>{slotLabel(pull, labels.rarities)}</span>
         </div>
       </div>
     </Link>
   );
 }
 
-function slotLabel(pull: PackPull): string {
+function slotLabel(pull: PackPull, rarityLabels: Record<string, string>): string {
+  const rarityLabel = rarityLabels[pull.printing.rarity] ?? pull.printing.rarity;
   switch (pull.slot) {
     case "common": {
       return "Common";
@@ -97,10 +100,10 @@ function slotLabel(pull: PackPull): string {
       return "Uncommon";
     }
     case "flex": {
-      return pull.printing.rarity;
+      return rarityLabel;
     }
     case "foil": {
-      return `Foil ${pull.printing.rarity}`;
+      return `Foil ${rarityLabel}`;
     }
     case "token": {
       if (pull.printing.cardSuperTypes.includes(WellKnown.superType.TOKEN)) {

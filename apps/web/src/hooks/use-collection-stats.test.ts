@@ -8,9 +8,9 @@ import { resetIdCounter, stubPriceLookup, stubPrinting } from "@/test/factories"
 import { computeCollectionStats, computeCompletion, filterByScope } from "./use-collection-stats";
 
 const ORDERS = {
-  domains: ["Fury", "Calm", "Mind", "Body", "Chaos", "Order", "Colorless"] as const,
-  rarities: ["Common", "Uncommon", "Rare", "Epic", "Showcase"] as const,
-  cardTypes: ["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield", "Other"] as const,
+  domains: ["fury", "calm", "mind", "body", "chaos", "order", "colorless"] as const,
+  rarities: ["common", "uncommon", "rare", "epic", "showcase"] as const,
+  cardTypes: ["legend", "unit", "rune", "spell", "gear", "battlefield", "other"] as const,
 };
 
 function stubSet(overrides: Partial<SetListEntry> = {}): SetListEntry {
@@ -70,9 +70,9 @@ describe("computeCollectionStats", () => {
   it("computes hero stats for a single stack", () => {
     const stack = stubStack({
       copyCount: 3,
-      card: { slug: "fireball", domains: ["Fury"] as Domain[], energy: 2, power: 3 },
+      card: { slug: "fireball", domains: ["fury"] as Domain[], energy: 2, power: 3 },
       setId: "set-1",
-      rarity: "Rare",
+      rarity: "rare",
     });
 
     const stats = computeCollectionStats({
@@ -93,15 +93,15 @@ describe("computeCollectionStats", () => {
 
   it("deduplicates unique cards by card slug", () => {
     const stack1 = stubStack({
-      card: { slug: "fireball", domains: ["Fury"] as Domain[] },
+      card: { slug: "fireball", domains: ["fury"] as Domain[] },
       setId: "set-1",
     });
     const stack2 = stubStack({
-      card: { slug: "fireball", domains: ["Fury"] as Domain[] },
+      card: { slug: "fireball", domains: ["fury"] as Domain[] },
       setId: "set-1",
     });
     const stack3 = stubStack({
-      card: { slug: "icebolt", domains: ["Calm"] as Domain[] },
+      card: { slug: "icebolt", domains: ["calm"] as Domain[] },
       setId: "set-1",
     });
 
@@ -143,7 +143,7 @@ describe("computeCollectionStats", () => {
   it("counts multi-domain cards toward each domain", () => {
     const stack = stubStack({
       copyCount: 2,
-      card: { slug: "firecalm", domains: ["Fury", "Calm"] as Domain[] },
+      card: { slug: "firecalm", domains: ["fury", "calm"] as Domain[] },
     });
 
     const stats = computeCollectionStats({
@@ -156,8 +156,8 @@ describe("computeCollectionStats", () => {
     });
 
     expect(stats.domainDistribution).toEqual([
-      { domain: "Fury", count: 2 },
-      { domain: "Calm", count: 2 },
+      { domain: "fury", count: 2 },
+      { domain: "calm", count: 2 },
     ]);
   });
 
@@ -243,10 +243,10 @@ describe("computeCompletion", () => {
   });
 
   it("computes rarity completion by cards and printings", () => {
-    const printing1 = stubPrinting({ rarity: "Common", card: { slug: "a" }, setId: "set-1" });
-    const printing2 = stubPrinting({ rarity: "Common", card: { slug: "b" }, setId: "set-1" });
-    const printing3 = stubPrinting({ rarity: "Rare", card: { slug: "c" }, setId: "set-1" });
-    const catalogOnly = stubPrinting({ rarity: "Common", card: { slug: "d" }, setId: "set-1" });
+    const printing1 = stubPrinting({ rarity: "common", card: { slug: "a" }, setId: "set-1" });
+    const printing2 = stubPrinting({ rarity: "common", card: { slug: "b" }, setId: "set-1" });
+    const printing3 = stubPrinting({ rarity: "rare", card: { slug: "c" }, setId: "set-1" });
+    const catalogOnly = stubPrinting({ rarity: "common", card: { slug: "d" }, setId: "set-1" });
 
     const stacks: StackedEntry[] = [
       { printingId: printing1.id, printing: printing1, copyIds: ["c1", "c2", "c3"] },
@@ -265,7 +265,7 @@ describe("computeCompletion", () => {
       orders: ORDERS,
     });
 
-    const common = cards.find((entry) => entry.key === "Common");
+    const common = cards.find((entry) => entry.key === "common");
     expect(common?.owned).toBe(2);
     expect(common?.total).toBe(3);
 
@@ -279,7 +279,7 @@ describe("computeCompletion", () => {
       orders: ORDERS,
     });
 
-    const commonP = printings.find((entry) => entry.key === "Common");
+    const commonP = printings.find((entry) => entry.key === "common");
     expect(commonP?.owned).toBe(2);
     expect(commonP?.total).toBe(3);
   });
@@ -287,12 +287,12 @@ describe("computeCompletion", () => {
   it("computes copies mode with type-based targets", () => {
     const legend = stubStack({
       copyCount: 1,
-      card: { slug: "hero", type: "Legend" },
+      card: { slug: "hero", type: "legend" },
       setId: "set-1",
     });
     const unit = stubStack({
       copyCount: 2,
-      card: { slug: "soldier", type: "Unit" },
+      card: { slug: "soldier", type: "unit" },
       setId: "set-1",
     });
 
@@ -306,11 +306,11 @@ describe("computeCompletion", () => {
       orders: ORDERS,
     });
 
-    const legendEntry = entries.find((entry) => entry.key === "Legend");
+    const legendEntry = entries.find((entry) => entry.key === "legend");
     expect(legendEntry?.owned).toBe(1); // have 1, target is 1
     expect(legendEntry?.total).toBe(1);
 
-    const unitEntry = entries.find((entry) => entry.key === "Unit");
+    const unitEntry = entries.find((entry) => entry.key === "unit");
     expect(unitEntry?.owned).toBe(2); // have 2, target is 3
     expect(unitEntry?.total).toBe(3);
   });
@@ -318,7 +318,7 @@ describe("computeCompletion", () => {
   it("caps owned copies at target in copies mode", () => {
     const unit = stubStack({
       copyCount: 5,
-      card: { slug: "soldier", type: "Unit" },
+      card: { slug: "soldier", type: "unit" },
       setId: "set-1",
     });
 
@@ -332,18 +332,18 @@ describe("computeCompletion", () => {
       orders: ORDERS,
     });
 
-    const unitEntry = entries.find((entry) => entry.key === "Unit");
+    const unitEntry = entries.find((entry) => entry.key === "unit");
     expect(unitEntry?.owned).toBe(3); // capped at target of 3
     expect(unitEntry?.total).toBe(3);
   });
 
   it("computes domain completion from catalog totals", () => {
     const stack = stubStack({
-      card: { slug: "a", domains: ["Fury", "Calm"] as Domain[] },
+      card: { slug: "a", domains: ["fury", "calm"] as Domain[] },
       setId: "set-1",
     });
     const catalogOnly = stubPrinting({
-      card: { slug: "b", domains: ["Fury"] as Domain[] },
+      card: { slug: "b", domains: ["fury"] as Domain[] },
       setId: "set-1",
     });
 
@@ -357,8 +357,8 @@ describe("computeCompletion", () => {
       orders: ORDERS,
     });
 
-    const fury = entries.find((entry) => entry.key === "Fury");
-    const calm = entries.find((entry) => entry.key === "Calm");
+    const fury = entries.find((entry) => entry.key === "fury");
+    const calm = entries.find((entry) => entry.key === "calm");
     expect(fury?.owned).toBe(1);
     expect(fury?.total).toBe(2);
     expect(calm?.owned).toBe(1);

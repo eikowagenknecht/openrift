@@ -1,5 +1,5 @@
 import type { Card, CatalogResponse, Printing, Rarity } from "@openrift/shared";
-import { imageUrl, preferredPrinting } from "@openrift/shared";
+import { imageUrl, preferredPrinting, WellKnown } from "@openrift/shared";
 import { jsPDF } from "jspdf";
 
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
@@ -123,7 +123,7 @@ export function resolveProxyCards(
         name: card.name,
         imageFullUrl,
         card,
-        rarity: printing?.rarity ?? ("Common" as Rarity),
+        rarity: printing?.rarity ?? WellKnown.rarity.COMMON,
         publicCode: printing?.publicCode ?? "",
         artist: printing?.artist ?? "",
         flavorText,

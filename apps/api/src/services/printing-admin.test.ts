@@ -204,11 +204,11 @@ describe("acceptPrinting", () => {
       },
       rarities: {
         listAll: vi.fn(async () => [
-          { slug: "Common", label: "Common", color: null, sortOrder: 1, isWellKnown: true },
-          { slug: "Uncommon", label: "Uncommon", color: null, sortOrder: 2, isWellKnown: true },
-          { slug: "Rare", label: "Rare", color: null, sortOrder: 3, isWellKnown: true },
-          { slug: "Epic", label: "Epic", color: null, sortOrder: 4, isWellKnown: true },
-          { slug: "Showcase", label: "Showcase", color: null, sortOrder: 5, isWellKnown: true },
+          { slug: "common", label: "common", color: null, sortOrder: 1, isWellKnown: true },
+          { slug: "uncommon", label: "uncommon", color: null, sortOrder: 2, isWellKnown: true },
+          { slug: "rare", label: "rare", color: null, sortOrder: 3, isWellKnown: true },
+          { slug: "epic", label: "epic", color: null, sortOrder: 4, isWellKnown: true },
+          { slug: "showcase", label: "showcase", color: null, sortOrder: 5, isWellKnown: true },
         ]),
       },
       ...overrides,
@@ -309,7 +309,7 @@ describe("acceptPrinting", () => {
         shortCode: "OGN-001",
         setId: "ogn",
         setName: "Origins",
-        rarity: "Common",
+        rarity: "common",
         artist: "Artist A",
         publicCode: "001",
         imageUrl: "https://example.com/img.png",
@@ -363,11 +363,11 @@ describe("acceptPrinting", () => {
       },
       rarities: {
         listAll: vi.fn(async () => [
-          { slug: "Common", label: "Common", color: null, sortOrder: 1, isWellKnown: true },
-          { slug: "Uncommon", label: "Uncommon", color: null, sortOrder: 2, isWellKnown: true },
-          { slug: "Rare", label: "Rare", color: null, sortOrder: 3, isWellKnown: true },
-          { slug: "Epic", label: "Epic", color: null, sortOrder: 4, isWellKnown: true },
-          { slug: "Showcase", label: "Showcase", color: null, sortOrder: 5, isWellKnown: true },
+          { slug: "common", label: "common", color: null, sortOrder: 1, isWellKnown: true },
+          { slug: "uncommon", label: "uncommon", color: null, sortOrder: 2, isWellKnown: true },
+          { slug: "rare", label: "rare", color: null, sortOrder: 3, isWellKnown: true },
+          { slug: "epic", label: "epic", color: null, sortOrder: 4, isWellKnown: true },
+          { slug: "showcase", label: "showcase", color: null, sortOrder: 5, isWellKnown: true },
         ]),
       },
     };
@@ -390,7 +390,7 @@ describe("acceptPrinting", () => {
       {
         shortCode: "OGN-001",
         setId: "ogn",
-        rarity: "Common",
+        rarity: "common",
         artist: "Artist A",
         publicCode: "001",
       },

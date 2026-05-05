@@ -11,11 +11,11 @@ import type { Card, CardFilters, EnumOrders, Printing } from "./types";
 import { NONE } from "./types";
 
 const TEST_ORDERS: EnumOrders = {
-  domains: ["Fury", "Calm", "Mind", "Body", "Chaos", "Order", "Colorless"],
-  rarities: ["Common", "Uncommon", "Rare", "Epic", "Showcase"],
+  domains: ["fury", "calm", "mind", "body", "chaos", "order", "colorless"],
+  rarities: ["common", "uncommon", "rare", "epic", "showcase"],
   artVariants: ["normal", "altart", "overnumbered", "ultimate"],
-  cardTypes: ["Legend", "Unit", "Rune", "Spell", "Gear", "Battlefield", "Other"],
-  superTypes: ["Basic", "Champion", "Signature", "Token"],
+  cardTypes: ["legend", "unit", "rune", "spell", "gear", "battlefield", "other"],
+  superTypes: ["basic", "champion", "signature", "token"],
   finishes: ["normal", "foil", "metal", "metal-deluxe"],
 };
 
@@ -57,7 +57,7 @@ function makePrinting(
     setId: "00000000-0000-0000-0000-0000000000a1",
     setSlug: "Set Alpha",
     setReleased: true,
-    rarity: "Common",
+    rarity: "common",
     artVariant: "normal",
     isSigned: false,
     markers: [],
@@ -77,9 +77,9 @@ function makePrinting(
     card: {
       slug: cardSlug,
       name: "Test Card",
-      type: "Unit",
+      type: "unit",
       superTypes: [],
-      domains: ["Fury"],
+      domains: ["fury"],
       energy: 3,
       might: 2,
       power: 4,
@@ -238,7 +238,7 @@ describe("filterCards", () => {
       id: "SET1-001:rare:normal:",
       shortCode: "SET1-001",
       setSlug: "Set Alpha",
-      rarity: "Rare",
+      rarity: "rare",
       artVariant: "normal",
       finish: "normal",
       images: [{ face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae01dab" }],
@@ -246,9 +246,9 @@ describe("filterCards", () => {
       cardId: "SET1-001",
       card: {
         name: "Fire Dragon",
-        type: "Unit",
-        superTypes: ["Champion"],
-        domains: ["Fury"],
+        type: "unit",
+        superTypes: ["champion"],
+        domains: ["fury"],
         energy: 5,
         might: 4,
         power: 6,
@@ -268,7 +268,7 @@ describe("filterCards", () => {
       id: "SET1-002:common:foil:",
       shortCode: "SET1-002",
       setSlug: "Set Alpha",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       finish: "foil",
       images: [{ face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae01dab" }],
@@ -276,9 +276,9 @@ describe("filterCards", () => {
       cardId: "SET1-002",
       card: {
         name: "Ice Golem",
-        type: "Unit",
+        type: "unit",
         superTypes: [],
-        domains: ["Calm"],
+        domains: ["calm"],
         energy: 3,
         might: 6,
         power: 2,
@@ -298,7 +298,7 @@ describe("filterCards", () => {
       id: "SET2-001:epic:normal:",
       shortCode: "SET2-001a",
       setSlug: "Set Beta",
-      rarity: "Epic",
+      rarity: "epic",
       artVariant: "altart",
       finish: "normal",
       images: [{ face: "front", imageId: "019d6c25-b081-74b3-a901-64da4ae01dab" }],
@@ -306,9 +306,9 @@ describe("filterCards", () => {
       cardId: "SET2-001",
       card: {
         name: "Mind Weaver",
-        type: "Spell",
-        superTypes: ["Basic"],
-        domains: ["Mind", "Chaos"],
+        type: "spell",
+        superTypes: ["basic"],
+        domains: ["mind", "chaos"],
         energy: 2,
         might: 0,
         power: 0,
@@ -450,20 +450,20 @@ describe("filterCards", () => {
   // -- Rarity filter --
 
   it("filters by rarity", () => {
-    const result = filterCards(printings, emptyFilters({ rarities: ["Common"] }));
+    const result = filterCards(printings, emptyFilters({ rarities: ["common"] }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Ice Golem");
   });
 
   it("filters by multiple rarities (OR)", () => {
-    const result = filterCards(printings, emptyFilters({ rarities: ["Rare", "Epic"] }));
+    const result = filterCards(printings, emptyFilters({ rarities: ["rare", "epic"] }));
     expect(result).toHaveLength(2);
   });
 
   // -- Type filter --
 
   it("filters by card type", () => {
-    const result = filterCards(printings, emptyFilters({ types: ["Spell"] }));
+    const result = filterCards(printings, emptyFilters({ types: ["spell"] }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Mind Weaver");
   });
@@ -471,32 +471,32 @@ describe("filterCards", () => {
   // -- SuperType filter --
 
   it("filters by superType", () => {
-    const result = filterCards(printings, emptyFilters({ superTypes: ["Champion"] }));
+    const result = filterCards(printings, emptyFilters({ superTypes: ["champion"] }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Fire Dragon");
   });
 
   it("printings with no matching superType are excluded", () => {
-    const result = filterCards(printings, emptyFilters({ superTypes: ["Champion"] }));
+    const result = filterCards(printings, emptyFilters({ superTypes: ["champion"] }));
     expect(result.find((p) => p.card.name === "Ice Golem")).toBeUndefined();
   });
 
   // -- Domain filter --
 
   it("filters by domain", () => {
-    const result = filterCards(printings, emptyFilters({ domains: ["Fury"] }));
+    const result = filterCards(printings, emptyFilters({ domains: ["fury"] }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Fire Dragon");
   });
 
   it("matches multi-domain printings", () => {
-    const result = filterCards(printings, emptyFilters({ domains: ["Chaos"] }));
+    const result = filterCards(printings, emptyFilters({ domains: ["chaos"] }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Mind Weaver");
   });
 
   it("matches either domain of a multi-domain card", () => {
-    const result = filterCards(printings, emptyFilters({ domains: ["Mind"] }));
+    const result = filterCards(printings, emptyFilters({ domains: ["mind"] }));
     expect(result).toHaveLength(1);
     expect(result[0].card.name).toBe("Mind Weaver");
   });
@@ -573,7 +573,7 @@ describe("filterCards", () => {
         cardId: "s",
         card: {
           name: "Signed Card",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: null,
@@ -590,7 +590,7 @@ describe("filterCards", () => {
         cardId: "u",
         card: {
           name: "Unsigned Card",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: null,
@@ -617,7 +617,7 @@ describe("filterCards", () => {
         cardId: "p",
         card: {
           name: "Promo Card",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: null,
@@ -634,7 +634,7 @@ describe("filterCards", () => {
         cardId: "r",
         card: {
           name: "Regular Card",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: null,
@@ -667,7 +667,7 @@ describe("filterCards", () => {
           cardId: "c",
           card: {
             name: "Cheap Card",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: null,
@@ -686,7 +686,7 @@ describe("filterCards", () => {
           cardId: "e",
           card: {
             name: "Expensive Card",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: null,
@@ -704,7 +704,7 @@ describe("filterCards", () => {
         cardId: "n",
         card: {
           name: "No Price Card",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: null,
@@ -732,8 +732,8 @@ describe("filterCards", () => {
       printings,
       emptyFilters({
         sets: ["Set Alpha"],
-        rarities: ["Common"],
-        types: ["Unit"],
+        rarities: ["common"],
+        types: ["unit"],
       }),
     );
     expect(result).toHaveLength(1);
@@ -745,7 +745,7 @@ describe("filterCards", () => {
       printings,
       emptyFilters({
         sets: ["Set Beta"],
-        rarities: ["Common"],
+        rarities: ["common"],
       }),
     );
     expect(result).toHaveLength(0);
@@ -774,7 +774,7 @@ describe("filterCards", () => {
         cardId: "nt",
         card: {
           name: "No Text Card",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: null,
@@ -847,7 +847,7 @@ describe("filterCards", () => {
         cardId: "ne",
         card: {
           name: "No Energy Card",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
           domains: [],
           energy: null,
@@ -870,7 +870,7 @@ describe("filterCards", () => {
         cardId: "nm",
         card: {
           name: "No Might Card",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
           domains: [],
           energy: 3,
@@ -893,7 +893,7 @@ describe("filterCards", () => {
         cardId: "np",
         card: {
           name: "No Power Card",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
           domains: [],
           energy: 3,
@@ -916,9 +916,9 @@ describe("filterCards", () => {
     const cards = [
       makePrinting({
         cardId: "1",
-        card: { name: "Spell", energy: null, might: null, power: null },
+        card: { name: "spell", energy: null, might: null, power: null },
       }),
-      makePrinting({ cardId: "2", card: { name: "Unit", energy: 3 } }),
+      makePrinting({ cardId: "2", card: { name: "unit", energy: 3 } }),
     ];
     const result = filterCards(cards, emptyFilters({ energy: { min: NONE, max: 5 } }));
     expect(result).toHaveLength(2);
@@ -928,32 +928,32 @@ describe("filterCards", () => {
     const cards = [
       makePrinting({
         cardId: "1",
-        card: { name: "Spell", energy: null, might: null, power: null },
+        card: { name: "spell", energy: null, might: null, power: null },
       }),
-      makePrinting({ cardId: "2", card: { name: "Unit", energy: 3 } }),
+      makePrinting({ cardId: "2", card: { name: "unit", energy: 3 } }),
     ];
     const result = filterCards(cards, emptyFilters({ energy: { min: NONE, max: NONE } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Spell");
+    expect(result[0].card.name).toBe("spell");
   });
 
   it("excludes null-energy cards when min is a real number", () => {
     const cards = [
       makePrinting({
         cardId: "1",
-        card: { name: "Spell", energy: null, might: null, power: null },
+        card: { name: "spell", energy: null, might: null, power: null },
       }),
-      makePrinting({ cardId: "2", card: { name: "Unit", energy: 0 } }),
+      makePrinting({ cardId: "2", card: { name: "unit", energy: 0 } }),
     ];
     const result = filterCards(cards, emptyFilters({ energy: { min: 0, max: 10 } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Unit");
+    expect(result[0].card.name).toBe("unit");
   });
 
   it("includes null-might cards when min is NONE", () => {
     const cards = [
-      makePrinting({ cardId: "1", card: { name: "Spell", might: null } }),
-      makePrinting({ cardId: "2", card: { name: "Unit", might: 4 } }),
+      makePrinting({ cardId: "1", card: { name: "spell", might: null } }),
+      makePrinting({ cardId: "2", card: { name: "unit", might: 4 } }),
     ];
     const result = filterCards(cards, emptyFilters({ might: { min: NONE, max: 5 } }));
     expect(result).toHaveLength(2);
@@ -961,12 +961,12 @@ describe("filterCards", () => {
 
   it("isolates null-power cards when both min and max are NONE", () => {
     const cards = [
-      makePrinting({ cardId: "1", card: { name: "Spell", power: null } }),
-      makePrinting({ cardId: "2", card: { name: "Unit", power: 6 } }),
+      makePrinting({ cardId: "1", card: { name: "spell", power: null } }),
+      makePrinting({ cardId: "2", card: { name: "unit", power: 6 } }),
     ];
     const result = filterCards(cards, emptyFilters({ power: { min: NONE, max: NONE } }));
     expect(result).toHaveLength(1);
-    expect(result[0].card.name).toBe("Spell");
+    expect(result[0].card.name).toBe("spell");
   });
 
   // -- Edge case: search with no search string returns all --
@@ -1002,7 +1002,7 @@ describe("filterCards", () => {
         cardId: "et",
         card: {
           name: "Effect Only",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: null,
@@ -1148,7 +1148,7 @@ describe("filterCards", () => {
         cardId: "low",
         card: {
           name: "Low Energy",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: 1,
@@ -1173,7 +1173,7 @@ describe("filterCards", () => {
         cardId: "high",
         card: {
           name: "High Energy",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: 10,
@@ -1198,16 +1198,16 @@ describe("filterCards", () => {
 describe("getAvailableFilters", () => {
   const printings = [
     makePrinting({
-      rarity: "Epic",
+      rarity: "epic",
       setSlug: "Set Alpha",
       artVariant: "altart",
       finish: "normal",
       cardId: "1",
       card: {
         name: "Test",
-        type: "Spell",
-        superTypes: ["Basic"],
-        domains: ["Mind", "Chaos"],
+        type: "spell",
+        superTypes: ["basic"],
+        domains: ["mind", "chaos"],
         energy: 2,
         might: 0,
         power: 0,
@@ -1218,16 +1218,16 @@ describe("getAvailableFilters", () => {
       },
     }),
     makePrinting({
-      rarity: "Common",
+      rarity: "common",
       setSlug: "Set Beta",
       artVariant: "normal",
       finish: "normal",
       cardId: "2",
       card: {
         name: "Test2",
-        type: "Unit",
-        superTypes: ["Champion"],
-        domains: ["Fury"],
+        type: "unit",
+        superTypes: ["champion"],
+        domains: ["fury"],
         energy: 5,
         might: 4,
         power: 6,
@@ -1238,16 +1238,16 @@ describe("getAvailableFilters", () => {
       },
     }),
     makePrinting({
-      rarity: "Rare",
+      rarity: "rare",
       setSlug: "Set Alpha",
       artVariant: "normal",
       finish: "foil",
       cardId: "3",
       card: {
         name: "Test3",
-        type: "Unit",
+        type: "unit",
         superTypes: [],
-        domains: ["Colorless"],
+        domains: ["colorless"],
         energy: 3,
         might: 2,
         power: 3,
@@ -1266,29 +1266,29 @@ describe("getAvailableFilters", () => {
 
   it("sorts rarities by RARITY_ORDER", () => {
     const result = getAvailableFilters(printings);
-    expect(result.rarities).toEqual(["Common", "Rare", "Epic"]);
+    expect(result.rarities).toEqual(["common", "rare", "epic"]);
   });
 
   it("sorts types alphabetically", () => {
     const result = getAvailableFilters(printings);
-    expect(result.types).toEqual(["Spell", "Unit"]);
+    expect(result.types).toEqual(["spell", "unit"]);
   });
 
   it("excludes Basic from superTypes", () => {
     const result = getAvailableFilters(printings);
-    expect(result.superTypes).not.toContain("Basic");
-    expect(result.superTypes).toContain("Champion");
+    expect(result.superTypes).not.toContain("basic");
+    expect(result.superTypes).toContain("champion");
   });
 
   it("sorts Colorless last in domains", () => {
     const result = getAvailableFilters(printings);
-    expect(result.domains.at(-1)).toBe("Colorless");
+    expect(result.domains.at(-1)).toBe("colorless");
   });
 
   it("lists individual domains from multi-domain cards", () => {
     const result = getAvailableFilters(printings);
-    expect(result.domains).toContain("Mind");
-    expect(result.domains).toContain("Chaos");
+    expect(result.domains).toContain("mind");
+    expect(result.domains).toContain("chaos");
   });
 
   it("sorts artVariants in canonical order", () => {
@@ -1376,7 +1376,7 @@ describe("getAvailableFilters", () => {
         cardId: "null-stats",
         card: {
           name: "Null Stats",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
           domains: [],
           energy: null,
@@ -1417,9 +1417,9 @@ describe("getAvailableFilters", () => {
         cardId: "1",
         card: {
           name: "A",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
-          domains: ["Fury", "Mind"],
+          domains: ["fury", "mind"],
           energy: null,
           might: null,
           power: null,
@@ -1433,9 +1433,9 @@ describe("getAvailableFilters", () => {
         cardId: "2",
         card: {
           name: "B",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
-          domains: ["Mind", "Chaos"],
+          domains: ["mind", "chaos"],
           energy: null,
           might: null,
           power: null,
@@ -1447,7 +1447,7 @@ describe("getAvailableFilters", () => {
       }),
     ]);
     // Mind appears in both, but should only be listed once
-    const mindCount = result.domains.filter((d) => d === "Mind").length;
+    const mindCount = result.domains.filter((d) => d === "mind").length;
     expect(mindCount).toBe(1);
   });
 });
@@ -1461,11 +1461,11 @@ describe("sortCards", () => {
     makePrinting({
       id: "SET1-003:epic:normal:",
       shortCode: "SET1-003",
-      rarity: "Epic",
+      rarity: "epic",
       cardId: "SET1-003",
       card: {
         name: "Charlie",
-        type: "Unit",
+        type: "unit",
         superTypes: [],
         domains: [],
         energy: 5,
@@ -1480,11 +1480,11 @@ describe("sortCards", () => {
     makePrinting({
       id: "SET1-001:rare:normal:",
       shortCode: "SET1-001",
-      rarity: "Common",
+      rarity: "common",
       cardId: "SET1-001",
       card: {
         name: "Alpha",
-        type: "Unit",
+        type: "unit",
         superTypes: [],
         domains: [],
         energy: 2,
@@ -1499,11 +1499,11 @@ describe("sortCards", () => {
     makePrinting({
       id: "SET1-002:common:foil:",
       shortCode: "SET1-002",
-      rarity: "Rare",
+      rarity: "rare",
       cardId: "SET1-002",
       card: {
         name: "Bravo",
-        type: "Unit",
+        type: "unit",
         superTypes: [],
         domains: [],
         energy: 2,
@@ -1548,11 +1548,11 @@ describe("sortCards", () => {
     const tied = [
       makePrinting({
         shortCode: "SET1-003",
-        rarity: "Common",
+        rarity: "common",
         cardId: "c3",
         card: {
           name: "Zeta",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: 1,
@@ -1566,11 +1566,11 @@ describe("sortCards", () => {
       }),
       makePrinting({
         shortCode: "SET1-001",
-        rarity: "Common",
+        rarity: "common",
         cardId: "c1",
         card: {
           name: "Alpha",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: 1,
@@ -1584,11 +1584,11 @@ describe("sortCards", () => {
       }),
       makePrinting({
         shortCode: "SET1-002",
-        rarity: "Rare",
+        rarity: "rare",
         cardId: "c2",
         card: {
           name: "Bravo",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: 1,
@@ -1616,7 +1616,7 @@ describe("sortCards", () => {
           cardId: "e",
           card: {
             name: "Expensive",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: null,
@@ -1634,7 +1634,7 @@ describe("sortCards", () => {
         cardId: "n",
         card: {
           name: "No Price",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           energy: null,
@@ -1651,7 +1651,7 @@ describe("sortCards", () => {
           cardId: "c",
           card: {
             name: "Cheap",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: null,
@@ -1680,7 +1680,7 @@ describe("sortCards", () => {
             cardId: "b",
             card: {
               name: "Bravo",
-              type: "Unit",
+              type: "unit",
               superTypes: [],
               domains: [],
               energy: null,
@@ -1700,7 +1700,7 @@ describe("sortCards", () => {
             cardId: "a",
             card: {
               name: "Alpha",
-              type: "Unit",
+              type: "unit",
               superTypes: [],
               domains: [],
               energy: null,
@@ -1726,7 +1726,7 @@ describe("sortCards", () => {
           cardId: "z",
           card: {
             name: "Zed",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: null,
@@ -1743,7 +1743,7 @@ describe("sortCards", () => {
           cardId: "a",
           card: {
             name: "Amy",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: null,
@@ -1767,7 +1767,7 @@ describe("sortCards", () => {
           cardId: "n",
           card: {
             name: "No Price",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: null,
@@ -1785,7 +1785,7 @@ describe("sortCards", () => {
             cardId: "m",
             card: {
               name: "Mid Price",
-              type: "Unit",
+              type: "unit",
               superTypes: [],
               domains: [],
               energy: null,
@@ -1805,7 +1805,7 @@ describe("sortCards", () => {
             cardId: "h",
             card: {
               name: "High Price",
-              type: "Unit",
+              type: "unit",
               superTypes: [],
               domains: [],
               energy: null,
@@ -1831,7 +1831,7 @@ describe("sortCards", () => {
           cardId: "n",
           card: {
             name: "No Energy",
-            type: "Spell",
+            type: "spell",
             superTypes: [],
             domains: [],
             energy: null,
@@ -1848,7 +1848,7 @@ describe("sortCards", () => {
           cardId: "h",
           card: {
             name: "High Energy",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: 8,
@@ -1865,7 +1865,7 @@ describe("sortCards", () => {
           cardId: "l",
           card: {
             name: "Low Energy",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: 1,
@@ -1889,7 +1889,7 @@ describe("sortCards", () => {
           cardId: "a",
           card: {
             name: "Alpha",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: null,
@@ -1906,7 +1906,7 @@ describe("sortCards", () => {
           cardId: "b",
           card: {
             name: "Bravo",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: null,
@@ -1935,7 +1935,7 @@ describe("sortCards", () => {
           cardId: "n",
           card: {
             name: "No Energy",
-            type: "Spell",
+            type: "spell",
             superTypes: [],
             domains: [],
             energy: null,
@@ -1951,7 +1951,7 @@ describe("sortCards", () => {
           cardId: "l",
           card: {
             name: "Low Energy",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: 1,
@@ -1975,7 +1975,7 @@ describe("sortCards", () => {
           cardId: "z",
           card: {
             name: "Zeta Null",
-            type: "Spell",
+            type: "spell",
             superTypes: [],
             domains: [],
             energy: null,
@@ -1992,7 +1992,7 @@ describe("sortCards", () => {
           cardId: "a",
           card: {
             name: "Alpha Null",
-            type: "Spell",
+            type: "spell",
             superTypes: [],
             domains: [],
             energy: null,
@@ -2008,7 +2008,7 @@ describe("sortCards", () => {
           cardId: "h",
           card: {
             name: "High Energy",
-            type: "Unit",
+            type: "unit",
             superTypes: [],
             domains: [],
             energy: 8,
@@ -2058,29 +2058,29 @@ describe("computeFilterCounts", () => {
       id: "p1",
       cardId: "c1",
       language: "EN",
-      rarity: "Common",
-      card: { slug: "c1", domains: ["Fury"] },
+      rarity: "common",
+      card: { slug: "c1", domains: ["fury"] },
     }),
     makePrinting({
       id: "p2",
       cardId: "c1",
       language: "DE",
-      rarity: "Common",
-      card: { slug: "c1", domains: ["Fury"] },
+      rarity: "common",
+      card: { slug: "c1", domains: ["fury"] },
     }),
     makePrinting({
       id: "p3",
       cardId: "c2",
       language: "EN",
-      rarity: "Rare",
-      card: { slug: "c2", domains: ["Calm"] },
+      rarity: "rare",
+      card: { slug: "c2", domains: ["calm"] },
     }),
     makePrinting({
       id: "p4",
       cardId: "c3",
       language: "JA",
-      rarity: "Rare",
-      card: { slug: "c3", domains: ["Mind", "Body"] },
+      rarity: "rare",
+      card: { slug: "c3", domains: ["mind", "body"] },
     }),
   ];
 
@@ -2089,10 +2089,10 @@ describe("computeFilterCounts", () => {
     expect(counts.languages.get("EN")).toBe(2);
     expect(counts.languages.get("DE")).toBe(1);
     expect(counts.languages.get("JA")).toBe(1);
-    expect(counts.rarities.get("Common")).toBe(2);
-    expect(counts.rarities.get("Rare")).toBe(2);
-    expect(counts.domains.get("Fury")).toBe(2);
-    expect(counts.domains.get("Mind")).toBe(1);
+    expect(counts.rarities.get("common")).toBe(2);
+    expect(counts.rarities.get("rare")).toBe(2);
+    expect(counts.domains.get("fury")).toBe(2);
+    expect(counts.domains.get("mind")).toBe(1);
   });
 
   it("excludes the dim's own filter so multi-select still widens", () => {
@@ -2111,8 +2111,8 @@ describe("computeFilterCounts", () => {
     const counts = computeFilterCounts(sample, emptyFilters({ languages: ["EN"] }), {
       countBy: "printing",
     });
-    expect(counts.rarities.get("Common")).toBe(1);
-    expect(counts.rarities.get("Rare")).toBe(1);
+    expect(counts.rarities.get("common")).toBe(1);
+    expect(counts.rarities.get("rare")).toBe(1);
   });
 
   it("returns 0 (missing) for options with no matches under current filters", () => {
@@ -2120,25 +2120,25 @@ describe("computeFilterCounts", () => {
       countBy: "printing",
     });
     // Only c1's DE printing matches; rarity Rare and domains Calm/Mind/Body have 0 matches.
-    expect(counts.rarities.get("Common")).toBe(1);
-    expect(counts.rarities.get("Rare") ?? 0).toBe(0);
-    expect(counts.domains.get("Fury")).toBe(1);
-    expect(counts.domains.get("Calm") ?? 0).toBe(0);
+    expect(counts.rarities.get("common")).toBe(1);
+    expect(counts.rarities.get("rare") ?? 0).toBe(0);
+    expect(counts.domains.get("fury")).toBe(1);
+    expect(counts.domains.get("calm") ?? 0).toBe(0);
   });
 
   it("counts unique cards (not printings) when countBy='card'", () => {
-    // EN+DE printings of c1 should count once toward c1's domain "Fury".
+    // EN+DE printings of c1 should count once toward c1's domain "fury".
     const counts = computeFilterCounts(sample, emptyFilters(), { countBy: "card" });
-    expect(counts.domains.get("Fury")).toBe(1);
-    expect(counts.rarities.get("Common")).toBe(1);
-    expect(counts.rarities.get("Rare")).toBe(2);
+    expect(counts.domains.get("fury")).toBe(1);
+    expect(counts.rarities.get("common")).toBe(1);
+    expect(counts.rarities.get("rare")).toBe(2);
   });
 
   it("counts each domain of a multi-domain card", () => {
-    // c3 has domains ["Mind", "Body"] — both should be counted.
+    // c3 has domains ["mind", "body"] — both should be counted.
     const counts = computeFilterCounts(sample, emptyFilters(), { countBy: "card" });
-    expect(counts.domains.get("Mind")).toBe(1);
-    expect(counts.domains.get("Body")).toBe(1);
+    expect(counts.domains.get("mind")).toBe(1);
+    expect(counts.domains.get("body")).toBe(1);
   });
 
   describe("flags", () => {
@@ -2202,7 +2202,7 @@ describe("computeFilterCounts", () => {
       // With domains=[Fury] active (default for makePrinting), all three sample
       // cards still match domain — none are filtered out — so counts are stable.
       // Use a non-matching domain to verify narrowing.
-      const counts = computeFilterCounts(flagSample, emptyFilters({ domains: ["Calm"] }), {
+      const counts = computeFilterCounts(flagSample, emptyFilters({ domains: ["calm"] }), {
         countBy: "printing",
       });
       expect(counts.flags.signed).toBe(0);
@@ -2222,19 +2222,19 @@ describe("computeFilterCounts", () => {
       makePrinting({
         id: "rp1",
         cardId: "rc1",
-        rarity: "Common",
+        rarity: "common",
         card: { slug: "rc1", energy: 1, might: 2, power: 3 },
       }),
       makePrinting({
         id: "rp2",
         cardId: "rc2",
-        rarity: "Rare",
+        rarity: "rare",
         card: { slug: "rc2", energy: 5, might: 4, power: 7 },
       }),
       makePrinting({
         id: "rp3",
         cardId: "rc3",
-        rarity: "Rare",
+        rarity: "rare",
         card: { slug: "rc3", energy: null, might: null, power: null },
       }),
     ];
@@ -2247,7 +2247,7 @@ describe("computeFilterCounts", () => {
     });
 
     it("narrows bounds based on other active filters", () => {
-      const counts = computeFilterCounts(rangeSample, emptyFilters({ rarities: ["Common"] }), {
+      const counts = computeFilterCounts(rangeSample, emptyFilters({ rarities: ["common"] }), {
         countBy: "printing",
       });
       expect(counts.ranges.energy).toEqual({ min: 1, max: 1, hasNullStat: false });

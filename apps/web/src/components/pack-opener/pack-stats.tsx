@@ -25,21 +25,40 @@ interface UnpricedPull {
   rarity: string;
 }
 
-const RARITY_ORDER = ["Common", "Uncommon", "Rare", "Epic", "Showcase", "Rune", "Ultimate"];
+const RARITY_ORDER: readonly string[] = [
+  WellKnown.rarity.COMMON,
+  WellKnown.rarity.UNCOMMON,
+  WellKnown.rarity.RARE,
+  WellKnown.rarity.EPIC,
+  WellKnown.rarity.SHOWCASE,
+  WellKnown.cardType.RUNE,
+  WellKnown.artVariant.ULTIMATE,
+];
 // Fallbacks for rarities the `rarities` DB table doesn't cover — Rune and
 // Ultimate are slot-derived labels rather than true rarity rows.
 const RARITY_FALLBACK_COLORS: Record<string, string> = {
-  Rune: "#6b7280",
-  Ultimate: "#d946ef",
+  [WellKnown.cardType.RUNE]: "#6b7280",
+  [WellKnown.artVariant.ULTIMATE]: "#d946ef",
 };
-const NOTABLE_RARITIES = new Set(["Rare", "Epic", "Showcase", "Ultimate"]);
+const NOTABLE_RARITIES = new Set<string>([
+  WellKnown.rarity.RARE,
+  WellKnown.rarity.EPIC,
+  WellKnown.rarity.SHOWCASE,
+  WellKnown.artVariant.ULTIMATE,
+]);
 
 // Compact summary rendered below the pack grid once the reveal is complete.
 // One panel with a headline row, a horizontal rarity breakdown bar, and a
 // single "notable pulls" list that merges top pulls (by value) with any
 // high-rarity pulls that lack price data.
 export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
-  const { rarityColors } = useEnumOrders();
+  const { rarityColors, labels } = useEnumOrders();
+  const rarityLabel = (slug: string) =>
+    slug === WellKnown.cardType.RUNE
+      ? "Rune"
+      : slug === WellKnown.artVariant.ULTIMATE
+        ? "Ultimate"
+        : (labels.rarities[slug] ?? slug);
   const [unpricedVisible, setUnpricedVisible] = useState(false);
 
   const rarityCounts: Record<string, number> = {};
@@ -60,7 +79,7 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
         unpricedPulls.push({
           cardName: pull.printing.cardName,
           shortCode: pull.printing.shortCode,
-          rarity,
+          rarity: rarityLabel(rarity),
         });
       }
       allPulls.push({ pull, rarity, value });
@@ -76,13 +95,13 @@ export function PackStats({ packs, prices, marketplace }: PackStatsProps) {
   // 13 pulls is too few to make a meaningful distribution chart out of.
   const showRarityBar = packs.length > 1;
 
-  const notable = buildNotablePulls(allPulls);
+  const notable = buildNotablePulls(allPulls, rarityLabel);
 
   const fullFmt = marketplace ? formatterForMarketplace(marketplace) : null;
   const compactFmt = marketplace ? compactFormatterForMarketplace(marketplace) : null;
 
   const rarityOrderedCounts = RARITY_ORDER.filter((r) => (rarityCounts[r] ?? 0) > 0).map((r) => ({
-    rarity: r,
+    rarity: rarityLabel(r),
     count: rarityCounts[r] ?? 0,
     color: rarityColors[r] ?? RARITY_FALLBACK_COLORS[r] ?? "#888",
   }));
@@ -116,7 +135,7 @@ function rarityKeyFor(pull: PackPull): string {
       : WellKnown.cardType.RUNE;
   }
   if (pull.slot === WellKnown.packSlot.ULTIMATE) {
-    return "Ultimate";
+    return WellKnown.artVariant.ULTIMATE;
   }
   return pull.printing.rarity;
 }
@@ -127,6 +146,7 @@ function rarityKeyFor(pull: PackPull): string {
 // pulls come after, sorted by rarity descending, with a `—` price marker.
 function buildNotablePulls(
   allPulls: readonly { pull: PackPull; rarity: string; value: number | undefined }[],
+  rarityLabel: (slug: string) => string,
 ): NotablePull[] {
   const seen = new Set<string>();
   const notable: NotablePull[] = [];
@@ -155,7 +175,7 @@ function buildNotablePulls(
       cardName: pull.printing.cardName,
       shortCode: pull.printing.shortCode,
       rarity,
-      slotLabel: slotLabel(pull),
+      slotLabel: slotLabel(pull, rarityLabel),
       value,
     });
   }
@@ -320,7 +340,7 @@ function UnpricedPullsList({ pulls }: { pulls: UnpricedPull[] }) {
   );
 }
 
-function slotLabel(pull: PackPull): string {
+function slotLabel(pull: PackPull, rarityLabel: (slug: string) => string): string {
   switch (pull.slot) {
     case "common": {
       return "Common";
@@ -329,19 +349,19 @@ function slotLabel(pull: PackPull): string {
       return "Uncommon";
     }
     case "flex": {
-      return pull.printing.rarity;
+      return rarityLabel(pull.printing.rarity);
     }
     case "foil": {
-      return `Foil ${pull.printing.rarity}`;
+      return `Foil ${rarityLabel(pull.printing.rarity)}`;
     }
     case "token": {
-      if (pull.printing.cardSuperTypes.includes("Token")) {
+      if (pull.printing.cardSuperTypes.includes(WellKnown.superType.TOKEN)) {
         return "Token";
       }
-      if (pull.printing.finish === "foil") {
+      if (pull.printing.finish === WellKnown.finish.FOIL) {
         return "Foil Rune";
       }
-      if (pull.printing.artVariant !== "normal") {
+      if (pull.printing.artVariant !== WellKnown.artVariant.NORMAL) {
         return "Alt Art Rune";
       }
       return "Rune";

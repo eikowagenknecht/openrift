@@ -17,10 +17,10 @@ import type { StackedEntry } from "@/hooks/use-stacked-copies";
 import { resetIdCounter, stubPrinting } from "@/test/factories";
 
 const TEST_ORDERS = {
-  rarities: ["Common", "Uncommon", "Rare", "Epic"],
+  rarities: ["common", "uncommon", "rare", "epic"],
   finishes: ["normal", "foil"],
-  domains: ["Fury"],
-  cardTypes: ["Unit"],
+  domains: ["fury"],
+  cardTypes: ["unit"],
   superTypes: [] as string[],
   artVariants: ["normal", "altart"],
   distributionChannels: [] as string[],

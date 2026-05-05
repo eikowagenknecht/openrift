@@ -22,9 +22,9 @@ function p(overrides: Partial<PackPrinting> & { id: string }): PackPrinting {
     cardId: overrides.id,
     cardName: overrides.id,
     cardSlug: overrides.id,
-    cardType: "Unit",
+    cardType: "unit",
     cardSuperTypes: [],
-    rarity: "Common",
+    rarity: "common",
     finish: "normal",
     artVariant: "normal",
     isSigned: false,
@@ -39,22 +39,22 @@ function p(overrides: Partial<PackPrinting> & { id: string }): PackPrinting {
 function samplePool() {
   const printings: PackPrinting[] = [
     // Plenty of commons/uncommons/rares/epics so dedup never falls back.
-    ...Array.from({ length: 20 }, (_, i) => p({ id: `c${i}`, rarity: "Common" })),
-    ...Array.from({ length: 10 }, (_, i) => p({ id: `u${i}`, rarity: "Uncommon" })),
-    ...Array.from({ length: 8 }, (_, i) => p({ id: `fc${i}`, rarity: "Common", finish: "foil" })),
-    ...Array.from({ length: 8 }, (_, i) => p({ id: `fu${i}`, rarity: "Uncommon", finish: "foil" })),
-    ...Array.from({ length: 6 }, (_, i) => p({ id: `r${i}`, rarity: "Rare", finish: "foil" })),
-    ...Array.from({ length: 6 }, (_, i) => p({ id: `e${i}`, rarity: "Epic", finish: "foil" })),
+    ...Array.from({ length: 20 }, (_, i) => p({ id: `c${i}`, rarity: "common" })),
+    ...Array.from({ length: 10 }, (_, i) => p({ id: `u${i}`, rarity: "uncommon" })),
+    ...Array.from({ length: 8 }, (_, i) => p({ id: `fc${i}`, rarity: "common", finish: "foil" })),
+    ...Array.from({ length: 8 }, (_, i) => p({ id: `fu${i}`, rarity: "uncommon", finish: "foil" })),
+    ...Array.from({ length: 6 }, (_, i) => p({ id: `r${i}`, rarity: "rare", finish: "foil" })),
+    ...Array.from({ length: 6 }, (_, i) => p({ id: `e${i}`, rarity: "epic", finish: "foil" })),
     ...Array.from({ length: 6 }, (_, i) =>
-      p({ id: `run${i}`, cardType: "Rune", rarity: "Common" }),
+      p({ id: `run${i}`, cardType: "rune", rarity: "common" }),
     ),
-    p({ id: "frun1", cardType: "Rune", rarity: "Common", finish: "foil" }),
-    p({ id: "arun1", cardType: "Rune", rarity: "Common", artVariant: "altart" }),
-    p({ id: "tok1", cardSuperTypes: ["Token"], rarity: "Common" }),
-    p({ id: "tok2", cardSuperTypes: ["Token"], rarity: "Common" }),
-    p({ id: "sa1", rarity: "Showcase", finish: "foil", artVariant: "altart" }),
-    p({ id: "so1", rarity: "Showcase", finish: "foil", artVariant: "overnumbered" }),
-    p({ id: "ss1", rarity: "Showcase", finish: "foil", isSigned: true }),
+    p({ id: "frun1", cardType: "rune", rarity: "common", finish: "foil" }),
+    p({ id: "arun1", cardType: "rune", rarity: "common", artVariant: "altart" }),
+    p({ id: "tok1", cardSuperTypes: ["token"], rarity: "common" }),
+    p({ id: "tok2", cardSuperTypes: ["token"], rarity: "common" }),
+    p({ id: "sa1", rarity: "showcase", finish: "foil", artVariant: "altart" }),
+    p({ id: "so1", rarity: "showcase", finish: "foil", artVariant: "overnumbered" }),
+    p({ id: "ss1", rarity: "showcase", finish: "foil", isSigned: true }),
     p({ id: "ult1", artVariant: "ultimate" }),
   ];
   return buildPool(printings);
@@ -99,13 +99,13 @@ describe("openPack", () => {
     // pickOneUnique kicks in and we get 7 copies of the same printing rather
     // than throwing.
     const pool = buildPool([
-      p({ id: "c", rarity: "Common" }),
-      p({ id: "u", rarity: "Uncommon" }),
-      p({ id: "fc", rarity: "Common", finish: "foil" }),
-      p({ id: "fu", rarity: "Uncommon", finish: "foil" }),
-      p({ id: "r", rarity: "Rare", finish: "foil" }),
-      p({ id: "e", rarity: "Epic", finish: "foil" }),
-      p({ id: "rn", cardType: "Rune", rarity: "Common" }),
+      p({ id: "c", rarity: "common" }),
+      p({ id: "u", rarity: "uncommon" }),
+      p({ id: "fc", rarity: "common", finish: "foil" }),
+      p({ id: "fu", rarity: "uncommon", finish: "foil" }),
+      p({ id: "r", rarity: "rare", finish: "foil" }),
+      p({ id: "e", rarity: "epic", finish: "foil" }),
+      p({ id: "rn", cardType: "rune", rarity: "common" }),
     ]);
     const rng = mulberry32(7);
     const result = openPack(pool, rng);
@@ -120,8 +120,8 @@ describe("openPack", () => {
     for (let i = 0; i < 200; i++) {
       const result = openPack(pool, rng);
       const token = result.pulls.find((pull) => pull.slot === "token");
-      const isRune = token?.printing.cardType === "Rune";
-      const isToken = token?.printing.cardSuperTypes.includes("Token") ?? false;
+      const isRune = token?.printing.cardType === "rune";
+      const isToken = token?.printing.cardSuperTypes.includes("token") ?? false;
       expect(isRune || isToken).toBe(true);
     }
   });
@@ -134,7 +134,7 @@ describe("openPack", () => {
     for (let i = 0; i < n; i++) {
       const result = openPack(pool, rng);
       for (const pull of result.pulls) {
-        if (pull.slot === "token" && pull.printing.cardSuperTypes.includes("Token")) {
+        if (pull.slot === "token" && pull.printing.cardSuperTypes.includes("token")) {
           tokenSupertypeCount++;
         }
       }
@@ -154,7 +154,7 @@ describe("openPack", () => {
       for (const pull of result.pulls) {
         if (
           pull.slot === "token" &&
-          pull.printing.cardType === "Rune" &&
+          pull.printing.cardType === "rune" &&
           pull.printing.finish === "foil"
         ) {
           foilRuneCount++;
@@ -170,13 +170,13 @@ describe("openPack", () => {
     // No tokens, no foil runes, no alt-art runes — every token slot must be a
     // plain normal-art normal-finish Rune.
     const pool = buildPool([
-      p({ id: "c", rarity: "Common" }),
-      p({ id: "u", rarity: "Uncommon" }),
-      p({ id: "fc", rarity: "Common", finish: "foil" }),
-      p({ id: "fu", rarity: "Uncommon", finish: "foil" }),
-      p({ id: "r", rarity: "Rare", finish: "foil" }),
-      p({ id: "e", rarity: "Epic", finish: "foil" }),
-      p({ id: "rn", cardType: "Rune", rarity: "Common" }),
+      p({ id: "c", rarity: "common" }),
+      p({ id: "u", rarity: "uncommon" }),
+      p({ id: "fc", rarity: "common", finish: "foil" }),
+      p({ id: "fu", rarity: "uncommon", finish: "foil" }),
+      p({ id: "r", rarity: "rare", finish: "foil" }),
+      p({ id: "e", rarity: "epic", finish: "foil" }),
+      p({ id: "rn", cardType: "rune", rarity: "common" }),
     ]);
     const rng = mulberry32(11);
     for (let i = 0; i < 200; i++) {
@@ -194,7 +194,7 @@ describe("openPack", () => {
     for (let i = 0; i < n; i++) {
       const result = openPack(pool, rng);
       const hasEpic = result.pulls.some(
-        (pull) => pull.slot === "flex" && pull.printing.rarity === "Epic",
+        (pull) => pull.slot === "flex" && pull.printing.rarity === "epic",
       );
       if (hasEpic) {
         packsWithEpic++;
@@ -244,20 +244,20 @@ describe("openPack", () => {
 
   it("falls back to rares when a set has no Epic foils in pool", () => {
     const poolNoEpics = buildPool([
-      p({ id: "c", rarity: "Common" }),
-      p({ id: "u", rarity: "Uncommon" }),
-      p({ id: "fc", rarity: "Common", finish: "foil" }),
-      p({ id: "fu", rarity: "Uncommon", finish: "foil" }),
-      p({ id: "r1", rarity: "Rare", finish: "foil" }),
-      p({ id: "r2", rarity: "Rare", finish: "foil" }),
-      p({ id: "rn", cardType: "Rune", rarity: "Common" }),
+      p({ id: "c", rarity: "common" }),
+      p({ id: "u", rarity: "uncommon" }),
+      p({ id: "fc", rarity: "common", finish: "foil" }),
+      p({ id: "fu", rarity: "uncommon", finish: "foil" }),
+      p({ id: "r1", rarity: "rare", finish: "foil" }),
+      p({ id: "r2", rarity: "rare", finish: "foil" }),
+      p({ id: "rn", cardType: "rune", rarity: "common" }),
     ]);
     const rng = mulberry32(7);
     for (let i = 0; i < 100; i++) {
       const result = openPack(poolNoEpics, rng);
       for (const pull of result.pulls) {
         if (pull.slot === "flex") {
-          expect(pull.printing.rarity).toBe("Rare");
+          expect(pull.printing.rarity).toBe("rare");
         }
       }
     }

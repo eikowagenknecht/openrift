@@ -6,27 +6,27 @@ import { getOrientation } from "./utils";
 
 describe("getOrientation", () => {
   it("returns landscape for Battlefield", () => {
-    expect(getOrientation("Battlefield")).toBe("landscape");
+    expect(getOrientation("battlefield")).toBe("landscape");
   });
 
   it("returns portrait for Unit", () => {
-    expect(getOrientation("Unit")).toBe("portrait");
+    expect(getOrientation("unit")).toBe("portrait");
   });
 
   it("returns portrait for Spell", () => {
-    expect(getOrientation("Spell")).toBe("portrait");
+    expect(getOrientation("spell")).toBe("portrait");
   });
 
   it("returns portrait for Legend", () => {
-    expect(getOrientation("Legend")).toBe("portrait");
+    expect(getOrientation("legend")).toBe("portrait");
   });
 
   it("returns portrait for Rune", () => {
-    expect(getOrientation("Rune")).toBe("portrait");
+    expect(getOrientation("rune")).toBe("portrait");
   });
 
   it("returns portrait for Gear", () => {
-    expect(getOrientation("Gear")).toBe("portrait");
+    expect(getOrientation("gear")).toBe("portrait");
   });
 });
 

@@ -38,7 +38,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
     setId: "",
     setSlug: "",
     setReleased: true,
-    rarity: "Common",
+    rarity: "common",
     artVariant: "normal",
     isSigned: false,
     markers: [],
@@ -58,7 +58,7 @@ function stub(overrides: Partial<Printing> = {}): Printing {
     card: {
       slug: "OGS-001",
       name: "",
-      type: "Unit",
+      type: "unit",
       superTypes: [],
       domains: [],
       energy: 0,

@@ -44,21 +44,21 @@ describe("sortOverviewCards", () => {
   it("sorts grouped zones by type group (Unit → Spell → Gear) then curve", () => {
     const spell = stubDeckBuilderCard({
       cardId: "spell",
-      cardType: "Spell",
+      cardType: "spell",
       energy: 1,
-      cardName: "Spell",
+      cardName: "spell",
     });
     const gear = stubDeckBuilderCard({
       cardId: "gear",
-      cardType: "Gear",
+      cardType: "gear",
       energy: 1,
-      cardName: "Gear",
+      cardName: "gear",
     });
     const unit = stubDeckBuilderCard({
       cardId: "unit",
-      cardType: "Unit",
+      cardType: "unit",
       energy: 3,
-      cardName: "Unit",
+      cardName: "unit",
     });
     const result = sortOverviewCards([gear, spell, unit], "main");
     expect(result.map((card) => card.cardId)).toEqual(["unit", "spell", "gear"]);
@@ -67,25 +67,25 @@ describe("sortOverviewCards", () => {
   it("orders multiple cards within a type group by curve", () => {
     const highEnergy = stubDeckBuilderCard({
       cardId: "high",
-      cardType: "Unit",
+      cardType: "unit",
       energy: 5,
       cardName: "Zed",
     });
     const lowEnergy = stubDeckBuilderCard({
       cardId: "low",
-      cardType: "Unit",
+      cardType: "unit",
       energy: 1,
       cardName: "Ahri",
     });
     const midEnergyHighPower = stubDeckBuilderCard({
       cardId: "mid-high",
-      cardType: "Unit",
+      cardType: "unit",
       energy: 3,
       power: 5,
     });
     const midEnergyLowPower = stubDeckBuilderCard({
       cardId: "mid-low",
-      cardType: "Unit",
+      cardType: "unit",
       energy: 3,
       power: 1,
     });
@@ -97,10 +97,10 @@ describe("sortOverviewCards", () => {
   });
 
   it("appends unknown types after the known type groups", () => {
-    const unit = stubDeckBuilderCard({ cardId: "unit", cardType: "Unit", cardName: "A" });
+    const unit = stubDeckBuilderCard({ cardId: "unit", cardType: "unit", cardName: "A" });
     const legend = stubDeckBuilderCard({
       cardId: "legend",
-      cardType: "Legend",
+      cardType: "legend",
       cardName: "A",
     });
     const result = sortOverviewCards([legend, unit], "main");

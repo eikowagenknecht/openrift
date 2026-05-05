@@ -1,4 +1,4 @@
-import { appendSetTotal, fixTypography } from "@openrift/shared";
+import { appendSetTotal, fixTypography, WellKnown } from "@openrift/shared";
 import type { ArtVariant, Finish, Rarity } from "@openrift/shared/types";
 
 import type { Transact } from "../deps.js";
@@ -257,7 +257,7 @@ export async function acceptPrinting(
       }
     }
 
-    const rawRarity = String(printingFields.rarity || ("Common" satisfies Rarity));
+    const rawRarity = String(printingFields.rarity || WellKnown.rarity.COMMON);
     const rarityRows = await trxRepos.rarities.listAll();
     const raritySlugs = rarityRows.map((row) => row.slug);
     const normalizedRarity = raritySlugs.find(

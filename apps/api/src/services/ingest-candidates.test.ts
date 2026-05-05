@@ -45,9 +45,9 @@ function createMockRepos(ingestOverrides: Record<string, unknown> = {}): Repos {
 function makeCard(overrides: Record<string, unknown> = {}) {
   return {
     name: "Fireball",
-    type: "Spell",
+    type: "spell",
     super_types: [],
-    domains: ["Fury"],
+    domains: ["fury"],
     might: 3,
     energy: 2,
     power: null,
@@ -68,7 +68,7 @@ function makePrinting(overrides: Record<string, unknown> = {}) {
     short_code: "OGN-001",
     set_id: "origin",
     set_name: "Origin Set",
-    rarity: "Common",
+    rarity: "common",
     art_variant: "normal",
     is_signed: false,
     marker_slugs: [],
@@ -197,9 +197,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Old Name",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -229,9 +229,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Fireball",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -259,9 +259,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Old",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -338,7 +338,7 @@ describe("ingestCandidates", () => {
     });
     const transact = mockTransact(repos);
     const card = makeCard({
-      printings: [makePrinting({ rarity: "Common", finish: "normal" })],
+      printings: [makePrinting({ rarity: "common", finish: "normal" })],
     });
     const result = await ingestCandidates(transact, "gallery", [card]);
 
@@ -364,7 +364,7 @@ describe("ingestCandidates", () => {
     });
     const transact = mockTransact(repos);
     const card = makeCard({
-      printings: [makePrinting({ rarity: "Common", finish: "normal" })],
+      printings: [makePrinting({ rarity: "common", finish: "normal" })],
     });
     await ingestCandidates(transact, "gallery", [card]);
 
@@ -400,7 +400,7 @@ describe("ingestCandidates", () => {
     const repos = createMockRepos();
     const transact = mockTransact(repos);
     const card = makeCard({
-      printings: [makePrinting({ rarity: "Common", finish: "normal" })],
+      printings: [makePrinting({ rarity: "common", finish: "normal" })],
     });
     const result = await ingestCandidates(transact, "gallery", [card]);
 
@@ -477,9 +477,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Fireball",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -499,7 +499,7 @@ describe("ingestCandidates", () => {
           shortCode: "OGN-001",
           setId: "origin",
           setName: "Origin Set",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           markerSlugs: [],
@@ -534,9 +534,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Fireball",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -556,7 +556,7 @@ describe("ingestCandidates", () => {
           shortCode: "OGN-001",
           setId: "origin",
           setName: "Origin Set",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           markerSlugs: [],
@@ -587,9 +587,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Fireball",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -609,7 +609,7 @@ describe("ingestCandidates", () => {
           shortCode: "OGN-001",
           setId: "origin",
           setName: "Origin Set",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           markerSlugs: [],
@@ -655,7 +655,7 @@ describe("ingestCandidates", () => {
     });
     const transact = mockTransact(repos);
     const card = makeCard({
-      printings: [makePrinting({ finish: "normal", rarity: "Common" })],
+      printings: [makePrinting({ finish: "normal", rarity: "common" })],
     });
     await ingestCandidates(transact, "gallery", [card]);
 
@@ -670,9 +670,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Fireball",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -692,7 +692,7 @@ describe("ingestCandidates", () => {
           shortCode: "OGN-001",
           setId: "origin",
           setName: "Origin Set",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           markerSlugs: [],
@@ -735,9 +735,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Fireball",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -757,7 +757,7 @@ describe("ingestCandidates", () => {
           shortCode: "OGN-001",
           setId: "origin",
           setName: "Origin Set",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           markerSlugs: [],
@@ -803,7 +803,7 @@ describe("ingestCandidates", () => {
           externalId: "ext-old",
           name: "Old Card",
           shortCode: "OLD-001",
-          type: "Unit",
+          type: "unit",
           superTypes: [],
           domains: [],
           might: null,
@@ -833,9 +833,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Fireball",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -855,7 +855,7 @@ describe("ingestCandidates", () => {
           shortCode: "OLD-P001",
           setId: "origin",
           setName: "Origin Set",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           markerSlugs: [],
@@ -889,9 +889,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Fireball",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -911,7 +911,7 @@ describe("ingestCandidates", () => {
           shortCode: "ORPHAN-001",
           setId: "origin",
           setName: "Origin Set",
-          rarity: "Common",
+          rarity: "common",
           artVariant: "normal",
           isSigned: false,
           markerSlugs: [],
@@ -1025,7 +1025,7 @@ describe("ingestCandidates", () => {
     });
     const transact = mockTransact(repos);
     const card = makeCard({
-      printings: [makePrinting({ marker_slugs: ["promo"], rarity: "Common", finish: "normal" })],
+      printings: [makePrinting({ marker_slugs: ["promo"], rarity: "common", finish: "normal" })],
     });
     await ingestCandidates(transact, "gallery", [card]);
 
@@ -1056,9 +1056,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Old",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -1086,9 +1086,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Old",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -1120,9 +1120,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Fireball",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -1154,9 +1154,9 @@ describe("ingestCandidates", () => {
           id: "cc-1",
           externalId: "ext-card-1",
           name: "Fireball",
-          type: "Spell",
+          type: "spell",
           superTypes: [],
-          domains: ["Fury"],
+          domains: ["fury"],
           might: 3,
           energy: 2,
           power: null,
@@ -1199,7 +1199,7 @@ describe("ingestCandidates", () => {
     });
     const transact = mockTransact(repos);
     const card = makeCard({
-      printings: [makePrinting({ rarity: "Common", finish: "normal" })],
+      printings: [makePrinting({ rarity: "common", finish: "normal" })],
     });
     await ingestCandidates(transact, "gallery", [card]);
 

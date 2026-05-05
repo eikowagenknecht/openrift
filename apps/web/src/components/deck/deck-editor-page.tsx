@@ -1,5 +1,5 @@
 import type { DeckZone } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { imageUrl, WellKnown } from "@openrift/shared";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -212,17 +212,18 @@ function DeckEditorContent({
 
     const legend = deckCards.find((card) => card.zone === "legend");
     const legendDomains = legend?.domains ?? [];
-    const domainsWithColorless = legendDomains.length > 0 ? [...legendDomains, "Colorless"] : [];
+    const domainsWithColorless =
+      legendDomains.length > 0 ? [...legendDomains, WellKnown.domain.COLORLESS] : [];
 
     switch (zone) {
       case "legend": {
-        setArrayFilters({ types: ["Legend"], superTypes: [], domains: [] });
+        setArrayFilters({ types: [WellKnown.cardType.LEGEND], superTypes: [], domains: [] });
         break;
       }
       case "champion": {
         setArrayFilters({
-          types: ["Unit"],
-          superTypes: ["Champion"],
+          types: [WellKnown.cardType.UNIT],
+          superTypes: [WellKnown.superType.CHAMPION],
           domains: domainsWithColorless,
         });
         if (legend?.tags[0]) {
@@ -231,17 +232,25 @@ function DeckEditorContent({
         break;
       }
       case "runes": {
-        setArrayFilters({ types: ["Rune"], superTypes: [], domains: legendDomains });
+        setArrayFilters({
+          types: [WellKnown.cardType.RUNE],
+          superTypes: [],
+          domains: legendDomains,
+        });
         break;
       }
       case "battlefield": {
-        setArrayFilters({ types: ["Battlefield"], superTypes: [], domains: [] });
+        setArrayFilters({
+          types: [WellKnown.cardType.BATTLEFIELD],
+          superTypes: [],
+          domains: [],
+        });
         break;
       }
       case "main":
       case "sideboard": {
         setArrayFilters({
-          types: ["Unit", "Spell", "Gear"],
+          types: [WellKnown.cardType.UNIT, "spell", "gear"],
           superTypes: [],
           domains: domainsWithColorless,
         });
@@ -249,7 +258,7 @@ function DeckEditorContent({
       }
       case "overflow": {
         setArrayFilters({
-          types: ["Unit", "Spell", "Gear", "Battlefield"],
+          types: [WellKnown.cardType.UNIT, "spell", "gear", WellKnown.cardType.BATTLEFIELD],
           superTypes: [],
           domains: domainsWithColorless,
         });
@@ -289,7 +298,7 @@ function DeckEditorContent({
       ? {
           thumbnailUrl: imageUrl(hoveredFrontImage.imageId, "400w"),
           fullUrl: imageUrl(hoveredFrontImage.imageId, "full"),
-          landscape: hoveredPrinting.card.type === "Battlefield",
+          landscape: hoveredPrinting.card.type === "battlefield",
         }
       : null;
 

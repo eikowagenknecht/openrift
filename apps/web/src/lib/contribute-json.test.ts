@@ -18,9 +18,9 @@ function fullState(): ContributeFormState {
     slug: "ahri-alluring",
     card: {
       name: "Ahri, Alluring",
-      type: "Unit",
-      superTypes: ["Champion"],
-      domains: ["Calm"],
+      type: "unit",
+      superTypes: ["champion"],
+      domains: ["calm"],
       might: 4,
       energy: 5,
       power: 1,
@@ -31,7 +31,7 @@ function fullState(): ContributeFormState {
       {
         setId: "ogn",
         setName: "Origins",
-        rarity: "Rare",
+        rarity: "rare",
         artVariant: "normal",
         isSigned: false,
         markerSlugs: [],
@@ -130,9 +130,9 @@ describe("buildContributionJson", () => {
     expect(json.$schema).toBe("../card.schema.json");
     expect(json.card).toMatchObject({
       name: "Ahri, Alluring",
-      type: "Unit",
-      super_types: ["Champion"],
-      domains: ["Calm"],
+      type: "unit",
+      super_types: ["champion"],
+      domains: ["calm"],
       might: 4,
       energy: 5,
       power: 1,
@@ -141,7 +141,7 @@ describe("buildContributionJson", () => {
     expect(json.printings[0]).toMatchObject({
       set_id: "ogn",
       set_name: "Origins",
-      rarity: "Rare",
+      rarity: "rare",
       art_variant: "normal",
       finish: "foil",
       artist: "League Splash Team",

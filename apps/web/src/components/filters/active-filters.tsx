@@ -74,10 +74,30 @@ export function ActiveFilters({
     displayLabel?: (v: string) => string;
   }[] = [
     { key: "sets", label: "Set", values: filterState.sets },
-    { key: "rarities", label: "Rarity", values: filterState.rarities },
-    { key: "types", label: "Type", values: filterState.types },
-    { key: "superTypes", label: "Super Type", values: filterState.superTypes },
-    { key: "domains", label: "Domain", values: filterState.domains },
+    {
+      key: "rarities",
+      label: "Rarity",
+      values: filterState.rarities,
+      displayLabel: (v: string) => labels.rarities[v] ?? v,
+    },
+    {
+      key: "types",
+      label: "Type",
+      values: filterState.types,
+      displayLabel: (v: string) => labels.cardTypes[v] ?? v,
+    },
+    {
+      key: "superTypes",
+      label: "Super Type",
+      values: filterState.superTypes,
+      displayLabel: (v: string) => labels.superTypes[v] ?? v,
+    },
+    {
+      key: "domains",
+      label: "Domain",
+      values: filterState.domains,
+      displayLabel: (v: string) => formatDomainFilterLabel(v, labels.domains),
+    },
     {
       key: "artVariants",
       label: "Art Variant",
@@ -140,7 +160,7 @@ export function ActiveFilters({
               const icon = getFilterIconPath(key, value);
               const displayFn =
                 groupDisplayLabel ??
-                (key === "sets" && setDisplayLabel ? setDisplayLabel : formatDomainFilterLabel);
+                (key === "sets" && setDisplayLabel ? setDisplayLabel : (v: string) => v);
               return (
                 <Badge key={`${key}-${value}`} variant="secondary" className="gap-1">
                   {icon && <CardIcon src={icon} />}

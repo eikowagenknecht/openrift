@@ -110,18 +110,18 @@ describe("filterDecks", () => {
       makeItem({
         id: "a",
         domains: [
-          { domain: "Fury", count: 10 },
-          { domain: "Body", count: 5 },
+          { domain: "fury", count: 10 },
+          { domain: "body", count: 5 },
         ],
       }),
-      makeItem({ id: "b", domains: [{ domain: "Fury", count: 12 }] }),
-      makeItem({ id: "c", domains: [{ domain: "Calm", count: 20 }] }),
+      makeItem({ id: "b", domains: [{ domain: "fury", count: 12 }] }),
+      makeItem({ id: "c", domains: [{ domain: "calm", count: 20 }] }),
     ];
     const result = filterDecks(items, {
       search: "",
       format: "all",
       validity: "all",
-      domains: ["Fury", "Body"],
+      domains: ["fury", "body"],
     });
     expect(result.map((item) => item.deck.id)).toEqual(["a"]);
   });
@@ -239,11 +239,16 @@ describe("groupDecks", () => {
 
   it("groups by domain combination using legend domains, sorted alphabetically", () => {
     const items = [
-      makeItem({ id: "a", legendDomains: ["Fury", "Body"] }),
-      makeItem({ id: "b", legendDomains: ["Body", "Fury"] }),
-      makeItem({ id: "c", legendDomains: ["Calm", "Mind"] }),
+      makeItem({ id: "a", legendDomains: ["fury", "body"] }),
+      makeItem({ id: "b", legendDomains: ["body", "fury"] }),
+      makeItem({ id: "c", legendDomains: ["calm", "mind"] }),
     ];
-    const groups = groupDecks(items, "domains");
+    const groups = groupDecks(items, "domains", "asc", {
+      fury: "Fury",
+      body: "Body",
+      calm: "Calm",
+      mind: "Mind",
+    });
     const byLabel = Object.fromEntries(groups.map((group) => [group.label, group]));
     // "Body / Fury" and "Body / Fury" collapse into one bucket regardless of input order.
     expect(byLabel["Body / Fury"].items.map((item) => item.deck.id)).toEqual(["a", "b"]);
@@ -256,18 +261,18 @@ describe("groupDecks", () => {
         id: "a",
         legendDomains: null,
         domains: [
-          { domain: "Fury", count: 10 },
-          { domain: "Colorless", count: 6 },
+          { domain: "fury", count: 10 },
+          { domain: "colorless", count: 6 },
         ],
       }),
       makeItem({ id: "b", legendDomains: null, domains: [] }),
     ];
     const groups = groupDecks(items, "domains");
-    expect(groups.map((group) => group.label)).toEqual(["Fury", "No domain"]);
+    expect(groups.map((group) => group.label)).toEqual(["fury", "No domain"]);
   });
 
   it("uses 'No domain' bucket when legend has only Colorless", () => {
-    const items = [makeItem({ id: "a", legendDomains: ["Colorless"] })];
+    const items = [makeItem({ id: "a", legendDomains: ["colorless"] })];
     const groups = groupDecks(items, "domains");
     expect(groups.map((group) => group.label)).toEqual(["No domain"]);
   });
@@ -299,16 +304,16 @@ describe("groupDecks", () => {
 describe("availableDomainsFrom", () => {
   it("returns the union of domains across all decks, sorted", () => {
     const items: DeckListItemResponse[] = [
-      makeItem({ domains: [{ domain: "Fury", count: 5 }] }),
+      makeItem({ domains: [{ domain: "fury", count: 5 }] }),
       makeItem({
         domains: [
-          { domain: "Body", count: 3 },
-          { domain: "Fury", count: 2 },
+          { domain: "body", count: 3 },
+          { domain: "fury", count: 2 },
         ],
       }),
-      makeItem({ domains: [{ domain: "Calm", count: 1 }] }),
+      makeItem({ domains: [{ domain: "calm", count: 1 }] }),
     ];
-    expect(availableDomainsFrom(items)).toEqual(["Body", "Calm", "Fury"]);
+    expect(availableDomainsFrom(items)).toEqual(["body", "calm", "fury"]);
   });
 
   it("returns an empty array when no decks have domains", () => {
@@ -367,23 +372,23 @@ describe("filterAvailabilityFrom", () => {
   it("includes a grouping in usefulGroupings only when it would yield more than one bucket", () => {
     // All same legend, all same format, all same domains, all valid → no grouping is useful.
     const noneUseful = filterAvailabilityFrom([
-      makeItem({ id: "a", legendName: "Aatrox", legendDomains: ["Fury"] }),
-      makeItem({ id: "b", legendName: "Aatrox", legendDomains: ["Fury"] }),
+      makeItem({ id: "a", legendName: "Aatrox", legendDomains: ["fury"] }),
+      makeItem({ id: "b", legendName: "Aatrox", legendDomains: ["fury"] }),
     ]);
     expect([...noneUseful.usefulGroupings]).toEqual([]);
 
     // Mixed legends → "legend" grouping is useful.
     const mixedLegend = filterAvailabilityFrom([
-      makeItem({ id: "a", legendName: "Aatrox", legendDomains: ["Fury"] }),
-      makeItem({ id: "b", legendName: "Sett", legendDomains: ["Fury"] }),
+      makeItem({ id: "a", legendName: "Aatrox", legendDomains: ["fury"] }),
+      makeItem({ id: "b", legendName: "Sett", legendDomains: ["fury"] }),
     ]);
     expect(mixedLegend.usefulGroupings.has("legend")).toBe(true);
     expect(mixedLegend.usefulGroupings.has("domains")).toBe(false);
 
     // Different legend domain combinations → "domains" grouping is useful.
     const mixedDomains = filterAvailabilityFrom([
-      makeItem({ id: "a", legendDomains: ["Fury", "Body"] }),
-      makeItem({ id: "b", legendDomains: ["Calm", "Mind"] }),
+      makeItem({ id: "a", legendDomains: ["fury", "body"] }),
+      makeItem({ id: "b", legendDomains: ["calm", "mind"] }),
     ]);
     expect(mixedDomains.usefulGroupings.has("domains")).toBe(true);
   });

@@ -329,17 +329,17 @@ test.describe("collection stats", () => {
 
         await groupGroup.getByRole("button", { name: "Domain" }).click();
         // Annie is Fury, Garen is Body.
-        await expect(page.getByText("Fury", { exact: true }).first()).toBeVisible();
-        await expect(page.getByText("Body", { exact: true }).first()).toBeVisible();
+        await expect(page.getByText("fury", { exact: true }).first()).toBeVisible();
+        await expect(page.getByText("body", { exact: true }).first()).toBeVisible();
 
         await groupGroup.getByRole("button", { name: "Rarity" }).click();
         // Annie is Epic, Garen is Rare.
-        await expect(page.getByText("Epic", { exact: true }).first()).toBeVisible();
-        await expect(page.getByText("Rare", { exact: true }).first()).toBeVisible();
+        await expect(page.getByText("epic", { exact: true }).first()).toBeVisible();
+        await expect(page.getByText("rare", { exact: true }).first()).toBeVisible();
 
         await groupGroup.getByRole("button", { name: "Type" }).click();
         // Both are Units.
-        await expect(page.getByText("Unit", { exact: true }).first()).toBeVisible();
+        await expect(page.getByText("unit", { exact: true }).first()).toBeVisible();
       });
     });
   });
@@ -429,7 +429,7 @@ test.describe("collection stats", () => {
       await withSignedInContext(state.user, browser, async (context) => {
         const page = await context.newPage();
         await page.goto(
-          `/collections/stats?domains=${encodeURIComponent(JSON.stringify(["Fury"]))}`,
+          `/collections/stats?domains=${encodeURIComponent(JSON.stringify(["fury"]))}`,
         );
 
         await expect(page.getByRole("heading", { name: "Completion" })).toBeVisible({
@@ -440,15 +440,15 @@ test.describe("collection stats", () => {
         // is a div containing a label + close button; assert the "Domain:"
         // prefix chip is visible.
         await expect(page.getByText(/Domain:/).first()).toBeVisible();
-        await expect(page.getByText("Fury").first()).toBeVisible();
+        await expect(page.getByText("fury").first()).toBeVisible();
 
         // Group-by "Domain" reveals the per-domain rows — Fury should show owned > 0
-        // (Annie is Fury). We no longer assert on "Body" because Body is a
+        // (Annie is Fury). We no longer assert on "body" because Body is a
         // card subtype rather than a domain, and now appears in other stats
         // sections unrelated to the domain filter.
         const groupGroup = page.getByRole("group", { name: /Group by/i });
         await groupGroup.getByRole("button", { name: "Domain" }).click();
-        await expect(page.getByText("Fury", { exact: true }).first()).toBeVisible();
+        await expect(page.getByText("fury", { exact: true }).first()).toBeVisible();
       });
     });
   });
@@ -488,8 +488,8 @@ test.describe("collection stats", () => {
 
         // Seeded rarities are Epic (Annie) and Rare (Garen) — both appear in the
         // rarity chart legend.
-        await expect(page.getByText("Epic", { exact: true }).first()).toBeVisible();
-        await expect(page.getByText("Rare", { exact: true }).first()).toBeVisible();
+        await expect(page.getByText("epic", { exact: true }).first()).toBeVisible();
+        await expect(page.getByText("rare", { exact: true }).first()).toBeVisible();
 
         // Price extremes — both card tiles link into /cards/<slug>.
         const cheapest = page.getByRole("link", { name: /Annie, Fiery|Garen, Rugged/ }).first();

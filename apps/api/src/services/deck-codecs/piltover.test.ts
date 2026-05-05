@@ -24,18 +24,18 @@ describe("piltoverCodec.encode", () => {
         shortCode: "OGN-007",
         zone: "champion",
         quantity: 1,
-        cardType: "Unit",
-        superTypes: ["Champion"],
-        domains: ["Fury"],
+        cardType: "unit",
+        superTypes: ["champion"],
+        domains: ["fury"],
       },
       {
         cardId: "uuid-1",
         shortCode: "OGN-007",
         zone: "main",
         quantity: 2,
-        cardType: "Unit",
-        superTypes: ["Champion"],
-        domains: ["Fury"],
+        cardType: "unit",
+        superTypes: ["champion"],
+        domains: ["fury"],
       },
     ];
 
@@ -57,9 +57,9 @@ describe("piltoverCodec.encode", () => {
         shortCode: "OGN-007",
         zone: "champion",
         quantity: 1,
-        cardType: "Unit",
-        superTypes: ["Champion"],
-        domains: ["Fury"],
+        cardType: "unit",
+        superTypes: ["champion"],
+        domains: ["fury"],
       },
     ];
 

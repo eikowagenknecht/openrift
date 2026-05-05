@@ -247,7 +247,7 @@ test.describe("deck editor shell", () => {
       // Zone order comes from the init query, so we assert that each expected
       // zone label appears at least once rather than a strict ordering.
       for (const label of [
-        "Legend",
+        "legend",
         "Chosen Champion",
         "Runes",
         "Battlefields",

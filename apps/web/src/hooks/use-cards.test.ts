@@ -46,7 +46,7 @@ const SET_ID = "00000000-0000-0000-0000-000000000099";
 const stubCardValue: CatalogResponseCardValue = {
   slug: "RB1-001",
   name: "Test Card",
-  type: "Unit",
+  type: "unit",
   superTypes: [],
   domains: [],
   might: 1,
@@ -65,7 +65,7 @@ function stubPrintingValue(
   return {
     shortCode: "RB1-001",
     setId: SET_ID,
-    rarity: "Common",
+    rarity: "common",
     artVariant: "normal",
     isSigned: false,
     markers: [],

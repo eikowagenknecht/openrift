@@ -44,7 +44,7 @@ if (ctx) {
     .values({
       slug: "MKM-001",
       name: "MKM Test Card",
-      type: "Unit",
+      type: "unit",
       might: null,
       energy: 2,
       power: null,
@@ -56,7 +56,7 @@ if (ctx) {
     .execute();
   cardId = cardRow.id;
 
-  await db.insertInto("cardDomains").values({ cardId, domainSlug: "Mind", ordinal: 0 }).execute();
+  await db.insertInto("cardDomains").values({ cardId, domainSlug: "mind", ordinal: 0 }).execute();
 
   // Seed printing (normal finish)
   const [printingRow] = await db
@@ -65,7 +65,7 @@ if (ctx) {
       cardId,
       setId,
       shortCode: "MKM-001",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "normal",
@@ -87,7 +87,7 @@ if (ctx) {
       cardId,
       setId,
       shortCode: "MKM-001",
-      rarity: "Common",
+      rarity: "common",
       artVariant: "normal",
       isSigned: false,
       finish: "foil",

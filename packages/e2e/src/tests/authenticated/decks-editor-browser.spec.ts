@@ -210,7 +210,7 @@ test.describe("deck editor card browser", () => {
       // Clicking Unit deselects it, leaving Spell+Gear — Annie (Unit) should
       // disappear while Firestorm (Spell) remains.
       await page.getByRole("button", { name: "Show filters" }).click();
-      await page.getByText("Unit", { exact: true }).first().click();
+      await page.getByText("unit", { exact: true }).first().click();
 
       await expect(page).toHaveURL(/types=[^&]*Spell/);
       await expect(page.getByText("Type:", { exact: true })).toBeVisible();
@@ -223,7 +223,7 @@ test.describe("deck editor card browser", () => {
       // any non-empty selection, regardless of whether that selection matches
       // the zone default. (See tally: this is one candidate for a UX tweak —
       // hiding the chip when the selection equals the zone default.)
-      await page.getByText("Unit", { exact: true }).first().click();
+      await page.getByText("unit", { exact: true }).first().click();
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible();
     });
   });

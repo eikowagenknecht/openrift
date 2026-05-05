@@ -56,7 +56,7 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
       .values({
         slug: CARD_SLUG,
         name: "Printing Admin Test Card",
-        type: "Unit",
+        type: "unit",
         might: null,
         energy: 1,
         power: null,
@@ -68,7 +68,7 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
       .execute();
     cardId = cardRow.id;
 
-    await db.insertInto("cardDomains").values({ cardId, domainSlug: "Fury", ordinal: 0 }).execute();
+    await db.insertInto("cardDomains").values({ cardId, domainSlug: "fury", ordinal: 0 }).execute();
 
     // Printing A: empty marker_slugs (the sibling that causes the collision).
     const [emptyRow] = await db
@@ -77,7 +77,7 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
         cardId,
         setId,
         shortCode: SHORT_CODE,
-        rarity: "Common",
+        rarity: "common",
         artVariant: "normal",
         isSigned: false,
         finish: "foil",
@@ -99,7 +99,7 @@ describe.skipIf(!ctx)("updatePrintingMarkers (integration)", () => {
         cardId,
         setId,
         shortCode: SHORT_CODE,
-        rarity: "Common",
+        rarity: "common",
         artVariant: "normal",
         isSigned: false,
         finish: "foil",

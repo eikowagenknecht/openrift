@@ -120,7 +120,7 @@ describe("CardImage hero (responsive image)", () => {
   it("renders explicit width/height matching landscape dimensions", () => {
     const printing = stubPrinting({
       images: [stubFrontImage],
-      card: { name: "Landscape Card", type: "Battlefield" },
+      card: { name: "Landscape Card", type: "battlefield" },
     });
     const { getByAltText } = render(
       <CardImage
