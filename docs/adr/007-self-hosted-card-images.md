@@ -5,7 +5,15 @@ date: 2026-03-09
 
 # ADR-007: Self-Hosted Card Images
 
-> **Update 2026-04-12:** The `card-images/` directory was renamed to `media/cards/` and the URL prefix changed from `/card-images/` to `/media/cards/`. The `media/` directory also hosts `sets/` for set images. All references below use the original naming from the initial decision.
+> **Update 2026-04-12:** The `card-images/` directory was renamed to `media/cards/` and the URL prefix changed from `/card-images/` to `/media/cards/`. The `media/` directory also hosts `sets/` for set images.
+>
+> **Update 2026-04-28:** The on-disk layout, size set, and database model below are all out of date. Current state:
+>
+> - **Filenames are keyed on the `image_files.id` UUID, not on set/short_code/rarity/finish.** The base path is `/media/cards/{last-2-uuid-chars}/{imageFileId}`, returned by `imageRehostedUrl()` in `apps/api/src/services/image-rehost.ts`. Callers append `-{size}.webp` (or `-orig.{ext}`) to that base. The last 2 hex chars of the UUID act as a sharding prefix for even directory distribution.
+> - **Four WebP variants**, not two: `120w`, `240w`, `400w`, `full` (short-edge caps 120 / 240 / 400 / 800), plus the `-orig.{ext}` archive. See `SIZES` in `image-rehost.ts`.
+> - **Database model changed.** `printings.image_url` no longer exists. Images are stored in a separate `image_files` table (`original_url`, `rehosted_url`) and linked to printings via `printing_images` (with a `face` column for front/back support). Multiple providers per printing are supported.
+>
+> All references below reflect the original 2026-03-09 decision and remain only as historical record.
 
 ## Context and Problem Statement
 
