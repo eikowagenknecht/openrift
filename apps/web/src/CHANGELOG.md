@@ -3,6 +3,7 @@
 ## 2026-05-05
 
 - feat: Searching the rules now updates as you type and shows each match with its enclosing section and parent rules for context
+- feat: On mobile, the card detail panel now has previous/next arrow buttons beside the stats row, replacing the easy-to-miss swipe gesture
 - fix: The Contribute form now writes the language as `EN` (uppercase, the format the catalog expects), so submitted JSON files validate cleanly against the openrift-data schema
 - fix: Notes you leave on the Contribute form now go into the pull request description instead of being baked into the card JSON, keeping the data file clean
 - fix: The header's More menu and Feedback popover now close once you click an entry, instead of staying open after navigating away
