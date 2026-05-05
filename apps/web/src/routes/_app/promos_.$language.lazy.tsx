@@ -1,7 +1,7 @@
 import type { Printing } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createLazyFileRoute, useLocation, useNavigate } from "@tanstack/react-router";
+import { createLazyFileRoute, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, LayoutGridIcon, ListIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -117,6 +117,7 @@ function PromosPage() {
   const { data } = useSuspenseQuery(publicPromoListQueryOptions);
   const { language: activeLanguage } = Route.useParams();
   const navigate = useNavigate();
+  const router = useRouter();
   const location = useLocation();
   const showImages = useDisplayStore((s) => s.showImages);
   const display = useCardThumbnailDisplay();
@@ -187,11 +188,12 @@ function PromosPage() {
   }
 
   const handleCardClick = (printing: Printing) => {
-    void navigate({
+    const { href } = router.buildLocation({
       to: "/cards/$cardSlug",
       params: { cardSlug: printing.card.slug },
       search: { printingId: printing.id },
     });
+    window.open(href, "_blank", "noreferrer");
   };
 
   return (
