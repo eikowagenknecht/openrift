@@ -6,10 +6,10 @@ import { cn } from "@/lib/utils";
 export interface PageTocItem {
   id: string;
   label: string;
-  level?: 0 | 1;
+  level?: number;
 }
 
-export function PageToc({ items }: { items: PageTocItem[] }) {
+export function PageToc({ items, className }: { items: PageTocItem[]; className?: string }) {
   const [activeId, setActiveId] = useState<string | null>(items[0]?.id ?? null);
 
   useEffect(() => {
@@ -51,24 +51,27 @@ export function PageToc({ items }: { items: PageTocItem[] }) {
   }
 
   return (
-    <aside className="hidden w-48 shrink-0 lg:block">
+    <aside className={cn("hidden w-48 shrink-0 lg:block", className)}>
       <nav className="sticky top-16 max-h-[calc(100vh-5rem)] space-y-0.5 overflow-y-auto">
-        {items.map((item) => (
-          <a
-            key={item.id}
-            href={`#${item.id}`}
-            onClick={(event) => handleClick(event, item.id)}
-            className={cn(
-              "block truncate text-sm transition-colors",
-              item.level === 1 && "pl-3",
-              activeId === item.id
-                ? "text-foreground font-medium"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {item.label}
-          </a>
-        ))}
+        {items.map((item) => {
+          const level = item.level ?? 0;
+          return (
+            <a
+              key={item.id}
+              href={`#${item.id}`}
+              onClick={(event) => handleClick(event, item.id)}
+              style={level > 0 ? { paddingLeft: `${level * 0.75}rem` } : undefined}
+              className={cn(
+                "block truncate text-sm transition-colors",
+                activeId === item.id
+                  ? "text-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {item.label}
+            </a>
+          );
+        })}
       </nav>
     </aside>
   );

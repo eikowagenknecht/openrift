@@ -9,7 +9,7 @@ import { join } from "node:path";
 
 import { z } from "zod";
 
-import { contributionFileSchema } from "./contribute-schema.ts";
+import { contributionFileSchema } from "./contribute-schema.js";
 
 const generatedPath = join(import.meta.dirname, "..", "generated", "card.schema.json");
 

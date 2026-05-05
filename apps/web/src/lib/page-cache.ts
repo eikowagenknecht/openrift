@@ -22,7 +22,7 @@ const PRELOAD_LINKS = [
 ];
 
 const EXACT_PATHS = new Set(["/", "/cards", "/sets", "/rules", "/privacy-policy", "/promos"]);
-const PREFIX_PATHS = ["/cards/", "/sets/", "/decks/share/"];
+const PREFIX_PATHS = ["/cards/", "/sets/", "/decks/share/", "/promos/"];
 
 function isCacheablePublicPath(pathname: string): boolean {
   if (EXACT_PATHS.has(pathname)) {

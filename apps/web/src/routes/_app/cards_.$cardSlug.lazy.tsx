@@ -576,7 +576,8 @@ function ChannelLink({
   return (
     <div className="min-w-0 flex-1">
       <Link
-        to="/promos"
+        to="/promos/$language"
+        params={{ language }}
         hash={`lang-${language}-ch-${link.channel.id}`}
         className="hover:text-foreground block"
       >

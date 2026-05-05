@@ -51,7 +51,8 @@ export function PrintingNotesSection({ printing }: { printing: Printing }) {
                   </span>
                   <div className="min-w-0 flex-1">
                     <Link
-                      to="/promos"
+                      to="/promos/$language"
+                      params={{ language: printing.language }}
                       hash={`lang-${printing.language}-ch-${link.channel.id}`}
                       className="hover:text-foreground block"
                     >
