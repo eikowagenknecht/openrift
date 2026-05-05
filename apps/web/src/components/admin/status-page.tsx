@@ -424,17 +424,21 @@ function PostChangelogButton() {
   const post = usePostChangelog();
 
   async function handlePost() {
+    // Narrow the try to just the await — react-compiler doesn't support
+    // logical/conditional value blocks inside a try/catch statement.
+    let result: Awaited<ReturnType<typeof post.mutateAsync>>;
     try {
-      const result = await post.mutateAsync();
-      if (result.posted) {
-        toast.success(
-          `Changelog posted to Discord (${result.count} ${result.count === 1 ? "entry" : "entries"})`,
-        );
-      } else {
-        toast.success("No new entries to post");
-      }
+      result = await post.mutateAsync();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Post failed");
+      return;
+    }
+    if (result.posted) {
+      toast.success(
+        `Changelog posted to Discord (${result.count} ${result.count === 1 ? "entry" : "entries"})`,
+      );
+    } else {
+      toast.success("No new entries to post");
     }
   }
 
