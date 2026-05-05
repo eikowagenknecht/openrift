@@ -44,7 +44,7 @@ function fullState(): ContributeFormState {
         imageUrl: "https://example.com/ogn-066.png",
         flavorText: "“Remember this moment.”",
         language: "EN",
-        printedName: null,
+        printedName: "",
         printedYear: 2025,
       },
     ],
@@ -197,6 +197,27 @@ describe("buildContributionJson", () => {
     state.printings[0].printedYear = 2025;
     const json = buildContributionJson(state, STAMP);
     expect(json.printings[0].printed_year).toBe(2025);
+  });
+
+  it("falls back to the card name when printedName is blank", () => {
+    const state = fullState();
+    state.printings[0].printedName = "";
+    const json = buildContributionJson(state, STAMP);
+    expect(json.printings[0].printed_name).toBe("Ahri, Alluring");
+  });
+
+  it("uses the printing's own printed name when set, even if equal to the card name", () => {
+    const state = fullState();
+    state.printings[0].printedName = "Ahri, Alluring";
+    const json = buildContributionJson(state, STAMP);
+    expect(json.printings[0].printed_name).toBe("Ahri, Alluring");
+  });
+
+  it("preserves a printing-specific printed name distinct from the card name", () => {
+    const state = fullState();
+    state.printings[0].printedName = "Ahri, séduisante";
+    const json = buildContributionJson(state, STAMP);
+    expect(json.printings[0].printed_name).toBe("Ahri, séduisante");
   });
 
   it("only emits is_signed when true", () => {

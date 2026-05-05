@@ -74,7 +74,20 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
   ) => {
     setState((s) => {
       const nextSlug = !lockedSlug && key === "name" ? nameToSlug(value as string) : s.slug;
-      return { ...s, slug: nextSlug, card: { ...s.card, [key]: value } };
+      let nextPrintings = s.printings;
+      if (key === "name") {
+        const oldName = s.card.name;
+        const nextName = value as string;
+        nextPrintings = s.printings.map((p) =>
+          p.printedName === oldName || p.printedName === "" ? { ...p, printedName: nextName } : p,
+        );
+      }
+      return {
+        ...s,
+        slug: nextSlug,
+        card: { ...s.card, [key]: value },
+        printings: nextPrintings,
+      };
     });
   };
   const setPrintingField = <K extends keyof ContributeFormPrinting>(
@@ -208,7 +221,6 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
             key={index}
             index={index}
             printing={printing}
-            cardName={state.card.name}
             errorAt={errorAt}
             sets={sets}
             languages={languages}
@@ -421,7 +433,6 @@ function IntroBlock({ lockedSlug }: { lockedSlug?: string }) {
 interface PrintingCardProps {
   index: number;
   printing: ContributeFormPrinting;
-  cardName: string;
   errorAt: (path: string) => string | undefined;
   sets: SetListResponse["sets"];
   languages: { code: string; name: string }[];
@@ -438,7 +449,6 @@ interface PrintingCardProps {
 function PrintingCard({
   index,
   printing,
-  cardName,
   errorAt,
   sets,
   languages,
@@ -564,15 +574,11 @@ function PrintingCard({
 
         <FieldRow
           label="Name"
-          hint={
-            printing.printedName === null
-              ? "Defaulting to the card name. Edit only if the printed name differs (e.g. for non-English versions)."
-              : undefined
-          }
+          hint="Defaults to the card name. Edit only if the printed name differs (e.g. for non-English versions)."
         >
           <Input
-            value={printing.printedName ?? cardName}
-            onChange={(e) => onChange("printedName", e.target.value || null)}
+            value={printing.printedName}
+            onChange={(e) => onChange("printedName", e.target.value)}
           />
         </FieldRow>
         <CardTextInput

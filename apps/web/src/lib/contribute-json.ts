@@ -42,7 +42,8 @@ export interface ContributeFormPrinting {
   imageUrl: string | null;
   flavorText: string | null;
   language: string | null;
-  printedName: string | null;
+  /** Printed name on this specific printing. Always populated; defaults to the card name. */
+  printedName: string;
   printedYear: number | null;
 }
 
@@ -93,7 +94,7 @@ export function emptyPrinting(): ContributeFormPrinting {
     imageUrl: null,
     flavorText: null,
     language: "EN",
-    printedName: null,
+    printedName: "",
     printedYear: null,
   };
 }
@@ -216,9 +217,12 @@ function buildCardJson(card: ContributeFormCard, externalId: string): SnakeCardJ
 function buildPrintingJson(
   printing: ContributeFormPrinting,
   externalId: string,
+  cardName: string,
 ): SnakePrintingJson {
+  const printedName = printing.printedName.trim() || cardName;
   const out: SnakePrintingJson = {
     external_id: externalId,
+    printed_name: printedName,
   };
   setIfPresent(out, "set_id", trimOrNull(printing.setId), isNonEmptyString);
   setIfPresent(out, "set_name", trimOrNull(printing.setName), isNonEmptyString);
@@ -241,7 +245,6 @@ function buildPrintingJson(
   setIfPresent(out, "image_url", trimOrNull(printing.imageUrl), isNonEmptyString);
   setIfPresent(out, "flavor_text", trimOrNull(printing.flavorText), isNonEmptyString);
   setIfPresent(out, "language", trimOrNull(printing.language), isNonEmptyString);
-  setIfPresent(out, "printed_name", trimOrNull(printing.printedName), isNonEmptyString);
   setIfPresent(out, "printed_year", printing.printedYear, isNonNull);
   return out;
 }
@@ -260,11 +263,12 @@ export function buildContributionJson(
 ): ContributionJson {
   const cardExternalId = `community:${state.slug}--${dateStamp}`;
   const card = buildCardJson(state.card, cardExternalId);
+  const cardName = state.card.name.trim();
   const printings = state.printings.map((printing, index) => {
     const finish = trimOrNull(printing.finish) ?? "normal";
     const language = trimOrNull(printing.language) ?? "EN";
     const printingExternalId = `community:${state.slug}-${index.toString()}--${dateStamp}:${finish}:${language}`;
-    return buildPrintingJson(printing, printingExternalId);
+    return buildPrintingJson(printing, printingExternalId, cardName);
   });
   return { $schema: SCHEMA_REF, card, printings };
 }
@@ -351,7 +355,7 @@ export function prefillFromCard(
       imageUrl: null,
       flavorText: p.flavorText,
       language: p.language || "EN",
-      printedName: p.printedName,
+      printedName: p.printedName ?? "",
       printedYear: p.printedYear,
     })),
   };
