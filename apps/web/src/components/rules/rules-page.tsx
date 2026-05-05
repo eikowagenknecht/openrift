@@ -493,46 +493,48 @@ function RuleRow({
     <div
       id={`rule-${rule.ruleNumber}`}
       className={cn(
-        "border-border/50 flex gap-3 border-b py-1.5 text-sm",
+        "border-border/50 flex flex-col gap-1 border-b py-1.5 text-sm sm:flex-row sm:gap-3",
         isTitle && "border-border mt-4 first:mt-0",
         isSubtitle && "border-border mt-2",
         isContext && "opacity-60",
       )}
     >
-      <span className="flex w-4 shrink-0 items-start">
-        {hasChildren ? (
-          <button
-            type="button"
-            onClick={() => onToggleFold(rule.ruleNumber)}
-            aria-label={isFolded ? "Expand rule group" : "Collapse rule group"}
-            aria-expanded={!isFolded}
-            className="text-muted-foreground hover:text-foreground flex size-4 items-center justify-center rounded"
-          >
-            {isFolded ? (
-              <ChevronRightIcon className="size-3" />
-            ) : (
-              <ChevronDownIcon className="size-3" />
-            )}
-          </button>
-        ) : null}
-      </span>
-      <button
-        type="button"
-        onClick={() => {
-          void copyRuleLink(rule.ruleNumber);
-        }}
-        aria-label={`Copy link to rule ${formatRuleNumber(rule.ruleNumber)}`}
-        className={cn(
-          "group/rule-number text-muted-foreground hover:text-foreground flex w-20 shrink-0 cursor-pointer items-start gap-1 text-left font-mono text-xs",
-          isTitle && "font-semibold",
-        )}
-      >
-        <span>{formatRuleNumber(rule.ruleNumber)}</span>
-        <CopyIcon
-          aria-hidden="true"
-          className="size-3 opacity-0 transition-opacity group-hover/rule-number:opacity-100"
-        />
-      </button>
+      <div className="flex flex-row-reverse items-start justify-between gap-3 sm:contents">
+        <span className="flex w-4 shrink-0 items-start">
+          {hasChildren ? (
+            <button
+              type="button"
+              onClick={() => onToggleFold(rule.ruleNumber)}
+              aria-label={isFolded ? "Expand rule group" : "Collapse rule group"}
+              aria-expanded={!isFolded}
+              className="text-muted-foreground hover:text-foreground flex size-4 items-center justify-center rounded"
+            >
+              {isFolded ? (
+                <ChevronRightIcon className="size-3" />
+              ) : (
+                <ChevronDownIcon className="size-3" />
+              )}
+            </button>
+          ) : null}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            void copyRuleLink(rule.ruleNumber);
+          }}
+          aria-label={`Copy link to rule ${formatRuleNumber(rule.ruleNumber)}`}
+          className={cn(
+            "group/rule-number text-muted-foreground hover:text-foreground flex w-20 shrink-0 cursor-pointer items-start gap-1 text-left font-mono text-xs",
+            isTitle && "font-semibold",
+          )}
+        >
+          <span>{formatRuleNumber(rule.ruleNumber)}</span>
+          <CopyIcon
+            aria-hidden="true"
+            className="size-3 opacity-0 transition-opacity group-hover/rule-number:opacity-100"
+          />
+        </button>
+      </div>
       <span
         className={cn(
           contentIndentClass,

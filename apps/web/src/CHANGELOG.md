@@ -2,6 +2,7 @@
 
 ## 2026-05-05
 
+- feat: On mobile, the Rules page now stacks each rule's number above its content instead of cramming everything onto one line
 - feat: Cross-references inside the rules now turn into clickable links, including "rule 540", bare numbers like "603.7" in tournament rules, and "CR 116" pointers to core rules from tournament rules
 - feat: Clicking a card on the Promos page now opens its detail in a new tab, so you can keep your place in the list while flipping through individual cards
 - feat: Clicking a rule number on the Rules page now copies a direct link to that rule, so you can share the exact rule with someone else
