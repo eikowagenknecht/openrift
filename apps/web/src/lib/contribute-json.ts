@@ -11,8 +11,8 @@
 import type { Card, Printing } from "@openrift/shared";
 
 const REPO = "openriftapp/openrift-data";
-const SCHEMA_REF = "../card.schema.json";
-const LANGUAGE_PATTERN = /^[a-z]{2,5}$/;
+const SCHEMA_REF = "../../schemas/card.schema.json";
+const LANGUAGE_PATTERN = /^[A-Z]{2}$/;
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 interface ContributeFormCard {
@@ -93,7 +93,7 @@ export function emptyPrinting(): ContributeFormPrinting {
     printedEffectText: null,
     imageUrl: null,
     flavorText: null,
-    language: "en",
+    language: "EN",
     printedName: null,
   };
 }
@@ -150,7 +150,7 @@ export function validateContribution(state: ContributeFormState): ValidationResu
     if (printing.language && !LANGUAGE_PATTERN.test(printing.language)) {
       errors.push({
         path: `${prefix}.language`,
-        message: "Language must be 2-5 lowercase letters (e.g. en, zh).",
+        message: "Language must be a 2-letter uppercase code (e.g. EN, ZH).",
       });
     }
   }
@@ -164,7 +164,6 @@ interface ContributionJson {
   $schema: string;
   card: SnakeCardJson;
   printings: SnakePrintingJson[];
-  comment?: string;
 }
 
 function trimOrNull(value: string | null): string | null {
@@ -251,33 +250,39 @@ export function buildContributionJson(
   const card = buildCardJson(state.card, cardExternalId);
   const printings = state.printings.map((printing, index) => {
     const finish = trimOrNull(printing.finish) ?? "normal";
-    const language = trimOrNull(printing.language) ?? "en";
+    const language = trimOrNull(printing.language) ?? "EN";
     const printingExternalId = `community:${state.slug}-${index.toString()}--${dateStamp}:${finish}:${language}`;
     return buildPrintingJson(printing, printingExternalId);
   });
-  const out: ContributionJson = { $schema: SCHEMA_REF, card, printings };
-  const trimmedComment = state.comment.trim();
-  if (trimmedComment) {
-    out.comment = trimmedComment;
-  }
-  return out;
+  return { $schema: SCHEMA_REF, card, printings };
 }
 
 export function buildContributionFilename(slug: string, dateStamp: string): string {
-  return `contributions/${slug}--${dateStamp}.json`;
+  return `data/cards/${slug}--${dateStamp}.json`;
 }
 
 /**
  * Builds the GitHub "new file" URL that opens the prefilled editor. GitHub's
  * `value` parameter is read as form data when the editor mounts, so URL-encoded
- * JSON survives intact through their fork-and-commit flow.
+ * JSON survives intact through their fork-and-commit flow. A non-empty
+ * `comment` is passed as `description`, which GitHub uses as the commit body
+ * and pre-fills as the PR description on submit.
  * @param filename Repo-relative path under openrift-data.
  * @param json The contribution JSON; serialized with 2-space indent.
+ * @param comment Optional contributor note; lands in the PR description, not the JSON.
  * @returns A URL the contributor can open in a new tab.
  */
-export function buildGithubNewFileUrl(filename: string, json: ContributionJson): string {
+export function buildGithubNewFileUrl(
+  filename: string,
+  json: ContributionJson,
+  comment?: string,
+): string {
   const body = JSON.stringify(json, null, 2);
   const params = new URLSearchParams({ filename, value: body });
+  const trimmedComment = comment?.trim();
+  if (trimmedComment) {
+    params.set("description", trimmedComment);
+  }
   return `https://github.com/${REPO}/new/main?${params.toString()}`;
 }
 
@@ -324,7 +329,7 @@ export function prefillFromCard(
       printedEffectText: p.printedEffectText,
       imageUrl: null,
       flavorText: p.flavorText,
-      language: (p.language || "en").toLowerCase(),
+      language: p.language || "EN",
       printedName: p.printedName,
     })),
     comment: "",

@@ -42,7 +42,7 @@ function fullState(): ContributeFormState {
         printedEffectText: null,
         imageUrl: "https://example.com/ogn-066.png",
         flavorText: "“Remember this moment.”",
-        language: "en",
+        language: "EN",
         printedName: null,
       },
     ],
@@ -109,25 +109,25 @@ describe("validateContribution", () => {
     expect(result.errors.find((e) => e.path === "printings[0].imageUrl")).toBeDefined();
   });
 
-  it("rejects an invalid language code", () => {
+  it("rejects a lowercase language code", () => {
     const state = fullState();
-    state.printings[0].language = "EN";
+    state.printings[0].language = "en";
     const result = validateContribution(state);
     expect(result.errors.find((e) => e.path === "printings[0].language")).toBeDefined();
   });
 
-  it("accepts a 3-letter ISO 639-3 language code", () => {
+  it("rejects a 3-letter language code", () => {
     const state = fullState();
-    state.printings[0].language = "zho";
+    state.printings[0].language = "ENG";
     const result = validateContribution(state);
-    expect(result.ok).toBe(true);
+    expect(result.errors.find((e) => e.path === "printings[0].language")).toBeDefined();
   });
 });
 
 describe("buildContributionJson", () => {
   it("produces snake_case keys and includes all set fields", () => {
     const json = buildContributionJson(fullState(), STAMP);
-    expect(json.$schema).toBe("../card.schema.json");
+    expect(json.$schema).toBe("../../schemas/card.schema.json");
     expect(json.card).toMatchObject({
       name: "Ahri, Alluring",
       type: "unit",
@@ -147,14 +147,14 @@ describe("buildContributionJson", () => {
       artist: "League Splash Team",
       public_code: "OGN-066/298",
       image_url: "https://example.com/ogn-066.png",
-      language: "en",
+      language: "EN",
     });
   });
 
   it("appends the date stamp to external IDs so check-uniqueness.mjs accepts the PR", () => {
     const json = buildContributionJson(fullState(), STAMP);
     expect(json.card.external_id).toBe(`community:ahri-alluring--${STAMP}`);
-    expect(json.printings[0].external_id).toBe(`community:ahri-alluring-0--${STAMP}:foil:en`);
+    expect(json.printings[0].external_id).toBe(`community:ahri-alluring-0--${STAMP}:foil:EN`);
   });
 
   it("omits empty strings, nulls, and empty arrays", () => {
@@ -187,23 +187,18 @@ describe("buildContributionJson", () => {
     expect(json.printings[0].printed_rules_text).toBe("text");
   });
 
-  it("emits a top-level comment when set", () => {
+  it("never emits a top-level comment in the JSON", () => {
     const state = fullState();
-    state.comment = "  spotted in a preview pack  ";
+    state.comment = "spotted in a preview pack";
     const json = buildContributionJson(state, STAMP);
-    expect(json.comment).toBe("spotted in a preview pack");
-  });
-
-  it("omits the comment when blank", () => {
-    const json = buildContributionJson(fullState(), STAMP);
     expect(json).not.toHaveProperty("comment");
   });
 });
 
 describe("buildContributionFilename", () => {
-  it("places the file under contributions/ with the date suffix", () => {
+  it("places the file under data/cards/ with the date suffix", () => {
     expect(buildContributionFilename("ahri-alluring", STAMP)).toBe(
-      `contributions/ahri-alluring--${STAMP}.json`,
+      `data/cards/ahri-alluring--${STAMP}.json`,
     );
   });
 });
@@ -213,9 +208,38 @@ describe("buildGithubNewFileUrl", () => {
     const json = buildContributionJson(fullState(), STAMP);
     const url = buildGithubNewFileUrl(buildContributionFilename("ahri-alluring", STAMP), json);
     expect(url.startsWith("https://github.com/openriftapp/openrift-data/new/main?")).toBe(true);
-    expect(url).toContain(`filename=contributions%2Fahri-alluring--${STAMP}.json`);
+    expect(url).toContain(`filename=data%2Fcards%2Fahri-alluring--${STAMP}.json`);
     const params = new URL(url).searchParams;
     const value = params.get("value") ?? "";
     expect(JSON.parse(value)).toMatchObject({ card: { name: "Ahri, Alluring" } });
+  });
+
+  it("passes a non-empty comment as the description query param", () => {
+    const json = buildContributionJson(fullState(), STAMP);
+    const url = buildGithubNewFileUrl(
+      buildContributionFilename("ahri-alluring", STAMP),
+      json,
+      "  spotted in a preview pack  ",
+    );
+    const params = new URL(url).searchParams;
+    expect(params.get("description")).toBe("spotted in a preview pack");
+  });
+
+  it("omits the description param when no comment is provided", () => {
+    const json = buildContributionJson(fullState(), STAMP);
+    const url = buildGithubNewFileUrl(buildContributionFilename("ahri-alluring", STAMP), json);
+    const params = new URL(url).searchParams;
+    expect(params.has("description")).toBe(false);
+  });
+
+  it("omits the description param when the comment is whitespace only", () => {
+    const json = buildContributionJson(fullState(), STAMP);
+    const url = buildGithubNewFileUrl(
+      buildContributionFilename("ahri-alluring", STAMP),
+      json,
+      "   ",
+    );
+    const params = new URL(url).searchParams;
+    expect(params.has("description")).toBe(false);
   });
 });

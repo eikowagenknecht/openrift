@@ -107,7 +107,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     const stamp = formatDateStamp(new Date());
     const json = buildContributionJson(state, stamp);
     const filename = buildContributionFilename(state.slug, stamp);
-    const url = buildGithubNewFileUrl(filename, json);
+    const url = buildGithubNewFileUrl(filename, json, state.comment);
     globalThis.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -499,8 +499,10 @@ function PrintingCard({
             <SingleSelect
               value={printing.language}
               onChange={(v) => onChange("language", v)}
-              options={languages.map((l) => l.code.toLowerCase())}
-              labels={Object.fromEntries(languages.map((l) => [l.code.toLowerCase(), l.name]))}
+              options={languages.map((language) => language.code)}
+              labels={Object.fromEntries(
+                languages.map((language) => [language.code, language.name]),
+              )}
               placeholder="Pick a language"
             />
           </FieldRow>
