@@ -1,6 +1,6 @@
 import type { RuleKind, RuleResponse } from "@openrift/shared";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
 import { useState } from "react";
 // oxlint-disable no-unused-vars -- perf experiment; will restore markdown rendering shortly
@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRuleVersions, useRulesAtVersion } from "@/hooks/use-rules";
-import { KEYWORD_INFO, keywordAnchorSlug } from "@/lib/glossary";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 
 /**
@@ -41,72 +40,6 @@ async function copyRuleLink(ruleNumber: string): Promise<void> {
     toast.error("Could not copy link");
   }
 }
-
-const KEYWORD_REGEX = (() => {
-  const names = Object.keys(KEYWORD_INFO).toSorted((a, b) => b.length - a.length);
-  const escaped = names.map((name) => name.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`));
-  return new RegExp(String.raw`(?<![A-Za-z])(${escaped.join("|")})(?![A-Za-z])`, "g");
-})();
-
-interface MdNode {
-  type: string;
-  value?: string;
-  url?: string;
-  children?: MdNode[];
-}
-
-function splitTextOnKeywords(text: string): MdNode[] {
-  const parts = text.split(KEYWORD_REGEX);
-  if (parts.length === 1) {
-    return [{ type: "text", value: text }];
-  }
-  const result: MdNode[] = [];
-  for (const part of parts) {
-    if (!part) {
-      continue;
-    }
-    if (KEYWORD_INFO[part]) {
-      result.push({
-        type: "link",
-        url: `/glossary#${keywordAnchorSlug(part)}`,
-        children: [{ type: "text", value: part }],
-      });
-    } else {
-      result.push({ type: "text", value: part });
-    }
-  }
-  return result;
-}
-
-function visitTextNodes(node: MdNode): void {
-  if (!node.children) {
-    return;
-  }
-  for (let index = 0; index < node.children.length; index++) {
-    const child = node.children[index];
-    if (child.type === "link") {
-      // Don't linkify text inside an existing link.
-      continue;
-    }
-    if (child.type === "text" && typeof child.value === "string") {
-      const replacements = splitTextOnKeywords(child.value);
-      const isUnchanged =
-        replacements.length === 1 &&
-        replacements[0].type === "text" &&
-        replacements[0].value === child.value;
-      if (!isUnchanged) {
-        node.children.splice(index, 1, ...replacements);
-        index += replacements.length - 1;
-      }
-      continue;
-    }
-    visitTextNodes(child);
-  }
-}
-
-const remarkLinkifyKeywords = () => (tree: MdNode) => {
-  visitTextNodes(tree);
-};
 
 // Tournament penalty labels — matched as literal `[Label]` strings inside rule
 // bodies and styled with the IPG-derived color codes.
@@ -189,21 +122,11 @@ const rehypeHighlightPenalties = () => (tree: HastNode) => {
 };
 
 const MARKDOWN_COMPONENTS: Components = {
-  a: ({ href, children }) => {
-    if (typeof href === "string" && href.startsWith("/glossary#")) {
-      const hash = href.slice("/glossary#".length);
-      return (
-        <Link to="/glossary" hash={hash} className="text-primary hover:underline">
-          {children}
-        </Link>
-      );
-    }
-    return (
-      <a href={href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-        {children}
-      </a>
-    );
-  },
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+      {children}
+    </a>
+  ),
   span: ({ children, ...props }) => {
     const penalty = (props as { "data-penalty"?: string })["data-penalty"];
     if (penalty && PENALTY_STYLES[penalty]) {
@@ -221,14 +144,12 @@ const MARKDOWN_COMPONENTS: Components = {
 
 const ALLOWED_MARKDOWN_ELEMENTS = ["em", "strong", "code", "a", "br", "span"];
 
-// Stable references — re-creating these arrays each render busts ReactMarkdown's
-// memoization, forcing a full remark/rehype reparse for every rule on every keystroke.
-const REMARK_PLUGINS = [remarkLinkifyKeywords];
+// Stable reference — re-creating this array each render busts ReactMarkdown's
+// memoization, forcing a full rehype reparse for every rule on every keystroke.
 const REHYPE_PLUGINS = [rehypeHighlightPenalties];
 
 /**
- * Renders a rule's body as a constrained markdown subset, with any known
- * keyword names automatically linked into the /glossary page's anchor.
+ * Renders a rule's body as a constrained markdown subset.
  *
  * @returns The rendered rule body.
  */
@@ -240,7 +161,6 @@ export function RuleContent({ content }: { content: string }) {
   const processed = content.replaceAll(PENALTY_NORMALIZE_REGEX, "[$1]").replaceAll("\n", "  \n");
   return (
     <ReactMarkdown
-      remarkPlugins={REMARK_PLUGINS}
       rehypePlugins={REHYPE_PLUGINS}
       components={MARKDOWN_COMPONENTS}
       allowedElements={ALLOWED_MARKDOWN_ELEMENTS}
