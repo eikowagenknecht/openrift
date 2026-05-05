@@ -83,7 +83,7 @@ export function LandingPage() {
           <div className="flex flex-col items-center gap-2">
             <h1 className="text-4xl font-bold md:text-5xl">OpenRift</h1>
             <span className="bg-primary/10 text-primary rounded px-2 py-1 text-xs leading-none font-semibold uppercase">
-              Unofficial
+              Beta
             </span>
           </div>
           <p className="text-muted-foreground text-center text-lg">
