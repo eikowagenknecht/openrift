@@ -1,4 +1,5 @@
 import type { RuleKind, RuleResponse } from "@openrift/shared";
+import { useDebouncedValue } from "@tanstack/react-pacer";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
 import { useRef, useState } from "react";
@@ -565,6 +566,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   const { data: rulesData } = useRulesAtVersion(kind, version);
   const { data: versionsData } = useRuleVersions(kind);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery] = useDebouncedValue(searchQuery, { wait: 150 });
   const [foldedRules, setFoldedRules] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -572,8 +574,8 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   const comments = versions.find((v) => v.version === version)?.comments ?? null;
 
   const rules = rulesData?.rules ?? [];
-  const searchTerms = parseSearchTerms(searchQuery);
-  const isSearching = searchTerms.length > 0 && searchQuery.trim().length >= 2;
+  const searchTerms = parseSearchTerms(debouncedSearchQuery);
+  const isSearching = searchTerms.length > 0 && debouncedSearchQuery.trim().length >= 2;
   const isEmpty = rules.length === 0;
 
   const foldGroups = computeFoldGroups(rules);
