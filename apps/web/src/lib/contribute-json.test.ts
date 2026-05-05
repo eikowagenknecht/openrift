@@ -144,6 +144,21 @@ describe("validateContribution", () => {
     const result = validateContribution(state);
     expect(result.errors.find((e) => e.path === "printings[0].printedYear")).toBeDefined();
   });
+
+  it("rejects a printing without a public_code", () => {
+    const state = fullState();
+    state.printings[0].publicCode = null;
+    const result = validateContribution(state);
+    expect(result.errors.find((e) => e.path === "printings[0].publicCode")).toBeDefined();
+  });
+
+  it("does not surface external_id errors when the slug is invalid", () => {
+    const state = fullState();
+    state.slug = "Not-A-Slug";
+    const result = validateContribution(state);
+    expect(result.errors.find((e) => e.path === "slug")).toBeDefined();
+    expect(result.errors.find((e) => e.path === "card.external_id")).toBeUndefined();
+  });
 });
 
 describe("buildContributionJson", () => {

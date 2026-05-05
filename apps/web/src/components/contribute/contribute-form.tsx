@@ -477,7 +477,11 @@ function PrintingCard({
       </div>
       <div className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-3">
-          <FieldRow label="Code">
+          <FieldRow
+            label="Code"
+            required
+            error={errorAt(`printings[${index.toString()}].publicCode`)}
+          >
             <Input
               value={printing.publicCode ?? ""}
               onChange={(e) => onChange("publicCode", e.target.value || null)}

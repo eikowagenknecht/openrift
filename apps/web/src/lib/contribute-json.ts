@@ -9,11 +9,56 @@
  * unique against `check-uniqueness.mjs`.
  */
 import type { Card, Printing } from "@openrift/shared";
+import { contributionFileSchema } from "@openrift/shared/contribute-schema";
+import type { ZodIssue } from "zod";
 
 const REPO = "openriftapp/openrift-data";
 const SCHEMA_REF = "../../schemas/card.schema.json";
-const LANGUAGE_PATTERN = /^[A-Z]{2}$/;
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+
+/**
+ * Snake-case JSON keys that map back to a different camelCase form-state key.
+ * Anything not in this map (e.g. `name`, `type`, `domains`) keeps the same
+ * spelling on both sides.
+ */
+const JSON_TO_FORM_KEY: Record<string, string> = {
+  super_types: "superTypes",
+  might_bonus: "mightBonus",
+  public_code: "publicCode",
+  set_id: "setId",
+  set_name: "setName",
+  art_variant: "artVariant",
+  is_signed: "isSigned",
+  marker_slugs: "markerSlugs",
+  distribution_channel_slugs: "distributionChannelSlugs",
+  printed_rules_text: "printedRulesText",
+  printed_effect_text: "printedEffectText",
+  image_url: "imageUrl",
+  flavor_text: "flavorText",
+  printed_name: "printedName",
+  printed_year: "printedYear",
+};
+
+/**
+ * Convert a Zod issue path (snake-case keys, numeric array indices) into the
+ * form-state path the UI uses for error display (camelCase keys, `[n]` array
+ * indices).
+ * @param path The Zod issue's path.
+ * @returns A dotted form-state path like `printings[0].publicCode`.
+ */
+function mapJsonPathToFormPath(path: readonly PropertyKey[]): string {
+  let out = "";
+  for (const segment of path) {
+    if (typeof segment === "number") {
+      out += `[${segment.toString()}]`;
+      continue;
+    }
+    const key = String(segment);
+    const mapped = JSON_TO_FORM_KEY[key] ?? key;
+    out += out === "" ? mapped : `.${mapped}`;
+  }
+  return out;
+}
 
 interface ContributeFormCard {
   name: string;
@@ -128,6 +173,16 @@ export function formatDateStamp(date: Date): string {
   return `${yyyy}${mm}${dd}-${hh}${mi}`;
 }
 
+/**
+ * Validates the form state by building the contribution JSON and running it
+ * through the shared `contributionFileSchema` (the same schema used to generate
+ * openrift-data's `card.schema.json`). The slug isn't part of the JSON file —
+ * it's the filename — so it gets a separate check up front; if it fails, we
+ * skip the schema run since the JSON's `external_id` would derive from a bad
+ * slug and surface a misleading error.
+ * @param state Current form state.
+ * @returns Validation result with form-state error paths (camelCase, `[n]`).
+ */
 export function validateContribution(state: ContributeFormState): ValidationResult {
   const errors: ValidationError[] = [];
 
@@ -137,36 +192,40 @@ export function validateContribution(state: ContributeFormState): ValidationResu
       message: "Slug must be lowercase letters, digits, and hyphens.",
     });
   }
-  if (!state.card.name.trim()) {
-    errors.push({ path: "card.name", message: "Card name is required." });
-  }
-  if (state.printings.length === 0) {
-    errors.push({ path: "printings", message: "At least one printing is required." });
-  }
-  for (const [index, printing] of state.printings.entries()) {
-    const prefix = `printings[${index.toString()}]`;
-    if (printing.imageUrl && !printing.imageUrl.startsWith("https://")) {
-      errors.push({ path: `${prefix}.imageUrl`, message: "Image URL must start with https://." });
-    }
-    if (printing.language && !LANGUAGE_PATTERN.test(printing.language)) {
+
+  const json = buildContributionJson(state, formatDateStamp(new Date()));
+  const result = contributionFileSchema.safeParse(json);
+  if (!result.success) {
+    for (const issue of result.error.issues) {
+      // The two `external_id` fields are generated from the slug, so any
+      // pattern failure there is really a slug failure — already surfaced.
+      if (issue.path.at(-1) === "external_id") {
+        continue;
+      }
       errors.push({
-        path: `${prefix}.language`,
-        message: "Language must be a 2-letter uppercase code (e.g. EN, ZH).",
-      });
-    }
-    if (
-      printing.printedYear !== null &&
-      (!Number.isInteger(printing.printedYear) ||
-        printing.printedYear < 1900 ||
-        printing.printedYear > 2999)
-    ) {
-      errors.push({
-        path: `${prefix}.printedYear`,
-        message: "Year must be an integer between 1900 and 2999.",
+        path: mapJsonPathToFormPath(issue.path),
+        message: humanizeIssue(issue),
       });
     }
   }
   return { ok: errors.length === 0, errors };
+}
+
+/**
+ * Replace Zod's terse default messages with the contributor-friendly ones the
+ * form has shown historically. Falls through to Zod's own message otherwise.
+ * @param issue The Zod issue to humanize.
+ * @returns A user-facing error message.
+ */
+function humanizeIssue(issue: ZodIssue): string {
+  const lastKey = String(issue.path.at(-1) ?? "");
+  if (lastKey === "name" && issue.path[0] === "card" && issue.code === "too_small") {
+    return "Card name is required.";
+  }
+  if (lastKey === "public_code" && issue.code === "invalid_type") {
+    return "Code is required.";
+  }
+  return issue.message;
 }
 
 type SnakeCardJson = Record<string, unknown>;
