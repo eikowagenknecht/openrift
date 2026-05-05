@@ -1,6 +1,6 @@
 import type { RuleKind, RuleResponse } from "@openrift/shared";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
 import { useState } from "react";
 // oxlint-disable no-unused-vars -- perf experiment; will restore markdown rendering shortly
@@ -40,6 +40,81 @@ async function copyRuleLink(ruleNumber: string): Promise<void> {
     toast.error("Could not copy link");
   }
 }
+
+// Rule references inside rule body text. Three forms:
+//   - "rule N" / "Rule N" / "rules N" → same-page anchor (#rule-N)
+//   - bare "N.M…" with at least one dot, starting at 3 digits → same-page anchor
+//   - "CR N" → cross-link to the core rules page
+//
+// The number's tail is constrained: digits, optional `.digit` segments,
+// optional single `.letter` segment, optional final `.digit`. This keeps
+// matches from bleeding into the next sentence (e.g. "rule 540.4.b. Continue"
+// matches "540.4.b", not "540.4.b.C…").
+const RULE_REFERENCE_REGEX =
+  /(?:\b([Rr]ules?|CR)\s+(\d+(?:\.\d+)*(?:\.[a-z](?:\.\d+)?)?)|\b(\d{3}(?:\.\d+)+(?:\.[a-z](?:\.\d+)?)?))/g;
+
+interface MdNode {
+  type: string;
+  value?: string;
+  url?: string;
+  children?: MdNode[];
+}
+
+function splitTextOnRuleReferences(text: string): MdNode[] {
+  const result: MdNode[] = [];
+  let last = 0;
+  RULE_REFERENCE_REGEX.lastIndex = 0;
+  let match: RegExpExecArray | null = RULE_REFERENCE_REGEX.exec(text);
+  while (match !== null) {
+    if (match.index > last) {
+      result.push({ type: "text", value: text.slice(last, match.index) });
+    }
+    const keyword = match[1];
+    const ruleNumber = match[2] ?? match[3];
+    const url = keyword === "CR" ? `/rules/core#rule-${ruleNumber}` : `#rule-${ruleNumber}`;
+    result.push({
+      type: "link",
+      url,
+      children: [{ type: "text", value: match[0] }],
+    });
+    last = match.index + match[0].length;
+    match = RULE_REFERENCE_REGEX.exec(text);
+  }
+  if (last < text.length) {
+    result.push({ type: "text", value: text.slice(last) });
+  }
+  return result;
+}
+
+function visitTextNodes(node: MdNode): void {
+  if (!node.children) {
+    return;
+  }
+  for (let index = 0; index < node.children.length; index++) {
+    const child = node.children[index];
+    if (child.type === "link") {
+      // Don't relink text inside an existing link.
+      continue;
+    }
+    if (child.type === "text" && typeof child.value === "string") {
+      const replacements = splitTextOnRuleReferences(child.value);
+      const isUnchanged =
+        replacements.length === 1 &&
+        replacements[0].type === "text" &&
+        replacements[0].value === child.value;
+      if (!isUnchanged) {
+        node.children.splice(index, 1, ...replacements);
+        index += replacements.length - 1;
+      }
+      continue;
+    }
+    visitTextNodes(child);
+  }
+}
+
+const remarkLinkifyRuleReferences = () => (tree: MdNode) => {
+  visitTextNodes(tree);
+};
 
 // Tournament penalty labels — matched as literal `[Label]` strings inside rule
 // bodies and styled with the IPG-derived color codes.
@@ -122,11 +197,35 @@ const rehypeHighlightPenalties = () => (tree: HastNode) => {
 };
 
 const MARKDOWN_COMPONENTS: Components = {
-  a: ({ href, children }) => (
-    <a href={href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
-      {children}
-    </a>
-  ),
+  a: ({ href, children }) => {
+    if (typeof href === "string" && href.startsWith("#")) {
+      return (
+        <a href={href} className="text-primary hover:underline">
+          {children}
+        </a>
+      );
+    }
+    if (typeof href === "string" && href.startsWith("/rules/core#")) {
+      // Cross-link from the tournament page (or anywhere) into the latest core
+      // rules version, with the matching anchor preserved through the redirect.
+      const hash = href.slice("/rules/core#".length);
+      return (
+        <Link
+          to="/rules/$kind"
+          params={{ kind: "core" }}
+          hash={hash}
+          className="text-primary hover:underline"
+        >
+          {children}
+        </Link>
+      );
+    }
+    return (
+      <a href={href} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+        {children}
+      </a>
+    );
+  },
   span: ({ children, ...props }) => {
     const penalty = (props as { "data-penalty"?: string })["data-penalty"];
     if (penalty && PENALTY_STYLES[penalty]) {
@@ -144,12 +243,14 @@ const MARKDOWN_COMPONENTS: Components = {
 
 const ALLOWED_MARKDOWN_ELEMENTS = ["em", "strong", "code", "a", "br", "span"];
 
-// Stable reference — re-creating this array each render busts ReactMarkdown's
-// memoization, forcing a full rehype reparse for every rule on every keystroke.
+// Stable references — re-creating these arrays each render busts ReactMarkdown's
+// memoization, forcing a full remark/rehype reparse for every rule on every keystroke.
+const REMARK_PLUGINS = [remarkLinkifyRuleReferences];
 const REHYPE_PLUGINS = [rehypeHighlightPenalties];
 
 /**
- * Renders a rule's body as a constrained markdown subset.
+ * Renders a rule's body as a constrained markdown subset, with rule-number
+ * references (e.g. `rule 540`, `603.7`, `CR 116`) auto-linked to their anchor.
  *
  * @returns The rendered rule body.
  */
@@ -161,6 +262,7 @@ export function RuleContent({ content }: { content: string }) {
   const processed = content.replaceAll(PENALTY_NORMALIZE_REGEX, "[$1]").replaceAll("\n", "  \n");
   return (
     <ReactMarkdown
+      remarkPlugins={REMARK_PLUGINS}
       rehypePlugins={REHYPE_PLUGINS}
       components={MARKDOWN_COMPONENTS}
       allowedElements={ALLOWED_MARKDOWN_ELEMENTS}
