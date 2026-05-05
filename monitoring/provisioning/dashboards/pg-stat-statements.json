@@ -1,0 +1,255 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "title": "Top 10 Queries by Total Time",
+      "type": "table",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "red", "value": 600 }
+            ]
+          },
+          "custom": {
+            "displayMode": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Total time (s)" },
+            "properties": [
+              { "id": "unit", "value": "s" },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Mean time (s)" },
+            "properties": [{ "id": "unit", "value": "s" }]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "topk(10, pg_stat_statements_seconds_total)",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "user": true,
+              "datname": true
+            },
+            "renameByName": {
+              "query": "Query",
+              "queryid": "ID",
+              "Value": "Total time (s)"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": { "fields": {}, "sort": [{ "field": "Total time (s)", "desc": true }] }
+        }
+      ]
+    },
+    {
+      "title": "Top 10 Queries by Mean Time",
+      "type": "table",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 12 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.1 },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "custom": {
+            "displayMode": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Mean time (s)" },
+            "properties": [
+              { "id": "unit", "value": "s" },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "topk(10, pg_stat_statements_seconds_mean)",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "user": true,
+              "datname": true
+            },
+            "renameByName": {
+              "query": "Query",
+              "queryid": "ID",
+              "Value": "Mean time (s)"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": { "fields": {}, "sort": [{ "field": "Mean time (s)", "desc": true }] }
+        }
+      ]
+    },
+    {
+      "title": "Top 10 Most-Called Queries",
+      "type": "table",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 24 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "displayMode": "auto"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Calls/s" },
+            "properties": [
+              { "id": "unit", "value": "ops" },
+              { "id": "custom.displayMode", "value": "color-background" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 10 },
+                    { "color": "red", "value": 100 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "topk(10, rate(pg_stat_statements_calls_total[5m]))",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "user": true,
+              "datname": true
+            },
+            "renameByName": {
+              "query": "Query",
+              "queryid": "ID",
+              "Value": "Calls/s"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": { "fields": {}, "sort": [{ "field": "Calls/s", "desc": true }] }
+        }
+      ]
+    },
+    {
+      "title": "Total DB Time per Second (sum across all queries)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 36 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(pg_stat_statements_seconds_total[5m]))",
+          "legendFormat": "Total query time/s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "title": "Query Calls per Second (overall)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 36 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "custom": {
+            "fillOpacity": 15,
+            "lineWidth": 2,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(pg_stat_statements_calls_total[5m]))",
+          "legendFormat": "Calls/s",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["postgres", "performance", "slow-queries"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "Slow Queries (pg_stat_statements)",
+  "uid": "openrift-pg-stat-statements",
+  "version": 1
+}
