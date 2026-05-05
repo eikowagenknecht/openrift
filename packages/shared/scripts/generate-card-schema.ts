@@ -7,7 +7,7 @@
  */
 /* oxlint-disable import/no-nodejs-modules -- node-only build script */
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { z } from "zod";
 

@@ -100,7 +100,10 @@
           }
         }
       },
-      "required": ["name", "external_id"],
+      "required": [
+        "name",
+        "external_id"
+      ],
       "additionalProperties": false
     },
     "printings": {
@@ -280,11 +283,17 @@
             ]
           }
         },
-        "required": ["public_code", "external_id"],
+        "required": [
+          "public_code",
+          "external_id"
+        ],
         "additionalProperties": false
       }
     }
   },
-  "required": ["card", "printings"],
+  "required": [
+    "card",
+    "printings"
+  ],
   "additionalProperties": false
 }

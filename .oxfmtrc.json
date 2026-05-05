@@ -1,6 +1,12 @@
 {
   "$schema": "./node_modules/oxfmt/configuration_schema.json",
-  "ignorePatterns": ["**/dist", "**/.output", "**/routeTree.gen.ts", "**/coverage"],
+  "ignorePatterns": [
+    "**/dist",
+    "**/.output",
+    "**/routeTree.gen.ts",
+    "**/coverage",
+    "packages/shared/generated/**"
+  ],
   "experimentalSortImports": {},
   "sortTailwindcss": {
     "attributes": ["class", "className"],
