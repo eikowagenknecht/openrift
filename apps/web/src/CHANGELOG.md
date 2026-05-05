@@ -2,10 +2,12 @@
 
 ## 2026-05-05
 
+- feat: The "Suggest a correction" button now sits next to Share at the top of every card page, instead of being tucked away at the bottom of the printings list
 - feat: The Contribute form now spells out the next steps on GitHub after you submit, so first-time contributors know exactly what to click on the prefilled page
 - feat: Searching the rules now updates as you type and shows each match with its enclosing section and parent rules for context
 - feat: On mobile, the card detail panel now has previous/next arrow buttons beside the stats row, replacing the easy-to-miss swipe gesture
 - feat: The Contribute form now has a Year field on each printing, for the year stamped on the physical card
+- fix: The card detail page now shows proper labels for Type, Rarity, Supertypes, and Domains (e.g. "Unit" and "Common"), instead of the raw lowercase enum values
 - fix: The Contribute form's free-text "Comment" box has been removed because GitHub's pull request template overrode it; you can now add notes directly to the pull request description on GitHub instead
 - fix: The Contribute form now always sends each printing's printed name in the submitted JSON, instead of silently dropping it when it matched the card name
 - fix: The Contribute form now requires a printing code (e.g. OGN-066/298) and surfaces the error inline, instead of letting a code-less submission through to fail openrift-data's schema check on the pull request

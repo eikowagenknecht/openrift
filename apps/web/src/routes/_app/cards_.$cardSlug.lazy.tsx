@@ -143,7 +143,7 @@ function CardDetailPage() {
           className="size-4"
         />
       </span>
-      {selectedPrinting.rarity}
+      {labels.rarities[selectedPrinting.rarity]}
     </span>,
   ]);
   leftRows.push([
@@ -178,13 +178,27 @@ function CardDetailPage() {
   }
 
   const rightRows: [string, ReactNode][] = [
-    ["Type", <TypeValue key="type" type={card.type} superTypes={card.superTypes} />],
+    [
+      "Type",
+      <TypeValue
+        key="type"
+        type={card.type}
+        typeLabel={labels.cardTypes[card.type]}
+        superTypes={card.superTypes}
+      />,
+    ],
   ];
   if (card.superTypes.length > 0) {
-    rightRows.push(["Supertypes", card.superTypes.join(", ")]);
+    rightRows.push([
+      "Supertypes",
+      card.superTypes.map((slug) => labels.superTypes[slug]).join(", "),
+    ]);
   }
   if (card.domains.length > 0 && !card.domains.includes(WellKnown.domain.COLORLESS)) {
-    rightRows.push(["Domains", <DomainList key="domains" domains={card.domains} />]);
+    rightRows.push([
+      "Domains",
+      <DomainList key="domains" domains={card.domains} labels={labels.domains} />,
+    ]);
   }
   if (card.energy !== null && card.energy > 0) {
     rightRows.push(["Energy", card.energy]);
@@ -216,7 +230,18 @@ function CardDetailPage() {
       {/* Card header */}
       <div className="flex items-start justify-between gap-3">
         <h1 className="text-2xl font-bold">{card.name}</h1>
-        <ShareLinkButton cardName={card.name} />
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="Suggest a correction"
+            render={<Link to="/contribute/$cardSlug" params={{ cardSlug }} />}
+          >
+            <PencilLineIcon className="size-4" />
+            <span className="hidden sm:inline">Suggest a correction</span>
+          </Button>
+          <ShareLinkButton cardName={card.name} />
+        </div>
       </div>
 
       <div className="flex flex-col gap-6 md:flex-row">
@@ -407,17 +432,6 @@ function CardDetailPage() {
 
       {/* Price history section for selected printing */}
       {selectedPrinting && <PriceHistorySection printing={selectedPrinting} />}
-
-      <div className="border-border text-muted-foreground border-t pt-4">
-        <Link
-          to="/contribute/$cardSlug"
-          params={{ cardSlug }}
-          className="hover:text-foreground inline-flex items-center gap-1.5"
-        >
-          <PencilLineIcon className="size-4" />
-          Suggest a correction for this card
-        </Link>
-      </div>
     </div>
   );
 }
@@ -492,19 +506,27 @@ function InfoRow({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function TypeValue({ type, superTypes }: { type: string; superTypes: string[] }) {
+function TypeValue({
+  type,
+  typeLabel,
+  superTypes,
+}: {
+  type: string;
+  typeLabel: string;
+  superTypes: string[];
+}) {
   const iconPath = getTypeIconPath(type, superTypes);
   return (
     <span className="inline-flex items-center gap-1.5">
       <span className="inline-flex w-4 shrink-0 justify-center">
         {iconPath && <img src={iconPath} alt="" className="size-4 brightness-0 dark:invert" />}
       </span>
-      {type}
+      {typeLabel}
     </span>
   );
 }
 
-function DomainList({ domains }: { domains: string[] }) {
+function DomainList({ domains, labels }: { domains: string[]; labels: Record<string, string> }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       {domains.map((domain) => (
@@ -516,7 +538,7 @@ function DomainList({ domains }: { domains: string[] }) {
             height={64}
             className="size-4"
           />
-          {domain}
+          {labels[domain]}
         </span>
       ))}
     </span>
