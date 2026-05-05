@@ -266,8 +266,10 @@ export function buildContributionJson(
   const cardName = state.card.name.trim();
   const printings = state.printings.map((printing, index) => {
     const finish = trimOrNull(printing.finish) ?? "normal";
-    const language = trimOrNull(printing.language) ?? "EN";
-    const printingExternalId = `community:${state.slug}-${index.toString()}--${dateStamp}:${finish}:${language}`;
+    const language = (trimOrNull(printing.language) ?? "EN").toLowerCase();
+    const shortCode = trimOrNull(printing.publicCode)?.split("/", 1)[0];
+    const disambiguator = shortCode || index.toString();
+    const printingExternalId = `community:${state.slug}:${disambiguator}--${dateStamp}:${finish}:${language}`;
     return buildPrintingJson(printing, printingExternalId, cardName);
   });
   return { $schema: SCHEMA_REF, card, printings };

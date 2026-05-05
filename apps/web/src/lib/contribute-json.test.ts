@@ -176,7 +176,14 @@ describe("buildContributionJson", () => {
   it("appends the date stamp to external IDs so check-uniqueness.mjs accepts the PR", () => {
     const json = buildContributionJson(fullState(), STAMP);
     expect(json.card.external_id).toBe(`community:ahri-alluring--${STAMP}`);
-    expect(json.printings[0].external_id).toBe(`community:ahri-alluring-0--${STAMP}:foil:EN`);
+    expect(json.printings[0].external_id).toBe(`community:ahri-alluring:OGN-066--${STAMP}:foil:en`);
+  });
+
+  it("falls back to the printing index when publicCode is missing", () => {
+    const state = fullState();
+    state.printings[0].publicCode = null;
+    const json = buildContributionJson(state, STAMP);
+    expect(json.printings[0].external_id).toBe(`community:ahri-alluring:0--${STAMP}:foil:en`);
   });
 
   it("omits empty strings, nulls, and empty arrays", () => {
