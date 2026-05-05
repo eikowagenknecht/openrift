@@ -1,3 +1,4 @@
+import { prometheus } from "@hono/prometheus";
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { ApiErrorResponse } from "@openrift/shared";
@@ -122,6 +123,18 @@ export function createApp(deps: AppDeps) {
     }
     return c.json(body, 500);
   });
+
+  // ── Metrics ─────────────────────────────────────────────────────────────
+  // Prometheus scrapes /metrics from inside the openrift_default Docker network.
+  // The host port for the API is bound to 127.0.0.1 only, so /metrics is not
+  // exposed publicly. registerMetrics wraps every request so health checks and
+  // /metrics itself are counted; route labels use Hono's matched pattern
+  // (e.g. /api/v1/cards/:id) to keep cardinality bounded.
+  const { printMetrics, registerMetrics } = prometheus({
+    collectDefaultMetrics: true,
+  });
+  app.use("*", registerMetrics);
+  app.get("/metrics", printMetrics);
 
   // ── Global middleware ───────────────────────────────────────────────────
   // CORS runs first so preflight OPTIONS requests are handled before any other work.

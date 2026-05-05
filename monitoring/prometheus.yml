@@ -18,6 +18,11 @@ scrape_configs:
     static_configs:
       - targets: ["postgres-exporter:9187"]
 
+  # Hono API: per-route HTTP metrics + Node.js runtime metrics
+  - job_name: "openrift-api"
+    static_configs:
+      - targets: ["api:3000"]
+
   # Prometheus self-monitoring
   - job_name: "prometheus"
     static_configs:

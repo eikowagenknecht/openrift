@@ -1,0 +1,41 @@
+pg_stat_statements:
+  query: |
+    SELECT
+      pg_get_userbyid(userid) AS user,
+      pg_database.datname AS datname,
+      pg_stat_statements.queryid AS queryid,
+      pg_stat_statements.query AS query,
+      pg_stat_statements.calls AS calls_total,
+      pg_stat_statements.total_exec_time / 1000 AS seconds_total,
+      pg_stat_statements.mean_exec_time / 1000 AS seconds_mean,
+      pg_stat_statements.rows AS rows_total
+    FROM pg_stat_statements
+    JOIN pg_database ON pg_database.oid = pg_stat_statements.dbid
+    WHERE pg_stat_statements.calls > 10
+    ORDER BY total_exec_time DESC
+    LIMIT 100
+  metrics:
+    - user:
+        usage: "LABEL"
+        description: "Database user that executed the statement"
+    - datname:
+        usage: "LABEL"
+        description: "Database name"
+    - queryid:
+        usage: "LABEL"
+        description: "Internal pg_stat_statements query identifier"
+    - query:
+        usage: "LABEL"
+        description: "Normalized SQL text (parameters stripped)"
+    - calls_total:
+        usage: "COUNTER"
+        description: "Total number of times this statement was executed"
+    - seconds_total:
+        usage: "COUNTER"
+        description: "Total execution time in seconds"
+    - seconds_mean:
+        usage: "GAUGE"
+        description: "Mean execution time in seconds"
+    - rows_total:
+        usage: "COUNTER"
+        description: "Total rows retrieved or affected"
