@@ -1,7 +1,7 @@
 import type { RuleKind, RuleResponse } from "@openrift/shared";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronDownIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, CopyIcon, SearchIcon } from "lucide-react";
 import { useState } from "react";
 // oxlint-disable no-unused-vars -- perf experiment; will restore markdown rendering shortly
 import type { Components } from "react-markdown";
@@ -523,11 +523,15 @@ function RuleRow({
         }}
         aria-label={`Copy link to rule ${formatRuleNumber(rule.ruleNumber)}`}
         className={cn(
-          "text-muted-foreground hover:text-foreground w-24 shrink-0 cursor-pointer text-left font-mono text-xs",
+          "group/rule-number text-muted-foreground hover:text-foreground flex w-20 shrink-0 cursor-pointer items-start gap-1 text-left font-mono text-xs",
           isTitle && "font-semibold",
         )}
       >
-        {formatRuleNumber(rule.ruleNumber)}
+        <span>{formatRuleNumber(rule.ruleNumber)}</span>
+        <CopyIcon
+          aria-hidden="true"
+          className="size-3 opacity-0 transition-opacity group-hover/rule-number:opacity-100"
+        />
       </button>
       <span
         className={cn(
