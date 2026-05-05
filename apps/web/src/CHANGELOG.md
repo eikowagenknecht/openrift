@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-05
+
+- fix: When a new version of OpenRift ships while you have a tab open, the page now reloads itself instead of breaking with strange 404s
+
 ## 2026-05-04
 
 - feat: The Contribute form now shows a live preview of where each field appears on the printed card, and the slug is filled in for you as you type the name

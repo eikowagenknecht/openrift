@@ -30,6 +30,9 @@ ENV SENTRY_ORG=$SENTRY_ORG
 ENV SENTRY_PROJECT=$SENTRY_PROJECT
 
 COPY . .
+# Captured here so the API can stamp X-Build-Id on responses and the browser
+# can detect when its bundled __COMMIT_HASH__ no longer matches a redeployed API.
+RUN git rev-parse --short HEAD > /app/.build-id
 RUN --mount=type=secret,id=sentry_auth_token \
     SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token 2>/dev/null || true)" \
     bun run build
@@ -50,6 +53,7 @@ RUN bun install --frozen-lockfile --production --ignore-scripts
 COPY --from=build /app/packages/shared ./packages/shared
 COPY --from=build /app/apps/api ./apps/api
 COPY --from=build /app/apps/web/src/CHANGELOG.md ./apps/web/src/CHANGELOG.md
+COPY --from=build /app/.build-id /app/.build-id
 EXPOSE 3000
 CMD ["bun", "run", "apps/api/src/index.ts"]
 

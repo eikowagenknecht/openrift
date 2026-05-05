@@ -125,13 +125,23 @@ export function createApp(deps: AppDeps) {
 
   // ── Global middleware ───────────────────────────────────────────────────
   // CORS runs first so preflight OPTIONS requests are handled before any other work.
+  // exposeHeaders includes X-Build-Id so cross-origin clients (preview env) can
+  // read it for stale-bundle detection; same-origin clients see it regardless.
   app.use(
     "/api/*",
     cors({
       credentials: true,
       origin: (origin) => matchOrigin(origin, config.corsOrigin),
+      exposeHeaders: ["X-Build-Id"],
     }),
   );
+
+  if (config.buildId) {
+    app.use("/api/*", async (c, next) => {
+      await next();
+      c.res.headers.set("X-Build-Id", config.buildId);
+    });
+  }
 
   if (config.logRequests) {
     app.use("/api/*", async (c, next) => {

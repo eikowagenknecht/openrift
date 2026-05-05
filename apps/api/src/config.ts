@@ -36,6 +36,8 @@ export function createConfig(env: Record<string, string | undefined>) {
     sentryDsn: env.SENTRY_DSN_API ?? "",
     sentryDsnSsr: env.SENTRY_DSN_SSR ?? "",
 
+    buildId: env.BUILD_ID ?? "",
+
     cardtraderApiToken: env.CARDTRADER_API_TOKEN ?? "",
 
     cloudflare:

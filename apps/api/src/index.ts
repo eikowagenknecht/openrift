@@ -25,6 +25,17 @@ const JOB_RUNS_RETENTION_DAYS = 30;
 // ── Composition root ──────────────────────────────────────────────────────────
 
 const env = process.env as Record<string, string | undefined>;
+// In containers, the deploy SHA is written to /app/.build-id by the Dockerfile.
+// Outside containers (local dev) the file is absent and BUILD_ID stays unset,
+// which disables X-Build-Id stamping (clients skip the comparison).
+if (!env.BUILD_ID) {
+  try {
+    const buildIdText = await Bun.file("/app/.build-id").text();
+    env.BUILD_ID = buildIdText.trim();
+  } catch {
+    // not in a container, leave unset
+  }
+}
 validateConfig(env);
 const config = createConfig(env);
 
