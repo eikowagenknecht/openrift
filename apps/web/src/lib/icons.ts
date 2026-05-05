@@ -35,7 +35,11 @@ export function getFilterIconPath(category: FilterCategory, value: string): stri
   const lower = value.toLowerCase();
   switch (category) {
     case "domains": {
-      return `/images/domains/${lower}.${value === WellKnown.domain.COLORLESS ? "svg" : "webp"}`;
+      // Compare against `lower` so callers that pass non-canonical casing
+      // (e.g. "Colorless") still resolve to the SVG path. Comparing against
+      // the unlowered `value` would silently fall through to `.webp`, which
+      // doesn't exist for colorless.
+      return `/images/domains/${lower}.${lower === WellKnown.domain.COLORLESS ? "svg" : "webp"}`;
     }
     case "types": {
       if (value === "other") {

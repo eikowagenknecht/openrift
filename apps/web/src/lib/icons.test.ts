@@ -26,4 +26,17 @@ describe("getFilterIconPath", () => {
   it("returns undefined for the Other type (no icon asset exists)", () => {
     expect(getFilterIconPath("types", "other")).toBeUndefined();
   });
+
+  it("returns the .svg path for the colorless domain regardless of casing", () => {
+    // The colorless icon ships as an SVG; all other domains ship as .webp.
+    // Callers occasionally pass non-canonical casing — both must resolve to
+    // the existing file.
+    expect(getFilterIconPath("domains", "colorless")).toBe("/images/domains/colorless.svg");
+    expect(getFilterIconPath("domains", "Colorless")).toBe("/images/domains/colorless.svg");
+  });
+
+  it("returns the .webp path for non-colorless domains", () => {
+    expect(getFilterIconPath("domains", "fury")).toBe("/images/domains/fury.webp");
+    expect(getFilterIconPath("domains", "calm")).toBe("/images/domains/calm.webp");
+  });
 });

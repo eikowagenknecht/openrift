@@ -529,18 +529,15 @@ function TypeValue({
 function DomainList({ domains, labels }: { domains: string[]; labels: Record<string, string> }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
-      {domains.map((domain) => (
-        <span key={domain} className="inline-flex items-center gap-1">
-          <img
-            src={`/images/domains/${domain.toLowerCase()}.webp`}
-            alt=""
-            width={64}
-            height={64}
-            className="size-4"
-          />
-          {labels[domain]}
-        </span>
-      ))}
+      {domains.map((domain) => {
+        const iconPath = getFilterIconPath("domains", domain);
+        return (
+          <span key={domain} className="inline-flex items-center gap-1">
+            {iconPath && <img src={iconPath} alt="" width={64} height={64} className="size-4" />}
+            {labels[domain]}
+          </span>
+        );
+      })}
     </span>
   );
 }

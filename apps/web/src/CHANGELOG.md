@@ -7,6 +7,7 @@
 - feat: Searching the rules now updates as you type and shows each match with its enclosing section and parent rules for context
 - feat: On mobile, the card detail panel now has previous/next arrow buttons beside the stats row, replacing the easy-to-miss swipe gesture
 - feat: The Contribute form now has a Year field on each printing, for the year stamped on the physical card
+- fix: Cards with the Colorless domain now show the correct icon on the card detail page, instead of a broken-image placeholder
 - fix: The card detail page now shows proper labels for Type, Rarity, Supertypes, and Domains (e.g. "Unit" and "Common"), instead of the raw lowercase enum values
 - fix: The Contribute form's free-text "Comment" box has been removed because GitHub's pull request template overrode it; you can now add notes directly to the pull request description on GitHub instead
 - fix: The Contribute form now always sends each printing's printed name in the submitted JSON, instead of silently dropping it when it matched the card name
