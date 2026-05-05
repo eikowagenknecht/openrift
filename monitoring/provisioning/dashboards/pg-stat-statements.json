@@ -65,6 +65,12 @@
           }
         },
         {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [{ "targetField": "ID", "destinationType": "string" }]
+          }
+        },
+        {
           "id": "sortBy",
           "options": { "fields": {}, "sort": [{ "field": "Total time (s)", "desc": true }] }
         }
@@ -123,6 +129,12 @@
               "queryid": "ID",
               "Value": "Mean time (s)"
             }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [{ "targetField": "ID", "destinationType": "string" }]
           }
         },
         {
@@ -188,6 +200,12 @@
               "queryid": "ID",
               "Value": "Calls/s"
             }
+          }
+        },
+        {
+          "id": "convertFieldType",
+          "options": {
+            "conversions": [{ "targetField": "ID", "destinationType": "string" }]
           }
         },
         {
