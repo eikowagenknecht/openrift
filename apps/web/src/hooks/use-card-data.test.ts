@@ -173,4 +173,42 @@ describe("useCardData", () => {
     expect(result.current.sortedCards).toHaveLength(2);
     expect(result.current.sortedCards.map((p) => p.setId).toSorted()).toEqual([ognSetId, sfdSetId]);
   });
+
+  it("counts unique cards (not per-set tiles) for filteredCount in cards+set mode", () => {
+    // Regression: with cards view + groupBy=set, a card reprinted in N sets
+    // produced N tiles, so the count display read e.g. "805/769 cards" — the
+    // numerator was inflated by reprints while the denominator stayed unique.
+    const reprintedCardId = "card-reprinted";
+    const uniqueCardId = "card-unique";
+    const ognSetId = "set-ogn";
+    const sfdSetId = "set-sfd";
+    const reprintedOgn = stubPrinting({ cardId: reprintedCardId, setId: ognSetId });
+    const reprintedSfd = stubPrinting({ cardId: reprintedCardId, setId: sfdSetId });
+    const uniqueOgn = stubPrinting({ cardId: uniqueCardId, setId: ognSetId });
+
+    const { result } = renderHook(() =>
+      useCardData({
+        ...baseParams(),
+        allPrintings: [reprintedOgn, reprintedSfd, uniqueOgn],
+        view: "cards",
+        groupBy: "set",
+      }),
+    );
+
+    expect(result.current.sortedCards).toHaveLength(3);
+    expect(result.current.totalUniqueCards).toBe(2);
+    expect(result.current.filteredCount).toBe(2);
+  });
+
+  it("filteredCount equals printing count in printings view", () => {
+    const a = stubPrinting();
+    const b = stubPrinting();
+
+    const { result } = renderHook(() =>
+      useCardData({ ...baseParams(), allPrintings: [a, b], view: "printings" }),
+    );
+
+    expect(result.current.filteredCount).toBe(2);
+    expect(result.current.totalUniqueCards).toBe(2);
+  });
 });

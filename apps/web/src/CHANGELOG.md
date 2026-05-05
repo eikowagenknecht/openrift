@@ -9,6 +9,7 @@
 - fix: The header's More menu and Feedback popover now close once you click an entry, instead of staying open after navigating away
 - fix: When a new version of OpenRift ships while you have a tab open, the page now reloads itself instead of breaking with strange 404s
 - fix: The card detail pane's hover tilt no longer looks clipped at an invisible edge — the card now rotates freely within its panel
+- fix: When grouping cards by set, the Cards page now reports the correct unique-card count instead of inflating it with reprints from other sets
 
 ## 2026-05-04
 

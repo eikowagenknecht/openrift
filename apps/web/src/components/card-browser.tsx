@@ -148,6 +148,7 @@ export function CardBrowser() {
     printingsByCardId,
     priceRangeByCardId,
     totalUniqueCards,
+    filteredCount,
     setDisplayLabel,
   } = useCardData({
     allPrintings,
@@ -299,7 +300,7 @@ export function CardBrowser() {
   const toolbar = (
     <>
       <div className="mb-1.5 flex items-start gap-3 sm:mb-3">
-        <SearchBar totalCards={totalUniqueCards} filteredCount={sortedCards.length} />
+        <SearchBar totalCards={totalUniqueCards} filteredCount={filteredCount} />
         <DesktopOptionsBar className="hidden sm:flex" />
         {isLoggedIn && (
           <Button
@@ -325,7 +326,7 @@ export function CardBrowser() {
         <MobileOptionsDrawer
           doneLabel={
             hasActiveFilters
-              ? `Show ${sortedCards.length} ${view === "cards" ? "cards" : "printings"}`
+              ? `Show ${filteredCount} ${view === "cards" ? "cards" : "printings"}`
               : undefined
           }
           className="sm:hidden"

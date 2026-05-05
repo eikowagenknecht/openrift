@@ -247,6 +247,7 @@ export function useCardData({
       priceRangeByCardId: null,
       ownedCounts: undefined,
       totalUniqueCards: 0,
+      filteredCount: 0,
       setDisplayLabel: NO_OP_LABEL,
     };
   }
@@ -336,6 +337,11 @@ export function useCardData({
   const totalUniqueCards =
     view === "cards" ? new Set(allPrintings.map((c) => c.cardId)).size : allPrintings.length;
 
+  // In cards+set mode, displayCards has one entry per (cardId, setId), so its
+  // length over-counts cards. Match the unit of totalUniqueCards.
+  const filteredCount =
+    view === "cards" ? new Set(displayCards.map((p) => p.cardId)).size : displayCards.length;
+
   // Available languages are derived from ALL printings (before language filtering)
   // so the filter UI always shows every language that exists in the catalog.
   const availableLanguages = [...new Set(allPrintings.map((p) => p.language))];
@@ -349,6 +355,7 @@ export function useCardData({
     priceRangeByCardId,
     ownedCounts,
     totalUniqueCards,
+    filteredCount,
     setDisplayLabel,
   };
 }
