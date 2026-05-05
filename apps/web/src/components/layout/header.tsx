@@ -44,7 +44,7 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Popover, PopoverClose, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Sheet,
   SheetClose,
@@ -153,7 +153,7 @@ function DesktopNav({
           <NavigationMenuContent>
             <ul className="grid w-64 gap-1 p-1">
               <li>
-                <NavigationMenuLink render={<Link to="/rules" />}>
+                <NavigationMenuLink closeOnClick render={<Link to="/rules" />}>
                   <GavelIcon />
                   <div>
                     <div className="font-medium">Rules</div>
@@ -163,7 +163,7 @@ function DesktopNav({
               </li>
               {showGlossary && (
                 <li>
-                  <NavigationMenuLink render={<Link to="/glossary" />}>
+                  <NavigationMenuLink closeOnClick render={<Link to="/glossary" />}>
                     <BookTextIcon />
                     <div>
                       <div className="font-medium">Glossary</div>
@@ -175,7 +175,7 @@ function DesktopNav({
                 </li>
               )}
               <li>
-                <NavigationMenuLink render={<Link to="/promos" />}>
+                <NavigationMenuLink closeOnClick render={<Link to="/promos" />}>
                   <GiftIcon />
                   <div>
                     <div className="font-medium">Promos</div>
@@ -186,7 +186,7 @@ function DesktopNav({
                 </NavigationMenuLink>
               </li>
               <li>
-                <NavigationMenuLink render={<Link to="/pack-opener" />}>
+                <NavigationMenuLink closeOnClick render={<Link to="/pack-opener" />}>
                   <PackagePlusIcon />
                   <div>
                     <div className="font-medium">Pack opener</div>
@@ -460,10 +460,12 @@ function FeedbackPopover() {
         <p className="text-muted-foreground px-2 pt-1.5 pb-1 text-xs">
           Bug report, feature idea, or just want to chat?
         </p>
-        <a
-          href="https://discord.gg/Qb6RcjXq6z"
-          target="_blank"
-          rel="noreferrer"
+        <PopoverClose
+          nativeButton={false}
+          render={
+            // oxlint-disable-next-line jsx-a11y/anchor-has-content -- content is provided as children of PopoverClose
+            <a href="https://discord.gg/Qb6RcjXq6z" target="_blank" rel="noreferrer" />
+          }
           className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
         >
           <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden="true">
@@ -474,11 +476,17 @@ function FeedbackPopover() {
             <div className="text-muted-foreground text-xs">Chat, report bugs, or share ideas</div>
           </div>
           <ExternalLinkIcon className="text-muted-foreground ml-auto size-3.5" />
-        </a>
-        <a
-          href="https://github.com/openriftapp/openrift/issues/new/choose"
-          target="_blank"
-          rel="noreferrer"
+        </PopoverClose>
+        <PopoverClose
+          nativeButton={false}
+          render={
+            // oxlint-disable-next-line jsx-a11y/anchor-has-content -- content is provided as children of PopoverClose
+            <a
+              href="https://github.com/openriftapp/openrift/issues/new/choose"
+              target="_blank"
+              rel="noreferrer"
+            />
+          }
           className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
         >
           <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden="true">
@@ -491,9 +499,10 @@ function FeedbackPopover() {
             </div>
           </div>
           <ExternalLinkIcon className="text-muted-foreground ml-auto size-3.5" />
-        </a>
-        <Link
-          to="/contribute"
+        </PopoverClose>
+        <PopoverClose
+          nativeButton={false}
+          render={<Link to="/contribute" />}
           className="hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 text-sm"
         >
           <PencilLineIcon className="size-4 shrink-0" />
@@ -501,7 +510,7 @@ function FeedbackPopover() {
             <div className="font-medium">Contribute card data</div>
             <div className="text-muted-foreground text-xs">Add a missing card or fix a typo</div>
           </div>
-        </Link>
+        </PopoverClose>
       </PopoverContent>
     </Popover>
   );
