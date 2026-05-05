@@ -1,6 +1,5 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
-import { sessionQueryOptions } from "@/lib/auth-session";
 import { seoHead, websiteJsonLd } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -17,11 +16,5 @@ export const Route = createFileRoute("/")({
       }),
       scripts: [websiteJsonLd(siteUrl)],
     };
-  },
-  beforeLoad: async ({ context }) => {
-    const session = await context.queryClient.ensureQueryData(sessionQueryOptions());
-    if (session?.user) {
-      throw redirect({ to: "/cards" });
-    }
   },
 });

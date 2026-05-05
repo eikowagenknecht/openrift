@@ -4,19 +4,26 @@ import { pacerDevtoolsPlugin } from "@tanstack/react-pacer-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
-import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import {
+  createRootRouteWithContext,
+  HeadContent,
+  Outlet,
+  redirect,
+  Scripts,
+} from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
 
 import { Analytics } from "@/components/analytics";
 import { RouteNotFoundFallback } from "@/components/error-message";
+import { Toaster } from "@/components/ui/sonner";
 // Side-effect import: installs a dev-only stack-dumper for React Compiler
 // useMemoCache size-mismatch warnings. Body is `if (DEV)` so the block is
 // stripped from production bundles.
 // oxlint-disable-next-line import/no-unassigned-import -- side-effect tracer
 import "@/lib/debug/memo-cache-trace";
-import { Toaster } from "@/components/ui/sonner";
+import { sessionQueryOptions } from "@/lib/auth-session";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { runtimeConfigScript } from "@/lib/runtime-config";
 import { organizationJsonLd } from "@/lib/seo";
@@ -132,7 +139,20 @@ export const Route = createRootRouteWithContext<{
           ],
     };
   },
-  beforeLoad: async ({ context }) => {
+  beforeLoad: async ({ context, location }) => {
+    // The signed-in landing path is /cards. Resolve that redirect *before*
+    // prefetching feature-flags / site-settings so we don't waste a fetch on
+    // a pass whose response is immediately replaced by a 3xx. The follow-up
+    // request to /cards re-runs root.beforeLoad with a fresh QueryClient,
+    // and that pass picks up the prefetches.
+    if (location.pathname === "/") {
+      const session = await context.queryClient
+        .ensureQueryData(sessionQueryOptions())
+        .catch(() => null);
+      if (session?.user) {
+        throw redirect({ to: "/cards" });
+      }
+    }
     const [resolvedTheme, sentryDsn] = await Promise.all([
       getServerTheme(),
       getServerSentryDsn(),
