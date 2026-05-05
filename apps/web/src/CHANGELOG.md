@@ -3,6 +3,7 @@
 ## 2026-05-05
 
 - feat: Searching the rules now updates as you type and shows each match with its enclosing section and parent rules for context
+- feat: On mobile, the card detail panel now has previous/next arrow buttons beside the stats row, replacing the easy-to-miss swipe gesture
 - fix: The header's More menu and Feedback popover now close once you click an entry, instead of staying open after navigating away
 - fix: When a new version of OpenRift ships while you have a tab open, the page now reloads itself instead of breaking with strange 404s
 - fix: The card detail pane's hover tilt no longer looks clipped at an invisible edge — the card now rotates freely within its panel

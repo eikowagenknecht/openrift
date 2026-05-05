@@ -1,9 +1,13 @@
 import type { Printing } from "@openrift/shared";
 import { WellKnown, getOrientation } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
-import { useDrag } from "@use-gesture/react";
-import { ExternalLinkIcon, ShieldIcon, XIcon } from "lucide-react";
-import { useRef } from "react";
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ExternalLinkIcon,
+  ShieldIcon,
+  XIcon,
+} from "lucide-react";
 
 import { CardText } from "@/components/cards/card-text";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
@@ -53,36 +57,8 @@ export function CardDetail({
   const domainColors = useDomainColors();
   const { labels } = useEnumOrders();
   const setNumber = formatPublicCode(printing);
-  const imageSwipeRef = useRef<HTMLDivElement>(null);
   const orientation = getOrientation(card.type);
   const isFoil = printing.finish === WellKnown.finish.FOIL;
-
-  useDrag(
-    ({ last, movement: [dx, dy], swipe: [swipeX] }) => {
-      if (!last) {
-        return;
-      }
-      // swipe detected by the library (velocity-based)
-      if (swipeX === 1 && onPrevCard) {
-        onPrevCard();
-      } else if (swipeX === -1 && onNextCard) {
-        onNextCard();
-      } else if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-        // fallback: distance-based threshold
-        if (dx > 0 && onPrevCard) {
-          onPrevCard();
-        } else if (dx < 0 && onNextCard) {
-          onNextCard();
-        }
-      }
-    },
-    {
-      target: imageSwipeRef,
-      enabled: IS_COARSE_POINTER,
-      filterTaps: true,
-      axis: "lock",
-    },
-  );
 
   const foilEffect = useDisplayStore((s) => s.foilEffect);
   const cardTilt = useDisplayStore((s) => s.cardTilt);
@@ -166,54 +142,78 @@ export function CardDetail({
         )}
 
         {/* Card image */}
-        <div ref={imageSwipeRef}>
-          <div ref={tiltContainerRef}>
-            <CardImage
-              innerRef={tiltInnerRef}
-              printing={printing}
-              orientation={orientation}
-              showImages={showImages}
-              showFoil={showFoil}
-              showShimmer={showShimmer}
-            />
-          </div>
-        </div>
-        {/* Stats */}
-        <div className="flex flex-wrap items-center justify-center gap-1.5">
-          {card.energy !== null && card.energy > 0 && (
-            <StatChip label="Energy" value={card.energy} />
-          )}
-          {card.power !== null && card.power > 0 && (
-            <StatChip label="Power" value={card.power} icon="/images/power.svg" />
-          )}
-          {card.might !== null && (
-            <StatChip label="Might" value={card.might} icon="/images/might.svg" />
-          )}
-          {!card.domains.includes(WellKnown.domain.COLORLESS) &&
-            card.domains.map((d) => (
-              <img
-                key={d}
-                src={`/images/domains/${d.toLowerCase()}.webp`}
-                alt={d}
-                title={d}
-                width={64}
-                height={64}
-                className="size-5"
-              />
-            ))}
-          <img
-            src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
-            alt={printing.rarity}
-            title={printing.rarity}
-            width={28}
-            height={28}
-            className="size-5"
+        <div ref={tiltContainerRef}>
+          <CardImage
+            innerRef={tiltInnerRef}
+            printing={printing}
+            orientation={orientation}
+            showImages={showImages}
+            showFoil={showFoil}
+            showShimmer={showShimmer}
           />
-          {hasFinishIcon(printing.finish) && (
-            <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold">
-              <FinishIcon finish={printing.finish} />
-              {labels.finishes[printing.finish] ?? printing.finish}
-            </span>
+        </div>
+        {/* Stats with mobile prev/next on the sides */}
+        <div className="flex items-start gap-2">
+          {(onPrevCard || onNextCard) && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={onPrevCard}
+              disabled={!onPrevCard}
+              aria-label="Previous card"
+              className="md:hidden"
+            >
+              <ChevronLeftIcon className="size-4" />
+            </Button>
+          )}
+          <div className="flex min-h-8 flex-1 flex-wrap items-center justify-center gap-1.5">
+            {card.energy !== null && card.energy > 0 && (
+              <StatChip label="Energy" value={card.energy} />
+            )}
+            {card.power !== null && card.power > 0 && (
+              <StatChip label="Power" value={card.power} icon="/images/power.svg" />
+            )}
+            {card.might !== null && (
+              <StatChip label="Might" value={card.might} icon="/images/might.svg" />
+            )}
+            {!card.domains.includes(WellKnown.domain.COLORLESS) &&
+              card.domains.map((d) => (
+                <img
+                  key={d}
+                  src={`/images/domains/${d.toLowerCase()}.webp`}
+                  alt={d}
+                  title={d}
+                  width={64}
+                  height={64}
+                  className="size-5"
+                />
+              ))}
+            <img
+              src={`/images/rarities/${printing.rarity.toLowerCase()}-28x28.webp`}
+              alt={printing.rarity}
+              title={printing.rarity}
+              width={28}
+              height={28}
+              className="size-5"
+            />
+            {hasFinishIcon(printing.finish) && (
+              <span className="bg-muted inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-semibold">
+                <FinishIcon finish={printing.finish} />
+                {labels.finishes[printing.finish] ?? printing.finish}
+              </span>
+            )}
+          </div>
+          {(onPrevCard || onNextCard) && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={onNextCard}
+              disabled={!onNextCard}
+              aria-label="Next card"
+              className="md:hidden"
+            >
+              <ChevronRightIcon className="size-4" />
+            </Button>
           )}
         </div>
 
