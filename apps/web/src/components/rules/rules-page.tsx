@@ -1,8 +1,8 @@
 import type { RuleKind, RuleResponse } from "@openrift/shared";
-import { useDebouncedValue } from "@tanstack/react-pacer";
+import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 // oxlint-disable no-unused-vars -- perf experiment; will restore markdown rendering shortly
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
@@ -210,6 +210,11 @@ const MARKDOWN_COMPONENTS: Components = {
 
 const ALLOWED_MARKDOWN_ELEMENTS = ["em", "strong", "code", "a", "br", "span"];
 
+// Stable references — re-creating these arrays each render busts ReactMarkdown's
+// memoization, forcing a full remark/rehype reparse for every rule on every keystroke.
+const REMARK_PLUGINS = [remarkLinkifyKeywords];
+const REHYPE_PLUGINS = [rehypeHighlightPenalties];
+
 /**
  * Renders a rule's body as a constrained markdown subset, with any known
  * keyword names automatically linked into the /glossary page's anchor.
@@ -224,8 +229,8 @@ export function RuleContent({ content }: { content: string }) {
   const processed = content.replaceAll(PENALTY_NORMALIZE_REGEX, "[$1]").replaceAll("\n", "  \n");
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkLinkifyKeywords]}
-      rehypePlugins={[rehypeHighlightPenalties]}
+      remarkPlugins={REMARK_PLUGINS}
+      rehypePlugins={REHYPE_PLUGINS}
       components={MARKDOWN_COMPONENTS}
       allowedElements={ALLOWED_MARKDOWN_ELEMENTS}
       unwrapDisallowed
@@ -561,14 +566,35 @@ function RulesEmpty({ kind }: { kind: RuleKind }) {
   );
 }
 
+function RulesSearchBar({ onDebouncedChange }: { onDebouncedChange: (value: string) => void }) {
+  // Local draft state keeps each keystroke's re-render scoped to this component
+  // instead of bubbling up and re-rendering the entire rules list.
+  const [draft, setDraft] = useState("");
+  const debouncedChange = useDebouncedCallback(onDebouncedChange, { wait: 150 });
+
+  return (
+    <div className="relative max-w-md flex-1">
+      <SearchIcon className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 size-4" />
+      <Input
+        value={draft}
+        onChange={(e) => {
+          const next = e.target.value;
+          setDraft(next);
+          debouncedChange(next);
+        }}
+        placeholder="Search rules..."
+        className="pl-9"
+      />
+    </div>
+  );
+}
+
 function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   const navigate = useNavigate();
   const { data: rulesData } = useRulesAtVersion(kind, version);
   const { data: versionsData } = useRuleVersions(kind);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery] = useDebouncedValue(searchQuery, { wait: 150 });
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [foldedRules, setFoldedRules] = useState<Set<string>>(new Set());
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const versions = versionsData.versions;
   const comments = versions.find((v) => v.version === version)?.comments ?? null;
@@ -651,16 +677,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative max-w-md flex-1">
-          <SearchIcon className="text-muted-foreground pointer-events-none absolute top-2.5 left-2.5 size-4" />
-          <Input
-            ref={searchInputRef}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search rules..."
-            className="pl-9"
-          />
-        </div>
+        <RulesSearchBar onDebouncedChange={setDebouncedSearchQuery} />
         {foldGroups.size > 0 && !isSearching && (
           <button
             type="button"
