@@ -43,6 +43,7 @@ export interface ContributeFormPrinting {
   flavorText: string | null;
   language: string | null;
   printedName: string | null;
+  printedYear: number | null;
 }
 
 export interface ContributeFormState {
@@ -50,8 +51,6 @@ export interface ContributeFormState {
   slug: string;
   card: ContributeFormCard;
   printings: ContributeFormPrinting[];
-  /** Optional free-text note for the maintainer. Emitted as `comment` in the JSON. */
-  comment: string;
 }
 
 export interface ValidationError {
@@ -95,11 +94,12 @@ export function emptyPrinting(): ContributeFormPrinting {
     flavorText: null,
     language: "EN",
     printedName: null,
+    printedYear: null,
   };
 }
 
 export function emptyFormState(): ContributeFormState {
-  return { slug: "", card: emptyCard(), printings: [emptyPrinting()], comment: "" };
+  return { slug: "", card: emptyCard(), printings: [emptyPrinting()] };
 }
 
 export function nameToSlug(name: string): string {
@@ -151,6 +151,17 @@ export function validateContribution(state: ContributeFormState): ValidationResu
       errors.push({
         path: `${prefix}.language`,
         message: "Language must be a 2-letter uppercase code (e.g. EN, ZH).",
+      });
+    }
+    if (
+      printing.printedYear !== null &&
+      (!Number.isInteger(printing.printedYear) ||
+        printing.printedYear < 1900 ||
+        printing.printedYear > 2999)
+    ) {
+      errors.push({
+        path: `${prefix}.printedYear`,
+        message: "Year must be an integer between 1900 and 2999.",
       });
     }
   }
@@ -231,6 +242,7 @@ function buildPrintingJson(
   setIfPresent(out, "flavor_text", trimOrNull(printing.flavorText), isNonEmptyString);
   setIfPresent(out, "language", trimOrNull(printing.language), isNonEmptyString);
   setIfPresent(out, "printed_name", trimOrNull(printing.printedName), isNonEmptyString);
+  setIfPresent(out, "printed_year", printing.printedYear, isNonNull);
   return out;
 }
 
@@ -262,27 +274,36 @@ export function buildContributionFilename(slug: string, dateStamp: string): stri
 }
 
 /**
+ * Builds a Conventional Commits subject line for the prefilled commit.
+ * Without this, GitHub auto-suggests "Create <filename>", which doesn't pass
+ * openrift-data's commitlint check.
+ * @param cardName Card display name; falls back to "card" if blank.
+ * @param isCorrection True for the correction flow (existing card), false for new submissions.
+ * @returns A commit subject like `feat: add Ahri, Alluring`.
+ */
+export function buildCommitMessage(cardName: string, isCorrection: boolean): string {
+  const trimmed = cardName.trim() || "card";
+  return isCorrection ? `fix: update ${trimmed}` : `feat: add ${trimmed}`;
+}
+
+/**
  * Builds the GitHub "new file" URL that opens the prefilled editor. GitHub's
  * `value` parameter is read as form data when the editor mounts, so URL-encoded
- * JSON survives intact through their fork-and-commit flow. A non-empty
- * `comment` is passed as `description`, which GitHub uses as the commit body
- * and pre-fills as the PR description on submit.
+ * JSON survives intact through their fork-and-commit flow. The `message` param
+ * sets the commit subject so it follows Conventional Commits (openrift-data
+ * enforces it).
  * @param filename Repo-relative path under openrift-data.
  * @param json The contribution JSON; serialized with 2-space indent.
- * @param comment Optional contributor note; lands in the PR description, not the JSON.
+ * @param message Conventional Commits subject line for the commit and PR title.
  * @returns A URL the contributor can open in a new tab.
  */
 export function buildGithubNewFileUrl(
   filename: string,
   json: ContributionJson,
-  comment?: string,
+  message: string,
 ): string {
   const body = JSON.stringify(json, null, 2);
-  const params = new URLSearchParams({ filename, value: body });
-  const trimmedComment = comment?.trim();
-  if (trimmedComment) {
-    params.set("description", trimmedComment);
-  }
+  const params = new URLSearchParams({ filename, value: body, message });
   return `https://github.com/${REPO}/new/main?${params.toString()}`;
 }
 
@@ -331,7 +352,7 @@ export function prefillFromCard(
       flavorText: p.flavorText,
       language: p.language || "EN",
       printedName: p.printedName,
+      printedYear: p.printedYear,
     })),
-    comment: "",
   };
 }

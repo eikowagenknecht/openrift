@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ContributeFormState } from "./contribute-json";
 import {
+  buildCommitMessage,
   buildContributionFilename,
   buildContributionJson,
   buildGithubNewFileUrl,
@@ -44,9 +45,9 @@ function fullState(): ContributeFormState {
         flavorText: "“Remember this moment.”",
         language: "EN",
         printedName: null,
+        printedYear: 2025,
       },
     ],
-    comment: "",
   };
 }
 
@@ -122,6 +123,27 @@ describe("validateContribution", () => {
     const result = validateContribution(state);
     expect(result.errors.find((e) => e.path === "printings[0].language")).toBeDefined();
   });
+
+  it("accepts a null printed year", () => {
+    const state = fullState();
+    state.printings[0].printedYear = null;
+    const result = validateContribution(state);
+    expect(result.errors.find((e) => e.path === "printings[0].printedYear")).toBeUndefined();
+  });
+
+  it("rejects a printed year below 1900", () => {
+    const state = fullState();
+    state.printings[0].printedYear = 1899;
+    const result = validateContribution(state);
+    expect(result.errors.find((e) => e.path === "printings[0].printedYear")).toBeDefined();
+  });
+
+  it("rejects a printed year above 2999", () => {
+    const state = fullState();
+    state.printings[0].printedYear = 3000;
+    const result = validateContribution(state);
+    expect(result.errors.find((e) => e.path === "printings[0].printedYear")).toBeDefined();
+  });
 });
 
 describe("buildContributionJson", () => {
@@ -162,10 +184,19 @@ describe("buildContributionJson", () => {
     state.card.tags = [];
     state.printings[0].markerSlugs = [];
     state.printings[0].printedEffectText = null;
+    state.printings[0].printedYear = null;
     const json = buildContributionJson(state, STAMP);
     expect(json.card).not.toHaveProperty("tags");
     expect(json.printings[0]).not.toHaveProperty("marker_slugs");
     expect(json.printings[0]).not.toHaveProperty("printed_effect_text");
+    expect(json.printings[0]).not.toHaveProperty("printed_year");
+  });
+
+  it("emits printed_year as an integer when set", () => {
+    const state = fullState();
+    state.printings[0].printedYear = 2025;
+    const json = buildContributionJson(state, STAMP);
+    expect(json.printings[0].printed_year).toBe(2025);
   });
 
   it("only emits is_signed when true", () => {
@@ -186,13 +217,6 @@ describe("buildContributionJson", () => {
     expect(json.card.name).toBe("Ahri");
     expect(json.printings[0].printed_rules_text).toBe("text");
   });
-
-  it("never emits a top-level comment in the JSON", () => {
-    const state = fullState();
-    state.comment = "spotted in a preview pack";
-    const json = buildContributionJson(state, STAMP);
-    expect(json).not.toHaveProperty("comment");
-  });
 });
 
 describe("buildContributionFilename", () => {
@@ -203,10 +227,33 @@ describe("buildContributionFilename", () => {
   });
 });
 
+describe("buildCommitMessage", () => {
+  it("uses 'feat: add' for a new contribution", () => {
+    expect(buildCommitMessage("Ahri, Alluring", false)).toBe("feat: add Ahri, Alluring");
+  });
+
+  it("uses 'fix: update' for a correction", () => {
+    expect(buildCommitMessage("Ahri, Alluring", true)).toBe("fix: update Ahri, Alluring");
+  });
+
+  it("trims surrounding whitespace from the card name", () => {
+    expect(buildCommitMessage("  Ahri  ", false)).toBe("feat: add Ahri");
+  });
+
+  it("falls back to a generic name when the card name is blank", () => {
+    expect(buildCommitMessage("", false)).toBe("feat: add card");
+    expect(buildCommitMessage("   ", true)).toBe("fix: update card");
+  });
+});
+
 describe("buildGithubNewFileUrl", () => {
   it("targets openriftapp/openrift-data and encodes the JSON value", () => {
     const json = buildContributionJson(fullState(), STAMP);
-    const url = buildGithubNewFileUrl(buildContributionFilename("ahri-alluring", STAMP), json);
+    const url = buildGithubNewFileUrl(
+      buildContributionFilename("ahri-alluring", STAMP),
+      json,
+      "feat: add Ahri, Alluring",
+    );
     expect(url.startsWith("https://github.com/openriftapp/openrift-data/new/main?")).toBe(true);
     expect(url).toContain(`filename=data%2Fcards%2Fahri-alluring--${STAMP}.json`);
     const params = new URL(url).searchParams;
@@ -214,30 +261,23 @@ describe("buildGithubNewFileUrl", () => {
     expect(JSON.parse(value)).toMatchObject({ card: { name: "Ahri, Alluring" } });
   });
 
-  it("passes a non-empty comment as the description query param", () => {
+  it("sets the commit subject via the message query param", () => {
     const json = buildContributionJson(fullState(), STAMP);
     const url = buildGithubNewFileUrl(
       buildContributionFilename("ahri-alluring", STAMP),
       json,
-      "  spotted in a preview pack  ",
+      "feat: add Ahri, Alluring",
     );
     const params = new URL(url).searchParams;
-    expect(params.get("description")).toBe("spotted in a preview pack");
+    expect(params.get("message")).toBe("feat: add Ahri, Alluring");
   });
 
-  it("omits the description param when no comment is provided", () => {
-    const json = buildContributionJson(fullState(), STAMP);
-    const url = buildGithubNewFileUrl(buildContributionFilename("ahri-alluring", STAMP), json);
-    const params = new URL(url).searchParams;
-    expect(params.has("description")).toBe(false);
-  });
-
-  it("omits the description param when the comment is whitespace only", () => {
+  it("does not set a description param", () => {
     const json = buildContributionJson(fullState(), STAMP);
     const url = buildGithubNewFileUrl(
       buildContributionFilename("ahri-alluring", STAMP),
       json,
-      "   ",
+      "feat: add Ahri, Alluring",
     );
     const params = new URL(url).searchParams;
     expect(params.has("description")).toBe(false);

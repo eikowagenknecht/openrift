@@ -36,6 +36,7 @@ import type {
   ValidationError,
 } from "@/lib/contribute-json";
 import {
+  buildCommitMessage,
   buildContributionFilename,
   buildContributionJson,
   buildGithubNewFileUrl,
@@ -92,9 +93,6 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
   const removePrinting = (index: number) => {
     setState((s) => ({ ...s, printings: s.printings.filter((_, i) => i !== index) }));
   };
-  const setComment = (comment: string) => {
-    setState((s) => ({ ...s, comment }));
-  };
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -107,7 +105,8 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     const stamp = formatDateStamp(new Date());
     const json = buildContributionJson(state, stamp);
     const filename = buildContributionFilename(state.slug, stamp);
-    const url = buildGithubNewFileUrl(filename, json, state.comment);
+    const message = buildCommitMessage(state.card.name, lockedSlug !== undefined);
+    const url = buildGithubNewFileUrl(filename, json, message);
     globalThis.open(url, "_blank", "noopener,noreferrer");
   };
 
@@ -222,21 +221,6 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
         ))}
       </section>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-semibold">Notes</h2>
-        <FieldRow
-          label="Comment"
-          hint="Anything you'd like me to know about this contribution. Optional."
-        >
-          <Textarea
-            rows={3}
-            value={state.comment}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder="e.g. spotted in a preview pack, art variant unconfirmed, etc."
-          />
-        </FieldRow>
-      </section>
-
       <LivePreview state={state} />
 
       {submitted && errors.length > 0 && (
@@ -254,14 +238,16 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit">
+      <div className="flex flex-col gap-2">
+        <Button type="submit" className="self-start">
           <ExternalLinkIcon className="size-4" />
           Submit your contribution
         </Button>
         <p className="text-muted-foreground text-sm">
           A new tab opens with everything filled in. GitHub forks the repo for you, so all you need
-          to do is click &ldquo;Propose changes&rdquo;.
+          to do is click &ldquo;Propose changes&rdquo;. If you have notes about this contribution
+          (e.g. where you spotted the card, art variant unconfirmed), add them to the pull request
+          description on GitHub.
         </p>
       </div>
     </form>
@@ -536,11 +522,21 @@ function PrintingCard({
             />
           </FieldRow>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           <FieldRow label="Artist">
             <Input
               value={printing.artist ?? ""}
               onChange={(e) => onChange("artist", e.target.value || null)}
+            />
+          </FieldRow>
+          <FieldRow
+            label="Year"
+            hint="Year stamped on the physical card. Differs from the set release year for reprints."
+            error={errorAt(`printings[${index.toString()}].printedYear`)}
+          >
+            <NumberInput
+              value={printing.printedYear}
+              onChange={(v) => onChange("printedYear", v)}
             />
           </FieldRow>
           <FieldRow label="Signed">
