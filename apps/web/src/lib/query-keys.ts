@@ -81,7 +81,6 @@ export const queryKeys = {
     all: (kind: string) => ["rules", kind] as const,
     versions: (kind: string) => ["rules", kind, "versions"] as const,
     byVersion: (kind: string, version: string) => ["rules", kind, version] as const,
-    search: (kind: string, query: string) => ["rules", kind, "search", query] as const,
   },
   admin: {
     me: ["admin", "me"] as const,

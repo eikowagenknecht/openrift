@@ -1,5 +1,5 @@
 import type { RuleKind } from "@openrift/shared";
-import type { Kysely, SqlBool } from "kysely";
+import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import type { Database } from "../db/index.js";
@@ -55,37 +55,6 @@ export function rulesRepo(db: Kysely<Database>) {
             .where("r2.version", "<=", version)
             .orderBy("r2.ruleNumber")
             .orderBy("r2.version", "desc"),
-        )
-        .orderBy("sortOrder")
-        .execute();
-    },
-
-    /**
-     * Full-text search across rule content within a kind, optionally scoped
-     * to a version.
-     *
-     * @returns Matching rules from the given version (or latest if omitted).
-     */
-    search(kind: RuleKind, query: string, version?: string) {
-      let versionSubquery = db
-        .selectFrom("rules as r2")
-        .select(sql<string>`DISTINCT ON (r2.rule_number) r2.id`.as("id"))
-        .where("r2.kind", "=", kind)
-        .orderBy("r2.ruleNumber")
-        .orderBy("r2.version", "desc");
-
-      if (version) {
-        versionSubquery = versionSubquery.where("r2.version", "<=", version);
-      }
-
-      return db
-        .selectFrom("rules")
-        .selectAll()
-        .where("kind", "=", kind)
-        .where("changeType", "!=", "removed")
-        .where("id", "in", versionSubquery)
-        .where(
-          sql<SqlBool>`to_tsvector('english', content) @@ plainto_tsquery('english', ${query})`,
         )
         .orderBy("sortOrder")
         .execute();

@@ -26,7 +26,6 @@ const listRules = createRoute({
     query: z.object({
       kind: ruleKindEnum,
       version: z.string().optional(),
-      q: z.string().optional(),
     }),
   },
   responses: {
@@ -92,16 +91,9 @@ export const rulesRoute = new OpenAPIHono<{ Variables: Variables }>()
   // ── GET /rules ──────────────────────────────────────────────────────────
   .openapi(listRules, async (c) => {
     const { rules: repo } = c.get("repos");
-    const { kind, version, q } = c.req.valid("query");
+    const { kind, version } = c.req.valid("query");
 
-    let rows;
-    if (q) {
-      rows = await repo.search(kind, q, version);
-    } else if (version) {
-      rows = await repo.listAtVersion(kind, version);
-    } else {
-      rows = await repo.listLatest(kind);
-    }
+    const rows = version ? await repo.listAtVersion(kind, version) : await repo.listLatest(kind);
 
     const versions = await repo.listVersions(kind);
     const latestVersion = versions.at(-1)?.version ?? "";

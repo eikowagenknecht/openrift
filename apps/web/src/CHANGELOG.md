@@ -2,6 +2,7 @@
 
 ## 2026-05-05
 
+- feat: Searching the rules now updates as you type and shows each match with its enclosing section and parent rules for context
 - fix: When a new version of OpenRift ships while you have a tab open, the page now reloads itself instead of breaking with strange 404s
 
 ## 2026-05-04

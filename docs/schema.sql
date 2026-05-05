@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict xV4EFSDMZVcS8nGPKcSXewxRx00O3he05AGFfv8a71WNFIpGYCdmFKqNGiHyQu8
+\restrict NgGQK3QII1R8aM0mQ3uQGCD7Oxab9dGxJ3A8cLIpOer3aLxfrelW1yjZbROB0oR
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -2425,13 +2425,6 @@ CREATE INDEX idx_rules_kind_version_sort ON public.rules USING btree (kind, vers
 
 
 --
--- Name: idx_rules_search; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX idx_rules_search ON public.rules USING gin (to_tsvector('english'::regconfig, content));
-
-
---
 -- Name: idx_sessions_token; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3401,5 +3394,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict xV4EFSDMZVcS8nGPKcSXewxRx00O3he05AGFfv8a71WNFIpGYCdmFKqNGiHyQu8
+\unrestrict NgGQK3QII1R8aM0mQ3uQGCD7Oxab9dGxJ3A8cLIpOer3aLxfrelW1yjZbROB0oR
 

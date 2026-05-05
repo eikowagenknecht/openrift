@@ -1,7 +1,5 @@
-import type { RuleKind, RuleResponse, RulesListResponse } from "@openrift/shared";
-import { useQuery } from "@tanstack/react-query";
+import type { RuleKind, RuleResponse } from "@openrift/shared";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
 import { ChevronDownIcon, ChevronRightIcon, SearchIcon } from "lucide-react";
 import { useRef, useState } from "react";
 // oxlint-disable no-unused-vars -- perf experiment; will restore markdown rendering shortly
@@ -21,19 +19,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRuleVersions, useRulesAtVersion } from "@/hooks/use-rules";
 import { KEYWORD_INFO, keywordAnchorSlug } from "@/lib/glossary";
-import { queryKeys } from "@/lib/query-keys";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
 import { cn, PAGE_PADDING } from "@/lib/utils";
-
-const searchRulesFn = createServerFn({ method: "GET" })
-  .inputValidator((input: { kind: RuleKind; query: string }) => input)
-  .handler(({ data }): Promise<RulesListResponse> => {
-    const params = new URLSearchParams({ kind: data.kind, q: data.query });
-    return fetchApiJson<RulesListResponse>({
-      errorTitle: "Couldn't search rules",
-      path: `/api/v1/rules?${params.toString()}`,
-    });
-  });
 
 /**
  * Formats a rule number for display by stripping trailing dots.
@@ -365,16 +351,99 @@ function computeHiddenIndices(
   return hidden;
 }
 
+function parseSearchTerms(query: string): string[] {
+  return query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+}
+
+function ruleMatches(rule: RuleResponse, terms: string[]): boolean {
+  if (terms.length === 0) {
+    return false;
+  }
+  const content = rule.content.toLowerCase();
+  return terms.every((term) => content.includes(term));
+}
+
+/**
+ * Collects the indices that should be shown alongside a match: the most
+ * recent enclosing title, the most recent enclosing subtitle, and every
+ * dot-nested parent rule (e.g. `103.1.a` pulls in `103.1` and `103`).
+ *
+ * @returns Indices of ancestor rules within the original list.
+ */
+function findAncestorIndices(
+  rules: RuleResponse[],
+  matchIndex: number,
+  rulesByNumber: Map<string, number>,
+): number[] {
+  const ancestors = new Set<number>();
+  for (let index = matchIndex - 1; index >= 0; index--) {
+    if (rules[index].ruleType === "title") {
+      ancestors.add(index);
+      break;
+    }
+  }
+  for (let index = matchIndex - 1; index >= 0; index--) {
+    if (rules[index].ruleType === "title") {
+      break;
+    }
+    if (rules[index].ruleType === "subtitle") {
+      ancestors.add(index);
+      break;
+    }
+  }
+  const stripped = rules[matchIndex].ruleNumber.replace(/\.$/, "");
+  const parts = stripped.split(".");
+  for (let length = parts.length - 1; length >= 1; length--) {
+    const prefix = parts.slice(0, length).join(".");
+    const ancestorIndex = rulesByNumber.get(prefix);
+    if (ancestorIndex !== undefined && ancestorIndex < matchIndex) {
+      ancestors.add(ancestorIndex);
+    }
+  }
+  return [...ancestors];
+}
+
+interface SearchResult {
+  visibleIndices: number[];
+  matchSet: Set<number>;
+  ancestorSet: Set<number>;
+}
+
+function computeSearchResult(rules: RuleResponse[], terms: string[]): SearchResult {
+  const matchSet = new Set<number>();
+  const ancestorSet = new Set<number>();
+  if (terms.length === 0) {
+    return { visibleIndices: [], matchSet, ancestorSet };
+  }
+  const rulesByNumber = new Map<string, number>();
+  for (let index = 0; index < rules.length; index++) {
+    rulesByNumber.set(rules[index].ruleNumber.replace(/\.$/, ""), index);
+  }
+  for (let index = 0; index < rules.length; index++) {
+    if (ruleMatches(rules[index], terms)) {
+      matchSet.add(index);
+      for (const ancestorIndex of findAncestorIndices(rules, index, rulesByNumber)) {
+        ancestorSet.add(ancestorIndex);
+      }
+    }
+  }
+  const combined = new Set<number>([...matchSet, ...ancestorSet]);
+  const visibleIndices = [...combined].toSorted((a, b) => a - b);
+  return { visibleIndices, matchSet, ancestorSet };
+}
+
 function RuleRow({
   rule,
   hasChildren,
   isFolded,
   onToggleFold,
+  isContext,
 }: {
   rule: RuleResponse;
   hasChildren: boolean;
   isFolded: boolean;
   onToggleFold: (ruleNumber: string) => void;
+  isContext?: boolean;
 }) {
   const isTitle = rule.ruleType === "title";
   const isSubtitle = rule.ruleType === "subtitle";
@@ -388,6 +457,7 @@ function RuleRow({
         "border-border/50 flex gap-3 border-b py-1.5 text-sm",
         isTitle && "border-border mt-4 first:mt-0",
         isSubtitle && "border-border mt-2",
+        isContext && "opacity-60",
       )}
     >
       <span className="flex w-4 shrink-0 items-start">
@@ -501,23 +571,27 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   const versions = versionsData.versions;
   const comments = versions.find((v) => v.version === version)?.comments ?? null;
 
-  const searchResultsQuery = useQuery({
-    queryKey: queryKeys.rules.search(kind, searchQuery),
-    queryFn: () => searchRulesFn({ data: { kind, query: searchQuery } }),
-    enabled: searchQuery.length >= 2,
-    staleTime: 60 * 1000,
-  });
-
-  const isSearching = searchQuery.length >= 2;
-  const activeData = isSearching ? searchResultsQuery.data : rulesData;
-  const rules = activeData?.rules ?? [];
-  const isEmpty = rules.length === 0 && !searchQuery;
+  const rules = rulesData?.rules ?? [];
+  const searchTerms = parseSearchTerms(searchQuery);
+  const isSearching = searchTerms.length > 0 && searchQuery.trim().length >= 2;
+  const isEmpty = rules.length === 0;
 
   const foldGroups = computeFoldGroups(rules);
-  const hidden = isSearching
-    ? Array.from<boolean>({ length: rules.length }).fill(false)
-    : computeHiddenIndices(rules, foldGroups, foldedRules);
-  const visibleRules = rules.filter((_, index) => !hidden[index]);
+  const searchResult = isSearching ? computeSearchResult(rules, searchTerms) : null;
+  const visibleIndices = (() => {
+    if (searchResult) {
+      return searchResult.visibleIndices;
+    }
+    const hidden = computeHiddenIndices(rules, foldGroups, foldedRules);
+    const indices: number[] = [];
+    for (let index = 0; index < rules.length; index++) {
+      if (!hidden[index]) {
+        indices.push(index);
+      }
+    }
+    return indices;
+  })();
+  const noSearchResults = isSearching && visibleIndices.length === 0;
 
   const allCollapsed = foldGroups.size > 0 && foldedRules.size >= foldGroups.size;
 
@@ -606,15 +680,30 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
           <PageToc items={buildRulesTocItems(rules)} />
           <div className="min-w-0 flex-1">
             {comments && !isSearching && <VersionComments markdown={comments} />}
-            {visibleRules.map((rule) => (
-              <RuleRow
-                key={rule.id}
-                rule={rule}
-                hasChildren={foldGroups.has(rule.ruleNumber)}
-                isFolded={foldedRules.has(rule.ruleNumber)}
-                onToggleFold={toggleFold}
-              />
-            ))}
+            {noSearchResults ? (
+              <div className="text-muted-foreground py-16 text-center">
+                <p className="text-lg font-medium">No rules match your search</p>
+                <p>Try fewer or different terms.</p>
+              </div>
+            ) : (
+              visibleIndices.map((index) => {
+                const rule = rules[index];
+                const isContext =
+                  searchResult !== null &&
+                  searchResult.ancestorSet.has(index) &&
+                  !searchResult.matchSet.has(index);
+                return (
+                  <RuleRow
+                    key={rule.id}
+                    rule={rule}
+                    hasChildren={searchResult === null && foldGroups.has(rule.ruleNumber)}
+                    isFolded={foldedRules.has(rule.ruleNumber)}
+                    onToggleFold={toggleFold}
+                    isContext={isContext}
+                  />
+                );
+              })
+            )}
           </div>
         </div>
       )}
