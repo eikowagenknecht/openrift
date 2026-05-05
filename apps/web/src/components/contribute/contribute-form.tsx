@@ -394,7 +394,7 @@ function LivePreview({ state }: { state: ContributeFormState }) {
           effectText={firstPrinting?.printedEffectText ?? null}
           mightBonus={state.card.mightBonus}
           flavorText={firstPrinting?.flavorText ?? null}
-          rarity={firstPrinting?.rarity ?? WellKnown.rarity.COMMON}
+          rarity={firstPrinting?.rarity ?? undefined}
           publicCode={firstPrinting?.publicCode ?? undefined}
           artist={firstPrinting?.artist ?? undefined}
         />

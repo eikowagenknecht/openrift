@@ -10,6 +10,7 @@
 - fix: When a new version of OpenRift ships while you have a tab open, the page now reloads itself instead of breaking with strange 404s
 - fix: The card detail pane's hover tilt no longer looks clipped at an invisible edge — the card now rotates freely within its panel
 - fix: When grouping cards by set, the Cards page now reports the correct unique-card count instead of inflating it with reprints from other sets
+- fix: The Contribute form's live preview no longer shows a "common" rarity glyph when you haven't picked a rarity
 
 ## 2026-05-04
 

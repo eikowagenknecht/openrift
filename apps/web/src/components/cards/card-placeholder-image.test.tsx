@@ -83,6 +83,32 @@ describe("CardPlaceholderImage", () => {
     expect(container.textContent).toContain("+2");
   });
 
+  it("omits the rarity glyph when no rarity is set", () => {
+    // Regression: the contribute-form preview used to fall back to a "common"
+    // glyph when rarity was unset, making it look like the user had picked
+    // common when they hadn't.
+    const { container } = render(
+      <CardPlaceholderImage
+        name="Unknown Rarity"
+        domain={["fury"]}
+        energy={1}
+        might={null}
+        power={null}
+        type="spell"
+        superTypes={[]}
+        tags={[]}
+        rulesText={null}
+        effectText={null}
+        mightBonus={null}
+        flavorText={null}
+      />,
+      { wrapper: makeWrapper() },
+    );
+
+    const rarityImg = container.querySelector('img[src*="/images/rarities/"]');
+    expect(rarityImg).toBeNull();
+  });
+
   it("renders inline rules-text glyphs with em-relative sizing so they scale with the card", () => {
     // Regression: glyphs in rules text used `size-4` (fixed 16px), so they
     // didn't scale when the card was rendered at a different font size (e.g.

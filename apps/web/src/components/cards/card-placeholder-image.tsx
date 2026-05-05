@@ -21,7 +21,7 @@ interface CardPlaceholderImageProps {
   effectText?: string | null;
   mightBonus?: number | null;
   flavorText?: string | null;
-  rarity: Rarity;
+  rarity?: Rarity;
   publicCode?: string;
   artist?: string;
   className?: string;
@@ -227,11 +227,13 @@ export function CardPlaceholderImage({
 
       {/* Footer: rarity + meta line */}
       <div className="absolute inset-x-0 bottom-[2%] flex flex-col items-center gap-[0.5cqw] px-[4cqw]">
-        <img
-          src={`/images/rarities/${rarity.toLowerCase()}.webp`}
-          alt={rarity}
-          className="size-[3cqw]"
-        />
+        {rarity && (
+          <img
+            src={`/images/rarities/${rarity.toLowerCase()}.webp`}
+            alt={rarity}
+            className="size-[3cqw]"
+          />
+        )}
         {(publicCode || artist) && (
           <div className="flex w-full items-center justify-between text-[2.5cqw] text-white/70">
             {publicCode && <span>{publicCode}</span>}
