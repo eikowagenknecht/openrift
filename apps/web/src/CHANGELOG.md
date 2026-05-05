@@ -2,6 +2,7 @@
 
 ## 2026-05-05
 
+- feat: Clicking a rule number on the Rules page now copies a direct link to that rule, so you can share the exact rule with someone else
 - feat: The "Suggest a correction" button now sits next to Share at the top of every card page, instead of being tucked away at the bottom of the printings list
 - feat: The Contribute form now spells out the next steps on GitHub after you submit, so first-time contributors know exactly what to click on the prefilled page
 - feat: Searching the rules now updates as you type and shows each match with its enclosing section and parent rules for context

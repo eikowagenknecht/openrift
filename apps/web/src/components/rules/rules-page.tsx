@@ -6,6 +6,7 @@ import { useState } from "react";
 // oxlint-disable no-unused-vars -- perf experiment; will restore markdown rendering shortly
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
+import { toast } from "sonner";
 
 import { PageToc } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
@@ -29,6 +30,16 @@ import { cn, PAGE_PADDING } from "@/lib/utils";
  */
 function formatRuleNumber(ruleNumber: string): string {
   return ruleNumber.replace(/\.$/, "");
+}
+
+async function copyRuleLink(ruleNumber: string): Promise<void> {
+  const url = `${globalThis.location.origin}${globalThis.location.pathname}#rule-${ruleNumber}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    toast.success(`Link to rule ${formatRuleNumber(ruleNumber)} copied`);
+  } catch {
+    toast.error("Could not copy link");
+  }
 }
 
 const KEYWORD_REGEX = (() => {
@@ -483,14 +494,19 @@ function RuleRow({
           </button>
         ) : null}
       </span>
-      <span
+      <button
+        type="button"
+        onClick={() => {
+          void copyRuleLink(rule.ruleNumber);
+        }}
+        aria-label={`Copy link to rule ${formatRuleNumber(rule.ruleNumber)}`}
         className={cn(
-          "text-muted-foreground w-24 shrink-0 font-mono text-xs",
+          "text-muted-foreground hover:text-foreground w-24 shrink-0 cursor-pointer text-left font-mono text-xs",
           isTitle && "font-semibold",
         )}
       >
         {formatRuleNumber(rule.ruleNumber)}
-      </span>
+      </button>
       <span
         className={cn(
           contentIndentClass,
