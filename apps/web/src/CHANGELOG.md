@@ -2,6 +2,7 @@
 
 ## 2026-05-05
 
+- feat: The Contribute form now spells out the next steps on GitHub after you submit, so first-time contributors know exactly what to click on the prefilled page
 - feat: Searching the rules now updates as you type and shows each match with its enclosing section and parent rules for context
 - feat: On mobile, the card detail panel now has previous/next arrow buttons beside the stats row, replacing the easy-to-miss swipe gesture
 - feat: The Contribute form now has a Year field on each printing, for the year stamped on the physical card

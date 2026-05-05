@@ -244,10 +244,12 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
           Submit your contribution
         </Button>
         <p className="text-muted-foreground text-sm">
-          A new tab opens with everything filled in. GitHub forks the repo for you, so all you need
-          to do is click &ldquo;Propose changes&rdquo;. If you have notes about this contribution
+          A new tab opens on GitHub with everything filled in. If you don&apos;t already have a fork
+          of the data repo, GitHub will offer to create one in a single click. Then click
+          &ldquo;Propose changes&rdquo; at the bottom of the editor, and &ldquo;Create pull
+          request&rdquo; on the next page to confirm. If you have notes about this contribution
           (e.g. where you spotted the card, art variant unconfirmed), add them to the pull request
-          description on GitHub.
+          description on GitHub. I&apos;ll review your submission before it goes live.
         </p>
       </div>
     </form>
