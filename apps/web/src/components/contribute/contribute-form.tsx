@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useEnumOrders, useLanguageList, useMarkerList } from "@/hooks/use-enums";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
@@ -62,6 +63,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
   const [state, setState] = useState<ContributeFormState>(initial);
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [activePrinting, setActivePrinting] = useState(0);
 
   const { orders, labels } = useEnumOrders();
   const languages = useLanguageList();
@@ -101,10 +103,18 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     }));
   };
   const addPrinting = () => {
-    setState((s) => ({ ...s, printings: [...s.printings, emptyPrinting()] }));
+    setState((s) => {
+      const nextPrintings = [...s.printings, emptyPrinting()];
+      setActivePrinting(nextPrintings.length - 1);
+      return { ...s, printings: nextPrintings };
+    });
   };
   const removePrinting = (index: number) => {
-    setState((s) => ({ ...s, printings: s.printings.filter((_, i) => i !== index) }));
+    setState((s) => {
+      const nextPrintings = s.printings.filter((_, i) => i !== index);
+      setActivePrinting((prev) => Math.min(prev, nextPrintings.length - 1));
+      return { ...s, printings: nextPrintings };
+    });
   };
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -136,7 +146,7 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-8">
       <IntroBlock lockedSlug={lockedSlug} />
 
-      <CardLayoutHelp state={state} />
+      <CardLayoutHelp state={state} activePrinting={activePrinting} />
 
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">Card</h2>
@@ -216,24 +226,55 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
             Add printing
           </Button>
         </div>
-        {state.printings.map((printing, index) => (
-          <PrintingCard
-            key={index}
-            index={index}
-            printing={printing}
-            errorAt={errorAt}
-            sets={sets}
-            languages={languages}
-            markers={markerOptions}
-            orders={orders}
-            labels={labels}
-            onChange={(key, value) => setPrintingField(index, key, value)}
-            onRemove={state.printings.length > 1 ? () => removePrinting(index) : undefined}
-          />
-        ))}
+        {state.printings.length > 1 ? (
+          <Tabs
+            value={activePrinting.toString()}
+            onValueChange={(next) => setActivePrinting(Number(next))}
+          >
+            <TabsList className="w-full justify-start overflow-x-auto">
+              {state.printings.map((printing, index) => (
+                <TabsTrigger key={index} value={index.toString()}>
+                  {printingTabLabel(index, printing)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            {state.printings.map((printing, index) => (
+              <TabsContent key={index} value={index.toString()}>
+                <PrintingCard
+                  index={index}
+                  printing={printing}
+                  errorAt={errorAt}
+                  sets={sets}
+                  languages={languages}
+                  markers={markerOptions}
+                  orders={orders}
+                  labels={labels}
+                  onChange={(key, value) => setPrintingField(index, key, value)}
+                  onRemove={() => removePrinting(index)}
+                />
+              </TabsContent>
+            ))}
+          </Tabs>
+        ) : (
+          state.printings.map((printing, index) => (
+            <PrintingCard
+              key={index}
+              index={index}
+              printing={printing}
+              errorAt={errorAt}
+              sets={sets}
+              languages={languages}
+              markers={markerOptions}
+              orders={orders}
+              labels={labels}
+              onChange={(key, value) => setPrintingField(index, key, value)}
+              onRemove={undefined}
+            />
+          ))
+        )}
       </section>
 
-      <LivePreview state={state} />
+      <LivePreview state={state} activePrinting={activePrinting} />
 
       {submitted && errors.length > 0 && (
         <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3 text-sm">
@@ -313,8 +354,19 @@ const LAYOUT_LEGEND: { label: string; region: string }[] = [
   { label: "Artist", region: "Bottom-right of the footer" },
 ];
 
-function CardLayoutHelp({ state }: { state: ContributeFormState }) {
-  const firstPrinting = state.printings[0];
+function printingTabLabel(index: number, printing: ContributeFormPrinting): string {
+  const base = `Printing ${(index + 1).toString()}`;
+  return printing.publicCode ? `${base} · ${printing.publicCode}` : base;
+}
+
+function CardLayoutHelp({
+  state,
+  activePrinting,
+}: {
+  state: ContributeFormState;
+  activePrinting: number;
+}) {
+  const printing = state.printings[activePrinting] ?? state.printings[0];
   const cardName = state.card.name || "Your card name";
   const cardDomains = state.card.domains.length > 0 ? state.card.domains : ["fury"];
   const cardType = state.card.type ?? WellKnown.cardType.UNIT;
@@ -323,13 +375,13 @@ function CardLayoutHelp({ state }: { state: ContributeFormState }) {
   const cardEnergy = state.card.energy ?? 3;
   const cardMight = state.card.might ?? 4;
   const cardPower = state.card.power ?? 2;
-  const cardRulesText = firstPrinting?.printedRulesText || "Rules text appears in this section.";
-  const cardEffectText = firstPrinting?.printedEffectText || "Effect text gets a highlighted band.";
+  const cardRulesText = printing?.printedRulesText || "Rules text appears in this section.";
+  const cardEffectText = printing?.printedEffectText || "Effect text gets a highlighted band.";
   const cardMightBonus = state.card.mightBonus ?? 1;
-  const printingFlavor = firstPrinting?.flavorText || "Optional flavor line, in italics.";
-  const printingRarity = firstPrinting?.rarity || WellKnown.rarity.COMMON;
-  const printingPublicCode = firstPrinting?.publicCode || "ABC-001/002";
-  const printingArtist = firstPrinting?.artist || "Artist name";
+  const printingFlavor = printing?.flavorText || "Optional flavor line, in italics.";
+  const printingRarity = printing?.rarity || WellKnown.rarity.COMMON;
+  const printingPublicCode = printing?.publicCode || "ABC-001/002";
+  const printingArtist = printing?.artist || "Artist name";
   return (
     <details className="border-border rounded-md border p-3">
       <summary className="text-muted-foreground hover:text-foreground cursor-pointer text-sm select-none">
@@ -375,8 +427,14 @@ function CardLayoutHelp({ state }: { state: ContributeFormState }) {
   );
 }
 
-function LivePreview({ state }: { state: ContributeFormState }) {
-  const firstPrinting = state.printings[0];
+function LivePreview({
+  state,
+  activePrinting,
+}: {
+  state: ContributeFormState;
+  activePrinting: number;
+}) {
+  const printing = state.printings[activePrinting] ?? state.printings[0];
   return (
     <section className="flex flex-col gap-4">
       <h2 className="text-lg font-semibold">Preview</h2>
@@ -390,13 +448,13 @@ function LivePreview({ state }: { state: ContributeFormState }) {
           type={state.card.type ?? undefined}
           superTypes={state.card.superTypes}
           tags={state.card.tags}
-          rulesText={firstPrinting?.printedRulesText ?? null}
-          effectText={firstPrinting?.printedEffectText ?? null}
+          rulesText={printing?.printedRulesText ?? null}
+          effectText={printing?.printedEffectText ?? null}
           mightBonus={state.card.mightBonus}
-          flavorText={firstPrinting?.flavorText ?? null}
-          rarity={firstPrinting?.rarity ?? undefined}
-          publicCode={firstPrinting?.publicCode ?? undefined}
-          artist={firstPrinting?.artist ?? undefined}
+          flavorText={printing?.flavorText ?? null}
+          rarity={printing?.rarity ?? undefined}
+          publicCode={printing?.publicCode ?? undefined}
+          artist={printing?.artist ?? undefined}
         />
       </div>
     </section>
