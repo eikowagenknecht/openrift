@@ -19,7 +19,8 @@ import "@/lib/debug/memo-cache-trace";
 import { Toaster } from "@/components/ui/sonner";
 import { featureFlagsQueryOptions } from "@/lib/feature-flags";
 import { runtimeConfigScript } from "@/lib/runtime-config";
-import { getIsPreview } from "@/lib/site-config";
+import { organizationJsonLd } from "@/lib/seo";
+import { getIsPreview, getSiteUrl } from "@/lib/site-config";
 import { siteSettingsQueryOptions } from "@/lib/site-settings";
 
 // CSS ?url import causes a harmless hydration warning in dev (Vite appends
@@ -86,38 +87,51 @@ const THEME_SCRIPT = [
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient;
 }>()({
-  head: () => ({
-    meta: [
-      { title: "OpenRift — Riftbound Card Collection Browser" },
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { name: "theme-color", content: "#1d1538" },
-      { name: "impact-site-verification", content: "5a360cf2-9e98-4886-8c05-4e2e1a39ce0e" },
-      // Preview deploys must never be indexed. Layer 1 of 3 (see also
-      // /robots.txt in server.ts and X-Robots-Tag in preview nginx).
-      ...(getIsPreview()
-        ? [{ name: "robots", content: "noindex, nofollow" } as Record<string, string>]
-        : []),
-    ],
-    links: [
-      { rel: "icon", type: "image/png", sizes: "64x64", href: "/favicon-64x64.png" },
-      { rel: "icon", type: "image/webp", href: "/logo.webp" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon-180x180.png" },
-      // Preload the Latin Inter face so the browser fetches it in parallel
-      // with the stylesheet instead of waiting to discover the URL inside the
-      // parsed CSS. crossOrigin is required: browser font requests always go
-      // in CORS mode, so without it the preload doesn't match the later CSS-
-      // driven request and ends up unused.
-      {
-        rel: "preload",
-        as: "font",
-        type: "font/woff2",
-        href: interLatinWoff2,
-        crossOrigin: "anonymous",
-      },
-      { rel: "stylesheet", href: indexCss },
-    ],
-  }),
+  head: () => {
+    const isPreview = getIsPreview();
+    return {
+      meta: [
+        { title: "OpenRift — Riftbound Card Collection Browser" },
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { name: "theme-color", content: "#1d1538" },
+        { name: "impact-site-verification", content: "5a360cf2-9e98-4886-8c05-4e2e1a39ce0e" },
+        // Preview deploys must never be indexed. Layer 1 of 3 (see also
+        // /robots.txt in server.ts and X-Robots-Tag in preview nginx).
+        ...(isPreview
+          ? [{ name: "robots", content: "noindex, nofollow" } as Record<string, string>]
+          : []),
+      ],
+      links: [
+        { rel: "icon", type: "image/png", sizes: "64x64", href: "/favicon-64x64.png" },
+        { rel: "icon", type: "image/webp", href: "/logo.webp" },
+        { rel: "apple-touch-icon", href: "/apple-touch-icon-180x180.png" },
+        // Preload the Latin Inter face so the browser fetches it in parallel
+        // with the stylesheet instead of waiting to discover the URL inside the
+        // parsed CSS. crossOrigin is required: browser font requests always go
+        // in CORS mode, so without it the preload doesn't match the later CSS-
+        // driven request and ends up unused.
+        {
+          rel: "preload",
+          as: "font",
+          type: "font/woff2",
+          href: interLatinWoff2,
+          crossOrigin: "anonymous",
+        },
+        { rel: "stylesheet", href: indexCss },
+      ],
+      // Site-wide Organization JSON-LD. Skipped on preview deploys so
+      // crawlers that ignore robots/noindex still don't see structured data
+      // pointing at the preview origin.
+      scripts: isPreview
+        ? []
+        : [
+            organizationJsonLd(getSiteUrl(), {
+              sameAs: ["https://github.com/openriftapp/openrift", "https://discord.gg/Qb6RcjXq6z"],
+            }),
+          ],
+    };
+  },
   beforeLoad: async ({ context }) => {
     const [resolvedTheme, sentryDsn] = await Promise.all([
       getServerTheme(),

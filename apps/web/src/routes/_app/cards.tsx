@@ -13,9 +13,12 @@ import type { FirstRowCard } from "@/lib/cards-first-row";
 import { fetchFirstRowCards } from "@/lib/cards-first-row";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import { filterSearchSchema } from "@/lib/search-schemas";
-import { seoHead } from "@/lib/seo";
+import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 import { PAGE_PADDING_NO_TOP } from "@/lib/utils";
+
+const CARDS_DESCRIPTION =
+  "Complete Riftbound TCG card database with marketplace price comparison. Filter by set, domain, rarity, cost, and keyword to browse every card and printing.";
 
 const cardsSearchSchema = filterSearchSchema.extend({
   // oxlint-disable-next-line unicorn/no-useless-undefined, promise/prefer-await-to-then, unicorn/prefer-top-level-await -- zod's `.catch(undefined)` is a sync fallback, not a Promise#catch
@@ -113,14 +116,29 @@ export const Route = createFileRoute("/_app/cards")({
       filterCounts,
     };
   },
-  head: () =>
-    seoHead({
-      siteUrl: getSiteUrl(),
+  head: () => {
+    const siteUrl = getSiteUrl();
+    const head = seoHead({
+      siteUrl,
       title: "Cards",
-      description:
-        "Complete Riftbound TCG card database with marketplace price comparison. Filter by set, domain, rarity, cost, and keyword to browse every card and printing.",
+      description: CARDS_DESCRIPTION,
       path: "/cards",
-    }),
+    });
+    // CollectionPage only — the visible items depend on URL filters and the
+    // full catalog is too large to inline as an ItemList. The Product JSON-LD
+    // on each card detail page is the indexable signal for individual cards.
+    return {
+      ...head,
+      scripts: [
+        collectionPageJsonLd({
+          siteUrl,
+          name: "Riftbound Card Database",
+          description: CARDS_DESCRIPTION,
+          path: "/cards",
+        }),
+      ],
+    };
+  },
   pendingComponent: CardsPending,
   errorComponent: RouteErrorFallback,
 });

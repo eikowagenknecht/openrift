@@ -3,7 +3,7 @@ import { createFileRoute, notFound } from "@tanstack/react-router";
 import { helpArticles } from "@/components/help/articles";
 import type { FeatureFlags } from "@/lib/feature-flags";
 import { featureEnabled, featureFlagsQueryOptions } from "@/lib/feature-flags";
-import { breadcrumbJsonLd, seoHead } from "@/lib/seo";
+import { articleJsonLd, breadcrumbJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
 function slugToTitle(slug: string) {
@@ -23,12 +23,19 @@ export const Route = createFileRoute("/_app/help_/$slug")({
     if (!article) {
       return head;
     }
+    const articlePath = `/help/${article.slug}`;
     return {
       ...head,
       scripts: [
+        articleJsonLd({
+          siteUrl,
+          headline: article.title,
+          description: article.description,
+          path: articlePath,
+        }),
         breadcrumbJsonLd(siteUrl, [
           { name: "Help", path: "/help" },
-          { name: article.title, path: `/help/${article.slug}` },
+          { name: article.title, path: articlePath },
         ]),
       ],
     };

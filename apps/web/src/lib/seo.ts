@@ -257,3 +257,130 @@ export function faqPageJsonLd(entries: FaqEntry[]) {
     }),
   };
 }
+
+interface OrganizationJsonLdOptions {
+  /** Logo URL — absolute, served from `siteUrl`. */
+  logo?: string;
+  /** Profile URLs (GitHub, Discord, etc.) for `sameAs`. */
+  sameAs?: readonly string[];
+}
+
+/**
+ * Schema.org Organization JSON-LD. Site-wide; helps Google build a knowledge
+ * panel and connect the site to its social profiles.
+ *
+ * @returns A script descriptor for TanStack Start's `head.scripts`.
+ */
+export function organizationJsonLd(siteUrl: string, options: OrganizationJsonLdOptions = {}) {
+  return {
+    type: "application/ld+json",
+    children: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      name: SITE_NAME,
+      url: siteUrl,
+      logo: options.logo ?? `${siteUrl}/logo.webp`,
+      ...(options.sameAs && options.sameAs.length > 0 ? { sameAs: options.sameAs } : {}),
+    }),
+  };
+}
+
+interface CollectionItem {
+  name: string;
+  /** Path on this site (e.g. `/cards/lux`) or absolute URL. */
+  url: string;
+  image?: string;
+}
+
+interface CollectionPageJsonLdOptions {
+  siteUrl: string;
+  name: string;
+  description: string;
+  /** Path of the collection page itself (e.g. `/sets`). */
+  path: string;
+  /** Items in the list, in the order they should appear to crawlers. */
+  items?: readonly CollectionItem[];
+}
+
+/**
+ * Schema.org CollectionPage with an embedded ItemList. Used for index pages
+ * (sets list, cards in a set, promos by channel) so crawlers see the page is
+ * a structured listing rather than free prose.
+ *
+ * @returns A script descriptor for TanStack Start's `head.scripts`.
+ */
+export function collectionPageJsonLd(options: CollectionPageJsonLdOptions) {
+  const { siteUrl, items = [] } = options;
+
+  const itemList = {
+    "@type": "ItemList",
+    numberOfItems: items.length,
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: toAbsoluteUrl(siteUrl, item.url),
+      name: item.name,
+      ...(item.image ? { image: toAbsoluteUrl(siteUrl, item.image) } : {}),
+    })),
+  };
+
+  return {
+    type: "application/ld+json",
+    children: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      name: options.name,
+      description: options.description,
+      url: `${siteUrl}${options.path}`,
+      ...(items.length > 0 ? { mainEntity: itemList } : {}),
+    }),
+  };
+}
+
+interface ArticleJsonLdOptions {
+  siteUrl: string;
+  /** Article headline (typically the page title). */
+  headline: string;
+  description: string;
+  /** Path of the article (e.g. `/help/import-export`). */
+  path: string;
+  /** ISO-8601 date the article was first published. */
+  datePublished?: string;
+  /** ISO-8601 date the article was last modified. */
+  dateModified?: string;
+  /** Author name. Defaults to the site name. */
+  author?: string;
+  /** Article image URL. */
+  image?: string;
+}
+
+/**
+ * Schema.org Article JSON-LD. Used for help articles and the changelog so
+ * crawlers can present them as article rich results.
+ *
+ * @returns A script descriptor for TanStack Start's `head.scripts`.
+ */
+export function articleJsonLd(options: ArticleJsonLdOptions) {
+  const url = `${options.siteUrl}${options.path}`;
+  return {
+    type: "application/ld+json",
+    children: JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: options.headline,
+      mainEntityOfPage: { "@type": "WebPage", "@id": url },
+      url,
+      inLanguage: "en",
+      author: { "@type": "Organization", name: options.author ?? SITE_NAME },
+      publisher: {
+        "@type": "Organization",
+        name: SITE_NAME,
+        logo: { "@type": "ImageObject", url: `${options.siteUrl}/logo.webp` },
+      },
+      ...(options.description ? { description: options.description } : {}),
+      ...(options.datePublished ? { datePublished: options.datePublished } : {}),
+      ...(options.dateModified ? { dateModified: options.dateModified } : {}),
+      ...(options.image ? { image: options.image } : {}),
+    }),
+  };
+}

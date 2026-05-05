@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { productJsonLd, toAbsoluteUrl } from "./seo";
+import {
+  articleJsonLd,
+  collectionPageJsonLd,
+  organizationJsonLd,
+  productJsonLd,
+  toAbsoluteUrl,
+} from "./seo";
 
 interface ProductOffer {
   "@type": string;
@@ -148,5 +154,134 @@ describe("toAbsoluteUrl", () => {
     expect(toAbsoluteUrl(siteUrl, "media/cards/foo.webp")).toBe(
       "https://openrift.app/media/cards/foo.webp",
     );
+  });
+});
+
+const SITE_URL = "https://openrift.app";
+
+// oxlint-disable-next-line typescript/no-explicit-any -- JSON-LD payloads are dynamic; assertions check specific fields.
+function parseJsonLd(script: { type: string; children: string }): any {
+  // oxlint-disable-next-line typescript/no-unsafe-return -- see above.
+  return JSON.parse(script.children);
+}
+
+describe("organizationJsonLd", () => {
+  it("emits Organization with default logo and no sameAs when omitted", () => {
+    const json = parseJsonLd(organizationJsonLd(SITE_URL));
+    expect(json["@type"]).toBe("Organization");
+    expect(json.logo).toBe(`${SITE_URL}/logo.webp`);
+    expect(json.sameAs).toBeUndefined();
+  });
+
+  it("includes sameAs profiles when provided", () => {
+    const json = parseJsonLd(
+      organizationJsonLd(SITE_URL, {
+        sameAs: ["https://github.com/openriftapp/openrift"],
+      }),
+    );
+    expect(json.sameAs).toEqual(["https://github.com/openriftapp/openrift"]);
+  });
+});
+
+describe("collectionPageJsonLd", () => {
+  it("emits CollectionPage without mainEntity when items is empty", () => {
+    const json = parseJsonLd(
+      collectionPageJsonLd({
+        siteUrl: SITE_URL,
+        name: "Cards",
+        description: "All cards",
+        path: "/cards",
+      }),
+    );
+    expect(json["@type"]).toBe("CollectionPage");
+    expect(json.url).toBe(`${SITE_URL}/cards`);
+    expect(json.mainEntity).toBeUndefined();
+  });
+
+  it("emits an ItemList with absolute URLs and 1-based positions", () => {
+    const json = parseJsonLd(
+      collectionPageJsonLd({
+        siteUrl: SITE_URL,
+        name: "Sets",
+        description: "All sets",
+        path: "/sets",
+        items: [
+          { name: "Origins", url: "/sets/origins", image: "/img/origins.png" },
+          { name: "Proving Grounds", url: "https://cdn.example.com/pg" },
+        ],
+      }),
+    );
+    expect(json.mainEntity["@type"]).toBe("ItemList");
+    expect(json.mainEntity.numberOfItems).toBe(2);
+    expect(json.mainEntity.itemListElement[0]).toEqual({
+      "@type": "ListItem",
+      position: 1,
+      url: `${SITE_URL}/sets/origins`,
+      name: "Origins",
+      image: `${SITE_URL}/img/origins.png`,
+    });
+    expect(json.mainEntity.itemListElement[1].url).toBe("https://cdn.example.com/pg");
+  });
+
+  it("emits every item even for large lists", () => {
+    const items = Array.from({ length: 1500 }, (_, i) => ({
+      name: `Card ${i}`,
+      url: `/cards/card-${i}`,
+    }));
+    const json = parseJsonLd(
+      collectionPageJsonLd({
+        siteUrl: SITE_URL,
+        name: "Cards",
+        description: "x",
+        path: "/cards",
+        items,
+      }),
+    );
+    expect(json.mainEntity.numberOfItems).toBe(1500);
+    expect(json.mainEntity.itemListElement).toHaveLength(1500);
+    expect(json.mainEntity.itemListElement.at(-1)).toEqual({
+      "@type": "ListItem",
+      position: 1500,
+      url: `${SITE_URL}/cards/card-1499`,
+      name: "Card 1499",
+    });
+  });
+});
+
+describe("articleJsonLd", () => {
+  it("emits Article with mainEntityOfPage pointing at the canonical URL", () => {
+    const json = parseJsonLd(
+      articleJsonLd({
+        siteUrl: SITE_URL,
+        headline: "Importing & Exporting",
+        description: "How to import a CSV.",
+        path: "/help/import-export",
+      }),
+    );
+    expect(json["@type"]).toBe("Article");
+    expect(json.headline).toBe("Importing & Exporting");
+    expect(json.url).toBe(`${SITE_URL}/help/import-export`);
+    expect(json.mainEntityOfPage).toEqual({
+      "@type": "WebPage",
+      "@id": `${SITE_URL}/help/import-export`,
+    });
+    expect(json.publisher.logo.url).toBe(`${SITE_URL}/logo.webp`);
+    expect(json.author.name).toBe("OpenRift");
+    expect(json.datePublished).toBeUndefined();
+  });
+
+  it("includes datePublished and dateModified when provided", () => {
+    const json = parseJsonLd(
+      articleJsonLd({
+        siteUrl: SITE_URL,
+        headline: "Changelog",
+        description: "x",
+        path: "/changelog",
+        datePublished: "2026-01-01",
+        dateModified: "2026-04-26",
+      }),
+    );
+    expect(json.datePublished).toBe("2026-01-01");
+    expect(json.dateModified).toBe("2026-04-26");
   });
 });
