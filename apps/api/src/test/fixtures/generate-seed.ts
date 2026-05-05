@@ -359,15 +359,10 @@ const marketplaceProductPrices = await sql<Record<string, unknown>[]>`
   ORDER BY marketplace_product_id, recorded_at
 `;
 
-const ruleVersions = await sql<Record<string, unknown>[]>`
-  SELECT version, source_type, source_url, published_at
-  FROM rule_versions ORDER BY version
-`;
-
-const rules = await sql<Record<string, unknown>[]>`
-  SELECT id, version, rule_number, sort_order, depth, rule_type, content, change_type
-  FROM rules ORDER BY version, sort_order
-`;
+// Game rules are intentionally excluded from the seed — they're a large
+// dataset (~9k rows) and the rules integration tests insert their own data.
+// Including them here would also break the import-flow tests, which expect
+// to start from an empty rules table when computing diffs.
 
 await sql.end();
 
@@ -499,10 +494,6 @@ const seedSql = [
   "",
   "-- Feature flags",
   toInsert("feature_flags", syntheticFeatureFlags),
-  "",
-  "-- Rules",
-  toInsert("rule_versions", ruleVersions),
-  toInsert("rules", rules),
 ].join("\n");
 
 // oxlint-disable-next-line typescript/no-non-null-assertion -- dirname is always defined when running as a script
@@ -520,7 +511,6 @@ console.log(
     `  Bans: ${syntheticCardBans.length} card bans (synthetic)`,
     `  Marketplace: ${marketplaceGroups.length} groups, ${marketplaceProducts.length} products, ${marketplaceProductVariants.length} variants, ${marketplaceProductPrices.length} prices`,
     `  Feature flags: ${syntheticFeatureFlags.length} (synthetic, all enabled)`,
-    `  Rules: ${ruleVersions.length} rule versions, ${rules.length} rules`,
   ].join("\n"),
 );
 

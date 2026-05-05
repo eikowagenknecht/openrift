@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict NgGQK3QII1R8aM0mQ3uQGCD7Oxab9dGxJ3A8cLIpOer3aLxfrelW1yjZbROB0oR
+\restrict YiwQbmaedUoLml8DoOewpiAXEgclXTHHs2ALrT3Whdc8Mq9s6fc4kkAjoRp8Bng
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -31,6 +31,20 @@ SET row_security = off;
 --
 
 COMMENT ON SCHEMA public IS '';
+
+
+--
+-- Name: pg_stat_statements; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION pg_stat_statements; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION pg_stat_statements IS 'track planning and execution statistics of all SQL statements executed';
 
 
 --
@@ -3394,5 +3408,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict NgGQK3QII1R8aM0mQ3uQGCD7Oxab9dGxJ3A8cLIpOer3aLxfrelW1yjZbROB0oR
+\unrestrict YiwQbmaedUoLml8DoOewpiAXEgclXTHHs2ALrT3Whdc8Mq9s6fc4kkAjoRp8Bng
 

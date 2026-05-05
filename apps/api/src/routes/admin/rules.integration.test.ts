@@ -14,8 +14,10 @@ const NON_ADMIN_ID = "a0000000-0049-4000-a000-000000000001";
 const adminCtx = createTestContext(ADMIN_ID);
 const nonAdminCtx = createTestContext(NON_ADMIN_ID);
 
-const COLLISION_VERSION = "ar-int-collision";
+// Order matters: CORE_VERSION is imported first, so COLLISION_VERSION must
+// sort lexicographically after it to clear the chronological-version check.
 const CORE_VERSION = "ar-int-core";
+const COLLISION_VERSION = "ar-int-zcollision";
 const TOURNAMENT_VERSION = "ar-int-tournament";
 
 const SAMPLE_CONTENT = ["100. # Setup", "100.1. Players begin with seven cards in hand."].join(
@@ -123,7 +125,7 @@ describe.skipIf(!adminCtx)("Admin rules routes (integration)", () => {
       );
       expect(res.status).toBe(400);
       const body = await res.json();
-      expect(body.error?.message ?? body.message).toMatch(/older|chronological/i);
+      expect(body.error).toMatch(/older|chronological/i);
     });
   });
 
