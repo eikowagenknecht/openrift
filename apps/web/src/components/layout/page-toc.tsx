@@ -1,7 +1,8 @@
 import type { MouseEvent } from "react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { cn } from "@/lib/utils";
+import { usePageTocStore } from "@/stores/page-toc-store";
 
 export interface PageTocItem {
   id: string;
@@ -9,8 +10,45 @@ export interface PageTocItem {
   level?: number;
 }
 
+// Per-link store subscription: scroll-driven `activeId` changes only re-render
+// the previously-active and newly-active links instead of the whole TOC.
+function TocLink({ id, label, level }: { id: string; label: string; level: number }) {
+  const isActive = usePageTocStore((state) => state.activeId === id);
+  const setActiveId = usePageTocStore((state) => state.setActiveId);
+
+  function handleClick(event: MouseEvent<HTMLAnchorElement>) {
+    const element = document.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+    if (element) {
+      event.preventDefault();
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+      setActiveId(id);
+    }
+  }
+
+  return (
+    <a
+      href={`#${id}`}
+      onClick={handleClick}
+      style={level > 0 ? { paddingLeft: `${level * 0.75}rem` } : undefined}
+      className={cn(
+        "block truncate text-sm transition-colors",
+        isActive ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      {label}
+    </a>
+  );
+}
+
 export function PageToc({ items, className }: { items: PageTocItem[]; className?: string }) {
-  const [activeId, setActiveId] = useState<string | null>(items[0]?.id ?? null);
+  const setActiveId = usePageTocStore((state) => state.setActiveId);
+
+  // Reset to the first item whenever the items list changes (page navigation).
+  // The store is global, so without this it would keep a stale id from the
+  // previous page until the observer fires.
+  useEffect(() => {
+    setActiveId(items[0]?.id ?? null);
+  }, [items, setActiveId]);
 
   useEffect(() => {
     if (items.length === 0) {
@@ -39,39 +77,14 @@ export function PageToc({ items, className }: { items: PageTocItem[]; className?
       observer.observe(element);
     }
     return () => observer.disconnect();
-  }, [items]);
-
-  function handleClick(event: MouseEvent<HTMLAnchorElement>, id: string) {
-    const element = document.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
-    if (element) {
-      event.preventDefault();
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-      setActiveId(id);
-    }
-  }
+  }, [items, setActiveId]);
 
   return (
     <aside className={cn("hidden w-48 shrink-0 lg:block", className)}>
       <nav className="sticky top-16 max-h-[calc(100vh-5rem)] space-y-0.5 overflow-y-auto">
-        {items.map((item) => {
-          const level = item.level ?? 0;
-          return (
-            <a
-              key={item.id}
-              href={`#${item.id}`}
-              onClick={(event) => handleClick(event, item.id)}
-              style={level > 0 ? { paddingLeft: `${level * 0.75}rem` } : undefined}
-              className={cn(
-                "block truncate text-sm transition-colors",
-                activeId === item.id
-                  ? "text-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {item.label}
-            </a>
-          );
-        })}
+        {items.map((item) => (
+          <TocLink key={item.id} id={item.id} label={item.label} level={item.level ?? 0} />
+        ))}
       </nav>
     </aside>
   );
