@@ -23,12 +23,15 @@ type MatchedCardsRow = Awaited<
 /**
  * Derive the per-marketplace `matchedCards` shape from the unified cards query.
  *
- * Mirrors the SQL filter of `allCardsWithPrintings(marketplace)`:
- * - Keep printings with at least one variant in the requested marketplace
- *   (one row per matching variant).
- * - Keep printings with NO variants in any marketplace (one row, NULL variant
- *   columns).
- * - Drop printings whose only variants are in OTHER marketplaces.
+ * - Printings with variants in the requested marketplace: one row per matching variant.
+ * - Printings without a variant in the requested marketplace: one row with the
+ *   variant columns nulled out.
+ *
+ * Even when a printing has variants in other marketplaces, it must still appear
+ * in this marketplace's matchedCards so the card lands in `cardGroups`. Without
+ * it, name-matched staged products for that card get marked as matched in
+ * `matchStagedProducts`/`buildUnifiedMappingsCardResponse` but attached to no
+ * group — they vanish from both the per-card view and the unmatched panel.
  * @returns Per-marketplace matchedCards rows in the same shape as the legacy query.
  */
 function deriveCardsForMarketplace(
@@ -46,11 +49,14 @@ function deriveCardsForMarketplace(
       }
       continue;
     }
-    const hasAnyVariant = rows.some((r) => r.variantMarketplace !== null);
-    if (!hasAnyVariant) {
-      const { variantMarketplace: _, ...rest } = rows[0];
-      result.push(rest);
-    }
+    const { variantMarketplace: _, ...rest } = rows[0];
+    result.push({
+      ...rest,
+      externalId: null,
+      sourceGroupId: null,
+      sourceLanguage: null,
+      productFinish: null,
+    });
   }
   return result;
 }

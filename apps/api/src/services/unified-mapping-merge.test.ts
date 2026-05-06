@@ -989,4 +989,96 @@ describe("buildUnifiedMappingsCardResponse", () => {
     expect(assigned[0].groupId).toBe(4425);
     expect(assigned[0].groupName).toBe("Unleashed");
   });
+
+  it("surfaces staged products for marketplaces where the card has no variants but other marketplaces do", async () => {
+    // Regression: /admin/cards/ashe-focused — every printing was bound to
+    // tcgplayer but had no cardmarket/cardtrader variants. Cardmarket staging
+    // rows that auto-matched the card via name became invisible: not in the
+    // cardmarket section's stagedProducts (the card had been dropped from
+    // cardmarket's cardGroups by deriveCardsForMarketplace) and not in the
+    // unmatched panel (matchStagedProducts had marked them as matched).
+    const repos = {
+      marketplaceMapping: {
+        allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([
+          {
+            cardId: "card-ashe",
+            cardSlug: "ashe-focused",
+            cardName: "Ashe, Focused",
+            cardType: "unit",
+            superTypes: [],
+            domains: ["body"],
+            energy: 3,
+            might: 2,
+            printingId: "p-ashe-en",
+            setId: "set-unl",
+            shortCode: "UNL-169",
+            rarity: "rare",
+            setName: "Unleashed",
+            artVariant: "normal",
+            isSigned: false,
+            markerSlugs: [],
+            finish: "foil",
+            language: "EN",
+            imageUrl: null,
+            variantMarketplace: "tcgplayer",
+            externalId: 684_497,
+            sourceGroupId: 100,
+            sourceGroupName: "Unleashed",
+            sourceLanguage: null,
+            productFinish: "foil",
+          },
+        ]),
+        assignableCards: vi.fn().mockResolvedValue([
+          {
+            cardId: "card-ashe",
+            cardSlug: "ashe-focused",
+            cardName: "Ashe, Focused",
+            setName: "Unleashed",
+            shortCodes: ["UNL-169"],
+          },
+        ]),
+        allCardAliases: vi
+          .fn()
+          .mockResolvedValue([{ cardId: "card-ashe", normName: "ashefocused" }]),
+        stagingForCardAcrossMarketplaces: vi.fn().mockResolvedValue([
+          {
+            marketplace: "cardmarket",
+            externalId: 884_156,
+            productName: "Ashe, Focused",
+            finish: "foil",
+            language: "",
+            groupId: 200,
+            groupName: "Unleashed",
+            groupKind: "basic",
+            marketCents: 500,
+            lowCents: 400,
+            midCents: null,
+            highCents: null,
+            trendCents: null,
+            avg1Cents: null,
+            avg7Cents: null,
+            avg30Cents: null,
+            recordedAt: new Date("2026-05-06T00:42:33Z"),
+            isOverride: false,
+          },
+        ]),
+      },
+    } as unknown as Repos;
+
+    const result = await buildUnifiedMappingsCardResponse(
+      repos,
+      makeScopedCardConfig("tcgplayer"),
+      makeScopedCardConfig("cardmarket"),
+      makeScopedCardConfig("cardtrader"),
+      "ashe-focused",
+    );
+
+    const cmStaged = result.group?.cardmarket.stagedProducts ?? [];
+    expect(cmStaged.map((p) => p.externalId)).toContain(884_156);
+    // The TCG variant on the printing must not contaminate cardmarket's view —
+    // every variant axis on the cardmarket printing should read as unbound.
+    const ashePrinting = result.group?.printings.find((p) => p.printingId === "p-ashe-en");
+    expect(ashePrinting?.tcgExternalId).toBe(684_497);
+    expect(ashePrinting?.cmExternalId).toBeNull();
+  });
 });
