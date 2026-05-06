@@ -18,10 +18,9 @@ export default function CollectionsArticle() {
   return (
     <div className="space-y-8">
       <p className="text-muted-foreground">
-        A collection represents where your cards physically are. Think of it as a real-world
-        location: &quot;Red Deck Box&quot;, &quot;Binder 1&quot;, &quot;Main Storage Box&quot;, or
-        even &quot;Lent to Sebastian&quot;. Every copy in your collection lives in exactly one
-        place.
+        A collection is where your cards physically live. Think of it as a real-world location:{" "}
+        &quot;Red Deck Box&quot;, &quot;Binder 1&quot;, &quot;Main Storage Box&quot;, or even
+        &quot;Lent to Sebastian&quot;. Every copy in your collection lives in exactly one place.
       </p>
 
       {/* Overview diagram */}
@@ -81,14 +80,13 @@ export default function CollectionsArticle() {
       <section>
         <h2 className="mb-2 text-lg font-semibold">Collections as physical locations</h2>
         <p className="text-muted-foreground">
-          Unlike a &quot;folder&quot; system, collections are meant to mirror where your cards
-          actually are in the real world. When you move a copy from &quot;Inbox&quot; to &quot;Red
-          Deck Box&quot;, you&apos;re recording that you physically put that card in that box. This
-          makes it easy to find a specific card when you need it.
+          Collections mirror where your cards actually are in the real world. Moving a copy from
+          &quot;Inbox&quot; to &quot;Red Deck Box&quot; records that you physically put that card in
+          that box.
         </p>
         <p className="text-muted-foreground mt-2">
           Collections track <strong className="text-foreground">copies</strong> (specific physical
-          cards), not abstract card references. If you own three copies of the same card, each one
+          cards), not the cards as game concepts. If you own three copies of the same card, each one
           lives in a collection, whether that&apos;s the same collection or different ones. See{" "}
           <a href="/help/cards-printings-copies" className="text-primary hover:underline">
             Cards, Printings &amp; Copies
@@ -132,9 +130,9 @@ export default function CollectionsArticle() {
         <h2 className="mb-2 text-lg font-semibold">Getting started</h2>
         <p className="text-muted-foreground">
           Open <strong className="text-foreground">Collections</strong> from the top navigation.
-          Your first collection is the <strong className="text-foreground">Inbox</strong>, a default
-          collection that&apos;s always there. It&apos;s where quick-added cards land unless you
-          choose a different target.
+          Your first collection is the <strong className="text-foreground">Inbox</strong>, which is
+          always present. It&apos;s where quick-added cards land unless you choose a different
+          target.
         </p>
         <p className="text-muted-foreground mt-2">
           To create a new collection, click{" "}
@@ -153,7 +151,7 @@ export default function CollectionsArticle() {
             icon={<SearchIcon className="size-4" />}
             title="Quick add"
             shortcut="Ctrl+K"
-            description="A fast search palette, like VS Code's command palette. Type a card name, use arrow keys to navigate, and press Enter to add. Use Shift+Enter to undo."
+            description="A fast search palette. Type a card name, use arrow keys to navigate, and press Enter to add. Shift+Enter to undo."
           />
           <FeatureCard
             icon={<MousePointerClickIcon className="size-4" />}
@@ -214,7 +212,7 @@ export default function CollectionsArticle() {
           />
           <ViewModeRow
             mode="Copies"
-            description="Every individual copy on the grid — no stacking. Useful for managing specific copies."
+            description="Every individual copy on the grid, no stacking. Useful for managing specific copies."
           />
         </div>
       </section>
@@ -226,7 +224,7 @@ export default function CollectionsArticle() {
           The sidebar lists all your collections with a copy count badge. At the top,{" "}
           <strong className="text-foreground">All Cards</strong> shows everything you own across all
           collections in one view, including your total collection value from your preferred
-          marketplace. Below your collections, you&apos;ll find links to{" "}
+          marketplace. Below your collections are links to{" "}
           <strong className="text-foreground">Import / Export</strong> and{" "}
           <strong className="text-foreground">Activity</strong> (a log of all additions, moves, and
           removals).

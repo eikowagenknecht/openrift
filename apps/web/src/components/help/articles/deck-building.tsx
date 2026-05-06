@@ -10,8 +10,8 @@ export default function DeckBuildingArticle() {
   return (
     <div className="space-y-8">
       <p className="text-muted-foreground">
-        The deck builder lets you construct, validate, and manage decks for the Riftbound trading
-        card game. Pick a legend, fill your zones, and the editor checks the rules as you go.
+        The deck builder is where you build and validate decks for the Riftbound trading card game.
+        Pick a legend, fill your zones, and the editor checks the rules as you go.
       </p>
 
       {/* Decks vs Collections concept */}
@@ -97,9 +97,9 @@ export default function DeckBuildingArticle() {
         <p className="text-muted-foreground">
           Open <strong className="text-foreground">Decks</strong> from the top navigation and click{" "}
           <strong className="text-foreground">New Deck</strong>. Choose a name and a format:{" "}
-          <strong className="text-foreground">Constructed</strong> enforces all deck-building rules,
-          while <strong className="text-foreground">Freeform</strong> removes all restrictions so
-          you can experiment freely. You can switch between formats at any time.
+          <strong className="text-foreground">Constructed</strong> enforces all deck-building rules;{" "}
+          <strong className="text-foreground">Freeform</strong> removes them so you can experiment.
+          You can switch between formats at any time.
         </p>
         <p className="text-muted-foreground mt-2">
           The editor opens with two panels: a{" "}
@@ -169,7 +169,7 @@ export default function DeckBuildingArticle() {
           <FeatureCard
             icon={<ShuffleIcon className="size-4" />}
             title="Shift + drag"
-            description="Hold Shift while dragging a multi-copy card to move all copies at once instead of just one."
+            description="Hold Shift while dragging a multi-copy card to move all copies at once."
           />
         </div>
         <p className="text-muted-foreground mt-3">
@@ -183,7 +183,7 @@ export default function DeckBuildingArticle() {
         <h2 className="mb-2 text-lg font-semibold">Validation rules (Constructed format)</h2>
         <p className="text-muted-foreground">
           In Constructed format, the editor validates your deck in real time. A green checkmark
-          means your deck is legal. A yellow banner shows the most actionable issue to fix next.
+          means your deck is legal. A yellow banner shows the next issue to fix.
         </p>
 
         <div className="border-border divide-border mt-3 divide-y rounded-lg border text-sm">
@@ -220,10 +220,8 @@ export default function DeckBuildingArticle() {
         </div>
 
         <p className="text-muted-foreground mt-3 text-sm">
-          In Freeform format, none of these rules are enforced, so you can build however you like.
-          You can switch to Freeform to theorycraft freely, then switch back to Constructed to
-          validate. The zone sidebar highlights violations per zone, so you can quickly see what
-          still needs attention.
+          In Freeform, none of these rules are enforced. Switch to Freeform to theorycraft, then
+          back to Constructed to validate. The zone sidebar highlights violations per zone.
         </p>
       </section>
 
@@ -242,10 +240,8 @@ export default function DeckBuildingArticle() {
       <section>
         <h2 className="mb-2 text-lg font-semibold">Domain filtering</h2>
         <p className="text-muted-foreground">
-          Once you&apos;ve selected a legend, the card browser automatically filters to only show
-          cards that match your legend&apos;s domains (plus colorless cards). This means you
-          won&apos;t accidentally add cards your deck can&apos;t use. The filter is applied in real
-          time as you browse.
+          Once you&apos;ve selected a legend, the card browser filters to cards matching your
+          legend&apos;s domains (plus colorless cards).
         </p>
       </section>
 
@@ -309,8 +305,8 @@ export default function DeckBuildingArticle() {
       <section>
         <h2 className="mb-2 text-lg font-semibold">Auto-save</h2>
         <p className="text-muted-foreground">
-          Changes are saved automatically as you edit. If you try to leave with unsaved changes,
-          you&apos;ll see a warning. There&apos;s no manual save button, just build and go.
+          Changes save automatically as you edit, and a warning catches you if you try to leave
+          mid-save. There&apos;s no manual save button.
         </p>
       </section>
     </div>

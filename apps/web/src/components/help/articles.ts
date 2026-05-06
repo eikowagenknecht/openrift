@@ -27,7 +27,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       slug: "why-openrift",
       title: "Why OpenRift?",
       description:
-        "A transparent comparison with other Riftbound card browsers: what OpenRift does well and where it's still catching up.",
+        "A side-by-side comparison with other Riftbound card browsers: what OpenRift does well and where it's still catching up.",
       icon: ScaleIcon,
       component: () => import("./articles/why-openrift"),
     },
@@ -71,7 +71,7 @@ export const helpArticles = new Map<string, HelpArticle>([
       slug: "import-export",
       title: "Importing & Exporting",
       description:
-        "Bring cards in from other tools via CSV and download your collection as a CSV export.",
+        "Move collections between OpenRift and other Riftbound tools (Piltover Archive, RiftCore, and more) using CSV.",
       icon: ArrowRightLeftIcon,
       component: () => import("./articles/import-export"),
     },

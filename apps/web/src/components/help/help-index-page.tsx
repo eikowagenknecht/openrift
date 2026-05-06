@@ -13,9 +13,6 @@ export function HelpIndexPage() {
     <div className={`mx-auto w-full max-w-2xl flex-1 ${PAGE_PADDING}`}>
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Help Center</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Everything you need to know about managing cards, building decks, and more.
-        </p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">

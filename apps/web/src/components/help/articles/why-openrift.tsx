@@ -33,8 +33,8 @@ export default function WhyOpenRiftArticle() {
           <p>
             So naturally, after a full week of patient, rigorous evaluation, I did the only
             reasonable thing and built my own from scratch. OpenRift is on its way to being the card
-            browser I wanted to use. The comparison below is an honest look at where it stands
-            against the alternatives, which you can judge for yourself.
+            browser I wanted to use. Below is a side-by-side comparison so you can judge for
+            yourself.
           </p>
         </div>
       </section>
@@ -49,7 +49,7 @@ export default function WhyOpenRiftArticle() {
         >
           send me an email
         </a>{" "}
-        so I have the chance to correct it or add more info.
+        so I can correct it or add more info.
       </p>
 
       {/* What this site is (and isn't) */}

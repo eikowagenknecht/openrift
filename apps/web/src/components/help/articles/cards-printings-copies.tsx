@@ -41,8 +41,7 @@ export default function CardsPrintingsCopiesArticle() {
         OpenRift organizes the Riftbound catalog using three levels:{" "}
         <strong className="text-foreground">cards</strong>,{" "}
         <strong className="text-foreground">printings</strong>, and{" "}
-        <strong className="text-foreground">copies</strong>. Understanding the difference helps you
-        navigate the browser, manage your collection, and make sense of prices.
+        <strong className="text-foreground">copies</strong>.
       </p>
 
       {/* Diagram */}
@@ -122,19 +121,18 @@ export default function CardsPrintingsCopiesArticle() {
         <h2 className="mb-2 text-lg font-semibold">Cards</h2>
         <p className="text-muted-foreground">
           A <strong className="text-foreground">card</strong> is the game concept itself: the name,
-          rules text, type, domains, stats, and keywords. It exists independent of any particular
-          set or art treatment. &quot;Fury Rune&quot; is a card no matter how many times it has been
-          printed.
+          rules text, type, domains, stats, and keywords. It&apos;s the same card regardless of
+          which set or art it appears in. &quot;Fury Rune&quot; is a card no matter how many times
+          it has been printed.
         </p>
         <p className="text-muted-foreground mt-2">
           In the{" "}
           <a href="/cards" className="text-primary hover:underline">
             browser
           </a>
-          , <strong className="text-foreground">Cards</strong> view shows one entry per unique card,
-          regardless of how many printings exist. This is the best view for answering &quot;do I
-          have this card at all?&quot; If a card appears in multiple sets, it is still one card. The
-          detail panel shows all available printings under <em>Printings</em>.
+          , <strong className="text-foreground">Cards</strong> view shows one entry per unique card.
+          Use it to answer &quot;do I have this card at all?&quot; The detail panel lists every
+          available printing under <em>Printings</em>.
         </p>
         <ExampleTable
           rows={[
@@ -187,20 +185,18 @@ export default function CardsPrintingsCopiesArticle() {
         <p className="text-muted-foreground">
           A <strong className="text-foreground">printing</strong> is a specific physical version of
           a card. It belongs to a set (like Origins or Spiritforged) and has its own short code,
-          rarity, finish (normal or foil), art variant, artist, language, and printed text. The same
-          card can have many printings across different sets, and each printing has its own image
-          and market price.
+          rarity, finish, art variant, artist, language, and printed text. Each printing has its own
+          image and market price.
         </p>
         <p className="text-muted-foreground mt-2">
-          Every printing has a short code visible at the bottom left of the physical card, like{" "}
+          The short code is visible at the bottom left of the physical card, like{" "}
           <code className="bg-muted rounded px-1.5 py-0.5 text-xs">SFD-R01b</code>. Two printings
-          can share the same short code and still be different (for example, a normal finish and a
-          foil finish, or a special promo edition). OpenRift treats each unique combination of short
-          code, finish, art variant, language, and promo type as its own printing.
+          can share the same short code and still be different, for example a normal finish and a
+          foil finish, or a special promo edition.
         </p>
         <p className="text-muted-foreground mt-2">
-          Printed text can also vary between printings: some alt art cards omit reminder text, and
-          newer printings may have updated wording after an errata. Flavor text can differ too.
+          Printed text can vary too: some alt art cards omit reminder text, newer printings may
+          carry updated wording after an errata, and flavor text often differs.
         </p>
         <p className="text-muted-foreground mt-2">
           In the{" "}
@@ -232,11 +228,11 @@ export default function CardsPrintingsCopiesArticle() {
       <section>
         <h2 className="mb-2 text-lg font-semibold">Copies</h2>
         <p className="text-muted-foreground">
-          A <strong className="text-foreground">copy</strong> is a single physical card you own.
-          When you add a card to your collection, you are adding a copy of a specific printing. If
-          you own three of the same foil printing, that is three copies. In the real world, each
-          copy could have its own condition details (like a PSA grading or a coffee stain), but
-          those aren&apos;t tracked yet.
+          Every time you add a card to your collection, you&apos;re recording a{" "}
+          <strong className="text-foreground">copy</strong> of a specific printing. Three of the
+          same foil printing means three copies. In the real world, each copy could have its own
+          condition details (like a PSA grading or a coffee stain), but those aren&apos;t tracked
+          yet.
         </p>
         <p className="text-muted-foreground mt-2">
           In your{" "}

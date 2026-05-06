@@ -20,14 +20,14 @@ const features = [
     icon: LayersIcon,
     title: "Build with what you own",
     description:
-      "Validated as you build, cross-referenced with your collections. You see what you own, what's missing, and can print the rest as proxies.",
+      "Validates as you build, against your collections in real time. See what you own, what's missing, and print the rest as proxies.",
     to: "/decks",
   },
   {
     icon: UnlockIcon,
     title: "Open, not locked in",
     description:
-      "Open source and free. Import from Piltover Archive, Riftcore, or Riftmana, and export to CSV whenever you want.",
+      "Open source and free. Import from Piltover Archive, Riftcore, or Riftmana, and export to CSV any time.",
     to: "/collections/import",
   },
 ] as const;

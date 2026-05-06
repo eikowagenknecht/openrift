@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-05-06
+
+- fix: Wording across the help articles, the help index, and the landing page is clearer and more direct
+- fix: The Importing & Exporting help page now lists RiftMana as a supported source, alongside OpenRift, Piltover Archive, and RiftCore
+
 ## 2026-05-05
 
 - feat: On mobile, the Rules page now stacks each rule's number above its content instead of cramming everything onto one line

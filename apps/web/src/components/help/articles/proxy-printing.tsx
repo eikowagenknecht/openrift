@@ -50,15 +50,12 @@ export default function ProxyPrintingArticle() {
       {/* Options */}
       <section>
         <h2 className="mb-2 text-lg font-semibold">Export options</h2>
-        <p className="text-muted-foreground">
-          The dialog lets you customize the PDF before generating it.
-        </p>
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <OptionCard
             icon={<ImageIcon className="size-4" />}
             title="Render mode"
-            description="Card images uses the actual card art. Text placeholders renders a simplified card with name, stats, and rules text — a unified format that can be easier to read during playtesting."
+            description="Card images shows the actual card art. Text placeholders shows a simplified card with name, stats, and rules text, which can be easier to read during playtesting."
           />
           <OptionCard
             icon={<RulerIcon className="size-4" />}

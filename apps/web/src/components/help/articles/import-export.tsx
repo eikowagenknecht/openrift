@@ -24,9 +24,9 @@ export default function ImportExportArticle() {
       <section>
         <h2 className="mb-2 text-lg font-semibold">Importing cards</h2>
         <p className="text-muted-foreground">
-          Import brings cards from an external CSV file into one of your collections. The process
-          has two steps: <strong className="text-foreground">paste or upload</strong> your data,
-          then <strong className="text-foreground">review matches</strong> before confirming.
+          Import brings cards from an external CSV file into one of your collections.{" "}
+          <strong className="text-foreground">Paste or upload</strong> your data, then{" "}
+          <strong className="text-foreground">review matches</strong> before confirming.
         </p>
       </section>
 
@@ -40,7 +40,7 @@ export default function ImportExportArticle() {
           format for the supported tools listed below.
         </p>
 
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <FormatCard
             name="OpenRift"
             description='Detected by the "Art Variant" column. Re-import files exported by OpenRift itself, for example to transfer cards between accounts or restore after a reset.'
@@ -87,6 +87,22 @@ export default function ImportExportArticle() {
               "Foil Qty",
             ]}
           />
+          <FormatCard
+            name="RiftMana"
+            description='Detected by the "Normal Qty" column. Separates normal and foil quantities and tracks per-condition counts and language.'
+            columns={[
+              "Card ID",
+              "Card Name",
+              "Set",
+              "Color",
+              "Rarity",
+              "Normal Qty",
+              "Foil Qty",
+              "Normal Condition",
+              "Foil Condition",
+              "Language",
+            ]}
+          />
         </div>
 
         <p className="text-muted-foreground mt-3 text-sm">
@@ -126,7 +142,7 @@ export default function ImportExportArticle() {
           <StatusRow
             icon={<CheckCircle2Icon className="size-4 text-emerald-600 dark:text-emerald-400" />}
             label="Exact"
-            description="Perfect match — code, finish, and art variant all resolved. Ready to import."
+            description="Perfect match: code, finish, and art variant all resolved. Ready to import."
           />
           <StatusRow
             icon={<AlertTriangleIcon className="size-4 text-amber-600 dark:text-amber-400" />}
@@ -136,7 +152,7 @@ export default function ImportExportArticle() {
           <StatusRow
             icon={<XCircleIcon className="size-4 text-red-600 dark:text-red-400" />}
             label="Unresolved"
-            description="No match found. Skip this entry — it won't be imported."
+            description="No match found. This row won't be imported."
           />
         </div>
 
@@ -178,9 +194,9 @@ export default function ImportExportArticle() {
         <p className="text-muted-foreground mt-2">
           Finally, pick a target collection (or create a new one), and click{" "}
           <strong className="text-foreground">Import</strong>. A summary at the bottom shows how
-          many copies are ready and how many need attention. Be careful not to import the same file
-          twice: OpenRift tracks individual copies, so a second import adds duplicates rather than
-          updating totals.
+          many copies are ready and how many need attention. Don&apos;t import the same file twice:
+          OpenRift tracks individual copies, so a second import adds duplicates rather than updating
+          totals.
         </p>
       </section>
 
@@ -293,9 +309,8 @@ export default function ImportExportArticle() {
             suggestions.
           </li>
           <li>
-            <strong className="text-foreground">Unresolved:</strong> anything still unmatched is
-            marked as unresolved. You can skip these or use the search icon to find the right
-            printing manually.
+            <strong className="text-foreground">Unresolved:</strong> nothing matched. You can skip
+            these or use the search icon to find the right printing manually.
           </li>
         </ol>
       </section>
