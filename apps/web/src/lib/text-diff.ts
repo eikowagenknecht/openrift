@@ -3,7 +3,7 @@ export interface DiffSegment {
   type: "equal" | "added" | "removed";
 }
 
-export type DiffGranularity = "word" | "char";
+type DiffGranularity = "word" | "char";
 
 const WORD_TOKENS = /\w+|\s+|[^\w\s]+/g;
 
