@@ -81,7 +81,7 @@ export function PageToc({ items, className }: { items: PageTocItem[]; className?
 
   return (
     <aside className={cn("hidden w-48 shrink-0 lg:block", className)}>
-      <nav className="sticky top-16 max-h-[calc(100vh-5rem)] space-y-0.5 overflow-y-auto">
+      <nav className="sticky top-(--sticky-top) max-h-[calc(100vh-var(--sticky-top))] space-y-0.5 overflow-y-auto">
         {items.map((item) => (
           <TocLink key={item.id} id={item.id} label={item.label} level={item.level ?? 0} />
         ))}
