@@ -3,7 +3,6 @@ import { Suspense } from "react";
 
 import { CardBrowser } from "@/components/card-browser";
 import { FirstRowPreview } from "@/components/cards/first-row-preview";
-import { useHideScrollbar } from "@/hooks/use-hide-scrollbar";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { FilterSearchProvider } from "@/lib/search-schemas";
 import { PAGE_PADDING_NO_TOP } from "@/lib/utils";
@@ -32,7 +31,6 @@ function CardBrowserShell() {
 
 function CardsPage() {
   const search = Route.useSearch();
-  useHideScrollbar();
   return (
     <FilterSearchProvider value={search}>
       <div className={`flex flex-1 flex-col ${PAGE_PADDING_NO_TOP}`}>
