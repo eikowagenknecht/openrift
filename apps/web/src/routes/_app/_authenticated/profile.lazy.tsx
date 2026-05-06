@@ -53,7 +53,7 @@ function ProfilePage() {
 
   return (
     <div className={`flex justify-center ${PAGE_PADDING}`}>
-      <div className="flex w-full max-w-3xl gap-6">
+      <div className="flex w-full max-w-4xl gap-6">
         <PageToc items={NAV_SECTIONS} />
 
         <div className="flex min-w-0 flex-1 flex-col gap-6">

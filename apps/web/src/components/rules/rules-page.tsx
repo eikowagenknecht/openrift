@@ -1468,7 +1468,7 @@ export function RulesPage({ kind, version }: { kind: RuleKind; version: string |
 
 function RulesEmpty({ kind }: { kind: RuleKind }) {
   return (
-    <div className={`mx-auto w-full max-w-6xl ${PAGE_PADDING}`}>
+    <div className={`mx-auto w-full max-w-4xl ${PAGE_PADDING}`}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{KIND_TITLES[kind]}</h1>
       </div>
@@ -1577,7 +1577,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
     isSearching && searchResult !== null && searchResult.visibleIndices.length === 0;
 
   return (
-    <div className={`mx-auto w-full max-w-6xl ${PAGE_PADDING}`}>
+    <div className={`mx-auto w-full max-w-4xl ${PAGE_PADDING}`}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{KIND_TITLES[kind]}</h1>
         {versions.length > 1 ? (
