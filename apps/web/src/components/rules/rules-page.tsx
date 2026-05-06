@@ -1,7 +1,14 @@
 import type { RuleKind, RuleResponse } from "@openrift/shared";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronDownIcon, ChevronRightIcon, CopyIcon, SearchIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ChevronsDownUpIcon,
+  ChevronsUpDownIcon,
+  CopyIcon,
+  SearchIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 // oxlint-disable no-unused-vars -- perf experiment; will restore markdown rendering shortly
 import type { Components } from "react-markdown";
@@ -11,6 +18,7 @@ import { toast } from "sonner";
 import { PageToc } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PAGE_TOP_BAR_STICKY } from "@/components/layout/page-top-bar";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -117,6 +125,150 @@ function visitTextNodes(node: MdNode): void {
 const remarkLinkifyRuleReferences = () => (tree: MdNode) => {
   visitTextNodes(tree);
 };
+
+// Game terms that get auto-linked when they appear in italics. Three sources:
+//   - Subtitles (depth-0 section headings: "Game Objects" → 120, "Combat" → 454)
+//   - Text rules whose body is a Title Case `*Term*` phrase (verbs like
+//     "*Stun*" → 423, keyword glossary entries like "*Accelerate*" → 805,
+//     multi-word terms like "*Battlefield Zone*" → 107.2)
+//   - Depth-0 text rules whose body is plain Title Case (no italics) acting
+//     as section headings — "Passive Abilities" → 363, "Replacement Effects"
+//     → 367. These are styled as headings in the source but stored without
+//     asterisks, so we detect them structurally.
+// Later passes override earlier ones: italic terms beat heading-style ones,
+// and subtitles override everything.
+const TITLE_WORD = "[A-Z][A-Za-z0-9-]*";
+const HEADING_STOP_WORD = "(?:of|or|the|and|to|a|an)";
+const TITLE_CASE_PHRASE = `${TITLE_WORD}(?:\\s+(?:${TITLE_WORD}|${HEADING_STOP_WORD}))*`;
+const TERM_DEFINITION_REGEX = new RegExp(`^\\*(${TITLE_CASE_PHRASE})\\*\\.?$`);
+const HEADING_TEXT_REGEX = new RegExp(`^${TITLE_CASE_PHRASE}$`);
+
+function addTermAnchor(map: Map<string, string>, term: string, ruleNumber: string): void {
+  const key = term.toLowerCase();
+  map.set(key, ruleNumber);
+  // Plural ↔ singular fallback so "*Battlefield*" finds the "Battlefields"
+  // anchor and vice versa. Always overwrite — the singular and plural form
+  // share semantics, so they should always point to the same anchor as the
+  // most recent definition.
+  // Handle the `-y/-ies` pattern explicitly (Ability/Abilities) before falling
+  // back to the trailing-`s` rule, which would otherwise produce nonsense
+  // forms like "abilitie" or "abilitys".
+  if (/[^aeiou]ies$/.test(key)) {
+    map.set(`${key.slice(0, -3)}y`, ruleNumber);
+  } else if (/[^aeiou]y$/.test(key)) {
+    map.set(`${key.slice(0, -1)}ies`, ruleNumber);
+  } else if (key.endsWith("s") && key.length > 2) {
+    map.set(key.slice(0, -1), ruleNumber);
+  } else if (key.length > 1) {
+    map.set(`${key}s`, ruleNumber);
+  }
+}
+
+export function buildTermAnchors(rules: RuleResponse[]): Map<string, string> {
+  const map = new Map<string, string>();
+  // Pass 1: depth-0 text rules whose body is plain Title Case (no italics).
+  // These are section headings stored as text rules — e.g. "Passive Abilities"
+  // (363), "Replacement Effects" (367). Done first so later italicized-term
+  // entries override them when the same term is defined both ways.
+  for (const rule of rules) {
+    if (rule.ruleType !== "text" || rule.depth !== 0) {
+      continue;
+    }
+    if (rule.content.includes("*")) {
+      continue;
+    }
+    if (!HEADING_TEXT_REGEX.test(rule.content)) {
+      continue;
+    }
+    for (const part of rule.content.split(/\s+and\s+/i)) {
+      const term = part.trim();
+      if (term.length > 0 && /^[A-Z]/.test(term)) {
+        addTermAnchor(map, term, rule.ruleNumber);
+      }
+    }
+  }
+  // Pass 2: text rules whose entire body is `*Term*` (or a Title Case phrase
+  // wrapped in asterisks, e.g. `*Battlefield Zone*`). Iterating in document
+  // order with last-wins means the keyword glossary at 805+ overrides earlier
+  // subsection headings (e.g. `*Action*` resolves to the keyword at 806, not
+  // the timing subsection at 158.2.a).
+  for (const rule of rules) {
+    if (rule.ruleType !== "text") {
+      continue;
+    }
+    const match = rule.content.match(TERM_DEFINITION_REGEX);
+    if (match) {
+      addTermAnchor(map, match[1], rule.ruleNumber);
+    }
+  }
+  // Pass 3: subtitles override everything. Split on " and " so compound
+  // headings like "Chains and Showdowns" anchor both halves at the same rule.
+  for (const rule of rules) {
+    if (rule.ruleType !== "subtitle") {
+      continue;
+    }
+    for (const part of rule.content.split(/\s+and\s+/i)) {
+      const term = part.trim();
+      if (term.length > 0 && /^[A-Z]/.test(term)) {
+        addTermAnchor(map, term, rule.ruleNumber);
+      }
+    }
+  }
+  return map;
+}
+
+const TERM_TRAILING_PUNCT_REGEX = /[.,:;]+$/;
+// Strip a possessive 's (straight or curly apostrophe) so "*Card's*" resolves
+// to the "Card" anchor.
+const TERM_POSSESSIVE_REGEX = /['‘’]s$/u;
+
+interface TermLinkContext {
+  anchors: ReadonlyMap<string, string>;
+  currentRuleNumber?: string;
+}
+
+function visitEmphasisForTerms(node: MdNode, context: TermLinkContext): void {
+  if (!node.children) {
+    return;
+  }
+  for (let index = 0; index < node.children.length; index++) {
+    const child = node.children[index];
+    if (child.type === "link") {
+      continue;
+    }
+    if (child.type === "emphasis" && child.children?.length === 1) {
+      const inner = child.children[0];
+      if (inner.type === "text" && typeof inner.value === "string") {
+        const stripped = inner.value
+          .trim()
+          .replace(TERM_TRAILING_PUNCT_REGEX, "")
+          .replace(TERM_POSSESSIVE_REGEX, "");
+        const target = context.anchors.get(stripped.toLowerCase());
+        if (target && target !== context.currentRuleNumber) {
+          node.children[index] = {
+            type: "link",
+            url: `#rule-${target}`,
+            children: [child],
+          };
+          continue;
+        }
+      }
+    }
+    visitEmphasisForTerms(child, context);
+  }
+}
+
+function makeRemarkLinkifyTerms(context: TermLinkContext) {
+  return () => (tree: MdNode) => {
+    if (context.anchors.size === 0) {
+      return;
+    }
+    visitEmphasisForTerms(tree, context);
+  };
+}
+
+// Stable empty-map reference for callers that don't supply term anchors.
+const EMPTY_TERM_ANCHORS: ReadonlyMap<string, string> = new Map();
 
 // Tournament penalty labels — matched as literal `[Label]` strings inside rule
 // bodies and styled with the IPG-derived color codes.
@@ -253,18 +405,39 @@ const REHYPE_PLUGINS = [rehypeHighlightPenalties];
 /**
  * Renders a rule's body as a constrained markdown subset, with rule-number
  * references (e.g. `rule 540`, `603.7`, `CR 116`) auto-linked to their anchor.
+ * When `termAnchors` is supplied, italicized game terms (e.g. `*Combat*`,
+ * `*Accelerate*`) also link to their defining rule.
  *
  * @returns The rendered rule body.
  */
-export function RuleContent({ content }: { content: string }) {
+export function RuleContent({
+  content,
+  termAnchors,
+  ruleNumber,
+}: {
+  content: string;
+  termAnchors?: ReadonlyMap<string, string>;
+  ruleNumber?: string;
+}) {
   // Treat every newline in the source as a hard line break by appending the
   // markdown two-space hard-break marker before each \n. Normalize penalty
   // labels first so `[*Warning*]` collapses to `[Warning]` and the rehype
   // matcher recognizes it as a single text node.
   const processed = content.replaceAll(PENALTY_NORMALIZE_REGEX, "[$1]").replaceAll("\n", "  \n");
+  // Per-rule plugin set: when termAnchors is non-empty, append the term
+  // linkifier with this rule's number so it can skip self-links. The compiler
+  // memoizes both the array and the closure across re-renders of the same
+  // rule, so ReactMarkdown's parse cache stays warm during search keystrokes.
+  const remarkPlugins =
+    termAnchors && termAnchors.size > 0
+      ? [
+          remarkLinkifyRuleReferences,
+          makeRemarkLinkifyTerms({ anchors: termAnchors, currentRuleNumber: ruleNumber }),
+        ]
+      : REMARK_PLUGINS;
   return (
     <ReactMarkdown
-      remarkPlugins={REMARK_PLUGINS}
+      remarkPlugins={remarkPlugins}
       rehypePlugins={REHYPE_PLUGINS}
       components={MARKDOWN_COMPONENTS}
       allowedElements={ALLOWED_MARKDOWN_ELEMENTS}
@@ -485,11 +658,13 @@ function RuleRow({
   ancestors,
   hasChildren,
   isContext,
+  termAnchors,
 }: {
   rule: RuleResponse;
   ancestors: readonly string[];
   hasChildren: boolean;
   isContext?: boolean;
+  termAnchors: ReadonlyMap<string, string>;
 }) {
   // Per-row store subscriptions: only this row re-renders when its own fold
   // state or any of its ancestors' fold state flips. The parent doesn't
@@ -516,7 +691,7 @@ function RuleRow({
     <div
       id={`rule-${rule.ruleNumber}`}
       className={cn(
-        "border-border/50 flex items-baseline border-b py-1.5 text-sm",
+        "border-border/50 flex scroll-mt-14 items-baseline border-b py-1.5 text-sm",
         isHidden && "hidden",
         isTitle && "border-border mt-4 first:mt-0",
         isSubtitle && "border-border mt-2",
@@ -565,7 +740,15 @@ function RuleRow({
             </button>
           </span>
         ) : null}
-        {isTitle || isSubtitle ? rule.content : <RuleContent content={rule.content} />}
+        {isTitle || isSubtitle ? (
+          rule.content
+        ) : (
+          <RuleContent
+            content={rule.content}
+            termAnchors={termAnchors}
+            ruleNumber={rule.ruleNumber}
+          />
+        )}
       </span>
     </div>
   );
@@ -595,20 +778,35 @@ function ExpandCollapseAllButton({ foldGroupKeys }: { foldGroupKeys: string[] })
   const collapseAll = useRulesFoldStore((state) => state.collapseAll);
   const expandAll = useRulesFoldStore((state) => state.expandAll);
 
+  const label = allCollapsed ? "Expand all" : "Collapse all";
+  const handleClick = () => {
+    if (allCollapsed) {
+      expandAll();
+    } else {
+      collapseAll(foldGroupKeys);
+    }
+  };
+
   return (
-    <button
-      type="button"
-      onClick={() => {
-        if (allCollapsed) {
-          expandAll();
-        } else {
-          collapseAll(foldGroupKeys);
-        }
-      }}
-      className="text-muted-foreground hover:text-foreground text-xs font-medium"
-    >
-      {allCollapsed ? "Expand all" : "Collapse all"}
-    </button>
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        onClick={handleClick}
+        aria-label={label}
+        className="sm:hidden"
+      >
+        {allCollapsed ? <ChevronsUpDownIcon /> : <ChevronsDownUpIcon />}
+      </Button>
+      <button
+        type="button"
+        onClick={handleClick}
+        className="text-muted-foreground hover:text-foreground hidden text-xs font-medium sm:inline-flex"
+      >
+        {label}
+      </button>
+    </>
   );
 }
 
@@ -645,7 +843,7 @@ export function RulesPage({ kind, version }: { kind: RuleKind; version: string |
 function RulesEmpty({ kind }: { kind: RuleKind }) {
   return (
     <div className={`mx-auto w-full max-w-6xl ${PAGE_PADDING}`}>
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{KIND_TITLES[kind]}</h1>
       </div>
       <div className="mb-4">
@@ -706,13 +904,14 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   const foldGroups = computeFoldGroups(rules);
   const ancestorsByRule = computeAncestorsByRule(rules, foldGroups);
   const foldGroupKeys = [...foldGroups.keys()];
+  const termAnchors = rules.length > 0 ? buildTermAnchors(rules) : EMPTY_TERM_ANCHORS;
   const searchResult = isSearching ? computeSearchResult(rules, searchTerms) : null;
   const noSearchResults =
     isSearching && searchResult !== null && searchResult.visibleIndices.length === 0;
 
   return (
     <div className={`mx-auto w-full max-w-6xl ${PAGE_PADDING}`}>
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold">{KIND_TITLES[kind]}</h1>
         {versions.length > 1 ? (
           <Select
@@ -756,7 +955,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
         <div className="flex gap-6">
           <PageToc items={buildRulesTocItems(rules)} />
           <div className="min-w-0 flex-1">
-            <div className={cn(PAGE_TOP_BAR_STICKY, "mb-4 flex flex-wrap items-center gap-3")}>
+            <div className={cn(PAGE_TOP_BAR_STICKY, "mb-4 flex flex-wrap items-center gap-3 px-0")}>
               <RulesSearchBar onDebouncedChange={setDebouncedSearchQuery} />
               {foldGroupKeys.length > 0 && !isSearching && (
                 <ExpandCollapseAllButton foldGroupKeys={foldGroupKeys} />
@@ -775,6 +974,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
                   rule={rule}
                   ancestors={ancestorsByRule.get(rule.ruleNumber) ?? EMPTY_ANCESTORS}
                   hasChildren={foldGroups.has(rule.ruleNumber)}
+                  termAnchors={termAnchors}
                 />
               ))
             ) : (
@@ -789,6 +989,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
                     ancestors={EMPTY_ANCESTORS}
                     hasChildren={false}
                     isContext={isContext}
+                    termAnchors={termAnchors}
                   />
                 );
               })
