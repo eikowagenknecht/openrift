@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { PageToc } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
+import { PAGE_TOP_BAR_STICKY } from "@/components/layout/page-top-bar";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -755,7 +756,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
         <div className="flex gap-6">
           <PageToc items={buildRulesTocItems(rules)} />
           <div className="min-w-0 flex-1">
-            <div className="bg-background/80 sticky top-16 z-30 mb-4 flex flex-wrap items-center gap-3 py-3 backdrop-blur-lg">
+            <div className={cn(PAGE_TOP_BAR_STICKY, "mb-4 flex flex-wrap items-center gap-3")}>
               <RulesSearchBar onDebouncedChange={setDebouncedSearchQuery} />
               {foldGroupKeys.length > 0 && !isSearching && (
                 <ExpandCollapseAllButton foldGroupKeys={foldGroupKeys} />
