@@ -12,9 +12,9 @@ import { parseImportData } from "@/lib/import-parsers";
 import { useDisplayStore } from "@/stores/display-store";
 
 const STATUS_SORT_ORDER: Record<MatchStatus, number> = {
-  exact: 0,
+  unresolved: 0,
   "needs-review": 1,
-  unresolved: 2,
+  exact: 2,
 };
 
 type ImportStep = "input" | "preview";

@@ -2,6 +2,7 @@
 
 ## 2026-05-06
 
+- feat: The CSV import preview now puts rows that need attention at the top, with the cards that matched cleanly tucked into a collapsible group below, so you don't have to scroll past everything to find the problems
 - feat: Italicized game terms in the rules, like _Combat_ or _Accelerate_, now link directly to their defining section
 - feat: On mobile, each rule on the Rules page now fits in a single tight row — number on the left, content filling the middle with the fold chevron tucked into the corner — with halved indentation so more of the rule fits on screen
 - feat: The Rules page search bar now stays pinned to the top as you scroll, so you can refine your query without scrolling back up

@@ -421,6 +421,31 @@ function PreviewStep({
     collectionId !== "" &&
     (collectionId !== "__new__" || newCollectionName.trim().length > 0);
 
+  const problematicEntries: { entry: MatchedEntry; index: number }[] = [];
+  const exactEntries: { entry: MatchedEntry; index: number }[] = [];
+  for (const [index, entry] of matchedEntries.entries()) {
+    if (entry.status === "exact") {
+      exactEntries.push({ entry, index });
+    } else {
+      problematicEntries.push({ entry, index });
+    }
+  }
+
+  const renderRow = ({ entry, index }: { entry: MatchedEntry; index: number }) => (
+    <ImportEntryRow
+      key={`${entry.entry.sourceCode}-${entry.entry.finish}-${index}`}
+      entry={entry}
+      allPrintings={allPrintings}
+      index={index}
+      isSkipped={skippedIndices.has(index)}
+      isExpanded={expandedIndices.has(index)}
+      onResolve={onResolve}
+      onSkip={onSkip}
+      onUnskip={onUnskip}
+      onToggleExpand={onToggleExpand}
+    />
+  );
+
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <div className="flex items-center justify-between">
@@ -436,25 +461,14 @@ function PreviewStep({
         </Button>
       </div>
 
-      {/* Entry list */}
-      <div className="divide-border divide-y rounded-md border">
-        {matchedEntries.map((entry, index) => (
-          <ImportEntryRow
-            key={`${entry.entry.sourceCode}-${entry.entry.finish}-${index}`}
-            entry={entry}
-            allPrintings={allPrintings}
-            index={index}
-            isSkipped={skippedIndices.has(index)}
-            isExpanded={expandedIndices.has(index)}
-            onResolve={onResolve}
-            onSkip={onSkip}
-            onUnskip={onUnskip}
-            onToggleExpand={onToggleExpand}
-          />
-        ))}
-      </div>
+      {/* Problematic entries — rendered directly so they're easy to spot */}
+      {problematicEntries.length > 0 && (
+        <div className="divide-border divide-y rounded-md border">
+          {problematicEntries.map((item) => renderRow(item))}
+        </div>
+      )}
 
-      {/* Parse errors — cards that couldn't be recognized at all */}
+      {/* Parse errors — rows that couldn't be recognized at all */}
       {parseErrors.length > 0 && (
         <details className="rounded-md border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
           <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-amber-800 dark:text-amber-300">
@@ -466,6 +480,20 @@ function PreviewStep({
                 {error}
               </p>
             ))}
+          </div>
+        </details>
+      )}
+
+      {/* Exact matches — folded by default so attention stays on what needs action */}
+      {exactEntries.length > 0 && (
+        <details className="group rounded-md border">
+          <summary className="text-muted-foreground hover:text-foreground flex cursor-pointer items-center gap-2 px-4 py-2.5 text-sm">
+            <ChevronRightIcon className="size-4 transition-transform group-open:rotate-90" />
+            <CheckCircle2Icon className="size-4 text-emerald-600 dark:text-emerald-400" />
+            <span>{exactEntries.length} matched exactly</span>
+          </summary>
+          <div className="divide-border divide-y border-t">
+            {exactEntries.map((item) => renderRow(item))}
           </div>
         </details>
       )}
