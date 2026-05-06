@@ -662,7 +662,7 @@ function PrintingCard({
         </FieldRow>
         <FieldRow
           label="Image URL"
-          hint="A link to the official image is preferred. The link should point directly to the image file itself."
+          hint="A link to the official image is preferred. The link should point directly to the image file itself. You can leave this empty and attach photos or scans to the GitHub PR later if you have any."
           error={errorAt(`printings[${index.toString()}].imageUrl`)}
         >
           <Input
