@@ -9,7 +9,9 @@ import {
   CopyIcon,
   SearchIcon,
 } from "lucide-react";
+import type { MouseEvent } from "react";
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 // oxlint-disable no-unused-vars -- perf experiment; will restore markdown rendering shortly
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
@@ -31,6 +33,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRuleVersions, useRulesAtVersion } from "@/hooks/use-rules";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useRulesFoldStore } from "@/stores/rules-fold-store";
+import { useRulesSearchStore } from "@/stores/rules-search-store";
 
 /**
  * Formats a rule number for display by stripping trailing dots.
@@ -350,11 +353,49 @@ const rehypeHighlightPenalties = () => (tree: HastNode) => {
   visitHastTextNodes(tree);
 };
 
+function handleSamePageAnchorClick(event: MouseEvent<HTMLAnchorElement>, href: string): void {
+  // Modifier-clicks and non-primary buttons should keep their default behavior
+  // (open in new tab, etc.) — don't intercept those.
+  if (event.defaultPrevented || event.button !== 0) {
+    return;
+  }
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+    return;
+  }
+  const targetId = href.slice(1);
+  if (!targetId) {
+    return;
+  }
+  // Rule IDs contain dots (e.g. `rule-540.4.b`); escape so CSS doesn't read
+  // them as class separators.
+  const targetSelector = `#${CSS.escape(targetId)}`;
+  // If the target is currently rendered, let the browser handle the scroll.
+  if (document.querySelector(targetSelector)) {
+    return;
+  }
+  // Otherwise the rule is filtered out by an active search. Reset the search
+  // synchronously so React commits the unfiltered list, then scroll into view
+  // and reflect the hash in the URL.
+  event.preventDefault();
+  flushSync(() => {
+    useRulesSearchStore.getState().reset();
+  });
+  const target = document.querySelector(targetSelector);
+  if (target instanceof HTMLElement) {
+    target.scrollIntoView({ block: "start" });
+    history.replaceState(null, "", href);
+  }
+}
+
 const MARKDOWN_COMPONENTS: Components = {
   a: ({ href, children }) => {
     if (typeof href === "string" && href.startsWith("#")) {
       return (
-        <a href={href} className="text-primary hover:underline">
+        <a
+          href={href}
+          className="text-primary hover:underline"
+          onClick={(event) => handleSamePageAnchorClick(event, href)}
+        >
           {children}
         </a>
       );
@@ -857,11 +898,24 @@ function RulesEmpty({ kind }: { kind: RuleKind }) {
   );
 }
 
-function RulesSearchBar({ onDebouncedChange }: { onDebouncedChange: (value: string) => void }) {
+function RulesSearchBar() {
   // Local draft state keeps each keystroke's re-render scoped to this component
   // instead of bubbling up and re-rendering the entire rules list.
   const [draft, setDraft] = useState("");
-  const debouncedChange = useDebouncedCallback(onDebouncedChange, { wait: 150 });
+  const setQuery = useRulesSearchStore((state) => state.setQuery);
+  const resetSignal = useRulesSearchStore((state) => state.resetSignal);
+  const debouncedSetQuery = useDebouncedCallback(setQuery, { wait: 150 });
+
+  // Programmatic resets (e.g. an anchor click that needs to reveal a hidden
+  // rule) bump resetSignal — clear the local draft so the input mirrors the
+  // store. We deliberately gate on resetSignal rather than the query value:
+  // during normal typing the store is briefly empty until the debounce fires,
+  // which would otherwise wipe the draft mid-keystroke.
+  useEffect(() => {
+    if (resetSignal > 0) {
+      setDraft("");
+    }
+  }, [resetSignal]);
 
   return (
     <div className="relative max-w-md flex-1">
@@ -871,7 +925,7 @@ function RulesSearchBar({ onDebouncedChange }: { onDebouncedChange: (value: stri
         onChange={(e) => {
           const next = e.target.value;
           setDraft(next);
-          debouncedChange(next);
+          debouncedSetQuery(next);
         }}
         placeholder="Search rules..."
         className="pl-9"
@@ -884,14 +938,16 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   const navigate = useNavigate();
   const { data: rulesData } = useRulesAtVersion(kind, version);
   const { data: versionsData } = useRuleVersions(kind);
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const debouncedSearchQuery = useRulesSearchStore((state) => state.query);
 
   // Reset fold state when navigating between rules documents — the store is
   // global, so without this it would leak across pages.
   const expandAll = useRulesFoldStore((state) => state.expandAll);
+  const resetSearch = useRulesSearchStore((state) => state.reset);
   useEffect(() => {
     expandAll();
-  }, [kind, version, expandAll]);
+    resetSearch();
+  }, [kind, version, expandAll, resetSearch]);
 
   const versions = versionsData.versions;
   const comments = versions.find((v) => v.version === version)?.comments ?? null;
@@ -956,7 +1012,7 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
           <PageToc items={buildRulesTocItems(rules)} />
           <div className="min-w-0 flex-1">
             <div className={cn(PAGE_TOP_BAR_STICKY, "mb-4 flex flex-wrap items-center gap-3 px-0")}>
-              <RulesSearchBar onDebouncedChange={setDebouncedSearchQuery} />
+              <RulesSearchBar />
               {foldGroupKeys.length > 0 && !isSearching && (
                 <ExpandCollapseAllButton foldGroupKeys={foldGroupKeys} />
               )}

@@ -20,6 +20,14 @@ if (globalThis.ResizeObserver === undefined) {
   };
 }
 
+// jsdom doesn't implement Element.scrollIntoView — the rules anchor handler
+// calls it after revealing a hidden rule.
+if (globalThis.Element && !globalThis.Element.prototype.scrollIntoView) {
+  globalThis.Element.prototype.scrollIntoView = () => {
+    // no-op
+  };
+}
+
 afterEach(() => {
   cleanup();
 });

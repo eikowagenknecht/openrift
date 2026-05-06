@@ -1,6 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { useRulesSearchStore } from "@/stores/rules-search-store";
+import { createStoreResetter } from "@/test/store-helpers";
 
 vi.mock("@tanstack/react-router", () => ({
   Link: ({
@@ -262,5 +265,43 @@ describe("buildTermAnchors", () => {
     expect(anchors.get("chain")).toBe("325");
     expect(anchors.get("showdowns")).toBe("325");
     expect(anchors.get("showdown")).toBe("325");
+  });
+});
+
+describe("same-page anchor click handler", () => {
+  let resetStore: () => void;
+
+  beforeEach(() => {
+    resetStore = createStoreResetter(useRulesSearchStore);
+  });
+
+  afterEach(() => {
+    resetStore();
+  });
+
+  it("clears the search when the target rule is not in the DOM", () => {
+    useRulesSearchStore.getState().setQuery("trigger");
+    render(<RuleContent content="See *rule 540* for details." />);
+
+    const link = screen.getByRole("link", { name: "rule 540" });
+    fireEvent.click(link);
+
+    expect(useRulesSearchStore.getState().query).toBe("");
+    expect(useRulesSearchStore.getState().resetSignal).toBe(1);
+  });
+
+  it("leaves the search untouched when the target rule is in the DOM", () => {
+    useRulesSearchStore.getState().setQuery("trigger");
+    const target = document.createElement("div");
+    target.id = "rule-540";
+    document.body.append(target);
+
+    render(<RuleContent content="See *rule 540* for details." />);
+    const link = screen.getByRole("link", { name: "rule 540" });
+    fireEvent.click(link);
+
+    expect(useRulesSearchStore.getState().query).toBe("trigger");
+    expect(useRulesSearchStore.getState().resetSignal).toBe(0);
+    target.remove();
   });
 });
