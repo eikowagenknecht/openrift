@@ -6,7 +6,6 @@
 export const CARD_ASPECT = 88 / 63; // standard playing card (63×88mm)
 export const GAP = 16; // gap-4
 export const BUTTON_PAD = 6; // p-1.5 on CardThumbnail <button>
-export const APP_HEADER_HEIGHT = 57; // h-14 + 1px border
 
 export const LABEL_WRAPPER_MT = 10; // mt-2.5 on CardThumbnail label wrapper
 export const META_LABEL_PY = 4; // py-0.5 on CardMetaLabel root — 0.125rem × 2 sides × 16px = 4px total

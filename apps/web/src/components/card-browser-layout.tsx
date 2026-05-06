@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { createContext, use, useLayoutEffect, useRef, useState } from "react";
 
-import { APP_HEADER_HEIGHT } from "@/components/cards/card-grid-constants";
 import { PageTopBarHeightContext } from "@/components/layout/page-top-bar";
+import { getHeaderHeight } from "@/lib/header-height";
 import { cn } from "@/lib/utils";
 
 interface CardBrowserLayoutOffsets {
@@ -95,7 +95,7 @@ export function CardBrowserLayout({
     return () => observer.disconnect();
   }, []);
 
-  const headerOffset = APP_HEADER_HEIGHT + pageTopBarHeight;
+  const headerOffset = getHeaderHeight() + pageTopBarHeight;
   const toolbarOffset = headerOffset + toolbarHeight;
   const stickyOffset = toolbarOffset + aboveGridHeight;
 

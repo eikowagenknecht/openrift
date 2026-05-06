@@ -8,12 +8,12 @@ import type { CardRenderContext, CardViewerItem } from "@/components/card-viewer
 import { useAdminSettings } from "@/hooks/use-admin-settings";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useResponsiveColumns } from "@/hooks/use-responsive-columns";
+import { getHeaderHeight } from "@/lib/header-height";
 import { cn } from "@/lib/utils";
 import { useWindowVirtualizerFresh } from "@/lib/virtualizer-fresh";
 import { useDisplayStore } from "@/stores/display-store";
 
 import {
-  APP_HEADER_HEIGHT,
   BUTTON_PAD,
   CARD_ASPECT,
   FALLBACK_ROW_HEIGHT,
@@ -361,7 +361,7 @@ export function CardGrid({
   selectedItemId,
   siblingPrintings,
   addStripHeight = 0,
-  stickyOffset = APP_HEADER_HEIGHT,
+  stickyOffset = getHeaderHeight(),
 }: CardGridProps) {
   const { orders } = useEnumOrders();
 

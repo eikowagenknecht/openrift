@@ -164,7 +164,9 @@ html.hide-scrollbar::-webkit-scrollbar {
   --animate-logo-spin: logo-spin 1s ease-in-out;
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
-  --header-height: 3.5rem;
+  /* Full header height including the 1px border-b. Single source of truth —
+     read in JS via lib/header-height.ts, used in CSS for sticky offsets. */
+  --header-height: 57px;
   --sticky-top: calc(var(--header-height) + 1rem);
   --breakpoint-wide: 107.5rem;
   --container-max-wide: 107.5rem;

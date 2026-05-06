@@ -527,7 +527,6 @@ export function Header() {
 
   return (
     <header className="bg-background/80 sticky top-0 z-50 border-b backdrop-blur-lg">
-      {/* \u26a0 h-14 is mirrored as APP_HEADER_HEIGHT in card-grid.tsx \u2014 update both together */}
       <div
         className={`${CONTAINER_WIDTH} grid h-14 grid-cols-[1fr_auto_1fr] items-center px-3 md:grid-cols-[1fr_auto]`}
       >

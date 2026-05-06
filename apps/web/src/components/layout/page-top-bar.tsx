@@ -43,12 +43,11 @@ export function useMeasuredHeight(el: HTMLElement | null) {
  * {@link PageTopBar}. Sticks below the global header so the back button and
  * title stay visible while scrolling. Expect the hosting element to have room
  * to scroll (a tall parent); applying this to a wrapper that hugs its content
- * makes sticky a no-op. `--header-height` is h-14 (56px) and the site header
- * also has a 1px border-b, so we add 1px to sit flush below the border —
- * matches APP_HEADER_HEIGHT (57) so CardViewer's toolbar stacks seamlessly.
+ * makes sticky a no-op. `--header-height` already includes the header's 1px
+ * border, so the bar lands flush below it.
  */
 export const PAGE_TOP_BAR_STICKY =
-  "bg-background/80 sticky top-[calc(var(--header-height)+1px)] z-30 px-3 py-3 backdrop-blur-lg";
+  "bg-background/80 sticky top-(--header-height) z-30 px-3 py-3 backdrop-blur-lg";
 
 /**
  * Unified top bar row, used by both deck and collection pages. Must be
