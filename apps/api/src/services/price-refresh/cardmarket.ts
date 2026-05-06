@@ -108,7 +108,11 @@ function buildCardmarketStaging(
       continue;
     }
     const normalMarket = toCents(pg.avg);
-    if (normalMarket !== null && !ignoredKeys.variantKeys.has(`${product.idProduct}::normal::`)) {
+    const normalLow = toCents(pg.low);
+    if (
+      (normalMarket !== null || normalLow !== null) &&
+      !ignoredKeys.variantKeys.has(`${product.idProduct}::normal::`)
+    ) {
       allStaging.push({
         externalId: product.idProduct,
         groupId: product.idExpansion,
@@ -117,7 +121,7 @@ function buildCardmarketStaging(
         language: null,
         recordedAt,
         marketCents: normalMarket,
-        lowCents: toCents(pg.low),
+        lowCents: normalLow,
         zeroLowCents: null,
         midCents: null,
         highCents: null,
@@ -128,7 +132,11 @@ function buildCardmarketStaging(
       });
     }
     const foilMarket = toCents(pg["avg-foil"]);
-    if (foilMarket !== null && !ignoredKeys.variantKeys.has(`${product.idProduct}::foil::`)) {
+    const foilLow = toCents(pg["low-foil"]);
+    if (
+      (foilMarket !== null || foilLow !== null) &&
+      !ignoredKeys.variantKeys.has(`${product.idProduct}::foil::`)
+    ) {
       allStaging.push({
         externalId: product.idProduct,
         groupId: product.idExpansion,
@@ -137,7 +145,7 @@ function buildCardmarketStaging(
         language: null,
         recordedAt,
         marketCents: foilMarket,
-        lowCents: toCents(pg["low-foil"]),
+        lowCents: foilLow,
         zeroLowCents: null,
         midCents: null,
         highCents: null,

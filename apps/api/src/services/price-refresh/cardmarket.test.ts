@@ -35,7 +35,7 @@ const PRICE_BLAZING = {
   "avg30-foil": 0.19,
 };
 
-/** Annie, Fiery — normal prices only; foil avg is 0 */
+/** Annie, Fiery — normal prices only; foil has no listings at all (all zero) */
 const PRODUCT_ANNIE = { idProduct: 847_277, name: "Annie, Fiery", idExpansion: 6289 };
 const PRICE_ANNIE = {
   idProduct: 847_277,
@@ -53,12 +53,12 @@ const PRICE_ANNIE = {
   "avg30-foil": 0,
 };
 
-/** Teemo, Scout — normal avg is 0; foil prices present */
+/** Teemo, Scout — normal has no listings; foil prices present */
 const PRODUCT_TEEMO = { idProduct: 847_140, name: "Teemo, Scout", idExpansion: 6286 };
 const PRICE_TEEMO = {
   idProduct: 847_140,
   avg: 0,
-  low: 0.02,
+  low: 0,
   trend: 0,
   avg1: 0,
   avg7: 0,
@@ -69,6 +69,29 @@ const PRICE_TEEMO = {
   "avg1-foil": 0.17,
   "avg7-foil": 0.17,
   "avg30-foil": 0.16,
+};
+
+/**
+ * Vi, Piltover Enforcer V.2 — brand-new alt-art listing with a low price but
+ * no average yet (no sales recorded). Regression fixture for cardmarket id
+ * 885568 that was silently dropped from staging until we accepted low as a
+ * fallback price signal.
+ */
+const PRODUCT_VI_V2 = { idProduct: 885_568, name: "Vi, Piltover Enforcer V.2", idExpansion: 6491 };
+const PRICE_VI_V2 = {
+  idProduct: 885_568,
+  avg: 0,
+  low: 1390,
+  trend: 0,
+  avg1: 0,
+  avg7: 0,
+  avg30: 0,
+  "avg-foil": 0,
+  "low-foil": 1390,
+  "trend-foil": 0,
+  "avg1-foil": 0,
+  "avg7-foil": 0,
+  "avg30-foil": 0,
 };
 
 const ZERO_COUNTS: UpsertCounts = {
@@ -247,7 +270,7 @@ describe("refreshCardmarketPrices", () => {
       expect(foil?.avg30Cents).toBe(19);
     });
 
-    it("skips foil staging when avg-foil is 0", async () => {
+    it("skips foil staging when both avg-foil and low-foil are 0", async () => {
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, [PRODUCT_ANNIE], [PRICE_ANNIE]);
@@ -259,7 +282,7 @@ describe("refreshCardmarketPrices", () => {
       expect(foil).toBeUndefined();
     });
 
-    it("skips normal staging when avg is 0", async () => {
+    it("skips normal staging when both avg and low are 0", async () => {
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, [PRODUCT_TEEMO], [PRICE_TEEMO]);
@@ -273,7 +296,7 @@ describe("refreshCardmarketPrices", () => {
       expect(normal).toBeUndefined();
     });
 
-    it("creates foil-only staging for product with zero normal avg", async () => {
+    it("creates foil-only staging for product with empty normal pricing", async () => {
       const { repos } = createMockRepos();
       const { log } = makeMockLogger();
       setupFetchJson(fetchJsonSpy, [PRODUCT_TEEMO], [PRICE_TEEMO]);
@@ -284,6 +307,30 @@ describe("refreshCardmarketPrices", () => {
       const foil = staging.find((r: StagingRow) => r.externalId === 847_140 && r.finish === "foil");
       expect(foil).toBeDefined();
       expect(foil?.marketCents).toBe(14);
+    });
+
+    it("ingests product with low but no avg (brand-new alt-art listing)", async () => {
+      // Regression: cardmarket id 885568 (Vi, Piltover Enforcer V.2) was
+      // silently dropped because avg was 0 even though low was set, leaving
+      // newly-listed alt-arts invisible in the admin staging UI for weeks
+      // until cardmarket computed a trend.
+      const { repos } = createMockRepos();
+      const { log } = makeMockLogger();
+      setupFetchJson(fetchJsonSpy, [PRODUCT_VI_V2], [PRICE_VI_V2]);
+
+      await refreshCardmarketPrices(stubFetch, repos, log);
+
+      const staging = upsertStaging();
+      const normal = staging.find(
+        (r: StagingRow) => r.externalId === 885_568 && r.finish === "normal",
+      );
+      const foil = staging.find((r: StagingRow) => r.externalId === 885_568 && r.finish === "foil");
+      expect(normal).toBeDefined();
+      expect(normal?.marketCents).toBeNull();
+      expect(normal?.lowCents).toBe(139_000);
+      expect(foil).toBeDefined();
+      expect(foil?.marketCents).toBeNull();
+      expect(foil?.lowCents).toBe(139_000);
     });
 
     it("skips products with no matching price guide", async () => {
