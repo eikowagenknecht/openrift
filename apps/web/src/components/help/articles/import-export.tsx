@@ -7,6 +7,9 @@ import {
   XCircleIcon,
 } from "lucide-react";
 
+import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 export default function ImportExportArticle() {
   return (
     <div className="space-y-8">
@@ -105,7 +108,7 @@ export default function ImportExportArticle() {
           />
         </div>
 
-        <p className="text-muted-foreground mt-3 text-sm">
+        <p className="text-muted-foreground mt-3">
           Using a different tool? Export it as CSV and try importing. If the format isn&apos;t
           recognized, OpenRift will tell you. Let me know on{" "}
           <a
@@ -138,23 +141,27 @@ export default function ImportExportArticle() {
         </p>
 
         {/* Status table */}
-        <div className="border-border divide-border mt-3 divide-y rounded-lg border text-sm">
-          <StatusRow
+        <DefinitionList className="mt-3">
+          <DefinitionRow
             icon={<CheckCircle2Icon className="size-4 text-emerald-600 dark:text-emerald-400" />}
             label="Exact"
-            description="Perfect match: code, finish, and art variant all resolved. Ready to import."
-          />
-          <StatusRow
+          >
+            Perfect match: code, finish, and art variant all resolved. Ready to import.
+          </DefinitionRow>
+          <DefinitionRow
             icon={<AlertTriangleIcon className="size-4 text-amber-600 dark:text-amber-400" />}
             label="Needs review"
-            description="OpenRift found a likely match but isn't sure (e.g. multiple printings fit, or only a similar name was found). Use the dropdown to confirm or pick the right one."
-          />
-          <StatusRow
+          >
+            OpenRift found a likely match but isn&apos;t sure (e.g. multiple printings fit, or only
+            a similar name was found). Use the dropdown to confirm or pick the right one.
+          </DefinitionRow>
+          <DefinitionRow
             icon={<XCircleIcon className="size-4 text-red-600 dark:text-red-400" />}
             label="Unresolved"
-            description="No match found. This row won't be imported."
-          />
-        </div>
+          >
+            No match found. This row won&apos;t be imported.
+          </DefinitionRow>
+        </DefinitionList>
 
         {/* Visual mock of a match row */}
         <div className="border-border bg-muted/30 mt-4 rounded-lg border p-3">
@@ -276,7 +283,7 @@ export default function ImportExportArticle() {
           </table>
         </div>
 
-        <p className="text-muted-foreground mt-3 text-sm">
+        <p className="text-muted-foreground mt-3">
           One row per unique printing, with the quantity summing all your copies of that printing.
           The file is named{" "}
           <code className="bg-muted rounded px-1.5 py-0.5 text-xs">
@@ -328,23 +335,25 @@ function FormatCard({
   columns: string[];
 }) {
   return (
-    <div className="border-border bg-background rounded-lg border p-3">
-      <div className="mb-1 flex items-center gap-2">
-        <FileUpIcon className="text-primary size-4" />
-        <span className="text-sm font-medium">{name}</span>
-      </div>
-      <p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
-      <div className="mt-2 flex flex-wrap gap-1">
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <FileUpIcon className="text-primary size-4" />
+          {name}
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-wrap gap-1">
         {columns.map((column) => (
           <span
             key={column}
-            className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px]"
+            className="bg-muted text-muted-foreground text-2xs rounded px-1.5 py-0.5 font-mono"
           >
             {column}
           </span>
         ))}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -386,44 +395,24 @@ function MockMatchRow({
       <span className="text-muted-foreground w-6 text-right text-xs tabular-nums">
         {quantity}&times;
       </span>
-      <code className="bg-muted rounded px-1 py-0.5 text-[11px]">{code}</code>
+      <code className="bg-muted text-2xs rounded px-1 py-0.5">{code}</code>
       <span className="min-w-0 flex-1 truncate text-xs">{name}</span>
       {tags.map((tag) => (
         <span
           key={tag}
-          className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px] font-medium"
+          className="bg-primary/10 text-primary text-2xs rounded px-1.5 py-0.5 font-medium"
         >
           {tag}
         </span>
       ))}
       {dropdown && (
-        <span className="border-border bg-background flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px]">
+        <span className="border-border bg-background text-2xs flex items-center gap-1 rounded border px-1.5 py-0.5">
           {dropdown}
           <ChevronDownIcon className="text-muted-foreground size-2.5" />
         </span>
       )}
       <SearchIcon className="text-muted-foreground size-3" />
-      <span className="text-muted-foreground text-[10px]">Skip</span>
-    </div>
-  );
-}
-
-function StatusRow({
-  icon,
-  label,
-  description,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  description: string;
-}) {
-  return (
-    <div className="flex gap-3 px-3 py-2.5">
-      <div className="flex w-28 shrink-0 items-start gap-2">
-        {icon}
-        <span className="font-medium">{label}</span>
-      </div>
-      <span className="text-muted-foreground">{description}</span>
+      <span className="text-muted-foreground text-2xs">Skip</span>
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 ## 2026-05-06
 
+- feat: Help articles have a more polished, consistent look, with uniform cards and callouts across the section
+- feat: Reading text on long-form pages now adjusts to your screen, slightly larger on phones and tighter on desktop for comfortable reading
 - fix: Wording across the help articles, the help index, and the landing page is clearer and more direct
 - fix: The Importing & Exporting help page now lists RiftMana as a supported source, alongside OpenRift, Piltover Archive, and RiftCore
 

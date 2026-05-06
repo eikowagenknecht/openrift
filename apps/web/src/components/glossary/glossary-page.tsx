@@ -164,7 +164,10 @@ function matches(query: string, ...fields: (string | undefined | null)[]): boole
 
 function GroupHeading({ id, title }: { id: string; title: string }) {
   return (
-    <h2 id={id} className="scroll-mt-20 text-xl font-bold">
+    <h2
+      id={id}
+      className="text-muted-foreground border-border scroll-mt-20 border-b pb-2 text-sm font-semibold tracking-wider uppercase"
+    >
       {title}
     </h2>
   );

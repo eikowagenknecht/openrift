@@ -136,7 +136,7 @@ export function SearchBar({ totalCards, filteredCount }: SearchBarProps) {
                   }
                 }}
               >
-                <span className="text-[10px] opacity-50">{prefix}</span>
+                <span className="text-2xs opacity-50">{prefix}</span>
                 {label}
               </Badge>
             );

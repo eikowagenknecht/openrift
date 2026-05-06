@@ -55,7 +55,7 @@ export function TypeBreakdown({ data, domains, singleColor }: TypeBreakdownProps
           className="aspect-auto h-20 w-full @3xl:h-28 @5xl:h-36"
         >
           <BarChart data={labeledData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-            <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
             <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
             <Bar
               dataKey="total"
@@ -76,7 +76,7 @@ export function TypeBreakdown({ data, domains, singleColor }: TypeBreakdownProps
       {heading}
       <ChartContainer config={chartConfig} className="aspect-auto h-20 w-full @3xl:h-28 @5xl:h-36">
         <BarChart data={labeledData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-          <XAxis dataKey="label" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
           <ChartTooltip cursor={false} content={<ChartTooltipContent />} />
           {domains.map((domain) => (
             <Bar

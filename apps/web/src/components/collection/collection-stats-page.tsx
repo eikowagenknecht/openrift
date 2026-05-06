@@ -514,7 +514,7 @@ function DistributionDonut({ data, config }: { data: DonutEntry[]; config: Chart
                         <tspan
                           x={viewBox.cx}
                           y={(viewBox.cy ?? 0) + 10}
-                          className="fill-muted-foreground text-[10px]"
+                          className="fill-muted-foreground text-2xs"
                         >
                           {active.name}
                         </tspan>

@@ -453,7 +453,7 @@ export function CostToCompleteChart({
             type="number"
             domain={[0, "dataMax"]}
             tickFormatter={(value: number) => formatPrice(value)}
-            tick={{ fontSize: 10 }}
+            tick={{ fontSize: 11 }}
             axisLine={false}
             tickLine={false}
           />
@@ -462,7 +462,7 @@ export function CostToCompleteChart({
             type="number"
             domain={[Math.floor(data.startPercent / 5) * 5, 100]}
             tickFormatter={(value: number) => `${value}%`}
-            tick={{ fontSize: 10 }}
+            tick={{ fontSize: 11 }}
             axisLine={false}
             tickLine={false}
             width={40}
@@ -541,7 +541,7 @@ export function CostToCompleteChart({
               label={{
                 value: `${data.unpricedMissing} unpriced`,
                 position: "insideTopRight",
-                className: "fill-muted-foreground text-[10px]",
+                className: "fill-muted-foreground text-2xs",
               }}
             />
           )}

@@ -1,5 +1,9 @@
 import { CoinsIcon, FlagIcon, SwordIcon, TimerIcon, TrophyIcon, ZapIcon } from "lucide-react";
 
+import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 export default function HowToPlayArticle() {
   return (
     <div className="space-y-8">
@@ -10,17 +14,15 @@ export default function HowToPlayArticle() {
       </p>
 
       {/* The goal */}
-      <div className="border-border bg-muted/30 rounded-lg border p-4">
-        <div className="mb-2 flex items-center gap-2">
-          <TrophyIcon className="size-4 text-amber-600 dark:text-amber-400" />
-          <h3 className="text-sm font-semibold">The goal</h3>
-        </div>
-        <p className="text-muted-foreground text-sm">
+      <Alert>
+        <TrophyIcon className="text-amber-600 dark:text-amber-400" />
+        <AlertTitle>The goal</AlertTitle>
+        <AlertDescription>
           Score <strong className="text-foreground">8 points</strong> (11 in team play) to win. You
           score by controlling battlefields. Take a battlefield to bank a point, then earn one more
           point each turn you keep it.
-        </p>
-      </div>
+        </AlertDescription>
+      </Alert>
 
       {/* The kit */}
       <section>
@@ -63,7 +65,7 @@ export default function HowToPlayArticle() {
           />
         </div>
 
-        <p className="text-muted-foreground mt-3 text-sm">
+        <p className="text-muted-foreground mt-3">
           OpenRift&apos;s{" "}
           <a href="/help/deck-building" className="text-primary hover:underline">
             deck builder
@@ -82,7 +84,7 @@ export default function HowToPlayArticle() {
         </p>
 
         <div className="border-border bg-muted/30 mt-3 rounded-lg border p-4">
-          <p className="text-muted-foreground mb-2 text-center text-[11px] font-medium tracking-wider uppercase">
+          <p className="text-muted-foreground text-2xs mb-2 text-center font-medium tracking-wider uppercase">
             Board layout (placeholder)
           </p>
           <div className="border-border bg-background flex h-56 items-center justify-center rounded border border-dashed">
@@ -149,23 +151,29 @@ export default function HowToPlayArticle() {
           Battlefields are how you score, so they are where the fights happen.
         </p>
 
-        <div className="border-border divide-border mt-3 divide-y rounded-lg border text-sm">
-          <RuleRow
+        <DefinitionList className="mt-3">
+          <DefinitionRow
             icon={<FlagIcon className="size-3.5 text-emerald-600 dark:text-emerald-400" />}
-            zone="Move in"
-            rule="Units deploy to your base, then move to a battlefield. Some units have Ganking, which lets them hop between battlefields without going home first."
-          />
-          <RuleRow
+            label="Move in"
+          >
+            Units deploy to your base, then move to a battlefield. Some units have Ganking, which
+            lets them hop between battlefields without going home first.
+          </DefinitionRow>
+          <DefinitionRow
             icon={<SwordIcon className="size-3.5 text-rose-600 dark:text-rose-400" />}
-            zone="Showdown"
-            rule="When both players have units at the same battlefield, every unit there deals damage equal to its Might at the same time. A unit dies if damage meets or exceeds its Might."
-          />
-          <RuleRow
+            label="Showdown"
+          >
+            When both players have units at the same battlefield, every unit there deals damage
+            equal to its Might at the same time. A unit dies if damage meets or exceeds its Might.
+          </DefinitionRow>
+          <DefinitionRow
             icon={<TrophyIcon className="size-3.5 text-amber-600 dark:text-amber-400" />}
-            zone="Conquer"
-            rule="Hold a battlefield with no opposing units present and you score a point. You score one more for every turn you keep it."
-          />
-        </div>
+            label="Conquer"
+          >
+            Hold a battlefield with no opposing units present and you score a point. You score one
+            more for every turn you keep it.
+          </DefinitionRow>
+        </DefinitionList>
       </section>
 
       {/* Domains */}
@@ -272,15 +280,17 @@ function ZoneCard({
   color: string;
 }) {
   return (
-    <div className="bg-background border-border rounded-lg border p-3">
-      <div className="mb-1 flex items-center gap-2">
-        <span className={`text-sm font-semibold ${color}`}>{name}</span>
-        <span className="bg-muted text-muted-foreground rounded-full px-1.5 text-[10px] tabular-nums">
-          {count}
-        </span>
-      </div>
-      <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className={color}>{name}</span>
+          <span className="bg-muted text-muted-foreground text-2xs rounded-full px-1.5 tabular-nums">
+            {count}
+          </span>
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
   );
 }
 
@@ -294,15 +304,17 @@ function StepRow({
   description: string;
 }) {
   return (
-    <div className="border-border bg-background flex gap-3 rounded-lg border p-3">
-      <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
-        {step}
-      </span>
-      <div>
-        <span className="text-sm font-medium">{title}</span>
-        <p className="text-muted-foreground mt-0.5 text-sm leading-relaxed">{description}</p>
-      </div>
-    </div>
+    <Card>
+      <CardContent className="flex gap-3">
+        <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
+          {step}
+        </span>
+        <div className="flex flex-col gap-1">
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -316,36 +328,28 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="border-border bg-background rounded-lg border p-3">
-      <div className="mb-1 flex items-center gap-2">
-        <span className="text-primary">{icon}</span>
-        <span className="text-sm font-medium">{title}</span>
-      </div>
-      <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
-    </div>
-  );
-}
-
-function RuleRow({ icon, zone, rule }: { icon: React.ReactNode; zone: string; rule: string }) {
-  return (
-    <div className="flex gap-3 px-3 py-2.5">
-      <div className="flex w-24 shrink-0 items-start gap-2">
-        {icon}
-        <span className="font-medium">{zone}</span>
-      </div>
-      <span className="text-muted-foreground">{rule}</span>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-primary">{icon}</span>
+          {title}
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
   );
 }
 
 function DomainTile({ name, image, flavor }: { name: string; image: string; flavor: string }) {
   return (
-    <div className="border-border bg-background flex items-center gap-3 rounded-lg border p-3">
-      <img src={image} alt={name} className="size-8 shrink-0" />
-      <div>
-        <div className="text-sm font-semibold">{name}</div>
-        <div className="text-muted-foreground text-sm leading-relaxed">{flavor}</div>
-      </div>
-    </div>
+    <Card>
+      <CardContent className="flex items-center gap-3">
+        <img src={image} alt={name} className="size-8 shrink-0" />
+        <div className="flex flex-col gap-1">
+          <CardTitle>{name}</CardTitle>
+          <CardDescription>{flavor}</CardDescription>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

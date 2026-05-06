@@ -69,7 +69,7 @@ export function DeckCardPrintingMenu({ deckId, card, children }: DeckCardPrintin
             ref={popupRef}
             className="data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 ring-foreground/10 bg-popover text-popover-foreground z-50 max-h-[70vh] w-72 origin-(--transform-origin) overflow-y-auto rounded-lg p-1.5 shadow-md ring-1 outline-none"
           >
-            <div className="text-muted-foreground px-1.5 pt-1 pb-1.5 text-[10px] font-medium tracking-wide uppercase">
+            <div className="text-muted-foreground text-2xs px-1.5 pt-1 pb-1.5 font-medium tracking-wide uppercase">
               Change printing
               {card.quantity > 1 && (
                 <span className="text-muted-foreground/70 ml-1 hidden normal-case md:inline">

@@ -94,7 +94,7 @@ export function LanguagesSection({
                   </Label>
                   <span className="text-muted-foreground text-xs">{code}</span>
                   {enabled && index === 0 && (
-                    <span className="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[10px] font-medium">
+                    <span className="bg-primary/10 text-primary text-2xs rounded px-1.5 py-0.5 font-medium">
                       Preferred
                     </span>
                   )}

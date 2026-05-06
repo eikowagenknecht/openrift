@@ -13,6 +13,17 @@ body {
   overscroll-behavior-y: none;
 }
 
+body,
+.prose {
+  font-size: 1.05rem;
+}
+@media (min-width: 40rem) {
+  body,
+  .prose {
+    font-size: 15px;
+  }
+}
+
 html {
   scroll-padding-top: calc(var(--header-height) + 0.5rem);
 }

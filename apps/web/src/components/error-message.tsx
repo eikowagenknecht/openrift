@@ -115,7 +115,7 @@ export function ErrorMessageLayout({
       {emoji && (
         <div className="text-muted-foreground text-4xl font-medium select-none">{emoji}</div>
       )}
-      <h1 className="text-xl font-semibold">{heading}</h1>
+      <h1 className="text-2xl font-bold">{heading}</h1>
       {subtext && <p className="text-muted-foreground max-w-md text-sm">{subtext}</p>}
       {hasActions && (
         <div className="flex gap-3">

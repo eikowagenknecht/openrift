@@ -51,7 +51,7 @@ export function DisposePickerPopover({ printing, onPick }: DisposePickerPopoverP
       className="bg-background flex w-56 flex-col gap-0.5 rounded-lg border p-1.5 shadow-lg"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="text-muted-foreground px-2 pt-1 pb-1 text-[11px] font-medium">
+      <div className="text-muted-foreground text-2xs px-2 pt-1 pb-1 font-medium">
         Remove from which?
       </div>
       {rows.map(({ collection, count }) => (

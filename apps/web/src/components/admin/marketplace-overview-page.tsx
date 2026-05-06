@@ -92,7 +92,7 @@ function PriceSection({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <CardTitle className="text-base">{label} Prices</CardTitle>
+            <CardTitle>{label} Prices</CardTitle>
             <CardDescription>
               {groups} groups · {mapped} mapped · {staged} staged
               {nextRun && ` · next refresh ${formatRelativeTime(nextRun)}`}

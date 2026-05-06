@@ -33,7 +33,7 @@ export function VariantAddPopover({
           <div key={printing.id} className="flex items-center gap-1 rounded px-1 py-0.5">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1">
-                <span className="text-muted-foreground font-mono text-[10px]">
+                <span className="text-muted-foreground text-2xs font-mono">
                   {formatCardId(printing)}
                 </span>
                 {hasMixedRarities && (
@@ -47,7 +47,7 @@ export function VariantAddPopover({
                   />
                 )}
               </div>
-              <span className="block truncate text-[11px]">
+              <span className="text-2xs block truncate">
                 {formatPrintingLabel(printing, printings, labels) || printing.setSlug}
               </span>
             </div>

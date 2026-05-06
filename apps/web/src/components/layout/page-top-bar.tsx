@@ -88,11 +88,7 @@ export function PageTopBarTitle({ onToggleSidebar, children }: PageTopBarTitlePr
     return (
       <>
         <h1 className="md:hidden">
-          <Button
-            variant="ghost"
-            className="mr-2 gap-1 text-sm font-medium"
-            onClick={onToggleSidebar}
-          >
+          <Button variant="ghost" className="mr-2 gap-1" onClick={onToggleSidebar}>
             {children}
             <ChevronDownIcon className="text-muted-foreground size-4" />
           </Button>

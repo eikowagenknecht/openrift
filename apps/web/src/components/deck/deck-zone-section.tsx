@@ -198,7 +198,7 @@ export function DeckZoneSection({
             {typeIconPath && (
               <img src={typeIconPath} alt={type} className="size-3.5 brightness-0 dark:invert" />
             )}
-            <span className="text-muted-foreground text-[10px]">{groupQty}</span>
+            <span className="text-muted-foreground text-2xs">{groupQty}</span>
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             {group.map((card) => renderCardRow(card))}

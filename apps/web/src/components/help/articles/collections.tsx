@@ -12,6 +12,8 @@ import {
   Trash2Icon,
 } from "lucide-react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Kbd } from "@/components/ui/kbd";
 
 export default function CollectionsArticle() {
@@ -28,7 +30,7 @@ export default function CollectionsArticle() {
         <div className="flex flex-col gap-3 text-sm sm:flex-row">
           {/* Sidebar mock */}
           <div className="bg-background border-border flex flex-col gap-1.5 rounded-lg border p-3 sm:w-48">
-            <span className="text-muted-foreground mb-1 text-[11px] font-medium tracking-wider uppercase">
+            <span className="text-muted-foreground text-2xs mb-1 font-medium tracking-wider uppercase">
               Collections
             </span>
             <SidebarItem icon={<PackageIcon className="size-3.5" />} label="All Cards" count={94} />
@@ -63,7 +65,7 @@ export default function CollectionsArticle() {
                 <SearchIcon className="text-muted-foreground mr-1 inline size-3" />
                 <span className="text-muted-foreground">Search cards&hellip;</span>
               </div>
-              <div className="bg-primary/10 text-primary rounded px-2 py-0.5 text-[11px] font-medium">
+              <div className="bg-primary/10 text-primary text-2xs rounded px-2 py-0.5 font-medium">
                 12 cards
               </div>
             </div>
@@ -100,29 +102,25 @@ export default function CollectionsArticle() {
         <h2 id="deck-building-availability" className="mb-2 text-lg font-semibold">
           Deck building availability
         </h2>
-        <div className="border-border bg-muted/30 rounded-lg border p-4">
-          <div className="flex gap-3">
-            <ShieldCheckIcon className="text-primary mt-0.5 size-5 shrink-0" />
-            <div>
-              <p className="text-muted-foreground text-sm">
-                Each collection has an &quot;available for deck building&quot; toggle. Open a
-                collection, hit the three-dot menu, and pick <em>Edit collection</em> to change it.
-                When turned off, copies in that collection don&apos;t count toward owned cards in
-                the deck builder or the shopping list.
-              </p>
-              <p className="text-muted-foreground mt-2 text-sm">
-                This is useful for cards you don&apos;t want to cannibalise: a high-value card you
-                keep in a display case, cards lent to a friend, or copies already committed to a
-                specific deck. Locked-away copies still show up in the deck builder&apos;s ownership
-                panel as &quot;locked&quot;, so you can see what you&apos;d have available if you
-                turned the collection back on.
-              </p>
-              <p className="text-muted-foreground mt-2 text-sm">
-                The Inbox is always available for deck building and can&apos;t be toggled.
-              </p>
-            </div>
-          </div>
-        </div>
+        <Alert>
+          <ShieldCheckIcon className="text-primary" />
+          <AlertDescription>
+            <p>
+              Each collection has an &quot;available for deck building&quot; toggle. Open a
+              collection, hit the three-dot menu, and pick <em>Edit collection</em> to change it.
+              When turned off, copies in that collection don&apos;t count toward owned cards in the
+              deck builder or the shopping list.
+            </p>
+            <p>
+              This is useful for cards you don&apos;t want to cannibalise: a high-value card you
+              keep in a display case, cards lent to a friend, or copies already committed to a
+              specific deck. Locked-away copies still show up in the deck builder&apos;s ownership
+              panel as &quot;locked&quot;, so you can see what you&apos;d have available if you
+              turned the collection back on.
+            </p>
+            <p>The Inbox is always available for deck building and can&apos;t be toggled.</p>
+          </AlertDescription>
+        </Alert>
       </section>
 
       {/* Getting started */}
@@ -256,7 +254,7 @@ function SidebarItem({
       <span className="flex-1 truncate">{label}</span>
       <span
         className={cn(
-          "rounded-full px-1.5 text-[10px] tabular-nums",
+          "text-2xs rounded-full px-1.5 tabular-nums",
           active ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground",
         )}
       >
@@ -282,14 +280,16 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="border-border bg-background rounded-lg border p-3">
-      <div className="mb-1 flex items-center gap-2">
-        <span className="text-primary">{icon}</span>
-        <span className="text-sm font-medium">{title}</span>
-        {shortcut && <Kbd className="px-1.5">{shortcut}</Kbd>}
-      </div>
-      <p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-primary">{icon}</span>
+          {title}
+          {shortcut && <Kbd className="px-1.5">{shortcut}</Kbd>}
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
   );
 }
 

@@ -436,7 +436,7 @@ function PaletteInner({
                             height={28}
                             className="size-3.5 shrink-0"
                           />
-                          <span className="text-muted-foreground w-[3.25rem] shrink-0 font-mono text-[11px]">
+                          <span className="text-muted-foreground text-2xs w-[3.25rem] shrink-0 font-mono">
                             {formatCardId(printing)}
                           </span>
                           <span className="min-w-0 flex-1 truncate">
@@ -457,7 +457,7 @@ function PaletteInner({
                           </Button>
                           <span
                             className={cn(
-                              "w-5 text-center text-[11px] tabular-nums",
+                              "text-2xs w-5 text-center tabular-nums",
                               sessionAdded > 0
                                 ? "text-green-600 dark:text-green-400"
                                 : "text-muted-foreground",

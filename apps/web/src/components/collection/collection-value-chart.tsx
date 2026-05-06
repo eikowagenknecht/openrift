@@ -105,12 +105,12 @@ export function CollectionValueChart({ collectionId, scope }: CollectionValueCha
             <XAxis
               dataKey="date"
               tickFormatter={String}
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 11 }}
               interval={Math.max(0, Math.ceil(series.length / 4) - 1)}
             />
             <YAxis
               tickFormatter={(v: number) => currencyFormatter(v)}
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 11 }}
               width={56}
               padding={{ top: 8 }}
             />

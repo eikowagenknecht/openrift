@@ -124,10 +124,10 @@ export function PriceSparkline({ printingId, onRangeChange }: PriceSparklineProp
           />
         </AreaChart>
       </ChartContainer>
-      <span className="text-muted-foreground/70 pointer-events-none absolute bottom-0.5 left-1 text-[10px]">
+      <span className="text-muted-foreground/70 text-2xs pointer-events-none absolute bottom-0.5 left-1">
         30D
       </span>
-      <span className="text-muted-foreground pointer-events-none absolute right-1 bottom-0.5 inline-flex items-center gap-0.5 text-[10px] opacity-0 transition-opacity group-hover/spark:opacity-100">
+      <span className="text-muted-foreground text-2xs pointer-events-none absolute right-1 bottom-0.5 inline-flex items-center gap-0.5 opacity-0 transition-opacity group-hover/spark:opacity-100">
         <ChevronDownIcon className="size-2.5" />
         Price history
       </span>

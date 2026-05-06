@@ -1,5 +1,8 @@
 import { ImageIcon, InfoIcon, RulerIcon, ScissorsIcon, ShieldCheckIcon } from "lucide-react";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 export default function ProxyPrintingArticle() {
   return (
     <div className="space-y-8">
@@ -20,7 +23,7 @@ export default function ProxyPrintingArticle() {
               key={index}
               className="bg-muted/60 border-border flex aspect-[63/88] items-center justify-center rounded border"
             >
-              <span className="text-muted-foreground/40 text-[10px] tabular-nums">{index + 1}</span>
+              <span className="text-muted-foreground/40 text-2xs tabular-nums">{index + 1}</span>
             </div>
           ))}
         </div>
@@ -93,20 +96,16 @@ export default function ProxyPrintingArticle() {
       {/* Limitations */}
       <section>
         <h2 className="mb-2 text-lg font-semibold">Current limitations</h2>
-        <div className="border-border bg-muted/30 rounded-lg border p-4">
-          <div className="flex gap-3">
-            <InfoIcon className="text-primary mt-0.5 size-5 shrink-0" />
-            <div>
-              <p className="text-muted-foreground text-sm">
-                Right now, proxy printing requires a deck. You can&apos;t yet print arbitrary cards
-                from your collection or a custom selection. The deck editor also picks a default
-                printing for each card, so you can&apos;t choose which specific art or edition
-                appears on the proxy. I&apos;m working on improving this so you can select concrete
-                printings and print proxies without needing a deck.
-              </p>
-            </div>
-          </div>
-        </div>
+        <Alert>
+          <InfoIcon className="text-primary" />
+          <AlertDescription>
+            Right now, proxy printing requires a deck. You can&apos;t yet print arbitrary cards from
+            your collection or a custom selection. The deck editor also picks a default printing for
+            each card, so you can&apos;t choose which specific art or edition appears on the proxy.
+            I&apos;m working on improving this so you can select concrete printings and print
+            proxies without needing a deck.
+          </AlertDescription>
+        </Alert>
       </section>
 
       {/* Printing tip */}
@@ -132,15 +131,17 @@ function StepRow({
   description: string;
 }) {
   return (
-    <div className="border-border bg-background flex gap-3 rounded-lg border p-3">
-      <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
-        {step}
-      </span>
-      <div>
-        <span className="text-sm font-medium">{title}</span>
-        <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">{description}</p>
-      </div>
-    </div>
+    <Card>
+      <CardContent className="flex gap-3">
+        <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+          {step}
+        </span>
+        <div className="flex flex-col gap-1">
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -154,12 +155,14 @@ function OptionCard({
   description: string;
 }) {
   return (
-    <div className="border-border bg-background rounded-lg border p-3">
-      <div className="mb-1 flex items-center gap-2">
-        <span className="text-primary">{icon}</span>
-        <span className="text-sm font-medium">{title}</span>
-      </div>
-      <p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-primary">{icon}</span>
+          {title}
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
   );
 }

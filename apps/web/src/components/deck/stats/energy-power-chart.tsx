@@ -150,7 +150,7 @@ function SingleChart({
           className="aspect-auto h-20 w-full @3xl:h-28 @5xl:h-36"
         >
           <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-            <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="value" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
             <ChartTooltip
               cursor={false}
               content={<ChartTooltipContent labelFormatter={(value) => `${value} ${label}`} />}
@@ -183,7 +183,7 @@ function SingleChart({
       <ChartContainer config={chartConfig} className="aspect-auto h-20 w-full @3xl:h-28 @5xl:h-36">
         <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
           <GradientDefs stacks={stacks} colors={domainColors} />
-          <XAxis dataKey="value" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+          <XAxis dataKey="value" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
           <ChartTooltip
             cursor={false}
             content={

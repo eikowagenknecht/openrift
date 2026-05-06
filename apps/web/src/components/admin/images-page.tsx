@@ -253,7 +253,7 @@ function ManageSection() {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Manage Rehosted Images</CardTitle>
+        <CardTitle>Manage Rehosted Images</CardTitle>
         <CardDescription>
           {status.rehosted} / {status.total} images rehosted
           {status.disk.totalBytes > 0 &&
@@ -428,7 +428,7 @@ function RestoreUrlsSection() {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <CardTitle className="text-base">Restore Original URLs</CardTitle>
+            <CardTitle>Restore Original URLs</CardTitle>
             <CardDescription>
               Backfill missing original URLs on active images from a card source. Run this before
               rehosting if images were lost.
@@ -489,7 +489,7 @@ function MissingImagesSection() {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Missing Images</CardTitle>
+        <CardTitle>Missing Images</CardTitle>
         <CardDescription>
           {cards.length} {cards.length === 1 ? "card has" : "cards have"} printings without an
           active front-face image.
@@ -526,7 +526,7 @@ function BrokenImagesSection() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Broken Images</CardTitle>
+            <CardTitle>Broken Images</CardTitle>
             <Button variant="outline" onClick={() => setEnabled(true)}>
               Check
             </Button>
@@ -541,7 +541,7 @@ function BrokenImagesSection() {
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Broken Images</CardTitle>
+          <CardTitle>Broken Images</CardTitle>
           <CardDescription>Scanning disk for missing files…</CardDescription>
         </CardHeader>
       </Card>
@@ -552,7 +552,7 @@ function BrokenImagesSection() {
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Broken Images</CardTitle>
+          <CardTitle>Broken Images</CardTitle>
           <CardDescription>No broken images found.</CardDescription>
         </CardHeader>
       </Card>
@@ -572,7 +572,7 @@ function BrokenImagesSection() {
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between gap-2">
-          <CardTitle className="text-base">Broken Images</CardTitle>
+          <CardTitle>Broken Images</CardTitle>
           <ConfirmClearButton
             label="Un-rehost all"
             title={`Un-rehost ${data.broken.length} broken ${data.broken.length === 1 ? "image" : "images"}?`}
@@ -641,7 +641,7 @@ function LowResImagesSection() {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Low-Resolution Images</CardTitle>
+            <CardTitle>Low-Resolution Images</CardTitle>
             <Button variant="outline" onClick={() => setEnabled(true)}>
               Check
             </Button>
@@ -658,7 +658,7 @@ function LowResImagesSection() {
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Low-Resolution Images</CardTitle>
+          <CardTitle>Low-Resolution Images</CardTitle>
           <CardDescription>Scanning image dimensions…</CardDescription>
         </CardHeader>
       </Card>
@@ -669,7 +669,7 @@ function LowResImagesSection() {
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Low-Resolution Images</CardTitle>
+          <CardTitle>Low-Resolution Images</CardTitle>
           <CardDescription>No low-resolution images found.</CardDescription>
         </CardHeader>
       </Card>
@@ -687,7 +687,7 @@ function LowResImagesSection() {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Low-Resolution Images</CardTitle>
+        <CardTitle>Low-Resolution Images</CardTitle>
         <CardDescription>
           {data.lowRes.length} of {data.total} rehosted{" "}
           {data.lowRes.length === 1 ? "image has" : "images have"} a full-resolution width under

@@ -857,7 +857,7 @@ function ZoneThumb({
         draggable={false}
       />
       {card.quantity > 1 && (
-        <span className="bg-background/90 text-foreground absolute right-0.5 bottom-0.5 rounded px-1 text-[10px] leading-tight font-medium tabular-nums">
+        <span className="bg-background/90 text-foreground text-2xs absolute right-0.5 bottom-0.5 rounded px-1 leading-tight font-medium tabular-nums">
           ×{card.quantity}
         </span>
       )}

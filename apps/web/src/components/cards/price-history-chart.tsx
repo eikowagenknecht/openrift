@@ -196,12 +196,12 @@ export function PriceHistoryChart({
             <XAxis
               dataKey="date"
               tickFormatter={String}
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 11 }}
               interval={Math.max(0, Math.ceil(snapshots.length / 4) - 1)}
             />
             <YAxis
               tickFormatter={(v: number) => currencyFormatter(v)}
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 11 }}
               width={48}
               padding={{ top: 8 }}
             />

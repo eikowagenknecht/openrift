@@ -90,7 +90,7 @@ export function PackOpenerPage() {
         <div className="flex items-center gap-2">
           <PackagePlusIcon className="size-6" />
           <h1 className="text-2xl font-bold">Pack opener</h1>
-          <span className="bg-primary/10 text-primary rounded-sm px-1.5 py-0.5 text-[10px] leading-none font-semibold uppercase">
+          <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 leading-none font-semibold uppercase">
             Simulator
           </span>
         </div>

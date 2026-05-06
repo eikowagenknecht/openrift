@@ -103,7 +103,7 @@ function SyntaxToolbar({ onInsert }: { onInsert: (token: string) => void }) {
           onInsert={onInsert}
         >
           <span
-            className="bg-foreground text-background inline-flex size-4 items-center justify-center rounded-full text-[10px] font-bold"
+            className="bg-foreground text-background text-2xs inline-flex size-4 items-center justify-center rounded-full font-bold"
             aria-hidden
           >
             {n}

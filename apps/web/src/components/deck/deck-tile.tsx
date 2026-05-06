@@ -198,7 +198,7 @@ export function DeckTile({ item }: { item: DeckListItemResponse }) {
               <DomainIcon key={domain} domain={domain} />
             ))}
             {typeSummary && (
-              <span className="text-muted-foreground ml-1 text-[10px]">{typeSummary}</span>
+              <span className="text-muted-foreground text-2xs ml-1">{typeSummary}</span>
             )}
           </span>
           {deck.format === WellKnown.deckFormat.FREEFORM ? (

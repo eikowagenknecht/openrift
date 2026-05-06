@@ -81,7 +81,7 @@ function LogoLink({ className }: { className?: string }) {
     >
       <img src="/logo-color.svg" alt="OpenRift" className="size-8" />
       <span className="text-xl font-bold">OpenRift</span>
-      <span className="bg-primary/10 text-primary rounded-sm px-1.5 py-0.5 text-[10px] leading-none font-semibold uppercase">
+      <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 leading-none font-semibold uppercase">
         Beta
       </span>
     </Link>
@@ -376,7 +376,7 @@ function MobileNav({
             >
               <img src="/logo-color.svg" alt="OpenRift" className="size-6" />
               OpenRift
-              <span className="bg-primary/10 text-primary rounded-sm px-1.5 py-0.5 text-[10px] leading-none font-semibold uppercase">
+              <span className="bg-primary/10 text-primary text-2xs rounded-sm px-1.5 py-0.5 leading-none font-semibold uppercase">
                 Beta
               </span>
             </Link>

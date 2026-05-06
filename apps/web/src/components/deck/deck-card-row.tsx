@@ -63,7 +63,7 @@ function PowerDomainIcon({
 
 function EnergyGlyph({ value }: { value: number }) {
   return (
-    <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-white text-[9px] leading-none font-bold text-[#013951]">
+    <span className="text-2xs flex size-4 shrink-0 items-center justify-center rounded-full bg-white leading-none font-bold text-[#013951]">
       {value}
     </span>
   );
@@ -123,7 +123,7 @@ function CardControls({
             }
           >
             {shiftHeld && quantity > 1 ? (
-              <span className="text-[10px] leading-none font-semibold">-{quantity}</span>
+              <span className="text-2xs leading-none font-semibold">-{quantity}</span>
             ) : (
               <MinusIcon className="size-3" />
             )}
@@ -219,7 +219,7 @@ export function DeckCardRow({
       <span className="min-w-0 flex-1 truncate text-left">
         {card.cardName}
         {card.power !== null && card.power > 0 && (
-          <span className="ml-1 inline-flex translate-y-px items-center gap-0.5 text-[10px]">
+          <span className="text-2xs ml-1 inline-flex translate-y-px items-center gap-0.5">
             {Array.from({ length: card.power }, (_, index) => (
               <PowerDomainIcon key={index} domains={card.domains} colors={domainColors} />
             ))}

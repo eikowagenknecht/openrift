@@ -6,6 +6,10 @@ import {
   ShuffleIcon,
 } from "lucide-react";
 
+import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 export default function DeckBuildingArticle() {
   return (
     <div className="space-y-8">
@@ -15,36 +19,38 @@ export default function DeckBuildingArticle() {
       </p>
 
       {/* Decks vs Collections concept */}
-      <div className="border-border bg-muted/30 rounded-lg border p-4">
-        <h3 className="mb-2 text-sm font-semibold">Decks are blueprints, not physical locations</h3>
-        <p className="text-muted-foreground text-sm">
-          A deck is a list of{" "}
-          <a href="/help/cards-printings-copies" className="text-primary hover:underline">
-            cards
-          </a>
-          , not specific printings or copies. It doesn&apos;t matter whether you play the English
-          version, the Chinese version, or the signed foil promo. The deck just says &quot;3x Fury
-          Rune&quot; and any printing of that card will do.
-        </p>
-        <p className="text-muted-foreground mt-2 text-sm">
-          This is different from{" "}
-          <a href="/help/collections" className="text-primary hover:underline">
-            collections
-          </a>
-          , which track where your physical copies are. A deck is the recipe; your collection is the
-          pantry. Most other sites like Piltover Archive or TCG Arena tie decks to specific
-          printings, but OpenRift keeps them separate by design. This means any printing you own
-          (across all{" "}
-          <a
-            href="/help/collections#deck-building-availability"
-            className="text-primary hover:underline"
-          >
-            available collections
-          </a>
-          ) counts toward completing the deck, and shared deck lists (coming soon) work regardless
-          of which language or edition other players own.
-        </p>
-      </div>
+      <Alert>
+        <AlertTitle>Decks are blueprints, not physical locations</AlertTitle>
+        <AlertDescription>
+          <p>
+            A deck is a list of{" "}
+            <a href="/help/cards-printings-copies" className="text-primary hover:underline">
+              cards
+            </a>
+            , not specific printings or copies. It doesn&apos;t matter whether you play the English
+            version, the Chinese version, or the signed foil promo. The deck just says &quot;3x Fury
+            Rune&quot; and any printing of that card will do.
+          </p>
+          <p>
+            This is different from{" "}
+            <a href="/help/collections" className="text-primary hover:underline">
+              collections
+            </a>
+            , which track where your physical copies are. A deck is the recipe; your collection is
+            the pantry. Most other sites like Piltover Archive or TCG Arena tie decks to specific
+            printings, but OpenRift keeps them separate by design. This means any printing you own
+            (across all{" "}
+            <a
+              href="/help/collections#deck-building-availability"
+              className="text-primary hover:underline"
+            >
+              available collections
+            </a>
+            ) counts toward completing the deck, and shared deck lists (coming soon) work regardless
+            of which language or edition other players own.
+          </p>
+        </AlertDescription>
+      </Alert>
 
       {/* Deck structure diagram */}
       <div className="border-border bg-muted/30 rounded-lg border p-4">
@@ -186,40 +192,43 @@ export default function DeckBuildingArticle() {
           means your deck is legal. A yellow banner shows the next issue to fix.
         </p>
 
-        <div className="border-border divide-border mt-3 divide-y rounded-lg border text-sm">
-          <RuleRow
+        <DefinitionList className="mt-3">
+          <DefinitionRow
             icon={<TypeIcon src="/images/types/legend.svg" alt="Legend" />}
-            zone="Legend"
-            rule="Exactly 1 legend"
-          />
-          <RuleRow
+            label="Legend"
+          >
+            Exactly 1 legend
+          </DefinitionRow>
+          <DefinitionRow
             icon={<TypeIcon src="/images/supertypes/champion.svg" alt="Champion" />}
-            zone="Champion"
-            rule="Exactly 1 champion that shares a tag with your legend"
-          />
-          <RuleRow
-            icon={<TypeIcon src="/images/types/rune.svg" alt="Rune" />}
-            zone="Runes"
-            rule="Exactly 12 runes, all matching the legend's domains"
-          />
-          <RuleRow
+            label="Champion"
+          >
+            Exactly 1 champion that shares a tag with your legend
+          </DefinitionRow>
+          <DefinitionRow icon={<TypeIcon src="/images/types/rune.svg" alt="Rune" />} label="Runes">
+            Exactly 12 runes, all matching the legend&apos;s domains
+          </DefinitionRow>
+          <DefinitionRow
             icon={<TypeIcon src="/images/types/battlefield.svg" alt="Battlefield" />}
-            zone="Battlefield"
-            rule="Exactly 3 unique battlefields"
-          />
-          <RuleRow
-            icon={<CopyIcon className="size-3.5" />}
-            zone="Main"
-            rule="Exactly 39 cards, plus the champion for a total of 40. Max 3 copies of any card. Max 3 Signature cards total, all sharing a Champion tag with the legend. All card domains must be within the legend's domains or colorless."
-          />
-          <RuleRow
+            label="Battlefield"
+          >
+            Exactly 3 unique battlefields
+          </DefinitionRow>
+          <DefinitionRow icon={<CopyIcon className="size-3.5" />} label="Main">
+            Exactly 39 cards, plus the champion for a total of 40. Max 3 copies of any card. Max 3
+            Signature cards total, all sharing a Champion tag with the legend. All card domains must
+            be within the legend&apos;s domains or colorless.
+          </DefinitionRow>
+          <DefinitionRow
             icon={<CopyIcon className="text-muted-foreground size-3.5" />}
-            zone="Sideboard"
-            rule="Up to 8 cards. Copy limits are shared with the main deck (e.g. if you have 2 copies of a card in main, you can only have 1 more in the sideboard)."
-          />
-        </div>
+            label="Sideboard"
+          >
+            Up to 8 cards. Copy limits are shared with the main deck (e.g. if you have 2 copies of a
+            card in main, you can only have 1 more in the sideboard).
+          </DefinitionRow>
+        </DefinitionList>
 
-        <p className="text-muted-foreground mt-3 text-sm">
+        <p className="text-muted-foreground mt-3">
           In Freeform, none of these rules are enforced. Switch to Freeform to theorycraft, then
           back to Constructed to validate. The zone sidebar highlights violations per zone.
         </p>
@@ -325,15 +334,17 @@ function ZoneCard({
   color: string;
 }) {
   return (
-    <div className="bg-background border-border rounded-lg border p-3">
-      <div className="mb-1 flex items-center gap-2">
-        <span className={`text-sm font-semibold ${color}`}>{name}</span>
-        <span className="bg-muted text-muted-foreground rounded-full px-1.5 text-[10px] tabular-nums">
-          {count}
-        </span>
-      </div>
-      <p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className={color}>{name}</span>
+          <span className="bg-muted text-muted-foreground text-2xs rounded-full px-1.5 tabular-nums">
+            {count}
+          </span>
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
   );
 }
 
@@ -347,15 +358,17 @@ function StepRow({
   description: string;
 }) {
   return (
-    <div className="border-border bg-background flex gap-3 rounded-lg border p-3">
-      <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
-        {step}
-      </span>
-      <div>
-        <span className="text-sm font-medium">{title}</span>
-        <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">{description}</p>
-      </div>
-    </div>
+    <Card>
+      <CardContent className="flex gap-3">
+        <span className="bg-primary/10 text-primary flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold">
+          {step}
+        </span>
+        <div className="flex flex-col gap-1">
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -369,28 +382,18 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <div className="border-border bg-background rounded-lg border p-3">
-      <div className="mb-1 flex items-center gap-2">
-        <span className="text-primary">{icon}</span>
-        <span className="text-sm font-medium">{title}</span>
-      </div>
-      <p className="text-muted-foreground text-xs leading-relaxed">{description}</p>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-primary">{icon}</span>
+          {title}
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
   );
 }
 
 function TypeIcon({ src, alt }: { src: string; alt: string }) {
   return <img src={src} alt={alt} className="size-3.5" />;
-}
-
-function RuleRow({ icon, zone, rule }: { icon: React.ReactNode; zone: string; rule: string }) {
-  return (
-    <div className="flex gap-3 px-3 py-2.5">
-      <div className="flex w-24 shrink-0 items-start gap-2">
-        {icon}
-        <span className="font-medium">{zone}</span>
-      </div>
-      <span className="text-muted-foreground">{rule}</span>
-    </div>
-  );
 }

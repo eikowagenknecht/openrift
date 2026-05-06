@@ -115,7 +115,7 @@ export function DeckMissingCardsDialog({
 
         <div className="max-h-80 overflow-y-auto">
           <table className="w-full text-sm">
-            <thead className="text-muted-foreground bg-background sticky top-0 text-left text-xs">
+            <thead className="text-muted-foreground bg-background sticky top-0 text-left">
               <tr>
                 <th className="pb-2 font-medium">Printing</th>
                 <th className="pb-2 text-right font-medium">Qty</th>

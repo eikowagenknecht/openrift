@@ -100,7 +100,7 @@ export function CollectionSidebar() {
               <LayersIcon />
               <span className="flex-1">All Cards</span>
               {totalCopies > 0 && (
-                <Badge variant="ghost" className="ml-auto text-[10px]">
+                <Badge variant="ghost" className="text-2xs ml-auto">
                   {totalCopies}
                 </Badge>
               )}
@@ -136,7 +136,7 @@ export function CollectionSidebar() {
                       {col.copyCount > 0 && (
                         <Badge
                           variant={col.isInbox ? "default" : "ghost"}
-                          className={cn("text-[10px]", !isRecording && "ml-auto")}
+                          className={cn("text-2xs", !isRecording && "ml-auto")}
                         >
                           {col.copyCount}
                         </Badge>

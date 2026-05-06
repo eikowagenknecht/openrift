@@ -12,6 +12,10 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { DefinitionList, DefinitionRow } from "@/components/help/definition-list";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 export default function WhyOpenRiftArticle() {
   return (
     <div className="space-y-8">
@@ -112,12 +116,12 @@ export default function WhyOpenRiftArticle() {
         </div>
       </section>
 
-      <div className="border-primary/20 bg-primary/5 rounded-lg border p-4">
-        <p className="leading-relaxed">
+      <Alert className="border-primary/20 bg-primary/5">
+        <AlertDescription className="text-foreground">
           One thing the table below can&apos;t show: I have a long list of ideas no other Riftbound
           app has yet. Those are the features I&apos;m most excited to build.
-        </p>
-      </div>
+        </AlertDescription>
+      </Alert>
 
       {/* Comparison table */}
       <section>
@@ -188,19 +192,19 @@ export default function WhyOpenRiftArticle() {
         <p className="text-muted-foreground mb-3">
           For the technically curious, or if you&apos;re thinking about contributing:
         </p>
-        <div className="border-border divide-border divide-y rounded-lg border">
-          <TechRow label="Runtime">
+        <DefinitionList>
+          <DefinitionRow label="Runtime">
             <TechLink href="https://bun.com">Bun</TechLink>
-          </TechRow>
-          <TechRow label="Language">
+          </DefinitionRow>
+          <DefinitionRow label="Language">
             <TechLink href="https://www.typescriptlang.org">TypeScript</TechLink> end-to-end, linted
             with <TechLink href="https://oxc.rs">oxlint + oxfmt</TechLink>
-          </TechRow>
-          <TechRow label="Frontend">
+          </DefinitionRow>
+          <DefinitionRow label="Frontend">
             <TechLink href="https://react.dev">React 19</TechLink> with React Compiler, built with{" "}
             <TechLink href="https://vite.dev">Vite</TechLink>
-          </TechRow>
-          <TechRow label="TanStack">
+          </DefinitionRow>
+          <DefinitionRow label="TanStack">
             <TechLink href="https://tanstack.com/start">Start</TechLink> (SSR),{" "}
             <TechLink href="https://tanstack.com/router">Router</TechLink>,{" "}
             <TechLink href="https://tanstack.com/query">Query</TechLink>,{" "}
@@ -208,34 +212,34 @@ export default function WhyOpenRiftArticle() {
             <TechLink href="https://tanstack.com/table">Table</TechLink>,{" "}
             <TechLink href="https://tanstack.com/virtual">Virtual</TechLink>,{" "}
             <TechLink href="https://tanstack.com/hotkeys">Hotkeys</TechLink>
-          </TechRow>
-          <TechRow label="UI">
+          </DefinitionRow>
+          <DefinitionRow label="UI">
             <TechLink href="https://tailwindcss.com">Tailwind CSS</TechLink> +{" "}
             <TechLink href="https://ui.shadcn.com">shadcn/ui</TechLink> +{" "}
             <TechLink href="https://base-ui.com">BaseUI</TechLink> primitives
-          </TechRow>
-          <TechRow label="State & forms">
+          </DefinitionRow>
+          <DefinitionRow label="State & forms">
             <TechLink href="https://zustand.docs.pmnd.rs">Zustand</TechLink>,{" "}
             <TechLink href="https://react-hook-form.com">React Hook Form</TechLink>,{" "}
             <TechLink href="https://zod.dev">Zod</TechLink>
-          </TechRow>
-          <TechRow label="Backend">
+          </DefinitionRow>
+          <DefinitionRow label="Backend">
             <TechLink href="https://hono.dev">Hono</TechLink> +{" "}
             <TechLink href="https://www.better-auth.com">better-auth</TechLink>
-          </TechRow>
-          <TechRow label="Database">
+          </DefinitionRow>
+          <DefinitionRow label="Database">
             <TechLink href="https://www.postgresql.org">PostgreSQL</TechLink> via{" "}
             <TechLink href="https://kysely.dev">Kysely</TechLink>
-          </TechRow>
-          <TechRow label="Monorepo">
+          </DefinitionRow>
+          <DefinitionRow label="Monorepo">
             <TechLink href="https://turborepo.com">Turborepo</TechLink> (web, api, shared)
-          </TechRow>
-          <TechRow label="Quality">
+          </DefinitionRow>
+          <DefinitionRow label="Quality">
             <TechLink href="https://vitest.dev">Vitest</TechLink> +{" "}
             <TechLink href="https://playwright.dev">Playwright</TechLink> +{" "}
             <TechLink href="https://sentry.io">Sentry</TechLink>
-          </TechRow>
-        </div>
+          </DefinitionRow>
+        </DefinitionList>
       </section>
     </div>
   );
@@ -251,13 +255,15 @@ function FeatureCard({
   description: React.ReactNode;
 }) {
   return (
-    <div className="border-border bg-background rounded-lg border p-3">
-      <div className="mb-1 flex items-center gap-2">
-        <span className="text-primary">{icon}</span>
-        <span className="font-medium">{title}</span>
-      </div>
-      <p className="text-muted-foreground leading-relaxed">{description}</p>
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-primary">{icon}</span>
+          {title}
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
   );
 }
 
@@ -271,13 +277,15 @@ function GapCard({
   description: React.ReactNode;
 }) {
   return (
-    <div className="border-border bg-background rounded-lg border border-dashed p-3">
-      <div className="mb-1 flex items-center gap-2">
-        <span className="text-muted-foreground">{icon}</span>
-        <span className="font-medium">{title}</span>
-      </div>
-      <p className="text-muted-foreground leading-relaxed">{description}</p>
-    </div>
+    <Card className="border border-dashed ring-0">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-muted-foreground">{icon}</span>
+          {title}
+        </CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
   );
 }
 
@@ -895,15 +903,6 @@ function ComparisonCell({ value }: { value: CellValue }) {
     return <CircleHelpIcon className="text-muted-foreground/50 inline size-4" />;
   }
   return <XIcon className="inline size-4 text-red-600 dark:text-red-400" />;
-}
-
-function TechRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex gap-3 px-3 py-2.5">
-      <span className="w-24 shrink-0 font-medium">{label}</span>
-      <span className="text-muted-foreground">{children}</span>
-    </div>
-  );
 }
 
 function TechLink({ href, children }: { href: string; children: React.ReactNode }) {

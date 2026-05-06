@@ -64,7 +64,7 @@ function ProfilePage() {
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col gap-0.5">
-                <CardTitle className="text-xl">{user.name || user.email}</CardTitle>
+                <CardTitle>{user.name || user.email}</CardTitle>
                 <CardDescription>{user.email}</CardDescription>
                 {createdAt && <p className="text-muted-foreground text-xs">Joined {createdAt}</p>}
               </div>

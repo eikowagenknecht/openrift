@@ -451,7 +451,7 @@ function ItemList({
     <div className="space-y-1">
       <p className="text-muted-foreground text-sm font-medium">{label}:</p>
       <div className="max-h-64 overflow-y-auto rounded-md border">
-        <table className="w-full">
+        <table className="w-full text-sm">
           <thead className="bg-muted sticky top-0">
             <tr className="text-left">
               <th className="px-2 py-1">Name</th>
@@ -487,7 +487,7 @@ function DiffTable({
     <div className="space-y-1">
       <p className="text-muted-foreground text-sm font-medium">{label}:</p>
       <div className="max-h-64 overflow-y-auto rounded-md border">
-        <table className="w-full">
+        <table className="w-full text-sm">
           <thead className="bg-muted sticky top-0">
             <tr className="text-left">
               <th className="px-2 py-1">Card</th>

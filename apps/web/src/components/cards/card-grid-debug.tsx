@@ -267,7 +267,7 @@ export function CardGridDebug({
         zIndex: 9999,
         background: "rgba(0,0,0,0.85)",
         color: "#0f0",
-        fontSize: 10,
+        fontSize: 11,
         fontFamily: "monospace",
         padding: 6,
         borderRadius: 6,

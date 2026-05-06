@@ -10,7 +10,7 @@ export const Route = createLazyFileRoute("/_app/_authenticated/admin/error-test"
 function ErrorTestPage() {
   return (
     <div className="flex flex-col gap-4 p-6">
-      <h1 className="text-xl font-semibold">Error boundary test</h1>
+      <h1 className="text-2xl font-bold">Error boundary test</h1>
       <p className="text-muted-foreground text-sm">
         Click the button to throw during render, which triggers the error boundary.
       </p>
