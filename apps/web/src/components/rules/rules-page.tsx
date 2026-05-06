@@ -506,25 +506,49 @@ function RuleRow({
     rule.depth === 0
       ? ""
       : rule.depth === 1
-        ? "sm:pl-6"
+        ? "pl-3 sm:pl-6"
         : rule.depth === 2
-          ? "sm:pl-12"
-          : "sm:pl-18";
+          ? "pl-6 sm:pl-12"
+          : "pl-9 sm:pl-18";
 
   return (
     <div
       id={`rule-${rule.ruleNumber}`}
       className={cn(
-        "border-border/50 block border-b py-1.5 text-sm sm:flex sm:gap-3",
+        "border-border/50 flex items-baseline border-b py-1.5 text-sm",
         isHidden && "hidden",
         isTitle && "border-border mt-4 first:mt-0",
         isSubtitle && "border-border mt-2",
         isContext && "opacity-60",
       )}
     >
-      <span className="mr-2 inline-flex items-baseline gap-1 sm:contents">
-        <span className="inline-flex w-4 shrink-0 items-start">
-          {hasChildren ? (
+      <button
+        type="button"
+        onClick={() => {
+          void copyRuleLink(rule.ruleNumber);
+        }}
+        aria-label={`Copy link to rule ${formatRuleNumber(rule.ruleNumber)}`}
+        className={cn(
+          "group/rule-number text-muted-foreground hover:text-foreground mr-3 flex shrink-0 cursor-pointer items-start gap-1 text-left font-mono text-xs",
+          isTitle && "font-semibold",
+        )}
+      >
+        <span>{formatRuleNumber(rule.ruleNumber)}</span>
+        <CopyIcon
+          aria-hidden="true"
+          className="hidden size-3 opacity-0 transition-opacity group-hover/rule-number:opacity-100 sm:inline-block"
+        />
+      </button>
+      <span
+        className={cn(
+          "min-w-0 flex-1",
+          contentIndentClass,
+          isTitle && "text-base font-bold",
+          isSubtitle && "font-semibold",
+        )}
+      >
+        {hasChildren ? (
+          <span className="float-right ml-3 flex size-4 shrink-0 items-start">
             <button
               type="button"
               onClick={() => toggle(rule.ruleNumber)}
@@ -538,33 +562,8 @@ function RuleRow({
                 <ChevronDownIcon className="size-3" />
               )}
             </button>
-          ) : null}
-        </span>
-        <button
-          type="button"
-          onClick={() => {
-            void copyRuleLink(rule.ruleNumber);
-          }}
-          aria-label={`Copy link to rule ${formatRuleNumber(rule.ruleNumber)}`}
-          className={cn(
-            "group/rule-number text-muted-foreground hover:text-foreground inline-flex shrink-0 cursor-pointer items-baseline gap-1 text-left font-mono text-xs sm:w-20 sm:items-start",
-            isTitle && "font-semibold",
-          )}
-        >
-          <span>{formatRuleNumber(rule.ruleNumber)}</span>
-          <CopyIcon
-            aria-hidden="true"
-            className="hidden size-3 opacity-0 transition-opacity group-hover/rule-number:opacity-100 sm:inline-block"
-          />
-        </button>
-      </span>
-      <span
-        className={cn(
-          contentIndentClass,
-          isTitle && "text-base font-bold",
-          isSubtitle && "font-semibold",
-        )}
-      >
+          </span>
+        ) : null}
         {isTitle || isSubtitle ? rule.content : <RuleContent content={rule.content} />}
       </span>
     </div>
@@ -747,13 +746,6 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
         <KindTabs kind={kind} />
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <RulesSearchBar onDebouncedChange={setDebouncedSearchQuery} />
-        {foldGroupKeys.length > 0 && !isSearching && (
-          <ExpandCollapseAllButton foldGroupKeys={foldGroupKeys} />
-        )}
-      </div>
-
       {isEmpty ? (
         <div className="text-muted-foreground py-16 text-center">
           <p className="text-lg font-medium">No rules available yet</p>
@@ -763,6 +755,12 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
         <div className="flex gap-6">
           <PageToc items={buildRulesTocItems(rules)} />
           <div className="min-w-0 flex-1">
+            <div className="bg-background/80 sticky top-16 z-30 mb-4 flex flex-wrap items-center gap-3 py-3 backdrop-blur-lg">
+              <RulesSearchBar onDebouncedChange={setDebouncedSearchQuery} />
+              {foldGroupKeys.length > 0 && !isSearching && (
+                <ExpandCollapseAllButton foldGroupKeys={foldGroupKeys} />
+              )}
+            </div>
             {comments && !isSearching && <VersionComments markdown={comments} />}
             {noSearchResults ? (
               <div className="text-muted-foreground py-16 text-center">

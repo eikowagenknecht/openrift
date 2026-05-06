@@ -2,6 +2,8 @@
 
 ## 2026-05-06
 
+- feat: On mobile, each rule on the Rules page now fits in a single tight row — number on the left, content filling the middle with the fold chevron tucked into the corner — with halved indentation so more of the rule fits on screen
+- feat: The Rules page search bar now stays pinned to the top as you scroll, so you can refine your query without scrolling back up
 - feat: Help articles have a more polished, consistent look, with uniform cards and callouts across the section
 - feat: Reading text on long-form pages now adjusts to your screen, slightly larger on phones and tighter on desktop for comfortable reading
 - fix: Wording across the help articles, the help index, and the landing page is clearer and more direct
