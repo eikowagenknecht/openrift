@@ -11,6 +11,7 @@
 - feat: Help articles have a more polished, consistent look, with uniform cards and callouts across the section
 - feat: Reading text on long-form pages now adjusts to your screen, slightly larger on phones and tighter on desktop for comfortable reading
 - feat: On mobile, the Rules page's Expand all / Collapse all control is now a compact icon button instead of a text link
+- fix: Battlefield cards in the pack opener simulator are now rotated to fit their slot upright, instead of being squished into a portrait crop
 - fix: Clicking a rules link now scrolls to the target rule cleanly instead of landing behind the sticky search bar
 - fix: Clicking a cross-reference link in the rules while a search is active now clears the filter and jumps to the target, instead of doing nothing because the rule was hidden
 - fix: Wording across the help articles, the help index, and the landing page is clearer and more direct

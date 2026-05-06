@@ -1,9 +1,10 @@
 import type { CatalogPrintingResponse, PackPull } from "@openrift/shared";
-import { WellKnown, imageUrl } from "@openrift/shared";
+import { WellKnown, getOrientation, imageUrl } from "@openrift/shared";
 import { Link } from "@tanstack/react-router";
 
 import { FoilOverlay } from "@/components/cards/foil-overlay";
 import { useEnumOrders } from "@/hooks/use-enums";
+import { LANDSCAPE_ROTATION_STYLE, needsCssRotation } from "@/lib/images";
 import { cn } from "@/lib/utils";
 
 const SLOT_BORDER: Record<PackPull["slot"], string> = {
@@ -47,6 +48,7 @@ export function PullCard({ pull, image, className, shimmer = true }: PullCardPro
   // to make pulls feel exciting. Whether the overlay animates (shimmer) is a
   // per-page toggle.
   const showFoil = printing.finish === WellKnown.finish.FOIL;
+  const rotated = needsCssRotation(getOrientation(printing.cardType));
 
   return (
     <Link
@@ -64,14 +66,30 @@ export function PullCard({ pull, image, className, shimmer = true }: PullCardPro
         )}
       >
         {image ? (
-          <img
-            src={imageUrl(image.imageId, "240w")}
-            srcSet={`${imageUrl(image.imageId, "240w")} 240w, ${imageUrl(image.imageId, "400w")} 400w`}
-            sizes="(max-width: 640px) 40vw, 160px"
-            alt={printing.cardName}
-            loading="lazy"
-            className="absolute inset-0 size-full object-cover"
-          />
+          rotated ? (
+            <div
+              className="absolute top-1/2 left-1/2 overflow-hidden"
+              style={LANDSCAPE_ROTATION_STYLE}
+            >
+              <img
+                src={imageUrl(image.imageId, "240w")}
+                srcSet={`${imageUrl(image.imageId, "240w")} 240w, ${imageUrl(image.imageId, "400w")} 400w`}
+                sizes="(max-width: 640px) 40vw, 160px"
+                alt={printing.cardName}
+                loading="lazy"
+                className="size-full object-cover"
+              />
+            </div>
+          ) : (
+            <img
+              src={imageUrl(image.imageId, "240w")}
+              srcSet={`${imageUrl(image.imageId, "240w")} 240w, ${imageUrl(image.imageId, "400w")} 400w`}
+              sizes="(max-width: 640px) 40vw, 160px"
+              alt={printing.cardName}
+              loading="lazy"
+              className="absolute inset-0 size-full object-cover"
+            />
+          )
         ) : (
           <div className="bg-muted absolute inset-0 flex items-center justify-center p-2 text-center text-xs">
             {printing.cardName}
