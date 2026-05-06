@@ -14,9 +14,26 @@ import { ConfirmClearButton } from "./confirm-clear-button";
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 
-function isPriceRefreshResult(value: unknown): value is PriceRefreshResponse {
+// `upserted` was reshaped from `{ snapshots, staging }` to `{ prices }` in the
+// per-SKU prices refactor, so old `job_runs.result` rows lack `upserted.prices`.
+// Verify the shape we actually render to keep historical rows from crashing.
+export function isPriceRefreshResult(value: unknown): value is PriceRefreshResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  if (!("transformed" in value) || !("upserted" in value)) {
+    return false;
+  }
+  const upserted = (value as { upserted: unknown }).upserted;
+  if (typeof upserted !== "object" || upserted === null || !("prices" in upserted)) {
+    return false;
+  }
+  const prices = (upserted as { prices: unknown }).prices;
   return (
-    typeof value === "object" && value !== null && "transformed" in value && "upserted" in value
+    typeof prices === "object" &&
+    prices !== null &&
+    typeof (prices as { new: unknown }).new === "number" &&
+    typeof (prices as { updated: unknown }).updated === "number"
   );
 }
 
