@@ -38,9 +38,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { EnumLabels } from "@/hooks/use-enums";
+import type { DiffSegment } from "@/lib/text-diff";
+import { textDiff } from "@/lib/text-diff";
 import { cn } from "@/lib/utils";
-import type { DiffSegment } from "@/lib/word-diff";
-import { wordDiff } from "@/lib/word-diff";
 
 function toLabeledOptions(
   slugs: readonly string[],
@@ -874,7 +874,7 @@ export function CandidateSpreadsheet({
                         DIFF_FIELDS.has(field.key) &&
                         typeof normalizedCandidate === "string" &&
                         typeof activeValue === "string" ? (
-                        <DiffText segments={wordDiff(activeValue, normalizedCandidate)} />
+                        <DiffText segments={textDiff(activeValue, normalizedCandidate)} />
                       ) : field.labeledOptions ? (
                         resolveLabel(field, candidateValue)
                       ) : (

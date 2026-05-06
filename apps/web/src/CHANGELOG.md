@@ -2,6 +2,7 @@
 
 ## 2026-05-06
 
+- feat: The Rules page has an optional "Show changes" toggle that highlights rules added, changed, or removed since the previous version, with a summary line above the document and a click-to-expand word-level diff on changed rules
 - feat: The Contribute form's image URL field now notes that you can leave it empty and attach photos or scans to the GitHub pull request later if you have any
 - feat: The CSV import preview now puts rows that need attention at the top, with the cards that matched cleanly tucked into a collapsible group below, so you don't have to scroll past everything to find the problems
 - feat: Italicized game terms in the rules, like _Combat_ or _Accelerate_, now link directly to their defining section

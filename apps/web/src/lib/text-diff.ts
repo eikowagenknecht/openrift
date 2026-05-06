@@ -3,11 +3,18 @@ export interface DiffSegment {
   type: "equal" | "added" | "removed";
 }
 
-function tokenize(text: string) {
-  return text.match(/\w+|\s+|[^\w\s]+/g) ?? [];
+export type DiffGranularity = "word" | "char";
+
+const WORD_TOKENS = /\w+|\s+|[^\w\s]+/g;
+
+function tokenize(text: string, granularity: DiffGranularity): string[] {
+  if (granularity === "char") {
+    return [...text];
+  }
+  return text.match(WORD_TOKENS) ?? [];
 }
 
-function merge(segments: DiffSegment[]) {
+function merge(segments: DiffSegment[]): DiffSegment[] {
   const out: DiffSegment[] = [];
   for (const seg of segments) {
     const last = out.at(-1);
@@ -21,16 +28,25 @@ function merge(segments: DiffSegment[]) {
 }
 
 /**
- * Compute a word-level diff between two strings using LCS.
+ * Compute a diff between two strings using LCS.
  *
  * Segments are tagged as:
  * - "equal"   — text present in both
  * - "removed" — text only in `oldText`
  * - "added"   — text only in `newText`
  *
+ * `granularity` controls the unit of comparison:
+ * - "word" (default) — words, whitespace runs, and punctuation runs
+ * - "char" — individual characters; use when sub-word changes matter
+ *   (typography, smart quotes, accents)
+ *
  * @returns Merged diff segments
  */
-export function wordDiff(oldText: string, newText: string): DiffSegment[] {
+export function textDiff(
+  oldText: string,
+  newText: string,
+  options: { granularity?: DiffGranularity } = {},
+): DiffSegment[] {
   if (oldText === newText) {
     return [{ text: oldText, type: "equal" }];
   }
@@ -41,8 +57,9 @@ export function wordDiff(oldText: string, newText: string): DiffSegment[] {
     return [{ text: oldText, type: "removed" }];
   }
 
-  const oldTokens = tokenize(oldText);
-  const newTokens = tokenize(newText);
+  const granularity = options.granularity ?? "word";
+  const oldTokens = tokenize(oldText, granularity);
+  const newTokens = tokenize(newText, granularity);
   const n = oldTokens.length;
   const m = newTokens.length;
 

@@ -19,10 +19,24 @@ export interface RuleVersionResponse {
   importedAt: string;
 }
 
+export interface RuleChangesResponse {
+  /** Rule numbers added in this version. */
+  added: string[];
+  /** rule_number -> the rule's content as of the previous version. */
+  modifiedPrev: Record<string, string>;
+  /**
+   * Tombstones for rules removed in this version. `content` is backfilled
+   * from the previous version so the row can be rendered in place.
+   */
+  removed: RuleResponse[];
+}
+
 export interface RulesListResponse {
   kind: RuleKind;
   rules: RuleResponse[];
   version: string;
+  /** Per-version diff metadata. Only present when a specific version was requested. */
+  changes?: RuleChangesResponse;
 }
 
 export interface RuleVersionsListResponse {

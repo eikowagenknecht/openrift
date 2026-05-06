@@ -61,6 +61,64 @@ export function rulesRepo(db: Kysely<Database>) {
     },
 
     /**
+     * Returns the diff metadata for a specific version: which rule numbers
+     * were added, modified, or removed in this version, plus the previous
+     * content for modified and removed rules (looked up from the most recent
+     * earlier version that still had the rule).
+     *
+     * @returns added rule numbers, modifiedPrev map, and tombstone rows with
+     * `content` backfilled from the previous version.
+     */
+    async listChangesAtVersion(kind: RuleKind, version: string) {
+      const changeRows = await db
+        .selectFrom("rules")
+        .selectAll()
+        .where("kind", "=", kind)
+        .where("version", "=", version)
+        .orderBy("sortOrder")
+        .execute();
+
+      const ruleNumbersNeedingPrev = changeRows
+        .filter((r) => r.changeType === "modified" || r.changeType === "removed")
+        .map((r) => r.ruleNumber);
+
+      const prevByNumber = new Map<string, string>();
+      if (ruleNumbersNeedingPrev.length > 0) {
+        const prevRows = await db
+          .selectFrom("rules")
+          .select(["ruleNumber", "content"])
+          .where(
+            "id",
+            "in",
+            db
+              .selectFrom("rules as r3")
+              .select(sql<string>`DISTINCT ON (r3.rule_number) r3.id`.as("id"))
+              .where("r3.kind", "=", kind)
+              .where("r3.ruleNumber", "in", ruleNumbersNeedingPrev)
+              .where("r3.version", "<", version)
+              .orderBy("r3.ruleNumber")
+              .orderBy("r3.version", "desc"),
+          )
+          .execute();
+        for (const row of prevRows) {
+          prevByNumber.set(row.ruleNumber, row.content);
+        }
+      }
+
+      return {
+        added: changeRows.filter((r) => r.changeType === "added").map((r) => r.ruleNumber),
+        modifiedPrev: Object.fromEntries(
+          changeRows
+            .filter((r) => r.changeType === "modified")
+            .map((r) => [r.ruleNumber, prevByNumber.get(r.ruleNumber) ?? ""]),
+        ),
+        removed: changeRows
+          .filter((r) => r.changeType === "removed")
+          .map((r) => ({ ...r, content: prevByNumber.get(r.ruleNumber) ?? "" })),
+      };
+    },
+
+    /**
      * Returns known rule versions ordered chronologically. When `kind` is
      * provided, results are scoped to that kind; otherwise all kinds are
      * returned (used by admin views).

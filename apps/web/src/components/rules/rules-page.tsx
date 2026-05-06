@@ -1,4 +1,4 @@
-import type { RuleKind, RuleResponse } from "@openrift/shared";
+import type { RuleChangesResponse, RuleKind, RuleResponse } from "@openrift/shared";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { PageToc } from "@/components/layout/page-toc";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PAGE_TOP_BAR_STICKY } from "@/components/layout/page-top-bar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,11 +30,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRuleVersions, useRulesAtVersion } from "@/hooks/use-rules";
+import type { DiffSegment } from "@/lib/text-diff";
+import { textDiff } from "@/lib/text-diff";
 import { cn, PAGE_PADDING } from "@/lib/utils";
+import { useRulesDiffExpandStore } from "@/stores/rules-diff-expand-store";
 import { useRulesFoldStore } from "@/stores/rules-fold-store";
 import { useRulesSearchStore } from "@/stores/rules-search-store";
+import { useRulesShowChangesStore } from "@/stores/rules-show-changes-store";
 
 /**
  * Formats a rule number for display by stripping trailing dots.
@@ -432,16 +439,93 @@ const MARKDOWN_COMPONENTS: Components = {
         </span>
       );
     }
+    const diff = (props as { "data-diff"?: string })["data-diff"];
+    if (diff === "added") {
+      return (
+        <mark className="rounded-xs bg-emerald-500/15 px-0.5 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
+          {children}
+        </mark>
+      );
+    }
+    if (diff === "removed") {
+      return (
+        <span className="bg-destructive/10 text-destructive rounded-xs px-0.5 line-through decoration-from-font">
+          {children}
+        </span>
+      );
+    }
     return <span {...props}>{children}</span>;
   },
 };
 
 const ALLOWED_MARKDOWN_ELEMENTS = ["em", "strong", "code", "a", "br", "span"];
 
+// Private Use Area sentinels marking diff segments inside merged rule content.
+// They survive markdown parsing as opaque characters and are converted to
+// <span data-diff="..."> nodes by `rehypeHighlightDiffs` so they render with
+// styling (and the surrounding markdown, emphasis, links, still works).
+const DIFF_ADDED_START = "\uE000";
+const DIFF_ADDED_END = "\uE001";
+const DIFF_REMOVED_START = "\uE002";
+const DIFF_REMOVED_END = "\uE003";
+const DIFF_REGEX = /\uE000([^\uE001]*)\uE001|\uE002([^\uE003]*)\uE003/g;
+
+function splitTextOnDiffs(text: string): HastNode[] {
+  const result: HastNode[] = [];
+  let last = 0;
+  DIFF_REGEX.lastIndex = 0;
+  let match: RegExpExecArray | null = DIFF_REGEX.exec(text);
+  while (match !== null) {
+    if (match.index > last) {
+      result.push({ type: "text", value: text.slice(last, match.index) });
+    }
+    const isAdded = match[0].startsWith(DIFF_ADDED_START);
+    result.push({
+      type: "element",
+      tagName: "span",
+      properties: { "data-diff": isAdded ? "added" : "removed" },
+      children: [{ type: "text", value: isAdded ? match[1] : match[2] }],
+    });
+    last = match.index + match[0].length;
+    match = DIFF_REGEX.exec(text);
+  }
+  if (last < text.length) {
+    result.push({ type: "text", value: text.slice(last) });
+  }
+  return result;
+}
+
+function visitHastTextNodesForDiffs(node: HastNode): void {
+  if (!node.children) {
+    return;
+  }
+  for (let index = 0; index < node.children.length; index++) {
+    const child = node.children[index];
+    if (child.type === "text" && typeof child.value === "string") {
+      DIFF_REGEX.lastIndex = 0;
+      if (!DIFF_REGEX.test(child.value)) {
+        DIFF_REGEX.lastIndex = 0;
+        continue;
+      }
+      DIFF_REGEX.lastIndex = 0;
+      const replacements = splitTextOnDiffs(child.value);
+      node.children.splice(index, 1, ...replacements);
+      index += replacements.length - 1;
+      continue;
+    }
+    visitHastTextNodesForDiffs(child);
+  }
+}
+
+const rehypeHighlightDiffs = () => (tree: HastNode) => {
+  visitHastTextNodesForDiffs(tree);
+};
+
 // Stable references — re-creating these arrays each render busts ReactMarkdown's
 // memoization, forcing a full remark/rehype reparse for every rule on every keystroke.
 const REMARK_PLUGINS = [remarkLinkifyRuleReferences];
 const REHYPE_PLUGINS = [rehypeHighlightPenalties];
+const DIFF_REHYPE_PLUGINS = [rehypeHighlightPenalties, rehypeHighlightDiffs];
 
 /**
  * Renders a rule's body as a constrained markdown subset, with rule-number
@@ -613,6 +697,10 @@ function computeAncestorsByRule(
 // Object.is-equal across renders so the compiler can cache the .map() result.
 const EMPTY_ANCESTORS: readonly string[] = [];
 
+// Stable empty Set/Map references used when no moves are present.
+const EMPTY_STRING_SET: ReadonlySet<string> = new Set();
+const EMPTY_STRING_MAP: ReadonlyMap<string, string> = new Map();
+
 function parseSearchTerms(query: string): string[] {
   return query.trim().toLowerCase().split(/\s+/).filter(Boolean);
 }
@@ -694,18 +782,344 @@ function computeSearchResult(rules: RuleResponse[], terms: string[]): SearchResu
   return { visibleIndices, matchSet, ancestorSet };
 }
 
+/**
+ * Builds a single markdown string from word-diff segments by wrapping
+ * non-equal segments in invisible PUA sentinels. The merged string is fed
+ * back through the same markdown pipeline, and `rehypeHighlightDiffs`
+ * converts the sentinels into styled spans — so emphasis/links/penalty
+ * highlighting still render in the diff view.
+ *
+ * @returns The merged markdown source with sentinel-wrapped diff regions.
+ */
+function buildDiffMarkdown(segments: DiffSegment[]): string {
+  let out = "";
+  for (const seg of segments) {
+    if (seg.type === "equal") {
+      out += seg.text;
+    } else if (seg.type === "added") {
+      out += `${DIFF_ADDED_START}${seg.text}${DIFF_ADDED_END}`;
+    } else {
+      out += `${DIFF_REMOVED_START}${seg.text}${DIFF_REMOVED_END}`;
+    }
+  }
+  return out;
+}
+
+/**
+ * Renders an inline word-level diff between two rule contents through the
+ * full markdown pipeline, so `*emphasis*`, links, and other formatting are
+ * preserved alongside the diff highlights.
+ *
+ * @returns The diffed rule body with markdown rendering intact.
+ */
+function InlineDiff({ oldText, newText }: { oldText: string; newText: string }) {
+  const segments = textDiff(oldText, newText);
+  const merged = buildDiffMarkdown(segments);
+  const processed = merged.replaceAll(PENALTY_NORMALIZE_REGEX, "[$1]").replaceAll("\n", "  \n");
+  return (
+    <ReactMarkdown
+      remarkPlugins={REMARK_PLUGINS}
+      rehypePlugins={DIFF_REHYPE_PLUGINS}
+      components={MARKDOWN_COMPONENTS}
+      allowedElements={ALLOWED_MARKDOWN_ELEMENTS}
+      unwrapDisallowed
+      skipHtml
+    >
+      {processed}
+    </ReactMarkdown>
+  );
+}
+
+type ChangeKind = "new" | "changed" | "moved" | "replaced" | "removed";
+
+const CHANGE_KIND_BADGE: Record<ChangeKind, { label: string; className: string }> = {
+  new: {
+    label: "New",
+    className: "bg-emerald-500/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
+  },
+  changed: {
+    label: "Changed",
+    className: "bg-amber-500/15 text-amber-700 dark:bg-amber-400/15 dark:text-amber-300",
+  },
+  moved: {
+    label: "Moved",
+    className: "bg-sky-500/15 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300",
+  },
+  replaced: {
+    label: "Replaced",
+    className: "bg-violet-500/15 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
+  },
+  removed: {
+    label: "Removed",
+    className: "bg-destructive/10 text-destructive dark:bg-destructive/20",
+  },
+};
+
+interface RuleMoves {
+  /** Map from a source rule_number (removed or modified) to its new home. */
+  oldToNew: Map<string, string>;
+  /** Map from a target rule_number (added or modified) back to the source. */
+  newToOld: Map<string, string>;
+  /** Source rule_numbers that were tombstones — used to suppress those rows. */
+  fromRemovedSet: Set<string>;
+  /** Target rule_numbers that are brand-new adds (vs. modified). */
+  toAddedSet: Set<string>;
+  /**
+   * Modified rule_numbers whose previous content went elsewhere AND that did
+   * not themselves receive content from another tracked rule. These rows are
+   * "replaced": the rule_number now holds different content, but the old
+   * content lives at a new rule_number. Their stored `previousContent` is
+   * misleading (it's now at the new home), so the diff is suppressed.
+   */
+  displacedSet: Set<string>;
+}
+
+// Fresh instance of the rule-reference regex, used by the move-detection
+// normalizer. Derived from `RULE_REFERENCE_REGEX.source` so the two stay in
+// sync, but with its own `lastIndex` state to avoid clobbering the markdown
+// pipeline's iteration.
+const RULE_REFERENCE_NORMALIZE_REGEX = new RegExp(RULE_REFERENCE_REGEX.source, "g");
+
+/**
+ * Canonicalizes rule content for move detection: strips emphasis/code
+ * markers, collapses whitespace, and replaces rule cross-references
+ * (`rule 173`, `CR 540`, bare `540.4.b`) with a placeholder. This way a
+ * rule whose only change is renumbered cross-refs (an inevitable consequence
+ * of section reorganization) still matches its previous-version twin.
+ * Brackets, parens, and other punctuation stay — they carry semantic content
+ * (e.g. `[Warning]` penalty labels).
+ *
+ * @returns The canonical form for content equality comparison.
+ */
+function normalizeForMoveDetection(text: string): string {
+  return text
+    .replaceAll(RULE_REFERENCE_NORMALIZE_REGEX, "REF")
+    .replaceAll(/[*_`]/g, "")
+    .replaceAll(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Detects "moves" — content that ended up under a different rule_number than
+ * it had in the previous version. Two flavors:
+ *
+ * - **removed → added/modified**: a tombstone's content matches a target row's
+ *   current content (classic renumber).
+ * - **modified → modified**: a modified rule's *previous* content matches
+ *   another rule's current content (renumber-shift, where both rule_numbers
+ *   exist in both versions but the content swapped/shifted).
+ *
+ * Both are surfaced as a single "Moved" entry on the target, with the source
+ * rule_number in a tooltip.
+ *
+ * @returns Move maps and per-source/target kind sets for summary accounting.
+ */
+function detectMoves(
+  rules: readonly RuleResponse[],
+  changes: RuleChangesResponse,
+  version: string,
+): RuleMoves {
+  const addedSet = new Set(changes.added);
+
+  // Index: target rule's current content (normalized) → its rule_number,
+  // considering only rules that changed in this version (added or modified).
+  // First-write-wins for duplicates, so generic boilerplate doesn't generate
+  // spurious moves.
+  const targetByContent = new Map<string, string>();
+  for (const rule of rules) {
+    const isAdded = addedSet.has(rule.ruleNumber);
+    const isModifiedNow = rule.changeType === "modified" && rule.version === version;
+    if (!isAdded && !isModifiedNow) {
+      continue;
+    }
+    const norm = normalizeForMoveDetection(rule.content);
+    if (!norm) {
+      continue;
+    }
+    if (!targetByContent.has(norm)) {
+      targetByContent.set(norm, rule.ruleNumber);
+    }
+  }
+
+  const oldToNew = new Map<string, string>();
+  const newToOld = new Map<string, string>();
+  const fromRemovedSet = new Set<string>();
+  const toAddedSet = new Set<string>();
+
+  function tryRecordMove(oldRuleNumber: string, oldContent: string, fromRemoved: boolean) {
+    const norm = normalizeForMoveDetection(oldContent);
+    if (!norm) {
+      return;
+    }
+    if (oldToNew.has(oldRuleNumber)) {
+      return;
+    }
+    const newRuleNumber = targetByContent.get(norm);
+    if (newRuleNumber === undefined || newRuleNumber === oldRuleNumber) {
+      return;
+    }
+    if (newToOld.has(newRuleNumber)) {
+      return;
+    }
+    oldToNew.set(oldRuleNumber, newRuleNumber);
+    newToOld.set(newRuleNumber, oldRuleNumber);
+    if (fromRemoved) {
+      fromRemovedSet.add(oldRuleNumber);
+    }
+    if (addedSet.has(newRuleNumber)) {
+      toAddedSet.add(newRuleNumber);
+    }
+  }
+
+  // Pass 1: tombstone sources (removed-then-added/modified).
+  for (const tombstone of changes.removed) {
+    tryRecordMove(tombstone.ruleNumber, tombstone.content, true);
+  }
+  // Pass 2: modified-rule sources (renumber-shifts where both old + new
+  // rule_numbers exist in both versions).
+  for (const [oldRuleNumber, prevContent] of Object.entries(changes.modifiedPrev)) {
+    tryRecordMove(oldRuleNumber, prevContent, false);
+  }
+
+  // A modified rule is "displaced" iff its old content moved elsewhere but
+  // it didn't itself receive content from another tracked rule (i.e. the
+  // new content is fresh / from outside the tracked diff).
+  const displacedSet = new Set<string>();
+  for (const oldRuleNumber of oldToNew.keys()) {
+    if (fromRemovedSet.has(oldRuleNumber)) {
+      continue;
+    }
+    if (newToOld.has(oldRuleNumber)) {
+      continue;
+    }
+    displacedSet.add(oldRuleNumber);
+  }
+
+  return { oldToNew, newToOld, fromRemovedSet, toAddedSet, displacedSet };
+}
+
+/**
+ * Compares two rule numbers in their natural numeric/alphabetic order so that
+ * `100 < 100.1 < 100.1.a < 200 < 1000`. Each dot-separated segment is parsed
+ * as a number when possible; pure-digit segments sort before letter segments
+ * at the same depth.
+ *
+ * @returns Negative if a < b, positive if a > b, 0 if equal.
+ */
+function compareRuleNumbers(a: string, b: string): number {
+  const partsA = a.split(".");
+  const partsB = b.split(".");
+  const len = Math.min(partsA.length, partsB.length);
+  for (let i = 0; i < len; i++) {
+    const partA = partsA[i];
+    const partB = partsB[i];
+    const numA = Number(partA);
+    const numB = Number(partB);
+    const aIsNum = !Number.isNaN(numA) && partA !== "";
+    const bIsNum = !Number.isNaN(numB) && partB !== "";
+    if (aIsNum && bIsNum) {
+      if (numA !== numB) {
+        return numA - numB;
+      }
+    } else if (aIsNum) {
+      return -1;
+    } else if (bIsNum) {
+      return 1;
+    } else {
+      const cmp = partA.localeCompare(partB);
+      if (cmp !== 0) {
+        return cmp;
+      }
+    }
+  }
+  return partsA.length - partsB.length;
+}
+
+/**
+ * Builds a map from rule_number → ChangeKind for the given version's diff.
+ * A rule whose new content matches some other rule's previous content is
+ * tagged "moved" — whether it's brand-new or just modified. Tombstones whose
+ * content moved to a new rule_number (per `movedTombstones`) are skipped.
+ *
+ * @returns Map of rule_number to its change kind in this version.
+ */
+function buildChangeKindMap(
+  rules: readonly RuleResponse[],
+  changes: RuleChangesResponse,
+  version: string,
+  newToOld: ReadonlyMap<string, string>,
+  displacedSet: ReadonlySet<string>,
+  movedTombstones: ReadonlySet<string>,
+): Map<string, ChangeKind> {
+  const map = new Map<string, ChangeKind>();
+  const addedSet = new Set(changes.added);
+  for (const rule of rules) {
+    if (rule.version !== version) {
+      continue;
+    }
+    if (newToOld.has(rule.ruleNumber)) {
+      map.set(rule.ruleNumber, "moved");
+    } else if (displacedSet.has(rule.ruleNumber)) {
+      map.set(rule.ruleNumber, "replaced");
+    } else if (addedSet.has(rule.ruleNumber)) {
+      map.set(rule.ruleNumber, "new");
+    } else if (rule.changeType === "modified") {
+      map.set(rule.ruleNumber, "changed");
+    }
+  }
+  for (const tombstone of changes.removed) {
+    if (!movedTombstones.has(tombstone.ruleNumber)) {
+      map.set(tombstone.ruleNumber, "removed");
+    }
+  }
+  return map;
+}
+
+/**
+ * Interleaves tombstones into the rules list at their natural rule-number
+ * position. Skips tombstones whose content moved to a new rule_number — those
+ * are surfaced as "Moved" badges on the new rule instead.
+ *
+ * `sort_order` is per-version and collides across versions, so we sort on
+ * `rule_number` (natural order) when in diff mode to keep new + tombstone
+ * rows in their canonical document position.
+ *
+ * @returns The merged list ordered by rule_number.
+ */
+function mergeTombstones(
+  rules: readonly RuleResponse[],
+  tombstones: readonly RuleResponse[],
+  movedTombstones: ReadonlySet<string>,
+): RuleResponse[] {
+  const visibleTombstones = tombstones.filter((t) => !movedTombstones.has(t.ruleNumber));
+  return [...rules, ...visibleTombstones].toSorted((a, b) =>
+    compareRuleNumbers(a.ruleNumber, b.ruleNumber),
+  );
+}
+
 function RuleRow({
   rule,
   ancestors,
   hasChildren,
   isContext,
   termAnchors,
+  changeKind,
+  previousContent,
+  relatedRuleNumber,
 }: {
   rule: RuleResponse;
   ancestors: readonly string[];
   hasChildren: boolean;
   isContext?: boolean;
   termAnchors: ReadonlyMap<string, string>;
+  changeKind?: ChangeKind;
+  /** For `changed` rules: the rule's content as of the previous version. */
+  previousContent?: string;
+  /**
+   * For `moved` rules: the rule_number this content used to live under.
+   * For `replaced` rules: the rule_number where the previous content now lives.
+   */
+  relatedRuleNumber?: string;
 }) {
   // Per-row store subscriptions: only this row re-renders when its own fold
   // state or any of its ancestors' fold state flips. The parent doesn't
@@ -716,6 +1130,10 @@ function RuleRow({
     ancestors.some((ancestor) => state.foldedRules.has(ancestor)),
   );
   const toggle = useRulesFoldStore((state) => state.toggle);
+  const isDiffExpanded = useRulesDiffExpandStore((state) =>
+    state.expandedRules.has(rule.ruleNumber),
+  );
+  const toggleDiff = useRulesDiffExpandStore((state) => state.toggle);
 
   const isTitle = rule.ruleType === "title";
   const isSubtitle = rule.ruleType === "subtitle";
@@ -728,6 +1146,11 @@ function RuleRow({
           ? "pl-6 sm:pl-12"
           : "pl-9 sm:pl-18";
 
+  const isRemoved = changeKind === "removed";
+  const isChanged = changeKind === "changed";
+  const badge = changeKind ? CHANGE_KIND_BADGE[changeKind] : null;
+  const showInlineDiff = isChanged && isDiffExpanded && previousContent !== undefined;
+
   return (
     <div
       id={`rule-${rule.ruleNumber}`}
@@ -737,6 +1160,7 @@ function RuleRow({
         isTitle && "border-border mt-4 first:mt-0",
         isSubtitle && "border-border mt-2",
         isContext && "opacity-60",
+        isRemoved && "line-through decoration-from-font opacity-60",
       )}
     >
       <button
@@ -746,7 +1170,7 @@ function RuleRow({
         }}
         aria-label={`Copy link to rule ${formatRuleNumber(rule.ruleNumber)}`}
         className={cn(
-          "group/rule-number text-muted-foreground hover:text-foreground mr-3 flex shrink-0 cursor-pointer items-start gap-1 text-left font-mono text-xs",
+          "group/rule-number text-muted-foreground hover:text-foreground mr-3 flex shrink-0 cursor-pointer items-start gap-1 text-left font-mono text-xs no-underline",
           isTitle && "font-semibold",
         )}
       >
@@ -764,6 +1188,57 @@ function RuleRow({
           isSubtitle && "font-semibold",
         )}
       >
+        {badge ? (
+          isChanged && previousContent !== undefined ? (
+            <Badge
+              render={
+                <button
+                  type="button"
+                  onClick={() => toggleDiff(rule.ruleNumber)}
+                  aria-expanded={isDiffExpanded}
+                  aria-label={
+                    isDiffExpanded
+                      ? `Hide diff for rule ${formatRuleNumber(rule.ruleNumber)}`
+                      : `Show diff for rule ${formatRuleNumber(rule.ruleNumber)}`
+                  }
+                />
+              }
+              className={cn(
+                "mr-2 cursor-pointer align-baseline no-underline hover:opacity-80",
+                badge.className,
+              )}
+            >
+              {badge.label}
+            </Badge>
+          ) : (changeKind === "moved" || changeKind === "replaced") &&
+            relatedRuleNumber !== undefined ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Badge
+                      className={cn(
+                        "mr-2 cursor-help align-baseline no-underline",
+                        badge.className,
+                      )}
+                    >
+                      {badge.label}
+                    </Badge>
+                  }
+                />
+                <TooltipContent>
+                  {changeKind === "moved"
+                    ? `Moved from ${formatRuleNumber(relatedRuleNumber)}`
+                    : `Previous content moved to ${formatRuleNumber(relatedRuleNumber)}`}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <Badge className={cn("mr-2 align-baseline no-underline", badge.className)}>
+              {badge.label}
+            </Badge>
+          )
+        ) : null}
         {hasChildren ? (
           <span className="float-right ml-3 flex size-4 shrink-0 items-start">
             <button
@@ -771,7 +1246,7 @@ function RuleRow({
               onClick={() => toggle(rule.ruleNumber)}
               aria-label={isFolded ? "Expand rule group" : "Collapse rule group"}
               aria-expanded={!isFolded}
-              className="text-muted-foreground hover:text-foreground flex size-4 items-center justify-center rounded"
+              className="text-muted-foreground hover:text-foreground flex size-4 items-center justify-center rounded no-underline"
             >
               {isFolded ? (
                 <ChevronRightIcon className="size-3" />
@@ -781,7 +1256,9 @@ function RuleRow({
             </button>
           </span>
         ) : null}
-        {isTitle || isSubtitle ? (
+        {showInlineDiff ? (
+          <InlineDiff oldText={previousContent} newText={rule.content} />
+        ) : isTitle || isSubtitle ? (
           rule.content
         ) : (
           <RuleContent
@@ -849,6 +1326,114 @@ function ExpandCollapseAllButton({ foldGroupKeys }: { foldGroupKeys: string[] })
       </button>
     </>
   );
+}
+
+function ChangesSummary({
+  previousVersion,
+  changes,
+  moves,
+}: {
+  previousVersion: string;
+  changes: RuleChangesResponse;
+  moves: RuleMoves;
+}) {
+  const movesCount = moves.newToOld.size;
+  const replacedCount = moves.displacedSet.size;
+  const movedFromAdded = moves.toAddedSet.size;
+  const movedFromModified = movesCount - movedFromAdded;
+  const newCount = changes.added.length - movedFromAdded;
+  const changedCount = Object.keys(changes.modifiedPrev).length - movedFromModified - replacedCount;
+  const removedCount = changes.removed.length - moves.fromRemovedSet.size;
+  if (
+    newCount === 0 &&
+    changedCount === 0 &&
+    removedCount === 0 &&
+    movesCount === 0 &&
+    replacedCount === 0
+  ) {
+    return null;
+  }
+  return (
+    <div className="border-border bg-muted/30 mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border px-3 py-2 text-xs">
+      <span className="text-muted-foreground">Changes from v{previousVersion}:</span>
+      <span className="text-emerald-700 dark:text-emerald-300">
+        <span className="font-semibold">{newCount}</span> new
+      </span>
+      <span className="text-muted-foreground">·</span>
+      <span className="text-amber-700 dark:text-amber-300">
+        <span className="font-semibold">{changedCount}</span> changed
+      </span>
+      <span className="text-muted-foreground">·</span>
+      <span className="text-sky-700 dark:text-sky-300">
+        <span className="font-semibold">{movesCount}</span> moved
+      </span>
+      <span className="text-muted-foreground">·</span>
+      <span className="text-violet-700 dark:text-violet-300">
+        <span className="font-semibold">{replacedCount}</span> replaced
+      </span>
+      <span className="text-muted-foreground">·</span>
+      <span className="text-destructive">
+        <span className="font-semibold">{removedCount}</span> removed
+      </span>
+    </div>
+  );
+}
+
+function ShowChangesToggle({
+  kind,
+  hasPreviousVersion,
+}: {
+  kind: RuleKind;
+  hasPreviousVersion: boolean;
+}) {
+  const checked = useRulesShowChangesStore((state) => state.byKind[kind]);
+  const setShow = useRulesShowChangesStore((state) => state.setShow);
+
+  const switchEl = (
+    <Switch
+      size="sm"
+      checked={hasPreviousVersion && checked}
+      disabled={!hasPreviousVersion}
+      onCheckedChange={(next) => setShow(kind, next)}
+      aria-label="Show changes since previous version"
+    />
+  );
+
+  const label = (
+    <label className="text-muted-foreground hover:text-foreground data-disabled:hover:text-muted-foreground flex cursor-pointer items-center gap-1.5 text-xs font-medium select-none data-disabled:cursor-not-allowed">
+      {switchEl}
+      <span>Show changes</span>
+    </label>
+  );
+
+  if (hasPreviousVersion) {
+    return label;
+  }
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger render={<span className="inline-flex" />}>{label}</TooltipTrigger>
+        <TooltipContent>First version — no prior to compare</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+/**
+ * Returns the version immediately before `current` in the chronologically
+ * ascending `versions` list, or null if there is no earlier version.
+ *
+ * @returns The previous version string or null.
+ */
+function getPreviousVersion(
+  versions: readonly { version: string }[],
+  current: string,
+): string | null {
+  const index = versions.findIndex((entry) => entry.version === current);
+  if (index <= 0) {
+    return null;
+  }
+  return versions[index - 1].version;
 }
 
 function KindTabs({ kind }: { kind: RuleKind }) {
@@ -944,18 +1529,44 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   // global, so without this it would leak across pages.
   const expandAll = useRulesFoldStore((state) => state.expandAll);
   const resetSearch = useRulesSearchStore((state) => state.reset);
+  const resetDiffExpands = useRulesDiffExpandStore((state) => state.reset);
   useEffect(() => {
     expandAll();
     resetSearch();
-  }, [kind, version, expandAll, resetSearch]);
+    resetDiffExpands();
+  }, [kind, version, expandAll, resetSearch, resetDiffExpands]);
 
   const versions = versionsData.versions;
   const comments = versions.find((v) => v.version === version)?.comments ?? null;
+  const previousVersion = getPreviousVersion(versions, version);
 
-  const rules = rulesData.rules;
+  const baseRules = rulesData.rules;
+  const changes = rulesData.changes;
   const searchTerms = parseSearchTerms(debouncedSearchQuery);
   const isSearching = searchTerms.length > 0 && debouncedSearchQuery.trim().length >= 2;
-  const isEmpty = rules.length === 0;
+  const isEmpty = baseRules.length === 0;
+
+  const showChangesPref = useRulesShowChangesStore((state) => state.byKind[kind]);
+  const showChanges =
+    showChangesPref && previousVersion !== null && changes !== undefined && !isSearching;
+
+  const moves = showChanges && changes ? detectMoves(baseRules, changes, version) : null;
+  const movedTombstones = moves?.fromRemovedSet ?? EMPTY_STRING_SET;
+  const rules =
+    showChanges && changes
+      ? mergeTombstones(baseRules, changes.removed, movedTombstones)
+      : baseRules;
+  const changeKindByRule =
+    showChanges && changes
+      ? buildChangeKindMap(
+          rules,
+          changes,
+          version,
+          moves?.newToOld ?? EMPTY_STRING_MAP,
+          moves?.displacedSet ?? EMPTY_STRING_SET,
+          movedTombstones,
+        )
+      : null;
 
   const foldGroups = computeFoldGroups(rules);
   const ancestorsByRule = computeAncestorsByRule(rules, foldGroups);
@@ -1016,8 +1627,14 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
               {foldGroupKeys.length > 0 && !isSearching && (
                 <ExpandCollapseAllButton foldGroupKeys={foldGroupKeys} />
               )}
+              {!isSearching && (
+                <ShowChangesToggle kind={kind} hasPreviousVersion={previousVersion !== null} />
+              )}
             </div>
             {comments && !isSearching && <VersionComments markdown={comments} />}
+            {showChanges && previousVersion && changes && moves && (
+              <ChangesSummary previousVersion={previousVersion} changes={changes} moves={moves} />
+            )}
             {noSearchResults ? (
               <div className="text-muted-foreground py-16 text-center">
                 <p className="text-lg font-medium">No rules match your search</p>
@@ -1031,6 +1648,15 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
                   ancestors={ancestorsByRule.get(rule.ruleNumber) ?? EMPTY_ANCESTORS}
                   hasChildren={foldGroups.has(rule.ruleNumber)}
                   termAnchors={termAnchors}
+                  changeKind={changeKindByRule?.get(rule.ruleNumber)}
+                  previousContent={
+                    showChanges && changes && !moves?.displacedSet.has(rule.ruleNumber)
+                      ? changes.modifiedPrev[rule.ruleNumber]
+                      : undefined
+                  }
+                  relatedRuleNumber={
+                    moves?.newToOld.get(rule.ruleNumber) ?? moves?.oldToNew.get(rule.ruleNumber)
+                  }
                 />
               ))
             ) : (

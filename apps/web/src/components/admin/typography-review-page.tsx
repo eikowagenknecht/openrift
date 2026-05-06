@@ -4,64 +4,8 @@ import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAcceptTypographyFix, useTypographyReview } from "@/hooks/use-typography-review";
-
-interface DiffSegment {
-  text: string;
-  type: "equal" | "removed" | "added";
-}
-
-/**
- * Computes a character-level diff between two strings using LCS.
- * @returns array of segments tagged as equal, removed, or added
- */
-function diffChars(before: string, after: string): DiffSegment[] {
-  const m = before.length;
-  const n = after.length;
-
-  // Build LCS length table
-  const dp: number[][] = Array.from({ length: m + 1 }, () =>
-    Array.from<number>({ length: n + 1 }).fill(0),
-  );
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      dp[i][j] =
-        before[i - 1] === after[j - 1]
-          ? dp[i - 1][j - 1] + 1
-          : Math.max(dp[i - 1][j], dp[i][j - 1]);
-    }
-  }
-
-  // Backtrack to produce diff operations
-  const raw: { char: string; type: "equal" | "removed" | "added" }[] = [];
-  let i = m;
-  let j = n;
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && before[i - 1] === after[j - 1]) {
-      raw.push({ char: before[i - 1], type: "equal" });
-      i--;
-      j--;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      raw.push({ char: after[j - 1], type: "added" });
-      j--;
-    } else {
-      raw.push({ char: before[i - 1] ?? "", type: "removed" });
-      i--;
-    }
-  }
-  raw.reverse();
-
-  // Merge consecutive same-type segments
-  const segments: DiffSegment[] = [];
-  for (const item of raw) {
-    const last = segments.at(-1);
-    if (last && last.type === item.type) {
-      last.text += item.char;
-    } else {
-      segments.push({ text: item.char, type: item.type });
-    }
-  }
-  return segments;
-}
+import type { DiffSegment } from "@/lib/text-diff";
+import { textDiff } from "@/lib/text-diff";
 
 /**
  * Renders diff segments for one side of the comparison.
@@ -92,7 +36,7 @@ function renderDiffSide(segments: DiffSegment[], side: "current" | "proposed"): 
 }
 
 function DiffComparison({ current, proposed }: { current: string; proposed: string }) {
-  const segments = diffChars(current, proposed);
+  const segments = textDiff(current, proposed, { granularity: "char" });
   return (
     <div className="grid grid-cols-2 gap-3 text-sm">
       <div className="space-y-1">

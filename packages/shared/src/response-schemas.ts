@@ -767,11 +767,18 @@ const ruleVersionResponseSchema = z.object({
   importedAt: z.string().openapi({ example: "2026-02-16T08:30:00Z" }),
 });
 
+const ruleChangesResponseSchema = z.object({
+  added: z.array(z.string()),
+  modifiedPrev: z.record(z.string(), z.string()),
+  removed: z.array(ruleResponseSchema),
+});
+
 export const rulesListResponseSchema = z
   .object({
     kind: ruleKindSchema,
     rules: z.array(ruleResponseSchema),
     version: z.string(),
+    changes: ruleChangesResponseSchema.optional(),
   })
   .openapi("RulesListResponse");
 

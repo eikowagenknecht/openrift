@@ -64,6 +64,7 @@ export type {
 export type { FeatureFlagsResponse } from "./feature-flags.js";
 
 export type {
+  RuleChangesResponse,
   RuleKind,
   RuleResponse,
   RulesListResponse,

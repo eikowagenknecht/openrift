@@ -99,11 +99,22 @@ export const rulesRoute = new OpenAPIHono<{ Variables: Variables }>()
     const latestVersion = versions.at(-1)?.version ?? "";
     const effectiveVersion = version ?? latestVersion;
 
+    const changes = version ? await repo.listChangesAtVersion(kind, version) : null;
+
     c.header("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
     return c.json({
       kind,
       rules: rows.map((row) => toRuleResponse(row)),
       version: effectiveVersion,
+      ...(changes
+        ? {
+            changes: {
+              added: changes.added,
+              modifiedPrev: changes.modifiedPrev,
+              removed: changes.removed.map((row) => toRuleResponse(row)),
+            },
+          }
+        : {}),
     } satisfies RulesListResponse);
   })
 
