@@ -7,6 +7,7 @@
 - feat: The Rules page search bar now stays pinned to the top as you scroll, so you can refine your query without scrolling back up
 - feat: Help articles have a more polished, consistent look, with uniform cards and callouts across the section
 - feat: Reading text on long-form pages now adjusts to your screen, slightly larger on phones and tighter on desktop for comfortable reading
+- feat: On mobile, the Rules page's Expand all / Collapse all control is now a compact icon button instead of a text link
 - fix: Clicking a rules link now scrolls to the target rule cleanly instead of landing behind the sticky search bar
 - fix: Wording across the help articles, the help index, and the landing page is clearer and more direct
 - fix: The Importing & Exporting help page now lists RiftMana as a supported source, alongside OpenRift, Piltover Archive, and RiftCore
