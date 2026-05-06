@@ -2,7 +2,7 @@ import type { RuleKind, RuleResponse } from "@openrift/shared";
 import { useDebouncedCallback } from "@tanstack/react-pacer";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, CopyIcon, SearchIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 // oxlint-disable no-unused-vars -- perf experiment; will restore markdown rendering shortly
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
@@ -21,6 +21,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useRuleVersions, useRulesAtVersion } from "@/hooks/use-rules";
 import { cn, PAGE_PADDING } from "@/lib/utils";
+import { useRulesFoldStore } from "@/stores/rules-fold-store";
 
 /**
  * Formats a rule number for display by stripping trailing dots.
@@ -367,28 +368,35 @@ function computeFoldGroups(rules: RuleResponse[]): Map<string, [number, number]>
 }
 
 /**
- * Builds an index-aligned boolean array marking which rules are hidden
- * because a fold range that covers them is collapsed.
+ * Inverts `computeFoldGroups` to map each rule number to the rule numbers
+ * whose folding would hide it. A rule is hidden iff at least one of its
+ * ancestors is in the folded set. Pre-computing this lets each row check
+ * its visibility from the fold store without scanning the full fold map.
  *
- * @returns Array of the same length as `rules`; true at positions that should be hidden.
+ * @returns Map of rule number to the rule numbers that own a fold group covering it.
  */
-function computeHiddenIndices(
+function computeAncestorsByRule(
   rules: RuleResponse[],
   groups: Map<string, [number, number]>,
-  foldedSet: Set<string>,
-): boolean[] {
-  const hidden = Array.from<boolean>({ length: rules.length }).fill(false);
-  for (const ruleNumber of foldedSet) {
-    const range = groups.get(ruleNumber);
-    if (!range) {
-      continue;
-    }
-    for (let index = range[0]; index < range[1]; index++) {
-      hidden[index] = true;
+): Map<string, string[]> {
+  const ancestorsByRule = new Map<string, string[]>();
+  for (const [ancestor, [start, end]] of groups) {
+    for (let index = start; index < end; index++) {
+      const childRuleNumber = rules[index].ruleNumber;
+      const existing = ancestorsByRule.get(childRuleNumber);
+      if (existing) {
+        existing.push(ancestor);
+      } else {
+        ancestorsByRule.set(childRuleNumber, [ancestor]);
+      }
     }
   }
-  return hidden;
+  return ancestorsByRule;
 }
+
+// Stable empty-array reference for rows with no ancestors — keeps the prop
+// Object.is-equal across renders so the compiler can cache the .map() result.
+const EMPTY_ANCESTORS: readonly string[] = [];
 
 function parseSearchTerms(query: string): string[] {
   return query.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -473,38 +481,53 @@ function computeSearchResult(rules: RuleResponse[], terms: string[]): SearchResu
 
 function RuleRow({
   rule,
+  ancestors,
   hasChildren,
-  isFolded,
-  onToggleFold,
   isContext,
 }: {
   rule: RuleResponse;
+  ancestors: readonly string[];
   hasChildren: boolean;
-  isFolded: boolean;
-  onToggleFold: (ruleNumber: string) => void;
   isContext?: boolean;
 }) {
+  // Per-row store subscriptions: only this row re-renders when its own fold
+  // state or any of its ancestors' fold state flips. The parent doesn't
+  // subscribe to fold state at all, so its `.map()` result stays cached
+  // across fold toggles and the React Compiler can do its job.
+  const isFolded = useRulesFoldStore((state) => state.foldedRules.has(rule.ruleNumber));
+  const isHidden = useRulesFoldStore((state) =>
+    ancestors.some((ancestor) => state.foldedRules.has(ancestor)),
+  );
+  const toggle = useRulesFoldStore((state) => state.toggle);
+
   const isTitle = rule.ruleType === "title";
   const isSubtitle = rule.ruleType === "subtitle";
   const contentIndentClass =
-    rule.depth === 0 ? "" : rule.depth === 1 ? "pl-6" : rule.depth === 2 ? "pl-12" : "pl-18";
+    rule.depth === 0
+      ? ""
+      : rule.depth === 1
+        ? "sm:pl-6"
+        : rule.depth === 2
+          ? "sm:pl-12"
+          : "sm:pl-18";
 
   return (
     <div
       id={`rule-${rule.ruleNumber}`}
       className={cn(
-        "border-border/50 flex flex-col gap-1 border-b py-1.5 text-sm sm:flex-row sm:gap-3",
+        "border-border/50 block border-b py-1.5 text-sm sm:flex sm:gap-3",
+        isHidden && "hidden",
         isTitle && "border-border mt-4 first:mt-0",
         isSubtitle && "border-border mt-2",
         isContext && "opacity-60",
       )}
     >
-      <div className="flex flex-row-reverse items-start justify-between gap-3 sm:contents">
-        <span className="flex w-4 shrink-0 items-start">
+      <span className="mr-2 inline-flex items-baseline gap-1 sm:contents">
+        <span className="inline-flex w-4 shrink-0 items-start">
           {hasChildren ? (
             <button
               type="button"
-              onClick={() => onToggleFold(rule.ruleNumber)}
+              onClick={() => toggle(rule.ruleNumber)}
               aria-label={isFolded ? "Expand rule group" : "Collapse rule group"}
               aria-expanded={!isFolded}
               className="text-muted-foreground hover:text-foreground flex size-4 items-center justify-center rounded"
@@ -524,17 +547,17 @@ function RuleRow({
           }}
           aria-label={`Copy link to rule ${formatRuleNumber(rule.ruleNumber)}`}
           className={cn(
-            "group/rule-number text-muted-foreground hover:text-foreground flex w-20 shrink-0 cursor-pointer items-start gap-1 text-left font-mono text-xs",
+            "group/rule-number text-muted-foreground hover:text-foreground inline-flex shrink-0 cursor-pointer items-baseline gap-1 text-left font-mono text-xs sm:w-20 sm:items-start",
             isTitle && "font-semibold",
           )}
         >
           <span>{formatRuleNumber(rule.ruleNumber)}</span>
           <CopyIcon
             aria-hidden="true"
-            className="size-3 opacity-0 transition-opacity group-hover/rule-number:opacity-100"
+            className="hidden size-3 opacity-0 transition-opacity group-hover/rule-number:opacity-100 sm:inline-block"
           />
         </button>
-      </div>
+      </span>
       <span
         className={cn(
           contentIndentClass,
@@ -562,6 +585,32 @@ const KIND_TITLES: Record<RuleKind, string> = {
   core: "Core Rules",
   tournament: "Tournament Rules",
 };
+
+// Lives in its own component so its `foldedRules.size`-based selector doesn't
+// re-render the whole RulesContent tree on every fold toggle.
+function ExpandCollapseAllButton({ foldGroupKeys }: { foldGroupKeys: string[] }) {
+  const allCollapsed = useRulesFoldStore(
+    (state) => foldGroupKeys.length > 0 && state.foldedRules.size >= foldGroupKeys.length,
+  );
+  const collapseAll = useRulesFoldStore((state) => state.collapseAll);
+  const expandAll = useRulesFoldStore((state) => state.expandAll);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (allCollapsed) {
+          expandAll();
+        } else {
+          collapseAll(foldGroupKeys);
+        }
+      }}
+      className="text-muted-foreground hover:text-foreground text-xs font-medium"
+    >
+      {allCollapsed ? "Expand all" : "Collapse all"}
+    </button>
+  );
+}
 
 function KindTabs({ kind }: { kind: RuleKind }) {
   const navigate = useNavigate();
@@ -638,50 +687,28 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
   const { data: rulesData } = useRulesAtVersion(kind, version);
   const { data: versionsData } = useRuleVersions(kind);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
-  const [foldedRules, setFoldedRules] = useState<Set<string>>(new Set());
+
+  // Reset fold state when navigating between rules documents — the store is
+  // global, so without this it would leak across pages.
+  const expandAll = useRulesFoldStore((state) => state.expandAll);
+  useEffect(() => {
+    expandAll();
+  }, [kind, version, expandAll]);
 
   const versions = versionsData.versions;
   const comments = versions.find((v) => v.version === version)?.comments ?? null;
 
-  const rules = rulesData?.rules ?? [];
+  const rules = rulesData.rules;
   const searchTerms = parseSearchTerms(debouncedSearchQuery);
   const isSearching = searchTerms.length > 0 && debouncedSearchQuery.trim().length >= 2;
   const isEmpty = rules.length === 0;
 
   const foldGroups = computeFoldGroups(rules);
+  const ancestorsByRule = computeAncestorsByRule(rules, foldGroups);
+  const foldGroupKeys = [...foldGroups.keys()];
   const searchResult = isSearching ? computeSearchResult(rules, searchTerms) : null;
-  const visibleIndices = (() => {
-    if (searchResult) {
-      return searchResult.visibleIndices;
-    }
-    const hidden = computeHiddenIndices(rules, foldGroups, foldedRules);
-    const indices: number[] = [];
-    for (let index = 0; index < rules.length; index++) {
-      if (!hidden[index]) {
-        indices.push(index);
-      }
-    }
-    return indices;
-  })();
-  const noSearchResults = isSearching && visibleIndices.length === 0;
-
-  const allCollapsed = foldGroups.size > 0 && foldedRules.size >= foldGroups.size;
-
-  function toggleFold(ruleNumber: string) {
-    setFoldedRules((previous) => {
-      const next = new Set(previous);
-      if (next.has(ruleNumber)) {
-        next.delete(ruleNumber);
-      } else {
-        next.add(ruleNumber);
-      }
-      return next;
-    });
-  }
-
-  function toggleAll() {
-    setFoldedRules(allCollapsed ? new Set() : new Set(foldGroups.keys()));
-  }
+  const noSearchResults =
+    isSearching && searchResult !== null && searchResult.visibleIndices.length === 0;
 
   return (
     <div className={`mx-auto w-full max-w-6xl ${PAGE_PADDING}`}>
@@ -722,14 +749,8 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <RulesSearchBar onDebouncedChange={setDebouncedSearchQuery} />
-        {foldGroups.size > 0 && !isSearching && (
-          <button
-            type="button"
-            onClick={toggleAll}
-            className="text-muted-foreground hover:text-foreground text-xs font-medium"
-          >
-            {allCollapsed ? "Expand all" : "Collapse all"}
-          </button>
+        {foldGroupKeys.length > 0 && !isSearching && (
+          <ExpandCollapseAllButton foldGroupKeys={foldGroupKeys} />
         )}
       </div>
 
@@ -748,20 +769,26 @@ function RulesContent({ kind, version }: { kind: RuleKind; version: string }) {
                 <p className="text-lg font-medium">No rules match your search</p>
                 <p>Try fewer or different terms.</p>
               </div>
+            ) : searchResult === null ? (
+              rules.map((rule) => (
+                <RuleRow
+                  key={rule.id}
+                  rule={rule}
+                  ancestors={ancestorsByRule.get(rule.ruleNumber) ?? EMPTY_ANCESTORS}
+                  hasChildren={foldGroups.has(rule.ruleNumber)}
+                />
+              ))
             ) : (
-              visibleIndices.map((index) => {
+              searchResult.visibleIndices.map((index) => {
                 const rule = rules[index];
                 const isContext =
-                  searchResult !== null &&
-                  searchResult.ancestorSet.has(index) &&
-                  !searchResult.matchSet.has(index);
+                  searchResult.ancestorSet.has(index) && !searchResult.matchSet.has(index);
                 return (
                   <RuleRow
                     key={rule.id}
                     rule={rule}
-                    hasChildren={searchResult === null && foldGroups.has(rule.ruleNumber)}
-                    isFolded={foldedRules.has(rule.ruleNumber)}
-                    onToggleFold={toggleFold}
+                    ancestors={EMPTY_ANCESTORS}
+                    hasChildren={false}
                     isContext={isContext}
                   />
                 );
