@@ -208,8 +208,8 @@ export function FilterBadgeSections({
         />
       )}
       {!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0 && (
-        <div className="flex min-w-0 items-start gap-2">
-          <p className="text-muted-foreground w-18 pt-1.5 text-xs font-medium">Channel</p>
+        <div className="flex min-w-0 gap-2">
+          <p className="text-muted-foreground w-18 text-xs font-medium">Channel</p>
           <div className="min-w-0 flex-1">
             <ChannelCombobox
               channels={availableFilters.distributionChannels}

@@ -1,8 +1,8 @@
 import type { DistributionChannel } from "@openrift/shared";
-import { ChevronsUpDownIcon } from "lucide-react";
+import { ChevronDownIcon } from "lucide-react";
 import { useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Command,
   CommandEmpty,
@@ -42,17 +42,23 @@ export function ChannelCombobox({
   const selectedSet = new Set(selected);
   const triggerLabel = selected.length > 0 ? `${label} (${selected.length})` : label;
 
+  const hasSelection = selected.length > 0;
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={
-          <Button variant="outline" size="sm" className="justify-between gap-2">
-            <span>{triggerLabel}</span>
-            <ChevronsUpDownIcon className="size-3.5 opacity-50" />
-          </Button>
+          <Badge
+            variant={hasSelection ? "default" : "outline"}
+            className="cursor-pointer"
+            render={<button type="button" />}
+          >
+            {triggerLabel}
+            <ChevronDownIcon className="opacity-60" />
+          </Badge>
         }
       />
-      <PopoverContent align="start" className="w-72 p-0">
+      <PopoverContent align="start" className="w-96 max-w-[90vw] p-0">
         <Command>
           <CommandInput placeholder="Search channels…" />
           <CommandList>
