@@ -58,7 +58,7 @@ export function ChannelCombobox({
           </Badge>
         }
       />
-      <PopoverContent align="start" className="w-96 max-w-[90vw] p-0">
+      <PopoverContent align="start" className="w-max max-w-[90vw] min-w-72 p-0">
         <Command>
           <CommandInput placeholder="Search channels…" />
           <CommandList>
