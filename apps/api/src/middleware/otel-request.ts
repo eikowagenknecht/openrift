@@ -1,4 +1,4 @@
-import { context, SpanStatusCode, trace } from "@opentelemetry/api";
+import { context, SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
 import {
   ATTR_HTTP_REQUEST_METHOD,
   ATTR_HTTP_RESPONSE_STATUS_CODE,
@@ -36,6 +36,7 @@ export const otelRequestMiddleware: MiddlewareHandler<{ Variables: Variables }> 
   const matched = routePath(c, -1);
   const route = matched && !matched.includes("*") ? matched : "<unmatched>";
   const span = tracer.startSpan(`${c.req.method} ${route}`, {
+    kind: SpanKind.SERVER,
     attributes: {
       [ATTR_HTTP_REQUEST_METHOD]: c.req.method,
       [ATTR_HTTP_ROUTE]: route,

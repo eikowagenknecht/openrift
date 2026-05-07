@@ -1,4 +1,4 @@
-import { context, SpanStatusCode, trace } from "@opentelemetry/api";
+import { context, SpanKind, SpanStatusCode, trace } from "@opentelemetry/api";
 import {
   ATTR_DB_QUERY_TEXT,
   ATTR_DB_SYSTEM_NAME,
@@ -131,6 +131,7 @@ class TracingConnection implements DatabaseConnection {
 
   async executeQuery<R>(compiledQuery: CompiledQuery): Promise<QueryResult<R>> {
     const span = tracer.startSpan(deriveSpanName(compiledQuery.sql), {
+      kind: SpanKind.CLIENT,
       attributes: {
         [ATTR_DB_SYSTEM_NAME]: DB_SYSTEM_NAME_VALUE_POSTGRESQL,
         [ATTR_DB_QUERY_TEXT]: truncate(compiledQuery.sql),
@@ -157,6 +158,7 @@ class TracingConnection implements DatabaseConnection {
     chunkSize?: number,
   ): AsyncIterableIterator<QueryResult<R>> {
     const span = tracer.startSpan(deriveSpanName(compiledQuery.sql), {
+      kind: SpanKind.CLIENT,
       attributes: {
         [ATTR_DB_SYSTEM_NAME]: DB_SYSTEM_NAME_VALUE_POSTGRESQL,
         [ATTR_DB_QUERY_TEXT]: truncate(compiledQuery.sql),
