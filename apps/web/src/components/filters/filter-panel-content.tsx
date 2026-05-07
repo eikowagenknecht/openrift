@@ -107,8 +107,15 @@ export function FilterBadgeSections({
 }: FilterPanelContentProps) {
   const { labels } = useEnumOrders();
   const { filterState, view } = useFilterValues();
-  const { toggleOwned, toggleArrayFilter, toggleSigned, togglePromo, toggleBanned, toggleErrata } =
-    useFilterActions();
+  const {
+    toggleOwned,
+    toggleArrayFilter,
+    setArrayFilter,
+    toggleSigned,
+    togglePromo,
+    toggleBanned,
+    toggleErrata,
+  } = useFilterActions();
   const allowIncomplete = view !== "printings";
   const ownedLabel =
     filterState.owned === "missing"
@@ -228,7 +235,7 @@ export function FilterBadgeSections({
               emptyText="No markers match."
               options={availableFilters.markers.map((m) => ({ value: m.slug, label: m.label }))}
               selected={filterState.markers}
-              onToggle={(slug) => toggleArrayFilter("markers", slug)}
+              onChange={(values) => setArrayFilter("markers", values)}
             />
           )}
           {!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0 && (
@@ -241,7 +248,7 @@ export function FilterBadgeSections({
                 label: channelBreadcrumbs.get(c.id) ?? c.label,
               }))}
               selected={filterState.channels}
-              onToggle={(slug) => toggleArrayFilter("channels", slug)}
+              onChange={(values) => setArrayFilter("channels", values)}
             />
           )}
           {availableFilters.hasSigned && (
