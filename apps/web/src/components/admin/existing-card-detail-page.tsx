@@ -479,11 +479,25 @@ export function ExistingCardDetailPage({
                 <PlusIcon className="mr-2" />
                 Create printing
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShowBanForm(true)}>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (!cardFieldsExpanded) {
+                    toggleSection("cardFields");
+                  }
+                  setShowBanForm(true);
+                }}
+              >
                 <BanIcon className="mr-2" />
                 Add ban
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setShowErrataForm(true)}>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (!cardFieldsExpanded) {
+                    toggleSection("cardFields");
+                  }
+                  setShowErrataForm(true);
+                }}
+              >
                 <FileWarningIcon className="mr-2" />
                 {card.errata ? "Edit errata" : "Add errata"}
               </DropdownMenuItem>
@@ -546,76 +560,78 @@ export function ExistingCardDetailPage({
           )}
         </div>
         {cardFieldsExpanded && (
-          <CandidateSpreadsheet
-            fields={candidateCardFields.filter(
-              (f) => f.key !== "rulesText" && f.key !== "effectText",
-            )}
-            requiredKeys={["name", "type", "domains"]}
-            activeRow={{ ...card }}
-            candidateRows={sources}
-            providerSettings={providerSettings}
-            onCellClick={(field, value) => {
-              acceptCardField.mutate({ cardId: card.id, field, value, source: "provider" });
-            }}
-            onActiveChange={(field, value) => {
-              if (value === undefined) {
-                return;
-              }
-              acceptCardField.mutate({ cardId: card.id, field, value });
-            }}
-            onCheck={(candidateId) => checkCandidateCard.mutate(candidateId)}
-            onUncheck={(candidateId) => uncheckCandidateCard.mutate(candidateId)}
-            columnActions={(row) => (
-              <>
-                <DropdownMenuItem
-                  onClick={() => {
-                    const record = row as unknown as Record<string, unknown>;
-                    for (const field of candidateCardFields) {
-                      if (field.readOnly) {
-                        continue;
+          <>
+            <CandidateSpreadsheet
+              fields={candidateCardFields.filter(
+                (f) => f.key !== "rulesText" && f.key !== "effectText",
+              )}
+              requiredKeys={["name", "type", "domains"]}
+              activeRow={{ ...card }}
+              candidateRows={sources}
+              providerSettings={providerSettings}
+              onCellClick={(field, value) => {
+                acceptCardField.mutate({ cardId: card.id, field, value, source: "provider" });
+              }}
+              onActiveChange={(field, value) => {
+                if (value === undefined) {
+                  return;
+                }
+                acceptCardField.mutate({ cardId: card.id, field, value });
+              }}
+              onCheck={(candidateId) => checkCandidateCard.mutate(candidateId)}
+              onUncheck={(candidateId) => uncheckCandidateCard.mutate(candidateId)}
+              columnActions={(row) => (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const record = row as unknown as Record<string, unknown>;
+                      for (const field of candidateCardFields) {
+                        if (field.readOnly) {
+                          continue;
+                        }
+                        const val = record[field.key];
+                        if (val !== null && val !== undefined && val !== "") {
+                          acceptCardField.mutate({
+                            cardId: card.id,
+                            field: field.key,
+                            value: val,
+                            source: "provider",
+                          });
+                        }
                       }
-                      const val = record[field.key];
-                      if (val !== null && val !== undefined && val !== "") {
-                        acceptCardField.mutate({
-                          cardId: card.id,
-                          field: field.key,
-                          value: val,
-                          source: "provider",
-                        });
-                      }
+                    }}
+                  >
+                    <CopyCheckIcon className="mr-2" />
+                    Accept all fields
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      ignoreCardSource.mutate({
+                        provider: (row as CandidateCardResponse).provider,
+                        externalId: row.externalId,
+                      })
                     }
-                  }}
-                >
-                  <CopyCheckIcon className="mr-2" />
-                  Accept all fields
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    ignoreCardSource.mutate({
-                      provider: (row as CandidateCardResponse).provider,
-                      externalId: row.externalId,
-                    })
-                  }
-                >
-                  <BanIcon className="mr-2" />
-                  Ignore permanently
-                </DropdownMenuItem>
-              </>
-            )}
-          />
+                  >
+                    <BanIcon className="mr-2" />
+                    Ignore permanently
+                  </DropdownMenuItem>
+                </>
+              )}
+            />
+            <CardBanManager
+              cardId={card.id}
+              showForm={showBanForm}
+              onShowFormChange={setShowBanForm}
+            />
+            <CardErrataManager
+              cardId={card.id}
+              errata={card.errata}
+              showForm={showErrataForm}
+              onShowFormChange={setShowErrataForm}
+            />
+          </>
         )}
       </section>
-
-      {/* ── Bans ─────────────────────────────────────────────────────────────── */}
-      <CardBanManager cardId={card.id} showForm={showBanForm} onShowFormChange={setShowBanForm} />
-
-      {/* ── Errata ────────────────────────────────────────────────────────── */}
-      <CardErrataManager
-        cardId={card.id}
-        errata={card.errata}
-        showForm={showErrataForm}
-        onShowFormChange={setShowErrataForm}
-      />
 
       {/* ── Marketplace ─────────────────────────────────────────────────────── */}
       <section className="space-y-3">
