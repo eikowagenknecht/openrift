@@ -2,6 +2,7 @@
 
 ## 2026-05-07
 
+- feat: The Channel filter is now a searchable dropdown that shows the full path of each channel (so the four different "Top 8" entries are easy to tell apart), instead of a long list of leaf labels
 - feat: Promos can now be grouped by card or by year through the same dropdown that picks the sort, alongside the existing channel grouping, with the asc / desc arrow flipping the section order
 - feat: The Promos page now has the full filter panel — set, domain, type, super type, art variant, marker, finish, rarity, distribution channel, owned status, and price (English only) — plus a search box for card name or code, energy/might/power range sliders, and a combined sort + view dropdown
 - feat: Promos missing an image now show a "Suggest image" button overlaid on the placeholder, opening a small form where you can paste a URL and submit it as a one-field GitHub pull request

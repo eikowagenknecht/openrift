@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { CardIcon } from "@/components/card-icon";
+import { ChannelCombobox } from "@/components/filters/channel-combobox";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
@@ -207,15 +208,16 @@ export function FilterBadgeSections({
         />
       )}
       {!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0 && (
-        <FilterSection
-          label="Channel"
-          options={availableFilters.distributionChannels.map((c) => c.slug)}
-          selected={filterState.channels}
-          onToggle={(v) => toggleArrayFilter("channels", v)}
-          displayLabel={(v) =>
-            availableFilters.distributionChannels.find((c) => c.slug === v)?.label ?? v
-          }
-        />
+        <div className="flex min-w-0 items-start gap-2">
+          <p className="text-muted-foreground w-18 pt-1.5 text-xs font-medium">Channel</p>
+          <div className="min-w-0 flex-1">
+            <ChannelCombobox
+              channels={availableFilters.distributionChannels}
+              selected={filterState.channels}
+              onToggle={(slug) => toggleArrayFilter("channels", slug)}
+            />
+          </div>
+        </div>
       )}
       {availableLanguages && availableLanguages.length > 1 && (
         <FilterSection

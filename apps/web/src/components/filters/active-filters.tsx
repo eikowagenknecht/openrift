@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useEnumOrders } from "@/hooks/use-enums";
+import { buildChannelBreadcrumbsBySlug } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { formatPriceIntegerForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
@@ -71,8 +72,8 @@ export function ActiveFilters({
 
   const markerLabel = (slug: string) =>
     availableFilters.markers.find((m) => m.slug === slug)?.label ?? slug;
-  const channelLabel = (slug: string) =>
-    availableFilters.distributionChannels.find((c) => c.slug === slug)?.label ?? slug;
+  const channelBreadcrumbs = buildChannelBreadcrumbsBySlug(availableFilters.distributionChannels);
+  const channelLabel = (slug: string) => channelBreadcrumbs.get(slug) ?? slug;
 
   const filterGroups: {
     key: FilterKey;
