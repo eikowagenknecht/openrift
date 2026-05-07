@@ -239,6 +239,10 @@ function PromosPage() {
   const availableFilters = getAvailableFilters(activePrintings, {
     orders: enumOrders,
     sets: catalog.sets,
+    // Use the full channel registry so the breadcrumb walk in the channel
+    // combobox can resolve every parent — printings often link only to leaf
+    // channels, which would otherwise leave parents missing from the lookup.
+    channels: data.channels,
     getPrice: (p) => display.prices.get(p.id, display.favoriteMarketplace),
   });
 

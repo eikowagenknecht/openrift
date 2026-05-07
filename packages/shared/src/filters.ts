@@ -378,6 +378,15 @@ interface GetAvailableFiltersOptions {
    * which yields a `{ min: 0, max: 0 }` range.
    */
   getPrice?: (printing: Printing) => number | undefined;
+  /**
+   * Full distribution-channel registry (typically every channel returned by
+   * `/api/v1/promos`). When provided, `distributionChannels` in the result
+   * uses this list directly; the channel filter UI can then walk parent
+   * chains to render full breadcrumbs. When omitted, the result is derived
+   * from the printings' direct channel links only — which loses parent
+   * channels that no printing links to directly.
+   */
+  channels?: readonly DistributionChannel[];
 }
 
 /**
@@ -457,13 +466,15 @@ export function getAvailableFilters(
     markers: [
       ...new Map(printings.flatMap((p) => p.markers.map((m) => [m.slug, m] as const))).values(),
     ].sort((a, b) => a.slug.localeCompare(b.slug)),
-    distributionChannels: [
-      ...new Map(
-        printings.flatMap((p) =>
-          p.distributionChannels.map((dc) => [dc.channel.slug, dc.channel] as const),
-        ),
-      ).values(),
-    ].sort((a, b) => a.slug.localeCompare(b.slug)),
+    distributionChannels: (
+      options.channels ?? [
+        ...new Map(
+          printings.flatMap((p) =>
+            p.distributionChannels.map((dc) => [dc.channel.slug, dc.channel] as const),
+          ),
+        ).values(),
+      ]
+    ).toSorted((a, b) => a.slug.localeCompare(b.slug)),
     energy: boundsOf(energies),
     might: boundsOf(mights),
     power: boundsOf(powers),
