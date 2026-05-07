@@ -2,6 +2,7 @@ import type { Logger } from "@openrift/shared/logger";
 
 import type { JobTrigger } from "../db/index.js";
 import type { Repos } from "../deps.js";
+import { buildTraceparent, requestCtx } from "../middleware/otel-context.js";
 
 interface RunJobOptions<T> {
   /** If provided, its return value is stored as the run's `result` JSONB. */
@@ -25,7 +26,19 @@ interface RunJobDeps {
  * @returns The value returned by `fn`, or `null` if the job already had a
  *   running row or if `fn` threw.
  */
-export async function runJob<T>(
+export function runJob<T>(
+  deps: RunJobDeps,
+  kind: string,
+  trigger: JobTrigger,
+  fn: (runId: string) => Promise<T>,
+  options?: RunJobOptions<T>,
+): Promise<T | null> {
+  return requestCtx.run({ route: `${trigger}:${kind}`, traceparent: buildTraceparent() }, () =>
+    runJobInner(deps, kind, trigger, fn, options),
+  );
+}
+
+async function runJobInner<T>(
   deps: RunJobDeps,
   kind: string,
   trigger: JobTrigger,
@@ -71,7 +84,19 @@ export async function runJob<T>(
  * @returns Object with `runId` and `status` indicating whether a new run was
  * started or an existing one was returned.
  */
-export async function runJobAsync<T>(
+export function runJobAsync<T>(
+  deps: RunJobDeps,
+  kind: string,
+  trigger: JobTrigger,
+  fn: (runId: string) => Promise<T>,
+  options?: RunJobOptions<T>,
+): Promise<{ runId: string; status: "running" | "already_running" }> {
+  return requestCtx.run({ route: `${trigger}:${kind}`, traceparent: buildTraceparent() }, () =>
+    runJobAsyncInner(deps, kind, trigger, fn, options),
+  );
+}
+
+async function runJobAsyncInner<T>(
   deps: RunJobDeps,
   kind: string,
   trigger: JobTrigger,
