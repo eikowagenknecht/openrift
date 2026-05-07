@@ -1,7 +1,13 @@
 import type { Printing } from "@openrift/shared";
 import { imageUrl } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createLazyFileRoute, useLocation, useNavigate, useRouter } from "@tanstack/react-router";
+import {
+  createLazyFileRoute,
+  Link,
+  useLocation,
+  useNavigate,
+  useRouter,
+} from "@tanstack/react-router";
 import { ChevronDownIcon, ChevronRightIcon, LayoutGridIcon, ListIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
@@ -238,7 +244,12 @@ function PromosPage() {
               languageLabelMap.get(activeLanguage) ?? activeLanguage,
               activeAggregate.printingCount,
               activeAggregate.cardCount,
-            )}
+            )}{" "}
+            Spotted a missing promo?{" "}
+            <Link to="/contribute" className="text-primary hover:underline">
+              Suggest one
+            </Link>
+            .
           </p>
         )}
       </div>
@@ -269,7 +280,13 @@ function PromosPage() {
           </div>
 
           {activeTree.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No promos yet.</p>
+            <p className="text-muted-foreground text-sm">
+              No promos yet.{" "}
+              <Link to="/contribute" className="text-primary hover:underline">
+                Suggest one
+              </Link>
+              .
+            </p>
           ) : (
             <div className="space-y-8">
               {activeTree.map((root) => (
@@ -502,7 +519,7 @@ function ChannelLeafSection({
                 showImages={showImages}
                 display={display}
                 sizes={PROMOS_CARD_SIZES}
-                belowLabel={<MarkerChips printing={printing} />}
+                belowLabel={<BelowLabel printing={printing} />}
               />
             ))}
           </div>
@@ -569,7 +586,7 @@ function CompactBranchGrid({
               showImages={showImages}
               display={display}
               sizes={PROMOS_CARD_SIZES}
-              belowLabel={<MarkerChips printing={printing} />}
+              belowLabel={<BelowLabel printing={printing} />}
             />
           </div>
         ))}
@@ -749,6 +766,15 @@ function PromoListView({
   );
 }
 
+function BelowLabel({ printing }: { printing: Printing }) {
+  return (
+    <>
+      <SuggestImageOverlay printing={printing} />
+      <MarkerChips printing={printing} />
+    </>
+  );
+}
+
 function MarkerChips({ printing }: { printing: Printing }) {
   if (printing.markers.length === 0) {
     return null;
@@ -760,6 +786,28 @@ function MarkerChips({ printing }: { printing: Printing }) {
           {marker.label}
         </Badge>
       ))}
+    </div>
+  );
+}
+
+// Overlays the placeholder card art when no real image exists. The CardThumbnail
+// wrapper is `relative` and `p-1.5`, so `inset-x-1.5 top-1.5 aspect-card`
+// pins the overlay to the image area exactly. `pointer-events-none` on the
+// container lets clicks outside the link still hit the underlying card button
+// (which navigates to the card detail page).
+function SuggestImageOverlay({ printing }: { printing: Printing }) {
+  if (printing.images.length > 0) {
+    return null;
+  }
+  return (
+    <div className="aspect-card pointer-events-none absolute inset-x-1.5 top-1.5 z-20 flex items-center justify-center">
+      <Link
+        to="/contribute/$cardSlug/image/$printingId"
+        params={{ cardSlug: printing.card.slug, printingId: printing.id }}
+        className="bg-background/90 text-primary hover:bg-background pointer-events-auto rounded-md px-3 py-1.5 text-sm font-medium shadow-md"
+      >
+        Suggest image
+      </Link>
     </div>
   );
 }

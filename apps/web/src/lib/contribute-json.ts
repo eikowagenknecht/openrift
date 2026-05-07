@@ -373,6 +373,48 @@ export function buildGithubNewFileUrl(
 }
 
 /**
+ * Builds form state for an image-only patch on an existing printing. Only the
+ * fields needed to identify the card + the target printing are populated, so
+ * the resulting JSON omits everything else and the consolidation Action treats
+ * absent fields as "leave alone" (mirroring how a sparse correction works).
+ * @param args.cardName Display name of the existing card; written verbatim.
+ * @param args.cardSlug Existing card slug; used as filename + external_id base.
+ * @param args.printing The target printing whose image is being suggested.
+ * @param args.setSlug Set slug (not UUID); written as `set_id`.
+ * @param args.setName Set display name; written as `set_name`.
+ * @param args.imageUrl The contributor-supplied https image URL.
+ * @returns Form state with one printing carrying the image URL.
+ */
+export function buildImagePatchState(args: {
+  cardName: string;
+  cardSlug: string;
+  printing: Printing;
+  setSlug: string;
+  setName: string;
+  imageUrl: string;
+}): ContributeFormState {
+  return {
+    slug: args.cardSlug,
+    card: {
+      ...emptyCard(),
+      name: args.cardName,
+    },
+    printings: [
+      {
+        ...emptyPrinting(),
+        setId: args.setSlug,
+        setName: args.setName,
+        finish: args.printing.finish || null,
+        publicCode: args.printing.publicCode || null,
+        imageUrl: args.imageUrl,
+        language: args.printing.language || "EN",
+        printedName: args.printing.printedName ?? "",
+      },
+    ],
+  };
+}
+
+/**
  * Converts an existing OpenRift card + its printings into form state suitable
  * for the correction flow. The internal `imageId` references aren't real URLs,
  * so `imageUrl` is left blank, and the contributor supplies a fresh hosted link.

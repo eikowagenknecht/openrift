@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import { stubPrinting } from "@/test/factories";
+
 import type { ContributeFormState } from "./contribute-json";
 import {
   buildCommitMessage,
   buildContributionFilename,
   buildContributionJson,
   buildGithubNewFileUrl,
+  buildImagePatchState,
   emptyFormState,
   formatDateStamp,
   nameToSlug,
@@ -286,6 +289,132 @@ describe("buildCommitMessage", () => {
   it("falls back to a generic name when the card name is blank", () => {
     expect(buildCommitMessage("", false)).toBe("feat: add card");
     expect(buildCommitMessage("   ", true)).toBe("fix: update card");
+  });
+});
+
+describe("buildImagePatchState", () => {
+  it("only fills the fields needed to identify the printing plus the image URL", () => {
+    const printing = stubPrinting({
+      publicCode: "OGN-066/298",
+      finish: "foil",
+      language: "EN",
+      printedName: "Ahri, Alluring",
+    });
+    const state = buildImagePatchState({
+      cardName: "Ahri, Alluring",
+      cardSlug: "ahri-alluring",
+      printing,
+      setSlug: "ogn",
+      setName: "Origins",
+      imageUrl: "https://example.com/ogn-066.png",
+    });
+    expect(state.slug).toBe("ahri-alluring");
+    expect(state.card.name).toBe("Ahri, Alluring");
+    expect(state.card.domains).toEqual([]);
+    expect(state.card.might).toBeNull();
+    expect(state.printings).toHaveLength(1);
+    expect(state.printings[0]).toMatchObject({
+      setId: "ogn",
+      setName: "Origins",
+      finish: "foil",
+      publicCode: "OGN-066/298",
+      imageUrl: "https://example.com/ogn-066.png",
+      language: "EN",
+      printedName: "Ahri, Alluring",
+    });
+  });
+
+  it("produces JSON that omits everything but the identifying fields and the image URL", () => {
+    const printing = stubPrinting({
+      publicCode: "OGN-066/298",
+      finish: "foil",
+      language: "EN",
+      printedName: "Ahri, Alluring",
+    });
+    const state = buildImagePatchState({
+      cardName: "Ahri, Alluring",
+      cardSlug: "ahri-alluring",
+      printing,
+      setSlug: "ogn",
+      setName: "Origins",
+      imageUrl: "https://example.com/ogn-066.png",
+    });
+    const json = buildContributionJson(state, STAMP);
+    expect(json.card).toEqual({
+      name: "Ahri, Alluring",
+      external_id: `community:ahri-alluring--${STAMP}`,
+    });
+    expect(json.printings[0]).toEqual({
+      external_id: `community:ahri-alluring:OGN-066--${STAMP}:foil:en`,
+      printed_name: "Ahri, Alluring",
+      set_id: "ogn",
+      set_name: "Origins",
+      finish: "foil",
+      public_code: "OGN-066/298",
+      image_url: "https://example.com/ogn-066.png",
+      language: "EN",
+    });
+  });
+
+  it("validates as a complete contribution", () => {
+    const printing = stubPrinting({ publicCode: "OGN-066/298" });
+    const state = buildImagePatchState({
+      cardName: "Ahri, Alluring",
+      cardSlug: "ahri-alluring",
+      printing,
+      setSlug: "ogn",
+      setName: "Origins",
+      imageUrl: "https://example.com/ogn-066.png",
+    });
+    expect(validateContribution(state).ok).toBe(true);
+  });
+
+  it("omits image_url when the URL is empty (callers must guard on empty input)", () => {
+    const printing = stubPrinting({ publicCode: "OGN-066/298" });
+    const state = buildImagePatchState({
+      cardName: "Ahri, Alluring",
+      cardSlug: "ahri-alluring",
+      printing,
+      setSlug: "ogn",
+      setName: "Origins",
+      imageUrl: "",
+    });
+    const json = buildContributionJson(state, STAMP);
+    expect(json.printings[0]).not.toHaveProperty("image_url");
+  });
+
+  it("rejects a non-https image URL", () => {
+    const printing = stubPrinting({ publicCode: "OGN-066/298" });
+    const state = buildImagePatchState({
+      cardName: "Ahri, Alluring",
+      cardSlug: "ahri-alluring",
+      printing,
+      setSlug: "ogn",
+      setName: "Origins",
+      imageUrl: "http://example.com/ogn-066.png",
+    });
+    const result = validateContribution(state);
+    expect(result.ok).toBe(false);
+    expect(result.errors.find((e) => e.path === "printings[0].imageUrl")).toBeDefined();
+  });
+
+  it("falls back to the card name when the printing has no printed name", () => {
+    const printing = stubPrinting({
+      publicCode: "OGN-066/298",
+      finish: "foil",
+      language: "EN",
+      printedName: null,
+    });
+    const state = buildImagePatchState({
+      cardName: "Ahri, Alluring",
+      cardSlug: "ahri-alluring",
+      printing,
+      setSlug: "ogn",
+      setName: "Origins",
+      imageUrl: "https://example.com/ogn-066.png",
+    });
+    const json = buildContributionJson(state, STAMP);
+    expect(json.printings[0].printed_name).toBe("Ahri, Alluring");
   });
 });
 
