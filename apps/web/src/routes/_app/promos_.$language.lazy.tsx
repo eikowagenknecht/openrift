@@ -1,5 +1,5 @@
-import type { Printing } from "@openrift/shared";
-import { filterCards, getAvailableFilters, imageUrl } from "@openrift/shared";
+import type { Printing, SortDirection, SortOption } from "@openrift/shared";
+import { filterCards, getAvailableFilters, imageUrl, sortCards } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createLazyFileRoute,
@@ -20,6 +20,7 @@ import {
   FilterToggleButton,
 } from "@/components/filters/collapsible-filter-panel";
 import { FilterPanelContent } from "@/components/filters/filter-panel-content";
+import { sortOptions } from "@/components/filters/options-bar";
 import { SearchBar } from "@/components/filters/search-bar";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { PageTocItem } from "@/components/layout/page-toc";
@@ -50,12 +51,7 @@ import { useOwnedCount } from "@/hooks/use-owned-count";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import { useSession } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
-import type { PromoSortField } from "@/lib/promo-filters";
-import {
-  asPromoSortField,
-  buildPromoTreeFromMatches,
-  sortPromoPrintings,
-} from "@/lib/promo-filters";
+import { buildPromoTreeFromMatches } from "@/lib/promo-filters";
 import type { ChannelNode } from "@/lib/promos-tree";
 import { computeLanguageAggregates } from "@/lib/promos-tree";
 import { FilterSearchProvider } from "@/lib/search-schemas";
@@ -82,15 +78,6 @@ function PromosRoute() {
 // all surfaced because cards have real data on those dimensions even on
 // promo printings.
 const PROMOS_BASE_HIDDEN_SECTIONS: ReadonlySet<string> = new Set();
-
-const PROMO_SORT_OPTIONS: { value: PromoSortField; label: string }[] = [
-  { value: "canonical", label: "Default order" },
-  { value: "name", label: "Name" },
-  { value: "code", label: "Code" },
-  { value: "recent", label: "Recent" },
-  { value: "priceAsc", label: "Price ↑" },
-  { value: "priceDesc", label: "Price ↓" },
-];
 
 type ViewMode = "grid" | "list";
 
@@ -196,7 +183,7 @@ function PromosPage() {
     useDisplayStore.setState({ catalogMode: catalogMode === "off" ? "count" : "off" });
   };
   const { orders: enumOrders } = useEnumOrders();
-  const { setSort } = useFilterActions();
+  const { setSortBy, setSortDir } = useFilterActions();
 
   const presentLanguageSet = new Set(data.printings.map((p) => p.language));
   const presentLanguages = [
@@ -231,7 +218,16 @@ function PromosPage() {
     getPrice: (p) => display.prices.get(p.id, display.favoriteMarketplace),
   });
 
-  const sortField = asPromoSortField(filterState.sort);
+  const sortBy = filterState.sort as SortOption;
+  const sortDir = filterState.sortDir as SortDirection;
+  // Pre-bind the sort closure so leaf and compact branches don't have to
+  // know about rarity ordering or the prices/marketplace plumbing.
+  const sortPrintings = (printings: Printing[]) =>
+    sortCards(printings, sortBy, {
+      sortDir,
+      rarityOrder: enumOrders.rarities,
+      getPrice: (p) => display.prices.get(p.id, display.favoriteMarketplace),
+    });
   // Reuse the shared filterCards pipeline so /promos respects every facet
   // (sets, types, domains, ranges, markers, channels) end-to-end. Price is
   // zeroed off-EN since marketplace data is only meaningful for English.
@@ -378,19 +374,11 @@ function PromosPage() {
               filteredCount={matchedPrintings.length}
             />
             <SortGroupControls
-              sortOptions={PROMO_SORT_OPTIONS}
-              sortBy={sortField}
-              sortDir="asc"
-              onSortByChange={(value) => {
-                // "canonical" is the default — omit so the URL stays clean
-                // when sharing.
-                setSort(value === "canonical" ? undefined : value);
-              }}
-              onSortDirChange={() => {
-                // /promos sort fields encode their own direction (priceAsc /
-                // priceDesc). The dir toggle is unused — wired so the popover
-                // still renders the dir affordance.
-              }}
+              sortOptions={sortOptions}
+              sortBy={sortBy}
+              sortDir={sortDir}
+              onSortByChange={setSortBy}
+              onSortDirChange={setSortDir}
               view={{
                 title: "View",
                 value: viewMode,
@@ -460,7 +448,7 @@ function PromosPage() {
                   display={display}
                   onCardClick={handleCardClick}
                   ownedCounts={ownedCounts}
-                  sortField={sortField}
+                  sortPrintings={sortPrintings}
                 />
               ))}
             </div>
@@ -482,7 +470,8 @@ interface BranchProps {
   onCardClick: (printing: Printing) => void;
   /** Per-printing owned counts; undefined when the toggle is off or the user is logged out. */
   ownedCounts: Record<string, number> | undefined;
-  sortField: PromoSortField;
+  /** Pre-bound sort closure threaded down to each leaf and compact branch. */
+  sortPrintings: (printings: Printing[]) => Printing[];
 }
 
 function ChannelBranch({
@@ -495,7 +484,7 @@ function ChannelBranch({
   display,
   onCardClick,
   ownedCounts,
-  sortField,
+  sortPrintings,
 }: BranchProps) {
   const [open, setOpen] = useState(true);
   if (node.localPrintingCount === 0) {
@@ -520,7 +509,7 @@ function ChannelBranch({
         display={display}
         onCardClick={onCardClick}
         ownedCounts={ownedCounts}
-        sortField={sortField}
+        sortPrintings={sortPrintings}
       />
     );
   }
@@ -569,8 +558,7 @@ function ChannelBranch({
               languagePrefix={languagePrefix}
               onCardClick={onCardClick}
               ownedCounts={ownedCounts}
-              sortField={sortField}
-              display={display}
+              sortPrintings={sortPrintings}
             />
           ) : compact && viewMode === "grid" ? (
             <CompactBranchGrid
@@ -580,7 +568,7 @@ function ChannelBranch({
               display={display}
               onCardClick={onCardClick}
               ownedCounts={ownedCounts}
-              sortField={sortField}
+              sortPrintings={sortPrintings}
             />
           ) : (
             <div className="space-y-6">
@@ -596,7 +584,7 @@ function ChannelBranch({
                   display={display}
                   onCardClick={onCardClick}
                   ownedCounts={ownedCounts}
-                  sortField={sortField}
+                  sortPrintings={sortPrintings}
                 />
               ))}
             </div>
@@ -643,15 +631,10 @@ function ChannelLeafSection({
   display,
   onCardClick,
   ownedCounts,
-  sortField,
+  sortPrintings,
 }: BranchProps) {
   const [open, setOpen] = useState(true);
-  const sortedPrintings = sortPromoPrintings({
-    printings: node.printings,
-    sort: sortField,
-    prices: display.prices,
-    priceMarketplace: display.favoriteMarketplace,
-  });
+  const sortedPrintings = sortPrintings(node.printings);
   if (sortedPrintings.length === 0) {
     return null;
   }
@@ -728,7 +711,7 @@ function CompactBranchGrid({
   display,
   onCardClick,
   ownedCounts,
-  sortField,
+  sortPrintings,
 }: {
   node: ChannelNode;
   languagePrefix: string;
@@ -736,7 +719,7 @@ function CompactBranchGrid({
   display: CardThumbnailDisplay;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
-  sortField: PromoSortField;
+  sortPrintings: (printings: Printing[]) => Printing[];
 }) {
   // Flatten every leaf's printings into one grid that uses the normal card
   // sizing, so compact mode is just rows-vs-cols: each card carries a small
@@ -744,12 +727,7 @@ function CompactBranchGrid({
   // of each leaf with the leaf's section id so cross-route hash links still
   // scroll to the right cell even though the leaf has no section of its own.
   const entries = node.children.flatMap((child) =>
-    sortPromoPrintings({
-      printings: child.printings,
-      sort: sortField,
-      prices: display.prices,
-      priceMarketplace: display.favoriteMarketplace,
-    }).map((printing, printingIndex) => ({
+    sortPrintings(child.printings).map((printing, printingIndex) => ({
       printing,
       leafLabel: child.channel.label,
       anchorId: printingIndex === 0 ? `${languagePrefix}-ch-${child.channel.id}` : undefined,
@@ -805,24 +783,17 @@ function CompactBranchTable({
   languagePrefix,
   onCardClick,
   ownedCounts,
-  sortField,
-  display,
+  sortPrintings,
 }: {
   node: ChannelNode;
   languagePrefix: string;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
-  sortField: PromoSortField;
-  display: CardThumbnailDisplay;
+  sortPrintings: (printings: Printing[]) => Printing[];
 }) {
   const columnHeader = node.channel.childrenLabel ?? "Variant";
   const rows = node.children.flatMap((child) =>
-    sortPromoPrintings({
-      printings: child.printings,
-      sort: sortField,
-      prices: display.prices,
-      priceMarketplace: display.favoriteMarketplace,
-    }).map((printing, printingIndex) => ({
+    sortPrintings(child.printings).map((printing, printingIndex) => ({
       printing,
       leafLabel: child.channel.label,
       anchorId: printingIndex === 0 ? `${languagePrefix}-ch-${child.channel.id}` : undefined,

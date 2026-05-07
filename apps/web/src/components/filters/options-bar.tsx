@@ -28,7 +28,7 @@ import { useDisplayStore } from "@/stores/display-store";
 
 import { FilterPanelContent } from "./filter-panel-content";
 
-const sortOptions: { value: SortOption; label: string }[] = [
+export const sortOptions: { value: SortOption; label: string }[] = [
   { value: "id", label: "ID" },
   { value: "name", label: "Name" },
   { value: "energy", label: "Energy" },

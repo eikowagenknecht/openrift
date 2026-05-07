@@ -320,16 +320,6 @@ export function useFilterActions() {
     updateSearch({ sort: sort === "id" ? undefined : sort });
   };
 
-  /**
-   * Low-level setter for the `sort` URL param. Routes that have their own
-   * sort enum (e.g. /promos: "canonical|name|code|recent|priceAsc|priceDesc")
-   * use this; pass `undefined` to clear.
-   * @returns void
-   */
-  const setSort = (sort: string | undefined) => {
-    updateSearch({ sort });
-  };
-
   const setSortDir = (dir: SortDirection) => {
     updateSearch({ sortDir: dir === "asc" ? undefined : dir });
   };
@@ -363,7 +353,6 @@ export function useFilterActions() {
     clearBanned,
     clearErrata,
     setSortBy,
-    setSort,
     setSortDir,
     setView,
     setGroupBy,

@@ -1,9 +1,9 @@
 import type { DistributionChannelWithCount, PrintingDistributionChannel } from "@openrift/shared";
 import { describe, expect, it } from "vitest";
 
-import { stubPriceLookup, stubPrinting } from "@/test/factories";
+import { stubPrinting } from "@/test/factories";
 
-import { asPromoSortField, buildPromoTreeFromMatches, sortPromoPrintings } from "./promo-filters";
+import { buildPromoTreeFromMatches } from "./promo-filters";
 
 function makeChannel(
   overrides: Partial<DistributionChannelWithCount> = {},
@@ -37,113 +37,6 @@ function makeChannelLink(channelId: string): PrintingDistributionChannel {
     ancestorLabels: [],
   };
 }
-
-describe("sortPromoPrintings", () => {
-  const printings = [
-    stubPrinting({
-      id: "a",
-      canonicalRank: 3,
-      publicCode: "rb1-c",
-      setId: "set-2",
-      card: { name: "Charlie" },
-    }),
-    stubPrinting({
-      id: "b",
-      canonicalRank: 1,
-      publicCode: "rb1-a",
-      setId: "set-3",
-      card: { name: "Alpha" },
-    }),
-    stubPrinting({
-      id: "c",
-      canonicalRank: 2,
-      publicCode: "rb1-b",
-      setId: "set-1",
-      card: { name: "Bravo" },
-    }),
-  ];
-
-  it("canonical preserves canonicalRank order", () => {
-    expect(
-      sortPromoPrintings({
-        printings,
-        sort: "canonical",
-        prices: undefined,
-        priceMarketplace: "cardtrader",
-      }).map((p) => p.id),
-    ).toEqual(["b", "c", "a"]);
-  });
-
-  it("name sorts by card.name", () => {
-    expect(
-      sortPromoPrintings({
-        printings,
-        sort: "name",
-        prices: undefined,
-        priceMarketplace: "cardtrader",
-      }).map((p) => p.id),
-    ).toEqual(["b", "c", "a"]);
-  });
-
-  it("code sorts by publicCode", () => {
-    expect(
-      sortPromoPrintings({
-        printings,
-        sort: "code",
-        prices: undefined,
-        priceMarketplace: "cardtrader",
-      }).map((p) => p.id),
-    ).toEqual(["b", "c", "a"]);
-  });
-
-  it("recent sorts by setId desc", () => {
-    expect(
-      sortPromoPrintings({
-        printings,
-        sort: "recent",
-        prices: undefined,
-        priceMarketplace: "cardtrader",
-      }).map((p) => p.id),
-    ).toEqual(["b", "a", "c"]);
-  });
-
-  it("priceAsc sorts cheapest first; missing prices last", () => {
-    const prices = stubPriceLookup({ a: { cardtrader: 50 }, b: { cardtrader: 5 } });
-    expect(
-      sortPromoPrintings({
-        printings,
-        sort: "priceAsc",
-        prices,
-        priceMarketplace: "cardtrader",
-      }).map((p) => p.id),
-    ).toEqual(["b", "a", "c"]);
-  });
-
-  it("priceDesc sorts most expensive first; missing prices last", () => {
-    const prices = stubPriceLookup({ a: { cardtrader: 50 }, b: { cardtrader: 5 } });
-    expect(
-      sortPromoPrintings({
-        printings,
-        sort: "priceDesc",
-        prices,
-        priceMarketplace: "cardtrader",
-      }).map((p) => p.id),
-    ).toEqual(["a", "b", "c"]);
-  });
-});
-
-describe("asPromoSortField", () => {
-  it("passes through known fields", () => {
-    expect(asPromoSortField("name")).toBe("name");
-    expect(asPromoSortField("priceDesc")).toBe("priceDesc");
-  });
-
-  it("falls back to canonical for unknown / missing values", () => {
-    expect(asPromoSortField(undefined)).toBe("canonical");
-    expect(asPromoSortField("id")).toBe("canonical");
-    expect(asPromoSortField("energyAsc")).toBe("canonical");
-  });
-});
 
 describe("buildPromoTreeFromMatches", () => {
   it("groups printings under each channel they link to and builds a tree", () => {
