@@ -42,7 +42,7 @@ export function CollapsibleFilterPanel({
       className="@wide:hidden mb-3 hidden sm:block"
     >
       <CollapsibleContent className="h-(--collapsible-panel-height) space-y-3 overflow-hidden transition-[height] duration-200 data-[ending-style]:h-0 data-[starting-style]:h-0">
-        <div className="grid grid-cols-1 gap-x-6 gap-y-3 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-x-6 gap-y-3 lg:grid-cols-2">
           <FilterBadgeSections
             availableFilters={availableFilters}
             availableLanguages={availableLanguages}
@@ -52,7 +52,7 @@ export function CollapsibleFilterPanel({
             filterCounts={filterCounts}
           />
         </div>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 items-start gap-x-6 gap-y-3 lg:grid-cols-4">
           <FilterRangeSections availableFilters={availableFilters} filterCounts={filterCounts} />
         </div>
       </CollapsibleContent>
