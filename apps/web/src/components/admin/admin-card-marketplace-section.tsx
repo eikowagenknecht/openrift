@@ -20,7 +20,11 @@ import {
 import { queryKeys } from "@/lib/query-keys";
 
 import type { MarketplaceHandlers } from "./marketplace-products-table";
-import { collectStrongMappings, MarketplaceProductsTable } from "./marketplace-products-table";
+import {
+  collectStrongMappings,
+  collectWeakMappings,
+  MarketplaceProductsTable,
+} from "./marketplace-products-table";
 import { computeProductSuggestions } from "./suggest-mapping";
 
 export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
@@ -143,9 +147,16 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
     }
     const suggestions = computeProductSuggestions(group);
     const strong = collectStrongMappings(group, suggestions);
+    const weak = collectWeakMappings(group, suggestions);
+    // Strong wins when both kinds are present, so Ctrl+Enter never silently
+    // accepts a low-confidence amber match while a green one is still on the
+    // page. Weak only fires when the entire card has no strong matches.
+    const totalStrong =
+      strong.tcgplayer.length + strong.cardmarket.length + strong.cardtrader.length;
     acceptAllRef.current = () => {
+      const target = totalStrong > 0 ? strong : weak;
       for (const mp of ["tcgplayer", "cardmarket", "cardtrader"] as const) {
-        const mappings = strong[mp];
+        const mappings = target[mp];
         if (mappings.length > 0) {
           applyAssignments(mp)(mappings);
         }

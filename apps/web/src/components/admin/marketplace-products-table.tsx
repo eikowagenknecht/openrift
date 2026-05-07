@@ -336,6 +336,14 @@ export function MarketplaceProductsTable({
     strongMappingsByMarketplace.tcgplayer.length +
     strongMappingsByMarketplace.cardmarket.length +
     strongMappingsByMarketplace.cardtrader.length;
+  const totalWeakCount =
+    weakMappingsByMarketplace.tcgplayer.length +
+    weakMappingsByMarketplace.cardmarket.length +
+    weakMappingsByMarketplace.cardtrader.length;
+  // Ctrl+Enter falls through to weak suggestions only when no strong matches
+  // are available, so the hotkey never silently accepts low-confidence
+  // mappings while higher-confidence ones are waiting on the same page.
+  const showWeakAcceptAll = totalStrongCount === 0 && totalWeakCount > 0;
   const anyMarketplacePending = Object.values(handlers).some((h) => h.isAssigningToPrinting);
 
   return (
@@ -366,6 +374,28 @@ export function MarketplaceProductsTable({
               >
                 <WandSparklesIcon />
                 Accept all {totalStrongCount} suggestion{totalStrongCount === 1 ? "" : "s"}
+                <Kbd className="bg-background/20 pointer-events-none ml-1 leading-none text-inherit opacity-60">
+                  Ctrl ↵
+                </Kbd>
+              </Button>
+            )}
+            {showWeakAcceptAll && (
+              <Button
+                variant="outline"
+                size="xs"
+                disabled={anyMarketplacePending}
+                onClick={() => {
+                  for (const mp of ["tcgplayer", "cardmarket", "cardtrader"] as const) {
+                    const mappings = weakMappingsByMarketplace[mp];
+                    if (mappings.length > 0) {
+                      handlers[mp].onBatchAssignToPrintings(mappings);
+                    }
+                  }
+                }}
+                className="border-amber-600/50 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
+              >
+                <WandSparklesIcon />
+                Accept all {totalWeakCount} weak suggestion{totalWeakCount === 1 ? "" : "s"}
                 <Kbd className="bg-background/20 pointer-events-none ml-1 leading-none text-inherit opacity-60">
                   Ctrl ↵
                 </Kbd>
