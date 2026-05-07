@@ -72,7 +72,10 @@ export function MultiSelectCombobox({
       >
         {triggerLabel}
       </ComboboxTrigger>
-      <ComboboxContent>
+      {/* Override the default w-(--anchor-width) so the popup grows to fit
+          its widest item (e.g. long breadcrumbs), capped at 90vw on narrow
+          screens with an 18rem floor so the search input stays usable. */}
+      <ComboboxContent className="w-max max-w-[90vw] min-w-72">
         <ComboboxInput placeholder={searchPlaceholder} showTrigger={false} />
         <ComboboxEmpty>{emptyText}</ComboboxEmpty>
         <ComboboxList>
