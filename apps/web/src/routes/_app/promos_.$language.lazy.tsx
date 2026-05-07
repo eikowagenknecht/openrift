@@ -1,4 +1,4 @@
-import type { Printing, SortDirection, SortOption } from "@openrift/shared";
+import type { GroupByField, Printing, SortDirection, SortOption } from "@openrift/shared";
 import { filterCards, getAvailableFilters, imageUrl, sortCards } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
@@ -52,6 +52,8 @@ import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import { useSession } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import { buildPromoTreeFromMatches } from "@/lib/promo-filters";
+import type { PromoGrouping, PromoSection } from "@/lib/promo-groupings";
+import { asPromoGrouping, groupByCard, groupByYear } from "@/lib/promo-groupings";
 import type { ChannelNode } from "@/lib/promos-tree";
 import { computeLanguageAggregates } from "@/lib/promos-tree";
 import { FilterSearchProvider } from "@/lib/search-schemas";
@@ -156,6 +158,28 @@ function collectChannelTocItems(
   }
 }
 
+function flatSectionAnchor(languagePrefix: string, kind: "card" | "year", id: string): string {
+  return `${languagePrefix}-${kind}-${id}`;
+}
+
+function collectFlatSectionTocItems(
+  sections: PromoSection[],
+  languagePrefix: string,
+  kind: "card" | "year",
+): PageTocItem[] {
+  return sections.map((section) => ({
+    id: flatSectionAnchor(languagePrefix, kind, section.id),
+    label: section.label,
+    level: 0,
+  }));
+}
+
+const GROUP_OPTIONS: { value: PromoGrouping; label: string }[] = [
+  { value: "channel", label: "Channel" },
+  { value: "card", label: "Card" },
+  { value: "year", label: "Year" },
+];
+
 function PromosPage() {
   const { data } = useSuspenseQuery(publicPromoListQueryOptions);
   const { language: activeLanguage } = Route.useParams();
@@ -183,7 +207,7 @@ function PromosPage() {
     useDisplayStore.setState({ catalogMode: catalogMode === "off" ? "count" : "off" });
   };
   const { orders: enumOrders } = useEnumOrders();
-  const { setSortBy, setSortDir } = useFilterActions();
+  const { setSortBy, setSortDir, setGroupBy, setGroupDir } = useFilterActions();
 
   const presentLanguageSet = new Set(data.printings.map((p) => p.language));
   const presentLanguages = [
@@ -255,7 +279,20 @@ function PromosPage() {
     }
     return count < 4;
   });
-  const activeTree = buildPromoTreeFromMatches(matchedPrintings, data.channels);
+  // Grouping is read from the global filter state, but /promos has its own
+  // enum (channel/card/year). asPromoGrouping coerces unknowns (e.g. when
+  // navigating from /cards with ?groupBy=type) back to the page default.
+  const grouping = asPromoGrouping(filterState.groupBy);
+  // Year defaults to newest-first since recent printings are usually what
+  // people care about. Other groupings keep the global asc default.
+  const currentSearch = Route.useSearch();
+  const explicitGroupDir = currentSearch.groupDir as SortDirection | undefined;
+  const groupDir: SortDirection = explicitGroupDir ?? (grouping === "year" ? "desc" : "asc");
+
+  const activeTree =
+    grouping === "channel" ? buildPromoTreeFromMatches(matchedPrintings, data.channels) : [];
+  const cardSections = grouping === "card" ? groupByCard(matchedPrintings, groupDir) : undefined;
+  const yearSections = grouping === "year" ? groupByYear(matchedPrintings, groupDir) : undefined;
 
   const hiddenFilterSections = priceFilterEnabled
     ? PROMOS_BASE_HIDDEN_SECTIONS
@@ -269,7 +306,18 @@ function PromosPage() {
   const activePrefix = `lang-${activeLanguage}`;
 
   const tocItems: PageTocItem[] = [];
-  collectChannelTocItems(activeTree, activePrefix, 0, tocItems);
+  if (grouping === "channel") {
+    collectChannelTocItems(activeTree, activePrefix, 0, tocItems);
+  } else if (cardSections) {
+    tocItems.push(...collectFlatSectionTocItems(cardSections, activePrefix, "card"));
+  } else if (yearSections) {
+    tocItems.push(...collectFlatSectionTocItems(yearSections, activePrefix, "year"));
+  }
+
+  const hasContent =
+    grouping === "channel"
+      ? activeTree.length > 0
+      : (cardSections ?? yearSections ?? []).length > 0;
 
   const languageItems = presentLanguages.map((code) => ({
     value: code,
@@ -290,7 +338,6 @@ function PromosPage() {
     }
   }, [location.hash, activeLanguage]);
 
-  const currentSearch = Route.useSearch();
   function handleLanguageChange(next: string | null) {
     if (!next || next === activeLanguage) {
       return;
@@ -379,6 +426,13 @@ function PromosPage() {
               sortDir={sortDir}
               onSortByChange={setSortBy}
               onSortDirChange={setSortDir}
+              group={{
+                options: GROUP_OPTIONS,
+                value: grouping,
+                dir: groupDir,
+                onValueChange: (value) => setGroupBy(value as GroupByField),
+                onDirChange: setGroupDir,
+              }}
               view={{
                 title: "View",
                 value: viewMode,
@@ -420,7 +474,47 @@ function PromosPage() {
             hiddenSections={hiddenWithOwned}
           />
 
-          {activeTree.length === 0 ? (
+          {hasContent ? (
+            grouping === "channel" ? (
+              <div className="space-y-8">
+                {activeTree.map((root) => (
+                  <ChannelBranch
+                    key={root.channel.id}
+                    node={root}
+                    depth={0}
+                    ancestors={[]}
+                    languagePrefix={activePrefix}
+                    viewMode={viewMode}
+                    showImages={showImages}
+                    display={display}
+                    onCardClick={handleCardClick}
+                    ownedCounts={ownedCounts}
+                    sortPrintings={sortPrintings}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-8">
+                {(cardSections ?? yearSections ?? []).map((section) => (
+                  <FlatSection
+                    key={section.id}
+                    section={section}
+                    anchorId={flatSectionAnchor(
+                      activePrefix,
+                      cardSections ? "card" : "year",
+                      section.id,
+                    )}
+                    viewMode={viewMode}
+                    showImages={showImages}
+                    display={display}
+                    onCardClick={handleCardClick}
+                    ownedCounts={ownedCounts}
+                    sortPrintings={sortPrintings}
+                  />
+                ))}
+              </div>
+            )
+          ) : (
             <p className="text-muted-foreground text-sm">
               {hasActiveFilters ? (
                 "No promos match the current filters."
@@ -434,24 +528,6 @@ function PromosPage() {
                 </>
               )}
             </p>
-          ) : (
-            <div className="space-y-8">
-              {activeTree.map((root) => (
-                <ChannelBranch
-                  key={root.channel.id}
-                  node={root}
-                  depth={0}
-                  ancestors={[]}
-                  languagePrefix={activePrefix}
-                  viewMode={viewMode}
-                  showImages={showImages}
-                  display={display}
-                  onCardClick={handleCardClick}
-                  ownedCounts={ownedCounts}
-                  sortPrintings={sortPrintings}
-                />
-              ))}
-            </div>
           )}
         </div>
       </div>
@@ -671,6 +747,89 @@ function ChannelLeafSection({
               className="text-muted-foreground text-sm"
             />
           )}
+        </div>
+      </button>
+      {open &&
+        (viewMode === "grid" ? (
+          <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+            {sortedPrintings.map((printing) => {
+              const ownedCount = ownedCounts?.[printing.id] ?? 0;
+              return (
+                <CardThumbnail
+                  key={printing.id}
+                  printing={printing}
+                  onClick={onCardClick}
+                  showImages={showImages}
+                  display={display}
+                  sizes={PROMOS_CARD_SIZES}
+                  belowLabel={<BelowLabel printing={printing} />}
+                  aboveCard={ownedCounts ? <OwnedCountStrip count={ownedCount} /> : undefined}
+                  dimmed={ownedCounts ? ownedCount === 0 : undefined}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <PromoListView
+            printings={sortedPrintings}
+            onRowClick={onCardClick}
+            ownedCounts={ownedCounts}
+          />
+        ))}
+    </section>
+  );
+}
+
+function FlatSection({
+  section,
+  anchorId,
+  viewMode,
+  showImages,
+  display,
+  onCardClick,
+  ownedCounts,
+  sortPrintings,
+}: {
+  section: PromoSection;
+  anchorId: string;
+  viewMode: ViewMode;
+  showImages: boolean;
+  display: CardThumbnailDisplay;
+  onCardClick: (printing: Printing) => void;
+  ownedCounts: Record<string, number> | undefined;
+  sortPrintings: (printings: Printing[]) => Printing[];
+}) {
+  const [open, setOpen] = useState(true);
+  const sortedPrintings = sortPrintings(section.printings);
+  if (sortedPrintings.length === 0) {
+    return null;
+  }
+  return (
+    <section id={anchorId} className="scroll-mt-16">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="hover:bg-muted/50 relative -mr-2 mb-3 flex w-full items-start gap-1 rounded py-1 pr-2 text-left md:-ml-6 md:block md:pl-6"
+      >
+        {open ? (
+          <ChevronDownIcon
+            aria-hidden
+            className="text-muted-foreground mt-1.5 size-4 shrink-0 md:absolute md:top-2 md:left-1 md:mt-0"
+          />
+        ) : (
+          <ChevronRightIcon
+            aria-hidden
+            className="text-muted-foreground mt-1.5 size-4 shrink-0 md:absolute md:top-2 md:left-1 md:mt-0"
+          />
+        )}
+        <div className="min-w-0">
+          <h3 className="text-lg font-semibold">
+            {section.label}
+            <span className="text-muted-foreground ml-2 text-sm font-normal">
+              ({formatLocalCount(sortedPrintings.length)})
+            </span>
+          </h3>
         </div>
       </button>
       {open &&
