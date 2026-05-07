@@ -326,6 +326,18 @@ export function DistributionChannelsPage() {
           Regional Event › Houston › Top 1). Printings can only attach to leaf channels.
         </p>
       }
+      addChild={{
+        toDraft: (parent) => ({
+          id: "",
+          slug: `${parent.slug}-`,
+          label: "",
+          description: "",
+          kind: parent.kind,
+          parentId: parent.id,
+          childrenLabel: "",
+        }),
+        canAddChild: (c) => c.printingCount === 0,
+      }}
       add={{
         emptyDraft: {
           id: "",

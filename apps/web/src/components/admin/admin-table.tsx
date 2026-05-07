@@ -14,7 +14,7 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import {
   AlertDialog,
@@ -105,6 +105,14 @@ interface AdminTableProps<TData, TDraft = TData> {
     validate?: (draft: TDraft) => string | null;
     /** Button label. Defaults to "Add". */
     label?: string;
+  };
+
+  // --- Inline add-child ---
+  // Renders an "Add child" button per row that opens the inline add row directly
+  // beneath that row, prefilled by `toDraft(row)`. Requires `add` to be set.
+  addChild?: {
+    toDraft: (row: TData) => TDraft;
+    canAddChild?: (row: TData) => boolean;
   };
 
   // --- Inline edit ---
@@ -215,6 +223,7 @@ export function AdminTable<TData, TDraft = TData>({
   defaultSort,
   toolbar,
   add,
+  addChild,
   edit,
   delete: del,
   reorder,
@@ -225,6 +234,7 @@ export function AdminTable<TData, TDraft = TData>({
   const [addDraft, setAddDraft] = useState<TDraft | null>(null);
   const [addError, setAddError] = useState("");
   const [addPending, setAddPending] = useState(false);
+  const [addingUnderKey, setAddingUnderKey] = useState<string | null>(null);
 
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<TDraft | null>(null);
@@ -255,23 +265,25 @@ export function AdminTable<TData, TDraft = TData>({
     autoResetPageIndex: false,
   });
 
-  const hasActions = Boolean(edit || del || actions);
+  const hasActions = Boolean(edit || del || actions || addChild);
   const totalCols = adminColumns.length + (reorder ? 1 : 0) + (hasActions ? 1 : 0);
 
   // --- Add handlers ---
-  function startAdding() {
+  function startAdding(draft?: TDraft, underKey: string | null = null) {
     if (!add) {
       return;
     }
-    setAddDraft(structuredClone(add.emptyDraft));
+    setAddDraft(structuredClone(draft ?? add.emptyDraft));
     setAddError("");
     setAdding(true);
+    setAddingUnderKey(underKey);
   }
 
   function cancelAdding() {
     setAdding(false);
     setAddDraft(null);
     setAddError("");
+    setAddingUnderKey(null);
   }
 
   async function saveAdd() {
@@ -338,6 +350,32 @@ export function AdminTable<TData, TDraft = TData>({
   const headerGroups = table.getHeaderGroups();
   const rows = table.getRowModel().rows;
 
+  const addRow =
+    adding && addDraft ? (
+      <TableRow>
+        {reorder && <TableCell />}
+        {adminColumns.map((col) => (
+          <TableCell key={col.header} className={alignClass(col.align)}>
+            {col.addCell
+              ? col.addCell(addDraft, (fn) =>
+                  setAddDraft((prev) => (prev === null ? prev : fn(prev))),
+                )
+              : null}
+          </TableCell>
+        ))}
+        {hasActions && (
+          <TableCell className="text-right">
+            <SaveCancelButtons
+              onSave={saveAdd}
+              onCancel={cancelAdding}
+              isPending={addPending}
+              error={addError}
+            />
+          </TableCell>
+        )}
+      </TableRow>
+    ) : null;
+
   return (
     <div className="space-y-4">
       {(toolbar || add || exportConfig) && (
@@ -357,7 +395,7 @@ export function AdminTable<TData, TDraft = TData>({
               </Button>
             )}
             {add && !adding && (
-              <Button variant="outline" onClick={startAdding}>
+              <Button variant="outline" onClick={() => startAdding()}>
                 {add.label ?? "Add"}
               </Button>
             )}
@@ -407,31 +445,8 @@ export function AdminTable<TData, TDraft = TData>({
             ))}
           </TableHeader>
           <TableBody>
-            {/* Add row */}
-            {adding && addDraft && (
-              <TableRow>
-                {reorder && <TableCell />}
-                {adminColumns.map((col) => (
-                  <TableCell key={col.header} className={alignClass(col.align)}>
-                    {col.addCell
-                      ? col.addCell(addDraft, (fn) =>
-                          setAddDraft((prev) => (prev === null ? prev : fn(prev))),
-                        )
-                      : null}
-                  </TableCell>
-                ))}
-                {hasActions && (
-                  <TableCell className="text-right">
-                    <SaveCancelButtons
-                      onSave={saveAdd}
-                      onCancel={cancelAdding}
-                      isPending={addPending}
-                      error={addError}
-                    />
-                  </TableCell>
-                )}
-              </TableRow>
-            )}
+            {/* Top-of-table add row (only when not adding under a parent) */}
+            {addingUnderKey === null && addRow}
 
             {/* Empty state */}
             {rows.length === 0 && !adding && (
@@ -447,77 +462,95 @@ export function AdminTable<TData, TDraft = TData>({
               const original = row.original;
               const index = row.index;
               const isEditing = editingKey === row.id && editDraft !== null;
+              const childCfg = addChild;
+              const showAddChild =
+                childCfg && (childCfg.canAddChild ? childCfg.canAddChild(original) : true);
 
               return (
-                <TableRow key={row.id}>
-                  {reorder && (
-                    <TableCell>
-                      <div className="flex items-center gap-0.5">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          disabled={index === 0 || reorder.isPending}
-                          onClick={() => reorder.onMove(index, -1)}
-                        >
-                          <ArrowUpIcon className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          disabled={index === rows.length - 1 || reorder.isPending}
-                          onClick={() => reorder.onMove(index, 1)}
-                        >
-                          <ArrowDownIcon className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  )}
-
-                  {row.getVisibleCells().map((cell) => {
-                    const meta = cell.column.columnDef.meta as AdminColumnMeta<TDraft> | undefined;
-                    return (
-                      <TableCell key={cell.id} className={alignClass(meta?.align)}>
-                        {isEditing && meta?.editCell
-                          ? meta.editCell(editDraft, (fn) =>
-                              setEditDraft((prev) => (prev === null ? prev : fn(prev))),
-                            )
-                          : flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    );
-                  })}
-
-                  {hasActions && (
-                    <TableCell className="text-right">
-                      {isEditing ? (
-                        <SaveCancelButtons
-                          onSave={saveEdit}
-                          onCancel={cancelEditing}
-                          isPending={editPending}
-                          error={editError}
-                        />
-                      ) : (
-                        <div className="flex items-center justify-end gap-1">
-                          {actions?.(original, index)}
-                          {edit && (
-                            <Button variant="ghost" onClick={() => startEditing(original)}>
-                              Edit
-                            </Button>
-                          )}
-                          {del && (
-                            <DeleteButton
-                              row={original}
-                              config={del}
-                              deleteError={deleteError}
-                              setDeleteError={setDeleteError}
-                            />
-                          )}
+                <Fragment key={row.id}>
+                  <TableRow>
+                    {reorder && (
+                      <TableCell>
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            disabled={index === 0 || reorder.isPending}
+                            onClick={() => reorder.onMove(index, -1)}
+                          >
+                            <ArrowUpIcon className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            disabled={index === rows.length - 1 || reorder.isPending}
+                            onClick={() => reorder.onMove(index, 1)}
+                          >
+                            <ArrowDownIcon className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
-                      )}
-                    </TableCell>
-                  )}
-                </TableRow>
+                      </TableCell>
+                    )}
+
+                    {row.getVisibleCells().map((cell) => {
+                      const meta = cell.column.columnDef.meta as
+                        | AdminColumnMeta<TDraft>
+                        | undefined;
+                      return (
+                        <TableCell key={cell.id} className={alignClass(meta?.align)}>
+                          {isEditing && meta?.editCell
+                            ? meta.editCell(editDraft, (fn) =>
+                                setEditDraft((prev) => (prev === null ? prev : fn(prev))),
+                              )
+                            : flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      );
+                    })}
+
+                    {hasActions && (
+                      <TableCell className="text-right">
+                        {isEditing ? (
+                          <SaveCancelButtons
+                            onSave={saveEdit}
+                            onCancel={cancelEditing}
+                            isPending={editPending}
+                            error={editError}
+                          />
+                        ) : (
+                          <div className="flex items-center justify-end gap-1">
+                            {actions?.(original, index)}
+                            {showAddChild && childCfg && (
+                              <Button
+                                variant="ghost"
+                                onClick={() =>
+                                  startAdding(childCfg.toDraft(original), getRowKey(original))
+                                }
+                              >
+                                Add child
+                              </Button>
+                            )}
+                            {edit && (
+                              <Button variant="ghost" onClick={() => startEditing(original)}>
+                                Edit
+                              </Button>
+                            )}
+                            {del && (
+                              <DeleteButton
+                                row={original}
+                                config={del}
+                                deleteError={deleteError}
+                                setDeleteError={setDeleteError}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                  {addingUnderKey === row.id && addRow}
+                </Fragment>
               );
             })}
           </TableBody>
