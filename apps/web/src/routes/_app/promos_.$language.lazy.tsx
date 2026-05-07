@@ -1,5 +1,5 @@
 import type { Printing } from "@openrift/shared";
-import { imageUrl } from "@openrift/shared";
+import { filterCards, getAvailableFilters, imageUrl } from "@openrift/shared";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createLazyFileRoute,
@@ -8,18 +8,20 @@ import {
   useNavigate,
   useRouter,
 } from "@tanstack/react-router";
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  LayoutGridIcon,
-  ListIcon,
-  PackageIcon,
-} from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { ChevronDownIcon, ChevronRightIcon, PackageIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
+import { ActiveFilters } from "@/components/filters/active-filters";
+import {
+  CollapsibleFilterPanel,
+  FilterToggleButton,
+} from "@/components/filters/collapsible-filter-panel";
+import { FilterPanelContent } from "@/components/filters/filter-panel-content";
+import { SearchBar } from "@/components/filters/search-bar";
+import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PageToc } from "@/components/layout/page-toc";
 import { MarkdownText } from "@/components/markdown-text";
@@ -42,21 +44,60 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useLanguageList } from "@/hooks/use-enums";
+import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
+import { useEnumOrders, useLanguageList } from "@/hooks/use-enums";
 import { useOwnedCount } from "@/hooks/use-owned-count";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
 import { useSession } from "@/lib/auth-session";
+import { catalogQueryOptions } from "@/lib/catalog-query";
+import type { PromoSortField } from "@/lib/promo-filters";
+import {
+  asPromoSortField,
+  buildPromoTreeFromMatches,
+  sortPromoPrintings,
+} from "@/lib/promo-filters";
 import type { ChannelNode } from "@/lib/promos-tree";
-import { buildPromoTree, computeLanguageAggregates } from "@/lib/promos-tree";
+import { computeLanguageAggregates } from "@/lib/promos-tree";
+import { FilterSearchProvider } from "@/lib/search-schemas";
 import { cn, PAGE_PADDING } from "@/lib/utils";
 import { useDisplayStore } from "@/stores/display-store";
 
 export const Route = createLazyFileRoute("/_app/promos_/$language")({
-  component: PromosPage,
+  component: PromosRoute,
   pendingComponent: PromosPending,
 });
 
+function PromosRoute() {
+  const search = Route.useSearch();
+  return (
+    <FilterSearchProvider value={search}>
+      <PromosPage />
+    </FilterSearchProvider>
+  );
+}
+
+// /promos shares the global filter facets — only `owned` (logged-out) and
+// `price` (off-EN, since TCG/CM staging stores everything as EN) are gated
+// dynamically below. Set/domain/type/superType/artVariant/stat ranges are
+// all surfaced because cards have real data on those dimensions even on
+// promo printings.
+const PROMOS_BASE_HIDDEN_SECTIONS: ReadonlySet<string> = new Set();
+
+const PROMO_SORT_OPTIONS: { value: PromoSortField; label: string }[] = [
+  { value: "canonical", label: "Default order" },
+  { value: "name", label: "Name" },
+  { value: "code", label: "Code" },
+  { value: "recent", label: "Recent" },
+  { value: "priceAsc", label: "Price ↑" },
+  { value: "priceDesc", label: "Price ↓" },
+];
+
 type ViewMode = "grid" | "list";
+
+const VIEW_OPTIONS: { value: ViewMode; label: string }[] = [
+  { value: "grid", label: "Grid" },
+  { value: "list", label: "Table" },
+];
 
 const COMPACT_LEAF_THRESHOLD = 4;
 
@@ -143,11 +184,19 @@ function PromosPage() {
   const isLoggedIn = Boolean(session?.user);
   const catalogMode = useDisplayStore((s) => s.catalogMode);
   const showOwned = isLoggedIn && catalogMode !== "off";
-  const { data: ownedCountByPrinting } = useOwnedCount(showOwned);
+  const { filters, ranges, filterState, hasActiveFilters } = useFilterValues();
+  // The owned filter needs counts even when the count display is off, so
+  // request the data whenever the user is logged in. The toolbar toggle still
+  // controls only the *display*.
+  const ownedFilterActive = filters.ownedFilter !== null;
+  const fetchOwned = isLoggedIn && (showOwned || ownedFilterActive);
+  const { data: ownedCountByPrinting } = useOwnedCount(fetchOwned);
   const ownedCounts = showOwned ? ownedCountByPrinting : undefined;
   const togglePromoOwned = () => {
     useDisplayStore.setState({ catalogMode: catalogMode === "off" ? "count" : "off" });
   };
+  const { orders: enumOrders } = useEnumOrders();
+  const { setSort } = useFilterActions();
 
   const presentLanguageSet = new Set(data.printings.map((p) => p.language));
   const presentLanguages = [
@@ -157,28 +206,69 @@ function PromosPage() {
 
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
-  const activeTree = useMemo(() => {
-    const perChannel = new Map<string, Printing[]>();
-    for (const printing of data.printings) {
-      if (printing.language !== activeLanguage) {
-        continue;
-      }
-      for (const link of printing.distributionChannels) {
-        const list = perChannel.get(link.channel.id);
-        if (list) {
-          list.push(printing);
-        } else {
-          perChannel.set(link.channel.id, [printing]);
-        }
-      }
-    }
-    return buildPromoTree(data.channels, perChannel);
-  }, [data.channels, data.printings, activeLanguage]);
+  // Price filter behavior depends on the active language: TCG/CM staging
+  // stores all prices as if EN, so applying a price filter to non-EN promos
+  // would silently misrepresent matches. Hide the control off-EN and skip
+  // the filter even if the URL still carries priceMin/priceMax.
+  const priceFilterEnabled = activeLanguage === "EN";
 
-  const activeAggregate = useMemo(
-    () => computeLanguageAggregates(data.printings).get(activeLanguage),
-    [data.printings, activeLanguage],
-  );
+  // Catalog provides setId → set metadata so the Set filter can render
+  // readable slugs/names. publicPromoListQueryOptions only carries setId.
+  const { data: catalog } = useSuspenseQuery(catalogQueryOptions);
+  const setIdToSlug = new Map(catalog.sets.map((s) => [s.id, s.slug] as const));
+  const setSlugToName = new Map(catalog.sets.map((s) => [s.slug, s.name] as const));
+  const setDisplayLabel = (slug: string) => setSlugToName.get(slug) ?? slug;
+
+  const printingsWithSlug: Printing[] = data.printings.map((p) => ({
+    ...p,
+    setSlug: setIdToSlug.get(p.setId) ?? "",
+  }));
+  const activePrintings = printingsWithSlug.filter((p) => p.language === activeLanguage);
+
+  const availableFilters = getAvailableFilters(activePrintings, {
+    orders: enumOrders,
+    sets: catalog.sets,
+    getPrice: (p) => display.prices.get(p.id, display.favoriteMarketplace),
+  });
+
+  const sortField = asPromoSortField(filterState.sort);
+  // Reuse the shared filterCards pipeline so /promos respects every facet
+  // (sets, types, domains, ranges, markers, channels) end-to-end. Price is
+  // zeroed off-EN since marketplace data is only meaningful for English.
+  const cardFilters = {
+    ...filters,
+    languages: [activeLanguage],
+    price: priceFilterEnabled ? ranges.price : { min: null, max: null },
+  };
+  const matchedPrintings = filterCards(activePrintings, cardFilters, {
+    getPrice: (p) => display.prices.get(p.id, display.favoriteMarketplace),
+  }).filter((p) => {
+    if (filters.ownedFilter === null || !isLoggedIn) {
+      return true;
+    }
+    const counts = ownedCountByPrinting;
+    if (!counts) {
+      return true;
+    }
+    const count = counts[p.id] ?? 0;
+    if (filters.ownedFilter === "owned") {
+      return count > 0;
+    }
+    if (filters.ownedFilter === "missing") {
+      return count === 0;
+    }
+    return count < 4;
+  });
+  const activeTree = buildPromoTreeFromMatches(matchedPrintings, data.channels);
+
+  const hiddenFilterSections = priceFilterEnabled
+    ? PROMOS_BASE_HIDDEN_SECTIONS
+    : new Set([...PROMOS_BASE_HIDDEN_SECTIONS, "price"]);
+  const hiddenWithOwned = isLoggedIn
+    ? hiddenFilterSections
+    : new Set([...hiddenFilterSections, "owned"]);
+
+  const activeAggregate = computeLanguageAggregates(data.printings).get(activeLanguage);
 
   const activePrefix = `lang-${activeLanguage}`;
 
@@ -204,11 +294,17 @@ function PromosPage() {
     }
   }, [location.hash, activeLanguage]);
 
+  const currentSearch = Route.useSearch();
   function handleLanguageChange(next: string | null) {
     if (!next || next === activeLanguage) {
       return;
     }
-    void navigate({ to: "/promos/$language", params: { language: next }, hash: "" });
+    void navigate({
+      to: "/promos/$language",
+      params: { language: next },
+      search: currentSearch,
+      hash: "",
+    });
   }
 
   const handleCardClick = (printing: Printing) => {
@@ -276,29 +372,37 @@ function PromosPage() {
         <PageToc items={tocItems} className="lg:w-52" />
 
         <div className="min-w-0 flex-1">
-          <div className="mb-6 flex items-center justify-end gap-1">
-            <Button
-              variant={viewMode === "grid" ? "default" : "outline"}
-              size="icon-sm"
-              onClick={() => setViewMode("grid")}
-              aria-label="Grid view"
-              aria-pressed={viewMode === "grid"}
-            >
-              <LayoutGridIcon className="size-4" />
-            </Button>
-            <Button
-              variant={viewMode === "list" ? "default" : "outline"}
-              size="icon-sm"
-              onClick={() => setViewMode("list")}
-              aria-label="List view"
-              aria-pressed={viewMode === "list"}
-            >
-              <ListIcon className="size-4" />
-            </Button>
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <SearchBar
+              totalCards={activePrintings.length}
+              filteredCount={matchedPrintings.length}
+            />
+            <SortGroupControls
+              sortOptions={PROMO_SORT_OPTIONS}
+              sortBy={sortField}
+              sortDir="asc"
+              onSortByChange={(value) => {
+                // "canonical" is the default — omit so the URL stays clean
+                // when sharing.
+                setSort(value === "canonical" ? undefined : value);
+              }}
+              onSortDirChange={() => {
+                // /promos sort fields encode their own direction (priceAsc /
+                // priceDesc). The dir toggle is unused — wired so the popover
+                // still renders the dir affordance.
+              }}
+              view={{
+                title: "View",
+                value: viewMode,
+                options: VIEW_OPTIONS,
+                onChange: setViewMode,
+              }}
+            />
+            <FilterToggleButton />
             {isLoggedIn && (
               <Button
                 variant={showOwned ? "default" : "outline"}
-                size="icon-sm"
+                size="icon"
                 onClick={togglePromoOwned}
                 aria-label={showOwned ? "Hide owned counts" : "Show owned counts"}
                 aria-pressed={showOwned}
@@ -309,13 +413,38 @@ function PromosPage() {
             )}
           </div>
 
+          <div className="@wide:block hidden">
+            <FilterPanelContent
+              availableFilters={availableFilters}
+              setDisplayLabel={setDisplayLabel}
+              hiddenSections={hiddenWithOwned}
+            />
+          </div>
+          <CollapsibleFilterPanel
+            availableFilters={availableFilters}
+            setDisplayLabel={setDisplayLabel}
+            hiddenSections={hiddenWithOwned}
+          />
+
+          <ActiveFilters
+            availableFilters={availableFilters}
+            setDisplayLabel={setDisplayLabel}
+            hiddenSections={hiddenWithOwned}
+          />
+
           {activeTree.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              No promos yet.{" "}
-              <Link to="/contribute" className="text-primary hover:underline">
-                Suggest one
-              </Link>
-              .
+              {hasActiveFilters ? (
+                "No promos match the current filters."
+              ) : (
+                <>
+                  No promos yet.{" "}
+                  <Link to="/contribute" className="text-primary hover:underline">
+                    Suggest one
+                  </Link>
+                  .
+                </>
+              )}
             </p>
           ) : (
             <div className="space-y-8">
@@ -331,6 +460,7 @@ function PromosPage() {
                   display={display}
                   onCardClick={handleCardClick}
                   ownedCounts={ownedCounts}
+                  sortField={sortField}
                 />
               ))}
             </div>
@@ -352,6 +482,7 @@ interface BranchProps {
   onCardClick: (printing: Printing) => void;
   /** Per-printing owned counts; undefined when the toggle is off or the user is logged out. */
   ownedCounts: Record<string, number> | undefined;
+  sortField: PromoSortField;
 }
 
 function ChannelBranch({
@@ -364,6 +495,7 @@ function ChannelBranch({
   display,
   onCardClick,
   ownedCounts,
+  sortField,
 }: BranchProps) {
   const [open, setOpen] = useState(true);
   if (node.localPrintingCount === 0) {
@@ -388,6 +520,7 @@ function ChannelBranch({
         display={display}
         onCardClick={onCardClick}
         ownedCounts={ownedCounts}
+        sortField={sortField}
       />
     );
   }
@@ -436,6 +569,8 @@ function ChannelBranch({
               languagePrefix={languagePrefix}
               onCardClick={onCardClick}
               ownedCounts={ownedCounts}
+              sortField={sortField}
+              display={display}
             />
           ) : compact && viewMode === "grid" ? (
             <CompactBranchGrid
@@ -445,6 +580,7 @@ function ChannelBranch({
               display={display}
               onCardClick={onCardClick}
               ownedCounts={ownedCounts}
+              sortField={sortField}
             />
           ) : (
             <div className="space-y-6">
@@ -460,6 +596,7 @@ function ChannelBranch({
                   display={display}
                   onCardClick={onCardClick}
                   ownedCounts={ownedCounts}
+                  sortField={sortField}
                 />
               ))}
             </div>
@@ -506,9 +643,15 @@ function ChannelLeafSection({
   display,
   onCardClick,
   ownedCounts,
+  sortField,
 }: BranchProps) {
   const [open, setOpen] = useState(true);
-  const sortedPrintings = node.printings.toSorted(comparePrintingsForDisplay);
+  const sortedPrintings = sortPromoPrintings({
+    printings: node.printings,
+    sort: sortField,
+    prices: display.prices,
+    priceMarketplace: display.favoriteMarketplace,
+  });
   if (sortedPrintings.length === 0) {
     return null;
   }
@@ -585,6 +728,7 @@ function CompactBranchGrid({
   display,
   onCardClick,
   ownedCounts,
+  sortField,
 }: {
   node: ChannelNode;
   languagePrefix: string;
@@ -592,6 +736,7 @@ function CompactBranchGrid({
   display: CardThumbnailDisplay;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
+  sortField: PromoSortField;
 }) {
   // Flatten every leaf's printings into one grid that uses the normal card
   // sizing, so compact mode is just rows-vs-cols: each card carries a small
@@ -599,7 +744,12 @@ function CompactBranchGrid({
   // of each leaf with the leaf's section id so cross-route hash links still
   // scroll to the right cell even though the leaf has no section of its own.
   const entries = node.children.flatMap((child) =>
-    child.printings.toSorted(comparePrintingsForDisplay).map((printing, printingIndex) => ({
+    sortPromoPrintings({
+      printings: child.printings,
+      sort: sortField,
+      prices: display.prices,
+      priceMarketplace: display.favoriteMarketplace,
+    }).map((printing, printingIndex) => ({
       printing,
       leafLabel: child.channel.label,
       anchorId: printingIndex === 0 ? `${languagePrefix}-ch-${child.channel.id}` : undefined,
@@ -655,15 +805,24 @@ function CompactBranchTable({
   languagePrefix,
   onCardClick,
   ownedCounts,
+  sortField,
+  display,
 }: {
   node: ChannelNode;
   languagePrefix: string;
   onCardClick: (printing: Printing) => void;
   ownedCounts: Record<string, number> | undefined;
+  sortField: PromoSortField;
+  display: CardThumbnailDisplay;
 }) {
   const columnHeader = node.channel.childrenLabel ?? "Variant";
   const rows = node.children.flatMap((child) =>
-    child.printings.toSorted(comparePrintingsForDisplay).map((printing, printingIndex) => ({
+    sortPromoPrintings({
+      printings: child.printings,
+      sort: sortField,
+      prices: display.prices,
+      priceMarketplace: display.favoriteMarketplace,
+    }).map((printing, printingIndex) => ({
       printing,
       leafLabel: child.channel.label,
       anchorId: printingIndex === 0 ? `${languagePrefix}-ch-${child.channel.id}` : undefined,
@@ -733,10 +892,6 @@ function CompactBranchTable({
       </TableBody>
     </Table>
   );
-}
-
-function comparePrintingsForDisplay(a: Printing, b: Printing) {
-  return a.canonicalRank - b.canonicalRank;
 }
 
 function PromoListView({

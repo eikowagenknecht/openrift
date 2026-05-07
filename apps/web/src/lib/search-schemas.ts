@@ -15,7 +15,9 @@ export type OwnedFilterState = "owned" | "missing" | "incomplete";
 
 /**
  * Search param schema for routes that use the card filter system.
- * Applied individually to /cards, /collections, and /decks routes.
+ * Applied individually to /cards, /collections, /decks, and /promos routes.
+ * Routes that don't expose every facet should pass `hiddenSections` to the
+ * filter UI components.
  * @returns Zod schema for filter search params.
  */
 export const filterSearchSchema = z.object({
@@ -28,6 +30,8 @@ export const filterSearchSchema = z.object({
   domains: stringArray(),
   artVariants: stringArray(),
   finishes: stringArray(),
+  markers: stringArray(),
+  channels: stringArray(),
   energyMin: numberField(),
   energyMax: numberField(),
   mightMin: numberField(),

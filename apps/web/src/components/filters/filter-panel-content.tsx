@@ -123,16 +123,18 @@ export function FilterBadgeSections({
   };
   return (
     <>
-      <FilterSection
-        label="Set"
-        options={availableFilters.sets}
-        selected={filterState.sets}
-        onToggle={(v) => toggleArrayFilter("sets", v)}
-        displayLabel={setDisplayLabel}
-        secondaryOptions={availableFilters.supplementalSets}
-        counts={filterCounts?.sets}
-        wide
-      />
+      {!hiddenSections?.has("sets") && (
+        <FilterSection
+          label="Set"
+          options={availableFilters.sets}
+          selected={filterState.sets}
+          onToggle={(v) => toggleArrayFilter("sets", v)}
+          displayLabel={setDisplayLabel}
+          secondaryOptions={availableFilters.supplementalSets}
+          counts={filterCounts?.sets}
+          wide
+        />
+      )}
       {!hiddenSections?.has("domains") && (
         <FilterSection
           label="Domain"
@@ -175,7 +177,7 @@ export function FilterBadgeSections({
           counts={filterCounts?.superTypes}
         />
       )}
-      {availableFilters.artVariants.length > 1 && (
+      {!hiddenSections?.has("artVariants") && availableFilters.artVariants.length > 1 && (
         <FilterSection
           label="Art Variant"
           options={availableFilters.artVariants}
@@ -193,6 +195,26 @@ export function FilterBadgeSections({
           onToggle={(v) => toggleArrayFilter("finishes", v)}
           displayLabel={(v) => labels.finishes[v] ?? v}
           counts={filterCounts?.finishes}
+        />
+      )}
+      {!hiddenSections?.has("markers") && availableFilters.markers.length > 0 && (
+        <FilterSection
+          label="Marker"
+          options={availableFilters.markers.map((m) => m.slug)}
+          selected={filterState.markers}
+          onToggle={(v) => toggleArrayFilter("markers", v)}
+          displayLabel={(v) => availableFilters.markers.find((m) => m.slug === v)?.label ?? v}
+        />
+      )}
+      {!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0 && (
+        <FilterSection
+          label="Channel"
+          options={availableFilters.distributionChannels.map((c) => c.slug)}
+          selected={filterState.channels}
+          onToggle={(v) => toggleArrayFilter("channels", v)}
+          displayLabel={(v) =>
+            availableFilters.distributionChannels.find((c) => c.slug === v)?.label ?? v
+          }
         />
       )}
       {availableLanguages && availableLanguages.length > 1 && (
@@ -290,6 +312,7 @@ const HAS_NULL_KEY: Partial<Record<RangeKey, keyof AvailableFilters>> = {
 export function FilterRangeSections({
   availableFilters,
   filterCounts,
+  hiddenSections,
 }: Omit<FilterPanelContentProps, "setDisplayLabel">) {
   const { ranges } = useFilterValues();
   const { setRange } = useFilterActions();
@@ -311,6 +334,9 @@ export function FilterRangeSections({
   return (
     <>
       {sections.map(({ key, label, ...rest }) => {
+        if (hiddenSections?.has(key)) {
+          return null;
+        }
         // Prefer faceted bounds when available — they reflect the subset
         // matching every other active filter, so the slider track narrows
         // as the user filters and widens as they unselect.

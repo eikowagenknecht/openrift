@@ -1,9 +1,11 @@
 import type { PromosListResponse } from "@openrift/shared";
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 
 import { RouteErrorFallback } from "@/components/error-message";
 import { initQueryOptions } from "@/hooks/use-init";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
+import { catalogQueryOptions } from "@/lib/catalog-query";
+import { filterSearchSchema } from "@/lib/search-schemas";
 import { collectionPageJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
@@ -11,6 +13,30 @@ const PROMOS_DESCRIPTION =
   "Browse all promotional card printings for the Riftbound trading card game, grouped by promo type.";
 
 export const Route = createFileRoute("/_app/promos_/$language")({
+  validateSearch: filterSearchSchema,
+  beforeLoad: ({ search, location, params }) => {
+    // Strip unknown / malformed search params from the URL — same pattern as
+    // /cards. Bots that follow share/tracking links land on a clean canonical
+    // URL, and the visible URL stays tidy for users.
+    const parsed = filterSearchSchema.safeParse(search);
+    const cleaned = parsed.success ? parsed.data : {};
+    const rawKeys = new Set(new URLSearchParams(location.searchStr).keys());
+    const cleanedKeys = new Set(
+      Object.entries(cleaned)
+        .filter(([, value]) => value !== undefined)
+        .map(([key]) => key),
+    );
+    const hasExtraneous =
+      rawKeys.size !== cleanedKeys.size || [...rawKeys].some((key) => !cleanedKeys.has(key));
+    if (hasExtraneous) {
+      throw redirect({
+        to: "/promos/$language",
+        params: { language: params.language },
+        search: cleaned,
+        replace: true,
+      });
+    }
+  },
   head: ({ params, loaderData }) => {
     const siteUrl = getSiteUrl();
     const path = `/promos/${params.language}`;
@@ -55,9 +81,13 @@ export const Route = createFileRoute("/_app/promos_/$language")({
     };
   },
   loader: async ({ params, context }) => {
+    // Catalog is loaded for set metadata (setId → slug+name) so the Set
+    // filter chip can render readable names; PromosListResponse only carries
+    // setId for each printing.
     const result = await Promise.all([
       context.queryClient.ensureQueryData(publicPromoListQueryOptions),
       context.queryClient.ensureQueryData(initQueryOptions),
+      context.queryClient.ensureQueryData(catalogQueryOptions),
     ]);
     const [data] = result;
     const hasLanguage = data.printings.some((printing) => printing.language === params.language);

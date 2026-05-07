@@ -65,7 +65,14 @@ export function ActiveFilters({
     | "superTypes"
     | "domains"
     | "artVariants"
-    | "finishes";
+    | "finishes"
+    | "markers"
+    | "channels";
+
+  const markerLabel = (slug: string) =>
+    availableFilters.markers.find((m) => m.slug === slug)?.label ?? slug;
+  const channelLabel = (slug: string) =>
+    availableFilters.distributionChannels.find((c) => c.slug === slug)?.label ?? slug;
 
   const filterGroups: {
     key: FilterKey;
@@ -109,6 +116,18 @@ export function ActiveFilters({
       label: "Finish",
       values: filterState.finishes,
       displayLabel: (v: string) => labels.finishes[v] ?? v,
+    },
+    {
+      key: "markers",
+      label: "Marker",
+      values: filterState.markers,
+      displayLabel: markerLabel,
+    },
+    {
+      key: "channels",
+      label: "Channel",
+      values: filterState.channels,
+      displayLabel: channelLabel,
     },
   ].filter(
     (
@@ -157,7 +176,9 @@ export function ActiveFilters({
           <div key={key} className="flex min-w-0 flex-wrap items-center gap-1">
             <span className="text-muted-foreground text-xs">{label}:</span>
             {values.map((value) => {
-              const icon = getFilterIconPath(key, value);
+              // Markers and channels don't have icon assets — skip the lookup.
+              const icon =
+                key === "markers" || key === "channels" ? undefined : getFilterIconPath(key, value);
               const displayFn =
                 groupDisplayLabel ??
                 (key === "sets" && setDisplayLabel ? setDisplayLabel : (v: string) => v);

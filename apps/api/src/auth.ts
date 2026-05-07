@@ -1,7 +1,8 @@
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import { emailOTP } from "better-auth/plugins/email-otp";
-import type { Dialect, Kysely } from "kysely";
+import type { Kysely } from "kysely";
+import type { PostgresJSDialect } from "kysely-postgres-js";
 
 import type { createConfig } from "./config.js";
 import { matchOrigin } from "./cors.js";
@@ -14,7 +15,7 @@ import { collectionsRepo } from "./repositories/collections.js";
 export function createAuth(deps: {
   config: ReturnType<typeof createConfig>;
   db: Kysely<Database>;
-  dialect: Dialect;
+  dialect: PostgresJSDialect;
   sendEmail: ReturnType<typeof createEmailSender>;
 }) {
   const { config, db, dialect, sendEmail } = deps;

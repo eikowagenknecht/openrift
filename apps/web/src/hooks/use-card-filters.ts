@@ -27,7 +27,9 @@ type ArrayKey =
   | "superTypes"
   | "domains"
   | "artVariants"
-  | "finishes";
+  | "finishes"
+  | "markers"
+  | "channels";
 
 /**
  * Build a `filterState` object from raw search params that matches the shape
@@ -46,6 +48,8 @@ function toFilterState(raw: FilterSearch, defaultView: DefaultCardView) {
     domains: raw.domains ?? [],
     artVariants: raw.artVariants ?? [],
     finishes: raw.finishes ?? [],
+    markers: raw.markers ?? [],
+    channels: raw.channels ?? [],
     energyMin: raw.energyMin ?? null,
     energyMax: raw.energyMax ?? null,
     mightMin: raw.mightMin ?? null,
@@ -94,8 +98,10 @@ export function useFilterValues() {
     ownedFilter: filterState.owned ?? null,
     isSigned: filterState.signed ?? null,
     hasAnyMarker: filterState.promo ?? null,
-    markerSlugs: [],
-    distributionChannelSlugs: [],
+    markers: filterState.markers,
+    channels: filterState.channels,
+    markerSlugs: filterState.markers,
+    distributionChannelSlugs: filterState.channels,
     isBanned: filterState.banned ?? null,
     hasErrata: filterState.errata ?? null,
     energy: { min: filterState.energyMin, max: filterState.energyMax },
@@ -127,6 +133,8 @@ export function useFilterValues() {
     filterState.domains.length > 0 ||
     filterState.artVariants.length > 0 ||
     filterState.finishes.length > 0 ||
+    filterState.markers.length > 0 ||
+    filterState.channels.length > 0 ||
     filterState.energyMin !== null ||
     filterState.energyMax !== null ||
     filterState.mightMin !== null ||
@@ -194,6 +202,8 @@ export function useFilterActions() {
       domains: undefined,
       artVariants: undefined,
       finishes: undefined,
+      markers: undefined,
+      channels: undefined,
       energyMin: undefined,
       energyMax: undefined,
       mightMin: undefined,
@@ -310,6 +320,16 @@ export function useFilterActions() {
     updateSearch({ sort: sort === "id" ? undefined : sort });
   };
 
+  /**
+   * Low-level setter for the `sort` URL param. Routes that have their own
+   * sort enum (e.g. /promos: "canonical|name|code|recent|priceAsc|priceDesc")
+   * use this; pass `undefined` to clear.
+   * @returns void
+   */
+  const setSort = (sort: string | undefined) => {
+    updateSearch({ sort });
+  };
+
   const setSortDir = (dir: SortDirection) => {
     updateSearch({ sortDir: dir === "asc" ? undefined : dir });
   };
@@ -343,6 +363,7 @@ export function useFilterActions() {
     clearBanned,
     clearErrata,
     setSortBy,
+    setSort,
     setSortDir,
     setView,
     setGroupBy,

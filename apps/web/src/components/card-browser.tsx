@@ -47,9 +47,14 @@ import { useAddModeStore } from "@/stores/add-mode-store";
 import { useDisplayStore } from "@/stores/display-store";
 import { useSelectionStore } from "@/stores/selection-store";
 
-// Logged-out users have no collection counts, so the Owned chip would always
-// read 0 — hide it instead of leaving a dead filter in the panel.
-const OWNED_HIDDEN: ReadonlySet<string> = new Set(["owned"]);
+// Markers and channels are filterable from the URL but the catalog browser
+// has no UI for them today — they live with /promos. Always hide both. Owned
+// is only meaningful for logged-in users (counts would otherwise read 0).
+const CARD_BROWSER_HIDDEN: ReadonlySet<string> = new Set(["markers", "channels"]);
+const CARD_BROWSER_HIDDEN_LOGGED_OUT: ReadonlySet<string> = new Set([
+  ...CARD_BROWSER_HIDDEN,
+  "owned",
+]);
 
 /**
  * Standalone catalog browser for the /cards route.
@@ -165,7 +170,7 @@ export function CardBrowser() {
     keywordReverseMap,
   });
 
-  const hiddenFilterSections = isLoggedIn ? undefined : OWNED_HIDDEN;
+  const hiddenFilterSections = isLoggedIn ? CARD_BROWSER_HIDDEN : CARD_BROWSER_HIDDEN_LOGGED_OUT;
 
   const deferredSortedCards = useDeferredValue(sortedCards);
   const isGridStale = deferredSortedCards !== sortedCards;

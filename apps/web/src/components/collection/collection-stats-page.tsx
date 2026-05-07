@@ -150,7 +150,7 @@ function StatsHeroStats({ stats }: { stats: CollectionStats }) {
 
 // ── Scope from URL filters ────────────────────────────────────────────────
 
-const HIDDEN_FILTER_SECTIONS = new Set(["owned", "superTypes"]);
+const HIDDEN_FILTER_SECTIONS = new Set(["owned", "superTypes", "markers", "channels"]);
 
 /**
  * Builds a CompletionScopePreference from the standard URL filter state.

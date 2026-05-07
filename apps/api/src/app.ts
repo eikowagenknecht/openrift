@@ -18,7 +18,6 @@ import { createRepos, createTransact, services as defaultServices } from "./deps
 import { AppError, ERROR_CODES } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
-import { otelContextMiddleware } from "./middleware/otel-context.js";
 import { adminRoute } from "./routes/admin/index.js";
 import { collectionEventsRoute } from "./routes/authenticated/collection-events.js";
 import { collectionValueHistoryRoute } from "./routes/authenticated/collection-value-history.js";
@@ -136,12 +135,6 @@ export function createApp(deps: AppDeps) {
   });
   app.use("*", registerMetrics);
   app.get("/metrics", printMetrics);
-
-  // Open an AsyncLocalStorage scope with the matched route + a traceparent so
-  // every Kysely query fired during the request carries a sqlcommenter prefix
-  // (see db/sql-commenter.ts). Must run before the deps and auth middlewares,
-  // which both issue DB queries.
-  app.use("/api/*", otelContextMiddleware);
 
   // ── Global middleware ───────────────────────────────────────────────────
   // CORS runs first so preflight OPTIONS requests are handled before any other work.

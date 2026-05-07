@@ -81,6 +81,11 @@ import { EditCollectionDialog } from "./edit-collection-dialog";
 import { MoveDialog } from "./move-dialog";
 import { QuickAddPalette } from "./quick-add-palette";
 
+const COLLECTION_GRID_HIDDEN_FILTER_SECTIONS: ReadonlySet<string> = new Set([
+  "markers",
+  "channels",
+]);
+
 function AddedPill({
   count,
   active,
@@ -831,6 +836,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
             availableFilters={availableFilters}
             availableLanguages={availableLanguages}
             setDisplayLabel={setDisplayLabel}
+            hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
           />
         </MobileOptionsDrawer>
       </div>
@@ -838,6 +844,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         availableFilters={availableFilters}
         availableLanguages={availableLanguages}
         setDisplayLabel={setDisplayLabel}
+        hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
       />
     </>
   );
@@ -851,6 +858,7 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
           availableFilters={availableFilters}
           availableLanguages={availableLanguages}
           setDisplayLabel={setDisplayLabel}
+          hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
         />
       </div>
     </Pane>
@@ -981,7 +989,11 @@ export function CollectionGrid({ collectionId, title }: CollectionGridProps) {
         toolbar={toolbar}
         leftPane={leftPane}
         aboveGrid={
-          <ActiveFilters availableFilters={availableFilters} setDisplayLabel={setDisplayLabel} />
+          <ActiveFilters
+            availableFilters={availableFilters}
+            setDisplayLabel={setDisplayLabel}
+            hiddenSections={COLLECTION_GRID_HIDDEN_FILTER_SECTIONS}
+          />
         }
         rightPane={rightPane}
         addStripHeight={ADD_STRIP_HEIGHT}

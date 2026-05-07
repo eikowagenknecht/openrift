@@ -149,15 +149,17 @@ export function DeckListToolbar({
 
         <SortGroupControls
           sortOptions={SORT_OPTIONS}
-          groupOptions={visibleGroupOptions}
           sortBy={sortField}
           sortDir={sortDir}
-          groupBy={groupBy}
-          groupDir={groupDir}
           onSortByChange={setSortField}
           onSortDirChange={setSortDir}
-          onGroupByChange={setGroupBy}
-          onGroupDirChange={setGroupDir}
+          group={{
+            options: visibleGroupOptions,
+            value: groupBy,
+            dir: groupDir,
+            onValueChange: setGroupBy,
+            onDirChange: setGroupDir,
+          }}
         />
 
         <div className="ml-auto flex items-center gap-1 rounded-md border p-0.5">

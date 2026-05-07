@@ -77,82 +77,130 @@ function DirToggle({
   );
 }
 
+interface GroupSection<TGroup extends string> {
+  options: SortGroupOption<TGroup>[];
+  value: TGroup;
+  dir: "asc" | "desc";
+  onValueChange: (value: TGroup) => void;
+  onDirChange: (value: "asc" | "desc") => void;
+}
+
+interface ViewSection<TView extends string> {
+  options: SortGroupOption<TView>[];
+  value: TView;
+  onChange: (value: TView) => void;
+  /** Section heading. Defaults to "View". */
+  title?: string;
+}
+
 /**
- * Combined sort + group control: a popover trigger that summarizes the current
- * selection inline ("Group · Sort ↑"), with a panel exposing both sections and
- * direction toggles. Use `compact` for the mobile drawer layout (no popover).
+ * Combined sort / group / view control: a popover trigger that summarizes the
+ * current selection inline ("Group · Sort ↑"), with a panel exposing each
+ * section and (where relevant) direction toggles. Use `compact` for the mobile
+ * drawer layout (no popover).
  *
- * Generic over the sort and group field types. Pass `"none"` as the no-grouping
- * value (matches the convention used by `/cards`).
+ * `group` is optional — pass `undefined` for routes that don't expose grouping
+ * (e.g. /promos, where the page is hierarchical by channel and a flat groupBy
+ * doesn't make sense). Pass `"none"` as the no-grouping value otherwise.
+ *
+ * `view` is optional — pass it to render a third section for view-mode toggles
+ * (e.g. grid/list on /promos).
  *
  * @returns The control UI.
  */
-export function SortGroupControls<TSort extends string, TGroup extends string>({
+export function SortGroupControls<
+  TSort extends string,
+  TGroup extends string = "none",
+  TView extends string = string,
+>({
   compact,
   sortOptions,
-  groupOptions,
+  group,
+  view,
   sortBy,
   sortDir,
-  groupBy,
-  groupDir,
   onSortByChange,
   onSortDirChange,
-  onGroupByChange,
-  onGroupDirChange,
 }: {
   compact?: boolean;
   sortOptions: SortGroupOption<TSort>[];
-  groupOptions: SortGroupOption<TGroup>[];
+  group?: GroupSection<TGroup>;
+  view?: ViewSection<TView>;
   sortBy: TSort;
   sortDir: "asc" | "desc";
-  groupBy: TGroup;
-  groupDir: "asc" | "desc";
   onSortByChange: (value: TSort) => void;
   onSortDirChange: (value: "asc" | "desc") => void;
-  onGroupByChange: (value: TGroup) => void;
-  onGroupDirChange: (value: "asc" | "desc") => void;
 }) {
   const sortLabel = sortOptions.find((option) => option.value === sortBy)?.label ?? sortBy;
-  const groupLabel = groupOptions.find((option) => option.value === groupBy)?.label ?? groupBy;
-  const groupingActive = (groupBy as string) !== "none";
+  const groupLabel =
+    group && (group.options.find((option) => option.value === group.value)?.label ?? group.value);
+  const groupingActive = group !== undefined && (group.value as string) !== "none";
+
+  const groupSection = group && (
+    <SortGroupSection
+      title="Group by"
+      action={
+        groupingActive ? (
+          // oxlint-disable-next-line react/jsx-handler-names -- forwarded callback from caller, name fixed by the route
+          <DirToggle dir={group.dir} onToggle={group.onDirChange} />
+        ) : undefined
+      }
+    >
+      <div className={compact ? "flex flex-wrap gap-1" : undefined}>
+        {group.options.map((option) => (
+          <RadioOption
+            key={option.value}
+            selected={group.value === option.value}
+            onClick={() => group.onValueChange(option.value)}
+          >
+            {option.label}
+          </RadioOption>
+        ))}
+      </div>
+    </SortGroupSection>
+  );
+
+  const sortSection = (
+    <SortGroupSection
+      title="Sort by"
+      action={<DirToggle dir={sortDir} onToggle={onSortDirChange} />}
+    >
+      <div className={compact ? "flex flex-wrap gap-1" : undefined}>
+        {sortOptions.map((option) => (
+          <RadioOption
+            key={option.value}
+            selected={sortBy === option.value}
+            onClick={() => onSortByChange(option.value)}
+          >
+            {option.label}
+          </RadioOption>
+        ))}
+      </div>
+    </SortGroupSection>
+  );
+
+  const viewSection = view && (
+    <SortGroupSection title={view.title ?? "View"}>
+      <div className={compact ? "flex flex-wrap gap-1" : undefined}>
+        {view.options.map((option) => (
+          <RadioOption
+            key={option.value}
+            selected={view.value === option.value}
+            onClick={() => view.onChange(option.value)}
+          >
+            {option.label}
+          </RadioOption>
+        ))}
+      </div>
+    </SortGroupSection>
+  );
 
   if (compact) {
     return (
       <div className="flex flex-col gap-3">
-        <SortGroupSection
-          title="Group by"
-          action={
-            groupingActive ? <DirToggle dir={groupDir} onToggle={onGroupDirChange} /> : undefined
-          }
-        >
-          <div className="flex flex-wrap gap-1">
-            {groupOptions.map((option) => (
-              <RadioOption
-                key={option.value}
-                selected={groupBy === option.value}
-                onClick={() => onGroupByChange(option.value)}
-              >
-                {option.label}
-              </RadioOption>
-            ))}
-          </div>
-        </SortGroupSection>
-        <SortGroupSection
-          title="Sort by"
-          action={<DirToggle dir={sortDir} onToggle={onSortDirChange} />}
-        >
-          <div className="flex flex-wrap gap-1">
-            {sortOptions.map((option) => (
-              <RadioOption
-                key={option.value}
-                selected={sortBy === option.value}
-                onClick={() => onSortByChange(option.value)}
-              >
-                {option.label}
-              </RadioOption>
-            ))}
-          </div>
-        </SortGroupSection>
+        {groupSection}
+        {sortSection}
+        {viewSection}
       </div>
     );
   }
@@ -164,10 +212,10 @@ export function SortGroupControls<TSort extends string, TGroup extends string>({
           "border-input bg-background ring-ring/10 dark:bg-input/30 hover:bg-muted hover:text-foreground dark:hover:bg-input/50 inline-flex h-8 items-center gap-2 rounded-md border px-3 text-sm whitespace-nowrap shadow-xs transition-colors",
         )}
       >
-        {groupingActive && (
+        {groupingActive && group && (
           <>
             <span>{groupLabel}</span>
-            {groupDir === "desc" && (
+            {group.dir === "desc" && (
               <ArrowUpNarrowWideIcon className="text-muted-foreground size-3.5" />
             )}
             <span className="text-muted-foreground">·</span>
@@ -177,37 +225,11 @@ export function SortGroupControls<TSort extends string, TGroup extends string>({
         {sortDir === "desc" && <ArrowUpNarrowWideIcon className="text-muted-foreground size-3.5" />}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 gap-3 p-2">
-        <SortGroupSection
-          title="Group by"
-          action={
-            groupingActive ? <DirToggle dir={groupDir} onToggle={onGroupDirChange} /> : undefined
-          }
-        >
-          {groupOptions.map((option) => (
-            <RadioOption
-              key={option.value}
-              selected={groupBy === option.value}
-              onClick={() => onGroupByChange(option.value)}
-            >
-              {option.label}
-            </RadioOption>
-          ))}
-        </SortGroupSection>
-        <div className="bg-border -mx-2 h-px" />
-        <SortGroupSection
-          title="Sort by"
-          action={<DirToggle dir={sortDir} onToggle={onSortDirChange} />}
-        >
-          {sortOptions.map((option) => (
-            <RadioOption
-              key={option.value}
-              selected={sortBy === option.value}
-              onClick={() => onSortByChange(option.value)}
-            >
-              {option.label}
-            </RadioOption>
-          ))}
-        </SortGroupSection>
+        {groupSection}
+        {groupSection && <div className="bg-border -mx-2 h-px" />}
+        {sortSection}
+        {viewSection && <div className="bg-border -mx-2 h-px" />}
+        {viewSection}
       </PopoverContent>
     </Popover>
   );

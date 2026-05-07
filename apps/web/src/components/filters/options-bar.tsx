@@ -271,15 +271,17 @@ export function DesktopOptionsBar({
     <div className={cn("items-center gap-3", className)}>
       <SortGroupControls
         sortOptions={sortOptions}
-        groupOptions={groupByOptions}
         sortBy={sortBy}
         sortDir={sortDir}
-        groupBy={groupBy}
-        groupDir={groupDir}
         onSortByChange={setSortBy}
         onSortDirChange={setSortDir}
-        onGroupByChange={setGroupBy}
-        onGroupDirChange={setGroupDir}
+        group={{
+          options: groupByOptions,
+          value: groupBy,
+          dir: groupDir,
+          onValueChange: setGroupBy,
+          onDirChange: setGroupDir,
+        }}
       />
       {!hideViewToggle && (
         <ViewModeToggle view={view} onViewChange={setView} showCopies={showCopies} />
@@ -360,15 +362,17 @@ export function MobileOptionsContent({ showCopies }: { showCopies?: boolean } = 
       <SortGroupControls
         compact
         sortOptions={sortOptions}
-        groupOptions={groupByOptions}
         sortBy={sortBy}
         sortDir={sortDir}
-        groupBy={groupBy}
-        groupDir={groupDir}
         onSortByChange={setSortBy}
         onSortDirChange={setSortDir}
-        onGroupByChange={setGroupBy}
-        onGroupDirChange={setGroupDir}
+        group={{
+          options: groupByOptions,
+          value: groupBy,
+          dir: groupDir,
+          onValueChange: setGroupBy,
+          onDirChange: setGroupDir,
+        }}
       />
       <div className="flex items-center gap-2">
         <ViewModeToggle

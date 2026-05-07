@@ -23,7 +23,8 @@ const cardsRoute = getRouteApi("/_app/cards");
 
 // SSR can't tell whether the user is signed in, so we hide the Owned chip in
 // the shell. The live <CardBrowser> shows it for logged-in users on hydration.
-const SSR_HIDDEN: ReadonlySet<string> = new Set(["owned"]);
+// Markers and channels live with /promos and have no /cards UI; always hide.
+const SSR_HIDDEN: ReadonlySet<string> = new Set(["owned", "markers", "channels"]);
 
 // Per-cell visibility classes that pair with the grid's column breakpoints so
 // each viewport shows exactly two complete rows. We always render 16 cells
