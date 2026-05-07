@@ -10,6 +10,7 @@
 - feat: The Promos page can show how many copies of each promo you already own when you're signed in, with a toolbar toggle to turn it on or off
 - fix: The Promos page no longer crashes when you turn the owned-count toggle on
 - fix: A mistyped or stale card or set link now shows a Not Found page instead of a server error
+- fix: The deck overview's grouped card thumbnails now show capitalized type headings ("Spells", "Gears") instead of the lowercase slug
 
 ## 2026-05-06
 

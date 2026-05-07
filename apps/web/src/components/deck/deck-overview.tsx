@@ -29,6 +29,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import type { DeckOwnershipData } from "@/hooks/use-deck-ownership";
 import { useDeckStats } from "@/hooks/use-deck-stats";
 import { useDomainColors } from "@/hooks/use-domain-colors";
+import { useEnumOrders } from "@/hooks/use-enums";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import type { DeckBuilderCard } from "@/lib/deck-builder-card";
 import {
@@ -748,6 +749,7 @@ function GroupedThumbs({
   readOnly?: boolean;
   getCardSlug?: (cardId: string) => string | undefined;
 }) {
+  const { labels } = useEnumOrders();
   const grouped = Map.groupBy(cards, (card) => card.cardType);
   const presentTypes = [
     ...TYPE_GROUP_ORDER.filter((type) => grouped.has(type)),
@@ -769,7 +771,8 @@ function GroupedThumbs({
                 <img src={iconPath} alt="" className="size-3.5 brightness-0 dark:invert" />
               )}
               <span className="whitespace-nowrap">
-                {type}s <span className="text-muted-foreground/60">· {count}</span>
+                {labels.cardTypes[type]}s{" "}
+                <span className="text-muted-foreground/60">· {count}</span>
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
