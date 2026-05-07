@@ -386,7 +386,6 @@ function PromosPage() {
                 onChange: setViewMode,
               }}
             />
-            <FilterToggleButton />
             {isLoggedIn && (
               <Button
                 variant={showOwned ? "default" : "outline"}
@@ -399,6 +398,7 @@ function PromosPage() {
                 <PackageIcon className="size-4" />
               </Button>
             )}
+            <FilterToggleButton />
           </div>
 
           <div className="@wide:block hidden">
