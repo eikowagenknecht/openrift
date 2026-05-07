@@ -53,7 +53,7 @@ import { useSession } from "@/lib/auth-session";
 import { catalogQueryOptions } from "@/lib/catalog-query";
 import { buildPromoTreeFromMatches } from "@/lib/promo-filters";
 import type { PromoGrouping, PromoSection } from "@/lib/promo-groupings";
-import { asPromoGrouping, groupByCard, groupByYear } from "@/lib/promo-groupings";
+import { asPromoGrouping, groupByCard, groupByMarker, groupByYear } from "@/lib/promo-groupings";
 import type { ChannelNode } from "@/lib/promos-tree";
 import { computeLanguageAggregates } from "@/lib/promos-tree";
 import { FilterSearchProvider } from "@/lib/search-schemas";
@@ -159,14 +159,16 @@ function collectChannelTocItems(
   }
 }
 
-function flatSectionAnchor(languagePrefix: string, kind: "card" | "year", id: string): string {
+type FlatSectionKind = "card" | "year" | "marker";
+
+function flatSectionAnchor(languagePrefix: string, kind: FlatSectionKind, id: string): string {
   return `${languagePrefix}-${kind}-${id}`;
 }
 
 function collectFlatSectionTocItems(
   sections: PromoSection[],
   languagePrefix: string,
-  kind: "card" | "year",
+  kind: FlatSectionKind,
 ): PageTocItem[] {
   return sections.map((section) => ({
     id: flatSectionAnchor(languagePrefix, kind, section.id),
@@ -179,6 +181,7 @@ const GROUP_OPTIONS: { value: PromoGrouping; label: string }[] = [
   { value: "channel", label: "Channel" },
   { value: "card", label: "Card" },
   { value: "year", label: "Year" },
+  { value: "marker", label: "Marker" },
 ];
 
 function PromosPage() {
@@ -289,8 +292,8 @@ function PromosPage() {
   // navigating from /cards with ?groupBy=type) back to the page default.
   const grouping = asPromoGrouping(filterState.groupBy);
 
-  // Apply groupDir uniformly across all three groupings — the channel tree
-  // reverses its top-level order, card and year reverse their section order
+  // Apply groupDir uniformly across all groupings — the channel tree reverses
+  // its top-level order; card, year, and marker reverse their section order
   // via their helpers. Mirrors how /cards' card-grid handles groupDir so the
   // toggle behaviour is consistent across pages.
   const channelTree = buildPromoTreeFromMatches(matchedPrintings, data.channels);
@@ -298,6 +301,16 @@ function PromosPage() {
     grouping === "channel" ? (groupDir === "desc" ? channelTree.toReversed() : channelTree) : [];
   const cardSections = grouping === "card" ? groupByCard(matchedPrintings, groupDir) : undefined;
   const yearSections = grouping === "year" ? groupByYear(matchedPrintings, groupDir) : undefined;
+  const markerSections =
+    grouping === "marker" ? groupByMarker(matchedPrintings, groupDir) : undefined;
+  const flatSections = cardSections ?? yearSections ?? markerSections;
+  const flatKind: FlatSectionKind | null = cardSections
+    ? "card"
+    : yearSections
+      ? "year"
+      : markerSections
+        ? "marker"
+        : null;
 
   const hiddenFilterSections = priceFilterEnabled
     ? PROMOS_BASE_HIDDEN_SECTIONS
@@ -313,16 +326,12 @@ function PromosPage() {
   const tocItems: PageTocItem[] = [];
   if (grouping === "channel") {
     collectChannelTocItems(activeTree, activePrefix, 0, tocItems);
-  } else if (cardSections) {
-    tocItems.push(...collectFlatSectionTocItems(cardSections, activePrefix, "card"));
-  } else if (yearSections) {
-    tocItems.push(...collectFlatSectionTocItems(yearSections, activePrefix, "year"));
+  } else if (flatSections && flatKind) {
+    tocItems.push(...collectFlatSectionTocItems(flatSections, activePrefix, flatKind));
   }
 
   const hasContent =
-    grouping === "channel"
-      ? activeTree.length > 0
-      : (cardSections ?? yearSections ?? []).length > 0;
+    grouping === "channel" ? activeTree.length > 0 : (flatSections ?? []).length > 0;
 
   const languageItems = presentLanguages.map((code) => ({
     value: code,
@@ -501,23 +510,20 @@ function PromosPage() {
               </div>
             ) : (
               <div className="space-y-8">
-                {(cardSections ?? yearSections ?? []).map((section) => (
-                  <FlatSection
-                    key={section.id}
-                    section={section}
-                    anchorId={flatSectionAnchor(
-                      activePrefix,
-                      cardSections ? "card" : "year",
-                      section.id,
-                    )}
-                    viewMode={viewMode}
-                    showImages={showImages}
-                    display={display}
-                    onCardClick={handleCardClick}
-                    ownedCounts={ownedCounts}
-                    sortPrintings={sortPrintings}
-                  />
-                ))}
+                {flatKind &&
+                  (flatSections ?? []).map((section) => (
+                    <FlatSection
+                      key={section.id}
+                      section={section}
+                      anchorId={flatSectionAnchor(activePrefix, flatKind, section.id)}
+                      viewMode={viewMode}
+                      showImages={showImages}
+                      display={display}
+                      onCardClick={handleCardClick}
+                      ownedCounts={ownedCounts}
+                      sortPrintings={sortPrintings}
+                    />
+                  ))}
               </div>
             )
           ) : (

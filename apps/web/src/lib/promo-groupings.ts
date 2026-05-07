@@ -1,6 +1,6 @@
 import type { Printing, SortDirection } from "@openrift/shared";
 
-export type PromoGrouping = "channel" | "card" | "year";
+export type PromoGrouping = "channel" | "card" | "year" | "marker";
 
 export interface PromoSection {
   id: string;
@@ -10,8 +10,10 @@ export interface PromoSection {
 
 const UNKNOWN_YEAR_ID = "unknown";
 const UNKNOWN_YEAR_LABEL = "Unknown year";
+const UNMARKED_ID = "unmarked";
+const UNMARKED_LABEL = "Unmarked";
 
-const PROMO_GROUPINGS: ReadonlySet<PromoGrouping> = new Set(["channel", "card", "year"]);
+const PROMO_GROUPINGS: ReadonlySet<PromoGrouping> = new Set(["channel", "card", "year", "marker"]);
 
 /**
  * Coerce an arbitrary URL value into a known promo grouping. Defaults to
@@ -78,6 +80,44 @@ export function groupByYear(printings: Printing[], dir: SortDirection = "desc"):
     .map(([year, list]) => ({ id: String(year), label: String(year), printings: list }));
   if (unknown.length > 0) {
     sections.push({ id: UNKNOWN_YEAR_ID, label: UNKNOWN_YEAR_LABEL, printings: unknown });
+  }
+  return sections;
+}
+
+/**
+ * Group printings by marker. A printing with N markers fans out into N
+ * sections, mirroring how channel grouping handles multi-channel printings —
+ * a foil-marked tournament-prize printing belongs to both buckets. Printings
+ * with no markers collect into a trailing "Unmarked" section, always last
+ * regardless of dir (same pattern as the unknown-year bucket).
+ *
+ * @returns Sections keyed by marker slug, with "unmarked" last.
+ */
+export function groupByMarker(printings: Printing[], dir: SortDirection = "asc"): PromoSection[] {
+  const byMarker = new Map<string, PromoSection>();
+  const unmarked: Printing[] = [];
+  for (const printing of printings) {
+    if (printing.markers.length === 0) {
+      unmarked.push(printing);
+      continue;
+    }
+    for (const marker of printing.markers) {
+      const existing = byMarker.get(marker.slug);
+      if (existing) {
+        existing.printings.push(printing);
+      } else {
+        byMarker.set(marker.slug, {
+          id: marker.slug,
+          label: marker.label,
+          printings: [printing],
+        });
+      }
+    }
+  }
+  const sorted = [...byMarker.values()].toSorted((a, b) => a.label.localeCompare(b.label));
+  const sections = dir === "desc" ? sorted.toReversed() : sorted;
+  if (unmarked.length > 0) {
+    sections.push({ id: UNMARKED_ID, label: UNMARKED_LABEL, printings: unmarked });
   }
   return sections;
 }
