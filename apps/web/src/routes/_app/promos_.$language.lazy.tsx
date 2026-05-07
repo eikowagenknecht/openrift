@@ -8,11 +8,18 @@ import {
   useNavigate,
   useRouter,
 } from "@tanstack/react-router";
-import { ChevronDownIcon, ChevronRightIcon, LayoutGridIcon, ListIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  ChevronRightIcon,
+  LayoutGridIcon,
+  ListIcon,
+  PackageIcon,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import type { CardThumbnailDisplay } from "@/components/cards/card-thumbnail";
 import { CardThumbnail, useCardThumbnailDisplay } from "@/components/cards/card-thumbnail";
+import { OwnedCountStrip } from "@/components/cards/owned-count-strip";
 import type { PageTocItem } from "@/components/layout/page-toc";
 import { PageToc } from "@/components/layout/page-toc";
 import { MarkdownText } from "@/components/markdown-text";
@@ -36,7 +43,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useLanguageList } from "@/hooks/use-enums";
+import { useOwnedCount } from "@/hooks/use-owned-count";
 import { publicPromoListQueryOptions } from "@/hooks/use-public-promos";
+import { useSession } from "@/lib/auth-session";
 import type { ChannelNode } from "@/lib/promos-tree";
 import { buildPromoTree, computeLanguageAggregates } from "@/lib/promos-tree";
 import { cn, PAGE_PADDING } from "@/lib/utils";
@@ -130,6 +139,15 @@ function PromosPage() {
   const languageOrder = useDisplayStore((s) => s.languages);
   const languageList = useLanguageList();
   const languageLabelMap = new Map(languageList.map((l) => [l.code, l.name]));
+  const { data: session } = useSession();
+  const isLoggedIn = Boolean(session?.user);
+  const catalogMode = useDisplayStore((s) => s.catalogMode);
+  const showOwned = isLoggedIn && catalogMode !== "off";
+  const { data: ownedCountByPrinting } = useOwnedCount(showOwned);
+  const ownedCounts = showOwned ? ownedCountByPrinting : undefined;
+  const togglePromoOwned = () => {
+    useDisplayStore.setState({ catalogMode: catalogMode === "off" ? "count" : "off" });
+  };
 
   const presentLanguageSet = new Set(data.printings.map((p) => p.language));
   const presentLanguages = [
@@ -277,6 +295,18 @@ function PromosPage() {
             >
               <ListIcon className="size-4" />
             </Button>
+            {isLoggedIn && (
+              <Button
+                variant={showOwned ? "default" : "outline"}
+                size="icon-sm"
+                onClick={togglePromoOwned}
+                aria-label={showOwned ? "Hide owned counts" : "Show owned counts"}
+                aria-pressed={showOwned}
+                title={showOwned ? "Hide owned counts" : "Show owned counts"}
+              >
+                <PackageIcon className="size-4" />
+              </Button>
+            )}
           </div>
 
           {activeTree.length === 0 ? (
@@ -300,6 +330,7 @@ function PromosPage() {
                   showImages={showImages}
                   display={display}
                   onCardClick={handleCardClick}
+                  ownedCounts={ownedCounts}
                 />
               ))}
             </div>
@@ -319,6 +350,8 @@ interface BranchProps {
   showImages: boolean;
   display: CardThumbnailDisplay;
   onCardClick: (printing: Printing) => void;
+  /** Per-printing owned counts; undefined when the toggle is off or the user is logged out. */
+  ownedCounts: Record<string, number> | undefined;
 }
 
 function ChannelBranch({
@@ -330,6 +363,7 @@ function ChannelBranch({
   showImages,
   display,
   onCardClick,
+  ownedCounts,
 }: BranchProps) {
   const [open, setOpen] = useState(true);
   if (node.localPrintingCount === 0) {
@@ -353,6 +387,7 @@ function ChannelBranch({
         showImages={showImages}
         display={display}
         onCardClick={onCardClick}
+        ownedCounts={ownedCounts}
       />
     );
   }
@@ -400,6 +435,7 @@ function ChannelBranch({
               node={node}
               languagePrefix={languagePrefix}
               onCardClick={onCardClick}
+              ownedCounts={ownedCounts}
             />
           ) : compact && viewMode === "grid" ? (
             <CompactBranchGrid
@@ -408,6 +444,7 @@ function ChannelBranch({
               showImages={showImages}
               display={display}
               onCardClick={onCardClick}
+              ownedCounts={ownedCounts}
             />
           ) : (
             <div className="space-y-6">
@@ -422,6 +459,7 @@ function ChannelBranch({
                   showImages={showImages}
                   display={display}
                   onCardClick={onCardClick}
+                  ownedCounts={ownedCounts}
                 />
               ))}
             </div>
@@ -467,6 +505,7 @@ function ChannelLeafSection({
   showImages,
   display,
   onCardClick,
+  ownedCounts,
 }: BranchProps) {
   const [open, setOpen] = useState(true);
   const sortedPrintings = node.printings.toSorted(comparePrintingsForDisplay);
@@ -511,20 +550,38 @@ function ChannelLeafSection({
       {open &&
         (viewMode === "grid" ? (
           <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
-            {sortedPrintings.map((printing) => (
-              <CardThumbnail
-                key={printing.id}
-                printing={printing}
-                onClick={onCardClick}
-                showImages={showImages}
-                display={display}
-                sizes={PROMOS_CARD_SIZES}
-                belowLabel={<BelowLabel printing={printing} />}
-              />
-            ))}
+            {sortedPrintings.map((printing) => {
+              const ownedCount = ownedCounts?.[printing.id] ?? 0;
+              return (
+                <CardThumbnail
+                  key={printing.id}
+                  printing={printing}
+                  onClick={onCardClick}
+                  showImages={showImages}
+                  display={display}
+                  sizes={PROMOS_CARD_SIZES}
+                  belowLabel={<BelowLabel printing={printing} />}
+                  aboveCard={
+                    ownedCounts ? (
+                      <OwnedCountStrip
+                        count={ownedCount}
+                        printingId={printing.id}
+                        cardName={printing.card.name}
+                        shortCode={printing.shortCode}
+                      />
+                    ) : undefined
+                  }
+                  dimmed={ownedCounts ? ownedCount === 0 : undefined}
+                />
+              );
+            })}
           </div>
         ) : (
-          <PromoListView printings={sortedPrintings} onRowClick={onCardClick} />
+          <PromoListView
+            printings={sortedPrintings}
+            onRowClick={onCardClick}
+            ownedCounts={ownedCounts}
+          />
         ))}
     </section>
   );
@@ -536,12 +593,14 @@ function CompactBranchGrid({
   showImages,
   display,
   onCardClick,
+  ownedCounts,
 }: {
   node: ChannelNode;
   languagePrefix: string;
   showImages: boolean;
   display: CardThumbnailDisplay;
   onCardClick: (printing: Printing) => void;
+  ownedCounts: Record<string, number> | undefined;
 }) {
   // Flatten every leaf's printings into one grid that uses the normal card
   // sizing, so compact mode is just rows-vs-cols: each card carries a small
@@ -573,23 +632,37 @@ function CompactBranchGrid({
         </dl>
       )}
       <div className="wide:grid-cols-6 xwide:grid-cols-8 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
-        {entries.map(({ printing, leafLabel, anchorId }) => (
-          <div
-            key={`${leafLabel}-${printing.id}`}
-            id={anchorId}
-            className={anchorId ? "scroll-mt-16" : undefined}
-          >
-            <div className="mb-1 px-1.5 font-semibold">{leafLabel}</div>
-            <CardThumbnail
-              printing={printing}
-              onClick={onCardClick}
-              showImages={showImages}
-              display={display}
-              sizes={PROMOS_CARD_SIZES}
-              belowLabel={<BelowLabel printing={printing} />}
-            />
-          </div>
-        ))}
+        {entries.map(({ printing, leafLabel, anchorId }) => {
+          const ownedCount = ownedCounts?.[printing.id] ?? 0;
+          return (
+            <div
+              key={`${leafLabel}-${printing.id}`}
+              id={anchorId}
+              className={anchorId ? "scroll-mt-16" : undefined}
+            >
+              <div className="mb-1 px-1.5 font-semibold">{leafLabel}</div>
+              <CardThumbnail
+                printing={printing}
+                onClick={onCardClick}
+                showImages={showImages}
+                display={display}
+                sizes={PROMOS_CARD_SIZES}
+                belowLabel={<BelowLabel printing={printing} />}
+                aboveCard={
+                  ownedCounts ? (
+                    <OwnedCountStrip
+                      count={ownedCount}
+                      printingId={printing.id}
+                      cardName={printing.card.name}
+                      shortCode={printing.shortCode}
+                    />
+                  ) : undefined
+                }
+                dimmed={ownedCounts ? ownedCount === 0 : undefined}
+              />
+            </div>
+          );
+        })}
       </div>
     </>
   );
@@ -599,10 +672,12 @@ function CompactBranchTable({
   node,
   languagePrefix,
   onCardClick,
+  ownedCounts,
 }: {
   node: ChannelNode;
   languagePrefix: string;
   onCardClick: (printing: Printing) => void;
+  ownedCounts: Record<string, number> | undefined;
 }) {
   const columnHeader = node.channel.childrenLabel ?? "Variant";
   const rows = node.children.flatMap((child) =>
@@ -623,11 +698,13 @@ function CompactBranchTable({
           <TableHead>Card</TableHead>
           <TableHead className="w-40">Code</TableHead>
           <TableHead className="w-32">Finish</TableHead>
+          {ownedCounts && <TableHead className="w-24">Owned</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
         {rows.map(({ printing, leafLabel, anchorId }) => {
           const image = printing.images[0];
+          const ownedCount = ownedCounts?.[printing.id] ?? 0;
           return (
             <HoverCard key={`${leafLabel}-${printing.id}`}>
               <HoverCardTrigger
@@ -645,6 +722,16 @@ function CompactBranchTable({
                   {printing.publicCode}
                 </TableCell>
                 <TableCell className="truncate">{printing.finish}</TableCell>
+                {ownedCounts && (
+                  <TableCell
+                    className={cn(
+                      "truncate tabular-nums",
+                      ownedCount === 0 && "text-muted-foreground",
+                    )}
+                  >
+                    {ownedCount > 0 ? `×${ownedCount}` : ""}
+                  </TableCell>
+                )}
               </HoverCardTrigger>
               {image && (
                 <HoverCardContent
@@ -673,9 +760,11 @@ function comparePrintingsForDisplay(a: Printing, b: Printing) {
 function PromoListView({
   printings,
   onRowClick,
+  ownedCounts,
 }: {
   printings: Printing[];
   onRowClick: (printing: Printing) => void;
+  ownedCounts: Record<string, number> | undefined;
 }) {
   return (
     <>
@@ -688,11 +777,13 @@ function PromoListView({
               <TableHead className="w-40">Code</TableHead>
               <TableHead className="w-32">Rarity</TableHead>
               <TableHead className="w-32">Finish</TableHead>
+              {ownedCounts && <TableHead className="w-24">Owned</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {printings.map((printing) => {
               const image = printing.images[0];
+              const ownedCount = ownedCounts?.[printing.id] ?? 0;
               return (
                 <HoverCard key={printing.id}>
                   <HoverCardTrigger
@@ -709,6 +800,16 @@ function PromoListView({
                     </TableCell>
                     <TableCell className="truncate">{printing.rarity}</TableCell>
                     <TableCell className="truncate">{printing.finish}</TableCell>
+                    {ownedCounts && (
+                      <TableCell
+                        className={cn(
+                          "truncate tabular-nums",
+                          ownedCount === 0 && "text-muted-foreground",
+                        )}
+                      >
+                        {ownedCount > 0 ? `×${ownedCount}` : ""}
+                      </TableCell>
+                    )}
                   </HoverCardTrigger>
                   {image && (
                     <HoverCardContent
@@ -733,6 +834,7 @@ function PromoListView({
       <div className="flex flex-col gap-2 md:hidden">
         {printings.map((printing) => {
           const image = printing.images[0];
+          const ownedCount = ownedCounts?.[printing.id] ?? 0;
           return (
             <button
               key={printing.id}
@@ -750,7 +852,14 @@ function PromoListView({
                 <div className="bg-muted aspect-card h-20 shrink-0 rounded" />
               )}
               <div className="min-w-0 flex-1">
-                <div className="truncate font-medium">{printing.card.name}</div>
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="truncate font-medium">{printing.card.name}</div>
+                  {ownedCounts && ownedCount > 0 && (
+                    <span className="text-muted-foreground shrink-0 tabular-nums">
+                      &times;{ownedCount}
+                    </span>
+                  )}
+                </div>
                 <div className="text-muted-foreground truncate text-xs tabular-nums">
                   {printing.publicCode}
                 </div>
