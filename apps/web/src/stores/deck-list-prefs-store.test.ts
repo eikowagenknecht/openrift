@@ -29,22 +29,24 @@ describe("useDeckListPrefsStore", () => {
     expect(state.showArchived).toBe(false);
   });
 
-  describe("toggleDomainFilter", () => {
-    it("adds a domain that is not selected", () => {
-      useDeckListPrefsStore.getState().toggleDomainFilter("fury");
+  describe("setDomainFilter", () => {
+    it("sets the selection", () => {
+      useDeckListPrefsStore.getState().setDomainFilter(["fury"]);
       expect(useDeckListPrefsStore.getState().domainFilter).toEqual(["fury"]);
     });
 
-    it("removes a domain that is already selected", () => {
-      useDeckListPrefsStore.getState().toggleDomainFilter("body");
-      useDeckListPrefsStore.getState().toggleDomainFilter("body");
-      expect(useDeckListPrefsStore.getState().domainFilter).toEqual([]);
+    it("replaces the entire selection", () => {
+      const store = useDeckListPrefsStore.getState();
+      store.setDomainFilter(["fury"]);
+      store.setDomainFilter(["calm", "mind"]);
+      expect(useDeckListPrefsStore.getState().domainFilter).toEqual(["calm", "mind"]);
     });
 
-    it("supports multiple selected domains", () => {
-      useDeckListPrefsStore.getState().toggleDomainFilter("calm");
-      useDeckListPrefsStore.getState().toggleDomainFilter("mind");
-      expect(useDeckListPrefsStore.getState().domainFilter).toEqual(["calm", "mind"]);
+    it("clears when given an empty array", () => {
+      const store = useDeckListPrefsStore.getState();
+      store.setDomainFilter(["body"]);
+      store.setDomainFilter([]);
+      expect(useDeckListPrefsStore.getState().domainFilter).toEqual([]);
     });
   });
 
@@ -54,7 +56,7 @@ describe("useDeckListPrefsStore", () => {
       store.setSearch("aatrox");
       store.setFormatFilter("constructed");
       store.setValidityFilter("invalid");
-      store.toggleDomainFilter("fury");
+      store.setDomainFilter(["fury"]);
       store.setSortField("name");
       store.setSortDir("asc");
       store.setDensity("list");

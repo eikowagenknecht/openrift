@@ -69,7 +69,7 @@ interface DeckListPrefsState {
 
   /** Domains the deck must contain (intersection — all selected must be present). Empty = no filter. */
   domainFilter: Domain[];
-  toggleDomainFilter: (domain: Domain) => void;
+  setDomainFilter: (domains: Domain[]) => void;
   clearDomainFilter: () => void;
 
   showArchived: boolean;
@@ -116,12 +116,7 @@ export const useDeckListPrefsStore = create<DeckListPrefsState>()(
       setValidityFilter: (value) => set({ validityFilter: value }),
 
       domainFilter: DEFAULTS.domainFilter,
-      toggleDomainFilter: (domain) =>
-        set((state) => ({
-          domainFilter: state.domainFilter.includes(domain)
-            ? state.domainFilter.filter((value) => value !== domain)
-            : [...state.domainFilter, domain],
-        })),
+      setDomainFilter: (domains) => set({ domainFilter: domains }),
       clearDomainFilter: () => set({ domainFilter: [] }),
 
       showArchived: DEFAULTS.showArchived,

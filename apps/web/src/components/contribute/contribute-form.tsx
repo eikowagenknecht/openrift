@@ -29,6 +29,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useEnumOrders, useLanguageList, useMarkerList } from "@/hooks/use-enums";
 import { publicSetListQueryOptions } from "@/hooks/use-public-sets";
 import type {
@@ -164,13 +165,30 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
         </div>
         <FieldRow label="Domains">
           <ToggleGroup
+            multiple
+            variant="outline"
             value={state.card.domains}
-            onChange={(v) => setCardField("domains", v)}
-            options={orders.domains}
-            labels={labels.domains}
-            disabledOptions={domainDisabled}
-            icons={domainIcons}
-          />
+            onValueChange={(next) => setCardField("domains", next)}
+          >
+            {orders.domains.map((slug) => {
+              const selected = state.card.domains.includes(slug);
+              const disabled = !selected && domainDisabled.has(slug);
+              const iconSrc = domainIcons[slug];
+              const isColorless = slug === WellKnown.domain.COLORLESS;
+              return (
+                <ToggleGroupItem key={slug} value={slug} disabled={disabled}>
+                  {iconSrc && (
+                    <img
+                      src={iconSrc}
+                      alt=""
+                      className={cn("size-4 shrink-0", isColorless && "brightness-0 dark:invert")}
+                    />
+                  )}
+                  {labels.domains[slug]}
+                </ToggleGroupItem>
+              );
+            })}
+          </ToggleGroup>
         </FieldRow>
         <div className="grid gap-4 sm:grid-cols-2">
           <FieldRow label="Type">
@@ -184,11 +202,17 @@ export function ContributeForm({ initial, lockedSlug }: ContributeFormProps) {
           </FieldRow>
           <FieldRow label="Super types">
             <ToggleGroup
+              multiple
+              variant="outline"
               value={state.card.superTypes}
-              onChange={(v) => setCardField("superTypes", v)}
-              options={orders.superTypes}
-              labels={labels.superTypes}
-            />
+              onValueChange={(next) => setCardField("superTypes", next)}
+            >
+              {orders.superTypes.map((slug) => (
+                <ToggleGroupItem key={slug} value={slug}>
+                  {labels.superTypes[slug]}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           </FieldRow>
         </div>
 
@@ -760,53 +784,6 @@ function SingleSelect({
         ))}
       </SelectContent>
     </Select>
-  );
-}
-
-function ToggleGroup({
-  value,
-  onChange,
-  options,
-  labels,
-  disabledOptions,
-  icons,
-}: {
-  value: string[];
-  onChange: (next: string[]) => void;
-  options: readonly string[];
-  labels: Record<string, string>;
-  disabledOptions?: ReadonlySet<string>;
-  icons?: Record<string, string | undefined>;
-}) {
-  const toggle = (slug: string) => {
-    onChange(value.includes(slug) ? value.filter((v) => v !== slug) : [...value, slug]);
-  };
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {options.map((slug) => {
-        const selected = value.includes(slug);
-        const disabled = !selected && (disabledOptions?.has(slug) ?? false);
-        const iconSrc = icons?.[slug];
-        return (
-          <button
-            key={slug}
-            type="button"
-            onClick={() => toggle(slug)}
-            disabled={disabled}
-            className={cn(
-              "border-input inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 transition-colors",
-              selected
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-background hover:bg-accent",
-              disabled && "hover:bg-background cursor-not-allowed opacity-40",
-            )}
-          >
-            {iconSrc && <img src={iconSrc} alt="" className="size-4 shrink-0" />}
-            {labels[slug] ?? slug}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 

@@ -6,8 +6,10 @@ import type { SortGroupOption } from "@/components/filters/sort-group-controls";
 import { SortGroupControls } from "@/components/filters/sort-group-controls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DeckListFilterAvailability } from "@/lib/deck-list-utils";
+import { cn } from "@/lib/utils";
 import type { DeckListGroupBy, DeckListSortField } from "@/stores/deck-list-prefs-store";
 import { useDeckListPrefsStore } from "@/stores/deck-list-prefs-store";
 
@@ -25,38 +27,6 @@ const GROUP_OPTIONS: SortGroupOption<DeckListGroupBy>[] = [
   { value: "legend", label: "Legend" },
   { value: "validity", label: "Validity" },
 ];
-
-function DomainChip({
-  domain,
-  active,
-  onToggle,
-}: {
-  domain: Domain;
-  active: boolean;
-  onToggle: () => void;
-}) {
-  const lower = domain.toLowerCase();
-  const ext = domain === WellKnown.domain.COLORLESS ? "svg" : "webp";
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            variant={active ? "default" : "outline"}
-            size="icon-sm"
-            aria-pressed={active}
-            aria-label={`Filter by ${domain}`}
-            onClick={onToggle}
-          />
-        }
-      >
-        <img src={`/images/domains/${lower}.${ext}`} alt="" className="size-4" />
-      </TooltipTrigger>
-      <TooltipContent>{domain}</TooltipContent>
-    </Tooltip>
-  );
-}
 
 export function DeckListToolbar({
   availableDomains,
@@ -86,7 +56,7 @@ export function DeckListToolbar({
   const validityFilter = useDeckListPrefsStore((state) => state.validityFilter);
   const setValidityFilter = useDeckListPrefsStore((state) => state.setValidityFilter);
   const domainFilter = useDeckListPrefsStore((state) => state.domainFilter);
-  const toggleDomainFilter = useDeckListPrefsStore((state) => state.toggleDomainFilter);
+  const setDomainFilter = useDeckListPrefsStore((state) => state.setDomainFilter);
   const showArchived = useDeckListPrefsStore((state) => state.showArchived);
   const setShowArchived = useDeckListPrefsStore((state) => state.setShowArchived);
   const resetFilters = useDeckListPrefsStore((state) => state.resetFilters);
@@ -162,40 +132,31 @@ export function DeckListToolbar({
           }}
         />
 
-        <div className="ml-auto flex items-center gap-1 rounded-md border p-0.5">
+        <ToggleGroup
+          className="ml-auto"
+          variant="outline"
+          size="sm"
+          value={[density]}
+          onValueChange={([next]) => {
+            if (next === "grid" || next === "list") {
+              setDensity(next);
+            }
+          }}
+          aria-label="Density"
+        >
           <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant={density === "grid" ? "secondary" : "ghost"}
-                  size="icon-sm"
-                  aria-label="Grid view"
-                  aria-pressed={density === "grid"}
-                  onClick={() => setDensity("grid")}
-                />
-              }
-            >
+            <TooltipTrigger render={<ToggleGroupItem value="grid" aria-label="Grid view" />}>
               <LayoutGridIcon className="size-4" />
             </TooltipTrigger>
             <TooltipContent>Grid view</TooltipContent>
           </Tooltip>
           <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  variant={density === "list" ? "secondary" : "ghost"}
-                  size="icon-sm"
-                  aria-label="List view"
-                  aria-pressed={density === "list"}
-                  onClick={() => setDensity("list")}
-                />
-              }
-            >
+            <TooltipTrigger render={<ToggleGroupItem value="list" aria-label="List view" />}>
               <ListIcon className="size-4" />
             </TooltipTrigger>
             <TooltipContent>List view</TooltipContent>
           </Tooltip>
-        </div>
+        </ToggleGroup>
       </div>
 
       {/* Row 2: filter chips (only render when there's at least one useful filter) */}
@@ -204,52 +165,82 @@ export function DeckListToolbar({
           {availability.hasMixedFormat && (
             <div className="flex items-center gap-1">
               <span className="text-muted-foreground text-xs">Format:</span>
-              {(["all", "constructed", "freeform"] as const).map((value) => (
-                <Button
-                  key={value}
-                  type="button"
-                  variant={formatFilter === value ? "default" : "outline"}
-                  size="sm"
-                  className="h-7 px-2.5 text-xs capitalize"
-                  aria-pressed={formatFilter === value}
-                  onClick={() => setFormatFilter(value)}
-                >
-                  {value}
-                </Button>
-              ))}
+              <ToggleGroup
+                variant="outline"
+                size="sm"
+                value={[formatFilter]}
+                onValueChange={([next]) => {
+                  if (next === "all" || next === "constructed" || next === "freeform") {
+                    setFormatFilter(next);
+                  }
+                }}
+                aria-label="Format filter"
+              >
+                {(["all", "constructed", "freeform"] as const).map((value) => (
+                  <ToggleGroupItem key={value} value={value} className="capitalize">
+                    {value}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
             </div>
           )}
 
           {availability.hasMixedValidity && (
             <div className="flex items-center gap-1">
               <span className="text-muted-foreground text-xs">Validity:</span>
-              {(["all", "valid", "invalid"] as const).map((value) => (
-                <Button
-                  key={value}
-                  type="button"
-                  variant={validityFilter === value ? "default" : "outline"}
-                  size="sm"
-                  className="h-7 px-2.5 text-xs capitalize"
-                  aria-pressed={validityFilter === value}
-                  onClick={() => setValidityFilter(value)}
-                >
-                  {value}
-                </Button>
-              ))}
+              <ToggleGroup
+                variant="outline"
+                size="sm"
+                value={[validityFilter]}
+                onValueChange={([next]) => {
+                  if (next === "all" || next === "valid" || next === "invalid") {
+                    setValidityFilter(next);
+                  }
+                }}
+                aria-label="Validity filter"
+              >
+                {(["all", "valid", "invalid"] as const).map((value) => (
+                  <ToggleGroupItem key={value} value={value} className="capitalize">
+                    {value}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
             </div>
           )}
 
           {availableDomains.length > 1 && (
             <div className="flex items-center gap-1">
               <span className="text-muted-foreground text-xs">Domains:</span>
-              {availableDomains.map((domain) => (
-                <DomainChip
-                  key={domain}
-                  domain={domain}
-                  active={domainFilter.includes(domain)}
-                  onToggle={() => toggleDomainFilter(domain)}
-                />
-              ))}
+              <ToggleGroup
+                multiple
+                variant="outline"
+                size="sm"
+                value={domainFilter}
+                onValueChange={(next) => setDomainFilter(next as Domain[])}
+                aria-label="Domain filter"
+              >
+                {availableDomains.map((domain) => {
+                  const lower = domain.toLowerCase();
+                  const isColorless = domain === WellKnown.domain.COLORLESS;
+                  const ext = isColorless ? "svg" : "webp";
+                  return (
+                    <Tooltip key={domain}>
+                      <TooltipTrigger
+                        render={
+                          <ToggleGroupItem value={domain} aria-label={`Filter by ${domain}`} />
+                        }
+                      >
+                        <img
+                          src={`/images/domains/${lower}.${ext}`}
+                          alt=""
+                          className={cn("size-4", isColorless && "brightness-0 dark:invert")}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent>{domain}</TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </ToggleGroup>
             </div>
           )}
 
