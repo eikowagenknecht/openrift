@@ -24,6 +24,7 @@ import { Suspense, lazy, useState } from "react";
 import { toast } from "sonner";
 
 import { PricingSection } from "@/components/cards/card-detail/pricing";
+import { CardPlaceholderImage } from "@/components/cards/card-placeholder-image";
 import { CardText } from "@/components/cards/card-text";
 import { FinishIcon, hasFinishIcon } from "@/components/cards/finish-icon";
 import { TIME_RANGES } from "@/components/cards/price-history-chart-constants";
@@ -259,9 +260,24 @@ function CardDetailPage() {
               className="w-full rounded-xl"
             />
           ) : (
-            <div className="bg-muted aspect-card flex items-center justify-center rounded-xl">
-              <span className="text-muted-foreground">No image</span>
-            </div>
+            <CardPlaceholderImage
+              name={card.name}
+              domain={card.domains}
+              energy={card.energy}
+              might={card.might}
+              power={card.power}
+              type={card.type}
+              superTypes={card.superTypes}
+              tags={card.tags}
+              rulesText={selectedPrinting.printedRulesText}
+              effectText={selectedPrinting.printedEffectText}
+              mightBonus={card.mightBonus}
+              flavorText={selectedPrinting.flavorText}
+              rarity={selectedPrinting.rarity}
+              publicCode={selectedPrinting.publicCode}
+              artist={selectedPrinting.artist}
+              className="w-full rounded-xl"
+            />
           )}
         </div>
 
