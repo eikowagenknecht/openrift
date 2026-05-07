@@ -218,9 +218,9 @@ export function collectEntries(group: UnifiedMappingGroup): TableEntry[] {
       return a.marketplace.localeCompare(b.marketplace);
     }
     return (
-      a.product.productName.localeCompare(b.product.productName) ||
-      b.product.finish.localeCompare(a.product.finish) ||
       (a.product.language ?? "").localeCompare(b.product.language ?? "") ||
+      (a.product.groupName ?? "").localeCompare(b.product.groupName ?? "") ||
+      b.product.finish.localeCompare(a.product.finish) ||
       a.product.externalId - b.product.externalId
     );
   });
@@ -788,7 +788,12 @@ function AssignToPrintingButton({
               {needsSeparator && <DropdownMenuSeparator />}
               <DropdownMenuItem
                 disabled={isAssigning}
-                onClick={() => onAssignToPrinting(product.externalId, printing.printingId)}
+                onClick={(event) => {
+                  if (event.ctrlKey || event.metaKey) {
+                    event.preventBaseUIHandler();
+                  }
+                  onAssignToPrinting(product.externalId, printing.printingId);
+                }}
                 title={assignedElsewhere ? "Already assigned to another product" : undefined}
                 className={cn(assignedElsewhere && "text-muted-foreground/60")}
               >

@@ -224,28 +224,44 @@ describe("collectEntries", () => {
     expect(entries).toHaveLength(1);
   });
 
-  it("sorts entries by marketplace then product name then reverse finish", () => {
+  it("sorts entries by marketplace, then language, set, reverse finish, and externalId", () => {
     const entries = collectEntries(
       group([printing()], {
         tcgplayer: {
           staged: [
-            staged({ externalId: 1, productName: "Zeta", finish: "normal" }),
-            staged({ externalId: 2, productName: "Alpha", finish: "normal" }),
+            // Same language + set → reverse finish puts foil before normal,
+            // then externalId breaks the final tie.
+            staged({ externalId: 11, language: "EN", groupName: "Alpha", finish: "normal" }),
+            staged({ externalId: 10, language: "EN", groupName: "Alpha", finish: "foil" }),
+            staged({ externalId: 12, language: "EN", groupName: "Alpha", finish: "normal" }),
+            // Different set within the same language sorts after "Alpha".
+            staged({ externalId: 13, language: "EN", groupName: "Beta", finish: "normal" }),
+            // ZH outranks EN at the language tier, so this row sorts last
+            // despite having the earliest set name.
+            staged({ externalId: 14, language: "ZH", groupName: "Alpha", finish: "normal" }),
           ],
           assigned: [],
           assignments: [],
         },
         cardmarket: {
-          staged: [staged({ externalId: 3, productName: "Alpha", finish: "normal" })],
+          staged: [staged({ externalId: 99, language: "EN", groupName: "Zeta", finish: "normal" })],
           assigned: [],
           assignments: [],
         },
       }),
     );
-    expect(entries.map((e) => `${e.marketplace}:${e.product.productName}`)).toEqual([
-      "cardmarket:Alpha",
-      "tcgplayer:Alpha",
-      "tcgplayer:Zeta",
+    expect(
+      entries.map(
+        (e) =>
+          `${e.marketplace}:${e.product.language}:${e.product.groupName}:${e.product.finish}:${e.product.externalId}`,
+      ),
+    ).toEqual([
+      "cardmarket:EN:Zeta:normal:99",
+      "tcgplayer:EN:Alpha:normal:11",
+      "tcgplayer:EN:Alpha:normal:12",
+      "tcgplayer:EN:Alpha:foil:10",
+      "tcgplayer:EN:Beta:normal:13",
+      "tcgplayer:ZH:Alpha:normal:14",
     ]);
   });
 
