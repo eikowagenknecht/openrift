@@ -136,6 +136,29 @@ export function SortGroupControls<
     group && (group.options.find((option) => option.value === group.value)?.label ?? group.value);
   const groupingActive = group !== undefined && (group.value as string) !== "none";
 
+  // In compact mode the option buttons need to wrap horizontally so they fit
+  // inside the mobile drawer; in the non-compact popover they stack vertically
+  // via SortGroupSection's `flex-col`. Wrapping with a div in both modes
+  // (even with no className) flattens the column layout because `<button>` is
+  // inline-block by default — render the radios as direct children when not
+  // compact, and wrap them with `flex-wrap` only when compact.
+  const renderOptions = <TValue extends string>(
+    options: SortGroupOption<TValue>[],
+    selectedValue: TValue,
+    onSelect: (value: TValue) => void,
+  ) => {
+    const radios = options.map((option) => (
+      <RadioOption
+        key={option.value}
+        selected={selectedValue === option.value}
+        onClick={() => onSelect(option.value)}
+      >
+        {option.label}
+      </RadioOption>
+    ));
+    return compact ? <div className="flex flex-wrap gap-1">{radios}</div> : radios;
+  };
+
   const groupSection = group && (
     <SortGroupSection
       title="Group by"
@@ -146,17 +169,7 @@ export function SortGroupControls<
         ) : undefined
       }
     >
-      <div className={compact ? "flex flex-wrap gap-1" : undefined}>
-        {group.options.map((option) => (
-          <RadioOption
-            key={option.value}
-            selected={group.value === option.value}
-            onClick={() => group.onValueChange(option.value)}
-          >
-            {option.label}
-          </RadioOption>
-        ))}
-      </div>
+      {renderOptions(group.options, group.value, group.onValueChange)}
     </SortGroupSection>
   );
 
@@ -165,33 +178,13 @@ export function SortGroupControls<
       title="Sort by"
       action={<DirToggle dir={sortDir} onToggle={onSortDirChange} />}
     >
-      <div className={compact ? "flex flex-wrap gap-1" : undefined}>
-        {sortOptions.map((option) => (
-          <RadioOption
-            key={option.value}
-            selected={sortBy === option.value}
-            onClick={() => onSortByChange(option.value)}
-          >
-            {option.label}
-          </RadioOption>
-        ))}
-      </div>
+      {renderOptions(sortOptions, sortBy, onSortByChange)}
     </SortGroupSection>
   );
 
   const viewSection = view && (
     <SortGroupSection title={view.title ?? "View"}>
-      <div className={compact ? "flex flex-wrap gap-1" : undefined}>
-        {view.options.map((option) => (
-          <RadioOption
-            key={option.value}
-            selected={view.value === option.value}
-            onClick={() => view.onChange(option.value)}
-          >
-            {option.label}
-          </RadioOption>
-        ))}
-      </div>
+      {renderOptions(view.options, view.value, view.onChange)}
     </SortGroupSection>
   );
 
