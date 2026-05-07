@@ -17,6 +17,16 @@ const SCHEMA_REF = "../../schemas/card.schema.json";
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
 /**
+ * Walkthrough text injected as `_instructions` on every contribution. Sits at
+ * the top of the JSON file so first-time contributors see it as soon as
+ * GitHub's "new file" editor opens, before they're tempted to scroll/edit.
+ * Stripped by openrift-data's consolidation Action so the merged file stays
+ * clean.
+ */
+const SUBMIT_INSTRUCTIONS =
+  "You don't need to edit the JSON below, it's all filled in. To submit: scroll down and click the green \"Commit changes...\" button, then follow GitHub's prompts to open the pull request. I'll review and merge it before it goes live.";
+
+/**
  * Snake-case JSON keys that map back to a different camelCase form-state key.
  * Anything not in this map (e.g. `name`, `type`, `domains`) keeps the same
  * spelling on both sides.
@@ -233,6 +243,7 @@ type SnakePrintingJson = Record<string, unknown>;
 
 interface ContributionJson {
   $schema: string;
+  _instructions: string;
   card: SnakeCardJson;
   printings: SnakePrintingJson[];
 }
@@ -331,7 +342,7 @@ export function buildContributionJson(
     const printingExternalId = `community:${state.slug}:${disambiguator}--${dateStamp}:${finish}:${language}`;
     return buildPrintingJson(printing, printingExternalId, cardName);
   });
-  return { $schema: SCHEMA_REF, card, printings };
+  return { $schema: SCHEMA_REF, _instructions: SUBMIT_INSTRUCTIONS, card, printings };
 }
 
 export function buildContributionFilename(slug: string, dateStamp: string): string {

@@ -165,6 +165,16 @@ describe("validateContribution", () => {
 });
 
 describe("buildContributionJson", () => {
+  it("includes a top-level _instructions string for first-time contributors", () => {
+    const json = buildContributionJson(fullState(), STAMP);
+    expect(typeof json._instructions).toBe("string");
+    expect(json._instructions.length).toBeGreaterThan(0);
+    // Ranks above `card` in iteration order so it's visible at the top of
+    // GitHub's editor before contributors scroll into the data.
+    const keys = Object.keys(json);
+    expect(keys.indexOf("_instructions")).toBeLessThan(keys.indexOf("card"));
+  });
+
   it("produces snake_case keys and includes all set fields", () => {
     const json = buildContributionJson(fullState(), STAMP);
     expect(json.$schema).toBe("../../schemas/card.schema.json");

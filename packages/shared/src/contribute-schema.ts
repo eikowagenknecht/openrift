@@ -95,6 +95,10 @@ export const contributionPrintingSchema = z
 export const contributionFileSchema = z
   .object({
     $schema: z.string().optional(),
+    // Human-facing walkthrough the web form injects so first-time contributors
+    // staring at the GitHub editor know what to click. The openrift-data
+    // consolidation Action strips this on PR open so merged files stay clean.
+    _instructions: z.string().optional(),
     card: contributionCardSchema,
     printings: z.array(contributionPrintingSchema).min(1),
   })

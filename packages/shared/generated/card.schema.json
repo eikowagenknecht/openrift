@@ -8,6 +8,9 @@
     "$schema": {
       "type": "string"
     },
+    "_instructions": {
+      "type": "string"
+    },
     "card": {
       "type": "object",
       "properties": {

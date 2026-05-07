@@ -177,4 +177,11 @@ describe("contributionFileSchema", () => {
     const result = contributionFileSchema.safeParse(file);
     expect(result.success).toBe(true);
   });
+
+  it("accepts an _instructions string at the root", () => {
+    const file = validFile();
+    (file as Record<string, unknown>)._instructions = "stripped on PR open";
+    const result = contributionFileSchema.safeParse(file);
+    expect(result.success).toBe(true);
+  });
 });
