@@ -1,6 +1,6 @@
 // Logged-in visitor journey: every request carries a better-auth session
 // cookie, so Cloudflare bypasses its edge cache and every page hits origin
-// SSR. This is the scenario we care about for the Reddit launch — anonymous
+// SSR. This is the scenario we care about for traffic spikes — anonymous
 // traffic is already absorbed by the CF edge; logged-in traffic isn't.
 //
 // Authentication model: you obtain a session cookie once (sign in via a

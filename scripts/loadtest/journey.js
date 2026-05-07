@@ -1,4 +1,4 @@
-// Realistic Reddit visitor journey: land on home, browse the card grid,
+// Realistic anonymous visitor journey: land on home, browse the card grid,
 // click into a card, occasionally view a set. Shared slug pool so CDN/browser
 // caches behave as they would in production.
 //
