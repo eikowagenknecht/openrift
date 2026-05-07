@@ -76,7 +76,11 @@ export function ChannelCombobox({
                   onSelect={() => onToggle(channel.slug)}
                   className={cn("cursor-pointer", isSelected && "font-medium")}
                 >
-                  <span className="truncate">{path}</span>
+                  {/* Allow long breadcrumbs to wrap (rather than truncate) when
+                      max-w-[90vw] kicks in on narrow screens. The › separators
+                      have spaces around them so the browser can line-break. The
+                      min-w-0 lets the flex child actually shrink past its content. */}
+                  <span className="min-w-0 flex-1 break-words whitespace-normal">{path}</span>
                 </CommandItem>
               );
             })}
