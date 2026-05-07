@@ -30,7 +30,7 @@ interface ChannelDraft {
   childrenLabel: string;
 }
 
-const KEBAB_RE = /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/;
+const KEBAB_RE = /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/u;
 const KIND_LABEL: Record<DistributionChannelKind, string> = {
   event: "Event",
   product: "Product",

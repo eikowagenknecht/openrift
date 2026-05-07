@@ -41,7 +41,7 @@ async function fetchPromoList(): Promise<PromoFixture> {
 // the source file + export. Decoding lets us pick out the promo list call
 // without touching other server fns on the same route transition.
 function isPromoListServerFn(url: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
   if (!match) {
     return false;
   }
@@ -58,14 +58,14 @@ function isPromoListServerFn(url: string): boolean {
 async function clientSideNavigateToPromos(page: Page) {
   // Start on /cards — SSR-renders without hitting the promo list server fn.
   await page.goto("/cards");
-  await expect(page.getByPlaceholder(/search/i)).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByPlaceholder(/search/iu)).toBeVisible({ timeout: 15_000 });
 
-  const moreTrigger = page.getByRole("button", { name: /^More$/ }).first();
+  const moreTrigger = page.getByRole("button", { name: /^More$/u }).first();
   await moreTrigger.hover();
-  const promosLink = page.getByRole("link", { name: /^Promos/ }).first();
+  const promosLink = page.getByRole("link", { name: /^Promos/u }).first();
   await expect(promosLink).toBeVisible();
   await promosLink.click();
-  await expect(page).toHaveURL(/\/promos$/, { timeout: 15_000 });
+  await expect(page).toHaveURL(/\/promos$/u, { timeout: 15_000 });
 }
 
 test.describe("promos", () => {
@@ -75,7 +75,7 @@ test.describe("promos", () => {
 
       await expect(page.getByRole("heading", { level: 1, name: "Promos" })).toBeVisible();
       await expect(
-        page.getByText(/Promos are all the cards you can.t get by just opening booster packs/),
+        page.getByText(/Promos are all the cards you can.t get by just opening booster packs/u),
       ).toBeVisible();
     });
 
@@ -117,7 +117,7 @@ test.describe("promos", () => {
       // language section, with a trailing `(N printings)` span.
       const channelHeading = page
         .getByRole("heading")
-        .filter({ hasText: new RegExp(firstChannel.label) })
+        .filter({ hasText: new RegExp(firstChannel.label, "u") })
         .first();
       await expect(channelHeading).toBeVisible();
       const countText = expectedCount === 1 ? "1 printing" : `${expectedCount} printings`;
@@ -205,7 +205,7 @@ test.describe("promos", () => {
 
       await page.locator(".aspect-card").first().click();
 
-      await expect(page).toHaveURL(/\/cards\/[^/]+$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/cards\/[^/]+$/u, { timeout: 15_000 });
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     });
 
@@ -224,7 +224,7 @@ test.describe("promos", () => {
       await expect(firstRow).toBeVisible();
       await firstRow.click();
 
-      await expect(page).toHaveURL(/\/cards\/[^/]+$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/cards\/[^/]+$/u, { timeout: 15_000 });
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     });
   });
@@ -244,12 +244,12 @@ test.describe("promos", () => {
       });
 
       await page.goto("/cards");
-      await expect(page.getByPlaceholder(/search/i)).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByPlaceholder(/search/iu)).toBeVisible({ timeout: 15_000 });
 
-      const moreTrigger = page.getByRole("button", { name: /^More$/ }).first();
+      const moreTrigger = page.getByRole("button", { name: /^More$/u }).first();
       await moreTrigger.hover();
       await page
-        .getByRole("link", { name: /^Promos/ })
+        .getByRole("link", { name: /^Promos/u })
         .first()
         .click();
 

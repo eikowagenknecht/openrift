@@ -381,8 +381,8 @@ export async function assembleProxyPdf(
 
   const slug = (options.deckName ?? "")
     .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-+|-+$/g, "");
+    .replaceAll(/[^a-z0-9]+/gu, "-")
+    .replaceAll(/^-+|-+$/gu, "");
   const filename = slug ? `${slug}-proxies.pdf` : "proxies.pdf";
   doc.save(filename);
 }

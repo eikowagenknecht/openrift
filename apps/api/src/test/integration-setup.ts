@@ -17,7 +17,7 @@ export const noopLogger = {
 } as unknown as Logger;
 
 export function replaceDbName(url: string, dbName: string): string {
-  return url.replace(/\/[^/?]+(\?|$)/, `/${dbName}$1`);
+  return url.replace(/\/[^/?]+(\?|$)/u, `/${dbName}$1`);
 }
 
 /**

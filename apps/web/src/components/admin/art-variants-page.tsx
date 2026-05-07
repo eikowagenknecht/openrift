@@ -108,7 +108,7 @@ export function ArtVariantsPage() {
           if (!slug || !label) {
             return "Slug and label are required";
           }
-          if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(slug)) {
+          if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/u.test(slug)) {
             return "Slug must be kebab-case (e.g. alternate, extended-art)";
           }
           return null;

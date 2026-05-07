@@ -14,7 +14,7 @@ import type { ZodIssue } from "zod";
 
 const REPO = "openriftapp/openrift-data";
 const SCHEMA_REF = "../../schemas/card.schema.json";
-const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
+const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/u;
 
 /**
  * Walkthrough text injected as `_instructions` on every contribution. Sits at
@@ -162,9 +162,9 @@ export function nameToSlug(name: string): string {
   return name
     .toLowerCase()
     .normalize("NFKD")
-    .replaceAll(/[̀-ͯ]/g, "")
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/^-+|-+$/g, "");
+    .replaceAll(/[̀-ͯ]/gu, "")
+    .replaceAll(/[^a-z0-9]+/gu, "-")
+    .replaceAll(/^-+|-+$/gu, "");
 }
 
 /**

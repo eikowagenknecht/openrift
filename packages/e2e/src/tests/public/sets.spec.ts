@@ -83,7 +83,7 @@ test.describe("sets", () => {
       await page.goto("/sets");
 
       await expect(page.getByRole("heading", { level: 1, name: "Card Sets" })).toBeVisible();
-      await expect(page).toHaveTitle(/Card Sets — Riftbound/);
+      await expect(page).toHaveTitle(/Card Sets — Riftbound/u);
       await expect(page.locator('meta[name="description"]')).toHaveAttribute(
         "content",
         "Browse all Riftbound card sets. View cards, printings, and details for each set.",
@@ -102,7 +102,7 @@ test.describe("sets", () => {
       await page.goto("/sets");
 
       const link = page.getByRole("link", { name: knownSet.name }).first();
-      await expect(link).toContainText(/\d+ cards?, \d+ printings?/);
+      await expect(link).toContainText(/\d+ cards?, \d+ printings?/u);
     });
 
     test("Supplemental Sets section mirrors the API's supplemental set presence", async ({
@@ -120,7 +120,7 @@ test.describe("sets", () => {
 
       await page.getByRole("link", { name: knownSet.name }).first().click();
 
-      await expect(page).toHaveURL(new RegExp(`/sets/${knownSet.slug}$`));
+      await expect(page).toHaveURL(new RegExp(`/sets/${knownSet.slug}$`, "u"));
       await expect(page.getByRole("heading", { level: 1, name: knownSet.name })).toBeVisible();
     });
   });
@@ -131,11 +131,11 @@ test.describe("sets", () => {
 
       await expect(page.getByRole("heading", { level: 1, name: knownSet.name })).toBeVisible();
 
-      const backLink = page.getByRole("link", { name: /all sets/i });
+      const backLink = page.getByRole("link", { name: /all sets/iu });
       await expect(backLink).toBeVisible();
       await expect(backLink).toHaveAttribute("href", "/sets");
 
-      await expect(page.getByText(/\d+ cards?, \d+ printings?/).first()).toBeVisible();
+      await expect(page.getByText(/\d+ cards?, \d+ printings?/u).first()).toBeVisible();
     });
 
     test("title and description meta match the set detail SEO format", async ({ page }) => {
@@ -148,7 +148,7 @@ test.describe("sets", () => {
       await expect(page).toHaveTitle(`${knownSet.name} — Riftbound Card Set — OpenRift`);
       await expect(page.locator('meta[name="description"]')).toHaveAttribute(
         "content",
-        new RegExp(`${uniqueCardCount} unique cards and ${printingCount} printings`),
+        new RegExp(`${uniqueCardCount} unique cards and ${printingCount} printings`, "u"),
       );
     });
 
@@ -182,8 +182,8 @@ test.describe("sets", () => {
 
       await tile.click();
 
-      await page.waitForURL(/\/cards\/[^/?#]+$/, { timeout: 10_000 });
-      await expect(page).toHaveURL(/\/cards\/[^/?#]+$/);
+      await page.waitForURL(/\/cards\/[^/?#]+$/u, { timeout: 10_000 });
+      await expect(page).toHaveURL(/\/cards\/[^/?#]+$/u);
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     });
 
@@ -195,7 +195,7 @@ test.describe("sets", () => {
     test("an unknown slug renders the route error fallback and keeps the URL", async ({ page }) => {
       await page.goto("/sets/does-not-exist-set", { waitUntil: "domcontentloaded" });
 
-      await expect(page).toHaveURL(/\/sets\/does-not-exist-set$/);
+      await expect(page).toHaveURL(/\/sets\/does-not-exist-set$/u);
       await expect(page.getByRole("button", { name: "Reshuffle" })).toBeVisible({
         timeout: 10_000,
       });
@@ -222,7 +222,7 @@ test.describe("sets", () => {
 
       const setLink = page
         .getByRole("link", {
-          name: new RegExp(`^${printingSet.slug.toUpperCase()}\\b`, "i"),
+          name: new RegExp(`^${printingSet.slug.toUpperCase()}\\b`, "iu"),
         })
         .first();
       await expect(setLink).toBeVisible();
@@ -230,7 +230,7 @@ test.describe("sets", () => {
 
       await setLink.click();
 
-      await expect(page).toHaveURL(new RegExp(`/sets/${printingSet.slug}$`));
+      await expect(page).toHaveURL(new RegExp(`/sets/${printingSet.slug}$`, "u"));
       await expect(page.getByRole("heading", { level: 1, name: printingSet.name })).toBeVisible();
     });
   });

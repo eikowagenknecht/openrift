@@ -198,11 +198,11 @@ describe("FirstRowPreview", () => {
     const { container } = render(<FirstRowPreview />);
     const imgs = container.querySelectorAll("img");
     for (const img of imgs) {
-      expect(img.getAttribute("srcset")).toMatch(/-400w\.webp 400w, .*-full\.webp 800w/);
+      expect(img.getAttribute("srcset")).toMatch(/-400w\.webp 400w, .*-full\.webp 800w/u);
       expect(img.getAttribute("sizes")).toBeTruthy();
       expect(img.getAttribute("width")).toBe("400");
       expect(img.getAttribute("height")).toBe("558");
-      expect(img.getAttribute("alt")).toMatch(/^Card \d+$/);
+      expect(img.getAttribute("alt")).toMatch(/^Card \d+$/u);
     }
   });
 });

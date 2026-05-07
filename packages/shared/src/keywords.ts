@@ -11,27 +11,27 @@ export function extractBracketedTerms(text: string): string[] {
     return [];
   }
   const terms: string[] = [];
-  const re = /\[([^\]]+)\]/g;
+  const re = /\[([^\]]+)\]/gu;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
-    const stripped = match[1].replaceAll(/:rb_\w+:/g, "").trim();
+    const stripped = match[1].replaceAll(/:rb_\w+:/gu, "").trim();
     // Take first token (drop numeric params like "2" in "Shield 2" / "护盾 2")
-    const parts = stripped.split(/\s+/).filter(Boolean);
+    const parts = stripped.split(/\s+/u).filter(Boolean);
     if (parts.length === 0) {
       continue;
     }
     let keyword = parts[0];
     // Skip pure numbers and very short tokens
-    if (/^\d+$/.test(keyword) || keyword.length < 2) {
+    if (/^\d+$/u.test(keyword) || keyword.length < 2) {
       continue;
     }
     // CJK text doesn't use spaces between keyword and parameters, so strip
     // trailing color suffixes, digits, symbols, and Latin letters manually.
     // e.g. 坚守2 → 坚守, 装配蓝色 → 装配, 回响4蓝色 → 回响, 等级6> → 等级
-    if (/[\u4E00-\u9FFF]/.test(keyword)) {
+    if (/[\u4E00-\u9FFF]/u.test(keyword)) {
       const cleaned = keyword
-        .replace(/(?:蓝色|红色|绿色|橙色|紫色|白色|黑色)+$/, "")
-        .replace(/[A-Za-z\d>]+$/, "");
+        .replace(/(?:蓝色|红色|绿色|橙色|紫色|白色|黑色)+$/u, "")
+        .replace(/[A-Za-z\d>]+$/u, "");
       if (cleaned.length >= 2) {
         keyword = cleaned;
       }
@@ -54,18 +54,18 @@ export function extractKeywords(text: string): string[] {
     return [];
   }
   const found = new Set<string>();
-  const re = /\[([^\]]+)\]/g;
+  const re = /\[([^\]]+)\]/gu;
   let match: RegExpExecArray | null;
   while ((match = re.exec(text)) !== null) {
-    const stripped = match[1].replaceAll(/:rb_\w+:/g, "").trim();
-    const parts = stripped.split(/\s+/).filter(Boolean);
+    const stripped = match[1].replaceAll(/:rb_\w+:/gu, "").trim();
+    const parts = stripped.split(/\s+/u).filter(Boolean);
     if (parts.length === 0) {
       continue;
     }
     // Take only the first word as the keyword name (drop numeric params like "2" in "Shield 2")
     const keyword = parts[0];
     // Skip pure numbers, short tokens, and symbol-only content like ">>"
-    if (/^\d+$/.test(keyword) || keyword.length < 2 || !/[a-zA-Z]/.test(keyword)) {
+    if (/^\d+$/u.test(keyword) || keyword.length < 2 || !/[a-zA-Z]/u.test(keyword)) {
       continue;
     }
     found.add(keyword);

@@ -3,7 +3,7 @@
  */
 export function getUserInitials(name: string | undefined, email: string | undefined): string {
   return (name ?? email ?? "?")
-    .split(/[\s@]/)
+    .split(/[\s@]/u)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");

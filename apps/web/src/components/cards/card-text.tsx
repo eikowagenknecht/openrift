@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 // Matches glyph tokens (:rb_xxx:), bracketed keywords ([Keyword]),
 // parenthesized text ((reminder text)), italic markdown (_text_), and newlines.
 // Italic allows glyph tokens inside so underscores in :rb_xxx: don't break it.
-const TOKEN_PATTERN = /:rb_(\w+):|\[([^\]]+)\]|\(([^)]+)\)|_((?::rb_\w+:|[^_])+)_|\n/g;
+const TOKEN_PATTERN = /:rb_(\w+):|\[([^\]]+)\]|\(([^)]+)\)|_((?::rb_\w+:|[^_])+)_|\n/gu;
 
 export type CardTextToken =
   | { type: "text"; value: string }
@@ -37,7 +37,7 @@ export function tokenizeCardText(text: string): CardTextToken[] {
       tokens.push({ type: "glyph", name: match[1] });
     } else if (match[2]) {
       const raw = match[2];
-      const name = raw.replaceAll(/:rb_\w+:/g, "").trim();
+      const name = raw.replaceAll(/:rb_\w+:/gu, "").trim();
       tokens.push({ type: "keyword", name, children: tokenizeCardText(raw) });
     } else if (match[3]) {
       tokens.push({ type: "paren", children: tokenizeCardText(match[3]) });
@@ -147,7 +147,7 @@ function renderTokens(
   return tokens.map((token, i) => {
     switch (token.type) {
       case "glyph": {
-        const energyMatch = /^energy_?(\d+)$/.exec(token.name);
+        const energyMatch = /^energy_?(\d+)$/u.exec(token.name);
         if (energyMatch) {
           return (
             <span
@@ -188,7 +188,7 @@ function renderTokens(
               onKeywordClick && "hover:brightness-125",
             )}
             onClick={
-              interactive ? () => onKeywordClick?.(token.name.replace(/\s+\d+$/, "")) : undefined
+              interactive ? () => onKeywordClick?.(token.name.replace(/\s+\d+$/u, "")) : undefined
             }
           >
             <span

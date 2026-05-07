@@ -17,11 +17,11 @@ import { z } from "zod";
 import { cardFieldRules, printingFieldRules } from "./db-field-rules.js";
 
 /** Pattern for `external_id` on community contributions. */
-export const COMMUNITY_ID_PATTERN = /^community:[A-Za-z0-9][A-Za-z0-9:_-]*$/;
+export const COMMUNITY_ID_PATTERN = /^community:[A-Za-z0-9][A-Za-z0-9:_-]*$/u;
 /** Pattern for printing `image_url` (allow https only). */
-export const HTTPS_URL_PATTERN = /^https:\/\//;
+export const HTTPS_URL_PATTERN = /^https:\/\//u;
 /** Pattern for printing `language` codes (ISO 2-letter uppercase). */
-export const LANGUAGE_CODE_PATTERN = /^[A-Z]{2}$/;
+export const LANGUAGE_CODE_PATTERN = /^[A-Z]{2}$/u;
 
 const communityId = z.string().regex(COMMUNITY_ID_PATTERN, {
   message: "Must start with 'community:' to namespace from official providers.",

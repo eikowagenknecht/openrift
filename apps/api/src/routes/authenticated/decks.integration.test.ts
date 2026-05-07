@@ -303,7 +303,7 @@ describe.skipIf(!ctx)("Decks routes (integration)", () => {
       expect(res.status).toBe(200);
       const json = await res.json();
       expect(json.isPublic).toBe(true);
-      expect(json.shareToken).toMatch(/^[A-Za-z0-9]{12}$/);
+      expect(json.shareToken).toMatch(/^[A-Za-z0-9]{12}$/u);
       shareToken = json.shareToken;
     });
 

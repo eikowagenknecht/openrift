@@ -172,7 +172,7 @@ function setupFetchJson(fetchJsonSpy: ReturnType<typeof spyOn>, data: MockApiDat
     if (url.endsWith("/groups")) {
       return { data: { results: groups }, lastModified: null };
     }
-    const productsMatch = url.match(/\/(\d+)\/products$/);
+    const productsMatch = url.match(/\/(\d+)\/products$/u);
     if (productsMatch) {
       const groupId = Number(productsMatch[1]);
       return {
@@ -180,7 +180,7 @@ function setupFetchJson(fetchJsonSpy: ReturnType<typeof spyOn>, data: MockApiDat
         lastModified: null,
       };
     }
-    const pricesMatch = url.match(/\/(\d+)\/prices$/);
+    const pricesMatch = url.match(/\/(\d+)\/prices$/u);
     if (pricesMatch) {
       const groupId = Number(pricesMatch[1]);
       const lm = lastModifiedByGroup?.get(groupId) ?? lastModified;

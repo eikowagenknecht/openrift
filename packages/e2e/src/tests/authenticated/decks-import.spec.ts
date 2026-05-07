@@ -65,7 +65,7 @@ async function deleteUser(email: string) {
 // segment lets us target a specific server fn without colliding with others.
 function isServerFn(fnName: string) {
   return (url: string) => {
-    const match = url.match(/\/_serverFn\/([^/?#]+)/);
+    const match = url.match(/\/_serverFn\/([^/?#]+)/u);
     if (!match) {
       return false;
     }
@@ -197,8 +197,8 @@ async function goToImport(page: Page) {
 async function advanceToPreviewWithPiltover(page: Page) {
   await goToImport(page);
   const code = buildPiltoverSample();
-  await page.getByPlaceholder(/Piltover Archive deck code/i).fill(code);
-  await page.getByRole("button", { name: /^Parse$/ }).click();
+  await page.getByPlaceholder(/Piltover Archive deck code/iu).fill(code);
+  await page.getByRole("button", { name: /^Parse$/u }).click();
   await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
     timeout: 15_000,
   });
@@ -230,7 +230,7 @@ test.describe("deck import", () => {
         "aria-selected",
         "true",
       );
-      await expect(page.getByPlaceholder(/Piltover Archive deck code/i)).toBeVisible();
+      await expect(page.getByPlaceholder(/Piltover Archive deck code/iu)).toBeVisible();
     });
 
     test("switching tabs updates the textarea placeholder for each format", async ({ page }) => {
@@ -238,20 +238,20 @@ test.describe("deck import", () => {
       await goToImport(page);
 
       await page.getByRole("tab", { name: "Text" }).click();
-      await expect(page.getByPlaceholder(/Legend:/)).toBeVisible();
+      await expect(page.getByPlaceholder(/Legend:/u)).toBeVisible();
 
       await page.getByRole("tab", { name: "TTS" }).click();
-      await expect(page.getByPlaceholder(/OGN-001-1/)).toBeVisible();
+      await expect(page.getByPlaceholder(/OGN-001-1/u)).toBeVisible();
     });
 
     test("Parse button is disabled until the textarea has content", async ({ page }) => {
       userEmail = await createAndLogin(page);
       await goToImport(page);
 
-      const parseButton = page.getByRole("button", { name: /^Parse$/ });
+      const parseButton = page.getByRole("button", { name: /^Parse$/u });
       await expect(parseButton).toBeDisabled();
 
-      await page.getByPlaceholder(/Piltover Archive deck code/i).fill("ABCDEF");
+      await page.getByPlaceholder(/Piltover Archive deck code/iu).fill("ABCDEF");
       await expect(parseButton).toBeEnabled();
     });
 
@@ -263,18 +263,18 @@ test.describe("deck import", () => {
       const piltoverLink = page.getByRole("link", { name: "Piltover Archive" }).first();
       await expect(piltoverLink).toHaveAttribute("target", "_blank");
       await expect(piltoverLink).toHaveAttribute("rel", "noreferrer");
-      await expect(piltoverLink).toHaveAttribute("href", /piltoverarchive\.com/);
+      await expect(piltoverLink).toHaveAttribute("href", /piltoverarchive\.com/u);
 
       // Text tab — includes Piltover Archive and TCG Arena links.
       await page.getByRole("tab", { name: "Text" }).click();
       const tcgArena = page.getByRole("link", { name: "TCG Arena" });
-      await expect(tcgArena).toHaveAttribute("href", /tcg-arena\.fr/);
+      await expect(tcgArena).toHaveAttribute("href", /tcg-arena\.fr/u);
       await expect(tcgArena).toHaveAttribute("rel", "noreferrer");
 
       // TTS tab — Tabletop Simulator mod link.
       await page.getByRole("tab", { name: "TTS" }).click();
       const ttsLink = page.getByRole("link", { name: "Tabletop Simulator mod" });
-      await expect(ttsLink).toHaveAttribute("href", /steamcommunity\.com/);
+      await expect(ttsLink).toHaveAttribute("href", /steamcommunity\.com/u);
       await expect(ttsLink).toHaveAttribute("rel", "noreferrer");
     });
   });
@@ -293,10 +293,10 @@ test.describe("deck import", () => {
       userEmail = await createAndLogin(page);
       await goToImport(page);
 
-      await page.getByPlaceholder(/Piltover Archive deck code/i).fill("NOT-A-REAL-CODE!!!");
-      await page.getByRole("button", { name: /^Parse$/ }).click();
+      await page.getByPlaceholder(/Piltover Archive deck code/iu).fill("NOT-A-REAL-CODE!!!");
+      await page.getByRole("button", { name: /^Parse$/u }).click();
 
-      await expect(page.getByText(/Invalid Piltover Archive deck code/)).toBeVisible();
+      await expect(page.getByText(/Invalid Piltover Archive deck code/u)).toBeVisible();
       // Still on step 1: heading is "Import Deck", not "Import Preview".
       await expect(page.getByRole("heading", { name: "Import Deck" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toHaveCount(0);
@@ -311,16 +311,16 @@ test.describe("deck import", () => {
       await page.getByRole("tab", { name: "Text" }).click();
       // One valid line (advances to preview) + one unknown zone header + one malformed line.
       await page
-        .getByPlaceholder(/Legend:/)
+        .getByPlaceholder(/Legend:/u)
         .fill(["BogusZone:", "not-a-card-line", "3 Incinerate"].join("\n"));
-      await page.getByRole("button", { name: /^Parse$/ }).click();
+      await page.getByRole("button", { name: /^Parse$/u }).click();
 
       // With at least one valid entry, the flow advances; warnings collapse into
       // a details block on the preview.
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,
       });
-      await expect(page.getByText(/warning/)).toBeVisible();
+      await expect(page.getByText(/warning/u)).toBeVisible();
     });
   });
 
@@ -341,26 +341,26 @@ test.describe("deck import", () => {
       const code = buildPiltoverSample();
 
       await goToImport(page);
-      await page.getByPlaceholder(/Piltover Archive deck code/i).fill(code);
-      await page.getByRole("button", { name: /^Parse$/ }).click();
+      await page.getByPlaceholder(/Piltover Archive deck code/iu).fill(code);
+      await page.getByRole("button", { name: /^Parse$/u }).click();
 
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,
       });
-      await expect(page.getByText(/\d+ cards? parsed/)).toBeVisible();
+      await expect(page.getByText(/\d+ cards? parsed/u)).toBeVisible();
 
       // Summary: everything in our sample resolves exactly, so there's a
       // "ready" badge and no needs-attention row.
-      await expect(page.getByText(/\d+ ready/)).toBeVisible();
+      await expect(page.getByText(/\d+ ready/u)).toBeVisible();
 
       // Defaults: deck name pre-filled, format = Constructed.
       await expect(page.getByLabel("Deck name")).toHaveValue("Imported Deck");
       await expect(page.locator("#preview-deck-format")).toContainText("Constructed");
 
       // Back returns to step 1 with the textarea preserved.
-      await page.getByRole("button", { name: /^Back$/ }).click();
+      await page.getByRole("button", { name: /^Back$/u }).click();
       await expect(page.getByRole("heading", { name: "Import Deck" })).toBeVisible();
-      await expect(page.getByPlaceholder(/Piltover Archive deck code/i)).toHaveValue(code);
+      await expect(page.getByPlaceholder(/Piltover Archive deck code/iu)).toHaveValue(code);
     });
 
     test("importing creates the deck, saves cards, navigates, and shows a success toast", async ({
@@ -376,7 +376,7 @@ test.describe("deck import", () => {
         (request) => request.method() === "POST" && isServerFn("saveDeckCardsFn")(request.url()),
       );
 
-      const importButton = page.getByRole("button", { name: /^Import \d+ cards?$/ });
+      const importButton = page.getByRole("button", { name: /^Import \d+ cards?$/u });
       await expect(importButton).toBeEnabled();
       await importButton.click();
 
@@ -392,9 +392,9 @@ test.describe("deck import", () => {
       expect(body.name).toBe("Imported Deck");
       expect(body.format).toBe("constructed");
 
-      await expect(page).toHaveURL(/\/decks\/[0-9a-f-]{36}$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/decks\/[0-9a-f-]{36}$/u, { timeout: 15_000 });
       await expect(
-        page.getByText(/^Imported deck "Imported Deck" with \d+ cards\.$/),
+        page.getByText(/^Imported deck "Imported Deck" with \d+ cards\.$/u),
       ).toBeVisible();
     });
   });
@@ -413,7 +413,7 @@ test.describe("deck import", () => {
       userEmail = await createAndLogin(page);
       await advanceToPreviewWithPiltover(page);
 
-      const importButton = page.getByRole("button", { name: /^Import \d+ cards?$/ });
+      const importButton = page.getByRole("button", { name: /^Import \d+ cards?$/u });
       await expect(importButton).toBeEnabled();
 
       await page.getByLabel("Deck name").fill("");
@@ -437,7 +437,7 @@ test.describe("deck import", () => {
         (request) => request.method() === "POST" && isServerFn("createDeckFn")(request.url()),
       );
 
-      await page.getByRole("button", { name: /^Import \d+ cards?$/ }).click();
+      await page.getByRole("button", { name: /^Import \d+ cards?$/u }).click();
       const createRequest = await createPromise;
 
       const body = decodeServerFnData<{ format?: string }>(createRequest.postDataJSON());
@@ -464,8 +464,8 @@ test.describe("deck import", () => {
     async function advanceFromMixedText(page: Page) {
       await goToImport(page);
       await page.getByRole("tab", { name: "Text" }).click();
-      await page.getByPlaceholder(/Legend:/).fill(mixedTextSample());
-      await page.getByRole("button", { name: /^Parse$/ }).click();
+      await page.getByPlaceholder(/Legend:/u).fill(mixedTextSample());
+      await page.getByRole("button", { name: /^Parse$/u }).click();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,
       });
@@ -482,13 +482,13 @@ test.describe("deck import", () => {
 
       // Rows are sorted exact → needs-review → unresolved, so the last Skip
       // button corresponds to the unresolved "Totally Fake" row.
-      const skipButtons = page.getByRole("button", { name: /^Skip$/ });
+      const skipButtons = page.getByRole("button", { name: /^Skip$/u });
       await expect(skipButtons).toHaveCount(2);
       await skipButtons.last().click();
 
       await expect(page.getByText("1 ready")).toBeVisible();
       await expect(page.getByText("1 skipped")).toBeVisible();
-      await expect(page.getByText(/\d+ need attention/)).toHaveCount(0);
+      await expect(page.getByText(/\d+ need attention/u)).toHaveCount(0);
     });
 
     test("resolving an unresolved entry via search flips it to ready", async ({ page }) => {
@@ -503,13 +503,13 @@ test.describe("deck import", () => {
 
       await page.getByPlaceholder("Search cards...").fill("Garen");
       // Debounced search (150ms) populates the listbox with catalog results.
-      const garenOption = page.getByRole("option", { name: /Garen/ }).first();
+      const garenOption = page.getByRole("option", { name: /Garen/u }).first();
       await expect(garenOption).toBeVisible({ timeout: 5000 });
       await garenOption.click();
 
       // After resolution, the needs-attention row becomes ready.
       await expect(page.getByText("2 ready")).toBeVisible();
-      await expect(page.getByText(/\d+ need attention/)).toHaveCount(0);
+      await expect(page.getByText(/\d+ need attention/u)).toHaveCount(0);
     });
 
     test("changing an entry's zone via the zone picker updates it", async ({ page }) => {
@@ -553,8 +553,8 @@ test.describe("deck import", () => {
       await goToImport(page);
 
       await page.getByRole("tab", { name: "Text" }).click();
-      await page.getByPlaceholder(/Legend:/).fill(buildTextSample());
-      await page.getByRole("button", { name: /^Parse$/ }).click();
+      await page.getByPlaceholder(/Legend:/u).fill(buildTextSample());
+      await page.getByRole("button", { name: /^Parse$/u }).click();
 
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,
@@ -564,7 +564,7 @@ test.describe("deck import", () => {
       const savePromise = page.waitForRequest(
         (request) => request.method() === "POST" && isServerFn("saveDeckCardsFn")(request.url()),
       );
-      await page.getByRole("button", { name: /^Import \d+ cards?$/ }).click();
+      await page.getByRole("button", { name: /^Import \d+ cards?$/u }).click();
       const saveRequest = await savePromise;
 
       const savePayload = decodeServerFnData<{
@@ -574,7 +574,7 @@ test.describe("deck import", () => {
       expect(zones.has("legend")).toBe(true);
       expect(zones.has("main")).toBe(true);
 
-      await expect(page).toHaveURL(/\/decks\/[0-9a-f-]{36}$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/decks\/[0-9a-f-]{36}$/u, { timeout: 15_000 });
       // Editor renders the deck name in the top bar.
       await expect(page.getByText("Text Import E2E").first()).toBeVisible({ timeout: 15_000 });
     });
@@ -597,8 +597,8 @@ test.describe("deck import", () => {
       await goToImport(page);
 
       await page.getByRole("tab", { name: "TTS" }).click();
-      await page.getByPlaceholder(/OGN-001-1/).fill(buildTtsSample());
-      await page.getByRole("button", { name: /^Parse$/ }).click();
+      await page.getByPlaceholder(/OGN-001-1/u).fill(buildTtsSample());
+      await page.getByRole("button", { name: /^Parse$/u }).click();
 
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,
@@ -608,7 +608,7 @@ test.describe("deck import", () => {
       const savePromise = page.waitForRequest(
         (request) => request.method() === "POST" && isServerFn("saveDeckCardsFn")(request.url()),
       );
-      await page.getByRole("button", { name: /^Import \d+ cards?$/ }).click();
+      await page.getByRole("button", { name: /^Import \d+ cards?$/u }).click();
       const saveRequest = await savePromise;
 
       const savePayload = decodeServerFnData<{
@@ -618,7 +618,7 @@ test.describe("deck import", () => {
       const zones = new Set((savePayload.cards ?? []).map((card) => card.zone));
       expect(zones.has("champion")).toBe(true);
 
-      await expect(page).toHaveURL(/\/decks\/[0-9a-f-]{36}$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/decks\/[0-9a-f-]{36}$/u, { timeout: 15_000 });
     });
   });
 
@@ -657,10 +657,10 @@ test.describe("deck import", () => {
       });
 
       await advanceToPreviewWithPiltover(page);
-      await page.getByRole("button", { name: /^Import \d+ cards?$/ }).click();
+      await page.getByRole("button", { name: /^Import \d+ cards?$/u }).click();
 
       await expect(page.getByText("Failed to create deck.")).toBeVisible({ timeout: 15_000 });
-      await expect(page).toHaveURL(/\/decks\/import$/);
+      await expect(page).toHaveURL(/\/decks\/import$/u);
       expect(saveRequestSeen).toBe(false);
     });
 
@@ -686,10 +686,10 @@ test.describe("deck import", () => {
       });
 
       await advanceToPreviewWithPiltover(page);
-      await page.getByRole("button", { name: /^Import \d+ cards?$/ }).click();
+      await page.getByRole("button", { name: /^Import \d+ cards?$/u }).click();
 
       await expect(page.getByText("Failed to save deck cards.")).toBeVisible({ timeout: 15_000 });
-      await expect(page).toHaveURL(/\/decks\/import$/);
+      await expect(page).toHaveURL(/\/decks\/import$/u);
     });
   });
 
@@ -697,7 +697,7 @@ test.describe("deck import", () => {
     test("sets the page title on /decks/import", async ({ authenticatedPage }) => {
       const page = authenticatedPage;
       await page.goto("/decks/import");
-      await expect(page).toHaveTitle(/Import Deck/, { timeout: 15_000 });
+      await expect(page).toHaveTitle(/Import Deck/u, { timeout: 15_000 });
     });
 
     // Note: anonymous → /login redirect for /decks/import is already covered in

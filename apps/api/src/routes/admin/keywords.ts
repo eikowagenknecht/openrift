@@ -53,7 +53,7 @@ const updateKeywordStyle = createRoute({
       content: {
         "application/json": {
           schema: z.object({
-            color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+            color: z.string().regex(/^#[0-9a-fA-F]{6}$/u),
             darkText: z.boolean(),
           }),
         },
@@ -73,7 +73,7 @@ const createKeywordStyle = createRoute({
         "application/json": {
           schema: z.object({
             name: z.string().min(1),
-            color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+            color: z.string().regex(/^#[0-9a-fA-F]{6}$/u),
             darkText: z.boolean(),
           }),
         },

@@ -13,7 +13,7 @@ test.describe("card detail pane", () => {
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
     await expect(
-      pane.getByRole("heading", { level: 2, name: new RegExp(MULTI_PRINTING_CARD) }),
+      pane.getByRole("heading", { level: 2, name: new RegExp(MULTI_PRINTING_CARD, "u") }),
     ).toBeVisible({ timeout: 5000 });
     await expect(pane.getByAltText(MULTI_PRINTING_CARD)).toBeVisible();
   });
@@ -48,7 +48,7 @@ test.describe("card detail pane", () => {
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
 
-    await pane.getByRole("button", { name: /close card details/i }).click();
+    await pane.getByRole("button", { name: /close card details/iu }).click();
 
     await expect(pane).toBeHidden();
     // Grid is still interactive after close.
@@ -88,7 +88,7 @@ test.describe("card detail pane", () => {
     // The detail pane's PrintingPicker lists every sibling printing. Clicking a
     // different one than the currently-active row updates the detail view —
     // this is the same handler (onSelectPrinting) the grid fan calls.
-    await expect(pane.getByRole("heading", { name: /printings/i })).toBeVisible();
+    await expect(pane.getByRole("heading", { name: /printings/iu })).toBeVisible();
 
     // PrintingPicker rows are the only aria-pressed buttons in the pane.
     const allPrintings = pane.locator("button[aria-pressed]");
@@ -120,7 +120,7 @@ test.describe("card detail pane", () => {
     // Marketplace chips expose their name via image alt text. The seeded
     // Annie, Fiery card has TCGplayer snapshots — if any supported marketplace
     // renders a chip, the price section is working.
-    const anyMarketplaceChip = pane.getByAltText(/TCGplayer|Cardmarket|CardTrader/);
+    const anyMarketplaceChip = pane.getByAltText(/TCGplayer|Cardmarket|CardTrader/u);
     await expect(anyMarketplaceChip.first()).toBeVisible({ timeout: 10_000 });
   });
 
@@ -132,14 +132,14 @@ test.describe("card detail pane", () => {
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
     await expect(
-      pane.getByRole("heading", { level: 2, name: new RegExp(MULTI_PRINTING_CARD) }),
+      pane.getByRole("heading", { level: 2, name: new RegExp(MULTI_PRINTING_CARD, "u") }),
     ).toBeVisible({ timeout: 5000 });
 
-    await pane.getByRole("link", { name: /view card details/i }).click();
+    await pane.getByRole("link", { name: /view card details/iu }).click();
 
-    await expect(page).toHaveURL(/\/cards\/annie-fiery$/);
+    await expect(page).toHaveURL(/\/cards\/annie-fiery$/u);
     await expect(
-      page.getByRole("heading", { level: 1, name: new RegExp(MULTI_PRINTING_CARD) }),
+      page.getByRole("heading", { level: 1, name: new RegExp(MULTI_PRINTING_CARD, "u") }),
     ).toBeVisible({ timeout: 5000 });
   });
 
@@ -159,11 +159,11 @@ test.describe("card detail pane", () => {
       await expect(page.getByRole("complementary")).toBeHidden();
       const mobileHeading = page.getByRole("heading", {
         level: 2,
-        name: new RegExp(MULTI_PRINTING_CARD),
+        name: new RegExp(MULTI_PRINTING_CARD, "u"),
       });
       await expect(mobileHeading).toBeVisible({ timeout: 5000 });
 
-      await page.getByRole("button", { name: /close card details/i }).click();
+      await page.getByRole("button", { name: /close card details/iu }).click();
 
       await expect(mobileHeading).toBeHidden();
       await expect(page.getByText(MULTI_PRINTING_CARD).first()).toBeVisible();

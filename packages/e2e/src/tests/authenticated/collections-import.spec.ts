@@ -127,7 +127,7 @@ async function fetchCopies(request: APIRequestContext, collectionId: string): Pr
 // target a specific server fn without matching unrelated ones.
 function isServerFn(constName: string) {
   return (url: string) => {
-    const match = url.match(/\/_serverFn\/([^/?#]+)/);
+    const match = url.match(/\/_serverFn\/([^/?#]+)/u);
     if (!match) {
       return false;
     }
@@ -239,15 +239,15 @@ test.describe("collections import/export", () => {
       const inbox = await findInbox(page.request);
 
       await page.goto("/collections/import");
-      const exportButton = page.getByRole("button", { name: /^Export \d+ cop(y|ies)$/ });
+      const exportButton = page.getByRole("button", { name: /^Export \d+ cop(y|ies)$/u });
       await expect(exportButton).toBeVisible({ timeout: 15_000 });
-      await expect(exportButton).toHaveText(/Export 0 copies/);
+      await expect(exportButton).toHaveText(/Export 0 copies/u);
       await expect(exportButton).toBeDisabled();
 
       await seedCopies(page.request, ANNIE_FIERY_NORMAL, inbox.id, 5);
 
       await page.reload();
-      await expect(page.getByRole("button", { name: /^Export 5 copies$/ })).toBeEnabled({
+      await expect(page.getByRole("button", { name: /^Export 5 copies$/u })).toBeEnabled({
         timeout: 15_000,
       });
     });
@@ -261,7 +261,7 @@ test.describe("collections import/export", () => {
 
       await page.goto("/collections/import");
       // Default: All Cards → 5 copies.
-      await expect(page.getByRole("button", { name: /^Export 5 copies$/ })).toBeEnabled({
+      await expect(page.getByRole("button", { name: /^Export 5 copies$/u })).toBeEnabled({
         timeout: 15_000,
       });
 
@@ -269,18 +269,18 @@ test.describe("collections import/export", () => {
       const scopeTrigger = page.locator("#export-collection");
       await scopeTrigger.click();
       await page.getByRole("option", { name: "Inbox" }).click();
-      await expect(page.getByRole("button", { name: /^Export 2 copies$/ })).toBeEnabled();
+      await expect(page.getByRole("button", { name: /^Export 2 copies$/u })).toBeEnabled();
 
       const { filename, csv } = await readDownload(page, async () => {
-        await page.getByRole("button", { name: /^Export 2 copies$/ }).click();
+        await page.getByRole("button", { name: /^Export 2 copies$/u }).click();
       });
 
-      expect(filename).toMatch(/^openrift-inbox-\d{4}-\d{2}-\d{2}\.csv$/);
+      expect(filename).toMatch(/^openrift-inbox-\d{4}-\d{2}-\d{2}\.csv$/u);
       const lines = csv.split("\n");
       expect(lines[0]).toBe(EXPORT_HEADER);
       // Single printing with 2 copies → 1 data row.
       expect(lines).toHaveLength(2);
-      expect(lines[1]).toMatch(/,2$/);
+      expect(lines[1]).toMatch(/,2$/u);
 
       await expect(page.getByText("Collection exported.")).toBeVisible();
     });
@@ -294,14 +294,14 @@ test.describe("collections import/export", () => {
       await seedCopies(page.request, GAREN_RUGGED_NORMAL, inbox.id, 1);
 
       await page.goto("/collections/import");
-      const exportButton = page.getByRole("button", { name: /^Export 4 copies$/ });
+      const exportButton = page.getByRole("button", { name: /^Export 4 copies$/u });
       await expect(exportButton).toBeEnabled({ timeout: 15_000 });
 
       const { filename, csv } = await readDownload(page, async () => {
         await exportButton.click();
       });
 
-      expect(filename).toMatch(/^openrift-all-cards-\d{4}-\d{2}-\d{2}\.csv$/);
+      expect(filename).toMatch(/^openrift-all-cards-\d{4}-\d{2}-\d{2}\.csv$/u);
       const lines = csv.split("\n");
       expect(lines[0]).toBe(EXPORT_HEADER);
       // Two unique printings → 2 data rows, quantities 3 and 1.
@@ -325,7 +325,7 @@ test.describe("collections import/export", () => {
       userEmail = await createAndLogin(page);
       await page.goto("/collections/import");
 
-      const parseButton = page.getByRole("button", { name: /^Parse$/ });
+      const parseButton = page.getByRole("button", { name: /^Parse$/u });
       await expect(parseButton).toBeVisible({ timeout: 15_000 });
       await expect(parseButton).toBeDisabled();
 
@@ -368,9 +368,9 @@ test.describe("collections import/export", () => {
       await page
         .getByPlaceholder("Paste your CSV data here...")
         .fill("not a csv at all\njust text");
-      await page.getByRole("button", { name: /^Parse$/ }).click();
+      await page.getByRole("button", { name: /^Parse$/u }).click();
 
-      await expect(page.getByText(/Couldn't recognize this format/)).toBeVisible();
+      await expect(page.getByText(/Couldn't recognize this format/u)).toBeVisible();
       await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toHaveCount(0);
     });
@@ -380,11 +380,11 @@ test.describe("collections import/export", () => {
       await page.goto("/collections/import");
 
       const expected: [string, RegExp][] = [
-        ["Piltover Archive", /piltoverarchive\.com/],
-        ["RiftCore", /riftcore\.app/],
-        ["RiftMana", /riftmana\.com/],
-        ["Discord", /discord\.gg/],
-        ["GitHub", /github\.com\/openriftapp\/openrift/],
+        ["Piltover Archive", /piltoverarchive\.com/u],
+        ["RiftCore", /riftcore\.app/u],
+        ["RiftMana", /riftmana\.com/u],
+        ["Discord", /discord\.gg/u],
+        ["GitHub", /github\.com\/openriftapp\/openrift/u],
       ];
 
       for (const [name, hrefPattern] of expected) {
@@ -433,7 +433,7 @@ test.describe("collections import/export", () => {
 
       // Export via the Export button.
       await page.goto("/collections/import");
-      const exportButton = page.getByRole("button", { name: /^Export 5 copies$/ });
+      const exportButton = page.getByRole("button", { name: /^Export 5 copies$/u });
       await expect(exportButton).toBeEnabled({ timeout: 15_000 });
       const { csv } = await readDownload(page, async () => {
         await exportButton.click();
@@ -442,7 +442,7 @@ test.describe("collections import/export", () => {
 
       // Paste the same CSV and parse.
       await page.getByPlaceholder("Paste your CSV data here...").fill(csv);
-      await page.getByRole("button", { name: /^Parse$/ }).click();
+      await page.getByRole("button", { name: /^Parse$/u }).click();
 
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,
@@ -450,7 +450,7 @@ test.describe("collections import/export", () => {
       await expect(page.getByText("2 rows parsed, 2 unique printings")).toBeVisible();
       await expect(page.getByText("2 ready")).toBeVisible();
 
-      const importButton = page.getByRole("button", { name: /^Import 5 copies$/ });
+      const importButton = page.getByRole("button", { name: /^Import 5 copies$/u });
       await expect(importButton).toBeVisible();
 
       // Pick Round-trip as target and import.
@@ -464,10 +464,10 @@ test.describe("collections import/export", () => {
       await importButton.click();
       await addCopiesPromise;
 
-      await expect(page).toHaveURL(new RegExp(`/collections/${roundTrip.id}$`), {
+      await expect(page).toHaveURL(new RegExp(`/collections/${roundTrip.id}$`, "u"), {
         timeout: 15_000,
       });
-      await expect(page.getByText(/Imported 5 copies\./)).toBeVisible();
+      await expect(page.getByText(/Imported 5 copies\./u)).toBeVisible();
 
       // Inbox still has the original 5, Round-trip has 5 copies.
       const [inboxCopies, roundTripCopies] = await Promise.all([
@@ -520,7 +520,7 @@ test.describe("collections import/export", () => {
         timeout: 15_000,
       });
       await page.getByPlaceholder("Paste your CSV data here...").fill(csv);
-      await page.getByRole("button", { name: /^Parse$/ }).click();
+      await page.getByRole("button", { name: /^Parse$/u }).click();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,
       });
@@ -534,7 +534,7 @@ test.describe("collections import/export", () => {
       await expect(page.getByText("1 ready")).toBeVisible();
       await expect(page.getByText("2 need attention")).toBeVisible();
       // No skipped badge yet.
-      await expect(page.getByText(/^\d+ skipped$/)).toHaveCount(0);
+      await expect(page.getByText(/^\d+ skipped$/u)).toHaveCount(0);
     });
 
     test("skipping and unskipping a row updates the badges", async ({ page }) => {
@@ -543,7 +543,7 @@ test.describe("collections import/export", () => {
 
       // Rows are sorted exact → needs-review → unresolved, so the 3rd Skip
       // button corresponds to the unresolved "Totally Fake" row.
-      const skipButtons = page.getByRole("button", { name: /^Skip$/ });
+      const skipButtons = page.getByRole("button", { name: /^Skip$/u });
       await expect(skipButtons).toHaveCount(3);
       await skipButtons.nth(2).click();
 
@@ -552,22 +552,22 @@ test.describe("collections import/export", () => {
       await expect(page.getByText("1 skipped")).toBeVisible();
 
       // Unskip restores the previous state.
-      await page.getByRole("button", { name: /^Unskip$/ }).click();
+      await page.getByRole("button", { name: /^Unskip$/u }).click();
       await expect(page.getByText("2 need attention")).toBeVisible();
-      await expect(page.getByText(/^\d+ skipped$/)).toHaveCount(0);
+      await expect(page.getByText(/^\d+ skipped$/u)).toHaveCount(0);
     });
 
     test("picking a variant on a needs-review row increments readyCount", async ({ page }) => {
       userEmail = await createAndLogin(page);
       await gotoPreview(page);
 
-      await expect(page.getByRole("button", { name: /^Import 2 copies$/ })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Import 2 copies$/u })).toBeVisible();
 
       // The needs-review row (Annie, Fiery with altart) exposes a VariantPicker
       // combobox whose trigger shows "Pick printing..." as placeholder text.
       const variantTrigger = page
         .getByRole("combobox")
-        .filter({ hasText: /Pick printing/ })
+        .filter({ hasText: /Pick printing/u })
         .first();
       await variantTrigger.click();
       await page.getByRole("option").first().click();
@@ -575,7 +575,7 @@ test.describe("collections import/export", () => {
       await expect(page.getByText("2 ready")).toBeVisible();
       await expect(page.getByText("1 need attention")).toBeVisible();
       // Quantity of the Annie row was 1 → total copies becomes 3.
-      await expect(page.getByRole("button", { name: /^Import 3 copies$/ })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Import 3 copies$/u })).toBeVisible();
     });
 
     test("Back returns to step 1 with the pasted text preserved", async ({ page }) => {
@@ -590,12 +590,12 @@ test.describe("collections import/export", () => {
       });
       const textarea = page.getByPlaceholder("Paste your CSV data here...");
       await textarea.fill(csv);
-      await page.getByRole("button", { name: /^Parse$/ }).click();
+      await page.getByRole("button", { name: /^Parse$/u }).click();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,
       });
 
-      await page.getByRole("button", { name: /^Back$/ }).click();
+      await page.getByRole("button", { name: /^Back$/u }).click();
       await expect(page.getByRole("heading", { name: "Import Collection" })).toBeVisible();
       await expect(page.getByPlaceholder("Paste your CSV data here...")).toHaveValue(csv);
     });
@@ -620,7 +620,7 @@ test.describe("collections import/export", () => {
         timeout: 15_000,
       });
       await page.getByPlaceholder("Paste your CSV data here...").fill(csv);
-      await page.getByRole("button", { name: /^Parse$/ }).click();
+      await page.getByRole("button", { name: /^Parse$/u }).click();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,
       });
@@ -636,7 +636,7 @@ test.describe("collections import/export", () => {
 
       await expect(page.getByLabel("Collection name")).toBeVisible();
 
-      const importButton = page.getByRole("button", { name: /^Import 2 copies$/ });
+      const importButton = page.getByRole("button", { name: /^Import 2 copies$/u });
       await expect(importButton).toBeDisabled();
 
       await page.getByLabel("Collection name").fill("Anything");
@@ -661,12 +661,12 @@ test.describe("collections import/export", () => {
         (request) => request.method() === "POST" && request.url().endsWith("/api/v1/copies"),
       );
 
-      await page.getByRole("button", { name: /^Import 2 copies$/ }).click();
+      await page.getByRole("button", { name: /^Import 2 copies$/u }).click();
       await createPromise;
       await addCopiesPromise;
 
-      await expect(page).toHaveURL(/\/collections\/[0-9a-f-]{36}$/, { timeout: 15_000 });
-      await expect(page.getByText(/Imported 2 copies\./)).toBeVisible();
+      await expect(page).toHaveURL(/\/collections\/[0-9a-f-]{36}$/u, { timeout: 15_000 });
+      await expect(page.getByText(/Imported 2 copies\./u)).toBeVisible();
 
       const collections = await fetchCollections(page.request);
       const created = collections.find((col) => col.name === "Imported Stash");
@@ -709,7 +709,7 @@ test.describe("collections import/export", () => {
         timeout: 15_000,
       });
       await page.getByPlaceholder("Paste your CSV data here...").fill(csv);
-      await page.getByRole("button", { name: /^Parse$/ }).click();
+      await page.getByRole("button", { name: /^Parse$/u }).click();
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible({
         timeout: 15_000,
       });
@@ -718,13 +718,13 @@ test.describe("collections import/export", () => {
       await targetTrigger.click();
       await page.getByRole("option", { name: "Target" }).click();
 
-      await page.getByRole("button", { name: /^Import 2 copies$/ }).click();
+      await page.getByRole("button", { name: /^Import 2 copies$/u }).click();
 
       await expect(page.getByText("Import failed. Some cards may have been added.")).toBeVisible({
         timeout: 15_000,
       });
       // Stays on the import page; preview still visible.
-      await expect(page).toHaveURL(/\/collections\/import$/);
+      await expect(page).toHaveURL(/\/collections\/import$/u);
       await expect(page.getByRole("heading", { name: "Import Preview" })).toBeVisible();
 
       // Target still empty.

@@ -37,7 +37,7 @@ export function humanizePrintingField(field: string): string {
   }
   // Generic fallback: split on case boundaries, lowercase, then capitalize first.
   const spaced = field
-    .replaceAll(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replaceAll(/([a-z0-9])([A-Z])/gu, "$1 $2")
     .replaceAll("_", " ")
     .toLowerCase()
     .trim();

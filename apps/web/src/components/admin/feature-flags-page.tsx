@@ -28,7 +28,7 @@ interface FlagDraft {
   description: string;
 }
 
-const KEBAB_RE = /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/;
+const KEBAB_RE = /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/u;
 
 // ── Known flags ──────────────────────────────────────────────────────────────
 // Flags that application code checks. Other keys are stored but have no effect.

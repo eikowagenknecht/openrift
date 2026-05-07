@@ -353,7 +353,7 @@ export async function buildPhashIndex(
  * @returns The hex hash string, or null on failure.
  */
 function hashImageUrl(url: string, config: PhashConfig): Promise<string | null> {
-  // oxlint-disable-next-line eslint-plugin-promise(avoid-new) -- Image loading requires callback-based API
+  // oxlint-disable-next-line promise/avoid-new -- Image loading requires callback-based API
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";

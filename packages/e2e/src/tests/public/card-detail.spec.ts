@@ -84,9 +84,9 @@ function buildExpectedDescription(detail: CardDetailFixture): string {
   const rules = detail.printings[0]?.printedRulesText;
   if (rules) {
     const cleaned = rules
-      .replaceAll(/\[.*?\]/g, "")
-      .replaceAll(/:[a-z0-9_]+:/gi, "")
-      .replaceAll(/\s+/g, " ")
+      .replaceAll(/\[.*?\]/gu, "")
+      .replaceAll(/:[a-z0-9_]+:/giu, "")
+      .replaceAll(/\s+/gu, " ")
       .trim();
     if (cleaned.length > 0) {
       const remaining = META - parts.join(" ").length - 1;
@@ -100,7 +100,7 @@ function buildExpectedDescription(detail: CardDetailFixture): string {
 // run during a route transition. TanStack Start encodes the server fn id as
 // base64url(JSON) referencing the source file + export name.
 function isCardDetailServerFn(url: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
   if (!match) {
     return false;
   }
@@ -128,10 +128,10 @@ test.describe("card detail route — essentials", () => {
   test("'All cards' link returns to /cards", async ({ page }) => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    await page.getByRole("link", { name: /all cards/i }).click();
+    await page.getByRole("link", { name: /all cards/iu }).click();
 
-    await expect(page).toHaveURL(/\/cards$/);
-    await expect(page.getByPlaceholder(/search/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page).toHaveURL(/\/cards$/u);
+    await expect(page.getByPlaceholder(/search/iu)).toBeVisible({ timeout: 10_000 });
   });
 
   // The route declares `notFoundComponent` but its loader never throws
@@ -163,7 +163,7 @@ test.describe("card detail route — essentials", () => {
     await page.getByAltText(SEED_CARD_NAME).first().click();
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
-    await pane.getByRole("link", { name: /view card details/i }).click();
+    await pane.getByRole("link", { name: /view card details/iu }).click();
 
     await expect(page.getByRole("button", { name: "Reshuffle" })).toBeVisible({ timeout: 10_000 });
   });
@@ -182,7 +182,7 @@ test.describe("card detail route — essentials", () => {
     await page.getByAltText(SEED_CARD_NAME).first().click();
     const pane = page.getByRole("complementary");
     await expect(pane).toBeVisible();
-    await pane.getByRole("link", { name: /view card details/i }).click();
+    await pane.getByRole("link", { name: /view card details/iu }).click();
 
     // CardDetailPending renders Skeleton elements (data-slot="skeleton")
     // before the loader resolves and the real h1 mounts. TanStack's
@@ -217,7 +217,7 @@ test.describe("card detail route — head / SEO / JSON-LD", () => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
     const ogImage = page.locator('meta[property="og:image"]');
-    await expect(ogImage).toHaveAttribute("content", /^https?:\/\//);
+    await expect(ogImage).toHaveAttribute("content", /^https?:\/\//u);
   });
 
   test("Product JSON-LD includes name, image, and TCG price range", async ({ page }) => {
@@ -234,7 +234,7 @@ test.describe("card detail route — head / SEO / JSON-LD", () => {
     expect(product, "Product JSON-LD should be present").toBeDefined();
     expect(product.name).toBe(SEED_CARD_NAME);
     expect(typeof product.image).toBe("string");
-    expect(product.image).toMatch(/^https?:\/\//);
+    expect(product.image).toMatch(/^https?:\/\//u);
 
     const offers = product.offers;
     expect(offers, "Product should expose offers when TCG prices exist").toBeDefined();
@@ -274,7 +274,7 @@ test.describe("card detail route — info panel", () => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
     const setLink = page.getByRole("link", {
-      name: new RegExp(`^${set.slug.toUpperCase()}\\b`, "i"),
+      name: new RegExp(`^${set.slug.toUpperCase()}\\b`, "iu"),
     });
     await expect(setLink).toBeVisible();
     await expect(setLink).toHaveAttribute("href", `/sets/${set.slug}`);
@@ -459,9 +459,9 @@ test.describe("card detail route — rules / effect / flavor / errata / bans", (
 
     // Annie, Fiery's seed printing has rules text and a flavor line.
     await expect(page.getByText("Rules", { exact: true })).toBeVisible();
-    await expect(page.getByText(/Bonus Damage|Deal 3 damage/i).first()).toBeVisible();
+    await expect(page.getByText(/Bonus Damage|Deal 3 damage/iu).first()).toBeVisible();
     await expect(page.getByText("Flavor", { exact: true })).toBeVisible();
-    await expect(page.getByText(/I never play with matches/i)).toBeVisible();
+    await expect(page.getByText(/I never play with matches/iu)).toBeVisible();
   });
 
   test("a card with errata shows the Errata block with its source label and original rules", async ({
@@ -477,7 +477,7 @@ test.describe("card detail route — rules / effect / flavor / errata / bans", (
 
     await expect(page.getByText("Errata", { exact: true })).toBeVisible();
     await expect(page.getByText(detail.card.errata.source, { exact: false }).first()).toBeVisible();
-    await expect(page.getByText(/Original rules:/i)).toBeVisible();
+    await expect(page.getByText(/Original rules:/iu)).toBeVisible();
   });
 
   test("when errata has a sourceUrl, the source is a link with target=_blank and rel=noreferrer", async ({
@@ -495,11 +495,11 @@ test.describe("card detail route — rules / effect / flavor / errata / bans", (
 
     await page.goto(`/cards/${slug}`);
 
-    const errataLink = page.getByRole("link", { name: new RegExp(errata.source) });
+    const errataLink = page.getByRole("link", { name: new RegExp(errata.source, "u") });
     await expect(errataLink).toBeVisible();
     await expect(errataLink).toHaveAttribute("href", sourceUrl);
     await expect(errataLink).toHaveAttribute("target", "_blank");
-    await expect(errataLink).toHaveAttribute("rel", /noreferrer/);
+    await expect(errataLink).toHaveAttribute("rel", /noreferrer/u);
   });
 
   test("a banned card shows the Bans block with format, date, and reason", async ({ page }) => {
@@ -527,7 +527,7 @@ test.describe("card detail route — rules / effect / flavor / errata / bans", (
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
     await expect(page.getByRole("heading", { level: 1, name: SEED_CARD_NAME })).toBeVisible();
 
-    await expect(page.getByText(/Banned in/i)).toBeHidden();
+    await expect(page.getByText(/Banned in/iu)).toBeHidden();
   });
 });
 
@@ -542,7 +542,7 @@ test.describe("card detail route — printings list", () => {
     // Each language group renders an h2 header above the printing buttons.
     const headings = page.getByRole("heading", { level: 2 });
     // The English header may render as the language label "English" (via languageLabels lookup) or fall back to the code "EN".
-    await expect(headings.filter({ hasText: /^(English|EN)$/ }).first()).toBeVisible();
+    await expect(headings.filter({ hasText: /^(English|EN)$/u }).first()).toBeVisible();
   });
 
   test("clicking a sibling printing updates the info panel", async ({ page }) => {
@@ -626,7 +626,7 @@ test.describe("card detail route — price history", () => {
 
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    const heading = page.getByRole("heading", { name: /^Price History — / });
+    const heading = page.getByRole("heading", { name: /^Price History — /u });
     await expect(heading).toBeVisible({ timeout: 10_000 });
   });
 
@@ -634,11 +634,11 @@ test.describe("card detail route — price history", () => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
     // Wait for the section to mount — the heading anchors it.
-    await expect(page.getByRole("heading", { name: /^Price History — / })).toBeVisible({
+    await expect(page.getByRole("heading", { name: /^Price History — /u })).toBeVisible({
       timeout: 10_000,
     });
 
-    const timeRange = page.getByRole("group", { name: /time range/i });
+    const timeRange = page.getByRole("group", { name: /time range/iu });
     await expect(timeRange).toBeVisible();
     // The "All" range is always available; clicking it keeps the group consistent.
     const allButton = timeRange.getByRole("button", { name: "All" });
@@ -651,11 +651,11 @@ test.describe("card detail route — price history", () => {
   }) => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    await expect(page.getByRole("heading", { name: /^Price History — / })).toBeVisible({
+    await expect(page.getByRole("heading", { name: /^Price History — /u })).toBeVisible({
       timeout: 10_000,
     });
 
-    const sourceGroup = page.getByRole("group", { name: /price source/i });
+    const sourceGroup = page.getByRole("group", { name: /price source/iu });
     await expect(sourceGroup).toBeVisible();
 
     const enabledButtons = sourceGroup.getByRole("button", { disabled: false });
@@ -675,13 +675,13 @@ test.describe("card detail route — price history", () => {
   }) => {
     await page.goto(`/cards/${SEED_CARD_SLUG}`);
 
-    await expect(page.getByRole("heading", { name: /^Price History — / })).toBeVisible({
+    await expect(page.getByRole("heading", { name: /^Price History — /u })).toBeVisible({
       timeout: 10_000,
     });
 
     // Column headers expose the marketplace + currency suffix.
     const columnHeaders = page.getByRole("columnheader");
-    await expect(columnHeaders.filter({ hasText: /\((USD|EUR)\)/ }).first()).toBeVisible();
+    await expect(columnHeaders.filter({ hasText: /\((USD|EUR)\)/u }).first()).toBeVisible();
 
     // Date column is descending: first body row's date >= last body row's date.
     const dateCells = page.getByRole("rowgroup").last().getByRole("row").locator("td:first-child");

@@ -12,7 +12,7 @@ test.describe("login page", () => {
       await expect(page.getByText("Welcome back")).toBeVisible();
       await expect(page.locator("#email")).toBeVisible();
       await expect(page.locator("#password")).toBeVisible();
-      await expect(page.getByRole("button", { name: /login/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /login/iu })).toBeVisible();
     });
 
     test("shows error for invalid credentials", async ({ page }) => {
@@ -21,7 +21,7 @@ test.describe("login page", () => {
 
       await page.locator("#email").fill("nonexistent@test.com");
       await page.locator("#password").fill("WrongPassword123!");
-      await page.getByRole("button", { name: /login/i }).click();
+      await page.getByRole("button", { name: /login/iu }).click();
 
       await expect(page.getByText("Invalid email or password")).toBeVisible({ timeout: 10_000 });
     });
@@ -41,9 +41,9 @@ test.describe("login page", () => {
 
       await page.locator("#email").fill(email);
       await page.locator("#password").fill(password);
-      await page.getByRole("button", { name: /login/i }).click();
+      await page.getByRole("button", { name: /login/iu }).click();
 
-      await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+      await expect(page).not.toHaveURL(/\/login/u, { timeout: 15_000 });
     });
 
     test("shows client-side error for invalid email format", async ({ page }) => {
@@ -52,7 +52,7 @@ test.describe("login page", () => {
 
       await page.locator("#email").fill("not-an-email");
       await page.locator("#password").fill("Whatever1!");
-      await page.getByRole("button", { name: /login/i }).click();
+      await page.getByRole("button", { name: /login/iu }).click();
 
       await expect(page.getByText("Please enter a valid email address.")).toBeVisible();
     });
@@ -62,7 +62,7 @@ test.describe("login page", () => {
       await waitForHydration(page);
 
       await page.locator("#email").fill("someone@test.com");
-      await page.getByRole("button", { name: /login/i }).click();
+      await page.getByRole("button", { name: /login/iu }).click();
 
       await expect(page.getByText("Password is required.")).toBeVisible();
     });
@@ -80,9 +80,9 @@ test.describe("login page", () => {
 
       await page.locator("#email").fill(email);
       await page.locator("#password").fill(password);
-      await page.getByRole("button", { name: /login/i }).click();
+      await page.getByRole("button", { name: /login/iu }).click();
 
-      await expect(page.getByText(/Please verify your email/i)).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText(/Please verify your email/iu)).toBeVisible({ timeout: 10_000 });
 
       const resend = page.getByRole("button", { name: "Resend verification email" });
       await expect(resend).toBeVisible();
@@ -105,8 +105,8 @@ test.describe("login page", () => {
       const typed = `typed-${Date.now()}@test.com`;
       await page.locator("#email").fill(typed);
 
-      await page.getByRole("link", { name: /forgot your password/i }).click();
-      await expect(page).toHaveURL(/\/reset-password\?/);
+      await page.getByRole("link", { name: /forgot your password/iu }).click();
+      await expect(page).toHaveURL(/\/reset-password\?/u);
       const url = new URL(page.url());
       expect(url.searchParams.get("email")).toBe(typed);
     });
@@ -118,8 +118,8 @@ test.describe("login page", () => {
       const typed = `typed-${Date.now()}@test.com`;
       await page.locator("#email").fill(typed);
 
-      await page.getByRole("link", { name: /^sign up$/i }).click();
-      await expect(page).toHaveURL(/\/signup\?/);
+      await page.getByRole("link", { name: /^sign up$/iu }).click();
+      await expect(page).toHaveURL(/\/signup\?/u);
       const url = new URL(page.url());
       expect(url.searchParams.get("email")).toBe(typed);
       expect(url.searchParams.get("redirect")).toBe("/collections");
@@ -140,9 +140,9 @@ test.describe("login page", () => {
 
       await page.locator("#email").fill(email);
       await page.locator("#password").fill(password);
-      await page.getByRole("button", { name: /login/i }).click();
+      await page.getByRole("button", { name: /login/iu }).click();
 
-      await expect(page).toHaveURL(/\/collections/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/collections/u, { timeout: 15_000 });
     });
 
     test("strips an unsafe redirect param and lands on /", async ({ page, request }) => {
@@ -160,9 +160,9 @@ test.describe("login page", () => {
 
       await page.locator("#email").fill(email);
       await page.locator("#password").fill(password);
-      await page.getByRole("button", { name: /login/i }).click();
+      await page.getByRole("button", { name: /login/iu }).click();
 
-      await expect(page).toHaveURL(/\/cards/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/cards/u, { timeout: 15_000 });
     });
 
     test("pre-fills email from ?email= param", async ({ page }) => {
@@ -200,7 +200,7 @@ test.describe("login page", () => {
 
       await page.getByRole("tab", { name: "Email code" }).click();
       await page.locator("#otp-email").fill("not-an-email");
-      await page.getByRole("button", { name: /send code/i }).click();
+      await page.getByRole("button", { name: /send code/iu }).click();
 
       await expect(page.getByText("Please enter a valid email address.")).toBeVisible();
     });
@@ -219,9 +219,9 @@ test.describe("login page", () => {
 
       await page.getByRole("tab", { name: "Email code" }).click();
       await page.locator("#otp-email").fill(email);
-      await page.getByRole("button", { name: /send code/i }).click();
+      await page.getByRole("button", { name: /send code/iu }).click();
 
-      await expect(page.getByRole("button", { name: /verify/i })).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByRole("button", { name: /verify/iu })).toBeVisible({ timeout: 10_000 });
       await expect(page.getByRole("button", { name: "Use a different email" })).toBeVisible();
     });
 
@@ -239,11 +239,11 @@ test.describe("login page", () => {
 
       await page.getByRole("tab", { name: "Email code" }).click();
       await page.locator("#otp-email").fill(email);
-      await page.getByRole("button", { name: /send code/i }).click();
-      await expect(page.getByRole("button", { name: /verify/i })).toBeVisible({ timeout: 10_000 });
+      await page.getByRole("button", { name: /send code/iu }).click();
+      await expect(page.getByRole("button", { name: /verify/iu })).toBeVisible({ timeout: 10_000 });
 
       await page.locator('input[autocomplete="one-time-code"]').fill("000000");
-      await page.getByRole("button", { name: /verify/i }).click();
+      await page.getByRole("button", { name: /verify/iu }).click();
 
       await expect(page.getByText("Incorrect code. Please try again.")).toBeVisible({
         timeout: 10_000,
@@ -262,8 +262,8 @@ test.describe("login page", () => {
 
         await page.getByRole("tab", { name: "Email code" }).click();
         await page.locator("#otp-email").fill(email);
-        await page.getByRole("button", { name: /send code/i }).click();
-        await expect(page.getByRole("button", { name: /verify/i })).toBeVisible({
+        await page.getByRole("button", { name: /send code/iu }).click();
+        await expect(page.getByRole("button", { name: /verify/iu })).toBeVisible({
           timeout: 10_000,
         });
 
@@ -278,7 +278,7 @@ test.describe("login page", () => {
       }
 
       await page.locator('input[autocomplete="one-time-code"]').fill(otp);
-      await page.getByRole("button", { name: /verify/i }).click();
+      await page.getByRole("button", { name: /verify/iu }).click();
 
       await expect(page.getByText("Code expired. Please request a new one.")).toBeVisible({
         timeout: 10_000,
@@ -297,8 +297,8 @@ test.describe("login page", () => {
 
         await page.getByRole("tab", { name: "Email code" }).click();
         await page.locator("#otp-email").fill(email);
-        await page.getByRole("button", { name: /send code/i }).click();
-        await expect(page.getByRole("button", { name: /verify/i })).toBeVisible({
+        await page.getByRole("button", { name: /send code/iu }).click();
+        await expect(page.getByRole("button", { name: /verify/iu })).toBeVisible({
           timeout: 10_000,
         });
 
@@ -308,9 +308,9 @@ test.describe("login page", () => {
       }
 
       await page.locator('input[autocomplete="one-time-code"]').fill(otp);
-      await page.getByRole("button", { name: /verify/i }).click();
+      await page.getByRole("button", { name: /verify/iu }).click();
 
-      await expect(page).toHaveURL(/\/collections/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/collections/u, { timeout: 15_000 });
     });
 
     test("'Use a different email' resets to the email step and clears the OTP", async ({
@@ -330,8 +330,8 @@ test.describe("login page", () => {
 
       await page.getByRole("tab", { name: "Email code" }).click();
       await page.locator("#otp-email").fill(email);
-      await page.getByRole("button", { name: /send code/i }).click();
-      await expect(page.getByRole("button", { name: /verify/i })).toBeVisible({ timeout: 10_000 });
+      await page.getByRole("button", { name: /send code/iu }).click();
+      await expect(page.getByRole("button", { name: /verify/iu })).toBeVisible({ timeout: 10_000 });
 
       await page.locator('input[autocomplete="one-time-code"]').fill("123");
 
@@ -339,10 +339,10 @@ test.describe("login page", () => {
 
       await expect(page.locator("#otp-email")).toBeVisible();
       await expect(page.locator("#otp-email")).toHaveValue(email);
-      await expect(page.getByRole("button", { name: /send code/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /send code/iu })).toBeVisible();
 
-      await page.getByRole("button", { name: /send code/i }).click();
-      await expect(page.getByRole("button", { name: /verify/i })).toBeVisible({ timeout: 10_000 });
+      await page.getByRole("button", { name: /send code/iu }).click();
+      await expect(page.getByRole("button", { name: /verify/iu })).toBeVisible({ timeout: 10_000 });
       await expect(page.locator('input[autocomplete="one-time-code"]')).toHaveValue("");
     });
   });
@@ -351,7 +351,7 @@ test.describe("login page", () => {
     test("includes a noindex robots meta tag", async ({ page }) => {
       await page.goto("/login");
 
-      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/, {
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/u, {
         timeout: 10_000,
       });
     });
@@ -362,7 +362,7 @@ test.describe("login page", () => {
       await expect(authenticatedPage.getByText("Welcome back")).toBeVisible();
       await expect(authenticatedPage.locator("#email")).toBeVisible();
       await expect(authenticatedPage.locator("#password")).toBeVisible();
-      await expect(authenticatedPage).toHaveURL(/\/login/);
+      await expect(authenticatedPage).toHaveURL(/\/login/u);
     });
   });
 
@@ -378,10 +378,10 @@ test.describe("login page", () => {
       await expect(page.locator("#password")).toBeFocused();
 
       await page.keyboard.press("Tab");
-      await expect(page.getByRole("link", { name: /forgot your password/i })).toBeFocused();
+      await expect(page.getByRole("link", { name: /forgot your password/iu })).toBeFocused();
 
       await page.keyboard.press("Tab");
-      await expect(page.getByRole("button", { name: /login/i })).toBeFocused();
+      await expect(page.getByRole("button", { name: /login/iu })).toBeFocused();
     });
   });
 });

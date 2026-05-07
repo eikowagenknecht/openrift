@@ -18,7 +18,7 @@ interface MarkerDraft {
   description: string;
 }
 
-const KEBAB_RE = /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/;
+const KEBAB_RE = /^[a-z][a-z0-9]+(-[a-z0-9]+)*$/u;
 
 export function MarkersPage() {
   const { data } = useMarkers();

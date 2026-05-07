@@ -79,7 +79,7 @@ async function addCopyViaApi(page: Page, printingId: string, count = 1) {
 // TanStack Start encodes each server fn id as base64url(JSON); decoding the
 // segment lets us target a specific server fn without colliding with others.
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
   if (!match) {
     return false;
   }
@@ -137,7 +137,7 @@ async function waitForCardsLoaded(page: Page) {
 async function activateZone(page: Page, label: string) {
   // The zone row's label-button contains "<Zone label>" and the count number.
   await page
-    .getByRole("button", { name: new RegExp(`^${label}\\b`) })
+    .getByRole("button", { name: new RegExp(`^${label}\\b`, "u") })
     .first()
     .click();
 }
@@ -165,11 +165,11 @@ test.describe("deck editor card browser", () => {
       await waitForCardsLoaded(page);
 
       // SearchBar input is visible with its placeholder.
-      const searchInput = page.getByPlaceholder(/search/i);
+      const searchInput = page.getByPlaceholder(/search/iu);
       await expect(searchInput).toBeVisible();
 
       // "N cards" label (unfiltered) shows a positive integer in the right of SearchBar.
-      await expect(page.getByText(/\b\d+ cards$/)).toBeVisible();
+      await expect(page.getByText(/\b\d+ cards$/u)).toBeVisible();
     });
   });
 
@@ -185,7 +185,7 @@ test.describe("deck editor card browser", () => {
       // cards disappear; the "Garen" Units should no longer render.
       await expect(page.getByText("Garen, Rugged")).toBeVisible();
 
-      await page.getByPlaceholder(/search/i).fill("Annie");
+      await page.getByPlaceholder(/search/iu).fill("Annie");
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
       await expect(page.getByText("Garen, Rugged")).toBeHidden();
 
@@ -212,7 +212,7 @@ test.describe("deck editor card browser", () => {
       await page.getByRole("button", { name: "Show filters" }).click();
       await page.getByText("unit", { exact: true }).first().click();
 
-      await expect(page).toHaveURL(/types=[^&]*Spell/);
+      await expect(page).toHaveURL(/types=[^&]*Spell/u);
       await expect(page.getByText("Type:", { exact: true })).toBeVisible();
       // Unit cards are filtered out.
       await expect(page.getByText("Annie, Fiery").first()).toBeHidden();
@@ -234,13 +234,13 @@ test.describe("deck editor card browser", () => {
       const deckId = await createDeckViaApi(page, `Strip Empty ${Date.now()}`);
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
-      await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+      await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const tile = cardTile(page, "Annie, Fiery");
       const row = strip(tile);
       await expect(row.getByText("0 owned")).toBeVisible();
-      await expect(row.getByText(/in deck/)).toBeHidden();
+      await expect(row.getByText(/in deck/u)).toBeHidden();
     });
 
     test("seeding owned copies updates the owned count on the strip", async ({ page }) => {
@@ -251,7 +251,7 @@ test.describe("deck editor card browser", () => {
 
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
-      await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+      await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const row = strip(cardTile(page, "Annie, Fiery"));
@@ -267,7 +267,7 @@ test.describe("deck editor card browser", () => {
       const deckId = await createDeckViaApi(page, `Add Remove ${Date.now()}`);
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
-      await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+      await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const tile = cardTile(page, "Annie, Fiery");
@@ -282,7 +282,7 @@ test.describe("deck editor card browser", () => {
       await expect(row.getByText("1 in deck")).toBeVisible();
 
       // Main Deck sidebar row reflects the new count (Main Deck shows "N/39").
-      await expect(page.getByRole("button", { name: /Main Deck.*\b1\/39\b/ })).toBeVisible();
+      await expect(page.getByRole("button", { name: /Main Deck.*\b1\/39\b/u })).toBeVisible();
 
       // Once a card is added, the Constructed · Draft badge flips to the
       // amber violations badge (one of several constructed-format rules).
@@ -314,19 +314,19 @@ test.describe("deck editor card browser", () => {
       await page.goto(`/decks/${deckId}`);
 
       await activateZone(page, "Sideboard");
-      await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+      await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const tile = cardTile(page, "Annie, Fiery");
       await addCardButton(tile).click();
 
       // Sideboard row count increments; Main Deck stays at 0.
-      await expect(page.getByRole("button", { name: /Sideboard.*\b1\b/ }).first()).toBeVisible();
-      await expect(page.getByRole("button", { name: /Main Deck.*\b0\/39\b/ })).toBeVisible();
+      await expect(page.getByRole("button", { name: /Sideboard.*\b1\b/u }).first()).toBeVisible();
+      await expect(page.getByRole("button", { name: /Main Deck.*\b0\/39\b/u })).toBeVisible();
 
       // A second + still adds to Sideboard.
       await addCardButton(tile).click();
-      await expect(page.getByRole("button", { name: /Sideboard.*\b2\b/ }).first()).toBeVisible();
+      await expect(page.getByRole("button", { name: /Sideboard.*\b2\b/u }).first()).toBeVisible();
     });
   });
 
@@ -340,7 +340,7 @@ test.describe("deck editor card browser", () => {
       const constructedId = await createDeckViaApi(page, `Max Cstr ${Date.now()}`);
       await page.goto(`/decks/${constructedId}`);
       await activateZone(page, "Main Deck");
-      await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+      await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const tile = cardTile(page, "Annie, Fiery");
@@ -359,7 +359,7 @@ test.describe("deck editor card browser", () => {
       const freeformId = await createDeckViaApi(page, `Max Free ${Date.now()}`, "freeform");
       await page.goto(`/decks/${freeformId}`);
       await activateZone(page, "Main Deck");
-      await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+      await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const freeTile = cardTile(page, "Annie, Fiery");
@@ -377,7 +377,7 @@ test.describe("deck editor card browser", () => {
       const deckId = await createDeckViaApi(page, `Shift Add ${Date.now()}`);
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
-      await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+      await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const tile = cardTile(page, "Annie, Fiery");
@@ -396,7 +396,7 @@ test.describe("deck editor card browser", () => {
       const deckId = await createDeckViaApi(page, `Shift Rm ${Date.now()}`);
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
-      await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+      await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const tile = cardTile(page, "Annie, Fiery");
@@ -406,7 +406,7 @@ test.describe("deck editor card browser", () => {
       await expect(row.getByText("2 in deck")).toBeVisible();
 
       await removeCardButton(tile).click({ modifiers: ["Shift"] });
-      await expect(row.getByText(/in deck/)).toBeHidden();
+      await expect(row.getByText(/in deck/u)).toBeHidden();
     });
   });
 
@@ -416,7 +416,7 @@ test.describe("deck editor card browser", () => {
       const deckId = await createDeckViaApi(page, `Detail Pane ${Date.now()}`);
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
-      await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+      await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       // The image area is .aspect-card inside the tile. Clicking there fires
@@ -425,7 +425,7 @@ test.describe("deck editor card browser", () => {
 
       const pane = page.getByRole("complementary");
       await expect(pane).toBeVisible({ timeout: 5000 });
-      await expect(pane.getByRole("heading", { level: 2, name: /Annie, Fiery/ })).toBeVisible();
+      await expect(pane.getByRole("heading", { level: 2, name: /Annie, Fiery/u })).toBeVisible();
     });
   });
 
@@ -437,7 +437,7 @@ test.describe("deck editor card browser", () => {
       const deckId = await createDeckViaApi(page, `Save Cycle ${Date.now()}`);
       await page.goto(`/decks/${deckId}`);
       await activateZone(page, "Main Deck");
-      await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+      await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const saveRequest = page.waitForRequest(
@@ -460,7 +460,7 @@ test.describe("deck editor card browser", () => {
       // Reload the page — the added card persists.
       await page.reload();
       await activateZone(page, "Main Deck");
-      await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+      await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 5000 });
 
       const rowAfter = strip(cardTile(page, "Annie, Fiery"));

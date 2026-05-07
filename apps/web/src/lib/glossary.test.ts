@@ -10,7 +10,7 @@ describe("KEYWORD_INFO", () => {
   it("gives every keyword a non-empty summary and a numeric rule reference", () => {
     for (const [name, entry] of Object.entries(KEYWORD_INFO)) {
       expect(entry.summary.length).toBeGreaterThan(0);
-      expect(entry.ruleNumber).toMatch(/^\d+$/);
+      expect(entry.ruleNumber).toMatch(/^\d+$/u);
       expect(name).not.toBe("");
     }
   });

@@ -5,14 +5,14 @@ test.describe("root essentials", () => {
     test("renders header, not-found heading, Go home link, and footer", async ({ page }) => {
       await page.goto("/this-path-does-not-exist");
 
-      await expect(page.getByRole("link", { name: /sign in/i })).toBeVisible();
+      await expect(page.getByRole("link", { name: /sign in/iu })).toBeVisible();
 
       const heading = page.getByRole("heading", { level: 1 });
       await expect(heading).toBeVisible();
       const headingText = await heading.textContent();
       expect(headingText?.trim()).toBeTruthy();
 
-      const goHome = page.getByRole("link", { name: /go home/i });
+      const goHome = page.getByRole("link", { name: /go home/iu });
       await expect(goHome).toBeVisible();
       await expect(goHome).toHaveAttribute("href", "/");
 
@@ -103,7 +103,7 @@ test.describe("root essentials", () => {
   test.describe("toaster mounted", () => {
     test("sonner region is in the DOM on the root route", async ({ page }) => {
       await page.goto("/");
-      await expect(page.getByRole("region", { name: /notifications/i })).toBeAttached();
+      await expect(page.getByRole("region", { name: /notifications/iu })).toBeAttached();
     });
   });
 

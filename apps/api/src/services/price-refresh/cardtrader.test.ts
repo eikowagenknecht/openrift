@@ -185,12 +185,12 @@ function setupMockFetch(fetchSpy: ReturnType<typeof vi.spyOn>, config: MockFetch
     if (urlStr.includes("/expansions")) {
       return Response.json(expansions);
     }
-    const bpMatch = urlStr.match(/blueprints\/export\?expansion_id=(\d+)/);
+    const bpMatch = urlStr.match(/blueprints\/export\?expansion_id=(\d+)/u);
     if (bpMatch) {
       const expId = Number(bpMatch[1]);
       return Response.json(blueprintsByExpansion.get(expId) ?? []);
     }
-    const mpMatch = urlStr.match(/marketplace\/products\?expansion_id=(\d+)/);
+    const mpMatch = urlStr.match(/marketplace\/products\?expansion_id=(\d+)/u);
     if (mpMatch) {
       const expId = Number(mpMatch[1]);
       return Response.json(productsByExpansion.get(expId) ?? {});

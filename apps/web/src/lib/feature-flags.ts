@@ -13,7 +13,7 @@ export type FeatureFlags = Record<string, boolean>;
 
 // Matches better-auth's session cookie name (plain + `__Secure-` prefixed variant).
 function hasSessionCookie(cookie: string): boolean {
-  return /better-auth\.session_token/.test(cookie);
+  return /better-auth\.session_token/u.test(cookie);
 }
 
 async function fetchFlagsFromApi(cookie?: string): Promise<FeatureFlags> {

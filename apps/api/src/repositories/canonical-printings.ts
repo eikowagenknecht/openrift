@@ -64,7 +64,7 @@ export function canonicalPrintingsRepo(db: Kysely<Database>) {
         // Empty marker_slugs (unmarked) sorts before marked printings.
         .orderBy(sql`cardinality(p.marker_slugs)`, "asc")
         .orderBy(
-          // oxlint-disable-next-line eslint-plugin-promise(prefer-await-to-then) -- Kysely CASE .then(), not Promise
+          // oxlint-disable-next-line promise/prefer-await-to-then -- Kysely CASE .then(), not Promise
           (eb) => eb.case().when("p.finish", "=", "normal").then(0).else(1).end(),
           "asc",
         ) as T

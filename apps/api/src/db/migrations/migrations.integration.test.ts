@@ -81,7 +81,7 @@ function normalizeDump(raw: string): string {
     .map((line) =>
       // Normalize named NOT NULL constraints to plain NOT NULL
       // e.g. "CONSTRAINT sources_id_not_null NOT NULL" → "NOT NULL"
-      line.replaceAll(/\bCONSTRAINT \w+ NOT NULL\b/g, "NOT NULL"),
+      line.replaceAll(/\bCONSTRAINT \w+ NOT NULL\b/gu, "NOT NULL"),
     )
     .join("\n");
 }

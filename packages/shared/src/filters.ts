@@ -36,7 +36,7 @@ interface ParsedSearchTerm {
  */
 export function parseSearchTerms(raw: string): ParsedSearchTerm[] {
   const terms: ParsedSearchTerm[] = [];
-  const regex = /(?:(id|ty|[ndktaf]):(?:"([^"]*)"|([\S]*)))|(?:"([^"]*)")|(\S+)/g;
+  const regex = /(?:(id|ty|[ndktaf]):(?:"([^"]*)"|([\S]*)))|(?:"([^"]*)")|(\S+)/gu;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(raw)) !== null) {
     const prefix = match[1];

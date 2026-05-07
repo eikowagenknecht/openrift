@@ -102,7 +102,7 @@ export async function downloadImage(io: Io, url: string): Promise<{ buffer: Buff
  * @returns `true` when the filename matches a known suffix.
  */
 function isValidVariantSuffix(file: string): boolean {
-  if (/-orig\.[^.]+$/.test(file)) {
+  if (/-orig\.[^.]+$/u.test(file)) {
     return true;
   }
   return SIZES.some((size) => file.endsWith(`-${size.suffix}.webp`));
@@ -282,7 +282,7 @@ export async function processAndSave(
  * Removes the orig archive and every WebP variant for the base.
  */
 export async function deleteRehostFiles(io: Io, rehostedUrl: string): Promise<void> {
-  const dir = join(CARD_MEDIA_DIR, rehostedUrl.replace(/^\/media\/cards\//, ""));
+  const dir = join(CARD_MEDIA_DIR, rehostedUrl.replace(/^\/media\/cards\//u, ""));
   const parentDir = dirname(dir);
   const base = dir.split("/").pop() as string;
 
@@ -748,7 +748,7 @@ function diskFileToPrefix(dirPrefix: string, file: string): string {
   // Match only the suffix after the LAST dash: `-<variant>.webp` or `-orig.<ext>`.
   // The `[^-.]+` class prevents the suffix from swallowing an internal dash
   // (e.g. `img-1-300w.webp` must become `img-1`, not `img`).
-  return `/media/cards/${dirPrefix}/${file.replace(/-(orig\.[^.]+|[^-.]+\.webp)$/, "")}`;
+  return `/media/cards/${dirPrefix}/${file.replace(/-(orig\.[^.]+|[^-.]+\.webp)$/u, "")}`;
 }
 
 /**
@@ -865,7 +865,7 @@ export async function getRehostStatus(
   return { total, rehosted, external: total - rehosted, orphanedFiles, sets, disk };
 }
 
-const ORIG_FILE_RE = /^(.+)-orig\.[^.]+$/;
+const ORIG_FILE_RE = /^(.+)-orig\.[^.]+$/u;
 
 /**
  * Identify stale duplicate `{base}-orig.*` files in a directory — when more
@@ -965,7 +965,7 @@ export async function findBrokenImages(
   const broken: BrokenImagesResponse["broken"] = [];
 
   for (const img of images) {
-    const relPath = img.rehostedUrl.replace(/^\/media\/cards\//, "");
+    const relPath = img.rehostedUrl.replace(/^\/media\/cards\//u, "");
     const dir = join(CARD_MEDIA_DIR, relPath.split("/").slice(0, -1).join("/"));
     const fileBase = relPath.split("/").pop() as string;
     const complete = await rehostFilesComplete(io, dir, fileBase);
@@ -1004,7 +1004,7 @@ export async function findLowResImages(
   const lowRes: LowResImagesResponse["lowRes"] = [];
 
   for (const img of images) {
-    const relPath = img.rehostedUrl.replace(/^\/media\/cards\//, "");
+    const relPath = img.rehostedUrl.replace(/^\/media\/cards\//u, "");
     const dir = join(CARD_MEDIA_DIR, relPath.split("/").slice(0, -1).join("/"));
     const fileBase = relPath.split("/").pop() as string;
     const fullPath = join(dir, `${fileBase}-full.webp`);
@@ -1057,7 +1057,7 @@ export async function migrateImageDirectories(io: Io): Promise<{
     return progress;
   }
 
-  const isHexPrefix = (name: string) => /^[0-9a-f]{2}$/i.test(name);
+  const isHexPrefix = (name: string) => /^[0-9a-f]{2}$/iu.test(name);
   const oldDirs = entries.filter((e) => e.isDirectory() && !isHexPrefix(e.name));
 
   for (const dir of oldDirs) {
@@ -1072,7 +1072,7 @@ export async function migrateImageDirectories(io: Io): Promise<{
     for (const file of files) {
       progress.scanned++;
       const uuidMatch = file.match(
-        /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-/i,
+        /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})-/iu,
       );
       if (!uuidMatch) {
         progress.skipped++;

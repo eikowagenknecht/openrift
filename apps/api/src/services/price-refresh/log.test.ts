@@ -58,7 +58,7 @@ describe("logFetchSummary", () => {
     const { log, messages } = makeMockLogger();
     logFetchSummary(log, { groups: 1, products: 2, prices: 3 }, 0);
 
-    expect(messages[0]).toMatch(/^Fetched:/);
+    expect(messages[0]).toMatch(/^Fetched:/u);
   });
 });
 
@@ -137,8 +137,8 @@ describe("logUpsertCounts", () => {
     };
     logUpsertCounts(log, counts);
 
-    expect(messages[0]).toMatch(/^Inserted:/);
-    expect(messages[1]).toMatch(/^Updated:/);
-    expect(messages[2]).toMatch(/^Unchanged:/);
+    expect(messages[0]).toMatch(/^Inserted:/u);
+    expect(messages[1]).toMatch(/^Updated:/u);
+    expect(messages[2]).toMatch(/^Unchanged:/u);
   });
 });

@@ -2044,7 +2044,7 @@ describe("sortCards", () => {
   });
 
   it("throws when sortBy is 'rarity' but no rarityOrder is supplied", () => {
-    expect(() => sortCards([makePrinting()], "rarity")).toThrow(/rarityOrder/);
+    expect(() => sortCards([makePrinting()], "rarity")).toThrow(/rarityOrder/u);
   });
 });
 

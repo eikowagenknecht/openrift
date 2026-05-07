@@ -253,7 +253,7 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
   }
 
   // Try standard format: SET-CCC[modifier]? (e.g. "OGN-001", "SFD-T01", "SFD-R04a", "OGN-123*")
-  const standardMatch = code.match(/^([A-Z]{3})-([A-Z0-9]{3})([a-z*]?)$/);
+  const standardMatch = code.match(/^([A-Z]{3})-([A-Z0-9]{3})([a-z*]?)$/u);
   if (standardMatch) {
     const { artVariant, shortCode } = resolveCardModifier(
       standardMatch[1],
@@ -269,7 +269,7 @@ function parsePiltoverVariantNumber(variantNumber: string): PiltoverVariantParts
   }
 
   // Try suffixed format: SET-CCC[modifier]?-PromoSuffix (e.g. "OGN-001-Nexus", "OGN-027a-Release")
-  const suffixMatch = code.match(/^([A-Z]{3})-([A-Z0-9]{3})([a-z*]?)-([A-Za-z]+)$/);
+  const suffixMatch = code.match(/^([A-Z]{3})-([A-Z0-9]{3})([a-z*]?)-([A-Za-z]+)$/u);
   if (suffixMatch) {
     const { artVariant, shortCode } = resolveCardModifier(
       suffixMatch[1],
@@ -385,7 +385,7 @@ function parseOpenRift(text: string): ParseResult {
  * @returns Parsed parts, or null if the format is unrecognized.
  */
 function parseOpenRiftCardId(cardId: string): { setPrefix: string } | null {
-  const match = cardId.match(/^([A-Z]{3})-([A-Z0-9]{3})[a-z*]?$/);
+  const match = cardId.match(/^([A-Z]{3})-([A-Z0-9]{3})[a-z*]?$/u);
   if (!match) {
     return null;
   }
@@ -558,7 +558,7 @@ interface RiftCoreCardParts {
 function parseRiftCoreCardId(cardId: string): RiftCoreCardParts | null {
   // Match: SET-CCC[modifier]? where CCC is 3 alphanumeric chars (e.g. "001", "T01", "R04")
   // Modifier is an optional letter or * suffix (RiftCore uses uppercase, e.g. "A", "S")
-  const match = cardId.match(/^([A-Z]{3})-([A-Z0-9]{3})([A-Za-z*]?)$/);
+  const match = cardId.match(/^([A-Z]{3})-([A-Z0-9]{3})([A-Za-z*]?)$/u);
   if (!match) {
     return null;
   }
@@ -699,12 +699,12 @@ function parseRiftManaCardId(cardId: string): RiftManaCardParts | null {
   let isPromo = false;
 
   // Strip promo suffix (-p or -P)
-  if (/^.+-[pP]$/.test(code)) {
+  if (/^.+-[pP]$/u.test(code)) {
     isPromo = true;
     code = code.slice(0, -2);
   }
 
-  const match = code.match(/^([A-Z]{3})-([A-Z0-9]{3})([a-z*]?)$/);
+  const match = code.match(/^([A-Z]{3})-([A-Z0-9]{3})([a-z*]?)$/u);
   if (!match) {
     return null;
   }

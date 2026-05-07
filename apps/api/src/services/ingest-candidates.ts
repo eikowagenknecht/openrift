@@ -68,7 +68,7 @@ const CARD_FIELDS = Object.keys(CARD_FIELD_MAP);
 function camelCaseKeys(obj: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(obj)) {
-    const camel = k.replaceAll(/_([a-z])/g, (_, c) => c.toUpperCase());
+    const camel = k.replaceAll(/_([a-z])/gu, (_, c) => c.toUpperCase());
     out[camel] = v;
   }
   return out;

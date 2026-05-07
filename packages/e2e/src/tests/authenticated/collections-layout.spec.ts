@@ -6,7 +6,7 @@ import { API_BASE_URL } from "../../helpers/constants.js";
 // collections fetch without affecting session/theme/feature-flags/catalog
 // server fns that fire on the same transition.
 function isCollectionsServerFn(url: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
   if (!match) {
     return false;
   }
@@ -31,8 +31,9 @@ const NOT_FOUND_HEADING_PATTERN = new RegExp(
     "No card at this address",
     "The Rift has no record of this",
   ]
-    .map((heading) => heading.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`))
+    .map((heading) => heading.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`))
     .join("|"),
+  "u",
 );
 
 // Matches any heading from the HEADINGS pool (error fallback).
@@ -48,8 +49,9 @@ const ERROR_HEADING_PATTERN = new RegExp(
     "That's not ideal",
     "Yeah, that's a bug",
   ]
-    .map((heading) => heading.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`))
+    .map((heading) => heading.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`))
     .join("|"),
+  "u",
 );
 
 // Valid UUID shape, guaranteed not to match any real collection.
@@ -68,7 +70,7 @@ test.describe("collections layout", () => {
     for (const path of guardedPaths) {
       test(`redirects anonymous users from ${path} to /login`, async ({ page }) => {
         await page.goto(path);
-        await expect(page).toHaveURL(/\/login\b/);
+        await expect(page).toHaveURL(/\/login\b/u);
         const url = new URL(page.url());
         expect(url.searchParams.get("redirect") ?? "").toContain(path);
       });
@@ -80,14 +82,14 @@ test.describe("collections layout", () => {
       const page = authenticatedPage;
       await page.goto("/collections");
 
-      const inboxLink = page.getByRole("link", { name: /inbox/i });
+      const inboxLink = page.getByRole("link", { name: /inbox/iu });
       await expect(inboxLink).toBeVisible({ timeout: 15_000 });
       await expect(page.getByRole("link", { name: "All Cards" })).toBeVisible();
 
       // Sub-route navigation: sidebar sticks around.
       await page.getByRole("link", { name: "Activity" }).click();
-      await expect(page).toHaveURL(/\/collections\/activity$/);
-      await expect(page.getByRole("link", { name: /inbox/i })).toBeVisible();
+      await expect(page).toHaveURL(/\/collections\/activity$/u);
+      await expect(page.getByRole("link", { name: /inbox/iu })).toBeVisible();
       await expect(page.getByRole("link", { name: "All Cards" })).toBeVisible();
     });
 
@@ -104,7 +106,7 @@ test.describe("collections layout", () => {
 
       await page.goto(`/collections/${inbox?.id ?? ""}`);
 
-      const inboxLink = page.getByRole("link", { name: /inbox/i });
+      const inboxLink = page.getByRole("link", { name: /inbox/iu });
       await expect(inboxLink).toBeVisible({ timeout: 15_000 });
       // BaseUI's useRender state-to-data-attribute mapping emits the
       // attribute with an empty string value when the state is true.
@@ -112,8 +114,8 @@ test.describe("collections layout", () => {
 
       // Navigating to Activity should clear the inbox active marker.
       await page.getByRole("link", { name: "Activity" }).click();
-      await expect(page).toHaveURL(/\/collections\/activity$/);
-      await expect(page.getByRole("link", { name: /inbox/i })).not.toHaveAttribute(
+      await expect(page).toHaveURL(/\/collections\/activity$/u);
+      await expect(page.getByRole("link", { name: /inbox/iu })).not.toHaveAttribute(
         "data-active",
         "true",
       );
@@ -148,11 +150,11 @@ test.describe("collections layout", () => {
 
   test.describe("per-route head / SEO", () => {
     const cases: { path: string; titlePattern: RegExp; dynamic?: boolean }[] = [
-      { path: "/collections", titlePattern: /Collections/ },
-      { path: "/collections/activity", titlePattern: /Collection Activity/ },
-      { path: "/collections/stats", titlePattern: /Collection Statistics/ },
-      { path: "/collections/import", titlePattern: /Import \/ Export/ },
-      { path: "/collections/$$inbox$$", titlePattern: /Collection/, dynamic: true },
+      { path: "/collections", titlePattern: /Collections/u },
+      { path: "/collections/activity", titlePattern: /Collection Activity/u },
+      { path: "/collections/stats", titlePattern: /Collection Statistics/u },
+      { path: "/collections/import", titlePattern: /Import \/ Export/u },
+      { path: "/collections/$$inbox$$", titlePattern: /Collection/u, dynamic: true },
     ];
 
     for (const { path, titlePattern, dynamic } of cases) {
@@ -173,7 +175,7 @@ test.describe("collections layout", () => {
         await expect(page).toHaveTitle(titlePattern, { timeout: 15_000 });
 
         const robots = page.locator('meta[name="robots"]');
-        await expect(robots).toHaveAttribute("content", /noindex/);
+        await expect(robots).toHaveAttribute("content", /noindex/u);
       });
     }
   });
@@ -193,7 +195,7 @@ test.describe("collections layout", () => {
       await expect(page.getByRole("link", { name: "Go home" })).toBeVisible();
 
       // Still on the bogus URL (this is notFound, not redirect).
-      await expect(page).toHaveURL(new RegExp(`/collections/${BOGUS_COLLECTION_ID}$`));
+      await expect(page).toHaveURL(new RegExp(`/collections/${BOGUS_COLLECTION_ID}$`, "u"));
     });
   });
 
@@ -210,7 +212,7 @@ test.describe("collections layout", () => {
       // loader skip its fetch (staleTime = 5 min) — no request hits the
       // intercepted server fn.
       await page.goto("/support");
-      await expect(page).toHaveURL(/\/support/);
+      await expect(page).toHaveURL(/\/support/u);
 
       await page.route("**/_serverFn/**", async (route) => {
         if (isCollectionsServerFn(route.request().url())) {
@@ -225,7 +227,7 @@ test.describe("collections layout", () => {
       });
 
       await page.getByRole("link", { name: "Collection", exact: true }).first().click();
-      await expect(page).toHaveURL(/\/collections/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/collections/u, { timeout: 15_000 });
 
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(ERROR_HEADING_PATTERN, {
         timeout: 15_000,

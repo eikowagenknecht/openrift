@@ -39,15 +39,15 @@ async function loginViaForm(page: Page, email: string, password: string) {
   );
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(password);
-  await page.getByRole("button", { name: /login/i }).click();
-  await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+  await page.getByRole("button", { name: /login/iu }).click();
+  await expect(page).not.toHaveURL(/\/login/u, { timeout: 15_000 });
 }
 
 test.describe("profile shell", () => {
   test.describe("auth gate", () => {
     test("redirects anonymous users from /profile to /login", async ({ page }) => {
       await page.goto("/profile");
-      await expect(page).toHaveURL(/\/login\b/);
+      await expect(page).toHaveURL(/\/login\b/u);
       const url = new URL(page.url());
       expect(url.searchParams.get("redirect") ?? "").toContain("/profile");
     });
@@ -72,6 +72,7 @@ test.describe("profile shell", () => {
       // "Joined <localized date>" — match format used by the component.
       const joinedPattern = new RegExp(
         String.raw`^Joined \w+ \d{1,2}, \d{4}$|^Joined \d{1,2} \w+ \d{4}$`,
+        "u",
       );
       await expect(page.getByText(joinedPattern)).toBeVisible();
 
@@ -82,7 +83,7 @@ test.describe("profile shell", () => {
       // the user menu (it comes first in DOM), so target the card's fallback
       // via .last().
       const initials = name
-        .split(/[\s@]/)
+        .split(/[\s@]/u)
         .slice(0, 2)
         .map((part) => part[0]?.toUpperCase() ?? "")
         .join("");
@@ -165,9 +166,9 @@ test.describe("profile shell", () => {
       // aria-current on the nav buttons yet). Asserting class-membership here
       // is a candidate for migrating to aria-current later.
       const preferencesButton = nav.getByRole("button", { name: "Preferences", exact: true });
-      await expect(preferencesButton).toHaveClass(/bg-muted/);
-      await expect(preferencesButton).toHaveClass(/text-foreground/);
-      await expect(preferencesButton).toHaveClass(/font-medium/);
+      await expect(preferencesButton).toHaveClass(/bg-muted/u);
+      await expect(preferencesButton).toHaveClass(/text-foreground/u);
+      await expect(preferencesButton).toHaveClass(/font-medium/u);
 
       // Scroll the Security section into view directly so the
       // IntersectionObserver callback fires on a real scroll event.
@@ -178,10 +179,10 @@ test.describe("profile shell", () => {
       });
 
       const securityButton = nav.getByRole("button", { name: "Security", exact: true });
-      await expect(securityButton).toHaveClass(/bg-muted/);
-      await expect(securityButton).toHaveClass(/text-foreground/);
-      await expect(securityButton).toHaveClass(/font-medium/);
-      await expect(preferencesButton).not.toHaveClass(/bg-muted/);
+      await expect(securityButton).toHaveClass(/bg-muted/u);
+      await expect(securityButton).toHaveClass(/text-foreground/u);
+      await expect(securityButton).toHaveClass(/font-medium/u);
+      await expect(preferencesButton).not.toHaveClass(/bg-muted/u);
     });
   });
 
@@ -216,8 +217,8 @@ test.describe("profile shell", () => {
       const page = authenticatedPage;
       await page.goto("/profile");
 
-      await expect(page).toHaveTitle(/Profile/, { timeout: 15_000 });
-      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+      await expect(page).toHaveTitle(/Profile/u, { timeout: 15_000 });
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/u);
     });
   });
 });

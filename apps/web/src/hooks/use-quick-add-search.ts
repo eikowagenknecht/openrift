@@ -52,7 +52,7 @@ export function searchCards(
       rank = 1;
     } else {
       // Word-boundary match: check if any word in the name starts with the query
-      const words = cardName.toLowerCase().split(/\s+/);
+      const words = cardName.toLowerCase().split(/\s+/u);
       const queryLower = trimmed.toLowerCase();
       if (words.some((word) => word.startsWith(queryLower))) {
         rank = 2;

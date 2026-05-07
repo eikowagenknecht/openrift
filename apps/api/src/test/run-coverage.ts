@@ -130,7 +130,7 @@ const coverageArgs = [
 ];
 
 // Collect unit test files (excluding vi.mock files and integration tests)
-const unitFiles = collectFiles(resolve(cwd, "src"), cwd, /^(?!.*integration).*\.test\.ts$/);
+const unitFiles = collectFiles(resolve(cwd, "src"), cwd, /^(?!.*integration).*\.test\.ts$/u);
 
 // Use the exact same curated list from run-integration.ts for integration tests
 // (bun test finds files by pattern, so paths like "src/routes/collections.integration.test.ts"

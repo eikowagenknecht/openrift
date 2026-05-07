@@ -11,7 +11,7 @@ interface ChangelogGroup {
 
 export function parseChangelog(markdown: string): ChangelogGroup[] {
   const groups: ChangelogGroup[] = [];
-  const sections = markdown.split(/^## /m).slice(1);
+  const sections = markdown.split(/^## /mu).slice(1);
 
   for (const section of sections) {
     const lines = section.trim().split("\n");
@@ -19,7 +19,7 @@ export function parseChangelog(markdown: string): ChangelogGroup[] {
     const entries: ChangelogEntry[] = [];
 
     for (const line of lines.slice(1)) {
-      const match = line.match(/^- (feat|fix): (.+)$/);
+      const match = line.match(/^- (feat|fix): (.+)$/u);
       if (match) {
         entries.push({ date, type: match[1] as "feat" | "fix", message: match[2] });
       }

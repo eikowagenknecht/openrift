@@ -58,8 +58,8 @@ async function loginViaForm(page: Page, email: string, password: string) {
   );
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(password);
-  await page.getByRole("button", { name: /login/i }).click();
-  await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+  await page.getByRole("button", { name: /login/iu }).click();
+  await expect(page).not.toHaveURL(/\/login/u, { timeout: 15_000 });
 }
 
 async function openUserMenu(page: Page) {
@@ -108,7 +108,7 @@ test.describe("sign out", () => {
     await openUserMenu(page);
     await page.getByRole("menuitem", { name: "Sign out" }).click();
 
-    await expect(page).toHaveURL(/\/cards$/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
     await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
 
     await openUserMenu(page);
@@ -141,7 +141,7 @@ test.describe("sign out", () => {
     );
     await page.getByRole("menuitem", { name: "Sign out" }).click();
     await signOutResponse;
-    await expect(page).toHaveURL(/\/cards$/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
 
     const sessionResponse = await page.request.get(`${API_BASE_URL}/api/auth/get-session`, {
       headers: { Origin: WEB_BASE_URL },
@@ -168,10 +168,10 @@ test.describe("sign out", () => {
     await loginViaForm(page, email, password);
     await openUserMenu(page);
     await page.getByRole("menuitem", { name: "Sign out" }).click();
-    await expect(page).toHaveURL(/\/cards$/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
 
     await page.goto("/profile");
-    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/login/u, { timeout: 15_000 });
   });
 
   test("post-logout /admin does not grant access", async ({ page, request }) => {
@@ -187,10 +187,10 @@ test.describe("sign out", () => {
     await loginViaForm(page, email, password);
     await openUserMenu(page);
     await page.getByRole("menuitem", { name: "Sign out" }).click();
-    await expect(page).toHaveURL(/\/cards$/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
 
     await page.goto("/admin");
-    await expect(page).not.toHaveURL(/\/admin(\/|$)/, { timeout: 15_000 });
+    await expect(page).not.toHaveURL(/\/admin(\/|$)/u, { timeout: 15_000 });
   });
 
   test("admin menu shows Admin while logged in and hides it after sign-out", async ({
@@ -212,7 +212,7 @@ test.describe("sign out", () => {
     await expect(page.getByRole("menuitem", { name: "Admin" })).toBeVisible();
 
     await page.getByRole("menuitem", { name: "Sign out" }).click();
-    await expect(page).toHaveURL(/\/cards$/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
 
     await openUserMenu(page);
     await expect(page.getByRole("menuitem", { name: "Admin" })).toHaveCount(0);
@@ -233,7 +233,7 @@ test.describe("sign out", () => {
 
     await loginViaForm(page, email, password);
     await page.goto("/collections");
-    await expect(page).toHaveURL(/\/collections/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/collections/u, { timeout: 15_000 });
 
     // Collections wraps the page in a nested sidebar whose mobile trigger
     // is also named "Menu". Target the header banner's user-menu button
@@ -247,7 +247,7 @@ test.describe("sign out", () => {
     }).toPass({ timeout: 10_000 });
     await page.getByRole("menuitem", { name: "Sign out" }).click();
 
-    await expect(page).toHaveURL(/\/cards$/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards$/u, { timeout: 15_000 });
     await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
   });
 });

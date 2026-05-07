@@ -163,7 +163,7 @@ export function DomainsPage() {
             return "Slug and label are required";
           }
           const color = draft.color.trim();
-          if (color && !/^#[0-9a-fA-F]{6}$/.test(color)) {
+          if (color && !/^#[0-9a-fA-F]{6}$/u.test(color)) {
             return "Color must be a hex code (e.g. #CB212D)";
           }
           return null;

@@ -36,7 +36,7 @@ export function sanitizeDisplayName(raw: unknown, fallback: string): string {
   const source = typeof raw === "string" ? raw : "";
   const cleaned = source
     .replaceAll(DISALLOWED_CHARS, "")
-    .replaceAll(/\s+/g, " ")
+    .replaceAll(/\s+/gu, " ")
     .trim()
     .slice(0, MAX_DISPLAY_NAME_LENGTH);
   if (cleaned.length > 0) {
@@ -44,7 +44,7 @@ export function sanitizeDisplayName(raw: unknown, fallback: string): string {
   }
   const fallbackCleaned = fallback
     .replaceAll(DISALLOWED_CHARS, "")
-    .replaceAll(/\s+/g, " ")
+    .replaceAll(/\s+/gu, " ")
     .trim()
     .slice(0, MAX_DISPLAY_NAME_LENGTH);
   return fallbackCleaned.length > 0 ? fallbackCleaned : "User";

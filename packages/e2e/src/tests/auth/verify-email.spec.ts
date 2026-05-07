@@ -24,8 +24,8 @@ async function signUp(request: APIRequestContext, email: string, password: strin
   expect(response.ok()).toBeTruthy();
 }
 
-const VERIFY_URL_REGEX = /\/api\/auth\/email-otp\/verify-email/;
-const SEND_URL_REGEX = /\/api\/auth\/email-otp\/send-verification-otp/;
+const VERIFY_URL_REGEX = /\/api\/auth\/email-otp\/verify-email/u;
+const SEND_URL_REGEX = /\/api\/auth\/email-otp\/send-verification-otp/u;
 const OTP_INPUT = 'input[autocomplete="one-time-code"]';
 
 test.describe("verify email page", () => {
@@ -38,17 +38,17 @@ test.describe("verify email page", () => {
       // visible per viewport, but both exist in the DOM.
       await expect(page.getByRole("img", { name: "OpenRift" }).first()).toBeVisible();
       await expect(page.getByRole("heading", { name: "Verify your email" })).toBeVisible();
-      await expect(page.getByText(/foo@test\.com/)).toBeVisible();
+      await expect(page.getByText(/foo@test\.com/u)).toBeVisible();
       await expect(page.locator(OTP_INPUT)).toBeVisible();
-      await expect(page.getByRole("button", { name: /^verify$/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /^resend code$/i })).toBeVisible();
-      await expect(page.getByRole("link", { name: /back to login/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^verify$/iu })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^resend code$/iu })).toBeVisible();
+      await expect(page.getByRole("link", { name: /back to login/iu })).toBeVisible();
     });
 
     test("verify button is disabled before any digits are entered", async ({ page }) => {
       await page.goto("/verify-email?email=foo@test.com");
 
-      await expect(page.getByRole("button", { name: /^verify$/i })).toBeDisabled();
+      await expect(page.getByRole("button", { name: /^verify$/iu })).toBeDisabled();
     });
 
     test("autofocuses the OTP input", async ({ page }) => {
@@ -62,16 +62,16 @@ test.describe("verify email page", () => {
 
       await expect(page.getByRole("heading", { name: "Verify your email" })).toBeVisible();
       await expect(page.locator(OTP_INPUT)).toBeVisible();
-      await expect(page.getByRole("button", { name: /^verify$/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^verify$/iu })).toBeVisible();
     });
 
     test("includes a noindex robots meta tag and a Verify Email title", async ({ page }) => {
       await page.goto("/verify-email?email=foo@test.com");
 
-      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/, {
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/u, {
         timeout: 10_000,
       });
-      await expect(page).toHaveTitle(/Verify Email/i, { timeout: 10_000 });
+      await expect(page).toHaveTitle(/Verify Email/iu, { timeout: 10_000 });
     });
   });
 
@@ -81,7 +81,7 @@ test.describe("verify email page", () => {
 
       await page.locator(OTP_INPUT).fill("12345");
 
-      await expect(page.getByRole("button", { name: /^verify$/i })).toBeDisabled();
+      await expect(page.getByRole("button", { name: /^verify$/iu })).toBeDisabled();
     });
   });
 
@@ -195,7 +195,7 @@ test.describe("verify email page", () => {
         await page.goto(`/verify-email?email=${encodeURIComponent(email)}`);
         await page.locator(OTP_INPUT).fill(otp);
 
-        await expect(page).toHaveURL(/\/collections/, { timeout: 15_000 });
+        await expect(page).toHaveURL(/\/collections/u, { timeout: 15_000 });
 
         const rows = (await sql`
           SELECT email_verified FROM users WHERE email = ${email}
@@ -219,7 +219,7 @@ test.describe("verify email page", () => {
       // Wait for React to hydrate before clicking — the Resend button's
       // onClick isn't attached until then, and the first click otherwise
       // fires into the void.
-      await expect(page.getByRole("button", { name: /^resend code$/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^resend code$/iu })).toBeVisible();
       await page.waitForFunction(
         () => {
           const btn = document.querySelector("button");
@@ -229,7 +229,7 @@ test.describe("verify email page", () => {
       );
 
       const resendRequest = page.waitForRequest((req) => SEND_URL_REGEX.test(req.url()));
-      await page.getByRole("button", { name: /^resend code$/i }).click();
+      await page.getByRole("button", { name: /^resend code$/iu }).click();
       await resendRequest;
     });
 
@@ -243,7 +243,7 @@ test.describe("verify email page", () => {
       const error = page.getByText("Incorrect code. Please try again.");
       await expect(error).toBeVisible({ timeout: 10_000 });
 
-      await page.getByRole("button", { name: /^resend code$/i }).click();
+      await page.getByRole("button", { name: /^resend code$/iu }).click();
 
       await expect(error).toBeHidden({ timeout: 10_000 });
     });
@@ -255,12 +255,12 @@ test.describe("verify email page", () => {
     }) => {
       await page.goto("/verify-email?email=foo@test.com");
 
-      const link = page.getByRole("link", { name: /back to login/i });
+      const link = page.getByRole("link", { name: /back to login/iu });
       const href = await link.getAttribute("href");
       expect(href).toBe("/login");
 
       await link.click();
-      await expect(page).toHaveURL(/\/login(\?|$)/);
+      await expect(page).toHaveURL(/\/login(\?|$)/u);
     });
   });
 });

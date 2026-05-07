@@ -16,7 +16,7 @@ const slugParamSchema = z.object({ slug: z.string().min(1) });
 
 const hexColorSchema = z
   .string()
-  .regex(/^#[0-9a-fA-F]{6}$/)
+  .regex(/^#[0-9a-fA-F]{6}$/u)
   .nullable();
 
 // ── Route definitions ───────────────────────────────────────────────────────

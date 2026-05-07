@@ -15,7 +15,7 @@ describe("buildAssignSuccessNavigation", () => {
 
     expect(nav.params).toEqual({ cardSlug: "garen-might-of-demacia" });
     expect(nav.params.cardSlug).not.toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu,
     );
   });
 

@@ -55,9 +55,9 @@ export function buildCardMetaDescription(
   const rulesText = printing?.printedRulesText;
   if (rulesText) {
     const cleaned = rulesText
-      .replaceAll(/\[.*?\]/g, "")
-      .replaceAll(/:[a-z0-9_]+:/gi, "")
-      .replaceAll(/\s+/g, " ")
+      .replaceAll(/\[.*?\]/gu, "")
+      .replaceAll(/:[a-z0-9_]+:/giu, "")
+      .replaceAll(/\s+/gu, " ")
       .trim();
     if (cleaned.length > 0) {
       const remaining = META_DESCRIPTION_LIMIT - parts.join(" ").length - 1;

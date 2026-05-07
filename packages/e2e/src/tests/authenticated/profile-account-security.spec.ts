@@ -185,10 +185,10 @@ test.describe("profile account & security", () => {
       await gotoProfileReady(page);
 
       // Step input → send OTP to current email.
-      const newEmailInput = page.getByLabel(/^new email$/i);
+      const newEmailInput = page.getByLabel(/^new email$/iu);
       await expect(newEmailInput).toBeVisible({ timeout: 15_000 });
 
-      const sendButton = page.getByRole("button", { name: /send code to current email/i });
+      const sendButton = page.getByRole("button", { name: /send code to current email/iu });
       await expect(sendButton).toBeDisabled();
 
       await newEmailInput.fill(newEmail);
@@ -204,7 +204,7 @@ test.describe("profile account & security", () => {
 
       // Step verify-current.
       await expect(
-        page.getByText(new RegExp(`Enter the 6-digit code sent to ${oldEmail}`, "i")),
+        page.getByText(new RegExp(`Enter the 6-digit code sent to ${oldEmail}`, "iu")),
       ).toBeVisible({ timeout: 10_000 });
 
       try {
@@ -213,12 +213,12 @@ test.describe("profile account & security", () => {
         const requestEmailChange = page.waitForResponse((res) =>
           res.url().includes("/api/auth/email-otp/request-email-change"),
         );
-        await page.getByRole("button", { name: /^verify$/i }).click();
+        await page.getByRole("button", { name: /^verify$/iu }).click();
         await requestEmailChange;
 
         // Step verify-new.
         await expect(
-          page.getByText(new RegExp(`Enter the 6-digit code sent to ${newEmail}`, "i")),
+          page.getByText(new RegExp(`Enter the 6-digit code sent to ${newEmail}`, "iu")),
         ).toBeVisible({ timeout: 10_000 });
 
         const newOtp = await fetchLatestOtp(sql, newEmail);
@@ -227,7 +227,7 @@ test.describe("profile account & security", () => {
         const changeEmail = page.waitForResponse((res) =>
           res.url().includes("/api/auth/email-otp/change-email"),
         );
-        await page.getByRole("button", { name: /^confirm$/i }).click();
+        await page.getByRole("button", { name: /^confirm$/iu }).click();
         await changeEmail;
 
         await expect(page.getByText("Email updated successfully.")).toBeVisible({
@@ -254,12 +254,12 @@ test.describe("profile account & security", () => {
       await createAndLogin(page, oldEmail, "EmailTestPassword1!", "Email E2E");
 
       await gotoProfileReady(page);
-      await page.getByLabel(/^new email$/i).fill(newEmail);
+      await page.getByLabel(/^new email$/iu).fill(newEmail);
 
       const sendCurrentRequest = page.waitForResponse((res) =>
         res.url().includes("/api/auth/email-otp/send-verification-otp"),
       );
-      await page.getByRole("button", { name: /send code to current email/i }).click();
+      await page.getByRole("button", { name: /send code to current email/iu }).click();
       await sendCurrentRequest;
 
       let otp: string;
@@ -275,7 +275,7 @@ test.describe("profile account & security", () => {
       }
 
       await page.locator('input[autocomplete="one-time-code"]').first().fill(otp);
-      await page.getByRole("button", { name: /^verify$/i }).click();
+      await page.getByRole("button", { name: /^verify$/iu }).click();
 
       await expect(page.getByText("Code expired. Please request a new one.")).toBeVisible({
         timeout: 10_000,
@@ -288,16 +288,16 @@ test.describe("profile account & security", () => {
       await createAndLogin(page, oldEmail, "EmailTestPassword1!", "Email E2E");
 
       await gotoProfileReady(page);
-      await page.getByLabel(/^new email$/i).fill(newEmail);
+      await page.getByLabel(/^new email$/iu).fill(newEmail);
 
       const sendCurrentRequest = page.waitForResponse((res) =>
         res.url().includes("/api/auth/email-otp/send-verification-otp"),
       );
-      await page.getByRole("button", { name: /send code to current email/i }).click();
+      await page.getByRole("button", { name: /send code to current email/iu }).click();
       await sendCurrentRequest;
 
       await page.locator('input[autocomplete="one-time-code"]').first().fill("000000");
-      await page.getByRole("button", { name: /^verify$/i }).click();
+      await page.getByRole("button", { name: /^verify$/iu }).click();
 
       await expect(page.getByText("Incorrect code. Please try again.")).toBeVisible({
         timeout: 10_000,
@@ -321,15 +321,15 @@ test.describe("profile account & security", () => {
       });
 
       await gotoProfileReady(page);
-      await page.getByLabel(/^new email$/i).fill(newEmail);
+      await page.getByLabel(/^new email$/iu).fill(newEmail);
       const sendCurrentRequest = page.waitForResponse((res) =>
         res.url().includes("/api/auth/email-otp/send-verification-otp"),
       );
-      await page.getByRole("button", { name: /send code to current email/i }).click();
+      await page.getByRole("button", { name: /send code to current email/iu }).click();
       await sendCurrentRequest;
 
       await page.locator('input[autocomplete="one-time-code"]').first().fill("123456");
-      await page.getByRole("button", { name: /^verify$/i }).click();
+      await page.getByRole("button", { name: /^verify$/iu }).click();
 
       await expect(page.getByText("Too many attempts. Please request a new code.")).toBeVisible({
         timeout: 10_000,
@@ -344,18 +344,18 @@ test.describe("profile account & security", () => {
       await createAndLogin(page, oldEmail, "EmailTestPassword1!", "Email E2E");
 
       await gotoProfileReady(page);
-      await page.getByLabel(/^new email$/i).fill(newEmail);
+      await page.getByLabel(/^new email$/iu).fill(newEmail);
 
       const firstSend = page.waitForResponse((res) =>
         res.url().includes("/api/auth/email-otp/send-verification-otp"),
       );
-      await page.getByRole("button", { name: /send code to current email/i }).click();
+      await page.getByRole("button", { name: /send code to current email/iu }).click();
       await firstSend;
 
       const resendRequest = page.waitForRequest((req) =>
         req.url().includes("/api/auth/email-otp/send-verification-otp"),
       );
-      await page.getByRole("button", { name: /^resend code$/i }).click();
+      await page.getByRole("button", { name: /^resend code$/iu }).click();
       await resendRequest;
     });
 
@@ -366,21 +366,21 @@ test.describe("profile account & security", () => {
 
       await gotoProfileReady(page);
 
-      const newEmailInput = page.getByLabel(/^new email$/i);
+      const newEmailInput = page.getByLabel(/^new email$/iu);
       await newEmailInput.fill(newEmail);
 
       const sendCurrentRequest = page.waitForResponse((res) =>
         res.url().includes("/api/auth/email-otp/send-verification-otp"),
       );
-      await page.getByRole("button", { name: /send code to current email/i }).click();
+      await page.getByRole("button", { name: /send code to current email/iu }).click();
       await sendCurrentRequest;
 
-      await page.getByRole("button", { name: /^cancel$/i }).click();
+      await page.getByRole("button", { name: /^cancel$/iu }).click();
 
       // Back at the input step with a cleared field.
-      await expect(page.getByLabel(/^new email$/i)).toHaveValue("");
+      await expect(page.getByLabel(/^new email$/iu)).toHaveValue("");
       await expect(
-        page.getByRole("button", { name: /send code to current email/i }),
+        page.getByRole("button", { name: /send code to current email/iu }),
       ).toBeDisabled();
     });
   });
@@ -392,10 +392,10 @@ test.describe("profile account & security", () => {
 
       await gotoProfileReady(page);
 
-      await page.getByLabel(/^current password$/i).fill("OldPassword1!");
-      await page.getByLabel(/^new password$/i).fill("New");
-      await page.getByLabel(/^confirm new password$/i).fill("New");
-      await page.getByRole("button", { name: /update password/i }).click();
+      await page.getByLabel(/^current password$/iu).fill("OldPassword1!");
+      await page.getByLabel(/^new password$/iu).fill("New");
+      await page.getByLabel(/^confirm new password$/iu).fill("New");
+      await page.getByRole("button", { name: /update password/iu }).click();
 
       await expect(page.getByText("New password must be at least 8 characters.")).toBeVisible({
         timeout: 10_000,
@@ -408,10 +408,10 @@ test.describe("profile account & security", () => {
 
       await gotoProfileReady(page);
 
-      await page.getByLabel(/^current password$/i).fill("OldPassword1!");
-      await page.getByLabel(/^new password$/i).fill("NewPassword1!");
-      await page.getByLabel(/^confirm new password$/i).fill("Different1!");
-      await page.getByRole("button", { name: /update password/i }).click();
+      await page.getByLabel(/^current password$/iu).fill("OldPassword1!");
+      await page.getByLabel(/^new password$/iu).fill("NewPassword1!");
+      await page.getByLabel(/^confirm new password$/iu).fill("Different1!");
+      await page.getByRole("button", { name: /update password/iu }).click();
 
       await expect(page.getByText("Passwords do not match.")).toBeVisible({ timeout: 10_000 });
     });
@@ -422,20 +422,20 @@ test.describe("profile account & security", () => {
 
       await gotoProfileReady(page);
 
-      await page.getByLabel(/^current password$/i).fill("OldPassword1!");
-      await page.getByLabel(/^new password$/i).fill("NewPassword1!");
-      await page.getByLabel(/^confirm new password$/i).fill("NewPassword1!");
+      await page.getByLabel(/^current password$/iu).fill("OldPassword1!");
+      await page.getByLabel(/^new password$/iu).fill("NewPassword1!");
+      await page.getByLabel(/^confirm new password$/iu).fill("NewPassword1!");
 
       const changeRequest = page.waitForResponse((res) =>
         res.url().includes("/api/auth/change-password"),
       );
-      await page.getByRole("button", { name: /update password/i }).click();
+      await page.getByRole("button", { name: /update password/iu }).click();
       await changeRequest;
 
       await expect(page.getByText("Password updated.")).toBeVisible({ timeout: 10_000 });
-      await expect(page.getByLabel(/^current password$/i)).toHaveValue("");
-      await expect(page.getByLabel(/^new password$/i)).toHaveValue("");
-      await expect(page.getByLabel(/^confirm new password$/i)).toHaveValue("");
+      await expect(page.getByLabel(/^current password$/iu)).toHaveValue("");
+      await expect(page.getByLabel(/^new password$/iu)).toHaveValue("");
+      await expect(page.getByLabel(/^confirm new password$/iu)).toHaveValue("");
     });
 
     test("surfaces 'Current password is incorrect.' when the current password is wrong", async ({
@@ -446,10 +446,10 @@ test.describe("profile account & security", () => {
 
       await gotoProfileReady(page);
 
-      await page.getByLabel(/^current password$/i).fill("NotMyPassword1!");
-      await page.getByLabel(/^new password$/i).fill("NewPassword1!");
-      await page.getByLabel(/^confirm new password$/i).fill("NewPassword1!");
-      await page.getByRole("button", { name: /update password/i }).click();
+      await page.getByLabel(/^current password$/iu).fill("NotMyPassword1!");
+      await page.getByLabel(/^new password$/iu).fill("NewPassword1!");
+      await page.getByLabel(/^confirm new password$/iu).fill("NewPassword1!");
+      await page.getByRole("button", { name: /update password/iu }).click();
 
       await expect(page.getByText("Current password is incorrect.")).toBeVisible({
         timeout: 10_000,
@@ -464,14 +464,14 @@ test.describe("profile account & security", () => {
       await createAndLogin(page, email, "OldPassword1!", "Password E2E");
 
       await gotoProfileReady(page);
-      await page.getByLabel(/^current password$/i).fill("OldPassword1!");
-      await page.getByLabel(/^new password$/i).fill("NewPassword1!");
-      await page.getByLabel(/^confirm new password$/i).fill("NewPassword1!");
+      await page.getByLabel(/^current password$/iu).fill("OldPassword1!");
+      await page.getByLabel(/^new password$/iu).fill("NewPassword1!");
+      await page.getByLabel(/^confirm new password$/iu).fill("NewPassword1!");
 
       const changeRequest = page.waitForResponse((res) =>
         res.url().includes("/api/auth/change-password"),
       );
-      await page.getByRole("button", { name: /update password/i }).click();
+      await page.getByRole("button", { name: /update password/iu }).click();
       await changeRequest;
       await expect(page.getByText("Password updated.")).toBeVisible({ timeout: 10_000 });
 
@@ -512,8 +512,8 @@ test.describe("profile account & security", () => {
       await expect(card.getByText("Discord", { exact: true })).toBeVisible();
 
       // Both providers offer Connect; neither shows Unlink yet.
-      await expect(card.getByRole("button", { name: /^connect$/i })).toHaveCount(2);
-      await expect(card.getByRole("button", { name: /^unlink$/i })).toHaveCount(0);
+      await expect(card.getByRole("button", { name: /^connect$/iu })).toHaveCount(2);
+      await expect(card.getByRole("button", { name: /^unlink$/iu })).toHaveCount(0);
     });
 
     test("clicking Connect on Google triggers a link-social redirect to Google", async ({
@@ -542,7 +542,7 @@ test.describe("profile account & security", () => {
 
       // The first Connect button corresponds to the first SOCIAL_PROVIDERS entry (Google).
       await page
-        .getByRole("button", { name: /^connect$/i })
+        .getByRole("button", { name: /^connect$/iu })
         .first()
         .click();
       const url = await capturedUrl;
@@ -574,7 +574,7 @@ test.describe("profile account & security", () => {
       await gotoProfileReady(page);
       await expect(page.getByText("Connected Accounts")).toBeVisible({ timeout: 15_000 });
 
-      const unlink = page.getByRole("button", { name: /^unlink$/i });
+      const unlink = page.getByRole("button", { name: /^unlink$/iu });
       await expect(unlink).toBeVisible({ timeout: 10_000 });
       await expect(unlink).toBeEnabled();
 
@@ -584,10 +584,10 @@ test.describe("profile account & security", () => {
       await unlink.click();
       await unlinkRequest;
 
-      await expect(page.getByRole("button", { name: /^unlink$/i })).toHaveCount(0, {
+      await expect(page.getByRole("button", { name: /^unlink$/iu })).toHaveCount(0, {
         timeout: 10_000,
       });
-      await expect(page.getByRole("button", { name: /^connect$/i })).toHaveCount(2);
+      await expect(page.getByRole("button", { name: /^connect$/iu })).toHaveCount(2);
     });
 
     // The "single linked account" tooltip guard requires a user with exactly

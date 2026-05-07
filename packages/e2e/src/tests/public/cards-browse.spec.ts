@@ -8,7 +8,7 @@ test.describe("card browser", () => {
     await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
 
     // The search input should be visible
-    await expect(page.getByPlaceholder(/search/i)).toBeVisible();
+    await expect(page.getByPlaceholder(/search/iu)).toBeVisible();
   });
 
   test("has a working search/filter UI", async ({ page }) => {
@@ -18,7 +18,7 @@ test.describe("card browser", () => {
     await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
 
     // Search for a known card from seed data
-    const searchInput = page.getByPlaceholder(/search/i);
+    const searchInput = page.getByPlaceholder(/search/iu);
     await searchInput.fill("Garen");
 
     // Give time for debounced search to filter

@@ -38,7 +38,7 @@ function hasSessionCookie(request: Request): boolean {
   }
   // Matches better-auth default (`better-auth.session_token`) and the
   // `__Secure-` prefixed variant set on HTTPS origins.
-  return /better-auth\.session_token/.test(cookie);
+  return /better-auth\.session_token/u.test(cookie);
 }
 
 function isAnonymousCacheable(request: Request, response: Response, pathname: string): boolean {

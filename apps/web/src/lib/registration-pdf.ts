@@ -138,7 +138,7 @@ function drawHeader(
   doc.setFont("helvetica", "bold");
   doc.setFontSize(5);
   doc.setTextColor(100, 100, 100);
-  const brandHost = siteUrl.replace(/^https?:\/\//, "");
+  const brandHost = siteUrl.replace(/^https?:\/\//u, "");
   const brandText = `Generated with ${brandHost}`;
   const brandTextWidth = doc.getTextWidth(brandText);
   const brandX = logoX + LOGO_SIZE / 2 - brandTextWidth / 2;
@@ -621,8 +621,8 @@ export async function generateRegistrationPdf(
   // ── Download ────────────────────────────────────────────────────────────
 
   const safeName = fields.deckName
-    .replaceAll(/[^\w\s-]/g, "")
+    .replaceAll(/[^\w\s-]/gu, "")
     .trim()
-    .replaceAll(/\s+/g, "-");
+    .replaceAll(/\s+/gu, "-");
   doc.save(`${safeName || "deck"}-registration.pdf`);
 }

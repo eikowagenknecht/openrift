@@ -106,7 +106,7 @@ export function CandidateUploadPage() {
     setParseError(null);
     setFileData(null);
 
-    setProvider(file.name.replace(/\.json$/i, ""));
+    setProvider(file.name.replace(/\.json$/iu, ""));
 
     const text = await file.text();
     const parsed = parseCandidates(text);

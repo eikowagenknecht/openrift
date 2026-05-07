@@ -35,7 +35,7 @@ for (const lcovPath of process.argv.slice(2)) {
   const packageRoot = findPackageRoot(lcovDir);
   const content = readFileSync(lcovPath, "utf-8");
 
-  const normalized = content.replaceAll(/^SF:(.+)$/gm, (_match, filePath: string) => {
+  const normalized = content.replaceAll(/^SF:(.+)$/gmu, (_match, filePath: string) => {
     const absolute = resolve(packageRoot, filePath);
     const rootRelative = relative(repoRoot, absolute);
     return `SF:${rootRelative}`;

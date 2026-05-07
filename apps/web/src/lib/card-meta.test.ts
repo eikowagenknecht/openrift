@@ -88,7 +88,7 @@ describe("buildCardMetaDescription", () => {
       makePrinting("[Equip]  :rb_energy_1:  ready."),
       labels,
     );
-    expect(result).not.toMatch(/ {2}/);
+    expect(result).not.toMatch(/ {2}/u);
   });
 
   it("truncates with ellipsis when over the description budget", () => {

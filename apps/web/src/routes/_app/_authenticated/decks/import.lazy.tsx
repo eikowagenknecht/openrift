@@ -1012,6 +1012,7 @@ function CardSearch({
         <div
           ref={listRef}
           id={listboxId}
+          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- ARIA combobox pattern with autocomplete
           role="listbox"
           className="bg-popover absolute top-full right-0 z-50 mt-1 max-h-60 w-max min-w-full overflow-y-auto rounded-md border shadow-md"
         >
@@ -1043,6 +1044,7 @@ function CardSearch({
       {visible && results.length === 0 && (
         <div
           id={listboxId}
+          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- ARIA combobox pattern with autocomplete
           role="listbox"
           className="bg-popover absolute top-full right-0 z-50 mt-1 w-full rounded-md border px-3 py-2 shadow-md"
         >

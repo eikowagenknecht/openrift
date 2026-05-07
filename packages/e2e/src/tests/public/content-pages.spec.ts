@@ -65,7 +65,7 @@ test.describe("/privacy-policy", () => {
 
   test("external links open in a new tab with noreferrer", async ({ page }) => {
     await page.goto("/privacy-policy");
-    const automattic = page.getByRole("link", { name: /automattic\.com\/privacy/ });
+    const automattic = page.getByRole("link", { name: /automattic\.com\/privacy/u });
     await expect(automattic).toHaveAttribute("target", "_blank");
     await expect(automattic).toHaveAttribute("rel", "noreferrer");
   });
@@ -95,17 +95,17 @@ test.describe("/support", () => {
   test("Ko-fi and GitHub Sponsors links open in a new tab with noreferrer", async ({ page }) => {
     await page.goto("/support");
 
-    const kofi = page.getByRole("link", { name: /ko-fi/i });
+    const kofi = page.getByRole("link", { name: /ko-fi/iu });
     await expect(kofi).toHaveAttribute("target", "_blank");
     await expect(kofi).toHaveAttribute("rel", "noreferrer");
-    await expect(kofi).toHaveAttribute("href", /ko-fi\.com/);
+    await expect(kofi).toHaveAttribute("href", /ko-fi\.com/u);
 
-    const sponsors = page.getByRole("link", { name: /sponsor on github/i });
+    const sponsors = page.getByRole("link", { name: /sponsor on github/iu });
     await expect(sponsors).toHaveAttribute("target", "_blank");
     await expect(sponsors).toHaveAttribute("rel", "noreferrer");
-    await expect(sponsors).toHaveAttribute("href", /github\.com\/sponsors/);
+    await expect(sponsors).toHaveAttribute("href", /github\.com\/sponsors/u);
 
-    const discord = page.getByRole("link", { name: /join our discord/i });
+    const discord = page.getByRole("link", { name: /join our discord/iu });
     await expect(discord).toHaveAttribute("target", "_blank");
     await expect(discord).toHaveAttribute("rel", "noreferrer");
   });
@@ -160,7 +160,7 @@ test.describe("/changelog", () => {
     new URL("../../../../../apps/web/src/CHANGELOG.md", import.meta.url),
   );
   const changelog = readFileSync(changelogPath, "utf-8");
-  const topDateMatch = changelog.match(/^## (\d{4}-\d{2}-\d{2})/m);
+  const topDateMatch = changelog.match(/^## (\d{4}-\d{2}-\d{2})/mu);
   if (!topDateMatch) {
     throw new Error("Could not find a `## YYYY-MM-DD` heading in CHANGELOG.md");
   }
@@ -168,7 +168,7 @@ test.describe("/changelog", () => {
 
   test("renders the page heading", async ({ page }) => {
     await page.goto("/changelog");
-    await expect(page.getByRole("heading", { name: /what's new/i, level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /what's new/iu, level: 1 })).toBeVisible();
   });
 
   test("shows the most recent changelog date", async ({ page }) => {

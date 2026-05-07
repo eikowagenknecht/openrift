@@ -26,14 +26,14 @@ test.describe("reset password", () => {
 
       await expect(page.getByRole("heading", { name: "Reset your password" })).toBeVisible();
       await expect(page.locator("#reset-email")).toBeVisible();
-      await expect(page.getByRole("button", { name: /send code/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /send code/iu })).toBeVisible();
     });
 
     test("empty email shows 'Please enter a valid email address.'", async ({ page }) => {
       await page.goto("/reset-password");
       await waitForHydration(page);
 
-      await page.getByRole("button", { name: /send code/i }).click();
+      await page.getByRole("button", { name: /send code/iu }).click();
 
       await expect(page.getByText("Please enter a valid email address.")).toBeVisible();
       await expect(page.locator("#reset-email")).toBeVisible();
@@ -44,7 +44,7 @@ test.describe("reset password", () => {
       await waitForHydration(page);
 
       await page.locator("#reset-email").fill("foo");
-      await page.getByRole("button", { name: /send code/i }).click();
+      await page.getByRole("button", { name: /send code/iu }).click();
 
       await expect(page.getByText("Please enter a valid email address.")).toBeVisible();
     });
@@ -65,10 +65,10 @@ test.describe("reset password", () => {
       const otpRequest = page.waitForRequest((req) =>
         req.url().includes("/api/auth/email-otp/send-verification-otp"),
       );
-      await page.getByRole("button", { name: /send code/i }).click();
+      await page.getByRole("button", { name: /send code/iu }).click();
       await otpRequest;
 
-      await expect(page.getByRole("button", { name: /reset password/i })).toBeVisible({
+      await expect(page.getByRole("button", { name: /reset password/iu })).toBeVisible({
         timeout: 10_000,
       });
       await expect(page.getByText(email, { exact: true })).toBeVisible();
@@ -89,7 +89,7 @@ test.describe("reset password", () => {
       await page.goto("/reset-password");
       await waitForHydration(page);
       await page.locator("#reset-email").fill("loading-state@test.com");
-      await page.getByRole("button", { name: /send code/i }).click();
+      await page.getByRole("button", { name: /send code/iu }).click();
 
       const sending = page.getByRole("button", { name: "Sending..." });
       await expect(sending).toBeVisible();
@@ -103,8 +103,8 @@ test.describe("reset password", () => {
       await page.goto(`/reset-password?email=${encodeURIComponent(email)}`);
       await waitForHydration(page);
 
-      await expect(page.getByRole("button", { name: /reset password/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /^send code$/i })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: /reset password/iu })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^send code$/iu })).toHaveCount(0);
       await expect(page.getByText(email, { exact: true })).toBeVisible();
     });
 
@@ -113,7 +113,7 @@ test.describe("reset password", () => {
       await waitForHydration(page);
 
       await page.locator("#new-password").fill("NewPassword1!");
-      await expect(page.getByRole("button", { name: /reset password/i })).toBeDisabled();
+      await expect(page.getByRole("button", { name: /reset password/iu })).toBeDisabled();
     });
 
     test("Reset password is disabled when OTP has fewer than 6 digits", async ({ page }) => {
@@ -122,7 +122,7 @@ test.describe("reset password", () => {
 
       await fillOtp(page, "12345");
       await page.locator("#new-password").fill("NewPassword1!");
-      await expect(page.getByRole("button", { name: /reset password/i })).toBeDisabled();
+      await expect(page.getByRole("button", { name: /reset password/iu })).toBeDisabled();
     });
 
     test("Reset password is disabled when new password is empty", async ({ page }) => {
@@ -130,7 +130,7 @@ test.describe("reset password", () => {
       await waitForHydration(page);
 
       await fillOtp(page, "123456");
-      await expect(page.getByRole("button", { name: /reset password/i })).toBeDisabled();
+      await expect(page.getByRole("button", { name: /reset password/iu })).toBeDisabled();
     });
 
     test("Reset password is enabled with a 6-digit OTP and a non-empty password", async ({
@@ -141,7 +141,7 @@ test.describe("reset password", () => {
 
       await fillOtp(page, "123456");
       await page.locator("#new-password").fill("NewPassword1!");
-      await expect(page.getByRole("button", { name: /reset password/i })).toBeEnabled();
+      await expect(page.getByRole("button", { name: /reset password/iu })).toBeEnabled();
     });
   });
 
@@ -153,7 +153,7 @@ test.describe("reset password", () => {
       await fillOtp(page, "123456");
       await page.locator("#new-password").fill("Short1!");
       await page.locator("#confirm-password").fill("Short1!");
-      await page.getByRole("button", { name: /reset password/i }).click();
+      await page.getByRole("button", { name: /reset password/iu }).click();
 
       await expect(page.getByText("Password must be at least 8 characters.")).toBeVisible();
     });
@@ -165,7 +165,7 @@ test.describe("reset password", () => {
       await fillOtp(page, "123456");
       await page.locator("#new-password").fill("NewPassword1!");
       await page.locator("#confirm-password").fill("Different1!");
-      await page.getByRole("button", { name: /reset password/i }).click();
+      await page.getByRole("button", { name: /reset password/iu }).click();
 
       await expect(page.getByText("Passwords do not match.")).toBeVisible();
     });
@@ -188,7 +188,7 @@ test.describe("reset password", () => {
       await fillOtp(page, "000000");
       await page.locator("#new-password").fill("NewPassword1!");
       await page.locator("#confirm-password").fill("NewPassword1!");
-      await page.getByRole("button", { name: /reset password/i }).click();
+      await page.getByRole("button", { name: /reset password/iu }).click();
 
       await expect(page.getByText("Incorrect code. Please try again.")).toBeVisible({
         timeout: 10_000,
@@ -221,7 +221,7 @@ test.describe("reset password", () => {
       await fillOtp(page, otp);
       await page.locator("#new-password").fill("NewPassword1!");
       await page.locator("#confirm-password").fill("NewPassword1!");
-      await page.getByRole("button", { name: /reset password/i }).click();
+      await page.getByRole("button", { name: /reset password/iu }).click();
 
       await expect(page.getByText("Code expired. Please request a new one.")).toBeVisible({
         timeout: 10_000,
@@ -243,7 +243,7 @@ test.describe("reset password", () => {
       await fillOtp(page, "123456");
       await page.locator("#new-password").fill("NewPassword1!");
       await page.locator("#confirm-password").fill("NewPassword1!");
-      await page.getByRole("button", { name: /reset password/i }).click();
+      await page.getByRole("button", { name: /reset password/iu }).click();
 
       await expect(page.getByText("Too many attempts. Please request a new code.")).toBeVisible();
     });
@@ -265,7 +265,7 @@ test.describe("reset password", () => {
       await fillOtp(page, "123456");
       await page.locator("#new-password").fill("NewPassword1!");
       await page.locator("#confirm-password").fill("NewPassword1!");
-      await page.getByRole("button", { name: /reset password/i }).click();
+      await page.getByRole("button", { name: /reset password/iu }).click();
 
       await expect(page.getByText("Something went wrong. Please try again.")).toBeVisible();
     });
@@ -295,18 +295,18 @@ test.describe("reset password", () => {
       await fillOtp(page, otp);
       await page.locator("#new-password").fill(newPassword);
       await page.locator("#confirm-password").fill(newPassword);
-      await page.getByRole("button", { name: /reset password/i }).click();
+      await page.getByRole("button", { name: /reset password/iu }).click();
 
-      await expect(page).toHaveURL(/\/login\?/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/login\?/u, { timeout: 15_000 });
       const loginUrl = new URL(page.url());
       expect(loginUrl.pathname).toBe("/login");
       expect(loginUrl.searchParams.get("email")).toBe(email);
 
       await waitForHydration(page);
       await page.locator("#password").fill(newPassword);
-      await page.getByRole("button", { name: /login/i }).click();
+      await page.getByRole("button", { name: /login/iu }).click();
 
-      await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+      await expect(page).not.toHaveURL(/\/login/u, { timeout: 15_000 });
     });
 
     test("old password is rejected after reset", async ({ page, request }) => {
@@ -329,13 +329,13 @@ test.describe("reset password", () => {
       await fillOtp(page, otp);
       await page.locator("#new-password").fill(newPassword);
       await page.locator("#confirm-password").fill(newPassword);
-      await page.getByRole("button", { name: /reset password/i }).click();
+      await page.getByRole("button", { name: /reset password/iu }).click();
 
-      await expect(page).toHaveURL(/\/login\?/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/login\?/u, { timeout: 15_000 });
       await waitForHydration(page);
 
       await page.locator("#password").fill(oldPassword);
-      await page.getByRole("button", { name: /login/i }).click();
+      await page.getByRole("button", { name: /login/iu }).click();
 
       await expect(page.getByText("Invalid email or password")).toBeVisible({ timeout: 10_000 });
     });
@@ -349,7 +349,7 @@ test.describe("reset password", () => {
       const resendRequest = page.waitForRequest((req) =>
         req.url().includes("/api/auth/email-otp/send-verification-otp"),
       );
-      const resendButton = page.getByRole("button", { name: /^resend code$/i });
+      const resendButton = page.getByRole("button", { name: /^resend code$/iu });
       await resendButton.click();
       await resendRequest;
 
@@ -372,12 +372,12 @@ test.describe("reset password", () => {
       await fillOtp(page, "000000");
       await page.locator("#new-password").fill("NewPassword1!");
       await page.locator("#confirm-password").fill("NewPassword1!");
-      await page.getByRole("button", { name: /reset password/i }).click();
+      await page.getByRole("button", { name: /reset password/iu }).click();
       await expect(page.getByText("Incorrect code. Please try again.")).toBeVisible({
         timeout: 10_000,
       });
 
-      await page.getByRole("button", { name: /^resend code$/i }).click();
+      await page.getByRole("button", { name: /^resend code$/iu }).click();
       await expect(page.getByText("Incorrect code. Please try again.")).toHaveCount(0);
     });
   });
@@ -387,9 +387,9 @@ test.describe("reset password", () => {
       await page.goto("/reset-password");
       await waitForHydration(page);
 
-      await page.getByRole("link", { name: /back to login/i }).click();
+      await page.getByRole("link", { name: /back to login/iu }).click();
 
-      await expect(page).toHaveURL(/\/login(\?|$)/);
+      await expect(page).toHaveURL(/\/login(\?|$)/u);
       const url = new URL(page.url());
       expect(url.pathname).toBe("/login");
       expect(url.searchParams.get("email")).toBeNull();
@@ -401,9 +401,9 @@ test.describe("reset password", () => {
 
       const typed = `typed-${Date.now()}@test.com`;
       await page.locator("#reset-email").fill(typed);
-      await page.getByRole("link", { name: /back to login/i }).click();
+      await page.getByRole("link", { name: /back to login/iu }).click();
 
-      await expect(page).toHaveURL(/\/login\?/);
+      await expect(page).toHaveURL(/\/login\?/u);
       const url = new URL(page.url());
       expect(url.searchParams.get("email")).toBe(typed);
     });
@@ -413,9 +413,9 @@ test.describe("reset password", () => {
       await page.goto(`/reset-password?email=${encodeURIComponent(email)}`);
       await waitForHydration(page);
 
-      await page.getByRole("link", { name: /back to login/i }).click();
+      await page.getByRole("link", { name: /back to login/iu }).click();
 
-      await expect(page).toHaveURL(/\/login\?/);
+      await expect(page).toHaveURL(/\/login\?/u);
       const url = new URL(page.url());
       expect(url.searchParams.get("email")).toBe(email);
     });
@@ -424,12 +424,12 @@ test.describe("reset password", () => {
   test.describe("head / route", () => {
     test("document title contains 'Reset Password'", async ({ page }) => {
       await page.goto("/reset-password");
-      await expect(page).toHaveTitle(/Reset Password/);
+      await expect(page).toHaveTitle(/Reset Password/u);
     });
 
     test("includes a noindex robots meta tag", async ({ page }) => {
       await page.goto("/reset-password");
-      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/, {
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/u, {
         timeout: 10_000,
       });
     });
@@ -440,7 +440,7 @@ test.describe("reset password", () => {
       await expect(
         authenticatedPage.getByRole("heading", { name: "Reset your password" }),
       ).toBeVisible();
-      await expect(authenticatedPage).toHaveURL(/\/reset-password/);
+      await expect(authenticatedPage).toHaveURL(/\/reset-password/u);
     });
   });
 });

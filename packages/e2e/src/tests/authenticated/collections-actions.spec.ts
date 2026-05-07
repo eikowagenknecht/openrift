@@ -119,16 +119,16 @@ async function createCollectionViaApi(request: APIRequestContext, name: string):
 async function enterSelectMode(page: Page) {
   // The desktop "Manage …" top-bar button has a visible text label; its mobile
   // icon-only twin has no accessible name, so role+name picks it unambiguously.
-  await page.getByRole("button", { name: /^Manage (cards|printings|copies)$/ }).click();
+  await page.getByRole("button", { name: /^Manage (cards|printings|copies)$/u }).click();
 }
 
 async function waitForCollectionReady(page: Page) {
   // The "Manage cards/printings/copies" button renders as soon as the top-bar
   // hydrates on a collection page — a reliable readiness signal that doesn't
   // depend on any specific card being seeded.
-  await expect(page.getByRole("button", { name: /^Manage (cards|printings|copies)$/ })).toBeVisible(
-    { timeout: 15_000 },
-  );
+  await expect(
+    page.getByRole("button", { name: /^Manage (cards|printings|copies)$/u }),
+  ).toBeVisible({ timeout: 15_000 });
 }
 
 const ANNIE_FIERY = "Annie, Fiery";
@@ -180,8 +180,8 @@ test.describe("collection actions", () => {
       await expect(page.getByText("1 selected")).toBeVisible();
 
       // Clear button (aria-label "Clear selection") hides the bar.
-      await page.getByRole("button", { name: /clear selection/i }).click();
-      await expect(page.getByText(/\d+ selected/)).toBeHidden();
+      await page.getByRole("button", { name: /clear selection/iu }).click();
+      await expect(page.getByText(/\d+ selected/u)).toBeHidden();
     });
   });
 
@@ -210,7 +210,7 @@ test.describe("collection actions", () => {
       await page.getByRole("button", { name: "Select card", exact: true }).first().click();
       await expect(page.getByText("2 selected")).toBeVisible();
 
-      await page.getByRole("button", { name: /^Move$/ }).click();
+      await page.getByRole("button", { name: /^Move$/u }).click();
 
       const dialog = page.getByRole("alertdialog");
       await expect(dialog).toBeVisible();
@@ -227,11 +227,11 @@ test.describe("collection actions", () => {
           response.ok(),
       );
       await dialog.getByRole("button", { name: "Target" }).click();
-      await dialog.getByRole("button", { name: /^Move$/ }).click();
+      await dialog.getByRole("button", { name: /^Move$/u }).click();
       await movePromise;
 
       await expect(dialog).toBeHidden();
-      await expect(page.getByText(/Moved 2 cards?/)).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText(/Moved 2 cards?/u)).toBeVisible({ timeout: 10_000 });
 
       // Source grid no longer shows the card; Target grid does.
       await page.goto(`/collections/${inboxId}`);
@@ -257,11 +257,11 @@ test.describe("collection actions", () => {
 
       await enterSelectMode(page);
       await page.getByRole("button", { name: "Select card", exact: true }).first().click();
-      await page.getByRole("button", { name: /^Move$/ }).click();
+      await page.getByRole("button", { name: /^Move$/u }).click();
 
       const dialog = page.getByRole("alertdialog");
       await expect(dialog.getByText("No other collections available.")).toBeVisible();
-      await expect(dialog.getByRole("button", { name: /^Move$/ })).toBeDisabled();
+      await expect(dialog.getByRole("button", { name: /^Move$/u })).toBeDisabled();
     });
   });
 
@@ -289,11 +289,11 @@ test.describe("collection actions", () => {
       await page.getByRole("button", { name: "Select card", exact: true }).first().click();
       await expect(page.getByText("3 selected")).toBeVisible();
 
-      await page.getByRole("button", { name: /^Dispose$/ }).click();
+      await page.getByRole("button", { name: /^Dispose$/u }).click();
       const dialog = page.getByRole("alertdialog");
       await expect(dialog.getByText("Remove cards from collection")).toBeVisible();
 
-      await dialog.getByRole("button", { name: /^Cancel$/ }).click();
+      await dialog.getByRole("button", { name: /^Cancel$/u }).click();
       await expect(dialog).toBeHidden();
 
       // Still 3 selected, still visible.
@@ -316,11 +316,11 @@ test.describe("collection actions", () => {
       await page.getByRole("button", { name: "Select card", exact: true }).first().click();
       await expect(page.getByText("3 selected")).toBeVisible();
 
-      await page.getByRole("button", { name: /^Dispose$/ }).click();
+      await page.getByRole("button", { name: /^Dispose$/u }).click();
 
       const dialog = page.getByRole("alertdialog");
-      await expect(dialog.getByText(/permanently remove 3 cards/i)).toBeVisible();
-      const confirm = dialog.getByRole("button", { name: /^Remove 3 cards$/ });
+      await expect(dialog.getByText(/permanently remove 3 cards/iu)).toBeVisible();
+      const confirm = dialog.getByRole("button", { name: /^Remove 3 cards$/u });
       await expect(confirm).toBeVisible();
 
       const disposePromise = page.waitForResponse(
@@ -333,7 +333,7 @@ test.describe("collection actions", () => {
       await disposePromise;
 
       await expect(dialog).toBeHidden();
-      await expect(page.getByText(/Removed 3 cards?/)).toBeVisible({ timeout: 10_000 });
+      await expect(page.getByText(/Removed 3 cards?/u)).toBeVisible({ timeout: 10_000 });
       await expect(page.getByText(ANNIE_FIERY)).toHaveCount(0);
 
       // DB: copies are hard-deleted and a "removed" collection event is logged.
@@ -373,11 +373,11 @@ test.describe("collection actions", () => {
       await page.getByRole("button", { name: "Select card", exact: true }).first().click();
       await expect(page.getByText("1 selected")).toBeVisible();
 
-      await page.getByRole("button", { name: /^Dispose$/ }).click();
+      await page.getByRole("button", { name: /^Dispose$/u }).click();
 
       const dialog = page.getByRole("alertdialog");
-      await expect(dialog.getByText(/permanently remove 1 card[^s]/i)).toBeVisible();
-      await expect(dialog.getByRole("button", { name: /^Remove 1 card$/ })).toBeVisible();
+      await expect(dialog.getByText(/permanently remove 1 card[^s]/iu)).toBeVisible();
+      await expect(dialog.getByRole("button", { name: /^Remove 1 card$/u })).toBeVisible();
     });
   });
 });

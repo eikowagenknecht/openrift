@@ -185,7 +185,7 @@ export default defineConfig(({ mode, command }) => {
           codeSplitting: {
             groups: [
               {
-                test: /node_modules\/react-dom/,
+                test: /node_modules\/react-dom/u,
                 name: "react-dom",
               },
               // tanstack-query must come before tanstack-db: query-core
@@ -196,27 +196,27 @@ export default defineConfig(({ mode, command }) => {
               // import from it, dragging tanstack-db into routes that don't
               // actually use it (like the public homepage).
               {
-                test: /node_modules\/@tanstack\/(react-query|query-core)/,
+                test: /node_modules\/@tanstack\/(react-query|query-core)/u,
                 name: "tanstack-query",
               },
               {
-                test: /node_modules\/@tanstack\/(react-router|router-core)/,
+                test: /node_modules\/@tanstack\/(react-router|router-core)/u,
                 name: "tanstack-router",
               },
               {
-                test: /node_modules\/@tanstack\/(db|react-db|query-db-collection)/,
+                test: /node_modules\/@tanstack\/(db|react-db|query-db-collection)/u,
                 name: "tanstack-db",
               },
               {
-                test: /node_modules\/(better-auth|@better-auth)/,
+                test: /node_modules\/(better-auth|@better-auth)/u,
                 name: "better-auth",
               },
               {
-                test: /node_modules\/(@base-ui|@floating-ui)/,
+                test: /node_modules\/(@base-ui|@floating-ui)/u,
                 name: "base-ui",
               },
               {
-                test: /node_modules\/sonner/,
+                test: /node_modules\/sonner/u,
                 name: "sonner",
               },
             ],

@@ -47,14 +47,14 @@
     "@tanstack/devtools-vite": "0.6.0",
     "@tanstack/react-devtools": "0.10.2",
     "@tanstack/react-pacer-devtools": "0.7.0",
-    "@tanstack/react-query-devtools": "5.100.6",
-    "knip": "6.9.0",
+    "@tanstack/react-query-devtools": "5.100.9",
+    "knip": "6.12.0",
     "lcov-result-merger": "6.0.0",
     "lefthook": "2.1.6",
-    "oxfmt": "0.47.0",
-    "oxlint": "1.62.0",
+    "oxfmt": "0.48.0",
+    "oxlint": "1.63.0",
     "syncpack": "15.0.0",
-    "turbo": "2.9.7"
+    "turbo": "2.9.9"
   },
   "overrides": {
     "//": "Patch vulnerable transitive deps. Run `bun audit` after removing any to check if still needed.",

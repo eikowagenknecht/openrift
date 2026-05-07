@@ -59,7 +59,7 @@ export function initChunkErrorReloader(): void {
     return;
   }
   const isChunkLoadError = (message: string): boolean =>
-    /Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk \d+ failed/.test(
+    /Failed to fetch dynamically imported module|Importing a module script failed|ChunkLoadError|Loading chunk \d+ failed/u.test(
       message,
     );
   globalThis.addEventListener("error", (event) => {

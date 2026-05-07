@@ -201,7 +201,7 @@ async function deleteUser(email: string): Promise<void> {
 // TanStack Start encodes the server fn id as base64url(JSON); decode to target
 // a specific server fn out of the bundle during a route transition.
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
   if (!match) {
     return false;
   }
@@ -238,15 +238,15 @@ test.describe("collection activity", () => {
         ).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText("No activity yet")).toBeVisible();
         await expect(
-          page.getByText(/Activity is recorded when you add, move, or remove cards\./),
+          page.getByText(/Activity is recorded when you add, move, or remove cards\./u),
         ).toBeVisible();
 
         // The "Browse cards" CTA is a Button rendered as a Link; it may
         // resolve to role="link" or role="button" depending on how BaseUI
         // merges the render prop. Accept either.
         const browseLink = page
-          .getByRole("link", { name: /Browse cards/i })
-          .or(page.getByRole("button", { name: /Browse cards/i }));
+          .getByRole("link", { name: /Browse cards/iu })
+          .or(page.getByRole("button", { name: /Browse cards/iu }));
         await expect(browseLink).toBeVisible();
         await expect(browseLink).toHaveAttribute("href", "/cards");
 
@@ -312,7 +312,7 @@ test.describe("collection activity", () => {
         // Browser locale and Node locale can differ, so match on any weekday word
         // plus the current year — locale-independent enough to stay stable.
         const currentYear = new Date().getFullYear().toString();
-        const weekdayPattern = /Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday/;
+        const weekdayPattern = /Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday/u;
         const heading = page.getByRole("heading", { level: 2 }).first();
         await expect(heading).toBeVisible({ timeout: 15_000 });
         await expect(heading).toHaveText(weekdayPattern);
@@ -324,7 +324,7 @@ test.describe("collection activity", () => {
         await expect(page.getByText("OGS-001")).toBeVisible();
 
         // Day summary reports 3 adds.
-        await expect(page.getByText(/3 added/)).toBeVisible();
+        await expect(page.getByText(/3 added/u)).toBeVisible();
       });
     });
   });
@@ -354,7 +354,7 @@ test.describe("collection activity", () => {
 
         await expect(page.getByText("Annie, Fiery")).toHaveCount(1, { timeout: 15_000 });
         await expect(page.getByText("3x", { exact: true })).toBeVisible();
-        await expect(page.getByText(/3 added/)).toBeVisible();
+        await expect(page.getByText(/3 added/u)).toBeVisible();
       });
     });
   });
@@ -387,7 +387,7 @@ test.describe("collection activity", () => {
         await page.goto("/collections/activity");
 
         // Day summary says 1 moved (and 1 added from the initial add).
-        await expect(page.getByText(/1 moved/)).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText(/1 moved/u)).toBeVisible({ timeout: 15_000 });
 
         // Scope to the move event's Link so we don't accidentally match the
         // "Inbox"/"Demacia Box" entries in the sidebar.
@@ -449,9 +449,9 @@ test.describe("collection activity", () => {
         await expect(allButton).toBeVisible({ timeout: 15_000 });
 
         // All (default): DaySummary lists all three parts.
-        await expect(page.getByText(/4 added/)).toBeVisible();
-        await expect(page.getByText(/1 removed/)).toBeVisible();
-        await expect(page.getByText(/1 moved/)).toBeVisible();
+        await expect(page.getByText(/4 added/u)).toBeVisible();
+        await expect(page.getByText(/1 removed/u)).toBeVisible();
+        await expect(page.getByText(/1 moved/u)).toBeVisible();
 
         // Event cards are <a href="/cards?printingId=…"> inside the content area.
         const eventCards = page.locator('a[href*="/cards?printingId="]');
@@ -464,17 +464,17 @@ test.describe("collection activity", () => {
         // Removed → just the single remove.
         await removedButton.click();
         await expect(eventCards).toHaveCount(1);
-        await expect(page.getByText(/1 removed/)).toBeVisible();
+        await expect(page.getByText(/1 removed/u)).toBeVisible();
 
         // Moved → just the single move.
         await movedButton.click();
         await expect(eventCards).toHaveCount(1);
-        await expect(page.getByText(/1 moved/)).toBeVisible();
+        await expect(page.getByText(/1 moved/u)).toBeVisible();
 
         // The active filter button uses the default variant (bg-primary class);
         // non-active buttons use the ghost variant.
-        await expect(movedButton).toHaveClass(/bg-primary/);
-        await expect(addedButton).not.toHaveClass(/bg-primary/);
+        await expect(movedButton).toHaveClass(/bg-primary/u);
+        await expect(addedButton).not.toHaveClass(/bg-primary/u);
       });
     });
   });
@@ -669,17 +669,17 @@ test.describe("collection activity", () => {
         const page = await context.newPage();
         await page.goto("/collections/activity");
 
-        const eventLink = page.getByRole("link", { name: /Annie, Fiery/ });
+        const eventLink = page.getByRole("link", { name: /Annie, Fiery/u });
         await expect(eventLink).toBeVisible({ timeout: 15_000 });
         await eventLink.click();
 
-        await expect(page).toHaveURL(new RegExp(`printingId=${ANNIE_FIERY_NORMAL}`), {
+        await expect(page).toHaveURL(new RegExp(`printingId=${ANNIE_FIERY_NORMAL}`, "u"), {
           timeout: 15_000,
         });
 
         const pane = page.getByRole("complementary");
         await expect(pane).toBeVisible();
-        await expect(pane.getByRole("heading", { level: 2, name: /Annie, Fiery/ })).toBeVisible();
+        await expect(pane.getByRole("heading", { level: 2, name: /Annie, Fiery/u })).toBeVisible();
       });
     });
   });

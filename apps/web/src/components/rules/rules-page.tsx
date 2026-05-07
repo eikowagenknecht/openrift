@@ -48,7 +48,7 @@ import { useRulesShowChangesStore } from "@/stores/rules-show-changes-store";
  * @returns Cleaned rule number string.
  */
 function formatRuleNumber(ruleNumber: string): string {
-  return ruleNumber.replace(/\.$/, "");
+  return ruleNumber.replace(/\.$/u, "");
 }
 
 async function copyRuleLink(ruleNumber: string): Promise<void> {
@@ -71,7 +71,7 @@ async function copyRuleLink(ruleNumber: string): Promise<void> {
 // matches from bleeding into the next sentence (e.g. "rule 540.4.b. Continue"
 // matches "540.4.b", not "540.4.b.C…").
 const RULE_REFERENCE_REGEX =
-  /(?:\b([Rr]ules?|CR)\s+(\d+(?:\.\d+)*(?:\.[a-z](?:\.\d+)?)?)|\b(\d{3}(?:\.\d+)+(?:\.[a-z](?:\.\d+)?)?))/g;
+  /(?:\b([Rr]ules?|CR)\s+(\d+(?:\.\d+)*(?:\.[a-z](?:\.\d+)?)?)|\b(\d{3}(?:\.\d+)+(?:\.[a-z](?:\.\d+)?)?))/gu;
 
 interface MdNode {
   type: string;
@@ -150,8 +150,8 @@ const remarkLinkifyRuleReferences = () => (tree: MdNode) => {
 const TITLE_WORD = "[A-Z][A-Za-z0-9-]*";
 const HEADING_STOP_WORD = "(?:of|or|the|and|to|a|an)";
 const TITLE_CASE_PHRASE = `${TITLE_WORD}(?:\\s+(?:${TITLE_WORD}|${HEADING_STOP_WORD}))*`;
-const TERM_DEFINITION_REGEX = new RegExp(`^\\*(${TITLE_CASE_PHRASE})\\*\\.?$`);
-const HEADING_TEXT_REGEX = new RegExp(`^${TITLE_CASE_PHRASE}$`);
+const TERM_DEFINITION_REGEX = new RegExp(`^\\*(${TITLE_CASE_PHRASE})\\*\\.?$`, "u");
+const HEADING_TEXT_REGEX = new RegExp(`^${TITLE_CASE_PHRASE}$`, "u");
 
 function addTermAnchor(map: Map<string, string>, term: string, ruleNumber: string): void {
   const key = term.toLowerCase();
@@ -163,9 +163,9 @@ function addTermAnchor(map: Map<string, string>, term: string, ruleNumber: strin
   // Handle the `-y/-ies` pattern explicitly (Ability/Abilities) before falling
   // back to the trailing-`s` rule, which would otherwise produce nonsense
   // forms like "abilitie" or "abilitys".
-  if (/[^aeiou]ies$/.test(key)) {
+  if (/[^aeiou]ies$/u.test(key)) {
     map.set(`${key.slice(0, -3)}y`, ruleNumber);
-  } else if (/[^aeiou]y$/.test(key)) {
+  } else if (/[^aeiou]y$/u.test(key)) {
     map.set(`${key.slice(0, -1)}ies`, ruleNumber);
   } else if (key.endsWith("s") && key.length > 2) {
     map.set(key.slice(0, -1), ruleNumber);
@@ -190,9 +190,9 @@ export function buildTermAnchors(rules: RuleResponse[]): Map<string, string> {
     if (!HEADING_TEXT_REGEX.test(rule.content)) {
       continue;
     }
-    for (const part of rule.content.split(/\s+and\s+/i)) {
+    for (const part of rule.content.split(/\s+and\s+/iu)) {
       const term = part.trim();
-      if (term.length > 0 && /^[A-Z]/.test(term)) {
+      if (term.length > 0 && /^[A-Z]/u.test(term)) {
         addTermAnchor(map, term, rule.ruleNumber);
       }
     }
@@ -217,9 +217,9 @@ export function buildTermAnchors(rules: RuleResponse[]): Map<string, string> {
     if (rule.ruleType !== "subtitle") {
       continue;
     }
-    for (const part of rule.content.split(/\s+and\s+/i)) {
+    for (const part of rule.content.split(/\s+and\s+/iu)) {
       const term = part.trim();
-      if (term.length > 0 && /^[A-Z]/.test(term)) {
+      if (term.length > 0 && /^[A-Z]/u.test(term)) {
         addTermAnchor(map, term, rule.ruleNumber);
       }
     }
@@ -227,7 +227,7 @@ export function buildTermAnchors(rules: RuleResponse[]): Map<string, string> {
   return map;
 }
 
-const TERM_TRAILING_PUNCT_REGEX = /[.,:;]+$/;
+const TERM_TRAILING_PUNCT_REGEX = /[.,:;]+$/u;
 // Strip a possessive 's (straight or curly apostrophe) so "*Card's*" resolves
 // to the "Card" anchor.
 const TERM_POSSESSIVE_REGEX = /['‘’]s$/u;
@@ -291,13 +291,13 @@ const PENALTY_STYLES: Record<string, string> = {
   Disqualification: "bg-[#990000] text-white",
 };
 
-const PENALTY_REGEX = /\[(Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\]/g;
+const PENALTY_REGEX = /\[(Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\]/gu;
 
 // IPG-style sources often italicize the label inside the brackets, e.g.
 // `[*Warnings*]`. Strip the inner emphasis markers so the regex above (and the
 // markdown parser) see clean `[Label]` tokens.
 const PENALTY_NORMALIZE_REGEX =
-  /\[\s*[*_]*\s*(Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\s*[*_]*\s*\]/g;
+  /\[\s*[*_]*\s*(Warnings?|Game Loss|No Penalty|Match Loss|Disqualification)\s*[*_]*\s*\]/gu;
 
 interface HastNode {
   type: string;
@@ -468,7 +468,7 @@ const DIFF_ADDED_START = "\uE000";
 const DIFF_ADDED_END = "\uE001";
 const DIFF_REMOVED_START = "\uE002";
 const DIFF_REMOVED_END = "\uE003";
-const DIFF_REGEX = /\uE000([^\uE001]*)\uE001|\uE002([^\uE003]*)\uE003/g;
+const DIFF_REGEX = /\uE000([^\uE001]*)\uE001|\uE002([^\uE003]*)\uE003/gu;
 
 function splitTextOnDiffs(text: string): HastNode[] {
   const result: HastNode[] = [];
@@ -702,7 +702,7 @@ const EMPTY_STRING_SET: ReadonlySet<string> = new Set();
 const EMPTY_STRING_MAP: ReadonlyMap<string, string> = new Map();
 
 function parseSearchTerms(query: string): string[] {
-  return query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return query.trim().toLowerCase().split(/\s+/u).filter(Boolean);
 }
 
 function ruleMatches(rule: RuleResponse, terms: string[]): boolean {
@@ -741,7 +741,7 @@ function findAncestorIndices(
       break;
     }
   }
-  const stripped = rules[matchIndex].ruleNumber.replace(/\.$/, "");
+  const stripped = rules[matchIndex].ruleNumber.replace(/\.$/u, "");
   const parts = stripped.split(".");
   for (let length = parts.length - 1; length >= 1; length--) {
     const prefix = parts.slice(0, length).join(".");
@@ -767,7 +767,7 @@ function computeSearchResult(rules: RuleResponse[], terms: string[]): SearchResu
   }
   const rulesByNumber = new Map<string, number>();
   for (let index = 0; index < rules.length; index++) {
-    rulesByNumber.set(rules[index].ruleNumber.replace(/\.$/, ""), index);
+    rulesByNumber.set(rules[index].ruleNumber.replace(/\.$/u, ""), index);
   }
   for (let index = 0; index < rules.length; index++) {
     if (ruleMatches(rules[index], terms)) {
@@ -878,7 +878,7 @@ interface RuleMoves {
 // normalizer. Derived from `RULE_REFERENCE_REGEX.source` so the two stay in
 // sync, but with its own `lastIndex` state to avoid clobbering the markdown
 // pipeline's iteration.
-const RULE_REFERENCE_NORMALIZE_REGEX = new RegExp(RULE_REFERENCE_REGEX.source, "g");
+const RULE_REFERENCE_NORMALIZE_REGEX = new RegExp(RULE_REFERENCE_REGEX.source, "gu");
 
 /**
  * Canonicalizes rule content for move detection: strips emphasis/code
@@ -894,8 +894,8 @@ const RULE_REFERENCE_NORMALIZE_REGEX = new RegExp(RULE_REFERENCE_REGEX.source, "
 function normalizeForMoveDetection(text: string): string {
   return text
     .replaceAll(RULE_REFERENCE_NORMALIZE_REGEX, "REF")
-    .replaceAll(/[*_`]/g, "")
-    .replaceAll(/\s+/g, " ")
+    .replaceAll(/[*_`]/gu, "")
+    .replaceAll(/\s+/gu, " ")
     .trim();
 }
 

@@ -117,7 +117,7 @@ async function countCopiesInCollection(collectionId: string): Promise<number> {
 // source file + export name; matching on the decoded payload lets us target a
 // single server fn out of the bundle that fires during a route transition.
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
   if (!match) {
     return false;
   }
@@ -162,7 +162,7 @@ test.describe("collections CRUD", () => {
       await expect(sidebarLink).toBeVisible();
       await sidebarLink.click();
 
-      await expect(page).toHaveURL(/\/collections\/[0-9a-f-]+/);
+      await expect(page).toHaveURL(/\/collections\/[0-9a-f-]+/u);
       await expect(page.getByRole("heading", { name })).toBeVisible();
     });
 
@@ -241,7 +241,7 @@ test.describe("collections CRUD", () => {
 
       const dialog = page.getByRole("alertdialog");
       await expect(dialog.getByText("Delete collection")).toBeVisible();
-      await expect(dialog.getByText(new RegExp(name))).toBeVisible();
+      await expect(dialog.getByText(new RegExp(name, "u"))).toBeVisible();
       await expect(dialog.getByText("This collection is empty.")).toBeVisible();
 
       await dialog.getByRole("button", { name: "Cancel" }).click();
@@ -267,7 +267,7 @@ test.describe("collections CRUD", () => {
       await dialog.getByRole("button", { name: "Delete" }).click();
       await deleteRequest;
 
-      await expect(page).toHaveURL(/\/collections(\?.*)?$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/collections(\?.*)?$/u, { timeout: 15_000 });
       await expect(page.getByRole("link", { name })).toHaveCount(0);
     });
 
@@ -287,7 +287,7 @@ test.describe("collections CRUD", () => {
 
       const dialog = page.getByRole("alertdialog");
       await expect(
-        dialog.getByText(/The 2 cards in this collection will be moved to your Inbox\./),
+        dialog.getByText(/The 2 cards in this collection will be moved to your Inbox\./u),
       ).toBeVisible();
 
       const deleteRequest = page.waitForRequest(
@@ -296,7 +296,7 @@ test.describe("collections CRUD", () => {
       await dialog.getByRole("button", { name: "Delete" }).click();
       await deleteRequest;
 
-      await expect(page).toHaveURL(/\/collections\/?$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/collections\/?$/u, { timeout: 15_000 });
 
       await expect.poll(() => countCopiesInCollection(inboxId), { timeout: 10_000 }).toBe(2);
       expect(await countCopiesInCollection(collectionId)).toBe(0);

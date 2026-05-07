@@ -171,7 +171,7 @@ function parseTextFormat(code: string): DeckParseResult {
     }
 
     // Parse card line: "{quantity} {card name}"
-    const match = line.match(/^(\d+)\s+(.+)$/);
+    const match = line.match(/^(\d+)\s+(.+)$/u);
     if (!match) {
       warnings.push(`Skipped unparseable line: ${line}`);
       continue;
@@ -205,7 +205,7 @@ function parseTextFormat(code: string): DeckParseResult {
  */
 function stripTTSVariant(token: string): string {
   // Match SET-NNN-V where V is the variant number
-  const match = token.match(/^([A-Z]+-\d+)-\d+$/);
+  const match = token.match(/^([A-Z]+-\d+)-\d+$/u);
   return match ? match[1] : token;
 }
 
@@ -236,7 +236,7 @@ const TTS_SLOT_LABELS: Record<SourceSlot, string> = {
 
 function parseTTSFormat(code: string): DeckParseResult {
   const warnings: string[] = [];
-  const tokens = code.split(/\s+/).filter((token) => token !== "");
+  const tokens = code.split(/\s+/u).filter((token) => token !== "");
 
   // Build entries preserving positional source slot, then group by shortCode + slot
   const grouped = new Map<

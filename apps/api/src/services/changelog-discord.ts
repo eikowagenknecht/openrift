@@ -31,14 +31,14 @@ const MAX_DESCRIPTION_CHARS = 4000;
  */
 export function parseChangelogSections(markdown: string): ChangelogSection[] {
   const sections: ChangelogSection[] = [];
-  const blocks = markdown.split(/^## /m).slice(1);
+  const blocks = markdown.split(/^## /mu).slice(1);
 
   for (const block of blocks) {
     const lines = block.trim().split("\n");
     const date = lines[0].trim();
     const entries: ChangelogEntry[] = [];
     for (const line of lines.slice(1)) {
-      const match = line.match(/^- (feat|fix): (.+)$/);
+      const match = line.match(/^- (feat|fix): (.+)$/u);
       if (match) {
         entries.push({ type: match[1] as "feat" | "fix", message: match[2] });
       }

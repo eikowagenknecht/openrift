@@ -40,7 +40,7 @@ async function setDeckCardsViaApi(
 // TanStack Start encodes each server fn id as base64url(JSON); decoding lets us
 // match a specific server fn (exportDeckFn, saveDeckCardsFn) without colliding.
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
   if (!match) {
     return false;
   }
@@ -184,10 +184,10 @@ test.describe("deck editor exports", () => {
 
       // Flip isDirty via the card browser's "+" button.
       await page
-        .getByRole("button", { name: /^Main Deck\b/ })
+        .getByRole("button", { name: /^Main Deck\b/u })
         .first()
         .click();
-      await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+      await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
       // Scope the Add click to the card tile so we don't race with the sidebar
       // adding a duplicate "Add to deck" button once the optimistic update lands.
       const annieTile = page
@@ -277,7 +277,7 @@ test.describe("deck editor exports", () => {
 
       const download = await downloadPromise;
       if (download) {
-        expect(download.suggestedFilename()).toMatch(/\.pdf$/);
+        expect(download.suggestedFilename()).toMatch(/\.pdf$/u);
         expect(download.suggestedFilename()).toContain("registration");
       }
 
@@ -285,7 +285,7 @@ test.describe("deck editor exports", () => {
       // resolve (button re-enables or dialog closes).
       await expect(async () => {
         const stillGenerating = await dialog
-          .getByRole("button", { name: /Generating/ })
+          .getByRole("button", { name: /Generating/u })
           .isVisible()
           .catch(() => false);
         expect(stillGenerating).toBe(false);
@@ -375,7 +375,7 @@ test.describe("deck editor exports", () => {
 
       const download = await downloadPromise;
       if (download) {
-        expect(download.suggestedFilename()).toMatch(/\.pdf$/);
+        expect(download.suggestedFilename()).toMatch(/\.pdf$/u);
       }
 
       // Generation eventually completes: either the dialog closes on success

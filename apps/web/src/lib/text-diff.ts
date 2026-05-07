@@ -5,7 +5,7 @@ export interface DiffSegment {
 
 type DiffGranularity = "word" | "char";
 
-const WORD_TOKENS = /\w+|\s+|[^\w\s]+/g;
+const WORD_TOKENS = /\w+|\s+|[^\w\s]+/gu;
 
 function tokenize(text: string, granularity: DiffGranularity): string[] {
   if (granularity === "char") {

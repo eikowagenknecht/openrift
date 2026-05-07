@@ -81,7 +81,7 @@ async function deckExists(deckId: string): Promise<boolean> {
 // file + export name; decoding the segment lets us target a specific server fn
 // without colliding with others that fire during the same route transition.
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
   if (!match) {
     return false;
   }
@@ -102,7 +102,7 @@ test.describe("decks list", () => {
     for (const path of guardedPaths) {
       test(`redirects anonymous users from ${path} to /login`, async ({ page }) => {
         await page.goto(path);
-        await expect(page).toHaveURL(/\/login\b/);
+        await expect(page).toHaveURL(/\/login\b/u);
         const url = new URL(page.url());
         expect(url.searchParams.get("redirect") ?? "").toContain(path);
       });
@@ -113,9 +113,9 @@ test.describe("decks list", () => {
     test("sets title and noindex robots meta on /decks", async ({ authenticatedPage }) => {
       const page = authenticatedPage;
       await page.goto("/decks");
-      await expect(page).toHaveTitle(/Decks/, { timeout: 15_000 });
+      await expect(page).toHaveTitle(/Decks/u, { timeout: 15_000 });
       const robots = page.locator('meta[name="robots"]');
-      await expect(robots).toHaveAttribute("content", /noindex/);
+      await expect(robots).toHaveAttribute("content", /noindex/u);
     });
   });
 
@@ -181,7 +181,7 @@ test.describe("decks list", () => {
       await expect(importLink).toHaveAttribute("href", "/decks/import");
 
       await importLink.click();
-      await expect(page).toHaveURL(/\/decks\/import$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/decks\/import$/u, { timeout: 15_000 });
     });
 
     test("New Deck button opens the create dialog", async ({ page }) => {
@@ -218,7 +218,7 @@ test.describe("decks list", () => {
       await expect(nameInput).toBeFocused();
 
       const formatTrigger = dialog.getByLabel("Format");
-      await expect(formatTrigger).toHaveText(/Constructed/);
+      await expect(formatTrigger).toHaveText(/Constructed/u);
 
       // Opening the Select shows both options.
       await formatTrigger.click();
@@ -248,7 +248,7 @@ test.describe("decks list", () => {
       await dialog.getByRole("button", { name: "Create" }).click();
       await createRequest;
 
-      await expect(page).toHaveURL(/\/decks\/[0-9a-f-]+$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/decks\/[0-9a-f-]+$/u, { timeout: 15_000 });
       await expect(dialog).toBeHidden();
     });
 
@@ -265,7 +265,7 @@ test.describe("decks list", () => {
       );
       await createDialog.getByRole("button", { name: "Create" }).click();
       await firstRequest;
-      await expect(page).toHaveURL(/\/decks\/[0-9a-f-]+$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/decks\/[0-9a-f-]+$/u, { timeout: 15_000 });
 
       // Second deck: navigate back and pick Freeform.
       await page.goto("/decks");
@@ -280,7 +280,7 @@ test.describe("decks list", () => {
       );
       await createDialog.getByRole("button", { name: "Create" }).click();
       await secondRequest;
-      await expect(page).toHaveURL(/\/decks\/[0-9a-f-]+$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/\/decks\/[0-9a-f-]+$/u, { timeout: 15_000 });
 
       // Both tiles render on /decks.
       await page.goto("/decks");
@@ -315,7 +315,7 @@ test.describe("decks list", () => {
 
       await expect(tile.getByRole("heading", { level: 3, name: deckName })).toBeVisible();
       await expect(tile.getByText("Freeform")).toBeVisible();
-      await expect(tile.getByText(/\b0 cards\b/)).toBeVisible();
+      await expect(tile.getByText(/\b0 cards\b/u)).toBeVisible();
 
       await expect(tile.getByRole("button", { name: "Deck actions" })).toBeVisible();
     });
@@ -332,7 +332,7 @@ test.describe("decks list", () => {
       // Click somewhere on the tile that isn't the menu trigger — the heading
       // sits near the top of the card and is always present.
       await tile.getByRole("heading", { level: 3, name: deckName }).click();
-      await expect(page).toHaveURL(new RegExp(`/decks/${deckId}$`), { timeout: 15_000 });
+      await expect(page).toHaveURL(new RegExp(`/decks/${deckId}$`, "u"), { timeout: 15_000 });
     });
   });
 
@@ -431,9 +431,9 @@ test.describe("decks list", () => {
       const alert = page.getByRole("alertdialog");
       await expect(alert.getByRole("heading", { name: "Delete deck" })).toBeVisible();
       await expect(
-        alert.getByText(new RegExp(`Are you sure you want to delete .${deckName}.\\?`)),
+        alert.getByText(new RegExp(`Are you sure you want to delete .${deckName}.\\?`, "u")),
       ).toBeVisible();
-      await expect(alert.getByText(/cannot be undone/i)).toBeVisible();
+      await expect(alert.getByText(/cannot be undone/iu)).toBeVisible();
     });
 
     test("Cancel leaves the deck in place", async ({ page }) => {

@@ -20,7 +20,7 @@ async function createDeckViaApi(
 // file + export name; decoding the segment lets us wait on a specific mutation
 // without colliding with other server fns that fire during the same transition.
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
   if (!match) {
     return false;
   }
@@ -46,7 +46,7 @@ test.describe("deck editor shell", () => {
   test.describe("auth gate", () => {
     test("redirects anonymous users from /decks/<id> to /login", async ({ page }) => {
       await page.goto(`/decks/${BOGUS_DECK_ID}`);
-      await expect(page).toHaveURL(/\/login\b/);
+      await expect(page).toHaveURL(/\/login\b/u);
       const url = new URL(page.url());
       expect(url.searchParams.get("redirect") ?? "").toContain(`/decks/${BOGUS_DECK_ID}`);
     });
@@ -91,7 +91,7 @@ test.describe("deck editor shell", () => {
       // Format badge: a fresh constructed deck may render either the valid
       // "Constructed ✓" branch or the amber "N issue(s)" violation branch;
       // both render text starting with "Constructed".
-      await expect(page.getByText(/Constructed/).first()).toBeVisible();
+      await expect(page.getByText(/Constructed/u).first()).toBeVisible();
 
       // (The "Saved" status tooltip indicator was removed from the top bar;
       // the "Constructed · Draft" badge now communicates the unsaved state.)
@@ -109,8 +109,8 @@ test.describe("deck editor shell", () => {
 
       // Back arrow returns to /decks and the list renders.
       await backLink.click();
-      await expect(page).toHaveURL(/\/decks$/, { timeout: 15_000 });
-      await expect(page.getByRole("link", { name: /Shell Test Deck/ })).toBeVisible();
+      await expect(page).toHaveURL(/\/decks$/u, { timeout: 15_000 });
+      await expect(page.getByRole("link", { name: /Shell Test Deck/u })).toBeVisible();
     });
   });
 
@@ -177,9 +177,9 @@ test.describe("deck editor shell", () => {
       // renders as a green span. "Freeform" also appears in the main-area
       // description paragraph, so scope to the badge span.
       await expect(
-        page.locator('span[class*="bg-green-500"]').filter({ hasText: /^Freeform$/ }),
+        page.locator('span[class*="bg-green-500"]').filter({ hasText: /^Freeform$/u }),
       ).toBeVisible();
-      await expect(page.getByText(/issues?/)).toHaveCount(0);
+      await expect(page.getByText(/issues?/u)).toHaveCount(0);
     });
 
     test("empty constructed deck shows the Draft badge", async ({ authenticatedPage }) => {
@@ -287,7 +287,7 @@ test.describe("deck editor shell", () => {
 
       // Mobile title shows "Zones" when no zone is active (the editor now
       // opens on the Overview), and zone+count once a zone is activated.
-      const mobileTitle = page.getByRole("button", { name: /^Zones/ }).first();
+      const mobileTitle = page.getByRole("button", { name: /^Zones/u }).first();
       await expect(mobileTitle).toBeVisible();
 
       // Tapping the title toggles the sidebar open.
@@ -316,9 +316,9 @@ test.describe("deck editor shell", () => {
       });
 
       await page.goto(`/decks/${deckId}`);
-      await expect(page).toHaveTitle(/Deck Editor/, { timeout: 15_000 });
+      await expect(page).toHaveTitle(/Deck Editor/u, { timeout: 15_000 });
       const robots = page.locator('meta[name="robots"]');
-      await expect(robots).toHaveAttribute("content", /noindex/);
+      await expect(robots).toHaveAttribute("content", /noindex/u);
     });
   });
 });

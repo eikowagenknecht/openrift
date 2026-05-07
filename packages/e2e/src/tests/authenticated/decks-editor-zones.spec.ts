@@ -87,7 +87,7 @@ async function readDeckCards(
 // on the outer rounded-lg container that owns the drop ref + ring highlight.
 function zoneSection(page: Page, label: string): Locator {
   return page
-    .getByRole("button", { name: new RegExp(`^${label}(\\s|$)`) })
+    .getByRole("button", { name: new RegExp(`^${label}(\\s|$)`, "u") })
     .first()
     .locator("xpath=ancestor::div[contains(@class,'rounded-lg')][1]");
 }
@@ -107,13 +107,13 @@ function browserCardTile(page: Page, cardName: string): Locator {
 // used (the browser renders a placeholder until a zone is active).
 async function activateZone(page: Page, label: string) {
   await zoneSection(page, label)
-    .getByRole("button", { name: new RegExp(`^${label}(\\s|$)`) })
+    .getByRole("button", { name: new RegExp(`^${label}(\\s|$)`, "u") })
     .first()
     .click();
 }
 
 async function searchBrowserFor(page: Page, cardName: string) {
-  const searchInput = page.getByPlaceholder(/Search/).first();
+  const searchInput = page.getByPlaceholder(/Search/u).first();
   await searchInput.fill(cardName);
   // Debounced search pushes to URL after 200ms; wait a touch longer.
   await expect(browserCardTile(page, cardName)).toBeVisible({ timeout: 10_000 });
@@ -157,7 +157,7 @@ test.describe("deck editor zones + drag-drop", () => {
       await seedDeckCards(page.request, deckId, [{ cardId: unit.id, zone: "main", quantity: 1 }]);
 
       await page.goto(`/decks/${deckId}`);
-      await expect(page.getByText(/Constructed/).first()).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByText(/Constructed/u).first()).toBeVisible({ timeout: 15_000 });
 
       for (const label of [
         "legend",
@@ -194,7 +194,7 @@ test.describe("deck editor zones + drag-drop", () => {
       });
 
       await page.goto(`/decks/${deckId}`);
-      await expect(page.getByText(/Constructed/).first()).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByText(/Constructed/u).first()).toBeVisible({ timeout: 15_000 });
 
       // Activate Sideboard (not the default), search for the card, quick-add it.
       await activateZone(page, "Sideboard");
@@ -237,7 +237,7 @@ test.describe("deck editor zones + drag-drop", () => {
       });
 
       await page.goto(`/decks/${deckId}`);
-      await expect(page.getByText(/Constructed/).first()).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByText(/Constructed/u).first()).toBeVisible({ timeout: 15_000 });
 
       await activateZone(page, "Main Deck");
       await searchBrowserFor(page, unit.name);
@@ -559,7 +559,7 @@ test.describe("deck editor zones + drag-drop", () => {
       await page.mouse.move(endX, endY, { steps: 20 });
 
       // ring-primary is the visible drop affordance; no role/aria alternative.
-      await expect(mainSection).toHaveClass(/ring-primary/);
+      await expect(mainSection).toHaveClass(/ring-primary/u);
 
       await page.mouse.up();
     });
@@ -584,7 +584,7 @@ test.describe("deck editor zones + drag-drop", () => {
       // Open the mobile sidebar so zones render. Without an active zone the
       // mobile <h1> renders the literal label "Zones"; tapping it opens the
       // zones drawer.
-      const mobileTitle = page.getByRole("button", { name: /^Zones/ }).first();
+      const mobileTitle = page.getByRole("button", { name: /^Zones/u }).first();
       await expect(mobileTitle).toBeVisible({ timeout: 15_000 });
       await mobileTitle.click();
       await expect(page.getByRole("heading", { name: "Deck Zones" })).toBeVisible();

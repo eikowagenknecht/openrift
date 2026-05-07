@@ -7,7 +7,7 @@ import { scrollUntilVisible } from "../../helpers/virtualized.js";
 // "Set · ID") when a group is active. Default state has groupBy="set", so the
 // middot is always present in baseline tests here.
 async function openSortPopover(page: Page) {
-  await page.getByRole("button", { name: /·/ }).click();
+  await page.getByRole("button", { name: /·/u }).click();
 }
 
 function cardTiles(page: Page): Locator {
@@ -18,7 +18,7 @@ function cardTiles(page: Page): Locator {
   // CardMetaLabel renders short codes inside a `.bg-background.rounded-md`
   // wrapper, while the scroll indicator badge is a positioned `.font-mono`
   // element. Filter the shortcode span's parent accordingly.
-  return page.locator(".bg-background.rounded-md span", { hasText: /^OGS-\d{3}$/ });
+  return page.locator(".bg-background.rounded-md span", { hasText: /^OGS-\d{3}$/u });
 }
 
 async function waitForCatalogLoaded(page: Page) {
@@ -32,16 +32,16 @@ test.describe("card browser — search bar", () => {
 
     // Unfiltered: label shows "<N> cards" or "<N> printings" depending on the
     // default view preference (defaults to "printings").
-    const countLabel = page.getByText(/\b\d+ (cards|printings)\b/).first();
+    const countLabel = page.getByText(/\b\d+ (cards|printings)\b/u).first();
     await expect(countLabel).toBeVisible();
     const initialText = await countLabel.textContent();
-    const initialTotal = Number(initialText?.match(/\d+/)?.[0] ?? 0);
+    const initialTotal = Number(initialText?.match(/\d+/u)?.[0] ?? 0);
     expect(initialTotal).toBeGreaterThan(1);
 
-    await page.getByPlaceholder(/search/i).fill("Garen");
+    await page.getByPlaceholder(/search/iu).fill("Garen");
 
     // Filtered label switches to "<filtered> / <total> cards|printings".
-    const filteredLabel = page.getByText(/\d+ \/ \d+ (cards|printings)/);
+    const filteredLabel = page.getByText(/\d+ \/ \d+ (cards|printings)/u);
     await expect(filteredLabel).toBeVisible({ timeout: 5000 });
     await expect(page.getByText("Garen, Rugged").first()).toBeVisible();
     await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
@@ -51,7 +51,7 @@ test.describe("card browser — search bar", () => {
     await page.goto("/cards");
     await waitForCatalogLoaded(page);
 
-    const search = page.getByPlaceholder(/search/i);
+    const search = page.getByPlaceholder(/search/iu);
     await search.fill("Garen");
     await expect(page.getByText("Annie, Fiery").first()).not.toBeVisible();
 
@@ -68,7 +68,7 @@ test.describe("card browser — search bar", () => {
     await page.goto("/cards");
     await waitForCatalogLoaded(page);
 
-    const search = page.getByPlaceholder(/search/i);
+    const search = page.getByPlaceholder(/search/iu);
     // A long query that would match many prefixes if each keystroke applied
     // individually, but is unique as a whole ("Garen, Rugged" is the only
     // card matching the full query).
@@ -88,7 +88,7 @@ test.describe("card browser — options bar", () => {
     await waitForCatalogLoaded(page);
 
     // Default view is "printings" — the count label renders as "<N> printings".
-    await expect(page.getByText(/\b\d+ printings\b/)).toBeVisible();
+    await expect(page.getByText(/\b\d+ printings\b/u)).toBeVisible();
 
     // The ViewMode ButtonGroup has aria-label="View mode"; within it the
     // desktop layout renders [Cards, Printings] as icon-only buttons.
@@ -97,9 +97,9 @@ test.describe("card browser — options bar", () => {
     await viewGroup.getByRole("button").nth(0).click();
 
     // Label unit switches from "printings" to "cards".
-    const cardsLabel = page.getByText(/\b\d+ cards\b/);
+    const cardsLabel = page.getByText(/\b\d+ cards\b/u);
     await expect(cardsLabel).toBeVisible();
-    await expect(page.getByText(/\b\d+ printings\b/)).not.toBeVisible();
+    await expect(page.getByText(/\b\d+ printings\b/u)).not.toBeVisible();
   });
 
   test("changing sort order updates which card appears first", async ({ page }) => {
@@ -152,7 +152,7 @@ test.describe("card browser — options bar", () => {
     // virtualized (see card-grid.tsx), so headers below the fold aren't in
     // the DOM — assert on the first rendered header rather than the full
     // list.
-    const firstHeader = page.getByRole("button", { name: /^(Legend|Unit|Spell)$/ }).first();
+    const firstHeader = page.getByRole("button", { name: /^(Legend|Unit|Spell)$/u }).first();
 
     await expect(firstHeader).toHaveText("legend");
 

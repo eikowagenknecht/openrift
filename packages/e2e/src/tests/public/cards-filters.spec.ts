@@ -51,7 +51,7 @@ test.describe("card filter panel (desktop)", () => {
     const panel = page.locator('[data-slot="collapsible-content"]');
     await panel.getByText("Proving Grounds", { exact: true }).click();
 
-    await expect(page).toHaveURL(/sets=[^&]*OGS/);
+    await expect(page).toHaveURL(/sets=[^&]*OGS/u);
     // Active-filter region shows the "Set:" label and a "Proving Grounds" chip.
     const activeFiltersBar = page.locator(String.raw`div.bg-muted\/50`);
     await expect(activeFiltersBar.getByText("Set:", { exact: true })).toBeVisible();
@@ -72,7 +72,7 @@ test.describe("card filter panel (desktop)", () => {
 
     // Click the "fury" domain badge (inside the filter panel).
     await page.getByText("fury", { exact: true }).first().click();
-    await expect(page).toHaveURL(/domains=[^&]*Fury/);
+    await expect(page).toHaveURL(/domains=[^&]*Fury/u);
     await expect(page.getByText("Domain:", { exact: true })).toBeVisible();
 
     // Lux, Illuminated is Mind-only — it should be hidden by the Fury filter.
@@ -81,8 +81,8 @@ test.describe("card filter panel (desktop)", () => {
 
     // Now add a Type=Spell filter — AND should hide Fury-Unit cards like Annie.
     await page.getByText("spell", { exact: true }).first().click();
-    await expect(page).toHaveURL(/types=[^&]*Spell/);
-    await expect(page).toHaveURL(/domains=[^&]*Fury/);
+    await expect(page).toHaveURL(/types=[^&]*Spell/u);
+    await expect(page).toHaveURL(/domains=[^&]*Fury/u);
     await expect(page.getByText("Type:", { exact: true })).toBeVisible();
 
     await expect(page.getByText("Firestorm").first()).toBeVisible();
@@ -102,12 +102,12 @@ test.describe("card filter panel (desktop)", () => {
 
     // The chip for "fury" is a Badge containing the label and a close button.
     // Remove it by clicking the X button inside that chip.
-    const furyChip = page.locator("span", { hasText: /^Fury$/ }).filter({
+    const furyChip = page.locator("span", { hasText: /^Fury$/u }).filter({
       has: page.locator("button"),
     });
     await furyChip.getByRole("button").click();
 
-    await expect(page).not.toHaveURL(/[?&]domains=/);
+    await expect(page).not.toHaveURL(/[?&]domains=/u);
     await expect(page.getByText("Domain:", { exact: true })).toBeHidden();
     await expect(page.getByText("Lux, Illuminated").first()).toBeVisible();
   });
@@ -133,8 +133,8 @@ test.describe("card filter panel (desktop)", () => {
     await expect(clearAllButton).toHaveAttribute("title", "Clear all filters");
     await clearAllButton.click();
 
-    await expect(page).not.toHaveURL(/[?&]domains=/);
-    await expect(page).not.toHaveURL(/[?&]types=/);
+    await expect(page).not.toHaveURL(/[?&]domains=/u);
+    await expect(page).not.toHaveURL(/[?&]types=/u);
     await expect(page.getByText("Domain:", { exact: true })).toBeHidden();
     await expect(page.getByText("Type:", { exact: true })).toBeHidden();
 
@@ -169,8 +169,8 @@ test.describe("card filter panel (desktop)", () => {
 
     // energyMin may be -1 (the NONE sentinel) when the min thumb sits at the
     // left edge and only the max thumb was moved — that's still a URL update.
-    await expect(page).toHaveURL(/[?&]energyMin=-?\d+/);
-    await expect(page).toHaveURL(/[?&]energyMax=-?\d+/);
+    await expect(page).toHaveURL(/[?&]energyMin=-?\d+/u);
+    await expect(page).toHaveURL(/[?&]energyMax=-?\d+/u);
 
     // The active-filter chip for Energy renders with the "Energy:" label.
     await expect(page.getByText("Energy:", { exact: true })).toBeVisible();
@@ -184,17 +184,17 @@ test.describe("card filter panel (desktop)", () => {
     // Seed data has errata and a ban, so the Special section renders with
     // "Banned" and "Errata" badges. Toggle "Errata" on.
     await page.getByText("Errata", { exact: true }).first().click();
-    await expect(page).toHaveURL(/errata=true/);
+    await expect(page).toHaveURL(/errata=true/u);
     await expect(page.getByText("Flag:", { exact: true })).toBeVisible();
 
     // Click the same badge again to cycle to "No Errata" (errata=false).
     await page.getByText("Errata", { exact: true }).first().click();
-    await expect(page).toHaveURL(/errata=false/);
+    await expect(page).toHaveURL(/errata=false/u);
     await expect(page.getByText("No Errata", { exact: true }).first()).toBeVisible();
 
     // A third click clears the filter entirely.
     await page.getByText("No Errata", { exact: true }).first().click();
-    await expect(page).not.toHaveURL(/[?&]errata=/);
+    await expect(page).not.toHaveURL(/[?&]errata=/u);
   });
 });
 
@@ -209,7 +209,7 @@ test.describe("card filter panel (mobile)", () => {
 
     // Before opening, the drawer footer button is not visible.
     await expect(
-      page.getByRole("button", { name: /^(Done|Show \d+ (cards?|printings?))$/ }),
+      page.getByRole("button", { name: /^(Done|Show \d+ (cards?|printings?))$/u }),
     ).toBeHidden();
 
     await page.getByRole("button", { name: "Options" }).click();
@@ -219,14 +219,14 @@ test.describe("card filter panel (mobile)", () => {
 
     // The drawer renders filter sections (same labels as the desktop panel).
     for (const label of ["Set", "Domain", "Rarity", "Type"]) {
-      await expect(drawer.locator("p", { hasText: new RegExp(`^${label}$`) })).toBeVisible();
+      await expect(drawer.locator("p", { hasText: new RegExp(`^${label}$`, "u") })).toBeVisible();
     }
 
     // The footer button is either "Done" (no filters) or "Show N cards|printings"
     // (filters active; unit depends on the current view preference — defaults
     // to "printings").
     await expect(
-      page.getByRole("button", { name: /^(Done|Show \d+ (cards?|printings?))$/ }),
+      page.getByRole("button", { name: /^(Done|Show \d+ (cards?|printings?))$/u }),
     ).toBeVisible();
 
     // Apply a filter by clicking a domain badge inside the drawer.
@@ -234,8 +234,8 @@ test.describe("card filter panel (mobile)", () => {
 
     // With a filter active, the footer button shows "Show N cards" or "Show N printings".
     await expect(
-      page.getByRole("button", { name: /^Show \d+ (cards?|printings?)$/ }),
+      page.getByRole("button", { name: /^Show \d+ (cards?|printings?)$/u }),
     ).toBeVisible();
-    await expect(page).toHaveURL(/domains=[^&]*Fury/);
+    await expect(page).toHaveURL(/domains=[^&]*Fury/u);
   });
 });

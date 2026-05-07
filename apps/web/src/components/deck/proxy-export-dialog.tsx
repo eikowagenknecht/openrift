@@ -70,13 +70,13 @@ function resolveClipPaths(element: HTMLElement): void {
     const width = element.offsetWidth;
     const height = element.offsetHeight;
     if (width > 0 && height > 0 && computed.includes("polygon")) {
-      const converted = computed.replaceAll(/[\d.]+px/g, (match, offset) => {
+      const converted = computed.replaceAll(/[\d.]+px/gu, (match, offset) => {
         const px = Number.parseFloat(match);
         // Determine if this is an x or y coordinate by counting commas and spaces before this point
         // In polygon(), coordinates alternate: x y, x y, ...
         // Count how many values came before this one in the current polygon
         const before = computed.slice(computed.indexOf("(") + 1, offset);
-        const valueIndex = before.split(/[\s,]+/).filter(Boolean).length;
+        const valueIndex = before.split(/[\s,]+/u).filter(Boolean).length;
         const isX = valueIndex % 2 === 0;
         const percent = isX ? (px / width) * 100 : (px / height) * 100;
         return `${percent.toFixed(1)}%`;

@@ -23,7 +23,7 @@ export default defineConfig({
     {
       name: "setup",
       testDir: "./src",
-      testMatch: /auth\.setup\.ts/,
+      testMatch: /auth\.setup\.ts/u,
     },
     {
       name: "chromium",

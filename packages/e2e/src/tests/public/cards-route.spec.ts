@@ -10,7 +10,7 @@ const CARDS_DESCRIPTION =
 // catalog fetch without affecting the session/theme/feature-flags server fns
 // that fire on the same route transition.
 function isCatalogServerFn(url: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
   if (!match) {
     return false;
   }
@@ -26,7 +26,7 @@ test.describe("/cards route essentials", () => {
   test("sets SEO meta and canonical tags", async ({ page }) => {
     await page.goto("/cards");
 
-    await expect(page).toHaveTitle(/Cards/);
+    await expect(page).toHaveTitle(/Cards/u);
 
     const description = page.locator('meta[name="description"]');
     await expect(description).toHaveAttribute("content", CARDS_DESCRIPTION);
@@ -35,7 +35,7 @@ test.describe("/cards route essentials", () => {
     await expect(canonical).toHaveAttribute("href", `${WEB_BASE_URL}/cards`);
 
     const ogTitle = page.locator('meta[property="og:title"]');
-    await expect(ogTitle).toHaveAttribute("content", /Cards/);
+    await expect(ogTitle).toHaveAttribute("content", /Cards/u);
 
     const ogDescription = page.locator('meta[property="og:description"]');
     await expect(ogDescription).toHaveAttribute("content", CARDS_DESCRIPTION);
@@ -56,7 +56,7 @@ test.describe("/cards route essentials", () => {
     await expect(twitterCard).toHaveAttribute("content", "summary_large_image");
 
     const twitterTitle = page.locator('meta[name="twitter:title"]');
-    await expect(twitterTitle).toHaveAttribute("content", /Cards/);
+    await expect(twitterTitle).toHaveAttribute("content", /Cards/u);
 
     const twitterDescription = page.locator('meta[name="twitter:description"]');
     await expect(twitterDescription).toHaveAttribute("content", CARDS_DESCRIPTION);
@@ -79,9 +79,9 @@ test.describe("/cards route essentials", () => {
     // the navigation to /cards happens client-side and runs the loader
     // against our intercepted server fn.
     await page.goto("/");
-    await expect(page.getByRole("link", { name: /browse cards/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /browse cards/iu })).toBeVisible();
 
-    await page.getByRole("link", { name: /browse cards/i }).click();
+    await page.getByRole("link", { name: /browse cards/iu }).click();
 
     // The skeleton grid contains 20 card-shaped Skeleton elements; the real
     // CardBrowser never renders `.aspect-card.animate-pulse`, so this
@@ -91,7 +91,7 @@ test.describe("/cards route essentials", () => {
     await expect(cardSkeletons).toHaveCount(20);
 
     // Cards page URL is reached before the loader resolves.
-    await expect(page).toHaveURL(/\/cards/);
+    await expect(page).toHaveURL(/\/cards/u);
   });
 
   test("renders the error fallback when the catalog fetch fails", async ({ page }) => {
@@ -118,7 +118,7 @@ test.describe("/cards route essentials", () => {
     });
 
     await page.goto("/");
-    await page.getByRole("link", { name: /browse cards/i }).click();
+    await page.getByRole("link", { name: /browse cards/iu }).click();
 
     // RouteErrorFallback picks a heading/subtext/emoji at random from the
     // arrays in error-message.tsx, so match against the union of all
@@ -136,8 +136,9 @@ test.describe("/cards route essentials", () => {
     ];
     const headingPattern = new RegExp(
       errorHeadings
-        .map((heading) => heading.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`))
+        .map((heading) => heading.replaceAll(/[.*+?^${}()|[\]\\]/gu, String.raw`\$&`))
         .join("|"),
+      "u",
     );
     // Scope by name so we don't race against the home page's <h1> during the
     // client-side transition — otherwise strict mode sees two h1s briefly.
@@ -148,6 +149,6 @@ test.describe("/cards route essentials", () => {
     // The fallback always renders a "Reshuffle" reload button and a dev
     // details toggle when an error message is attached.
     await expect(page.getByRole("button", { name: "Reshuffle" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Show details/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Show details/u })).toBeVisible();
   });
 });

@@ -151,7 +151,7 @@ export function DeckExportDialog({
     setRegDeckName(deckName ?? "");
     // Prefill first/last name from user profile if not already filled
     if (!firstName && !lastName && session?.user?.name) {
-      const parts = session.user.name.trim().split(/\s+/);
+      const parts = session.user.name.trim().split(/\s+/u);
       setFirstName(parts[0] ?? "");
       setLastName(parts.slice(1).join(" "));
     }

@@ -8,13 +8,13 @@ test.describe("landing page", () => {
     await expect(page.getByRole("heading", { name: "OpenRift", level: 1 })).toBeVisible();
 
     // "Browse cards" link/button is visible
-    await expect(page.getByRole("link", { name: /browse cards/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /browse cards/iu })).toBeVisible();
   });
 
   test("navigates to the cards page", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: /browse cards/i }).click();
+    await page.getByRole("link", { name: /browse cards/iu }).click();
 
     await expect(page).toHaveURL("/cards");
   });
@@ -22,17 +22,17 @@ test.describe("landing page", () => {
   test("navigates to the signup page", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: /sign up/i }).click();
+    await page.getByRole("link", { name: /sign up/iu }).click();
 
-    await expect(page).toHaveURL(/\/signup/);
+    await expect(page).toHaveURL(/\/signup/u);
   });
 
   test("navigates to the login page", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: /sign in/i }).click();
+    await page.getByRole("link", { name: /sign in/iu }).click();
 
-    await expect(page).toHaveURL(/\/login/);
+    await expect(page).toHaveURL(/\/login/u);
   });
 
   test("redirects authenticated users to /cards", async ({ authenticatedPage: page }) => {
@@ -47,12 +47,12 @@ test.describe("landing page", () => {
     // /cards. Allow extra time in case the redirect is client-side after
     // hydration rather than at SSR.
     await page.goto("/");
-    await expect(page).toHaveURL(/\/cards/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/cards/u, { timeout: 15_000 });
   });
 
   test("shows the tagline", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByText(/open-source Riftbound collection tracker/i)).toBeVisible();
+    await expect(page.getByText(/open-source Riftbound collection tracker/iu)).toBeVisible();
   });
 
   test("shows the stats line with live card counts", async ({ page }) => {
@@ -60,7 +60,7 @@ test.describe("landing page", () => {
     // Numbers animate from 0 up to the real values via useCountUp, so require
     // non-zero digits — otherwise the assertion would pass on the initial
     // "0 cards · 0 printings" frame before data loads.
-    await expect(page.getByText(/[1-9]\d* cards · [1-9]\d* printings/)).toBeVisible();
+    await expect(page.getByText(/[1-9]\d* cards · [1-9]\d* printings/u)).toBeVisible();
   });
 
   test("tapping the logo hints at scatter cards", async ({ page }) => {
@@ -74,15 +74,15 @@ test.describe("landing page", () => {
     // image src. Clicking triggers the `hinting` state which adds
     // border-primary/40 to every CardShape button for 400ms.
     await page.locator('button:has(img[src*="logo-color.svg"])').click();
-    await expect(firstCard.locator("button")).toHaveClass(/border-primary\/40/);
+    await expect(firstCard.locator("button")).toHaveClass(/border-primary\/40/u);
   });
 
   test("renders all four feature tiles", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: /every card, every printing/i })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /your collection, tracked/i })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /build with what you own/i })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /open, not locked in/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /every card, every printing/iu })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /your collection, tracked/iu })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /build with what you own/iu })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /open, not locked in/iu })).toBeVisible();
   });
 
   test("feature tiles navigate to their targets", async ({ page }) => {
@@ -90,10 +90,10 @@ test.describe("landing page", () => {
     // /login?redirect=%2Fcollections... so the target shows up URL-encoded in
     // the query string. Decode the URL before matching.
     const tiles: { name: RegExp; url: RegExp }[] = [
-      { name: /every card, every printing/i, url: /\/cards/ },
-      { name: /your collection, tracked/i, url: /\/collections(?!\/import)/ },
-      { name: /build with what you own/i, url: /\/decks/ },
-      { name: /open, not locked in/i, url: /\/collections\/import/ },
+      { name: /every card, every printing/iu, url: /\/cards/u },
+      { name: /your collection, tracked/iu, url: /\/collections(?!\/import)/u },
+      { name: /build with what you own/iu, url: /\/decks/u },
+      { name: /open, not locked in/iu, url: /\/collections\/import/u },
     ];
     for (const tile of tiles) {
       await page.goto("/");
@@ -119,10 +119,10 @@ test.describe("landing page", () => {
   test("footer external links open in a new tab with noreferrer", async ({ page }) => {
     await page.goto("/");
 
-    const discord = page.getByRole("link", { name: /discord/i });
+    const discord = page.getByRole("link", { name: /discord/iu });
     await expect(discord).toHaveAttribute("target", "_blank");
     await expect(discord).toHaveAttribute("rel", "noreferrer");
-    await expect(discord).toHaveAttribute("href", /discord\.gg/);
+    await expect(discord).toHaveAttribute("href", /discord\.gg/u);
 
     // GitHub link's accessible name is the commit hash, which is dynamic —
     // match by href instead.
@@ -137,14 +137,14 @@ test.describe("landing page", () => {
     await expect(page).toHaveTitle("OpenRift — Riftbound Card Collection Browser");
 
     const description = page.locator('meta[name="description"]');
-    await expect(description).toHaveAttribute("content", /Riftbound/i);
+    await expect(description).toHaveAttribute("content", /Riftbound/iu);
 
     // Playwright's text matchers (hasText, toHaveText) treat <script> as
     // non-visible and return empty text, so read textContent directly.
     const websiteJsonLd = page.locator('script[type="application/ld+json"]');
     await expect(websiteJsonLd).toHaveCount(1);
     const jsonLdContent = await websiteJsonLd.evaluate((el) => el.textContent);
-    expect(jsonLdContent).toMatch(/"@type"\s*:\s*"WebSite"/);
+    expect(jsonLdContent).toMatch(/"@type"\s*:\s*"WebSite"/u);
   });
 
   test("minigame: collecting all visible cards spins the logo", async ({ page }) => {
@@ -185,11 +185,11 @@ test.describe("landing page", () => {
     // Once gone.size >= reachableCount, the scatter fires onAllCollected after
     // a 500ms debounce and the logo gets animate-logo-spin for 1000ms.
     const logo = page.locator('img[src*="logo-color.svg"]');
-    await expect(logo).toHaveClass(/animate-logo-spin/);
+    await expect(logo).toHaveClass(/animate-logo-spin/u);
 
     // After the spin, CardScatter is re-keyed and state resets, so the
     // collected counter should no longer be visible.
-    await expect(page.getByText(/\d+ \/ \d+ collected/)).not.toBeVisible();
+    await expect(page.getByText(/\d+ \/ \d+ collected/u)).not.toBeVisible();
 
     // Fresh scatter mounts with flyIn=true — cards animate back in and
     // settle at opacity-1 again once the fly-in animation finishes.
@@ -222,6 +222,6 @@ test.describe("landing page", () => {
 
     // Second click collects — the card flies away and the counter appears.
     await card.click({ force: true });
-    await expect(page.getByText(/\d+ \/ \d+ collected/)).toBeVisible();
+    await expect(page.getByText(/\d+ \/ \d+ collected/u)).toBeVisible();
   });
 });

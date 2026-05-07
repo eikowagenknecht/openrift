@@ -99,11 +99,11 @@ async function apiAddCopiesToInbox(page: Page, printingId: string, count: number
 }
 
 function statsHeader(page: Page) {
-  return page.getByRole("button", { name: /^Stats\b/ });
+  return page.getByRole("button", { name: /^Stats\b/u });
 }
 
 function ownershipHeader(page: Page) {
-  return page.getByRole("button", { name: /^Ownership\b/ });
+  return page.getByRole("button", { name: /^Ownership\b/u });
 }
 
 /**
@@ -118,10 +118,10 @@ async function activateSidebarPanels(page: Page): Promise<void> {
   // hydrating yet.
   await expect(async () => {
     await page
-      .getByRole("button", { name: /^Main Deck/ })
+      .getByRole("button", { name: /^Main Deck/u })
       .first()
       .click();
-    await expect(page.getByRole("button", { name: /^Stats\b/ })).toBeVisible({
+    await expect(page.getByRole("button", { name: /^Stats\b/u })).toBeVisible({
       timeout: 2000,
     });
   }).toPass({ timeout: 15_000 });
@@ -221,7 +221,7 @@ test.describe("deck editor panels", () => {
 
       await header.click();
       await expect(page.getByText("Owned").first()).toBeVisible();
-      await expect(page.getByText(/^0 \/ 0$/)).toBeVisible();
+      await expect(page.getByText(/^0 \/ 0$/u)).toBeVisible();
       // Missing row is suppressed when missingCount is 0.
       await expect(page.getByText("Missing", { exact: true })).toBeHidden();
       await expect(page.getByRole("button", { name: "View missing cards" })).toBeHidden();
@@ -238,10 +238,10 @@ test.describe("deck editor panels", () => {
       await expect(header).toContainText("0%");
 
       await header.click();
-      await expect(page.getByText(/^0 \/ 3$/)).toBeVisible();
+      await expect(page.getByText(/^0 \/ 3$/u)).toBeVisible();
       // "3 cards" appears both in the Stats header and the Missing row. Scope
       // to the span in the Missing row by asserting a second match exists.
-      await expect(page.getByText(/^3 cards$/)).toHaveCount(2);
+      await expect(page.getByText(/^3 cards$/u)).toHaveCount(2);
       await expect(page.getByRole("button", { name: "View missing cards" })).toBeVisible();
     });
 
@@ -258,8 +258,8 @@ test.describe("deck editor panels", () => {
       await expect(header).toContainText("67%");
 
       await header.click();
-      await expect(page.getByText(/^2 \/ 3$/)).toBeVisible();
-      await expect(page.getByText(/^1 card$/)).toBeVisible();
+      await expect(page.getByText(/^2 \/ 3$/u)).toBeVisible();
+      await expect(page.getByText(/^1 card$/u)).toBeVisible();
     });
 
     test("full ownership shows 100% with no Missing row", async ({ page }) => {
@@ -274,7 +274,7 @@ test.describe("deck editor panels", () => {
       await expect(header).toContainText("100%");
 
       await header.click();
-      await expect(page.getByText(/^3 \/ 3$/)).toBeVisible();
+      await expect(page.getByText(/^3 \/ 3$/u)).toBeVisible();
       await expect(page.getByText("Missing", { exact: true })).toBeHidden();
       await expect(page.getByRole("button", { name: "View missing cards" })).toBeHidden();
     });
@@ -303,10 +303,10 @@ test.describe("deck editor panels", () => {
 
       // The default favorite marketplace may be CardTrader (EUR) or TCGplayer
       // (USD) depending on seed order — accept either.
-      await expect(page.getByText(/(TCGplayer|CardTrader|Cardmarket) prices/)).toBeVisible();
+      await expect(page.getByText(/(TCGplayer|CardTrader|Cardmarket) prices/u)).toBeVisible();
 
       // Match either "$X.XX" (TCGplayer/USD) or "X,XX €" (CardTrader/EUR).
-      const priceRegex = /(?:\$\d+\.\d{2})|(?:\d+[.,]\d{2}\s?€)/;
+      const priceRegex = /(?:\$\d+\.\d{2})|(?:\d+[.,]\d{2}\s?€)/u;
       const deckRow = page.getByText("Deck value").locator("..");
       const ownedRow = page.getByText("Owned value").locator("..");
       const missingRow = page.getByText("Missing value").locator("..");
@@ -381,7 +381,7 @@ test.describe("deck editor panels", () => {
       // so accept any known marketplace domain.
       await expect(annieLink).toHaveAttribute(
         "href",
-        /(tcgplayer\.com|cardtrader\.com|cardmarket\.com)/,
+        /(tcgplayer\.com|cardtrader\.com|cardmarket\.com)/u,
       );
 
       // Both cards are in zone "main"; they're now grouped under a single
@@ -393,11 +393,11 @@ test.describe("deck editor panels", () => {
       await expect(dialog.getByRole("button", { name: "Copied" })).toBeVisible();
 
       const clipboardText = await page.evaluate(() => navigator.clipboard.readText());
-      const lines = clipboardText.split(/\r\n/);
+      const lines = clipboardText.split(/\r\n/u);
       // Sorted by zone label then card name → Annie before Tibbers. The clip
       // format now includes the printing short code and price.
-      expect(lines[0]).toMatch(/^2x .*Annie, Fiery/);
-      expect(lines[1]).toMatch(/^2x .*Tibbers/);
+      expect(lines[0]).toMatch(/^2x .*Annie, Fiery/u);
+      expect(lines[1]).toMatch(/^2x .*Tibbers/u);
 
       // Reverts after the 2s timeout.
       await expect(dialog.getByRole("button", { name: "Copy to clipboard" })).toBeVisible({
@@ -456,18 +456,18 @@ test.describe("deck editor panels", () => {
       // panels below the zones. Clicking the zone closes the drawer, so
       // re-open it to inspect the panels.
       await page
-        .getByRole("button", { name: /^Zones/ })
+        .getByRole("button", { name: /^Zones/u })
         .first()
         .click();
       await page
-        .getByRole("button", { name: /^Main Deck/ })
+        .getByRole("button", { name: /^Main Deck/u })
         .first()
         .click();
       // Re-open the sidebar after the zone click closed it. The title renders
       // as "Main Deck(3)" with no space — the count span has ml-1 margin but
       // no textual whitespace — so the regex matches an optional space.
       await page
-        .getByRole("button", { name: /^Main Deck\s*\(\d+\)/ })
+        .getByRole("button", { name: /^Main Deck\s*\(\d+\)/u })
         .first()
         .click();
 

@@ -36,7 +36,7 @@ export function getKeywordStyle(
   reverseMap?: Map<string, string>,
 ): { bg: string; dark: boolean } {
   // Strip trailing numbers (e.g. "Shield 2" → "Shield")
-  const base = keyword.replace(/\s+\d+$/, "");
+  const base = keyword.replace(/\s+\d+$/u, "");
   // Try direct lookup first, then resolve via translation map
   const entry =
     styles[base] ?? (reverseMap ? styles[resolveKeywordCanonical(base, reverseMap)] : undefined);

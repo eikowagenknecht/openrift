@@ -435,11 +435,11 @@ describe("computeDeckOwnership (source-level regression)", () => {
   // an inner `"use memo"` is redundant — and triggers the bug. Keep it off.
   it("does not carry a `use memo` directive", () => {
     const source = readFileSync(path.resolve(__dirname, "./use-deck-ownership.ts"), "utf-8");
-    const body = source.match(/export function computeDeckOwnership[\s\S]+?^}/m);
+    const body = source.match(/export function computeDeckOwnership[\s\S]+?^\}/mu);
     expect(body, "computeDeckOwnership body not found").not.toBeNull();
     // Strip line comments so the comment referencing `"use memo"` doesn't
     // trip the guard.
-    const withoutComments = body![0].replaceAll(/\/\/.*$/gm, "");
-    expect(withoutComments).not.toMatch(/^\s*["']use memo["']\s*;/m);
+    const withoutComments = body![0].replaceAll(/\/\/.*$/gmu, "");
+    expect(withoutComments).not.toMatch(/^\s*["']use memo["']\s*;/mu);
   });
 });

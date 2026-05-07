@@ -157,7 +157,7 @@ describe("flushPendingPrintingEvents", () => {
 
     await expect(
       flushPendingPrintingEvents(repos as any, WEBHOOKS, APP_BASE_URL, mockLog()),
-    ).rejects.toThrow(/HTTP 401.*Unauthorized/);
+    ).rejects.toThrow(/HTTP 401.*Unauthorized/u);
 
     // Retry counter still gets bumped before we throw.
     expect(repos.printingEvents.markRetry).toHaveBeenCalledWith(["evt-1"]);

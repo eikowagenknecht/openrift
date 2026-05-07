@@ -179,8 +179,8 @@ test.describe("collection stats", () => {
         // Button primitive keeps role="button" even when rendered as an <a>,
         // so look up by both role and fall back to accessible-name text.
         const browse = page
-          .getByRole("link", { name: /Browse cards/ })
-          .or(page.getByRole("button", { name: /Browse cards/ }));
+          .getByRole("link", { name: /Browse cards/u })
+          .or(page.getByRole("button", { name: /Browse cards/u }));
         await expect(browse).toBeVisible();
         await expect(browse).toHaveAttribute("href", "/cards");
 
@@ -242,7 +242,7 @@ test.describe("collection stats", () => {
         // of the known marketplace domains.
         await expect(valueLink).toHaveAttribute(
           "href",
-          /(tcgplayer\.com|cardtrader\.com|cardmarket\.com)/,
+          /(tcgplayer\.com|cardtrader\.com|cardmarket\.com)/u,
         );
 
         // The value itself is rendered; we don't hard-code an amount since prices
@@ -285,7 +285,7 @@ test.describe("collection stats", () => {
         // Default is "All collections": Annie (inbox) + Garen (second) = 2 copies.
         await expect(totalCopies).toHaveText("2", { timeout: 15_000 });
 
-        const scopeTrigger = page.getByRole("combobox", { name: /Collection scope/i });
+        const scopeTrigger = page.getByRole("combobox", { name: /Collection scope/iu });
 
         await scopeTrigger.click();
         await page.getByRole("option", { name: "Inbox" }).click();
@@ -320,7 +320,7 @@ test.describe("collection stats", () => {
         const page = await context.newPage();
         await page.goto("/collections/stats");
 
-        const groupGroup = page.getByRole("group", { name: /Group by/i });
+        const groupGroup = page.getByRole("group", { name: /Group by/iu });
         await expect(groupGroup).toBeVisible({ timeout: 15_000 });
 
         // Default is "Set" — the only seeded set is OGS (Proving Grounds, supplemental).
@@ -364,21 +364,21 @@ test.describe("collection stats", () => {
         const page = await context.newPage();
         await page.goto("/collections/stats");
 
-        const countGroup = page.getByRole("group", { name: /Count mode/i });
+        const countGroup = page.getByRole("group", { name: /Count mode/iu });
         await expect(countGroup).toBeVisible({ timeout: 15_000 });
 
-        const overallRow = page.locator("div", { hasText: /^Overall/ }).first();
+        const overallRow = page.locator("div", { hasText: /^Overall/u }).first();
 
         // Default "Cards": one unique card owned.
-        await expect(overallRow).toContainText(/^Overall\s*1\s*\//);
+        await expect(overallRow).toContainText(/^Overall\s*1\s*\//u);
 
         await countGroup.getByRole("button", { name: "Printings" }).click();
         // One printing owned.
-        await expect(overallRow).toContainText(/^Overall\s*1\s*\//);
+        await expect(overallRow).toContainText(/^Overall\s*1\s*\//u);
 
         await countGroup.getByRole("button", { name: "Copies" }).click();
         // Three copies counted toward a max-3 playset target.
-        await expect(overallRow).toContainText(/^Overall\s*3\s*\//);
+        await expect(overallRow).toContainText(/^Overall\s*3\s*\//u);
       });
     });
   });
@@ -414,12 +414,12 @@ test.describe("collection stats", () => {
         // elsewhere on the stats page (as CardTitle for the distribution chart
         // and as a group-by button), so scope to the filter-section paragraph.
         const filterLabels = page.locator("p.text-muted-foreground.w-18.text-xs.font-medium");
-        await expect(filterLabels.filter({ hasText: /^Domain$/ })).toBeVisible();
-        await expect(filterLabels.filter({ hasText: /^Rarity$/ })).toBeVisible();
+        await expect(filterLabels.filter({ hasText: /^Domain$/u })).toBeVisible();
+        await expect(filterLabels.filter({ hasText: /^Rarity$/u })).toBeVisible();
 
         // HIDDEN_FILTER_SECTIONS removes "owned" and "superTypes".
-        await expect(filterLabels.filter({ hasText: /^Owned$/ })).toHaveCount(0);
-        await expect(filterLabels.filter({ hasText: /^Super Type$/ })).toHaveCount(0);
+        await expect(filterLabels.filter({ hasText: /^Owned$/u })).toHaveCount(0);
+        await expect(filterLabels.filter({ hasText: /^Super Type$/u })).toHaveCount(0);
       });
     });
 
@@ -439,14 +439,14 @@ test.describe("collection stats", () => {
         // Active-filter chip strip renders the domain label. The chip itself
         // is a div containing a label + close button; assert the "Domain:"
         // prefix chip is visible.
-        await expect(page.getByText(/Domain:/).first()).toBeVisible();
+        await expect(page.getByText(/Domain:/u).first()).toBeVisible();
         await expect(page.getByText("fury").first()).toBeVisible();
 
         // Group-by "Domain" reveals the per-domain rows — Fury should show owned > 0
         // (Annie is Fury). We no longer assert on "body" because Body is a
         // card subtype rather than a domain, and now appears in other stats
         // sections unrelated to the domain filter.
-        const groupGroup = page.getByRole("group", { name: /Group by/i });
+        const groupGroup = page.getByRole("group", { name: /Group by/iu });
         await groupGroup.getByRole("button", { name: "Domain" }).click();
         await expect(page.getByText("fury", { exact: true }).first()).toBeVisible();
       });
@@ -479,12 +479,14 @@ test.describe("collection stats", () => {
 
         // Distribution card titles.
         await expect(
-          page.locator('[data-slot="card-title"]', { hasText: /^Domain$/ }),
+          page.locator('[data-slot="card-title"]', { hasText: /^Domain$/u }),
         ).toBeVisible();
         await expect(
-          page.locator('[data-slot="card-title"]', { hasText: /^Rarity$/ }),
+          page.locator('[data-slot="card-title"]', { hasText: /^Rarity$/u }),
         ).toBeVisible();
-        await expect(page.locator('[data-slot="card-title"]', { hasText: /^Type$/ })).toBeVisible();
+        await expect(
+          page.locator('[data-slot="card-title"]', { hasText: /^Type$/u }),
+        ).toBeVisible();
 
         // Seeded rarities are Epic (Annie) and Rare (Garen) — both appear in the
         // rarity chart legend.
@@ -492,9 +494,9 @@ test.describe("collection stats", () => {
         await expect(page.getByText("rare", { exact: true }).first()).toBeVisible();
 
         // Price extremes — both card tiles link into /cards/<slug>.
-        const cheapest = page.getByRole("link", { name: /Annie, Fiery|Garen, Rugged/ }).first();
+        const cheapest = page.getByRole("link", { name: /Annie, Fiery|Garen, Rugged/u }).first();
         await expect(cheapest).toBeVisible();
-        await expect(cheapest).toHaveAttribute("href", /^\/cards\//);
+        await expect(cheapest).toHaveAttribute("href", /^\/cards\//u);
       });
     });
   });
@@ -520,7 +522,7 @@ test.describe("collection stats", () => {
         await page.goto("/collections/stats");
 
         await expect(
-          page.locator('[data-slot="card-title"]', { hasText: /Energy & Power/ }),
+          page.locator('[data-slot="card-title"]', { hasText: /Energy & Power/u }),
         ).toBeVisible({ timeout: 15_000 });
       });
     });

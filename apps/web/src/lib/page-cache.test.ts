@@ -114,8 +114,8 @@ describe("applyPageCacheControl", () => {
   it("emits Link preload headers on 200 HTML responses for CF Early Hints", () => {
     const result = applyPageCacheControl(getRequest("/cards"), htmlResponse());
     const link = result.headers.get("Link") ?? "";
-    expect(link).toMatch(/rel=preload; as=style/);
-    expect(link).toMatch(/rel=preload; as=font; type="font\/woff2"; crossorigin/);
+    expect(link).toMatch(/rel=preload; as=style/u);
+    expect(link).toMatch(/rel=preload; as=font; type="font\/woff2"; crossorigin/u);
   });
 
   it("emits Link preload headers on private HTML routes too", () => {
@@ -125,7 +125,7 @@ describe("applyPageCacheControl", () => {
       getRequest("/cards", { cookie: "better-auth.session_token=abc" }),
       htmlResponse(),
     );
-    expect(result.headers.get("Link")).toMatch(/rel=preload/);
+    expect(result.headers.get("Link")).toMatch(/rel=preload/u);
   });
 
   it("does not emit Link preload headers on non-200 HTML responses", () => {

@@ -111,7 +111,7 @@ export function buildSourceLabels(
         let label = s.name;
         if (canonicalName) {
           label = label.startsWith(canonicalName) ? label.slice(canonicalName.length) : label;
-          label = label.replaceAll(/^[\s\-–—(]+|[)\s]+$/g, "");
+          label = label.replaceAll(/^[\s\-–—(]+|[)\s]+$/gu, "");
         }
         return [s.id, label];
       }),

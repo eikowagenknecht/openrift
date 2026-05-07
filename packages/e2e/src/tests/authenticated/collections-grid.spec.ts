@@ -164,7 +164,7 @@ test.describe("collections grid", () => {
         await expect(page.getByText("No cards yet")).toBeVisible({ timeout: 15_000 });
         // The empty-state copy was reworded — match the new phrasing that
         // references the user's inbox.
-        await expect(page.getByText(/Browse the card catalog and add cards to/)).toBeVisible();
+        await expect(page.getByText(/Browse the card catalog and add cards to/u)).toBeVisible();
         await expect(page.getByText("Annie, Fiery")).toBeHidden();
         await expect(page.getByText("Garen, Rugged")).toBeHidden();
       });
@@ -247,7 +247,7 @@ test.describe("collections grid", () => {
         await page.goto("/collections?view=cards");
 
         await expect(page.getByText("Annie, Fiery")).toHaveCount(1, { timeout: 15_000 });
-        await expect(page.getByText(/\b1 cards\b/)).toBeVisible();
+        await expect(page.getByText(/\b1 cards\b/u)).toBeVisible();
       });
     });
 
@@ -259,7 +259,7 @@ test.describe("collections grid", () => {
         await page.goto("/collections?view=printings");
 
         await expect(page.getByText("Annie, Fiery")).toHaveCount(2, { timeout: 15_000 });
-        await expect(page.getByText(/\b2 printings\b/)).toBeVisible();
+        await expect(page.getByText(/\b2 printings\b/u)).toBeVisible();
       });
     });
 
@@ -271,7 +271,7 @@ test.describe("collections grid", () => {
         await page.goto("/collections?view=copies");
 
         await expect(page.getByText("Annie, Fiery")).toHaveCount(4, { timeout: 15_000 });
-        await expect(page.getByText(/\b4 copies\b/)).toBeVisible();
+        await expect(page.getByText(/\b4 copies\b/u)).toBeVisible();
       });
     });
 
@@ -284,7 +284,7 @@ test.describe("collections grid", () => {
         await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 15_000 });
         // Default view is "cards" (user-settable preference), so the initial
         // label is "1 cards" — Annie's 2 printings collapse into one tile.
-        await expect(page.getByText(/\b1 cards\b/)).toBeVisible();
+        await expect(page.getByText(/\b1 cards\b/u)).toBeVisible();
 
         const viewGroup = page.getByRole("group", { name: "View mode" });
         // Click the non-default "Every printing" option so the URL actually
@@ -292,8 +292,8 @@ test.describe("collections grid", () => {
         // differs from the user's default (see setView in use-card-filters.ts).
         await viewGroup.getByRole("button", { name: "Every printing" }).click();
 
-        await expect(page).toHaveURL(/[?&]view=printings/);
-        await expect(page.getByText(/\b2 printings\b/)).toBeVisible();
+        await expect(page).toHaveURL(/[?&]view=printings/u);
+        await expect(page.getByText(/\b2 printings\b/u)).toBeVisible();
         await expect(page.getByText("Annie, Fiery")).toHaveCount(2);
       });
     });
@@ -334,7 +334,7 @@ test.describe("collections grid", () => {
 
         await page.getByRole("button", { name: "Clear search" }).click();
 
-        await expect(page.getByPlaceholder(/search/i)).toHaveValue("");
+        await expect(page.getByPlaceholder(/search/iu)).toHaveValue("");
         await expect(page.getByText("Garen, Rugged")).toBeVisible();
         await expect(page.getByText("Annie, Fiery")).toBeVisible();
       });
@@ -427,7 +427,7 @@ test.describe("collections grid", () => {
         await expect(page.getByRole("heading", { name: "All Cards" })).toBeVisible({
           timeout: 15_000,
         });
-        await expect(page.getByRole("link", { name: /All Cards/ })).toBeVisible();
+        await expect(page.getByRole("link", { name: /All Cards/u })).toBeVisible();
       });
     });
 
@@ -440,7 +440,7 @@ test.describe("collections grid", () => {
         await expect(page.getByRole("heading", { name: "Vault of Champions" })).toBeVisible({
           timeout: 15_000,
         });
-        await expect(page.getByRole("link", { name: /Vault of Champions/ })).toBeVisible();
+        await expect(page.getByRole("link", { name: /Vault of Champions/u })).toBeVisible();
       });
     });
   });
@@ -501,13 +501,13 @@ test.describe("collections grid", () => {
         await page.goto("/collections");
 
         const learnLink = page.getByRole("link", {
-          name: /Learn about cards, printings & copies/,
+          name: /Learn about cards, printings & copies/u,
         });
         await expect(learnLink).toBeVisible({ timeout: 15_000 });
         await expect(learnLink).toHaveAttribute("href", "/help/cards-printings-copies");
 
         await learnLink.click();
-        await expect(page).toHaveURL(/\/help\/cards-printings-copies$/);
+        await expect(page).toHaveURL(/\/help\/cards-printings-copies$/u);
       });
     });
   });

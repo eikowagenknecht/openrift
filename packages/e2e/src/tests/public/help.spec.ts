@@ -52,7 +52,7 @@ const INDEX_DESCRIPTION =
 // The pick() helper hashes the pathname to choose one, so this test asserts
 // that any of the known not-found headings rendered.
 const NOT_FOUND_HEADING_REGEX =
-  /Nothing here but dust|This card was never printed|Lost in the Rift|Page not found|You've wandered off the map|This page doesn't exist|No card at this address|The Rift has no record of this/;
+  /Nothing here but dust|This card was never printed|Lost in the Rift|Page not found|You've wandered off the map|This page doesn't exist|No card at this address|The Rift has no record of this/u;
 
 async function readJsonLdScripts(page: Page): Promise<unknown[]> {
   const texts = await page.locator('script[type="application/ld+json"]').allInnerTexts();
@@ -87,7 +87,7 @@ test.describe("help", () => {
 
       await page.getByRole("link", { name: "Cards, Printings & Copies" }).click();
 
-      await expect(page).toHaveURL(/\/help\/cards-printings-copies$/);
+      await expect(page).toHaveURL(/\/help\/cards-printings-copies$/u);
       await expect(
         page.getByRole("heading", { level: 1, name: "Cards, Printings & Copies" }),
       ).toBeVisible();
@@ -156,7 +156,7 @@ test.describe("help", () => {
     test("cards-printings-copies renders the article body", async ({ page }) => {
       await page.goto("/help/cards-printings-copies");
 
-      await expect(page.getByText(/OpenRift organizes the Riftbound catalog/i)).toBeVisible({
+      await expect(page.getByText(/OpenRift organizes the Riftbound catalog/iu)).toBeVisible({
         timeout: 15_000,
       });
     });
@@ -166,7 +166,7 @@ test.describe("help", () => {
 
       await page.getByRole("link", { name: "Help" }).click();
 
-      await expect(page).toHaveURL(/\/help$/);
+      await expect(page).toHaveURL(/\/help$/u);
       await expect(page.getByRole("heading", { level: 1, name: "Help Center" })).toBeVisible();
     });
 
@@ -184,7 +184,7 @@ test.describe("help", () => {
         timeout: 10_000,
       });
       await expect(page.getByRole("link", { name: "Go home" })).toBeVisible();
-      await expect(page).toHaveURL(/\/help\/does-not-exist$/);
+      await expect(page).toHaveURL(/\/help\/does-not-exist$/u);
     });
   });
 

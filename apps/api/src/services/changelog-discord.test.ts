@@ -318,7 +318,7 @@ ${longBlock}
         fromDate: null,
         fetcher,
       }),
-    ).rejects.toThrow(/Discord webhook 429/);
+    ).rejects.toThrow(/Discord webhook 429/u);
 
     expect(updateResult).toHaveBeenCalledTimes(1);
     expect(updateResult).toHaveBeenLastCalledWith("run-1", {

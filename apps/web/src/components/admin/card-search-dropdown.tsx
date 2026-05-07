@@ -91,6 +91,7 @@ export function CardSearchDropdown({
   return (
     <div className={cn("relative", className)} ref={containerRef}>
       <Input
+        // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- ARIA combobox pattern with autocomplete
         role="combobox"
         aria-expanded={visible && results.length > 0}
         aria-controls={listboxId}
@@ -120,6 +121,7 @@ export function CardSearchDropdown({
         <div
           ref={listRef}
           id={listboxId}
+          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- ARIA combobox pattern with autocomplete
           role="listbox"
           className="bg-popover absolute top-full z-50 mt-1 max-h-60 w-max min-w-full overflow-y-auto rounded-md border shadow-md"
         >
@@ -158,6 +160,7 @@ export function CardSearchDropdown({
       {visible && results.length === 0 && (
         <div
           id={listboxId}
+          // oxlint-disable-next-line jsx-a11y/prefer-tag-over-role -- ARIA combobox pattern with autocomplete
           role="listbox"
           className="bg-popover absolute top-full z-50 mt-1 w-full rounded-md border px-3 py-2 shadow-md"
         >

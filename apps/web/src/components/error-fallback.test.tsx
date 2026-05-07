@@ -35,7 +35,7 @@ describe("ErrorBoundary", () => {
     // Error details are hidden behind a toggle
     const user = userEvent.setup();
     await user.click(screen.getByText("Show details"));
-    expect(screen.getByText(/kaboom/)).toBeInTheDocument();
+    expect(screen.getByText(/kaboom/u)).toBeInTheDocument();
 
     spy.mockRestore();
   });

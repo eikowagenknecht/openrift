@@ -106,7 +106,7 @@ function computeDepth(ruleNumber: string): number {
   return Math.min(parts.length - 1, 3);
 }
 
-const RULE_LINE_REGEX = /^(\d+(?:\.[A-Za-z0-9]+)*)\.\s+(.*)$/;
+const RULE_LINE_REGEX = /^(\d+(?:\.[A-Za-z0-9]+)*)\.\s+(.*)$/u;
 
 /**
  * Parses the markdown rule format into rule rows. Each non-blank line is
@@ -135,7 +135,7 @@ export function parseRulesText(text: string): ParsedRule[] {
     const ruleNumber = match[1];
     // Tolerate a leading "| " column-separator from sources that mirror the
     // legacy pipe-delimited format.
-    const rest = match[2].replace(/^\|\s*/, "");
+    const rest = match[2].replace(/^\|\s*/u, "");
     if (!ruleNumber || !rest) {
       continue;
     }

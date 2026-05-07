@@ -73,7 +73,7 @@ describe("fetchApi", () => {
         path: "/api/v1/collections/1",
         method: "DELETE",
       }),
-    ).rejects.toThrow(/^Couldn't delete collection\n---\nDELETE .+ → 404 Not Found\nNot found$/);
+    ).rejects.toThrow(/^Couldn't delete collection\n---\nDELETE .+ → 404 Not Found\nNot found$/u);
   });
 
   it("logs the failure details to console.error on !res.ok", async () => {
@@ -129,7 +129,7 @@ describe("fetchApi", () => {
         path: "/api/v1/admin/me",
         acceptStatuses: [401, 403],
       }),
-    ).rejects.toThrow(/500 Server Error/);
+    ).rejects.toThrow(/500 Server Error/u);
   });
 
   it("falls back to '<no body>' when the response body cannot be read", async () => {
@@ -146,7 +146,7 @@ describe("fetchApi", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(fetchApi({ errorTitle: "Couldn't load", path: "/api/v1/x" })).rejects.toThrow(
-      /<no body>$/,
+      /<no body>$/u,
     );
   });
 });

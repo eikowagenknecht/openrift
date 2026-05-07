@@ -20,7 +20,7 @@ export const sentryTunnelRoute = new OpenAPIHono<{ Variables: Variables }>().pos
     }
 
     const allowed = new URL(sentryDsnSsr);
-    const allowedProjectId = allowed.pathname.replace(/^\/+/, "");
+    const allowedProjectId = allowed.pathname.replace(/^\/+/u, "");
 
     const body = await c.req.raw.arrayBuffer();
     if (body.byteLength > MAX_ENVELOPE_BYTES) {
@@ -44,7 +44,7 @@ export const sentryTunnelRoute = new OpenAPIHono<{ Variables: Variables }>().pos
       return c.body(null, 400);
     }
 
-    const projectId = envelopeDsn.pathname.replace(/^\/+/, "");
+    const projectId = envelopeDsn.pathname.replace(/^\/+/u, "");
     if (envelopeDsn.host !== allowed.host || projectId !== allowedProjectId) {
       return c.body(null, 400);
     }

@@ -7,8 +7,8 @@ interface RuntimeConfig {
 // editors and formatters can silently strip or normalize them.
 const LS = String.fromCodePoint(0x20_28);
 const PS = String.fromCodePoint(0x20_29);
-const LINE_TERMINATORS = new RegExp(`[${LS}${PS}]`, "g");
-const OPEN_BRACKET = /</g;
+const LINE_TERMINATORS = new RegExp(`[${LS}${PS}]`, "gu");
+const OPEN_BRACKET = /</gu;
 
 /**
  * Serialize runtime config as a `<script>` body. Inlined by the SSR shell so

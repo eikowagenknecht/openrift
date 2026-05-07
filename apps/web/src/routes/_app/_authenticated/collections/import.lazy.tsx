@@ -180,8 +180,8 @@ function ExportSection() {
         ? "all-cards"
         : (collections?.find((col) => col.id === exportCollectionId)?.name ?? "collection")
             .toLowerCase()
-            .replaceAll(/[^a-z0-9]+/g, "-")
-            .replaceAll(/^-|-$/g, "");
+            .replaceAll(/[^a-z0-9]+/gu, "-")
+            .replaceAll(/^-|-$/gu, "");
 
     const date = new Date().toISOString().slice(0, 10);
     downloadCSV(csv, `openrift-${collectionName}-${date}.csv`);

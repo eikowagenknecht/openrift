@@ -48,7 +48,7 @@ test.describe("signup page", () => {
       await expect(page.getByLabel("Name")).toBeVisible();
       await expect(page.getByLabel("Email")).toBeVisible();
       await expect(page.getByLabel("Password")).toBeVisible();
-      await expect(page.getByRole("button", { name: /^sign up$/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /^sign up$/iu })).toBeVisible();
     });
 
     test("has a sign-in link pointing to /login", async ({ page }) => {
@@ -57,8 +57,8 @@ test.describe("signup page", () => {
       // The header also has a "Sign in" link; scope to the body form's
       // "Already have an account? Sign in" link.
       const signInLink = page
-        .getByText(/Already have an account/i)
-        .getByRole("link", { name: /sign in/i });
+        .getByText(/Already have an account/iu)
+        .getByRole("link", { name: /sign in/iu });
       await expect(signInLink).toBeVisible();
       const href = await signInLink.getAttribute("href");
       expect(href).toContain("/login");
@@ -67,8 +67,8 @@ test.describe("signup page", () => {
     test("renders Google and Discord social auth buttons", async ({ page }) => {
       await page.goto("/signup");
 
-      await expect(page.getByRole("button", { name: /google/i })).toBeVisible();
-      await expect(page.getByRole("button", { name: /discord/i })).toBeVisible();
+      await expect(page.getByRole("button", { name: /google/iu })).toBeVisible();
+      await expect(page.getByRole("button", { name: /discord/iu })).toBeVisible();
     });
   });
 
@@ -79,7 +79,7 @@ test.describe("signup page", () => {
 
       await page.getByLabel("Email").fill("valid@test.com");
       await page.getByLabel("Password").fill("Password1!");
-      await page.getByRole("button", { name: /^sign up$/i }).click();
+      await page.getByRole("button", { name: /^sign up$/iu }).click();
 
       await expect(page.getByText("Name is required.")).toBeVisible();
     });
@@ -91,7 +91,7 @@ test.describe("signup page", () => {
       await page.getByLabel("Name").fill("Test User");
       await page.getByLabel("Email").fill("not-an-email");
       await page.getByLabel("Password").fill("Password1!");
-      await page.getByRole("button", { name: /^sign up$/i }).click();
+      await page.getByRole("button", { name: /^sign up$/iu }).click();
 
       await expect(page.getByText("Please enter a valid email address.")).toBeVisible();
     });
@@ -103,7 +103,7 @@ test.describe("signup page", () => {
       await page.getByLabel("Name").fill("Test User");
       await page.getByLabel("Email").fill("valid@test.com");
       await page.getByLabel("Password").fill("abcdefg");
-      await page.getByRole("button", { name: /^sign up$/i }).click();
+      await page.getByRole("button", { name: /^sign up$/iu }).click();
 
       await expect(page.getByText("Password must be at least 8 characters.")).toBeVisible();
     });
@@ -125,8 +125,8 @@ test.describe("signup page", () => {
 
       // Scope to the body form link; the header "Sign in" doesn't carry params.
       const signInLink = page
-        .getByText(/Already have an account/i)
-        .getByRole("link", { name: /sign in/i });
+        .getByText(/Already have an account/iu)
+        .getByRole("link", { name: /sign in/iu });
       const href = await signInLink.getAttribute("href");
       expect(href).not.toBeNull();
       const linkUrl = new URL(href ?? "", WEB_BASE_URL);
@@ -147,11 +147,12 @@ test.describe("signup page", () => {
       await page.getByLabel("Name").fill("Happy Path");
       await page.getByLabel("Email").fill(email);
       await page.getByLabel("Password").fill(password);
-      await page.getByRole("button", { name: /^sign up$/i }).click();
+      await page.getByRole("button", { name: /^sign up$/iu }).click();
 
       await expect(page).toHaveURL(
         new RegExp(
           `/verify-email\\?email=${encodeURIComponent(email).replaceAll(".", String.raw`\.`)}`,
+          "u",
         ),
         { timeout: 15_000 },
       );
@@ -183,7 +184,7 @@ test.describe("signup page", () => {
       await page.getByLabel("Name").fill("Duplicate User");
       await page.getByLabel("Email").fill(email);
       await page.getByLabel("Password").fill(password);
-      await page.getByRole("button", { name: /^sign up$/i }).click();
+      await page.getByRole("button", { name: /^sign up$/iu }).click();
 
       // Better-auth's sign-up/email endpoint returns success for an
       // unverified duplicate (re-sends the OTP), so the UI navigates to
@@ -192,13 +193,13 @@ test.describe("signup page", () => {
       await expect(async () => {
         const url = page.url();
         const hasError = await page
-          .getByText(/already exists/i)
+          .getByText(/already exists/iu)
           .isVisible()
           .catch(() => false);
         if (hasError) {
           return;
         }
-        if (/\/verify-email/.test(url)) {
+        if (/\/verify-email/u.test(url)) {
           return;
         }
         throw new Error(`Expected duplicate-signup error or /verify-email, got ${url}`);
@@ -222,9 +223,9 @@ test.describe("signup page", () => {
       await page.getByLabel("Name").fill("Loading User");
       await page.getByLabel("Email").fill(email);
       await page.getByLabel("Password").fill("SignupTestPassword1!");
-      await page.getByRole("button", { name: /^sign up$/i }).click();
+      await page.getByRole("button", { name: /^sign up$/iu }).click();
 
-      const loadingButton = page.getByRole("button", { name: /signing up/i });
+      const loadingButton = page.getByRole("button", { name: /signing up/iu });
       await expect(loadingButton).toBeVisible();
       await expect(loadingButton).toBeDisabled();
     });
@@ -234,13 +235,13 @@ test.describe("signup page", () => {
     test("sets title, description, and noindex meta", async ({ page }) => {
       await page.goto("/signup");
 
-      await expect(page).toHaveTitle(/Sign Up/);
+      await expect(page).toHaveTitle(/Sign Up/u);
       await expect(page.locator('meta[name="description"]')).toHaveAttribute(
         "content",
         "Create a free OpenRift account to track your Riftbound card collection and build decks.",
         { timeout: 10_000 },
       );
-      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/, {
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/u, {
         timeout: 10_000,
       });
     });
@@ -272,7 +273,7 @@ test.describe("signup page", () => {
         const page = await context.newPage();
         await page.goto("/signup");
 
-        await expect(page).toHaveURL(/\/signup/);
+        await expect(page).toHaveURL(/\/signup/u);
         await expect(page.getByRole("heading", { name: "Create an account" })).toBeVisible();
         await expect(page.getByLabel("Name")).toBeVisible();
         await expect(page.getByLabel("Email")).toBeVisible();

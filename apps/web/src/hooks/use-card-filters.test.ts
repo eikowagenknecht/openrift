@@ -351,7 +351,7 @@ describe("useCardFilters", () => {
   // (e.g. in vitest).
   it("does not use TemplateLiteral computed keys (React Compiler cannot lower them)", () => {
     const source = readFileSync(path.resolve(__dirname, "./use-card-filters.ts"), "utf-8");
-    expect(source).not.toMatch(/\[`\$\{[^`]+}[^`]*`]\s*:/);
+    expect(source).not.toMatch(/\[`\$\{[^`]+\}[^`]*`\]\s*:/u);
   });
 
   it("toggleOwned cycles owned → missing → incomplete → cleared", () => {

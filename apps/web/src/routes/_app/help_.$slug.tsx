@@ -7,7 +7,7 @@ import { articleJsonLd, breadcrumbJsonLd, seoHead } from "@/lib/seo";
 import { getSiteUrl } from "@/lib/site-config";
 
 function slugToTitle(slug: string) {
-  return slug.replaceAll("-", " ").replaceAll(/\b\w/g, (char) => char.toUpperCase());
+  return slug.replaceAll("-", " ").replaceAll(/\b\w/gu, (char) => char.toUpperCase());
 }
 
 export const Route = createFileRoute("/_app/help_/$slug")({

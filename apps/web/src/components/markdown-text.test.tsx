@@ -26,13 +26,13 @@ describe("MarkdownText", () => {
   it("strips disallowed block elements while keeping text", () => {
     const { container } = render(<MarkdownText text={"# Heading\n\nBody text."} />);
     expect(container.querySelector("h1")).toBeNull();
-    expect(screen.getByText(/Heading/)).toBeInTheDocument();
+    expect(screen.getByText(/Heading/u)).toBeInTheDocument();
     expect(screen.getByText("Body text.")).toBeInTheDocument();
   });
 
   it("does not render raw HTML", () => {
     const { container } = render(<MarkdownText text='<img src="x" onerror="alert(1)" />hello' />);
     expect(container.querySelector("img")).toBeNull();
-    expect(screen.getByText(/hello/)).toBeInTheDocument();
+    expect(screen.getByText(/hello/u)).toBeInTheDocument();
   });
 });

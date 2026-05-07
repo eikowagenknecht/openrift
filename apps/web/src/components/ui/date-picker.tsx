@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/input-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
-const ISO_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_RE = /^\d{4}-\d{2}-\d{2}$/u;
 
 function formatIso(date: Date): string {
   const y = date.getFullYear();

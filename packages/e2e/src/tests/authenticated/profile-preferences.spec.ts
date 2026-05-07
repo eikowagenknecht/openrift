@@ -58,7 +58,7 @@ async function deleteUser(email: string) {
 // source file + export name; matching on the decoded payload lets us target a
 // single server fn out of the bundle.
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
   if (!match) {
     return false;
   }
@@ -116,7 +116,7 @@ test.describe("profile preferences", () => {
       await expect(page.getByRole("button", { name: "Reset theme" })).toHaveCount(0);
 
       await darkButton.click();
-      await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+      await expect(page.locator("html")).toHaveClass(/\bdark\b/u);
       await expect(page.getByRole("button", { name: "Reset theme" })).toBeVisible();
 
       await page.getByRole("button", { name: "Reset theme" }).click();

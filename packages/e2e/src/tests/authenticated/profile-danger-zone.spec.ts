@@ -40,8 +40,8 @@ async function loginViaForm(page: Page, email: string, password: string) {
   );
   await page.locator("#email").fill(email);
   await page.locator("#password").fill(password);
-  await page.getByRole("button", { name: /login/i }).click();
-  await expect(page).not.toHaveURL(/\/login/, { timeout: 15_000 });
+  await page.getByRole("button", { name: /login/iu }).click();
+  await expect(page).not.toHaveURL(/\/login/u, { timeout: 15_000 });
 }
 
 async function setupUser(
@@ -95,7 +95,7 @@ test.describe("profile danger zone", () => {
       // Scope assertions to the data-section anchor so we pick up the card's
       // styling region without relying on its class tokens directly.
       const section = page.locator('[data-section="danger-zone"]');
-      await expect(section.getByText(/permanently delete your account/i)).toBeVisible();
+      await expect(section.getByText(/permanently delete your account/iu)).toBeVisible();
       await expect(
         section.getByRole("button", { name: "Delete account", exact: true }),
       ).toBeVisible();
@@ -114,7 +114,7 @@ test.describe("profile danger zone", () => {
       // destructive border. Class tokens are the only user-visible signal for
       // this styling cue today.
       const card = page.locator('[data-section="danger-zone"] [data-slot="card"]');
-      await expect(card).toHaveClass(/border-destructive/);
+      await expect(card).toHaveClass(/border-destructive/u);
     });
   });
 
@@ -129,7 +129,7 @@ test.describe("profile danger zone", () => {
 
       const dialog = await openDialog(page);
       await expect(dialog.getByRole("heading", { name: "Delete your account?" })).toBeVisible();
-      await expect(dialog.getByText(/permanently delete/i)).toBeVisible();
+      await expect(dialog.getByText(/permanently delete/iu)).toBeVisible();
       await expect(dialog.getByPlaceholder("Your password")).toBeVisible();
       await expect(dialog.getByRole("button", { name: "Cancel", exact: true })).toBeVisible();
       await expect(
@@ -271,7 +271,7 @@ test.describe("profile danger zone", () => {
       await dialog.getByRole("button", { name: "Delete account", exact: true }).click();
       await deleteRequest;
 
-      await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/$/u, { timeout: 15_000 });
 
       // Logged-out header: Sign in link is visible, no user menu entries.
       await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
@@ -311,8 +311,8 @@ test.describe("profile danger zone", () => {
       );
       await page.locator("#email").fill(email);
       await page.locator("#password").fill(password);
-      await page.getByRole("button", { name: /login/i }).click();
-      await expect(page.getByText(/invalid email or password/i)).toBeVisible({ timeout: 15_000 });
+      await page.getByRole("button", { name: /login/iu }).click();
+      await expect(page.getByText(/invalid email or password/iu)).toBeVisible({ timeout: 15_000 });
     });
   });
 
@@ -335,14 +335,14 @@ test.describe("profile danger zone", () => {
       const dialog = await openDialog(page);
       await dialog.getByPlaceholder("Your password").fill(password);
 
-      const confirmButton = dialog.getByRole("button", { name: /delete account|deleting/i });
+      const confirmButton = dialog.getByRole("button", { name: /delete account|deleting/iu });
       await confirmButton.click();
 
       await expect(confirmButton).toHaveText("Deleting...", { timeout: 5000 });
       await expect(confirmButton).toBeDisabled();
       await expect(dialog).toBeVisible();
 
-      await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/$/, { timeout: 15_000 });
+      await expect(page).toHaveURL(/^http:\/\/localhost:\d+\/$/u, { timeout: 15_000 });
     });
   });
 });

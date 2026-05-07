@@ -335,7 +335,7 @@ test.describe("collections drag-drop", () => {
       await page.keyboard.up("Shift");
       await page.waitForTimeout(500);
       expect(moves.fired()).toBe(false);
-      await expect(page.getByText(/Moved \d+ card/)).toHaveCount(0);
+      await expect(page.getByText(/Moved \d+ card/u)).toHaveCount(0);
     });
   });
 
@@ -383,12 +383,12 @@ test.describe("collections drag-drop", () => {
       await page.mouse.move(startX + 20, startY, { steps: 5 });
       await page.mouse.move(endX, endY, { steps: 20 });
       // Droppable is disabled on the source, so isOver never flips on for Inbox.
-      await expect(inboxRow).not.toHaveClass(/ring-primary/);
+      await expect(inboxRow).not.toHaveClass(/ring-primary/u);
       await page.mouse.up();
 
       await page.waitForTimeout(500);
       expect(moves.fired()).toBe(false);
-      await expect(page.getByText(/Moved /)).toHaveCount(0);
+      await expect(page.getByText(/Moved /u)).toHaveCount(0);
       expect(await countCopiesInCollection(inboxId)).toBe(1);
     });
   });
@@ -435,7 +435,7 @@ test.describe("collections drag-drop", () => {
 
       await page.waitForTimeout(500);
       expect(moves.fired()).toBe(false);
-      await expect(page.getByText(/Moved /)).toHaveCount(0);
+      await expect(page.getByText(/Moved /u)).toHaveCount(0);
       expect(await countCopiesInCollection(inboxId)).toBe(1);
       await expect(cardTile).toBeVisible();
     });
@@ -483,7 +483,7 @@ test.describe("collections drag-drop", () => {
 
       // The ring class is the actual visible drop affordance; there is no
       // role/aria alternative for a drag-hover state.
-      await expect(targetRow).toHaveClass(/ring-primary/);
+      await expect(targetRow).toHaveClass(/ring-primary/u);
 
       await page.mouse.up();
     });
@@ -532,7 +532,7 @@ test.describe("collections drag-drop", () => {
 
       await page.waitForTimeout(500);
       expect(moves.fired()).toBe(false);
-      await expect(page.getByText(/Moved /)).toHaveCount(0);
+      await expect(page.getByText(/Moved /u)).toHaveCount(0);
       expect(await countCopiesInCollection(inboxId)).toBe(1);
     });
   });

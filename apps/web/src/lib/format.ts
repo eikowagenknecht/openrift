@@ -85,6 +85,7 @@ export function priceColorClass(value?: number | null): string {
 /**
  * Price range for grid thumbnails when showing grouped cards.
  * Same price → single value; different → "min – max" with thin spaces.
+ * @returns Formatted price range string.
  */
 export function formatPriceRange(min: number, max: number): string {
   if (min === max) {

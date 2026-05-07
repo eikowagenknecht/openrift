@@ -9,9 +9,9 @@ import { WellKnown } from "./well-known.js";
 export function slugifyName(name: string): string {
   return name
     .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, "-")
-    .replaceAll(/-{2,}/g, "-")
-    .replaceAll(/^-|-$/g, "");
+    .replaceAll(/[^a-z0-9]+/gu, "-")
+    .replaceAll(/-{2,}/gu, "-")
+    .replaceAll(/^-|-$/gu, "");
 }
 
 /**
@@ -53,7 +53,7 @@ export function formatPrintingLabel(
  * @returns A lowercased alphanumeric-only slug (e.g. "kaisasurvivor").
  */
 export function normalizeNameForMatching(name: string): string {
-  return name.toLowerCase().replaceAll(/[^a-z0-9]/g, "");
+  return name.toLowerCase().replaceAll(/[^a-z0-9]/gu, "");
 }
 
 /**
@@ -237,7 +237,7 @@ export function getOrientation(type: CardType): "portrait" | "landscape" {
  * @returns The short code with its variant/promo suffix removed.
  */
 export function extractCardIdFromShortCode(shortCode: string): string {
-  return shortCode.replace(/(?<=\d)[a-z*]+$/, "");
+  return shortCode.replace(/(?<=\d)[a-z*]+$/u, "");
 }
 
 /**

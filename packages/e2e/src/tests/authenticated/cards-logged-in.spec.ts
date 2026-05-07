@@ -120,7 +120,7 @@ async function waitForCards(page: Page) {
  * @returns True when the URL belongs to the named server fn.
  */
 function isServerFn(url: string, fnName: string): boolean {
-  const match = url.match(/\/_serverFn\/([^/?#]+)/);
+  const match = url.match(/\/_serverFn\/([^/?#]+)/u);
   if (!match) {
     return false;
   }
@@ -199,7 +199,7 @@ test.describe("cards /cards (logged in)", () => {
 
     // Narrow the grid to one card so the + button is unambiguous and the
     // virtualizer doesn't shift rows while Playwright clicks.
-    await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+    await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
     await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 10_000 });
 
     // Off → Count → Add
@@ -247,7 +247,7 @@ test.describe("cards /cards (logged in)", () => {
     // cycle by observing the button's title until we reach Add mode.
     await page.reload();
     await waitForCards(page);
-    await page.getByPlaceholder(/search/i).fill("Annie, Fiery");
+    await page.getByPlaceholder(/search/iu).fill("Annie, Fiery");
     await expect(page.getByText("Annie, Fiery").first()).toBeVisible({ timeout: 10_000 });
 
     const modeButton = catalogModeButton(page);
@@ -306,7 +306,7 @@ test.describe("cards /cards (logged in)", () => {
 
     await paletteInput.fill("Annie");
     // Matches render as card-row buttons whose accessible name starts with the card name.
-    await expect(page.getByRole("button", { name: /Annie, Fiery/i }).first()).toBeVisible({
+    await expect(page.getByRole("button", { name: /Annie, Fiery/iu }).first()).toBeVisible({
       timeout: 10_000,
     });
 
@@ -315,7 +315,7 @@ test.describe("cards /cards (logged in)", () => {
     await paletteInput.press("Enter");
     await paletteInput.press("Enter");
 
-    await expect(page.getByText(/Added 1×\s*Annie, Fiery/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Added 1×\s*Annie, Fiery/iu)).toBeVisible({ timeout: 10_000 });
 
     // Verify the copy landed in the user's Inbox.
     const sql = loadDb();
@@ -347,7 +347,7 @@ test.describe("cards /cards (logged in)", () => {
     await page.getByRole("button", { name: "One per card" }).click();
 
     // Narrow the grid to the multi-printing card so the variant affordance is easy to click.
-    await page.getByPlaceholder(/search/i).fill(multiPrintingCard);
+    await page.getByPlaceholder(/search/iu).fill(multiPrintingCard);
     await expect(page.getByText(multiPrintingCard).first()).toBeVisible({ timeout: 10_000 });
 
     // Enter Add mode (Off → Count → Add).
@@ -356,7 +356,10 @@ test.describe("cards /cards (logged in)", () => {
     await button.click();
 
     // The variant affordance is the middle button of the strip, showing "×N".
-    const variantButton = page.locator('button[tabindex="-1"]').filter({ hasText: /^×\d/ }).first();
+    const variantButton = page
+      .locator('button[tabindex="-1"]')
+      .filter({ hasText: /^×\d/u })
+      .first();
     await expect(variantButton).toBeVisible({ timeout: 10_000 });
     await variantButton.click();
 
@@ -369,7 +372,7 @@ test.describe("cards /cards (logged in)", () => {
     await expect(popover.first()).toBeVisible({ timeout: 5000 });
 
     // Clicking outside (on the search input) closes the popover.
-    await page.getByPlaceholder(/search/i).click();
+    await page.getByPlaceholder(/search/iu).click();
     await expect(popover.first()).not.toBeVisible({ timeout: 5000 });
   });
 
