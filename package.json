@@ -53,7 +53,7 @@
     "lefthook": "2.1.6",
     "oxfmt": "0.47.0",
     "oxlint": "1.62.0",
-    "syncpack": "14.3.1",
+    "syncpack": "15.0.0",
     "turbo": "2.9.7"
   },
   "overrides": {
