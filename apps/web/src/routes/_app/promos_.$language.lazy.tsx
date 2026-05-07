@@ -561,16 +561,7 @@ function ChannelLeafSection({
                   display={display}
                   sizes={PROMOS_CARD_SIZES}
                   belowLabel={<BelowLabel printing={printing} />}
-                  aboveCard={
-                    ownedCounts ? (
-                      <OwnedCountStrip
-                        count={ownedCount}
-                        printingId={printing.id}
-                        cardName={printing.card.name}
-                        shortCode={printing.shortCode}
-                      />
-                    ) : undefined
-                  }
+                  aboveCard={ownedCounts ? <OwnedCountStrip count={ownedCount} /> : undefined}
                   dimmed={ownedCounts ? ownedCount === 0 : undefined}
                 />
               );
@@ -648,16 +639,7 @@ function CompactBranchGrid({
                 display={display}
                 sizes={PROMOS_CARD_SIZES}
                 belowLabel={<BelowLabel printing={printing} />}
-                aboveCard={
-                  ownedCounts ? (
-                    <OwnedCountStrip
-                      count={ownedCount}
-                      printingId={printing.id}
-                      cardName={printing.card.name}
-                      shortCode={printing.shortCode}
-                    />
-                  ) : undefined
-                }
+                aboveCard={ownedCounts ? <OwnedCountStrip count={ownedCount} /> : undefined}
                 dimmed={ownedCounts ? ownedCount === 0 : undefined}
               />
             </div>
