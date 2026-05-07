@@ -141,7 +141,7 @@ export function setup() {
     throw new Error(`Collections probe failed: ${collectionsRes.status}`);
   }
   const collectionsBody = collectionsRes.json();
-  const collectionIds = (collectionsBody.collections ?? []).map((collection) => collection.id);
+  const collectionIds = (collectionsBody.items ?? []).map((collection) => collection.id);
   if (collectionIds.length === 0) {
     throw new Error(
       "Test user has no collections — create at least one on the target host before running.",
