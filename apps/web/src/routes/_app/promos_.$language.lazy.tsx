@@ -195,7 +195,7 @@ function PromosPage() {
   const isLoggedIn = Boolean(session?.user);
   const catalogMode = useDisplayStore((s) => s.catalogMode);
   const showOwned = isLoggedIn && catalogMode !== "off";
-  const { filters, ranges, filterState, hasActiveFilters } = useFilterValues();
+  const { filters, ranges, filterState, groupDir, hasActiveFilters } = useFilterValues();
   // The owned filter needs counts even when the count display is off, so
   // request the data whenever the user is logged in. The toolbar toggle still
   // controls only the *display*.
@@ -283,14 +283,14 @@ function PromosPage() {
   // enum (channel/card/year). asPromoGrouping coerces unknowns (e.g. when
   // navigating from /cards with ?groupBy=type) back to the page default.
   const grouping = asPromoGrouping(filterState.groupBy);
-  // Year defaults to newest-first since recent printings are usually what
-  // people care about. Other groupings keep the global asc default.
-  const currentSearch = Route.useSearch();
-  const explicitGroupDir = currentSearch.groupDir as SortDirection | undefined;
-  const groupDir: SortDirection = explicitGroupDir ?? (grouping === "year" ? "desc" : "asc");
 
+  // Apply groupDir uniformly across all three groupings — the channel tree
+  // reverses its top-level order, card and year reverse their section order
+  // via their helpers. Mirrors how /cards' card-grid handles groupDir so the
+  // toggle behaviour is consistent across pages.
+  const channelTree = buildPromoTreeFromMatches(matchedPrintings, data.channels);
   const activeTree =
-    grouping === "channel" ? buildPromoTreeFromMatches(matchedPrintings, data.channels) : [];
+    grouping === "channel" ? (groupDir === "desc" ? channelTree.toReversed() : channelTree) : [];
   const cardSections = grouping === "card" ? groupByCard(matchedPrintings, groupDir) : undefined;
   const yearSections = grouping === "year" ? groupByYear(matchedPrintings, groupDir) : undefined;
 
@@ -338,6 +338,7 @@ function PromosPage() {
     }
   }, [location.hash, activeLanguage]);
 
+  const currentSearch = Route.useSearch();
   function handleLanguageChange(next: string | null) {
     if (!next || next === activeLanguage) {
       return;
