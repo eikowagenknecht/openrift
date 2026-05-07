@@ -370,6 +370,8 @@ describe("getMappingOverview", () => {
         printingId: "printing-1",
         externalId: 12_345,
         productName: "Fireball Product",
+        finish: "normal",
+        language: "EN",
         recordedAt: new Date("2026-01-15"),
         marketCents: 500,
         lowCents: 400,
@@ -421,6 +423,8 @@ describe("getMappingOverview", () => {
         printingId: "printing-1",
         externalId: 123,
         productName: "X",
+        finish: "normal",
+        language: "EN",
         recordedAt: new Date("2026-01-15"),
         marketCents: 100,
         lowCents: null,
@@ -469,6 +473,8 @@ describe("getMappingOverview", () => {
         printingId: "printing-1",
         externalId: 12_345,
         productName: "Fireball",
+        finish: "normal",
+        language: "EN",
         recordedAt: new Date(),
         marketCents: 100,
         lowCents: null,
@@ -522,6 +528,8 @@ describe("getMappingOverview", () => {
         printingId: "p-1",
         externalId: 123,
         productName: "Fireball",
+        finish: "normal",
+        language: "EN",
         recordedAt: new Date(),
         marketCents: 100,
         lowCents: null,
@@ -536,6 +544,8 @@ describe("getMappingOverview", () => {
         printingId: "p-2",
         externalId: 123,
         productName: "Fireball",
+        finish: "normal",
+        language: "EN",
         recordedAt: new Date(),
         marketCents: 100,
         lowCents: null,
@@ -587,6 +597,89 @@ describe("getMappingOverview", () => {
 
     // Both printings share externalId=123 and finish=normal, so only one assigned product
     expect(result.groups[0].assignedProducts).toHaveLength(1);
+  });
+
+  it("keeps per-finish prices distinct when one externalId has two SKUs bound to the same printing", async () => {
+    // Regression: /admin/cards/<slug> randomly switched the displayed price
+    // between normal and foil when both SKUs of a single Cardmarket externalId
+    // were bound to the same printing. The price-row JOIN drops the finish
+    // dimension, and the lookup map keyed only on (printingId, externalId)
+    // overwrote one finish's price with the other's.
+    const priceQuery = vi.fn().mockResolvedValue([
+      {
+        printingId: "printing-1",
+        externalId: 100,
+        productName: "Body Rune",
+        finish: "normal",
+        language: "EN",
+        recordedAt: new Date("2026-04-01"),
+        marketCents: 500,
+        lowCents: 400,
+        midCents: 500,
+        highCents: 600,
+        trendCents: 500,
+        avg1Cents: 480,
+        avg7Cents: 490,
+        avg30Cents: 495,
+      },
+      {
+        printingId: "printing-1",
+        externalId: 100,
+        productName: "Body Rune",
+        finish: "foil",
+        language: "EN",
+        recordedAt: new Date("2026-04-01"),
+        marketCents: 1500,
+        lowCents: 1300,
+        midCents: 1500,
+        highCents: 1700,
+        trendCents: 1500,
+        avg1Cents: 1480,
+        avg7Cents: 1490,
+        avg30Cents: 1495,
+      },
+    ]);
+    const mapPriceRow = vi.fn().mockImplementation((row) => ({
+      productName: row.productName,
+      marketCents: row.marketCents,
+      lowCents: row.lowCents,
+      currency: "EUR",
+      recordedAt: row.recordedAt.toISOString(),
+      midCents: row.midCents,
+      highCents: row.highCents,
+      trendCents: row.trendCents,
+      avg1Cents: row.avg1Cents,
+      avg7Cents: row.avg7Cents,
+      avg30Cents: row.avg30Cents,
+    }));
+    const mappingRepo = createMockMappingRepo({
+      allCardsWithPrintings: vi.fn().mockResolvedValue([
+        makeCardPrintingRow({
+          printingId: "printing-1",
+          externalId: 100,
+          sourceGroupId: 1,
+          productFinish: "normal",
+          sourceLanguage: "EN",
+        }),
+        makeCardPrintingRow({
+          printingId: "printing-1",
+          externalId: 100,
+          sourceGroupId: 1,
+          productFinish: "foil",
+          sourceLanguage: "EN",
+        }),
+      ]),
+    });
+    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
+    const config = createMockConfig({ priceQuery, mapPriceRow });
+
+    const result = await getMappingOverview(repos, config);
+
+    const assigned = result.groups[0].assignedProducts;
+    expect(assigned).toHaveLength(2);
+    const byFinish = new Map(assigned.map((p) => [p.finish, p]));
+    expect(byFinish.get("normal")?.marketCents).toBe(500);
+    expect(byFinish.get("foil")?.marketCents).toBe(1500);
   });
 
   it("returns allCards list for manual assignment", async () => {
@@ -656,6 +749,8 @@ describe("getMappingOverview", () => {
       {
         printingId: "printing-1",
         productName: "Fireball",
+        finish: "normal",
+        language: "EN",
         recordedAt: new Date(),
         marketCents: 100,
         lowCents: null,
@@ -711,6 +806,8 @@ describe("getMappingOverview", () => {
         printingId: "printing-1",
         externalId: 123,
         productName: "Fireball",
+        finish: "normal",
+        language: "EN",
         recordedAt: new Date(),
         marketCents: 100,
         lowCents: null,
@@ -821,6 +918,8 @@ describe("getMappingOverview", () => {
         printingId: "p-mapped",
         externalId: 123,
         productName: "Fireball",
+        finish: "normal",
+        language: "EN",
         recordedAt: new Date(),
         marketCents: 100,
         lowCents: null,

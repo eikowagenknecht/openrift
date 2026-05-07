@@ -47,6 +47,8 @@ interface MappedPriceRow extends PriceColumns {
   printingId: string;
   externalId: number;
   productName: string;
+  finish: string;
+  language: string | null;
   recordedAt: Date;
 }
 

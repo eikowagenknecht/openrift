@@ -899,6 +899,8 @@ describe("buildUnifiedMappingsCardResponse", () => {
         printingId: "p-allay",
         externalId: 379_431,
         productName: "Allay - Eager Admirer",
+        finish: "normal",
+        language: "EN",
         recordedAt: new Date("2026-04-01T00:00:00Z"),
         marketCents: 100,
         lowCents: 80,

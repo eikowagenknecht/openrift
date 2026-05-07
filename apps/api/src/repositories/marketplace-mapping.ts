@@ -40,12 +40,15 @@ export function marketplaceMappingRepo(db: Db) {
     },
 
     /**
-     * Latest price row per (printingId, externalId) for mapped printings in a
-     * given marketplace. Joins through `marketplace_product_prices` (keyed on
-     * the SKU) so every printing bound to a product shares the same history.
-     * DISTINCT ON collapses the history down to the most recent row at the
-     * DB so callers don't ship ~100× more rows than they use.
-     * @returns One row per distinct (printingId, externalId), newest first.
+     * Latest price row per (printingId, externalId, finish, language) for
+     * mapped printings in a given marketplace. The SKU key on
+     * `marketplace_products` is `(marketplace, external_id, finish, language)`
+     * — one externalId can resolve to multiple SKUs (e.g. CM's normal/foil
+     * variants), and each one has its own price history. DISTINCT ON has to
+     * include the full SKU tuple, otherwise the surviving row's finish is
+     * arbitrary when timestamps tie and the lookup map silently picks the
+     * wrong price for finishes that share an externalId.
+     * @returns One row per distinct (printingId, externalId, finish, language), newest first.
      */
     pricesByMarketplace(marketplace: string, printingIds: string[]) {
       if (printingIds.length === 0) {
@@ -59,6 +62,8 @@ export function marketplaceMappingRepo(db: Db) {
           "mpv.printingId as printingId",
           "mp.externalId as externalId",
           "mp.productName as productName",
+          "mp.finish as finish",
+          "mp.language as language",
           "pp.marketCents",
           "pp.lowCents",
           "pp.midCents",
@@ -71,9 +76,11 @@ export function marketplaceMappingRepo(db: Db) {
         ])
         .where("mp.marketplace", "=", marketplace)
         .where("mpv.printingId", "in", printingIds)
-        .distinctOn(["mpv.printingId", "mp.externalId"])
+        .distinctOn(["mpv.printingId", "mp.externalId", "mp.finish", "mp.language"])
         .orderBy("mpv.printingId")
         .orderBy("mp.externalId")
+        .orderBy("mp.finish")
+        .orderBy("mp.language")
         .orderBy("pp.recordedAt", "desc")
         .execute();
     },

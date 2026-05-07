@@ -511,7 +511,7 @@ export async function buildUnifiedMappingsCardResponse(
       if (mappedPrintingIds.size > 0) {
         const mappedRows = await config.priceQuery([...mappedPrintingIds]);
         for (const row of mappedRows) {
-          const key = `${row.printingId}::${row.externalId}`;
+          const key = `${row.printingId}::${row.externalId}::${row.finish}::${row.language ?? ""}`;
           if (!mappedProductInfo.has(key)) {
             mappedProductInfo.set(key, config.mapPriceRow(row));
           }

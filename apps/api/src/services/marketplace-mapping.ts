@@ -280,7 +280,9 @@ export function buildResponseGroups(
         continue;
       }
       seenAssigned.add(dedupKey);
-      const info = mappedProductInfo.get(`${p.printingId}::${p.externalId}`);
+      const info = mappedProductInfo.get(
+        `${p.printingId}::${p.externalId}::${p.productFinish}::${p.sourceLanguage ?? ""}`,
+      );
       if (info) {
         assignedProducts.push({
           externalId: p.externalId,
@@ -421,13 +423,16 @@ export async function getMappingOverview(
     }
   }
 
-  // Key by (printingId, externalId) so we don't share price info across
-  // different products that happen to map to the same printing.
+  // Key by the full SKU tuple (printingId, externalId, finish, language). The
+  // SKU key on `marketplace_products` is `(externalId, finish, language)` —
+  // CM regularly imports one externalId as multiple finishes, and both can be
+  // bound to the same printing, so dropping `finish`/`language` from the key
+  // would silently let one finish's price overwrite the other.
   const mappedProductInfo = new Map<string, ProductInfo>();
   if (mappedPrintingIds.size > 0) {
     const mappedRows = await config.priceQuery([...mappedPrintingIds]);
     for (const row of mappedRows) {
-      const key = `${row.printingId}::${row.externalId}`;
+      const key = `${row.printingId}::${row.externalId}::${row.finish}::${row.language ?? ""}`;
       if (!mappedProductInfo.has(key)) {
         mappedProductInfo.set(key, config.mapPriceRow(row));
       }
