@@ -14,6 +14,10 @@ const SUGGESTION_THRESHOLD = 100;
 /** Score at or above which a suggestion is considered a strong (high-confidence) match. */
 export const STRONG_MATCH_THRESHOLD = 150;
 
+/** Fixed score assigned to weak (amber) sibling-derived suggestions. Below the
+ *  scorer's emit floor so it never collides with strong-path scores. */
+const WEAK_MATCH_SCORE = 50;
+
 /**
  * Products priced at or above this threshold are overwhelmingly signed or
  * metal/metal-deluxe printings (normal-foil listings rarely clear this bar).
@@ -378,6 +382,14 @@ function arraysEqual(a: readonly string[], b: readonly string[]): boolean {
 export interface ProductSuggestion {
   printingId: string;
   score: number;
+  /**
+   * When true, this is a weak (amber) suggestion derived from sibling
+   * assignments on the same externalId rather than the direct name/finish
+   * scorer. Used to handle bogus marketplace listings — e.g. a CM "normal"
+   * SKU on a foil-only card — by mirroring a sibling SKU's existing mapping.
+   * Weak suggestions are never auto-accepted by the strong-match bulk action.
+   */
+  isWeak?: boolean;
 }
 
 /**
@@ -421,6 +433,83 @@ export function computeProductSuggestions(
       const list = out.get(key) ?? [];
       list.push({ printingId, score });
       out.set(key, list);
+    }
+  }
+  // Layer weak (amber) suggestions on top — only for product keys that the
+  // strong path didn't already cover, so the green/dashed chip wins whenever
+  // a real match exists.
+  for (const [key, weakList] of computeWeakProductSuggestions(group)) {
+    if (!out.has(key)) {
+      out.set(key, weakList);
+    }
+  }
+  return out;
+}
+
+/**
+ * Weak (amber) suggestions for unassigned marketplace SKUs whose finish doesn't
+ * match any printing on this card — typically bogus Cardmarket "normal"
+ * listings on foil-only cards. The rule: if another SKU sharing the same
+ * (marketplace, externalId) is already mapped to one or more printings on this
+ * card, mirror those printings. The hint is the user's own prior mapping
+ * decision on the legitimate sibling SKU, not a heuristic, which is why it's
+ * safe to surface despite the finish mismatch.
+ *
+ * Restricted to language-aggregate marketplaces (CM, TCG): on CardTrader the
+ * finish/language tuple is the SKU and bogus listings present differently.
+ * @returns Map keyed by `productSuggestionKey(...)` → one or more weak suggestions.
+ */
+function computeWeakProductSuggestions(
+  group: UnifiedMappingGroup,
+): Map<string, ProductSuggestion[]> {
+  const out = new Map<string, ProductSuggestion[]>();
+  const cardPrintingFinishes = new Set(
+    group.printings.map((p) => marketplaceFinish(p.finish.toLowerCase())),
+  );
+  const cardPrintingIds = new Set(group.printings.map((p) => p.printingId));
+
+  for (const marketplace of ["tcgplayer", "cardmarket"] as const) {
+    const { stagedProducts, assignedProducts, assignments } = group[marketplace];
+
+    const printingsByExternalId = new Map<number, Set<string>>();
+    for (const a of assignments) {
+      if (!cardPrintingIds.has(a.printingId)) {
+        continue;
+      }
+      const existing = printingsByExternalId.get(a.externalId);
+      if (existing === undefined) {
+        printingsByExternalId.set(a.externalId, new Set([a.printingId]));
+      } else {
+        existing.add(a.printingId);
+      }
+    }
+
+    const assignedKeys = new Set(
+      assignedProducts.map((p) => `${p.externalId}|${p.finish}|${p.language ?? ""}`),
+    );
+
+    for (const product of stagedProducts) {
+      const productKey = `${product.externalId}|${product.finish}|${product.language ?? ""}`;
+      if (assignedKeys.has(productKey)) {
+        continue;
+      }
+      if (cardPrintingFinishes.has(product.finish.toLowerCase())) {
+        continue;
+      }
+      const sibling = printingsByExternalId.get(product.externalId);
+      if (sibling === undefined || sibling.size === 0) {
+        continue;
+      }
+      const key = productSuggestionKey(
+        marketplace,
+        product.externalId,
+        product.finish,
+        product.language,
+      );
+      out.set(
+        key,
+        [...sibling].map((printingId) => ({ printingId, score: WEAK_MATCH_SCORE, isWeak: true })),
+      );
     }
   }
   return out;

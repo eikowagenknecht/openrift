@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectEntries,
   collectStrongMappings,
+  collectWeakMappings,
   displayedProductLanguage,
   isCardNameMismatch,
 } from "./marketplace-products-table";
@@ -421,6 +422,38 @@ describe("collectStrongMappings", () => {
     expect(result.tcgplayer).toHaveLength(1);
     expect(result.cardmarket).toHaveLength(1);
     expect(result.cardtrader).toEqual([]);
+  });
+});
+
+describe("collectWeakMappings", () => {
+  it("returns empty arrays for every marketplace when no suggestions are provided", () => {
+    const result = collectWeakMappings(group([printing()]), undefined);
+    expect(result).toEqual({ tcgplayer: [], cardmarket: [], cardtrader: [] });
+  });
+
+  it("includes weak suggestions for unassigned products and ignores non-weak ones", () => {
+    const g = group([printing({ printingId: "p-foil", finish: "foil" })], {
+      cardmarket: {
+        staged: [staged({ externalId: 1, finish: "normal", language: null })],
+        assigned: [],
+        assignments: [],
+      },
+    });
+    const suggestions = new Map<string, ProductSuggestion[]>([
+      [
+        productSuggestionKey("cardmarket", 1, "normal", null),
+        [{ printingId: "p-foil", score: 50, isWeak: true }],
+      ],
+      [
+        productSuggestionKey("tcgplayer", 2, "normal", "EN"),
+        [{ printingId: "p-foil", score: 200 }],
+      ],
+    ]);
+    const result = collectWeakMappings(g, suggestions);
+    expect(result.cardmarket).toEqual([
+      { externalId: 1, finish: "normal", language: null, printingId: "p-foil" },
+    ]);
+    expect(result.tcgplayer).toEqual([]);
   });
 });
 

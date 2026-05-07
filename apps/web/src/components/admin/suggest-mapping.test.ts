@@ -854,4 +854,126 @@ describe("computeProductSuggestions", () => {
     );
     expect(result.get(productSuggestionKey("cardmarket", 123, "normal", null))).toBeUndefined();
   });
+
+  it("emits a weak (amber) suggestion when a CM SKU has no matching printing finish but a sibling SKU is assigned", () => {
+    // Bogus Cardmarket "normal" SKU on a foil-only card: the legit foil SKU
+    // (same externalId) is already mapped to the foil printing, so we mirror
+    // that mapping for the bogus normal — derived from the user's prior
+    // assignment, not a heuristic.
+    const foil = printing({ printingId: "p-foil", finish: "foil" });
+    const result = computeProductSuggestions(
+      group([foil], {
+        cardmarket: {
+          staged: [staged({ externalId: 555, productName: "Ahri", finish: "normal" })],
+          assigned: [staged({ externalId: 555, productName: "Ahri", finish: "foil" })],
+          assignments: [{ externalId: 555, printingId: "p-foil", finish: "foil", language: null }],
+        },
+      }),
+    );
+    const weak = result.get(productSuggestionKey("cardmarket", 555, "normal", "EN"));
+    expect(weak).toEqual([{ printingId: "p-foil", score: 50, isWeak: true }]);
+  });
+
+  it("does not emit a weak suggestion when no sibling SKU is yet assigned", () => {
+    // User explicitly chose: the amber hint must wait until the legit sibling
+    // is mapped, so the suggestion derives from a real prior decision rather
+    // than guessing at the only-printing-on-this-card.
+    const foil = printing({ printingId: "p-foil", finish: "foil" });
+    const result = computeProductSuggestions(
+      group([foil], {
+        cardmarket: {
+          staged: [
+            staged({ externalId: 556, productName: "Ahri", finish: "normal" }),
+            staged({ externalId: 556, productName: "Ahri", finish: "foil" }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    expect(result.get(productSuggestionKey("cardmarket", 556, "normal", "EN"))).toBeUndefined();
+  });
+
+  it("does not emit a weak suggestion when only a different-externalId sibling is assigned", () => {
+    // Q1: bogus entries should only mirror siblings sharing the same CM ID.
+    // A legit foil product with a different externalId is not a sibling and
+    // must not feed the amber hint.
+    const foil = printing({ printingId: "p-foil", finish: "foil" });
+    const result = computeProductSuggestions(
+      group([foil], {
+        cardmarket: {
+          staged: [staged({ externalId: 557, productName: "Ahri", finish: "normal" })],
+          assignments: [{ externalId: 999, printingId: "p-foil", finish: "foil", language: null }],
+        },
+      }),
+    );
+    expect(result.get(productSuggestionKey("cardmarket", 557, "normal", "EN"))).toBeUndefined();
+  });
+
+  it("mirrors every sibling printing when one externalId fans out to multiple printings", () => {
+    // Cardmarket's language-aggregate SKUs can map to both EN and ZH foils
+    // under one externalId. The bogus normal SKU should mirror all of them so
+    // the resulting state matches the legit sibling's coverage.
+    const enFoil = printing({ printingId: "p-en-foil", finish: "foil", language: "EN" });
+    const zhFoil = printing({
+      printingId: "p-zh-foil",
+      finish: "foil",
+      language: "ZH",
+      shortCode: "OGN-001",
+    });
+    const result = computeProductSuggestions(
+      group([enFoil, zhFoil], {
+        cardmarket: {
+          staged: [
+            staged({ externalId: 558, productName: "Ahri", finish: "normal", language: null }),
+          ],
+          assigned: [
+            staged({ externalId: 558, productName: "Ahri", finish: "foil", language: null }),
+          ],
+          assignments: [
+            { externalId: 558, printingId: "p-en-foil", finish: "foil", language: null },
+            { externalId: 558, printingId: "p-zh-foil", finish: "foil", language: null },
+          ],
+        },
+      }),
+    );
+    const weak = result.get(productSuggestionKey("cardmarket", 558, "normal", null));
+    expect(weak?.map((s) => s.printingId).toSorted()).toEqual(["p-en-foil", "p-zh-foil"]);
+    expect(weak?.every((s) => s.isWeak === true)).toBe(true);
+  });
+
+  it("prefers a strong suggestion over a weak one when the printing finish does match", () => {
+    // The weak path is restricted to SKUs whose finish matches no printing on
+    // the card. When a real same-finish printing exists, the strong scorer
+    // owns the suggestion and the amber path stays out of its way.
+    const normal = printing({ printingId: "p-normal", finish: "normal" });
+    const result = computeProductSuggestions(
+      group([normal], {
+        cardmarket: {
+          staged: [staged({ externalId: 559, productName: "Ahri", finish: "normal" })],
+          assignments: [],
+        },
+      }),
+    );
+    const entry = result.get(productSuggestionKey("cardmarket", 559, "normal", "EN"));
+    expect(entry?.[0]?.isWeak).toBeUndefined();
+    expect(entry?.[0]?.score).toBeGreaterThanOrEqual(100);
+  });
+
+  it("does not emit a weak suggestion on CardTrader (per-language SKUs handle this differently)", () => {
+    // CT enforces language at the SKU level and has its own cross-language
+    // evidence path; layering an amber sibling-mirror would conflict with
+    // those guards and risk language-mismatched assignments.
+    const foil = printing({ printingId: "p-foil", finish: "foil", language: "EN" });
+    const result = computeProductSuggestions(
+      group([foil], {
+        cardtrader: {
+          staged: [
+            staged({ externalId: 560, productName: "Ahri", finish: "normal", language: "EN" }),
+          ],
+          assignments: [{ externalId: 560, printingId: "p-foil", finish: "foil", language: "EN" }],
+        },
+      }),
+    );
+    expect(result.get(productSuggestionKey("cardtrader", 560, "normal", "EN"))).toBeUndefined();
+  });
 });

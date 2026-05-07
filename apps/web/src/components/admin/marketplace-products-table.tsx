@@ -269,6 +269,47 @@ export function collectStrongMappings(
   return out;
 }
 
+/**
+ * Group every weak (sibling-derived, `isWeak: true`) suggestion for unassigned
+ * products by marketplace. Powers a separate "Accept N weak" button so admins
+ * can batch-clear bogus marketplace listings (e.g. a Cardmarket "normal" SKU
+ * on a foil-only card) once the legitimate sibling has been mapped.
+ * @returns A record keyed by marketplace with one entry per weak mapping.
+ */
+export function collectWeakMappings(
+  group: UnifiedMappingGroup,
+  suggestions: Map<string, ProductSuggestion[]> | undefined,
+): Record<AdminMarketplaceName, PrintingAssignment[]> {
+  const out: Record<AdminMarketplaceName, PrintingAssignment[]> = {
+    tcgplayer: [],
+    cardmarket: [],
+    cardtrader: [],
+  };
+  for (const entry of collectEntries(group)) {
+    if (entry.isAssigned) {
+      continue;
+    }
+    const key = productSuggestionKey(
+      entry.marketplace,
+      entry.product.externalId,
+      entry.product.finish,
+      entry.product.language,
+    );
+    for (const s of suggestions?.get(key) ?? []) {
+      if (s.isWeak !== true) {
+        continue;
+      }
+      out[entry.marketplace].push({
+        externalId: entry.product.externalId,
+        finish: entry.product.finish,
+        language: entry.product.language,
+        printingId: s.printingId,
+      });
+    }
+  }
+  return out;
+}
+
 export function MarketplaceProductsTable({
   group,
   allCards,
@@ -290,6 +331,7 @@ export function MarketplaceProductsTable({
 
   const printingById = new Map(group.printings.map((p) => [p.printingId, p]));
   const strongMappingsByMarketplace = collectStrongMappings(group, suggestions);
+  const weakMappingsByMarketplace = collectWeakMappings(group, suggestions);
   const totalStrongCount =
     strongMappingsByMarketplace.tcgplayer.length +
     strongMappingsByMarketplace.cardmarket.length +
@@ -349,6 +391,7 @@ export function MarketplaceProductsTable({
           const isFirstOfMarketplace =
             index === 0 || entries[index - 1].marketplace !== entry.marketplace;
           const strongMappings = strongMappingsByMarketplace[entry.marketplace];
+          const weakMappings = weakMappingsByMarketplace[entry.marketplace];
           const marketplaceHandlers = handlers[entry.marketplace];
           return (
             <React.Fragment key={key}>
@@ -359,20 +402,37 @@ export function MarketplaceProductsTable({
                       <span className="text-muted-foreground font-semibold tracking-wide uppercase">
                         {MARKETPLACE_CONFIGS[entry.marketplace].displayName}
                       </span>
-                      {strongMappings.length > 0 && (
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          disabled={marketplaceHandlers.isAssigningToPrinting}
-                          onClick={() =>
-                            marketplaceHandlers.onBatchAssignToPrintings(strongMappings)
-                          }
-                        >
-                          <WandSparklesIcon />
-                          Accept {strongMappings.length} suggestion
-                          {strongMappings.length === 1 ? "" : "s"}
-                        </Button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {weakMappings.length > 0 && (
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            disabled={marketplaceHandlers.isAssigningToPrinting}
+                            onClick={() =>
+                              marketplaceHandlers.onBatchAssignToPrintings(weakMappings)
+                            }
+                            className="border-amber-600/50 text-amber-700 hover:bg-amber-500/10 dark:text-amber-400"
+                          >
+                            <WandSparklesIcon />
+                            Accept {weakMappings.length} weak suggestion
+                            {weakMappings.length === 1 ? "" : "s"}
+                          </Button>
+                        )}
+                        {strongMappings.length > 0 && (
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            disabled={marketplaceHandlers.isAssigningToPrinting}
+                            onClick={() =>
+                              marketplaceHandlers.onBatchAssignToPrintings(strongMappings)
+                            }
+                          >
+                            <WandSparklesIcon />
+                            Accept {strongMappings.length} suggestion
+                            {strongMappings.length === 1 ? "" : "s"}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -643,7 +703,8 @@ function SuggestionChip({
   disabled: boolean;
 }) {
   const { printing } = suggestion;
-  const isStrong = suggestion.score >= STRONG_MATCH_THRESHOLD;
+  const isWeak = suggestion.isWeak === true;
+  const isStrong = !isWeak && suggestion.score >= STRONG_MATCH_THRESHOLD;
   // Local pending flag gives synchronous click feedback — the parent's
   // `disabled` (driven by mutation isPending) also applies but transitions
   // later, and has the same value across every chip in the marketplace, so we
@@ -658,10 +719,13 @@ function SuggestionChip({
     return () => globalThis.clearTimeout(handle);
   }, [pending]);
   const busy = pending || disabled;
+  const tooltip = isWeak
+    ? "Accept weak suggestion (mirrors a sibling SKU's mapping)"
+    : `Accept suggestion (score ${suggestion.score})`;
   return (
     <button
       type="button"
-      title={`Accept suggestion (score ${suggestion.score})`}
+      title={tooltip}
       disabled={busy}
       onClick={() => {
         setPending(true);
@@ -669,9 +733,13 @@ function SuggestionChip({
       }}
       className={cn(
         "inline-flex h-5 items-center gap-1 rounded-4xl border px-2 py-0.5 text-xs font-medium disabled:opacity-50",
-        isStrong
-          ? "border-solid border-green-600/50 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400"
-          : "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 border-dashed",
+        isStrong &&
+          "border-solid border-green-600/50 bg-green-500/10 text-green-700 hover:bg-green-500/20 dark:text-green-400",
+        !isStrong &&
+          !isWeak &&
+          "border-primary/40 bg-primary/5 text-primary hover:bg-primary/10 border-dashed",
+        isWeak &&
+          "border-dashed border-amber-600/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 dark:text-amber-400",
       )}
     >
       {pending ? (
