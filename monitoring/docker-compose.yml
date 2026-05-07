@@ -87,6 +87,27 @@ services:
         max-file: "3"
     restart: unless-stopped
 
+  # Trace store. Receives OTLP spans from the API on :4318 (HTTP) / :4317
+  # (gRPC), stores them on disk for the configured retention, and is queried
+  # by Grafana via :3200. Joins the openrift network so the API container can
+  # reach it at http://tempo:4318.
+  tempo:
+    image: grafana/tempo:latest
+    user: "${UID:-1000}:${GID:-1000}"
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    networks:
+      - default
+      - openrift
+    volumes:
+      - ./tempo.yml:/etc/tempo/tempo.yml:ro
+      - ./data/tempo:/var/tempo
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+    restart: unless-stopped
+
   # Dashboards + email alerting. Accessible via host nginx.
   grafana:
     image: grafana/grafana-oss:latest
@@ -112,6 +133,7 @@ services:
       - ./provisioning:/etc/grafana/provisioning:ro
     depends_on:
       - prometheus
+      - tempo
     logging:
       driver: json-file
       options:

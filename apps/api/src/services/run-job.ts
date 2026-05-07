@@ -1,7 +1,10 @@
 import type { Logger } from "@openrift/shared/logger";
+import { context, SpanStatusCode, trace } from "@opentelemetry/api";
 
 import type { JobTrigger } from "../db/index.js";
 import type { Repos } from "../deps.js";
+
+const tracer = trace.getTracer("openrift-api/jobs");
 
 interface RunJobOptions<T> {
   /** If provided, its return value is stored as the run's `result` JSONB. */
@@ -25,7 +28,26 @@ interface RunJobDeps {
  * @returns The value returned by `fn`, or `null` if the job already had a
  *   running row or if `fn` threw.
  */
-export async function runJob<T>(
+export function runJob<T>(
+  deps: RunJobDeps,
+  kind: string,
+  trigger: JobTrigger,
+  fn: (runId: string) => Promise<T>,
+  options?: RunJobOptions<T>,
+): Promise<T | null> {
+  const span = tracer.startSpan(`job ${trigger}:${kind}`, {
+    attributes: { "job.kind": kind, "job.trigger": trigger },
+  });
+  return context.with(trace.setSpan(context.active(), span), async () => {
+    try {
+      return await runJobInner(deps, kind, trigger, fn, options);
+    } finally {
+      span.end();
+    }
+  });
+}
+
+async function runJobInner<T>(
   deps: RunJobDeps,
   kind: string,
   trigger: JobTrigger,
@@ -56,6 +78,7 @@ export async function runJob<T>(
     const message = error instanceof Error ? error.message : String(error);
     await repos.jobRuns.fail(id, { durationMs, errorMessage: message });
     log.error({ err: error, kind, runId: id, durationMs }, "Job failed");
+    trace.getActiveSpan()?.setStatus({ code: SpanStatusCode.ERROR, message });
     return null;
   }
 }
@@ -90,10 +113,14 @@ export async function runJobAsync<T>(
   const startMs = Date.now();
   log.info({ kind, runId: id, trigger }, "Job started (async)");
 
+  const span = tracer.startSpan(`job ${trigger}:${kind}`, {
+    attributes: { "job.kind": kind, "job.trigger": trigger, "job.run_id": id },
+  });
+
   // Fire-and-forget: schedule the work on the event loop and return the
   // runId immediately. Errors are captured into the row, never rethrown.
   setImmediate(() => {
-    void (async () => {
+    void context.with(trace.setSpan(context.active(), span), async () => {
       try {
         const result = await fn(id);
         const durationMs = Date.now() - startMs;
@@ -103,14 +130,17 @@ export async function runJobAsync<T>(
       } catch (error) {
         const durationMs = Date.now() - startMs;
         const message = error instanceof Error ? error.message : String(error);
+        span.setStatus({ code: SpanStatusCode.ERROR, message });
         try {
           await repos.jobRuns.fail(id, { durationMs, errorMessage: message });
         } catch (writeError) {
           log.error({ err: writeError, kind, runId: id }, "Failed to write job_runs failure row");
         }
         log.error({ err: error, kind, runId: id, durationMs }, "Job failed (async)");
+      } finally {
+        span.end();
       }
-    })();
+    });
   });
 
   return { runId: id, status: "running" };

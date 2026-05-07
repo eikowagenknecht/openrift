@@ -18,6 +18,7 @@ import { createRepos, createTransact, services as defaultServices } from "./deps
 import { AppError, ERROR_CODES } from "./errors.js";
 import { defaultIo } from "./io.js";
 import type { Io } from "./io.js";
+import { otelRequestMiddleware } from "./middleware/otel-request.js";
 import { adminRoute } from "./routes/admin/index.js";
 import { collectionEventsRoute } from "./routes/authenticated/collection-events.js";
 import { collectionValueHistoryRoute } from "./routes/authenticated/collection-value-history.js";
@@ -135,6 +136,12 @@ export function createApp(deps: AppDeps) {
   });
   app.use("*", registerMetrics);
   app.get("/metrics", printMetrics);
+
+  // Open an OTel `http.server` span per request and activate it in the OTel
+  // context, so child spans (notably the Kysely `db.query` spans) inherit it.
+  // Registered before the deps and auth middlewares since both issue DB
+  // queries.
+  app.use("/api/*", otelRequestMiddleware);
 
   // ── Global middleware ───────────────────────────────────────────────────
   // CORS runs first so preflight OPTIONS requests are handled before any other work.

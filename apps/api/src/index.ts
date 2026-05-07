@@ -1,3 +1,8 @@
+// Tracing must be initialized before any module that obtains a tracer; keep
+// this import at the very top, even before Sentry, so our OTel SDK owns the
+// global TracerProvider.
+// oxlint-disable-next-line import/no-unassigned-import -- side-effect import is the canonical OTel SDK bootstrap pattern
+import "./tracing.js";
 import { createLogger } from "@openrift/shared/logger";
 import * as Sentry from "@sentry/bun";
 import { Cron } from "croner";
@@ -43,7 +48,12 @@ if (config.sentryDsn) {
   Sentry.init({
     dsn: config.sentryDsn,
     environment: config.isDev ? "development" : "production",
-    tracesSampleRate: 0.2,
+    // Tracing is owned by our own OTel SDK (see ./tracing.ts) which exports to
+    // Tempo. skipOpenTelemetrySetup keeps Sentry from registering a competing
+    // TracerProvider; tracesSampleRate: 0 keeps Sentry from sending any
+    // transactions on its own. Errors continue to flow as before.
+    tracesSampleRate: 0,
+    skipOpenTelemetrySetup: true,
   });
 }
 
