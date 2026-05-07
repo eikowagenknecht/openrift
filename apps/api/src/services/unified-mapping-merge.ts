@@ -75,6 +75,7 @@ interface MappingOverviewResult {
     setName: string;
     printings: {
       printingId: string;
+      setId: string;
       shortCode: string;
       rarity: string;
       artVariant: string;
@@ -129,6 +130,7 @@ function mergeOverviewsByCard(
       setName: group.setName,
       printings: group.printings.map((p) => ({
         printingId: p.printingId,
+        setId: p.setId,
         shortCode: p.shortCode,
         rarity: p.rarity,
         artVariant: p.artVariant,
@@ -167,6 +169,7 @@ function mergeOverviewsByCard(
         if (!existingIds.has(p.printingId)) {
           existing.printings.push({
             printingId: p.printingId,
+            setId: p.setId,
             shortCode: p.shortCode,
             rarity: p.rarity,
             artVariant: p.artVariant,
@@ -200,6 +203,7 @@ function mergeOverviewsByCard(
         setName: group.setName,
         printings: group.printings.map((p) => ({
           printingId: p.printingId,
+          setId: p.setId,
           shortCode: p.shortCode,
           rarity: p.rarity,
           artVariant: p.artVariant,
@@ -238,6 +242,7 @@ function mergeOverviewsByCard(
         if (!existingIds.has(p.printingId)) {
           existing.printings.push({
             printingId: p.printingId,
+            setId: p.setId,
             shortCode: p.shortCode,
             rarity: p.rarity,
             artVariant: p.artVariant,
@@ -271,6 +276,7 @@ function mergeOverviewsByCard(
         setName: group.setName,
         printings: group.printings.map((p) => ({
           printingId: p.printingId,
+          setId: p.setId,
           shortCode: p.shortCode,
           rarity: p.rarity,
           artVariant: p.artVariant,
@@ -475,6 +481,7 @@ export async function buildUnifiedMappingsCardResponse(
       const overrideMap = new Map<string, { cardId: string }>();
       const groupNameMap = new Map<number, string>();
       const groupKindMap = new Map<number, MarketplaceGroupKind>();
+      const groupSetSlugMap = new Map<number, string | null>();
       // Seed from mapped printings so assigned products resolve their group
       // name and kind even when the card has no current staging rows for that
       // group (staging rows get deleted on assignment).
@@ -488,6 +495,9 @@ export async function buildUnifiedMappingsCardResponse(
         if (u.sourceGroupKind !== null && u.sourceGroupKind !== undefined) {
           groupKindMap.set(u.sourceGroupId, u.sourceGroupKind);
         }
+        if (!groupSetSlugMap.has(u.sourceGroupId)) {
+          groupSetSlugMap.set(u.sourceGroupId, u.sourceGroupSetSlug);
+        }
       }
       for (const r of rows) {
         if (r.isOverride) {
@@ -497,6 +507,7 @@ export async function buildUnifiedMappingsCardResponse(
           groupNameMap.set(r.groupId, r.groupName);
         }
         groupKindMap.set(r.groupId, r.groupKind);
+        groupSetSlugMap.set(r.groupId, r.groupSetSlug);
       }
 
       const mappedPrintingIds = new Set<string>();
@@ -532,6 +543,7 @@ export async function buildUnifiedMappingsCardResponse(
         groupId: row.groupId,
         groupName: groupNameMap.get(row.groupId) ?? `Group #${row.groupId}`,
         groupKind: groupKindMap.get(row.groupId),
+        groupSetSlug: groupSetSlugMap.get(row.groupId) ?? null,
       });
 
       const groups = buildResponseGroups(
@@ -541,6 +553,7 @@ export async function buildUnifiedMappingsCardResponse(
         mappedProductInfo,
         groupNameMap,
         groupKindMap,
+        groupSetSlugMap,
         mapStagedRow,
       );
 

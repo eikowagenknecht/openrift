@@ -12,6 +12,7 @@ function printing(
 ): UnifiedMappingPrintingResponse {
   return {
     printingId: "p-1",
+    setId: "ogn",
     shortCode: "OGN-001",
     rarity: "common",
     artVariant: "normal",

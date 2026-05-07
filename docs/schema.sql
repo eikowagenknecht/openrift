@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict YiwQbmaedUoLml8DoOewpiAXEgclXTHHs2ALrT3Whdc8Mq9s6fc4kkAjoRp8Bng
+\restrict nm4ffDZ1t2tfG6qrOGtnB5TmnLe9kesabkBREBsJrroRu1A9BfAPfERduEnULOg
 
 -- Dumped from database version 18.3
 -- Dumped by pg_dump version 18.3
@@ -964,7 +964,8 @@ CREATE TABLE public.marketplace_groups (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
     id uuid DEFAULT uuidv7() CONSTRAINT marketplace_groups_new_id_not_null NOT NULL,
-    group_kind public.marketplace_group_kind DEFAULT 'basic'::public.marketplace_group_kind NOT NULL
+    group_kind public.marketplace_group_kind DEFAULT 'basic'::public.marketplace_group_kind NOT NULL,
+    set_id uuid
 );
 
 
@@ -3205,6 +3206,14 @@ ALTER TABLE ONLY public.keyword_translations
 
 
 --
+-- Name: marketplace_groups marketplace_groups_set_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.marketplace_groups
+    ADD CONSTRAINT marketplace_groups_set_id_fkey FOREIGN KEY (set_id) REFERENCES public.sets(id) ON DELETE SET NULL;
+
+
+--
 -- Name: marketplace_ignored_variants marketplace_ignored_variants_product_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -3408,5 +3417,5 @@ ALTER TABLE ONLY public.wish_lists
 -- PostgreSQL database dump complete
 --
 
-\unrestrict YiwQbmaedUoLml8DoOewpiAXEgclXTHHs2ALrT3Whdc8Mq9s6fc4kkAjoRp8Bng
+\unrestrict nm4ffDZ1t2tfG6qrOGtnB5TmnLe9kesabkBREBsJrroRu1A9BfAPfERduEnULOg
 

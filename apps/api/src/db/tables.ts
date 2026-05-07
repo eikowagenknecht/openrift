@@ -139,6 +139,8 @@ interface MarketplaceGroupsTable {
   name: string | null;
   abbreviation: string | null;
   groupKind: Generated<MarketplaceGroupKind>;
+  /** FK → sets(id). When set, scopes suggestion auto-matching to that set. */
+  setId: string | null;
   createdAt: CreatedAt;
   updatedAt: UpdatedAt;
 }

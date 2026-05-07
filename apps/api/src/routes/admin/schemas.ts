@@ -80,9 +80,10 @@ export const updateGroupSchema = z
   .object({
     name: z.string().nullable().optional(),
     groupKind: marketplaceGroupKindEnum.optional(),
+    setId: z.string().uuid().nullable().optional(),
   })
-  .refine((o) => o.name !== undefined || o.groupKind !== undefined, {
-    message: "At least one field (name, groupKind) must be provided",
+  .refine((o) => o.name !== undefined || o.groupKind !== undefined || o.setId !== undefined, {
+    message: "At least one field (name, groupKind, setId) must be provided",
   });
 
 // ── Markers ────────────────────────────────────────────────────────────────

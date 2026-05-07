@@ -144,12 +144,18 @@ export function marketplaceMappingRepo(db: Db) {
       return result.rows;
     },
 
-    /** @returns Group display names + kind for a marketplace. */
+    /** @returns Group display names, kind, and assigned-set slug for a marketplace. */
     groupNames(marketplace: string) {
       return db
-        .selectFrom("marketplaceGroups")
-        .select(["groupId as gid", "name", "groupKind"])
-        .where("marketplace", "=", marketplace)
+        .selectFrom("marketplaceGroups as mg")
+        .leftJoin("sets as s", "s.id", "mg.setId")
+        .select([
+          "mg.groupId as gid",
+          "mg.name as name",
+          "mg.groupKind as groupKind",
+          "s.slug as setSlug",
+        ])
+        .where("mg.marketplace", "=", marketplace)
         .execute();
     },
 
@@ -244,6 +250,7 @@ export function marketplaceMappingRepo(db: Db) {
             .onRef("mg.marketplace", "=", "mp.marketplace")
             .onRef("mg.groupId", "=", "mp.groupId"),
         )
+        .leftJoin("sets as gs", "gs.id", "mg.setId")
         .leftJoin("printingImages as pi", (join) =>
           join
             .onRef("pi.printingId", "=", "p.id")
@@ -276,6 +283,7 @@ export function marketplaceMappingRepo(db: Db) {
           "mp.groupId as sourceGroupId",
           "mg.name as sourceGroupName",
           "mg.groupKind as sourceGroupKind",
+          "gs.slug as sourceGroupSetSlug",
           "mp.language as sourceLanguage",
           "mp.finish as productFinish",
         ]);
@@ -683,6 +691,7 @@ export function marketplaceMappingRepo(db: Db) {
         groupId: number;
         groupName: string | null;
         groupKind: "basic" | "special";
+        groupSetSlug: string | null;
         marketCents: number | null;
         lowCents: number | null;
         midCents: number | null;
@@ -779,6 +788,7 @@ export function marketplaceMappingRepo(db: Db) {
           m.group_id as "groupId",
           g.name as "groupName",
           g.group_kind as "groupKind",
+          gs.slug as "groupSetSlug",
           m.market_cents as "marketCents",
           m.low_cents as "lowCents",
           m.mid_cents as "midCents",
@@ -796,6 +806,7 @@ export function marketplaceMappingRepo(db: Db) {
         FROM matched m
         LEFT JOIN marketplace_groups g
           ON g.marketplace = m.marketplace AND g.group_id = m.group_id
+        LEFT JOIN sets gs ON gs.id = g.set_id
         ORDER BY m.marketplace, m.product_name
       `.execute(db);
       return result.rows;

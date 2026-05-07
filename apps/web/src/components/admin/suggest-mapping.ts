@@ -92,6 +92,18 @@ function scorePrintingProduct(
     return -1;
   }
 
+  // Set scoping: when the marketplace group is pinned to a specific OpenRift
+  // set, only printings of that set are valid candidates. Hard filter — a
+  // mismatch is disqualifying, so e.g. an "Origins Promos" group never
+  // suggests an Origins-set printing.
+  if (
+    product.groupSetSlug !== null &&
+    product.groupSetSlug !== undefined &&
+    printing.setId !== product.groupSetSlug
+  ) {
+    return -1;
+  }
+
   // Language must match for per-language marketplaces (CardTrader). The server
   // rejects CT assignments whose printing language doesn't match a staging row,
   // so we must not suggest them. TCG/CM skip this check because their staging
@@ -474,6 +486,7 @@ function toMarketplaceGroup(
     setName: group.setName,
     printings: group.printings.map((p) => ({
       printingId: p.printingId,
+      setId: p.setId,
       shortCode: p.shortCode,
       rarity: p.rarity,
       artVariant: p.artVariant,

@@ -11,6 +11,7 @@ import { computeProductSuggestions, productSuggestionKey } from "./suggest-mappi
 function printing(overrides: Partial<UnifiedMappingPrinting> = {}): UnifiedMappingPrinting {
   return {
     printingId: "p-normal",
+    setId: "ogn",
     shortCode: "OGN-001",
     rarity: "common",
     artVariant: "normal",
@@ -763,6 +764,75 @@ describe("computeProductSuggestions", () => {
     expect(
       result.get(productSuggestionKey("tcgplayer", 1201, "normal", "EN"))?.[0]?.printingId,
     ).toBe("p-alt");
+  });
+
+  it("disqualifies printings whose set doesn't match the product's group setSlug", () => {
+    // When a marketplace group is pinned to set "ogn", products in that
+    // group must only suggest printings with setId === "ogn". A printing
+    // from set "sfd" gets a -1 score and never surfaces.
+    const sfdPrinting = printing({ printingId: "p-sfd", setId: "sfd", shortCode: "SFD-001" });
+    const result = computeProductSuggestions(
+      group([sfdPrinting], {
+        tcgplayer: {
+          staged: [
+            staged({
+              externalId: 1300,
+              productName: "Ahri",
+              finish: "normal",
+              groupSetSlug: "ogn",
+            }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    expect(result.size).toBe(0);
+  });
+
+  it("still suggests printings whose set matches the product's group setSlug", () => {
+    const ognPrinting = printing({ printingId: "p-ogn", setId: "ogn" });
+    const result = computeProductSuggestions(
+      group([ognPrinting], {
+        tcgplayer: {
+          staged: [
+            staged({
+              externalId: 1310,
+              productName: "Ahri",
+              finish: "normal",
+              groupSetSlug: "ogn",
+            }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    expect(
+      result.get(productSuggestionKey("tcgplayer", 1310, "normal", "EN"))?.[0]?.printingId,
+    ).toBe("p-ogn");
+  });
+
+  it("ignores the set filter when the group's setSlug is null (no scoping)", () => {
+    // A marketplace group with no assigned set should keep the original
+    // permissive behaviour — no cross-set disqualification.
+    const sfdPrinting = printing({ printingId: "p-sfd", setId: "sfd" });
+    const result = computeProductSuggestions(
+      group([sfdPrinting], {
+        tcgplayer: {
+          staged: [
+            staged({
+              externalId: 1320,
+              productName: "Ahri",
+              finish: "normal",
+              groupSetSlug: null,
+            }),
+          ],
+          assignments: [],
+        },
+      }),
+    );
+    expect(
+      result.get(productSuggestionKey("tcgplayer", 1320, "normal", "EN"))?.[0]?.printingId,
+    ).toBe("p-sfd");
   });
 
   it("skips the sibling fan-out when the tied printings aren't actually siblings", () => {

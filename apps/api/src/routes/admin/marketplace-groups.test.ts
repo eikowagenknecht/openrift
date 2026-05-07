@@ -45,6 +45,7 @@ const dbGroup1 = {
   name: "Origin Set",
   abbreviation: "OGS",
   groupKind: "basic" as const,
+  setId: null,
 };
 
 const dbGroup2 = {
@@ -53,6 +54,7 @@ const dbGroup2 = {
   name: null,
   abbreviation: null,
   groupKind: "basic" as const,
+  setId: null,
 };
 
 // ---------------------------------------------------------------------------
@@ -84,6 +86,7 @@ describe("GET /api/v1/marketplace-groups", () => {
       name: "Origin Set",
       abbreviation: "OGS",
       groupKind: "basic",
+      setId: null,
       stagedCount: 50,
       assignedCount: 30,
     });
@@ -93,6 +96,7 @@ describe("GET /api/v1/marketplace-groups", () => {
       name: null,
       abbreviation: null,
       groupKind: "basic",
+      setId: null,
       stagedCount: 0,
       assignedCount: 10,
     });
@@ -151,6 +155,39 @@ describe("PATCH /api/v1/marketplace-groups/:marketplace/:id", () => {
     expect(mockMktAdmin.updateGroup).toHaveBeenCalledWith("cardmarket", 200, {
       groupKind: "special",
     });
+  });
+
+  it("returns 204 when assigning a setId", async () => {
+    mockMktAdmin.updateGroup.mockResolvedValue(true);
+    const res = await app.request("/api/v1/marketplace-groups/tcgplayer/100", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ setId: "019cfc3b-0389-744b-837c-792fd586300e" }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMktAdmin.updateGroup).toHaveBeenCalledWith("tcgplayer", 100, {
+      setId: "019cfc3b-0389-744b-837c-792fd586300e",
+    });
+  });
+
+  it("returns 204 when clearing setId to null", async () => {
+    mockMktAdmin.updateGroup.mockResolvedValue(true);
+    const res = await app.request("/api/v1/marketplace-groups/tcgplayer/100", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ setId: null }),
+    });
+    expect(res.status).toBe(204);
+    expect(mockMktAdmin.updateGroup).toHaveBeenCalledWith("tcgplayer", 100, { setId: null });
+  });
+
+  it("returns 400 when setId is not a UUID", async () => {
+    const res = await app.request("/api/v1/marketplace-groups/tcgplayer/100", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ setId: "not-a-uuid" }),
+    });
+    expect(res.status).toBe(400);
   });
 
   it("returns 400 when body is empty", async () => {

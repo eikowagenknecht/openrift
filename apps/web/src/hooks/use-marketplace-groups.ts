@@ -35,6 +35,7 @@ interface UpdateMarketplaceGroupInput {
   groupId: number;
   name?: string | null;
   groupKind?: MarketplaceGroupKind;
+  setId?: string | null;
 }
 
 const updateMarketplaceGroupFn = createServerFn({ method: "POST" })

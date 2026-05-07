@@ -25,6 +25,11 @@ const listGroups = createRoute({
                 name: z.string().nullable().openapi({ example: "Origins" }),
                 abbreviation: z.string().nullable().openapi({ example: "OGN" }),
                 groupKind: marketplaceGroupKindEnum.openapi({ example: "basic" }),
+                setId: z
+                  .string()
+                  .uuid()
+                  .nullable()
+                  .openapi({ example: "019cfc3b-0389-744b-837c-792fd586300e" }),
                 stagedCount: z.number().openapi({ example: 0 }),
                 assignedCount: z.number().openapi({ example: 312 }),
               }),
@@ -80,6 +85,7 @@ export const marketplaceGroupsRoute = new OpenAPIHono<{ Variables: Variables }>(
           name: g.name,
           abbreviation: g.abbreviation,
           groupKind: g.groupKind,
+          setId: g.setId,
           stagedCount: stagingMap.get(key) ?? 0,
           assignedCount: assignedMap.get(key) ?? 0,
         };

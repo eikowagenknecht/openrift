@@ -7,6 +7,7 @@ import type { UnifiedMappingGroup, UnifiedMappingPrinting } from "./price-mappin
 function printing(overrides: Partial<UnifiedMappingPrinting> = {}): UnifiedMappingPrinting {
   return {
     printingId: "p-en",
+    setId: "ogn",
     shortCode: "OGN-001",
     rarity: "common",
     artVariant: "normal",

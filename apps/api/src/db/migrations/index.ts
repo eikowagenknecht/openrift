@@ -70,6 +70,7 @@ import * as m121 from "./121-rules-version-comments.js";
 import * as m122 from "./122-lowercase-taxonomy-slugs.js";
 import * as m123 from "./123-drop-rules-search-index.js";
 import * as m124 from "./124-pg-stat-statements.js";
+import * as m125 from "./125-marketplace-group-set-id.js";
 import * as noop from "./_noop.js";
 
 export const migrations: Record<string, Migration> = {
@@ -199,4 +200,5 @@ export const migrations: Record<string, Migration> = {
   "122-lowercase-taxonomy-slugs": m122,
   "123-drop-rules-search-index": m123,
   "124-pg-stat-statements": m124,
+  "125-marketplace-group-set-id": m125,
 };

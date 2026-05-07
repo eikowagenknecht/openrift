@@ -47,6 +47,20 @@ describe("marketplaceAdminRepo", () => {
     ).toBe(true);
   });
 
+  it("updateGroup returns true when setId is assigned", async () => {
+    const db = createMockDb([{ numUpdatedRows: 1n }]);
+    expect(
+      await marketplaceAdminRepo(db).updateGroup("tcgplayer", 1, {
+        setId: "019cfc3b-0389-744b-837c-792fd586300e",
+      }),
+    ).toBe(true);
+  });
+
+  it("updateGroup returns true when setId is cleared to null", async () => {
+    const db = createMockDb([{ numUpdatedRows: 1n }]);
+    expect(await marketplaceAdminRepo(db).updateGroup("tcgplayer", 1, { setId: null })).toBe(true);
+  });
+
   it("updateGroup returns false when not found", async () => {
     const db = createMockDb([]);
     expect(await marketplaceAdminRepo(db).updateGroup("tcgplayer", 999, { name: null })).toBe(

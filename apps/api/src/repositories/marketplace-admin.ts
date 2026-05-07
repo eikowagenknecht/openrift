@@ -41,7 +41,7 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     listAllGroups() {
       return db
         .selectFrom("marketplaceGroups")
-        .select(["marketplace", "groupId", "name", "abbreviation", "groupKind"])
+        .select(["marketplace", "groupId", "name", "abbreviation", "groupKind", "setId"])
         .orderBy("marketplace")
         .orderBy("name")
         .execute();
@@ -112,14 +112,21 @@ export function marketplaceAdminRepo(db: Kysely<Database>) {
     async updateGroup(
       marketplace: string,
       groupId: number,
-      patch: { name?: string | null; groupKind?: MarketplaceGroupKind },
+      patch: { name?: string | null; groupKind?: MarketplaceGroupKind; setId?: string | null },
     ): Promise<boolean> {
-      const updates: { name?: string | null; groupKind?: MarketplaceGroupKind } = {};
+      const updates: {
+        name?: string | null;
+        groupKind?: MarketplaceGroupKind;
+        setId?: string | null;
+      } = {};
       if (patch.name !== undefined) {
         updates.name = patch.name;
       }
       if (patch.groupKind !== undefined) {
         updates.groupKind = patch.groupKind;
+      }
+      if (patch.setId !== undefined) {
+        updates.setId = patch.setId;
       }
       if (Object.keys(updates).length === 0) {
         return false;

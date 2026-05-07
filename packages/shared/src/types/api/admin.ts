@@ -231,6 +231,12 @@ export interface MarketplaceGroupResponse {
   name: string | null;
   abbreviation: string | null;
   groupKind: MarketplaceGroupKind;
+  /**
+   * UUID of the OpenRift set this marketplace group is scoped to. When set,
+   * suggestion auto-matching only proposes printings from this set. `null`
+   * means no scoping (the original behaviour).
+   */
+  setId: string | null;
   stagedCount: number;
   assignedCount: number;
 }
@@ -507,6 +513,8 @@ export interface ClearPricesResponse {
 
 export interface MappingPrintingResponse {
   printingId: string;
+  /** Slug of the printing's set, used by the suggester to scope by group.setId. */
+  setId: string;
   shortCode: string;
   rarity: string;
   artVariant: string;
@@ -558,6 +566,13 @@ export interface StagedProductResponse {
    * wasn't needed (unassigned staging without a group).
    */
   groupKind?: MarketplaceGroupKind;
+  /**
+   * Slug of the OpenRift set this product's marketplace group is scoped to,
+   * if any. When non-null, the suggester only proposes printings whose
+   * `setId` (slug) matches — products in another set get a hard
+   * disqualification. `null` means no scoping (default).
+   */
+  groupSetSlug?: string | null;
 }
 
 /**

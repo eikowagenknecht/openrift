@@ -16,6 +16,8 @@ import type {
 
 interface PrintingRow {
   printingId: string;
+  /** Slug of the printing's own set. Used by the suggester to scope by group.setId. */
+  setId: string;
   shortCode: string;
   rarity: string;
   artVariant: string;
@@ -112,6 +114,7 @@ export function buildCardIndex(
     }
     group.printings.push({
       printingId: row.printingId,
+      setId: row.setId,
       shortCode: row.shortCode,
       rarity: row.rarity,
       artVariant: row.artVariant,
@@ -231,6 +234,7 @@ export function buildResponseGroups(
   mappedProductInfo: Map<string, ProductInfo>,
   groupNameMap: Map<number, string>,
   groupKindMap: Map<number, MarketplaceGroupKind>,
+  groupSetSlugMap: Map<number, string | null>,
   mapStagedRow: (row: StagingRow, opts?: { isOverride?: boolean }) => StagedProductResponse,
 ) {
   return [...cardGroups.values()].map((group) => {
@@ -305,6 +309,8 @@ export function buildResponseGroups(
             ? (groupNameMap.get(p.sourceGroupId) ?? `Group #${p.sourceGroupId}`)
             : undefined,
           groupKind: p.sourceGroupId === null ? undefined : groupKindMap.get(p.sourceGroupId),
+          groupSetSlug:
+            p.sourceGroupId === null ? null : (groupSetSlugMap.get(p.sourceGroupId) ?? null),
         });
       }
     }
@@ -391,9 +397,11 @@ export async function getMappingOverview(
 
   const groupNameMap = new Map<number, string>();
   const groupKindMap = new Map<number, MarketplaceGroupKind>();
+  const groupSetSlugMap = new Map<number, string | null>();
   for (const row of groupRows) {
     groupNameMap.set(row.gid as number, (row.name as string) ?? `Group #${row.gid}`);
     groupKindMap.set(row.gid as number, row.groupKind);
+    groupSetSlugMap.set(row.gid as number, row.setSlug);
   }
 
   const { cardGroups, cardNames } = buildCardIndex(matchedCards, options?.allCardsForMatching);
@@ -454,6 +462,7 @@ export async function getMappingOverview(
     groupId: row.groupId,
     groupName: groupNameMap.get(row.groupId) ?? `Group #${row.groupId}`,
     groupKind: groupKindMap.get(row.groupId),
+    groupSetSlug: groupSetSlugMap.get(row.groupId) ?? null,
   });
 
   // Unmatched products (excluding ignored)
@@ -530,6 +539,7 @@ export async function getMappingOverview(
     mappedProductInfo,
     groupNameMap,
     groupKindMap,
+    groupSetSlugMap,
     mapStagedRow,
   );
 
