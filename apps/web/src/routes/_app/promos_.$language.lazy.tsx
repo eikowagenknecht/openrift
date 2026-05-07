@@ -78,8 +78,9 @@ function PromosRoute() {
 // `price` (off-EN, since TCG/CM staging stores everything as EN) are gated
 // dynamically below. Set/domain/type/superType/artVariant/stat ranges are
 // all surfaced because cards have real data on those dimensions even on
-// promo printings.
-const PROMOS_BASE_HIDDEN_SECTIONS: ReadonlySet<string> = new Set();
+// promo printings. The "Promo" flag is always-true on this page (every
+// printing is a promo), so hide the chip.
+const PROMOS_BASE_HIDDEN_SECTIONS: ReadonlySet<string> = new Set(["promo"]);
 
 type ViewMode = "grid" | "list";
 

@@ -4,11 +4,12 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { CardIcon } from "@/components/card-icon";
-import { ChannelCombobox } from "@/components/filters/channel-combobox";
+import { MultiSelectCombobox } from "@/components/filters/multi-select-combobox";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { useFilterActions, useFilterValues } from "@/hooks/use-card-filters";
 import { useEnumOrders, useLanguageLabels } from "@/hooks/use-enums";
+import { buildChannelBreadcrumbs } from "@/lib/channel-breadcrumbs";
 import { formatDomainFilterLabel } from "@/lib/domain";
 import { formatPriceIntegerForMarketplace } from "@/lib/format";
 import { getFilterIconPath } from "@/lib/icons";
@@ -116,6 +117,10 @@ export function FilterBadgeSections({
         ? "Incomplete"
         : "Owned";
   const languageLabels = useLanguageLabels();
+  // Pre-build channel breadcrumbs once so the More section can render full
+  // paths (e.g. "Tournament › Regionals › Top 8") and the cmdk filter can
+  // search them.
+  const channelBreadcrumbs = buildChannelBreadcrumbs(availableFilters.distributionChannels);
   // Use overrides when URL state is empty (zone presets that aren't in the URL)
   const selected = (key: keyof typeof filterState) => {
     const urlValue = filterState[key];
@@ -198,27 +203,6 @@ export function FilterBadgeSections({
           counts={filterCounts?.finishes}
         />
       )}
-      {!hiddenSections?.has("markers") && availableFilters.markers.length > 0 && (
-        <FilterSection
-          label="Marker"
-          options={availableFilters.markers.map((m) => m.slug)}
-          selected={filterState.markers}
-          onToggle={(v) => toggleArrayFilter("markers", v)}
-          displayLabel={(v) => availableFilters.markers.find((m) => m.slug === v)?.label ?? v}
-        />
-      )}
-      {!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0 && (
-        <div className="flex min-w-0 gap-2">
-          <p className="text-muted-foreground w-18 text-xs font-medium">Channel</p>
-          <div className="min-w-0 flex-1">
-            <ChannelCombobox
-              channels={availableFilters.distributionChannels}
-              selected={filterState.channels}
-              onToggle={(slug) => toggleArrayFilter("channels", slug)}
-            />
-          </div>
-        </div>
-      )}
       {availableLanguages && availableLanguages.length > 1 && (
         <FilterSection
           label="Language"
@@ -231,10 +215,35 @@ export function FilterBadgeSections({
       )}
       {(!hiddenSections?.has("owned") ||
         availableFilters.hasSigned ||
-        availableFilters.hasAnyMarker ||
+        (availableFilters.hasAnyMarker && !hiddenSections?.has("promo")) ||
         availableFilters.hasBanned ||
-        availableFilters.hasErrata) && (
+        availableFilters.hasErrata ||
+        (!hiddenSections?.has("markers") && availableFilters.markers.length > 0) ||
+        (!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0)) && (
         <FilterSection label="More">
+          {!hiddenSections?.has("markers") && availableFilters.markers.length > 0 && (
+            <MultiSelectCombobox
+              label="Markers"
+              searchPlaceholder="Search markers…"
+              emptyText="No markers match."
+              options={availableFilters.markers.map((m) => ({ value: m.slug, label: m.label }))}
+              selected={filterState.markers}
+              onToggle={(slug) => toggleArrayFilter("markers", slug)}
+            />
+          )}
+          {!hiddenSections?.has("channels") && availableFilters.distributionChannels.length > 0 && (
+            <MultiSelectCombobox
+              label="Channels"
+              searchPlaceholder="Search channels…"
+              emptyText="No channels match."
+              options={availableFilters.distributionChannels.map((c) => ({
+                value: c.slug,
+                label: channelBreadcrumbs.get(c.id) ?? c.label,
+              }))}
+              selected={filterState.channels}
+              onToggle={(slug) => toggleArrayFilter("channels", slug)}
+            />
+          )}
           {availableFilters.hasSigned && (
             <FlagBadge
               label={filterState.signed === false ? "Not Signed" : "Signed"}
@@ -243,7 +252,7 @@ export function FilterBadgeSections({
               onClick={toggleSigned}
             />
           )}
-          {availableFilters.hasAnyMarker && (
+          {availableFilters.hasAnyMarker && !hiddenSections?.has("promo") && (
             <FlagBadge
               label={filterState.promo === false ? "Not Promo" : "Promo"}
               isActive={filterState.promo !== null}
