@@ -209,6 +209,8 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
       body: JSON.stringify({
         printingId: "00000000-0000-4000-a000-000000000001",
         externalId: 100,
+        finish: "normal",
+        language: null,
       }),
     });
 
@@ -219,6 +221,8 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
       expect.anything(),
       "00000000-0000-4000-a000-000000000001",
       100,
+      "normal",
+      null,
     );
   });
 
@@ -231,17 +235,62 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
       body: JSON.stringify({
         printingId: "00000000-0000-4000-a000-000000000002",
         externalId: 200,
+        finish: "normal",
+        language: null,
       }),
     });
 
     expect(res.status).toBe(204);
   });
 
+  it("forwards finish + language so CT siblings unmap independently", async () => {
+    mockUnmapPrinting.mockResolvedValue(undefined);
+
+    const res = await app.request("/api/v1/marketplace-mappings?marketplace=cardtrader", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        printingId: "00000000-0000-4000-a000-000000000003",
+        externalId: 300,
+        finish: "normal",
+        language: "ZH",
+      }),
+    });
+
+    expect(res.status).toBe(204);
+    expect(mockUnmapPrinting).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      "00000000-0000-4000-a000-000000000003",
+      300,
+      "normal",
+      "ZH",
+    );
+  });
+
   it("returns 400 when externalId is missing", async () => {
     const res = await app.request("/api/v1/marketplace-mappings?marketplace=tcgplayer", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ printingId: "00000000-0000-4000-a000-000000000001" }),
+      body: JSON.stringify({
+        printingId: "00000000-0000-4000-a000-000000000001",
+        finish: "normal",
+        language: null,
+      }),
+    });
+
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when finish is missing", async () => {
+    const res = await app.request("/api/v1/marketplace-mappings?marketplace=tcgplayer", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        printingId: "00000000-0000-4000-a000-000000000001",
+        externalId: 100,
+        language: null,
+      }),
     });
 
     expect(res.status).toBe(400);
@@ -254,6 +303,8 @@ describe("DELETE /api/v1/marketplace-mappings", () => {
       body: JSON.stringify({
         printingId: "00000000-0000-4000-a000-000000000001",
         externalId: 100,
+        finish: "normal",
+        language: null,
       }),
     });
 

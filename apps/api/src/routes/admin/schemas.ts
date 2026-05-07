@@ -269,6 +269,10 @@ export const saveMappingsSchema = z.object({
 export const unmapSchema = z.object({
   printingId: z.string().uuid(),
   externalId: z.number().int(),
+  /** The marketplace's own view of the SKU finish — always `normal` / `foil`. */
+  finish: z.string(),
+  /** `null` for marketplaces that don't expose language as a SKU dimension (CM/TCG). */
+  language: z.string().nullable(),
 });
 
 // ── Staging Card Overrides ─────────────────────────────────────────────────

@@ -476,6 +476,8 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", {
           printingId,
           externalId: 11_111,
+          finish: "normal",
+          language: null,
         }),
       );
     });
@@ -549,6 +551,8 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", {
           printingId,
           externalId: 22_222,
+          finish: "normal",
+          language: null,
         }),
       );
     });
@@ -666,12 +670,16 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", {
           printingId,
           externalId: 11_111,
+          finish: "normal",
+          language: null,
         }),
       );
       await app.fetch(
         req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", {
           printingId,
           externalId: 22_222,
+          finish: "normal",
+          language: null,
         }),
       );
     });
@@ -872,12 +880,16 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
         req("DELETE", "/admin/marketplace-mappings?marketplace=tcgplayer", {
           printingId,
           externalId: 11_111,
+          finish: "normal",
+          language: null,
         }),
       );
       await app.fetch(
         req("DELETE", "/admin/marketplace-mappings?marketplace=cardmarket", {
           printingId,
           externalId: 22_222,
+          finish: "normal",
+          language: null,
         }),
       );
     });
@@ -894,6 +906,96 @@ describe.skipIf(!ctx)("Unified marketplace mappings (integration)", () => {
       // Cardmarket was initialized empty in the TCGPlayer loop
       expect(betaGroup.cardmarket.stagedProducts).toHaveLength(0);
       expect(betaGroup.cardmarket.assignedProducts).toHaveLength(0);
+    });
+  });
+
+  // Regression: CardTrader fans one blueprint id out across multiple
+  // (finish, language) rows. Binding both to the same printing and unmapping
+  // one used to silently delete the wrong one because the lookup ignored
+  // finish/language.
+  describe("DELETE /admin/marketplace-mappings unmaps the exact CT SKU", () => {
+    const ctBlueprintId = 44_445;
+    const ctGroupId = 10_302;
+
+    async function seedCtSibling(language: string): Promise<string> {
+      await db
+        .insertInto("marketplaceProducts")
+        .values({
+          marketplace: "cardtrader",
+          externalId: ctBlueprintId,
+          groupId: ctGroupId,
+          productName: `UNM CT Sibling ${language}`,
+          finish: "normal",
+          language,
+        })
+        .onConflict((oc) =>
+          oc.columns(["marketplace", "externalId", "finish", "language"]).doNothing(),
+        )
+        .execute();
+      const product = await db
+        .selectFrom("marketplaceProducts")
+        .select("id")
+        .where("marketplace", "=", "cardtrader")
+        .where("externalId", "=", ctBlueprintId)
+        .where("finish", "=", "normal")
+        .where("language", "=", language)
+        .executeTakeFirstOrThrow();
+      return product.id;
+    }
+
+    it("removes only the (finish, language) variant the admin clicked", async () => {
+      const enProductId = await seedCtSibling("EN");
+      const zhProductId = await seedCtSibling("ZH");
+
+      // Bind both CT variants to the same printing (the user's reported flow:
+      // EN+normal and ZH+normal both attached to EN:ENL-T08::normal).
+      await app.fetch(
+        req("POST", "/admin/marketplace-mappings?marketplace=cardtrader", {
+          mappings: [
+            { printingId, externalId: ctBlueprintId, finish: "normal", language: "EN" },
+            { printingId, externalId: ctBlueprintId, finish: "normal", language: "ZH" },
+          ],
+        }),
+      );
+
+      const beforeUnmap = await db
+        .selectFrom("marketplaceProductVariants")
+        .select(["marketplaceProductId"])
+        .where("printingId", "=", printingId)
+        .where("marketplaceProductId", "in", [enProductId, zhProductId])
+        .execute();
+      expect(beforeUnmap.map((v) => v.marketplaceProductId).sort()).toEqual(
+        [enProductId, zhProductId].sort(),
+      );
+
+      // Unmap the ZH sibling. The EN one must survive.
+      const res = await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings?marketplace=cardtrader", {
+          printingId,
+          externalId: ctBlueprintId,
+          finish: "normal",
+          language: "ZH",
+        }),
+      );
+      expect(res.status).toBe(204);
+
+      const afterUnmap = await db
+        .selectFrom("marketplaceProductVariants")
+        .select(["marketplaceProductId"])
+        .where("printingId", "=", printingId)
+        .where("marketplaceProductId", "in", [enProductId, zhProductId])
+        .execute();
+      expect(afterUnmap.map((v) => v.marketplaceProductId)).toEqual([enProductId]);
+
+      // Clean up the EN binding so the test is hermetic.
+      await app.fetch(
+        req("DELETE", "/admin/marketplace-mappings?marketplace=cardtrader", {
+          printingId,
+          externalId: ctBlueprintId,
+          finish: "normal",
+          language: "EN",
+        }),
+      );
     });
   });
 });

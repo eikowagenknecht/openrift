@@ -536,16 +536,24 @@ export function marketplaceMappingRepo(db: Db) {
     // ── unmapPrinting queries ───────────────────────────────────────────────
 
     /**
-     * @returns The variant mapping for a (printing, product) pair in a given
-     *          marketplace, with the parent product's SKU axes and metadata
-     *          inlined. Filtered by `externalId` because a single printing can
-     *          have multiple products mapped to it (e.g. duplicate CardTrader
-     *          listings for one card); without that filter the lookup is
-     *          ambiguous and `executeTakeFirst()` would non-deterministically
-     *          return either variant.
+     * @returns The variant mapping for a (printing, product SKU) pair in a
+     *          given marketplace, with the parent product's SKU axes and
+     *          metadata inlined. Filtered by the full SKU tuple
+     *          `(externalId, finish, language)` because CardTrader fans one
+     *          blueprint id out across multiple `(finish, language)` rows in
+     *          `marketplace_products`, and admins routinely bind several of
+     *          those rows to the same printing. Without finish/language the
+     *          lookup is ambiguous and `executeTakeFirst()` would silently
+     *          delete the wrong variant.
      */
-    getVariantForPrinting(marketplace: string, printingId: string, externalId: number) {
-      return db
+    getVariantForPrinting(
+      marketplace: string,
+      printingId: string,
+      externalId: number,
+      finish: string,
+      language: string | null,
+    ) {
+      let query = db
         .selectFrom("marketplaceProductVariants as mpv")
         .innerJoin("marketplaceProducts as mp", "mp.id", "mpv.marketplaceProductId")
         .select([
@@ -561,7 +569,12 @@ export function marketplaceMappingRepo(db: Db) {
         .where("mp.marketplace", "=", marketplace)
         .where("mpv.printingId", "=", printingId)
         .where("mp.externalId", "=", externalId)
-        .executeTakeFirst();
+        .where("mp.finish", "=", finish);
+      query =
+        language === null
+          ? query.where("mp.language", "is", null)
+          : query.where("mp.language", "=", language);
+      return query.executeTakeFirst();
     },
 
     /** @returns A printing's finish and language by ID. */

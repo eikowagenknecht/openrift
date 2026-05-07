@@ -189,9 +189,15 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
       onBatchAssignToPrintings: applyAssignments("tcgplayer"),
       onUnassign: (eid, fin, lang) =>
         tcgUnassign.mutate({ externalId: eid, finish: fin, language: lang }, mutateOpts),
-      onUnmapPrinting: (pid, eid) =>
+      onUnmapPrinting: (pid, eid, fin, lang) =>
         unmapPrinting.mutate(
-          { marketplace: "tcgplayer", printingId: pid, externalId: eid },
+          {
+            marketplace: "tcgplayer",
+            printingId: pid,
+            externalId: eid,
+            finish: fin,
+            language: lang,
+          },
           mutateOpts,
         ),
       isIgnoring: tcgIgnoreVariant.isPending || tcgIgnoreProduct.isPending,
@@ -213,9 +219,15 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
       onBatchAssignToPrintings: applyAssignments("cardmarket"),
       onUnassign: (eid, fin, lang) =>
         cmUnassign.mutate({ externalId: eid, finish: fin, language: lang }, mutateOpts),
-      onUnmapPrinting: (pid, eid) =>
+      onUnmapPrinting: (pid, eid, fin, lang) =>
         unmapPrinting.mutate(
-          { marketplace: "cardmarket", printingId: pid, externalId: eid },
+          {
+            marketplace: "cardmarket",
+            printingId: pid,
+            externalId: eid,
+            finish: fin,
+            language: lang,
+          },
           mutateOpts,
         ),
       isIgnoring: cmIgnoreVariant.isPending || cmIgnoreProduct.isPending,
@@ -237,9 +249,15 @@ export function AdminCardMarketplaceSection({ cardId }: { cardId: string }) {
       onBatchAssignToPrintings: applyAssignments("cardtrader"),
       onUnassign: (eid, fin, lang) =>
         ctUnassign.mutate({ externalId: eid, finish: fin, language: lang }, mutateOpts),
-      onUnmapPrinting: (pid, eid) =>
+      onUnmapPrinting: (pid, eid, fin, lang) =>
         unmapPrinting.mutate(
-          { marketplace: "cardtrader", printingId: pid, externalId: eid },
+          {
+            marketplace: "cardtrader",
+            printingId: pid,
+            externalId: eid,
+            finish: fin,
+            language: lang,
+          },
           mutateOpts,
         ),
       isIgnoring: ctIgnoreVariant.isPending || ctIgnoreProduct.isPending,

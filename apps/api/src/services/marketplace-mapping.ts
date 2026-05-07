@@ -670,11 +670,19 @@ export async function unmapPrinting(
   config: MarketplaceConfig,
   printingId: string,
   externalId: number,
+  finish: string,
+  language: string | null,
 ): Promise<void> {
   await transact(async (trxRepos) => {
     const repo = trxRepos.marketplaceMapping;
 
-    const variant = await repo.getVariantForPrinting(config.marketplace, printingId, externalId);
+    const variant = await repo.getVariantForPrinting(
+      config.marketplace,
+      printingId,
+      externalId,
+      finish,
+      language,
+    );
 
     if (!variant) {
       return;

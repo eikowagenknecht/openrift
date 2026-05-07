@@ -1458,7 +1458,7 @@ describe("unmapPrinting", () => {
     const transact = mockTransact(repos);
     const config = createMockConfig();
 
-    await unmapPrinting(transact, config, "p-1", 12_345);
+    await unmapPrinting(transact, config, "p-1", 12_345, "normal", null);
 
     expect(mappingRepo.deleteVariantById).not.toHaveBeenCalled();
   });
@@ -1480,10 +1480,48 @@ describe("unmapPrinting", () => {
     const transact = mockTransact(repos);
     const config = createMockConfig();
 
-    await unmapPrinting(transact, config, "p-1", 12_345);
+    await unmapPrinting(transact, config, "p-1", 12_345, "normal", "EN");
 
-    expect(mappingRepo.getVariantForPrinting).toHaveBeenCalledWith("tcgplayer", "p-1", 12_345);
+    expect(mappingRepo.getVariantForPrinting).toHaveBeenCalledWith(
+      "tcgplayer",
+      "p-1",
+      12_345,
+      "normal",
+      "EN",
+    );
     expect(mappingRepo.deleteVariantById).toHaveBeenCalledWith("var-1");
+  });
+
+  // CardTrader fans one blueprint id out across multiple (finish, language)
+  // rows. Without finish/language the lookup matched both rows and unmapped
+  // whichever sort order returned first.
+  it("scopes the variant lookup by finish and language so CT siblings don't collide", async () => {
+    const mappingRepo = createMockMappingRepo({
+      getVariantForPrinting: vi.fn().mockResolvedValue({
+        variantId: "var-zh",
+        marketplaceProductId: "mp-zh",
+        finish: "normal",
+        language: "ZH",
+        externalId: 12_345,
+        groupId: 1,
+        productName: "Test Product",
+        marketplace: "cardtrader",
+      }),
+    });
+    const repos = { marketplaceMapping: mappingRepo } as unknown as Repos;
+    const transact = mockTransact(repos);
+    const config = createMockConfig({ marketplace: "cardtrader" });
+
+    await unmapPrinting(transact, config, "p-1", 12_345, "normal", "ZH");
+
+    expect(mappingRepo.getVariantForPrinting).toHaveBeenCalledWith(
+      "cardtrader",
+      "p-1",
+      12_345,
+      "normal",
+      "ZH",
+    );
+    expect(mappingRepo.deleteVariantById).toHaveBeenCalledWith("var-zh");
   });
 });
 

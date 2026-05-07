@@ -137,7 +137,7 @@ export const unifiedMappingsRoute = new OpenAPIHono<{ Variables: Variables }>()
     const { marketplace } = c.req.valid("query");
     const configs = createMarketplaceConfigs(repos);
     const config = configs[marketplace];
-    const { printingId, externalId } = c.req.valid("json");
-    await unmapPrinting(transact, config, printingId, externalId);
+    const { printingId, externalId, finish, language } = c.req.valid("json");
+    await unmapPrinting(transact, config, printingId, externalId, finish, language);
     return c.body(null, 204);
   });

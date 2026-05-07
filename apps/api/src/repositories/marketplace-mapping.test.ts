@@ -105,16 +105,35 @@ describe("marketplaceMappingRepo", () => {
       marketplace: "tcgplayer",
     };
     const db = createMockDb([row]);
-    expect(await marketplaceMappingRepo(db).getVariantForPrinting("tcgplayer", "p1", 100)).toEqual(
-      row,
-    );
+    expect(
+      await marketplaceMappingRepo(db).getVariantForPrinting(
+        "tcgplayer",
+        "p1",
+        100,
+        "normal",
+        "EN",
+      ),
+    ).toEqual(row);
   });
 
   it("getVariantForPrinting returns undefined when not found", async () => {
     const db = createMockDb([]);
     expect(
-      await marketplaceMappingRepo(db).getVariantForPrinting("tcgplayer", "p-missing", 100),
+      await marketplaceMappingRepo(db).getVariantForPrinting(
+        "tcgplayer",
+        "p-missing",
+        100,
+        "normal",
+        "EN",
+      ),
     ).toBeUndefined();
+  });
+
+  it("getVariantForPrinting accepts null language for marketplaces without language SKUs", async () => {
+    const db = createMockDb([]);
+    await expect(
+      marketplaceMappingRepo(db).getVariantForPrinting("tcgplayer", "p1", 100, "normal", null),
+    ).resolves.toBeUndefined();
   });
 
   it("getPrintingFinishAndLanguage returns finish and language by printingId", async () => {
