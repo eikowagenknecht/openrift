@@ -4,7 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { fetchApi } from "@/lib/server-fns/fetch-api";
 
 const fetchCardDetail = createServerFn({ method: "GET" })
   .inputValidator((input: string) => input)
@@ -12,11 +12,18 @@ const fetchCardDetail = createServerFn({ method: "GET" })
     ({ data }): Promise<CardDetailResponse> =>
       serverCache.fetchQuery({
         queryKey: ["server-cache", "card-detail", data],
-        queryFn: () =>
-          fetchApiJson<CardDetailResponse>({
+        queryFn: async () => {
+          // 404 is legitimate (unknown slug) — map to NOT_FOUND without logging.
+          const res = await fetchApi({
             errorTitle: "Couldn't load card",
             path: `/api/v1/cards/${encodeURIComponent(data)}`,
-          }),
+            acceptStatuses: [404],
+          });
+          if (res.status === 404) {
+            throw new Error("NOT_FOUND");
+          }
+          return res.json() as Promise<CardDetailResponse>;
+        },
       }),
   );
 

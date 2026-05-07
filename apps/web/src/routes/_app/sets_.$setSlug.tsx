@@ -1,5 +1,5 @@
 import type { SetDetailResponse } from "@openrift/shared";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
 import { publicSetDetailQueryOptions } from "@/hooks/use-public-sets";
@@ -57,8 +57,16 @@ export const Route = createFileRoute("/_app/sets_/$setSlug")({
       ],
     };
   },
-  loader: ({ context, params }) =>
-    context.queryClient.ensureQueryData(publicSetDetailQueryOptions(params.setSlug)),
+  loader: async ({ context, params }) => {
+    try {
+      return await context.queryClient.ensureQueryData(publicSetDetailQueryOptions(params.setSlug));
+    } catch (error) {
+      if (error instanceof Error && error.message === "NOT_FOUND") {
+        throw notFound();
+      }
+      throw error;
+    }
+  },
   component: () => null,
   pendingComponent: () => null,
   errorComponent: RouteErrorFallback,

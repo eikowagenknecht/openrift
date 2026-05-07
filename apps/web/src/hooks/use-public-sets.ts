@@ -4,7 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { queryKeys } from "@/lib/query-keys";
 import { serverCache } from "@/lib/server-cache";
-import { fetchApiJson } from "@/lib/server-fns/fetch-api";
+import { fetchApi, fetchApiJson } from "@/lib/server-fns/fetch-api";
 
 const fetchSetList = createServerFn({ method: "GET" }).handler(
   (): Promise<SetListResponse> =>
@@ -24,11 +24,18 @@ const fetchSetDetail = createServerFn({ method: "GET" })
     ({ data }): Promise<SetDetailResponse> =>
       serverCache.fetchQuery({
         queryKey: ["server-cache", "set-detail", data],
-        queryFn: () =>
-          fetchApiJson<SetDetailResponse>({
+        queryFn: async () => {
+          // 404 is legitimate (unknown slug) — map to NOT_FOUND without logging.
+          const res = await fetchApi({
             errorTitle: "Couldn't load set",
             path: `/api/v1/sets/${encodeURIComponent(data)}`,
-          }),
+            acceptStatuses: [404],
+          });
+          if (res.status === 404) {
+            throw new Error("NOT_FOUND");
+          }
+          return res.json() as Promise<SetDetailResponse>;
+        },
       }),
   );
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-07
+
+- fix: A mistyped or stale card or set link now shows a Not Found page instead of a server error
+
 ## 2026-05-06
 
 - feat: The Rules page has an optional "Show changes" toggle that highlights rules added, changed, or removed since the previous version, with a summary line above the document and a click-to-expand word-level diff on changed rules

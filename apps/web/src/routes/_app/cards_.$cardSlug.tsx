@@ -1,5 +1,5 @@
 import type { CardDetailResponse, Marketplace } from "@openrift/shared";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 import { z } from "zod";
 
 import { RouteErrorFallback, RouteNotFoundFallback } from "@/components/error-message";
@@ -105,10 +105,19 @@ export const Route = createFileRoute("/_app/cards_/$cardSlug")({
     // Fetch card detail and init in parallel. The head/meta preview picks
     // the preferred printing using the live language sort order from
     // /api/enums — logged-out crawlers fall through to this default.
-    const [data, init] = await Promise.all([
-      context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug)),
-      context.queryClient.ensureQueryData(initQueryOptions),
-    ]);
+    let data: CardDetailResponse;
+    let init: Awaited<ReturnType<typeof initQueryOptions.queryFn & object>>;
+    try {
+      [data, init] = await Promise.all([
+        context.queryClient.ensureQueryData(cardDetailQueryOptions(params.cardSlug)),
+        context.queryClient.ensureQueryData(initQueryOptions),
+      ]);
+    } catch (error) {
+      if (error instanceof Error && error.message === "NOT_FOUND") {
+        throw notFound();
+      }
+      throw error;
+    }
     const languageRows = (init.enums.languages ?? []) as { slug: string; sortOrder: number }[];
     // Loader runs for crawlers/anonymous users — no user preference available,
     // so pass [] and let the helper fall through to the DB default.
