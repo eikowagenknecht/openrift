@@ -1,10 +1,16 @@
 import type { AdminCardDetailResponse } from "@openrift/shared";
 import { WellKnown } from "@openrift/shared";
 import { useNavigate } from "@tanstack/react-router";
-import { PlusIcon } from "lucide-react";
+import { ChevronDownIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -17,10 +23,13 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useCreatePrinting } from "@/hooks/use-admin-card-mutations";
 import { useAdminCardDetail } from "@/hooks/use-admin-card-queries";
+import { useDistributionChannels } from "@/hooks/use-distribution-channels";
 import { useEnumOrders } from "@/hooks/use-enums";
 import { useLanguages } from "@/hooks/use-languages";
 import { useMarkers } from "@/hooks/use-markers";
 import { useSets } from "@/hooks/use-sets";
+import { buildChannelTree, leafChannels } from "@/lib/distribution-channel-tree";
+import { cn } from "@/lib/utils";
 
 export function CreatePrintingPage({
   cardSlug,
@@ -38,11 +47,15 @@ export function CreatePrintingPage({
   const { data: setsData } = useSets();
   const { data: markersData } = useMarkers();
   const { data: languagesData } = useLanguages();
+  const { data: channelsData } = useDistributionChannels();
   const { orders, labels } = useEnumOrders();
 
   const sets = setsData.sets;
   const markers = markersData.markers;
   const languages = languagesData.languages;
+  const channelOptions = leafChannels(buildChannelTree(channelsData.distributionChannels)).map(
+    (node) => ({ value: node.channel.slug, label: node.breadcrumb }),
+  );
 
   const firstSet = sets[0]?.slug ?? "";
   const source = duplicateFrom
@@ -61,6 +74,9 @@ export function CreatePrintingPage({
   const [isSigned, setIsSigned] = useState(source?.isSigned ?? false);
   const [selectedMarkerSlugs, setSelectedMarkerSlugs] = useState<string[]>(
     source?.markerSlugs ?? [],
+  );
+  const [selectedChannelSlugs, setSelectedChannelSlugs] = useState<string[]>(
+    source?.distributionChannelSlugs ?? [],
   );
   const [artist, setArtist] = useState(source?.artist ?? "");
   const [publicCode, setPublicCode] = useState(source?.publicCode ?? "");
@@ -107,6 +123,9 @@ export function CreatePrintingPage({
     };
     if (selectedMarkerSlugs.length > 0) {
       printingFields.markerSlugs = selectedMarkerSlugs;
+    }
+    if (selectedChannelSlugs.length > 0) {
+      printingFields.distributionChannelSlugs = selectedChannelSlugs;
     }
     if (printedName.trim()) {
       printingFields.printedName = printedName.trim();
@@ -268,35 +287,7 @@ export function CreatePrintingPage({
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <Label>Markers</Label>
-            <div className="flex flex-wrap gap-2">
-              {markers.length === 0 ? (
-                <span className="text-muted-foreground">No markers defined</span>
-              ) : (
-                markers.map((m) => {
-                  const selected = selectedMarkerSlugs.includes(m.slug);
-                  return (
-                    <label key={m.slug} className="flex items-center gap-1.5">
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        onChange={(e) => {
-                          setSelectedMarkerSlugs((prev) =>
-                            e.target.checked
-                              ? [...prev, m.slug].sort()
-                              : prev.filter((s) => s !== m.slug),
-                          );
-                        }}
-                      />
-                      <span>{m.label}</span>
-                    </label>
-                  );
-                })
-              )}
-            </div>
-          </div>
-          <div className="flex items-end space-y-1">
+          <div className="flex items-end space-y-1 sm:col-start-3">
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -305,6 +296,29 @@ export function CreatePrintingPage({
               />
               <span>Signed</span>
             </label>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <Label>Markers</Label>
+            <MultiSelectDropdown
+              options={markers.map((m) => ({ value: m.slug, label: m.label }))}
+              selected={selectedMarkerSlugs}
+              onChange={setSelectedMarkerSlugs}
+              emptyOptionsText="No markers defined"
+              placeholder="— select markers —"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Distribution channels</Label>
+            <MultiSelectDropdown
+              options={channelOptions}
+              selected={selectedChannelSlugs}
+              onChange={setSelectedChannelSlugs}
+              emptyOptionsText="No channels defined"
+              placeholder="— select channels —"
+            />
           </div>
         </div>
 
@@ -409,5 +423,73 @@ export function CreatePrintingPage({
         </div>
       </section>
     </div>
+  );
+}
+
+function MultiSelectDropdown({
+  options,
+  selected,
+  onChange,
+  placeholder,
+  emptyOptionsText,
+}: {
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  placeholder: string;
+  emptyOptionsText: string;
+}) {
+  if (options.length === 0) {
+    return <span className="text-muted-foreground">{emptyOptionsText}</span>;
+  }
+  const selectedSet = new Set(selected);
+  const triggerLabel = options
+    .filter((opt) => selectedSet.has(opt.value))
+    .map((opt) => opt.label)
+    .join(", ");
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className="border-input bg-background flex h-9 w-full items-center gap-1 rounded-md border px-3 text-left text-sm"
+          />
+        }
+      >
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate",
+            selected.length === 0 && "text-muted-foreground",
+          )}
+          title={triggerLabel || undefined}
+        >
+          {selected.length > 0 ? triggerLabel : placeholder}
+        </span>
+        <ChevronDownIcon className="size-3.5 shrink-0 opacity-50" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        {options.map(({ value, label }) => {
+          const isSelected = selectedSet.has(value);
+          return (
+            <DropdownMenuCheckboxItem
+              key={value}
+              checked={isSelected}
+              onSelect={(e) => e.preventDefault()}
+              onCheckedChange={() => {
+                const next = isSelected
+                  ? selected.filter((v) => v !== value)
+                  : options
+                      .filter((o) => selectedSet.has(o.value) || o.value === value)
+                      .map((o) => o.value);
+                onChange(next);
+              }}
+            >
+              {label}
+            </DropdownMenuCheckboxItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
