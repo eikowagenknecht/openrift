@@ -554,6 +554,49 @@ describe("buildUnifiedMappingsResponse", () => {
     expect(result.unmatchedProducts.cardmarket).toHaveLength(1);
     expect(result.unmatchedProducts.cardtrader).toHaveLength(1);
   });
+
+  it("dedupes printings that appear multiple times in a marketplace's group", async () => {
+    // Regression: when a printing has multiple variants in the same
+    // marketplace (e.g. TCG product 653007 has both a "normal" and a "foil"
+    // SKU bound to the same printingId), `buildCardIndex` emits one row per
+    // variant and the response printings list ends up with duplicates. The
+    // admin Assign dropdown then shows the printing twice with both entries
+    // checked. The merge should collapse duplicate printingIds.
+    const repos = {
+      marketplaceMapping: { allCardsWithPrintingsUnified: vi.fn().mockResolvedValue([]) },
+    } as unknown as Repos;
+    const printingTwice = (externalId: number) => ({
+      printingId: "p-1",
+      shortCode: "OGN-214",
+      rarity: "common",
+      artVariant: "normal",
+      isSigned: false,
+      markerSlugs: [],
+      finish: "normal",
+      imageUrl: null,
+      externalId,
+    });
+    const getMappingOverview = vi.fn(async (_repos: Repos, config: MarketplaceConfig) => {
+      if (config.marketplace === "tcgplayer") {
+        return makeMappingResult({
+          groups: [makeGroup({ printings: [printingTwice(653_007), printingTwice(653_007)] })],
+        });
+      }
+      return makeMappingResult();
+    });
+
+    const result = await buildUnifiedMappingsResponse(
+      repos,
+      makeConfig("tcgplayer"),
+      makeConfig("cardmarket"),
+      makeConfig("cardtrader"),
+      getMappingOverview,
+    );
+
+    expect(result.groups[0].printings).toHaveLength(1);
+    expect(result.groups[0].printings[0].printingId).toBe("p-1");
+    expect(result.groups[0].printings[0].tcgExternalId).toBe(653_007);
+  });
 });
 
 describe("buildUnifiedMappingsCardResponse", () => {

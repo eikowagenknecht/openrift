@@ -104,6 +104,29 @@ type GetMappingOverview = (
 ) => Promise<MappingOverviewResult>;
 
 /**
+ * Drop duplicate printings, keeping the first occurrence of each printingId.
+ * `buildCardIndex` emits one row per (printing × marketplace variant), so a
+ * printing with multiple variants in the same marketplace (e.g. TCG product
+ * 653007 having both a normal and a foil SKU bound to the same printing)
+ * lands in `group.printings` more than once. The wire response only has one
+ * slot per printingId for marketplace IDs, so the duplicates would otherwise
+ * surface in the admin Assign dropdown as repeated, all-checked entries.
+ * @returns A new array with duplicates by printingId removed.
+ */
+function dedupePrintingsByPrintingId<T extends { printingId: string }>(printings: T[]): T[] {
+  const seen = new Set<string>();
+  const result: T[] = [];
+  for (const p of printings) {
+    if (seen.has(p.printingId)) {
+      continue;
+    }
+    seen.add(p.printingId);
+    result.push(p);
+  }
+  return result;
+}
+
+/**
  * Merge per-marketplace overview results into a single map keyed by cardId.
  * Each printing carries external IDs from whichever marketplaces have it.
  * @returns Map of cardId → merged group data (without primaryShortCode).
@@ -128,7 +151,7 @@ function mergeOverviewsByCard(
       might: group.might,
       setId: group.setId,
       setName: group.setName,
-      printings: group.printings.map((p) => ({
+      printings: dedupePrintingsByPrintingId(group.printings).map((p) => ({
         printingId: p.printingId,
         setId: p.setId,
         shortCode: p.shortCode,
@@ -155,17 +178,18 @@ function mergeOverviewsByCard(
 
   // Merge Cardmarket groups
   for (const group of cmResult.groups) {
+    const cmPrintings = dedupePrintingsByPrintingId(group.printings);
     const existing = mergedMap.get(group.cardId);
     if (existing) {
       // Add CM external IDs to existing printings
-      const cmByPrinting = new Map(group.printings.map((p) => [p.printingId, p.externalId]));
+      const cmByPrinting = new Map(cmPrintings.map((p) => [p.printingId, p.externalId]));
       for (const p of existing.printings) {
         p.cmExternalId = cmByPrinting.get(p.printingId) ?? null;
       }
       // Add printings that only have CM variants — otherwise they vanish from
       // the unified view and any assignment referencing them loses its context.
       const existingIds = new Set(existing.printings.map((p) => p.printingId));
-      for (const p of group.printings) {
+      for (const p of cmPrintings) {
         if (!existingIds.has(p.printingId)) {
           existing.printings.push({
             printingId: p.printingId,
@@ -201,7 +225,7 @@ function mergeOverviewsByCard(
         might: group.might,
         setId: group.setId,
         setName: group.setName,
-        printings: group.printings.map((p) => ({
+        printings: cmPrintings.map((p) => ({
           printingId: p.printingId,
           setId: p.setId,
           shortCode: p.shortCode,
@@ -229,16 +253,17 @@ function mergeOverviewsByCard(
 
   // Merge CardTrader groups
   for (const group of ctResult.groups) {
+    const ctPrintings = dedupePrintingsByPrintingId(group.printings);
     const existing = mergedMap.get(group.cardId);
     if (existing) {
-      const ctByPrinting = new Map(group.printings.map((p) => [p.printingId, p.externalId]));
+      const ctByPrinting = new Map(ctPrintings.map((p) => [p.printingId, p.externalId]));
       for (const p of existing.printings) {
         p.ctExternalId = ctByPrinting.get(p.printingId) ?? null;
       }
       // Add printings that only have CT variants — otherwise they vanish from
       // the unified view and any assignment referencing them loses its context.
       const existingIds = new Set(existing.printings.map((p) => p.printingId));
-      for (const p of group.printings) {
+      for (const p of ctPrintings) {
         if (!existingIds.has(p.printingId)) {
           existing.printings.push({
             printingId: p.printingId,
@@ -274,7 +299,7 @@ function mergeOverviewsByCard(
         might: group.might,
         setId: group.setId,
         setName: group.setName,
-        printings: group.printings.map((p) => ({
+        printings: ctPrintings.map((p) => ({
           printingId: p.printingId,
           setId: p.setId,
           shortCode: p.shortCode,
