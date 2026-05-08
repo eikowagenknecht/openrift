@@ -30,7 +30,7 @@ export function useCardBrowserLayoutOffsets(): CardBrowserLayoutOffsets {
 interface CardBrowserLayoutProps {
   toolbar?: ReactNode;
   leftPane?: ReactNode;
-  /** Content rendered above the grid inside the center column (e.g. ActiveFilters). */
+  /** Content rendered above the grid + rightPane columns (e.g. ActiveFilters). */
   aboveGrid?: ReactNode;
   rightPane?: ReactNode;
   /** When true, dims the grid area during deferred updates. */
@@ -114,15 +114,10 @@ export function CardBrowserLayout({
         </div>
         <div
           className="relative flex flex-1 items-stretch gap-6"
-          style={{ "--sticky-top": `${toolbarOffset}px` } as React.CSSProperties}
+          style={{ "--sticky-top": `${stickyOffset}px` } as React.CSSProperties}
         >
           {leftPane}
-          <div
-            className={cn(
-              "@container/grid flex min-w-0 flex-1 flex-col transition-opacity duration-150",
-              stale ? "opacity-60" : "opacity-100",
-            )}
-          >
+          <div className="flex min-w-0 flex-1 flex-col">
             <div
               ref={aboveGridRef}
               className="bg-background/80 sticky z-15 -mx-3 px-3 backdrop-blur-lg sm:rounded-b-xl"
@@ -130,9 +125,18 @@ export function CardBrowserLayout({
             >
               {aboveGrid}
             </div>
-            {gridSlot}
+            <div className="relative flex flex-1 items-stretch gap-6">
+              <div
+                className={cn(
+                  "@container/grid flex min-w-0 flex-1 flex-col transition-opacity duration-150",
+                  stale ? "opacity-60" : "opacity-100",
+                )}
+              >
+                {gridSlot}
+              </div>
+              {rightPane}
+            </div>
           </div>
-          {rightPane}
         </div>
         {children}
       </div>

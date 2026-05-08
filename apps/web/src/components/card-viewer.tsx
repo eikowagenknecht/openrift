@@ -21,7 +21,7 @@ interface CardViewerProps {
 
   toolbar?: ReactNode;
   leftPane?: ReactNode;
-  /** Content rendered above the grid inside the center column. */
+  /** Content rendered above the grid + rightPane columns. */
   aboveGrid?: ReactNode;
   rightPane?: ReactNode;
   /** Extra height added to each card row (e.g. add-mode strip). */
