@@ -1013,7 +1013,7 @@ function CompactBranchGrid({
   return (
     <>
       {legend.length > 0 && (
-        <dl className="mx-auto mb-3 max-w-2xl space-y-0.5 text-sm">
+        <dl className="mx-auto mb-3 max-w-2xl space-y-0.5 text-center text-sm">
           {legend.map((child) => (
             <div
               key={child.channel.id}
